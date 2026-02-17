@@ -4190,6 +4190,32 @@
             }
         }
 
+        @keyframes bellPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.85; }
+        }
+
+        @keyframes bellRing {
+            0% { transform: rotate(0deg); }
+            10% { transform: rotate(14deg); }
+            20% { transform: rotate(-14deg); }
+            30% { transform: rotate(10deg); }
+            40% { transform: rotate(-10deg); }
+            50% { transform: rotate(6deg); }
+            60% { transform: rotate(-4deg); }
+            70% { transform: rotate(0deg); }
+            100% { transform: rotate(0deg); }
+        }
+
+        .bell-ringing {
+            animation: bellRing 0.8s ease-in-out;
+            color: var(--ocean-light) !important;
+        }
+
+        .bell-has-notifs {
+            color: var(--ocean-light) !important;
+        }
+
         .spinner-small {
             width: 16px;
             height: 16px;
@@ -4906,9 +4932,9 @@
                         <!-- Notification Bell -->
                         <div id="notifBell" onclick="showNotifications()"
                             style="position: relative; cursor: pointer; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s;">
-                            <i data-lucide="bell" style="width: 18px; height: 18px; color: var(--text-secondary);"></i>
+                            <i id="bellIcon" data-lucide="bell" style="width: 18px; height: 18px; color: var(--text-secondary); transition: color 0.3s;"></i>
                             <div id="notifBadge"
-                                style="display: none; position: absolute; top: 2px; right: 2px; width: 9px; height: 9px; background: var(--danger); border-radius: 50%; border: 2px solid var(--bg-dark);">
+                                style="display: none; position: absolute; top: -2px; right: -4px; min-width: 18px; height: 18px; background: var(--danger); border-radius: 9px; border: 2px solid var(--bg-dark); font-size: 10px; font-weight: 700; color: white; text-align: center; line-height: 18px; padding: 0 4px; box-sizing: border-box; animation: bellPulse 2s ease-in-out infinite;">
                             </div>
                         </div>
 
@@ -5973,11 +5999,29 @@
                 if (error) throw error;
 
                 const badge = document.getElementById('notifBadge');
+                const bellIcon = document.getElementById('bellIcon');
+                const prevCount = parseInt(badge.dataset.count || '0');
                 if (count > 0) {
-                    badge.style.display = 'block';
-                    // Optional: badge.innerText = count > 9 ? '9+' : count;
+                    badge.style.display = 'flex';
+                    badge.style.alignItems = 'center';
+                    badge.style.justifyContent = 'center';
+                    badge.innerText = count > 9 ? '9+' : count;
+                    badge.dataset.count = count;
+                    if (bellIcon) bellIcon.classList.add('bell-has-notifs');
+                    // Ring the bell when new notifications arrive
+                    if (count > prevCount && bellIcon) {
+                        bellIcon.classList.remove('bell-ringing');
+                        void bellIcon.offsetWidth; // force reflow
+                        bellIcon.classList.add('bell-ringing');
+                    }
                 } else {
                     badge.style.display = 'none';
+                    badge.innerText = '';
+                    badge.dataset.count = '0';
+                    if (bellIcon) {
+                        bellIcon.classList.remove('bell-has-notifs');
+                        bellIcon.classList.remove('bell-ringing');
+                    }
                 }
             } catch (err) {
                 console.error('Error polling notifications:', err);
