@@ -3472,43 +3472,36 @@
 
         // ============================================
         // BADGES SYSTEM
+        // Uses existing badges + user_badges tables in Supabase
+        // Badge definitions are fetched from the badges table
+        // Criteria is stored as jsonb with keys like:
+        //   logs_required, streak_required, temp_max,
+        //   swims_required, hazard, time_before, pace_max, distance_min
         // ============================================
 
-        // Badge definitions — checked client-side, stored in user_badges table
-        const BADGE_DEFINITIONS = [
-            // Temp logging milestones
-            { id: 'first_dip',      emoji: '🏊', name: 'First Dip',           description: 'Log your first temperature',     category: 'logging' },
-            { id: 'ten_logs',       emoji: '🌊', name: 'Regular Swimmer',     description: 'Log 10 temperatures',             category: 'logging' },
-            { id: 'fifty_logs',     emoji: '🔥', name: 'Dedicated',           description: 'Log 50 temperatures',             category: 'logging' },
-            { id: 'century',        emoji: '💯', name: 'Century Club',        description: 'Log 100 temperatures',            category: 'logging' },
+        // Cache for badge definitions (loaded from DB)
+        let allBadges = [];
 
-            // Streak badges
-            { id: 'streak_3',       emoji: '⚡', name: '3-Day Streak',        description: 'Log temps 3 days in a row',       category: 'streak' },
-            { id: 'streak_7',       emoji: '🔱', name: 'Week Warrior',        description: '7-day logging streak',            category: 'streak' },
-            { id: 'streak_30',      emoji: '👑', name: 'Monthly Master',      description: '30-day logging streak',           category: 'streak' },
+        async function loadBadgeDefinitions() {
+            if (allBadges.length > 0) return allBadges;
+            const { data, error } = await supabaseClient
+                .from('badges')
+                .select('*')
+                .order('category, name');
+            if (!error && data) allBadges = data;
+            return allBadges;
+        }
 
-            // Swim event badges
-            { id: 'first_swim',     emoji: '🤝', name: 'Social Swimmer',      description: 'Join your first group swim',      category: 'social' },
-            { id: 'five_swims',     emoji: '🎉', name: 'Squad Regular',       description: 'Join 5 group swims',              category: 'social' },
-            { id: 'host_swim',      emoji: '📣', name: 'Swim Host',           description: 'Create your first swim event',    category: 'social' },
-
-            // Explorer badges
-            { id: 'five_spots',     emoji: '🗺️', name: 'Explorer',            description: 'Log temps at 5 different spots',  category: 'explorer' },
-            { id: 'ten_spots',      emoji: '🧭', name: 'Adventurer',          description: 'Log temps at 10 different spots', category: 'explorer' },
-            { id: 'pool_ocean',     emoji: '🏅', name: 'Versatile',           description: 'Log at both pool and ocean spots', category: 'explorer' },
-
-            // Special
-            { id: 'early_adopter',  emoji: '⭐', name: 'Early Adopter',       description: 'One of the first 50 swimmers!',   category: 'special' },
-            { id: 'cold_water',     emoji: '🥶', name: 'Ice Breaker',         description: 'Log water temp below 12°C',       category: 'special' },
-            { id: 'warm_water',     emoji: '☀️', name: 'Warm Vibes',           description: 'Log water temp above 22°C',       category: 'special' },
-        ];
-
-        // Check and award badges based on current user data
+        // Check all badge criteria and award any newly earned badges
         async function checkAndAwardBadges() {
             if (!currentUser) return;
 
             try {
-                // Get user's existing badges
+                // Load badge definitions from DB
+                const badges = await loadBadgeDefinitions();
+                if (badges.length === 0) return;
+
+                // Get user's already-earned badge IDs
                 const { data: existingBadges } = await supabaseClient
                     .from('user_badges')
                     .select('badge_id')
@@ -3516,112 +3509,120 @@
 
                 const earnedIds = new Set((existingBadges || []).map(b => b.badge_id));
 
-                // Get user stats
+                // Skip badges already earned
+                const unchecked = badges.filter(b => !earnedIds.has(b.id));
+                if (unchecked.length === 0) return;
+
+                // Gather user data needed for criteria checks
                 const { data: stats } = await supabaseClient
                     .from('user_stats')
                     .select('*')
                     .eq('user_id', currentUser.id)
                     .single();
 
-                // Get temp log count
                 const { count: logCount } = await supabaseClient
                     .from('temp_logs')
                     .select('*', { count: 'exact', head: true })
                     .eq('user_id', currentUser.id);
 
-                // Get distinct spots logged
-                const { data: spotLogs } = await supabaseClient
-                    .from('temp_logs')
-                    .select('spot_id')
-                    .eq('user_id', currentUser.id);
-
-                const uniqueSpots = new Set((spotLogs || []).map(l => l.spot_id));
-
-                // Get spot types for pool_ocean badge
-                let hasPool = false, hasOcean = false;
-                if (spots && spots.length > 0) {
-                    for (const spotId of uniqueSpots) {
-                        const spot = spots.find(s => s.id === spotId);
-                        if (spot) {
-                            if (spot.type === 'POOL') hasPool = true;
-                            else hasOcean = true;
-                        }
-                    }
-                }
-
-                // Get swim participation count
                 const { count: swimCount } = await supabaseClient
                     .from('swim_participants')
                     .select('*', { count: 'exact', head: true })
                     .eq('user_id', currentUser.id)
                     .eq('status', 'approved');
 
-                // Get swims created count
-                const { count: swimsCreated } = await supabaseClient
-                    .from('swim_events')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('created_by', currentUser.id);
-
-                // Get extreme temps
-                const { data: extremeTemps } = await supabaseClient
+                // Get temp data for temp_max checks
+                const { data: userLogs } = await supabaseClient
                     .from('temp_logs')
-                    .select('temperature')
+                    .select('temp_c, conditions, created_at')
                     .eq('user_id', currentUser.id);
 
-                const temps = (extremeTemps || []).map(t => t.temperature);
+                const temps = (userLogs || []).map(l => l.temp_c).filter(t => t != null);
                 const minTemp = temps.length > 0 ? Math.min(...temps) : 99;
-                const maxTemp = temps.length > 0 ? Math.max(...temps) : 0;
 
-                // Get total user count for early adopter
-                const { count: totalUsers } = await supabaseClient
-                    .from('profiles')
-                    .select('*', { count: 'exact', head: true });
+                // Check for hazard badges (e.g. "seals" logged in conditions)
+                const allConditions = (userLogs || [])
+                    .map(l => (l.conditions || '').toLowerCase())
+                    .join(' ');
+
+                // Check for early bird (time_before: "06:00")
+                const logTimes = (userLogs || []).map(l => {
+                    const d = new Date(l.created_at);
+                    return d.getHours() * 100 + d.getMinutes(); // e.g. 530 for 05:30
+                });
 
                 const streak = stats?.current_streak || 0;
 
-                // Define checks
-                const checks = {
-                    'first_dip':     logCount >= 1,
-                    'ten_logs':      logCount >= 10,
-                    'fifty_logs':    logCount >= 50,
-                    'century':       logCount >= 100,
-                    'streak_3':      streak >= 3,
-                    'streak_7':      streak >= 7,
-                    'streak_30':     streak >= 30,
-                    'first_swim':    swimCount >= 1,
-                    'five_swims':    swimCount >= 5,
-                    'host_swim':     swimsCreated >= 1,
-                    'five_spots':    uniqueSpots.size >= 5,
-                    'ten_spots':     uniqueSpots.size >= 10,
-                    'pool_ocean':    hasPool && hasOcean,
-                    'early_adopter': totalUsers <= 50,
-                    'cold_water':    minTemp <= 12,
-                    'warm_water':    maxTemp >= 22,
-                };
-
-                // Award new badges
+                // Evaluate each unchecked badge
                 const newBadges = [];
-                for (const [badgeId, earned] of Object.entries(checks)) {
-                    if (earned && !earnedIds.has(badgeId)) {
-                        newBadges.push(badgeId);
+                for (const badge of unchecked) {
+                    const c = badge.criteria || {};
+                    let earned = false;
+
+                    // logs_required: number of temp logs
+                    if (c.logs_required != null) {
+                        earned = logCount >= c.logs_required;
+                    }
+
+                    // streak_required: consecutive days
+                    if (c.streak_required != null) {
+                        earned = streak >= c.streak_required;
+                    }
+
+                    // swims_required: group swim participation
+                    if (c.swims_required != null) {
+                        earned = swimCount >= c.swims_required;
+                    }
+
+                    // temp_max: logged a temp AT OR BELOW this value
+                    if (c.temp_max != null && !c.distance_min) {
+                        earned = minTemp <= c.temp_max;
+                    }
+
+                    // Polar Bear: temp_max + distance_min (cold water + long swim)
+                    // Skip for now — needs swim distance data we don't track per log yet
+                    if (c.temp_max != null && c.distance_min != null) {
+                        earned = false; // Will enable when distance tracking is added
+                    }
+
+                    // hazard: logged a specific hazard (e.g. "seals")
+                    if (c.hazard != null) {
+                        earned = allConditions.includes(c.hazard.toLowerCase());
+                    }
+
+                    // time_before: logged a temp before this time (e.g. "06:00")
+                    if (c.time_before != null) {
+                        const [h, m] = c.time_before.split(':').map(Number);
+                        const threshold = h * 100 + m; // e.g. 600 for 06:00
+                        earned = logTimes.some(t => t < threshold);
+                    }
+
+                    // pace_max: skip for now — needs pace data from swim profile
+                    if (c.pace_max != null) {
+                        earned = false; // Will enable when swim pacing is added
+                    }
+
+                    if (earned) {
+                        newBadges.push(badge);
                     }
                 }
 
+                // Award new badges
                 if (newBadges.length > 0) {
-                    const inserts = newBadges.map(id => ({
+                    const inserts = newBadges.map(b => ({
                         user_id: currentUser.id,
-                        badge_id: id,
+                        badge_id: b.id,  // uuid from badges table
                         earned_at: new Date().toISOString()
                     }));
 
-                    await supabaseClient.from('user_badges').insert(inserts);
+                    const { error: insertErr } = await supabaseClient.from('user_badges').insert(inserts);
 
-                    // Show toast for each new badge
-                    for (const id of newBadges) {
-                        const badge = BADGE_DEFINITIONS.find(b => b.id === id);
-                        if (badge) {
-                            showToast(`${badge.emoji} Badge unlocked: ${badge.name}!`, 'success');
+                    if (!insertErr) {
+                        for (const badge of newBadges) {
+                            showToast(`${badge.icon} Badge unlocked: ${badge.name}!`, 'success');
                         }
+                    } else {
+                        console.error('Badge insert error:', insertErr);
                     }
                 }
 
@@ -3630,12 +3631,16 @@
             }
         }
 
-        // Render badges on dashboard
+        // Render badges section on dashboard
         async function renderDashBadges() {
             const container = document.getElementById('dashBadges');
             if (!container) return;
 
             try {
+                // Load all badge definitions from DB
+                const badges = await loadBadgeDefinitions();
+
+                // Get user's earned badges (with badge details via join)
                 const { data: earnedBadges } = await supabaseClient
                     .from('user_badges')
                     .select('badge_id, earned_at')
@@ -3643,37 +3648,34 @@
 
                 const earnedIds = new Set((earnedBadges || []).map(b => b.badge_id));
 
-                if (earnedIds.size === 0) {
-                    container.innerHTML = `
-                        <div style="text-align: center; padding: 16px; color: var(--text-secondary); font-size: 13px;">
-                            Log a temperature to earn your first badge!
-                        </div>
-                    `;
+                if (badges.length === 0) {
+                    container.innerHTML = '';
                     return;
                 }
 
-                // Show earned badges first, then locked ones
-                const earned = BADGE_DEFINITIONS.filter(b => earnedIds.has(b.id));
-                const locked = BADGE_DEFINITIONS.filter(b => !earnedIds.has(b.id));
+                const earned = badges.filter(b => earnedIds.has(b.id));
+                const locked = badges.filter(b => !earnedIds.has(b.id));
 
                 let html = '<div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">';
 
                 for (const badge of earned) {
+                    const safeDesc = badge.description.replace(/'/g, "\\'");
                     html += `
                         <div title="${badge.name}: ${badge.description}"
-                             style="width: 56px; height: 56px; border-radius: 14px; background: rgba(56, 189, 248, 0.15); border: 2px solid rgba(56, 189, 248, 0.3); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; position: relative;"
-                             onclick="showToast('${badge.emoji} ${badge.name} — ${badge.description}', 'success')">
-                            <span style="font-size: 24px;">${badge.emoji}</span>
+                             style="width: 56px; height: 56px; border-radius: 14px; background: rgba(56, 189, 248, 0.15); border: 2px solid rgba(56, 189, 248, 0.3); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;"
+                             onclick="showToast('${badge.icon} ${badge.name} — ${safeDesc}', 'success')">
+                            <span style="font-size: 24px;">${badge.icon}</span>
                             <span style="font-size: 8px; color: var(--text-secondary); margin-top: 2px; max-width: 50px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${badge.name}</span>
                         </div>
                     `;
                 }
 
                 for (const badge of locked) {
+                    const safeDesc = badge.description.replace(/'/g, "\\'");
                     html += `
                         <div title="${badge.name}: ${badge.description}"
                              style="width: 56px; height: 56px; border-radius: 14px; background: rgba(255,255,255,0.03); border: 2px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0.35; cursor: pointer;"
-                             onclick="showToast('🔒 ${badge.name} — ${badge.description}', 'info')">
+                             onclick="showToast('🔒 ${badge.name} — ${safeDesc}', 'info')">
                             <span style="font-size: 24px;">🔒</span>
                             <span style="font-size: 8px; color: var(--text-secondary); margin-top: 2px; max-width: 50px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${badge.name}</span>
                         </div>
@@ -3681,7 +3683,13 @@
                 }
 
                 html += '</div>';
-                html += `<div style="text-align: center; margin-top: 8px; color: var(--text-secondary); font-size: 12px;">${earnedIds.size} of ${BADGE_DEFINITIONS.length} badges earned</div>`;
+
+                if (earnedIds.size === 0) {
+                    html += `<div style="text-align: center; margin-top: 8px; color: var(--text-secondary); font-size: 12px;">Log a temperature to earn your first badge!</div>`;
+                } else {
+                    html += `<div style="text-align: center; margin-top: 8px; color: var(--text-secondary); font-size: 12px;">${earnedIds.size} of ${badges.length} badges earned</div>`;
+                }
+
                 container.innerHTML = html;
 
             } catch (err) {
