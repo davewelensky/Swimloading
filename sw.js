@@ -1,4 +1,4 @@
-const CACHE_NAME = 'swimloading-v2';
+const CACHE_NAME = 'swimloading-v3';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -86,6 +86,55 @@ self.addEventListener('fetch', (event) => {
                 }
                 return response;
             });
+        })
+    );
+});
+
+// Push: receive notification from server and show it
+self.addEventListener('push', (event) => {
+    let data = { title: 'SwimLoading', body: '', icon: '/icons/icon-192.png' };
+
+    if (event.data) {
+        try {
+            data = { ...data, ...event.data.json() };
+        } catch (e) {
+            data.body = event.data.text();
+        }
+    }
+
+    const options = {
+        body: data.body,
+        icon: data.icon || '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
+        vibrate: [200, 100, 200],
+        data: data.data || { url: '/app' },
+        tag: data.data?.type || 'swimloading',
+        renotify: true
+    };
+
+    event.waitUntil(
+        self.registration.showNotification(data.title, options)
+    );
+});
+
+// Notification click: open the app to the relevant page
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+
+    const targetUrl = event.notification.data?.url || '/app';
+
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            // If app is already open, focus it and navigate
+            for (const client of clientList) {
+                if (client.url.includes('/app') && 'focus' in client) {
+                    client.focus();
+                    client.navigate(targetUrl);
+                    return;
+                }
+            }
+            // Otherwise open a new window
+            return clients.openWindow(targetUrl);
         })
     );
 });

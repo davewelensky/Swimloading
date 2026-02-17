@@ -42,6 +42,11 @@
         const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
 
+        // VAPID public key for Web Push notifications
+        // Generate with: npx web-push generate-vapid-keys
+        // Replace this placeholder after generating your keys
+        const VAPID_PUBLIC_KEY = 'REPLACE_WITH_YOUR_VAPID_PUBLIC_KEY';
+
         let supabaseClient;
 
         // Initialize after library loads
@@ -359,6 +364,9 @@
 
             // Start Notification Polling
             startNotificationPolling();
+
+            // Prompt for push notifications (non-blocking banner)
+            setTimeout(() => promptPushNotifications(), 2000);
 
             // Deep link: if URL has ?swim=ID, open that swim's details
             const urlParams = new URLSearchParams(window.location.search);
@@ -2306,6 +2314,43 @@
 
                 if (error) throw error;
 
+                // Notify participants about the change
+                try {
+                    const { data: participants } = await supabaseClient
+                        .from('swim_participants')
+                        .select('user_id')
+                        .eq('swim_event_id', eventId)
+                        .in('status', ['approved', 'requested']);
+
+                    const { data: evt } = await supabaseClient
+                        .from('swim_events')
+                        .select('title, location_name')
+                        .eq('id', eventId)
+                        .single();
+
+                    if (participants && participants.length > 0) {
+                        const swimTitle = evt?.title || evt?.location_name || 'A swim';
+                        const newTime = new Date(startAt).toLocaleTimeString('en-US', {
+                            hour: '2-digit', minute: '2-digit'
+                        }) + ' on ' + new Date(startAt).toLocaleDateString('en-US', {
+                            weekday: 'short', day: 'numeric', month: 'short'
+                        });
+
+                        for (const p of participants) {
+                            await notify(
+                                p.user_id,
+                                eventId,
+                                'swim_updated',
+                                'Swim details changed',
+                                `"${swimTitle}" has been updated. New time: ${newTime}`,
+                                { swim_event_id: eventId }
+                            );
+                        }
+                    }
+                } catch (notifErr) {
+                    console.error('Could not notify participants:', notifErr);
+                }
+
                 showToast('Swim details updated!', 'success');
                 await showEventDetails(eventId);
                 loadEvents();
@@ -2753,6 +2798,21 @@
                 }
 
                 renderAvatarGrid();
+
+                // Initialize push toggle
+                if ('PushManager' in window && VAPID_PUBLIC_KEY !== 'REPLACE_WITH_YOUR_VAPID_PUBLIC_KEY') {
+                    document.getElementById('pushToggleSection').style.display = 'block';
+                    isPushSubscribed().then(subscribed => {
+                        const toggle = document.getElementById('pushToggle');
+                        const track = document.getElementById('pushToggleTrack');
+                        const thumb = document.getElementById('pushToggleThumb');
+                        if (toggle) {
+                            toggle.checked = subscribed;
+                            if (track) track.style.background = subscribed ? 'var(--success)' : 'rgba(255,255,255,0.15)';
+                            if (thumb) thumb.style.transform = subscribed ? 'translateX(22px)' : 'translateX(0)';
+                        }
+                    });
+                }
             } catch (err) {
                 console.error('Error loading profile:', err);
             }
@@ -5375,6 +5435,22 @@
                         <button class="btn btn-success" onclick="saveProfile()" style="margin-bottom: 16px;">Save
                             Profile</button>
 
+                        <!-- Push Notifications Toggle -->
+                        <div id="pushToggleSection" style="display: none; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px; margin-top: 8px; margin-bottom: 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: 600; color: var(--text-primary); font-size: 14px;">🔔 Push Notifications</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Get alerts when swims are cancelled or changed</div>
+                                </div>
+                                <label style="position: relative; display: inline-block; width: 48px; height: 26px; flex-shrink: 0;">
+                                    <input type="checkbox" id="pushToggle" onchange="togglePushNotifications(this.checked)"
+                                        style="opacity: 0; width: 0; height: 0;">
+                                    <span style="position: absolute; cursor: pointer; inset: 0; background: rgba(255,255,255,0.15); border-radius: 26px; transition: 0.3s;" id="pushToggleTrack"></span>
+                                    <span style="position: absolute; height: 20px; width: 20px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s;" id="pushToggleThumb"></span>
+                                </label>
+                            </div>
+                        </div>
+
                         <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px; margin-top: 8px;">
                             <button class="btn"
                                 style="background: transparent; border: 1px solid rgba(239, 68, 68, 0.25); color: rgba(239, 68, 68, 0.7); font-size: 13px; padding: 10px 20px;"
@@ -5701,6 +5777,188 @@
         function startNotificationPolling() {
             updateUnreadCount();
             setInterval(updateUnreadCount, 30000); // Poll every 30s
+        }
+
+        // ============================================
+        // WEB PUSH NOTIFICATIONS
+        // ============================================
+
+        // Convert VAPID key from base64 to Uint8Array (required by PushManager)
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
+        // Subscribe to push notifications
+        async function subscribeToPush() {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                console.log('Push notifications not supported');
+                return false;
+            }
+            if (VAPID_PUBLIC_KEY === 'REPLACE_WITH_YOUR_VAPID_PUBLIC_KEY') {
+                console.log('VAPID key not configured yet');
+                return false;
+            }
+
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    console.log('Notification permission denied');
+                    return false;
+                }
+
+                const registration = await navigator.serviceWorker.ready;
+
+                // Check for existing subscription
+                let subscription = await registration.pushManager.getSubscription();
+
+                if (!subscription) {
+                    subscription = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                    });
+                }
+
+                // Save subscription to Supabase
+                const subJson = subscription.toJSON();
+                const { error } = await supabaseClient
+                    .from('push_subscriptions')
+                    .upsert({
+                        user_id: currentUser.id,
+                        endpoint: subJson.endpoint,
+                        p256dh: subJson.keys.p256dh,
+                        auth: subJson.keys.auth,
+                        user_agent: navigator.userAgent
+                    }, { onConflict: 'user_id,endpoint' });
+
+                if (error) {
+                    console.error('Error saving push subscription:', error);
+                    return false;
+                }
+
+                console.log('Push subscription saved');
+                return true;
+            } catch (err) {
+                console.error('Push subscription failed:', err);
+                return false;
+            }
+        }
+
+        // Unsubscribe from push notifications
+        async function unsubscribeFromPush() {
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                const subscription = await registration.pushManager.getSubscription();
+
+                if (subscription) {
+                    await supabaseClient
+                        .from('push_subscriptions')
+                        .delete()
+                        .eq('user_id', currentUser.id)
+                        .eq('endpoint', subscription.endpoint);
+
+                    await subscription.unsubscribe();
+                }
+                return true;
+            } catch (err) {
+                console.error('Unsubscribe failed:', err);
+                return false;
+            }
+        }
+
+        // Check if user is subscribed to push
+        async function isPushSubscribed() {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                const subscription = await registration.pushManager.getSubscription();
+                return !!subscription;
+            } catch {
+                return false;
+            }
+        }
+
+        // Toggle push notifications from profile settings
+        async function togglePushNotifications(enabled) {
+            const track = document.getElementById('pushToggleTrack');
+            const thumb = document.getElementById('pushToggleThumb');
+
+            if (enabled) {
+                const success = await subscribeToPush();
+                if (!success) {
+                    document.getElementById('pushToggle').checked = false;
+                    if (track) track.style.background = 'rgba(255,255,255,0.15)';
+                    if (thumb) thumb.style.transform = 'translateX(0)';
+                    showToast('Could not enable notifications. Check browser settings.', 'error');
+                } else {
+                    if (track) track.style.background = 'var(--success)';
+                    if (thumb) thumb.style.transform = 'translateX(22px)';
+                    showToast('Push notifications enabled!', 'success');
+                }
+            } else {
+                await unsubscribeFromPush();
+                if (track) track.style.background = 'rgba(255,255,255,0.15)';
+                if (thumb) thumb.style.transform = 'translateX(0)';
+                showToast('Push notifications disabled', 'info');
+            }
+        }
+
+        // Show push notification opt-in prompt (non-blocking banner)
+        async function promptPushNotifications() {
+            // Don't prompt if not supported or VAPID key not set
+            if (!('PushManager' in window) || !('Notification' in window)) return;
+            if (VAPID_PUBLIC_KEY === 'REPLACE_WITH_YOUR_VAPID_PUBLIC_KEY') return;
+
+            // Don't prompt if already subscribed or denied
+            if (await isPushSubscribed()) return;
+            if (Notification.permission === 'denied') return;
+
+            // 7-day cooldown if user dismissed the prompt
+            const dismissed = localStorage.getItem('pushPromptDismissed');
+            if (dismissed && Date.now() - parseInt(dismissed) < 7 * 24 * 60 * 60 * 1000) return;
+
+            const banner = document.createElement('div');
+            banner.id = 'pushPromptBanner';
+            banner.innerHTML = `
+                <div style="background: linear-gradient(135deg, var(--ocean-blue), var(--ocean-dark)); padding: 16px 20px; border-radius: 12px; margin: 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                    <div style="font-size: 24px;">🔔</div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 700; color: white; font-size: 14px;">Get notified when swims change</div>
+                        <div style="color: rgba(255,255,255,0.7); font-size: 12px; margin-top: 2px;">Know instantly if a swim is cancelled or moved</div>
+                    </div>
+                    <button onclick="enablePushFromPrompt()" style="background: white; color: var(--ocean-blue); border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap;">Enable</button>
+                    <button onclick="dismissPushPrompt()" style="background: none; border: none; color: rgba(255,255,255,0.5); font-size: 20px; cursor: pointer; padding: 4px; line-height: 1;">&times;</button>
+                </div>
+            `;
+
+            const mainApp = document.getElementById('mainApp');
+            if (mainApp) {
+                mainApp.insertBefore(banner, mainApp.firstChild);
+            }
+        }
+
+        async function enablePushFromPrompt() {
+            const banner = document.getElementById('pushPromptBanner');
+            if (banner) banner.remove();
+
+            const success = await subscribeToPush();
+            if (success) {
+                showToast('Push notifications enabled!', 'success');
+            } else {
+                showToast('Could not enable notifications. Check browser settings.', 'error');
+            }
+        }
+
+        function dismissPushPrompt() {
+            const banner = document.getElementById('pushPromptBanner');
+            if (banner) banner.remove();
+            localStorage.setItem('pushPromptDismissed', Date.now().toString());
         }
 
         async function updateUnreadCount() {
