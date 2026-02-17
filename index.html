@@ -359,6 +359,15 @@
 
             // Start Notification Polling
             startNotificationPolling();
+
+            // Deep link: if URL has ?swim=ID, open that swim's details
+            const urlParams = new URLSearchParams(window.location.search);
+            const swimId = urlParams.get('swim');
+            if (swimId) {
+                // Clean the URL so it doesn't re-trigger on refresh
+                window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+                setTimeout(() => viewEventDetails(swimId), 300);
+            }
         }
 
         // Sign up
@@ -820,6 +829,9 @@
             // Initialize icons and notifications
             initIcons();
             loadNotifications();
+
+            // Render badges section
+            renderDashBadges();
         }
 
         function renderDashConditions(logs) {
@@ -1591,6 +1603,100 @@
             showToast('Swim created successfully!', 'success');
             hideCreateEvent();
             loadEvents();
+
+            // Check for new badges after creating a swim
+            await checkAndAwardBadges();
+
+            // Offer to share the new swim
+            if (data && data[0]) {
+                setTimeout(() => offerShareSwim(data[0]), 500);
+            }
+        }
+
+        // Share a swim via WhatsApp or copy link
+        function getSwimShareUrl(eventId) {
+            return `${window.location.origin}/app?swim=${eventId}`;
+        }
+
+        function getSwimShareText(event) {
+            const d = new Date(event.start_at);
+            const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            const distance = event.distance_km ? ` • ${event.distance_km}km` : '';
+            return `🏊 ${event.title}\n📍 ${event.location_name}\n📅 ${dateStr} at ${timeStr}${distance}\n\nJoin us on SwimLoading!`;
+        }
+
+        function shareSwimWhatsApp(event) {
+            const text = getSwimShareText(event);
+            const url = getSwimShareUrl(event.id);
+            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text + '\n\n' + url)}`;
+            window.open(whatsappUrl, '_blank');
+        }
+
+        async function shareSwimLink(event) {
+            const url = getSwimShareUrl(event.id);
+            const text = getSwimShareText(event);
+
+            // Try native share first (works on mobile)
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: event.title,
+                        text: text,
+                        url: url
+                    });
+                    return;
+                } catch (e) {
+                    // User cancelled or not supported, fall back to clipboard
+                }
+            }
+
+            // Fallback: copy to clipboard
+            try {
+                await navigator.clipboard.writeText(url);
+                showToast('Link copied to clipboard!', 'success');
+            } catch (e) {
+                // Final fallback
+                const input = document.createElement('input');
+                input.value = url;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                showToast('Link copied!', 'success');
+            }
+        }
+
+        function offerShareSwim(event) {
+            // Show a share prompt after creating a swim
+            const modal = document.getElementById('eventDetailsModal');
+            modal.style.display = 'block';
+            document.getElementById('eventDetailsContent').innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">🌊</div>
+                    <h2 style="color: var(--text-primary); font-size: 22px; margin-bottom: 8px;">Swim Created!</h2>
+                    <div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">Invite swimmers to join — even if they're not on the app yet</div>
+
+                    <button onclick="shareSwimWhatsApp(${JSON.stringify(event).replace(/"/g, '&quot;')})"
+                            style="width: 100%; padding: 14px; border-radius: 12px; border: none; background: #25D366; color: white; font-size: 16px; font-weight: 700; cursor: pointer; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        Share on WhatsApp
+                    </button>
+
+                    <button onclick="shareSwimLink(${JSON.stringify(event).replace(/"/g, '&quot;')})"
+                            style="width: 100%; padding: 14px; border-radius: 12px; border: 2px solid var(--border); background: transparent; color: var(--text-primary); font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        <i data-lucide="link" style="width: 18px; height: 18px;"></i>
+                        Copy Link
+                    </button>
+
+                    <button onclick="hideEventDetails()"
+                            style="width: 100%; padding: 12px; border-radius: 12px; border: none; background: transparent; color: var(--text-secondary); font-size: 14px; cursor: pointer; margin-top: 4px;">
+                        Skip for now
+                    </button>
+                </div>
+            `;
+            document.getElementById('eventDetailsActions').innerHTML = '';
+            initIcons();
         }
 
         // View event details (placeholder)
@@ -1648,6 +1754,9 @@
                 await showEventDetails(eventId);
                 loadEvents();
                 loadDashboard();
+
+                // Check for new badges after joining a swim
+                await checkAndAwardBadges();
             } catch (err) {
                 console.error('RSVP Error:', err);
                 alert('Error updating RSVP: ' + err.message);
@@ -2096,6 +2205,19 @@
                     <button class="btn" style="background: rgba(255,255,255,0.1); margin-top: 10px;" onclick="joinEvent('${event.id}', 'maybe')">Maybe</button>
                 `;
             }
+
+            // Share button — always visible
+            html += `
+                <div style="display: flex; gap: 8px; margin-top: 10px; width: 100%;">
+                    <button class="btn" style="flex: 1; background: #25D366; color: white;" onclick="shareSwimWhatsApp(${JSON.stringify({id: event.id, title: event.title, location_name: event.location_name, start_at: event.start_at, distance_km: event.distance_km}).replace(/"/g, '&quot;')})">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="white" style="vertical-align: middle;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        Share
+                    </button>
+                    <button class="btn" style="flex: 1; background: rgba(255,255,255,0.1);" onclick="shareSwimLink(${JSON.stringify({id: event.id, title: event.title, location_name: event.location_name, start_at: event.start_at, distance_km: event.distance_km}).replace(/"/g, '&quot;')})">
+                        <i data-lucide="link" style="width: 14px; height: 14px; vertical-align: middle;"></i> Copy Link
+                    </button>
+                </div>
+            `;
 
             // Creator-only Edit and Cancel buttons
             if (event.created_by === currentUser.id) {
@@ -3338,10 +3460,233 @@
                 const status = document.getElementById('gpsStatus');
                 if (status) status.textContent = '';
 
+                // Check for new badges after logging a temp
+                await checkAndAwardBadges();
+
                 // Switch to dashboard
                 showPage('dashboard');
                 await loadDashboard();
                 await loadLeaderboard(); // Refresh leaderboard to show new points
+            }
+        }
+
+        // ============================================
+        // BADGES SYSTEM
+        // ============================================
+
+        // Badge definitions — checked client-side, stored in user_badges table
+        const BADGE_DEFINITIONS = [
+            // Temp logging milestones
+            { id: 'first_dip',      emoji: '🏊', name: 'First Dip',           description: 'Log your first temperature',     category: 'logging' },
+            { id: 'ten_logs',       emoji: '🌊', name: 'Regular Swimmer',     description: 'Log 10 temperatures',             category: 'logging' },
+            { id: 'fifty_logs',     emoji: '🔥', name: 'Dedicated',           description: 'Log 50 temperatures',             category: 'logging' },
+            { id: 'century',        emoji: '💯', name: 'Century Club',        description: 'Log 100 temperatures',            category: 'logging' },
+
+            // Streak badges
+            { id: 'streak_3',       emoji: '⚡', name: '3-Day Streak',        description: 'Log temps 3 days in a row',       category: 'streak' },
+            { id: 'streak_7',       emoji: '🔱', name: 'Week Warrior',        description: '7-day logging streak',            category: 'streak' },
+            { id: 'streak_30',      emoji: '👑', name: 'Monthly Master',      description: '30-day logging streak',           category: 'streak' },
+
+            // Swim event badges
+            { id: 'first_swim',     emoji: '🤝', name: 'Social Swimmer',      description: 'Join your first group swim',      category: 'social' },
+            { id: 'five_swims',     emoji: '🎉', name: 'Squad Regular',       description: 'Join 5 group swims',              category: 'social' },
+            { id: 'host_swim',      emoji: '📣', name: 'Swim Host',           description: 'Create your first swim event',    category: 'social' },
+
+            // Explorer badges
+            { id: 'five_spots',     emoji: '🗺️', name: 'Explorer',            description: 'Log temps at 5 different spots',  category: 'explorer' },
+            { id: 'ten_spots',      emoji: '🧭', name: 'Adventurer',          description: 'Log temps at 10 different spots', category: 'explorer' },
+            { id: 'pool_ocean',     emoji: '🏅', name: 'Versatile',           description: 'Log at both pool and ocean spots', category: 'explorer' },
+
+            // Special
+            { id: 'early_adopter',  emoji: '⭐', name: 'Early Adopter',       description: 'One of the first 50 swimmers!',   category: 'special' },
+            { id: 'cold_water',     emoji: '🥶', name: 'Ice Breaker',         description: 'Log water temp below 12°C',       category: 'special' },
+            { id: 'warm_water',     emoji: '☀️', name: 'Warm Vibes',           description: 'Log water temp above 22°C',       category: 'special' },
+        ];
+
+        // Check and award badges based on current user data
+        async function checkAndAwardBadges() {
+            if (!currentUser) return;
+
+            try {
+                // Get user's existing badges
+                const { data: existingBadges } = await supabaseClient
+                    .from('user_badges')
+                    .select('badge_id')
+                    .eq('user_id', currentUser.id);
+
+                const earnedIds = new Set((existingBadges || []).map(b => b.badge_id));
+
+                // Get user stats
+                const { data: stats } = await supabaseClient
+                    .from('user_stats')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .single();
+
+                // Get temp log count
+                const { count: logCount } = await supabaseClient
+                    .from('temp_logs')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('user_id', currentUser.id);
+
+                // Get distinct spots logged
+                const { data: spotLogs } = await supabaseClient
+                    .from('temp_logs')
+                    .select('spot_id')
+                    .eq('user_id', currentUser.id);
+
+                const uniqueSpots = new Set((spotLogs || []).map(l => l.spot_id));
+
+                // Get spot types for pool_ocean badge
+                let hasPool = false, hasOcean = false;
+                if (spots && spots.length > 0) {
+                    for (const spotId of uniqueSpots) {
+                        const spot = spots.find(s => s.id === spotId);
+                        if (spot) {
+                            if (spot.type === 'POOL') hasPool = true;
+                            else hasOcean = true;
+                        }
+                    }
+                }
+
+                // Get swim participation count
+                const { count: swimCount } = await supabaseClient
+                    .from('swim_participants')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('user_id', currentUser.id)
+                    .eq('status', 'approved');
+
+                // Get swims created count
+                const { count: swimsCreated } = await supabaseClient
+                    .from('swim_events')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('created_by', currentUser.id);
+
+                // Get extreme temps
+                const { data: extremeTemps } = await supabaseClient
+                    .from('temp_logs')
+                    .select('temperature')
+                    .eq('user_id', currentUser.id);
+
+                const temps = (extremeTemps || []).map(t => t.temperature);
+                const minTemp = temps.length > 0 ? Math.min(...temps) : 99;
+                const maxTemp = temps.length > 0 ? Math.max(...temps) : 0;
+
+                // Get total user count for early adopter
+                const { count: totalUsers } = await supabaseClient
+                    .from('profiles')
+                    .select('*', { count: 'exact', head: true });
+
+                const streak = stats?.current_streak || 0;
+
+                // Define checks
+                const checks = {
+                    'first_dip':     logCount >= 1,
+                    'ten_logs':      logCount >= 10,
+                    'fifty_logs':    logCount >= 50,
+                    'century':       logCount >= 100,
+                    'streak_3':      streak >= 3,
+                    'streak_7':      streak >= 7,
+                    'streak_30':     streak >= 30,
+                    'first_swim':    swimCount >= 1,
+                    'five_swims':    swimCount >= 5,
+                    'host_swim':     swimsCreated >= 1,
+                    'five_spots':    uniqueSpots.size >= 5,
+                    'ten_spots':     uniqueSpots.size >= 10,
+                    'pool_ocean':    hasPool && hasOcean,
+                    'early_adopter': totalUsers <= 50,
+                    'cold_water':    minTemp <= 12,
+                    'warm_water':    maxTemp >= 22,
+                };
+
+                // Award new badges
+                const newBadges = [];
+                for (const [badgeId, earned] of Object.entries(checks)) {
+                    if (earned && !earnedIds.has(badgeId)) {
+                        newBadges.push(badgeId);
+                    }
+                }
+
+                if (newBadges.length > 0) {
+                    const inserts = newBadges.map(id => ({
+                        user_id: currentUser.id,
+                        badge_id: id,
+                        earned_at: new Date().toISOString()
+                    }));
+
+                    await supabaseClient.from('user_badges').insert(inserts);
+
+                    // Show toast for each new badge
+                    for (const id of newBadges) {
+                        const badge = BADGE_DEFINITIONS.find(b => b.id === id);
+                        if (badge) {
+                            showToast(`${badge.emoji} Badge unlocked: ${badge.name}!`, 'success');
+                        }
+                    }
+                }
+
+            } catch (err) {
+                console.error('Badge check error:', err);
+            }
+        }
+
+        // Render badges on dashboard
+        async function renderDashBadges() {
+            const container = document.getElementById('dashBadges');
+            if (!container) return;
+
+            try {
+                const { data: earnedBadges } = await supabaseClient
+                    .from('user_badges')
+                    .select('badge_id, earned_at')
+                    .eq('user_id', currentUser.id);
+
+                const earnedIds = new Set((earnedBadges || []).map(b => b.badge_id));
+
+                if (earnedIds.size === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 16px; color: var(--text-secondary); font-size: 13px;">
+                            Log a temperature to earn your first badge!
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Show earned badges first, then locked ones
+                const earned = BADGE_DEFINITIONS.filter(b => earnedIds.has(b.id));
+                const locked = BADGE_DEFINITIONS.filter(b => !earnedIds.has(b.id));
+
+                let html = '<div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">';
+
+                for (const badge of earned) {
+                    html += `
+                        <div title="${badge.name}: ${badge.description}"
+                             style="width: 56px; height: 56px; border-radius: 14px; background: rgba(56, 189, 248, 0.15); border: 2px solid rgba(56, 189, 248, 0.3); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; position: relative;"
+                             onclick="showToast('${badge.emoji} ${badge.name} — ${badge.description}', 'success')">
+                            <span style="font-size: 24px;">${badge.emoji}</span>
+                            <span style="font-size: 8px; color: var(--text-secondary); margin-top: 2px; max-width: 50px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${badge.name}</span>
+                        </div>
+                    `;
+                }
+
+                for (const badge of locked) {
+                    html += `
+                        <div title="${badge.name}: ${badge.description}"
+                             style="width: 56px; height: 56px; border-radius: 14px; background: rgba(255,255,255,0.03); border: 2px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0.35; cursor: pointer;"
+                             onclick="showToast('🔒 ${badge.name} — ${badge.description}', 'info')">
+                            <span style="font-size: 24px;">🔒</span>
+                            <span style="font-size: 8px; color: var(--text-secondary); margin-top: 2px; max-width: 50px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${badge.name}</span>
+                        </div>
+                    `;
+                }
+
+                html += '</div>';
+                html += `<div style="text-align: center; margin-top: 8px; color: var(--text-secondary); font-size: 12px;">${earnedIds.size} of ${BADGE_DEFINITIONS.length} badges earned</div>`;
+                container.innerHTML = html;
+
+            } catch (err) {
+                console.error('Badge render error:', err);
+                container.innerHTML = '';
             }
         }
 
@@ -4545,6 +4890,15 @@
                             Your Stats
                         </div>
                         <div id="dashStats">Loading...</div>
+                    </div>
+
+                    <!-- Your Badges -->
+                    <div style="background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+                        <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 12px; font-size: 16px;">
+                            <i data-lucide="award" style="width: 18px; height: 18px; vertical-align: middle;"></i>
+                            Your Badges
+                        </div>
+                        <div id="dashBadges">Loading...</div>
                     </div>
 
                     <!-- Recent Conditions -->
