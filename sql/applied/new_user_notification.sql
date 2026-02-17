@@ -5,12 +5,15 @@ CREATE OR REPLACE FUNCTION notify_new_signup()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Send notification to your user ID (Dave)
-    INSERT INTO notifications (recipient_user_id, title, body)
+    INSERT INTO notifications (recipient_user_id, title, message)
     VALUES (
         'df137255-3add-4153-b368-32e06e2be188',
         '🏊 New swimmer joined!',
         COALESCE(NEW.display_name, 'Someone') || ' just signed up for SwimLoading'
     );
+    RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+    -- Never block a signup if notification fails
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
