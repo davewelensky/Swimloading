@@ -849,18 +849,36 @@
                 const color = log.temp_c < 10 ? '#6366f1' : log.temp_c < 12 ? '#3b82f6' : log.temp_c < 16 ? '#06b6d4' : log.temp_c < 20 ? '#10b981' : log.temp_c < 24 ? '#f59e0b' : log.temp_c < 28 ? '#f97316' : '#ef4444';
                 const age = getAgeDisplay(log.created_at);
                 const isFresh = isTempFresh(log.created_at);
+                const spotInfo = spots.find(s => s.id === log.spot_id);
+                const spotCode = spotInfo ? spotInfo.code : '';
                 return `
-                                <div style="background: rgba(15, 23, 42, 0.6); border-radius: 14px; padding: 14px; text-align: center; border: 1px solid ${color}20; ${!isFresh ? 'opacity: 0.5;' : ''} transition: all 0.2s ease;">
+                                <div onclick="goToSpotTrend('${log.spot_id}', '${(log.spotName || 'Unknown').replace(/'/g, "\\'")}', '${spotCode}')" style="cursor: pointer; background: rgba(15, 23, 42, 0.6); border-radius: 14px; padding: 14px; text-align: center; border: 1px solid ${color}20; ${!isFresh ? 'opacity: 0.5;' : ''} transition: all 0.2s ease;">
                                     <div style="font-size: 28px; font-weight: 800; color: ${color}; text-shadow: 0 0 20px ${color}30; line-height: 1.1;">${log.temp_c}°</div>
                                     <div style="font-size: 10px; font-weight: 500; color: ${color}; opacity: 0.7; margin-top: 2px;">${age}</div>
                                     <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px; font-weight: 600;">${log.spotName || 'Unknown'}</div>
                                     <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.5; margin-top: 2px;">${getTimeAgo(new Date(log.created_at))}</div>
+                                    <div style="font-size: 9px; color: var(--ocean-light); margin-top: 4px; opacity: 0.6;">tap for trends →</div>
                                 </div>
                             `;
             }).join('')}
                 </div>
             `;
             initIcons();
+        }
+
+        async function goToSpotTrend(spotId, spotName, spotCode) {
+            // Navigate to trends page
+            showPage('history');
+            // Wait for trends to load, then drill into the spot
+            await new Promise(resolve => setTimeout(resolve, 500));
+            // If trendsData isn't populated yet, wait a bit more
+            let retries = 0;
+            while (!trendsData || Object.keys(trendsData).length === 0) {
+                if (retries > 10) break;
+                await new Promise(resolve => setTimeout(resolve, 300));
+                retries++;
+            }
+            openSpotDetail(spotId, spotName, spotCode);
         }
 
         // History view state
@@ -6530,7 +6548,7 @@
             // Debug logging
             console.log('Spot open', { spot_id: spotId, spot_name: spotName, spot_code: spotCode });
 
-            // Find spot's water_type from cached data
+            // Find spot's water_type from cached data or spots array
             let spotWaterType = null;
             for (const domain in trendsData) {
                 const spot = trendsData[domain].spots.find(s => s.spot_id === spotId);
@@ -6539,11 +6557,17 @@
                     break;
                 }
             }
+            // Fallback: look up from spots array (for dashboard drill-through)
+            if (!spotWaterType) {
+                const spotInfo = spots.find(s => s.id === spotId);
+                if (spotInfo) spotWaterType = spotInfo.water_type;
+            }
 
             // No validation - allow spot drilldown regardless of filter
             // (spot drilldown is driven by spot_id and temp_logs)
 
             currentSpotId = spotId;
+            document.getElementById('trendsOverview').style.display = 'none';
             document.getElementById('trendsRegionDetail').style.display = 'none';
             document.getElementById('trendsSpotDetail').style.display = 'block';
 
