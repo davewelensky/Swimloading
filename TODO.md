@@ -1,39 +1,17 @@
-# SwimLoading MVP - Bug Fixes & Features
+# SwimLoading — TODO
 
-## Critical Path (Must work for testers)
+> **Note:** Feature tracking has moved to [ROADMAP.md](ROADMAP.md). This file tracks immediate action items only.
 
-### 1. User Registration & Profile
-- [ ] Signup flow works end-to-end
-- [ ] Email verification (or skip for testing?)
-- [ ] Profile creation after signup
-- [ ] Display name, phone, DOB, address captured
+## Immediate
+- [ ] Test new user signup end-to-end (email verification ON)
+- [ ] Verify branded email templates are configured in Supabase
+- [ ] Consider removing `landing.html` (replaced by `welcome.html`)
 
-### 2. Disclaimers/Onboarding  
-- [ ] Terms, Privacy, Waiver checkboxes work
-- [ ] Must accept all before proceeding
-- [ ] Timestamps saved to profile
+## Future Consideration
+- [ ] Swimming profile fields (pace, cold tolerance) — not blocking launch
+- [ ] AI features — deferred, revisit after user base grows
+- [ ] Push notifications — requires Supabase Edge Functions or external service
 
-### 3. Swimmer Profile Settings
-- [ ] Choose pace/speed level
-- [ ] Set cold tolerance (min temp)
-- [ ] Pool 1km time (optional)
-- [ ] Ocean 1km time (optional)
-- [ ] Home beach selection
+---
 
-### 4. Temperature Logging
-- [ ] Dropdown location selection ✅ (exists)
-- [ ] GPS location detection ❌ (NOT IMPLEMENTED)
-- [ ] Temperature slider ✅ (exists)
-- [ ] Conditions (calm/choppy/rough) ✅
-- [ ] Hazards (jellyfish/seals/sharks) ✅
-- [ ] Notes field ✅
-- [ ] Submit saves to Supabase
-
-## Known Issues
-- (List bugs as we find them)
-
-## Nice to Have (After core works)
-- [ ] Swim events fully working
-- [ ] Leaderboard
-- [ ] Push notifications
-- [ ] Safety alerts
+*Last updated: 2026-02-16*

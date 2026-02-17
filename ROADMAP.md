@@ -5,31 +5,54 @@ The go-to app for Cape Town ocean swimmers — and eventually, the platform that
 
 ---
 
-## 🔴 Phase 1: MVP (Beta Testers)
+## Phase 1: MVP (Beta Testers) — IN PROGRESS
 
 ### Auth & Onboarding
 - [x] Signup/login via Supabase
+- [x] Email verification
+- [x] Password reset flow (with hash capture fix)
 - [x] Legal waivers (POPIA compliant)
 - [x] Personal details collection
+- [x] Avatar selection
 - [ ] Swimming profile (pace, cold tolerance)
-- [ ] Emergency contact (required)
+- [x] Emergency contact (required for swim RSVPs)
 
 ### Core Features
 - [x] Temperature logging with conditions/hazards
-- [ ] GPS location detection
-- [x] Dashboard with stats
-- [x] Swim events + RSVP
-- [ ] Basic leaderboard
+- [x] GPS location detection
+- [x] Dashboard with stats, streaks, points
+- [x] Swim events + RSVP with safety gate
+- [x] Leaderboard
+- [x] Temperature trends (ocean + pool charts)
+- [x] Notification bell + in-app notifications
+- [x] Sewage hazard button + safety info
+
+### Spots
+- [x] Atlantic ocean spots
+- [x] False Bay ocean spots
+- [x] Virgin Active pools (8 branches)
+- [x] Langebaan lagoon zones (5 spots)
+
+### Security & Infrastructure
+- [x] Row Level Security on all tables
+- [x] Spam prevention (1hr cooldown per spot)
+- [x] Service worker v2 (network-first HTML)
+- [x] PWA installable
+- [x] Custom domain (swimloading.com)
+- [x] Marketing landing page
+- [x] GitHub + Vercel CI/CD auto-deploy
+- [x] New user signup notifications (to admin)
+- [x] Auto-cleanup of old temp logs (4 days)
 
 ### Goal: 20 beta testers actively logging
 
 ---
 
-## 🟡 Phase 2: Safety & Community
+## Phase 2: Safety & Community
 
 ### Safety System (Insurance Foundation)
 - [ ] "Going swimming" check-in
-- [ ] "I'm out safe" check-out  
+- [ ] "I'm out safe" check-out
 - [ ] Auto-alert if no check-out (configurable: 1hr, 2hr, 3hr)
 - [ ] Emergency contact notification
 - [ ] Incident reporting (near-miss, injury, rescue)
@@ -43,8 +66,8 @@ The go-to app for Cape Town ocean swimmers — and eventually, the platform that
 - [ ] Follow other swimmers
 
 ### Gamification
-- [ ] Points system
-- [ ] Streak tracking
+- [x] Points system
+- [x] Streak tracking
 - [ ] Badges & achievements
 - [ ] Weekly/monthly leaderboards
 
@@ -52,13 +75,13 @@ The go-to app for Cape Town ocean swimmers — and eventually, the platform that
 
 ---
 
-## 🟢 Phase 3: Data & Intelligence
+## Phase 3: Data & Intelligence
 
 ### Analytics
-- [ ] Historical temp trends per spot
+- [x] Historical temp trends per spot
 - [ ] Best swimming times predictions
 - [ ] Crowd patterns (busy vs quiet times)
-- [ ] Personal stats dashboard
+- [ ] Personal stats dashboard (enhanced)
 
 ### Integrations
 - [ ] Tide/swell data (Surfline API?)
@@ -66,11 +89,15 @@ The go-to app for Cape Town ocean swimmers — and eventually, the platform that
 - [ ] Water quality data (City of CT?)
 - [ ] Strava/Garmin import
 
+### AI Features
+- [ ] Smart recommendations
+- [ ] Condition analysis
+
 ### Goal: Rich dataset proving swimmer behavior patterns
 
 ---
 
-## 🔵 Phase 4: Insurance Play
+## Phase 4: Insurance Play
 
 ### What Insurers Need
 1. **Verified Identity** — Know who's swimming
@@ -119,12 +146,9 @@ The go-to app for Cape Town ocean swimmers — and eventually, the platform that
 | King Price | Disruptive, might try something new |
 | Specialized marine insurers | Understand water risks |
 
-### Pitch Angle
-> "We've built a community of 500 verified ocean swimmers in Cape Town. They check in before swims, check out after, log conditions, and report incidents. We have 6 months of behavioral data. Want to pilot a product with us?"
-
 ---
 
-## 💰 Revenue Streams
+## Revenue Streams
 
 ### Phase 1-2 (Free)
 - Build userbase, no revenue
@@ -132,10 +156,7 @@ The go-to app for Cape Town ocean swimmers — and eventually, the platform that
 
 ### Phase 3 (Premium)
 - Premium features: R50/month
-  - Advanced stats
-  - Data export
-  - Priority support
-  - Ad-free
+  - Advanced stats, data export, priority support, ad-free
 
 ### Phase 4 (Insurance)
 - Commission on insurance sales (15-20%)
@@ -152,12 +173,14 @@ The go-to app for Cape Town ocean swimmers — and eventually, the platform that
 
 ## Technical Debt / Cleanup
 
-- [ ] Single HTML → proper component structure
-- [ ] Consider Flutter for native app
-- [ ] Proper error handling
+- [ ] Single HTML file → proper component structure (or Flutter)
+- [ ] Proper error handling & logging
 - [ ] Offline support (log temps without signal)
 - [ ] Push notifications
 - [ ] Admin dashboard
+- [x] Branded email templates (configured in Supabase)
+- [x] Folder structure cleanup (SQL scripts organized)
+- [x] Developer documentation
 
 ---
 
@@ -173,4 +196,4 @@ The go-to app for Cape Town ocean swimmers — and eventually, the platform that
 
 ---
 
-*Last updated: 2026-01-29*
+*Last updated: 2026-02-16*
