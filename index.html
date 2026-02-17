@@ -3492,6 +3492,48 @@
                 return;
             }
 
+            // 🌡️ Smart temp validation — compare against recent readings for this spot
+            const spotInfo = spots.find(s => s.id === spotId);
+            const waterType = spotInfo ? spotInfo.water_type : 'OCEAN';
+
+            // Absolute range check by water type
+            const ranges = {
+                'OCEAN':  { min: 10, max: 22, label: 'ocean' },
+                'LAGOON': { min: 10, max: 28, label: 'lagoon' },
+                'DAM':    { min: 10, max: 28, label: 'dam' },
+                'POOL':   { min: 18, max: 34, label: 'pool' }
+            };
+            const range = ranges[waterType] || ranges['OCEAN'];
+
+            let warning = null;
+
+            if (temp < range.min || temp > range.max) {
+                warning = `${temp}° seems unusual for a ${range.label} spot (typical: ${range.min}°–${range.max}°).`;
+            }
+
+            // Compare against recent community logs for this spot
+            if (!warning) {
+                const { data: recentSpotLogs } = await supabaseClient
+                    .from('temp_logs')
+                    .select('temp_c')
+                    .eq('spot_id', spotId)
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+
+                if (recentSpotLogs && recentSpotLogs.length >= 2) {
+                    const avgTemp = recentSpotLogs.reduce((sum, l) => sum + parseFloat(l.temp_c), 0) / recentSpotLogs.length;
+                    const diff = Math.abs(temp - avgTemp);
+                    if (diff > 4) {
+                        warning = `${temp}° is ${diff.toFixed(1)}° ${temp > avgTemp ? 'warmer' : 'colder'} than recent readings (avg ${avgTemp.toFixed(1)}°) at ${spotInfo ? spotInfo.name : 'this spot'}.`;
+                    }
+                }
+            }
+
+            if (warning) {
+                const proceed = confirm(`⚠️ Temperature Check\n\n${warning}\n\nAre you sure this is correct?`);
+                if (!proceed) return;
+            }
+
             // Determine location source
             let locationSource = 'fallback';
             if (selectedSpotLocked) {
