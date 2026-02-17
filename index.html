@@ -3511,11 +3511,11 @@
                 warning = `${temp}° seems unusual for a ${range.label} spot (typical: ${range.min}°–${range.max}°).`;
             }
 
-            // Compare against recent community logs for this spot
+            // Compare against recent community logs for this spot (time-aware)
             if (!warning) {
                 const { data: recentSpotLogs } = await supabaseClient
                     .from('temp_logs')
-                    .select('temp_c')
+                    .select('temp_c, created_at')
                     .eq('spot_id', spotId)
                     .order('created_at', { ascending: false })
                     .limit(5);
@@ -3523,8 +3523,14 @@
                 if (recentSpotLogs && recentSpotLogs.length >= 2) {
                     const avgTemp = recentSpotLogs.reduce((sum, l) => sum + parseFloat(l.temp_c), 0) / recentSpotLogs.length;
                     const diff = Math.abs(temp - avgTemp);
-                    if (diff > 4) {
-                        warning = `${temp}° is ${diff.toFixed(1)}° ${temp > avgTemp ? 'warmer' : 'colder'} than recent readings (avg ${avgTemp.toFixed(1)}°) at ${spotInfo ? spotInfo.name : 'this spot'}.`;
+                    // Time since most recent log in hours
+                    const mostRecentLog = new Date(recentSpotLogs[0].created_at);
+                    const hoursSince = (Date.now() - mostRecentLog) / (1000 * 60 * 60);
+                    // Scale threshold: 4° within 24hrs, 6° within 3 days, 8° beyond that
+                    const threshold = hoursSince < 24 ? 4 : hoursSince < 72 ? 6 : 8;
+                    if (diff > threshold) {
+                        const timeAgo = hoursSince < 24 ? `${Math.round(hoursSince)} hours` : `${Math.round(hoursSince / 24)} days`;
+                        warning = `${temp}° is ${diff.toFixed(1)}° ${temp > avgTemp ? 'warmer' : 'colder'} than recent readings (avg ${avgTemp.toFixed(1)}°, last logged ${timeAgo} ago) at ${spotInfo ? spotInfo.name : 'this spot'}.`;
                     }
                 }
             }
