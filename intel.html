@@ -691,42 +691,44 @@ async function loadWindow() {
     const counts = byMonth.map(t => t.length);
     const maxAvg = Math.max(...avgs.filter(Boolean));
 
-    // Chart
-    const ctx = document.getElementById('monthChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: MONTHS,
-            datasets: [
-                {
-                    label: 'Avg temp',
-                    data: avgs.map(v => v ? +v.toFixed(1) : null),
-                    backgroundColor: avgs.map(v => !v ? 'transparent' : v >= 18 ? 'rgba(34,197,94,0.7)' : v >= 15 ? 'rgba(245,158,11,0.6)' : 'rgba(239,68,68,0.5)'),
-                    borderColor: avgs.map(v => !v ? 'transparent' : v >= 18 ? '#22c55e' : v >= 15 ? '#f59e0b' : '#ef4444'),
-                    borderWidth: 1, borderRadius: 5,
-                },
-                {
-                    label: '18°C',
-                    data: Array(12).fill(18),
-                    type: 'line',
-                    borderColor: 'rgba(34,197,94,0.4)',
-                    borderDash: [4,4], borderWidth: 1.5,
-                    pointRadius: 0, fill: false,
-                }
-            ]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: { callbacks: { label: c => c.datasetIndex === 0 ? `${c.raw}°C · ${counts[c.dataIndex]} crossings` : '18°C skins threshold' } }
+    // Chart — wrapped in try/catch so a hidden canvas doesn't kill the rest of the function
+    try {
+        const ctx = document.getElementById('monthChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: MONTHS,
+                datasets: [
+                    {
+                        label: 'Avg temp',
+                        data: avgs.map(v => v ? +v.toFixed(1) : null),
+                        backgroundColor: avgs.map(v => !v ? 'transparent' : v >= 18 ? 'rgba(34,197,94,0.7)' : v >= 15 ? 'rgba(245,158,11,0.6)' : 'rgba(239,68,68,0.5)'),
+                        borderColor: avgs.map(v => !v ? 'transparent' : v >= 18 ? '#22c55e' : v >= 15 ? '#f59e0b' : '#ef4444'),
+                        borderWidth: 1, borderRadius: 5,
+                    },
+                    {
+                        label: '18°C',
+                        data: Array(12).fill(18),
+                        type: 'line',
+                        borderColor: 'rgba(34,197,94,0.4)',
+                        borderDash: [4,4], borderWidth: 1.5,
+                        pointRadius: 0, fill: false,
+                    }
+                ]
             },
-            scales: {
-                y: { min: 10, max: 22, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#94a3b8', callback: v => v+'°C' } },
-                x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: c => c.datasetIndex === 0 ? `${c.raw}°C · ${counts[c.dataIndex]} crossings` : '18°C skins threshold' } }
+                },
+                scales: {
+                    y: { min: 10, max: 22, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#94a3b8', callback: v => v+'°C' } },
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                }
             }
-        }
-    });
+        });
+    } catch(e) { /* chart may fail if tab is hidden — non-fatal */ }
 
     // Month bars text
     const viableMonths = MONTHS.filter((m,i) => avgs[i] >= 18);
