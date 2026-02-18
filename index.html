@@ -576,21 +576,12 @@
         // Build grouped spot options using <optgroup> by region
         function buildGroupedSpotOptions(includeAllOption = false) {
             const DOMAINS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'INLAND'];
-            const domainIcons = {
-                'ATLANTIC': '🌊',
-                'FALSE_BAY': '🌊',
-                'WEST_COAST': '🌊',
-                'SOUTH_COAST': '🌊',
-                'GARDEN_ROUTE': '🌊',
-                'INLAND': '🏊'
-            };
             let html = includeAllOption ? '<option value="">All Locations</option>' : '';
 
             DOMAINS.forEach(domain => {
                 const domainSpots = spots.filter(s => s.domain === domain);
                 if (domainSpots.length === 0) return;
-                const icon = domainIcons[domain] || '📍';
-                html += `<optgroup label="${icon} ${formatDomain(domain)}">`;
+                html += `<optgroup label="— ${formatDomain(domain)} —">`;
                 domainSpots.forEach(spot => {
                     html += `<option value="${spot.id}">${spot.name}</option>`;
                 });
