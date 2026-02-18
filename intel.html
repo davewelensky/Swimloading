@@ -345,14 +345,6 @@ async function startApp(session) {
     document.getElementById('initScreen').style.display = 'none';
     document.getElementById('appContent').style.display = 'block';
 
-    // Raw REST test — bypass Supabase JS client entirely
-    const rawResp = await fetch(
-        `${SUPABASE_URL}/rest/v1/historical_routes?select=id,name&limit=3`,
-        { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${session.access_token}` } }
-    );
-    const rawData = await rawResp.json();
-    console.log('RAW REST test:', rawResp.status, rawData);
-
     // Load all panels in parallel
     loadNow();
     loadWindow();
@@ -433,11 +425,8 @@ function isNW(deg) {
 function posClass(i) { return i===0?'p1':i===1?'p2':i===2?'p3':''; }
 
 async function getFBRouteIds() {
-    const { data, error } = await sb.from('historical_routes').select('id,name');
-    if (error) { console.error('getFBRouteIds error:', error); return []; }
-    console.log('All routes:', data?.map(r=>r.name));
+    const { data } = await sb.from('historical_routes').select('id,name');
     const fb = (data||[]).filter(r => r.name && r.name.toLowerCase().startsWith('false bay'));
-    console.log('False Bay routes:', fb.map(r=>r.name));
     return fb.map(r => r.id);
 }
 
@@ -676,15 +665,14 @@ function timeAgo(ts) {
 
 async function loadWindow() {
     const routeIds = await getFBRouteIds();
-    if (!routeIds.length) { console.warn('No False Bay route IDs found'); return; }
+    if (!routeIds.length) return;
 
-    const { data: swims, error: swimErr } = await sb.from('historical_swims')
+    const { data: swims } = await sb.from('historical_swims')
         .select('swim_date, water_temp_c, conditions, category, is_relay')
         .in('route_id', routeIds)
         .not('water_temp_c', 'is', null);
 
-    console.log('loadWindow swims:', swims?.length, swimErr);
-    if (!swims?.length) { document.getElementById('febStats').textContent = 'No data found'; document.getElementById('condStats').textContent = 'No data found'; return; }
+    if (!swims?.length) return;
 
     // Monthly aggregation
     const byMonth = Array.from({length:12}, () => []);
@@ -783,9 +771,9 @@ async function loadWindow() {
 
 async function loadRecords() {
     const routeIds = await getFBRouteIds();
-    if (!routeIds.length) { console.warn('No False Bay route IDs found'); return; }
+    if (!routeIds.length) return;
 
-    const { data: all, error: allErr } = await sb.from('historical_swims')
+    const { data: all } = await sb.from('historical_swims')
         .select('swim_date, water_temp_c, duration, conditions, category, is_relay, historical_swimmers!inner(display_name, gender)')
         .in('route_id', routeIds)
         .eq('category', 'skins')
@@ -793,8 +781,7 @@ async function loadRecords() {
         .not('duration', 'is', null)
         .order('duration', { ascending: true });
 
-    console.log('loadRecords:', all?.length, allErr);
-    if (!all?.length) { ['recWomen','recMen','recWarm'].forEach(id => document.getElementById(id).textContent = allErr?.message || 'No data'); return; }
+    if (!all?.length) return;
 
     const women = all.filter(s => s.historical_swimmers?.gender === 'F');
     const men   = all.filter(s => s.historical_swimmers?.gender === 'M');
@@ -826,9 +813,9 @@ async function loadRecords() {
 
 async function loadCarina() {
     const routeIds = await getFBRouteIds();
-    if (!routeIds.length) { console.warn('No False Bay route IDs found'); return; }
+    if (!routeIds.length) return;
 
-    const { data: all, error: allErr2 } = await sb.from('historical_swims')
+    const { data: all } = await sb.from('historical_swims')
         .select('swim_date, water_temp_c, duration, conditions, category, is_relay, historical_swimmers!inner(display_name, gender)')
         .in('route_id', routeIds)
         .eq('category', 'skins')
@@ -836,8 +823,7 @@ async function loadCarina() {
         .not('duration', 'is', null)
         .order('duration', { ascending: true });
 
-    console.log('loadCarina:', all?.length, allErr2);
-    if (!all?.length) { document.getElementById('carinaInsights').textContent = allErr2?.message || 'No data'; return; }
+    if (!all?.length) return;
 
     const women = all.filter(s => s.historical_swimmers?.gender === 'F');
     const record = women[0];
