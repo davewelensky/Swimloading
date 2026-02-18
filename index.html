@@ -573,27 +573,54 @@
             }
         }
 
-        // Populate spot dropdowns
+        // Build grouped spot options using <optgroup> by region
+        function buildGroupedSpotOptions(includeAllOption = false) {
+            const DOMAINS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'INLAND'];
+            let html = includeAllOption ? '<option value="">All Locations</option>' : '';
+
+            DOMAINS.forEach(domain => {
+                const domainSpots = spots.filter(s => s.domain === domain);
+                if (domainSpots.length === 0) return;
+                html += `<optgroup label="${formatDomain(domain)}">`;
+                domainSpots.forEach(spot => {
+                    html += `<option value="${spot.id}">${spot.name}</option>`;
+                });
+                html += '</optgroup>';
+            });
+
+            // Any spots with unknown domain
+            const ungrouped = spots.filter(s => !['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'INLAND'].includes(s.domain));
+            if (ungrouped.length > 0) {
+                html += '<optgroup label="Other">';
+                ungrouped.forEach(spot => {
+                    html += `<option value="${spot.id}">${spot.name}</option>`;
+                });
+                html += '</optgroup>';
+            }
+
+            return html;
+        }
+
+        // Populate spot dropdowns with region grouping
         function populateSpotDropdowns() {
+            const groupedOptions = buildGroupedSpotOptions(false);
+            const groupedOptionsWithAll = buildGroupedSpotOptions(true);
+
             const selects = document.querySelectorAll('select[data-spots]');
             selects.forEach(select => {
-                select.innerHTML = spots.map(spot =>
-                    `<option value="${spot.id}">${spot.name}</option>`
-                ).join('');
+                select.innerHTML = groupedOptions;
             });
 
             // Also populate history filter
             const historyFilter = document.getElementById('historySpotFilter');
             if (historyFilter) {
-                historyFilter.innerHTML = '<option value="">All Locations</option>' +
-                    spots.map(spot => `<option value="${spot.id}">${spot.name}</option>`).join('');
+                historyFilter.innerHTML = groupedOptionsWithAll;
             }
 
             // Also populate event filter
             const eventFilter = document.getElementById('eventSpotFilter');
             if (eventFilter) {
-                eventFilter.innerHTML = '<option value="">All Locations</option>' +
-                    spots.map(spot => `<option value="${spot.id}">${spot.name}</option>`).join('');
+                eventFilter.innerHTML = groupedOptionsWithAll;
             }
         }
 
@@ -1240,6 +1267,63 @@
         function hideCreateEvent() {
             document.getElementById('createEventModal').style.display = 'none';
             document.getElementById('createEventForm').reset();
+        }
+
+        // ========== SUGGEST A SPOT ==========
+
+        function showSuggestSpot() {
+            document.getElementById('suggestSpotModal').style.display = 'block';
+            document.getElementById('suggestSpotForm').reset();
+            document.getElementById('submitSuggestBtn').disabled = false;
+            document.getElementById('submitSuggestBtn').textContent = 'Submit Suggestion';
+        }
+
+        function hideSuggestSpot() {
+            document.getElementById('suggestSpotModal').style.display = 'none';
+        }
+
+        async function submitSpotSuggestion(e) {
+            e.preventDefault();
+
+            const btn = document.getElementById('submitSuggestBtn');
+            btn.disabled = true;
+            btn.textContent = 'Submitting...';
+
+            const name = document.getElementById('suggestSpotName').value.trim();
+            const type = document.getElementById('suggestSpotType').value;
+            const region = document.getElementById('suggestSpotRegion').value.trim();
+            const description = document.getElementById('suggestSpotDescription').value.trim();
+
+            if (description.length < 20) {
+                showToast('Please provide a longer description (20+ characters)', 'error');
+                btn.disabled = false;
+                btn.textContent = 'Submit Suggestion';
+                return;
+            }
+
+            const { error } = await supabaseClient
+                .from('spot_suggestions')
+                .insert({
+                    user_id: currentUser.id,
+                    spot_name: name,
+                    water_type: type,
+                    region: region || null,
+                    description: description
+                });
+
+            if (error) {
+                if (error.message.includes('row-level security') || error.code === '42501') {
+                    showToast('You already have 3 pending suggestions. Wait for review.', 'error');
+                } else {
+                    showToast('Error submitting suggestion: ' + error.message, 'error');
+                }
+                btn.disabled = false;
+                btn.textContent = 'Submit Suggestion';
+                return;
+            }
+
+            showToast('Spot suggestion submitted! We\'ll review it soon.', 'success');
+            hideSuggestSpot();
         }
 
         function clearEventFilter() {
@@ -4667,6 +4751,18 @@
             box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.1);
         }
 
+        optgroup {
+            color: var(--ocean-light);
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        optgroup option {
+            color: var(--text-primary);
+            font-weight: 500;
+            font-size: 15px;
+        }
+
         .form-label {
             font-size: 13px;
             font-weight: 600;
@@ -4922,6 +5018,49 @@
         </div>
     </div>
 
+    <!-- Suggest Spot Modal -->
+    <div id="suggestSpotModal"
+        style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; padding: 20px; overflow-y: auto;">
+        <div style="max-width: 500px; margin: 40px auto; background: var(--bg-dark); border: 2px solid var(--border); border-radius: 20px; padding: 30px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="color: var(--text-primary); font-size: 20px; margin: 0;">Suggest a Spot</h3>
+                <button onclick="hideSuggestSpot()"
+                    style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; padding: 0; width: auto;">&times;</button>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 13px; margin: 0 0 20px 0;">
+                Know a swim spot that's missing? Tell us about it and we'll review it.
+            </p>
+            <form id="suggestSpotForm" onsubmit="submitSpotSuggestion(event)">
+                <div class="form-group">
+                    <div class="form-label">Spot Name</div>
+                    <input type="text" id="suggestSpotName" placeholder="e.g. Kogel Bay" required maxlength="100">
+                </div>
+                <div class="form-group">
+                    <div class="form-label">Type</div>
+                    <select id="suggestSpotType" required>
+                        <option value="OCEAN">Ocean</option>
+                        <option value="POOL">Pool</option>
+                        <option value="DAM">Dam</option>
+                        <option value="LAGOON">Lagoon</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <div class="form-label">Area / Region</div>
+                    <input type="text" id="suggestSpotRegion" placeholder="e.g. Overberg coast, near Hermanus" maxlength="100">
+                </div>
+                <div class="form-group">
+                    <div class="form-label">Why should we add this spot?</div>
+                    <textarea id="suggestSpotDescription"
+                        placeholder="Brief description — what makes it a good swim spot? Include any directions or landmarks."
+                        required minlength="20" maxlength="500"
+                        style="min-height: 80px;"></textarea>
+                    <small style="color: var(--text-secondary); font-size: 11px;">Minimum 20 characters</small>
+                </div>
+                <button type="submit" class="btn btn-success" id="submitSuggestBtn">Submit Suggestion</button>
+            </form>
+        </div>
+    </div>
+
     <div id="onboardingPersonal"
         style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); overflow-y: auto; z-index: 9999;">
         <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;">
@@ -5120,6 +5259,12 @@
                             </button>
                         </div>
                         <div id="gpsStatus" style="font-size: 12px; color: var(--text-secondary); min-height: 18px;">
+                        </div>
+                        <div style="text-align: right; margin-top: 4px;">
+                            <a href="#" onclick="showSuggestSpot(); return false;"
+                               style="font-size: 12px; color: var(--ocean-light); text-decoration: none; opacity: 0.7;">
+                                Don't see your spot? Suggest one
+                            </a>
                         </div>
                     </div>
 
@@ -6302,7 +6447,7 @@
         const DOMAINS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'INLAND'];
 
         function formatDomain(d) {
-            return d.replace('_', ' ');
+            return d.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
         }
 
         function getTimeAgo(date) {
