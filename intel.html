@@ -263,6 +263,23 @@
     <!-- ══════════════ TAB: RECORDS ══════════════ -->
     <div id="panelRecords" class="panel">
 
+        <!-- Scatter: time vs water temp, coloured by wind -->
+        <div class="card">
+            <div class="card-label">Time vs Water Temp — All Skins Solos</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">
+                🟢 NW wind &nbsp;|&nbsp; 🔴 Non-NW &nbsp;|&nbsp; Lower = faster. Tap a dot for details.
+            </div>
+            <div class="chart-wrap" style="height:220px;">
+                <canvas id="scatterChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Key insight card -->
+        <div class="card" id="conditionInsightCard">
+            <div class="card-label">What the Data Shows</div>
+            <div id="conditionInsight" class="loading-msg">Analysing...</div>
+        </div>
+
         <div class="card">
             <div class="card-label">Women's Skins Solo — All Time</div>
             <div id="recWomen" class="loading-msg">Loading...</div>
@@ -273,12 +290,17 @@
             <div id="recMen" class="loading-msg">Loading...</div>
         </div>
 
-        <div class="card">
-            <div class="card-label">Fastest at 18°C+ · Skins · Any Gender</div>
-            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Optimal skins conditions only</div>
-            <div id="recWarm" class="loading-msg">Loading...</div>
-        </div>
+    </div>
 
+    <!-- Swimmer detail modal -->
+    <div id="swimmerModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:200;padding:20px;overflow-y:auto;">
+        <div style="max-width:500px;margin:40px auto;background:var(--bg-card);border-radius:20px;padding:24px;border:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <div style="font-size:16px;font-weight:700;color:var(--text-primary);" id="modalName">—</div>
+                <button onclick="document.getElementById('swimmerModal').style.display='none';document.body.style.overflow='';" style="background:transparent;border:none;color:var(--text-secondary);font-size:22px;cursor:pointer;">✕</button>
+            </div>
+            <div id="modalContent"></div>
+        </div>
     </div>
 
     <!-- ══════════════ TAB: CARINA ══════════════ -->
@@ -883,6 +905,37 @@ async function loadWindow() {
 
 // ─── RECORDS TAB ──────────────────────────────────────────────────────────────
 
+function showSwimmerModal(swim) {
+    const w = weatherData[swim.swim_date] || {};
+    const secs = durSecs(swim.duration);
+    const name = swim.historical_swimmers?.display_name || 'Unknown';
+    document.getElementById('modalName').textContent = name;
+    document.getElementById('modalContent').innerHTML = `
+        <div class="stat-grid-3" style="margin-bottom:14px;">
+            <div class="stat-box"><div class="stat-val" style="font-size:18px;">${fmtDur(swim.duration)}</div><div class="stat-lbl">Finish time</div></div>
+            <div class="stat-box ${swim.water_temp_c>=18?'ok':'warn'}"><div class="stat-val ${swim.water_temp_c>=18?'green':'amber'}" style="font-size:18px;">${swim.water_temp_c||'—'}°C</div><div class="stat-lbl">Water temp</div></div>
+            <div class="stat-box ${w.nw?'ok':''}"><div class="stat-val ${w.nw?'green':'red'}" style="font-size:16px;">${w.dir||'—'}</div><div class="stat-lbl">${w.wind?.toFixed(0)||'—'} km/h</div></div>
+        </div>
+        <div class="stat-grid" style="margin-bottom:14px;">
+            <div class="stat-box"><div class="stat-val" style="font-size:14px;">${swim.conditions?.replace('_',' ')||'—'}</div><div class="stat-lbl">Conditions</div></div>
+            <div class="stat-box"><div class="stat-val" style="font-size:13px;">${new Date(swim.swim_date).toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'})}</div><div class="stat-lbl">Date</div></div>
+        </div>
+        <div class="alert ${w.nw && swim.water_temp_c>=18 ? 'green' : swim.water_temp_c>=18 ? 'amber' : 'blue'}" style="margin-bottom:10px;">
+            ${w.nw && swim.water_temp_c>=18
+                ? `✅ Ideal conditions — NW wind + ${swim.water_temp_c}°C water. This is the benchmark Carina needs to beat.`
+                : !w.nw && swim.water_temp_c>=18
+                ? `⚠️ Warm water (${swim.water_temp_c}°C) but ${w.dir||'unknown'} wind — not Carina's preferred NW. Time would likely be faster in NW conditions.`
+                : `Cold water crossing — ${swim.water_temp_c}°C is below the 18°C skins threshold. Strong swimmer to finish this.`}
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">
+            ${swim.historical_swimmers?.gender === 'F' ? '👩' : '👨'} ${swim.historical_swimmers?.gender === 'F' ? 'Women\'s' : 'Men\'s'} skins solo &nbsp;·&nbsp;
+            False Bay W→E &nbsp;·&nbsp; ~32km
+        </div>
+    `;
+    document.getElementById('swimmerModal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
 async function loadRecords() {
     const routeIds = await getFBRouteIds();
     if (!routeIds.length) return;
@@ -943,9 +996,174 @@ async function loadRecords() {
         }).join('');
     }
 
+    // ── Scatter chart: time (y) vs water temp (x), colour = NW wind ──
+    try {
+        const scatterData = all.map(s => {
+            const w = weatherData[s.swim_date] || {};
+            return {
+                x: s.water_temp_c || 0,
+                y: durSecs(s.duration) / 3600,
+                name: s.historical_swimmers?.display_name || '?',
+                gender: s.historical_swimmers?.gender,
+                nw: w.nw,
+                dir: w.dir,
+                wind: w.wind,
+                date: s.swim_date,
+                conditions: s.conditions,
+                temp: s.water_temp_c,
+                duration: s.duration,
+                swim: s
+            };
+        });
+
+        const nwPoints  = scatterData.filter(p => p.nw === true);
+        const notPoints = scatterData.filter(p => p.nw === false);
+        const unkPoints = scatterData.filter(p => p.nw === undefined);
+
+        const sCtx = document.getElementById('scatterChart').getContext('2d');
+        const scatterChart = new Chart(sCtx, {
+            type: 'scatter',
+            data: {
+                datasets: [
+                    {
+                        label: 'NW wind',
+                        data: nwPoints,
+                        backgroundColor: 'rgba(34,197,94,0.75)',
+                        borderColor: '#22c55e',
+                        borderWidth: 1.5,
+                        pointRadius: 7,
+                        pointHoverRadius: 10,
+                    },
+                    {
+                        label: 'Non-NW wind',
+                        data: notPoints,
+                        backgroundColor: 'rgba(239,68,68,0.65)',
+                        borderColor: '#ef4444',
+                        borderWidth: 1.5,
+                        pointRadius: 7,
+                        pointHoverRadius: 10,
+                    },
+                    {
+                        label: 'Unknown wind',
+                        data: unkPoints,
+                        backgroundColor: 'rgba(148,163,184,0.5)',
+                        borderColor: '#94a3b8',
+                        borderWidth: 1,
+                        pointRadius: 5,
+                        pointHoverRadius: 8,
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                onClick: (evt, elements) => {
+                    if (!elements.length) return;
+                    const el = elements[0];
+                    const ds = scatterChart.data.datasets[el.datasetIndex];
+                    const pt = ds.data[el.index];
+                    showSwimmerModal(pt.swim);
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const p = ctx.raw;
+                                const h = Math.floor(p.y);
+                                const m = Math.round((p.y - h) * 60);
+                                return `${p.name} · ${h}h${String(m).padStart(2,'0')}m · ${p.temp}°C · ${p.dir||'?'} ${p.wind?.toFixed(0)||'?'}km/h`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Water Temp (°C)', color: '#94a3b8', font: { size: 11 } },
+                        min: 13, max: 21,
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: { color: '#94a3b8', callback: v => v+'°C' }
+                    },
+                    y: {
+                        title: { display: true, text: 'Time (hours)', color: '#94a3b8', font: { size: 11 } },
+                        ticks: {
+                            color: '#94a3b8',
+                            callback: v => { const h=Math.floor(v),m=Math.round((v-h)*60); return `${h}:${String(m).padStart(2,'0')}`; }
+                        },
+                        grid: { color: 'rgba(255,255,255,0.04)' }
+                    }
+                }
+            }
+        });
+    } catch(e) { /* chart hidden on load */ }
+
+    // ── Condition insight ──
+    const nwSwims   = all.filter(s => weatherData[s.swim_date]?.nw === true);
+    const nonNwSwims = all.filter(s => weatherData[s.swim_date]?.nw === false);
+    const warm18    = all.filter(s => s.water_temp_c >= 18);
+    const cold      = all.filter(s => s.water_temp_c < 18);
+
+    const avgSecs = arr => arr.length ? arr.reduce((a,s) => a + durSecs(s.duration), 0) / arr.length : null;
+    const nwAvg   = avgSecs(nwSwims);
+    const nonNwAvg = avgSecs(nonNwSwims);
+    const warm18Avg = avgSecs(warm18);
+    const coldAvg  = avgSecs(cold);
+
+    const diffWind = nwAvg && nonNwAvg ? Math.abs(nonNwAvg - nwAvg) : null;
+    const diffTemp = warm18Avg && coldAvg ? Math.abs(coldAvg - warm18Avg) : null;
+
+    document.getElementById('conditionInsight').innerHTML = `
+        <div class="stat-grid" style="margin-bottom:12px;">
+            <div class="stat-box ok">
+                <div class="stat-val green" style="font-size:16px;">${nwAvg ? secsToHMS(nwAvg) : '—'}</div>
+                <div class="stat-lbl">Avg time — NW wind (${nwSwims.length} swims)</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-val red" style="font-size:16px;">${nonNwAvg ? secsToHMS(nonNwAvg) : '—'}</div>
+                <div class="stat-lbl">Avg time — Non-NW (${nonNwSwims.length} swims)</div>
+            </div>
+            <div class="stat-box ok">
+                <div class="stat-val green" style="font-size:16px;">${warm18Avg ? secsToHMS(warm18Avg) : '—'}</div>
+                <div class="stat-lbl">Avg time — 18°C+ water (${warm18.length} swims)</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-val amber" style="font-size:16px;">${coldAvg ? secsToHMS(coldAvg) : '—'}</div>
+                <div class="stat-lbl">Avg time — Under 18°C (${cold.length} swims)</div>
+            </div>
+        </div>
+        ${diffWind ? `<div class="alert green">💨 NW wind = <strong>${secsToHMS(diffWind)} faster</strong> on average vs non-NW conditions.</div>` : ''}
+        ${diffTemp ? `<div class="alert green">🌡️ 18°C+ water = <strong>${secsToHMS(diffTemp)} faster</strong> on average vs cold water.</div>` : ''}
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:8px;">Tap any dot on the chart above for swimmer detail.</div>
+    `;
+
+    // Make record rows tappable
+    function renderList(list, elId) {
+        if (!list.length) { document.getElementById(elId).innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No records yet</div>'; return; }
+        document.getElementById(elId).innerHTML = list.slice(0,8).map((s,i) => {
+            const w = weatherData[s.swim_date] || {};
+            const nwBadge = w.nw !== undefined
+                ? `<span style="font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600;background:${w.nw?'rgba(34,197,94,0.15)':'rgba(239,68,68,0.12)'};color:${w.nw?'var(--success)':'var(--danger)'};">💨 ${w.dir||'?'} ${w.wind?.toFixed(0)||'?'}km/h</span>`
+                : '';
+            const tempBadge = `<span style="font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600;background:${s.water_temp_c>=18?'rgba(34,197,94,0.15)':'rgba(245,158,11,0.15)'};color:${s.water_temp_c>=18?'var(--success)':'var(--warning)'};">🌡️ ${s.water_temp_c||'—'}°C</span>`;
+            const swimJson = encodeURIComponent(JSON.stringify(s));
+            return `
+            <div class="record-row" style="flex-direction:column;align-items:flex-start;gap:6px;cursor:pointer;" onclick="showSwimmerModal(JSON.parse(decodeURIComponent('${swimJson}')))">
+                <div style="display:flex;align-items:center;gap:8px;width:100%;">
+                    <div class="record-pos ${posClass(i)}">${i+1}</div>
+                    <div style="flex:1;">
+                        <div class="record-name">${s.historical_swimmers?.display_name||'Unknown'}</div>
+                        <div class="record-detail">${new Date(s.swim_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})} · ${s.conditions?.replace('_',' ')||'—'}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div class="record-time">${fmtDur(s.duration)}</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:6px;padding-left:36px;">${tempBadge}${nwBadge}</div>
+            </div>`;
+        }).join('');
+    }
+
     renderList(women, 'recWomen');
     renderList(men,   'recMen');
-    renderList(warm,  'recWarm');
 }
 
 // ─── CARINA TAB ───────────────────────────────────────────────────────────────
