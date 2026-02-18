@@ -576,12 +576,21 @@
         // Build grouped spot options using <optgroup> by region
         function buildGroupedSpotOptions(includeAllOption = false) {
             const DOMAINS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'INLAND'];
+            const domainIcons = {
+                'ATLANTIC': '🌊',
+                'FALSE_BAY': '🌊',
+                'WEST_COAST': '🌊',
+                'SOUTH_COAST': '🌊',
+                'GARDEN_ROUTE': '🌊',
+                'INLAND': '🏊'
+            };
             let html = includeAllOption ? '<option value="">All Locations</option>' : '';
 
             DOMAINS.forEach(domain => {
                 const domainSpots = spots.filter(s => s.domain === domain);
                 if (domainSpots.length === 0) return;
-                html += `<optgroup label="${formatDomain(domain)}">`;
+                const icon = domainIcons[domain] || '📍';
+                html += `<optgroup label="${icon} ${formatDomain(domain)}">`;
                 domainSpots.forEach(spot => {
                     html += `<option value="${spot.id}">${spot.name}</option>`;
                 });
@@ -5260,11 +5269,10 @@
                         </div>
                         <div id="gpsStatus" style="font-size: 12px; color: var(--text-secondary); min-height: 18px;">
                         </div>
-                        <div style="text-align: right; margin-top: 4px;">
-                            <a href="#" onclick="showSuggestSpot(); return false;"
-                               style="font-size: 12px; color: var(--ocean-light); text-decoration: none; opacity: 0.7;">
-                                Don't see your spot? Suggest one
-                            </a>
+                        <div onclick="showSuggestSpot()"
+                            style="margin-top: 8px; padding: 10px 14px; background: rgba(56, 189, 248, 0.08); border: 1px dashed rgba(56, 189, 248, 0.25); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
+                            <i data-lucide="plus-circle" style="width: 16px; height: 16px; color: var(--ocean-light); opacity: 0.7; flex-shrink: 0;"></i>
+                            <span style="font-size: 12px; color: var(--ocean-light); opacity: 0.7;">Don't see your spot? Suggest one</span>
                         </div>
                     </div>
 
