@@ -470,7 +470,9 @@ const ALLOWED_USERS = [
     'cff2fc33-4a55-451b-8c7f-20f12c1898ce',  // Carina Bruwer
 ];
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, storageKey: 'sb-szgkzuswelntnevobnoh-auth-token' }
+});
 
 // Month names
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -524,6 +526,18 @@ function showTab(tab) {
 // ─── OVERVIEW ───────────────────────────────────────────────────────────────
 
 async function loadOverview() {
+    // Get False Bay route IDs first
+    const { data: fbRoutes } = await supabase
+        .from('historical_routes')
+        .select('id')
+        .like('name', 'False Bay%');
+
+    if (!fbRoutes?.length) {
+        document.getElementById('overviewStats').innerHTML = '<div class="loading">No False Bay routes found</div>';
+        return;
+    }
+    const fbRouteIds = fbRoutes.map(r => r.id);
+
     // Fetch all False Bay swims
     const { data: swims } = await supabase
         .from('historical_swims')
@@ -532,7 +546,7 @@ async function loadOverview() {
             historical_swimmers!inner(display_name, gender),
             historical_routes!inner(name)
         `)
-        .like('historical_routes.name', 'False Bay%')
+        .in('route_id', fbRouteIds)
         .order('swim_date', { ascending: false });
 
     if (!swims || swims.length === 0) {
@@ -663,14 +677,6 @@ async function loadWeekendConditions() {
 // ─── BEST WINDOW ─────────────────────────────────────────────────────────────
 
 async function loadWindow() {
-    const { data: swims } = await supabase
-        .from('historical_swims')
-        .select('swim_date, water_temp_c, category, is_relay')
-        .like('historical_routes.name', 'False Bay%')
-        .not('water_temp_c', 'is', null)
-        .order('swim_date');
-
-    // Need to join with routes - use a different approach
     const { data: falseBayRoutes } = await supabase
         .from('historical_routes')
         .select('id')
@@ -797,7 +803,7 @@ async function loadRecords() {
     const { data: falseBayRoutes } = await supabase
         .from('historical_routes')
         .select('id')
-        .like('name', 'False Bay%solo%');
+        .like('name', 'False Bay%');
 
     if (!falseBayRoutes) return;
     const routeIds = falseBayRoutes.map(r => r.id);
@@ -852,12 +858,12 @@ async function loadCarina() {
     const { data: falseBayRoutes } = await supabase
         .from('historical_routes')
         .select('id')
-        .like('name', 'False Bay%solo%');
+        .like('name', 'False Bay%');
 
     if (!falseBayRoutes) return;
     const routeIds = falseBayRoutes.map(r => r.id);
 
-    const { data: womenSolos } = await supabase
+    const { data: allSolosRaw } = await supabase
         .from('historical_swims')
         .select(`
             swim_date, water_temp_c, duration, conditions, category,
@@ -865,9 +871,10 @@ async function loadCarina() {
         `)
         .in('route_id', routeIds)
         .eq('category', 'skins')
-        .eq('historical_swimmers.gender', 'F')
         .not('duration', 'is', null)
         .order('duration', { ascending: true });
+
+    const womenSolos = (allSolosRaw || []).filter(s => s.historical_swimmers?.gender === 'F');
 
     // Women's record
     const record = womenSolos?.[0];
