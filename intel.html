@@ -424,8 +424,17 @@ function isNW(deg) {
 
 function posClass(i) { return i===0?'p1':i===1?'p2':i===2?'p3':''; }
 
+// Direct REST fetch — bypasses Supabase JS client auth issues
+async function apiFetch(path) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Accept': 'application/json' }
+    });
+    if (!res.ok) { console.error('apiFetch error', res.status, path); return []; }
+    return res.json();
+}
+
 async function getFBRouteIds() {
-    const { data } = await sb.from('historical_routes').select('id,name');
+    const data = await apiFetch('historical_routes?select=id,name');
     const fb = (data||[]).filter(r => r.name && r.name.toLowerCase().startsWith('false bay'));
     return fb.map(r => r.id);
 }
@@ -667,10 +676,7 @@ async function loadWindow() {
     const routeIds = await getFBRouteIds();
     if (!routeIds.length) return;
 
-    const { data: swims } = await sb.from('historical_swims')
-        .select('swim_date, water_temp_c, conditions, category, is_relay')
-        .in('route_id', routeIds)
-        .not('water_temp_c', 'is', null);
+    const swims = await apiFetch(`historical_swims?select=swim_date,water_temp_c,conditions,category,is_relay&route_id=in.(${routeIds.join(',')})&water_temp_c=not.is.null`);
 
     if (!swims?.length) return;
 
@@ -773,13 +779,7 @@ async function loadRecords() {
     const routeIds = await getFBRouteIds();
     if (!routeIds.length) return;
 
-    const { data: all } = await sb.from('historical_swims')
-        .select('swim_date, water_temp_c, duration, conditions, category, is_relay, historical_swimmers!inner(display_name, gender)')
-        .in('route_id', routeIds)
-        .eq('category', 'skins')
-        .eq('is_relay', false)
-        .not('duration', 'is', null)
-        .order('duration', { ascending: true });
+    const all = await apiFetch(`historical_swims?select=swim_date,water_temp_c,duration,conditions,category,is_relay,historical_swimmers!inner(display_name,gender)&route_id=in.(${routeIds.join(',')})&category=eq.skins&is_relay=eq.false&duration=not.is.null&order=duration.asc`);
 
     if (!all?.length) return;
 
@@ -815,13 +815,7 @@ async function loadCarina() {
     const routeIds = await getFBRouteIds();
     if (!routeIds.length) return;
 
-    const { data: all } = await sb.from('historical_swims')
-        .select('swim_date, water_temp_c, duration, conditions, category, is_relay, historical_swimmers!inner(display_name, gender)')
-        .in('route_id', routeIds)
-        .eq('category', 'skins')
-        .eq('is_relay', false)
-        .not('duration', 'is', null)
-        .order('duration', { ascending: true });
+    const all = await apiFetch(`historical_swims?select=swim_date,water_temp_c,duration,conditions,category,is_relay,historical_swimmers!inner(display_name,gender)&route_id=in.(${routeIds.join(',')})&category=eq.skins&is_relay=eq.false&duration=not.is.null&order=duration.asc`);
 
     if (!all?.length) return;
 
