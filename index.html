@@ -3461,6 +3461,11 @@
 
         // Submit temperature log
         async function submitTempLog() {
+            const submitBtn = document.getElementById('submitTempBtn');
+            if (submitBtn.disabled) return;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+
             const spotId = document.querySelector('#logTemp select[data-spots]').value;
             const temp = parseFloat(document.getElementById('tempValue').textContent);
             const conditionsRaw = document.querySelector('#logTemp .toggle-btn.active')?.textContent.trim() || 'Calm';
@@ -3489,6 +3494,8 @@
                 const minsAgo = Math.round((Date.now() - logTime) / 60000);
                 const minsLeft = 60 - minsAgo;
                 showToast(`You already logged this spot ${minsAgo} min ago. Try again in ${minsLeft} min.`, 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Temperature Log';
                 return;
             }
 
@@ -3537,7 +3544,11 @@
 
             if (warning) {
                 const proceed = confirm(`⚠️ Temperature Check\n\n${warning}\n\nAre you sure this is correct?`);
-                if (!proceed) return;
+                if (!proceed) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit Temperature Log';
+                    return;
+                }
             }
 
             // Determine location source
@@ -3576,6 +3587,8 @@
             if (error) {
                 alert('Error logging temperature: ' + error.message);
                 console.error(error);
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Temperature Log';
             } else {
                 showToast('Temperature logged successfully! +10 points!', 'success');
 
@@ -3589,7 +3602,9 @@
                 // Check for new badges after logging a temp
                 await checkAndAwardBadges();
 
-                // Switch to dashboard
+                // Re-enable button and switch to dashboard
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Temperature Log';
                 showPage('dashboard');
                 await loadDashboard();
                 await loadLeaderboard(); // Refresh leaderboard to show new points
@@ -5161,7 +5176,7 @@
                         <textarea placeholder="Visibility, currents, etc..."></textarea>
                     </div>
 
-                    <button class="btn btn-success" onclick="submitTempLog()">Submit Temperature Log</button>
+                    <button class="btn btn-success" id="submitTempBtn" onclick="submitTempLog()">Submit Temperature Log</button>
 
                     <div class="info-box">
                         <i data-lucide="database"
