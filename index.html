@@ -1948,11 +1948,13 @@
             if (!event) return;
 
             document.getElementById('eventDetailsModal').style.display = 'block';
+            document.body.style.overflow = 'hidden';
             renderEventDetails(event);
         }
 
         function hideEventDetails() {
             document.getElementById('eventDetailsModal').style.display = 'none';
+            document.body.style.overflow = '';
         }
 
         async function loadEventDetails(eventId) {
@@ -2354,7 +2356,11 @@
             const html = `
                 <div style="margin-bottom: 20px;">
                     <h2 style="font-size: 20px; color: var(--text-primary); margin-bottom: 8px;">Edit Swim</h2>
-                    <div style="color: var(--text-secondary); font-size: 13px;">Editing ${event.title}</div>
+                </div>
+
+                <div class="form-group">
+                    <div class="form-label">Swim Name</div>
+                    <input type="text" id="editEventTitle" placeholder="e.g. Morning Skins at Glen Beach" value="${(event.title || '').replace(/"/g, '&quot;')}">
                 </div>
 
                 <div class="form-group">
@@ -2397,6 +2403,7 @@
 
         async function saveEventUpdates(eventId) {
             try {
+                const title = document.getElementById('editEventTitle').value.trim();
                 const startAt = document.getElementById('editEventDateTime').value + ':00+02:00';
                 const routeType = document.getElementById('editEventRouteType').value;
                 const logistics = document.getElementById('editEventLogistics').value;
@@ -2405,6 +2412,7 @@
                 const { error } = await supabaseClient
                     .from('swim_events')
                     .update({
+                        title: title || null,
                         start_at: startAt,
                         route_type: routeType,
                         logistics_note: logistics,
@@ -5902,6 +5910,7 @@
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
 
