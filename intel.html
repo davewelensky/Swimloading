@@ -345,6 +345,14 @@ function startApp(session) {
     document.getElementById('initScreen').style.display = 'none';
     document.getElementById('appContent').style.display = 'block';
 
+    // Raw REST test — bypass Supabase JS client entirely
+    const rawResp = await fetch(
+        `${SUPABASE_URL}/rest/v1/historical_routes?select=id,name&limit=3`,
+        { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${session.access_token}` } }
+    );
+    const rawData = await rawResp.json();
+    console.log('RAW REST test:', rawResp.status, rawData);
+
     // Load all panels in parallel
     loadNow();
     loadWindow();
