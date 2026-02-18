@@ -213,6 +213,18 @@
             <div id="windForecast" class="loading-msg">Loading...</div>
         </div>
 
+        <!-- Marine / Swell forecast -->
+        <div class="card">
+            <div class="card-label">Swell & Wave Forecast — False Bay</div>
+            <div id="swellForecast" class="loading-msg">Loading...</div>
+        </div>
+
+        <!-- Sunday hourly breakdown -->
+        <div class="card">
+            <div class="card-label">Sunday — Hour by Hour</div>
+            <div id="sundayHourly" class="loading-msg">Loading...</div>
+        </div>
+
         <!-- Crossing conditions checklist -->
         <div class="card">
             <div class="card-label">Sunday Attempt — Conditions Checklist</div>
@@ -444,7 +456,9 @@ async function getFBRouteIds() {
 async function loadNow() {
     const [liveResult, forecastResult] = await Promise.all([
         loadLiveTemps(),
-        loadWindForecast()
+        loadWindForecast(),
+        loadMarineForecast(),
+        loadSundayHourly()
     ]);
 
     buildGoSignal(liveResult, forecastResult);
@@ -576,6 +590,98 @@ async function loadWindForecast() {
     } catch(e) {
         document.getElementById('windForecast').innerHTML = `<div style="color:var(--text-secondary);font-size:13px;">Could not load forecast. Check wind.guru or windguru.cz for False Bay.</div>`;
         return null;
+    }
+}
+
+async function loadMarineForecast() {
+    const today = new Date().toISOString().split('T')[0];
+    const endDate = new Date(); endDate.setDate(endDate.getDate()+7);
+    const end = endDate.toISOString().split('T')[0];
+    const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${MILLERS_LAT}&longitude=${MILLERS_LNG}&hourly=wave_height,wave_period,swell_wave_height&daily=wave_height_max,swell_wave_height_max,wave_period_max&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${end}`;
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+        const daily = data.daily;
+
+        // 7-day swell rows
+        const rows = daily.time.slice(0,7).map((d,i) => {
+            const wh = daily.wave_height_max[i];
+            const sw = daily.swell_wave_height_max[i];
+            const wp = daily.wave_period_max[i];
+            const isSunday = new Date(d).getDay() === 0;
+            const dayName = new Date(d).toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'short' });
+            const swellOk = wh <= 1.5;
+            return `
+                <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);${isSunday?'background:rgba(14,165,233,0.06);margin:0 -4px;padding:9px 4px;border-radius:8px;':''}">
+                    <div style="width:80px;font-size:12px;font-weight:${isSunday?700:400};color:${isSunday?'var(--ocean-light)':'var(--text-primary)'};">${dayName}${isSunday?' ★':''}</div>
+                    <div style="flex:1;">
+                        <div style="font-size:13px;font-weight:600;">Wave ${wh?.toFixed(1)}m · Swell ${sw?.toFixed(1)}m</div>
+                        <div style="font-size:11px;color:var(--text-secondary);">Period ${wp?.toFixed(0)}s</div>
+                    </div>
+                    <div style="font-size:11px;color:${swellOk?'var(--success)':wh<=2.5?'var(--warning)':'var(--danger)'};">${swellOk?'Calm':wh<=2.5?'Moderate':'Rough'}</div>
+                </div>`;
+        }).join('');
+
+        document.getElementById('swellForecast').innerHTML = rows +
+            `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo Marine · False Bay</div>`;
+
+        // Return Sunday marine data
+        const sundayIdx = daily.time.findIndex(d => new Date(d).getDay() === 0);
+        const si = sundayIdx >= 0 ? sundayIdx : 0;
+        return { waveMax: daily.wave_height_max[si], swellMax: daily.swell_wave_height_max[si], period: daily.wave_period_max[si] };
+    } catch(e) {
+        document.getElementById('swellForecast').innerHTML = `<div style="color:var(--text-secondary);font-size:13px;">Marine forecast unavailable.</div>`;
+        return null;
+    }
+}
+
+async function loadSundayHourly() {
+    const today = new Date().toISOString().split('T')[0];
+    const endDate = new Date(); endDate.setDate(endDate.getDate()+7);
+    const end = endDate.toISOString().split('T')[0];
+
+    try {
+        const [windRes, marineRes] = await Promise.all([
+            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${MILLERS_LAT}&longitude=${MILLERS_LNG}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kmh&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${end}`),
+            fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${MILLERS_LAT}&longitude=${MILLERS_LNG}&hourly=wave_height,swell_wave_height&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${end}`)
+        ]);
+        const wind = await windRes.json();
+        const marine = await marineRes.json();
+
+        // Find Sunday hours (05:00–15:00 = swim window)
+        const times = wind.hourly.time;
+        const sundayDate = times.find(t => new Date(t).getDay() === 0)?.split('T')[0];
+        if (!sundayDate) { document.getElementById('sundayHourly').innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Sunday not in forecast range.</div>'; return; }
+
+        const rows = [];
+        times.forEach((t, i) => {
+            if (!t.startsWith(sundayDate)) return;
+            const hour = parseInt(t.split('T')[1]);
+            if (hour < 5 || hour > 15) return;
+            const spd = wind.hourly.wind_speed_10m[i];
+            const deg = wind.hourly.wind_direction_10m[i];
+            const gust = wind.hourly.wind_gusts_10m[i];
+            const wh = marine.hourly.wave_height[i];
+            const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+            const dlabel = dirs[Math.round(deg/22.5)%16];
+            const nw = deg >= 270 || deg <= 45;
+            const timeStr = `${String(hour).padStart(2,'0')}:00`;
+            rows.push(`
+                <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">
+                    <div style="width:40px;font-weight:600;color:var(--text-secondary);">${timeStr}</div>
+                    <div style="width:20px;text-align:center;font-size:14px;"><span style="display:inline-block;transform:rotate(${deg}deg);">↑</span></div>
+                    <div style="flex:1;">
+                        <span style="color:${nw?'var(--success)':'var(--text-primary)'};">${dlabel} ${spd?.toFixed(0)}km/h</span>
+                        <span style="color:var(--text-secondary);"> (gust ${gust?.toFixed(0)})</span>
+                    </div>
+                    <div style="color:${wh<=1.5?'var(--success)':wh<=2.5?'var(--warning)':'var(--danger)'};">🌊 ${wh?.toFixed(1)}m</div>
+                </div>`);
+        });
+
+        document.getElementById('sundayHourly').innerHTML = rows.join('') +
+            `<div style="font-size:11px;color:var(--text-secondary);margin-top:8px;">Swim window shown 05:00–15:00 SAST · ${sundayDate}</div>`;
+    } catch(e) {
+        document.getElementById('sundayHourly').innerHTML = `<div style="color:var(--text-secondary);font-size:13px;">Hourly forecast unavailable.</div>`;
     }
 }
 
@@ -789,21 +895,52 @@ async function loadRecords() {
     const men   = all.filter(s => s.historical_swimmers?.gender === 'M');
     const warm  = all.filter(s => s.water_temp_c >= 18);
 
+    // Pre-baked weather for known False Bay solo dates (from Open-Meteo archive)
+    const weatherData = {
+        '2024-02-19': { wind: 34.6, dir: 'SE',  nw: false },
+        '2022-11-29': { wind: 31.3, dir: 'NW',  nw: true  },
+        '2024-05-15': { wind: 12.1, dir: 'WNW', nw: true  },
+        '2021-03-17': { wind: 38.9, dir: 'SE',  nw: false },
+        '2022-01-10': { wind: 35.6, dir: 'NW',  nw: true  },
+        '2023-01-18': { wind: 30.6, dir: 'WNW', nw: true  },
+        '2023-12-02': { wind: 20.3, dir: 'SSW', nw: false },
+        '2022-02-28': { wind: 30.7, dir: 'NW',  nw: true  },
+        '2024-01-27': { wind: 26.0, dir: 'SE',  nw: false },
+        '2024-01-05': { wind: 38.2, dir: 'NW',  nw: true  },
+        '2022-02-19': { wind: 24.9, dir: 'W',   nw: true  },
+        '2023-11-18': { wind: 28.2, dir: 'NW',  nw: true  },
+        '2024-03-21': { wind: 23.3, dir: 'SE',  nw: false },
+        '2023-05-05': { wind: 21.1, dir: 'SE',  nw: false },
+        '2024-02-07': { wind: 31.6, dir: 'WNW', nw: true  },
+        '2023-04-24': { wind: 32.2, dir: 'NNW', nw: true  },
+        '2023-01-10': { wind: 22.0, dir: 'W',   nw: false },
+        '2021-03-11': { wind: 26.2, dir: 'SE',  nw: false },
+        '2021-03-25': { wind: 31.6, dir: 'ESE', nw: false },
+    };
+
     function renderList(list, elId) {
         if (!list.length) { document.getElementById(elId).innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No records yet</div>'; return; }
-        document.getElementById(elId).innerHTML = list.slice(0,5).map((s,i) => `
-            <div class="record-row">
-                <div class="record-pos ${posClass(i)}">${i+1}</div>
-                <div style="flex:1;">
-                    <div class="record-name">${s.historical_swimmers?.display_name||'Unknown'}</div>
-                    <div class="record-detail">${new Date(s.swim_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})} · ${s.conditions?.replace('_',' ')||'—'}</div>
+        document.getElementById(elId).innerHTML = list.slice(0,8).map((s,i) => {
+            const w = weatherData[s.swim_date] || {};
+            const nwBadge = w.nw !== undefined
+                ? `<span style="font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600;background:${w.nw?'rgba(34,197,94,0.15)':'rgba(239,68,68,0.12)'};color:${w.nw?'var(--success)':'var(--danger)'};">💨 ${w.dir||'?'} ${w.wind?.toFixed(0)||'?'}km/h</span>`
+                : '';
+            const tempBadge = `<span style="font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600;background:${s.water_temp_c>=18?'rgba(34,197,94,0.15)':'rgba(245,158,11,0.15)'};color:${s.water_temp_c>=18?'var(--success)':'var(--warning)'};">🌡️ ${s.water_temp_c||'—'}°C</span>`;
+            return `
+            <div class="record-row" style="flex-direction:column;align-items:flex-start;gap:6px;">
+                <div style="display:flex;align-items:center;gap:8px;width:100%;">
+                    <div class="record-pos ${posClass(i)}">${i+1}</div>
+                    <div style="flex:1;">
+                        <div class="record-name">${s.historical_swimmers?.display_name||'Unknown'}</div>
+                        <div class="record-detail">${new Date(s.swim_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})} · ${s.conditions?.replace('_',' ')||'—'}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div class="record-time">${fmtDur(s.duration)}</div>
+                    </div>
                 </div>
-                <div>
-                    <div class="record-time">${fmtDur(s.duration)}</div>
-                    <div class="record-temp">${s.water_temp_c||'—'}°C</div>
-                </div>
-            </div>
-        `).join('');
+                <div style="display:flex;gap:6px;padding-left:36px;">${tempBadge}${nwBadge}</div>
+            </div>`;
+        }).join('');
     }
 
     renderList(women, 'recWomen');
