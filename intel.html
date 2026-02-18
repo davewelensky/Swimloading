@@ -338,6 +338,13 @@ async function init() {
         return;
     }
 
+    // Explicitly set session so all subsequent queries carry the JWT
+    await sb.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
+
+    // Quick auth test
+    const { data: testData, error: testErr } = await sb.from('historical_routes').select('id,name').limit(3);
+    console.log('Auth test — historical_routes:', testData, testErr);
+
     const name = session.user.email.split('@')[0].split('.')[0];
     document.getElementById('userPill').textContent = name.charAt(0).toUpperCase() + name.slice(1);
     document.getElementById('initScreen').style.display = 'none';
