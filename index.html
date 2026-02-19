@@ -1427,12 +1427,16 @@
                 const eventIds = upcomingEvents.map(e => e.id);
                 const { data: userStatuses } = await supabaseClient
                     .from('swim_participants')
-                    .select('swim_event_id, status')
+                    .select('swim_event_id, status, needs_reconfirm')
                     .eq('user_id', currentUser.id)
                     .in('swim_event_id', eventIds);
 
                 const statusMap = {};
-                if (userStatuses) userStatuses.forEach(r => statusMap[r.swim_event_id] = r.status);
+                const reconfirmMap = {};
+                if (userStatuses) userStatuses.forEach(r => {
+                    statusMap[r.swim_event_id] = r.status;
+                    reconfirmMap[r.swim_event_id] = r.needs_reconfirm;
+                });
 
                 // Load participant counts for these events
                 const { data: counts } = await supabaseClient
@@ -1456,6 +1460,7 @@
                     const timeStr = eventDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
                     const creatorName = profileMap[event.created_by]?.display_name || 'Anonymous';
                     const userStatus = statusMap[event.id];
+                    const userNeedsReconfirm = reconfirmMap[event.id];
                     const isCancelled = event.status === 'cancelled';
 
                     // Participant counts
@@ -1491,6 +1496,23 @@
                                 <button class="btn" style="flex: 1; padding: 10px; font-size: 13px; background: transparent; border: 1px solid var(--text-secondary); color: var(--text-secondary);" onclick="event.stopPropagation(); viewEventDetails('${event.id}')">
                                     Details
                                 </button>
+                            </div>
+                        `;
+                    } else if (userStatus === 'approved' && userNeedsReconfirm) {
+                        rsvpButtons = `
+                            <div style="margin-top: 12px; padding-top: 12px; border-top: 2px solid var(--warning);">
+                                <div style="font-size: 12px; font-weight: 700; color: var(--warning); margin-bottom: 6px; display: flex; align-items: center; gap: 5px;">
+                                    <i data-lucide="alert-triangle" style="width: 13px; height: 13px;"></i> Swim changed — still in?
+                                </div>
+                                ${event.last_change_summary ? `<div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; line-height: 1.5;">${event.last_change_summary}</div>` : ''}
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn btn-success" style="flex: 1; padding: 10px; font-size: 13px; font-weight: 700;" onclick="event.stopPropagation(); reconfirmRsvp('${event.id}', true)">
+                                        ✓ Still In
+                                    </button>
+                                    <button class="btn" style="flex: 1; padding: 10px; font-size: 13px; background: transparent; border: 2px solid var(--danger); color: var(--danger); font-weight: 700;" onclick="event.stopPropagation(); reconfirmRsvp('${event.id}', false)">
+                                        ✕ Drop Out
+                                    </button>
+                                </div>
                             </div>
                         `;
                     } else if (userStatus === 'approved') {
@@ -2015,6 +2037,7 @@
                 // Check if current user is attending
                 const myMember = members?.find(m => m.user_id === currentUser.id);
                 event.userStatus = myMember?.status || null;
+                event.userNeedsReconfirm = myMember?.needs_reconfirm || false;
 
                 console.log('User status:', event.userStatus);
 
@@ -2298,7 +2321,26 @@
                 return;
             }
 
-            if (event.userStatus === 'approved') {
+            if (event.userNeedsReconfirm && event.userStatus === 'approved') {
+                // Swim has changed — swimmer must re-confirm
+                html += `
+                    <div style="background: rgba(234,179,8,0.12); border: 2px solid var(--warning); border-radius: 14px; padding: 16px; margin-bottom: 4px; width: 100%;">
+                        <div style="font-weight: 800; color: var(--warning); font-size: 15px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                            <i data-lucide="alert-triangle" style="width: 16px; height: 16px;"></i> This swim has changed
+                        </div>
+                        ${event.last_change_summary ? `<div style="font-size: 12px; color: var(--text-primary); margin-bottom: 12px; line-height: 1.6;">${event.last_change_summary}</div>` : ''}
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;">Are you still in?</div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-success" style="flex: 1; font-weight: 700;" onclick="reconfirmRsvp('${event.id}', true)">
+                                <i data-lucide="check" style="width: 14px; height: 14px; vertical-align: middle;"></i> Still In
+                            </button>
+                            <button class="btn" style="flex: 1; background: transparent; border: 2px solid var(--danger); color: var(--danger); font-weight: 700;" onclick="reconfirmRsvp('${event.id}', false)">
+                                <i data-lucide="x" style="width: 14px; height: 14px; vertical-align: middle;"></i> Drop Out
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else if (event.userStatus === 'approved') {
                 html += `
                     <button class="btn" style="background: var(--success);" disabled><i data-lucide="check" style="width: 14px; height: 14px; vertical-align: middle;"></i> You're Going</button>
                     <button class="btn" style="background: transparent; border: 2px solid var(--danger); color: var(--danger); margin-top: 10px;" onclick="leaveEvent('${event.id}')">Cancel RSVP</button>
@@ -2472,6 +2514,23 @@
                 const towFloat = document.getElementById('editEventTowFloat')?.checked || false;
                 const brightCap = document.getElementById('editEventBrightCap')?.checked || false;
 
+                // Detect significant changes (ones that affect whether swimmers still want to come)
+                const significantChanges = [];
+                if (oldEvt) {
+                    if (locationName && locationName !== oldEvt.location_name)
+                        significantChanges.push(`📍 Location: ${oldEvt.location_name} → ${locationName}`);
+                    if (distanceKm && distanceKm !== oldEvt.distance_km)
+                        significantChanges.push(`📏 Distance: ${oldEvt.distance_km || '?'}km → ${distanceKm}km`);
+                    const oldTime = new Date(oldEvt.start_at).getTime();
+                    const newTime = new Date(startAt).getTime();
+                    if (Math.abs(oldTime - newTime) > 60000)
+                        significantChanges.push(`🕐 Time: ${new Date(startAt).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })} on ${new Date(startAt).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' })}`);
+                    if (title && title !== oldEvt.title)
+                        significantChanges.push(`✏️ Name: ${title}`);
+                }
+                const isSignificant = significantChanges.length > 0;
+                const changeSummary = significantChanges.join(' · ');
+
                 const { error } = await supabaseClient
                     .from('swim_events')
                     .update({
@@ -2487,6 +2546,7 @@
                         bright_cap_recommended: brightCap,
                         logistics_note: logistics,
                         external_chat_url: chatUrl,
+                        last_change_summary: isSignificant ? changeSummary : oldEvt?.last_change_summary,
                         updated_at: new Date().toISOString(),
                         updated_by: currentUser.id
                     })
@@ -2494,39 +2554,45 @@
 
                 if (error) throw error;
 
-                // Build smart change summary
-                const changes = [];
-                if (oldEvt) {
-                    if (locationName && locationName !== oldEvt.location_name) changes.push(`Location: ${oldEvt.location_name} → ${locationName}`);
-                    if (distanceKm && distanceKm !== oldEvt.distance_km) changes.push(`Distance: ${oldEvt.distance_km || '?'}km → ${distanceKm}km`);
-                    const oldTime = new Date(oldEvt.start_at).getTime();
-                    const newTime = new Date(startAt).getTime();
-                    if (Math.abs(oldTime - newTime) > 60000) changes.push(`Time: ${new Date(startAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} on ${new Date(startAt).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })}`);
-                    if (title && title !== oldEvt.title) changes.push(`Name: ${title}`);
-                }
-
-                // Notify participants about the change
+                // Notify participants
                 try {
                     const { data: participants } = await supabaseClient
                         .from('swim_participants')
-                        .select('user_id')
+                        .select('user_id, id, status')
                         .eq('swim_event_id', eventId)
                         .in('status', ['approved', 'requested']);
 
                     if (participants && participants.length > 0) {
                         const swimTitle = title || locationName || 'A swim';
-                        const changeMsg = changes.length > 0
-                            ? `"${swimTitle}" updated: ${changes.join('. ')}`
-                            : `"${swimTitle}" details have been updated.`;
+
+                        // If significant changes: reset approved participants to needs_reconfirm
+                        if (isSignificant) {
+                            const approvedIds = participants
+                                .filter(p => p.status === 'approved' && p.user_id !== currentUser.id)
+                                .map(p => p.id);
+
+                            if (approvedIds.length > 0) {
+                                await supabaseClient
+                                    .from('swim_participants')
+                                    .update({ needs_reconfirm: true })
+                                    .in('id', approvedIds);
+                            }
+                        }
+
+                        const notifTitle = isSignificant ? '⚠️ Swim changed — please re-confirm' : 'Swim details updated';
+                        const notifMsg = isSignificant
+                            ? `"${swimTitle}" has changed: ${significantChanges.join(', ')}. Please re-confirm your RSVP.`
+                            : `"${swimTitle}" has been updated.`;
 
                         for (const p of participants) {
+                            if (p.user_id === currentUser.id) continue;
                             await notify(
                                 p.user_id,
                                 eventId,
                                 'swim_updated',
-                                'Swim details changed',
-                                changeMsg,
-                                { swim_event_id: eventId }
+                                notifTitle,
+                                notifMsg,
+                                { swim_event_id: eventId, needs_reconfirm: isSignificant }
                             );
                         }
                     }
@@ -2534,7 +2600,7 @@
                     console.error('Could not notify participants:', notifErr);
                 }
 
-                showToast('Swim details updated!', 'success');
+                showToast(isSignificant ? 'Swim updated — participants notified to re-confirm!' : 'Swim details updated!', 'success');
                 await showEventDetails(eventId);
                 loadEvents();
                 loadDashboard();
@@ -2582,6 +2648,7 @@
                         swim_event_id: eventId,
                         user_id: currentUser.id,
                         status: status,
+                        needs_reconfirm: false,
                         late_status: null,
                         late_updated_at: null,
                         late_last_notified_at: null
@@ -2658,6 +2725,58 @@
                 loadDashboard(); // Refresh dashboard
             } catch (err) {
                 alert('Error cancelling RSVP: ' + err.message);
+            }
+        }
+
+        // Re-confirm or drop out after a swim has changed
+        async function reconfirmRsvp(eventId, stillIn) {
+            try {
+                if (stillIn) {
+                    // Clear the reconfirm flag — they're still coming
+                    await supabaseClient
+                        .from('swim_participants')
+                        .update({ needs_reconfirm: false })
+                        .eq('swim_event_id', eventId)
+                        .eq('user_id', currentUser.id);
+
+                    showToast("Great — you're still in! 🤙", 'success');
+                    await showEventDetails(eventId);
+                    loadEvents();
+                } else {
+                    // They're out — treat same as leaving
+                    await supabaseClient
+                        .from('swim_participants')
+                        .update({ status: 'left', needs_reconfirm: false })
+                        .eq('swim_event_id', eventId)
+                        .eq('user_id', currentUser.id);
+
+                    // Notify host
+                    const { data: eventData } = await supabaseClient
+                        .from('swim_events')
+                        .select('created_by, title, location_name')
+                        .eq('id', eventId)
+                        .single();
+
+                    if (eventData?.created_by && eventData.created_by !== currentUser.id) {
+                        const displayName = currentUser.user_metadata?.display_name || 'A swimmer';
+                        await notify(
+                            eventData.created_by,
+                            eventId,
+                            'rsvp_cancelled',
+                            'RSVP Cancelled',
+                            `${displayName} dropped out after the swim details changed.`,
+                            { swim_event_id: eventId, actor_user_id: currentUser.id, action: 'drop_out' }
+                        );
+                    }
+
+                    showToast('No worries — RSVP cancelled', 'info');
+                    await showEventDetails(eventId);
+                    loadEvents();
+                    loadDashboard();
+                }
+            } catch (err) {
+                console.error('Error reconfirming RSVP:', err);
+                showToast('Error: ' + err.message, 'error');
             }
         }
 
