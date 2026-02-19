@@ -3627,11 +3627,13 @@
         // Toggle backdate picker for temp logging
         function toggleBackdate() {
             const picker = document.getElementById('backdatePicker');
+            const btn = document.getElementById('backdateToggleBtn');
             const label = document.getElementById('backdateToggleLabel');
             const input = document.getElementById('backdateTime');
             if (picker.style.display === 'none') {
                 picker.style.display = 'block';
-                label.textContent = 'Logging for earlier time';
+                btn.style.background = 'rgba(14,165,233,0.1)';
+                btn.style.borderColor = 'rgba(14,165,233,0.4)';
                 label.style.color = 'var(--ocean-light)';
                 // Set max to now, min to 48h ago, default to now
                 const now = new Date();
@@ -3643,7 +3645,8 @@
                 input.value = fmt(now);
             } else {
                 picker.style.display = 'none';
-                label.textContent = 'Log for earlier?';
+                btn.style.background = 'rgba(255,255,255,0.04)';
+                btn.style.borderColor = 'var(--border)';
                 label.style.color = 'var(--text-secondary)';
                 input.value = '';
             }
@@ -3816,9 +3819,11 @@
 
                 // Reset backdate picker
                 const bdPicker = document.getElementById('backdatePicker');
+                const bdBtn = document.getElementById('backdateToggleBtn');
                 const bdLabel = document.getElementById('backdateToggleLabel');
-                if (bdPicker) { bdPicker.style.display = 'none'; }
-                if (bdLabel) { bdLabel.textContent = 'Log for earlier?'; bdLabel.style.color = 'var(--text-secondary)'; }
+                if (bdPicker) bdPicker.style.display = 'none';
+                if (bdBtn) { bdBtn.style.background = 'rgba(255,255,255,0.04)'; bdBtn.style.borderColor = 'var(--border)'; }
+                if (bdLabel) bdLabel.style.color = 'var(--text-secondary)';
                 const bdInput = document.getElementById('backdateTime');
                 if (bdInput) bdInput.value = '';
 
@@ -5404,22 +5409,24 @@
                                 <i data-lucide="navigation" style="width: 14px; height: 14px;"></i> GPS
                             </button>
                         </div>
-                        <div id="gpsStatus" style="font-size: 12px; color: var(--text-secondary); min-height: 18px;">
-                        </div>
-                        <div id="backdateSection" style="margin-top: 8px;">
-                            <div onclick="toggleBackdate()" style="cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 6px 0;">
-                                <i data-lucide="clock" style="width: 14px; height: 14px; color: var(--text-secondary);"></i>
-                                <span id="backdateToggleLabel" style="font-size: 12px; color: var(--text-secondary);">Log for earlier?</span>
+                        <div id="gpsStatus" style="font-size: 12px; color: var(--text-secondary); min-height: 16px; margin-top: 4px;"></div>
+                        <!-- Secondary actions row -->
+                        <div style="display: flex; gap: 8px; margin-top: 8px;">
+                            <div onclick="toggleBackdate()" id="backdateToggleBtn" style="cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 8px 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; transition: all 0.2s;">
+                                <i data-lucide="clock" style="width: 13px; height: 13px; color: var(--text-secondary); flex-shrink: 0;"></i>
+                                <span id="backdateToggleLabel" style="font-size: 12px; color: var(--text-secondary); white-space: nowrap;">Log for earlier?</span>
                             </div>
-                            <div id="backdatePicker" style="display: none; margin-top: 6px;">
-                                <input type="datetime-local" id="backdateTime" style="width: 100%;">
-                                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Up to 48 hours back</div>
+                            <div onclick="showSuggestSpot()" style="cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 8px 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; transition: all 0.2s;">
+                                <i data-lucide="plus-circle" style="width: 13px; height: 13px; color: var(--text-secondary); flex-shrink: 0;"></i>
+                                <span style="font-size: 12px; color: var(--text-secondary); white-space: nowrap;">Suggest a spot</span>
                             </div>
                         </div>
-                        <div onclick="showSuggestSpot()"
-                            style="margin-top: 8px; padding: 10px 14px; background: rgba(56, 189, 248, 0.08); border: 1px dashed rgba(56, 189, 248, 0.25); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
-                            <i data-lucide="plus-circle" style="width: 16px; height: 16px; color: var(--ocean-light); opacity: 0.7; flex-shrink: 0;"></i>
-                            <span style="font-size: 12px; color: var(--ocean-light); opacity: 0.7;">Don't see your spot? Suggest one</span>
+                        <div id="backdateSection">
+                            <div id="backdatePicker" style="display: none; margin-top: 8px; background: rgba(14,165,233,0.06); border: 1px solid rgba(14,165,233,0.2); border-radius: 10px; padding: 12px;">
+                                <div style="font-size: 11px; color: var(--ocean-light); font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Logging for earlier time</div>
+                                <input type="datetime-local" id="backdateTime" style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; color: var(--text-primary); font-size: 13px;">
+                                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px;">Up to 48 hours back · cooldown applies to the chosen time</div>
+                            </div>
                         </div>
                     </div>
 
