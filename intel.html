@@ -320,7 +320,7 @@
             </div>
             <div class="checklist-item">
                 <div class="check-icon">💨</div>
-                <div><div class="check-label">NW wind</div><div class="check-sub">NW pushes into the bay from Miller's Point side — assists the W→E direction. Check Sunday forecast on the Wind tab.</div></div>
+                <div><div class="check-label">NW wind</div><div class="check-sub">NW wind drives an anti-clockwise bay circulation, pushing current eastward — directly assisting the W→E crossing. SE wind reverses this. Wind is the dominant driver of False Bay surface currents; tides are weak and secondary. Check Sunday forecast on the Wind tab.</div></div>
             </div>
             <div class="checklist-item">
                 <div class="check-icon">🌊</div>
@@ -593,7 +593,7 @@ async function loadWindForecast() {
                 <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);${isSunday?'background:rgba(14,165,233,0.06);margin:0 -4px;padding:9px 4px;border-radius:8px;':''}">
                     <div style="width:80px;font-size:12px;font-weight:${isSunday?700:400};color:${isSunday?'var(--ocean-light)':'var(--text-primary)'};">${dayName}${isSunday?' ★':''}</div>
                     <div style="font-size:20px;" title="${wDir}°">
-                        <span style="display:inline-block;transform:rotate(${wDir}deg);">↑</span>
+                        <span style="display:inline-block;transform:rotate(${(wDir+180)%360}deg);">↑</span>
                     </div>
                     <div style="flex:1;">
                         <div style="font-size:13px;font-weight:600;">${wLabel} ${wSpd?.toFixed(0)||'?'} km/h</div>
@@ -691,7 +691,7 @@ async function loadSundayHourly() {
             rows.push(`
                 <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">
                     <div style="width:40px;font-weight:600;color:var(--text-secondary);">${timeStr}</div>
-                    <div style="width:20px;text-align:center;font-size:14px;"><span style="display:inline-block;transform:rotate(${deg}deg);">↑</span></div>
+                    <div style="width:20px;text-align:center;font-size:14px;"><span style="display:inline-block;transform:rotate(${(deg+180)%360}deg);">↑</span></div>
                     <div style="flex:1;">
                         <span style="color:${nw?'var(--success)':'var(--text-primary)'};">${dlabel} ${spd?.toFixed(0)}km/h</span>
                         <span style="color:var(--text-secondary);"> (gust ${gust?.toFixed(0)})</span>
@@ -751,10 +751,10 @@ function buildChecklist(live, forecast) {
         {
             ok: forecast?.nwFav,
             icon: forecast?.nwFav ? '✅' : forecast ? '⚠️' : '❓',
-            label: 'NW wind (Carina\'s preferred direction)',
+            label: 'NW wind — direction drives the current',
             sub: forecast
-                ? `Sunday forecast: ${forecast.dirLabel} at ${forecast.windMax?.toFixed(0)} km/h. ${forecast.nwFav ? 'Favourable — NW pushes into the bay.' : 'Not ideal — monitor closer to Sunday.'}`
-                : 'Load wind forecast to check.'
+                ? `Sunday forecast: ${forecast.dirLabel} at ${forecast.windMax?.toFixed(0)} km/h. ${forecast.nwFav ? 'Favourable — NW wind drives an anti-clockwise bay circulation, pushing current eastward through the crossing. Double benefit: less chop and current in the swim direction.' : 'Not ideal — SE or S winds drive a clockwise bay circulation, creating a crosscurrent or headcurrent on the W→E line. Monitor closer to Sunday.'}`
+                : 'NW wind is the key variable. It drives an anti-clockwise bay circulation that sends current eastward — directly assisting the Miller\'s Point to Gordon\'s Bay crossing.'
         },
         {
             ok: forecast ? forecast.windMax < 30 : null,
@@ -948,27 +948,14 @@ async function loadRecords() {
     const men   = all.filter(s => s.historical_swimmers?.gender === 'M');
     const warm  = all.filter(s => s.water_temp_c >= 18);
 
-    // Pre-baked weather for known False Bay solo dates (from Open-Meteo archive)
+    // Pre-baked weather for known False Bay solo dates (source: Weather Underground, Cape Town Intl Airport)
+    // Keys match database swim_date values. Wind data verified from Carina's actual swim records.
     const weatherData = {
-        '2024-02-19': { wind: 34.6, dir: 'SE',  nw: false },
-        '2022-11-29': { wind: 31.3, dir: 'NW',  nw: true  },
-        '2024-05-15': { wind: 12.1, dir: 'WNW', nw: true  },
-        '2021-03-17': { wind: 38.9, dir: 'SE',  nw: false },
-        '2022-01-10': { wind: 35.6, dir: 'NW',  nw: true  },
-        '2023-01-18': { wind: 30.6, dir: 'WNW', nw: true  },
-        '2023-12-02': { wind: 20.3, dir: 'SSW', nw: false },
-        '2022-02-28': { wind: 30.7, dir: 'NW',  nw: true  },
-        '2024-01-27': { wind: 26.0, dir: 'SE',  nw: false },
-        '2024-01-05': { wind: 38.2, dir: 'NW',  nw: true  },
-        '2022-02-19': { wind: 24.9, dir: 'W',   nw: true  },
-        '2023-11-18': { wind: 28.2, dir: 'NW',  nw: true  },
-        '2024-03-21': { wind: 23.3, dir: 'SE',  nw: false },
-        '2023-05-05': { wind: 21.1, dir: 'SE',  nw: false },
-        '2024-02-07': { wind: 31.6, dir: 'WNW', nw: true  },
-        '2023-04-24': { wind: 32.2, dir: 'NNW', nw: true  },
-        '2023-01-10': { wind: 22.0, dir: 'W',   nw: false },
-        '2021-03-11': { wind: 26.2, dir: 'SE',  nw: false },
-        '2021-03-25': { wind: 31.6, dir: 'ESE', nw: false },
+        '2025-01-23': { wind: 26, dir: 'NW',  nw: true  }, // Paula
+        '2022-11-29': { wind: 24, dir: 'NW',  nw: true  }, // Kat (DB date)
+        '2022-02-28': { wind: 23, dir: 'NW',  nw: true  }, // Kyle (DB date)
+        '2024-02-19': { wind: 27, dir: 'NNW', nw: true  }, // Barend (DB date)
+        '2021-03-17': { wind: 26, dir: 'NW',  nw: true  }, // Ryan (DB date)
     };
 
     function renderList(list, elId) {
@@ -1224,8 +1211,8 @@ async function loadCarina() {
         </div>
         <div class="checklist-item" style="padding:10px 0;border-bottom:none;">
             <div class="check-icon">💨</div>
-            <div><div class="check-label">NW wind — Carina's insight confirmed</div>
-            <div class="check-sub">All fastest women's crossings were in Good or Bumpy conditions. NW wind direction aids the W→E swim and reduces chop on the False Bay crossing.</div></div>
+            <div><div class="check-label">NW wind drives the current — not just chop</div>
+            <div class="check-sub">NW wind creates an anti-clockwise bay circulation, sending current eastward across the crossing — directly assisting the W→E line. SE wind reverses this, creating a clockwise circulation and an opposing crosscurrent. Tidal currents in False Bay are semi-diurnal but weak; wind is the dominant driver of surface flow. Carina's NW preference is oceanographically sound — it's a double benefit: reduced chop and favourable current.</div></div>
         </div>
     `;
 
