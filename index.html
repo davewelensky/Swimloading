@@ -58,6 +58,10 @@
         let currentUser = null;
         let spots = [];
 
+        // Swim Score caches — var so they're accessible across all script blocks
+        var conditionsCache = {}; // spot_id → array of recent temp_logs (last 96h, desc)
+        var swimEventsCache = []; // upcoming active swim_events (all spots)
+
         // Global state for Spot Lock
         let selectedSpotLocked = false;
         let gpsSuggestedSpotId = null;
@@ -861,6 +865,43 @@
                 console.error('Error loading dashboard:', err);
             }
 
+            // Load Swim Scores for Best Spots section
+            try {
+                const since96h = new Date(Date.now() - 96 * 60 * 60 * 1000).toISOString();
+
+                const [conditionsResult, eventsResult, latestTempsResult] = await Promise.all([
+                    supabaseClient
+                        .from('temp_logs')
+                        .select('spot_id, conditions, hazards, created_at')
+                        .gte('created_at', since96h)
+                        .order('created_at', { ascending: false })
+                        .limit(200),
+                    supabaseClient
+                        .from('swim_events')
+                        .select('location_name, start_at, status')
+                        .eq('status', 'active')
+                        .gte('start_at', new Date().toISOString())
+                        .limit(50),
+                    supabaseClient
+                        .from('latest_spot_temps')
+                        .select('spot_id, spot_name, spot_code, temp_c, updated_at, water_type, domain')
+                        .in('water_type', ['OCEAN', 'LAGOON', 'TIDAL_POOL'])
+                ]);
+
+                // Populate module-level caches
+                conditionsCache = {};
+                (conditionsResult.data || []).forEach(log => {
+                    if (!conditionsCache[log.spot_id]) conditionsCache[log.spot_id] = [];
+                    conditionsCache[log.spot_id].push(log);
+                });
+                swimEventsCache = eventsResult.data || [];
+
+                renderBestSpots(latestTempsResult.data || [], conditionsCache, swimEventsCache);
+            } catch (err) {
+                console.error('Error loading swim scores:', err);
+                document.getElementById('dashBestSpots').innerHTML = `<div style="text-align:center;padding:12px;color:var(--text-secondary);font-size:13px;">Could not load spot scores</div>`;
+            }
+
             // Initialize icons and notifications
             initIcons();
             loadNotifications();
@@ -891,6 +932,154 @@
                 </div>
             `;
             initIcons();
+        }
+
+        // ==========================================
+        // SWIM SCORE INTELLIGENCE
+        // ==========================================
+
+        function calculateSwimScore(spot, recentLogs, upcomingSwims) {
+            // spot: row from latest_spot_temps { spot_id, spot_name, temp_c, updated_at, water_type }
+            // recentLogs: array of temp_logs for this spot (last 96h, desc by created_at)
+            // upcomingSwims: array of swim_events (active, future)
+            // Returns: { score, label, emoji, color }
+
+            const now = Date.now();
+            const ageHours = (now - new Date(spot.updated_at).getTime()) / 3600000;
+
+            // -- Freshness (35pts) --
+            let freshness = 0;
+            if (ageHours < 6)       freshness = 35;
+            else if (ageHours < 24) freshness = 25;
+            else if (ageHours < 96) freshness = 12;
+            else                    freshness = 0;
+
+            // -- Conditions (35pts) -- from most recent log
+            const mostRecentLog = recentLogs && recentLogs[0];
+            let conditions = 15; // neutral default
+            if (mostRecentLog && (now - new Date(mostRecentLog.created_at).getTime()) < 96 * 3600000) {
+                const c = (mostRecentLog.conditions || '').toLowerCase().trim();
+                if (c === 'calm')          conditions = 35;
+                else if (c === 'choppy')   conditions = 22;
+                else if (c === 'rough')    conditions = 8;
+                else if (c === 'extreme')  conditions = 0;
+                else                       conditions = 15;
+            }
+
+            // -- Temperature (20pts) -- Cape Town ocean ranges
+            let temp = 15; // neutral for non-ocean types
+            const isOceanType = ['OCEAN', 'TIDAL_POOL'].includes(spot.water_type);
+            if (isOceanType && spot.temp_c != null) {
+                const t = spot.temp_c;
+                if (t >= 16 && t <= 22)      temp = 20;
+                else if (t >= 14 && t < 16)  temp = 15;
+                else if (t >= 12 && t < 14)  temp = 10;
+                else if (t < 12)             temp = 5;
+                else if (t > 22 && t <= 24)  temp = 16;
+                else                         temp = 12; // >24
+            }
+
+            // -- Hazard penalty (up to -30) --
+            let hazardPenalty = 0;
+            if (mostRecentLog && Array.isArray(mostRecentLog.hazards)) {
+                const h = mostRecentLog.hazards;
+                if (h.some(x => x.toLowerCase().includes('shark')))           hazardPenalty += 25;
+                if (h.some(x => x.toLowerCase().includes('strong current')))  hazardPenalty += 18;
+                if (h.some(x => x.toLowerCase().includes('jellyfish')))       hazardPenalty += 8;
+                if (h.some(x => x.toLowerCase().includes('seal')))            hazardPenalty += 3;
+            }
+
+            // -- Activity bonus (up to +10) --
+            const spotNameNorm = (spot.spot_name || '').trim().toLowerCase();
+            const sevenDaysFromNow = now + 7 * 24 * 3600000;
+            const matchingSwims = (upcomingSwims || []).filter(e => {
+                if (!e.start_at || new Date(e.start_at).getTime() > sevenDaysFromNow) return false;
+                const locNorm = (e.location_name || '').trim().toLowerCase();
+                return locNorm.includes(spotNameNorm) || spotNameNorm.includes(locNorm);
+            });
+            const activityBonus = matchingSwims.length >= 2 ? 10 : matchingSwims.length === 1 ? 5 : 0;
+
+            // -- Final score --
+            const raw = freshness + conditions + temp - hazardPenalty + activityBonus;
+            const score = Math.max(0, Math.min(100, Math.round(raw)));
+
+            // -- Band --
+            let label, emoji, color;
+            if (score >= 75)      { label = 'Great'; emoji = '🟢'; color = '#10b981'; }
+            else if (score >= 50) { label = 'Good';  emoji = '🟡'; color = '#f59e0b'; }
+            else if (score >= 25) { label = 'Fair';  emoji = '🟠'; color = '#f97316'; }
+            else                  { label = 'Rough'; emoji = '🔴'; color = '#ef4444'; }
+
+            return { score, label, emoji, color };
+        }
+
+        function swimScoreBadgeHtml(s) {
+            if (!s) return '';
+            return `<div style="font-size:10px;font-weight:700;color:${s.color};text-align:right;margin-top:2px;">${s.emoji} ${s.label}</div>`;
+        }
+
+        function renderBestSpots(latestTemps, condBySpot, upcomingSwims) {
+            const el = document.getElementById('dashBestSpots');
+            if (!el) return;
+
+            if (!latestTemps || latestTemps.length === 0) {
+                el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:13px;">No recent data available</div>`;
+                return;
+            }
+
+            // Score every spot
+            const scored = latestTemps.map(spot => {
+                const recentLogs = condBySpot[spot.spot_id] || [];
+                const swimScore = calculateSwimScore(spot, recentLogs, upcomingSwims);
+                return { ...spot, swimScore };
+            });
+
+            // Sort by score desc, tiebreak by freshness
+            const top3 = scored
+                .sort((a, b) => {
+                    if (b.swimScore.score !== a.swimScore.score) return b.swimScore.score - a.swimScore.score;
+                    return new Date(b.updated_at) - new Date(a.updated_at);
+                })
+                .slice(0, 3);
+
+            // Check if any data is fresh enough to be meaningful
+            const hasFreshData = top3.some(s => (Date.now() - new Date(s.updated_at).getTime()) < 96 * 3600000);
+            if (!hasFreshData) {
+                el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:13px;">No recent conditions logged</div>`;
+                return;
+            }
+
+            const ranks = ['#1', '#2', '#3'];
+            el.innerHTML = top3.map((spot, i) => {
+                const { score, label, emoji, color } = spot.swimScore;
+                const spotInfo = spots.find(s => s.id === spot.spot_id);
+                const spotCode = spotInfo ? spotInfo.code : (spot.spot_code || '');
+                const ageHours = (Date.now() - new Date(spot.updated_at).getTime()) / 3600000;
+                const ageText = ageHours < 1 ? 'just now'
+                    : ageHours < 24 ? `${Math.round(ageHours)}h ago`
+                    : `${Math.round(ageHours / 24)}d ago`;
+                const spotNameSafe = (spot.spot_name || '').replace(/'/g, "\\'");
+                return `
+                    <div onclick="goToSpotTrend('${spot.spot_id}', '${spotNameSafe}', '${spotCode}')"
+                         style="display:flex;align-items:center;gap:12px;cursor:pointer;
+                                background:rgba(15,23,42,0.6);border-radius:12px;padding:12px;
+                                margin-bottom:8px;border:1px solid ${color}30;
+                                transition:all 0.2s ease;">
+                        <div style="font-size:15px;font-weight:800;color:var(--text-secondary);min-width:24px;text-align:center;">${ranks[i]}</div>
+                        <div style="flex:1;">
+                            <div style="font-weight:700;color:var(--text-primary);font-size:15px;">${spot.spot_name}</div>
+                            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${ageText}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:20px;font-weight:800;color:var(--ocean-light);">${spot.temp_c}°C</div>
+                            <div style="display:flex;align-items:center;justify-content:flex-end;gap:3px;margin-top:2px;">
+                                <span style="font-size:13px;">${emoji}</span>
+                                <span style="font-size:11px;font-weight:700;color:${color};">${label}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         async function goToSpotTrend(spotId, spotName, spotCode) {
@@ -5473,6 +5662,14 @@
                         <div id="dashUpcomingSwims">Loading...</div>
                     </div>
 
+                    <!-- Best Spots Right Now -->
+                    <div style="margin-bottom: 24px;">
+                        <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 12px; font-size: 16px;">
+                            <i data-lucide="waves" style="width: 18px; height: 18px; vertical-align: middle;"></i> Best Spots Right Now
+                        </div>
+                        <div id="dashBestSpots">Loading...</div>
+                    </div>
+
                     <!-- Your Stats -->
                     <div
                         style="background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 16px; margin-bottom: 24px;">
@@ -5683,6 +5880,9 @@
                         <div class="spot-trend-chart-container">
                             <canvas id="spotTrendChart" style="max-height: 250px;"></canvas>
                         </div>
+
+                        <!-- Swim Score Banner -->
+                        <div id="spotScoreBanner" style="display:none; margin-bottom: 16px;"></div>
 
                         <div class="card-title" style="font-size: 16px; margin-bottom: 12px;">Recent Logs</div>
                         <div id="spotRecentLogs">
@@ -6707,6 +6907,7 @@
         // ==========================================
 
         let trendsData = {}; // Cache for Region Overview
+        // Note: conditionsCache and swimEventsCache are declared as var in Block 1 (global)
         let currentRegionDomain = null;
         let currentSpotId = null;
         let currentChartSource = 'community'; // 'community' | 'my'
@@ -6731,6 +6932,8 @@
         function formatDomain(d) {
             return d.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
         }
+
+        // calculateSwimScore() and swimScoreBadgeHtml() are defined in Block 1 (global var scope)
 
         function getTimeAgo(date) {
             const seconds = Math.floor((new Date() - date) / 1000);
@@ -6838,11 +7041,59 @@
                     });
 
                     trendsData = grouped;
+
+                    // Fetch conditions cache for swim scores (runs in parallel with render)
+                    const since96h = new Date(Date.now() - 96 * 60 * 60 * 1000).toISOString();
+                    const [condRes, evtRes] = await Promise.all([
+                        supabaseClient
+                            .from('temp_logs')
+                            .select('spot_id, conditions, hazards, created_at')
+                            .gte('created_at', since96h)
+                            .order('created_at', { ascending: false })
+                            .limit(200),
+                        supabaseClient
+                            .from('swim_events')
+                            .select('location_name, start_at, status')
+                            .eq('status', 'active')
+                            .gte('start_at', new Date().toISOString())
+                            .limit(50)
+                    ]);
+                    conditionsCache = {};
+                    (condRes.data || []).forEach(log => {
+                        if (!conditionsCache[log.spot_id]) conditionsCache[log.spot_id] = [];
+                        conditionsCache[log.spot_id].push(log);
+                    });
+                    swimEventsCache = evtRes.data || [];
+
                     renderRegionalGrid();
                 } else {
                     // For Pools and Inland: show spot list
                     const sorted = filteredData.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
                     const title = currentWaterFilter === 'pools' ? 'Pools' : 'Inland Spots';
+
+                    // Fetch conditions cache for swim scores
+                    const since96h = new Date(Date.now() - 96 * 60 * 60 * 1000).toISOString();
+                    const [condRes2, evtRes2] = await Promise.all([
+                        supabaseClient
+                            .from('temp_logs')
+                            .select('spot_id, conditions, hazards, created_at')
+                            .gte('created_at', since96h)
+                            .order('created_at', { ascending: false })
+                            .limit(200),
+                        supabaseClient
+                            .from('swim_events')
+                            .select('location_name, start_at, status')
+                            .eq('status', 'active')
+                            .gte('start_at', new Date().toISOString())
+                            .limit(50)
+                    ]);
+                    conditionsCache = {};
+                    (condRes2.data || []).forEach(log => {
+                        if (!conditionsCache[log.spot_id]) conditionsCache[log.spot_id] = [];
+                        conditionsCache[log.spot_id].push(log);
+                    });
+                    swimEventsCache = evtRes2.data || [];
+
                     renderTrendSpotList(title, sorted);
                 }
 
@@ -6944,12 +7195,16 @@
                     badgeHtml = `<span style="display: inline-block; padding: 2px 8px; margin-left: 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; border-radius: 6px; background: ${bgColor}; border: 1px solid ${borderColor}; color: var(--text-primary); vertical-align: middle;">${waterType}</span>`;
                 }
 
+                const swimScore = calculateSwimScore(spot, conditionsCache[spot.spot_id] || [], swimEventsCache);
                 item.innerHTML = `
                     <div style="flex: 1;">
                         <div style="font-weight: 700; color: var(--text-primary); font-size: 16px; margin-bottom: 2px;">${spot.spot_name}${badgeHtml}</div>
                         <div style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">${getTimeAgo(new Date(spot.updated_at))}</div>
                     </div>
-                    <div style="font-size: 24px; font-weight: 800; color: var(--ocean-light);">${spot.temp_c}°C</div>
+                    <div style="text-align:right;">
+                        <div style="font-size: 24px; font-weight: 800; color: var(--ocean-light);">${spot.temp_c}°C</div>
+                        ${swimScoreBadgeHtml(swimScore)}
+                    </div>
                 `;
                 gridEl.appendChild(item);
             });
@@ -7008,6 +7263,7 @@
                     badgeHtml = `<span style="display: inline-block; padding: 2px 8px; margin-left: 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; border-radius: 6px; background: ${bgColor}; border: 1px solid ${borderColor}; color: var(--text-primary); vertical-align: middle;">${waterType}</span>`;
                 }
 
+                const swimScore = calculateSwimScore(s, conditionsCache[spotId] || [], swimEventsCache);
                 const item = document.createElement('div');
                 item.className = 'spot-list-item';
                 item.onclick = () => openSpotDetail(spotId, spotName, spotCode);
@@ -7016,7 +7272,10 @@
                         <div style="font-weight: 700; color: var(--text-primary); font-size: 16px; margin-bottom: 2px;">${spotName}${badgeHtml}</div>
                         <div style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">${getTimeAgo(new Date(s.updated_at))}</div>
                     </div>
-                    <div style="font-size: 24px; font-weight: 800; color: var(--ocean-light);">${s.temp_c}°C</div>
+                    <div style="text-align:right;">
+                        <div style="font-size: 24px; font-weight: 800; color: var(--ocean-light);">${s.temp_c}°C</div>
+                        ${swimScoreBadgeHtml(swimScore)}
+                    </div>
                 `;
                 listEl.appendChild(item);
             });
@@ -7232,6 +7491,42 @@
                     const labels = chartData.map(d => new Date(d.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
                     const temps = chartData.map(d => d.temp_c);
                     renderSpotChart(labels, temps);
+                }
+
+                // ===== RENDER SWIM SCORE BANNER =====
+                const scoreBannerEl = document.getElementById('spotScoreBanner');
+                if (scoreBannerEl) {
+                    // Find spot row from trendsData cache
+                    let spotRow = null;
+                    for (const domain in trendsData) {
+                        const found = (trendsData[domain].spots || []).find(s => s.spot_id === currentSpotId);
+                        if (found) { spotRow = found; break; }
+                    }
+                    if (spotRow && recentLogs && recentLogs.length > 0) {
+                        // Use top 5 recent logs for scoring (with hazards from conditionsCache)
+                        const logsForScore = (conditionsCache[currentSpotId] || []).slice(0, 5);
+                        // Fallback: merge in recentLogs conditions if cache is empty
+                        const scoreInput = logsForScore.length > 0 ? logsForScore : recentLogs.slice(0, 5);
+                        const swimScore = calculateSwimScore(spotRow, scoreInput, swimEventsCache);
+                        const { score, label, emoji, color } = swimScore;
+                        scoreBannerEl.innerHTML = `
+                            <div style="display:flex;align-items:center;justify-content:space-between;
+                                        background:rgba(15,23,42,0.6);border-radius:12px;padding:12px 16px;
+                                        border:1px solid ${color}30;">
+                                <div>
+                                    <div style="font-size:10px;color:var(--text-secondary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Swim Score</div>
+                                    <div style="font-size:22px;font-weight:800;color:${color};margin-top:3px;">${emoji} ${label}</div>
+                                </div>
+                                <div style="text-align:right;">
+                                    <div style="font-size:40px;font-weight:800;color:${color};line-height:1;">${score}</div>
+                                    <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">out of 100</div>
+                                </div>
+                            </div>
+                        `;
+                        scoreBannerEl.style.display = 'block';
+                    } else {
+                        scoreBannerEl.style.display = 'none';
+                    }
                 }
 
                 // ===== RENDER RECENT LOGS LIST =====
