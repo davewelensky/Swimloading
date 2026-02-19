@@ -2353,6 +2353,9 @@
             const event = await loadEventDetails(eventId);
             if (!event) return;
 
+            // Build spot options with current selection
+            const spotOptions = spots.map(s => `<option value="${s.id}" ${s.name === event.location_name ? 'selected' : ''}>${s.name}</option>`).join('');
+
             const html = `
                 <div style="margin-bottom: 20px;">
                     <h2 style="font-size: 20px; color: var(--text-primary); margin-bottom: 8px;">Edit Swim</h2>
@@ -2364,12 +2367,32 @@
                 </div>
 
                 <div class="form-group">
+                    <div class="form-label">Location</div>
+                    <select id="editEventSpot" data-spots>${spotOptions}</select>
+                </div>
+
+                <div class="form-group">
                     <div class="form-label">Date & Time (SAST)</div>
                     <input type="datetime-local" id="editEventDateTime" value="${(function () {
                     const d = new Date(event.start_at);
                     const pad = (n) => String(n).padStart(2, '0');
                     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
                 })()}">
+                </div>
+
+                <div class="form-group">
+                    <div class="form-label">Distance (km)</div>
+                    <input type="number" id="editEventDistance" step="0.1" placeholder="e.g., 2.5" value="${event.distance_km || ''}">
+                </div>
+
+                <div class="form-group">
+                    <div class="form-label">Pace Category</div>
+                    <select id="editEventPace">
+                        <option value="100" ${event.target_pace_sec_per_100m == 100 ? 'selected' : ''}>Fast (1:40/100m)</option>
+                        <option value="120" ${event.target_pace_sec_per_100m == 120 ? 'selected' : ''}>Steady (2:00/100m)</option>
+                        <option value="150" ${event.target_pace_sec_per_100m == 150 || !event.target_pace_sec_per_100m ? 'selected' : ''}>Social (2:30/100m)</option>
+                        <option value="180" ${event.target_pace_sec_per_100m == 180 ? 'selected' : ''}>Developing (3:00/100m)</option>
+                    </select>
                 </div>
 
                 <div class="form-group">
@@ -2386,6 +2409,22 @@
                     <textarea id="editEventLogistics" placeholder="Lifts, car shuffle, etc...">${event.logistics_note || ''}</textarea>
                 </div>
 
+                <details style="margin-bottom: 20px; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 4px;">
+                    <summary style="cursor: pointer; padding: 12px; color: var(--text-secondary); font-size: 14px; font-weight: 600;">
+                        Safety Recommendations
+                    </summary>
+                    <div style="padding: 12px;">
+                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; cursor: pointer;">
+                            <input type="checkbox" id="editEventTowFloat" ${event.tow_float_recommended ? 'checked' : ''} style="width: 18px; height: 18px;">
+                            <span style="font-size: 14px; color: var(--text-primary);">Tow float recommended</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="editEventBrightCap" ${event.bright_cap_recommended ? 'checked' : ''} style="width: 18px; height: 18px;">
+                            <span style="font-size: 14px; color: var(--text-primary);">Bright cap recommended</span>
+                        </label>
+                    </div>
+                </details>
+
                 <div class="form-group">
                     <div class="form-label">External Group Link</div>
                     <input type="url" id="editEventChatUrl" placeholder="WhatsApp link..." value="${event.external_chat_url || ''}">
@@ -2399,22 +2438,53 @@
 
             document.getElementById('eventDetailsContent').innerHTML = html;
             document.getElementById('eventDetailsActions').innerHTML = '';
+            // Re-populate spot dropdown with grouped options if available
+            const editSpotSelect = document.getElementById('editEventSpot');
+            if (editSpotSelect && typeof buildGroupedSpotOptions === 'function') {
+                buildGroupedSpotOptions(editSpotSelect);
+                // Re-select the current spot
+                const currentSpot = spots.find(s => s.name === event.location_name);
+                if (currentSpot) editSpotSelect.value = currentSpot.id;
+            }
         }
 
         async function saveEventUpdates(eventId) {
             try {
+                // Fetch current event to diff for smart notification
+                const { data: oldEvt } = await supabaseClient
+                    .from('swim_events')
+                    .select('*')
+                    .eq('id', eventId)
+                    .single();
+
                 const title = document.getElementById('editEventTitle').value.trim();
                 const startAt = document.getElementById('editEventDateTime').value + ':00+02:00';
                 const routeType = document.getElementById('editEventRouteType').value;
                 const logistics = document.getElementById('editEventLogistics').value;
                 const chatUrl = document.getElementById('editEventChatUrl').value;
 
+                // New fields
+                const spotId = document.getElementById('editEventSpot')?.value;
+                const spot = spots.find(s => s.id === spotId);
+                const locationName = spot ? spot.name : oldEvt?.location_name;
+                const distanceKm = parseFloat(document.getElementById('editEventDistance')?.value) || null;
+                const targetPace = parseInt(document.getElementById('editEventPace')?.value, 10) || null;
+                const towFloat = document.getElementById('editEventTowFloat')?.checked || false;
+                const brightCap = document.getElementById('editEventBrightCap')?.checked || false;
+
                 const { error } = await supabaseClient
                     .from('swim_events')
                     .update({
                         title: title || null,
                         start_at: startAt,
+                        location_name: locationName,
+                        lat: spot?.latitude || oldEvt?.lat || null,
+                        lng: spot?.longitude || oldEvt?.lng || null,
+                        distance_km: distanceKm,
+                        target_pace_sec_per_100m: targetPace,
                         route_type: routeType,
+                        tow_float_recommended: towFloat,
+                        bright_cap_recommended: brightCap,
                         logistics_note: logistics,
                         external_chat_url: chatUrl,
                         updated_at: new Date().toISOString(),
@@ -2424,6 +2494,17 @@
 
                 if (error) throw error;
 
+                // Build smart change summary
+                const changes = [];
+                if (oldEvt) {
+                    if (locationName && locationName !== oldEvt.location_name) changes.push(`Location: ${oldEvt.location_name} → ${locationName}`);
+                    if (distanceKm && distanceKm !== oldEvt.distance_km) changes.push(`Distance: ${oldEvt.distance_km || '?'}km → ${distanceKm}km`);
+                    const oldTime = new Date(oldEvt.start_at).getTime();
+                    const newTime = new Date(startAt).getTime();
+                    if (Math.abs(oldTime - newTime) > 60000) changes.push(`Time: ${new Date(startAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} on ${new Date(startAt).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })}`);
+                    if (title && title !== oldEvt.title) changes.push(`Name: ${title}`);
+                }
+
                 // Notify participants about the change
                 try {
                     const { data: participants } = await supabaseClient
@@ -2432,19 +2513,11 @@
                         .eq('swim_event_id', eventId)
                         .in('status', ['approved', 'requested']);
 
-                    const { data: evt } = await supabaseClient
-                        .from('swim_events')
-                        .select('title, location_name')
-                        .eq('id', eventId)
-                        .single();
-
                     if (participants && participants.length > 0) {
-                        const swimTitle = evt?.title || evt?.location_name || 'A swim';
-                        const newTime = new Date(startAt).toLocaleTimeString('en-US', {
-                            hour: '2-digit', minute: '2-digit'
-                        }) + ' on ' + new Date(startAt).toLocaleDateString('en-US', {
-                            weekday: 'short', day: 'numeric', month: 'short'
-                        });
+                        const swimTitle = title || locationName || 'A swim';
+                        const changeMsg = changes.length > 0
+                            ? `"${swimTitle}" updated: ${changes.join('. ')}`
+                            : `"${swimTitle}" details have been updated.`;
 
                         for (const p of participants) {
                             await notify(
@@ -2452,7 +2525,7 @@
                                 eventId,
                                 'swim_updated',
                                 'Swim details changed',
-                                `"${swimTitle}" has been updated. New time: ${newTime}`,
+                                changeMsg,
                                 { swim_event_id: eventId }
                             );
                         }
@@ -3551,6 +3624,31 @@
             return minDistance <= 10 ? nearest : null;
         }
 
+        // Toggle backdate picker for temp logging
+        function toggleBackdate() {
+            const picker = document.getElementById('backdatePicker');
+            const label = document.getElementById('backdateToggleLabel');
+            const input = document.getElementById('backdateTime');
+            if (picker.style.display === 'none') {
+                picker.style.display = 'block';
+                label.textContent = 'Logging for earlier time';
+                label.style.color = 'var(--ocean-light)';
+                // Set max to now, min to 48h ago, default to now
+                const now = new Date();
+                const ago48 = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+                const pad = n => String(n).padStart(2, '0');
+                const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                input.max = fmt(now);
+                input.min = fmt(ago48);
+                input.value = fmt(now);
+            } else {
+                picker.style.display = 'none';
+                label.textContent = 'Log for earlier?';
+                label.style.color = 'var(--text-secondary)';
+                input.value = '';
+            }
+        }
+
         // Submit temperature log
         async function submitTempLog() {
             const submitBtn = document.getElementById('submitTempBtn');
@@ -3571,21 +3669,48 @@
 
             const notes = document.querySelector('#logTemp textarea').value;
 
+            // Check for backdated time
+            const backdateInput = document.getElementById('backdateTime');
+            const backdatePicker = document.getElementById('backdatePicker');
+            let loggedAt = null;
+            if (backdatePicker && backdatePicker.style.display !== 'none' && backdateInput && backdateInput.value) {
+                const chosenTime = new Date(backdateInput.value);
+                const now = new Date();
+                const ago48 = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+                if (chosenTime > now) {
+                    showToast('Cannot log a future time.', 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit Temperature Log';
+                    return;
+                }
+                if (chosenTime < ago48) {
+                    showToast('Cannot backdate more than 48 hours.', 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit Temperature Log';
+                    return;
+                }
+                loggedAt = chosenTime.toISOString();
+            }
+
             // ⛔ Duplicate check: prevent logging same spot within 1 hour
-            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+            // For backdated logs, check around the chosen time instead of now
+            const checkTime = loggedAt ? new Date(loggedAt) : new Date();
+            const oneHourBefore = new Date(checkTime.getTime() - 60 * 60 * 1000).toISOString();
+            const oneHourAfter = new Date(checkTime.getTime() + 60 * 60 * 1000).toISOString();
             const { data: recentLogs } = await supabaseClient
                 .from('temp_logs')
-                .select('id, created_at')
+                .select('id, created_at, logged_at')
                 .eq('user_id', currentUser.id)
                 .eq('spot_id', spotId)
-                .gte('created_at', oneHourAgo)
+                .gte('logged_at', oneHourBefore)
+                .lte('logged_at', oneHourAfter)
                 .limit(1);
 
             if (recentLogs && recentLogs.length > 0) {
-                const logTime = new Date(recentLogs[0].created_at);
-                const minsAgo = Math.round((Date.now() - logTime) / 60000);
+                const logTime = new Date(recentLogs[0].logged_at || recentLogs[0].created_at);
+                const minsAgo = Math.round(Math.abs(checkTime - logTime) / 60000);
                 const minsLeft = 60 - minsAgo;
-                showToast(`You already logged this spot ${minsAgo} min ago. Try again in ${minsLeft} min.`, 'error');
+                showToast(`You already logged this spot within an hour of that time. Try again in ${minsLeft > 0 ? minsLeft : 1} min.`, 'error');
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Submit Temperature Log';
                 return;
@@ -3663,6 +3788,11 @@
                 gps_spot_id: gpsSuggestedSpotId
             };
 
+            // Add backdated timestamp if set
+            if (loggedAt) {
+                logData.logged_at = loggedAt;
+            }
+
             // Add GPS coordinates if available (for future custom spots feature)
             // Note: Could store in notes or a separate field later
             if (currentGpsLocation) {
@@ -3682,7 +3812,15 @@
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Submit Temperature Log';
             } else {
-                showToast('Temperature logged successfully! +10 points!', 'success');
+                showToast(loggedAt ? 'Backdated temp logged! +10 points!' : 'Temperature logged successfully! +10 points!', 'success');
+
+                // Reset backdate picker
+                const bdPicker = document.getElementById('backdatePicker');
+                const bdLabel = document.getElementById('backdateToggleLabel');
+                if (bdPicker) { bdPicker.style.display = 'none'; }
+                if (bdLabel) { bdLabel.textContent = 'Log for earlier?'; bdLabel.style.color = 'var(--text-secondary)'; }
+                const bdInput = document.getElementById('backdateTime');
+                if (bdInput) bdInput.value = '';
 
                 // Reset GPS and Lock state
                 selectedSpotLocked = false;
@@ -5267,6 +5405,16 @@
                             </button>
                         </div>
                         <div id="gpsStatus" style="font-size: 12px; color: var(--text-secondary); min-height: 18px;">
+                        </div>
+                        <div id="backdateSection" style="margin-top: 8px;">
+                            <div onclick="toggleBackdate()" style="cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 6px 0;">
+                                <i data-lucide="clock" style="width: 14px; height: 14px; color: var(--text-secondary);"></i>
+                                <span id="backdateToggleLabel" style="font-size: 12px; color: var(--text-secondary);">Log for earlier?</span>
+                            </div>
+                            <div id="backdatePicker" style="display: none; margin-top: 6px;">
+                                <input type="datetime-local" id="backdateTime" style="width: 100%;">
+                                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Up to 48 hours back</div>
+                            </div>
                         </div>
                         <div onclick="showSuggestSpot()"
                             style="margin-top: 8px; padding: 10px 14px; background: rgba(56, 189, 248, 0.08); border: 1px dashed rgba(56, 189, 248, 0.25); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
@@ -6893,7 +7041,7 @@
                 // Build chart query (DESC for 'All' case, then reverse)
                 let chartQuery = supabaseClient
                     .from('temp_logs')
-                    .select('id,user_id,spot_id,temp_c,created_at')
+                    .select('id,user_id,spot_id,temp_c,created_at,logged_at')
                     .eq('spot_id', currentSpotId)
                     .order('created_at', { ascending: false });
 
@@ -6919,7 +7067,7 @@
                 // ===== RECENT LOGS QUERY (always latest 15) =====
                 let logsQuery = supabaseClient
                     .from('temp_logs')
-                    .select('id,user_id,temp_c,created_at')
+                    .select('id,user_id,temp_c,conditions,notes,created_at,logged_at')
                     .eq('spot_id', currentSpotId)
                     .order('created_at', { ascending: false })
                     .limit(15);
@@ -6964,21 +7112,109 @@
                 if (!recentLogs || recentLogs.length === 0) {
                     listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">No logs found.</div>';
                 } else {
-                    listEl.innerHTML = recentLogs.map(log => `
-                         <div style="display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                            <div>
+                    const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+                    listEl.innerHTML = recentLogs.map(log => {
+                        const isOwn = currentUser && log.user_id === currentUser.id;
+                        const isRecent = new Date(log.created_at).getTime() > twoHoursAgo;
+                        const canEdit = isOwn && isRecent;
+                        return `
+                         <div id="templog-${log.id}" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <div style="flex: 1;">
                                 <span style="font-weight: 600; font-size: 13px;">${profileMap[log.user_id] || 'Anonymous'}</span>
-                                <div style="font-size: 11px; color: var(--text-secondary);">${new Date(log.created_at).toLocaleString()}</div>
+                                <div style="font-size: 11px; color: var(--text-secondary);">${new Date(log.logged_at || log.created_at).toLocaleString()}</div>
+                                ${log.logged_at && Math.abs(new Date(log.logged_at) - new Date(log.created_at)) > 300000 ? '<span style="font-size: 9px; background: rgba(245,158,11,0.15); color: var(--warning); padding: 1px 5px; border-radius: 4px;">backdated</span>' : ''}
                             </div>
-                            <div style="font-weight: 700; color: var(--ocean-light);">${log.temp_c}°C</div>
-                         </div>
-                    `).join('');
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="font-weight: 700; color: var(--ocean-light);">${log.temp_c}°C</div>
+                                ${canEdit ? `
+                                    <button onclick="editTempLog('${log.id}', ${log.temp_c}, '${(log.conditions || '').replace(/'/g, "\\'")}', '${(log.notes || '').replace(/'/g, "\\'").replace(/\n/g, "\\n")}')" style="background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 4px 6px; cursor: pointer; color: var(--text-secondary); font-size: 11px;" title="Edit">✏️</button>
+                                    <button onclick="deleteTempLog('${log.id}')" style="background: transparent; border: 1px solid rgba(239,68,68,0.2); border-radius: 6px; padding: 4px 6px; cursor: pointer; color: var(--danger); font-size: 11px;" title="Delete">🗑️</button>
+                                ` : ''}
+                            </div>
+                         </div>`;
+                    }).join('');
                 }
 
             } catch (err) {
                 console.error('Spot drilldown load error:', err);
                 showToast('Error loading data: ' + err.message, 'error');
                 listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--danger);">Error loading data. Check console for details.</div>';
+            }
+        }
+
+        // Edit a temp log inline
+        function editTempLog(logId, currentTemp, currentConditions, currentNotes) {
+            const row = document.getElementById(`templog-${logId}`);
+            if (!row) return;
+            row.innerHTML = `
+                <div style="width: 100%; padding: 4px 0;">
+                    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+                        <label style="font-size: 12px; color: var(--text-secondary); width: 50px;">Temp:</label>
+                        <input type="number" id="editTemp-${logId}" value="${currentTemp}" step="0.5" min="8" max="32" style="flex: 1; padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-primary);">
+                        <span style="color: var(--text-secondary);">°C</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+                        <label style="font-size: 12px; color: var(--text-secondary); width: 50px;">Cond:</label>
+                        <select id="editCond-${logId}" style="flex: 1; padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-primary);">
+                            <option value="calm" ${currentConditions === 'calm' ? 'selected' : ''}>Calm</option>
+                            <option value="choppy" ${currentConditions === 'choppy' ? 'selected' : ''}>Choppy</option>
+                            <option value="rough" ${currentConditions === 'rough' ? 'selected' : ''}>Rough</option>
+                            <option value="extreme" ${currentConditions === 'extreme' ? 'selected' : ''}>Extreme</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <textarea id="editNotes-${logId}" placeholder="Notes..." style="width: 100%; padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-primary); font-size: 12px; resize: none; height: 50px;">${currentNotes || ''}</textarea>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="saveTempLogEdit('${logId}')" class="btn btn-success" style="flex: 1; padding: 8px; font-size: 12px;">Save</button>
+                        <button onclick="loadSpotChartData()" class="btn" style="flex: 1; padding: 8px; font-size: 12px; background: rgba(255,255,255,0.1);">Cancel</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function saveTempLogEdit(logId) {
+            const temp = parseFloat(document.getElementById(`editTemp-${logId}`).value);
+            const conditions = document.getElementById(`editCond-${logId}`).value;
+            const notes = document.getElementById(`editNotes-${logId}`).value;
+
+            if (isNaN(temp) || temp < 8 || temp > 32) {
+                showToast('Temperature must be between 8°C and 32°C', 'error');
+                return;
+            }
+
+            try {
+                const { error } = await supabaseClient
+                    .from('temp_logs')
+                    .update({ temp_c: temp, conditions: conditions, notes: notes })
+                    .eq('id', logId)
+                    .eq('user_id', currentUser.id);
+
+                if (error) throw error;
+                showToast('Temp log updated!', 'success');
+                await loadSpotChartData();
+            } catch (err) {
+                console.error('Error updating temp log:', err);
+                showToast('Error updating: ' + err.message, 'error');
+            }
+        }
+
+        async function deleteTempLog(logId) {
+            if (!confirm('Delete this temp log? You can re-log immediately after.')) return;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('temp_logs')
+                    .delete()
+                    .eq('id', logId)
+                    .eq('user_id', currentUser.id);
+
+                if (error) throw error;
+                showToast('Temp log deleted — you can re-log now', 'success');
+                await loadSpotChartData();
+            } catch (err) {
+                console.error('Error deleting temp log:', err);
+                showToast('Error deleting: ' + err.message, 'error');
             }
         }
 
