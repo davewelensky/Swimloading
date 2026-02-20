@@ -1249,20 +1249,20 @@ async function loadCarina() {
         </div>
     `;
 
-    // Prediction
-    const currentTemp = 16.0; // Western bay route (Miller's Point→Rooi Els): avg of 17°C, 15°C, 16.5°C readings
+    // Prediction — use all solos, exclude extreme outliers (>13h = 46800s)
+    // February filter is unreliable as fast/slow swims spread across months
+    const currentTemp = 16.0; // Western bay route (Miller's Point→Rooi Els): avg 17°C, 15°C, 16.5°C
+    const MAX_SECS = 46800; // 13 hours — cap outliers like 16h finishes
     const wRecordSecs = durSecs(wRecord?.duration);
     const mRecordSecs = durSecs(mRecord?.duration);
-    const wPredSecs = febWomen.length
-        ? febWomen.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/febWomen.length
-        : warm18Women.length ? warm18Women.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/warm18Women.length : null;
-    const mPredSecs = febMen.length
-        ? febMen.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/febMen.length
-        : warm18Men.length ? warm18Men.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/warm18Men.length : null;
+    const wClean = women.filter(s => durSecs(s.duration) <= MAX_SECS);
+    const mClean = men.filter(s => durSecs(s.duration) <= MAX_SECS);
+    const wPredSecs = wClean.length ? wClean.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/wClean.length : null;
+    const mPredSecs = mClean.length ? mClean.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/mClean.length : null;
 
     document.getElementById('carinaPrediction').innerHTML = `
         <div class="alert blue" style="margin-bottom:12px;">
-            Based on current conditions (water ~${currentTemp}°C, Feb timing) and historical False Bay crossing data.
+            Based on current conditions (water ~${currentTemp}°C) and all verified False Bay skins solo crossings.
         </div>
         <div class="stat-grid" style="margin-bottom:12px;">
             <div class="stat-box hi" style="padding:16px;">
