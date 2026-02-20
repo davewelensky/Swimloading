@@ -316,7 +316,7 @@
             <div class="card-label">False Bay Crossing — Key Requirements</div>
             <div class="checklist-item">
                 <div class="check-icon">🌡️</div>
-                <div><div class="check-label">Water temp ≥ 18°C</div><div class="check-sub">Community readings (19 Feb 2026): Miller's Point 17°C · Simons Town 15°C · Glencairn 16.5°C · Fish Hoek 18°C · Gordon's Bay 21°C. Clear thermal gradient — cooler start, warming through the crossing. Start is below the 18°C skins threshold.</div></div>
+                <div><div class="check-label">Water temp ≥ 18°C</div><div class="check-sub">Community readings (19 Feb 2026): Miller's Point 17°C · Simons Town 15°C · Glencairn 16.5°C. The actual crossing (Miller's Point → Rooi Els, 33km) stays in the western bay — cooler than the eastern bay readings near Strand/Gordon's Bay. Start is below the 18°C skins threshold.</div></div>
             </div>
             <div class="checklist-item">
                 <div class="check-icon">💨</div>
@@ -513,7 +513,7 @@ async function loadLiveTemps() {
     if (!readings.length) {
         document.getElementById('liveTemps').innerHTML = `
             <div class="alert blue">
-                Community readings (19 Feb 2026): Miller's Point <strong>17°C</strong> · Simons Town <strong>15°C</strong> · Glencairn <strong>16.5°C</strong> · Fish Hoek <strong>18°C</strong> · Gordon's Bay <strong>21°C</strong>. Thermal gradient — start is below 18°C threshold, warms to 21°C at finish.
+                Community readings (19 Feb 2026): Miller's Point <strong>17°C</strong> · Simons Town <strong>15°C</strong> · Glencairn <strong>16.5°C</strong>. Crossing route (Miller's Point → Rooi Els, 33km) stays in the western bay — colder than eastern bay readings. Start is below the 18°C skins threshold.
             </div>`;
         return { avgTemp: 19.5, hasLive: false };
     }
@@ -544,7 +544,7 @@ async function loadLiveTemps() {
             </div>
         `).join('')}
         <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">
-            Community readings (19 Feb 2026): Miller's Point 17°C · Fish Hoek 18°C · Gordon's Bay 21°C.
+            Community readings (19 Feb 2026): Miller's Point 17°C · Simons Town 15°C · Glencairn 16.5°C. Route stays in western bay.
         </div>
     `;
 
@@ -745,7 +745,7 @@ function buildChecklist(live, forecast) {
             icon: temp >= 18 ? '✅' : '❌',
             label: 'Water temp ≥ 18°C',
             sub: temp >= 18
-                ? `Current: ${temp.toFixed(1)}°C — above threshold. Community readings (19 Feb 2026): Miller's Point 17°C, Fish Hoek 18°C, Gordon's Bay 21°C. Start is below 18°C — expect a cold first few kilometres.`
+                ? `Current: ${temp.toFixed(1)}°C — above threshold. Community readings (19 Feb 2026): Miller's Point 17°C, Simons Town 15°C, Glencairn 16.5°C. Route is Miller's Point → Rooi Els (33km) — stays in the cold western bay.`
                 : `Current: ${temp.toFixed(1)}°C — below 18°C. Check again in coming days.`
         },
         {
@@ -1163,8 +1163,17 @@ async function loadCarina() {
 
     if (!all?.length) return;
 
-    const women = all.filter(s => s.historical_swimmers?.gender === 'F');
-    const men   = all.filter(s => s.historical_swimmers?.gender === 'M');
+    // Filter out group swims where multiple swimmers share the exact same duration
+    // on the same date — these are relay/group events incorrectly flagged as solos
+    const durationDateCounts = {};
+    all.forEach(s => {
+        const key = `${s.swim_date}|${s.duration}`;
+        durationDateCounts[key] = (durationDateCounts[key] || 0) + 1;
+    });
+    const solos = all.filter(s => durationDateCounts[`${s.swim_date}|${s.duration}`] === 1);
+
+    const women = solos.filter(s => s.historical_swimmers?.gender === 'F');
+    const men   = solos.filter(s => s.historical_swimmers?.gender === 'M');
     const wRecord = women[0];
     const mRecord = men[0];
 
@@ -1241,7 +1250,7 @@ async function loadCarina() {
     `;
 
     // Prediction
-    const currentTemp = 17.0;
+    const currentTemp = 16.0; // Western bay route (Miller's Point→Rooi Els): avg of 17°C, 15°C, 16.5°C readings
     const wRecordSecs = durSecs(wRecord?.duration);
     const mRecordSecs = durSecs(mRecord?.duration);
     const wPredSecs = febWomen.length
