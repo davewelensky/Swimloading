@@ -783,7 +783,7 @@ function buildChecklist(live, forecast) {
     document.getElementById('condChecklist').innerHTML = items.map(item => `
         <div class="checklist-item">
             <div class="check-icon">${item.icon}</div>
-            <div>
+            <div style="text-align:left;">
                 <div class="check-label">${item.label}</div>
                 <div class="check-sub">${item.sub}</div>
             </div>
@@ -1164,91 +1164,134 @@ async function loadCarina() {
     if (!all?.length) return;
 
     const women = all.filter(s => s.historical_swimmers?.gender === 'F');
-    const record = women[0];
+    const men   = all.filter(s => s.historical_swimmers?.gender === 'M');
+    const wRecord = women[0];
+    const mRecord = men[0];
 
-    // Target time display
-    if (record) {
-        document.getElementById('targetTime').textContent = fmtDur(record.duration);
-        document.getElementById('targetMeta').textContent =
-            `${record.historical_swimmers?.display_name} · ${new Date(record.swim_date).toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'})} · ${record.water_temp_c}°C · ${record.conditions?.replace('_',' ')||''}`;
-    }
+    // Target time display — show both records
+    document.getElementById('targetTime').textContent = wRecord ? fmtDur(wRecord.duration) : '—:——:——';
+    document.getElementById('targetMeta').textContent = wRecord
+        ? `Women's record: ${wRecord.historical_swimmers?.display_name} · ${new Date(wRecord.swim_date).toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'})} · ${wRecord.water_temp_c}°C · ${wRecord.conditions?.replace('_',' ')||''}`
+        : '';
 
-    // Insights
+    // Insights — women
     const warm18Women = women.filter(s => s.water_temp_c >= 18);
-    const goodCondWomen = women.filter(s => s.conditions === 'good');
-    const avgWomenTime = women.length ? secsToHMS(women.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/women.length) : '—';
-    const avgWarm18Time = warm18Women.length ? secsToHMS(warm18Women.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/warm18Women.length) : '—';
+    const warm18Men   = men.filter(s => s.water_temp_c >= 18);
+    const avgWomenTime   = women.length ? secsToHMS(women.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/women.length) : '—';
+    const avgWarm18Women = warm18Women.length ? secsToHMS(warm18Women.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/warm18Women.length) : '—';
+    const avgMenTime     = men.length ? secsToHMS(men.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/men.length) : '—';
+    const avgWarm18Men   = warm18Men.length ? secsToHMS(warm18Men.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/warm18Men.length) : '—';
     const febWomen = women.filter(s => new Date(s.swim_date).getMonth() === 1);
+    const febMen   = men.filter(s => new Date(s.swim_date).getMonth() === 1);
 
     document.getElementById('carinaInsights').innerHTML = `
-        <div class="stat-grid" style="margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-secondary);letter-spacing:.08em;margin-bottom:8px;">👩 WOMEN'S SKINS</div>
+        <div class="stat-grid" style="margin-bottom:16px;">
             <div class="stat-box">
                 <div class="stat-val" style="font-size:18px;">${women.length}</div>
-                <div class="stat-lbl">Women's skins solos completed</div>
+                <div class="stat-lbl">Solos completed</div>
             </div>
             <div class="stat-box hi">
                 <div class="stat-val blue" style="font-size:18px;">${warm18Women.length}</div>
-                <div class="stat-lbl">At 18°C+ water</div>
+                <div class="stat-lbl">At 18°C+</div>
             </div>
             <div class="stat-box">
                 <div class="stat-val" style="font-size:16px;">${avgWomenTime}</div>
-                <div class="stat-lbl">Avg women's time (all)</div>
+                <div class="stat-lbl">Avg time (all)</div>
             </div>
             <div class="stat-box ok">
-                <div class="stat-val green" style="font-size:16px;">${avgWarm18Time}</div>
+                <div class="stat-val green" style="font-size:16px;">${avgWarm18Women}</div>
+                <div class="stat-lbl">Avg at 18°C+</div>
+            </div>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-secondary);letter-spacing:.08em;margin-bottom:8px;">👨 MEN'S SKINS</div>
+        <div class="stat-grid" style="margin-bottom:16px;">
+            <div class="stat-box">
+                <div class="stat-val" style="font-size:18px;">${men.length}</div>
+                <div class="stat-lbl">Solos completed</div>
+            </div>
+            <div class="stat-box hi">
+                <div class="stat-val blue" style="font-size:18px;">${warm18Men.length}</div>
+                <div class="stat-lbl">At 18°C+</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-val" style="font-size:16px;">${avgMenTime}</div>
+                <div class="stat-lbl">Avg time (all)</div>
+            </div>
+            <div class="stat-box ok">
+                <div class="stat-val green" style="font-size:16px;">${avgWarm18Men}</div>
                 <div class="stat-lbl">Avg at 18°C+</div>
             </div>
         </div>
         <div class="checklist-item" style="padding:10px 0;">
             <div class="check-icon">📊</div>
-            <div><div class="check-label">Temp makes a difference</div>
-            <div class="check-sub">Avg time drops at 18°C+ vs all conditions — warmer water = faster crossing.</div></div>
+            <div style="text-align:left;"><div class="check-label">Temp makes a difference</div>
+            <div class="check-sub">Avg time drops at 18°C+ for both genders — warmer water = faster crossing.</div></div>
         </div>
         <div class="checklist-item" style="padding:10px 0;">
             <div class="check-icon">📅</div>
-            <div><div class="check-label">February crossings</div>
-            <div class="check-sub">${febWomen.length} women's skins solos recorded in February. Fastest: ${febWomen.length ? fmtDur(febWomen[0].duration) : '—'} at ${febWomen.length ? febWomen[0].water_temp_c+'°C' : '—'}.</div></div>
+            <div style="text-align:left;"><div class="check-label">February crossings</div>
+            <div class="check-sub">Women: ${febWomen.length} solos in Feb, fastest ${febWomen.length ? fmtDur(febWomen[0].duration) : '—'} at ${febWomen.length ? febWomen[0].water_temp_c+'°C' : '—'}. &nbsp;Men: ${febMen.length} solos in Feb, fastest ${febMen.length ? fmtDur(febMen[0].duration) : '—'} at ${febMen.length ? febMen[0].water_temp_c+'°C' : '—'}.</div></div>
         </div>
         <div class="checklist-item" style="padding:10px 0;border-bottom:none;">
             <div class="check-icon">💨</div>
-            <div><div class="check-label">NW wind drives the current — not just chop</div>
+            <div style="text-align:left;"><div class="check-label">NW wind drives the current — not just chop</div>
             <div class="check-sub">NW wind creates an anti-clockwise bay circulation, sending current eastward across the crossing — directly assisting the W→E line. SE wind reverses this, creating a clockwise circulation and an opposing crosscurrent. Tidal currents in False Bay are semi-diurnal but weak; wind is the dominant driver of surface flow. NW is the preferred direction — double benefit: reduced chop and favourable current.</div></div>
         </div>
     `;
 
     // Prediction
-    const currentTemp = 17.0; // Community readings 19 Feb 2026: Miller's Point 17°C, Fish Hoek 18°C, Gordon's Bay 21°C
-    const recordSecs = durSecs(record?.duration);
-    const avgFebSecs = febWomen.length ? febWomen.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/febWomen.length : null;
-
-    // Prediction: if conditions align (18°C+, NW wind, good) — compare to historical best
-    const predSecs = avgFebSecs || (warm18Women.length ? warm18Women.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/warm18Women.length : null);
+    const currentTemp = 17.0;
+    const wRecordSecs = durSecs(wRecord?.duration);
+    const mRecordSecs = durSecs(mRecord?.duration);
+    const wPredSecs = febWomen.length
+        ? febWomen.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/febWomen.length
+        : warm18Women.length ? warm18Women.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/warm18Women.length : null;
+    const mPredSecs = febMen.length
+        ? febMen.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/febMen.length
+        : warm18Men.length ? warm18Men.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/warm18Men.length : null;
 
     document.getElementById('carinaPrediction').innerHTML = `
         <div class="alert blue" style="margin-bottom:12px;">
-            Based on current conditions (water ~${currentTemp}°C, Feb timing) and historical crossing data.
+            Based on current conditions (water ~${currentTemp}°C, Feb timing) and historical False Bay crossing data.
         </div>
-        ${predSecs ? `
-        <div class="stat-box hi" style="margin-bottom:12px;padding:16px;">
-            <div class="stat-val blue" style="font-size:22px;">${secsToHMS(predSecs)}</div>
-            <div class="stat-lbl" style="margin-top:6px;">Predicted finish time<br>(based on similar historical conditions)</div>
+        <div class="stat-grid" style="margin-bottom:12px;">
+            <div class="stat-box hi" style="padding:16px;">
+                <div style="font-size:11px;font-weight:700;color:var(--text-secondary);letter-spacing:.08em;margin-bottom:6px;">👩 WOMEN'S</div>
+                <div class="stat-val blue" style="font-size:20px;">${wPredSecs ? secsToHMS(wPredSecs) : '—'}</div>
+                <div class="stat-lbl" style="margin-top:4px;">Predicted crossing time</div>
+            </div>
+            <div class="stat-box hi" style="padding:16px;">
+                <div style="font-size:11px;font-weight:700;color:var(--text-secondary);letter-spacing:.08em;margin-bottom:6px;">👨 MEN'S</div>
+                <div class="stat-val blue" style="font-size:20px;">${mPredSecs ? secsToHMS(mPredSecs) : '—'}</div>
+                <div class="stat-lbl" style="margin-top:4px;">Predicted crossing time</div>
+            </div>
         </div>
-        ` : ''}
         <div class="stat-grid">
             <div class="stat-box">
-                <div class="stat-val" style="font-size:16px;">${fmtDur(record?.duration)}</div>
-                <div class="stat-lbl">Record to beat</div>
+                <div class="stat-val" style="font-size:15px;">${fmtDur(wRecord?.duration)}</div>
+                <div class="stat-lbl">Women's record</div>
             </div>
-            <div class="stat-box ${predSecs && predSecs < recordSecs ? 'ok' : 'warn'}">
-                <div class="stat-val ${predSecs && predSecs < recordSecs ? 'green' : 'amber'}" style="font-size:16px;">
-                    ${predSecs && recordSecs ? (predSecs < recordSecs ? 'ON TRACK' : secsToHMS(predSecs - recordSecs)+' behind') : '—'}
+            <div class="stat-box">
+                <div class="stat-val" style="font-size:15px;">${fmtDur(mRecord?.duration)}</div>
+                <div class="stat-lbl">Men's record</div>
+            </div>
+            <div class="stat-box ${wPredSecs && wPredSecs < wRecordSecs ? 'ok' : 'warn'}">
+                <div class="stat-val ${wPredSecs && wPredSecs < wRecordSecs ? 'green' : 'amber'}" style="font-size:14px;">
+                    ${wPredSecs && wRecordSecs ? (wPredSecs < wRecordSecs ? '👩 ON TRACK' : '👩 +'+secsToHMS(wPredSecs - wRecordSecs)) : '—'}
                 </div>
-                <div class="stat-lbl">vs record prediction</div>
+                <div class="stat-lbl">vs women's record</div>
+            </div>
+            <div class="stat-box ${mPredSecs && mPredSecs < mRecordSecs ? 'ok' : 'warn'}">
+                <div class="stat-val ${mPredSecs && mPredSecs < mRecordSecs ? 'green' : 'amber'}" style="font-size:14px;">
+                    ${mPredSecs && mRecordSecs ? (mPredSecs < mRecordSecs ? '👨 ON TRACK' : '👨 +'+secsToHMS(mPredSecs - mRecordSecs)) : '—'}
+                </div>
+                <div class="stat-lbl">vs men's record</div>
             </div>
         </div>
         <div style="font-size:11px;color:var(--text-secondary);margin-top:12px;line-height:1.5;">
-            Prediction based on historical crossings in similar conditions (Feb, 18°C+, skins).
-            Actual performance depends on individual pace, tidal timing, and conditions on the day.
+            Prediction based on historical False Bay crossings in similar conditions (Feb, 18°C+, skins solo).
+            Actual performance depends on individual pace, wind, current, and conditions on the day.
         </div>
     `;
 }
