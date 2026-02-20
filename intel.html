@@ -327,7 +327,7 @@
             <div class="card-label">False Bay Crossing — Key Requirements</div>
             <div class="checklist-item">
                 <div class="check-icon">🌡️</div>
-                <div><div class="check-label">Water temp ≥ 18°C <span style="font-weight:400;color:var(--text-secondary)">(skins record attempt)</span></div><div class="check-sub">Community readings (19 Feb 2026): Miller's Point 17°C · Simons Town 15°C · Glencairn 16.5°C. The actual crossing (Miller's Point → Rooi Els, 33km) stays in the western bay — cooler than eastern bay readings near Strand/Gordon's Bay. Start is currently below the 18°C skins threshold.<br><br><strong style="color:var(--ocean-light)">🌊 Channel prep swimmers:</strong> At 16–17°C, False Bay exactly matches peak English Channel conditions (late July/August). Temperature is no barrier — this is the target environment.</div></div>
+                <div><div class="check-label">Water temp ≥ 18°C <span style="font-weight:400;color:var(--text-secondary)">(skins record attempt)</span></div><div class="check-sub">Satellite SST (20 Feb 2026): Miller's Point ~17°C · Open bay mid-crossing ~19°C · Strand/Rooi Els end ~20°C. Thermal gradient across the route — cooler start, warmer finish. Bay warming trend confirmed. Community readings (19 Feb): Miller's Point 17°C · Simons Town 15°C · Glencairn 16.5°C.<br><br><strong style="color:var(--ocean-light)">🌊 Channel prep swimmers:</strong> At 16–17°C at the start, False Bay exactly matches peak English Channel conditions (late July/August). Temperature is no barrier — this is the target environment.</div></div>
             </div>
             <div class="checklist-item">
                 <div class="check-icon">💨</div>
@@ -528,9 +528,9 @@ async function loadLiveTemps() {
     if (!readings.length) {
         document.getElementById('liveTemps').innerHTML = `
             <div class="alert blue">
-                Community readings (19 Feb 2026): Miller's Point <strong>17°C</strong> · Simons Town <strong>15°C</strong> · Glencairn <strong>16.5°C</strong>. Crossing route (Miller's Point → Rooi Els, 33km) stays in the western bay — colder than eastern bay readings. Start is below the 18°C skins threshold.
+                Satellite SST (20 Feb 2026): Miller's Point <strong>~17°C</strong> · Open bay mid-crossing <strong>~19°C</strong> · Strand/Rooi Els end <strong>~20°C</strong>. Bay warming trend confirmed. Community readings (19 Feb): Miller's Point 17°C · Simons Town 15°C · Glencairn 16.5°C. Route stays in the western bay — expect ~17°C at the start.
             </div>`;
-        return { avgTemp: 19.5, hasLive: false };
+        return { avgTemp: 17.0, hasLive: false };
     }
 
     const temps = readings.map(r => r.temp_c).filter(Boolean);
@@ -559,7 +559,7 @@ async function loadLiveTemps() {
             </div>
         `).join('')}
         <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">
-            Community readings (19 Feb 2026): Miller's Point 17°C · Simons Town 15°C · Glencairn 16.5°C. Route stays in western bay.
+            Satellite SST (20 Feb 2026): Miller's Point ~17°C · Bay mid-crossing ~19°C · Strand/Rooi Els end ~20°C. Bay warming confirmed. Community readings (19 Feb): Miller's Point 17°C · Simons Town 15°C · Glencairn 16.5°C.
         </div>
     `;
 
@@ -723,7 +723,7 @@ async function loadSundayHourly() {
 }
 
 function buildGoSignal(live, forecast) {
-    const temp = live?.avgTemp || 19.5;
+    const temp = live?.avgTemp || 17.0;
     const tempOk = temp >= 18;
     const windOk = forecast ? forecast.nwFav && forecast.windMax < 35 : null;
 
@@ -753,15 +753,15 @@ function buildGoSignal(live, forecast) {
 }
 
 function buildChecklist(live, forecast) {
-    const temp = live?.avgTemp || 19.5;
+    const temp = live?.avgTemp || 17.0;
     const items = [
         {
             ok: temp >= 18,
             icon: temp >= 18 ? '✅' : '❌',
             label: 'Water temp ≥ 18°C',
             sub: temp >= 18
-                ? `Current: ${temp.toFixed(1)}°C — above threshold. Community readings (19 Feb 2026): Miller's Point 17°C, Simons Town 15°C, Glencairn 16.5°C. Route is Miller's Point → Rooi Els (33km) — stays in the cold western bay.`
-                : `Current: ${temp.toFixed(1)}°C — below 18°C. Check again in coming days.`
+                ? `Current: ${temp.toFixed(1)}°C — above threshold. Satellite SST (20 Feb 2026): Miller's Point ~17°C, bay mid ~19°C, Strand end ~20°C. Bay warming confirmed.`
+                : `Current: ${temp.toFixed(1)}°C — below 18°C. Satellite SST (20 Feb 2026): start ~17°C, bay warms to ~19–20°C mid-crossing. Trend is upward.`
         },
         {
             ok: forecast?.nwFav,
@@ -1278,7 +1278,7 @@ async function loadCarina() {
     `;
 
     // Prediction — two scenarios: with temp filter (18°C+) and without
-    const currentTemp = 16.0; // Western bay: Miller's Point 17°C, Simons Town 15°C, Glencairn 16.5°C
+    const currentTemp = 17.0; // Satellite SST 20 Feb 2026: start ~17°C, bay avg ~19°C, finish ~20°C
     const MAX_SECS = 46800; // 13h cap
     const wRecordSecs = durSecs(wRecord?.duration);
     const mRecordSecs = durSecs(mRecord?.duration);
