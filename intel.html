@@ -307,9 +307,20 @@
     <div id="panelCarina" class="panel">
 
         <div class="target-banner">
-            <div class="target-label">Target — Women's False Bay Skins Record</div>
-            <div id="targetTime" class="target-time">—:——:——</div>
-            <div id="targetMeta" class="target-meta"></div>
+            <div class="target-label">False Bay Skins Records</div>
+            <div style="display:flex;gap:24px;justify-content:center;margin:8px 0;">
+                <div style="text-align:center;">
+                    <div style="font-size:11px;color:var(--text-secondary);letter-spacing:.08em;margin-bottom:2px;">👩 WOMEN'S</div>
+                    <div id="targetTimeW" class="target-time" style="font-size:28px;">—:——:——</div>
+                    <div id="targetMetaW" class="target-meta"></div>
+                </div>
+                <div style="width:1px;background:var(--border);"></div>
+                <div style="text-align:center;">
+                    <div style="font-size:11px;color:var(--text-secondary);letter-spacing:.08em;margin-bottom:2px;">👨 MEN'S</div>
+                    <div id="targetTimeM" class="target-time" style="font-size:28px;">—:——:——</div>
+                    <div id="targetMetaM" class="target-meta"></div>
+                </div>
+            </div>
         </div>
 
         <div class="card">
@@ -1170,18 +1181,31 @@ async function loadCarina() {
         const key = `${s.swim_date}|${s.duration}`;
         durationDateCounts[key] = (durationDateCounts[key] || 0) + 1;
     });
-    const solos = all.filter(s => durationDateCounts[`${s.swim_date}|${s.duration}`] === 1);
+    // Also filter relay-named entries (name contains 'relay' or multiple names separated by comma)
+    const solos = all.filter(s => {
+        if (durationDateCounts[`${s.swim_date}|${s.duration}`] > 1) return false;
+        const name = (s.historical_swimmers?.display_name || '').toLowerCase();
+        if (name.includes('relay')) return false;
+        if ((name.match(/,/g) || []).length >= 2) return false; // 3+ names = group
+        return true;
+    });
 
     const women = solos.filter(s => s.historical_swimmers?.gender === 'F');
     const men   = solos.filter(s => s.historical_swimmers?.gender === 'M');
     const wRecord = women[0];
     const mRecord = men[0];
 
-    // Target time display — show both records
-    document.getElementById('targetTime').textContent = wRecord ? fmtDur(wRecord.duration) : '—:——:——';
-    document.getElementById('targetMeta').textContent = wRecord
-        ? `Women's record: ${wRecord.historical_swimmers?.display_name} · ${new Date(wRecord.swim_date).toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'})} · ${wRecord.water_temp_c}°C · ${wRecord.conditions?.replace('_',' ')||''}`
-        : '';
+    // Target banner — both records
+    if (wRecord) {
+        document.getElementById('targetTimeW').textContent = fmtDur(wRecord.duration);
+        document.getElementById('targetMetaW').textContent =
+            `${wRecord.historical_swimmers?.display_name} · ${new Date(wRecord.swim_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})} · ${wRecord.water_temp_c}°C`;
+    }
+    if (mRecord) {
+        document.getElementById('targetTimeM').textContent = fmtDur(mRecord.duration);
+        document.getElementById('targetMetaM').textContent =
+            `${mRecord.historical_swimmers?.display_name} · ${new Date(mRecord.swim_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})} · ${mRecord.water_temp_c}°C`;
+    }
 
     // Insights — women
     const warm18Women = women.filter(s => s.water_temp_c >= 18);
@@ -1249,33 +1273,57 @@ async function loadCarina() {
         </div>
     `;
 
-    // Prediction — use all solos, exclude extreme outliers (>13h = 46800s)
-    // February filter is unreliable as fast/slow swims spread across months
-    const currentTemp = 16.0; // Western bay route (Miller's Point→Rooi Els): avg 17°C, 15°C, 16.5°C
-    const MAX_SECS = 46800; // 13 hours — cap outliers like 16h finishes
+    // Prediction — two scenarios: with temp filter (18°C+) and without
+    const currentTemp = 16.0; // Western bay: Miller's Point 17°C, Simons Town 15°C, Glencairn 16.5°C
+    const MAX_SECS = 46800; // 13h cap
     const wRecordSecs = durSecs(wRecord?.duration);
     const mRecordSecs = durSecs(mRecord?.duration);
-    const wClean = women.filter(s => durSecs(s.duration) <= MAX_SECS);
-    const mClean = men.filter(s => durSecs(s.duration) <= MAX_SECS);
-    const wPredSecs = wClean.length ? wClean.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/wClean.length : null;
-    const mPredSecs = mClean.length ? mClean.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/mClean.length : null;
+
+    // WITH temp filter (ideal — 18°C+)
+    const w18 = women.filter(s => s.water_temp_c >= 18 && durSecs(s.duration) <= MAX_SECS);
+    const m18 = men.filter(s => s.water_temp_c >= 18 && durSecs(s.duration) <= MAX_SECS);
+    const wPred18 = w18.length ? w18.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/w18.length : null;
+    const mPred18 = m18.length ? m18.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/m18.length : null;
+
+    // WITHOUT temp filter (all conditions)
+    const wAll = women.filter(s => durSecs(s.duration) <= MAX_SECS);
+    const mAll = men.filter(s => durSecs(s.duration) <= MAX_SECS);
+    const wPredAll = wAll.length ? wAll.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/wAll.length : null;
+    const mPredAll = mAll.length ? mAll.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/mAll.length : null;
 
     document.getElementById('carinaPrediction').innerHTML = `
         <div class="alert blue" style="margin-bottom:12px;">
-            Based on current conditions (water ~${currentTemp}°C) and all verified False Bay skins solo crossings.
+            Current water ~${currentTemp}°C (western bay, Miller's Point → Rooi Els). Two scenarios shown below.
         </div>
+
+        <div style="font-size:11px;font-weight:700;color:var(--text-secondary);letter-spacing:.08em;margin-bottom:8px;">🌡️ IF WATER REACHES 18°C+ (ideal conditions)</div>
+        <div class="stat-grid" style="margin-bottom:4px;">
+            <div class="stat-box hi" style="padding:14px;">
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">👩 WOMEN'S</div>
+                <div class="stat-val blue" style="font-size:20px;">${wPred18 ? secsToHMS(wPred18) : '—'}</div>
+                <div class="stat-lbl" style="margin-top:2px;">${w18.length} swims at 18°C+</div>
+            </div>
+            <div class="stat-box hi" style="padding:14px;">
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">👨 MEN'S</div>
+                <div class="stat-val blue" style="font-size:20px;">${mPred18 ? secsToHMS(mPred18) : '—'}</div>
+                <div class="stat-lbl" style="margin-top:2px;">${m18.length} swims at 18°C+</div>
+            </div>
+        </div>
+
+        <div style="font-size:11px;font-weight:700;color:var(--text-secondary);letter-spacing:.08em;margin:14px 0 8px;">🌊 ALL CONDITIONS (temp not a factor)</div>
         <div class="stat-grid" style="margin-bottom:12px;">
-            <div class="stat-box hi" style="padding:16px;">
-                <div style="font-size:11px;font-weight:700;color:var(--text-secondary);letter-spacing:.08em;margin-bottom:6px;">👩 WOMEN'S</div>
-                <div class="stat-val blue" style="font-size:20px;">${wPredSecs ? secsToHMS(wPredSecs) : '—'}</div>
-                <div class="stat-lbl" style="margin-top:4px;">Predicted crossing time</div>
+            <div class="stat-box" style="padding:14px;">
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">👩 WOMEN'S</div>
+                <div class="stat-val" style="font-size:20px;">${wPredAll ? secsToHMS(wPredAll) : '—'}</div>
+                <div class="stat-lbl" style="margin-top:2px;">${wAll.length} all-conditions swims</div>
             </div>
-            <div class="stat-box hi" style="padding:16px;">
-                <div style="font-size:11px;font-weight:700;color:var(--text-secondary);letter-spacing:.08em;margin-bottom:6px;">👨 MEN'S</div>
-                <div class="stat-val blue" style="font-size:20px;">${mPredSecs ? secsToHMS(mPredSecs) : '—'}</div>
-                <div class="stat-lbl" style="margin-top:4px;">Predicted crossing time</div>
+            <div class="stat-box" style="padding:14px;">
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">👨 MEN'S</div>
+                <div class="stat-val" style="font-size:20px;">${mPredAll ? secsToHMS(mPredAll) : '—'}</div>
+                <div class="stat-lbl" style="margin-top:2px;">${mAll.length} all-conditions swims</div>
             </div>
         </div>
+
         <div class="stat-grid">
             <div class="stat-box">
                 <div class="stat-val" style="font-size:15px;">${fmtDur(wRecord?.duration)}</div>
@@ -1285,22 +1333,9 @@ async function loadCarina() {
                 <div class="stat-val" style="font-size:15px;">${fmtDur(mRecord?.duration)}</div>
                 <div class="stat-lbl">Men's record</div>
             </div>
-            <div class="stat-box ${wPredSecs && wPredSecs < wRecordSecs ? 'ok' : 'warn'}">
-                <div class="stat-val ${wPredSecs && wPredSecs < wRecordSecs ? 'green' : 'amber'}" style="font-size:14px;">
-                    ${wPredSecs && wRecordSecs ? (wPredSecs < wRecordSecs ? '👩 ON TRACK' : '👩 +'+secsToHMS(wPredSecs - wRecordSecs)) : '—'}
-                </div>
-                <div class="stat-lbl">vs women's record</div>
-            </div>
-            <div class="stat-box ${mPredSecs && mPredSecs < mRecordSecs ? 'ok' : 'warn'}">
-                <div class="stat-val ${mPredSecs && mPredSecs < mRecordSecs ? 'green' : 'amber'}" style="font-size:14px;">
-                    ${mPredSecs && mRecordSecs ? (mPredSecs < mRecordSecs ? '👨 ON TRACK' : '👨 +'+secsToHMS(mPredSecs - mRecordSecs)) : '—'}
-                </div>
-                <div class="stat-lbl">vs men's record</div>
-            </div>
         </div>
         <div style="font-size:11px;color:var(--text-secondary);margin-top:12px;line-height:1.5;">
-            Prediction based on historical False Bay crossings in similar conditions (Feb, 18°C+, skins solo).
-            Actual performance depends on individual pace, wind, current, and conditions on the day.
+            Verified False Bay skins solo crossings only. Actual performance depends on individual pace, wind, current, and conditions on the day.
         </div>
     `;
 }
