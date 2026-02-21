@@ -3420,10 +3420,12 @@
         }
 
         async function showProfileSettings() {
-            // Instant open
-            console.log('OPEN_PROFILE');
             document.getElementById('profileModal').style.display = 'block';
             document.getElementById('profileEmail').textContent = currentUser.email;
+
+            // Show loading overlay while data fetches
+            const profileOverlay = document.getElementById('profileLoadingOverlay');
+            if (profileOverlay) profileOverlay.style.display = 'flex';
 
             // Load current profile
             try {
@@ -3493,6 +3495,10 @@
                 }
             } catch (err) {
                 console.error('Error loading profile:', err);
+            } finally {
+                // Hide loading overlay once data is ready (or on error)
+                if (profileOverlay) profileOverlay.style.display = 'none';
+                initIcons();
             }
         }
 
@@ -6287,7 +6293,14 @@
                 <div id="profileModal"
                     style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1002; padding: 20px; overflow-y: auto;">
                     <div
-                        style="max-width: 500px; margin: 40px auto; background: var(--bg-dark); border: 2px solid var(--border); border-radius: 20px; padding: 30px;">
+                        style="max-width: 500px; margin: 40px auto; background: var(--bg-dark); border: 2px solid var(--border); border-radius: 20px; padding: 30px; position: relative;">
+                        <!-- Loading overlay -->
+                        <div id="profileLoadingOverlay" style="display:none; position:absolute; inset:0; background:rgba(15,23,42,0.85); z-index:10; align-items:center; justify-content:center; border-radius:20px;">
+                            <div style="text-align:center; color:var(--text-secondary);">
+                                <i data-lucide="loader" style="width:28px;height:28px;animation:spin 1s linear infinite;display:block;margin:0 auto;"></i>
+                                <div style="margin-top:10px;font-size:13px;">Loading profile…</div>
+                            </div>
+                        </div>
                         <div
                             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <h3 style="color: var(--text-primary); font-size: 20px;">Profile Settings</h3>
