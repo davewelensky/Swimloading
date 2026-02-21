@@ -1458,6 +1458,9 @@
         function hideCreateEvent() {
             document.getElementById('createEventModal').style.display = 'none';
             document.getElementById('createEventForm').reset();
+            // Clear any overlap warning
+            const overlapEl = document.getElementById('swimOverlapWarning');
+            if (overlapEl) { overlapEl.style.display = 'none'; overlapEl.innerHTML = ''; }
         }
 
         // ========== SUGGEST A SPOT ==========
@@ -1975,6 +1978,136 @@
             if (data && data[0]) {
                 setTimeout(() => offerShareSwim(data[0]), 500);
             }
+        }
+
+        // ==========================================
+        // SWIM OVERLAP DETECTION
+        // ==========================================
+
+        function onCreateFormFieldChange() {
+            const spotId = document.getElementById('eventSpot')?.value;
+            const dateVal = document.getElementById('eventDateTime')?.value;
+            if (spotId && dateVal) {
+                checkSwimOverlap(spotId, dateVal + ':00+02:00');
+            } else {
+                // Clear warning if either field is empty
+                const el = document.getElementById('swimOverlapWarning');
+                if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+            }
+        }
+
+        async function checkSwimOverlap(spotId, startAt) {
+            const el = document.getElementById('swimOverlapWarning');
+            if (!el || !spotId || !startAt) return;
+
+            const spot = spots.find(s => s.id === spotId);
+            if (!spot) return;
+
+            try {
+                const startMs = new Date(startAt).getTime();
+                const twoHoursBefore = new Date(startMs - 2 * 60 * 60 * 1000).toISOString();
+                const twoHoursAfter  = new Date(startMs + 2 * 60 * 60 * 1000).toISOString();
+
+                const { data: nearby } = await supabaseClient
+                    .from('swim_events')
+                    .select('id, title, location_name, start_at, created_by, target_pace_sec_per_100m, distance_km')
+                    .neq('status', 'cancelled')
+                    .neq('created_by', currentUser.id)
+                    .gte('start_at', twoHoursBefore)
+                    .lte('start_at', twoHoursAfter)
+                    .eq('lat', spot.latitude)
+                    .eq('lng', spot.longitude);
+
+                renderOverlapWarning(nearby || []);
+            } catch (err) {
+                console.error('Overlap check error:', err);
+            }
+        }
+
+        async function renderOverlapWarning(overlappingSwims) {
+            const el = document.getElementById('swimOverlapWarning');
+            if (!el) return;
+
+            if (!overlappingSwims || overlappingSwims.length === 0) {
+                el.style.display = 'none';
+                el.innerHTML = '';
+                return;
+            }
+
+            // Fetch organiser names
+            const creatorIds = [...new Set(overlappingSwims.map(s => s.created_by))];
+            const { data: organisers } = await supabaseClient
+                .from('profiles')
+                .select('id, display_name')
+                .in('id', creatorIds);
+            const organiserMap = {};
+            (organisers || []).forEach(p => organiserMap[p.id] = p.display_name);
+
+            const paceLabel = p => {
+                if (p <= 100) return '⚡ Fast';
+                if (p <= 120) return '📈 Steady';
+                if (p <= 150) return '👥 Social';
+                return '❤️ Developing';
+            };
+
+            el.innerHTML = `
+                <div style="background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.4);
+                            border-radius: 12px; padding: 14px 16px;">
+                    <div style="font-weight: 700; color: var(--warning); font-size: 13px; margin-bottom: 10px;">
+                        ⚠️ There's already a swim at this location around this time
+                    </div>
+                    ${overlappingSwims.map(s => {
+                        const d = new Date(s.start_at);
+                        const dateStr = d.toLocaleDateString('en-ZA', { weekday: 'short', month: 'short', day: 'numeric' });
+                        const timeStr = d.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+                        const distStr = s.distance_km ? `${s.distance_km}km · ` : '';
+                        const pace = s.target_pace_sec_per_100m ? paceLabel(s.target_pace_sec_per_100m) : '';
+                        const organiser = organiserMap[s.created_by] || 'Someone';
+                        return `
+                            <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(245,158,11,0.15);">
+                                <div style="font-weight: 700; color: var(--text-primary); font-size: 14px;">🏊 ${s.title}</div>
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">
+                                    📅 ${dateStr} at ${timeStr} · ${distStr}${pace}
+                                </div>
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                                    Organiser: <strong style="color: var(--text-primary);">${organiser}</strong>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                        Consider joining this swim instead, or contact the organiser before creating a similar one.
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        ${overlappingSwims.map(s => `
+                            <button onclick="viewOverlapSwim('${s.id}')"
+                                style="background: rgba(245,158,11,0.2); border: 1px solid rgba(245,158,11,0.4);
+                                       color: var(--warning); padding: 6px 14px; border-radius: 8px;
+                                       font-size: 12px; font-weight: 700; cursor: pointer;">
+                                View Swim
+                            </button>
+                        `).join('')}
+                        <button onclick="dismissOverlapWarning()"
+                            style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+                                   color: var(--text-secondary); padding: 6px 14px; border-radius: 8px;
+                                   font-size: 12px; font-weight: 700; cursor: pointer;">
+                            Create anyway →
+                        </button>
+                    </div>
+                </div>
+            `;
+            el.style.display = 'block';
+        }
+
+        function viewOverlapSwim(swimId) {
+            // Close create form and navigate to the swim
+            hideCreateEvent();
+            loadEventDetails(swimId);
+        }
+
+        function dismissOverlapWarning() {
+            const el = document.getElementById('swimOverlapWarning');
+            if (el) { el.style.display = 'none'; el.innerHTML = ''; }
         }
 
         // Share a swim via WhatsApp or copy link
@@ -6024,7 +6157,7 @@
                             <div class="form-group">
                                 <div class="form-label"><i data-lucide="map-pin"
                                         style="width: 14px; height: 14px; vertical-align: middle;"></i> Location</div>
-                                <select id="eventSpot" data-spots required></select>
+                                <select id="eventSpot" data-spots required onchange="onCreateFormFieldChange()"></select>
                             </div>
 
                             <div class="form-group">
@@ -6081,7 +6214,7 @@
                                 <div class="form-label"><i data-lucide="calendar"
                                         style="width: 14px; height: 14px; vertical-align: middle;"></i> Date & Time
                                 </div>
-                                <input type="datetime-local" id="eventDateTime" required>
+                                <input type="datetime-local" id="eventDateTime" required onchange="onCreateFormFieldChange()">
                             </div>
 
                             <div class="form-group">
@@ -6124,6 +6257,9 @@
                                     </span>
                                 </label>
                             </div>
+
+                            <!-- Overlap warning banner (shown if a swim already exists nearby) -->
+                            <div id="swimOverlapWarning" style="display:none; margin-top: 16px;"></div>
 
                             <button type="submit" class="btn btn-success" style="margin-top: 10px;">Create
                                 Swim</button>
