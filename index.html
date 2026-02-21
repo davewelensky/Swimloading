@@ -3420,7 +3420,11 @@
         }
 
         async function showProfileSettings() {
-            document.getElementById('profileModal').style.display = 'block';
+            if (!currentUser) { console.warn('showProfileSettings: no currentUser'); return; }
+            const modal = document.getElementById('profileModal');
+            if (!modal) { console.warn('showProfileSettings: no profileModal element'); return; }
+            modal.style.display = 'block';
+            modal.style.zIndex = '10002';
             document.getElementById('profileEmail').textContent = currentUser.email;
 
             // Show loading overlay while data fetches
