@@ -3482,17 +3482,28 @@
             if (file.size > 2 * 1024 * 1024) { showToast('Photo must be under 2MB', 'error'); return; }
             if (!file.type.startsWith('image/')) { showToast('Please select an image file', 'error'); return; }
 
+            // Validate and extract file extension
+            const validExts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+            const ext = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : 'jpg';
+            if (!validExts.includes(ext)) {
+                showToast('Please use a JPG, PNG, or WEBP file', 'error');
+                return;
+            }
+
             // Show local preview immediately
             const reader = new FileReader();
             reader.onload = e => renderAvatarPhotoPreview(e.target.result);
             reader.readAsDataURL(file);
 
             // Upload to Supabase Storage
-            const ext = file.name.split('.').pop().toLowerCase();
             const path = `${currentUser.id}/avatar.${ext}`;
             showToast('Uploading photo…', 'info');
             const { error } = await supabaseClient.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type });
-            if (error) { showToast('Upload failed: ' + error.message, 'error'); return; }
+            if (error) {
+                console.error('Avatar upload error:', error);
+                showToast('Upload failed: ' + error.message, 'error');
+                return;
+            }
 
             // Get public URL and set as selected avatar
             const { data } = supabaseClient.storage.from('avatars').getPublicUrl(path);
