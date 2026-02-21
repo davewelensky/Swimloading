@@ -3785,7 +3785,10 @@
                 const col  = severityColour[h.severity] || '#f59e0b';
                 const ico  = severityIcon[h.severity]   || '⚠️';
                 const when = getTimeAgo(new Date(h.created_at));
-                const expires = h.active_until ? `Expires ${getTimeAgo(new Date(h.active_until))}` : 'No expiry set';
+                const expiryDate = h.active_until ? new Date(h.active_until) : null;
+                const expires = expiryDate
+                    ? `Expires ${expiryDate.toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'short' })} at ${expiryDate.toLocaleTimeString('en-ZA', { hour:'2-digit', minute:'2-digit' })}`
+                    : 'No expiry set';
                 return `
                 <div style="background:rgba(239,68,68,0.08);border:1px solid ${col}40;border-left:3px solid ${col};border-radius:10px;padding:12px;margin-bottom:10px;">
                     <div style="font-weight:700;font-size:14px;color:var(--text-primary);">${ico} ${h.title}</div>
@@ -3802,17 +3805,31 @@
         // Returns active hazards for a given swim event (by spot_id or coordinate proximity)
         function getHazardsForEvent(ev) {
             if (!ev) return [];
-            // Direct spot_id match
+            // 1. Direct spot_id match
             if (ev.spot_id && activeHazardsBySpot[ev.spot_id]) {
                 return activeHazardsBySpot[ev.spot_id];
             }
-            // Coordinate proximity fallback — within 2km of any hazard spot
+            // 2. Coordinate proximity — 10km radius covers False Bay south peninsula
             if (ev.lat && ev.lng) {
                 for (const [spotId, hazards] of Object.entries(activeHazardsBySpot)) {
                     const spot = spots.find(s => s.id === spotId);
                     if (!spot) continue;
                     const dist = getDistanceKm(ev.lat, ev.lng, spot.latitude, spot.longitude);
-                    if (dist < 2) return hazards;
+                    if (dist < 10) return hazards;
+                }
+            }
+            // 3. Location name fallback — for older swims with no lat/lng/spot_id
+            // Check if the swim's location_name contains any hazard spot name (or vice versa)
+            if (ev.location_name) {
+                const evLoc = ev.location_name.toLowerCase();
+                for (const [spotId, hazards] of Object.entries(activeHazardsBySpot)) {
+                    const spot = spots.find(s => s.id === spotId);
+                    if (!spot) continue;
+                    const spotName = spot.name.toLowerCase();
+                    // Match if location contains spot name or spot name contains location keyword
+                    if (evLoc.includes(spotName) || spotName.includes(evLoc.split(' ')[0])) {
+                        return hazards;
+                    }
                 }
             }
             return [];
