@@ -66,6 +66,9 @@
         let selectedSpotLocked = false;
         let gpsSuggestedSpotId = null;
 
+        // Active hazard reports — populated in loadDashboard(), keyed by spot_id
+        let activeHazardsBySpot = {};
+
         // Icon helper function
         function icon(name, size = 16) {
             return `<i data-lucide="${name}" style="width: ${size}px; height: ${size}px; display: inline-block; vertical-align: middle;"></i>`;
@@ -780,8 +783,12 @@
                         const d = new Date(e.start_at);
                         const isToday = d.toDateString() === new Date().toDateString();
                         const isCancelled = e.status === 'cancelled';
+                        const dashEventHazards = getHazardsForEvent(e);
+                        const dashHazardWarning = dashEventHazards.length > 0
+                            ? `<div style="margin-top:8px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.5);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px;"><span style="font-size:16px;">&#x26A0;&#xFE0F;</span><div><div style="font-size:12px;font-weight:700;color:#ef4444;">HAZARD AT THIS LOCATION</div><div style="font-size:11px;color:var(--text-secondary);margin-top:1px;">${dashEventHazards[0].title}</div></div></div>`
+                            : '';
                         return `
-                            <div style="background: rgba(15, 23, 42, 0.6); border: 2px solid ${isCancelled ? 'rgba(239, 68, 68, 0.2)' : 'rgba(56, 189, 248, 0.2)'}; border-radius: 12px; padding: 12px; margin-bottom: 8px; cursor: pointer; opacity: ${isCancelled ? '0.6' : '1'};" onclick="viewEventDetails('${e.id}')">
+                            <div style="background: rgba(15, 23, 42, 0.6); border: 2px solid ${isCancelled ? 'rgba(239, 68, 68, 0.2)' : (dashEventHazards.length > 0 ? 'rgba(239,68,68,0.4)' : 'rgba(56, 189, 248, 0.2)')}; border-radius: 12px; padding: 12px; margin-bottom: 8px; cursor: pointer; opacity: ${isCancelled ? '0.6' : '1'};" onclick="viewEventDetails('${e.id}')">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <div>
                                         <div style="font-weight: 600; color: ${isCancelled ? 'var(--text-secondary)' : 'var(--text-primary)'}; font-size: 15px; display: flex; align-items: center; gap: 6px;">
@@ -804,6 +811,7 @@
                                         <div style="font-size: 12px; color: var(--text-secondary);">${d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
                                     </div>
                                 </div>
+                                ${dashHazardWarning}
                             </div>
                         `;
                     }).join('');
@@ -880,7 +888,8 @@
             try {
                 const since96h = new Date(Date.now() - 96 * 60 * 60 * 1000).toISOString();
 
-                const [conditionsResult, eventsResult, latestTempsResult] = await Promise.all([
+                const dashNow = new Date().toISOString();
+                const [conditionsResult, eventsResult, latestTempsResult, hazardsResult] = await Promise.all([
                     supabaseClient
                         .from('temp_logs')
                         .select('spot_id, conditions, hazards, created_at')
@@ -896,7 +905,12 @@
                     supabaseClient
                         .from('latest_spot_temps')
                         .select('spot_id, spot_name, spot_code, temp_c, updated_at, water_type, domain')
-                        .in('water_type', ['OCEAN', 'LAGOON', 'TIDAL_POOL'])
+                        .in('water_type', ['OCEAN', 'LAGOON', 'TIDAL_POOL']),
+                    supabaseClient
+                        .from('hazard_reports')
+                        .select('spot_id, severity, title, hazard_type')
+                        .is('resolved_at', null)
+                        .or(`active_until.gt.${dashNow},active_until.is.null`)
                 ]);
 
                 // Populate module-level caches
@@ -906,6 +920,13 @@
                     conditionsCache[log.spot_id].push(log);
                 });
                 swimEventsCache = eventsResult.data || [];
+
+                // Populate active hazards map (used by renderBestSpots + swim event cards)
+                activeHazardsBySpot = {};
+                for (const h of (hazardsResult.data || [])) {
+                    if (!activeHazardsBySpot[h.spot_id]) activeHazardsBySpot[h.spot_id] = [];
+                    activeHazardsBySpot[h.spot_id].push(h);
+                }
 
                 renderBestSpots(latestTempsResult.data || [], conditionsCache, swimEventsCache);
             } catch (err) {
@@ -1070,24 +1091,31 @@
                     : ageHours < 24 ? `${Math.round(ageHours)}h ago`
                     : `${Math.round(ageHours / 24)}d ago`;
                 const spotNameSafe = (spot.spot_name || '').replace(/'/g, "\\'");
+                const spotHazards = activeHazardsBySpot[spot.spot_id] || [];
+                const hazardBanner = spotHazards.length > 0
+                    ? `<div style="margin-top:6px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;color:#ef4444;">⚠️ ${spotHazards[0].title}</div>`
+                    : '';
                 return `
                     <div onclick="goToSpotTrend('${spot.spot_id}', '${spotNameSafe}', '${spotCode}')"
-                         style="display:flex;align-items:center;gap:12px;cursor:pointer;
+                         style="display:flex;flex-direction:column;cursor:pointer;
                                 background:rgba(15,23,42,0.6);border-radius:12px;padding:12px;
-                                margin-bottom:8px;border:1px solid ${color}30;
+                                margin-bottom:8px;border:1px solid ${spotHazards.length > 0 ? 'rgba(239,68,68,0.35)' : color + '30'};
                                 transition:all 0.2s ease;">
-                        <div style="font-size:15px;font-weight:800;color:var(--text-secondary);min-width:24px;text-align:center;">${ranks[i]}</div>
-                        <div style="flex:1;">
-                            <div style="font-weight:700;color:var(--text-primary);font-size:15px;">${spot.spot_name}</div>
-                            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${ageText}</div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div style="font-size:20px;font-weight:800;color:var(--ocean-light);">${spot.temp_c}°C</div>
-                            <div style="display:flex;align-items:center;justify-content:flex-end;gap:3px;margin-top:2px;">
-                                <span style="font-size:13px;">${emoji}</span>
-                                <span style="font-size:11px;font-weight:700;color:${color};">${label}</span>
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <div style="font-size:15px;font-weight:800;color:var(--text-secondary);min-width:24px;text-align:center;">${ranks[i]}</div>
+                            <div style="flex:1;">
+                                <div style="font-weight:700;color:var(--text-primary);font-size:15px;">${spot.spot_name}</div>
+                                <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${ageText}</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-size:20px;font-weight:800;color:var(--ocean-light);">${spot.temp_c}°C</div>
+                                <div style="display:flex;align-items:center;justify-content:flex-end;gap:3px;margin-top:2px;">
+                                    <span style="font-size:13px;">${emoji}</span>
+                                    <span style="font-size:11px;font-weight:700;color:${color};">${label}</span>
+                                </div>
                             </div>
                         </div>
+                        ${hazardBanner}
                     </div>
                 `;
             }).join('');
@@ -1770,9 +1798,13 @@
                     const routeInfo = parseRouteFromNotes(event.notes);
                     const displayRoute = event.route_type ? event.route_type.replace(/_/g, ' ') : routeInfo.route;
                     const displayNotes = event.description || event.notes;
+                    const eventHazards = getHazardsForEvent(event);
+                    const hazardWarning = eventHazards.length > 0
+                        ? `<div style="margin-top:8px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.5);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px;"><span style="font-size:16px;">&#x26A0;&#xFE0F;</span><div><div style="font-size:12px;font-weight:700;color:#ef4444;">HAZARD AT THIS LOCATION</div><div style="font-size:11px;color:var(--text-secondary);margin-top:1px;">${eventHazards[0].title}</div></div></div>`
+                        : '';
 
                     return `
-                        <div style="background: rgba(15, 23, 42, 0.6); border: 2px solid ${isCancelled ? 'rgba(239, 68, 68, 0.2)' : 'rgba(56, 189, 248, 0.2)'}; border-radius: 12px; padding: 18px; margin-bottom: 14px; cursor: pointer; opacity: ${isCancelled ? '0.6' : '1'}; transition: all 0.2s;" onclick="viewEventDetails('${event.id}')">
+                        <div style="background: rgba(15, 23, 42, 0.6); border: 2px solid ${isCancelled ? 'rgba(239, 68, 68, 0.2)' : (eventHazards.length > 0 ? 'rgba(239,68,68,0.4)' : 'rgba(56, 189, 248, 0.2)')}; border-radius: 12px; padding: 18px; margin-bottom: 14px; cursor: pointer; opacity: ${isCancelled ? '0.6' : '1'}; transition: all 0.2s;" onclick="viewEventDetails('${event.id}')">
                             <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
                                 <div style="flex: 1;">
                                     <div style="font-size: 18px; font-weight: 600; color: ${isCancelled ? 'var(--text-secondary)' : 'var(--text-primary)'}; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
@@ -1834,6 +1866,7 @@
                                 Created by ${creatorName}
                             </div>
                             
+                            ${hazardWarning}
                             ${rsvpButtons}
                         </div>
                     `;
@@ -1885,6 +1918,7 @@
                 title: title,
                 start_at: startAt,
                 location_name: locationName,
+                spot_id: spot?.id || null,
                 lat: spot?.latitude || null,
                 lng: spot?.longitude || null,
                 distance_km: distanceKm,
@@ -3511,6 +3545,176 @@
             showToast('Photo uploaded ✓', 'success');
             renderAvatarPhotoPreview(selectedAvatar);
         }
+
+        // ── Hazard Reporting ───────────────────────────────────────────────────────
+
+        let selectedHazardSeverity = 'caution';
+        let hazardPhotoUrl = null;
+
+        function showHazardReport() {
+            const modal = document.getElementById('hazardReportModal');
+            if (!modal) return;
+            modal.style.display = 'block';
+            // Populate spot dropdown
+            const sel = document.getElementById('hazardSpot');
+            if (sel) sel.innerHTML = buildGroupedSpotOptions(false);
+            hazardPhotoUrl = null;
+            document.getElementById('hazardPhotoPreview').innerHTML = '';
+            document.getElementById('hazardTitle').value = '';
+            document.getElementById('hazardDescription').value = '';
+            document.getElementById('hazardDuration').value = '24';
+            selectSeverity('caution');
+        }
+
+        function hideHazardReport() {
+            const modal = document.getElementById('hazardReportModal');
+            if (modal) modal.style.display = 'none';
+            document.getElementById('hazardTitle').value = '';
+            document.getElementById('hazardDescription').value = '';
+            hazardPhotoUrl = null;
+            document.getElementById('hazardPhotoPreview').innerHTML = '';
+        }
+
+        function selectSeverity(level) {
+            selectedHazardSeverity = level;
+            ['info','caution','danger'].forEach(l => {
+                const el = document.getElementById('sev' + l.charAt(0).toUpperCase() + l.slice(1));
+                if (el) el.classList.toggle('active', l === level);
+            });
+        }
+
+        async function handleHazardPhotoSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) { showToast('Photo must be under 5MB', 'error'); return; }
+            const validExts = ['jpg', 'jpeg', 'png', 'webp'];
+            const ext = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : 'jpg';
+            if (!validExts.includes(ext)) { showToast('Please use a JPG or PNG file', 'error'); return; }
+
+            // Local preview
+            const reader = new FileReader();
+            reader.onload = e => {
+                document.getElementById('hazardPhotoPreview').innerHTML =
+                    `<img src="${e.target.result}" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;margin-bottom:4px;">`;
+            };
+            reader.readAsDataURL(file);
+
+            // Upload to Supabase Storage
+            const path = `${currentUser.id}/${Date.now()}.${ext}`;
+            showToast('Uploading photo…', 'info');
+            const { error } = await supabaseClient.storage.from('hazards').upload(path, file, { upsert: false, contentType: file.type });
+            if (error) { console.error('Hazard photo upload error:', error); showToast('Photo upload failed: ' + error.message, 'error'); return; }
+            const { data } = supabaseClient.storage.from('hazards').getPublicUrl(path);
+            hazardPhotoUrl = data.publicUrl;
+            showToast('Photo attached ✓', 'success');
+        }
+
+        async function submitHazardReport() {
+            const btn = document.getElementById('submitHazardBtn');
+            const spotId = document.getElementById('hazardSpot').value;
+            const hazardType = document.getElementById('hazardType').value;
+            const title = document.getElementById('hazardTitle').value.trim();
+            const description = document.getElementById('hazardDescription').value.trim();
+            const durationHours = parseInt(document.getElementById('hazardDuration').value, 10);
+
+            if (!spotId) { showToast('Please select a location', 'error'); return; }
+            if (!title) { showToast('Please add a short title', 'error'); return; }
+
+            btn.disabled = true;
+            btn.textContent = 'Submitting…';
+
+            const activeUntil = durationHours > 0
+                ? new Date(Date.now() + durationHours * 3600000).toISOString()
+                : null;
+
+            const { error } = await supabaseClient.from('hazard_reports').insert({
+                user_id: currentUser.id,
+                spot_id: spotId,
+                hazard_type: hazardType,
+                severity: selectedHazardSeverity,
+                title,
+                description: description || null,
+                photo_url: hazardPhotoUrl,
+                active_until: activeUntil
+            });
+
+            btn.disabled = false;
+            btn.textContent = '🚨 Submit Hazard Report';
+
+            if (error) {
+                console.error('Hazard report error:', error);
+                showToast('Error submitting: ' + error.message, 'error');
+                return;
+            }
+
+            showToast('Hazard reported — thanks for keeping swimmers safe!', 'success');
+            hideHazardReport();
+            loadHazards();
+            loadDashboard();
+        }
+
+        async function loadHazards() {
+            const el = document.getElementById('activeHazardsList');
+            if (!el) return;
+            el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Loading…</div>';
+            const now = new Date().toISOString();
+            const { data: hazards, error } = await supabaseClient
+                .from('hazard_reports')
+                .select('*, profiles(display_name), spots(name)')
+                .is('resolved_at', null)
+                .or(`active_until.gt.${now},active_until.is.null`)
+                .order('created_at', { ascending: false });
+
+            if (error) { console.error('loadHazards error:', error); el.innerHTML = '<div style="color:var(--danger);font-size:13px;">Error loading hazards</div>'; return; }
+            renderActiveHazards(hazards || []);
+        }
+
+        function renderActiveHazards(hazards) {
+            const el = document.getElementById('activeHazardsList');
+            if (!el) return;
+            if (hazards.length === 0) {
+                el.innerHTML = `<div style="color:var(--text-secondary);font-size:13px;padding:8px 0;">No active hazards reported — All clear! 🌊</div>`;
+                return;
+            }
+            const severityColour = { info: '#38bdf8', caution: '#f59e0b', danger: '#ef4444' };
+            const severityIcon   = { info: 'ℹ️', caution: '⚠️', danger: '🔴' };
+            el.innerHTML = hazards.map(h => {
+                const col  = severityColour[h.severity] || '#f59e0b';
+                const ico  = severityIcon[h.severity]   || '⚠️';
+                const when = relativeDate(new Date(h.created_at));
+                const expires = h.active_until ? `Expires ${relativeDate(new Date(h.active_until))}` : 'No expiry set';
+                return `
+                <div style="background:rgba(239,68,68,0.08);border:1px solid ${col}40;border-left:3px solid ${col};border-radius:10px;padding:12px;margin-bottom:10px;">
+                    <div style="font-weight:700;font-size:14px;color:var(--text-primary);">${ico} ${h.title}</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;">
+                        📍 ${h.spots?.name || 'Unknown spot'} · ${when} · by ${h.profiles?.display_name || 'Anonymous'}
+                    </div>
+                    ${h.description ? `<div style="font-size:12px;color:var(--text-primary);margin-top:6px;opacity:0.85;">${h.description}</div>` : ''}
+                    ${h.photo_url ? `<img src="${h.photo_url}" style="width:100%;max-height:120px;object-fit:cover;border-radius:6px;margin-top:8px;">` : ''}
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:6px;">${expires}</div>
+                </div>`;
+            }).join('');
+        }
+
+        // Returns active hazards for a given swim event (by spot_id or coordinate proximity)
+        function getHazardsForEvent(ev) {
+            if (!ev) return [];
+            // Direct spot_id match
+            if (ev.spot_id && activeHazardsBySpot[ev.spot_id]) {
+                return activeHazardsBySpot[ev.spot_id];
+            }
+            // Coordinate proximity fallback — within 2km of any hazard spot
+            if (ev.lat && ev.lng) {
+                for (const [spotId, hazards] of Object.entries(activeHazardsBySpot)) {
+                    const spot = spots.find(s => s.id === spotId);
+                    if (!spot) continue;
+                    const dist = getDistanceKm(ev.lat, ev.lng, spot.latitude, spot.longitude);
+                    if (dist < 2) return hazards;
+                }
+            }
+            return [];
+        }
+
 
         async function showProfileSettings() {
             if (!currentUser) { console.warn('showProfileSettings: no currentUser'); return; }
@@ -5935,6 +6139,80 @@
         </div>
     </div>
 
+    <!-- Hazard Report Modal -->
+    <div id="hazardReportModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:10001; padding:20px; overflow-y:auto;">
+        <div style="max-width:500px; margin:40px auto; background:var(--bg-dark); border:2px solid #ef4444; border-radius:20px; padding:30px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 style="color:#ef4444; font-size:20px; margin:0;">&#x1F6A8; Report a Hazard</h3>
+                <button onclick="hideHazardReport()" style="background:transparent;border:none;color:var(--text-secondary);font-size:24px;cursor:pointer;padding:0;width:auto;">&times;</button>
+            </div>
+
+            <div class="form-group">
+                <div class="form-label">Location</div>
+                <select id="hazardSpot"></select>
+            </div>
+
+            <div class="form-group">
+                <div class="form-label">Hazard Type</div>
+                <select id="hazardType">
+                    <option value="seal_aggression">&#x1F9AD; Seal Aggression / Bite</option>
+                    <option value="shark_sighting">&#x1F988; Shark Sighting</option>
+                    <option value="jellyfish">&#x1FAB8; Jellyfish / Bluebottle bloom</option>
+                    <option value="sewage">Sewage / Pollution</option>
+                    <option value="rip_current">&#x1F30A; Rip Current</option>
+                    <option value="beach_closure">&#x1F6AB; Official Beach Closure</option>
+                    <option value="other">&#x26A0;&#xFE0F; Other Hazard</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <div class="form-label">Severity</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+                    <div class="toggle-btn" id="sevInfo" onclick="selectSeverity('info')" style="text-align:center;padding:8px;border-radius:8px;cursor:pointer;">&#x2139;&#xFE0F; Info</div>
+                    <div class="toggle-btn active" id="sevCaution" onclick="selectSeverity('caution')" style="text-align:center;padding:8px;border-radius:8px;cursor:pointer;">&#x26A0;&#xFE0F; Caution</div>
+                    <div class="toggle-btn" id="sevDanger" onclick="selectSeverity('danger')" style="text-align:center;padding:8px;border-radius:8px;cursor:pointer;">&#x1F534; Danger</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="form-label">Short title</div>
+                <input type="text" id="hazardTitle" placeholder="e.g. Aggressive seal at jetty — swimmers out" maxlength="80">
+            </div>
+
+            <div class="form-group">
+                <div class="form-label">Details (optional)</div>
+                <textarea id="hazardDescription" placeholder="What happened? When? Any injuries? Relevant context." style="min-height:70px;"></textarea>
+            </div>
+
+            <div class="form-group">
+                <div class="form-label">How long should this warning stay active?</div>
+                <select id="hazardDuration">
+                    <option value="6">6 hours</option>
+                    <option value="24" selected>24 hours</option>
+                    <option value="48">48 hours</option>
+                    <option value="72">72 hours (3 days)</option>
+                    <option value="168">1 week</option>
+                    <option value="0">Until manually resolved</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <div class="form-label">Photo evidence (optional)</div>
+                <div id="hazardPhotoPreview" style="margin-bottom:8px;"></div>
+                <input type="file" id="hazardPhotoInput" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="handleHazardPhotoSelect(event)">
+                <button type="button" onclick="document.getElementById('hazardPhotoInput').click()" style="background:rgba(255,255,255,0.08);border:1px solid var(--border);color:var(--text-primary);border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;">
+                    &#x1F4F7; Attach Photo
+                </button>
+                <div style="font-size:11px;color:var(--text-secondary);margin-top:6px;">Max 5MB</div>
+            </div>
+
+            <button id="submitHazardBtn" onclick="submitHazardReport()"
+                style="width:100%;background:#ef4444;color:white;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px;">
+                &#x1F6A8; Submit Hazard Report
+            </button>
+        </div>
+    </div>
+
     <!-- Suggest Spot Modal -->
     <div id="suggestSpotModal"
         style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; padding: 20px; overflow-y: auto;">
@@ -6562,6 +6840,23 @@
                     <div class="card-title"><i data-lucide="shield-alert"
                             style="width: 24px; height: 24px; vertical-align: middle;"></i> Safety Guidance</div>
 
+                    <!-- Active Hazard Reports -->
+                    <div id="activeHazardsSection" style="margin-bottom:20px;">
+                        <div style="font-weight:700;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+                            <i data-lucide="alert-triangle" style="width:18px;height:18px;color:#ef4444;"></i>
+                            Active Hazard Reports
+                        </div>
+                        <div id="activeHazardsList">
+                            <div style="color:var(--text-secondary);font-size:13px;padding:8px 0;">Loading…</div>
+                        </div>
+                    </div>
+
+                    <!-- Report a Hazard button -->
+                    <button onclick="showHazardReport()"
+                        style="background:rgba(239,68,68,0.15);border:1px solid #ef4444;color:#ef4444;border-radius:10px;padding:12px 16px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-bottom:20px;display:flex;align-items:center;justify-content:center;gap:8px;">
+                        &#x1F6A8; Report a Hazard at this Spot
+                    </button>
+
                     <!-- 🔴 Section 1: Critical Risks -->
                     <div
                         style="background: rgba(239, 68, 68, 0.15); border: 2px solid var(--danger); border-radius: 12px; padding: 16px; margin-bottom: 20px;">
@@ -6784,6 +7079,8 @@
                 loadEvents();
             } else if (page === 'leaderboard') {
                 loadLeaderboard();
+            } else if (page === 'safety') {
+                loadHazards();
             }
 
             // Initialize icons after page switch
