@@ -888,7 +888,6 @@
             try {
                 const since96h = new Date(Date.now() - 96 * 60 * 60 * 1000).toISOString();
 
-                const dashNow = new Date().toISOString();
                 const [conditionsResult, eventsResult, latestTempsResult, hazardsResult] = await Promise.all([
                     supabaseClient
                         .from('temp_logs')
@@ -908,9 +907,8 @@
                         .in('water_type', ['OCEAN', 'LAGOON', 'TIDAL_POOL']),
                     supabaseClient
                         .from('hazard_reports')
-                        .select('spot_id, severity, title, hazard_type')
+                        .select('spot_id, severity, title, hazard_type, active_until')
                         .is('resolved_at', null)
-                        .or('active_until.is.null,active_until.gte.' + dashNow)
                 ]);
 
                 // Populate module-level caches
@@ -921,9 +919,11 @@
                 });
                 swimEventsCache = eventsResult.data || [];
 
-                // Populate active hazards map (used by renderBestSpots + swim event cards)
+                // Populate active hazards map — filter expired in JS to avoid PostgREST .or() timestamp issues
+                const dashNowMs = Date.now();
                 activeHazardsBySpot = {};
                 for (const h of (hazardsResult.data || [])) {
+                    if (h.active_until && new Date(h.active_until).getTime() <= dashNowMs) continue;
                     if (!activeHazardsBySpot[h.spot_id]) activeHazardsBySpot[h.spot_id] = [];
                     activeHazardsBySpot[h.spot_id].push(h);
                 }
@@ -1573,14 +1573,17 @@
                 // Populate activeHazardsBySpot so getHazardsForEvent() works on the Swims tab
                 // (loadDashboard fills this on the dashboard tab, but loadEvents runs standalone)
                 try {
-                    const evNow = new Date().toISOString();
-                    const { data: activeHazardsForEvents } = await supabaseClient
+                    const { data: allHazardsForEvents } = await supabaseClient
                         .from('hazard_reports')
-                        .select('spot_id, severity, title, hazard_type')
-                        .is('resolved_at', null)
-                        .or('active_until.is.null,active_until.gte.' + evNow);
+                        .select('spot_id, severity, title, hazard_type, active_until')
+                        .is('resolved_at', null);
+                    // Filter expired ones in JS to avoid PostgREST .or() timestamp issues
+                    const evNow = Date.now();
+                    const activeHazardsForEvents = (allHazardsForEvents || []).filter(h =>
+                        !h.active_until || new Date(h.active_until).getTime() > evNow
+                    );
                     activeHazardsBySpot = {};
-                    for (const h of (activeHazardsForEvents || [])) {
+                    for (const h of activeHazardsForEvents) {
                         if (!activeHazardsBySpot[h.spot_id]) activeHazardsBySpot[h.spot_id] = [];
                         activeHazardsBySpot[h.spot_id].push(h);
                     }
@@ -3674,21 +3677,29 @@
             try {
                 const hazardSpot = spots.find(s => s.id === spotId);
                 const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 3600000).toISOString();
+                console.log('[Hazard notify] hazardSpot:', hazardSpot?.name, hazardSpot?.latitude, hazardSpot?.longitude);
 
-                const { data: affectedSwims } = await supabaseClient
+                const { data: affectedSwims, error: swimsErr } = await supabaseClient
                     .from('swim_events')
-                    .select('id, title, location_name, lat, lng, spot_id')
+                    .select('id, title, location_name, lat, lng, spot_id, status')
                     .neq('status', 'cancelled')
                     .gte('start_at', new Date().toISOString())
                     .lte('start_at', sevenDaysFromNow);
 
+                console.log('[Hazard notify] upcoming swims found:', affectedSwims?.length, swimsErr);
+
                 const nearbySwims = (affectedSwims || []).filter(ev => {
-                    if (ev.spot_id === spotId) return true;
+                    if (ev.spot_id === spotId) { console.log('[Hazard notify] spot_id match:', ev.title); return true; }
                     if (ev.lat && ev.lng && hazardSpot) {
-                        return getDistanceKm(ev.lat, ev.lng, hazardSpot.latitude, hazardSpot.longitude) < 2;
+                        const dist = getDistanceKm(ev.lat, ev.lng, hazardSpot.latitude, hazardSpot.longitude);
+                        console.log('[Hazard notify] dist check:', ev.title, dist.toFixed(1) + 'km');
+                        return dist < 10; // 10km radius covers full False Bay south peninsula corridor
                     }
+                    console.log('[Hazard notify] no coords for:', ev.title);
                     return false;
                 });
+
+                console.log('[Hazard notify] nearbySwims:', nearbySwims.map(s => s.title));
 
                 for (const swim of nearbySwims) {
                     const { data: participants } = await supabaseClient
@@ -3696,6 +3707,8 @@
                         .select('user_id')
                         .eq('swim_event_id', swim.id)
                         .in('status', ['approved', 'requested']);
+
+                    console.log('[Hazard notify] participants for', swim.title, ':', participants?.length);
 
                     for (const p of (participants || [])) {
                         if (p.user_id === currentUser.id) continue;
@@ -3711,7 +3724,9 @@
                 }
 
                 if (nearbySwims.length > 0) {
-                    console.log(`Hazard notifications sent for ${nearbySwims.length} affected swim(s)`);
+                    console.log(`[Hazard notify] Done — notifications sent for ${nearbySwims.length} affected swim(s)`);
+                } else {
+                    console.log('[Hazard notify] No nearby swims found — no notifications sent');
                 }
             } catch (notifyErr) {
                 console.error('Hazard notify error (non-fatal):', notifyErr);
@@ -3722,16 +3737,22 @@
             const el = document.getElementById('activeHazardsList');
             if (!el) return;
             el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Loading…</div>';
-            const now = new Date().toISOString();
-            const { data: hazards, error } = await supabaseClient
+            // Fetch all unresolved hazards, then filter expired ones in JS
+            // (avoids PostgREST .or() timestamp parsing issues)
+            const { data: allHazards, error } = await supabaseClient
                 .from('hazard_reports')
                 .select('*, profiles(display_name), spots(name)')
                 .is('resolved_at', null)
-                .or('active_until.is.null,active_until.gte.' + now)
                 .order('created_at', { ascending: false });
 
             if (error) { console.error('loadHazards error:', error); el.innerHTML = '<div style="color:var(--danger);font-size:13px;">Error loading hazards</div>'; return; }
-            renderActiveHazards(hazards || []);
+
+            // Filter out expired hazards in JS (active_until null = indefinite, else must be in future)
+            const now = Date.now();
+            const hazards = (allHazards || []).filter(h =>
+                !h.active_until || new Date(h.active_until).getTime() > now
+            );
+            renderActiveHazards(hazards);
         }
 
         function renderActiveHazards(hazards) {
