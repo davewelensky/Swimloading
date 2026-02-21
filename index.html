@@ -762,11 +762,11 @@
 
                 console.log('Member events result:', { memberEvents, eventsError });
 
-                // Filter for upcoming events in JavaScript
+                // Filter for upcoming events in JavaScript (exclude cancelled)
                 const now = new Date();
                 const upcomingSwims = memberEvents
                     ?.map(m => m.swim_events)
-                    .filter(e => e && new Date(e.start_at) >= now)
+                    .filter(e => e && new Date(e.start_at) >= now && e.status !== 'cancelled')
                     .slice(0, 3) || [];
 
                 console.log('Upcoming swims after filter:', upcomingSwims);
