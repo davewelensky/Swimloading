@@ -1928,6 +1928,47 @@
             // Check for new badges after creating a swim
             await checkAndAwardBadges();
 
+            // Notify opted-in users about the new swim
+            if (data && data[0]) {
+                const newEventId = data[0].id;
+                try {
+                    // Fetch creator display name + all users who want new swim alerts (excluding creator)
+                    const [creatorRes, optedInRes] = await Promise.all([
+                        supabaseClient.from('profiles').select('display_name').eq('id', currentUser.id).single(),
+                        supabaseClient.from('profiles').select('id').eq('notify_new_swims', true).neq('id', currentUser.id)
+                    ]);
+
+                    const hostName = creatorRes.data?.display_name || 'Someone';
+                    const optedIn = optedInRes.data || [];
+
+                    if (optedIn.length > 0) {
+                        // Build rich notification message
+                        const distStr = eventData.distance_km ? `${eventData.distance_km}km · ` : '';
+                        const timeStr = new Date(eventData.start_at).toLocaleString('en-ZA', {
+                            weekday: 'short', month: 'short', day: 'numeric',
+                            hour: '2-digit', minute: '2-digit'
+                        });
+                        const spotsStr = data[0].max_participants ? ` · ${data[0].max_participants} spots` : '';
+                        const notifMessage = `${eventData.location_name} · ${distStr}${timeStr}${spotsStr}`;
+
+                        for (const user of optedIn) {
+                            await notify(
+                                user.id,
+                                newEventId,
+                                'new_swim',
+                                `🏊 ${hostName} posted a new swim!`,
+                                notifMessage,
+                                { swim_event_id: newEventId }
+                            );
+                        }
+                        console.log(`New swim notification sent to ${optedIn.length} user(s)`);
+                    }
+                } catch (err) {
+                    console.error('Error sending new swim notifications:', err);
+                    // Non-fatal — swim was still created successfully
+                }
+            }
+
             // Offer to share the new swim
             if (data && data[0]) {
                 setTimeout(() => offerShareSwim(data[0]), 500);
@@ -3301,6 +3342,17 @@
                             toggle.checked = subscribed;
                             if (track) track.style.background = subscribed ? 'var(--success)' : 'rgba(255,255,255,0.15)';
                             if (thumb) thumb.style.transform = subscribed ? 'translateX(22px)' : 'translateX(0)';
+                        }
+
+                        // Initialize new swim alerts toggle (only relevant when push is available)
+                        const newSwimOn = profile && profile.notify_new_swims === true;
+                        const nsToggle = document.getElementById('newSwimAlertsToggle');
+                        const nsTrack = document.getElementById('newSwimAlertsTrack');
+                        const nsThumb = document.getElementById('newSwimAlertsThumb');
+                        if (nsToggle) {
+                            nsToggle.checked = newSwimOn;
+                            if (nsTrack) nsTrack.style.background = newSwimOn ? 'var(--success)' : 'rgba(255,255,255,0.15)';
+                            if (nsThumb) nsThumb.style.transform = newSwimOn ? 'translateX(22px)' : 'translateX(0)';
                         }
                     });
                 }
@@ -6190,6 +6242,20 @@
                                     <span style="position: absolute; height: 20px; width: 20px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s;" id="pushToggleThumb"></span>
                                 </label>
                             </div>
+
+                            <!-- New Swim Alerts Toggle (sub-option under push) -->
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.04);">
+                                <div>
+                                    <div style="font-weight: 600; color: var(--text-primary); font-size: 14px;">🏊 New swim alerts</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Get notified when swimmers post new group swims</div>
+                                </div>
+                                <label style="position: relative; display: inline-block; width: 48px; height: 26px; flex-shrink: 0;">
+                                    <input type="checkbox" id="newSwimAlertsToggle" onchange="toggleNewSwimAlerts(this.checked)"
+                                        style="opacity: 0; width: 0; height: 0;">
+                                    <span style="position: absolute; cursor: pointer; inset: 0; background: rgba(255,255,255,0.15); border-radius: 26px; transition: 0.3s;" id="newSwimAlertsTrack"></span>
+                                    <span style="position: absolute; height: 20px; width: 20px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s;" id="newSwimAlertsThumb"></span>
+                                </label>
+                            </div>
                         </div>
 
                         <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px; margin-top: 8px;">
@@ -6648,6 +6714,25 @@
                 if (track) track.style.background = 'rgba(255,255,255,0.15)';
                 if (thumb) thumb.style.transform = 'translateX(0)';
                 showToast('Push notifications disabled', 'info');
+            }
+        }
+
+        // Toggle new swim alerts opt-in preference
+        async function toggleNewSwimAlerts(enabled) {
+            if (!currentUser) return;
+            const track = document.getElementById('newSwimAlertsTrack');
+            const thumb = document.getElementById('newSwimAlertsThumb');
+            try {
+                await supabaseClient
+                    .from('profiles')
+                    .update({ notify_new_swims: enabled })
+                    .eq('id', currentUser.id);
+                if (track) track.style.background = enabled ? 'var(--success)' : 'rgba(255,255,255,0.15)';
+                if (thumb) thumb.style.transform = enabled ? 'translateX(22px)' : 'translateX(0)';
+                showToast(enabled ? 'New swim alerts on' : 'New swim alerts off', 'success');
+            } catch (err) {
+                console.error('Error saving new swim alerts preference:', err);
+                showToast('Could not save preference', 'error');
             }
         }
 
