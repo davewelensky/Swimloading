@@ -2543,8 +2543,8 @@
                         ${event.members.filter(m => m.status === 'requested').map(m => `
                             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.05);">
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <div style="width: 28px; height: 28px; border-radius: 50%; background: var(--warning); display: flex; align-items: center; justify-content: center; color: black; font-weight: 700; font-size: 12px;">
-                                        ${m.profiles?.avatar_url ? `<i data-lucide="${m.profiles.avatar_url}" style="width: 14px; height: 14px;"></i>` : (m.profiles?.display_name?.charAt(0) || '?')}
+                                    <div style="width: 28px; height: 28px; border-radius: 50%; background: ${m.profiles?.avatar_url?.startsWith('http') ? 'transparent' : 'var(--warning)'}; display: flex; align-items: center; justify-content: center; color: black; font-weight: 700; font-size: 12px; overflow:hidden;">
+                                        ${m.profiles?.avatar_url?.startsWith('http') ? `<img src="${m.profiles.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (m.profiles?.avatar_url ? `<i data-lucide="${m.profiles.avatar_url}" style="width: 14px; height: 14px;"></i>` : (m.profiles?.display_name?.charAt(0) || '?'))}
                                     </div>
                                     <span style="font-size: 14px; color: var(--text-primary);">${m.profiles?.display_name || 'Anonymous'}</span>
                                 </div>
@@ -2637,8 +2637,8 @@
                         return visible.map(m => `
                             <div style="margin-bottom: 10px; background: rgba(0,0,0,0.15); border-radius: 10px; padding: 10px 12px;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <div style="width: 32px; height: 32px; border-radius: 50%; background: ${m.status === 'requested' ? 'var(--warning)' : 'var(--ocean-blue)'}; display: flex; align-items: center; justify-content: center; color: ${m.status === 'requested' ? 'black' : 'white'}; font-weight: 600; flex-shrink: 0;">
-                                        ${m.profiles?.avatar_url ? '<i data-lucide="' + m.profiles.avatar_url + '" style="width: 16px; height: 16px;"></i>' : (m.profiles?.display_name?.charAt(0) || '?')}
+                                    <div style="width: 32px; height: 32px; border-radius: 50%; background: ${m.profiles?.avatar_url?.startsWith('http') ? 'transparent' : (m.status === 'requested' ? 'var(--warning)' : 'var(--ocean-blue)')}; display: flex; align-items: center; justify-content: center; color: ${m.status === 'requested' ? 'black' : 'white'}; font-weight: 600; flex-shrink: 0; overflow:hidden;">
+                                        ${m.profiles?.avatar_url?.startsWith('http') ? `<img src="${m.profiles.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (m.profiles?.avatar_url ? '<i data-lucide="' + m.profiles.avatar_url + '" style="width: 16px; height: 16px;"></i>' : (m.profiles?.display_name?.charAt(0) || '?'))}
                                     </div>
                                     <div style="flex: 1;">
                                         <div style="color: var(--text-primary); font-size: 14px;">
@@ -3395,18 +3395,31 @@
             { icon: 'shield', color: '#0ea5e9', name: 'Shield' },
             { icon: 'target', color: '#22c55e', name: 'Target' },
             { icon: 'award', color: '#a855f7', name: 'Award' },
-            { icon: 'crown', color: '#f43f5e', name: 'Crown' }
+            { icon: 'crown', color: '#f43f5e', name: 'Crown' },
+            { icon: 'sun', color: '#eab308', name: 'Sun' },
+            { icon: 'wind', color: '#38bdf8', name: 'Wind' },
+            { icon: 'mountain', color: '#64748b', name: 'Mountain' },
+            { icon: 'activity', color: '#22c55e', name: 'Activity' },
+            { icon: 'heart', color: '#e11d48', name: 'Heart' },
+            { icon: 'dumbbell', color: '#7c3aed', name: 'Dumbbell' },
+            { icon: 'timer', color: '#f97316', name: 'Timer' },
+            { icon: 'binoculars', color: '#0ea5e9', name: 'Binoculars' }
         ];
 
 
 
-        // Helper to update the header profile icon
-        function updateHeaderAvatar(iconName = 'user') {
+        // Helper to update the header profile icon — supports both photo URLs and icon names
+        function updateHeaderAvatar(avatarValue = 'user') {
             const avatarDiv = document.querySelector('.user-avatar');
-            if (avatarDiv) {
-                const iconToUse = iconName || 'user';
+            if (!avatarDiv) return;
+            const isUrl = avatarValue && (avatarValue.startsWith('http') || avatarValue.startsWith('blob'));
+            if (isUrl) {
+                avatarDiv.innerHTML = `<img src="${avatarValue}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.parentElement.innerHTML='<i data-lucide=\\'user\\' style=\\'width:18px;height:18px;color:white;\\'></i>'; if(window.lucide) lucide.createIcons();">`;
+                avatarDiv.style.background = 'transparent';
+                avatarDiv.style.borderColor = 'var(--ocean-light)';
+            } else {
+                const iconToUse = avatarValue || 'user';
                 avatarDiv.innerHTML = `<i data-lucide="${iconToUse}" style="width: 18px; height: 18px; color: white;"></i>`;
-                // Set the avatar background to the icon's color
                 const avatarMeta = AVATARS.find(a => a.icon === iconToUse);
                 if (avatarMeta) {
                     avatarDiv.style.background = avatarMeta.color;
@@ -3417,6 +3430,66 @@
                 }
                 if (window.lucide) lucide.createIcons();
             }
+        }
+
+        // Switch between Photo and Icon tabs in avatar picker
+        function switchAvatarTab(tab) {
+            const photoPanel = document.getElementById('avatarPhotoPanel');
+            const iconPanel = document.getElementById('avatarIconPanel');
+            const tabPhoto = document.getElementById('avatarTabPhoto');
+            const tabIcon = document.getElementById('avatarTabIcon');
+            if (!photoPanel || !iconPanel) return;
+            const activeStyle = 'background:var(--ocean-blue);color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;';
+            const inactiveStyle = 'background:rgba(255,255,255,0.08);color:var(--text-secondary);border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;';
+            if (tab === 'photo') {
+                photoPanel.style.display = 'block';
+                iconPanel.style.display = 'none';
+                if (tabPhoto) tabPhoto.style.cssText = activeStyle;
+                if (tabIcon) tabIcon.style.cssText = inactiveStyle;
+            } else {
+                photoPanel.style.display = 'none';
+                iconPanel.style.display = 'block';
+                if (tabPhoto) tabPhoto.style.cssText = inactiveStyle;
+                if (tabIcon) tabIcon.style.cssText = activeStyle;
+                renderAvatarGrid();
+            }
+        }
+
+        // Render the circular photo preview in the upload panel
+        function renderAvatarPhotoPreview(src) {
+            const preview = document.getElementById('avatarPhotoPreview');
+            if (!preview) return;
+            if (src) {
+                preview.innerHTML = `<img src="${src}" style="width:90px;height:90px;object-fit:cover;border-radius:50%;border:3px solid var(--ocean-light);display:block;margin:0 auto;">`;
+            } else {
+                preview.innerHTML = `<div style="width:90px;height:90px;border-radius:50%;border:2px dashed rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;margin:0 auto;color:var(--text-secondary);font-size:13px;">No photo</div>`;
+            }
+        }
+
+        // Handle avatar photo file selection and upload to Supabase Storage
+        async function handleAvatarFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) { showToast('Photo must be under 2MB', 'error'); return; }
+            if (!file.type.startsWith('image/')) { showToast('Please select an image file', 'error'); return; }
+
+            // Show local preview immediately
+            const reader = new FileReader();
+            reader.onload = e => renderAvatarPhotoPreview(e.target.result);
+            reader.readAsDataURL(file);
+
+            // Upload to Supabase Storage
+            const ext = file.name.split('.').pop().toLowerCase();
+            const path = `${currentUser.id}/avatar.${ext}`;
+            showToast('Uploading photo…', 'info');
+            const { error } = await supabaseClient.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type });
+            if (error) { showToast('Upload failed: ' + error.message, 'error'); return; }
+
+            // Get public URL and set as selected avatar
+            const { data } = supabaseClient.storage.from('avatars').getPublicUrl(path);
+            selectedAvatar = data.publicUrl + '?t=' + Date.now(); // cache-bust on re-upload
+            showToast('Photo uploaded ✓', 'success');
+            renderAvatarPhotoPreview(selectedAvatar);
         }
 
         async function showProfileSettings() {
@@ -3447,6 +3520,15 @@
                     editingProfile = profile;
                     selectedAvatar = profile.avatar_url;
                     updateHeaderAvatar(profile.avatar_url);
+
+                    // Init avatar tab — show photo tab if they have a photo URL, else icon tab
+                    const isPhotoUrl = profile.avatar_url && profile.avatar_url.startsWith('http');
+                    if (isPhotoUrl) {
+                        switchAvatarTab('photo');
+                        renderAvatarPhotoPreview(profile.avatar_url);
+                    } else {
+                        switchAvatarTab('icon');
+                    }
 
                     document.getElementById('profileDisplayName').value = profile.display_name || '';
                     document.getElementById('profilePhone').value = profile.phone || '';
@@ -5554,13 +5636,37 @@
                     style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; padding: 0; width: auto;">✕</button>
             </div>
 
-            <div style="text-align: center; margin-bottom: 24px;">
-                <div class="form-label" style="text-align:center; margin-bottom:8px;">Choose Avatar</div>
-                <div id="avatarGrid"
-                    style="display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 12px; margin-bottom: 20px;">
-                    <!-- Populated by JS -->
+            <div style="margin-bottom: 20px;">
+                <div style="color: var(--text-primary); font-weight: 600; text-align:center; margin-bottom:12px;" id="profileEmail"></div>
+
+                <!-- Avatar tab switcher -->
+                <div style="display:flex; gap:8px; margin-bottom:14px;">
+                    <button id="avatarTabPhoto" onclick="switchAvatarTab('photo')"
+                        style="background:var(--ocean-blue);color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;flex:1;">📷 Photo</button>
+                    <button id="avatarTabIcon" onclick="switchAvatarTab('icon')"
+                        style="background:rgba(255,255,255,0.08);color:var(--text-secondary);border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;flex:1;">🎨 Icon</button>
                 </div>
-                <div style="color: var(--text-primary); font-weight: 600;" id="profileEmail"></div>
+
+                <!-- Photo upload panel -->
+                <div id="avatarPhotoPanel" style="text-align:center;">
+                    <div id="avatarPhotoPreview" style="margin-bottom:12px;">
+                        <div style="width:90px;height:90px;border-radius:50%;border:2px dashed rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;margin:0 auto;color:var(--text-secondary);font-size:13px;">No photo</div>
+                    </div>
+                    <input type="file" id="avatarFileInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none;" onchange="handleAvatarFileSelect(event)">
+                    <button onclick="document.getElementById('avatarFileInput').click()"
+                        style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:var(--text-primary);border-radius:8px;padding:10px 20px;font-size:13px;cursor:pointer;">
+                        📷 Choose Photo
+                    </button>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:8px;">Max 2MB · JPG, PNG, WEBP</div>
+                </div>
+
+                <!-- Icon grid panel -->
+                <div id="avatarIconPanel" style="display:none;">
+                    <div id="avatarGrid"
+                        style="display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 12px;">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
             </div>
 
             <div class="form-group">
