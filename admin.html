@@ -603,6 +603,7 @@ async function doLogin() {
 
 // ── Show dashboard ─────────────────────────────────────────────────────────────
 async function showDashboard(user) {
+    document.getElementById('loadingScreen').style.display = 'none';
     document.getElementById('adminEmail').textContent = user.email;
     document.getElementById('dashboard').style.display = 'block';
     await Promise.all([loadUsers(), loadSpotActivity()]);
@@ -804,7 +805,7 @@ async function loadSpotActivity() {
     // Fetch temp_logs with spot names
     const { data: logs, error } = await supabaseClient
         .from('temp_logs')
-        .select('user_id, spot_id, created_at, spots(name)');
+        .select('user_id, spot_id, created_at, spots!temp_logs_spot_id_fkey(name)');
 
     if (error || !logs) { console.error('spot logs error:', error); return; }
 
