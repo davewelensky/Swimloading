@@ -316,6 +316,62 @@
             color: var(--text-secondary);
             font-style: italic;
         }
+
+        /* ── Login form ── */
+        .login-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 36px 32px;
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+        }
+        .login-card h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .login-card p {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+        .login-field {
+            width: 100%;
+            background: var(--mid-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 11px 14px;
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+            margin-bottom: 12px;
+            transition: border-color 0.15s;
+        }
+        .login-field:focus { border-color: var(--ocean-blue); }
+        .login-field::placeholder { color: var(--text-secondary); }
+        .btn-login {
+            width: 100%;
+            background: var(--ocean-blue);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+            margin-top: 4px;
+        }
+        .btn-login:hover { background: #0369a1; }
+        .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+        .login-error {
+            color: var(--red);
+            font-size: 12px;
+            margin-top: 10px;
+            min-height: 18px;
+        }
     </style>
 </head>
 <body>
@@ -326,12 +382,25 @@
     <div style="font-size:14px;">Checking access…</div>
 </div>
 
-<!-- Access denied -->
+<!-- Login form (shown when not signed in) -->
+<div id="loginScreen" class="full-screen" style="display:none;">
+    <div class="login-card">
+        <img src="icons/icon-192.png" style="width:48px;height:48px;border-radius:12px;margin-bottom:16px;" onerror="this.style.display='none'">
+        <h2>SwimLoading Admin</h2>
+        <p>Sign in with your admin account</p>
+        <input class="login-field" type="email" id="loginEmail" placeholder="Email" autocomplete="email">
+        <input class="login-field" type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter') doLogin()">
+        <button class="btn-login" id="loginBtn" onclick="doLogin()">Sign In</button>
+        <div class="login-error" id="loginError"></div>
+    </div>
+</div>
+
+<!-- Access denied (wrong account) -->
 <div id="accessDenied" class="full-screen" style="display:none;">
     <div style="font-size:40px;">🚫</div>
     <div style="font-size:18px; font-weight:700; color:var(--text);">Access Denied</div>
     <div style="font-size:13px;">This page is restricted to SwimLoading admins.</div>
-    <a href="/" style="margin-top:8px; color:var(--ocean-light); font-size:13px;">← Back to SwimLoading</a>
+    <button onclick="supabase.auth.signOut().then(()=>location.reload())" style="margin-top:12px;background:transparent;border:1px solid var(--border);color:var(--text-secondary);padding:8px 18px;border-radius:8px;cursor:pointer;font-size:13px;">Sign out &amp; try again</button>
 </div>
 
 <!-- Main dashboard (hidden until auth confirmed) -->
@@ -464,18 +533,78 @@ let spotChart = null;
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 async function boot() {
-    const { data: { user }, error } = await supabase.auth.getUser();
-
-    if (!user || user.email !== ADMIN_EMAIL) {
+    // Timeout safety — don't spin forever
+    const timeout = setTimeout(() => {
         document.getElementById('loadingScreen').style.display = 'none';
-        document.getElementById('accessDenied').style.display = 'flex';
+        document.getElementById('loginScreen').style.display = 'flex';
+    }, 5000);
+
+    try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        clearTimeout(timeout);
+
+        if (!user) {
+            // Not signed in — show login form
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'flex';
+            return;
+        }
+
+        if (user.email !== ADMIN_EMAIL) {
+            // Signed in but wrong account
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('accessDenied').style.display = 'flex';
+            return;
+        }
+
+        showDashboard(user);
+    } catch (err) {
+        clearTimeout(timeout);
+        console.error('boot error:', err);
+        document.getElementById('loadingScreen').style.display = 'none';
+        document.getElementById('loginScreen').style.display = 'flex';
+    }
+}
+
+// ── Login ──────────────────────────────────────────────────────────────────────
+async function doLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errEl = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+
+    errEl.textContent = '';
+    if (!email || !password) { errEl.textContent = 'Please enter email and password.'; return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+        errEl.textContent = error.message;
         return;
     }
 
-    document.getElementById('adminEmail').textContent = user.email;
-    document.getElementById('loadingScreen').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'block';
+    const user = data.user;
+    if (!user || user.email !== ADMIN_EMAIL) {
+        await supabase.auth.signOut();
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+        errEl.textContent = 'This account does not have admin access.';
+        return;
+    }
 
+    document.getElementById('loginScreen').style.display = 'none';
+    showDashboard(user);
+}
+
+// ── Show dashboard ─────────────────────────────────────────────────────────────
+async function showDashboard(user) {
+    document.getElementById('adminEmail').textContent = user.email;
+    document.getElementById('dashboard').style.display = 'block';
     await Promise.all([loadUsers(), loadSpotActivity()]);
 }
 
