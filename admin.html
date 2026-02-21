@@ -400,7 +400,7 @@
     <div style="font-size:40px;">🚫</div>
     <div style="font-size:18px; font-weight:700; color:var(--text);">Access Denied</div>
     <div style="font-size:13px;">This page is restricted to SwimLoading admins.</div>
-    <button onclick="supabase.auth.signOut().then(()=>location.reload())" style="margin-top:12px;background:transparent;border:1px solid var(--border);color:var(--text-secondary);padding:8px 18px;border-radius:8px;cursor:pointer;font-size:13px;">Sign out &amp; try again</button>
+    <button onclick="supabaseClient.auth.signOut().then(()=>location.reload())" style="margin-top:12px;background:transparent;border:1px solid var(--border);color:var(--text-secondary);padding:8px 18px;border-radius:8px;cursor:pointer;font-size:13px;">Sign out &amp; try again</button>
 </div>
 
 <!-- Main dashboard (hidden until auth confirmed) -->
@@ -524,7 +524,7 @@ const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
 const ADMIN_EMAIL = 'dave.welensky@gmail.com';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let allUsers = [];
 let currentFilter = 'all';
@@ -540,7 +540,7 @@ async function boot() {
     }, 5000);
 
     try {
-        const { data: { user }, error } = await supabase.auth.getUser();
+        const { data: { user }, error } = await supabaseClient.auth.getUser();
         clearTimeout(timeout);
 
         if (!user) {
@@ -579,7 +579,7 @@ async function doLogin() {
     btn.disabled = true;
     btn.textContent = 'Signing in…';
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
     if (error) {
         btn.disabled = false;
@@ -590,7 +590,7 @@ async function doLogin() {
 
     const user = data.user;
     if (!user || user.email !== ADMIN_EMAIL) {
-        await supabase.auth.signOut();
+        await supabaseClient.auth.signOut();
         btn.disabled = false;
         btn.textContent = 'Sign In';
         errEl.textContent = 'This account does not have admin access.';
@@ -611,20 +611,20 @@ async function showDashboard(user) {
 // ── Load users ─────────────────────────────────────────────────────────────────
 async function loadUsers() {
     // Fetch profiles with embedded counts
-    const { data: profiles, error: pErr } = await supabase
+    const { data: profiles, error: pErr } = await supabaseClient
         .from('profiles')
         .select('id, email, display_name, phone, emergency_contact_name, onboarding_completed_at, created_at');
 
     if (pErr) { console.error('profiles error:', pErr); return; }
 
     // Fetch temp_logs summary per user
-    const { data: tempLogs, error: tErr } = await supabase
+    const { data: tempLogs, error: tErr } = await supabaseClient
         .from('temp_logs')
         .select('user_id, created_at')
         .order('created_at', { ascending: false });
 
     // Fetch swim_participants per user
-    const { data: swimParts, error: sErr } = await supabase
+    const { data: swimParts, error: sErr } = await supabaseClient
         .from('swim_participants')
         .select('user_id');
 
@@ -802,7 +802,7 @@ function renderUserTable(users) {
 // ── Spot activity ──────────────────────────────────────────────────────────────
 async function loadSpotActivity() {
     // Fetch temp_logs with spot names
-    const { data: logs, error } = await supabase
+    const { data: logs, error } = await supabaseClient
         .from('temp_logs')
         .select('user_id, spot_id, created_at, spots(name)');
 
@@ -896,7 +896,7 @@ function relativeDate(date) {
 }
 
 async function signOut() {
-    await supabase.auth.signOut();
+    await supabaseClient.auth.signOut();
     window.location.href = '/';
 }
 
