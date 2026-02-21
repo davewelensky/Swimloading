@@ -929,6 +929,57 @@ function renderSpotTable(spots) {
     `).join('');
 }
 
+// ── City normalisation helper ──────────────────────────────────────────────────
+function normaliseCity(raw) {
+    const c = raw.trim();
+    const l = c.toLowerCase();
+
+    const CITY_MAP = {
+        // Cape Town
+        'cape town': 'Cape Town', 'capetown': 'Cape Town', 'ct': 'Cape Town',
+
+        // Johannesburg + suburbs
+        'johannesburg': 'Johannesburg', 'joburg': 'Johannesburg', 'jburg': 'Johannesburg',
+        'jhb': 'Johannesburg', 'jansenpark': 'Johannesburg',
+
+        // Simon's Town — handle truncated + apostrophe variants
+        "simon's town": "Simon's Town", 'simons town': "Simon's Town",
+        "simon's town, cape t": "Simon's Town", 'simonstown': "Simon's Town",
+        "simons town, cape t": "Simon's Town",
+
+        // Somerset West
+        'somerset west': 'Somerset West', 'somersetwest': 'Somerset West',
+
+        // Knysna (typo fix)
+        'knydna': 'Knysna', 'knysna': 'Knysna',
+
+        // Hermanus
+        'hermanus': 'Hermanus',
+
+        // Hout Bay
+        'hout bay': 'Hout Bay',
+
+        // Gordon's Bay
+        "gordon's bay": "Gordon's Bay", 'gordons bay': "Gordon's Bay",
+
+        // Fish Hoek
+        'fish hoek': 'Fish Hoek',
+
+        // San Francisco
+        'san francisco': 'San Francisco', 'sf': 'San Francisco',
+
+        // Other SA cities
+        'durban': 'Durban', 'pretoria': 'Pretoria', 'stellenbosch': 'Stellenbosch',
+        'george': 'George', 'paarl': 'Paarl', 'franschhoek': 'Franschhoek',
+        'muizenberg': 'Muizenberg', 'noordhoek': 'Noordhoek',
+    };
+
+    if (CITY_MAP[l]) return CITY_MAP[l];
+
+    // Fallback: title-case every word
+    return c.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
 // ── Location breakdown ─────────────────────────────────────────────────────────
 async function loadLocationData() {
     // Uses city data already fetched in loadUsers — wait for allUsers to be populated
@@ -940,11 +991,7 @@ async function loadLocationData() {
     const cityMap = {};
     for (const p of (profiles || [])) {
         const city = (p.city || '').trim() || 'Unknown';
-        // Normalise common variations
-        const normalised = city.toLowerCase() === 'cape town' ? 'Cape Town'
-            : city.toLowerCase() === 'johannesburg' || city.toLowerCase() === 'joburg' || city.toLowerCase() === 'jburg' ? 'Johannesburg'
-            : city.toLowerCase() === 'san francisco' || city.toLowerCase() === 'sf' ? 'San Francisco'
-            : city.charAt(0).toUpperCase() + city.slice(1);
+        const normalised = normaliseCity(city);
         cityMap[normalised] = (cityMap[normalised] || 0) + 1;
     }
 
