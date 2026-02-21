@@ -910,7 +910,7 @@
                         .from('hazard_reports')
                         .select('spot_id, severity, title, hazard_type')
                         .is('resolved_at', null)
-                        .or(`active_until.gt.${dashNow},active_until.is.null`)
+                        .or('active_until.is.null,active_until.gte.' + dashNow)
                 ]);
 
                 // Populate module-level caches
@@ -3662,7 +3662,7 @@
                 .from('hazard_reports')
                 .select('*, profiles(display_name), spots(name)')
                 .is('resolved_at', null)
-                .or(`active_until.gt.${now},active_until.is.null`)
+                .or('active_until.is.null,active_until.gte.' + now)
                 .order('created_at', { ascending: false });
 
             if (error) { console.error('loadHazards error:', error); el.innerHTML = '<div style="color:var(--danger);font-size:13px;">Error loading hazards</div>'; return; }
