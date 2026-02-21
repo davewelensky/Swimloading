@@ -1570,6 +1570,24 @@
             try {
                 console.log('Loading events...');
 
+                // Populate activeHazardsBySpot so getHazardsForEvent() works on the Swims tab
+                // (loadDashboard fills this on the dashboard tab, but loadEvents runs standalone)
+                try {
+                    const evNow = new Date().toISOString();
+                    const { data: activeHazardsForEvents } = await supabaseClient
+                        .from('hazard_reports')
+                        .select('spot_id, severity, title, hazard_type')
+                        .is('resolved_at', null)
+                        .or('active_until.is.null,active_until.gte.' + evNow);
+                    activeHazardsBySpot = {};
+                    for (const h of (activeHazardsForEvents || [])) {
+                        if (!activeHazardsBySpot[h.spot_id]) activeHazardsBySpot[h.spot_id] = [];
+                        activeHazardsBySpot[h.spot_id].push(h);
+                    }
+                } catch (hazErr) {
+                    console.warn('Could not load hazards for events tab:', hazErr);
+                }
+
                 // Query using your actual column names
                 const { data: events, error } = await supabaseClient
                     .from('swim_events')
@@ -3651,6 +3669,53 @@
             hideHazardReport();
             loadHazards();
             loadDashboard();
+
+            // Notify participants of upcoming swims at/near the affected spot
+            try {
+                const hazardSpot = spots.find(s => s.id === spotId);
+                const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 3600000).toISOString();
+
+                const { data: affectedSwims } = await supabaseClient
+                    .from('swim_events')
+                    .select('id, title, location_name, lat, lng, spot_id')
+                    .neq('status', 'cancelled')
+                    .gte('start_at', new Date().toISOString())
+                    .lte('start_at', sevenDaysFromNow);
+
+                const nearbySwims = (affectedSwims || []).filter(ev => {
+                    if (ev.spot_id === spotId) return true;
+                    if (ev.lat && ev.lng && hazardSpot) {
+                        return getDistanceKm(ev.lat, ev.lng, hazardSpot.latitude, hazardSpot.longitude) < 2;
+                    }
+                    return false;
+                });
+
+                for (const swim of nearbySwims) {
+                    const { data: participants } = await supabaseClient
+                        .from('swim_participants')
+                        .select('user_id')
+                        .eq('swim_event_id', swim.id)
+                        .in('status', ['approved', 'requested']);
+
+                    for (const p of (participants || [])) {
+                        if (p.user_id === currentUser.id) continue;
+                        await notify(
+                            p.user_id,
+                            swim.id,
+                            'hazard_alert',
+                            `⚠️ Hazard at ${hazardSpot?.name || 'your swim location'}`,
+                            `${title} — affects your upcoming swim: ${swim.title}`,
+                            { hazard_spot_id: spotId }
+                        );
+                    }
+                }
+
+                if (nearbySwims.length > 0) {
+                    console.log(`Hazard notifications sent for ${nearbySwims.length} affected swim(s)`);
+                }
+            } catch (notifyErr) {
+                console.error('Hazard notify error (non-fatal):', notifyErr);
+            }
         }
 
         async function loadHazards() {
