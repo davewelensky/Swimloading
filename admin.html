@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwimLoading Admin</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --ocean-blue: #0284c7;
+            --ocean-light: #38bdf8;
+            --ocean-dark: #0c4a6e;
+            --dark-bg: #0a1628;
+            --mid-bg: #1e293b;
+            --card-bg: #162032;
+            --border: rgba(255,255,255,0.08);
+            --text: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --green: #10b981;
+            --amber: #f59e0b;
+            --red: #ef4444;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--dark-bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ── Header ── */
+        .header {
+            background: var(--mid-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .header-logo {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+        }
+        .header-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--ocean-light);
+        }
+        .header-badge {
+            background: rgba(56,189,248,0.12);
+            color: var(--ocean-light);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 20px;
+            border: 1px solid rgba(56,189,248,0.25);
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .header-email {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .btn-signout {
+            background: rgba(239,68,68,0.12);
+            color: var(--red);
+            border: 1px solid rgba(239,68,68,0.25);
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .btn-signout:hover { background: rgba(239,68,68,0.22); }
+
+        /* ── Main content ── */
+        .main { padding: 28px 24px; max-width: 1400px; margin: 0 auto; }
+
+        /* ── Section titles ── */
+        .section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 14px;
+        }
+
+        /* ── KPI Cards ── */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 36px;
+        }
+        .kpi-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+        }
+        .kpi-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        .kpi-value {
+            font-size: 32px;
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+        .kpi-sub {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        .kpi-card.blue .kpi-value { color: var(--ocean-light); }
+        .kpi-card.green .kpi-value { color: var(--green); }
+        .kpi-card.amber .kpi-value { color: var(--amber); }
+        .kpi-card.red .kpi-value { color: var(--red); }
+
+        /* ── Users section ── */
+        .section { margin-bottom: 40px; }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .search-input {
+            background: var(--mid-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 9px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            width: 240px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .search-input::placeholder { color: var(--text-secondary); }
+        .search-input:focus { border-color: var(--ocean-blue); }
+
+        .filter-group {
+            display: flex;
+            gap: 6px;
+        }
+        .filter-btn {
+            background: var(--mid-bg);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 7px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .filter-btn.active {
+            background: var(--ocean-blue);
+            border-color: var(--ocean-blue);
+            color: white;
+        }
+        .filter-btn:hover:not(.active) {
+            border-color: var(--ocean-light);
+            color: var(--text);
+        }
+
+        .user-count {
+            margin-left: auto;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* ── Table ── */
+        .table-wrap {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+        .table-wrap table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .table-wrap thead th {
+            background: rgba(255,255,255,0.03);
+            padding: 12px 14px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .table-wrap thead th:hover { color: var(--text); }
+        .table-wrap thead th .sort-arrow { margin-left: 4px; opacity: 0.4; }
+        .table-wrap thead th.sorted .sort-arrow { opacity: 1; color: var(--ocean-light); }
+
+        .table-wrap tbody tr {
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            transition: background 0.1s;
+        }
+        .table-wrap tbody tr:last-child { border-bottom: none; }
+        .table-wrap tbody tr:hover { background: rgba(255,255,255,0.02); }
+        .table-wrap tbody td {
+            padding: 11px 14px;
+            vertical-align: middle;
+        }
+
+        .cell-email { color: var(--text); font-weight: 500; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .cell-name { color: var(--text); }
+        .cell-null { color: var(--red); opacity: 0.6; }
+        .cell-ok { color: var(--green); font-size: 15px; }
+        .cell-missing { color: var(--red); font-size: 15px; opacity: 0.7; }
+        .cell-num { font-weight: 600; color: var(--ocean-light); text-align: right; }
+        .cell-num.zero { color: var(--text-secondary); font-weight: 400; }
+        .cell-date { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .status-active { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.25); }
+        .status-dormant { background: rgba(245,158,11,0.12); color: var(--amber); border: 1px solid rgba(245,158,11,0.2); }
+        .status-ghost { background: rgba(148,163,184,0.08); color: var(--text-secondary); border: 1px solid rgba(148,163,184,0.15); }
+
+        /* ── Spot chart ── */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        @media (max-width: 900px) { .charts-row { grid-template-columns: 1fr; } }
+
+        .chart-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+        }
+        .chart-card canvas { max-height: 280px; }
+
+        .spot-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 14px; }
+        .spot-table thead th {
+            text-align: left;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .spot-table tbody td { padding: 9px 8px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        .spot-table tbody tr:last-child td { border-bottom: none; }
+        .spot-rank { color: var(--text-secondary); font-size: 12px; width: 28px; }
+        .spot-name { font-weight: 500; }
+        .spot-count { color: var(--ocean-light); font-weight: 600; text-align: right; }
+        .spot-loggers { color: var(--text-secondary); font-size: 12px; text-align: right; }
+        .spot-last { color: var(--text-secondary); font-size: 12px; text-align: right; white-space: nowrap; }
+
+        /* ── Loading / auth screens ── */
+        .full-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            gap: 16px;
+            color: var(--text-secondary);
+        }
+        .spinner {
+            width: 36px; height: 36px;
+            border: 3px solid rgba(56,189,248,0.2);
+            border-top-color: var(--ocean-light);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .empty-row td {
+            text-align: center;
+            padding: 32px;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Loading state -->
+<div id="loadingScreen" class="full-screen">
+    <div class="spinner"></div>
+    <div style="font-size:14px;">Checking access…</div>
+</div>
+
+<!-- Access denied -->
+<div id="accessDenied" class="full-screen" style="display:none;">
+    <div style="font-size:40px;">🚫</div>
+    <div style="font-size:18px; font-weight:700; color:var(--text);">Access Denied</div>
+    <div style="font-size:13px;">This page is restricted to SwimLoading admins.</div>
+    <a href="/" style="margin-top:8px; color:var(--ocean-light); font-size:13px;">← Back to SwimLoading</a>
+</div>
+
+<!-- Main dashboard (hidden until auth confirmed) -->
+<div id="dashboard" style="display:none;">
+
+    <div class="header">
+        <div class="header-left">
+            <img src="icons/icon-192.png" class="header-logo" alt="SwimLoading" onerror="this.style.display='none'">
+            <span class="header-title">SwimLoading</span>
+            <span class="header-badge">Admin</span>
+        </div>
+        <div class="header-right">
+            <span class="header-email" id="adminEmail"></span>
+            <button class="btn-signout" onclick="signOut()">Sign Out</button>
+        </div>
+    </div>
+
+    <div class="main">
+
+        <!-- KPI Cards -->
+        <div class="section-title">Overview</div>
+        <div class="kpi-row">
+            <div class="kpi-card blue">
+                <div class="kpi-label">Total Users</div>
+                <div class="kpi-value" id="kpiTotal">—</div>
+                <div class="kpi-sub">all registered accounts</div>
+            </div>
+            <div class="kpi-card green">
+                <div class="kpi-label">Active (30 days)</div>
+                <div class="kpi-value" id="kpiActive">—</div>
+                <div class="kpi-sub">logged temp or joined swim</div>
+            </div>
+            <div class="kpi-card amber">
+                <div class="kpi-label">Dormant</div>
+                <div class="kpi-value" id="kpiDormant">—</div>
+                <div class="kpi-sub">activity but &gt;30 days ago</div>
+            </div>
+            <div class="kpi-card red">
+                <div class="kpi-label">Ghost Users</div>
+                <div class="kpi-value" id="kpiGhost">—</div>
+                <div class="kpi-sub">zero activity ever</div>
+            </div>
+            <div class="kpi-card blue">
+                <div class="kpi-label">Profiles Complete</div>
+                <div class="kpi-value" id="kpiComplete">—</div>
+                <div class="kpi-sub">have name + phone</div>
+            </div>
+            <div class="kpi-card green">
+                <div class="kpi-label">Total Temp Logs</div>
+                <div class="kpi-value" id="kpiTempLogs">—</div>
+                <div class="kpi-sub">all time</div>
+            </div>
+        </div>
+
+        <!-- Spot Charts -->
+        <div class="section-title">Spot Activity</div>
+        <div class="charts-row">
+            <div class="chart-card">
+                <div style="font-size:13px; font-weight:600; margin-bottom:14px;">Top Spots by Temp Logs</div>
+                <canvas id="spotChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <div style="font-size:13px; font-weight:600; margin-bottom:4px;">All Spots Breakdown</div>
+                <table class="spot-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Spot</th>
+                            <th style="text-align:right;">Logs</th>
+                            <th style="text-align:right;">Loggers</th>
+                            <th style="text-align:right;">Last Log</th>
+                        </tr>
+                    </thead>
+                    <tbody id="spotTableBody">
+                        <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-secondary);">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Users Table -->
+        <div class="section">
+            <div class="section-title">Users</div>
+            <div class="controls">
+                <input class="search-input" type="text" id="searchInput" placeholder="Search email or name…" oninput="applyFilters()">
+                <div class="filter-group">
+                    <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">All</button>
+                    <button class="filter-btn" data-filter="active" onclick="setFilter('active')">🟢 Active</button>
+                    <button class="filter-btn" data-filter="dormant" onclick="setFilter('dormant')">🟡 Dormant</button>
+                    <button class="filter-btn" data-filter="ghost" onclick="setFilter('ghost')">👻 Ghost</button>
+                    <button class="filter-btn" data-filter="incomplete" onclick="setFilter('incomplete')">⚠️ Incomplete</button>
+                </div>
+                <span class="user-count" id="userCount"></span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th onclick="sortBy('email')">Email <span class="sort-arrow">↕</span></th>
+                            <th onclick="sortBy('display_name')">Display Name <span class="sort-arrow">↕</span></th>
+                            <th onclick="sortBy('phone')">Phone <span class="sort-arrow">↕</span></th>
+                            <th onclick="sortBy('emergency')">Emergency <span class="sort-arrow">↕</span></th>
+                            <th onclick="sortBy('temps')" style="text-align:right;">Temps <span class="sort-arrow">↕</span></th>
+                            <th onclick="sortBy('swims')" style="text-align:right;">Swims <span class="sort-arrow">↕</span></th>
+                            <th onclick="sortBy('lastActive')">Last Active <span class="sort-arrow">↕</span></th>
+                            <th onclick="sortBy('status')">Status <span class="sort-arrow">↕</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody">
+                        <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-secondary);">Loading users…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+const ADMIN_EMAIL = 'dave.welensky@gmail.com';
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let allUsers = [];
+let currentFilter = 'all';
+let currentSort = { key: 'lastActive', dir: -1 }; // default: most recent first
+let spotChart = null;
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+async function boot() {
+    const { data: { user }, error } = await supabase.auth.getUser();
+
+    if (!user || user.email !== ADMIN_EMAIL) {
+        document.getElementById('loadingScreen').style.display = 'none';
+        document.getElementById('accessDenied').style.display = 'flex';
+        return;
+    }
+
+    document.getElementById('adminEmail').textContent = user.email;
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+
+    await Promise.all([loadUsers(), loadSpotActivity()]);
+}
+
+// ── Load users ─────────────────────────────────────────────────────────────────
+async function loadUsers() {
+    // Fetch profiles with embedded counts
+    const { data: profiles, error: pErr } = await supabase
+        .from('profiles')
+        .select('id, email, display_name, phone, emergency_contact_name, onboarding_completed_at, created_at');
+
+    if (pErr) { console.error('profiles error:', pErr); return; }
+
+    // Fetch temp_logs summary per user
+    const { data: tempLogs, error: tErr } = await supabase
+        .from('temp_logs')
+        .select('user_id, created_at')
+        .order('created_at', { ascending: false });
+
+    // Fetch swim_participants per user
+    const { data: swimParts, error: sErr } = await supabase
+        .from('swim_participants')
+        .select('user_id');
+
+    // Build lookup maps
+    const tempMap = {}; // user_id -> { count, lastDate }
+    for (const t of (tempLogs || [])) {
+        if (!tempMap[t.user_id]) tempMap[t.user_id] = { count: 0, lastDate: null };
+        tempMap[t.user_id].count++;
+        if (!tempMap[t.user_id].lastDate) tempMap[t.user_id].lastDate = t.created_at;
+    }
+
+    const swimMap = {}; // user_id -> count
+    for (const s of (swimParts || [])) {
+        swimMap[s.user_id] = (swimMap[s.user_id] || 0) + 1;
+    }
+
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
+
+    allUsers = (profiles || []).map(p => {
+        const temps = tempMap[p.id] || { count: 0, lastDate: null };
+        const swimCount = swimMap[p.id] || 0;
+        const lastActive = temps.lastDate ? new Date(temps.lastDate) : null;
+
+        let status;
+        if (temps.count === 0 && swimCount === 0) {
+            status = 'ghost';
+        } else if (lastActive && lastActive >= thirtyDaysAgo) {
+            status = 'active';
+        } else {
+            status = 'dormant';
+        }
+
+        return {
+            id: p.id,
+            email: p.email || '—',
+            display_name: p.display_name || null,
+            phone: p.phone || null,
+            emergency: p.emergency_contact_name || null,
+            temps: temps.count,
+            swims: swimCount,
+            lastActive: lastActive,
+            status,
+            complete: !!(p.display_name && p.phone),
+        };
+    });
+
+    updateKPIs();
+    applyFilters();
+}
+
+// ── KPI cards ──────────────────────────────────────────────────────────────────
+function updateKPIs() {
+    const total = allUsers.length;
+    const active = allUsers.filter(u => u.status === 'active').length;
+    const dormant = allUsers.filter(u => u.status === 'dormant').length;
+    const ghost = allUsers.filter(u => u.status === 'ghost').length;
+    const complete = allUsers.filter(u => u.complete).length;
+    const totalTemps = allUsers.reduce((sum, u) => sum + u.temps, 0);
+
+    document.getElementById('kpiTotal').textContent = total;
+    document.getElementById('kpiActive').textContent = active;
+    document.getElementById('kpiDormant').textContent = dormant;
+    document.getElementById('kpiGhost').textContent = ghost;
+    document.getElementById('kpiComplete').textContent = Math.round((complete / total) * 100) + '%';
+    document.getElementById('kpiTempLogs').textContent = totalTemps.toLocaleString();
+}
+
+// ── Filters & search ───────────────────────────────────────────────────────────
+function setFilter(filter) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.filter === filter);
+    });
+    applyFilters();
+}
+
+function applyFilters() {
+    const query = document.getElementById('searchInput').value.toLowerCase().trim();
+
+    let filtered = allUsers.filter(u => {
+        if (currentFilter === 'active' && u.status !== 'active') return false;
+        if (currentFilter === 'dormant' && u.status !== 'dormant') return false;
+        if (currentFilter === 'ghost' && u.status !== 'ghost') return false;
+        if (currentFilter === 'incomplete' && u.complete) return false;
+        if (query) {
+            const name = (u.display_name || '').toLowerCase();
+            const email = (u.email || '').toLowerCase();
+            if (!name.includes(query) && !email.includes(query)) return false;
+        }
+        return true;
+    });
+
+    // Sort
+    filtered = sortUsers(filtered);
+
+    document.getElementById('userCount').textContent = `${filtered.length} user${filtered.length !== 1 ? 's' : ''}`;
+    renderUserTable(filtered);
+}
+
+// ── Sorting ────────────────────────────────────────────────────────────────────
+function sortBy(key) {
+    if (currentSort.key === key) {
+        currentSort.dir *= -1;
+    } else {
+        currentSort.key = key;
+        currentSort.dir = key === 'temps' || key === 'swims' ? -1 : 1;
+    }
+    // Update header arrows
+    document.querySelectorAll('thead th').forEach(th => th.classList.remove('sorted'));
+    const cols = ['email','display_name','phone','emergency','temps','swims','lastActive','status'];
+    const idx = cols.indexOf(key);
+    if (idx >= 0) document.querySelectorAll('thead th')[idx]?.classList.add('sorted');
+
+    applyFilters();
+}
+
+function sortUsers(users) {
+    const { key, dir } = currentSort;
+    return [...users].sort((a, b) => {
+        let av, bv;
+        if (key === 'temps') { av = a.temps; bv = b.temps; }
+        else if (key === 'swims') { av = a.swims; bv = b.swims; }
+        else if (key === 'lastActive') {
+            av = a.lastActive ? a.lastActive.getTime() : 0;
+            bv = b.lastActive ? b.lastActive.getTime() : 0;
+        }
+        else if (key === 'phone') { av = a.phone ? 1 : 0; bv = b.phone ? 1 : 0; }
+        else if (key === 'emergency') { av = a.emergency ? 1 : 0; bv = b.emergency ? 1 : 0; }
+        else if (key === 'status') {
+            const order = { active: 0, dormant: 1, ghost: 2 };
+            av = order[a.status]; bv = order[b.status];
+        }
+        else {
+            av = (a[key] || '').toLowerCase();
+            bv = (b[key] || '').toLowerCase();
+        }
+        if (av < bv) return -1 * dir;
+        if (av > bv) return 1 * dir;
+        return 0;
+    });
+}
+
+// ── Render user table ──────────────────────────────────────────────────────────
+function renderUserTable(users) {
+    const tbody = document.getElementById('userTableBody');
+
+    if (users.length === 0) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No users match this filter</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = users.map(u => {
+        const statusPill = u.status === 'active'
+            ? '<span class="status-pill status-active">🟢 Active</span>'
+            : u.status === 'dormant'
+            ? '<span class="status-pill status-dormant">🟡 Dormant</span>'
+            : '<span class="status-pill status-ghost">👻 Ghost</span>';
+
+        const lastStr = u.lastActive ? relativeDate(u.lastActive) : '<span style="color:var(--text-secondary);font-size:12px;">Never</span>';
+
+        return `<tr>
+            <td class="cell-email" title="${u.email}">${u.email}</td>
+            <td class="cell-name">${u.display_name ? u.display_name : '<span class="cell-null">—</span>'}</td>
+            <td style="text-align:center;">${u.phone ? '<span class="cell-ok">✓</span>' : '<span class="cell-missing">—</span>'}</td>
+            <td style="text-align:center;">${u.emergency ? '<span class="cell-ok">✓</span>' : '<span class="cell-missing">—</span>'}</td>
+            <td class="cell-num ${u.temps === 0 ? 'zero' : ''}" style="text-align:right;">${u.temps}</td>
+            <td class="cell-num ${u.swims === 0 ? 'zero' : ''}" style="text-align:right;">${u.swims}</td>
+            <td class="cell-date">${lastStr}</td>
+            <td>${statusPill}</td>
+        </tr>`;
+    }).join('');
+}
+
+// ── Spot activity ──────────────────────────────────────────────────────────────
+async function loadSpotActivity() {
+    // Fetch temp_logs with spot names
+    const { data: logs, error } = await supabase
+        .from('temp_logs')
+        .select('user_id, spot_id, created_at, spots(name)');
+
+    if (error || !logs) { console.error('spot logs error:', error); return; }
+
+    // Group by spot
+    const spotMap = {};
+    for (const l of logs) {
+        const name = l.spots?.name || l.spot_id || 'Unknown';
+        if (!spotMap[name]) spotMap[name] = { count: 0, users: new Set(), lastDate: null };
+        spotMap[name].count++;
+        spotMap[name].users.add(l.user_id);
+        const d = new Date(l.created_at);
+        if (!spotMap[name].lastDate || d > spotMap[name].lastDate) spotMap[name].lastDate = d;
+    }
+
+    const sorted = Object.entries(spotMap)
+        .map(([name, d]) => ({ name, count: d.count, loggers: d.users.size, lastDate: d.lastDate }))
+        .sort((a, b) => b.count - a.count);
+
+    renderSpotChart(sorted.slice(0, 10));
+    renderSpotTable(sorted.slice(0, 15));
+}
+
+function renderSpotChart(spots) {
+    const ctx = document.getElementById('spotChart').getContext('2d');
+    if (spotChart) spotChart.destroy();
+
+    spotChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: spots.map(s => s.name),
+            datasets: [{
+                label: 'Temp Logs',
+                data: spots.map(s => s.count),
+                backgroundColor: 'rgba(56,189,248,0.6)',
+                borderColor: 'rgba(56,189,248,0.9)',
+                borderWidth: 1,
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.parsed.y} logs`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#94a3b8', font: { size: 10 }, maxRotation: 40 },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                y: {
+                    ticks: { color: '#94a3b8', font: { size: 11 } },
+                    grid: { color: 'rgba(255,255,255,0.06)' },
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function renderSpotTable(spots) {
+    const tbody = document.getElementById('spotTableBody');
+    if (!spots.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-secondary);">No data</td></tr>'; return; }
+    tbody.innerHTML = spots.map((s, i) => `
+        <tr>
+            <td class="spot-rank">${i + 1}</td>
+            <td class="spot-name">${s.name}</td>
+            <td class="spot-count">${s.count}</td>
+            <td class="spot-loggers">${s.loggers}</td>
+            <td class="spot-last">${s.lastDate ? relativeDate(s.lastDate) : '—'}</td>
+        </tr>
+    `).join('');
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function relativeDate(date) {
+    const now = new Date();
+    const diff = Math.floor((now - date) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    if (diff < 86400 * 7) return `${Math.floor(diff / 86400)}d ago`;
+    return date.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: diff > 86400*365 ? 'numeric' : undefined });
+}
+
+async function signOut() {
+    await supabase.auth.signOut();
+    window.location.href = '/';
+}
+
+// ── Go ────────────────────────────────────────────────────────────────────────
+boot();
+</script>
+</body>
+</html>
