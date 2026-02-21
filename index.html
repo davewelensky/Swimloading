@@ -3737,22 +3737,39 @@
             const el = document.getElementById('activeHazardsList');
             if (!el) return;
             el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Loading…</div>';
-            // Fetch all unresolved hazards, then filter expired ones in JS
-            // (avoids PostgREST .or() timestamp parsing issues)
-            const { data: allHazards, error } = await supabaseClient
-                .from('hazard_reports')
-                .select('*, profiles(display_name), spots(name)')
-                .is('resolved_at', null)
-                .order('created_at', { ascending: false });
+            try {
+                // Fetch hazards + reporter name (avoid spots join — look up spot name from local spots array)
+                const { data: allHazards, error } = await supabaseClient
+                    .from('hazard_reports')
+                    .select('id, spot_id, hazard_type, severity, title, description, photo_url, active_until, resolved_at, created_at, user_id, profiles(display_name)')
+                    .is('resolved_at', null)
+                    .order('created_at', { ascending: false });
 
-            if (error) { console.error('loadHazards error:', error); el.innerHTML = '<div style="color:var(--danger);font-size:13px;">Error loading hazards</div>'; return; }
+                console.log('[loadHazards] result:', allHazards?.length, error);
 
-            // Filter out expired hazards in JS (active_until null = indefinite, else must be in future)
-            const now = Date.now();
-            const hazards = (allHazards || []).filter(h =>
-                !h.active_until || new Date(h.active_until).getTime() > now
-            );
-            renderActiveHazards(hazards);
+                if (error) {
+                    console.error('loadHazards error:', error);
+                    el.innerHTML = '<div style="color:var(--danger);font-size:13px;">Error loading hazards: ' + error.message + '</div>';
+                    return;
+                }
+
+                // Filter out expired hazards in JS
+                const now = Date.now();
+                const hazards = (allHazards || []).filter(h =>
+                    !h.active_until || new Date(h.active_until).getTime() > now
+                );
+
+                // Attach spot name from local spots array
+                hazards.forEach(h => {
+                    const spot = spots.find(s => s.id === h.spot_id);
+                    h._spotName = spot?.name || 'Unknown spot';
+                });
+
+                renderActiveHazards(hazards);
+            } catch (e) {
+                console.error('[loadHazards] exception:', e);
+                el.innerHTML = '<div style="color:var(--danger);font-size:13px;">Error loading hazards</div>';
+            }
         }
 
         function renderActiveHazards(hazards) {
@@ -3773,7 +3790,7 @@
                 <div style="background:rgba(239,68,68,0.08);border:1px solid ${col}40;border-left:3px solid ${col};border-radius:10px;padding:12px;margin-bottom:10px;">
                     <div style="font-weight:700;font-size:14px;color:var(--text-primary);">${ico} ${h.title}</div>
                     <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;">
-                        📍 ${h.spots?.name || 'Unknown spot'} · ${when} · by ${h.profiles?.display_name || 'Anonymous'}
+                        📍 ${h._spotName || 'Unknown spot'} · ${when} · by ${h.profiles?.display_name || 'Anonymous'}
                     </div>
                     ${h.description ? `<div style="font-size:12px;color:var(--text-primary);margin-top:6px;opacity:0.85;">${h.description}</div>` : ''}
                     ${h.photo_url ? `<img src="${h.photo_url}" style="width:100%;max-height:120px;object-fit:cover;border-radius:6px;margin-top:8px;">` : ''}
