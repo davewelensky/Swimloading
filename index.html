@@ -318,15 +318,24 @@
             // Check if user needs onboarding
             const { data: profile } = await supabaseClient
                 .from('profiles')
-                .select('terms_accepted_at, avatar_url, display_name')
+                .select('terms_accepted_at, avatar_url, display_name, phone, onboarding_completed_at')
                 .eq('id', currentUser.id)
                 .maybeSingle();
 
-            // NEW USER - show onboarding
+            // NEW USER — never accepted legal
             if (!profile || !profile.terms_accepted_at) {
                 document.getElementById('authScreen').style.display = 'none';
                 document.getElementById('mainApp').style.display = 'none';
                 showOnboardingLegal();
+                return;
+            }
+
+            // INCOMPLETE USER — accepted legal but never finished personal details
+            // (dropped off between stage 1 and stage 2, or registered before onboarding existed)
+            if (!profile.onboarding_completed_at || !profile.phone) {
+                document.getElementById('authScreen').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'none';
+                showOnboardingPersonal();
                 return;
             }
 

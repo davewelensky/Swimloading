@@ -481,6 +481,31 @@
             </div>
         </div>
 
+        <!-- Location Breakdown -->
+        <div class="section-title">User Locations</div>
+        <div class="charts-row" style="margin-bottom:36px;">
+            <div class="chart-card">
+                <div style="font-size:13px; font-weight:600; margin-bottom:14px;">Users by City</div>
+                <canvas id="cityChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <div style="font-size:13px; font-weight:600; margin-bottom:4px;">City Breakdown</div>
+                <table class="spot-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>City</th>
+                            <th style="text-align:right;">Users</th>
+                            <th style="text-align:right;">% of Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cityTableBody">
+                        <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-secondary);">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- Users Table -->
         <div class="section">
             <div class="section-title">Users</div>
@@ -503,8 +528,10 @@
                             <th onclick="sortBy('display_name')">Display Name <span class="sort-arrow">↕</span></th>
                             <th onclick="sortBy('phone')">Phone <span class="sort-arrow">↕</span></th>
                             <th onclick="sortBy('emergency')">Emergency <span class="sort-arrow">↕</span></th>
+                            <th onclick="sortBy('city')">City <span class="sort-arrow">↕</span></th>
                             <th onclick="sortBy('temps')" style="text-align:right;">Temps <span class="sort-arrow">↕</span></th>
-                            <th onclick="sortBy('swims')" style="text-align:right;">Swims <span class="sort-arrow">↕</span></th>
+                            <th onclick="sortBy('swims')" style="text-align:right;">Joined <span class="sort-arrow">↕</span></th>
+                            <th onclick="sortBy('organised')" style="text-align:right;">Organised <span class="sort-arrow">↕</span></th>
                             <th onclick="sortBy('lastActive')">Last Active <span class="sort-arrow">↕</span></th>
                             <th onclick="sortBy('status')">Status <span class="sort-arrow">↕</span></th>
                         </tr>
@@ -606,15 +633,15 @@ async function showDashboard(user) {
     document.getElementById('loadingScreen').style.display = 'none';
     document.getElementById('adminEmail').textContent = user.email;
     document.getElementById('dashboard').style.display = 'block';
-    await Promise.all([loadUsers(), loadSpotActivity()]);
+    await Promise.all([loadUsers(), loadSpotActivity(), loadLocationData()]);
 }
 
 // ── Load users ─────────────────────────────────────────────────────────────────
 async function loadUsers() {
-    // Fetch profiles with embedded counts
+    // Fetch profiles with city for location breakdown
     const { data: profiles, error: pErr } = await supabaseClient
         .from('profiles')
-        .select('id, email, display_name, phone, emergency_contact_name, onboarding_completed_at, created_at');
+        .select('id, email, display_name, phone, emergency_contact_name, onboarding_completed_at, created_at, city');
 
     if (pErr) { console.error('profiles error:', pErr); return; }
 
@@ -624,10 +651,15 @@ async function loadUsers() {
         .select('user_id, created_at')
         .order('created_at', { ascending: false });
 
-    // Fetch swim_participants per user
+    // Fetch swim_participants per user (swims JOINED)
     const { data: swimParts, error: sErr } = await supabaseClient
         .from('swim_participants')
         .select('user_id');
+
+    // Fetch swim_events per user (swims ORGANISED)
+    const { data: swimOrg, error: oErr } = await supabaseClient
+        .from('swim_events')
+        .select('created_by');
 
     // Build lookup maps
     const tempMap = {}; // user_id -> { count, lastDate }
@@ -637,9 +669,14 @@ async function loadUsers() {
         if (!tempMap[t.user_id].lastDate) tempMap[t.user_id].lastDate = t.created_at;
     }
 
-    const swimMap = {}; // user_id -> count
+    const swimMap = {}; // user_id -> count (joined)
     for (const s of (swimParts || [])) {
         swimMap[s.user_id] = (swimMap[s.user_id] || 0) + 1;
+    }
+
+    const orgMap = {}; // user_id -> count (organised)
+    for (const o of (swimOrg || [])) {
+        orgMap[o.created_by] = (orgMap[o.created_by] || 0) + 1;
     }
 
     const now = new Date();
@@ -648,10 +685,12 @@ async function loadUsers() {
     allUsers = (profiles || []).map(p => {
         const temps = tempMap[p.id] || { count: 0, lastDate: null };
         const swimCount = swimMap[p.id] || 0;
+        const organised = orgMap[p.id] || 0;
         const lastActive = temps.lastDate ? new Date(temps.lastDate) : null;
+        const totalActivity = temps.count + swimCount + organised;
 
         let status;
-        if (temps.count === 0 && swimCount === 0) {
+        if (totalActivity === 0) {
             status = 'ghost';
         } else if (lastActive && lastActive >= thirtyDaysAgo) {
             status = 'active';
@@ -665,8 +704,10 @@ async function loadUsers() {
             display_name: p.display_name || null,
             phone: p.phone || null,
             emergency: p.emergency_contact_name || null,
+            city: p.city || null,
             temps: temps.count,
             swims: swimCount,
+            organised,
             lastActive: lastActive,
             status,
             complete: !!(p.display_name && p.phone),
@@ -749,6 +790,7 @@ function sortUsers(users) {
         let av, bv;
         if (key === 'temps') { av = a.temps; bv = b.temps; }
         else if (key === 'swims') { av = a.swims; bv = b.swims; }
+        else if (key === 'organised') { av = a.organised; bv = b.organised; }
         else if (key === 'lastActive') {
             av = a.lastActive ? a.lastActive.getTime() : 0;
             bv = b.lastActive ? b.lastActive.getTime() : 0;
@@ -774,7 +816,7 @@ function renderUserTable(users) {
     const tbody = document.getElementById('userTableBody');
 
     if (users.length === 0) {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No users match this filter</td></tr>';
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="10">No users match this filter</td></tr>';
         return;
     }
 
@@ -792,8 +834,10 @@ function renderUserTable(users) {
             <td class="cell-name">${u.display_name ? u.display_name : '<span class="cell-null">—</span>'}</td>
             <td style="text-align:center;">${u.phone ? '<span class="cell-ok">✓</span>' : '<span class="cell-missing">—</span>'}</td>
             <td style="text-align:center;">${u.emergency ? '<span class="cell-ok">✓</span>' : '<span class="cell-missing">—</span>'}</td>
+            <td class="cell-date">${u.city || '<span style="color:var(--text-secondary);opacity:0.5;">—</span>'}</td>
             <td class="cell-num ${u.temps === 0 ? 'zero' : ''}" style="text-align:right;">${u.temps}</td>
             <td class="cell-num ${u.swims === 0 ? 'zero' : ''}" style="text-align:right;">${u.swims}</td>
+            <td class="cell-num ${u.organised === 0 ? 'zero' : ''}" style="text-align:right;">${u.organised}</td>
             <td class="cell-date">${lastStr}</td>
             <td>${statusPill}</td>
         </tr>`;
@@ -881,6 +925,88 @@ function renderSpotTable(spots) {
             <td class="spot-count">${s.count}</td>
             <td class="spot-loggers">${s.loggers}</td>
             <td class="spot-last">${s.lastDate ? relativeDate(s.lastDate) : '—'}</td>
+        </tr>
+    `).join('');
+}
+
+// ── Location breakdown ─────────────────────────────────────────────────────────
+async function loadLocationData() {
+    // Uses city data already fetched in loadUsers — wait for allUsers to be populated
+    // Re-fetch if not ready (race condition safety)
+    const { data: profiles } = await supabaseClient
+        .from('profiles')
+        .select('city');
+
+    const cityMap = {};
+    for (const p of (profiles || [])) {
+        const city = (p.city || '').trim() || 'Unknown';
+        // Normalise common variations
+        const normalised = city.toLowerCase() === 'cape town' ? 'Cape Town'
+            : city.toLowerCase() === 'johannesburg' || city.toLowerCase() === 'joburg' || city.toLowerCase() === 'jburg' ? 'Johannesburg'
+            : city.toLowerCase() === 'san francisco' || city.toLowerCase() === 'sf' ? 'San Francisco'
+            : city.charAt(0).toUpperCase() + city.slice(1);
+        cityMap[normalised] = (cityMap[normalised] || 0) + 1;
+    }
+
+    const sorted = Object.entries(cityMap)
+        .map(([city, count]) => ({ city, count }))
+        .sort((a, b) => b.count - a.count);
+
+    const total = sorted.reduce((s, c) => s + c.count, 0);
+
+    renderCityChart(sorted.slice(0, 10));
+    renderCityTable(sorted, total);
+}
+
+let cityChart = null;
+function renderCityChart(cities) {
+    const ctx = document.getElementById('cityChart').getContext('2d');
+    if (cityChart) cityChart.destroy();
+
+    // Colour code: Cape Town = ocean blue, others = varied
+    const colours = cities.map(c =>
+        c.city === 'Cape Town' ? 'rgba(56,189,248,0.7)' :
+        c.city === 'Unknown' ? 'rgba(148,163,184,0.35)' :
+        'rgba(168,85,247,0.55)'
+    );
+
+    cityChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: cities.map(c => c.city),
+            datasets: [{
+                label: 'Users',
+                data: cities.map(c => c.count),
+                backgroundColor: colours,
+                borderColor: colours.map(c => c.replace('0.7','1').replace('0.55','1').replace('0.35','0.6')),
+                borderWidth: 1,
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y} users` } }
+            },
+            scales: {
+                x: { ticks: { color: '#94a3b8', font: { size: 10 }, maxRotation: 35 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.06)' }, beginAtZero: true }
+            }
+        }
+    });
+}
+
+function renderCityTable(cities, total) {
+    const tbody = document.getElementById('cityTableBody');
+    if (!cities.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-secondary);">No data</td></tr>'; return; }
+    tbody.innerHTML = cities.map((c, i) => `
+        <tr>
+            <td class="spot-rank">${i + 1}</td>
+            <td class="spot-name" style="${c.city === 'Unknown' ? 'color:var(--text-secondary);' : ''}">${c.city}</td>
+            <td class="spot-count">${c.count}</td>
+            <td class="spot-loggers">${Math.round((c.count / total) * 100)}%</td>
         </tr>
     `).join('');
 }
