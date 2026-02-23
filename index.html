@@ -8309,10 +8309,33 @@
                 const hasData = data && data.spots && data.spots.length > 0;
                 if (!hasData) return; // Hide empty regions
 
-                let tempDisplay = `${data.avgTemp}°C`;
                 let subtext = `${data.spots.length} spots`;
                 let warmestText = data.maxTemp !== null ? `Warmest: ${data.warmestSpotName} (${data.maxTemp}°C)` : '';
                 let updatedText = `Updated ${getTimeAgo(new Date(data.lastUpdated))}`;
+
+                // Colour scale — matches dashboard temp cards
+                const t = data.avgTemp;
+                const tempColor = t < 10 ? '#6366f1' : t < 12 ? '#3b82f6' : t < 16 ? '#06b6d4'
+                    : t < 20 ? '#10b981' : t < 24 ? '#f59e0b' : t < 28 ? '#f97316' : '#ef4444';
+
+                // Regional trend — average delta across spots that have ≥2 readings in conditionsCache
+                const deltas = [];
+                (data.spots || []).forEach(spot => {
+                    const logs = conditionsCache[spot.spot_id] || [];
+                    const t0 = logs[0]?.temp_c != null ? parseFloat(logs[0].temp_c) : null;
+                    const t1 = logs[1]?.temp_c != null ? parseFloat(logs[1].temp_c) : null;
+                    if (t0 != null && t1 != null) deltas.push(t0 - t1);
+                });
+                let trendHtml = '';
+                if (deltas.length > 0) {
+                    const avgDelta = deltas.reduce((a, b) => a + b, 0) / deltas.length;
+                    if (avgDelta > 0.3)
+                        trendHtml = `<span style="font-size:16px;color:#10b981;margin-left:6px;vertical-align:middle;">↑</span>`;
+                    else if (avgDelta < -0.3)
+                        trendHtml = `<span style="font-size:16px;color:#38bdf8;margin-left:6px;vertical-align:middle;">↓</span>`;
+                    else
+                        trendHtml = `<span style="font-size:16px;color:var(--text-secondary);margin-left:6px;vertical-align:middle;">→</span>`;
+                }
 
                 const card = document.createElement('div');
                 card.className = 'region-card';
@@ -8320,7 +8343,7 @@
                 card.innerHTML = `
                     <div>
                         <div class="region-name" style="font-weight: 700; font-size: 16px;">${formatDomain(domain)}</div>
-                        <div class="region-temp" style="font-size: 32px; font-weight: 800; color: var(--ocean-light); margin: 4px 0;">${tempDisplay}</div>
+                        <div class="region-temp" style="font-size: 32px; font-weight: 800; color: ${tempColor}; margin: 4px 0;">${data.avgTemp}°C${trendHtml}</div>
                         <div class="region-stat" style="font-size: 13px; font-weight: 600;">${subtext}</div>
                         <div class="region-stat" style="font-size: 11px; opacity: 0.8;">${updatedText}</div>
                     </div>
