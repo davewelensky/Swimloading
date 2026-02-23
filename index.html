@@ -826,7 +826,7 @@
                     .from('temp_logs')
                     .select('*') // Simple select to avoid join issues
                     .order('created_at', { ascending: false })
-                    .limit(10); // Get more to account for potential filtering
+                    .limit(20); // Get more to account for potential filtering
 
                 if (logError) {
                     console.error('Error fetching recent logs:', logError);
@@ -904,7 +904,7 @@
                     supabaseClient
                         .from('latest_spot_temps')
                         .select('spot_id, spot_name, spot_code, temp_c, updated_at, water_type, domain')
-                        .in('water_type', ['OCEAN', 'LAGOON', 'TIDAL_POOL']),
+                        .order('updated_at', { ascending: false }),
                     supabaseClient
                         .from('hazard_reports')
                         .select('spot_id, severity, title, hazard_type, active_until')
@@ -1067,26 +1067,34 @@
             });
 
             // Sort by score desc, tiebreak by freshness
-            const top3 = scored
-                .sort((a, b) => {
-                    if (b.swimScore.score !== a.swimScore.score) return b.swimScore.score - a.swimScore.score;
-                    return new Date(b.updated_at) - new Date(a.updated_at);
-                })
-                .slice(0, 3);
+            const sortedAll = scored.sort((a, b) => {
+                if (b.swimScore.score !== a.swimScore.score) return b.swimScore.score - a.swimScore.score;
+                return new Date(b.updated_at) - new Date(a.updated_at);
+            });
 
-            // Check if any data is fresh enough to be meaningful
-            const hasFreshData = top3.some(s => (Date.now() - new Date(s.updated_at).getTime()) < 96 * 3600000);
-            if (!hasFreshData) {
+            // Group into categories — only within 96h freshness window
+            const MAX_AGE_MS = 96 * 3600000;
+            const now = Date.now();
+            const fresh = sortedAll.filter(s => (now - new Date(s.updated_at).getTime()) < MAX_AGE_MS);
+
+            if (fresh.length === 0) {
                 el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:13px;">No recent conditions logged</div>`;
                 return;
             }
 
-            const ranks = ['#1', '#2', '#3'];
-            el.innerHTML = top3.map((spot, i) => {
+            const OCEAN_TYPES  = ['OCEAN', 'TIDAL_POOL', 'LAGOON'];
+            const POOL_TYPES   = ['POOL'];
+            const INLAND_TYPES = ['DAM', 'LAKE', 'RIVER'];
+
+            const oceanSpots  = fresh.filter(s => OCEAN_TYPES.includes(s.water_type)).slice(0, 3);
+            const poolSpots   = fresh.filter(s => POOL_TYPES.includes(s.water_type)).slice(0, 3);
+            const inlandSpots = fresh.filter(s => INLAND_TYPES.includes(s.water_type)).slice(0, 3);
+
+            function renderSpotCard(spot, rank) {
                 const { score, label, emoji, color } = spot.swimScore;
                 const spotInfo = spots.find(s => s.id === spot.spot_id);
                 const spotCode = spotInfo ? spotInfo.code : (spot.spot_code || '');
-                const ageHours = (Date.now() - new Date(spot.updated_at).getTime()) / 3600000;
+                const ageHours = (now - new Date(spot.updated_at).getTime()) / 3600000;
                 const ageText = ageHours < 1 ? 'just now'
                     : ageHours < 24 ? `${Math.round(ageHours)}h ago`
                     : `${Math.round(ageHours / 24)}d ago`;
@@ -1102,7 +1110,7 @@
                                 margin-bottom:8px;border:1px solid ${spotHazards.length > 0 ? 'rgba(239,68,68,0.35)' : color + '30'};
                                 transition:all 0.2s ease;">
                         <div style="display:flex;align-items:center;gap:12px;">
-                            <div style="font-size:15px;font-weight:800;color:var(--text-secondary);min-width:24px;text-align:center;">${ranks[i]}</div>
+                            <div style="font-size:15px;font-weight:800;color:var(--text-secondary);min-width:24px;text-align:center;">${rank}</div>
                             <div style="flex:1;">
                                 <div style="font-weight:700;color:var(--text-primary);font-size:15px;">${spot.spot_name}</div>
                                 <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${ageText}</div>
@@ -1118,7 +1126,23 @@
                         ${hazardBanner}
                     </div>
                 `;
-            }).join('');
+            }
+
+            function renderSection(title, spotsArr) {
+                if (spotsArr.length === 0) return '';
+                const ranks = ['#1', '#2', '#3'];
+                return `
+                    <div style="margin-bottom:4px;">
+                        <div style="font-size:11px;font-weight:700;color:var(--text-secondary);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px;padding-left:2px;">${title}</div>
+                        ${spotsArr.map((spot, i) => renderSpotCard(spot, ranks[i])).join('')}
+                    </div>
+                `;
+            }
+
+            el.innerHTML =
+                renderSection('🌊 Ocean & Coastal', oceanSpots) +
+                renderSection('🏊 Pools', poolSpots) +
+                renderSection('💧 Inland', inlandSpots);
         }
 
         async function goToSpotTrend(spotId, spotName, spotCode) {
