@@ -867,8 +867,43 @@
 
                     const latest = Object.values(bySpot).slice(0, 4);
 
+                    // Count swimmers active in last 24h (distinct user_ids)
+                    const since24h = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+                    const activeUserIds = new Set(
+                        recentLogs
+                            .filter(l => l.created_at >= since24h && l.user_id)
+                            .map(l => l.user_id)
+                    );
+                    const activePillEl = document.getElementById('dashActivePill');
+                    if (activePillEl) {
+                        if (activeUserIds.size > 0) {
+                            activePillEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);border-radius:20px;padding:3px 10px;font-size:12px;color:var(--ocean-light);font-weight:600;">🌊 ${activeUserIds.size} swimmer${activeUserIds.size !== 1 ? 's' : ''} active today</span>`;
+                        } else {
+                            activePillEl.innerHTML = '';
+                        }
+                    }
+
+                    // Fetch display names + avatars for loggers
+                    const loggerUserIds = [...new Set(latest.map(l => l.user_id).filter(Boolean))];
+                    let profileMap = {};
+                    if (loggerUserIds.length > 0) {
+                        const { data: profiles } = await supabaseClient
+                            .from('profiles')
+                            .select('id, display_name, avatar_url')
+                            .in('id', loggerUserIds);
+                        (profiles || []).forEach(p => { profileMap[p.id] = p; });
+                    }
+                    latest.forEach(log => {
+                        const p = profileMap[log.user_id];
+                        log.loggerName = p?.display_name || 'Anonymous';
+                        log.loggerAvatar = p?.avatar_url || null;
+                    });
+
+                    // Store profileMap for renderBestSpots to reuse
+                    window._dashProfileMap = profileMap;
+
                     if (latest.length === 0) {
-                        // Fallback: If filtering by active spots left us with nothing, 
+                        // Fallback: If filtering by active spots left us with nothing,
                         // but we HAVE logs, just show the most recent ones anyway
                         const fallbackLogs = recentLogs.slice(0, 2);
                         fallbackLogs.forEach(log => {
@@ -992,11 +1027,21 @@
                 const isFresh = isTempFresh(log.created_at);
                 const spotInfo = spots.find(s => s.id === log.spot_id);
                 const spotCode = spotInfo ? spotInfo.code : '';
+                // Logger avatar — photo URL → img; icon name → first letter; else → first letter of name
+                const av = log.loggerAvatar;
+                const name = log.loggerName || 'Anonymous';
+                const initial = name.charAt(0).toUpperCase();
+                const isPhotoUrl = av && (av.startsWith('http') || av.startsWith('blob'));
+                const isIconName = av && !isPhotoUrl;
+                const avatarHtml = isPhotoUrl
+                    ? `<img src="${av}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;flex-shrink:0;" />`
+                    : `<div style="width:20px;height:20px;border-radius:50%;background:rgba(56,189,248,0.25);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--ocean-light);flex-shrink:0;">${initial}</div>`;
                 return `
                                 <div onclick="goToSpotTrend('${log.spot_id}', '${(log.spotName || 'Unknown').replace(/'/g, "\\'")}', '${spotCode}')" style="cursor: pointer; background: rgba(15, 23, 42, 0.6); border-radius: 14px; padding: 14px; text-align: center; border: 1px solid ${color}20; ${!isFresh ? 'opacity: 0.5;' : ''} transition: all 0.2s ease;">
                                     <div style="font-size: 28px; font-weight: 800; color: ${color}; text-shadow: 0 0 20px ${color}30; line-height: 1.1;">${log.temp_c}°</div>
                                     <div style="font-size: 10px; font-weight: 500; color: ${color}; opacity: 0.7; margin-top: 2px;">${age}</div>
                                     <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px; font-weight: 600;">${log.spotName || 'Unknown'}</div>
+                                    <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:5px;">${avatarHtml}<span style="font-size:10px;color:var(--text-secondary);font-weight:600;">${name}</span></div>
                                     <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.5; margin-top: 2px;">${getTimeAgo(new Date(log.created_at))}</div>
                                     <div style="font-size: 9px; color: var(--ocean-light); margin-top: 4px; opacity: 0.6;">tap for trends →</div>
                                 </div>
@@ -1149,6 +1194,9 @@
                 ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">🌬 ${todayForecast.windDirText} ${todayForecast.windSpeed} km/h${todayForecast.waveHeight != null ? ' · ' + todayForecast.waveHeight + 'm' : ''}</div>`
                 : '';
 
+            // Use profile map built during temp-card fetch (shared via window._dashProfileMap)
+            const bestSpotsProfileMap = window._dashProfileMap || {};
+
             const ranks = ['#1', '#2', '#3'];
             el.innerHTML = top3.map((spot, i) => {
                 const { score, label, emoji, color } = spot.swimScore;
@@ -1176,6 +1224,14 @@
                     else                  trendHtml = `<span style="font-size:10px;color:var(--text-secondary);margin-left:4px;">→ stable</span>`;
                 }
 
+                // "by [name]" — look up who logged the most recent temp at this spot
+                const latestLog = logs[0];
+                const loggerProfile = latestLog?.user_id ? bestSpotsProfileMap[latestLog.user_id] : null;
+                const loggerName = loggerProfile?.display_name || null;
+                const byLine = loggerName
+                    ? `<span style="font-size:10px;color:var(--text-secondary);"> · by ${loggerName}</span>`
+                    : '';
+
                 return `
                     <div onclick="goToSpotTrend('${spot.spot_id}', '${spotNameSafe}', '${spotCode}')"
                          style="display:flex;flex-direction:column;cursor:pointer;
@@ -1187,7 +1243,7 @@
                             <div style="flex:1;">
                                 <div style="font-weight:700;color:var(--text-primary);font-size:15px;">${spot.spot_name}</div>
                                 ${windLine}
-                                <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${ageText}</div>
+                                <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${ageText}${byLine}</div>
                             </div>
                             <div style="text-align:right;">
                                 <div style="font-size:20px;font-weight:800;color:var(--ocean-light);">${spot.temp_c}°C${trendHtml}</div>
@@ -6761,10 +6817,12 @@
 
                     <!-- Recent Conditions -->
                     <div style="margin-bottom: 24px;">
-                        <div
-                            style="font-weight: 600; color: var(--text-primary); margin-bottom: 12px; font-size: 16px;">
-                            <i data-lucide="thermometer" style="width: 18px; height: 18px; vertical-align: middle;"></i>
-                            Latest Water Temps
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+                            <div style="font-weight: 600; color: var(--text-primary); font-size: 16px;">
+                                <i data-lucide="thermometer" style="width: 18px; height: 18px; vertical-align: middle;"></i>
+                                Latest Water Temps
+                            </div>
+                            <div id="dashActivePill"></div>
                         </div>
                         <div id="dashConditions">Loading...</div>
                     </div>
@@ -7200,9 +7258,9 @@
 
                             <!-- Tip: Preventative Rabies Vaccination -->
                             <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-left:3px solid #f59e0b;border-radius:10px;padding:12px;">
-                                <div style="font-weight:700;font-size:13px;color:var(--text-primary);margin-bottom:4px;">💉 Preventative Rabies Vaccination — worth considering</div>
+                                <div style="font-weight:700;font-size:13px;color:var(--text-primary);margin-bottom:4px;">💉 Preventative Rabies Vaccination</div>
                                 <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">
-                                    A water doctor in our community recommends getting vaccinated before you need it: <strong>2 injections one week apart, then a booster a year later.</strong> This eliminates the need for the very painful post-bite immunoglobulin injections at the wound site if you're ever bitten by a seal. Consult your GP or Medicross. — <em>Shared by Gary van Rooyen</em>
+                                    2 injections one week apart, then a booster a year later. This eliminates the need for post-bite immunoglobulin injections at the wound site if bitten by a seal. Consult your GP or Medicross.
                                 </div>
                             </div>
 
