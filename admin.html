@@ -466,17 +466,19 @@
                     <div style="display:flex; flex-direction:column; gap:10px;">
                         <input id="newSpotName" type="text" placeholder="Spot name (e.g. Pringle Bay)" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px; width:100%;">
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                            <select id="newSpotWaterType" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 10px; color:var(--text); font-size:13px;">
+                            <select id="newSpotWaterType" onchange="autoSetDomain(this.value)" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 10px; color:var(--text); font-size:13px;">
                                 <option value="OCEAN">🌊 Ocean</option>
+                                <option value="TIDAL_POOL">🌊 Tidal Pool</option>
                                 <option value="POOL">🏊 Pool</option>
-                                <option value="DAM">💧 Dam</option>
-                                <option value="RIVER">🏞️ River</option>
-                                <option value="LAKE">🏔️ Lake</option>
                                 <option value="LAGOON">🌿 Lagoon</option>
+                                <option value="DAM">💧 Dam</option>
                             </select>
                             <select id="newSpotDomain" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 10px; color:var(--text); font-size:13px;">
                                 <option value="ATLANTIC">Atlantic</option>
                                 <option value="FALSE_BAY">False Bay</option>
+                                <option value="WEST_COAST">West Coast</option>
+                                <option value="SOUTH_COAST">South Coast</option>
+                                <option value="GARDEN_ROUTE">Garden Route</option>
                                 <option value="INLAND">Inland</option>
                             </select>
                         </div>
@@ -986,6 +988,17 @@ function renderSpotTable(spots) {
 }
 
 // ── Spot management ───────────────────────────────────────────────────────────
+function autoSetDomain(waterType) {
+    const domainSelect = document.getElementById('newSpotDomain');
+    if (!domainSelect) return;
+    if (waterType === 'POOL' || waterType === 'DAM') {
+        domainSelect.value = 'INLAND';
+    } else if (waterType === 'OCEAN' || waterType === 'TIDAL_POOL') {
+        domainSelect.value = 'ATLANTIC';
+    } else if (waterType === 'LAGOON') {
+        domainSelect.value = 'FALSE_BAY';
+    }
+}
 let allSpotsAdmin = [];
 
 async function loadSpotManagement() {
