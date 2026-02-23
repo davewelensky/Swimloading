@@ -455,6 +455,50 @@
             </div>
         </div>
 
+        <!-- Spot Management -->
+        <div class="section-title">Spot Management</div>
+        <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+
+                <!-- Add New Spot -->
+                <div>
+                    <div style="font-size:13px; font-weight:700; margin-bottom:14px; color: var(--ocean-light);">➕ Add New Spot</div>
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        <input id="newSpotName" type="text" placeholder="Spot name (e.g. Pringle Bay)" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px; width:100%;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                            <select id="newSpotWaterType" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 10px; color:var(--text); font-size:13px;">
+                                <option value="OCEAN">🌊 Ocean</option>
+                                <option value="POOL">🏊 Pool</option>
+                                <option value="DAM">💧 Dam</option>
+                                <option value="RIVER">🏞️ River</option>
+                                <option value="LAKE">🏔️ Lake</option>
+                                <option value="LAGOON">🌿 Lagoon</option>
+                            </select>
+                            <select id="newSpotDomain" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 10px; color:var(--text); font-size:13px;">
+                                <option value="ATLANTIC">Atlantic</option>
+                                <option value="FALSE_BAY">False Bay</option>
+                                <option value="INLAND">Inland</option>
+                            </select>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                            <input id="newSpotLat" type="number" step="0.0001" placeholder="Latitude (-34.1234)" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px;">
+                            <input id="newSpotLng" type="number" step="0.0001" placeholder="Longitude (18.4567)" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px;">
+                        </div>
+                        <button onclick="addSpot()" style="background:var(--ocean-blue); color:white; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:600; cursor:pointer; width:100%;">Add Spot</button>
+                        <div id="addSpotMsg" style="font-size:12px; min-height:18px;"></div>
+                    </div>
+                </div>
+
+                <!-- Active Spots List -->
+                <div>
+                    <div style="font-size:13px; font-weight:700; margin-bottom:14px; color: var(--ocean-light);">📍 Active Spots <span id="activeSpotCount" style="color:var(--text-secondary); font-weight:400;"></span></div>
+                    <div id="spotMgmtList" style="max-height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;">
+                        <div style="color:var(--text-secondary); font-size:12px; padding:8px;">Loading spots…</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Spot Charts -->
         <div class="section-title">Spot Activity</div>
         <div class="charts-row">
@@ -528,6 +572,7 @@
                             <th onclick="sortBy('display_name')">Display Name <span class="sort-arrow">↕</span></th>
                             <th onclick="sortBy('phone')">Phone <span class="sort-arrow">↕</span></th>
                             <th onclick="sortBy('emergency')">Emergency <span class="sort-arrow">↕</span></th>
+                            <th onclick="sortBy('address')">Address <span class="sort-arrow">↕</span></th>
                             <th onclick="sortBy('city')">City <span class="sort-arrow">↕</span></th>
                             <th onclick="sortBy('temps')" style="text-align:right;">Temps <span class="sort-arrow">↕</span></th>
                             <th onclick="sortBy('swims')" style="text-align:right;">Joined <span class="sort-arrow">↕</span></th>
@@ -633,7 +678,7 @@ async function showDashboard(user) {
     document.getElementById('loadingScreen').style.display = 'none';
     document.getElementById('adminEmail').textContent = user.email;
     document.getElementById('dashboard').style.display = 'block';
-    await Promise.all([loadUsers(), loadSpotActivity(), loadLocationData()]);
+    await Promise.all([loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement()]);
 }
 
 // ── Load users ─────────────────────────────────────────────────────────────────
@@ -641,7 +686,7 @@ async function loadUsers() {
     // Fetch profiles with city for location breakdown
     const { data: profiles, error: pErr } = await supabaseClient
         .from('profiles')
-        .select('id, email, display_name, phone, emergency_contact_name, onboarding_completed_at, created_at, city');
+        .select('id, email, display_name, phone, emergency_contact_name, onboarding_completed_at, created_at, address_line1, city, postal_code');
 
     if (pErr) { console.error('profiles error:', pErr); return; }
 
@@ -698,13 +743,18 @@ async function loadUsers() {
             status = 'dormant';
         }
 
+        // Heuristic: city field looks like a street if it contains digits (e.g. "257 Main Road")
+        const cityLooksLikeStreet = p.city && /\d/.test(p.city);
         return {
             id: p.id,
             email: p.email || '—',
             display_name: p.display_name || null,
             phone: p.phone || null,
             emergency: p.emergency_contact_name || null,
+            address: p.address_line1 || null,
             city: p.city || null,
+            postal: p.postal_code || null,
+            cityBadData: cityLooksLikeStreet,
             temps: temps.count,
             swims: swimCount,
             organised,
@@ -777,7 +827,7 @@ function sortBy(key) {
     }
     // Update header arrows
     document.querySelectorAll('thead th').forEach(th => th.classList.remove('sorted'));
-    const cols = ['email','display_name','phone','emergency','temps','swims','lastActive','status'];
+    const cols = ['email','display_name','phone','emergency','address','city','temps','swims','lastActive','status'];
     const idx = cols.indexOf(key);
     if (idx >= 0) document.querySelectorAll('thead th')[idx]?.classList.add('sorted');
 
@@ -829,12 +879,18 @@ function renderUserTable(users) {
 
         const lastStr = u.lastActive ? relativeDate(u.lastActive) : '<span style="color:var(--text-secondary);font-size:12px;">Never</span>';
 
+        const cityDisplay = u.city
+            ? (u.cityBadData
+                ? `<span style="color:var(--amber);font-size:11px;" title="Looks like a street address — check this user">⚠️ ${u.city}</span>`
+                : u.city)
+            : '<span style="color:var(--text-secondary);opacity:0.5;">—</span>';
         return `<tr>
             <td class="cell-email" title="${u.email}">${u.email}</td>
             <td class="cell-name">${u.display_name ? u.display_name : '<span class="cell-null">—</span>'}</td>
             <td style="text-align:center;">${u.phone ? '<span class="cell-ok">✓</span>' : '<span class="cell-missing">—</span>'}</td>
             <td style="text-align:center;">${u.emergency ? '<span class="cell-ok">✓</span>' : '<span class="cell-missing">—</span>'}</td>
-            <td class="cell-date">${u.city || '<span style="color:var(--text-secondary);opacity:0.5;">—</span>'}</td>
+            <td class="cell-date" style="font-size:11px;">${u.address || '<span style="color:var(--text-secondary);opacity:0.5;">—</span>'}</td>
+            <td class="cell-date">${cityDisplay}</td>
             <td class="cell-num ${u.temps === 0 ? 'zero' : ''}" style="text-align:right;">${u.temps}</td>
             <td class="cell-num ${u.swims === 0 ? 'zero' : ''}" style="text-align:right;">${u.swims}</td>
             <td class="cell-num ${u.organised === 0 ? 'zero' : ''}" style="text-align:right;">${u.organised}</td>
@@ -927,6 +983,88 @@ function renderSpotTable(spots) {
             <td class="spot-last">${s.lastDate ? relativeDate(s.lastDate) : '—'}</td>
         </tr>
     `).join('');
+}
+
+// ── Spot management ───────────────────────────────────────────────────────────
+let allSpotsAdmin = [];
+
+async function loadSpotManagement() {
+    const { data: spots, error } = await supabaseClient
+        .from('spots')
+        .select('id, name, water_type, domain, latitude, longitude, active')
+        .order('name', { ascending: true });
+
+    if (error || !spots) { console.error('spots load error:', error); return; }
+    allSpotsAdmin = spots;
+
+    const active = spots.filter(s => s.active);
+    document.getElementById('activeSpotCount').textContent = `(${active.length})`;
+    renderSpotMgmtList(spots);
+}
+
+function renderSpotMgmtList(spots) {
+    const el = document.getElementById('spotMgmtList');
+    if (!spots.length) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:12px;padding:8px;">No spots found.</div>'; return; }
+    el.innerHTML = spots.map(s => {
+        const activeStyle = s.active
+            ? 'background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25);'
+            : 'background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); opacity:0.6;';
+        const btnLabel = s.active ? 'Deactivate' : 'Reactivate';
+        const btnStyle = s.active
+            ? 'background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3);'
+            : 'background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3);';
+        return `
+        <div style="${activeStyle} border-radius:8px; padding:8px 10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+            <div style="flex:1; min-width:0;">
+                <div style="font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.name}</div>
+                <div style="font-size:10px; color:var(--text-secondary);">${s.water_type} · ${s.domain} · ${s.latitude?.toFixed(4)}, ${s.longitude?.toFixed(4)}</div>
+            </div>
+            <button onclick="toggleSpotActive('${s.id}', ${s.active})" style="${btnStyle} border-radius:6px; padding:4px 10px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;">${btnLabel}</button>
+        </div>`;
+    }).join('');
+}
+
+async function addSpot() {
+    const name = document.getElementById('newSpotName').value.trim();
+    const waterType = document.getElementById('newSpotWaterType').value;
+    const domain = document.getElementById('newSpotDomain').value;
+    const lat = parseFloat(document.getElementById('newSpotLat').value);
+    const lng = parseFloat(document.getElementById('newSpotLng').value);
+    const msg = document.getElementById('addSpotMsg');
+
+    if (!name) { msg.style.color = '#ef4444'; msg.textContent = 'Spot name is required.'; return; }
+    if (isNaN(lat) || isNaN(lng)) { msg.style.color = '#ef4444'; msg.textContent = 'Valid latitude and longitude are required.'; return; }
+
+    msg.style.color = 'var(--text-secondary)';
+    msg.textContent = 'Adding…';
+
+    const { error } = await supabaseClient.from('spots').insert({
+        name, water_type: waterType, domain, latitude: lat, longitude: lng, active: true
+    });
+
+    if (error) {
+        msg.style.color = '#ef4444';
+        msg.textContent = 'Error: ' + error.message;
+        return;
+    }
+
+    msg.style.color = '#10b981';
+    msg.textContent = `✓ "${name}" added successfully!`;
+    document.getElementById('newSpotName').value = '';
+    document.getElementById('newSpotLat').value = '';
+    document.getElementById('newSpotLng').value = '';
+    loadSpotManagement();
+    setTimeout(() => { msg.textContent = ''; }, 4000);
+}
+
+async function toggleSpotActive(spotId, currentActive) {
+    const { error } = await supabaseClient
+        .from('spots')
+        .update({ active: !currentActive })
+        .eq('id', spotId);
+
+    if (error) { alert('Error updating spot: ' + error.message); return; }
+    loadSpotManagement();
 }
 
 // ── City normalisation helper ──────────────────────────────────────────────────

@@ -3077,6 +3077,7 @@
                         swim_event_id: eventId,
                         user_id: currentUser.id,
                         status: status,
+                        rsvp: action === 'maybe' ? 'maybe' : 'going',
                         needs_reconfirm: false,
                         late_status: null,
                         late_updated_at: null,
@@ -3878,6 +3879,10 @@
                     document.getElementById('profilePhone').value = profile.phone || '';
                     document.getElementById('profileEmergencyName').value = profile.emergency_contact_name || '';
                     document.getElementById('profileEmergencyPhone').value = profile.emergency_contact_phone || '';
+                    document.getElementById('profileAddress').value = profile.address_line1 || '';
+                    document.getElementById('profileAddressLine2').value = profile.address_line2 || '';
+                    document.getElementById('profileCity').value = profile.city || '';
+                    document.getElementById('profilePostal').value = profile.postal_code || '';
                     document.getElementById('profileHomeBeach').value = profile.home_beach_id || '';
                     document.getElementById('profilePreferredSuit').value = profile.preferred_suit || 'both';
                     document.getElementById('profileColdTolerance').value = profile.cold_tolerance_min_c || '';
@@ -4039,11 +4044,20 @@
             const oceanSeconds = mmssToSeconds(oceanTimeStr);
             const experienceLevel = poolTierFromSeconds(poolSeconds);
 
+            const profileAddress = document.getElementById('profileAddress')?.value.trim() || null;
+            const profileAddressLine2 = document.getElementById('profileAddressLine2')?.value.trim() || null;
+            const profileCity = document.getElementById('profileCity')?.value.trim() || null;
+            const profilePostal = document.getElementById('profilePostal')?.value.trim() || null;
+
             const payload = {
                 display_name: displayName,
                 phone: phone || null,
                 emergency_contact_name: emergencyName || null,
                 emergency_contact_phone: emergencyPhone || null,
+                address_line1: profileAddress,
+                address_line2: profileAddressLine2,
+                city: profileCity,
+                postal_code: profilePostal,
                 home_beach_id: homeBeachId || null,
                 preferred_suit: preferredSuit,
                 cold_tolerance_min_c: coldTolerance ? parseFloat(coldTolerance) : null,
@@ -4424,11 +4438,14 @@
             const phone = document.getElementById('obPhone').value.trim();
             const dob = document.getElementById('obDOB').value;
             const address = document.getElementById('obAddress').value.trim();
+            const addressLine2 = document.getElementById('obAddressLine2')?.value.trim() || null;
             const city = document.getElementById('obCity').value.trim();
             const postal = document.getElementById('obPostal').value.trim();
+            const emergencyName = document.getElementById('obEmergencyName').value.trim();
+            const emergencyPhone = document.getElementById('obEmergencyPhone').value.trim();
 
-            if (!fullName || !phone || !dob || !address || !city || !postal) {
-                alert('Please fill in all required fields');
+            if (!fullName || !phone || !dob || !address || !city || !postal || !emergencyName || !emergencyPhone) {
+                alert('Please fill in all required fields, including your emergency contact');
                 return;
             }
 
@@ -4440,8 +4457,11 @@
                         phone: phone,
                         date_of_birth: dob,
                         address_line1: address,
+                        address_line2: addressLine2,
                         city: city,
                         postal_code: postal,
+                        emergency_contact_name: emergencyName,
+                        emergency_contact_phone: emergencyPhone,
                         onboarding_completed_at: new Date().toISOString()
                     })
                     .eq('id', currentUser.id);
@@ -4456,6 +4476,11 @@
                 await loadSpots();
                 await loadDashboard();
                 initIcons();
+                attachSpotLockHandler();
+                initNavScroll();
+                startNotificationPolling();
+                setTimeout(() => promptPushNotifications(), 2000);
+                setTimeout(() => promptNewSwimAlerts(), 3500);
             } catch (err) {
                 console.error('Error saving personal details:', err);
                 alert('Error: ' + err.message);
@@ -4842,6 +4867,12 @@
                     .eq('user_id', currentUser.id)
                     .eq('status', 'approved');
 
+                const { count: organisedCount } = await supabaseClient
+                    .from('swim_events')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('created_by', currentUser.id)
+                    .neq('status', 'cancelled');
+
                 // Get temp data for temp_max checks
                 const { data: userLogs } = await supabaseClient
                     .from('temp_logs')
@@ -4883,6 +4914,11 @@
                     // swims_required: group swim participation
                     if (c.swims_required != null) {
                         earned = swimCount >= c.swims_required;
+                    }
+
+                    // organised_required: group swims created/organised
+                    if (c.organised_required != null) {
+                        earned = organisedCount >= c.organised_required;
                     }
 
                     // temp_max: logged a temp AT OR BELOW this value
@@ -4932,6 +4968,7 @@
                         for (const badge of newBadges) {
                             showToast(`${badge.icon} Badge unlocked: ${badge.name}!`, 'success');
                         }
+                        renderDashBadges(); // refresh home badge section immediately
                     } else {
                         console.error('Badge insert error:', insertErr);
                     }
@@ -4967,6 +5004,11 @@
                 const earned = badges.filter(b => earnedIds.has(b.id));
                 const locked = badges.filter(b => !earnedIds.has(b.id));
 
+                // Show all earned + up to 4 locked previews (to keep section compact)
+                const MAX_LOCKED_PREVIEW = 4;
+                const lockedToShow = locked.slice(0, MAX_LOCKED_PREVIEW);
+                const hiddenCount = locked.length - lockedToShow.length;
+
                 let html = '<div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">';
 
                 for (const badge of earned) {
@@ -4981,7 +5023,7 @@
                     `;
                 }
 
-                for (const badge of locked) {
+                for (const badge of lockedToShow) {
                     const safeDesc = badge.description.replace(/'/g, "\\'");
                     html += `
                         <div title="${badge.name}: ${badge.description}"
@@ -4989,6 +5031,17 @@
                              onclick="showToast('🔒 ${badge.name} — ${safeDesc}', 'info')">
                             <span style="font-size: 24px;">🔒</span>
                             <span style="font-size: 8px; color: var(--text-secondary); margin-top: 2px; max-width: 50px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${badge.name}</span>
+                        </div>
+                    `;
+                }
+
+                // "+N more" pill if there are hidden locked badges
+                if (hiddenCount > 0) {
+                    html += `
+                        <div style="width: 56px; height: 56px; border-radius: 14px; background: rgba(255,255,255,0.03); border: 2px dashed rgba(255,255,255,0.1); display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0.5; cursor: pointer;"
+                             onclick="showPage('badges')" title="See all badges">
+                            <span style="font-size: 14px; font-weight: 700; color: var(--text-secondary);">+${hiddenCount}</span>
+                            <span style="font-size: 8px; color: var(--text-secondary); margin-top: 2px;">more</span>
                         </div>
                     `;
                 }
@@ -6037,6 +6090,29 @@
                 <small style="color: var(--text-secondary); font-size: 11px; display: block; margin-top: 8px;">Visible to fellow swimmers on group swims — for safety only</small>
             </div>
 
+            <!-- Address section -->
+            <div style="background: rgba(56,189,248,0.04); border: 1px solid rgba(56,189,248,0.12); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                <div style="font-weight: 700; color: var(--text-primary); font-size: 13px; margin-bottom: 10px;">📍 Address</div>
+                <div class="form-group" style="margin-bottom: 10px;">
+                    <div class="form-label" style="font-size: 12px;">Street Address</div>
+                    <input type="text" id="profileAddress" placeholder="e.g. 257 Main Road">
+                </div>
+                <div class="form-group" style="margin-bottom: 10px;">
+                    <div class="form-label" style="font-size: 12px;">Unit / Complex <span style="color:var(--text-secondary);font-weight:400;">(optional)</span></div>
+                    <input type="text" id="profileAddressLine2" placeholder="e.g. Heath Court, Apt 3B">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 0;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <div class="form-label" style="font-size: 12px;">City</div>
+                        <input type="text" id="profileCity" placeholder="e.g. Cape Town">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <div class="form-label" style="font-size: 12px;">Postal Code</div>
+                        <input type="text" id="profilePostal" placeholder="8001">
+                    </div>
+                </div>
+            </div>
+
             <div class="form-group">
                 <div class="form-label">Preferred Suit</div>
                 <select id="profilePreferredSuit">
@@ -6427,18 +6503,25 @@
                         <label
                             style="color: #94a3b8; font-size: 13px; margin-bottom: 4px; display: block; font-family: system-ui, -apple-system, sans-serif;"><i
                                 data-lucide="map-pin"
-                                style="width: 14px; height: 14px; vertical-align: middle; stroke-width: 2;"></i> Address
-                            *</label>
-                        <input type="text" id="obAddress" placeholder="123 Beach Road"
+                                style="width: 14px; height: 14px; vertical-align: middle; stroke-width: 2;"></i> Street Address *</label>
+                        <input type="text" id="obAddress" placeholder="e.g. 257 Main Road"
+                            style="width: 100%; padding: 12px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #f8fafc; font-size: 14px; font-family: system-ui, -apple-system, sans-serif; box-sizing: border-box;">
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label
+                            style="color: #94a3b8; font-size: 13px; margin-bottom: 4px; display: block; font-family: system-ui, -apple-system, sans-serif;"><i
+                                data-lucide="building"
+                                style="width: 14px; height: 14px; vertical-align: middle; stroke-width: 2;"></i> Unit / Complex <span style="color:#64748b;">(optional)</span></label>
+                        <input type="text" id="obAddressLine2" placeholder="e.g. Heath Court, Apt 3B"
                             style="width: 100%; padding: 12px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #f8fafc; font-size: 14px; font-family: system-ui, -apple-system, sans-serif; box-sizing: border-box;">
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
                         <div>
                             <label
-                                style="color: #94a3b8; font-size: 13px; margin-bottom: 4px; display: block; font-family: system-ui, -apple-system, sans-serif;">City
-                                *</label>
-                            <input type="text" id="obCity" placeholder="Cape Town" value="Cape Town"
+                                style="color: #94a3b8; font-size: 13px; margin-bottom: 4px; display: block; font-family: system-ui, -apple-system, sans-serif;">City *</label>
+                            <input type="text" id="obCity" placeholder="e.g. Cape Town"
                                 style="width: 100%; padding: 12px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #f8fafc; font-size: 14px; font-family: system-ui, -apple-system, sans-serif; box-sizing: border-box;">
                         </div>
                         <div>
@@ -6446,6 +6529,27 @@
                                 style="color: #94a3b8; font-size: 13px; margin-bottom: 4px; display: block; font-family: system-ui, -apple-system, sans-serif;">Postal
                                 *</label>
                             <input type="text" id="obPostal" placeholder="8001"
+                                style="width: 100%; padding: 12px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #f8fafc; font-size: 14px; font-family: system-ui, -apple-system, sans-serif; box-sizing: border-box;">
+                        </div>
+                    </div>
+
+                    <!-- Emergency contact — required for swim safety -->
+                    <div style="margin-top: 8px; margin-bottom: 8px; padding: 12px 14px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); border-radius: 8px;">
+                        <div style="color: #ef4444; font-size: 12px; font-weight: 600; margin-bottom: 10px; font-family: system-ui, -apple-system, sans-serif;">
+                            <i data-lucide="heart-pulse" style="width: 13px; height: 13px; vertical-align: middle; stroke-width: 2;"></i> Emergency Contact — required for group swims
+                        </div>
+                        <div style="margin-bottom: 12px;">
+                            <label style="color: #94a3b8; font-size: 13px; margin-bottom: 4px; display: block; font-family: system-ui, -apple-system, sans-serif;">
+                                <i data-lucide="user" style="width: 14px; height: 14px; vertical-align: middle; stroke-width: 2;"></i> Emergency Contact Name *
+                            </label>
+                            <input type="text" id="obEmergencyName" placeholder="Jane Smith (sister)"
+                                style="width: 100%; padding: 12px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #f8fafc; font-size: 14px; font-family: system-ui, -apple-system, sans-serif; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="color: #94a3b8; font-size: 13px; margin-bottom: 4px; display: block; font-family: system-ui, -apple-system, sans-serif;">
+                                <i data-lucide="phone" style="width: 14px; height: 14px; vertical-align: middle; stroke-width: 2;"></i> Emergency Contact Phone *
+                            </label>
+                            <input type="tel" id="obEmergencyPhone" placeholder="+27 82 987 6543"
                                 style="width: 100%; padding: 12px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #f8fafc; font-size: 14px; font-family: system-ui, -apple-system, sans-serif; box-sizing: border-box;">
                         </div>
                     </div>
