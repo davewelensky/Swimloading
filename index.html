@@ -867,13 +867,19 @@
                     `;
                 } else {
                     // Group by spot, show latest per spot, filtering for active spots
+                    // Also track 2nd most recent per spot for trend arrows
                     const bySpot = {};
+                    const bySpotPrev = {};
                     recentLogs.forEach(log => {
                         // Find spot in our local active spots array
                         const spotInfo = spots.find(s => s.id === log.spot_id);
-                        if (spotInfo && !bySpot[log.spot_id]) {
-                            log.spotName = spotInfo.name; // Attach name locally
-                            bySpot[log.spot_id] = log;
+                        if (spotInfo) {
+                            if (!bySpot[log.spot_id]) {
+                                log.spotName = spotInfo.name; // Attach name locally
+                                bySpot[log.spot_id] = log;
+                            } else if (!bySpotPrev[log.spot_id]) {
+                                bySpotPrev[log.spot_id] = log; // second most recent
+                            }
                         }
                     });
 
@@ -905,6 +911,12 @@
                         const p = profileMap[log.user_id];
                         log.loggerName = p?.display_name || 'Anonymous';
                         log.loggerAvatar = p?.avatar_url || null;
+                    });
+
+                    // Attach prevTemp for trend arrows on cards
+                    latest.forEach(log => {
+                        const prev = bySpotPrev[log.spot_id];
+                        log.prevTemp = prev?.temp_c != null ? parseFloat(prev.temp_c) : null;
                     });
 
                     // Store profileMap for renderBestSpots to reuse
@@ -1035,9 +1047,17 @@
                 const isFresh = isTempFresh(log.created_at);
                 const spotInfo = spots.find(s => s.id === log.spot_id);
                 const spotCode = spotInfo ? spotInfo.code : '';
+                // Trend arrow — compare latest vs previous log for this spot
+                let trendHtml = '';
+                if (log.prevTemp != null) {
+                    const diff = parseFloat(log.temp_c) - log.prevTemp;
+                    if (diff > 0.3)       trendHtml = `<span style="font-size:11px;color:#10b981;">▲</span>`;
+                    else if (diff < -0.3) trendHtml = `<span style="font-size:11px;color:#38bdf8;">▼</span>`;
+                    else                  trendHtml = `<span style="font-size:11px;color:var(--text-secondary);">▶</span>`;
+                }
                 return `
                                 <div onclick="goToSpotTrend('${log.spot_id}', '${(log.spotName || 'Unknown').replace(/'/g, "\\'")}', '${spotCode}')" style="cursor: pointer; background: rgba(15, 23, 42, 0.6); border-radius: 14px; padding: 14px; text-align: center; border: 1px solid ${color}20; ${!isFresh ? 'opacity: 0.5;' : ''} transition: all 0.2s ease;">
-                                    <div style="font-size: 28px; font-weight: 800; color: ${color}; text-shadow: 0 0 20px ${color}30; line-height: 1.1;">${log.temp_c}°</div>
+                                    <div style="font-size: 28px; font-weight: 800; color: ${color}; text-shadow: 0 0 20px ${color}30; line-height: 1.1;">${log.temp_c}° ${trendHtml}</div>
                                     <div style="font-size: 10px; font-weight: 500; color: ${color}; opacity: 0.7; margin-top: 2px;">${age}</div>
                                     <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px; font-weight: 600;">${log.spotName || 'Unknown'}</div>
                                     <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.5; margin-top: 2px;">${getTimeAgo(new Date(log.created_at))}</div>
@@ -6853,12 +6873,12 @@
 
                     <!-- Recent Conditions -->
                     <div style="margin-bottom: 24px;">
-                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-                            <div style="font-weight: 600; color: var(--text-primary); font-size: 16px;">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+                            <span style="font-weight: 600; color: var(--text-primary); font-size: 16px;">
                                 <i data-lucide="thermometer" style="width: 18px; height: 18px; vertical-align: middle;"></i>
                                 Latest Water Temps
-                            </div>
-                            <div id="dashActivePill"></div>
+                            </span>
+                            <span id="dashActivePill"></span>
                         </div>
                         <div id="dashConditions">Loading...</div>
                     </div>
