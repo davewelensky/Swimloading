@@ -1,12 +1,16 @@
--- Add Robben Island as a swimming spot — WEST_COAST domain
--- Robben Island sits in Table Bay directly across from Big Bay (Bloubergstrand)
--- Daily swimmers cross ~11km from the island to Big Bay — one of SA's iconic open water swims
--- Coordinates: Murray's Bay Harbour (east side of island) — the typical swim start point
+-- Robben Island already exists in spots table — update domain, code and coordinates
+-- Murray's Bay Harbour (east side) is the correct start point for the 7.4km crossing to Big Bay
 
-INSERT INTO spots (name, code, water_type, domain, latitude, longitude, active)
-VALUES ('Robben Island', 'RBNI', 'OCEAN', 'WEST_COAST', -33.8069, 18.3671, true);
+UPDATE spots
+SET
+    domain    = 'WEST_COAST',
+    code      = 'RBNI',
+    latitude  = -33.8069,
+    longitude = 18.3671,
+    active    = true
+WHERE lower(name) = 'robben island';
 
 -- Verify
 SELECT id, name, code, water_type, domain, latitude, longitude, active
 FROM spots
-WHERE name = 'Robben Island';
+WHERE lower(name) = 'robben island';
