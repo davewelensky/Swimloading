@@ -688,6 +688,18 @@
             window.addEventListener('resize', checkScroll);
         }
 
+        // SA phone number normalisation — stores as +27XXXXXXXXX
+        // Accepts: 0XXXXXXXXX / 27XXXXXXXXX / +27XXXXXXXXX / +270XXXXXXXXX (strips trunk 0)
+        // Returns null if the number cannot be made valid
+        function formatSAPhone(raw) {
+            if (!raw || !raw.trim()) return null;
+            let n = raw.replace(/[\s\-\(\)\.]/g, ''); // strip spaces, dashes, brackets, dots
+            if      (/^0\d{9}$/.test(n))        n = '+27' + n.slice(1);   // 0823369790
+            else if (/^27\d{9}$/.test(n))       n = '+' + n;              // 27823369790
+            else if (/^\+270\d{9}$/.test(n))    n = '+27' + n.slice(4);   // +270823369790 (trunk 0 after code)
+            return /^\+27\d{9}$/.test(n) ? n : null;
+        }
+
         // Age calculation helper for temps
         function getAgeDisplay(timestamp) {
             const now = new Date();
@@ -4168,6 +4180,26 @@
             const oceanSeconds = mmssToSeconds(oceanTimeStr);
             const experienceLevel = poolTierFromSeconds(poolSeconds);
 
+            // Validate + normalise SA phone numbers (optional in profile — allow empty/null)
+            let normalizedPhone = null;
+            if (phone) {
+                normalizedPhone = formatSAPhone(phone);
+                if (!normalizedPhone) {
+                    showToast('Phone number invalid — use e.g. 082 336 9790 or +27 82 336 9790', 'error');
+                    document.getElementById('profilePhone').style.borderColor = 'var(--danger)';
+                    return;
+                }
+            }
+            let normalizedEmergencyPhone = null;
+            if (emergencyPhone) {
+                normalizedEmergencyPhone = formatSAPhone(emergencyPhone);
+                if (!normalizedEmergencyPhone) {
+                    showToast('Emergency contact phone invalid — use e.g. 082 XXX XXXX or +27 82 XXX XXXX', 'error');
+                    document.getElementById('profileEmergencyPhone').style.borderColor = 'var(--danger)';
+                    return;
+                }
+            }
+
             const profileAddress = document.getElementById('profileAddress')?.value.trim() || null;
             const profileAddressLine2 = document.getElementById('profileAddressLine2')?.value.trim() || null;
             const profileCity = document.getElementById('profileCity')?.value.trim() || null;
@@ -4175,9 +4207,9 @@
 
             const payload = {
                 display_name: displayName,
-                phone: phone || null,
+                phone: normalizedPhone,
                 emergency_contact_name: emergencyName || null,
-                emergency_contact_phone: emergencyPhone || null,
+                emergency_contact_phone: normalizedEmergencyPhone,
                 address_line1: profileAddress,
                 address_line2: profileAddressLine2,
                 city: profileCity,
@@ -4573,19 +4605,33 @@
                 return;
             }
 
+            // Validate + normalise SA phone numbers
+            const normalizedPhone = formatSAPhone(phone);
+            if (!normalizedPhone) {
+                showToast('Phone number invalid — use e.g. 082 336 9790 or +27 82 336 9790', 'error');
+                document.getElementById('obPhone').style.borderColor = 'var(--danger)';
+                return;
+            }
+            const normalizedEmergencyPhone = formatSAPhone(emergencyPhone);
+            if (!normalizedEmergencyPhone) {
+                showToast('Emergency contact phone invalid — use e.g. 082 XXX XXXX or +27 82 XXX XXXX', 'error');
+                document.getElementById('obEmergencyPhone').style.borderColor = 'var(--danger)';
+                return;
+            }
+
             try {
                 const { error } = await supabaseClient
                     .from('profiles')
                     .update({
                         full_name: fullName,
-                        phone: phone,
+                        phone: normalizedPhone,
                         date_of_birth: dob,
                         address_line1: address,
                         address_line2: addressLine2,
                         city: city,
                         postal_code: postal,
                         emergency_contact_name: emergencyName,
-                        emergency_contact_phone: emergencyPhone,
+                        emergency_contact_phone: normalizedEmergencyPhone,
                         onboarding_completed_at: new Date().toISOString()
                     })
                     .eq('id', currentUser.id);
@@ -6224,7 +6270,8 @@
 
             <div class="form-group">
                 <div class="form-label">📱 Phone Number</div>
-                <input type="tel" id="profilePhone" placeholder="e.g., 082 123 4567">
+                <input type="tel" id="profilePhone" placeholder="082 123 4567 or +27 82 123 4567"
+                    onblur="(function(el){const f=formatSAPhone(el.value);if(f){el.value=f;el.style.borderColor='';}else if(el.value.trim()){el.style.borderColor='var(--danger)';}})(this)">
                 <small style="color: var(--text-secondary); font-size: 11px;">Required to join group swims</small>
             </div>
 
@@ -6236,7 +6283,8 @@
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <div class="form-label" style="font-size: 12px;">Contact Phone</div>
-                    <input type="tel" id="profileEmergencyPhone" placeholder="e.g., 083 456 7890">
+                    <input type="tel" id="profileEmergencyPhone" placeholder="082 123 4567 or +27 82 123 4567"
+                        onblur="(function(el){const f=formatSAPhone(el.value);if(f){el.value=f;el.style.borderColor='';}else if(el.value.trim()){el.style.borderColor='var(--danger)';}})(this)">
                 </div>
                 <small style="color: var(--text-secondary); font-size: 11px; display: block; margin-top: 8px;">Visible to fellow swimmers on group swims — for safety only</small>
             </div>
@@ -6637,6 +6685,7 @@
                                 style="width: 14px; height: 14px; vertical-align: middle; stroke-width: 2;"></i> Phone
                             *</label>
                         <input type="tel" id="obPhone" placeholder="+27 82 123 4567"
+                            onblur="(function(el){const f=formatSAPhone(el.value);if(f){el.value=f;el.style.borderColor='rgba(255,255,255,0.2)';}else if(el.value.trim()){el.style.borderColor='var(--danger)';}})(this)"
                             style="width: 100%; padding: 12px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #f8fafc; font-size: 14px; font-family: system-ui, -apple-system, sans-serif; box-sizing: border-box;">
                     </div>
 
@@ -6701,6 +6750,7 @@
                                 <i data-lucide="phone" style="width: 14px; height: 14px; vertical-align: middle; stroke-width: 2;"></i> Emergency Contact Phone *
                             </label>
                             <input type="tel" id="obEmergencyPhone" placeholder="+27 82 987 6543"
+                                onblur="(function(el){const f=formatSAPhone(el.value);if(f){el.value=f;el.style.borderColor='rgba(255,255,255,0.2)';}else if(el.value.trim()){el.style.borderColor='var(--danger)';}})(this)"
                                 style="width: 100%; padding: 12px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #f8fafc; font-size: 14px; font-family: system-ui, -apple-system, sans-serif; box-sizing: border-box;">
                         </div>
                     </div>
