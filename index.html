@@ -867,17 +867,13 @@
 
                     const latest = Object.values(bySpot).slice(0, 4);
 
-                    // Count swimmers active in last 24h (distinct user_ids)
+                    // Count temps logged in last 24h
                     const since24h = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-                    const activeUserIds = new Set(
-                        recentLogs
-                            .filter(l => l.created_at >= since24h && l.user_id)
-                            .map(l => l.user_id)
-                    );
+                    const tempsToday = recentLogs.filter(l => l.created_at >= since24h).length;
                     const activePillEl = document.getElementById('dashActivePill');
                     if (activePillEl) {
-                        if (activeUserIds.size > 0) {
-                            activePillEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);border-radius:20px;padding:3px 10px;font-size:12px;color:var(--ocean-light);font-weight:600;">🌊 ${activeUserIds.size} swimmer${activeUserIds.size !== 1 ? 's' : ''} active today</span>`;
+                        if (tempsToday > 0) {
+                            activePillEl.innerHTML = `<span style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);border-radius:20px;padding:3px 10px;font-size:12px;color:var(--ocean-light);font-weight:600;">${tempsToday} temp${tempsToday !== 1 ? 's' : ''} logged today</span>`;
                         } else {
                             activePillEl.innerHTML = '';
                         }
@@ -1027,21 +1023,11 @@
                 const isFresh = isTempFresh(log.created_at);
                 const spotInfo = spots.find(s => s.id === log.spot_id);
                 const spotCode = spotInfo ? spotInfo.code : '';
-                // Logger avatar — photo URL → img; icon name → first letter; else → first letter of name
-                const av = log.loggerAvatar;
-                const name = log.loggerName || 'Anonymous';
-                const initial = name.charAt(0).toUpperCase();
-                const isPhotoUrl = av && (av.startsWith('http') || av.startsWith('blob'));
-                const isIconName = av && !isPhotoUrl;
-                const avatarHtml = isPhotoUrl
-                    ? `<img src="${av}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;flex-shrink:0;" />`
-                    : `<div style="width:20px;height:20px;border-radius:50%;background:rgba(56,189,248,0.25);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--ocean-light);flex-shrink:0;">${initial}</div>`;
                 return `
                                 <div onclick="goToSpotTrend('${log.spot_id}', '${(log.spotName || 'Unknown').replace(/'/g, "\\'")}', '${spotCode}')" style="cursor: pointer; background: rgba(15, 23, 42, 0.6); border-radius: 14px; padding: 14px; text-align: center; border: 1px solid ${color}20; ${!isFresh ? 'opacity: 0.5;' : ''} transition: all 0.2s ease;">
                                     <div style="font-size: 28px; font-weight: 800; color: ${color}; text-shadow: 0 0 20px ${color}30; line-height: 1.1;">${log.temp_c}°</div>
                                     <div style="font-size: 10px; font-weight: 500; color: ${color}; opacity: 0.7; margin-top: 2px;">${age}</div>
                                     <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px; font-weight: 600;">${log.spotName || 'Unknown'}</div>
-                                    <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:5px;">${avatarHtml}<span style="font-size:10px;color:var(--text-secondary);font-weight:600;">${name}</span></div>
                                     <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.5; margin-top: 2px;">${getTimeAgo(new Date(log.created_at))}</div>
                                     <div style="font-size: 9px; color: var(--ocean-light); margin-top: 4px; opacity: 0.6;">tap for trends →</div>
                                 </div>
