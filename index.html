@@ -69,6 +69,15 @@
         // Active hazard reports — populated in loadDashboard(), keyed by spot_id
         let activeHazardsBySpot = {};
 
+        // Today's wind/wave forecast — populated async by loadTodayForecast()
+        var todayForecast = null; // { windSpeed, windDeg, windDirLabel, waveHeight, swellHeight }
+
+        // Wind direction degrees → compass label (N, NNE, NE … NW, NNW)
+        function windDirLabel(deg) {
+            const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+            return dirs[Math.round(deg / 22.5) % 16];
+        }
+
         // Icon helper function
         function icon(name, size = 16) {
             return `<i data-lucide="${name}" style="width: ${size}px; height: ${size}px; display: inline-block; vertical-align: middle;"></i>`;
@@ -891,7 +900,7 @@
                 const [conditionsResult, eventsResult, latestTempsResult, hazardsResult] = await Promise.all([
                     supabaseClient
                         .from('temp_logs')
-                        .select('spot_id, conditions, hazards, created_at')
+                        .select('spot_id, conditions, hazards, created_at, temp_c')
                         .gte('created_at', since96h)
                         .order('created_at', { ascending: false })
                         .limit(200),
@@ -940,6 +949,38 @@
 
             // Render badges section
             renderDashBadges();
+
+            // Load today's wind/wave forecast — non-blocking, re-renders Best Spots when done
+            loadTodayForecast(latestTempsResult.data || []);
+        }
+
+        async function loadTodayForecast(latestTemps) {
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const [windRes, marineRes] = await Promise.all([
+                    fetch(`https://api.open-meteo.com/v1/forecast?latitude=-34.2269&longitude=18.4648&daily=wind_speed_10m_max,wind_direction_10m_dominant&wind_speed_unit=kmh&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${today}`),
+                    fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=-34.2269&longitude=18.4648&daily=wave_height_max,swell_wave_height_max&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${today}`)
+                ]);
+                if (!windRes.ok || !marineRes.ok) return;
+                const wind = await windRes.json();
+                const marine = await marineRes.json();
+                const wSpd = wind?.daily?.wind_speed_10m_max?.[0];
+                const wDeg = wind?.daily?.wind_direction_10m_dominant?.[0];
+                const wvH  = marine?.daily?.wave_height_max?.[0];
+                const swH  = marine?.daily?.swell_wave_height_max?.[0];
+                if (wSpd == null || wDeg == null) return;
+                todayForecast = {
+                    windSpeed:    Math.round(wSpd),
+                    windDeg:      wDeg,
+                    windDirText:  windDirLabel(wDeg),
+                    waveHeight:   wvH  != null ? Math.round(wvH  * 10) / 10 : null,
+                    swellHeight:  swH  != null ? Math.round(swH  * 10) / 10 : null
+                };
+                // Re-render Best Spots with forecast-adjusted scores
+                renderBestSpots(latestTemps, conditionsCache, swimEventsCache);
+            } catch (e) {
+                console.warn('Forecast fetch failed (non-fatal):', e);
+            }
         }
 
         function renderDashConditions(logs) {
@@ -970,10 +1011,11 @@
         // SWIM SCORE INTELLIGENCE
         // ==========================================
 
-        function calculateSwimScore(spot, recentLogs, upcomingSwims) {
+        function calculateSwimScore(spot, recentLogs, upcomingSwims, forecast = null) {
             // spot: row from latest_spot_temps { spot_id, spot_name, temp_c, updated_at, water_type }
             // recentLogs: array of temp_logs for this spot (last 96h, desc by created_at)
             // upcomingSwims: array of swim_events (active, future)
+            // forecast: optional { windSpeed, windDeg, waveHeight, swellHeight } from Open-Meteo
             // Returns: { score, label, emoji, color }
 
             const now = Date.now();
@@ -1031,8 +1073,26 @@
             });
             const activityBonus = matchingSwims.length >= 2 ? 10 : matchingSwims.length === 1 ? 5 : 0;
 
+            // -- Forecast adjustments (wind + swell) --
+            let forecastAdj = 0;
+            if (forecast) {
+                const spd = forecast.windSpeed || 0;
+                const deg = forecast.windDeg   || 0;
+                const wvH = forecast.waveHeight || 0;
+                // Wind penalty
+                if (spd > 40)      forecastAdj -= 25;
+                else if (spd > 30) forecastAdj -= 15;
+                else if (spd > 20) forecastAdj -= 5;
+                // NW wind bonus — cleans up Cape Town conditions, drives False Bay current
+                const isNW = (deg >= 270 && deg <= 360) || deg <= 45;
+                if (isNW && spd < 20) forecastAdj += 8;
+                // Swell penalty
+                if (wvH > 2.5)      forecastAdj -= 20;
+                else if (wvH > 1.5) forecastAdj -= 10;
+            }
+
             // -- Final score --
-            const raw = freshness + conditions + temp - hazardPenalty + activityBonus;
+            const raw = freshness + conditions + temp - hazardPenalty + activityBonus + forecastAdj;
             const score = Math.max(0, Math.min(100, Math.round(raw)));
 
             // -- Band --
@@ -1065,7 +1125,7 @@
                 .filter(spot => OCEAN_TYPES.includes(spot.water_type))
                 .map(spot => {
                     const recentLogs = condBySpot[spot.spot_id] || [];
-                    const swimScore = calculateSwimScore(spot, recentLogs, upcomingSwims);
+                    const swimScore = calculateSwimScore(spot, recentLogs, upcomingSwims, todayForecast);
                     return { ...spot, swimScore };
                 });
 
@@ -1084,6 +1144,11 @@
                 return;
             }
 
+            // Wind indicator — only shown when forecast is available
+            const windLine = todayForecast
+                ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">🌬 ${todayForecast.windDirText} ${todayForecast.windSpeed} km/h${todayForecast.waveHeight != null ? ' · ' + todayForecast.waveHeight + 'm' : ''}</div>`
+                : '';
+
             const ranks = ['#1', '#2', '#3'];
             el.innerHTML = top3.map((spot, i) => {
                 const { score, label, emoji, color } = spot.swimScore;
@@ -1098,6 +1163,19 @@
                 const hazardBanner = spotHazards.length > 0
                     ? `<div style="margin-top:6px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;color:#ef4444;">⚠️ ${spotHazards[0].title}</div>`
                     : '';
+
+                // Temperature trend arrow — compare most recent 2 logs with temp_c
+                const logs = condBySpot[spot.spot_id] || [];
+                const t0 = logs[0]?.temp_c != null ? parseFloat(logs[0].temp_c) : null;
+                const t1 = logs[1]?.temp_c != null ? parseFloat(logs[1].temp_c) : null;
+                let trendHtml = '';
+                if (t0 != null && t1 != null) {
+                    const diff = t0 - t1;
+                    if (diff > 0.3)       trendHtml = `<span style="font-size:10px;color:#10b981;margin-left:4px;">↑ +${diff.toFixed(1)}°</span>`;
+                    else if (diff < -0.3) trendHtml = `<span style="font-size:10px;color:#38bdf8;margin-left:4px;">↓ ${diff.toFixed(1)}°</span>`;
+                    else                  trendHtml = `<span style="font-size:10px;color:var(--text-secondary);margin-left:4px;">→ stable</span>`;
+                }
+
                 return `
                     <div onclick="goToSpotTrend('${spot.spot_id}', '${spotNameSafe}', '${spotCode}')"
                          style="display:flex;flex-direction:column;cursor:pointer;
@@ -1108,10 +1186,11 @@
                             <div style="font-size:15px;font-weight:800;color:var(--text-secondary);min-width:24px;text-align:center;">${ranks[i]}</div>
                             <div style="flex:1;">
                                 <div style="font-weight:700;color:var(--text-primary);font-size:15px;">${spot.spot_name}</div>
+                                ${windLine}
                                 <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${ageText}</div>
                             </div>
                             <div style="text-align:right;">
-                                <div style="font-size:20px;font-weight:800;color:var(--ocean-light);">${spot.temp_c}°C</div>
+                                <div style="font-size:20px;font-weight:800;color:var(--ocean-light);">${spot.temp_c}°C${trendHtml}</div>
                                 <div style="display:flex;align-items:center;justify-content:flex-end;gap:3px;margin-top:2px;">
                                     <span style="font-size:13px;">${emoji}</span>
                                     <span style="font-size:11px;font-weight:700;color:${color};">${label}</span>
@@ -8238,7 +8317,7 @@
                     badgeHtml = `<span style="display: inline-block; padding: 2px 8px; margin-left: 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; border-radius: 6px; background: ${bgColor}; border: 1px solid ${borderColor}; color: var(--text-primary); vertical-align: middle;">${waterType}</span>`;
                 }
 
-                const swimScore = calculateSwimScore(spot, conditionsCache[spot.spot_id] || [], swimEventsCache);
+                const swimScore = calculateSwimScore(spot, conditionsCache[spot.spot_id] || [], swimEventsCache, todayForecast);
                 item.innerHTML = `
                     <div style="flex: 1;">
                         <div style="font-weight: 700; color: var(--text-primary); font-size: 16px; margin-bottom: 2px;">${spot.spot_name}${badgeHtml}</div>
@@ -8306,7 +8385,7 @@
                     badgeHtml = `<span style="display: inline-block; padding: 2px 8px; margin-left: 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; border-radius: 6px; background: ${bgColor}; border: 1px solid ${borderColor}; color: var(--text-primary); vertical-align: middle;">${waterType}</span>`;
                 }
 
-                const swimScore = calculateSwimScore(s, conditionsCache[spotId] || [], swimEventsCache);
+                const swimScore = calculateSwimScore(s, conditionsCache[spotId] || [], swimEventsCache, todayForecast);
                 const item = document.createElement('div');
                 item.className = 'spot-list-item';
                 item.onclick = () => openSpotDetail(spotId, spotName, spotCode);
