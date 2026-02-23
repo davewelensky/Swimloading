@@ -1047,18 +1047,9 @@
                 const isFresh = isTempFresh(log.created_at);
                 const spotInfo = spots.find(s => s.id === log.spot_id);
                 const spotCode = spotInfo ? spotInfo.code : '';
-                // Trend arrow — compare latest vs previous log for this spot
-                let trendHtml = '';
-                if (log.prevTemp != null) {
-                    const diff = parseFloat(log.temp_c) - log.prevTemp;
-                    if (diff > 0.3)       trendHtml = `<div style="font-size:13px;font-weight:700;color:#10b981;margin-top:1px;">↑ rising</div>`;
-                    else if (diff < -0.3) trendHtml = `<div style="font-size:13px;font-weight:700;color:#38bdf8;margin-top:1px;">↓ cooling</div>`;
-                    else                  trendHtml = `<div style="font-size:12px;color:var(--text-secondary);margin-top:1px;">→ stable</div>`;
-                }
                 return `
                                 <div onclick="goToSpotTrend('${log.spot_id}', '${(log.spotName || 'Unknown').replace(/'/g, "\\'")}', '${spotCode}')" style="cursor: pointer; background: rgba(15, 23, 42, 0.6); border-radius: 14px; padding: 14px; text-align: center; border: 1px solid ${color}20; ${!isFresh ? 'opacity: 0.5;' : ''} transition: all 0.2s ease;">
                                     <div style="font-size: 28px; font-weight: 800; color: ${color}; text-shadow: 0 0 20px ${color}30; line-height: 1.1;">${log.temp_c}°</div>
-                                    ${trendHtml}
                                     <div style="font-size: 10px; font-weight: 500; color: ${color}; opacity: 0.7; margin-top: 2px;">${age}</div>
                                     <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px; font-weight: 600;">${log.spotName || 'Unknown'}</div>
                                     <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.5; margin-top: 2px;">${getTimeAgo(new Date(log.created_at))}</div>
@@ -1235,13 +1226,6 @@
                 const logs = condBySpot[spot.spot_id] || [];
                 const t0 = logs[0]?.temp_c != null ? parseFloat(logs[0].temp_c) : null;
                 const t1 = logs[1]?.temp_c != null ? parseFloat(logs[1].temp_c) : null;
-                let trendHtml = '';
-                if (t0 != null && t1 != null) {
-                    const diff = t0 - t1;
-                    if (diff > 0.3)       trendHtml = `<span style="font-size:10px;color:#10b981;margin-left:4px;">↑ +${diff.toFixed(1)}°</span>`;
-                    else if (diff < -0.3) trendHtml = `<span style="font-size:10px;color:#38bdf8;margin-left:4px;">↓ ${diff.toFixed(1)}°</span>`;
-                    else                  trendHtml = `<span style="font-size:10px;color:var(--text-secondary);margin-left:4px;">→ stable</span>`;
-                }
 
                 // "by [name]" — look up who logged the most recent temp at this spot
                 const latestLog = logs[0];
@@ -1265,7 +1249,7 @@
                                 <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${ageText}${byLine}</div>
                             </div>
                             <div style="text-align:right;">
-                                <div style="font-size:20px;font-weight:800;color:var(--ocean-light);">${spot.temp_c}°C${trendHtml}</div>
+                                <div style="font-size:20px;font-weight:800;color:var(--ocean-light);">${spot.temp_c}°C</div>
                                 <div style="display:flex;align-items:center;justify-content:flex-end;gap:3px;margin-top:2px;">
                                     <span style="font-size:13px;">${emoji}</span>
                                     <span style="font-size:11px;font-weight:700;color:${color};">${label}</span>
@@ -6874,7 +6858,7 @@
 
                     <!-- Recent Conditions -->
                     <div style="margin-bottom: 24px;">
-                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
                             <span style="font-weight: 600; color: var(--text-primary); font-size: 16px;">
                                 <i data-lucide="thermometer" style="width: 18px; height: 18px; vertical-align: middle;"></i>
                                 Latest Water Temps
@@ -8397,29 +8381,28 @@
                     const t1 = logs[1]?.temp_c != null ? parseFloat(logs[1].temp_c) : null;
                     if (t0 != null && t1 != null) deltas.push(t0 - t1);
                 });
-                let trendHtml = '';
+                let trendArrow = '';
+                let trendColor = 'var(--text-secondary)';
                 if (deltas.length > 0) {
                     const avgDelta = deltas.reduce((a, b) => a + b, 0) / deltas.length;
-                    if (avgDelta > 0.3)
-                        trendHtml = `<span style="font-size:16px;color:#10b981;margin-left:6px;vertical-align:middle;">↑</span>`;
-                    else if (avgDelta < -0.3)
-                        trendHtml = `<span style="font-size:16px;color:#38bdf8;margin-left:6px;vertical-align:middle;">↓</span>`;
-                    else
-                        trendHtml = `<span style="font-size:16px;color:var(--text-secondary);margin-left:6px;vertical-align:middle;">→</span>`;
+                    if (avgDelta > 0.3)       { trendArrow = '↑'; trendColor = '#10b981'; }
+                    else if (avgDelta < -0.3) { trendArrow = '↓'; trendColor = '#38bdf8'; }
+                    else                      { trendArrow = '→'; trendColor = 'var(--text-secondary)'; }
                 }
 
                 const card = document.createElement('div');
                 card.className = 'region-card';
                 card.onclick = () => openRegionDetail(domain);
                 card.innerHTML = `
-                    <div>
-                        <div class="region-name" style="font-weight: 700; font-size: 16px;">${formatDomain(domain)}</div>
-                        <div class="region-temp" style="font-size: 32px; font-weight: 800; color: ${tempColor}; margin: 4px 0;">${data.avgTemp}°C${trendHtml}</div>
-                        <div class="region-stat" style="font-size: 13px; font-weight: 600;">${subtext}</div>
-                        <div class="region-stat" style="font-size: 11px; opacity: 0.8;">${updatedText}</div>
-                    </div>
-                    <div>
-                        ${warmestText ? `<div class="region-warmest" style="font-size: 12px; font-weight: 600; margin-top: 12px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 8px;">${warmestText}</div>` : ''}
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                        <div style="flex:1;min-width:0;">
+                            <div class="region-name" style="font-weight:700;font-size:16px;">${formatDomain(domain)}</div>
+                            <div class="region-temp" style="font-size:32px;font-weight:800;color:${tempColor};margin:4px 0;line-height:1;">${data.avgTemp}°C</div>
+                            <div class="region-stat" style="font-size:13px;font-weight:600;">${subtext}</div>
+                            <div class="region-stat" style="font-size:11px;opacity:0.8;">${updatedText}</div>
+                            ${warmestText ? `<div class="region-warmest" style="font-size:12px;font-weight:600;margin-top:10px;padding:7px 9px;background:rgba(255,255,255,0.05);border-radius:8px;">${warmestText}</div>` : ''}
+                        </div>
+                        ${trendArrow ? `<div style="font-size:56px;font-weight:900;color:${trendColor};line-height:1;flex-shrink:0;opacity:0.92;">${trendArrow}</div>` : ''}
                     </div>
                 `;
                 gridEl.appendChild(card);
