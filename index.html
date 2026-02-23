@@ -1051,13 +1051,14 @@
                 let trendHtml = '';
                 if (log.prevTemp != null) {
                     const diff = parseFloat(log.temp_c) - log.prevTemp;
-                    if (diff > 0.3)       trendHtml = `<span style="font-size:11px;color:#10b981;">▲</span>`;
-                    else if (diff < -0.3) trendHtml = `<span style="font-size:11px;color:#38bdf8;">▼</span>`;
-                    else                  trendHtml = `<span style="font-size:11px;color:var(--text-secondary);">▶</span>`;
+                    if (diff > 0.3)       trendHtml = `<div style="font-size:13px;font-weight:700;color:#10b981;margin-top:1px;">↑ rising</div>`;
+                    else if (diff < -0.3) trendHtml = `<div style="font-size:13px;font-weight:700;color:#38bdf8;margin-top:1px;">↓ cooling</div>`;
+                    else                  trendHtml = `<div style="font-size:12px;color:var(--text-secondary);margin-top:1px;">→ stable</div>`;
                 }
                 return `
                                 <div onclick="goToSpotTrend('${log.spot_id}', '${(log.spotName || 'Unknown').replace(/'/g, "\\'")}', '${spotCode}')" style="cursor: pointer; background: rgba(15, 23, 42, 0.6); border-radius: 14px; padding: 14px; text-align: center; border: 1px solid ${color}20; ${!isFresh ? 'opacity: 0.5;' : ''} transition: all 0.2s ease;">
-                                    <div style="font-size: 28px; font-weight: 800; color: ${color}; text-shadow: 0 0 20px ${color}30; line-height: 1.1;">${log.temp_c}° ${trendHtml}</div>
+                                    <div style="font-size: 28px; font-weight: 800; color: ${color}; text-shadow: 0 0 20px ${color}30; line-height: 1.1;">${log.temp_c}°</div>
+                                    ${trendHtml}
                                     <div style="font-size: 10px; font-weight: 500; color: ${color}; opacity: 0.7; margin-top: 2px;">${age}</div>
                                     <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px; font-weight: 600;">${log.spotName || 'Unknown'}</div>
                                     <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.5; margin-top: 2px;">${getTimeAgo(new Date(log.created_at))}</div>
@@ -8302,7 +8303,7 @@
                     const [condRes, evtRes] = await Promise.all([
                         supabaseClient
                             .from('temp_logs')
-                            .select('spot_id, conditions, hazards, created_at')
+                            .select('spot_id, conditions, hazards, created_at, temp_c')
                             .gte('created_at', since96h)
                             .order('created_at', { ascending: false })
                             .limit(200),
@@ -8331,7 +8332,7 @@
                     const [condRes2, evtRes2] = await Promise.all([
                         supabaseClient
                             .from('temp_logs')
-                            .select('spot_id, conditions, hazards, created_at')
+                            .select('spot_id, conditions, hazards, created_at, temp_c')
                             .gte('created_at', since96h)
                             .order('created_at', { ascending: false })
                             .limit(200),
