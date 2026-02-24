@@ -1037,10 +1037,9 @@
                 const spotInfo = spots.find(s => s.id === log.spot_id);
                 const spotCode = spotInfo ? spotInfo.code : '';
 
-                // Conditions + hazards from most recent log at this spot
-                const recentLog      = conditionsCache[log.spot_id]?.[0];
-                const cond           = recentLog?.conditions;
-                const logHazards     = recentLog?.hazards || [];
+                // Conditions + hazards — use log directly (fetched with select('*'), has all fields)
+                const cond           = log.conditions;
+                const logHazards     = Array.isArray(log.hazards) ? log.hazards : [];
 
                 // Only ⚠️ for genuinely dangerous hazards — seals/jellyfish are normal in False Bay
                 const SERIOUS        = ['shark', 'sewage'];
