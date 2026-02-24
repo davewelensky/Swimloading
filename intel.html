@@ -207,27 +207,25 @@
             <div id="liveTemps" class="loading-msg">Loading...</div>
         </div>
 
-        <!-- Weather forecast -->
+        <!-- Tides — static info tile -->
         <div class="card">
-            <div class="card-label">Wind Forecast — False Bay (Miller's Point)</div>
-            <div id="windForecast" class="loading-msg">Loading...</div>
+            <div class="card-label">🌊 Tides — False Bay</div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.65;">
+                <strong style="color:var(--text-primary);">Semi-diurnal</strong> — 2 high tides and 2 low tides every ~24h. Tidal range ~1.5m. Tidal currents in False Bay are weak; <strong style="color:var(--text-primary);">wind direction is the dominant driver</strong> of surface flow, not tides.
+                <br><br>
+                Check today's tide times: <a href="https://www.tide-forecast.com/locations/Cape-Town-South-Africa/tides/latest" target="_blank" style="color:var(--ocean-light);">tide-forecast.com</a> or <a href="https://sacoast.weathersa.co.za" target="_blank" style="color:var(--ocean-light);">SA Weather Service</a>
+            </div>
         </div>
 
-        <!-- Marine / Swell forecast -->
+        <!-- Today swim window hourly breakdown -->
         <div class="card">
-            <div class="card-label">Swell & Wave Forecast — False Bay</div>
-            <div id="swellForecast" class="loading-msg">Loading...</div>
-        </div>
-
-        <!-- Sunday hourly breakdown -->
-        <div class="card">
-            <div class="card-label">Sunday — Hour by Hour</div>
-            <div id="sundayHourly" class="loading-msg">Loading...</div>
+            <div class="card-label">Swim Window — Hour by Hour</div>
+            <div id="todayHourly" class="loading-msg">Loading...</div>
         </div>
 
         <!-- Crossing conditions checklist -->
         <div class="card">
-            <div class="card-label">Sunday Attempt — Conditions Checklist</div>
+            <div class="card-label">Conditions Checklist</div>
             <div id="condChecklist" class="loading-msg">Checking...</div>
         </div>
 
@@ -235,6 +233,18 @@
 
     <!-- ══════════════ TAB: WINDOW ══════════════ -->
     <div id="panelWindow" class="panel">
+
+        <!-- 7-day wind forecast — moved from NOW tab -->
+        <div class="card">
+            <div class="card-label">7-Day Wind Forecast — Miller's Point</div>
+            <div id="windForecast" class="loading-msg">Loading...</div>
+        </div>
+
+        <!-- 7-day swell/wave forecast — moved from NOW tab -->
+        <div class="card">
+            <div class="card-label">7-Day Swell & Wave Forecast — False Bay</div>
+            <div id="swellForecast" class="loading-msg">Loading...</div>
+        </div>
 
         <div class="card">
             <div class="card-label">Water Temp by Month — False Bay Crossings</div>
@@ -327,11 +337,11 @@
             <div class="card-label">False Bay Crossing — Key Requirements</div>
             <div class="checklist-item">
                 <div class="check-icon">🌡️</div>
-                <div><div class="check-label">Water temp ≥ 18°C <span style="font-weight:400;color:var(--text-secondary)">(skins record attempt)</span></div><div class="check-sub">Satellite SST (20 Feb 2026): Miller's Point ~17°C · Open bay mid-crossing ~19°C · Strand/Rooi Els end ~20°C. Thermal gradient across the route — cooler start, warmer finish. Bay warming trend confirmed. Community readings (19 Feb): Miller's Point 17°C · Simons Town 15°C · Glencairn 16.5°C.<br><br><strong style="color:var(--ocean-light)">🌊 Channel prep swimmers:</strong> At 16–17°C at the start, False Bay exactly matches peak English Channel conditions (late July/August). Temperature is no barrier — this is the target environment.</div></div>
+                <div><div class="check-label">Water temp ≥ 18°C <span style="font-weight:400;color:var(--text-secondary)">(skins record attempt)</span></div><div class="check-sub">Thermal gradient across the route — cooler start (Miller's Point end), warmer finish (Strand/Rooi Els end). Check live community logs on the NOW tab for current readings.<br><br><strong style="color:var(--ocean-light)">🌊 Channel prep swimmers:</strong> False Bay water matches peak English Channel conditions (late July/August: 16–17°C). Temperature is no barrier — this is the target environment.</div></div>
             </div>
             <div class="checklist-item">
                 <div class="check-icon">💨</div>
-                <div><div class="check-label">NW wind</div><div class="check-sub">NW wind drives an anti-clockwise bay circulation, pushing current eastward — directly assisting the W→E crossing. SE wind reverses this. Wind is the dominant driver of False Bay surface currents; tides are weak and secondary. Check Sunday forecast on the Wind tab.</div></div>
+                <div><div class="check-label">NW wind</div><div class="check-sub">NW wind drives an anti-clockwise bay circulation, pushing current eastward — directly assisting the W→E crossing. SE wind reverses this. Wind is the dominant driver of False Bay surface currents; tides are weak and secondary. Check the 7-day forecast on the Window tab.</div></div>
             </div>
             <div class="checklist-item">
                 <div class="check-icon">🌊</div>
@@ -349,7 +359,7 @@
         </div>
 
         <div class="card">
-            <div class="card-label">Sunday Crossing Prediction</div>
+            <div class="card-label">Crossing Time Prediction</div>
             <div id="carinaPrediction" class="loading-msg">Building prediction...</div>
         </div>
 
@@ -378,6 +388,8 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 
 let appStarted = false;
+let _windForecastPromise = null;
+let _marineForecastPromise = null;
 
 async function startApp(session) {
     if (appStarted) return;
@@ -394,11 +406,12 @@ async function startApp(session) {
     document.getElementById('initScreen').style.display = 'none';
     document.getElementById('appContent').style.display = 'block';
 
-    // Load all panels in parallel
-    loadNow();
+    // Load live temps first — feeds both NOW (GO signal) and Prediction
+    const liveResult = await loadLiveTemps();
+    loadNow(liveResult);
     loadWindow();
     loadRecords();
-    loadCarina();
+    loadCarina(liveResult?.avgTemp);
 }
 
 async function init() {
@@ -502,14 +515,11 @@ async function getFBRouteIds() {
 
 // ─── NOW TAB ──────────────────────────────────────────────────────────────────
 
-async function loadNow() {
-    const [liveResult, forecastResult] = await Promise.all([
-        loadLiveTemps(),
-        loadWindForecast(),
-        loadMarineForecast(),
-        loadSundayHourly()
-    ]);
-
+async function loadNow(liveResult) {
+    // Wind forecast shared with WINDOW tab via module-level cache
+    _windForecastPromise = _windForecastPromise || loadWindForecast();
+    const forecastResult = await _windForecastPromise;
+    loadTodayHourly();
     buildGoSignal(liveResult, forecastResult);
     buildChecklist(liveResult, forecastResult);
 }
@@ -550,7 +560,7 @@ async function loadLiveTemps() {
     if (!readings.length) {
         document.getElementById('liveTemps').innerHTML = `
             <div class="alert blue">
-                Satellite SST (20 Feb 2026): Miller's Point <strong>~17°C</strong> · Open bay mid-crossing <strong>~19°C</strong> · Strand/Rooi Els end <strong>~20°C</strong>. Bay warming trend confirmed. No community logs in the last 24h.
+                Satellite SST reference: Miller's Point <strong>~17°C</strong> · Open bay mid-crossing <strong>~19°C</strong> · Strand/Rooi Els end <strong>~20°C</strong>. Bay warming trend confirmed. No community logs in the last 24h.
             </div>`;
         return { avgTemp: 17.0, hasLive: false };
     }
@@ -589,7 +599,7 @@ async function loadLiveTemps() {
             </div>
         `).join('')}
         <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">
-            Satellite SST (20 Feb 2026): Miller's Point ~17°C · Bay mid-crossing ~19°C · Strand/Rooi Els end ~20°C.
+            Satellite SST reference: Miller's Point ~17°C · Bay mid-crossing ~19°C · Strand/Rooi Els end ~20°C.
         </div>
     `;
 
@@ -609,40 +619,32 @@ async function loadWindForecast() {
         const res = await fetch(url);
         const data = await res.json();
 
-        // Get Sunday (find next Sunday)
+        // Use today (index 0) for the GO signal
         const daily = data.daily;
         const dates = daily.time;
-        const now = new Date();
-        const sundayIdx = dates.findIndex(d => {
-            const day = new Date(d).getDay();
-            return day === 0 && new Date(d) >= now;
-        });
-
-        const targetIdx = sundayIdx >= 0 ? sundayIdx : dates.length - 1;
-        const sundayDate = dates[targetIdx];
-        const windMax = daily.wind_speed_10m_max[targetIdx];
-        const windDir360 = daily.wind_direction_10m_dominant[targetIdx];
-        const rain = daily.precipitation_sum[targetIdx];
+        const windMax = daily.wind_speed_10m_max[0];
+        const windDir360 = daily.wind_direction_10m_dominant[0];
+        const rain = daily.precipitation_sum[0];
         const dirLabel = windDir(windDir360);
         const nwFav = isNW(windDir360);
 
-        // Build 7-day forecast
+        // Build 7-day forecast — no special day highlighting
         const forecastRows = dates.slice(0, 7).map((d, i) => {
             const wSpd = daily.wind_speed_10m_max[i];
             const wDir = daily.wind_direction_10m_dominant[i];
             const wLabel = windDir(wDir);
             const favourable = isNW(wDir);
-            const dayName = new Date(d).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
-            const isSunday = new Date(d).getDay() === 0;
+            const isToday = i === 0;
+            const dayName = isToday ? 'Today' : new Date(d).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
             return `
-                <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);${isSunday?'background:rgba(14,165,233,0.06);margin:0 -4px;padding:9px 4px;border-radius:8px;':''}">
-                    <div style="width:80px;font-size:12px;font-weight:${isSunday?700:400};color:${isSunday?'var(--ocean-light)':'var(--text-primary)'};">${dayName}${isSunday?' ★':''}</div>
+                <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);${isToday?'background:rgba(14,165,233,0.06);margin:0 -4px;padding:9px 4px;border-radius:8px;':''}">
+                    <div style="width:80px;font-size:12px;font-weight:${isToday?700:400};color:${isToday?'var(--ocean-light)':'var(--text-primary)'};">${dayName}</div>
                     <div style="font-size:20px;" title="${wDir}°">
                         <span style="display:inline-block;transform:rotate(${(wDir+180)%360}deg);">↑</span>
                     </div>
                     <div style="flex:1;">
                         <div style="font-size:13px;font-weight:600;">${wLabel} ${wSpd?.toFixed(0)||'?'} km/h</div>
-                        <div style="font-size:11px;color:${favourable?'var(--success)':'var(--text-secondary)'};">${favourable?'Favourable direction':'Unfavourable direction'}</div>
+                        <div style="font-size:11px;color:${favourable?'var(--success)':'var(--text-secondary)'};">${favourable?'Favourable NW':'Unfavourable direction'}</div>
                     </div>
                     <div style="font-size:11px;color:${wSpd<20?'var(--success)':wSpd<35?'var(--warning)':'var(--danger)'};">${wSpd<20?'Light':wSpd<35?'Moderate':'Strong'}</div>
                 </div>
@@ -650,9 +652,9 @@ async function loadWindForecast() {
         }).join('');
 
         document.getElementById('windForecast').innerHTML = forecastRows +
-            `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo · Miller's Point (${MILLERS_LAT}, ${MILLERS_LNG})</div>`;
+            `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo · Miller's Point</div>`;
 
-        return { windMax, windDir: windDir360, dirLabel, nwFav, rain, sundayDate };
+        return { windMax, windDir: windDir360, dirLabel, nwFav, rain };
 
     } catch(e) {
         document.getElementById('windForecast').innerHTML = `<div style="color:var(--text-secondary);font-size:13px;">Could not load forecast. Check wind.guru or windguru.cz for False Bay.</div>`;
@@ -670,17 +672,17 @@ async function loadMarineForecast() {
         const data = await res.json();
         const daily = data.daily;
 
-        // 7-day swell rows
+        // 7-day swell rows — today highlighted
         const rows = daily.time.slice(0,7).map((d,i) => {
             const wh = daily.wave_height_max[i];
             const sw = daily.swell_wave_height_max[i];
             const wp = daily.wave_period_max[i];
-            const isSunday = new Date(d).getDay() === 0;
-            const dayName = new Date(d).toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'short' });
+            const isToday = i === 0;
+            const dayName = isToday ? 'Today' : new Date(d).toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'short' });
             const swellOk = wh <= 1.5;
             return `
-                <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);${isSunday?'background:rgba(14,165,233,0.06);margin:0 -4px;padding:9px 4px;border-radius:8px;':''}">
-                    <div style="width:80px;font-size:12px;font-weight:${isSunday?700:400};color:${isSunday?'var(--ocean-light)':'var(--text-primary)'};">${dayName}${isSunday?' ★':''}</div>
+                <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);${isToday?'background:rgba(14,165,233,0.06);margin:0 -4px;padding:9px 4px;border-radius:8px;':''}">
+                    <div style="width:80px;font-size:12px;font-weight:${isToday?700:400};color:${isToday?'var(--ocean-light)':'var(--text-primary)'};">${dayName}</div>
                     <div style="flex:1;">
                         <div style="font-size:13px;font-weight:600;">Wave ${wh?.toFixed(1)}m · Swell ${sw?.toFixed(1)}m</div>
                         <div style="font-size:11px;color:var(--text-secondary);">Period ${wp?.toFixed(0)}s</div>
@@ -692,19 +694,24 @@ async function loadMarineForecast() {
         document.getElementById('swellForecast').innerHTML = rows +
             `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo Marine · False Bay</div>`;
 
-        // Return Sunday marine data
-        const sundayIdx = daily.time.findIndex(d => new Date(d).getDay() === 0);
-        const si = sundayIdx >= 0 ? sundayIdx : 0;
-        return { waveMax: daily.wave_height_max[si], swellMax: daily.swell_wave_height_max[si], period: daily.wave_period_max[si] };
+        // Return today's marine data (index 0)
+        return { waveMax: daily.wave_height_max[0], swellMax: daily.swell_wave_height_max[0], period: daily.wave_period_max[0] };
     } catch(e) {
         document.getElementById('swellForecast').innerHTML = `<div style="color:var(--text-secondary);font-size:13px;">Marine forecast unavailable.</div>`;
         return null;
     }
 }
 
-async function loadSundayHourly() {
+async function loadTodayHourly() {
+    // Show today's swim window (06:00–14:00). If past 14:00 SAST, show tomorrow.
+    const nowLocal = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Johannesburg' }));
+    const useTomorrow = nowLocal.getHours() >= 14;
+    const baseDate = new Date(nowLocal);
+    if (useTomorrow) baseDate.setDate(baseDate.getDate() + 1);
+    const targetDate = baseDate.toISOString().split('T')[0];
+
     const today = new Date().toISOString().split('T')[0];
-    const endDate = new Date(); endDate.setDate(endDate.getDate()+7);
+    const endDate = new Date(); endDate.setDate(endDate.getDate() + 3);
     const end = endDate.toISOString().split('T')[0];
 
     try {
@@ -715,40 +722,38 @@ async function loadSundayHourly() {
         const wind = await windRes.json();
         const marine = await marineRes.json();
 
-        // Find Sunday hours (05:00–15:00 = swim window)
         const times = wind.hourly.time;
-        const sundayDate = times.find(t => new Date(t).getDay() === 0)?.split('T')[0];
-        if (!sundayDate) { document.getElementById('sundayHourly').innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Sunday not in forecast range.</div>'; return; }
-
         const rows = [];
         times.forEach((t, i) => {
-            if (!t.startsWith(sundayDate)) return;
+            if (!t.startsWith(targetDate)) return;
             const hour = parseInt(t.split('T')[1]);
-            if (hour < 5 || hour > 15) return;
+            if (hour < 6 || hour > 14) return;
             const spd = wind.hourly.wind_speed_10m[i];
             const deg = wind.hourly.wind_direction_10m[i];
             const gust = wind.hourly.wind_gusts_10m[i];
             const wh = marine.hourly.wave_height[i];
             const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
             const dlabel = dirs[Math.round(deg/22.5)%16];
-            const nw = deg >= 270 || deg <= 45;
+            const wa = windAssess(deg, spd);
             const timeStr = `${String(hour).padStart(2,'0')}:00`;
             rows.push(`
                 <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">
                     <div style="width:40px;font-weight:600;color:var(--text-secondary);">${timeStr}</div>
                     <div style="width:20px;text-align:center;font-size:14px;"><span style="display:inline-block;transform:rotate(${(deg+180)%360}deg);">↑</span></div>
                     <div style="flex:1;">
-                        <span style="color:${nw?'var(--success)':'var(--text-primary)'};">${dlabel} ${spd?.toFixed(0)}km/h</span>
-                        <span style="color:var(--text-secondary);"> (gust ${gust?.toFixed(0)})</span>
+                        <span style="color:${wa.tier==='optimal'?'var(--success)':wa.tier==='calm'?'var(--success)':'var(--text-primary)'};">${dlabel} ${spd?.toFixed(0)}km/h</span>
+                        <span style="color:var(--text-secondary);"> (gust ${gust?.toFixed(0)}) · ${wa.label}</span>
                     </div>
                     <div style="color:${wh<=1.5?'var(--success)':wh<=2.5?'var(--warning)':'var(--danger)'};">🌊 ${wh?.toFixed(1)}m</div>
                 </div>`);
         });
 
-        document.getElementById('sundayHourly').innerHTML = rows.join('') +
-            `<div style="font-size:11px;color:var(--text-secondary);margin-top:8px;">Swim window shown 05:00–15:00 SAST · ${sundayDate}</div>`;
+        const dayLabel = useTomorrow ? 'Tomorrow' : 'Today';
+        document.getElementById('todayHourly').innerHTML = rows.length ? rows.join('') +
+            `<div style="font-size:11px;color:var(--text-secondary);margin-top:8px;">Swim window 06:00–14:00 SAST · ${dayLabel} (${targetDate})</div>`
+            : `<div style="font-size:12px;color:var(--text-secondary);">No hourly data for ${targetDate}.</div>`;
     } catch(e) {
-        document.getElementById('sundayHourly').innerHTML = `<div style="color:var(--text-secondary);font-size:13px;">Hourly forecast unavailable.</div>`;
+        document.getElementById('todayHourly').innerHTML = `<div style="color:var(--text-secondary);font-size:13px;">Hourly forecast unavailable.</div>`;
     }
 }
 
@@ -815,11 +820,11 @@ function buildChecklist(live, forecast) {
         const spotList = live.readings.slice(0, 4).map(r =>
             `${r.spots?.name || 'Unknown'} <strong>${r.temp_c}°C</strong> (${timeAgo(r.created_at)})`
         ).join(' · ');
-        tempSub = `${spotList}${trendBadge}<br><span style="font-size:11px;opacity:0.7;">Satellite SST (20 Feb 2026): Miller's Point ~17°C · Bay mid ~19°C · Strand end ~20°C</span>`;
+        tempSub = `${spotList}${trendBadge}<br><span style="font-size:11px;opacity:0.7;">Satellite SST reference: Miller's Point ~17°C · Bay mid ~19°C · Strand end ~20°C</span>`;
     } else {
         tempSub = temp >= 18
-            ? `${temp.toFixed(1)}°C (satellite estimate) — above threshold. No community logs today. Satellite SST (20 Feb 2026): Miller's Point ~17°C, bay mid ~19°C, Strand end ~20°C.`
-            : `${temp.toFixed(1)}°C (satellite estimate) — below 18°C. Satellite SST (20 Feb 2026): start ~17°C, bay warms to ~19–20°C mid-crossing. Trend is upward.`;
+            ? `${temp.toFixed(1)}°C (satellite estimate) — above threshold. No community logs today. Satellite SST reference: Miller's Point ~17°C, bay mid ~19°C, Strand end ~20°C.`
+            : `${temp.toFixed(1)}°C (satellite estimate) — below 18°C. Satellite SST reference: start ~17°C, bay warms to ~19–20°C mid-crossing. Trend is upward.`;
     }
 
     // Wind item — tiered assessment
@@ -863,7 +868,7 @@ function buildChecklist(live, forecast) {
             icon: forecast ? (forecast.windMax < 30 ? '✅' : forecast.windMax < 40 ? '⚠️' : '❌') : '❓',
             label: 'Wind speed < 30 km/h',
             sub: forecast
-                ? `Sunday max: ${forecast.windMax?.toFixed(0)} km/h. ${forecast.windMax < 30 ? 'Light wind — ideal.' : forecast.windMax < 40 ? 'Moderate — manageable but adds time.' : 'Strong wind — consider postponing.'}`
+                ? `Today's forecast: ${forecast.windMax?.toFixed(0)} km/h. ${forecast.windMax < 30 ? 'Light wind — ideal.' : forecast.windMax < 40 ? 'Moderate — manageable but adds time.' : 'Strong wind — consider postponing.'}`
                 : 'Load forecast to check.'
         },
         {
@@ -871,7 +876,7 @@ function buildChecklist(live, forecast) {
             icon: forecast ? (forecast.rain < 5 ? '✅' : '⚠️') : '❓',
             label: 'Dry conditions',
             sub: forecast
-                ? `Sunday precip: ${forecast.rain?.toFixed(1)} mm. ${forecast.rain < 5 ? 'Dry — good.' : 'Some rain expected.'}`
+                ? `Precipitation: ${forecast.rain?.toFixed(1)} mm. ${forecast.rain < 5 ? 'Dry — good.' : 'Some rain expected.'}`
                 : 'Check forecast.'
         },
         {
@@ -903,6 +908,10 @@ function timeAgo(ts) {
 // ─── WINDOW TAB ───────────────────────────────────────────────────────────────
 
 async function loadWindow() {
+    // Ensure forecast tables are populated (shared with NOW — no double API calls)
+    _windForecastPromise = _windForecastPromise || loadWindForecast();
+    _marineForecastPromise = _marineForecastPromise || loadMarineForecast();
+
     const routeIds = await getFBRouteIds();
     if (!routeIds.length) return;
 
@@ -1257,7 +1266,7 @@ async function loadRecords() {
 
 // ─── CARINA TAB ───────────────────────────────────────────────────────────────
 
-async function loadCarina() {
+async function loadCarina(liveTemp) {
     const routeIds = await getFBRouteIds();
     if (!routeIds.length) return;
 
@@ -1365,7 +1374,7 @@ async function loadCarina() {
     `;
 
     // Prediction — two scenarios: with temp filter (18°C+) and without
-    const currentTemp = 17.0; // Satellite SST 20 Feb 2026: start ~17°C, bay avg ~19°C, finish ~20°C
+    const currentTemp = liveTemp ?? 17.0; // Use live community avg when available
     const MAX_SECS = 46800; // 13h cap
     const wRecordSecs = durSecs(wRecord?.duration);
     const mRecordSecs = durSecs(mRecord?.duration);
@@ -1384,7 +1393,7 @@ async function loadCarina() {
 
     document.getElementById('carinaPrediction').innerHTML = `
         <div class="alert blue" style="margin-bottom:12px;">
-            Current water ~${currentTemp}°C (western bay, Miller's Point → Rooi Els). Two scenarios shown below.
+            Current water ~${currentTemp.toFixed(1)}°C ${liveTemp ? '(community logs — False Bay)' : '(satellite estimate)'}. Two scenarios shown below.
         </div>
 
         <div style="font-size:11px;font-weight:700;color:var(--text-secondary);letter-spacing:.08em;margin-bottom:8px;">🌡️ IF WATER REACHES 18°C+ (ideal conditions)</div>
@@ -1428,7 +1437,7 @@ async function loadCarina() {
         <div style="margin-top:14px;padding:12px;border-radius:10px;background:rgba(14,165,233,0.07);border:1px solid rgba(14,165,233,0.18);">
             <div style="font-size:12px;font-weight:700;color:var(--ocean-light);margin-bottom:6px;">🌊 False Bay as English Channel Preparation</div>
             <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">
-                At 33km, False Bay is the same distance as the English Channel. Current western bay water of ~${currentTemp}°C matches peak Channel conditions (typically 16–17°C in late July/August). The <strong>all-conditions prediction</strong> is the relevant benchmark for Channel prep swimmers — temp is secondary to the training stimulus of completing a full Channel-distance crossing in open ocean. This crossing offers something unique: Channel-distance, Channel-temperature, and real ocean conditions in a single swim.
+                At 33km, False Bay is the same distance as the English Channel. Current western bay water of ~${currentTemp.toFixed(1)}°C matches peak Channel conditions (typically 16–17°C in late July/August). The <strong>all-conditions prediction</strong> is the relevant benchmark for Channel prep swimmers — temp is secondary to the training stimulus of completing a full Channel-distance crossing in open ocean. This crossing offers something unique: Channel-distance, Channel-temperature, and real ocean conditions in a single swim.
             </div>
         </div>
         <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;line-height:1.5;">
