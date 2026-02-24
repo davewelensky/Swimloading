@@ -1625,9 +1625,14 @@
         function hideCreateEvent() {
             document.getElementById('createEventModal').style.display = 'none';
             document.getElementById('createEventForm').reset();
-            // Clear any overlap warning
+            // Clear overlap warning
             const overlapEl = document.getElementById('swimOverlapWarning');
             if (overlapEl) { overlapEl.style.display = 'none'; overlapEl.innerHTML = ''; }
+            // Reset recurrence fields
+            const endGroup = document.getElementById('recurrenceEndGroup');
+            if (endGroup) endGroup.style.display = 'none';
+            const previewEl = document.getElementById('recurrencePreview');
+            if (previewEl) previewEl.style.display = 'none';
         }
 
         // ========== SUGGEST A SPOT ==========
@@ -1982,6 +1987,7 @@
                                 <div style="background: rgba(56, 189, 248, 0.15); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; color: var(--ocean-light);">
                                     ${paceLabel}
                                 </div>
+                                ${event.recurrence_type ? `<div style="background:rgba(16,185,129,0.12);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;color:#10b981;">🔄 ${{daily:'Daily',weekly:'Weekly',fortnightly:'Fortnightly'}[event.recurrence_type]||event.recurrence_type}</div>` : ''}
                                 ${displayRoute ? `
                                     <div style="background: rgba(56, 189, 248, 0.1); padding: 4px 10px; border-radius: 6px; font-size: 11px; color: var(--text-secondary);">
                                         ${displayRoute}
@@ -2064,10 +2070,13 @@
             const logistics = document.getElementById('eventLogistics')?.value;
             const chatUrl = document.getElementById('eventChatUrl')?.value;
 
-            const eventData = {
+            const recurrenceType = document.getElementById('eventRecurrence')?.value || '';
+            const recurrenceEndVal = document.getElementById('eventRecurrenceEnd')?.value || '';
+            const dateTimeVal = document.getElementById('eventDateTime')?.value || '';
+
+            const baseEvent = {
                 created_by: currentUser.id,
                 title: title,
-                start_at: startAt,
                 location_name: locationName,
                 spot_id: spot?.id || null,
                 lat: spot?.latitude || null,
@@ -2085,11 +2094,36 @@
                 category: 'open'
             };
 
-            console.log('CREATE_SWIM payload', eventData);
+            let eventsToInsert = [];
+
+            if (recurrenceType && recurrenceEndVal && dateTimeVal) {
+                // Recurring — generate all instances up to the end date
+                const seriesId = crypto.randomUUID();
+                const stepDays = recurrenceType === 'daily' ? 1 : recurrenceType === 'weekly' ? 7 : 14;
+                const [datePart, timePart] = dateTimeVal.split('T');
+                let cur = new Date(datePart + 'T12:00:00');
+                const end = new Date(recurrenceEndVal + 'T12:00:00');
+                while (cur <= end && eventsToInsert.length < 52) {
+                    const y = cur.getFullYear();
+                    const m = String(cur.getMonth() + 1).padStart(2, '0');
+                    const d = String(cur.getDate()).padStart(2, '0');
+                    eventsToInsert.push({
+                        ...baseEvent,
+                        start_at: `${y}-${m}-${d}T${timePart}:00+02:00`,
+                        recurrence_type: recurrenceType,
+                        recurrence_end_date: recurrenceEndVal,
+                        recurrence_series_id: seriesId
+                    });
+                    cur.setDate(cur.getDate() + stepDays);
+                }
+            } else {
+                // One-time event
+                eventsToInsert = [{ ...baseEvent, start_at: startAt }];
+            }
 
             const { data, error } = await supabaseClient
                 .from('swim_events')
-                .insert([eventData])
+                .insert(eventsToInsert)
                 .select();
 
             if (error) {
@@ -2098,40 +2132,41 @@
                 return;
             }
 
-            console.log('Event created:', data);
-
-            // Auto-join creator as organizer
-            if (data && data[0]) {
+            // Auto-join creator as organizer for all instances
+            if (data && data.length > 0) {
                 try {
+                    const participantRows = data.map(ev => ({
+                        swim_event_id: ev.id,
+                        user_id: currentUser.id,
+                        rsvp: 'going',
+                        status: 'approved',
+                        requested_at: new Date().toISOString(),
+                        decided_at: new Date().toISOString(),
+                        decided_by: currentUser.id
+                    }));
                     await supabaseClient
                         .from('swim_participants')
-                        .upsert({
-                            swim_event_id: data[0].id,
-                            user_id: currentUser.id,
-                            rsvp: 'going',
-                            status: 'approved',
-                            requested_at: new Date().toISOString(),
-                            decided_at: new Date().toISOString(),
-                            decided_by: currentUser.id
-                        }, { onConflict: 'swim_event_id,user_id' });
+                        .upsert(participantRows, { onConflict: 'swim_event_id,user_id' });
                 } catch (err) {
                     console.error('Could not auto-join event:', err);
                 }
             }
 
-
-            showToast('Swim created successfully!', 'success');
+            const typeLabel = recurrenceType === 'daily' ? 'daily' : recurrenceType === 'weekly' ? 'weekly' : recurrenceType === 'fortnightly' ? 'fortnightly' : '';
+            const toastMsg = recurrenceType && data?.length > 1
+                ? `${data.length} ${typeLabel} swims created!`
+                : 'Swim created successfully!';
+            showToast(toastMsg, 'success');
             hideCreateEvent();
             loadEvents();
 
             // Check for new badges after creating a swim
             await checkAndAwardBadges();
 
-            // Notify opted-in users about the new swim
+            // Notify opted-in users about the new swim (once, using first event)
             if (data && data[0]) {
                 const newEventId = data[0].id;
                 try {
-                    // Fetch creator display name + all users who want new swim alerts (excluding creator)
                     const [creatorRes, optedInRes] = await Promise.all([
                         supabaseClient.from('profiles').select('display_name').eq('id', currentUser.id).single(),
                         supabaseClient.from('profiles').select('id').eq('notify_new_swims', true).neq('id', currentUser.id)
@@ -2141,30 +2176,26 @@
                     const optedIn = optedInRes.data || [];
 
                     if (optedIn.length > 0) {
-                        // Build rich notification message
-                        const distStr = eventData.distance_km ? `${eventData.distance_km}km · ` : '';
-                        const timeStr = new Date(eventData.start_at).toLocaleString('en-ZA', {
+                        const distStr = baseEvent.distance_km ? `${baseEvent.distance_km}km · ` : '';
+                        const timeStr = new Date(data[0].start_at).toLocaleString('en-ZA', {
                             weekday: 'short', month: 'short', day: 'numeric',
                             hour: '2-digit', minute: '2-digit'
                         });
                         const spotsStr = data[0].max_participants ? ` · ${data[0].max_participants} spots` : '';
-                        const notifMessage = `${eventData.location_name} · ${distStr}${timeStr}${spotsStr}`;
+                        const recurStr = recurrenceType ? ` · ${typeLabel}` : '';
+                        const notifMessage = `${baseEvent.location_name} · ${distStr}${timeStr}${spotsStr}${recurStr}`;
 
                         for (const user of optedIn) {
                             await notify(
-                                user.id,
-                                newEventId,
-                                'new_swim',
+                                user.id, newEventId, 'new_swim',
                                 `🏊 ${hostName} posted a new swim!`,
                                 notifMessage,
                                 { swim_event_id: newEventId }
                             );
                         }
-                        console.log(`New swim notification sent to ${optedIn.length} user(s)`);
                     }
                 } catch (err) {
                     console.error('Error sending new swim notifications:', err);
-                    // Non-fatal — swim was still created successfully
                 }
             }
 
@@ -2188,6 +2219,36 @@
                 const el = document.getElementById('swimOverlapWarning');
                 if (el) { el.style.display = 'none'; el.innerHTML = ''; }
             }
+            updateRecurrencePreview();
+        }
+
+        function onRecurrenceChange() {
+            const val = document.getElementById('eventRecurrence')?.value;
+            const endGroup = document.getElementById('recurrenceEndGroup');
+            if (endGroup) endGroup.style.display = val ? 'block' : 'none';
+            updateRecurrencePreview();
+        }
+
+        function updateRecurrencePreview() {
+            const recurrenceType = document.getElementById('eventRecurrence')?.value;
+            const endDateVal = document.getElementById('eventRecurrenceEnd')?.value;
+            const dateVal = document.getElementById('eventDateTime')?.value;
+            const previewEl = document.getElementById('recurrencePreview');
+            if (!previewEl) return;
+            if (!recurrenceType || !endDateVal || !dateVal) {
+                previewEl.style.display = 'none';
+                return;
+            }
+            const stepDays = recurrenceType === 'daily' ? 1 : recurrenceType === 'weekly' ? 7 : 14;
+            const [datePart] = dateVal.split('T');
+            let cur = new Date(datePart + 'T12:00:00');
+            const end = new Date(endDateVal + 'T12:00:00');
+            let count = 0;
+            while (cur <= end && count < 52) { count++; cur.setDate(cur.getDate() + stepDays); }
+            const typeLabel = recurrenceType === 'daily' ? 'daily' : recurrenceType === 'weekly' ? 'weekly' : 'fortnightly';
+            const endFmt = new Date(endDateVal + 'T12:00:00').toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' });
+            previewEl.style.display = 'block';
+            previewEl.textContent = `Will create ${count} swim${count !== 1 ? 's' : ''} (${typeLabel}) until ${endFmt}`;
         }
 
         async function checkSwimOverlap(spotId, startAt) {
@@ -7184,6 +7245,22 @@
                                         style="width: 14px; height: 14px; vertical-align: middle;"></i> Date & Time
                                 </div>
                                 <input type="datetime-local" id="eventDateTime" required onchange="onCreateFormFieldChange()">
+                            </div>
+
+                            <div class="form-group">
+                                <div class="form-label"><i data-lucide="repeat" style="width:14px;height:14px;vertical-align:middle;"></i> Repeats</div>
+                                <select id="eventRecurrence" onchange="onRecurrenceChange()">
+                                    <option value="">One-time</option>
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="fortnightly">Every 2 weeks</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="recurrenceEndGroup" style="display:none;">
+                                <div class="form-label"><i data-lucide="calendar-x" style="width:14px;height:14px;vertical-align:middle;"></i> Until</div>
+                                <input type="date" id="eventRecurrenceEnd" onchange="updateRecurrencePreview()">
+                                <div id="recurrencePreview" style="display:none;margin-top:8px;padding:8px 10px;background:rgba(56,189,248,0.08);border-radius:8px;font-size:12px;color:var(--ocean-light);font-weight:600;"></div>
                             </div>
 
                             <div class="form-group">
