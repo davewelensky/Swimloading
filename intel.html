@@ -471,6 +471,18 @@ function isNW(deg) {
     return (deg >= 270 && deg <= 360) || deg <= 45;
 }
 
+function windAssess(deg, speed) {
+    // Tiered wind assessment — direction matters less when winds are very light
+    const nw = isNW(deg);
+    if (speed < 15)                              return { tier: 'calm',      label: 'Calm / very light' };
+    if (nw && speed < 35)                        return { tier: 'optimal',   label: 'Favourable NW' };
+    if (nw && speed < 45)                        return { tier: 'nw-strong', label: 'Strong NW' };
+    if (deg >= 45 && deg <= 200 && speed < 25)   return { tier: 'adv-light', label: 'Light adverse' };
+    if (deg >= 45 && deg <= 200)                 return { tier: 'adverse',   label: 'Adverse (SE/S/E)' };
+    if (speed < 25)                              return { tier: 'sw-light',  label: 'Light S/SW' };
+    return                                              { tier: 'adverse',   label: 'Adverse' };
+}
+
 function posClass(i) { return i===0?'p1':i===1?'p2':i===2?'p3':''; }
 
 // Direct REST fetch — bypasses Supabase JS client auth issues
@@ -514,56 +526,74 @@ async function loadLiveTemps() {
         return null;
     }
 
+    const spotIds = spots.map(s => s.id);
+    const now = Date.now();
+    const since24h = new Date(now - 24 * 3600 * 1000).toISOString();
+    const since48h = new Date(now - 48 * 3600 * 1000).toISOString();
+
+    // Fetch last 48h of logs so we can compare today vs yesterday
     const { data: logs } = await sb.from('temp_logs')
         .select('spot_id, temp_c, conditions, created_at, spots!inner(name)')
-        .in('spot_id', spots.map(s => s.id))
+        .in('spot_id', spotIds)
+        .gte('created_at', since48h)
         .order('created_at', { ascending: false })
-        .limit(30);
+        .limit(100);
 
-    // Latest per spot
+    const todayLogs  = (logs || []).filter(l => l.created_at >= since24h);
+    const yestLogs   = (logs || []).filter(l => l.created_at < since24h);
+
+    // Latest per spot from today's logs
     const latest = {};
-    (logs||[]).forEach(l => { if (!latest[l.spot_id]) latest[l.spot_id] = l; });
+    todayLogs.forEach(l => { if (!latest[l.spot_id]) latest[l.spot_id] = l; });
     const readings = Object.values(latest);
 
     if (!readings.length) {
         document.getElementById('liveTemps').innerHTML = `
             <div class="alert blue">
-                Satellite SST (20 Feb 2026): Miller's Point <strong>~17°C</strong> · Open bay mid-crossing <strong>~19°C</strong> · Strand/Rooi Els end <strong>~20°C</strong>. Bay warming trend confirmed. Community readings (19 Feb): Miller's Point 17°C · Simons Town 15°C · Glencairn 16.5°C. Route stays in the western bay — expect ~17°C at the start.
+                Satellite SST (20 Feb 2026): Miller's Point <strong>~17°C</strong> · Open bay mid-crossing <strong>~19°C</strong> · Strand/Rooi Els end <strong>~20°C</strong>. Bay warming trend confirmed. No community logs in the last 24h.
             </div>`;
         return { avgTemp: 17.0, hasLive: false };
     }
 
-    const temps = readings.map(r => r.temp_c).filter(Boolean);
-    const avg = temps.reduce((a,b)=>a+b,0)/temps.length;
-    const max = Math.max(...temps);
-    const min = Math.min(...temps);
+    const temps = readings.map(r => parseFloat(r.temp_c)).filter(Boolean);
+    const avg   = temps.reduce((a, b) => a + b, 0) / temps.length;
+    const max   = Math.max(...temps);
+
+    // Trend: compare today avg vs yesterday avg
+    const yestTemps = yestLogs.map(l => parseFloat(l.temp_c)).filter(Boolean);
+    const yestAvg   = yestTemps.length ? yestTemps.reduce((a, b) => a + b, 0) / yestTemps.length : null;
+    const delta     = yestAvg != null ? avg - yestAvg : null;
+    const trend     = delta == null ? null : delta > 0.5 ? 'rising' : delta < -0.5 ? 'cooling' : 'stable';
+    const trendBadge = trend === 'rising'  ? '<span style="color:#10b981;font-weight:700;"> ↑ warming</span>'
+                     : trend === 'cooling' ? '<span style="color:#38bdf8;font-weight:700;"> ↓ cooling</span>'
+                     : trend === 'stable'  ? '<span style="color:var(--text-secondary);"> → stable</span>' : '';
 
     document.getElementById('liveTemps').innerHTML = `
         <div class="stat-grid" style="margin-bottom:12px;">
             <div class="stat-box ok">
-                <div class="stat-val green">${avg.toFixed(1)}°C</div>
-                <div class="stat-lbl">Community avg<br>False Bay</div>
+                <div class="stat-val green">${avg.toFixed(1)}°C${trendBadge}</div>
+                <div class="stat-lbl">Community avg · False Bay<br><span style="font-size:10px;">${todayLogs.length} log${todayLogs.length!==1?'s':''} in last 24h</span></div>
             </div>
             <div class="stat-box hi">
                 <div class="stat-val blue">${max}°C</div>
-                <div class="stat-lbl">Warmest spot<br>recorded</div>
+                <div class="stat-lbl">Warmest reading<br>today</div>
             </div>
         </div>
-        ${readings.slice(0,5).map(r => `
+        ${readings.slice(0, 5).map(r => `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
                 <div>
-                    <div style="font-size:13px;font-weight:500;">${r.spots?.name||'Unknown'}</div>
+                    <div style="font-size:13px;font-weight:500;">${r.spots?.name || 'Unknown'}</div>
                     <div style="font-size:11px;color:var(--text-secondary);">${timeAgo(r.created_at)}</div>
                 </div>
                 <div style="font-size:16px;font-weight:700;color:${r.temp_c>=18?'var(--success)':r.temp_c>=15?'var(--warning)':'var(--danger)'};">${r.temp_c}°C</div>
             </div>
         `).join('')}
         <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">
-            Satellite SST (20 Feb 2026): Miller's Point ~17°C · Bay mid-crossing ~19°C · Strand/Rooi Els end ~20°C. Bay warming confirmed. Community readings (19 Feb): Miller's Point 17°C · Simons Town 15°C · Glencairn 16.5°C.
+            Satellite SST (20 Feb 2026): Miller's Point ~17°C · Bay mid-crossing ~19°C · Strand/Rooi Els end ~20°C.
         </div>
     `;
 
-    return { avgTemp: avg, hasLive: true, readings };
+    return { avgTemp: avg, hasLive: true, readings, trend, todayCount: todayLogs.length };
 }
 
 async function loadWindForecast() {
@@ -725,22 +755,43 @@ async function loadSundayHourly() {
 function buildGoSignal(live, forecast) {
     const temp = live?.avgTemp || 17.0;
     const tempOk = temp >= 18;
-    const windOk = forecast ? forecast.nwFav && forecast.windMax < 35 : null;
+    const tempSource = live?.hasLive
+        ? `${temp.toFixed(1)}°C avg from ${live.todayCount} community log${live.todayCount !== 1 ? 's' : ''} today`
+        : `${temp.toFixed(1)}°C (satellite estimate)`;
 
     let cls, label, title, sub;
 
-    if (tempOk && windOk === true) {
-        cls = 'go'; label = 'Conditions'; title = 'GO';
-        sub = `Water ${temp.toFixed(1)}°C ✓ · ${forecast.dirLabel} wind at ${forecast.windMax?.toFixed(0)} km/h ✓ · Conditions align for Sunday.`;
-    } else if (tempOk && windOk === null) {
-        cls = 'go'; label = 'Water Temp'; title = 'VIABLE';
-        sub = `False Bay at ${temp.toFixed(1)}°C — above the 18°C skins threshold. Check wind forecast separately.`;
-    } else if (tempOk && windOk === false) {
-        cls = 'caution'; label = 'Mixed Signals'; title = 'MONITOR';
-        sub = `Water temp is good (${temp.toFixed(1)}°C) but wind direction (${forecast?.dirLabel}) is not ideal NW. Wait for updated forecast closer to Sunday.`;
-    } else {
+    if (!tempOk) {
         cls = 'wait'; label = 'Conditions'; title = 'NOT YET';
-        sub = `Water temp ${temp.toFixed(1)}°C — below 18°C threshold for skins. Wait for warmer conditions.`;
+        sub = `Water ${tempSource} — below 18°C threshold for skins. Wait for warmer conditions.`;
+    } else if (!forecast) {
+        cls = 'go'; label = 'Water Temp'; title = 'VIABLE';
+        sub = `False Bay at ${tempSource} — above the 18°C skins threshold. Load forecast to check wind.`;
+    } else {
+        const wa = windAssess(forecast.windDir, forecast.windMax);
+        const spd = `${forecast.windMax?.toFixed(0)} km/h`;
+        switch (wa.tier) {
+            case 'optimal':
+                cls = 'go'; label = 'Conditions'; title = 'GO';
+                sub = `Water ${tempSource} ✓ · ${forecast.dirLabel} wind ${spd} ✓ · Current and conditions align for crossing.`;
+                break;
+            case 'calm':
+                cls = 'caution'; label = 'Calm Window'; title = 'CAUTION';
+                sub = `Water ${tempSource} ✓ · Wind ${spd} — essentially calm. Flat water, no current assist but no headcurrent. A viable crossing window — confirm closer to swim day.`;
+                break;
+            case 'nw-strong':
+                cls = 'caution'; label = 'Mixed Signals'; title = 'MONITOR';
+                sub = `Water ${tempSource} ✓ · ${forecast.dirLabel} wind ${spd} — direction is right but strong. Expect chop. Monitor for lighter forecast.`;
+                break;
+            case 'sw-light':
+            case 'adv-light':
+                cls = 'caution'; label = 'Mixed Signals'; title = 'MONITOR';
+                sub = `Water ${tempSource} ✓ · ${forecast.dirLabel} wind ${spd} — light adverse direction. Manageable, but expect reduced current assist. Check updated forecast closer to crossing day.`;
+                break;
+            default: // adverse
+                cls = 'caution'; label = 'Unfavourable'; title = 'CAUTION';
+                sub = `Water ${tempSource} ✓ · ${forecast.dirLabel} wind ${spd} — unfavourable direction drives crosscurrent. Wait for NW window.`;
+        }
     }
 
     document.getElementById('goSignal').outerHTML = `
@@ -754,22 +805,58 @@ function buildGoSignal(live, forecast) {
 
 function buildChecklist(live, forecast) {
     const temp = live?.avgTemp || 17.0;
+
+    // Temp item — use live community logs when available
+    const trendBadge = live?.trend === 'rising'  ? ' · <span style="color:#10b981;">↑ warming</span>'
+                     : live?.trend === 'cooling' ? ' · <span style="color:#38bdf8;">↓ cooling</span>'
+                     : live?.trend === 'stable'  ? ' · <span style="color:var(--text-secondary);">→ stable</span>' : '';
+    let tempSub;
+    if (live?.hasLive && live.readings?.length) {
+        const spotList = live.readings.slice(0, 4).map(r =>
+            `${r.spots?.name || 'Unknown'} <strong>${r.temp_c}°C</strong> (${timeAgo(r.created_at)})`
+        ).join(' · ');
+        tempSub = `${spotList}${trendBadge}<br><span style="font-size:11px;opacity:0.7;">Satellite SST (20 Feb 2026): Miller's Point ~17°C · Bay mid ~19°C · Strand end ~20°C</span>`;
+    } else {
+        tempSub = temp >= 18
+            ? `${temp.toFixed(1)}°C (satellite estimate) — above threshold. No community logs today. Satellite SST (20 Feb 2026): Miller's Point ~17°C, bay mid ~19°C, Strand end ~20°C.`
+            : `${temp.toFixed(1)}°C (satellite estimate) — below 18°C. Satellite SST (20 Feb 2026): start ~17°C, bay warms to ~19–20°C mid-crossing. Trend is upward.`;
+    }
+
+    // Wind item — tiered assessment
+    let windOk, windIcon, windLabel, windSub;
+    if (!forecast) {
+        windOk = null; windIcon = '❓';
+        windLabel = 'Wind — direction and speed';
+        windSub = 'NW wind is ideal — drives anti-clockwise bay circulation, pushing current eastward through the crossing. Very light winds of any direction are also viable. Load forecast to check.';
+    } else {
+        const wa = windAssess(forecast.windDir, forecast.windMax);
+        const spd = `${forecast.windMax?.toFixed(0)} km/h`;
+        const windDescriptions = {
+            'optimal':   { ok: true,  icon: '✅', sub: `${forecast.dirLabel} ${spd} — favourable. NW drives anti-clockwise bay circulation, pushing current eastward through the crossing.` },
+            'calm':      { ok: true,  icon: '✅', sub: `${forecast.dirLabel} ${spd} — essentially calm. Flat water with no current assist, but no headcurrent either. A viable crossing window.` },
+            'nw-strong': { ok: null,  icon: '⚠️', sub: `${forecast.dirLabel} ${spd} — right direction but strong. Expect chop. Monitor for lighter forecast closer to crossing day.` },
+            'sw-light':  { ok: null,  icon: '⚠️', sub: `${forecast.dirLabel} ${spd} — light. S/SW creates mild clockwise circulation but minimal impact at this speed. Manageable.` },
+            'adv-light': { ok: null,  icon: '⚠️', sub: `${forecast.dirLabel} ${spd} — light adverse. Some crosscurrent on the W→E line but manageable. Monitor for improvement.` },
+            'adverse':   { ok: false, icon: '❌', sub: `${forecast.dirLabel} ${spd} — unfavourable. SE/S/E drives clockwise circulation creating headcurrent on the crossing route. Wait for NW window.` },
+        };
+        const wd = windDescriptions[wa.tier] || windDescriptions['adverse'];
+        windOk = wd.ok; windIcon = wd.icon;
+        windLabel = `Wind — ${wa.label}`;
+        windSub = wd.sub;
+    }
+
     const items = [
         {
             ok: temp >= 18,
             icon: temp >= 18 ? '✅' : '❌',
             label: 'Water temp ≥ 18°C',
-            sub: temp >= 18
-                ? `Current: ${temp.toFixed(1)}°C — above threshold. Satellite SST (20 Feb 2026): Miller's Point ~17°C, bay mid ~19°C, Strand end ~20°C. Bay warming confirmed.`
-                : `Current: ${temp.toFixed(1)}°C — below 18°C. Satellite SST (20 Feb 2026): start ~17°C, bay warms to ~19–20°C mid-crossing. Trend is upward.`
+            sub: tempSub
         },
         {
-            ok: forecast?.nwFav,
-            icon: forecast?.nwFav ? '✅' : forecast ? '⚠️' : '❓',
-            label: 'NW wind — direction drives the current',
-            sub: forecast
-                ? `Sunday forecast: ${forecast.dirLabel} at ${forecast.windMax?.toFixed(0)} km/h. ${forecast.nwFav ? 'Favourable — NW wind drives an anti-clockwise bay circulation, pushing current eastward through the crossing. Double benefit: less chop and current in the swim direction.' : 'Not ideal — SE or S winds drive a clockwise bay circulation, creating a crosscurrent or headcurrent on the W→E line. Monitor closer to Sunday.'}`
-                : 'NW wind is the key variable. It drives an anti-clockwise bay circulation that sends current eastward — directly assisting the Miller\'s Point to Gordon\'s Bay crossing.'
+            ok: windOk,
+            icon: windIcon,
+            label: windLabel,
+            sub: windSub
         },
         {
             ok: forecast ? forecast.windMax < 30 : null,
