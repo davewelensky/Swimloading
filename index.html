@@ -1038,26 +1038,37 @@
                 const spotCode = spotInfo ? spotInfo.code : '';
 
                 // Conditions + hazards from most recent log at this spot
-                const recentLog  = conditionsCache[log.spot_id]?.[0];
-                const cond       = recentLog?.conditions;
-                const logHazards = recentLog?.hazards || [];
-                const hasHazard  = logHazards.length > 0 || (activeHazardsBySpot[log.spot_id]?.length > 0);
+                const recentLog      = conditionsCache[log.spot_id]?.[0];
+                const cond           = recentLog?.conditions;
+                const logHazards     = recentLog?.hazards || [];
+
+                // Only ⚠️ for genuinely dangerous hazards — seals/jellyfish are normal in False Bay
+                const SERIOUS        = ['shark', 'sewage'];
+                const SIGHTING_ICONS = { jellyfish: '🪼', seals: '🦭', shark: '🦈', sewage: '🚫' };
+                const seriousHazards = logHazards.filter(h => SERIOUS.includes(h));
+                const sightings      = logHazards.filter(h => !SERIOUS.includes(h));
+                const hasDanger      = seriousHazards.length > 0 || (activeHazardsBySpot[log.spot_id]?.length > 0);
 
                 const condColor  = cond === 'extreme' ? '#ef4444' : cond === 'rough' ? '#f97316' : '#f59e0b';
                 const condBadge  = (cond && cond !== 'calm')
                     ? `<div style="font-size:9px;font-weight:700;color:${condColor};margin-top:3px;letter-spacing:.05em;">${cond.toUpperCase()}</div>`
                     : '';
-                const hazardDot  = hasHazard
-                    ? `<div style="position:absolute;top:6px;right:8px;font-size:12px;line-height:1;" title="${logHazards.join(', ')}">⚠️</div>`
+                // Friendly sighting icons (jellyfish/seals) — info, not alarm
+                const sightingBadge = sightings.length > 0
+                    ? `<div style="font-size:12px;margin-top:3px;" title="${sightings.join(', ')}">${sightings.map(h => SIGHTING_ICONS[h] || h).join('')}</div>`
+                    : '';
+                const hazardDot  = hasDanger
+                    ? `<div style="position:absolute;top:6px;right:8px;font-size:12px;line-height:1;" title="${seriousHazards.join(', ')}">⚠️</div>`
                     : '';
 
                 return `
-                                <div onclick="goToSpotTrend('${log.spot_id}', '${(log.spotName || 'Unknown').replace(/'/g, "\\'")}', '${spotCode}')" style="position:relative;cursor: pointer; background: rgba(15, 23, 42, 0.6); border-radius: 14px; padding: 14px; text-align: center; border: 1px solid ${hasHazard ? 'rgba(239,68,68,0.35)' : color + '20'}; ${!isFresh ? 'opacity: 0.5;' : ''} transition: all 0.2s ease;">
+                                <div onclick="goToSpotTrend('${log.spot_id}', '${(log.spotName || 'Unknown').replace(/'/g, "\\'")}', '${spotCode}')" style="position:relative;cursor: pointer; background: rgba(15, 23, 42, 0.6); border-radius: 14px; padding: 14px; text-align: center; border: 1px solid ${hasDanger ? 'rgba(239,68,68,0.35)' : color + '20'}; ${!isFresh ? 'opacity: 0.5;' : ''} transition: all 0.2s ease;">
                                     ${hazardDot}
                                     <div style="font-size: 28px; font-weight: 800; color: ${color}; text-shadow: 0 0 20px ${color}30; line-height: 1.1;">${log.temp_c}°</div>
                                     <div style="font-size: 10px; font-weight: 500; color: ${color}; opacity: 0.7; margin-top: 2px;">${age}</div>
                                     <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px; font-weight: 600;">${log.spotName || 'Unknown'}</div>
                                     ${condBadge}
+                                    ${sightingBadge}
                                     <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.5; margin-top: 2px;">${getTimeAgo(new Date(log.created_at))}</div>
                                     <div style="font-size: 9px; color: var(--ocean-light); margin-top: 4px; opacity: 0.6;">tap for trends →</div>
                                 </div>
@@ -1231,9 +1242,9 @@
                 // Temperature trend arrow — compare most recent 2 logs with temp_c
                 const logs = condBySpot[spot.spot_id] || [];
 
-                // Hazard triangle — from most recent community log (user-reported sightings)
+                // Hazard triangle — only for genuinely dangerous hazards (shark/sewage)
                 const recentLogHazards = logs[0]?.hazards || [];
-                const hasLogHazard     = recentLogHazards.length > 0;
+                const hasLogHazard     = recentLogHazards.some(h => ['shark', 'sewage'].includes(h));
                 const t0 = logs[0]?.temp_c != null ? parseFloat(logs[0].temp_c) : null;
                 const t1 = logs[1]?.temp_c != null ? parseFloat(logs[1].temp_c) : null;
 
