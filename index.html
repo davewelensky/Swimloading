@@ -1044,8 +1044,9 @@
                 // Only ⚠️ for genuinely dangerous hazards — seals/jellyfish are normal in False Bay
                 const SERIOUS        = ['shark', 'sewage'];
                 const SIGHTING_ICONS = { jellyfish: '🪼', seals: '🦭', shark: '🦈', sewage: '🚫' };
-                const seriousHazards = logHazards.filter(h => SERIOUS.includes(h));
-                const sightings      = logHazards.filter(h => !SERIOUS.includes(h));
+                const seriousHazards  = logHazards.filter(h => SERIOUS.includes(h));
+                const KNOWN_SIGHTINGS = ['jellyfish', 'seals'];
+                const sightings       = logHazards.filter(h => KNOWN_SIGHTINGS.includes(h));
                 const hasDanger      = seriousHazards.length > 0 || (activeHazardsBySpot[log.spot_id]?.length > 0);
 
                 const condColor  = cond === 'extreme' ? '#ef4444' : cond === 'rough' ? '#f97316' : '#f59e0b';
@@ -4883,7 +4884,7 @@
             const conditions = conditionsRaw.replace(/[^\w\s]/g, '').trim().toLowerCase();
 
             // Get selected hazards and remove emojis
-            const hazards = Array.from(document.querySelectorAll('#logTemp .toggle-group:last-of-type .toggle-btn.active'))
+            const hazards = Array.from(document.querySelectorAll('#hazardsToggleGroup .toggle-btn.active'))
                 .map(btn => btn.textContent.replace(/[^\w\s]/g, '').trim().toLowerCase());
 
             const notes = document.querySelector('#logTemp textarea').value;
@@ -7027,7 +7028,7 @@
                         <div class="form-label"><i data-lucide="shield-alert"
                                 style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px;"></i>
                             Hazards (Optional)</div>
-                        <div class="toggle-group">
+                        <div class="toggle-group" id="hazardsToggleGroup">
                             <div class="toggle-btn" onclick="this.classList.toggle('active')"><i data-lucide="droplet"
                                     style="width: 18px; height: 18px; vertical-align: middle;"></i> Jellyfish</div>
                             <div class="toggle-btn" onclick="this.classList.toggle('active')"><i
@@ -8901,7 +8902,8 @@
                         const SIGHTING_ICONS = { jellyfish: '🪼', seals: '🦭', shark: '🦈', sewage: '🚫' };
                         const SERIOUS = ['shark', 'sewage'];
                         const seriousHazards = logHazards.filter(h => SERIOUS.includes(h));
-                        const sightings = logHazards.filter(h => !SERIOUS.includes(h));
+                        const KNOWN_SIGHTINGS = ['jellyfish', 'seals'];
+                        const sightings = logHazards.filter(h => KNOWN_SIGHTINGS.includes(h));
                         const condColor = log.conditions === 'extreme' ? '#ef4444' : log.conditions === 'rough' ? '#f97316' : log.conditions === 'choppy' ? '#f59e0b' : 'var(--text-secondary)';
                         const condBadge = log.conditions
                             ? `<span style="font-size:10px;font-weight:700;color:${condColor};margin-right:6px;">${log.conditions.toUpperCase()}</span>`
