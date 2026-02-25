@@ -1166,7 +1166,16 @@
 
             // -- Final score --
             const raw = freshness + conditions + temp - hazardPenalty + activityBonus + forecastAdj;
-            const score = Math.max(0, Math.min(100, Math.round(raw)));
+
+            // Temperature cap — cold water cannot score "Great" regardless of freshness/conditions
+            let scoreCap = 100;
+            if (isOceanType && spot.temp_c != null) {
+                const t = spot.temp_c;
+                if (t < 14)       scoreCap = 49;  // Cold (< 14°C) → max "Fair"
+                else if (t < 16)  scoreCap = 74;  // Cool (14–15.9°C) → max "Good"
+                // ≥ 16°C: no cap — full range available
+            }
+            const score = Math.max(0, Math.min(scoreCap, Math.round(raw)));
 
             // -- Band --
             let label, emoji, color;
