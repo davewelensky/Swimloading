@@ -1812,6 +1812,15 @@
                     return 0;
                 });
 
+                // For recurring series — show only the next upcoming instance, not all of them
+                const seriesSeen = new Set();
+                upcomingEvents = upcomingEvents.filter(e => {
+                    if (!e.recurrence_series_id) return true;               // one-time: always show
+                    if (seriesSeen.has(e.recurrence_series_id)) return false; // subsequent: skip
+                    seriesSeen.add(e.recurrence_series_id);
+                    return true;                                              // first of series: show
+                });
+
                 console.log('Upcoming events:', upcomingEvents);
 
                 // If no events, show empty state
