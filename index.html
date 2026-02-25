@@ -743,6 +743,7 @@
 
         // Load dashboard
         async function loadDashboard() {
+            loadMonthlyChallengeSummary(); // non-blocking — renders challenge teaser card
             try {
                 // Load user stats
                 const { data: stats } = await supabaseClient
@@ -2029,7 +2030,7 @@
                                 <div style="background: rgba(56, 189, 248, 0.15); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; color: var(--ocean-light);">
                                     ${paceLabel}
                                 </div>
-                                ${event.recurrence_type ? `<div style="background:rgba(16,185,129,0.12);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;color:#10b981;">🔄 ${{daily:'Daily',weekly:'Weekly',fortnightly:'Fortnightly'}[event.recurrence_type]||event.recurrence_type}</div>` : ''}
+                                ${event.recurrence_type ? `<div style="background:rgba(16,185,129,0.12);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;color:#10b981;">🔄 ${{daily:'Daily',weekdays:'Weekdays',weekends:'Weekends',weekly:'Weekly',fortnightly:'Fortnightly'}[event.recurrence_type]||event.recurrence_type}</div>` : ''}
                                 ${displayRoute ? `
                                     <div style="background: rgba(56, 189, 248, 0.1); padding: 4px 10px; border-radius: 6px; font-size: 11px; color: var(--text-secondary);">
                                         ${displayRoute}
@@ -2147,15 +2148,19 @@
             if (recurrenceType && recurrenceEndVal && dateTimeVal) {
                 // Recurring — generate all instances up to the end date
                 const seriesId = crypto.randomUUID();
-                const stepDays = recurrenceType === 'daily' ? 1 : recurrenceType === 'weekly' ? 7 : 14;
+                const stepDays = recurrenceType === 'weekly' ? 7 : recurrenceType === 'fortnightly' ? 14 : 1;
                 const [datePart, timePart] = dateTimeVal.split('T');
                 let cur = new Date(datePart + 'T12:00:00');
                 const end = new Date(recurrenceEndVal + 'T12:00:00');
                 while (cur <= end && eventsToInsert.length < 52) {
+                    const dow = cur.getDay(); // 0=Sun,1=Mon...5=Fri,6=Sat
+                    const include = recurrenceType === 'weekdays' ? (dow >= 1 && dow <= 5)
+                                  : recurrenceType === 'weekends' ? (dow === 0 || dow === 6)
+                                  : true;
                     const y = cur.getFullYear();
                     const m = String(cur.getMonth() + 1).padStart(2, '0');
                     const d = String(cur.getDate()).padStart(2, '0');
-                    eventsToInsert.push({
+                    if (include) eventsToInsert.push({
                         ...baseEvent,
                         start_at: `${y}-${m}-${d}T${timePart}:00+02:00`,
                         recurrence_type: recurrenceType,
@@ -2200,7 +2205,7 @@
                 }
             }
 
-            const typeLabel = recurrenceType === 'daily' ? 'daily' : recurrenceType === 'weekly' ? 'weekly' : recurrenceType === 'fortnightly' ? 'fortnightly' : '';
+            const typeLabel = { daily:'daily', weekdays:'weekdays', weekends:'weekends', weekly:'weekly', fortnightly:'fortnightly' }[recurrenceType] || '';
             const toastMsg = recurrenceType && data?.length > 1
                 ? `${data.length} ${typeLabel} swims created!`
                 : 'Swim created successfully!';
@@ -2293,7 +2298,7 @@
             const end = new Date(endDateVal + 'T12:00:00');
             let count = 0;
             while (cur <= end && count < 52) { count++; cur.setDate(cur.getDate() + stepDays); }
-            const typeLabel = recurrenceType === 'daily' ? 'daily' : recurrenceType === 'weekly' ? 'weekly' : 'fortnightly';
+            const typeLabel = { daily:'daily', weekdays:'Mon–Fri', weekends:'Sat–Sun', weekly:'weekly', fortnightly:'fortnightly' }[recurrenceType] || recurrenceType;
             const endFmt = new Date(endDateVal + 'T12:00:00').toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' });
             previewEl.style.display = 'block';
             previewEl.textContent = `Will create ${count} swim${count !== 1 ? 's' : ''} (${typeLabel}) until ${endFmt}`;
@@ -6916,6 +6921,9 @@
                 <div class="card">
                     <div class="card-title">Dashboard</div>
 
+                    <!-- Monthly Challenge Teaser -->
+                    <div id="dashMonthlyChallenge" style="margin-bottom: 24px;"></div>
+
                     <!-- Your Upcoming Swims -->
                     <div style="margin-bottom: 24px;">
                         <div
@@ -7300,6 +7308,8 @@
                                 <select id="eventRecurrence" onchange="onRecurrenceChange()">
                                     <option value="">One-time</option>
                                     <option value="daily">Daily</option>
+                                    <option value="weekdays">Weekdays (Mon–Fri)</option>
+                                    <option value="weekends">Weekends (Sat–Sun)</option>
                                     <option value="weekly">Weekly</option>
                                     <option value="fortnightly">Every 2 weeks</option>
                                 </select>
@@ -7642,6 +7652,10 @@
 
             <!-- LEADERBOARD -->
             <div id="leaderboard" class="page">
+
+                <!-- Monthly Challenge Section -->
+                <div id="monthlyChallenge" style="margin-bottom: 16px;"></div>
+
                 <div class="card">
                     <div class="card-title"><i data-lucide="trophy"
                             style="width: 24px; height: 24px; vertical-align: middle;"></i> Leaderboard</div>
@@ -7713,7 +7727,185 @@
         }
 
         // Load leaderboard data
+        // ─── Monthly Challenge helpers ──────────────────────────────────────────
+        function getMonthWindow() {
+            const now        = new Date();
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            const daysLeft   = Math.ceil((monthEnd - now) / 86400000);
+            const monthName  = now.toLocaleString('en-ZA', { month: 'long', year: 'numeric' });
+            const isLive     = now >= new Date(2026, 2, 1); // challenge launches 1 March 2026
+            const daysToLaunch = Math.ceil((new Date(2026, 2, 1) - now) / 86400000);
+            return { now, monthStart, monthEnd, daysLeft, monthName, isLive, daysToLaunch };
+        }
+
+        async function loadMonthlyChallenge() {
+            const el = document.getElementById('monthlyChallenge');
+            if (!el) return;
+            const { monthStart, monthEnd, daysLeft, monthName, isLive, daysToLaunch } = getMonthWindow();
+
+            // Coming-soon state (before March 1)
+            if (!isLive) {
+                el.innerHTML = `
+                <div style="background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(2,132,199,0.1));border:1px solid rgba(16,185,129,0.25);border-radius:14px;padding:20px;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                        <span style="font-size:24px;">🏆</span>
+                        <div>
+                            <div style="font-weight:700;font-size:16px;color:var(--text);">March Temperature Challenge</div>
+                            <div style="background:rgba(16,185,129,0.2);color:#10b981;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;display:inline-block;margin-top:4px;">Starts in ${daysToLaunch} day${daysToLaunch !== 1 ? 's' : ''}</div>
+                        </div>
+                    </div>
+                    <div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">Log the most temperatures in March to win a <strong style="color:var(--text);">SwimBETTER Stroke Analysis Session</strong> with AquaSharks. Start logging from 1 March!</div>
+                </div>`;
+                return;
+            }
+
+            // Active challenge — fetch leaderboard
+            el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:13px;">Loading challenge…</div>`;
+            try {
+                const { data, error } = await supabaseClient.rpc('get_monthly_temp_leaders', {
+                    p_month_start: monthStart.toISOString(),
+                    p_month_end:   monthEnd.toISOString()
+                });
+
+                // Current user's own count (may be outside top 10)
+                let myCount = 0, myRank = null;
+                if (currentUser) {
+                    const { count } = await supabaseClient
+                        .from('temp_logs')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('user_id', currentUser.id)
+                        .gte('created_at', monthStart.toISOString())
+                        .lt('created_at',  monthEnd.toISOString());
+                    myCount = count || 0;
+                    if (data) {
+                        const idx = data.findIndex(r => r.user_id === currentUser.id);
+                        myRank = idx >= 0 ? idx + 1 : null;
+                    }
+                }
+
+                const medals = ['🥇','🥈','🥉'];
+                const rows = (data || []).map((row, i) => {
+                    const isMe = currentUser && row.user_id === currentUser.id;
+                    const medal = medals[i] || `${i+1}.`;
+                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;${isMe ? 'background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.25);' : ''}border-radius:8px;margin-bottom:6px;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <span style="font-size:${i<3?'18px':'13px'};width:26px;text-align:center;">${medal}</span>
+                            <span style="color:var(--text);font-weight:${i<3||isMe?'600':'400'};font-size:13px;">${row.display_name || 'Anonymous'}${isMe?' (you)':''}</span>
+                        </div>
+                        <span style="color:var(--ocean-light);font-weight:700;font-size:13px;">${row.log_count} logs</span>
+                    </div>`;
+                }).join('');
+
+                const emptyState = !data || data.length === 0
+                    ? `<div style="text-align:center;color:var(--text-secondary);padding:16px;font-size:13px;">No logs yet this month — be the first! 🌊</div>`
+                    : '';
+
+                const myRankLine = currentUser && myRank === null && myCount > 0
+                    ? `<div style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:8px;">You have ${myCount} log${myCount!==1?'s':''} this month — keep going to climb the board!</div>`
+                    : currentUser && myCount === 0
+                    ? `<div style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:8px;">You haven't logged yet this month — every log counts! 🌡️</div>`
+                    : '';
+
+                el.innerHTML = `
+                <div style="background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(2,132,199,0.1));border:1px solid rgba(16,185,129,0.25);border-radius:14px;padding:20px;margin-bottom:4px;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <span style="font-size:24px;">🏆</span>
+                            <div>
+                                <div style="font-weight:700;font-size:16px;color:var(--text);">${monthName} Challenge</div>
+                                <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Most temp logs wins the prize</div>
+                            </div>
+                        </div>
+                        <div style="background:rgba(16,185,129,0.2);color:#10b981;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;">${daysLeft}d left</div>
+                    </div>
+                    <div style="background:rgba(0,0,0,0.2);border-radius:10px;padding:12px;margin-bottom:14px;">
+                        <div style="font-size:12px;font-weight:700;color:#10b981;margin-bottom:6px;">🦈 AquaSharks × EOLabs SwimBETTER</div>
+                        <div style="font-size:13px;color:var(--text);font-weight:600;margin-bottom:4px;">Win a Stroke Analysis Session</div>
+                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">Power in Watts · Stroke efficiency · AI-personalised report · Conducted by AquaSharks in Cape Town</div>
+                    </div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:14px;">Session held in Cape Town. Cape Town area swimmers preferred.</div>
+                    <div style="background:rgba(15,23,42,0.5);border-radius:10px;padding:12px;">
+                        ${emptyState}${rows}${myRankLine}
+                    </div>
+                </div>`;
+            } catch (err) {
+                console.error('Monthly challenge error:', err);
+                el.innerHTML = `<div style="text-align:center;color:var(--text-secondary);padding:16px;font-size:13px;">Could not load challenge data</div>`;
+            }
+        }
+
+        async function loadMonthlyChallengeSummary() {
+            const el = document.getElementById('dashMonthlyChallenge');
+            if (!el) return;
+            const { monthStart, monthEnd, daysLeft, monthName, isLive, daysToLaunch } = getMonthWindow();
+
+            if (!isLive) {
+                el.innerHTML = `
+                <div onclick="showPage('leaderboard')" style="cursor:pointer;background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(2,132,199,0.08));border:1px solid rgba(16,185,129,0.2);border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="font-size:20px;">🏆</span>
+                        <div>
+                            <div style="font-size:13px;font-weight:700;color:var(--text);">March Challenge coming soon</div>
+                            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Starts in ${daysToLaunch} day${daysToLaunch!==1?'s':''} · Win a SwimBETTER session</div>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--text-secondary);flex-shrink:0;"></i>
+                </div>`;
+                initIcons();
+                return;
+            }
+
+            try {
+                const [{ data }, countRes] = await Promise.all([
+                    supabaseClient.rpc('get_monthly_temp_leaders', {
+                        p_month_start: monthStart.toISOString(),
+                        p_month_end:   monthEnd.toISOString()
+                    }),
+                    currentUser ? supabaseClient
+                        .from('temp_logs')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('user_id', currentUser.id)
+                        .gte('created_at', monthStart.toISOString())
+                        .lt('created_at',  monthEnd.toISOString())
+                        : Promise.resolve({ count: 0 })
+                ]);
+
+                const leader = data?.[0];
+                const myCount = countRes?.count || 0;
+                const myRankIdx = data ? data.findIndex(r => r.user_id === currentUser?.id) : -1;
+                const myRank = myRankIdx >= 0 ? myRankIdx + 1 : null;
+
+                const leaderLine = leader
+                    ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Leader: ${leader.display_name} · ${leader.log_count} logs</div>`
+                    : `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">No logs yet — be first!</div>`;
+
+                const myLine = myCount > 0
+                    ? `<div style="font-size:11px;color:var(--ocean-light);font-weight:600;">${myRank ? `#${myRank}` : 'Unranked'} · ${myCount} log${myCount!==1?'s':''} this month</div>`
+                    : `<div style="font-size:11px;color:var(--text-secondary);">Log a temp to enter!</div>`;
+
+                el.innerHTML = `
+                <div onclick="showPage('leaderboard')" style="cursor:pointer;background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(2,132,199,0.08));border:1px solid rgba(16,185,129,0.2);border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="font-size:20px;">🏆</span>
+                        <div>
+                            <div style="font-size:13px;font-weight:700;color:var(--text);">${monthName} Challenge · ${daysLeft}d left</div>
+                            ${leaderLine}
+                            ${myLine}
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--text-secondary);flex-shrink:0;"></i>
+                </div>`;
+                initIcons();
+            } catch (err) {
+                console.error('Challenge summary error:', err);
+                el.innerHTML = '';
+            }
+        }
+        // ─── End Monthly Challenge ──────────────────────────────────────────────
+
         async function loadLeaderboard() {
+            loadMonthlyChallenge(); // non-blocking — renders monthly challenge section
             const listEl = document.getElementById('leaderboardList');
 
             try {

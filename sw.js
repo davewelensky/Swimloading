@@ -1,4 +1,4 @@
-const CACHE_NAME = 'swimloading-v3';
+const CACHE_NAME = 'swimloading-v4';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -37,20 +37,13 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
+    // Never intercept Supabase API requests — let the browser handle them natively.
+    // On iOS Safari PWA, intercepting and returning without respondWith() can abort
+    // the underlying network request with "TypeError: Load failed".
+    if (url.hostname.includes('supabase')) return;
+
     // Skip non-GET requests
     if (event.request.method !== 'GET') return;
-
-    // Network-first for Supabase API calls
-    if (url.hostname.includes('supabase')) {
-        event.respondWith(
-            fetch(event.request).catch(() => {
-                return new Response(JSON.stringify({ error: 'offline' }), {
-                    headers: { 'Content-Type': 'application/json' }
-                });
-            })
-        );
-        return;
-    }
 
     // Network-first for HTML pages (always get latest)
     if (event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/') {
