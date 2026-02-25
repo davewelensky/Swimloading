@@ -8035,7 +8035,7 @@
             if (currentUser && recipientUserId === currentUser.id) return;
 
             try {
-                const { error } = await supabaseClient
+                const { data: insertedNotif, error } = await supabaseClient
                     .from('notifications')
                     .insert({
                         recipient_user_id: recipientUserId,
@@ -8045,13 +8045,20 @@
                         message: message,
                         payload: payloadObj,
                         created_at: new Date().toISOString()
-                    });
+                    })
+                    .select()
+                    .single();
 
                 if (error) {
                     console.error('Supabase Notification Error:', error);
                     throw error;
                 }
-                // console.log('Notification sent to ' + recipientUserId);
+
+                // Trigger push delivery directly — no webhook needed
+                if (insertedNotif) {
+                    supabaseClient.functions.invoke('send-push', { body: { record: insertedNotif } })
+                        .catch(e => console.error('Push invoke error:', e));
+                }
             } catch (err) {
                 console.error('Notification failed:', err);
                 // We don't necessarily want to toast the sender if a background notification fails, 
