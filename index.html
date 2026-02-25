@@ -2116,6 +2116,12 @@
             const recurrenceEndVal = document.getElementById('eventRecurrenceEnd')?.value || '';
             const dateTimeVal = document.getElementById('eventDateTime')?.value || '';
 
+            // Block swims set in the past
+            if (dateTimeVal && new Date(startAt) < new Date()) {
+                showToast('Swim time is already in the past — please pick a future date and time.', 'error');
+                return;
+            }
+
             const baseEvent = {
                 created_by: currentUser.id,
                 title: title,
@@ -2224,7 +2230,7 @@
                             hour: '2-digit', minute: '2-digit'
                         });
                         const spotsStr = data[0].max_participants ? ` · ${data[0].max_participants} spots` : '';
-                        const recurStr = recurrenceType ? ` · ${typeLabel}` : '';
+                        const recurStr = data[0]?.recurrence_type ? ` · ${data[0].recurrence_type}` : '';
                         const notifMessage = `${baseEvent.location_name} · ${distStr}${timeStr}${spotsStr}${recurStr}`;
 
                         for (const user of optedIn) {
