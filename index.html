@@ -1762,8 +1762,9 @@
                 const { data: events, error } = await supabaseClient
                     .from('swim_events')
                     .select('*')
+                    .gte('start_at', new Date().toISOString())
                     .order('start_at', { ascending: true })
-                    .limit(50); // Increased limit as we filter client-side
+                    .limit(50);
 
                 console.log('Events query result:', { events, error });
 
