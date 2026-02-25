@@ -17,8 +17,8 @@
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.profiles (id, email)
-    VALUES (NEW.id, NEW.email)
+    INSERT INTO public.profiles (id, email, display_name)
+    VALUES (NEW.id, NEW.email, '')
     ON CONFLICT (id) DO NOTHING;
     RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
@@ -43,8 +43,8 @@ CREATE TRIGGER on_auth_user_created
 -- These users will be prompted to complete onboarding on
 -- their next login — which is correct behaviour.
 
-INSERT INTO public.profiles (id, email)
-SELECT au.id, au.email
+INSERT INTO public.profiles (id, email, display_name)
+SELECT au.id, au.email, ''
 FROM auth.users au
 LEFT JOIN public.profiles p ON p.id = au.id
 WHERE p.id IS NULL
