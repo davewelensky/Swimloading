@@ -1230,8 +1230,8 @@ async function sendTestPush() {
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) { alert('Not logged in'); return; }
 
-        // Insert notification row
-        const { data: notif, error } = await supabaseClient
+        // Insert notification — the push_on_notification webhook fires automatically
+        const { error } = await supabaseClient
             .from('notifications')
             .insert({
                 recipient_user_id: user.id,
@@ -1241,16 +1241,8 @@ async function sendTestPush() {
                 message: 'Push notifications are working!',
                 payload: {},
                 created_at: new Date().toISOString()
-            })
-            .select()
-            .single();
+            });
         if (error) throw error;
-
-        // Invoke send-push Edge Function
-        const { error: fnErr } = await supabaseClient.functions.invoke('send-push', {
-            body: { record: notif }
-        });
-        if (fnErr) throw fnErr;
 
         btn.textContent = '✓ Sent — check your phone!';
         setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 4000);

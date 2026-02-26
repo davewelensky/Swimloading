@@ -8133,11 +8133,7 @@
                     throw error;
                 }
 
-                // Trigger push delivery directly — no webhook needed
-                if (insertedNotif) {
-                    supabaseClient.functions.invoke('send-push', { body: { record: insertedNotif } })
-                        .catch(e => console.error('Push invoke error:', e));
-                }
+                // Push delivery handled automatically by the database webhook (push_on_notification)
             } catch (err) {
                 console.error('Notification failed:', err);
                 // We don't necessarily want to toast the sender if a background notification fails, 
