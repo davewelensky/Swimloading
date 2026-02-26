@@ -414,6 +414,7 @@
         </div>
         <div class="header-right">
             <span class="header-email" id="adminEmail"></span>
+            <button id="testPushBtn" onclick="sendTestPush()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:white;padding:6px 14px;border-radius:8px;font-size:13px;cursor:pointer;margin-right:8px;">📳 Test Push</button>
             <button class="btn-signout" onclick="signOut()">Sign Out</button>
         </div>
     </div>
@@ -1218,6 +1219,46 @@ function relativeDate(date) {
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
     if (diff < 86400 * 7) return `${Math.floor(diff / 86400)}d ago`;
     return date.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: diff > 86400*365 ? 'numeric' : undefined });
+}
+
+async function sendTestPush() {
+    const btn = document.getElementById('testPushBtn');
+    const orig = btn.textContent;
+    btn.textContent = 'Sending…';
+    btn.disabled = true;
+    try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) { alert('Not logged in'); return; }
+
+        // Insert notification row
+        const { data: notif, error } = await supabaseClient
+            .from('notifications')
+            .insert({
+                recipient_user_id: user.id,
+                swim_event_id: null,
+                type: 'test',
+                title: '🏊 Test notification',
+                message: 'Push notifications are working!',
+                payload: {},
+                created_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+        if (error) throw error;
+
+        // Invoke send-push Edge Function
+        const { error: fnErr } = await supabaseClient.functions.invoke('send-push', {
+            body: { record: notif }
+        });
+        if (fnErr) throw fnErr;
+
+        btn.textContent = '✓ Sent — check your phone!';
+        setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 4000);
+    } catch (err) {
+        alert('Test push failed: ' + err.message);
+        btn.textContent = orig;
+        btn.disabled = false;
+    }
 }
 
 async function signOut() {
