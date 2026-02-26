@@ -745,6 +745,7 @@
         // Load dashboard
         async function loadDashboard() {
             loadMonthlyChallengeSummary(); // non-blocking — renders challenge teaser card
+            loadSpotlightBanner();         // non-blocking — renders SA Open Water spotlight if active
             try {
                 // Load user stats
                 const { data: stats } = await supabaseClient
@@ -7000,6 +7001,9 @@
                 <div class="card">
                     <div class="card-title">Dashboard</div>
 
+                    <!-- SA Open Water Spotlight Banner -->
+                    <div id="spotlightBanner" style="display:none;"></div>
+
                     <!-- Monthly Challenge Teaser -->
                     <div id="dashMonthlyChallenge" style="margin-bottom: 24px;"></div>
 
@@ -7980,6 +7984,55 @@
             } catch (err) {
                 console.error('Monthly challenge error:', err);
                 el.innerHTML = `<div style="text-align:center;color:var(--text-secondary);padding:16px;font-size:13px;">Could not load challenge data</div>`;
+            }
+        }
+
+        async function loadSpotlightBanner() {
+            try {
+                const { data } = await supabaseClient
+                    .from('spotlights')
+                    .select('*, spotlight_updates(*)')
+                    .eq('active', true)
+                    .in('status', ['upcoming', 'live'])
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                const banner = document.getElementById('spotlightBanner');
+                if (!data || !banner) return;
+
+                const updates = (data.spotlight_updates || [])
+                    .sort((a, b) => new Date(b.logged_at) - new Date(a.logged_at));
+                const latest = updates[0];
+
+                const isLive = data.status === 'live';
+                const statusColor = isLive ? '#22c55e' : '#f59e0b';
+                const statusLabel = isLive ? '🔴 LIVE' : '⏳ UPCOMING';
+
+                const routePart = data.route_description ? ` · ${data.route_description}` : '';
+                const distPart = data.distance_km ? ` · ${data.distance_km}km` : '';
+                const latestHtml = latest
+                    ? `<div style="font-size:12px;color:rgba(255,255,255,0.6);margin-bottom:10px;line-height:1.5;">💬 ${latest.notes}${latest.temp_c != null ? ' · ' + latest.temp_c + '°C' : ''}${latest.km_completed != null ? ' · ' + latest.km_completed + 'km done' : ''}</div>`
+                    : '';
+                const trackBtn = data.tracking_url
+                    ? `<a href="${data.tracking_url}" target="_blank" rel="noopener" style="display:inline-block;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:#fff;padding:5px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;">🛥️ Track Live</a>`
+                    : '';
+
+                banner.style.display = 'block';
+                banner.innerHTML = `
+                    <div style="background:linear-gradient(135deg,rgba(30,64,175,0.35),rgba(6,95,70,0.35));border:1px solid rgba(255,255,255,0.14);border-radius:14px;padding:14px 16px;margin-bottom:18px;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
+                            <span style="background:${statusColor};color:#000;font-size:10px;font-weight:800;padding:2px 9px;border-radius:20px;letter-spacing:0.3px;">${statusLabel}</span>
+                            <span style="font-size:11px;color:rgba(255,255,255,0.45);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;">SA Open Water</span>
+                        </div>
+                        <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:3px;line-height:1.3;">${data.title}</div>
+                        <div style="font-size:13px;color:rgba(255,255,255,0.65);margin-bottom:10px;">${data.swimmer_names}${routePart}${distPart}</div>
+                        ${latestHtml}
+                        ${trackBtn}
+                    </div>`;
+            } catch (err) {
+                // Spotlight is optional — silently ignore errors
+                console.warn('Spotlight load error:', err);
             }
         }
 

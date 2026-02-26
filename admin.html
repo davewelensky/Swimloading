@@ -553,6 +553,60 @@
             </div>
         </div>
 
+        <!-- SA Open Water Spotlight Management -->
+        <div class="section" id="spotlightSection">
+            <div class="section-title">🌟 SA Open Water Spotlight</div>
+
+            <!-- Create / Edit Form -->
+            <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:20px;margin-bottom:24px;">
+                <div style="font-size:13px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px;">New Spotlight</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                    <div>
+                        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Title *</label>
+                        <input id="slTitle" type="text" placeholder="e.g. Angus's St Helena Island First" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Swimmer(s) *</label>
+                        <input id="slSwimmers" type="text" placeholder="e.g. Angus Dobie" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;box-sizing:border-box;">
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+                    <div>
+                        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Route</label>
+                        <input id="slRoute" type="text" placeholder="e.g. James Bay → Jamestown" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Distance (km)</label>
+                        <input id="slDistance" type="number" placeholder="45" step="0.1" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Status</label>
+                        <select id="slStatus" style="width:100%;background:rgba(30,30,40,0.9);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;box-sizing:border-box;">
+                            <option value="upcoming">⏳ Upcoming</option>
+                            <option value="live">🔴 Live</option>
+                            <option value="completed">✅ Completed</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Live Tracker URL</label>
+                    <input id="slTrackerUrl" type="url" placeholder="https://www.marinetraffic.com/..." style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Description</label>
+                    <textarea id="slDescription" placeholder="Brief background on the feat..." rows="2" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;resize:vertical;box-sizing:border-box;"></textarea>
+                </div>
+                <input type="hidden" id="slEditId">
+                <div style="display:flex;gap:10px;">
+                    <button onclick="saveSpotlight()" style="background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);color:#38bdf8;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">💾 Save Spotlight</button>
+                    <button onclick="clearSpotlightForm()" id="slCancelBtn" style="display:none;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:var(--text-secondary);padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Active Spotlights List -->
+            <div id="spotlightList" style="display:flex;flex-direction:column;gap:12px;"></div>
+        </div>
+
         <!-- Users Table -->
         <div class="section">
             <div class="section-title">Users</div>
@@ -681,7 +735,7 @@ async function showDashboard(user) {
     document.getElementById('loadingScreen').style.display = 'none';
     document.getElementById('adminEmail').textContent = user.email;
     document.getElementById('dashboard').style.display = 'block';
-    await Promise.all([loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement()]);
+    await Promise.all([loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement(), loadSpotlights()]);
 }
 
 // ── Load users ─────────────────────────────────────────────────────────────────
@@ -1256,6 +1310,171 @@ async function sendTestPush() {
 async function signOut() {
     await supabaseClient.auth.signOut();
     window.location.href = '/';
+}
+
+// ── Spotlight ─────────────────────────────────────────────────────────────────
+async function loadSpotlights() {
+    const { data, error } = await supabaseClient
+        .from('spotlights')
+        .select('*, spotlight_updates(*)')
+        .eq('active', true)
+        .order('created_at', { ascending: false });
+
+    const container = document.getElementById('spotlightList');
+    if (error || !data || data.length === 0) {
+        container.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:20px;font-size:13px;">No active spotlights. Create one above.</div>';
+        return;
+    }
+
+    const statusBadge = s => s === 'live'
+        ? '<span style="background:#22c55e;color:#000;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;">🔴 LIVE</span>'
+        : s === 'upcoming'
+        ? '<span style="background:#f59e0b;color:#000;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;">⏳ UPCOMING</span>'
+        : '<span style="background:rgba(255,255,255,0.15);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;">✅ COMPLETED</span>';
+
+    container.innerHTML = data.map(sl => {
+        const updates = (sl.spotlight_updates || []).sort((a,b) => new Date(b.logged_at) - new Date(a.logged_at));
+        const updatesHtml = updates.length > 0
+            ? updates.slice(0,3).map(u => `
+                <div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;color:rgba(255,255,255,0.6);padding:6px 0;border-top:1px solid rgba(255,255,255,0.06);">
+                    <span style="color:rgba(255,255,255,0.3);white-space:nowrap;">${new Date(u.logged_at).toLocaleString('en-ZA',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+                    <span>${u.notes}${u.temp_c != null ? ' · '+u.temp_c+'°C' : ''}${u.km_completed != null ? ' · '+u.km_completed+'km' : ''}</span>
+                    <button onclick="deleteSpotlightUpdate('${u.id}','${sl.id}')" style="margin-left:auto;background:none;border:none;color:rgba(239,68,68,0.6);cursor:pointer;font-size:11px;padding:0;flex-shrink:0;">✕</button>
+                </div>`).join('')
+            : '<div style="font-size:12px;color:rgba(255,255,255,0.3);padding:6px 0;">No updates yet</div>';
+
+        return `
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:16px;" id="sl-${sl.id}">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    ${statusBadge(sl.status)}
+                    <span style="font-size:14px;font-weight:700;color:#fff;">${sl.title}</span>
+                </div>
+                <div style="display:flex;gap:6px;">
+                    <select onchange="updateSpotlightStatus('${sl.id}',this.value)" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:4px 8px;color:#fff;font-size:12px;">
+                        <option value="upcoming" ${sl.status==='upcoming'?'selected':''}>⏳ Upcoming</option>
+                        <option value="live" ${sl.status==='live'?'selected':''}>🔴 Live</option>
+                        <option value="completed" ${sl.status==='completed'?'selected':''}>✅ Completed</option>
+                    </select>
+                    <button onclick="editSpotlight('${sl.id}')" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#fff;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;">✏️ Edit</button>
+                    <button onclick="archiveSpotlight('${sl.id}')" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#ef4444;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;">Archive</button>
+                </div>
+            </div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:12px;">${sl.swimmer_names}${sl.route_description?' · '+sl.route_description:''}${sl.distance_km?' · '+sl.distance_km+'km':''}</div>
+
+            <!-- Add Update -->
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:12px;margin-bottom:10px;">
+                <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Post Update</div>
+                <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:flex-end;">
+                    <div>
+                        <input id="upNotes-${sl.id}" type="text" placeholder="e.g. Halfway — looking strong!" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:6px 10px;color:#fff;font-size:12px;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <input id="upTemp-${sl.id}" type="number" placeholder="°C" step="0.1" style="width:60px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:6px 8px;color:#fff;font-size:12px;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <input id="upKm-${sl.id}" type="number" placeholder="km" step="0.1" style="width:60px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:6px 8px;color:#fff;font-size:12px;box-sizing:border-box;">
+                    </div>
+                </div>
+                <button onclick="postSpotlightUpdate('${sl.id}')" style="margin-top:8px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#10b981;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">📡 Post Update</button>
+            </div>
+
+            <!-- Updates Timeline -->
+            <div style="padding:0 2px;">${updatesHtml}</div>
+        </div>`;
+    }).join('');
+}
+
+async function saveSpotlight() {
+    const editId = document.getElementById('slEditId').value;
+    const title = document.getElementById('slTitle').value.trim();
+    const swimmers = document.getElementById('slSwimmers').value.trim();
+    if (!title || !swimmers) { alert('Title and Swimmer(s) are required.'); return; }
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    const payload = {
+        title,
+        swimmer_names: swimmers,
+        route_description: document.getElementById('slRoute').value.trim() || null,
+        distance_km: parseFloat(document.getElementById('slDistance').value) || null,
+        status: document.getElementById('slStatus').value,
+        tracking_url: document.getElementById('slTrackerUrl').value.trim() || null,
+        description: document.getElementById('slDescription').value.trim() || null,
+    };
+
+    let error;
+    if (editId) {
+        ({ error } = await supabaseClient.from('spotlights').update(payload).eq('id', editId));
+    } else {
+        ({ error } = await supabaseClient.from('spotlights').insert({ ...payload, created_by: user.id }));
+    }
+
+    if (error) { alert('Save failed: ' + error.message); return; }
+    clearSpotlightForm();
+    loadSpotlights();
+}
+
+function clearSpotlightForm() {
+    ['slTitle','slSwimmers','slRoute','slDistance','slTrackerUrl','slDescription','slEditId'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
+    document.getElementById('slStatus').value = 'upcoming';
+    document.getElementById('slCancelBtn').style.display = 'none';
+}
+
+async function editSpotlight(id) {
+    const { data } = await supabaseClient.from('spotlights').select('*').eq('id', id).single();
+    if (!data) return;
+    document.getElementById('slEditId').value = data.id;
+    document.getElementById('slTitle').value = data.title || '';
+    document.getElementById('slSwimmers').value = data.swimmer_names || '';
+    document.getElementById('slRoute').value = data.route_description || '';
+    document.getElementById('slDistance').value = data.distance_km || '';
+    document.getElementById('slStatus').value = data.status || 'upcoming';
+    document.getElementById('slTrackerUrl').value = data.tracking_url || '';
+    document.getElementById('slDescription').value = data.description || '';
+    document.getElementById('slCancelBtn').style.display = 'inline-block';
+    document.getElementById('spotlightSection').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function updateSpotlightStatus(id, status) {
+    const { error } = await supabaseClient.from('spotlights').update({ status }).eq('id', id);
+    if (error) { alert('Update failed: ' + error.message); return; }
+    loadSpotlights();
+}
+
+async function archiveSpotlight(id) {
+    if (!confirm('Archive this spotlight? It will be hidden from the app.')) return;
+    const { error } = await supabaseClient.from('spotlights').update({ active: false }).eq('id', id);
+    if (error) { alert('Archive failed: ' + error.message); return; }
+    loadSpotlights();
+}
+
+async function postSpotlightUpdate(spotlightId) {
+    const notes = document.getElementById(`upNotes-${spotlightId}`).value.trim();
+    if (!notes) { alert('Notes are required.'); return; }
+    const tempVal = document.getElementById(`upTemp-${spotlightId}`).value;
+    const kmVal = document.getElementById(`upKm-${spotlightId}`).value;
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    const { error } = await supabaseClient.from('spotlight_updates').insert({
+        spotlight_id: spotlightId,
+        notes,
+        temp_c: tempVal ? parseFloat(tempVal) : null,
+        km_completed: kmVal ? parseFloat(kmVal) : null,
+        created_by: user.id,
+    });
+    if (error) { alert('Post failed: ' + error.message); return; }
+    document.getElementById(`upNotes-${spotlightId}`).value = '';
+    document.getElementById(`upTemp-${spotlightId}`).value = '';
+    document.getElementById(`upKm-${spotlightId}`).value = '';
+    loadSpotlights();
+}
+
+async function deleteSpotlightUpdate(updateId, spotlightId) {
+    if (!confirm('Delete this update?')) return;
+    await supabaseClient.from('spotlight_updates').delete().eq('id', updateId);
+    loadSpotlights();
 }
 
 // ── Go ────────────────────────────────────────────────────────────────────────
