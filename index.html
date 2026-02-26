@@ -4793,6 +4793,7 @@
                     .from('profiles')
                     .update({
                         full_name: fullName,
+                        display_name: fullName,   // sync display_name so name appears throughout app
                         phone: normalizedPhone,
                         date_of_birth: dob,
                         address_line1: address,
@@ -4806,6 +4807,23 @@
                     .eq('id', currentUser.id);
 
                 if (error) throw error;
+
+                // Notify admins that a new swimmer has joined
+                try {
+                    const { data: admins } = await supabaseClient
+                        .from('profiles')
+                        .select('id')
+                        .eq('is_admin', true);
+                    for (const admin of (admins || [])) {
+                        await notify(admin.id, null, 'new_member',
+                            '🆕 New swimmer joined!',
+                            `${fullName} has completed onboarding and is ready to swim.`,
+                            { new_user_id: currentUser.id }
+                        );
+                    }
+                } catch (notifErr) {
+                    console.warn('Admin notification failed (non-blocking):', notifErr);
+                }
 
                 // Hide onboarding, show main app
                 document.getElementById('onboardingLegal').style.display = 'none';
