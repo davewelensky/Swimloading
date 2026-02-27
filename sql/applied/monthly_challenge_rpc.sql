@@ -4,6 +4,9 @@
 -- Called from JS: supabaseClient.rpc('get_monthly_temp_leaders', { p_month_start, p_month_end })
 --
 -- Run in Supabase SQL Editor to replace the function.
+-- DROP required because the return type changed (added total_points column).
+
+DROP FUNCTION IF EXISTS get_monthly_temp_leaders(TIMESTAMPTZ, TIMESTAMPTZ);
 
 CREATE OR REPLACE FUNCTION get_monthly_temp_leaders(
   p_month_start TIMESTAMPTZ,
