@@ -7901,8 +7901,8 @@
                     p_month_end:   monthEnd.toISOString()
                 });
 
-                // Current user's own count (may be outside top 10)
-                let myCount = 0, myRank = null;
+                // Current user's own count (fallback for users outside top 20)
+                let myCount = 0, myRank = null, myPoints = null;
                 if (currentUser) {
                     const { count } = await supabaseClient
                         .from('temp_logs')
@@ -7913,7 +7913,10 @@
                     myCount = count || 0;
                     if (data) {
                         const idx = data.findIndex(r => r.user_id === currentUser.id);
-                        myRank = idx >= 0 ? idx + 1 : null;
+                        if (idx >= 0) {
+                            myRank   = idx + 1;
+                            myPoints = data[idx].total_points;
+                        }
                     }
                 }
 
@@ -7926,7 +7929,10 @@
                             <span style="font-size:${i<3?'18px':'13px'};width:26px;text-align:center;">${medal}</span>
                             <span style="color:var(--text);font-weight:${i<3||isMe?'600':'400'};font-size:13px;">${row.display_name || 'Anonymous'}${isMe?' (you)':''}</span>
                         </div>
-                        <span style="color:var(--ocean-light);font-weight:700;font-size:13px;">${row.log_count} logs</span>
+                        <div style="text-align:right;">
+                            <div style="color:var(--ocean-light);font-weight:700;font-size:13px;">${row.total_points} pts</div>
+                            <div style="color:var(--text-secondary);font-size:10px;margin-top:1px;">${row.log_count} log${row.log_count !== 1 ? 's' : ''}</div>
+                        </div>
                     </div>`;
                 }).join('');
 
@@ -7934,6 +7940,25 @@
                     ? `<div style="text-align:center;color:var(--text-secondary);padding:16px;font-size:13px;">No logs yet this month — be the first! 🌊</div>`
                     : '';
 
+                // "Your position" callout — shown when user is in the top 20
+                let myPositionCard = '';
+                if (currentUser && myRank !== null && myPoints !== null) {
+                    const personAbove = myRank > 1 ? data[myRank - 2] : null;
+                    const gapLine = personAbove
+                        ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">${personAbove.total_points - myPoints} pts behind ${personAbove.display_name} (#${myRank - 1})</div>`
+                        : `<div style="font-size:11px;color:#10b981;margin-top:3px;">You're leading — hold on! 🌊</div>`;
+                    const rankEmoji = myRank === 1 ? '🥇' : myRank === 2 ? '🥈' : myRank === 3 ? '🥉' : '🏃';
+                    myPositionCard = `
+                    <div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div style="font-size:13px;font-weight:700;color:var(--text);">📍 You're #${myRank} · ${myPoints} pts</div>
+                            ${gapLine}
+                        </div>
+                        <div style="font-size:22px;opacity:0.6;">${rankEmoji}</div>
+                    </div>`;
+                }
+
+                // Fallback for users outside top 20
                 const myRankLine = currentUser && myRank === null && myCount > 0
                     ? `<div style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:8px;">You have ${myCount} log${myCount!==1?'s':''} this month — keep going! 🌡️</div>`
                     : currentUser && myCount === 0
@@ -7973,8 +7998,14 @@
                         <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;"><strong style="color:var(--text);">Open to everyone.</strong> Session conducted in Cape Town by AquaSharks — winner arranges their own travel. Worth the trip.</div>
                     </div>
 
+                    <!-- Your position callout (only shown when user is in top 20) -->
+                    ${myPositionCard}
+
                     <!-- Leaderboard -->
-                    <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">This Month's Leaders</div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+                        <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">This Month's Leaders</div>
+                        <div style="font-size:10px;color:var(--text-secondary);opacity:0.7;">10 pts/log · +10 per new spot/day</div>
+                    </div>
                     <div style="background:rgba(15,23,42,0.5);border-radius:10px;padding:12px;">
                         ${emptyState}${rows}${myRankLine}
                     </div>
@@ -8085,7 +8116,7 @@
                 const myRank = myRankIdx >= 0 ? myRankIdx + 1 : null;
 
                 const leaderLine = leader
-                    ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Leader: ${leader.display_name} · ${leader.log_count} logs</div>`
+                    ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Leader: ${leader.display_name} · ${leader.total_points} pts</div>`
                     : `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">No logs yet — be first!</div>`;
 
                 const myLine = myCount > 0
