@@ -7,10 +7,11 @@ You are working on the **SwimLoading** project. Read this entire file before doi
 ## What SwimLoading Is
 
 Cape Town ocean swimming community app — live at **swimloading.com**.
-- Main app: `swimloading.com/app` → `index.html`
+- Main app: `swimloading.com` → `index.html`
 - Intel page: `swimloading.com/intel` → `intel.html`
 - Admin dashboard: `swimloading.com/admin` → `admin.html` (dave.welensky@gmail.com only)
 - Landing: `swimloading.com` → `welcome.html`
+- Email templates: `swimloading.com/blog/march-challenge.html`
 
 **Stack:** Vanilla HTML/CSS/JS (no framework) · Supabase (Postgres 17 + Auth + RLS) · Vercel (hosting, auto-deploy on git push) · Chart.js · Lucide Icons · PWA
 
@@ -24,18 +25,23 @@ Cape Town ocean swimming community app — live at **swimloading.com**.
 
 ```
 /Users/davewelensky/SwimLoading/
-├── index.html          # Main PWA app (~6500+ lines)
+├── index.html          # Main PWA app (~9000+ lines)
 ├── intel.html          # /intel page — False Bay crossing intelligence (~1400 lines)
-├── admin.html          # /admin page — user analytics dashboard (~1100 lines)
+├── admin.html          # /admin page — user analytics + spotlight management
 ├── welcome.html        # Landing page
+├── blog/
+│   └── march-challenge.html  # March 2026 Temperature Challenge email template
 ├── sw.js               # Service worker
 ├── manifest.json       # PWA manifest
 ├── vercel.json         # Routing config
-├── package.json        # Node scripts (import-historical-swims)
+├── package.json        # Node scripts
+├── supabase/
+│   └── functions/
+│       └── send-push/index.ts  # Edge Function — Web Push delivery (--no-verify-jwt)
 ├── sql/applied/        # All applied DB migrations
 ├── scripts/            # Data import scripts
-├── icons/              # App icons (icon-192.png, etc.)
-└── .claude/commands/   # This skill file and other commands
+├── icons/              # App icons
+└── .claude/commands/   # This skill file
 ```
 
 ---
@@ -50,33 +56,148 @@ Cape Town ocean swimming community app — live at **swimloading.com**.
 ### Key Tables
 | Table | Purpose |
 |---|---|
-| `profiles` | User profiles — id, email, display_name, phone, emergency_contact_name, city, avatar_url, onboarding_completed_at, notify_new_swims |
-| `spots` | Swimming spots (30+) — id, name, type, latitude, longitude |
+| `profiles` | User profiles — id, email, display_name, phone, emergency_contact_name, city, avatar_url, onboarding_completed_at, notify_new_swims, is_admin |
+| `spots` | Swimming spots — id, name, code (required!), water_type, domain, latitude, longitude, active |
 | `temp_logs` | Community temperature readings — user_id, spot_id, gps_spot_id, temp_c, created_at |
-| `latest_spot_temps` | View — latest temp per spot |
-| `swim_events` | Group swims — id, title, location_name, start_at, created_by, status, lat, lng, distance_km, target_pace_sec_per_100m, max_participants |
-| `swim_participants` | RSVP/attendance — user_id, event_id |
-| `notifications` | In-app bell notifications — user_id, type, title, message, payload, read |
+| `latest_spot_temps` | View — latest temp per spot. **Filters WHERE code IS NOT NULL** |
+| `swim_events` | Group swims — id, title, location_name, start_at, created_by, status, distance_km, max_participants |
+| `swim_participants` | RSVP/attendance — user_id, event_id, status |
+| `notifications` | In-app bell notifications — recipient_user_id, type, title, message, payload, read_at |
+| `push_subscriptions` | Web Push subscriptions per device — user_id, subscription (JSON), user_agent, created_at |
+| `hazard_reports` | Active hazard alerts — spot_id, hazard_type, severity, title, description, active_until |
+| `spotlights` | SA Open Water Spotlight entries — title, swimmer_names, route_description, distance_km, status, tracking_url, active |
+| `spotlight_updates` | Progress updates for spotlights — spotlight_id, notes, temp_c, km_completed, logged_at |
 | `historical_swims` | All recorded crossings |
 | `historical_routes` | Route definitions |
 | `historical_weather` | Weather at time of crossing |
 | `v_false_bay_crossings` | View — clean False Bay crossing data |
 
+### Spots — Critical Notes
+- `code` column is **required** — without it, the spot won't appear in Trends (`latest_spot_temps` filters `WHERE code IS NOT NULL`)
+- The admin spot creation form auto-fills code from spot name (UPPER_SNAKE_CASE)
+- `domain` CHECK constraint: `ATLANTIC`, `FALSE_BAY`, `WEST_COAST`, `SOUTH_COAST`, `GARDEN_ROUTE`, `INLAND`, `NON_COASTAL`, `NAMIBIA`
+- `water_type` values: `OCEAN`, `TIDAL_POOL`, `POOL`, `LAGOON`, `DAM`
+
+### Domains (Regions)
+```javascript
+const DOMAINS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'INLAND', 'NAMIBIA'];
+const COASTAL_REGIONS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'NAMIBIA'];
+```
+`formatDomain(d)` auto-converts `GARDEN_ROUTE` → "Garden Route", `NAMIBIA` → "Namibia" etc.
+
+Namibia spots (added Feb 2026): Swakopmund Beach, Walvis Bay — growing Namibian swimming community.
+
+Recent SA spots added (Feb 2026): Roman Rock Lighthouse (False Bay), Klein River Lagoon (South Coast), Fisherhaven Lagoon (South Coast), Santos Beach (Garden Route), Mossel Bay (Garden Route — was incorrectly South Coast).
+
 ### Critical: temp_logs FK ambiguity
-`temp_logs` has **two** foreign keys to `spots` (`spot_id` and `gps_spot_id`). Always use the explicit hint when joining:
+`temp_logs` has **two** foreign keys to `spots`. Always use explicit hint:
 ```js
 supabaseClient.from('temp_logs').select('spots!temp_logs_spot_id_fkey(name)')
 ```
-Using `.select('spots(name)')` alone will throw PGRST201 ambiguity error.
 
-### profiles.email column
-`email` is stored directly in `profiles` (copied from `auth.users` via trigger on signup, backfilled for existing users). The anon key can read it. **Do not** use `auth.users` directly — it requires service_role key.
+### profiles columns
+- `email` — copied from `auth.users` via trigger. Do not query `auth.users` directly.
+- `display_name` — set during onboarding (`saveOnboardingPersonal()` sets both `full_name` AND `display_name`)
+- `notify_new_swims` — **DEFAULT true** (opt-out model). All existing users set to true Feb 2026.
+- `is_admin` — boolean DEFAULT false. Dave's profile has `is_admin = true`.
 
 ### Supabase JS client naming
-Always use `supabaseClient` as the variable name (NOT `supabase`). The CDN registers a global called `supabase`, so naming your client the same causes a silent conflict where the variable points to the SDK module object instead of your client instance.
-```js
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+Always use `supabaseClient` (NOT `supabase`). CDN registers a global called `supabase` — naming conflict causes silent failure.
+
+---
+
+## Push Notifications
+
+**Stack:** Web Push API + VAPID + Supabase Edge Function + pg_net webhook
+
+### How it works
+1. User opts in → `push_subscriptions` row inserted
+2. `notify()` inserts into `notifications` table
+3. Database webhook `push_on_notification` fires on INSERT → calls `send-push` Edge Function
+4. `notify()` also directly invokes `send-push` via `functions.invoke()` for reliability
+5. Edge Function sends Web Push to all user's subscriptions via VAPID
+
+### Edge Function deployment
+```bash
+npx supabase functions deploy send-push --project-ref szgkzuswelntnevobnoh --no-verify-jwt
 ```
+**Must use `--no-verify-jwt`** — pg_net webhook sends no auth header.
+
+### notify() — allowed notification types (CHECK constraint)
+`swim_cancelled`, `approval_request`, `approval_granted`, `approval_rejected`, `participant_late`, `new_signup`, `spot_suggestion`, `swim_updated`, `rsvp_cancelled`, `new_swim`, `hazard_alert`
+
+**Do NOT use** `'test'` or `'new_member'` — they violate the constraint.
+
+### iOS Requirements
+- App must be installed as **Home Screen icon** (not just Safari tab)
+- Push subscriptions expire — 410 from Apple auto-deletes the subscription
+
+---
+
+## SA Open Water Spotlight
+
+Admin-managed banner at top of dashboard for notable swim feats (relays, crossings).
+
+### Tables
+- `spotlights` — title, swimmer_names, route_description, distance_km, status (`upcoming`/`live`/`completed`), tracking_url, active
+- `spotlight_updates` — spotlight_id, notes, temp_c, km_completed, logged_at
+
+### RLS
+- SELECT: `active = true`
+- INSERT/UPDATE/DELETE: authenticated users
+
+### Admin management (admin.html → 🌟 SA Open Water Spotlight)
+- Create/edit spotlights, status dropdown, post live updates, archive when done
+- `loadSpotlightBanner()` in index.html — shown only when status = upcoming or live
+
+---
+
+## Hazard Warning System
+
+When creating a swim at a hazardous spot, users see a confirmation modal before proceeding.
+
+- `activeHazardsBySpot` — global Map keyed by spot_id, loaded in `loadDashboard()`
+- `hazardAcknowledged` — module-level boolean flag
+- `showHazardConfirm(hazards)` — modal with NSRI number (087 094 9774)
+- `proceedCreateAnyway()` — sets flag + calls `requestSubmit()`
+
+---
+
+## Swim Score Temperature Cap
+
+```javascript
+let scoreCap = 100;
+if (isOceanType && spot.temp_c != null) {
+    if (t < 14)       scoreCap = 49;  // Cold → max "Fair"
+    else if (t < 16)  scoreCap = 74;  // Cool → max "Good"
+}
+const score = Math.max(0, Math.min(scoreCap, Math.round(raw)));
+```
+
+---
+
+## Email Infrastructure
+
+### Outbound auth emails (signup confirmation, password reset)
+- **Provider:** Resend SMTP (`smtp.resend.com`, port 465, username `resend`)
+- **Sender:** `no-reply@swimloading.com` (changed from `no-reply@getcls.co` Feb 2026)
+- **Domain:** `swimloading.com` verified in Resend (Ireland eu-west-1)
+- **Config:** Supabase → Authentication → Settings → Custom SMTP
+
+### Inbound support mailbox
+- `support@swimloading.com` → forwarded to `dave.welensky@gmail.com` via Cloudflare Email Routing
+
+### Bulk email campaigns
+- **Provider:** Brevo (brevo.com) — account: `dave.welensky@gmail.com`
+- **Sender:** `SwimLoading <support@swimloading.com>` — domain authenticated
+- **Contact list:** "SwimLoading Members" (~285 contacts)
+- **Export members SQL:**
+  ```sql
+  SELECT email, display_name FROM profiles
+  WHERE email IS NOT NULL AND email != ''
+  ORDER BY display_name;
+  ```
+- **First campaign:** March Temperature Challenge 2026 (sent Feb 26 2026) — 45% open rate, 35% CTR
 
 ---
 
@@ -86,255 +207,121 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 ```js
 let currentUser = null;
 let spots = [];
-let conditionsCache = {};       // spot_id → array of recent temp_logs (last 96h)
-let swimEventsCache = [];        // upcoming active swim_events
+let conditionsCache = {};
+let swimEventsCache = [];
 let selectedSpotLocked = false;
 let gpsSuggestedSpotId = null;
+let hazardAcknowledged = false;
+let activeHazardsBySpot = {};
 ```
 
-### Onboarding / Hard Gate
-On `loadApp()`, after fetching the profile, check for incomplete onboarding:
-```js
-if (!profile.onboarding_completed_at || !profile.phone) {
-    document.getElementById('authScreen').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'none';
-    showOnboardingPersonal();
-    return;
-}
-```
-Users who signed up before verification was enforced may have null details — they are forced back to onboarding stage 2 on next login.
-
-### Notifications
-`notify(userId, entityId, type, title, message, payload)` — inserts into `notifications` table.
-
-Notification types (CHECK constraint): `swim_cancelled`, `approval_request`, `approval_granted`, `approval_rejected`, `participant_late`, `new_signup`, `spot_suggestion`, `swim_updated`, `rsvp_cancelled`, `new_swim`
-
-### Avatar system
-`profiles.avatar_url` stores either:
-- A Lucide icon name (e.g. `"anchor"`, `"wave"`) — rendered with colour from `AVATARS` array
-- A full HTTPS URL (Supabase Storage) — rendered as `<img>`
-
-`updateHeaderAvatar(avatarValue)` handles both cases.
-
-### Swim events
-- `swim_events.status` values: `'planned'`, `'active'`, `'cancelled'`
-- `swim_events.created_by` = organiser's user UUID
-- `swim_participants.user_id` = attendees
-- To get total swim activity for a user: query BOTH tables (organised + joined)
+### New swim notifications
+After `submitEvent()` succeeds, queries profiles where `notify_new_swims = true` (excluding creator) and calls `notify()` for each. Shows toast: "📣 X swimmers notified".
 
 ---
 
 ## Admin Dashboard (admin.html)
 
-Live at `swimloading.com/admin`. Access: redirects to `/` if not `dave.welensky@gmail.com`.
-
 ### Sections
 1. **KPI cards** — Total users, Active (30d), Dormant, Ghost, % Profiles Complete, Total Temp Logs
-2. **Spot Activity** — bar chart (top 10) + table (top 15) by temp log count
-3. **User Locations** — bar chart (top 10 cities) + full city breakdown table
-4. **Users Table** — searchable/sortable, columns: Email · Display Name · Phone · Emergency · City · Temps · Joined (swim_participants) · Organised (swim_events.created_by) · Last Active · Status
+2. **Spot Management** — Add spot (code auto-fills from name), toggle active/inactive
+3. **Spot Activity** — bar chart + table by temp log count
+4. **User Locations** — bar chart + city breakdown
+5. **🌟 SA Open Water Spotlight** — create/edit spotlights, post live updates, archive
+6. **Users Table** — searchable/sortable, status filter
+7. **📳 Test Push** button — sends test notification to Dave's devices
 
 ### User status definitions
-- 🟢 **Active** — any activity in last 30 days
+- 🟢 **Active** — activity in last 30 days
 - 🟡 **Dormant** — has activity but >30 days ago
-- 👻 **Ghost** — zero activity ever (0 temps + 0 swims joined + 0 swims organised)
+- 👻 **Ghost** — zero activity ever
+- ⚠️ **Incomplete** — missing display_name or phone
 
-### City normalisation
-`normaliseCity(raw)` function — lowercases input, looks up in `CITY_MAP`, falls back to title-case. Handles Cape Town variants, Somerset West, Simon's Town, Knysna (typo Knydna), Johannesburg + suburb Jansenpark, Hermanus, Hout Bay, Gordon's Bay, Fish Hoek, etc.
-
-### Filter buttons
-All · 🟢 Active · 🟡 Dormant · 👻 Ghost · ⚠️ Incomplete (missing display_name or phone)
+### Admin notifications
+When user completes onboarding, all `is_admin = true` profiles get a `new_signup` notification.
 
 ---
 
 ## /intel Page — False Bay Intel
 
-`intel.html` is the crossing intelligence dashboard. Currently private beta (Dave + Carina only).
-
-### Tabs
-1. **Now** — live conditions: GO/CAUTION/NO-GO signal, live water temps, wind forecast
-2. **Window** — 7-day wind forecast table
-3. **Records** — historical crossing records, scatter chart, swimmer profiles
-4. **Prediction** — time predictions for skins solo crossings (women + men)
-
-### Key Variables in intel.html
+### Key Variables
 ```javascript
-const currentTemp = 17.0;  // Western bay start temp — UPDATE with each satellite/reading
-// Line ~1281
-
-const avgTemp = 17.0;      // Fallback when no live Supabase readings
-// Line ~533 (in loadLiveTemps() no-readings return)
-
-const temp = live?.avgTemp || 17.0;  // Used in buildGoSignal() and buildChecklist()
-// Lines ~726 and ~756
+const currentTemp = 17.0;  // Line ~1281
+const avgTemp = 17.0;      // Line ~533
+const temp = live?.avgTemp || 17.0;  // Lines ~726 and ~756
 ```
 
 ### GO/NO-GO Logic
-- **GO**: NW wind + speed < 35 km/h + temp ≥ 18°C
-- **CAUTION**: partial conditions met
-- **NO-GO**: non-NW wind OR speed ≥ 40 km/h OR wave > 2.5m
-
-### Prediction Model
-- Uses `v_false_bay_crossings` view
-- Filters: `category=skins`, `swim_type=solo`
-- Caps outliers at 13h max
-- Shows women + men separately
-- Two scenarios: at current temp / if temp reaches 18°C+
+- **GO**: NW wind + < 35 km/h + temp ≥ 18°C
+- **NO-GO**: non-NW wind OR ≥ 40 km/h OR wave > 2.5m
 
 ---
 
-## SST Satellite Data Workflow
+## SST Satellite Data
 
-Satellite SST images are sent by Derrik/Ryan (~2x per day when available). Goal is to automate ingestion.
-
-### How to Update SST Data (current manual process)
-When a new satellite image arrives:
-
-1. **Read the colour scale** (legend on right: purple=10°C → dark red/maroon=20°C)
-2. **Extract key zone temps:**
-   - Miller's Point / western bay start (swimming start)
-   - Open bay mid-crossing
-   - Strand / Rooi Els end (swimming finish)
-   - Atlantic upwelling outside bay (context only)
-3. **Update these locations in intel.html:**
-   - Line ~330: Key Requirements checklist temp sub-text
-   - Line ~531: `loadLiveTemps()` no-readings fallback display text
-   - Line ~533: `return { avgTemp: X.X, hasLive: false }` — the number fed to prediction
-   - Line ~562: Footer note below live readings list
-   - Line ~726: `const temp = live?.avgTemp || X.X` in `buildGoSignal()`
-   - Line ~756: `const temp = live?.avgTemp || X.X` in `buildChecklist()`
-   - Line ~763: Checklist sub-text (both above/below threshold branches)
-   - Line ~1281: `const currentTemp = X.X` — main prediction variable
-4. **Commit with message:** `Update SST data from satellite image DD Mon YYYY`
-5. **Push** — Vercel deploys automatically
-
-### Colour Scale Reference
-| Colour | Temp |
-|---|---|
-| Dark maroon | ~20°C |
-| Dark red | ~19°C |
-| Red | ~18°C |
-| Orange-red | ~17°C |
-| Orange | ~16°C |
-| Yellow-green | ~15°C |
-| Green | ~14°C |
-| Teal/cyan | ~13°C |
-| Blue | ~12°C |
-| Dark blue | ~11°C |
-| Purple | ~10°C |
-
-### Current SST Values (last updated: 27 Feb 2026)
+### Current values (last updated: 27 Feb 2026)
 - Miller's Point start: **~17°C**
 - Open bay mid-crossing: **~18–19°C**
 - Strand / Rooi Els finish: **~17–18°C**
 
-### Windguru Crossing Intel Card
-When Windguru data is provided, add a static HTML card to the Now tab (after the tides card, before Swim Window). Pattern:
-- Table: Time · Wind (km/h, converted from knots ×1.852) · Gusts · Direction · Rating
-- Amber analysis panel: sweet spot window, swell context, watch points
-- Blue GO-IF panel: direction ✓/✗, tide ✓/✗, swell ⚠️, clear NO-GO triggers
-- Remove the card after the crossing date passes
+### Colour scale
+| Colour | Temp | | Colour | Temp |
+|---|---|---|---|---|
+| Dark maroon | ~20°C | | Yellow-green | ~15°C |
+| Dark red | ~19°C | | Green | ~14°C |
+| Red | ~18°C | | Teal/cyan | ~13°C |
+| Orange-red | ~17°C | | Blue | ~12°C |
+| Orange | ~16°C | | Purple | ~10°C |
 
----
-
-## Key Spots (False Bay crossing route)
-- **Miller's Point** — start of crossing, western bay, typically coolest
-- **Glencairn** — mid-point sensor
-- **Simons Town** — inshore reading
-- **Rooi Els** — finish of crossing (33km from Miller's Point)
-- **Strand / Gordon's Bay** — eastern bay, typically warmest (satellite SST ~20°C)
+### Update locations in intel.html
+Lines ~330, ~531, ~533, ~562, ~726, ~756, ~763, ~1281
 
 ---
 
 ## TFT Display Device
 
-Hardware: ESP32 + ILI9341 320×240 TFT screen
+Hardware: ESP32 + ILI9341 320×240 TFT
 Code: `/Users/davewelensky/SwimLoading/device/SwimLoadingDisplay/SwimLoadingDisplay.ino`
-
-3 rotating screens (30s each):
-- **Screen 0** — Sea Surface Temps (spot cards + gradient bar)
-- **Screen 1** — Crossing Intel (wind + swell + GO/NO-GO)
-- **Screen 2** — Sunday Prediction (times + progress bars)
-
-Data sources: Supabase (SST) + Open-Meteo (wind/swell)
-
-Currently fixing layout issues on each screen — tackle one screen at a time.
-
----
-
-## Pending Roadmap Items (next up)
-
-### From feature backlog (in order of priority):
-1. **Swim Overlap Warning** — amber banner in create swim form when another swim exists at same spot ±2h. Non-blocking. Uses `lat`/`lng` match + `.neq('status','cancelled')`. Functions: `checkSwimOverlap()`, `renderOverlapWarning()`. Add `onchange` to `#eventSpot` and `#eventDateTime`.
-
-2. **New Swim Notifications (opt-in)** — `profiles.notify_new_swims BOOLEAN DEFAULT FALSE`. Toggle in Settings (only visible when push enabled). After `submitEvent()` succeeds, query opted-in users and call `notify()` for each. Needs SQL: `ALTER TABLE profiles ADD COLUMN notify_new_swims BOOLEAN DEFAULT FALSE` + add `'new_swim'` to notifications type CHECK constraint.
-
-3. **Avatar Photo Upload** — Supabase Storage bucket `avatars` (public, 2MB). Tab UI in profile modal: Photo / Icon. `handleAvatarFileSelect()` uploads to `userId/avatar.ext`, stores public URL in `profiles.avatar_url`. `updateHeaderAvatar()` detects URL vs icon name. Backwards compatible with existing icon names.
-
-4. **Profile Loading Spinner** — `showProfileSettings()` shows loading overlay immediately on open, hides after Supabase fetch resolves. Add `#profileLoadingOverlay` div inside `#profileModal`.
-
-5. **Support Email** — add `support@swimloading.com` link to Settings page (above Sign Out) and welcome.html footer.
-
-6. **Safety Check-in/out** — Phase 2 feature. "Going swimming" + "I'm out safe" with auto-alert if no check-out.
-
-7. **Badges & Achievements** — Phase 2 gamification.
-
-8. **Dev/Prod Supabase split** — long-standing deferral. `swimloading-dev` project for testing.
-
----
-
-## Development Rules
-
-1. **Always read the file before editing** — index.html is ~6500 lines, intel.html is ~1400 lines
-2. **Never use `supabase` as your client variable name** — use `supabaseClient` (CDN conflict)
-3. **Never use `|| 19.5`** as avgTemp fallback — it was a bug, correct value is `17.0`
-4. **Use explicit FK hint** for temp_logs spot joins: `spots!temp_logs_spot_id_fkey(name)`
-5. **Commit messages** follow pattern: `[what changed] — [why/context]`
-6. **Test in browser** before committing when changing intel.html layout
-7. **No framework** — this is vanilla HTML/JS, keep it that way
-8. **RLS is on** for all main app tables; intel uses anon key with unrestricted views
-9. **Don't break the main app** — index.html has ~163 live users
-10. **One screen at a time** for TFT display work
-11. **Hard gate is live** — users without `onboarding_completed_at` or `phone` get redirected to onboarding on login
 
 ---
 
 ## Design System
 
-### Colour palette (shared across all pages)
 ```css
---ocean-blue: #0284c7
---ocean-light: #38bdf8
---ocean-dark: #0c4a6e
---dark-bg: #0a1628
---mid-bg: #1e293b
---card-bg: #162032
+--ocean-blue: #0284c7      --ocean-light: #38bdf8
+--ocean-dark: #0c4a6e      --dark-bg: #0a1628
+--mid-bg: #1e293b          --card-bg: #162032
 --border: rgba(255,255,255,0.08)
---text: #f1f5f9
---text-secondary: #94a3b8
---green: #10b981
---amber: #f59e0b
+--text: #f1f5f9            --text-secondary: #94a3b8
+--green: #10b981           --amber: #f59e0b
 --red: #ef4444
 ```
 
-### Component patterns
-- Cards: `background: var(--card-bg)`, `border: 1px solid var(--border)`, `border-radius: 14px`
-- Status pills: inline-flex, small rounded, colour-coded (green/amber/red)
-- Toasts: `showToast(message, type)` — `type` is `'success'` or `'error'`
-- Modals: `display: block/none` toggle, dark overlay
-- Spinners: CSS `@keyframes spin { to { transform: rotate(360deg); } }`
+---
+
+## Pending Roadmap Items
+
+1. **Swim Overlap Warning** — amber banner when another swim exists at same spot ±2h
+2. **Avatar Photo Upload** — Supabase Storage bucket `avatars`, tab UI in profile modal
+3. **Profile Loading Spinner** — overlay while Supabase fetch resolves
+4. **Safety Check-in/out** — Phase 2: "Going swimming" + "I'm out safe" + auto-alert
+5. **Badges & Achievements** — Phase 2 gamification
+6. **Dev/Prod Supabase split** — `swimloading-dev` project for testing
+7. **Admin "View" modal** — view full user details from admin panel
+8. **Monthly Challenge leaderboard RPC** — `sql/applied/monthly_challenge_rpc.sql` still needs to be applied
 
 ---
 
-## When This Skill Is Invoked
+## Development Rules
 
-Use this context to:
-- Update SST satellite data in intel.html
-- Fix TFT display screen layouts
-- Add features to the main app (index.html)
-- Update or extend the admin dashboard (admin.html)
-- Query or update Supabase tables
-- Commit and push changes correctly
-- Understand what's already built before suggesting new things
-
-**Always check git log and current file state before making changes.**
+1. **Always read the file before editing**
+2. **Never use `supabase` as client variable** — use `supabaseClient`
+3. **Never use `|| 19.5`** as avgTemp fallback — correct value is `17.0`
+4. **Use explicit FK hint** for temp_logs: `spots!temp_logs_spot_id_fkey(name)`
+5. **Spots need a code** — without `code`, spot is invisible in Trends
+6. **Push Edge Function needs `--no-verify-jwt`** when deploying
+7. **Notification types are constrained** — only use allowed values
+8. **RLS is on** — when adding new tables, add SELECT + INSERT + UPDATE + DELETE policies
+9. **No framework** — vanilla HTML/JS only
+10. **Commit messages:** `[what changed] — [why/context]`
+11. **Hard gate is live** — users without `onboarding_completed_at` or `phone` redirected to onboarding
