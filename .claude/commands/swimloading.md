@@ -223,11 +223,17 @@ When a new satellite image arrives:
 | Dark blue | ~11°C |
 | Purple | ~10°C |
 
-### Current SST Values (last updated: 20 Feb 2026)
+### Current SST Values (last updated: 27 Feb 2026)
 - Miller's Point start: **~17°C**
-- Open bay mid-crossing: **~19°C**
-- Strand / Rooi Els finish: **~20°C**
-- Bay warming trend: confirmed (warming vs 19 Feb)
+- Open bay mid-crossing: **~18–19°C**
+- Strand / Rooi Els finish: **~17–18°C**
+
+### Windguru Crossing Intel Card
+When Windguru data is provided, add a static HTML card to the Now tab (after the tides card, before Swim Window). Pattern:
+- Table: Time · Wind (km/h, converted from knots ×1.852) · Gusts · Direction · Rating
+- Amber analysis panel: sweet spot window, swell context, watch points
+- Blue GO-IF panel: direction ✓/✗, tide ✓/✗, swell ⚠️, clear NO-GO triggers
+- Remove the card after the crossing date passes
 
 ---
 
