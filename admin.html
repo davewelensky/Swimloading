@@ -465,7 +465,8 @@
                 <div>
                     <div style="font-size:13px; font-weight:700; margin-bottom:14px; color: var(--ocean-light);">➕ Add New Spot</div>
                     <div style="display:flex; flex-direction:column; gap:10px;">
-                        <input id="newSpotName" type="text" placeholder="Spot name (e.g. Pringle Bay)" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px; width:100%;">
+                        <input id="newSpotName" type="text" placeholder="Spot name (e.g. Pringle Bay)" oninput="autoFillSpotCode(this.value)" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px; width:100%;">
+                        <input id="newSpotCode" type="text" placeholder="Spot code e.g. PRINGLE_BAY (auto-filled)" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px; width:100%; font-family:monospace;" title="Required — spot won't appear in Trends without a code">
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
                             <select id="newSpotWaterType" onchange="autoSetDomain(this.value)" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 10px; color:var(--text); font-size:13px;">
                                 <option value="OCEAN">🌊 Ocean</option>
@@ -1092,8 +1093,14 @@ function renderSpotMgmtList(spots) {
     }).join('');
 }
 
+function autoFillSpotCode(name) {
+    const code = name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '');
+    document.getElementById('newSpotCode').value = code;
+}
+
 async function addSpot() {
     const name = document.getElementById('newSpotName').value.trim();
+    const code = document.getElementById('newSpotCode').value.trim().toUpperCase().replace(/\s+/g, '_') || null;
     const waterType = document.getElementById('newSpotWaterType').value;
     const domain = document.getElementById('newSpotDomain').value;
     const lat = parseFloat(document.getElementById('newSpotLat').value);
@@ -1101,13 +1108,14 @@ async function addSpot() {
     const msg = document.getElementById('addSpotMsg');
 
     if (!name) { msg.style.color = '#ef4444'; msg.textContent = 'Spot name is required.'; return; }
+    if (!code) { msg.style.color = '#ef4444'; msg.textContent = 'Spot code is required (used in Trends).'; return; }
     if (isNaN(lat) || isNaN(lng)) { msg.style.color = '#ef4444'; msg.textContent = 'Valid latitude and longitude are required.'; return; }
 
     msg.style.color = 'var(--text-secondary)';
     msg.textContent = 'Adding…';
 
     const { error } = await supabaseClient.from('spots').insert({
-        name, water_type: waterType, domain, latitude: lat, longitude: lng, active: true
+        name, code, water_type: waterType, domain, latitude: lat, longitude: lng, active: true
     });
 
     if (error) {
@@ -1119,6 +1127,7 @@ async function addSpot() {
     msg.style.color = '#10b981';
     msg.textContent = `✓ "${name}" added successfully!`;
     document.getElementById('newSpotName').value = '';
+    document.getElementById('newSpotCode').value = '';
     document.getElementById('newSpotLat').value = '';
     document.getElementById('newSpotLng').value = '';
     loadSpotManagement();
