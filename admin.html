@@ -1340,11 +1340,16 @@ async function loadSpotSuggestions() {
 
     const { data, error } = await supabaseClient
         .from('spot_suggestions')
-        .select('*, profiles(display_name)')
+        .select('*')
         .order('created_at', { ascending: false });
 
     if (error) { el.innerHTML = `<div style="color:#f87171;">Error: ${error.message}</div>`; return; }
     if (!data || data.length === 0) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No suggestions yet.</div>'; return; }
+
+    // Fetch display names separately (user_id references auth.users, not profiles directly)
+    const userIds = [...new Set(data.map(s => s.user_id))];
+    const { data: profileData } = await supabaseClient.from('profiles').select('id, display_name').in('id', userIds);
+    const profileMap = Object.fromEntries((profileData || []).map(p => [p.id, p.display_name]));
 
     const statusBadge = s => s === 'pending'
         ? `<span style="background:rgba(251,191,36,0.15);color:#fbbf24;border:1px solid rgba(251,191,36,0.3);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;">Pending</span>`
@@ -1364,7 +1369,7 @@ async function loadSpotSuggestions() {
             <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5;">${s.description}</div>
             <div style="display:flex;justify-content:space-between;align-items:center;">
                 <div style="font-size:11px;color:var(--text-secondary);">
-                    by <strong style="color:var(--text);">${s.profiles?.display_name || 'Unknown'}</strong>
+                    by <strong style="color:var(--text);">${profileMap[s.user_id] || 'Unknown'}</strong>
                     · ${new Date(s.created_at).toLocaleDateString('en-ZA', {day:'numeric',month:'short',year:'numeric'})}
                     ${s.admin_notes ? `<br><em style="color:var(--text-secondary);">Note: ${s.admin_notes}</em>` : ''}
                 </div>
