@@ -2041,7 +2041,7 @@
                                 <div style="background: rgba(56, 189, 248, 0.15); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; color: var(--ocean-light);">
                                     ${paceLabel}
                                 </div>
-                                ${event.recurrence_type ? `<div style="background:rgba(16,185,129,0.12);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;color:#10b981;">🔄 ${{daily:'Daily',weekdays:'Weekdays',weekends:'Weekends',weekly:'Weekly',fortnightly:'Fortnightly'}[event.recurrence_type]||event.recurrence_type}</div>` : ''}
+                                ${event.recurrence_type ? `<div style="background:rgba(16,185,129,0.12);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;color:#10b981;">🔄 ${formatRecurrenceLabel(event.recurrence_type, event.start_at)}</div>` : ''}
                                 ${displayRoute ? `
                                     <div style="background: rgba(56, 189, 248, 0.1); padding: 4px 10px; border-radius: 6px; font-size: 11px; color: var(--text-secondary);">
                                         ${displayRoute}
@@ -2306,6 +2306,14 @@
             }
         }
 
+        function formatRecurrenceLabel(rt, startAt) {
+            if (rt === 'weekly' || rt === 'fortnightly') {
+                const day = new Date(startAt).toLocaleDateString('en-ZA', { weekday: 'long' });
+                return rt === 'weekly' ? `Every ${day}` : `Every 2nd ${day}`;
+            }
+            return { daily:'Daily', weekdays:'Weekdays (Mon–Fri)', weekends:'Weekends (Sat–Sun)' }[rt] || rt;
+        }
+
         function onRecurrenceChange() {
             const val = document.getElementById('eventRecurrence')?.value;
             const endGroup = document.getElementById('recurrenceEndGroup');
@@ -2329,10 +2337,10 @@
             const end = new Date(endDateVal + 'T12:00:00');
             let count = 0;
             while (cur <= end && count < 52) { count++; cur.setDate(cur.getDate() + stepDays); }
-            const typeLabel = { daily:'daily', weekdays:'Mon–Fri', weekends:'Sat–Sun', weekly:'weekly', fortnightly:'fortnightly' }[recurrenceType] || recurrenceType;
+            const typeLabel = formatRecurrenceLabel(recurrenceType, datePart + 'T12:00:00');
             const endFmt = new Date(endDateVal + 'T12:00:00').toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' });
             previewEl.style.display = 'block';
-            previewEl.textContent = `Will create ${count} swim${count !== 1 ? 's' : ''} (${typeLabel}) until ${endFmt}`;
+            previewEl.textContent = `Will create ${count} swim${count !== 1 ? 's' : ''} (${typeLabel.toLowerCase()}) until ${endFmt}`;
         }
 
         async function checkSwimOverlap(spotId, startAt) {
