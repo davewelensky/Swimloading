@@ -1,13 +1,16 @@
 -- Notify admin (you) when a new user signs up
 -- Run this in Supabase → SQL Editor
+-- v2: added `type = 'new_signup'` — original was missing this field,
+--     causing silent failures inside the EXCEPTION handler.
 
 CREATE OR REPLACE FUNCTION notify_new_signup()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Send notification to your user ID (Dave)
-    INSERT INTO notifications (recipient_user_id, title, message)
+    INSERT INTO notifications (recipient_user_id, type, title, message)
     VALUES (
         'df137255-3add-4153-b368-32e06e2be188',
+        'new_signup',
         '🏊 New swimmer joined!',
         COALESCE(NEW.display_name, 'Someone') || ' just signed up for SwimLoading'
     );
