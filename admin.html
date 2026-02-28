@@ -456,6 +456,16 @@
             </div>
         </div>
 
+        <!-- Spot Suggestions -->
+        <div class="section-title">📍 Spot Suggestions</div>
+        <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <div style="font-size:13px;color:var(--text-secondary);">Submitted by swimmers — review and notify them when added.</div>
+                <button onclick="loadSpotSuggestions()" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);color:var(--ocean);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;">↻ Refresh</button>
+            </div>
+            <div id="spotSuggestionsList" style="font-size:13px;color:var(--text-secondary);">Loading…</div>
+        </div>
+
         <!-- Spot Management -->
         <div class="section-title">Spot Management</div>
         <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
@@ -738,7 +748,7 @@ async function showDashboard(user) {
     document.getElementById('loadingScreen').style.display = 'none';
     document.getElementById('adminEmail').textContent = user.email;
     document.getElementById('dashboard').style.display = 'block';
-    await Promise.all([loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement(), loadSpotlights()]);
+    await Promise.all([loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement(), loadSpotlights(), loadSpotSuggestions()]);
 }
 
 // ── Load users ─────────────────────────────────────────────────────────────────
@@ -1321,6 +1331,82 @@ async function sendTestPush() {
 async function signOut() {
     await supabaseClient.auth.signOut();
     window.location.href = '/';
+}
+
+// ── Spot Suggestions ──────────────────────────────────────────────────────────
+async function loadSpotSuggestions() {
+    const el = document.getElementById('spotSuggestionsList');
+    if (!el) return;
+
+    const { data, error } = await supabaseClient
+        .from('spot_suggestions')
+        .select('*, profiles(display_name)')
+        .order('created_at', { ascending: false });
+
+    if (error) { el.innerHTML = `<div style="color:#f87171;">Error: ${error.message}</div>`; return; }
+    if (!data || data.length === 0) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No suggestions yet.</div>'; return; }
+
+    const statusBadge = s => s === 'pending'
+        ? `<span style="background:rgba(251,191,36,0.15);color:#fbbf24;border:1px solid rgba(251,191,36,0.3);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;">Pending</span>`
+        : s === 'approved'
+        ? `<span style="background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;">Approved</span>`
+        : `<span style="background:rgba(248,113,113,0.15);color:#f87171;border:1px solid rgba(248,113,113,0.3);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;">Rejected</span>`;
+
+    el.innerHTML = data.map(s => `
+        <div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:rgba(15,23,42,0.4);">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+                <div>
+                    <span style="font-weight:700;font-size:14px;color:var(--text);">${s.spot_name}</span>
+                    <span style="color:var(--text-secondary);font-size:12px;margin-left:8px;">${s.water_type}${s.region ? ' · ' + s.region : ''}</span>
+                </div>
+                ${statusBadge(s.status)}
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5;">${s.description}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="font-size:11px;color:var(--text-secondary);">
+                    by <strong style="color:var(--text);">${s.profiles?.display_name || 'Unknown'}</strong>
+                    · ${new Date(s.created_at).toLocaleDateString('en-ZA', {day:'numeric',month:'short',year:'numeric'})}
+                    ${s.admin_notes ? `<br><em style="color:var(--text-secondary);">Note: ${s.admin_notes}</em>` : ''}
+                </div>
+                ${s.status === 'pending' ? `
+                <div style="display:flex;gap:8px;">
+                    <button onclick="resolveSpotSuggestion('${s.id}','approved',null)"
+                        style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#22c55e;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:600;">✓ Approve</button>
+                    <button onclick="rejectSpotSuggestion('${s.id}')"
+                        style="background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.25);color:#f87171;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;">✕ Reject</button>
+                </div>` : ''}
+            </div>
+        </div>`).join('');
+}
+
+async function resolveSpotSuggestion(id, status, notes) {
+    const { data: s } = await supabaseClient
+        .from('spot_suggestions')
+        .select('user_id, spot_name')
+        .eq('id', id)
+        .single();
+    if (!s) return;
+
+    await supabaseClient.from('spot_suggestions').update({ status, admin_notes: notes || null }).eq('id', id);
+
+    const isApproved = status === 'approved';
+    await supabaseClient.from('notifications').insert({
+        recipient_user_id: s.user_id,
+        title: isApproved ? '📍 Your spot suggestion was added!' : '📍 Spot suggestion update',
+        message: isApproved
+            ? `${s.spot_name} is now live on SwimLoading — go log a temp! 🌡️`
+            : `We couldn't add ${s.spot_name} right now${notes ? ': ' + notes : '.'}`,
+        type: 'spot_suggestion'
+    });
+
+    alert(isApproved ? `✓ Approved — ${s.spot_name} — swimmer notified` : `Rejected — ${s.spot_name} — swimmer notified`);
+    loadSpotSuggestions();
+}
+
+async function rejectSpotSuggestion(id) {
+    const reason = prompt('Reason for rejection (optional — will be sent to the swimmer):');
+    if (reason === null) return; // cancelled
+    await resolveSpotSuggestion(id, 'rejected', reason || null);
 }
 
 // ── Spotlight ─────────────────────────────────────────────────────────────────
