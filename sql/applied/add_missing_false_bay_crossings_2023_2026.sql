@@ -17,15 +17,32 @@
 -- Use ON CONFLICT DO NOTHING on name_normalized to be safe
 
 INSERT INTO historical_swimmers (display_name, name_normalized, gender, country)
-VALUES
-    ('Grace Mclaughlin',         'grace mclaughlin',         'F', 'South Africa'),
-    ('Ieva Lobaciute',           'ieva lobaciute',           'F', 'South Africa'),
-    ('Meinhardt Esterhuizen',    'meinhardt esterhuizen',    'M', 'South Africa'),
-    ('Barry Murphy',             'barry murphy',             'M', 'South Africa'),
-    ('Dee Newell',               'dee newell',               'F', 'South Africa'),
-    ('Linda Clarke',             'linda clarke',             'F', 'South Africa'),
-    ('Jason Betley',             'jason betley',             'M', 'South Africa')
-ON CONFLICT (name_normalized, gender) DO NOTHING;
+SELECT 'Grace Mclaughlin', 'grace mclaughlin', 'F', 'South Africa'
+WHERE NOT EXISTS (SELECT 1 FROM historical_swimmers WHERE name_normalized = 'grace mclaughlin' AND gender = 'F');
+
+INSERT INTO historical_swimmers (display_name, name_normalized, gender, country)
+SELECT 'Ieva Lobaciute', 'ieva lobaciute', 'F', 'South Africa'
+WHERE NOT EXISTS (SELECT 1 FROM historical_swimmers WHERE name_normalized = 'ieva lobaciute' AND gender = 'F');
+
+INSERT INTO historical_swimmers (display_name, name_normalized, gender, country)
+SELECT 'Meinhardt Esterhuizen', 'meinhardt esterhuizen', 'M', 'South Africa'
+WHERE NOT EXISTS (SELECT 1 FROM historical_swimmers WHERE name_normalized = 'meinhardt esterhuizen' AND gender = 'M');
+
+INSERT INTO historical_swimmers (display_name, name_normalized, gender, country)
+SELECT 'Barry Murphy', 'barry murphy', 'M', 'South Africa'
+WHERE NOT EXISTS (SELECT 1 FROM historical_swimmers WHERE name_normalized = 'barry murphy' AND gender = 'M');
+
+INSERT INTO historical_swimmers (display_name, name_normalized, gender, country)
+SELECT 'Dee Newell', 'dee newell', 'F', 'South Africa'
+WHERE NOT EXISTS (SELECT 1 FROM historical_swimmers WHERE name_normalized = 'dee newell' AND gender = 'F');
+
+INSERT INTO historical_swimmers (display_name, name_normalized, gender, country)
+SELECT 'Linda Clarke', 'linda clarke', 'F', 'South Africa'
+WHERE NOT EXISTS (SELECT 1 FROM historical_swimmers WHERE name_normalized = 'linda clarke' AND gender = 'F');
+
+INSERT INTO historical_swimmers (display_name, name_normalized, gender, country)
+SELECT 'Jason Betley', 'jason betley', 'M', 'South Africa'
+WHERE NOT EXISTS (SELECT 1 FROM historical_swimmers WHERE name_normalized = 'jason betley' AND gender = 'M');
 
 
 -- ── STEP 2: Insert missing swim events ────────────────────
