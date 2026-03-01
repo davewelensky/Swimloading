@@ -170,8 +170,12 @@
             <div class="header-title">False Bay Intel</div>
             <div class="header-sub">Crossing intelligence · private beta</div>
         </div>
-        <div id="userPill" class="user-pill"></div>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <button id="refreshBtn" onclick="refreshIntel()" title="Refresh conditions" style="background:rgba(14,165,233,0.10);border:1px solid rgba(14,165,233,0.25);color:var(--ocean-light);border-radius:20px;padding:3px 10px;font-size:14px;cursor:pointer;line-height:1;">↻</button>
+            <div id="userPill" class="user-pill"></div>
+        </div>
     </div>
+    <div id="lastRefreshed" style="font-size:10px;color:var(--text-secondary);margin-top:4px;"></div>
 </div>
 
 <div id="initScreen" class="container">
@@ -207,18 +211,10 @@
             <div id="liveTemps" class="loading-msg">Loading...</div>
         </div>
 
-        <!-- Tides — contextual + dynamic -->
+        <!-- Tides — live via WorldTides API -->
         <div class="card">
             <div class="card-label">🌊 Tides — False Bay</div>
-            <div id="tideCard">
-                <div style="font-size:12px;color:var(--text-secondary);line-height:1.65;">
-                    <strong style="color:var(--text-primary);">Semi-diurnal</strong> — 2 highs · 2 lows per ~24h · range ~1.5m. False Bay tidal currents are <strong style="color:var(--text-primary);">weak</strong>; wind is the dominant surface driver. For a crossing, any tidal direction is manageable — just avoid starting at peak ebb if possible.
-                    <br><br>
-                    <strong style="color:var(--text-primary);">Ideal:</strong> Start on flood (rising tide) for consistent current direction through the crossing.
-                    <br><br>
-                    Check tides for your crossing date: <a href="https://www.tide-forecast.com/locations/Cape-Town-South-Africa/tides/latest" target="_blank" style="color:var(--ocean-light);">tide-forecast.com</a> · <a href="https://sacoast.weathersa.co.za" target="_blank" style="color:var(--ocean-light);">SA Weather Service</a>
-                </div>
-            </div>
+            <div id="tideCard" class="loading-msg">Loading tide data...</div>
         </div>
 
         <!-- Today swim window hourly breakdown -->
@@ -282,6 +278,22 @@
 
     <!-- ══════════════ TAB: RECORDS ══════════════ -->
     <div id="panelRecords" class="panel">
+
+        <!-- Current Records Banner -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+            <div style="background:linear-gradient(135deg,rgba(14,165,233,0.12),rgba(14,165,233,0.04));border:1px solid rgba(14,165,233,0.3);border-radius:14px;padding:14px;text-align:center;">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:6px;">🏆 WOMEN'S RECORD</div>
+                <div style="font-size:22px;font-weight:900;color:var(--ocean-light);letter-spacing:-1px;">8:09:26</div>
+                <div style="font-size:12px;font-weight:700;color:var(--text-primary);margin-top:4px;">Kat Persson</div>
+                <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">30 Nov 2022 · Bumpy · NW</div>
+            </div>
+            <div style="background:linear-gradient(135deg,rgba(14,165,233,0.12),rgba(14,165,233,0.04));border:1px solid rgba(14,165,233,0.3);border-radius:14px;padding:14px;text-align:center;">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:6px;">🏆 MEN'S RECORD</div>
+                <div style="font-size:22px;font-weight:900;color:var(--ocean-light);letter-spacing:-1px;">7:28:15</div>
+                <div style="font-size:12px;font-weight:700;color:var(--text-primary);margin-top:4px;">Barend Nortje</div>
+                <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">20 Feb 2024 · Bumpy · NNW</div>
+            </div>
+        </div>
 
         <!-- Scatter: time vs water temp, coloured by wind -->
         <div class="card">
@@ -492,6 +504,10 @@ const ALLOWED = [
 const MILLERS_LAT = -34.2269;
 const MILLERS_LNG = 18.4648;
 
+// WorldTides API — free at worldtides.info/register (10,000 credits/month)
+// Get a key and paste it here to unlock live tide predictions
+const WORLDTIDES_KEY = '';
+
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -521,10 +537,43 @@ async function startApp(session) {
 
     // Load live temps first — feeds both NOW (GO signal) and Prediction
     const liveResult = await loadLiveTemps();
+    loadTides();
     loadNow(liveResult);
     loadWindow();
     loadRecords();
     loadCarina(liveResult?.avgTemp);
+
+    // Update last-refreshed timestamp
+    const ts = new Date().toLocaleTimeString('en-ZA', { hour:'2-digit', minute:'2-digit' });
+    const el = document.getElementById('lastRefreshed');
+    if (el) el.textContent = `Updated ${ts}`;
+}
+
+async function refreshIntel() {
+    const btn = document.getElementById('refreshBtn');
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; btn.textContent = '⟳'; }
+
+    // Reset caches so everything re-fetches from API
+    appStarted = false;
+    _windForecastPromise = null;
+    _marineForecastPromise = null;
+
+    // Reset dynamic elements to loading state
+    const resetEl = (id, msg) => { const e = document.getElementById(id); if (e) e.innerHTML = `<div class="loading-msg">${msg}</div>`; };
+    resetEl('goSignal', 'Analysing conditions...');
+    resetEl('liveTemps', 'Loading...');
+    resetEl('tideCard', 'Loading tide data...');
+    resetEl('nextWindowCard', 'Analysing upcoming crossing windows...');
+    resetEl('crossingWindow', 'Analysing conditions...');
+    resetEl('windForecast', 'Loading...');
+    resetEl('waveForecast', 'Loading...');
+    resetEl('condChecklist', 'Checking...');
+    resetEl('todayHourly', 'Loading...');
+
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) await startApp(session);
+
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = '↻'; }
 }
 
 async function init() {
@@ -624,6 +673,97 @@ async function getFBRouteIds() {
     const data = await apiFetch('historical_routes?select=id,name');
     const fb = (data||[]).filter(r => r.name && r.name.toLowerCase().startsWith('false bay'));
     return fb.map(r => r.id);
+}
+
+// ─── TIDES ────────────────────────────────────────────────────────────────────
+
+async function loadTides() {
+    const el = document.getElementById('tideCard');
+    if (!el) return;
+
+    const fallback = `
+        <div style="font-size:12px;color:var(--text-secondary);line-height:1.65;">
+            <strong style="color:var(--text-primary);">Semi-diurnal</strong> — 2 highs · 2 lows per ~24h · range ~1.5m.
+            False Bay tidal currents are <strong style="color:var(--text-primary);">weak</strong>; wind is the dominant surface driver.
+            For a crossing, any direction is manageable — ideal to start on a <strong style="color:var(--text-primary);">flood (rising)</strong> tide.
+            <br><br>
+            📍 Live tide times: <a href="https://www.tide-forecast.com/locations/Cape-Town-South-Africa/tides/latest" target="_blank" style="color:var(--ocean-light);">tide-forecast.com</a>
+            &nbsp;·&nbsp; <a href="https://sacoast.weathersa.co.za" target="_blank" style="color:var(--ocean-light);">SA Weather Service</a>
+            <br><br>
+            <span style="color:rgba(148,163,184,0.6);font-size:10px;">Add a WorldTides API key (free at worldtides.info/register) to unlock live tides here.</span>
+        </div>`;
+
+    if (!WORLDTIDES_KEY) { el.innerHTML = fallback; return; }
+
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const url = `https://www.worldtides.info/api/v3?extremes&lat=${MILLERS_LAT}&lon=${MILLERS_LNG}&days=2&datum=LAT&key=${WORLDTIDES_KEY}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!data.extremes?.length) { el.innerHTML = fallback; return; }
+
+        const now = Date.now() / 1000;
+        const todayStr = new Date().toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
+
+        // Filter to today + tomorrow, split upcoming from past
+        const todayExtremes = data.extremes.filter(e => {
+            const d = new Date(e.dt * 1000);
+            return d.toDateString() === new Date().toDateString();
+        });
+        const allExtremes = data.extremes.slice(0, 6);
+
+        // Find current tide state (flood/ebb) based on surrounding extremes
+        const sorted = data.extremes.sort((a,b) => a.dt - b.dt);
+        let prev = sorted.filter(e => e.dt <= now).pop();
+        let next = sorted.find(e => e.dt > now);
+        const isFlood = prev && next && next.type === 'High';
+        const isEbb   = prev && next && next.type === 'Low';
+        const tideState = isFlood ? '↑ Flood (rising)' : isEbb ? '↓ Ebb (falling)' : '—';
+        const tideCol   = isFlood ? 'var(--success)' : isEbb ? 'var(--ocean-light)' : 'var(--text-secondary)';
+
+        // Time until next extreme
+        let nextLabel = '';
+        if (next) {
+            const minsUntil = Math.round((next.dt - now) / 60);
+            const h = Math.floor(minsUntil / 60), m = minsUntil % 60;
+            const timeStr = new Date(next.dt * 1000).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+            nextLabel = `${next.type === 'High' ? 'High' : 'Low'} tide at ${timeStr} (${h > 0 ? h+'h ' : ''}${m}m)`;
+        }
+
+        // Crossing advice
+        const crossingAdvice = isFlood
+            ? '✅ Flood tide — ideal for crossing start.'
+            : isEbb
+            ? '⚠️ Ebb tide — manageable, but start within the next flood window if possible.'
+            : '';
+
+        const rows = allExtremes.map(e => {
+            const t = new Date(e.dt * 1000);
+            const isPast = e.dt < now;
+            const timeStr = t.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+            const dayStr  = t.toDateString() === new Date().toDateString() ? 'Today' : 'Tomorrow';
+            return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);opacity:${isPast?0.4:1};">
+                <div style="font-size:16px;">${e.type === 'High' ? '🔼' : '🔽'}</div>
+                <div style="flex:1;font-size:12px;color:var(--text-primary);">${e.type} tide &nbsp;<span style="color:var(--text-secondary);font-size:11px;">${dayStr} ${timeStr}</span></div>
+                <div style="font-size:12px;font-weight:700;color:${e.type==='High'?'var(--ocean-light)':'var(--text-secondary)'};">${e.height.toFixed(2)}m</div>
+            </div>`;
+        }).join('');
+
+        el.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                <div>
+                    <div style="font-size:18px;font-weight:800;color:${tideCol};">${tideState}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${nextLabel}</div>
+                </div>
+                <div style="text-align:right;font-size:11px;color:var(--text-secondary);">${crossingAdvice}</div>
+            </div>
+            ${rows}
+            <div style="font-size:10px;color:var(--text-secondary);margin-top:8px;">False Bay (Miller's Point) · Semi-diurnal ~1.5m range · Source: WorldTides</div>`;
+
+    } catch(e) {
+        el.innerHTML = fallback;
+    }
 }
 
 // ─── NOW TAB ──────────────────────────────────────────────────────────────────
@@ -1420,16 +1560,19 @@ async function loadRecords() {
                 ? `<span style="font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600;background:${w.nw?'rgba(34,197,94,0.15)':'rgba(239,68,68,0.12)'};color:${w.nw?'var(--success)':'var(--danger)'};">💨 ${w.dir||'?'} ${w.wind?.toFixed(0)||'?'}km/h</span>`
                 : '';
             const tempBadge = `<span style="font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600;background:${s.water_temp_c>=18?'rgba(34,197,94,0.15)':'rgba(245,158,11,0.15)'};color:${s.water_temp_c>=18?'var(--success)':'var(--warning)'};">🌡️ ${s.water_temp_c||'—'}°C</span>`;
+            const isRecord = i === 0;
+            const recordGlow = isRecord ? 'border:1px solid rgba(14,165,233,0.35);background:rgba(14,165,233,0.06);border-radius:12px;padding:10px;margin:-4px;' : '';
             return `
-            <div class="record-row" style="flex-direction:column;align-items:flex-start;gap:6px;">
+            <div class="record-row" style="flex-direction:column;align-items:flex-start;gap:6px;${recordGlow}">
                 <div style="display:flex;align-items:center;gap:8px;width:100%;">
-                    <div class="record-pos ${posClass(i)}">${i+1}</div>
+                    <div class="record-pos ${posClass(i)}">${isRecord ? '🏆' : i+1}</div>
                     <div style="flex:1;">
-                        <div class="record-name">${s.historical_swimmers?.display_name||'Unknown'}</div>
+                        <div class="record-name" style="${isRecord?'color:var(--ocean-light);font-weight:800;':''}">${s.historical_swimmers?.display_name||'Unknown'}</div>
                         <div class="record-detail">${new Date(s.swim_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})} · ${s.conditions?.replace('_',' ')||'—'}</div>
                     </div>
                     <div style="text-align:right;">
-                        <div class="record-time">${fmtDur(s.duration)}</div>
+                        <div class="record-time" style="${isRecord?'color:var(--ocean-light);':''}">${fmtDur(s.duration)}</div>
+                        ${isRecord ? '<div style="font-size:9px;color:var(--ocean-light);font-weight:700;letter-spacing:.05em;">RECORD</div>' : ''}
                     </div>
                 </div>
                 <div style="display:flex;gap:6px;padding-left:36px;">${tempBadge}${nwBadge}</div>
