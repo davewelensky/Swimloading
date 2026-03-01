@@ -192,7 +192,7 @@
         <button class="tab-btn active" onclick="showTab('now', this)">Now</button>
         <button class="tab-btn" onclick="showTab('window', this)">Window</button>
         <button class="tab-btn" onclick="showTab('records', this)">Records</button>
-        <button class="tab-btn" onclick="showTab('carina', this)">Prediction</button>
+        <button class="tab-btn" onclick="showTab('carina', this)">Record</button>
     </div>
 
     <!-- ══════════════ TAB: NOW ══════════════ -->
@@ -317,6 +317,12 @@
     <!-- ══════════════ TAB: WINDOW ══════════════ -->
     <div id="panelWindow" class="panel">
 
+        <!-- 7-day Crossing Window traffic lights -->
+        <div class="card">
+            <div class="card-label">🚦 7-Day Crossing Window</div>
+            <div id="crossingWindow" class="loading-msg">Analysing conditions...</div>
+        </div>
+
         <!-- 7-day wind forecast — moved from NOW tab -->
         <div class="card">
             <div class="card-label">7-Day Wind Forecast — Miller's Point</div>
@@ -399,9 +405,29 @@
     <!-- ══════════════ TAB: CARINA ══════════════ -->
     <div id="panelCarina" class="panel">
 
+        <!-- ── Personal crossing prediction calculator ── -->
+        <div class="card">
+            <div class="card-label">🧮 Personal Crossing Prediction</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Enter your pace to get a personalised False Bay crossing estimate (33 km · WNW current · feeds).</div>
+            <div style="display:flex;gap:6px;margin-bottom:12px;">
+                <button id="btnPool" onclick="setPaceMode('pool')" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.15);color:var(--ocean-light);font-size:12px;font-weight:600;cursor:pointer;">Pool 1500m Time</button>
+                <button id="btnOW" onclick="setPaceMode('ow')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;">Open Water Pace</button>
+            </div>
+            <div id="poolInputDiv">
+                <input type="text" id="input1500m" placeholder="e.g. 28:30 (mm:ss)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;margin-bottom:6px;">
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Your fastest 1500m pool time — race pace, not training.</div>
+            </div>
+            <div id="owInputDiv" style="display:none;">
+                <input type="text" id="inputOW" placeholder="e.g. 3.25 (km/h)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;margin-bottom:6px;">
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Your sustained open water race pace in km/h.</div>
+            </div>
+            <button onclick="calcPersonalPrediction()" style="width:100%;padding:11px;border-radius:8px;border:none;background:var(--ocean);color:white;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px;">Calculate My Crossing Time →</button>
+            <div id="paceCalcResult" style="display:none;"></div>
+        </div>
+
         <!-- ── Saturday 28 Feb crossing prediction ── -->
         <div class="card" style="border-color:rgba(245,158,11,0.35);background:rgba(245,158,11,0.04);">
-            <div class="card-label" style="color:var(--warning);">🏊 Saturday 28 Feb — Crossing Day Prediction</div>
+            <div class="card-label" style="color:var(--warning);">🏊 Saturday 28 Feb — Record Attempt Conditions</div>
 
             <!-- Conditions snapshot -->
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
@@ -450,32 +476,42 @@
 
             <!-- Carina personal prediction -->
             <div style="padding:12px;border-radius:10px;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.25);margin-bottom:12px;">
-                <div style="font-size:11px;font-weight:700;color:var(--success);letter-spacing:.07em;margin-bottom:8px;">🎯 CARINA — PERSONAL PREDICTION · 3.25 km/h OPEN WATER BASE</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
-                    <div style="text-align:center;padding:8px;border-radius:8px;background:rgba(16,185,129,0.1);">
-                        <div style="font-size:10px;color:var(--text-secondary);margin-bottom:2px;">CONSERVATIVE</div>
-                        <div style="font-size:18px;font-weight:800;color:var(--text-primary);">9:07</div>
-                        <div style="font-size:10px;color:var(--text-secondary);">light WNW assist</div>
+                <div style="font-size:11px;font-weight:700;color:var(--ocean-light);letter-spacing:.07em;margin-bottom:8px;">🎯 CARINA — RECORD ATTEMPT PREDICTION · 3.25 km/h OW BASE</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-bottom:10px;">
+                    <div style="text-align:center;padding:8px;border-radius:8px;background:rgba(16,185,129,0.07);">
+                        <div style="font-size:9px;color:var(--text-secondary);margin-bottom:2px;">CONSERVATIVE</div>
+                        <div style="font-size:17px;font-weight:800;color:var(--text-primary);">9:07</div>
+                        <div style="font-size:9px;color:var(--text-secondary);">light NW · 0.40</div>
                     </div>
-                    <div style="text-align:center;padding:8px;border-radius:8px;background:rgba(16,185,129,0.18);border:1px solid rgba(16,185,129,0.3);">
-                        <div style="font-size:10px;color:var(--success);margin-bottom:2px;font-weight:700;">MOST LIKELY</div>
-                        <div style="font-size:22px;font-weight:800;color:var(--success);">8:45</div>
-                        <div style="font-size:10px;color:var(--text-secondary);">WNW moderate assist</div>
+                    <div style="text-align:center;padding:8px;border-radius:8px;background:rgba(16,185,129,0.14);border:1px solid rgba(16,185,129,0.3);">
+                        <div style="font-size:9px;color:var(--success);margin-bottom:2px;font-weight:700;">MOST LIKELY</div>
+                        <div style="font-size:20px;font-weight:800;color:var(--success);">8:45</div>
+                        <div style="font-size:9px;color:var(--text-secondary);">mod NW · 0.55</div>
                     </div>
-                    <div style="text-align:center;padding:8px;border-radius:8px;background:rgba(16,185,129,0.1);">
-                        <div style="font-size:10px;color:var(--text-secondary);margin-bottom:2px;">BEST CASE</div>
-                        <div style="font-size:18px;font-weight:800;color:var(--text-primary);">8:25</div>
-                        <div style="font-size:10px;color:var(--text-secondary);">strong WNW assist</div>
+                    <div style="text-align:center;padding:8px;border-radius:8px;background:rgba(14,165,233,0.1);">
+                        <div style="font-size:9px;color:var(--text-secondary);margin-bottom:2px;">BEST CASE</div>
+                        <div style="font-size:17px;font-weight:800;color:var(--ocean-light);">8:25</div>
+                        <div style="font-size:9px;color:var(--text-secondary);">strong NW · 0.70</div>
+                    </div>
+                    <div style="text-align:center;padding:8px;border-radius:8px;background:rgba(14,165,233,0.18);border:2px solid rgba(14,165,233,0.5);">
+                        <div style="font-size:9px;color:var(--ocean-light);margin-bottom:2px;font-weight:700;">RECORD PACE</div>
+                        <div style="font-size:20px;font-weight:800;color:var(--ocean-light);">&lt;8:09</div>
+                        <div style="font-size:9px;color:var(--ocean-light);margin-top:2px;">0.85 km/h · 34km/h NW</div>
                     </div>
                 </div>
                 <div style="font-size:11px;color:var(--text-secondary);line-height:1.65;">
-                    <strong style="color:var(--text-primary);">How:</strong> Garmin data: 10.9km False Bay at 3.27 km/h (133 bpm easy effort) → crossing base ~3.25 km/h + WNW current 0.4–0.7 km/h + 17 feeds × 15s = 4 min total.<br>
-                    <strong style="color:var(--text-primary);">Context:</strong> Women's avg 10:16 · Record 8:09. Sub-9h is well within reach — best case approaches record territory.<br>
-                    <strong style="color:var(--text-primary);">Key:</strong> Cold start 17°C → warms to ~22°C east. Wind builds all day — more current the further you go. Fast-day profile.
+                    <strong style="color:var(--text-primary);">Data:</strong> Garmin: 10.9km False Bay at 3.27 km/h (133 bpm — easy effort, not race pace) → crossing base ~3.25 km/h. Short races: 3.64–4.0 km/h.<br>
+                    <strong style="color:var(--text-primary);">Record threshold:</strong> 3.25 km/h base + 0.85 km/h current = 4.1 km/h effective → 8:03 swim time. Achievable at <strong style="color:var(--ocean-light);">~34 km/h sustained WNW</strong> — well within Sat forecast.<br>
+                    <strong style="color:var(--text-primary);">Key:</strong> Wind builds all day — current grows. Negative splitter = stronger at 6h than at 2h. Fast-day profile. This is a record attempt.
                 </div>
                 <div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(14,165,233,0.06);border:1px solid rgba(14,165,233,0.15);">
-                    <div style="font-size:10px;font-weight:700;color:var(--ocean-light);margin-bottom:4px;">📊 ABOUT THE WOMEN'S RECORD — 8:09</div>
-                    <div style="font-size:11px;color:var(--text-secondary);line-height:1.6;">The record holder's pool pace is ~3.0 km/h, but her <strong style="color:var(--text-primary);">open water race pace is ~3.2 km/h</strong> — she's faster in open water than pool. At 3.2 km/h base, 8:09 needs only ~0.85 km/h eastward current, which a <strong style="color:var(--text-primary);">~34 km/h sustained NW</strong> delivers (2.5% rule). A good NW day, not a gale. The record is attainable for the right swimmer on any solid NW window.</div>
+                    <div style="font-size:10px;font-weight:700;color:var(--ocean-light);margin-bottom:4px;">📊 RECORD ANALYSIS — CAN IT FALL SAT 28 FEB?</div>
+                    <div style="font-size:11px;color:var(--text-secondary);line-height:1.6;">
+                        Current record: <strong style="color:var(--text-primary);">8:09</strong> · holder's OW race pace ~3.2 km/h.<br>
+                        Carina's OW base: <strong style="color:var(--text-primary);">~3.25 km/h</strong> (easy effort, Garmin). Race pace likely 3.3–3.5 km/h. Gets <strong style="color:var(--text-primary);">stronger in the back half</strong>.<br>
+                        Record needs: 4.1 km/h effective = 3.25 + 0.85 km/h current = <strong style="color:var(--ocean-light);">~34 km/h sustained WNW</strong>.<br>
+                        Forecast Sat: WNW building to 37 km/h. <strong style="color:var(--success);">Record conditions are present.</strong>
+                    </div>
                 </div>
             </div>
 
@@ -535,6 +571,12 @@
         <div class="card">
             <div class="card-label">Crossing Time Prediction</div>
             <div id="carinaPrediction" class="loading-msg">Building prediction...</div>
+        </div>
+
+        <!-- Share button -->
+        <div style="padding:6px 0 20px;text-align:center;">
+            <button onclick="shareIntel()" style="padding:12px 28px;border-radius:24px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.1);color:var(--ocean-light);font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.02em;">📤 Share Conditions &amp; Prediction</button>
+            <div id="shareMsg" style="font-size:11px;color:var(--success);margin-top:8px;display:none;">✓ Copied to clipboard — paste into WhatsApp</div>
         </div>
 
     </div>
@@ -828,7 +870,7 @@ async function loadWindForecast() {
         document.getElementById('windForecast').innerHTML = forecastRows +
             `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo · Miller's Point</div>`;
 
-        return { windMax, windDir: windDir360, dirLabel, nwFav, rain };
+        return { windMax, windDir: windDir360, dirLabel, nwFav, rain, daily7: dates.slice(0,7).map((d,i) => ({ date: d, windMax: daily.wind_speed_10m_max[i], windDir: daily.wind_direction_10m_dominant[i] })) };
 
     } catch(e) {
         document.getElementById('windForecast').innerHTML = `<div style="color:var(--text-secondary);font-size:13px;">Could not load forecast. Check wind.guru or windguru.cz for False Bay.</div>`;
@@ -869,7 +911,7 @@ async function loadMarineForecast() {
             `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo Marine · False Bay</div>`;
 
         // Return today's marine data (index 0)
-        return { waveMax: daily.wave_height_max[0], swellMax: daily.swell_wave_height_max[0], period: daily.wave_period_max[0] };
+        return { waveMax: daily.wave_height_max[0], swellMax: daily.swell_wave_height_max[0], period: daily.wave_period_max[0], daily7: daily.time.slice(0,7).map((d,i) => ({ date: d, waveMax: daily.wave_height_max[i] })) };
     } catch(e) {
         document.getElementById('swellForecast').innerHTML = `<div style="color:var(--text-secondary);font-size:13px;">Marine forecast unavailable.</div>`;
         return null;
@@ -1079,12 +1121,155 @@ function timeAgo(ts) {
     return `${Math.round(diff/86400)}d ago`;
 }
 
+// ─── CROSSING WINDOW TRAFFIC LIGHTS ──────────────────────────────────────────
+
+function buildCrossingWindow(windResult, marineResult) {
+    const el = document.getElementById('crossingWindow');
+    if (!el) return;
+    const windDays = windResult?.daily7 || [];
+    const marineDays = marineResult?.daily7 || [];
+    if (!windDays.length) {
+        el.innerHTML = '<div style="color:var(--text-secondary);font-size:12px;">Forecast unavailable.</div>';
+        return;
+    }
+    const rows = windDays.map((w, i) => {
+        const wave = marineDays[i]?.waveMax;
+        const isToday = i === 0;
+        const dayName = isToday ? 'Today' : new Date(w.date).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
+        const wa = windAssess(w.windDir, w.windMax);
+        const windGood = wa.tier === 'optimal';
+        const windAmber = wa.tier === 'calm' || wa.tier === 'nw-strong';
+        const waveBad = wave != null && wave > 2.5;
+        const waveAmber = wave != null && wave > 1.5 && wave <= 2.5;
+        let signal, color;
+        if (windGood && !waveAmber && !waveBad)       { signal = '🟢 GO';    color = 'var(--success)'; }
+        else if ((windGood || windAmber) && !waveBad) { signal = '🟡 CHECK'; color = 'var(--warning)'; }
+        else                                          { signal = '🔴 NO-GO'; color = 'var(--danger)';  }
+        const waveStr = wave != null ? ` · ${wave.toFixed(1)}m wave` : '';
+        const reason = `${wa.label} ${w.windMax != null ? w.windMax.toFixed(0) : '?'} km/h${waveStr}`;
+        return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);${isToday?'background:rgba(14,165,233,0.05);margin:0 -4px;padding:9px 4px;border-radius:8px;':''}">
+            <div style="width:68px;font-size:12px;font-weight:${isToday?700:400};color:${isToday?'var(--ocean-light)':'var(--text-primary)'};">${dayName}</div>
+            <div style="flex:1;font-size:11px;color:var(--text-secondary);">${reason}</div>
+            <div style="font-size:12px;font-weight:700;color:${color};white-space:nowrap;">${signal}</div>
+        </div>`;
+    }).join('');
+    el.innerHTML = rows + '<div style="font-size:10px;color:var(--text-secondary);margin-top:8px;">🟢 GO = NW wind &lt;35 km/h + wave &lt;1.5m &nbsp;·&nbsp; Source: Open-Meteo</div>';
+}
+
+// ─── PERSONAL PACE CALCULATOR ─────────────────────────────────────────────────
+
+let _paceMode = 'pool';
+let _lastCalcOW = null;
+
+function setPaceMode(mode) {
+    _paceMode = mode;
+    document.getElementById('poolInputDiv').style.display = mode === 'pool' ? '' : 'none';
+    document.getElementById('owInputDiv').style.display  = mode === 'ow'   ? '' : 'none';
+    ['Pool','OW'].forEach(k => {
+        const btn = document.getElementById('btn'+k);
+        const active = (k==='Pool'&&mode==='pool') || (k==='OW'&&mode==='ow');
+        btn.style.background    = active ? 'rgba(14,165,233,0.15)' : 'transparent';
+        btn.style.color         = active ? 'var(--ocean-light)'    : 'var(--text-secondary)';
+        btn.style.borderColor   = active ? 'rgba(14,165,233,0.4)'  : 'var(--border)';
+    });
+}
+
+function calcPersonalPrediction() {
+    const DIST = 33, FEEDS = 17 * 15 / 3600; // feeds in hours
+    const SCENARIOS = [
+        { label:'Conservative', desc:'light WNW · 0.40 km/h', cur:0.40 },
+        { label:'Most Likely',  desc:'mod WNW · 0.55 km/h',   cur:0.55 },
+        { label:'Best Case',    desc:'strong WNW · 0.70 km/h', cur:0.70 },
+        { label:'Record Chase', desc:'0.85 km/h · 34+ km/h NW', cur:0.85, highlight:true },
+    ];
+    let owPace, fromPool;
+    if (_paceMode === 'pool') {
+        const raw = document.getElementById('input1500m').value.trim();
+        const m = raw.match(/^(\d+):(\d+)$/);
+        if (!m) { alert('Enter your 1500m pool time as mm:ss — e.g. 28:30'); return; }
+        const secs = parseInt(m[1])*60 + parseInt(m[2]);
+        if (secs < 900 || secs > 5400) { alert('Enter a realistic 1500m time — between 15:00 and 90:00'); return; }
+        fromPool = 5400 / secs;
+        owPace = fromPool * 0.88;
+    } else {
+        const raw = document.getElementById('inputOW').value.trim();
+        owPace = parseFloat(raw);
+        if (isNaN(owPace) || owPace < 1.5 || owPace > 6) { alert('Enter a realistic open water pace between 1.5 and 6.0 km/h'); return; }
+    }
+    _lastCalcOW = owPace;
+    const fmtHM = h => { const hh=Math.floor(h), mm=Math.round((h-hh)*60); return `${hh}:${String(mm).padStart(2,'0')}`; };
+    const srcNote = fromPool ? `Pool 1500m → ${fromPool.toFixed(2)} km/h → OW ~${owPace.toFixed(2)} km/h (×0.88)` : `Open water pace: ${owPace.toFixed(2)} km/h`;
+    const cards = SCENARIOS.map(s => {
+        const timeH = DIST / (owPace + s.cur) + FEEDS;
+        const under809 = timeH < 8 + 9/60;
+        const col = s.highlight ? 'var(--ocean-light)' : under809 ? 'var(--success)' : 'var(--text-primary)';
+        const bg  = s.highlight ? 'rgba(14,165,233,0.15)' : under809 ? 'rgba(34,197,94,0.1)' : 'rgba(16,185,129,0.07)';
+        const bdr = s.highlight ? 'border:1px solid rgba(14,165,233,0.35);' : under809 ? 'border:1px solid rgba(34,197,94,0.3);' : '';
+        const badge = under809 ? '<div style="font-size:9px;color:var(--success);font-weight:700;margin-top:2px;">★ SUB-RECORD</div>' : '';
+        return `<div style="text-align:center;padding:9px 6px;border-radius:8px;background:${bg};${bdr}">
+            <div style="font-size:9px;color:var(--text-secondary);margin-bottom:2px;line-height:1.3;">${s.label.toUpperCase()}</div>
+            <div style="font-size:${s.highlight?20:17}px;font-weight:800;color:${col};">${fmtHM(timeH)}</div>
+            <div style="font-size:9px;color:var(--text-secondary);margin-top:2px;line-height:1.3;">${s.desc}</div>
+            ${badge}
+        </div>`;
+    }).join('');
+    const el = document.getElementById('paceCalcResult');
+    el.style.display = '';
+    el.innerHTML = `<div style="font-size:10px;color:var(--text-secondary);margin-bottom:10px;">${srcNote} · Record: 8:09</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-bottom:10px;">${cards}</div>
+        <div style="font-size:10px;color:var(--text-secondary);line-height:1.5;">33 km · 17 feeds × 15s = 4 min${fromPool?' · OW efficiency: 88% (from Garmin data)':''}. Record chase needs ~34 km/h sustained NW.</div>`;
+}
+
+// ─── SHARE ────────────────────────────────────────────────────────────────────
+
+function shareIntel() {
+    const d = new Date().toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+    const personal = _lastCalcOW
+        ? `\nMy crossing estimate (${_lastCalcOW.toFixed(2)} km/h OW): ~${(() => { const t=33/(_lastCalcOW+0.55)+17*15/3600; const h=Math.floor(t), m=Math.round((t-h)*60); return `${h}:${String(m).padStart(2,'0')}`; })()}`
+        : '';
+    const text = `🌊 False Bay Crossing Intel — ${d}
+
+Conditions (Sat 28 Feb):
+💨 Wind: WNW 13→37 km/h — current assist
+🌊 Swell: 2–3m · 10–12s (long period, rideable)
+🌡️ Water: 17°C (Miller's Pt) → 22°C (Gordon's Bay)
+🔱 Tide: Flood all day — no reversal
+
+Prediction (women's skins):
+  Conservative:  9:07
+  Most Likely:   8:45
+  Best Case:     8:25
+  Record Pace:   <8:09 (needs 34+ km/h NW)
+
+Women's record: 8:09${personal}
+
+swimloading.com/intel`;
+    const copy = t => {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(t).then(showShareMsg).catch(() => legacyCopy(t));
+        } else { legacyCopy(t); }
+    };
+    const legacyCopy = t => {
+        const ta = Object.assign(document.createElement('textarea'), { value: t });
+        document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+        showShareMsg();
+    };
+    const showShareMsg = () => {
+        const el = document.getElementById('shareMsg');
+        if (el) { el.style.display=''; setTimeout(() => el.style.display='none', 3500); }
+    };
+    copy(text);
+}
+
 // ─── WINDOW TAB ───────────────────────────────────────────────────────────────
 
 async function loadWindow() {
     // Ensure forecast tables are populated (shared with NOW — no double API calls)
     _windForecastPromise = _windForecastPromise || loadWindForecast();
     _marineForecastPromise = _marineForecastPromise || loadMarineForecast();
+
+    // Build 7-day crossing window combining wind + swell forecasts
+    Promise.all([_windForecastPromise, _marineForecastPromise]).then(([w, m]) => buildCrossingWindow(w, m));
 
     const routeIds = await getFBRouteIds();
     if (!routeIds.length) return;
