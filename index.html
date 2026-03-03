@@ -598,6 +598,7 @@
             if (data) {
                 spots = data;
                 populateSpotDropdowns();
+                populateMonthFilter();
             }
         }
 
@@ -645,11 +646,22 @@
                 historyFilter.innerHTML = groupedOptionsWithAll;
             }
 
-            // Also populate event filter
-            const eventFilter = document.getElementById('eventSpotFilter');
-            if (eventFilter) {
-                eventFilter.innerHTML = groupedOptionsWithAll;
+        }
+
+        // Populate the "When" month filter with the next 12 months
+        function populateMonthFilter() {
+            const sel = document.getElementById('eventMonthFilter');
+            if (!sel) return;
+            const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            const now = new Date();
+            let html = '<option value="">All upcoming</option>';
+            for (let i = 0; i < 12; i++) {
+                const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+                const val = `${d.getFullYear()}-${d.getMonth() + 1}`;
+                const label = `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+                html += `<option value="${val}">${label}</option>`;
             }
+            sel.innerHTML = html;
         }
 
         // Attach Spot Lock Handler
@@ -1738,9 +1750,9 @@
 
         function clearEventFilter() {
             const region = document.getElementById('eventRegionFilter');
-            const type = document.getElementById('eventTypeFilter');
+            const month = document.getElementById('eventMonthFilter');
             if (region) region.value = '';
-            if (type) type.value = '';
+            if (month) month.value = '';
             loadEvents();
         }
 
@@ -1794,25 +1806,26 @@
                 const now = new Date();
                 let upcomingEvents = events?.filter(e => new Date(e.start_at) >= now) || [];
 
-                // Apply region/type filters
+                // Apply region + month filters
                 const selectedRegion = document.getElementById('eventRegionFilter')?.value || '';
-                const selectedType = document.getElementById('eventTypeFilter')?.value || '';
+                const selectedMonth = document.getElementById('eventMonthFilter')?.value || '';
 
                 // Show/hide clear link
                 const clearLink = document.getElementById('clearEventFilter');
-                if (clearLink) clearLink.style.display = (selectedRegion || selectedType) ? 'inline' : 'none';
+                if (clearLink) clearLink.style.display = (selectedRegion || selectedMonth) ? 'inline' : 'none';
 
-                if (selectedRegion || selectedType) {
+                if (selectedRegion) {
                     upcomingEvents = upcomingEvents.filter(e => {
                         const spot = spots.find(s => s.id === e.spot_id);
-                        if (selectedRegion) {
-                            if (!spot || spot.domain !== selectedRegion) return false;
-                        }
-                        if (selectedType) {
-                            const types = selectedType.split(',');
-                            if (!spot || !types.includes(spot.water_type)) return false;
-                        }
-                        return true;
+                        return spot && spot.domain === selectedRegion;
+                    });
+                }
+
+                if (selectedMonth) {
+                    const [filterYear, filterMon] = selectedMonth.split('-').map(Number);
+                    upcomingEvents = upcomingEvents.filter(e => {
+                        const d = new Date(e.start_at);
+                        return d.getFullYear() === filterYear && (d.getMonth() + 1) === filterMon;
                     });
                 }
 
@@ -1836,7 +1849,7 @@
 
                 // If no events, show empty state
                 if (!upcomingEvents || upcomingEvents.length === 0) {
-                    const hasFilter = !!(selectedRegion || selectedType);
+                    const hasFilter = !!(selectedRegion || selectedMonth);
                     document.getElementById('eventsList').innerHTML = `
                         <div style="text-align: center; color: var(--text-secondary); padding: 40px 20px;">
                             <div style="font-size: 48px; margin-bottom: 16px;"><i data-lucide="waves" style="width: 48px; height: 48px;"></i></div>
@@ -7290,17 +7303,13 @@
                                 <option value="NAMIBIA">Namibia</option>
                             </select>
                         </div>
-                        <!-- Type filter -->
+                        <!-- When filter -->
                         <div class="form-group" style="flex: 1; margin-bottom: 0;">
                             <div class="form-label">
-                                <i data-lucide="waves" style="width: 14px; height: 14px; vertical-align: middle;"></i> Type
+                                <i data-lucide="calendar" style="width: 14px; height: 14px; vertical-align: middle;"></i> When
                             </div>
-                            <select id="eventTypeFilter" onchange="loadEvents()">
-                                <option value="">All Types</option>
-                                <option value="OCEAN">Ocean</option>
-                                <option value="LAGOON">Lagoon</option>
-                                <option value="POOL,TIDAL_POOL">Pool</option>
-                                <option value="DAM,LAKE,RIVER">Inland</option>
+                            <select id="eventMonthFilter" onchange="loadEvents()">
+                                <option value="">All upcoming</option>
                             </select>
                         </div>
                     </div>
