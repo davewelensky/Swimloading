@@ -6,8 +6,8 @@ You are working on the **SwimLoading** project. Read this entire file before doi
 
 ## What SwimLoading Is
 
-Cape Town ocean swimming community app — live at **swimloading.com**.
-- Main app: `swimloading.com` → `index.html`
+Cape Town ocean swimming community app — live at **swimloading.com**. Growing nationally.
+- Main app: `swimloading.com/app` → `index.html`
 - Intel page: `swimloading.com/intel` → `intel.html`
 - Admin dashboard: `swimloading.com/admin` → `admin.html` (dave.welensky@gmail.com only)
 - Landing: `swimloading.com` → `welcome.html`
@@ -17,6 +17,8 @@ Cape Town ocean swimming community app — live at **swimloading.com**.
 
 **Repo:** `https://github.com/davewelensky/Swimloading.git` — branch `main`
 
+**Users:** ~315+ registered (March 2026). Growing beyond Cape Town — KZN/Durban users arriving.
+
 **Rule:** Edit files locally → commit → push → Vercel deploys in ~30s. Never edit files on Vercel directly.
 
 ---
@@ -25,8 +27,8 @@ Cape Town ocean swimming community app — live at **swimloading.com**.
 
 ```
 /Users/davewelensky/SwimLoading/
-├── index.html          # Main PWA app (~9000+ lines)
-├── intel.html          # /intel page — False Bay crossing intelligence (~1400 lines)
+├── index.html          # Main PWA app (~9500+ lines)
+├── intel.html          # /intel page — False Bay crossing intelligence (~1500 lines)
 ├── admin.html          # /admin page — user analytics + spotlight management
 ├── welcome.html        # Landing page
 ├── blog/
@@ -67,27 +69,51 @@ Cape Town ocean swimming community app — live at **swimloading.com**.
 | `hazard_reports` | Active hazard alerts — spot_id, hazard_type, severity, title, description, active_until |
 | `spotlights` | SA Open Water Spotlight entries — title, swimmer_names, route_description, distance_km, status, tracking_url, active |
 | `spotlight_updates` | Progress updates for spotlights — spotlight_id, notes, temp_c, km_completed, logged_at |
-| `historical_swims` | All recorded crossings |
+| `historical_swims` | All recorded crossings (2,685 swims, Big Bay Events 2014–2024) |
 | `historical_routes` | Route definitions |
-| `historical_weather` | Weather at time of crossing |
+| `historical_swimmers` | Normalised swimmer profiles |
+| `historical_weather` | Weather at time of crossing (currently empty — backfill pending) |
 | `v_false_bay_crossings` | View — clean False Bay crossing data |
 
 ### Spots — Critical Notes
 - `code` column is **required** — without it, the spot won't appear in Trends (`latest_spot_temps` filters `WHERE code IS NOT NULL`)
 - The admin spot creation form auto-fills code from spot name (UPPER_SNAKE_CASE)
-- `domain` CHECK constraint: `ATLANTIC`, `FALSE_BAY`, `WEST_COAST`, `SOUTH_COAST`, `GARDEN_ROUTE`, `INLAND`, `NON_COASTAL`, `NAMIBIA`
-- `water_type` values: `OCEAN`, `TIDAL_POOL`, `POOL`, `LAGOON`, `DAM`
+- `domain` CHECK constraint (current): `ATLANTIC`, `FALSE_BAY`, `WEST_COAST`, `SOUTH_COAST`, `GARDEN_ROUTE`, `EASTERN_CAPE`, `KZN`, `INLAND`, `NON_COASTAL`, `NAMIBIA`
+- `water_type` CHECK constraint (current): `OCEAN`, `LAGOON`, `POOL`, `DAM`
+- When adding a new domain via SQL: use `NOT VALID` on the new constraint to skip existing-row scan (avoids Supabase transaction conflict). All existing data is clean.
 
 ### Domains (Regions)
 ```javascript
-const DOMAINS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'INLAND', 'NAMIBIA'];
-const COASTAL_REGIONS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'NAMIBIA'];
+// index.html — buildGroupedSpotOptions() and Trends section
+const DOMAINS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'EASTERN_CAPE', 'KZN', 'INLAND', 'NAMIBIA'];
+const COASTAL_REGIONS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'EASTERN_CAPE', 'KZN', 'NAMIBIA'];
 ```
-`formatDomain(d)` auto-converts `GARDEN_ROUTE` → "Garden Route", `NAMIBIA` → "Namibia" etc.
 
-Namibia spots (added Feb 2026): Swakopmund Beach, Walvis Bay — growing Namibian swimming community.
+`formatDomain(d)` auto-converts snake_case to Title Case. Special override:
+```javascript
+function formatDomain(d) {
+    const overrides = { KZN: 'KwaZulu-Natal' };
+    if (overrides[d]) return overrides[d];
+    return d.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+```
 
-Recent SA spots added (Feb 2026): Roman Rock Lighthouse (False Bay), Klein River Lagoon (South Coast), Fisherhaven Lagoon (South Coast), Santos Beach (Garden Route), Mossel Bay (Garden Route — was incorrectly South Coast).
+When adding a NEW domain, update **4 places** in `index.html`:
+1. `DOMAINS` array in `buildGroupedSpotOptions()` (~line 606)
+2. Ungrouped exclusion filter array (~line 620)
+3. `COASTAL_REGIONS` array in Trends section (~line 8721)
+4. `DOMAINS` array in Trends section (~line 8725)
+Also update: `admin.html` domain `<select>` (~line 488), and `eventRegionFilter` `<select>` in Swims tab.
+
+### Spots by region
+- **Atlantic**: Sea Point, Clifton, Camps Bay, Bakoven, Llandudno, Sandy Bay, Hout Bay area
+- **False Bay**: Muizenberg, Boulders, Simon's Town, Fish Hoek, Clovelly, Roman Rock Lighthouse
+- **West Coast**: Big Bay, Small Bay, Melkbosstrand, Yzerfontein, Langebaan, Paternoster
+- **South Coast**: Pringle Bay, Rooi Els, Betty's Bay, Fisherhaven Lagoon, Klein River Lagoon
+- **Garden Route**: Santos Beach, Mossel Bay, Knysna
+- **Eastern Cape**: Port Elizabeth/Gqeberha, St Francis Bay, Kenton-on-Sea
+- **KZN**: DUC (-29.869091, 31.053618), Durban Surf (-29.850122, 31.039588), Umhloti Beach (-29.664785, 31.122931)
+- **Namibia**: Swakopmund Beach, Walvis Bay
 
 ### Critical: temp_logs FK ambiguity
 `temp_logs` has **two** foreign keys to `spots`. Always use explicit hint:
@@ -180,9 +206,10 @@ const score = Math.max(0, Math.min(scoreCap, Math.round(raw)));
 
 ### Outbound auth emails (signup confirmation, password reset)
 - **Provider:** Resend SMTP (`smtp.resend.com`, port 465, username `resend`)
-- **Sender:** `no-reply@swimloading.com` (changed from `no-reply@getcls.co` Feb 2026)
+- **Sender:** `no-reply@swimloading.com`
 - **Domain:** `swimloading.com` verified in Resend (Ireland eu-west-1)
 - **Config:** Supabase → Authentication → Settings → Custom SMTP
+- **Note:** If a user says password reset email not arriving, first try admin-resend from Supabase Dashboard → Authentication → Users → three-dot menu → Send password recovery. Also check spam.
 
 ### Inbound support mailbox
 - `support@swimloading.com` → forwarded to `dave.welensky@gmail.com` via Cloudflare Email Routing
@@ -190,14 +217,14 @@ const score = Math.max(0, Math.min(scoreCap, Math.round(raw)));
 ### Bulk email campaigns
 - **Provider:** Brevo (brevo.com) — account: `dave.welensky@gmail.com`
 - **Sender:** `SwimLoading <support@swimloading.com>` — domain authenticated
-- **Contact list:** "SwimLoading Members" (~285 contacts)
+- **Contact list:** "SwimLoading Members" (~315+ contacts, update before each campaign)
 - **Export members SQL:**
   ```sql
   SELECT email, display_name FROM profiles
   WHERE email IS NOT NULL AND email != ''
   ORDER BY display_name;
   ```
-- **First campaign:** March Temperature Challenge 2026 (sent Feb 26 2026) — 45% open rate, 35% CTR
+- **Campaign history:** March Temperature Challenge 2026 (sent Feb 26 2026) — 45% open rate, 35% CTR
 
 ---
 
@@ -214,6 +241,15 @@ let gpsSuggestedSpotId = null;
 let hazardAcknowledged = false;
 let activeHazardsBySpot = {};
 ```
+
+### Swims Tab — Event Filters
+The Swims tab has two side-by-side filters:
+- `eventRegionFilter` — static `<select>` with all domains as options (All/Atlantic/False Bay/.../KwaZulu-Natal/Pools & Inland/Namibia)
+- `eventMonthFilter` — dynamic `<select>` populated by `populateMonthFilter()` with next 12 months (e.g. "April 2026")
+- `populateMonthFilter()` is called from the spots-load callback alongside `populateSpotDropdowns()`
+- Filter logic in `loadEvents()` looks up event's `spot_id` against in-memory `spots` array for `domain`, and filters month by `start_at`
+- `clearEventFilter()` resets both `eventRegionFilter` and `eventMonthFilter`
+- **No** `eventSpotFilter` or `eventTypeFilter` — these were replaced
 
 ### New swim notifications
 After `submitEvent()` succeeds, queries profiles where `notify_new_swims = true` (excluding creator) and calls `notify()` for each. Shows toast: "📣 X swimmers notified".
@@ -242,7 +278,7 @@ When user completes onboarding, all `is_admin = true` profiles get a `new_signup
 
 ---
 
-## /intel Page — False Bay Intel
+## /intel Page — False Bay Crossing Intelligence
 
 ### Key Variables
 ```javascript
@@ -254,6 +290,20 @@ const temp = live?.avgTemp || 17.0;  // Lines ~726 and ~756
 ### GO/NO-GO Logic
 - **GO**: NW wind + < 35 km/h + temp ≥ 18°C
 - **NO-GO**: non-NW wind OR ≥ 40 km/h OR wave > 2.5m
+
+### APIs active on intel.html
+- **WorldTides** — live tide predictions. Key: `7e54bed9-1290-4668-82da-aecaaa714a50` (~line 547). Free tier ($3.99/yr, 1000 credits). Endpoint: `https://www.worldtides.info/api/v3?extremes`
+- **Open-Meteo** — 7-day marine + wind forecast for Miller's Point (-34.2269, 18.4648)
+
+### Crossing Prediction Model (False Bay)
+Formula: `33 / (owPace + currentAssist) + (17 * 15 / 3600)` hours
+- 33 km crossing, 17 feeds × 15s, current assist varies by wind
+- Current assist calibration (from historical Weather Underground data):
+  - NW 10–15 mph (Kat's record 30 Nov 2022, 8:09:26): 0.43 km/h assist confirmed
+  - NNW/NW 12–17 mph (Barend's day 24 Feb 2024): very similar profile to a good forecast day
+  - Best Case (0.45 km/h assist): NW 15+ mph building through day
+  - Most Likely (0.35 km/h assist): NW 10–15 mph steady
+  - Conservative (0.20 km/h assist): NNW 8–12 mph moderate
 
 ---
 
@@ -275,6 +325,15 @@ const temp = live?.avgTemp || 17.0;  // Lines ~726 and ~756
 
 ### Update locations in intel.html
 Lines ~330, ~531, ~533, ~562, ~726, ~756, ~763, ~1281
+
+---
+
+## Historical Swim Data
+
+- 2,685 swims (Big Bay Events 2014–2024) imported into `historical_swims`
+- 49 False Bay crossings (20 solo) — used in intel.html `loadCarina()` stats
+- `historical_weather` table is **empty** — Open-Meteo backfill not yet done
+- `conditions` field on crossings (`good`/`bumpy`/`choppy`) not yet used in intel predictions
 
 ---
 
@@ -308,7 +367,9 @@ Code: `/Users/davewelensky/SwimLoading/device/SwimLoadingDisplay/SwimLoadingDisp
 5. **Badges & Achievements** — Phase 2 gamification
 6. **Dev/Prod Supabase split** — `swimloading-dev` project for testing
 7. **Admin "View" modal** — view full user details from admin panel
-8. **Monthly Challenge leaderboard RPC** — `sql/applied/monthly_challenge_rpc.sql` still needs to be applied
+8. **Monthly Challenge leaderboard RPC** — `sql/applied/monthly_challenge_rpc.sql` still needs to be applied in Supabase
+9. **historical_weather backfill** — Open-Meteo API backfill for all crossing dates
+10. **Conditions breakdown in intel** — split crossing times by Good/Bumpy/Choppy conditions
 
 ---
 
@@ -323,5 +384,7 @@ Code: `/Users/davewelensky/SwimLoading/device/SwimLoadingDisplay/SwimLoadingDisp
 7. **Notification types are constrained** — only use allowed values
 8. **RLS is on** — when adding new tables, add SELECT + INSERT + UPDATE + DELETE policies
 9. **No framework** — vanilla HTML/JS only
-10. **Commit messages:** `[what changed] — [why/context]`
+10. **Commit messages:** concise description of what + why
 11. **Hard gate is live** — users without `onboarding_completed_at` or `phone` redirected to onboarding
+12. **New domain SQL** — always use `NOT VALID` on constraint ADD to avoid Supabase transaction conflict
+13. **water_type constraint** — only `OCEAN`, `LAGOON`, `POOL`, `DAM` are valid (not TIDAL_POOL, LAKE, RIVER — those are UI filter groupings only)
