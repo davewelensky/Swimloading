@@ -388,7 +388,7 @@
             await loadDashboard();
 
             // Prompt existing users who haven't set their home region yet
-            if (!currentUserProfile?.home_domain) showHomeDomainPrompt();
+            if (!currentUserProfile?.home_domain) setTimeout(showHomeDomainPrompt, 800);
 
             // Initialize Lucide icons
             initIcons();
@@ -591,20 +591,29 @@
 
         // Sign out
         async function signOut() {
+            hideProfileSettings();
+            dismissHomeDomainPrompt();
             await supabaseClient.auth.signOut();
             currentUser = null;
+            currentUserProfile = null;
             showAuth();
         }
 
         // Load domains from DB (replaces hardcoded DOMAINS arrays everywhere)
         async function loadDomains() {
-            const { data } = await supabaseClient
-                .from('domains')
-                .select('code, display_name, is_coastal, sort_order')
-                .order('sort_order', { ascending: true });
-            if (data) {
-                domains = data;
-                populateRegionFilter();
+            try {
+                const { data, error } = await supabaseClient
+                    .from('domains')
+                    .select('code, display_name, is_coastal, sort_order')
+                    .order('sort_order', { ascending: true });
+                if (error) throw error;
+                if (data) {
+                    domains = data;
+                    populateRegionFilter();
+                }
+            } catch (err) {
+                console.error('loadDomains failed:', err);
+                // Non-fatal — app still works, dropdowns may be ungrouped
             }
         }
 
