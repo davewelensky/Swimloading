@@ -4,12 +4,14 @@
 -- ============================================
 
 -- 1. Update domain constraint to include KZN
+-- NOT VALID skips scanning existing rows (we know data is clean);
+-- new inserts/updates are still enforced immediately.
 ALTER TABLE spots DROP CONSTRAINT IF EXISTS spots_domain_check;
 ALTER TABLE spots ADD CONSTRAINT spots_domain_check
     CHECK (domain IN (
         'ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST',
         'GARDEN_ROUTE', 'EASTERN_CAPE', 'KZN', 'INLAND', 'NON_COASTAL', 'NAMIBIA'
-    ));
+    )) NOT VALID;
 
 -- 2. Insert KZN spots
 INSERT INTO spots (name, domain, water_type, latitude, longitude, active)
