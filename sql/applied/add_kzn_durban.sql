@@ -8,11 +8,11 @@ ALTER TABLE spots DROP CONSTRAINT IF EXISTS spots_domain_check;
 ALTER TABLE spots ADD CONSTRAINT spots_domain_check
     CHECK (domain IN (
         'ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST',
-        'GARDEN_ROUTE', 'EASTERN_CAPE', 'KZN', 'INLAND', 'NAMIBIA'
+        'GARDEN_ROUTE', 'EASTERN_CAPE', 'KZN', 'INLAND', 'NON_COASTAL', 'NAMIBIA'
     ));
 
 -- 2. Insert KZN spots
-INSERT INTO spots (name, domain, water_type, latitude, longitude, is_active)
+INSERT INTO spots (name, domain, water_type, latitude, longitude, active)
 VALUES
     ('DUC', 'KZN', 'OCEAN', -29.869091, 31.053618, true),
     ('Durban Surf', 'KZN', 'OCEAN', -29.850122, 31.039588, true),
