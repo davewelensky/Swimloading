@@ -330,6 +330,9 @@
 
         // Load main app
         async function loadApp() {
+            // Load domains early — needed for onboarding dropdowns AND main app
+            await loadDomains();
+
             // Check if user needs onboarding
             const { data: profile } = await supabaseClient
                 .from('profiles')
@@ -377,9 +380,6 @@
 
             // Store profile for dashboard filtering
             currentUserProfile = profile;
-
-            // Load domains first (must run before loadSpots/populateSpotDropdowns)
-            await loadDomains();
 
             // Load spots
             await loadSpots();
@@ -592,7 +592,9 @@
         // Sign out
         async function signOut() {
             hideProfileSettings();
-            dismissHomeDomainPrompt();
+            // Hide prompt + clear the dismissed flag so the next sign-in re-shows it if needed
+            document.getElementById('homeDomainPrompt').style.display = 'none';
+            sessionStorage.removeItem('homeDomainDismissed');
             await supabaseClient.auth.signOut();
             currentUser = null;
             currentUserProfile = null;
