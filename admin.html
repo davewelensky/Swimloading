@@ -486,15 +486,7 @@
                                 <option value="DAM">💧 Dam</option>
                             </select>
                             <select id="newSpotDomain" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 10px; color:var(--text); font-size:13px;">
-                                <option value="ATLANTIC">Atlantic</option>
-                                <option value="FALSE_BAY">False Bay</option>
-                                <option value="WEST_COAST">West Coast</option>
-                                <option value="SOUTH_COAST">South Coast</option>
-                                <option value="GARDEN_ROUTE">Garden Route</option>
-                                <option value="EASTERN_CAPE">Eastern Cape</option>
-                                <option value="KZN">KwaZulu-Natal</option>
-                                <option value="NAMIBIA">Namibia</option>
-                                <option value="INLAND">Inland</option>
+                                <!-- Populated dynamically by loadAdminDomains() -->
                             </select>
                         </div>
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
@@ -749,7 +741,7 @@ async function showDashboard(user) {
     document.getElementById('loadingScreen').style.display = 'none';
     document.getElementById('adminEmail').textContent = user.email;
     document.getElementById('dashboard').style.display = 'block';
-    await Promise.all([loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement(), loadSpotlights(), loadSpotSuggestions()]);
+    await Promise.all([loadAdminDomains(), loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement(), loadSpotlights(), loadSpotSuggestions()]);
 }
 
 // ── Load users ─────────────────────────────────────────────────────────────────
@@ -1069,6 +1061,17 @@ function autoSetDomain(waterType) {
     }
 }
 let allSpotsAdmin = [];
+
+async function loadAdminDomains() {
+    const { data } = await supabaseClient
+        .from('domains')
+        .select('code, display_name')
+        .order('sort_order', { ascending: true });
+    if (!data) return;
+    const sel = document.getElementById('newSpotDomain');
+    if (!sel) return;
+    sel.innerHTML = data.map(d => `<option value="${d.code}">${d.display_name}</option>`).join('');
+}
 
 async function loadSpotManagement() {
     const { data: spots, error } = await supabaseClient

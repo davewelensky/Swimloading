@@ -57,6 +57,7 @@
         // Global state
         let currentUser = null;
         let spots = [];
+        let domains = [];  // loaded from DB — replaces all hardcoded DOMAINS arrays
 
         // Swim Score caches — var so they're accessible across all script blocks
         var conditionsCache = {}; // spot_id → array of recent temp_logs (last 96h, desc)
@@ -585,6 +586,29 @@
             showAuth();
         }
 
+        // Load domains from DB (replaces hardcoded DOMAINS arrays everywhere)
+        async function loadDomains() {
+            const { data } = await supabaseClient
+                .from('domains')
+                .select('code, display_name, is_coastal, sort_order')
+                .order('sort_order', { ascending: true });
+            if (data) {
+                domains = data;
+                populateRegionFilter();
+            }
+        }
+
+        // Populate the Swims tab Region filter dynamically from loaded domains
+        function populateRegionFilter() {
+            const sel = document.getElementById('eventRegionFilter');
+            if (!sel) return;
+            let html = '<option value="">All Regions</option>';
+            domains.forEach(d => {
+                html += `<option value="${d.code}">${d.display_name}</option>`;
+            });
+            sel.innerHTML = html;
+        }
+
         // Load spots
         async function loadSpots() {
             const { data, error } = await supabaseClient
@@ -604,13 +628,13 @@
 
         // Build grouped spot options using <optgroup> by region
         function buildGroupedSpotOptions(includeAllOption = false) {
-            const DOMAINS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'EASTERN_CAPE', 'KZN', 'INLAND', 'NAMIBIA'];
+            const domainCodes = domains.map(d => d.code);
             let html = includeAllOption ? '<option value="">All Locations</option>' : '';
 
-            DOMAINS.forEach(domain => {
-                const domainSpots = spots.filter(s => s.domain === domain);
+            domains.forEach(d => {
+                const domainSpots = spots.filter(s => s.domain === d.code);
                 if (domainSpots.length === 0) return;
-                html += `<optgroup label="— ${formatDomain(domain)} —">`;
+                html += `<optgroup label="— ${d.display_name} —">`;
                 domainSpots.forEach(spot => {
                     html += `<option value="${spot.id}">${spot.name}</option>`;
                 });
@@ -618,7 +642,7 @@
             });
 
             // Any spots with unknown domain
-            const ungrouped = spots.filter(s => !['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'EASTERN_CAPE', 'KZN', 'INLAND', 'NAMIBIA'].includes(s.domain));
+            const ungrouped = spots.filter(s => !domainCodes.includes(s.domain));
             if (ungrouped.length > 0) {
                 html += '<optgroup label="Other">';
                 ungrouped.forEach(spot => {
@@ -8746,16 +8770,11 @@
             inland: ['DAM', 'LAKE', 'RIVER']
         };
 
-        // Coastal regions (for Ocean and Lagoons)
-        const COASTAL_REGIONS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'EASTERN_CAPE', 'KZN', 'NAMIBIA'];
         let spotChartInstance = null;
 
-        // Domains in order
-        const DOMAINS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'EASTERN_CAPE', 'KZN', 'INLAND', 'NAMIBIA'];
-
         function formatDomain(d) {
-            const overrides = { KZN: 'KwaZulu-Natal' };
-            if (overrides[d]) return overrides[d];
+            const found = domains.find(x => x.code === d);
+            if (found) return found.display_name;
             return d.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
         }
 
@@ -8938,11 +8957,12 @@
             gridEl.style.gridTemplateColumns = ''; // Reset to default grid
             gridEl.innerHTML = '';
 
-            // Get regions with data (Object.keys(trendsData))
+            // Get regions with data, sorted by DB sort_order
+            const domainOrder = domains.map(d => d.code);
             const activeRegions = Object.keys(trendsData).sort((a, b) => {
-                // Keep the same order if possible: ATLANTIC, FALSE_BAY, etc.
-                const order = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE'];
-                return order.indexOf(a) - order.indexOf(b);
+                const ai = domainOrder.indexOf(a);
+                const bi = domainOrder.indexOf(b);
+                return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
             });
 
             activeRegions.forEach(domain => {
