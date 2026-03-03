@@ -603,7 +603,7 @@
 
         // Build grouped spot options using <optgroup> by region
         function buildGroupedSpotOptions(includeAllOption = false) {
-            const DOMAINS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'EASTERN_CAPE', 'INLAND', 'NAMIBIA'];
+            const DOMAINS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'EASTERN_CAPE', 'KZN', 'INLAND', 'NAMIBIA'];
             let html = includeAllOption ? '<option value="">All Locations</option>' : '';
 
             DOMAINS.forEach(domain => {
@@ -617,7 +617,7 @@
             });
 
             // Any spots with unknown domain
-            const ungrouped = spots.filter(s => !['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'EASTERN_CAPE', 'INLAND', 'NAMIBIA'].includes(s.domain));
+            const ungrouped = spots.filter(s => !['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'EASTERN_CAPE', 'KZN', 'INLAND', 'NAMIBIA'].includes(s.domain));
             if (ungrouped.length > 0) {
                 html += '<optgroup label="Other">';
                 ungrouped.forEach(spot => {
@@ -1737,11 +1737,11 @@
         }
 
         function clearEventFilter() {
-            const filter = document.getElementById('eventSpotFilter');
-            if (filter) {
-                filter.value = '';
-                loadEvents();
-            }
+            const region = document.getElementById('eventRegionFilter');
+            const type = document.getElementById('eventTypeFilter');
+            if (region) region.value = '';
+            if (type) type.value = '';
+            loadEvents();
         }
 
         // Load events
@@ -1794,26 +1794,25 @@
                 const now = new Date();
                 let upcomingEvents = events?.filter(e => new Date(e.start_at) >= now) || [];
 
-                // Apply location filter
-                const spotFilterDom = document.getElementById('eventSpotFilter');
-                const selectedSpotId = spotFilterDom ? spotFilterDom.value : '';
+                // Apply region/type filters
+                const selectedRegion = document.getElementById('eventRegionFilter')?.value || '';
+                const selectedType = document.getElementById('eventTypeFilter')?.value || '';
 
                 // Show/hide clear link
                 const clearLink = document.getElementById('clearEventFilter');
-                if (clearLink) clearLink.style.display = selectedSpotId ? 'inline' : 'none';
+                if (clearLink) clearLink.style.display = (selectedRegion || selectedType) ? 'inline' : 'none';
 
-                if (selectedSpotId) {
-                    const selectedSpot = spots.find(s => s.id === selectedSpotId);
-                    const selectedName = selectedSpot ? selectedSpot.name.trim().toLowerCase() : '';
-
+                if (selectedRegion || selectedType) {
                     upcomingEvents = upcomingEvents.filter(e => {
-                        // Match by ID if present
-                        if (e.spot_id === selectedSpotId) return true;
-                        // Fallback match by name
-                        if (e.location_name && selectedName) {
-                            return e.location_name.trim().toLowerCase() === selectedName;
+                        const spot = spots.find(s => s.id === e.spot_id);
+                        if (selectedRegion) {
+                            if (!spot || spot.domain !== selectedRegion) return false;
                         }
-                        return false;
+                        if (selectedType) {
+                            const types = selectedType.split(',');
+                            if (!spot || !types.includes(spot.water_type)) return false;
+                        }
+                        return true;
                     });
                 }
 
@@ -1837,7 +1836,7 @@
 
                 // If no events, show empty state
                 if (!upcomingEvents || upcomingEvents.length === 0) {
-                    const hasFilter = !!selectedSpotId;
+                    const hasFilter = !!(selectedRegion || selectedType);
                     document.getElementById('eventsList').innerHTML = `
                         <div style="text-align: center; color: var(--text-secondary); padding: 40px 20px;">
                             <div style="font-size: 48px; margin-bottom: 16px;"><i data-lucide="waves" style="width: 48px; height: 48px;"></i></div>
@@ -7270,17 +7269,38 @@
                     </button>
 
                     <!-- Event Filters -->
-                    <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                        <!-- Region filter -->
                         <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                            <div class="form-label"
-                                style="display: flex; justify-content: space-between; align-items: center;">
-                                <span><i data-lucide="map-pin"
-                                        style="width: 14px; height: 14px; vertical-align: middle;"></i> Location</span>
+                            <div class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+                                <span><i data-lucide="map-pin" style="width: 14px; height: 14px; vertical-align: middle;"></i> Region</span>
                                 <span id="clearEventFilter" onclick="clearEventFilter()"
                                     style="display: none; font-size: 11px; color: var(--ocean-light); cursor: pointer; font-weight: 500;">Clear</span>
                             </div>
-                            <select id="eventSpotFilter" onchange="loadEvents()">
-                                <option value="">All Locations</option>
+                            <select id="eventRegionFilter" onchange="loadEvents()">
+                                <option value="">All Regions</option>
+                                <option value="ATLANTIC">Atlantic</option>
+                                <option value="FALSE_BAY">False Bay</option>
+                                <option value="WEST_COAST">West Coast</option>
+                                <option value="SOUTH_COAST">South Coast</option>
+                                <option value="GARDEN_ROUTE">Garden Route</option>
+                                <option value="EASTERN_CAPE">Eastern Cape</option>
+                                <option value="KZN">KwaZulu-Natal</option>
+                                <option value="INLAND">Pools &amp; Inland</option>
+                                <option value="NAMIBIA">Namibia</option>
+                            </select>
+                        </div>
+                        <!-- Type filter -->
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <div class="form-label">
+                                <i data-lucide="waves" style="width: 14px; height: 14px; vertical-align: middle;"></i> Type
+                            </div>
+                            <select id="eventTypeFilter" onchange="loadEvents()">
+                                <option value="">All Types</option>
+                                <option value="OCEAN">Ocean</option>
+                                <option value="LAGOON">Lagoon</option>
+                                <option value="POOL,TIDAL_POOL">Pool</option>
+                                <option value="DAM,LAKE,RIVER">Inland</option>
                             </select>
                         </div>
                     </div>
@@ -8718,13 +8738,15 @@
         };
 
         // Coastal regions (for Ocean and Lagoons)
-        const COASTAL_REGIONS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'EASTERN_CAPE', 'NAMIBIA'];
+        const COASTAL_REGIONS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'EASTERN_CAPE', 'KZN', 'NAMIBIA'];
         let spotChartInstance = null;
 
         // Domains in order
-        const DOMAINS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'EASTERN_CAPE', 'INLAND', 'NAMIBIA'];
+        const DOMAINS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'EASTERN_CAPE', 'KZN', 'INLAND', 'NAMIBIA'];
 
         function formatDomain(d) {
+            const overrides = { KZN: 'KwaZulu-Natal' };
+            if (overrides[d]) return overrides[d];
             return d.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
         }
 
