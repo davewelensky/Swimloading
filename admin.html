@@ -534,6 +534,26 @@
             </div>
         </div>
 
+        <!-- Recent Logs -->
+        <div class="section-title">Recent Logs</div>
+        <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:16px; padding:20px; margin-bottom:24px; overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                <thead>
+                    <tr style="color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; border-bottom:1px solid var(--border);">
+                        <th style="padding:8px 12px; text-align:left; font-weight:600;">When</th>
+                        <th style="padding:8px 12px; text-align:left; font-weight:600;">User</th>
+                        <th style="padding:8px 12px; text-align:left; font-weight:600;">Spot</th>
+                        <th style="padding:8px 12px; text-align:left; font-weight:600;">Temp</th>
+                        <th style="padding:8px 12px; text-align:left; font-weight:600;">Notes</th>
+                        <th style="padding:8px 12px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="recentLogsTable">
+                    <tr><td colspan="6" style="padding:12px; color:#64748b;">Loading…</td></tr>
+                </tbody>
+            </table>
+        </div>
+
         <!-- Location Breakdown -->
         <div class="section-title">User Locations</div>
         <div class="charts-row" style="margin-bottom:36px;">
@@ -741,7 +761,7 @@ async function showDashboard(user) {
     document.getElementById('loadingScreen').style.display = 'none';
     document.getElementById('adminEmail').textContent = user.email;
     document.getElementById('dashboard').style.display = 'block';
-    await Promise.all([loadAdminDomains(), loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement(), loadSpotlights(), loadSpotSuggestions()]);
+    await Promise.all([loadAdminDomains(), loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement(), loadSpotlights(), loadSpotSuggestions(), loadRecentLogs()]);
 }
 
 // ── Load users ─────────────────────────────────────────────────────────────────
@@ -1581,6 +1601,47 @@ async function deleteSpotlightUpdate(updateId, spotlightId) {
     if (!confirm('Delete this update?')) return;
     await supabaseClient.from('spotlight_updates').delete().eq('id', updateId);
     loadSpotlights();
+}
+
+// ── Recent Logs ───────────────────────────────────────────────────────────────
+async function loadRecentLogs() {
+    const { data, error } = await supabaseClient
+        .from('temp_logs')
+        .select('id, temp_c, conditions, notes, logged_at, created_at, profiles(display_name), spots!temp_logs_spot_id_fkey(name)')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+    const container = document.getElementById('recentLogsTable');
+    if (!container) return;
+    if (error) { console.error('loadRecentLogs error:', error); container.innerHTML = '<tr><td colspan="6" style="padding:12px; color:#f87171;">Error loading logs.</td></tr>'; return; }
+    if (!data || data.length === 0) { container.innerHTML = '<tr><td colspan="6" style="padding:12px; color:#64748b;">No logs found.</td></tr>'; return; }
+
+    container.innerHTML = data.map(log => {
+        const when = new Date(log.logged_at || log.created_at).toLocaleString('en-ZA', { dateStyle: 'short', timeStyle: 'short' });
+        const user = log.profiles?.display_name || 'Unknown';
+        const spot = log.spots?.name || 'Unknown spot';
+        const temp = log.temp_c != null ? `${log.temp_c}°C` : '—';
+        return `<tr>
+            <td style="padding:8px 12px; color:#94a3b8; font-size:13px; white-space:nowrap;">${when}</td>
+            <td style="padding:8px 12px; font-weight:600;">${user}</td>
+            <td style="padding:8px 12px; color:#94a3b8;">${spot}</td>
+            <td style="padding:8px 12px; color:#38bdf8;">${temp}</td>
+            <td style="padding:8px 12px; color:#94a3b8; font-size:12px; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${log.notes || ''}</td>
+            <td style="padding:8px 12px;">
+                <button onclick="deleteLog('${log.id}')"
+                    style="background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); color:#f87171; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:12px; white-space:nowrap;">
+                    Delete
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function deleteLog(id) {
+    if (!confirm('Delete this temperature log? This cannot be undone.')) return;
+    const { error } = await supabaseClient.from('temp_logs').delete().eq('id', id);
+    if (error) { alert('Error: ' + error.message); return; }
+    loadRecentLogs();
 }
 
 // ── Go ────────────────────────────────────────────────────────────────────────
