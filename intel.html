@@ -820,7 +820,7 @@ async function loadLiveTemps() {
     const { data: spots } = await sb.from('spots')
         .select('id, name')
         .eq('domain', 'FALSE_BAY')
-        .eq('active', true);
+        .neq('active', false);
 
     if (!spots?.length) {
         document.getElementById('liveTemps').innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No False Bay spots found</div>';
@@ -834,7 +834,7 @@ async function loadLiveTemps() {
 
     // Fetch last 48h of logs so we can compare today vs yesterday
     const { data: logs } = await sb.from('temp_logs')
-        .select('spot_id, temp_c, conditions, created_at, spots!inner(name)')
+        .select('spot_id, temp_c, conditions, created_at, spots!temp_logs_spot_id_fkey(name)')
         .in('spot_id', spotIds)
         .gte('created_at', since48h)
         .order('created_at', { ascending: false })
