@@ -7,18 +7,20 @@
 -- ============================================
 
 -- STEP 1: Add Carina Bruwer if not already present
--- (She may already be in the DB from her ~2006 E→W crossing)
-INSERT INTO historical_swimmers (display_name, name_normalized, gender, country)
-SELECT
-    'Carina Bruwer',
-    'carinabruwer',
-    'F',
-    'ZA'
-WHERE NOT EXISTS (
+-- Uses DO block so you see a NOTICE either way instead of silent "0 rows affected"
+DO $$
+BEGIN
+  IF NOT EXISTS (
     SELECT 1 FROM historical_swimmers
-    WHERE name_normalized = 'carinabruwer'
-    AND gender = 'F'
-);
+    WHERE name_normalized = 'carinabruwer' AND gender = 'F'
+  ) THEN
+    INSERT INTO historical_swimmers (display_name, name_normalized, gender, country)
+    VALUES ('Carina Bruwer', 'carinabruwer', 'F', 'ZA');
+    RAISE NOTICE 'Carina Bruwer inserted into historical_swimmers';
+  ELSE
+    RAISE NOTICE 'Carina Bruwer already exists — skipping insert';
+  END IF;
+END $$;
 
 -- STEP 2: Insert the swim
 -- Route: False Bay W→E solo (Miller's Point → Gordon's Bay)
@@ -43,7 +45,7 @@ SELECT
     '2026-03-06',
     hs.id,
     '7aab02cf-4fd9-49f3-9c52-073c929f16c9',  -- W→E solo
-    'rough',   -- bumpy from 45min, 1.6m+ waves past halfway, brutal finish at rocks
+    'big_swell',  -- bumpy from 45min, 1.6m+ waves past halfway, brutal finish at rocks
     19.0,
     INTERVAL '9 hours 48 minutes',
     'skins',
@@ -61,8 +63,9 @@ SELECT
     TO_CHAR(hs.duration, 'HH24:MI:SS') AS time,
     hs.distance_km,
     hs.water_temp_c,
+    hs.conditions,
     hs.category,
-    hs.notes
+    hs.source
 FROM historical_swims hs
 JOIN historical_swimmers hsw ON hs.swimmer_id = hsw.id
 WHERE hs.source = 'garmin_verified'
