@@ -426,8 +426,8 @@
                 </div>
             </div>
             <div style="font-size:11px;color:var(--text-secondary);line-height:1.6;">
-                <strong style="color:var(--text-primary);">Model:</strong> 3.4 km/h OW base + WNW current (0.4–0.85 km/h) + 17 feeds × 15s. Negative-splitter — <strong style="color:var(--text-primary);">stronger in the back half</strong>.<br>
-                <strong style="color:var(--text-primary);">Record threshold:</strong> 8:09 women's · needs ~0.70 km/h current (~28 km/h WNW). <strong style="color:var(--success);">Best case is sub-record on any solid NW day.</strong>
+                <strong style="color:var(--text-primary);">Model:</strong> 34 km · 3.6 km/h OW base + WNW current (0–0.80 km/h) + 17 feeds × 90s = 26 min. Calibrated on Carina's 06 Mar 2026 crossing (9:48 · 0 net current).<br>
+                <strong style="color:var(--text-primary);">Record threshold:</strong> 8:09 women's · needs ~0.80 km/h current (strong sustained NW). <strong style="color:var(--success);">Sub-record requires exceptional conditions.</strong>
             </div>
         </div>
 
@@ -1336,12 +1336,12 @@ function setPaceMode(mode) {
 }
 
 function calcPersonalPrediction() {
-    const DIST = 33, FEEDS = 17 * 15 / 3600; // feeds in hours
+    const DIST = 34, FEEDS = 17 * 90 / 3600; // feeds in hours — 17 × 90s per Garmin data (06 Mar 2026)
     const SCENARIOS = [
-        { label:'Conservative', desc:'light WNW · 0.40 km/h', cur:0.40 },
-        { label:'Most Likely',  desc:'mod WNW · 0.55 km/h',   cur:0.55 },
-        { label:'Best Case',    desc:'strong WNW · 0.70 km/h', cur:0.70 },
-        { label:'Record Chase', desc:'0.85 km/h · 34+ km/h NW', cur:0.85, highlight:true },
+        { label:'No Assist',    desc:'zero net current (06 Mar)', cur:0.00 },
+        { label:'Light Assist', desc:'light WNW · 0.30 km/h',    cur:0.30 },
+        { label:'Good Assist',  desc:'mod WNW · 0.55 km/h',      cur:0.55 },
+        { label:'Record Hunt',  desc:'0.80 km/h · strong NW',    cur:0.80, highlight:true },
     ];
     let owPace, fromPool;
     if (_paceMode === 'pool') {
@@ -1378,7 +1378,7 @@ function calcPersonalPrediction() {
     el.style.display = '';
     el.innerHTML = `<div style="font-size:10px;color:var(--text-secondary);margin-bottom:10px;">${srcNote} · Record: 8:09</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-bottom:10px;">${cards}</div>
-        <div style="font-size:10px;color:var(--text-secondary);line-height:1.5;">33 km · 17 feeds × 15s = 4 min${fromPool?' · OW efficiency: 88% (from Garmin data)':''}. Record chase needs ~34 km/h sustained NW.</div>`;
+        <div style="font-size:10px;color:var(--text-secondary);line-height:1.5;">34 km · 17 feeds × 90s = 26 min${fromPool?' · OW efficiency: 88% (from Garmin data)':''}. Calibrated on Carina's 06 Mar 2026 crossing (34 km · 9:48 · 0 net current). Record hunt needs sustained strong NW wind.</div>`;
 }
 
 // ─── SHARE ────────────────────────────────────────────────────────────────────
@@ -1386,30 +1386,26 @@ function calcPersonalPrediction() {
 function shareIntel() {
     const d = new Date().toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
     const personal = _lastCalcOW
-        ? `\nMy crossing estimate (${_lastCalcOW.toFixed(2)} km/h OW): ~${(() => { const t=33/(_lastCalcOW+0.55)+17*15/3600; const h=Math.floor(t), m=Math.round((t-h)*60); return `${h}:${String(m).padStart(2,'0')}`; })()}`
+        ? `\nMy crossing estimate (${_lastCalcOW.toFixed(2)} km/h OW): ~${(() => { const t=34/(_lastCalcOW+0.55)+17*90/3600; const h=Math.floor(t), m=Math.round((t-h)*60); return `${h}:${String(m).padStart(2,'0')}`; })()}`
         : '';
+    const windEl = document.querySelector('#windCard .stat-val');
+    const swellEl = document.querySelector('#swellCard .stat-val');
+    const tempEl  = document.querySelector('#tempCard .stat-val');
+    const windStr  = windEl  ? windEl.textContent.trim()  : '—';
+    const swellStr = swellEl ? swellEl.textContent.trim() : '—';
+    const tempStr  = tempEl  ? tempEl.textContent.trim()  : '—';
     const text = `🌊 False Bay Crossing Intel — ${d}
 
-Conditions (Sat 28 Feb):
-💨 Wind: WNW 13→37 km/h — current assist
-🌊 Swell: 2–3m · 10–12s (long period, rideable)
-🌡️ Water: 17°C (Miller's Pt) → 22°C (Gordon's Bay)
-🔱 Tide: Flood all day — no reversal
+💨 Wind: ${windStr}
+🌊 Swell: ${swellStr}
+🌡️ Water: ${tempStr}
 
-Prediction (women's skins · elite model):
-  Conservative:  8:45
-  Most Likely:   8:25
-  Best Case:     8:07 ★ SUB-RECORD
-  Record Crush:  7:50
+Women's record: 8:09:26 (Kat Persson)
+Men's record:   7:28:15 (Barend Nortje)
+Reference: Carina 9:48 · 06 Mar 2026 · 34 km · 0 net current (verified Garmin)${personal}
 
-Women's record: 8:09${personal}
+Use the Personal Prediction calculator at swimloading.com/intel`;
 
-Record Pace Schedule (06:00 start):
-  4h30 → 18.4 km (halfway)
-  7h30 → 30.6 km
-  8h09 → 33 km 🏆
-
-swimloading.com/intel`;
     const copy = t => {
         if (navigator.clipboard) {
             navigator.clipboard.writeText(t).then(showShareMsg).catch(() => legacyCopy(t));
