@@ -379,7 +379,7 @@
         <!-- ── Personal crossing prediction calculator ── -->
         <div class="card">
             <div class="card-label">🧮 Personal Crossing Prediction</div>
-            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Enter your pace to get a personalised False Bay crossing estimate (33 km · WNW current · feeds).</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Enter your pace to get a personalised False Bay crossing estimate (34 km · WNW current · feeds).</div>
             <div style="display:flex;gap:6px;margin-bottom:12px;">
                 <button id="btnPool" onclick="setPaceMode('pool')" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.15);color:var(--ocean-light);font-size:12px;font-weight:600;cursor:pointer;">Pool 1500m Time</button>
                 <button id="btnOW" onclick="setPaceMode('ow')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;">Open Water Pace</button>
@@ -401,28 +401,28 @@
 
         <!-- Elite benchmark — Carina reference model -->
         <div class="card">
-            <div class="card-label">📊 Elite Benchmark · 3.4 km/h Open Water Base</div>
-            <div style="font-size:10px;color:var(--text-secondary);margin-bottom:10px;">Top-5 overall (mixed gender) · 11km False Bay at easy effort · negative-split athlete</div>
+            <div class="card-label">📊 Elite Benchmark · 3.6 km/h Open Water Base</div>
+            <div style="font-size:10px;color:var(--text-secondary);margin-bottom:10px;">Top-5 overall (mixed gender) · 11km False Bay at easy effort · negative-split athlete · calibrated on Carina 06 Mar 2026</div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-bottom:10px;">
                 <div style="text-align:center;padding:8px;border-radius:8px;background:rgba(16,185,129,0.07);">
-                    <div style="font-size:9px;color:var(--text-secondary);margin-bottom:2px;">CONSERVATIVE</div>
-                    <div style="font-size:17px;font-weight:800;color:var(--text-primary);">8:45</div>
-                    <div style="font-size:9px;color:var(--text-secondary);">light NW · 0.40</div>
+                    <div style="font-size:9px;color:var(--text-secondary);margin-bottom:2px;">NO ASSIST</div>
+                    <div style="font-size:17px;font-weight:800;color:var(--text-primary);">9:52</div>
+                    <div style="font-size:9px;color:var(--text-secondary);">calm · 0.00</div>
                 </div>
                 <div style="text-align:center;padding:8px;border-radius:8px;background:rgba(16,185,129,0.14);border:1px solid rgba(16,185,129,0.3);">
-                    <div style="font-size:9px;color:var(--success);margin-bottom:2px;font-weight:700;">MOST LIKELY</div>
-                    <div style="font-size:20px;font-weight:800;color:var(--success);">8:25</div>
-                    <div style="font-size:9px;color:var(--text-secondary);">mod NW · 0.55</div>
+                    <div style="font-size:9px;color:var(--success);margin-bottom:2px;font-weight:700;">LIGHT NW</div>
+                    <div style="font-size:20px;font-weight:800;color:var(--success);">9:09</div>
+                    <div style="font-size:9px;color:var(--text-secondary);">light NW · 0.30</div>
+                </div>
+                <div style="text-align:center;padding:8px;border-radius:8px;background:rgba(14,165,233,0.14);border:1px solid rgba(14,165,233,0.3);">
+                    <div style="font-size:9px;color:var(--ocean-light);margin-bottom:2px;font-weight:700;">GOOD NW ★</div>
+                    <div style="font-size:20px;font-weight:800;color:var(--ocean-light);">8:37</div>
+                    <div style="font-size:9px;color:var(--text-secondary);">good NW · 0.55</div>
                 </div>
                 <div style="text-align:center;padding:8px;border-radius:8px;background:rgba(14,165,233,0.18);border:2px solid rgba(14,165,233,0.5);">
-                    <div style="font-size:9px;color:var(--ocean-light);margin-bottom:2px;font-weight:700;">BEST CASE ★</div>
-                    <div style="font-size:20px;font-weight:800;color:var(--ocean-light);">8:07</div>
-                    <div style="font-size:9px;color:var(--success);font-weight:700;margin-top:2px;">SUB-RECORD · 0.70</div>
-                </div>
-                <div style="text-align:center;padding:8px;border-radius:8px;background:rgba(14,165,233,0.1);">
-                    <div style="font-size:9px;color:var(--text-secondary);margin-bottom:2px;">RECORD CRUSH</div>
-                    <div style="font-size:17px;font-weight:800;color:var(--ocean-light);">7:50</div>
-                    <div style="font-size:9px;color:var(--text-secondary);">0.85 km/h · 34km/h NW</div>
+                    <div style="font-size:9px;color:var(--ocean-light);margin-bottom:2px;font-weight:700;">RECORD HUNT</div>
+                    <div style="font-size:17px;font-weight:800;color:var(--ocean-light);">8:09</div>
+                    <div style="font-size:9px;color:var(--success);font-weight:700;margin-top:2px;">≈RECORD · 0.80</div>
                 </div>
             </div>
             <div style="font-size:11px;color:var(--text-secondary);line-height:1.6;">
@@ -579,7 +579,11 @@ async function startApp(session) {
     loadNow(liveResult);
     loadWindow();
     loadRecords();
-    loadCarina(liveResult?.avgTemp);
+    // Pass live forecasts to loadCarina so Prediction card can show GO/RANGE based on TODAY's conditions
+    Promise.all([
+        _windForecastPromise || loadWindForecast(),
+        _marineForecastPromise || loadMarineForecast()
+    ]).then(([wf, mf]) => loadCarina(liveResult?.avgTemp, wf, mf));
 
     // Update last-refreshed timestamp
     const ts = new Date().toLocaleTimeString('en-ZA', { hour:'2-digit', minute:'2-digit' });
@@ -1793,7 +1797,7 @@ async function loadRecords() {
 
 // ─── CARINA TAB ───────────────────────────────────────────────────────────────
 
-async function loadCarina(liveTemp) {
+async function loadCarina(liveTemp, windResult, marineResult) {
     const routeIds = await getFBRouteIds();
     if (!routeIds.length) return;
 
@@ -1900,75 +1904,132 @@ async function loadCarina(liveTemp) {
         </div>
     `;
 
-    // Prediction — two scenarios: with temp filter (18°C+) and without
-    const currentTemp = liveTemp ?? 17.0; // Use live community avg when available
-    const MAX_SECS = 46800; // 13h cap
-    const wRecordSecs = durSecs(wRecord?.duration);
-    const mRecordSecs = durSecs(mRecord?.duration);
+    // ── CONDITIONS-BASED CROSSING OUTLOOK ──────────────────────────────────────
+    const currentTemp = liveTemp ?? 17.0;
+    const BASE = 3.6, DIST = 34, FEEDS = 17 * 90 / 3600; // 0.425h feed time
+    const fmtH = h => { const hh = Math.floor(h), mm = Math.round((h - hh) * 60); return `${hh}:${String(mm).padStart(2, '0')}`; };
 
-    // WITH temp filter (ideal — 18°C+)
-    const w18 = women.filter(s => s.water_temp_c >= 18 && durSecs(s.duration) <= MAX_SECS);
-    const m18 = men.filter(s => s.water_temp_c >= 18 && durSecs(s.duration) <= MAX_SECS);
-    const wPred18 = w18.length ? w18.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/w18.length : null;
-    const mPred18 = m18.length ? m18.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/m18.length : null;
+    // Estimate current contribution from today's wind
+    const estCur = (() => {
+        if (!windResult) return { min: 0, max: 0.50, est: 0.25, label: 'Forecast unavailable', rangeLabel: '±uncertain' };
+        const wa = windAssess(windResult.windDir, windResult.windMax);
+        const spd = windResult.windMax || 0;
+        if (wa.tier === 'adverse' || wa.tier === 'adv-light')
+            return { min: -0.20, max: 0.10, est: -0.05, label: `${wa.label} — no assist`, rangeLabel: '−0.20 to +0.10 km/h' };
+        if (wa.tier === 'calm')
+            return { min: 0.00, max: 0.15, est: 0.05, label: `Calm ${spd.toFixed(0)} km/h`, rangeLabel: '0–0.15 km/h assist' };
+        if (wa.tier === 'optimal' && spd >= 30)
+            return { min: 0.40, max: 0.70, est: 0.55, label: `Good NW ${spd.toFixed(0)} km/h`, rangeLabel: '0.40–0.70 km/h assist' };
+        if (wa.tier === 'optimal')
+            return { min: 0.15, max: 0.45, est: 0.30, label: `Moderate NW ${spd.toFixed(0)} km/h`, rangeLabel: '0.15–0.45 km/h assist' };
+        if (wa.tier === 'nw-strong')
+            return { min: 0.40, max: 0.65, est: 0.50, label: `Strong NW ${spd.toFixed(0)} km/h`, rangeLabel: '0.40–0.65 km/h assist' };
+        return { min: 0.00, max: 0.25, est: 0.10, label: 'Mixed conditions', rangeLabel: '0–0.25 km/h assist' };
+    })();
 
-    // WITHOUT temp filter (all conditions)
-    const wAll = women.filter(s => durSecs(s.duration) <= MAX_SECS);
-    const mAll = men.filter(s => durSecs(s.duration) <= MAX_SECS);
-    const wPredAll = wAll.length ? wAll.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/wAll.length : null;
-    const mPredAll = mAll.length ? mAll.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/mAll.length : null;
+    // GO / MARGINAL / NO-GO signal
+    const wa_today = windResult ? windAssess(windResult.windDir, windResult.windMax) : null;
+    const waveMax = marineResult?.waveMax ?? 0;
+    const waveOk  = waveMax <= 1.5;
+    const waveBad = waveMax > 2.5;
+    let signal, sigColor, sigBg;
+    if (!wa_today) {
+        signal = '⬜ FORECAST UNAVAILABLE'; sigColor = 'var(--text-secondary)'; sigBg = 'rgba(100,100,100,0.07)';
+    } else if (waveBad || wa_today.tier === 'adverse') {
+        signal = '🔴 NO-GO'; sigColor = 'var(--danger)'; sigBg = 'rgba(239,68,68,0.07)';
+    } else if (wa_today.tier === 'optimal' && waveOk) {
+        signal = '🟢 GO'; sigColor = 'var(--success)'; sigBg = 'rgba(34,197,94,0.07)';
+    } else {
+        signal = '🟡 MARGINAL'; sigColor = 'var(--warning)'; sigBg = 'rgba(245,158,11,0.07)';
+    }
+
+    // Elite time range for today's conditions
+    const tMin = DIST / (BASE + estCur.max) + FEEDS;
+    const tMax = DIST / Math.max(BASE + estCur.min, 1.5) + FEEDS;
+    const tEst = DIST / (BASE + estCur.est) + FEEDS;
+
+    // Historical stats for context
+    const MAX_SECS = 46800;
+    const w18    = women.filter(s => s.water_temp_c >= 18 && durSecs(s.duration) <= MAX_SECS);
+    const m18    = men.filter(s => s.water_temp_c >= 18 && durSecs(s.duration) <= MAX_SECS);
+    const wAll   = women.filter(s => durSecs(s.duration) <= MAX_SECS);
+    const mAll   = men.filter(s => durSecs(s.duration) <= MAX_SECS);
+    const avgW   = wAll.length   ? secsToHMS(wAll.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/wAll.length)   : '—';
+    const avgM   = mAll.length   ? secsToHMS(mAll.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/mAll.length)   : '—';
+    const avgW18 = w18.length    ? secsToHMS(w18.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/w18.length)     : '—';
+    const avgM18 = m18.length    ? secsToHMS(m18.map(s=>durSecs(s.duration)).reduce((a,b)=>a+b,0)/m18.length)     : '—';
 
     document.getElementById('carinaPrediction').innerHTML = `
-        <div class="alert blue" style="margin-bottom:12px;">
-            Current water ~${currentTemp.toFixed(1)}°C ${liveTemp ? '(community logs — False Bay)' : '(satellite estimate)'}. Two scenarios shown below.
+
+        <!-- ── TODAY'S CROSSING OUTLOOK ── -->
+        <div style="padding:16px;border-radius:12px;background:${sigBg};border:1.5px solid ${sigColor};margin-bottom:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <div style="font-size:20px;font-weight:900;color:${sigColor};">${signal}</div>
+                <div style="font-size:11px;color:var(--text-secondary);text-align:right;">
+                    ${windResult ? `${windResult.windDir ? Math.round(windResult.windDir)+'° · ' : ''}${windResult.windMax ? windResult.windMax.toFixed(0)+' km/h' : '—'}` : 'Wind N/A'}
+                    ${waveMax ? ` · ${waveMax.toFixed(1)}m swell` : ''}
+                </div>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
+                <div style="font-size:28px;font-weight:900;color:var(--text-primary);letter-spacing:-1px;">${fmtH(tMin)}–${fmtH(tMax)}</div>
+                <div style="font-size:12px;color:var(--text-secondary);">elite estimate</div>
+            </div>
+            <div style="font-size:11px;color:var(--text-secondary);line-height:1.5;">
+                <strong style="color:var(--text-primary);">Wind:</strong> ${estCur.label} &nbsp;·&nbsp; <strong style="color:var(--text-primary);">Current:</strong> ${estCur.rangeLabel}<br>
+                Based on 3.6 km/h OW base + today's forecast · 34 km · 17 feeds
+            </div>
         </div>
 
-        <div style="font-size:11px;font-weight:700;color:var(--text-secondary);letter-spacing:.08em;margin-bottom:8px;">🌡️ IF WATER REACHES 18°C+ (ideal conditions)</div>
-        <div class="stat-grid" style="margin-bottom:4px;">
-            <div class="stat-box hi" style="padding:14px;">
-                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">👩 WOMEN'S</div>
-                <div class="stat-val blue" style="font-size:20px;">${wPred18 ? secsToHMS(wPred18) : '—'}</div>
-                <div class="stat-lbl" style="margin-top:2px;">${w18.length} swims at 18°C+</div>
-            </div>
-            <div class="stat-box hi" style="padding:14px;">
-                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">👨 MEN'S</div>
-                <div class="stat-val blue" style="font-size:20px;">${mPred18 ? secsToHMS(mPred18) : '—'}</div>
-                <div class="stat-lbl" style="margin-top:2px;">${m18.length} swims at 18°C+</div>
-            </div>
+        <div style="font-size:11px;color:var(--text-secondary);line-height:1.5;margin-bottom:14px;padding:10px 12px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);">
+            💡 <strong style="color:var(--text-primary);">How to read this:</strong> The time range reflects realistic elite pace (3.6 km/h base) under today's wind and current. Calm conditions = no assist → longer time. Strong NW → current push → faster. Uncertainty grows with distance from forecast — check back on the day.
         </div>
 
-        <div style="font-size:11px;font-weight:700;color:var(--text-secondary);letter-spacing:.08em;margin:14px 0 8px;">🌊 ALL CONDITIONS (temp not a factor)</div>
+        <!-- ── HISTORICAL STATS (context) ── -->
+        <div style="font-size:11px;font-weight:700;color:var(--text-secondary);letter-spacing:.08em;margin-bottom:8px;">📈 HISTORICAL CONTEXT · SKINS SOLOS</div>
         <div class="stat-grid" style="margin-bottom:12px;">
-            <div class="stat-box" style="padding:14px;">
-                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">👩 WOMEN'S</div>
-                <div class="stat-val" style="font-size:20px;">${wPredAll ? secsToHMS(wPredAll) : '—'}</div>
-                <div class="stat-lbl" style="margin-top:2px;">${wAll.length} all-conditions swims</div>
+            <div class="stat-box">
+                <div style="font-size:10px;color:var(--text-secondary);margin-bottom:2px;">👩 WOMEN AVG</div>
+                <div class="stat-val" style="font-size:17px;">${avgW}</div>
+                <div class="stat-lbl">${wAll.length} solos</div>
             </div>
-            <div class="stat-box" style="padding:14px;">
-                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">👨 MEN'S</div>
-                <div class="stat-val" style="font-size:20px;">${mPredAll ? secsToHMS(mPredAll) : '—'}</div>
-                <div class="stat-lbl" style="margin-top:2px;">${mAll.length} all-conditions swims</div>
+            <div class="stat-box ok">
+                <div style="font-size:10px;color:var(--text-secondary);margin-bottom:2px;">👩 18°C+ AVG</div>
+                <div class="stat-val green" style="font-size:17px;">${avgW18}</div>
+                <div class="stat-lbl">${w18.length} warm swims</div>
+            </div>
+            <div class="stat-box">
+                <div style="font-size:10px;color:var(--text-secondary);margin-bottom:2px;">👨 MEN AVG</div>
+                <div class="stat-val" style="font-size:17px;">${avgM}</div>
+                <div class="stat-lbl">${mAll.length} solos</div>
+            </div>
+            <div class="stat-box ok">
+                <div style="font-size:10px;color:var(--text-secondary);margin-bottom:2px;">👨 18°C+ AVG</div>
+                <div class="stat-val green" style="font-size:17px;">${avgM18}</div>
+                <div class="stat-lbl">${m18.length} warm swims</div>
+            </div>
+        </div>
+        <div class="stat-grid" style="margin-bottom:14px;">
+            <div class="stat-box hi">
+                <div style="font-size:10px;color:var(--text-secondary);margin-bottom:2px;">🏆 WOMEN'S RECORD</div>
+                <div class="stat-val blue" style="font-size:17px;">${fmtDur(wRecord?.duration)}</div>
+                <div class="stat-lbl">${wRecord?.historical_swimmers?.display_name ?? '—'}</div>
+            </div>
+            <div class="stat-box hi">
+                <div style="font-size:10px;color:var(--text-secondary);margin-bottom:2px;">🏆 MEN'S RECORD</div>
+                <div class="stat-val blue" style="font-size:17px;">${fmtDur(mRecord?.duration)}</div>
+                <div class="stat-lbl">${mRecord?.historical_swimmers?.display_name ?? '—'}</div>
             </div>
         </div>
 
-        <div class="stat-grid">
-            <div class="stat-box">
-                <div class="stat-val" style="font-size:15px;">${fmtDur(wRecord?.duration)}</div>
-                <div class="stat-lbl">Women's record</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-val" style="font-size:15px;">${fmtDur(mRecord?.duration)}</div>
-                <div class="stat-lbl">Men's record</div>
-            </div>
-        </div>
-        <div style="margin-top:14px;padding:12px;border-radius:10px;background:rgba(14,165,233,0.07);border:1px solid rgba(14,165,233,0.18);">
+        <!-- ── CHANNEL PREP ── -->
+        <div style="padding:12px;border-radius:10px;background:rgba(14,165,233,0.07);border:1px solid rgba(14,165,233,0.18);">
             <div style="font-size:12px;font-weight:700;color:var(--ocean-light);margin-bottom:6px;">🌊 False Bay as English Channel Preparation</div>
             <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">
-                At 33km, False Bay is the same distance as the English Channel. Current western bay water of ~${currentTemp.toFixed(1)}°C matches peak Channel conditions (typically 16–17°C in late July/August). The <strong>all-conditions prediction</strong> is the relevant benchmark for Channel prep swimmers — temp is secondary to the training stimulus of completing a full Channel-distance crossing in open ocean. This crossing offers something unique: Channel-distance, Channel-temperature, and real ocean conditions in a single swim.
+                At 34 km, False Bay is the same distance as the English Channel. Water at ~${currentTemp.toFixed(1)}°C matches peak Channel conditions (16–17°C, late July/August). Channel-distance · Channel-temperature · real ocean — in a single swim.
             </div>
         </div>
         <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;line-height:1.5;">
-            Verified False Bay skins solo crossings only. Actual performance depends on individual pace, wind, current, and conditions on the day.
+            Verified False Bay skins solo crossings only. Elite model calibrated on Carina Bruwer, 06 Mar 2026 (9:48 · 34 km · 0 net current).
         </div>
     `;
 }

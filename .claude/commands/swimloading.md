@@ -78,32 +78,42 @@ Cape Town ocean swimming community app — live at **swimloading.com**. Growing 
 ### Spots — Critical Notes
 - `code` column is **required** — without it, the spot won't appear in Trends (`latest_spot_temps` filters `WHERE code IS NOT NULL`)
 - The admin spot creation form auto-fills code from spot name (UPPER_SNAKE_CASE)
-- `domain` CHECK constraint (current): `ATLANTIC`, `FALSE_BAY`, `WEST_COAST`, `SOUTH_COAST`, `GARDEN_ROUTE`, `EASTERN_CAPE`, `KZN`, `INLAND`, `NON_COASTAL`, `NAMIBIA`
+- `domain` is validated by **FK to `domains.code`** — not a CHECK constraint. To use a new domain value, INSERT into `domains` table first.
 - `water_type` CHECK constraint (current): `OCEAN`, `LAGOON`, `POOL`, `DAM`
-- When adding a new domain via SQL: use `NOT VALID` on the new constraint to skip existing-row scan (avoids Supabase transaction conflict). All existing data is clean.
 
-### Domains (Regions)
-```javascript
-// index.html — buildGroupedSpotOptions() and Trends section
-const DOMAINS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'EASTERN_CAPE', 'KZN', 'INLAND', 'NAMIBIA'];
-const COASTAL_REGIONS = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST', 'SOUTH_COAST', 'GARDEN_ROUTE', 'EASTERN_CAPE', 'KZN', 'NAMIBIA'];
+### Domains (Regions) — DB-DRIVEN (March 2026)
+
+**CRITICAL: Domains are now stored in the `domains` table — NOT hardcoded in JS.**
+
+Adding a new region = one SQL INSERT only, zero code changes, zero deployment:
+```sql
+INSERT INTO domains (code, display_name, is_coastal, sort_order)
+VALUES ('FRANCE', 'France', true, 11);
 ```
 
-`formatDomain(d)` auto-converts snake_case to Title Case. Special override:
-```javascript
-function formatDomain(d) {
-    const overrides = { KZN: 'KwaZulu-Natal' };
-    if (overrides[d]) return overrides[d];
-    return d.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-}
-```
+#### domains table schema
+| Column | Type | Notes |
+|---|---|---|
+| `code` | TEXT PK | e.g. `ATLANTIC`, `KZN` |
+| `display_name` | TEXT | e.g. `KwaZulu-Natal` |
+| `is_coastal` | BOOL | false for INLAND, NON_COASTAL |
+| `sort_order` | INT | display order in all UIs |
 
-When adding a NEW domain, update **4 places** in `index.html`:
-1. `DOMAINS` array in `buildGroupedSpotOptions()` (~line 606)
-2. Ungrouped exclusion filter array (~line 620)
-3. `COASTAL_REGIONS` array in Trends section (~line 8721)
-4. `DOMAINS` array in Trends section (~line 8725)
-Also update: `admin.html` domain `<select>` (~line 488), and `eventRegionFilter` `<select>` in Swims tab.
+#### Current domains (10 total, sort_order 1–10)
+ATLANTIC, FALSE_BAY, WEST_COAST, SOUTH_COAST, GARDEN_ROUTE, EASTERN_CAPE, KZN, INLAND, NON_COASTAL, NAMIBIA
+
+#### How domains flow through the app
+- `loadDomains()` runs in `loadApp()` before `loadSpots()` — populates `let domains = []` global
+- `buildGroupedSpotOptions()` — iterates `domains[]`, no hardcoded arrays
+- `formatDomain(d)` — looks up `domains[].display_name`, falls back to auto snake_case→Title Case
+- `populateRegionFilter()` — called from `loadDomains()`, populates Swims tab Region filter
+- `renderRegionalGrid()` — sorts region cards by `domains[].sort_order`
+- `loadAdminDomains()` — populates admin.html domain `<select>` from DB on load
+
+#### spots.domain FK
+`spots.domain` has a **FK to `domains.code`** (ON UPDATE CASCADE) — NOT a CHECK constraint.
+The old CHECK constraint (`spots_domain_check`) was replaced by `spots_domain_fkey`.
+**Do NOT add a new CHECK constraint on spots.domain — the FK handles validation.**
 
 ### Spots by region
 - **Atlantic**: Sea Point, Clifton, Camps Bay, Bakoven, Llandudno, Sandy Bay, Hout Bay area
@@ -244,7 +254,7 @@ let activeHazardsBySpot = {};
 
 ### Swims Tab — Event Filters
 The Swims tab has two side-by-side filters:
-- `eventRegionFilter` — static `<select>` with all domains as options (All/Atlantic/False Bay/.../KwaZulu-Natal/Pools & Inland/Namibia)
+- `eventRegionFilter` — **dynamic** `<select>` populated by `populateRegionFilter()` (called from `loadDomains()`). Options come from DB `domains` table — no hardcoded options in HTML.
 - `eventMonthFilter` — dynamic `<select>` populated by `populateMonthFilter()` with next 12 months (e.g. "April 2026")
 - `populateMonthFilter()` is called from the spots-load callback alongside `populateSpotDropdowns()`
 - Filter logic in `loadEvents()` looks up event's `spot_id` against in-memory `spots` array for `domain`, and filters month by `start_at`
@@ -386,5 +396,6 @@ Code: `/Users/davewelensky/SwimLoading/device/SwimLoadingDisplay/SwimLoadingDisp
 9. **No framework** — vanilla HTML/JS only
 10. **Commit messages:** concise description of what + why
 11. **Hard gate is live** — users without `onboarding_completed_at` or `phone` redirected to onboarding
-12. **New domain SQL** — always use `NOT VALID` on constraint ADD to avoid Supabase transaction conflict
+12. **Adding a new domain** — INSERT into `domains` table only. Never hardcode domain arrays in JS or add a CHECK constraint on `spots.domain`. The FK handles validation.
 13. **water_type constraint** — only `OCEAN`, `LAGOON`, `POOL`, `DAM` are valid (not TIDAL_POOL, LAKE, RIVER — those are UI filter groupings only)
+14. **Never reintroduce hardcoded DOMAINS/COASTAL_REGIONS arrays** — these were removed in March 2026. All domain data comes from `let domains = []` global populated by `loadDomains()` at app start.
