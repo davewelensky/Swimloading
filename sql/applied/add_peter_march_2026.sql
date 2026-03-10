@@ -2,9 +2,14 @@
 -- Peter Emslie — False Bay crossing, 11 Mar 2026
 -- Pool background: 50m pool, 1:29/100m sustained (10km Garmin Swim 2)
 -- OW calibration: Langebaan Express 12km — Carina wetsuit 2:44 (4.39 km/h), Pete skins 2:47 (4.31 km/h)
---   Strip wetsuit advantage (~0.20 km/h): Carina bare ≈ 4.15–4.20 km/h, Pete bare = 4.31 km/h
+--   IMPORTANT: Carina suffered SIPE at Langebaan — her healthy wetsuit pace would have been faster than 2:44
+--   Pete healthy skins 4.31 km/h vs Carina impaired wetsuit 4.39 km/h → true gap even wider in Pete's favour
 --   Pete is faster than Carina skins at race distance. Sustained False Bay pace est: 3.5–3.7 km/h
 --   Projected crossing: ~9:00–10:10 depending on current assist
+--
+-- ⚠️  SIPE RISK: Miller's Point start ~16°C cold water + hard early effort = SIPE trigger zone
+--   Carina has prior SIPE history at Langebaan. Pete's crew must watch for:
+--   coughing, breathlessness, pink frothy sputum in first 30–60 min. Slow start protocol advised.
 -- Fill in: duration, conditions, water_temp_c after swim completes
 -- ══════════════════════════════════════════════════════════════════════════════
 
