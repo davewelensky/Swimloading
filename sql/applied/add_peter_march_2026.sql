@@ -1,7 +1,10 @@
 -- ══════════════════════════════════════════════════════════════════════════════
 -- Peter Emslie — False Bay crossing, 11 Mar 2026
 -- Pool background: 50m pool, 1:29/100m sustained (10km Garmin Swim 2)
--- OW note: Carina Bruwer beats Peter in OW races — estimated OW pace 3.0–3.2 km/h
+-- OW calibration: Langebaan Express 12km — Carina wetsuit 2:44 (4.39 km/h), Pete skins 2:47 (4.31 km/h)
+--   Strip wetsuit advantage (~0.20 km/h): Carina bare ≈ 4.15–4.20 km/h, Pete bare = 4.31 km/h
+--   Pete is faster than Carina skins at race distance. Sustained False Bay pace est: 3.5–3.7 km/h
+--   Projected crossing: ~9:00–10:10 depending on current assist
 -- Fill in: duration, conditions, water_temp_c after swim completes
 -- ══════════════════════════════════════════════════════════════════════════════
 
