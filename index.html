@@ -801,267 +801,206 @@
 
         // Load dashboard
         async function loadDashboard() {
-            loadMonthlyChallengeSummary(); // non-blocking — renders challenge teaser card
-            loadSpotlightBanner();         // non-blocking — renders SA Open Water spotlight if active
+            loadMonthlyChallengeSummary(); // non-blocking
+            loadSpotlightBanner();         // non-blocking
+            loadNotifications();           // non-blocking
+
+            // Populate shared caches in background (used by Trends/Swims tabs and hazard checks)
+            (async () => {
+                try {
+                    const since96h = new Date(Date.now() - 96 * 60 * 60 * 1000).toISOString();
+                    const [conditionsResult, eventsResult, latestTempsResult, hazardsResult] = await Promise.all([
+                        supabaseClient.from('temp_logs').select('spot_id, conditions, hazards, created_at, temp_c').gte('created_at', since96h).order('created_at', { ascending: false }).limit(200),
+                        supabaseClient.from('swim_events').select('location_name, start_at, status').eq('status', 'active').gte('start_at', new Date().toISOString()).limit(50),
+                        supabaseClient.from('latest_spot_temps').select('spot_id, spot_name, spot_code, temp_c, updated_at, water_type, domain').order('updated_at', { ascending: false }),
+                        supabaseClient.from('hazard_reports').select('spot_id, severity, title, hazard_type, active_until').is('resolved_at', null)
+                    ]);
+                    conditionsCache = {};
+                    (conditionsResult.data || []).forEach(log => {
+                        if (!conditionsCache[log.spot_id]) conditionsCache[log.spot_id] = [];
+                        conditionsCache[log.spot_id].push(log);
+                    });
+                    swimEventsCache = eventsResult.data || [];
+                    const dashNowMs = Date.now();
+                    activeHazardsBySpot = {};
+                    for (const h of (hazardsResult.data || [])) {
+                        if (h.active_until && new Date(h.active_until).getTime() <= dashNowMs) continue;
+                        if (!activeHazardsBySpot[h.spot_id]) activeHazardsBySpot[h.spot_id] = [];
+                        activeHazardsBySpot[h.spot_id].push(h);
+                    }
+                    loadTodayForecast(latestTempsResult.data || []);
+                } catch (e) { console.error('Cache fill error:', e); }
+            })();
+
+            const conditionColors = { calm: '#10b981', choppy: '#f59e0b', rough: '#ef4444', extreme: '#7c3aed' };
+
             try {
-                // Load user stats
+                // ── Stats (compact strip) ─────────────────────────────────────────────
                 const { data: stats } = await supabaseClient
-                    .from('user_stats')
-                    .select('*')
-                    .eq('user_id', currentUser.id)
-                    .single();
+                    .from('user_stats').select('*').eq('user_id', currentUser.id).single();
 
-                // Render stats
                 document.getElementById('dashStats').innerHTML = `
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-                        <div style="text-align: center; background: rgba(56, 189, 248, 0.08); border-radius: 14px; padding: 16px 8px; border: 1px solid rgba(56, 189, 248, 0.12);">
-                            <div style="font-size: 26px; font-weight: 800; color: var(--ocean-light); line-height: 1;">${stats?.total_logs || 0}</div>
-                            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Logs</div>
+                    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
+                        <div style="text-align:center; background:rgba(56,189,248,0.08); border-radius:10px; padding:10px 6px; border:1px solid rgba(56,189,248,0.12);">
+                            <div style="font-size:22px; font-weight:800; color:var(--ocean-light); line-height:1;">${stats?.total_logs || 0}</div>
+                            <div style="font-size:10px; color:var(--text-secondary); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; font-weight:600;">Logs</div>
                         </div>
-                        <div style="text-align: center; background: rgba(16, 185, 129, 0.08); border-radius: 14px; padding: 16px 8px; border: 1px solid rgba(16, 185, 129, 0.12);">
-                            <div style="font-size: 26px; font-weight: 800; color: var(--success); line-height: 1;">${stats?.points || 0}</div>
-                            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Points</div>
+                        <div style="text-align:center; background:rgba(16,185,129,0.08); border-radius:10px; padding:10px 6px; border:1px solid rgba(16,185,129,0.12);">
+                            <div style="font-size:22px; font-weight:800; color:var(--success); line-height:1;">${stats?.points || 0}</div>
+                            <div style="font-size:10px; color:var(--text-secondary); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; font-weight:600;">Points</div>
                         </div>
-                        <div style="text-align: center; background: rgba(245, 158, 11, 0.08); border-radius: 14px; padding: 16px 8px; border: 1px solid rgba(245, 158, 11, 0.12);">
-                            <div style="font-size: 26px; font-weight: 800; color: var(--warning); line-height: 1;">${stats?.current_streak || 0}</div>
-                            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Streak</div>
+                        <div style="text-align:center; background:rgba(245,158,11,0.08); border-radius:10px; padding:10px 6px; border:1px solid rgba(245,158,11,0.12);">
+                            <div style="font-size:22px; font-weight:800; color:var(--warning); line-height:1;">${stats?.current_streak || 0}</div>
+                            <div style="font-size:10px; color:var(--text-secondary); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; font-weight:600;">Streak</div>
                         </div>
-                    </div>
-                `;
+                    </div>`;
 
-                // Load upcoming swims user is attending
-                console.log('Loading upcoming swims for user:', currentUser.id);
+                // ── Community Activity Feed ────────────────────────────────────────────
+                const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+                const { data: recentLogs } = await supabaseClient
+                    .from('temp_logs')
+                    .select('id, user_id, temp_c, conditions, notes, created_at, spot_id, spots!temp_logs_spot_id_fkey(name, domain)')
+                    .gte('created_at', since24h)
+                    .order('created_at', { ascending: false })
+                    .limit(10);
 
-                const { data: memberEvents, error: eventsError } = await supabaseClient
-                    .from('swim_participants')
-                    .select(`
-                        *,
-                        swim_events(*)
-                    `)
-                    .eq('user_id', currentUser.id)
-                    .in('status', ['approved', 'requested']);
+                const feedUserIds = [...new Set((recentLogs || []).map(l => l.user_id))];
+                const { data: feedProfiles } = feedUserIds.length
+                    ? await supabaseClient.from('profiles').select('id, display_name').in('id', feedUserIds)
+                    : { data: [] };
+                const feedNameMap = Object.fromEntries((feedProfiles || []).map(p => [p.id, p.display_name]));
 
-                console.log('Member events result:', { memberEvents, eventsError });
+                let filteredLogs = recentLogs || [];
+                if (currentUserProfile?.home_domain) {
+                    filteredLogs = filteredLogs.filter(l => l.spots?.domain === currentUserProfile.home_domain);
+                }
 
-                // Filter for upcoming events in JavaScript (exclude cancelled)
-                const now = new Date();
-                const upcomingSwims = memberEvents
-                    ?.map(m => m.swim_events)
-                    .filter(e => e && new Date(e.start_at) >= now && e.status !== 'cancelled')
-                    .slice(0, 3) || [];
-
-                console.log('Upcoming swims after filter:', upcomingSwims);
-
-                if (upcomingSwims.length === 0) {
-                    document.getElementById('dashUpcomingSwims').innerHTML = `
-                        <div style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 14px;">
-                            No upcoming swims yet<br>
-                            <button class="btn" style="margin-top: 12px; width: auto; padding: 8px 16px; font-size: 13px;" onclick="showPage('events')">Browse Swims</button>
-                        </div>
-                    `;
+                if (filteredLogs.length === 0) {
+                    document.getElementById('dashCommunityFeed').innerHTML =
+                        `<div style="text-align:center; padding:20px; color:var(--text-secondary); font-size:14px;">No logs in the last 24 hours</div>`;
                 } else {
-                    document.getElementById('dashUpcomingSwims').innerHTML = upcomingSwims.map(e => {
-                        const d = new Date(e.start_at);
-                        const isToday = d.toDateString() === new Date().toDateString();
-                        const isCancelled = e.status === 'cancelled';
-                        const dashEventHazards = getHazardsForEvent(e);
-                        const dashHazardWarning = dashEventHazards.length > 0
-                            ? `<div style="margin-top:8px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.5);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px;"><span style="font-size:16px;">&#x26A0;&#xFE0F;</span><div><div style="font-size:12px;font-weight:700;color:#ef4444;">HAZARD AT THIS LOCATION</div><div style="font-size:11px;color:var(--text-secondary);margin-top:1px;">${dashEventHazards[0].title}</div></div></div>`
-                            : '';
+                    document.getElementById('dashCommunityFeed').innerHTML = filteredLogs.map(log => {
+                        const name = feedNameMap[log.user_id] || 'Swimmer';
+                        const initials = name.trim().split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+                        const spotName = log.spots?.name || 'Unknown spot';
+                        const timeAgo = getTimeAgo(new Date(log.created_at));
+                        const cond = log.conditions?.toLowerCase();
+                        const condColor = conditionColors[cond] || '#64748b';
                         return `
-                            <div style="background: rgba(15, 23, 42, 0.6); border: 2px solid ${isCancelled ? 'rgba(239, 68, 68, 0.2)' : (dashEventHazards.length > 0 ? 'rgba(239,68,68,0.4)' : 'rgba(56, 189, 248, 0.2)')}; border-radius: 12px; padding: 12px; margin-bottom: 8px; cursor: pointer; opacity: ${isCancelled ? '0.6' : '1'};" onclick="viewEventDetails('${e.id}')">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <div>
-                                        <div style="font-weight: 600; color: ${isCancelled ? 'var(--text-secondary)' : 'var(--text-primary)'}; font-size: 15px; display: flex; align-items: center; gap: 6px;">
-                                            ${e.title}
-                                            ${isCancelled ? '<span style="background: var(--danger); color: white; padding: 1px 6px; border-radius: 4px; font-size: 9px; font-weight: 800;">CANCELLED</span>' : ''}
-                                        </div>
-                                        <div style="display: flex; gap: 6px; align-items: center; margin-top: 4px;">
-                                            <div style="font-size: 12px; color: var(--text-secondary);"><i data-lucide="map-pin" style="width: 14px; height: 14px; vertical-align: middle;"></i> ${e.location_name}</div>
-                                            ${e.route_type ? `
-                                                <div style="background: rgba(56, 189, 248, 0.15); color: var(--ocean-light); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; border: 1px solid rgba(56, 189, 248, 0.2);">
-                                                    ${e.route_type.replace(/_/g, ' ')}
-                                                </div>
-                                            ` : ''}
-                                        </div>
-                                    </div>
-                                    <div style="text-align: right;">
-                                        <div style="font-size: 13px; color: ${isCancelled ? 'var(--text-secondary)' : (isToday ? 'var(--success)' : 'var(--ocean-light)')}; font-weight: 600;">
-                                            ${isToday ? 'TODAY' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                        </div>
-                                        <div style="font-size: 12px; color: var(--text-secondary);">${d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
-                                    </div>
+                        <div style="display:flex; gap:12px; padding:12px 0; border-bottom:1px solid rgba(56,189,248,0.08);">
+                            <div style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#0284c7,#0ea5e9); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:white; flex-shrink:0;">${initials}</div>
+                            <div style="flex:1; min-width:0;">
+                                <div style="font-size:14px; color:var(--text-primary); line-height:1.4;">
+                                    <span style="font-weight:600;">${name}</span>
+                                    <span style="color:var(--text-secondary);"> logged </span>
+                                    <span style="font-weight:600; color:var(--ocean-light);">${log.temp_c}°C</span>
+                                    <span style="color:var(--text-secondary);"> at </span>
+                                    <span style="font-weight:600;">${spotName}</span>
                                 </div>
-                                ${dashHazardWarning}
+                                <div style="margin-top:5px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                    ${cond ? `<span style="background:${condColor}20; color:${condColor}; border:1px solid ${condColor}40; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; text-transform:capitalize;">${cond}</span>` : ''}
+                                    <span style="font-size:12px; color:var(--text-secondary);">${timeAgo}</span>
+                                </div>
+                                ${log.notes ? `<div style="margin-top:5px; font-size:12px; color:var(--text-secondary); font-style:italic; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:260px;">"${log.notes}"</div>` : ''}
                             </div>
-                        `;
+                        </div>`;
                     }).join('');
                 }
 
-                // Initialize icons after rendering upcoming swims
+                // ── Swimming Today ─────────────────────────────────────────────────────
+                const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+                const { data: todayLogs } = await supabaseClient
+                    .from('temp_logs')
+                    .select('user_id, temp_c, conditions, created_at, spot_id, spots!temp_logs_spot_id_fkey(name, domain)')
+                    .gte('created_at', todayStart.toISOString())
+                    .order('created_at', { ascending: false });
+
+                let todayFiltered = todayLogs || [];
+                if (currentUserProfile?.home_domain) {
+                    todayFiltered = todayFiltered.filter(l => l.spots?.domain === currentUserProfile.home_domain);
+                }
+
+                const todayUserIds = [...new Set(todayFiltered.map(l => l.user_id))];
+                const { data: todayProfiles } = todayUserIds.length
+                    ? await supabaseClient.from('profiles').select('id, display_name').in('id', todayUserIds)
+                    : { data: [] };
+                const todayNameMap = Object.fromEntries((todayProfiles || []).map(p => [p.id, p.display_name]));
+
+                const bySpot = {};
+                todayFiltered.forEach(log => {
+                    const sid = log.spot_id;
+                    if (!bySpot[sid]) bySpot[sid] = { name: log.spots?.name || 'Unknown', logs: [] };
+                    bySpot[sid].logs.push(log);
+                });
+                const spotGroups = Object.values(bySpot);
+
+                if (spotGroups.length === 0) {
+                    document.getElementById('dashSwimmingToday').innerHTML =
+                        `<div style="text-align:center; padding:16px; color:var(--text-secondary); font-size:14px;">No swims logged yet today</div>`;
+                } else {
+                    document.getElementById('dashSwimmingToday').innerHTML = spotGroups.map(g => {
+                        const latest = g.logs[0];
+                        const cond = latest.conditions?.toLowerCase();
+                        const condColor = conditionColors[cond] || '#64748b';
+                        const minAgo = Math.round((Date.now() - new Date(latest.created_at)) / 60000);
+                        const lastStr = minAgo < 60 ? `${minAgo}min ago` : `${Math.round(minAgo/60)}h ago`;
+                        const latestName = todayNameMap[latest.user_id] || 'Swimmer';
+                        return `
+                        <div style="background:rgba(15,23,42,0.5); border:1px solid rgba(56,189,248,0.12); border-radius:12px; padding:12px 14px; margin-bottom:8px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div style="font-weight:600; color:var(--text-primary); font-size:14px;">${g.name}</div>
+                                <div style="font-size:18px; font-weight:700; color:var(--ocean-light);">${latest.temp_c}°C</div>
+                            </div>
+                            <div style="margin-top:5px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                                <span style="font-size:12px; color:var(--text-secondary);">${g.logs.length} swim${g.logs.length>1?'s':''} logged</span>
+                                <span style="font-size:12px; color:var(--text-secondary);">Last: ${lastStr}</span>
+                                ${cond ? `<span style="background:${condColor}20; color:${condColor}; border:1px solid ${condColor}40; padding:1px 7px; border-radius:4px; font-size:11px; font-weight:600; text-transform:capitalize;">${cond}</span>` : ''}
+                            </div>
+                            <div style="margin-top:4px; font-size:12px; color:var(--text-secondary);">${latestName}</div>
+                        </div>`;
+                    }).join('');
+                }
+
+                // ── Coming Up ─────────────────────────────────────────────────────────
+                const { data: nextSwims } = await supabaseClient
+                    .from('swim_events')
+                    .select('id, title, location_name, start_at')
+                    .gte('start_at', new Date().toISOString())
+                    .neq('status', 'cancelled')
+                    .order('start_at', { ascending: true })
+                    .limit(1);
+
+                const nextSwim = nextSwims?.[0];
+                const comingUpEl = document.getElementById('dashComingUp');
+                if (nextSwim) {
+                    const d = new Date(nextSwim.start_at);
+                    const isToday = d.toDateString() === new Date().toDateString();
+                    const dateStr = isToday ? 'Today' : d.toLocaleDateString('en-ZA', { weekday: 'short', month: 'short', day: 'numeric' });
+                    const timeStr = d.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+                    comingUpEl.style.display = 'block';
+                    comingUpEl.innerHTML = `
+                        <div style="font-weight:700; color:var(--text-primary); font-size:16px; margin-bottom:10px;">Coming Up</div>
+                        <div style="background:rgba(15,23,42,0.5); border:1px solid rgba(56,189,248,0.2); border-radius:14px; padding:14px 16px;">
+                            <div style="font-weight:700; font-size:15px; color:var(--text-primary); margin-bottom:4px;">${nextSwim.title}</div>
+                            <div style="font-size:13px; color:var(--text-secondary); margin-bottom:10px;">
+                                <i data-lucide="map-pin" style="width:13px;height:13px;vertical-align:middle;"></i> ${nextSwim.location_name}
+                                &nbsp;·&nbsp;
+                                <i data-lucide="clock" style="width:13px;height:13px;vertical-align:middle;"></i> ${dateStr} at ${timeStr}
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <button class="btn" onclick="viewEventDetails('${nextSwim.id}')" style="flex:1; padding:8px; font-size:13px; background:rgba(56,189,248,0.12); color:var(--ocean-light); border:1px solid rgba(56,189,248,0.25);">Details</button>
+                                <button class="btn" onclick="showPage('events')" style="flex:1; padding:8px; font-size:13px; background:linear-gradient(135deg,#0284c7,#0ea5e9); color:white; border:none;">I'm Going</button>
+                            </div>
+                        </div>`;
+                } else {
+                    comingUpEl.style.display = 'none';
+                }
+
                 initIcons();
 
-                // Load recent temperatures
-                // Load recent temperatures
-                const { data: recentLogs, error: logError } = await supabaseClient
-                    .from('temp_logs')
-                    .select('*') // Simple select to avoid join issues
-                    .order('created_at', { ascending: false })
-                    .limit(20); // Get more to account for potential filtering
-
-                if (logError) {
-                    console.error('Error fetching recent logs:', logError);
-                    document.getElementById('dashConditions').innerHTML = `
-                        <div style="text-align: center; padding: 20px; color: var(--danger); font-size: 13px;">
-                            Error loading temperatures
-                        </div>
-                    `;
-                    return;
-                }
-
-                if (!recentLogs || recentLogs.length === 0) {
-                    document.getElementById('dashConditions').innerHTML = `
-                        <div style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 14px;">
-                            No recent temperatures logged
-                        </div>
-                    `;
-                } else {
-                    // Group by spot, show latest per spot, filtering for active spots
-                    // Also track 2nd most recent per spot for trend arrows
-                    const bySpot = {};
-                    const bySpotPrev = {};
-                    recentLogs.forEach(log => {
-                        // Find spot in our local active spots array
-                        const spotInfo = spots.find(s => s.id === log.spot_id);
-                        if (spotInfo) {
-                            // Filter to user's home region when set
-                            if (currentUserProfile?.home_domain && spotInfo.domain !== currentUserProfile.home_domain) return;
-                            if (!bySpot[log.spot_id]) {
-                                log.spotName = spotInfo.name; // Attach name locally
-                                bySpot[log.spot_id] = log;
-                            } else if (!bySpotPrev[log.spot_id]) {
-                                bySpotPrev[log.spot_id] = log; // second most recent
-                            }
-                        }
-                    });
-
-                    const latest = Object.values(bySpot).slice(0, 4);
-
-
-                    // Fetch display names + avatars for loggers
-                    const loggerUserIds = [...new Set(latest.map(l => l.user_id).filter(Boolean))];
-                    let profileMap = {};
-                    if (loggerUserIds.length > 0) {
-                        const { data: profiles } = await supabaseClient
-                            .from('profiles')
-                            .select('id, display_name, avatar_url')
-                            .in('id', loggerUserIds);
-                        (profiles || []).forEach(p => { profileMap[p.id] = p; });
-                    }
-                    latest.forEach(log => {
-                        const p = profileMap[log.user_id];
-                        log.loggerName = p?.display_name || 'Anonymous';
-                        log.loggerAvatar = p?.avatar_url || null;
-                    });
-
-                    // Attach prevTemp for trend arrows on cards
-                    latest.forEach(log => {
-                        const prev = bySpotPrev[log.spot_id];
-                        log.prevTemp = prev?.temp_c != null ? parseFloat(prev.temp_c) : null;
-                    });
-
-                    // Store profileMap for renderBestSpots to reuse
-                    window._dashProfileMap = profileMap;
-
-                    if (latest.length === 0) {
-                        // Fallback: If filtering by active spots left us with nothing,
-                        // but we HAVE logs, just show the most recent ones anyway
-                        const fallbackLogs = recentLogs.slice(0, 2);
-                        fallbackLogs.forEach(log => {
-                            log.spotName = spots.find(s => s.id === log.spot_id)?.name || 'Unknown Spot';
-                        });
-
-                        if (fallbackLogs.length > 0) {
-                            renderDashConditions(fallbackLogs);
-                        } else {
-                            document.getElementById('dashConditions').innerHTML = `
-                                <div style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 14px;">
-                                    No recent temperatures logged
-                                </div>
-                            `;
-                        }
-                    } else {
-                        renderDashConditions(latest);
-                    }
-                }
-
             } catch (err) {
-                console.error('Error loading dashboard:', err);
+                console.error('loadDashboard error:', err);
             }
-
-            // Load Swim Scores for Best Spots section
-            try {
-                const since96h = new Date(Date.now() - 96 * 60 * 60 * 1000).toISOString();
-
-                const [conditionsResult, eventsResult, latestTempsResult, hazardsResult] = await Promise.all([
-                    supabaseClient
-                        .from('temp_logs')
-                        .select('spot_id, conditions, hazards, created_at, temp_c')
-                        .gte('created_at', since96h)
-                        .order('created_at', { ascending: false })
-                        .limit(200),
-                    supabaseClient
-                        .from('swim_events')
-                        .select('location_name, start_at, status')
-                        .eq('status', 'active')
-                        .gte('start_at', new Date().toISOString())
-                        .limit(50),
-                    supabaseClient
-                        .from('latest_spot_temps')
-                        .select('spot_id, spot_name, spot_code, temp_c, updated_at, water_type, domain')
-                        .order('updated_at', { ascending: false }),
-                    supabaseClient
-                        .from('hazard_reports')
-                        .select('spot_id, severity, title, hazard_type, active_until')
-                        .is('resolved_at', null)
-                ]);
-
-                // Populate module-level caches
-                conditionsCache = {};
-                (conditionsResult.data || []).forEach(log => {
-                    if (!conditionsCache[log.spot_id]) conditionsCache[log.spot_id] = [];
-                    conditionsCache[log.spot_id].push(log);
-                });
-                swimEventsCache = eventsResult.data || [];
-
-                // Populate active hazards map — filter expired in JS to avoid PostgREST .or() timestamp issues
-                const dashNowMs = Date.now();
-                activeHazardsBySpot = {};
-                for (const h of (hazardsResult.data || [])) {
-                    if (h.active_until && new Date(h.active_until).getTime() <= dashNowMs) continue;
-                    if (!activeHazardsBySpot[h.spot_id]) activeHazardsBySpot[h.spot_id] = [];
-                    activeHazardsBySpot[h.spot_id].push(h);
-                }
-
-                let bestSpotsData = latestTempsResult.data || [];
-                if (currentUserProfile?.home_domain) {
-                    bestSpotsData = bestSpotsData.filter(s => s.domain === currentUserProfile.home_domain);
-                }
-                renderBestSpots(bestSpotsData, conditionsCache, swimEventsCache);
-            } catch (err) {
-                console.error('Error loading swim scores:', err);
-                document.getElementById('dashBestSpots').innerHTML = `<div style="text-align:center;padding:12px;color:var(--text-secondary);font-size:13px;">Could not load spot scores</div>`;
-            }
-
-            // Initialize icons and notifications
-            initIcons();
-            loadNotifications();
-
-            // Render badges section
-            renderDashBadges();
-
-            // Load today's wind/wave forecast — non-blocking, re-renders Best Spots when done
-            loadTodayForecast(latestTempsResult.data || []);
         }
 
         async function loadTodayForecast(latestTemps) {
@@ -7108,67 +7047,44 @@
             <!-- DASHBOARD -->
             <div id="dashboard" class="page active">
                 <div class="card">
-                    <div class="card-title">Dashboard</div>
 
                     <!-- SA Open Water Spotlight Banner -->
-                    <div id="spotlightBanner" style="display:none;"></div>
+                    <div id="spotlightBanner" style="display:none; margin-bottom:16px;"></div>
 
-                    <!-- Monthly Challenge Teaser -->
-                    <div id="dashMonthlyChallenge" style="margin-bottom: 24px;"></div>
+                    <!-- 1. Hero CTA -->
+                    <div style="margin-bottom:20px; background:linear-gradient(135deg,rgba(2,132,199,0.15),rgba(12,74,110,0.25)); border:1px solid rgba(56,189,248,0.25); border-radius:16px; padding:20px 20px 18px;">
+                        <div style="font-size:13px; color:var(--text-secondary); margin-bottom:4px; font-weight:500;">Just finished a swim?</div>
+                        <div style="font-size:19px; font-weight:700; color:var(--text-primary); margin-bottom:14px;">Share conditions with the community</div>
+                        <button class="btn" onclick="showPage('logTemp')"
+                            style="width:100%; background:linear-gradient(135deg,#0284c7,#0ea5e9); color:white; font-weight:700; font-size:16px; padding:14px; border-radius:12px; border:none; letter-spacing:0.3px;">
+                            Log Conditions
+                        </button>
+                    </div>
 
-                    <!-- Your Upcoming Swims -->
-                    <div style="margin-bottom: 24px;">
-                        <div
-                            style="font-weight: 600; color: var(--text-primary); margin-bottom: 12px; font-size: 16px;">
-                            <i data-lucide="calendar-check"
-                                style="width: 18px; height: 18px; vertical-align: middle;"></i> Your Upcoming Swims
+                    <!-- 2. Community Activity Feed -->
+                    <div style="margin-bottom:20px;">
+                        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px;">
+                            <div style="font-weight:700; color:var(--text-primary); font-size:16px;">Community Activity</div>
+                            <div style="font-size:12px; color:var(--text-secondary);">Last 24 hours</div>
                         </div>
-                        <div id="dashUpcomingSwims">Loading...</div>
+                        <div id="dashCommunityFeed">Loading...</div>
                     </div>
 
-                    <!-- Best Spots Right Now -->
-                    <div style="margin-bottom: 24px;">
-                        <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 12px; font-size: 16px;">
-                            <i data-lucide="waves" style="width: 18px; height: 18px; vertical-align: middle;"></i> Best Spots Right Now
-                        </div>
-                        <div id="dashBestSpots">Loading...</div>
+                    <!-- 3. Swimming Today -->
+                    <div style="margin-bottom:20px;">
+                        <div style="font-weight:700; color:var(--text-primary); font-size:16px; margin-bottom:12px;">Swimming Today</div>
+                        <div id="dashSwimmingToday">Loading...</div>
                     </div>
 
-                    <!-- Your Stats -->
-                    <div
-                        style="background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 16px; margin-bottom: 24px;">
-                        <div
-                            style="font-weight: 600; color: var(--text-primary); margin-bottom: 12px; font-size: 16px;">
-                            <i data-lucide="bar-chart-3" style="width: 18px; height: 18px; vertical-align: middle;"></i>
-                            Your Stats
-                        </div>
-                        <div id="dashStats">Loading...</div>
-                    </div>
+                    <!-- 4. Coming Up (hidden until swim found) -->
+                    <div id="dashComingUp" style="display:none; margin-bottom:20px;"></div>
 
-                    <!-- Your Badges -->
-                    <div style="background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 16px; margin-bottom: 24px;">
-                        <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 12px; font-size: 16px;">
-                            <i data-lucide="award" style="width: 18px; height: 18px; vertical-align: middle;"></i>
-                            Your Badges
-                        </div>
-                        <div id="dashBadges">Loading...</div>
-                    </div>
+                    <!-- 5. Challenge strip -->
+                    <div id="dashMonthlyChallenge" style="margin-bottom:16px;"></div>
 
-                    <!-- Recent Conditions -->
-                    <div style="margin-bottom: 24px;">
-                        <div style="margin-bottom:12px;">
-                            <span style="font-weight: 600; color: var(--text-primary); font-size: 16px;">
-                                <i data-lucide="thermometer" style="width: 18px; height: 18px; vertical-align: middle;"></i>
-                                Latest Water Temps
-                            </span>
-                        </div>
-                        <div id="dashConditions">Loading...</div>
-                    </div>
+                    <!-- 6. Quick Stats strip -->
+                    <div id="dashStats" style="margin-bottom:8px;"></div>
 
-                    <!-- Quick Actions -->
-                    <div style="display: grid; grid-template-columns: 1fr; gap: 12px;">
-                        <button class="btn btn-success" onclick="showPage('logTemp')">Log Temperature</button>
-                    </div>
                 </div>
             </div>
 
