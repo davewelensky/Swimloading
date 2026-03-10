@@ -285,7 +285,7 @@
                 <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:6px;">🏆 WOMEN'S RECORD</div>
                 <div style="font-size:22px;font-weight:900;color:var(--ocean-light);letter-spacing:-1px;">8:09:26</div>
                 <div style="font-size:12px;font-weight:700;color:var(--text-primary);margin-top:4px;">Kat Persson</div>
-                <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">30 Nov 2022 · Bumpy · NW</div>
+                <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">30 Nov 2022 · Bumpy · NW · 31km GPS</div>
             </div>
             <div style="background:linear-gradient(135deg,rgba(14,165,233,0.12),rgba(14,165,233,0.04));border:1px solid rgba(14,165,233,0.3);border-radius:14px;padding:14px;text-align:center;">
                 <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:6px;">🏆 MEN'S RECORD</div>
@@ -421,13 +421,13 @@
                 </div>
                 <div style="text-align:center;padding:8px;border-radius:8px;background:rgba(14,165,233,0.18);border:2px solid rgba(14,165,233,0.5);">
                     <div style="font-size:9px;color:var(--ocean-light);margin-bottom:2px;font-weight:700;">RECORD HUNT</div>
-                    <div style="font-size:17px;font-weight:800;color:var(--ocean-light);">8:09</div>
-                    <div style="font-size:9px;color:var(--success);font-weight:700;margin-top:2px;">≈RECORD · 0.80</div>
+                    <div style="font-size:17px;font-weight:800;color:var(--ocean-light);">8:09*</div>
+                    <div style="font-size:9px;color:var(--text-secondary);margin-top:2px;">strong NW · 0.80</div>
                 </div>
             </div>
             <div style="font-size:11px;color:var(--text-secondary);line-height:1.6;">
-                <strong style="color:var(--text-primary);">Model:</strong> 34 km · 3.6 km/h OW base + WNW current (0–0.80 km/h) + 17 feeds × 90s = 26 min. Calibrated on Carina's 06 Mar 2026 crossing (9:48 · 0 net current).<br>
-                <strong style="color:var(--text-primary);">Record threshold:</strong> 8:09 women's · needs ~0.80 km/h current (strong sustained NW). <strong style="color:var(--success);">Sub-record requires exceptional conditions.</strong>
+                <strong style="color:var(--text-primary);">Model:</strong> Calibrated on Carina's 06 Mar 2026 crossing (9:48 · 34km GPS · 0 net current · 3.6 km/h base pace confirmed). 17 feeds × 90s = 26 min.<br>
+                <strong style="color:var(--text-primary);">Note on GPS distances:</strong> Route GPS varies 28–34km depending on navigation line, drift, and conditions. Kat Persson's 8:09 record was at <strong>31km GPS</strong>. Times are elapsed — not pace-normalised to a fixed distance. The 34km "Record Hunt" scenario is a model projection; no verified 34km crossing has beaten 9:48 yet.
             </div>
         </div>
 
@@ -1801,7 +1801,7 @@ async function loadCarina(liveTemp, windResult, marineResult) {
     const routeIds = await getFBRouteIds();
     if (!routeIds.length) return;
 
-    const all = await apiFetch(`historical_swims?select=swim_date,water_temp_c,duration,conditions,category,is_relay,historical_swimmers!inner(display_name,gender)&route_id=in.(${routeIds.join(',')})&category=eq.skins&is_relay=eq.false&duration=not.is.null&order=duration.asc`);
+    const all = await apiFetch(`historical_swims?select=swim_date,water_temp_c,duration,distance_km,conditions,category,is_relay,historical_swimmers!inner(display_name,gender)&route_id=in.(${routeIds.join(',')})&category=eq.skins&is_relay=eq.false&duration=not.is.null&order=duration.asc`);
 
     if (!all?.length) return;
 
@@ -1830,12 +1830,12 @@ async function loadCarina(liveTemp, windResult, marineResult) {
     if (wRecord) {
         document.getElementById('targetTimeW').textContent = fmtDur(wRecord.duration);
         document.getElementById('targetMetaW').textContent =
-            `${wRecord.historical_swimmers?.display_name} · ${new Date(wRecord.swim_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})} · ${wRecord.water_temp_c}°C`;
+            `${wRecord.historical_swimmers?.display_name} · ${new Date(wRecord.swim_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})} · ${wRecord.water_temp_c}°C${wRecord.distance_km ? ' · '+wRecord.distance_km+'km GPS' : ''}`;
     }
     if (mRecord) {
         document.getElementById('targetTimeM').textContent = fmtDur(mRecord.duration);
         document.getElementById('targetMetaM').textContent =
-            `${mRecord.historical_swimmers?.display_name} · ${new Date(mRecord.swim_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})} · ${mRecord.water_temp_c}°C`;
+            `${mRecord.historical_swimmers?.display_name} · ${new Date(mRecord.swim_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})} · ${mRecord.water_temp_c}°C${mRecord.distance_km ? ' · '+mRecord.distance_km+'km GPS' : ''}`;
     }
 
     // Insights — women
@@ -2013,11 +2013,13 @@ async function loadCarina(liveTemp, windResult, marineResult) {
                 <div style="font-size:10px;color:var(--text-secondary);margin-bottom:2px;">🏆 WOMEN'S RECORD</div>
                 <div class="stat-val blue" style="font-size:17px;">${fmtDur(wRecord?.duration)}</div>
                 <div class="stat-lbl">${wRecord?.historical_swimmers?.display_name ?? '—'}</div>
+                <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">${wRecord?.distance_km ? wRecord.distance_km+'km GPS' : ''}</div>
             </div>
             <div class="stat-box hi">
                 <div style="font-size:10px;color:var(--text-secondary);margin-bottom:2px;">🏆 MEN'S RECORD</div>
                 <div class="stat-val blue" style="font-size:17px;">${fmtDur(mRecord?.duration)}</div>
                 <div class="stat-lbl">${mRecord?.historical_swimmers?.display_name ?? '—'}</div>
+                <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">${mRecord?.distance_km ? mRecord.distance_km+'km GPS' : ''}</div>
             </div>
         </div>
 
