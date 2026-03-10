@@ -835,23 +835,28 @@
             const conditionColors = { calm: '#10b981', choppy: '#f59e0b', rough: '#ef4444', extreme: '#7c3aed' };
 
             try {
-                // ── Stats (compact strip) ─────────────────────────────────────────────
-                const { data: stats } = await supabaseClient
-                    .from('user_stats').select('*').eq('user_id', currentUser.id).single();
+                // ── Community Stats this week ─────────────────────────────────────────
+                const since7dStats = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+                const [newMembersRes, newSpotsRes, weekLogsRes] = await Promise.all([
+                    supabaseClient.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', since7dStats),
+                    supabaseClient.from('spots').select('*', { count: 'exact', head: true }).gte('created_at', since7dStats),
+                    supabaseClient.from('temp_logs').select('*', { count: 'exact', head: true }).gte('created_at', since7dStats)
+                ]);
 
                 document.getElementById('dashStats').innerHTML = `
+                    <div style="font-size:11px; color:var(--text-secondary); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">This week</div>
                     <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
                         <div style="text-align:center; background:rgba(56,189,248,0.08); border-radius:10px; padding:10px 6px; border:1px solid rgba(56,189,248,0.12);">
-                            <div style="font-size:22px; font-weight:800; color:var(--ocean-light); line-height:1;">${stats?.total_logs || 0}</div>
-                            <div style="font-size:10px; color:var(--text-secondary); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; font-weight:600;">Logs</div>
+                            <div style="font-size:22px; font-weight:800; color:var(--ocean-light); line-height:1;">${newMembersRes.count || 0}</div>
+                            <div style="font-size:10px; color:var(--text-secondary); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; font-weight:600;">New Members</div>
                         </div>
                         <div style="text-align:center; background:rgba(16,185,129,0.08); border-radius:10px; padding:10px 6px; border:1px solid rgba(16,185,129,0.12);">
-                            <div style="font-size:22px; font-weight:800; color:var(--success); line-height:1;">${stats?.points || 0}</div>
-                            <div style="font-size:10px; color:var(--text-secondary); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; font-weight:600;">Points</div>
+                            <div style="font-size:22px; font-weight:800; color:var(--success); line-height:1;">${newSpotsRes.count || 0}</div>
+                            <div style="font-size:10px; color:var(--text-secondary); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; font-weight:600;">New Spots</div>
                         </div>
                         <div style="text-align:center; background:rgba(245,158,11,0.08); border-radius:10px; padding:10px 6px; border:1px solid rgba(245,158,11,0.12);">
-                            <div style="font-size:22px; font-weight:800; color:var(--warning); line-height:1;">${stats?.current_streak || 0}</div>
-                            <div style="font-size:10px; color:var(--text-secondary); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; font-weight:600;">Streak</div>
+                            <div style="font-size:22px; font-weight:800; color:var(--warning); line-height:1;">${weekLogsRes.count || 0}</div>
+                            <div style="font-size:10px; color:var(--text-secondary); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; font-weight:600;">Logs</div>
                         </div>
                     </div>`;
 
@@ -908,11 +913,21 @@
                         const noteLog = s.latestWithNote;
                         const noteUser = noteLog ? (spotNameMap[noteLog.user_id] || 'Swimmer').split(' ')[0] : null;
                         const noteText = noteLog?.notes;
+
+                        // Smart card alerting
+                        const notesLower = (noteText || '').toLowerCase();
+                        const isRed = cond === 'rough' || cond === 'extreme'
+                            || /jell|shark|sewage|danger/.test(notesLower);
+                        const isAmber = !isRed && log.temp_c < 12;
+                        const cardBg = isRed ? 'rgba(239,68,68,0.08)' : isAmber ? 'rgba(245,158,11,0.08)' : 'rgba(15,23,42,0.5)';
+                        const cardBorder = isRed ? 'rgba(239,68,68,0.35)' : isAmber ? 'rgba(245,158,11,0.35)' : 'rgba(56,189,248,0.12)';
+                        const tempColor = isRed ? '#ef4444' : isAmber ? '#f59e0b' : 'var(--ocean-light)';
+
                         return `
-                        <div style="background:rgba(15,23,42,0.5); border:1px solid rgba(56,189,248,0.12); border-radius:12px; padding:14px; margin-bottom:8px;">
+                        <div style="background:${cardBg}; border:1px solid ${cardBorder}; border-radius:12px; padding:14px; margin-bottom:8px;">
                             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                                 <div style="font-weight:700; color:var(--text-primary); font-size:15px;">${s.name}</div>
-                                <div style="font-size:22px; font-weight:800; color:var(--ocean-light); line-height:1;">${log.temp_c}°C</div>
+                                <div style="font-size:22px; font-weight:800; color:${tempColor}; line-height:1;">${log.temp_c}°C</div>
                             </div>
                             <div style="margin-top:7px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                                 ${cond ? `<span style="background:${condColor}20; color:${condColor}; border:1px solid ${condColor}40; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; text-transform:capitalize;">${cond}</span>` : ''}
@@ -920,55 +935,6 @@
                                 ${logCount ? `<span style="font-size:12px; color:var(--text-secondary);">· ${logCount}</span>` : ''}
                             </div>
                             ${noteText ? `<div style="margin-top:6px; font-size:12px; color:var(--text-secondary); font-style:italic; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${noteUser}: "${noteText}"</div>` : `<div style="margin-top:4px; font-size:12px; color:var(--text-secondary);">${latestUser}</div>`}
-                        </div>`;
-                    }).join('');
-                }
-
-                // ── Recent Activity (3 items, 48h) ────────────────────────────────────
-                const since48h = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-                const { data: recentLogs } = await supabaseClient
-                    .from('temp_logs')
-                    .select('id, user_id, temp_c, conditions, notes, created_at, spot_id, spots!temp_logs_spot_id_fkey(name, domain)')
-                    .gte('created_at', since48h)
-                    .order('created_at', { ascending: false })
-                    .limit(3);
-
-                const feedUserIds = [...new Set((recentLogs || []).map(l => l.user_id))];
-                const { data: feedProfiles } = feedUserIds.length
-                    ? await supabaseClient.from('profiles').select('id, display_name').in('id', feedUserIds)
-                    : { data: [] };
-                const feedNameMap = Object.fromEntries((feedProfiles || []).map(p => [p.id, p.display_name]));
-
-                const filteredLogs = recentLogs || [];
-
-                if (filteredLogs.length === 0) {
-                    document.getElementById('dashCommunityFeed').innerHTML =
-                        `<div style="text-align:center; padding:20px; color:var(--text-secondary); font-size:14px;">No recent activity</div>`;
-                } else {
-                    document.getElementById('dashCommunityFeed').innerHTML = filteredLogs.map(log => {
-                        const name = feedNameMap[log.user_id] || 'Swimmer';
-                        const initials = name.trim().split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-                        const spotName = log.spots?.name || 'Unknown spot';
-                        const timeAgo = getTimeAgo(new Date(log.created_at));
-                        const cond = log.conditions?.toLowerCase();
-                        const condColor = conditionColors[cond] || '#64748b';
-                        return `
-                        <div style="display:flex; gap:12px; padding:12px 0; border-bottom:1px solid rgba(56,189,248,0.08);">
-                            <div style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#0284c7,#0ea5e9); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:white; flex-shrink:0;">${initials}</div>
-                            <div style="flex:1; min-width:0;">
-                                <div style="font-size:14px; color:var(--text-primary); line-height:1.4;">
-                                    <span style="font-weight:600;">${name}</span>
-                                    <span style="color:var(--text-secondary);"> logged </span>
-                                    <span style="font-weight:600; color:var(--ocean-light);">${log.temp_c}°C</span>
-                                    <span style="color:var(--text-secondary);"> at </span>
-                                    <span style="font-weight:600;">${spotName}</span>
-                                </div>
-                                <div style="margin-top:5px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                                    ${cond ? `<span style="background:${condColor}20; color:${condColor}; border:1px solid ${condColor}40; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; text-transform:capitalize;">${cond}</span>` : ''}
-                                    <span style="font-size:12px; color:var(--text-secondary);">${timeAgo}</span>
-                                </div>
-                                ${log.notes ? `<div style="margin-top:5px; font-size:12px; color:var(--text-secondary); font-style:italic; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:260px;">"${log.notes}"</div>` : ''}
-                            </div>
                         </div>`;
                     }).join('');
                 }
@@ -7116,19 +7082,10 @@
                     <!-- 2. March Challenge (prominent) -->
                     <div id="dashMonthlyChallenge" style="margin-bottom:20px;"></div>
 
-                    <!-- 3. Best Spots Right Now -->
+                    <!-- 3. Latest Conditions -->
                     <div style="margin-bottom:20px;">
-                        <div style="font-weight:700; color:var(--text-primary); font-size:16px; margin-bottom:12px;">Best Spots Right Now</div>
+                        <div style="font-weight:700; color:var(--text-primary); font-size:16px; margin-bottom:12px;">Latest Conditions</div>
                         <div id="dashBestSpots">Loading...</div>
-                    </div>
-
-                    <!-- 4. Recent Activity (3 items) -->
-                    <div style="margin-bottom:20px;">
-                        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px;">
-                            <div style="font-weight:700; color:var(--text-primary); font-size:16px;">Recent Activity</div>
-                            <div onclick="showPage('history')" style="font-size:12px; color:var(--ocean-light); cursor:pointer; font-weight:600;">View All →</div>
-                        </div>
-                        <div id="dashCommunityFeed">Loading...</div>
                     </div>
 
                     <!-- 5. Coming Up (hidden until swim found) -->
@@ -8219,25 +8176,21 @@
                         : '';
 
                 el.innerHTML = `
-                <div onclick="showPage('leaderboard')" style="cursor:pointer;background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(249,115,22,0.08));border:1px solid rgba(245,158,11,0.3);border-radius:16px;padding:18px 18px 16px;position:relative;overflow:hidden;">
-                    <div style="position:absolute;top:-24px;right:-24px;width:90px;height:90px;background:radial-gradient(circle,rgba(245,158,11,0.18),transparent 70%);border-radius:50%;pointer-events:none;"></div>
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+                <div onclick="showPage('leaderboard')" style="cursor:pointer;background:rgba(15,23,42,0.6);border:1px solid rgba(56,189,248,0.2);border-radius:16px;padding:16px 18px;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
                         <div>
-                            <div style="font-size:11px;color:var(--warning);font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:3px;">${monthName} Challenge · ${daysLeft}d left</div>
+                            <div style="font-size:11px;color:var(--ocean-light);font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px;">${monthName} Challenge · ${daysLeft}d left</div>
                             <div style="font-size:16px;font-weight:800;color:var(--text-primary);">Log the Most Temps</div>
                             <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Win private stroke analysis</div>
                         </div>
-                        <div style="text-align:right;flex-shrink:0;">
-                            ${myRank ? `<div style="font-size:22px;font-weight:800;color:var(--warning);line-height:1;">#${myRank}</div><div style="font-size:11px;color:var(--text-secondary);">your rank</div>` : `<div style="font-size:12px;color:var(--text-secondary);">Log to enter</div>`}
-                        </div>
+                        ${myRank ? `<div style="background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.25);border-radius:10px;padding:6px 12px;text-align:center;flex-shrink:0;"><div style="font-size:20px;font-weight:800;color:var(--ocean-light);line-height:1;">#${myRank}</div><div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">your rank</div></div>` : `<div style="font-size:12px;color:var(--text-secondary);flex-shrink:0;">Log to enter</div>`}
                     </div>
-                    <div style="display:flex;gap:16px;margin-top:8px;">
-                        ${myCount > 0 ? `<div><div style="font-size:18px;font-weight:800;color:var(--ocean-light);line-height:1;">${myCount * 10}</div><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;">Your pts</div></div>` : ''}
-                        ${leader ? `<div><div style="font-size:18px;font-weight:800;color:var(--text-primary);line-height:1;">${leader.total_points}</div><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;">Leader</div></div>` : ''}
+                    <div style="display:flex;gap:20px;padding-top:10px;border-top:1px solid rgba(56,189,248,0.08);">
+                        ${myCount > 0 ? `<div><div style="font-size:18px;font-weight:800;color:var(--ocean-light);line-height:1;">${myCount * 10}</div><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;">Your pts</div></div>` : ''}
+                        ${leader ? `<div><div style="font-size:18px;font-weight:800;color:var(--text-primary);line-height:1;">${leader.total_points}</div><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;">Leader (${leader.display_name})</div></div>` : ''}
                     </div>
-                    ${leaderLine}
                     ${gapLine}
-                    <div style="margin-top:10px;font-size:12px;color:var(--warning);font-weight:600;display:flex;align-items:center;gap:3px;">View leaderboard <i data-lucide="chevron-right" style="width:12px;height:12px;"></i></div>
+                    <div style="margin-top:10px;font-size:12px;color:var(--ocean-light);font-weight:600;display:flex;align-items:center;gap:3px;">View leaderboard <i data-lucide="chevron-right" style="width:12px;height:12px;"></i></div>
                 </div>`;
                 initIcons();
             } catch (err) {
