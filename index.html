@@ -905,60 +905,6 @@
                     }).join('');
                 }
 
-                // ── Swimming Today ─────────────────────────────────────────────────────
-                const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-                const { data: todayLogs } = await supabaseClient
-                    .from('temp_logs')
-                    .select('user_id, temp_c, conditions, created_at, spot_id, spots!temp_logs_spot_id_fkey(name, domain)')
-                    .gte('created_at', todayStart.toISOString())
-                    .order('created_at', { ascending: false });
-
-                let todayFiltered = todayLogs || [];
-                if (currentUserProfile?.home_domain) {
-                    todayFiltered = todayFiltered.filter(l => l.spots?.domain === currentUserProfile.home_domain);
-                }
-
-                const todayUserIds = [...new Set(todayFiltered.map(l => l.user_id))];
-                const { data: todayProfiles } = todayUserIds.length
-                    ? await supabaseClient.from('profiles').select('id, display_name').in('id', todayUserIds)
-                    : { data: [] };
-                const todayNameMap = Object.fromEntries((todayProfiles || []).map(p => [p.id, p.display_name]));
-
-                const bySpot = {};
-                todayFiltered.forEach(log => {
-                    const sid = log.spot_id;
-                    if (!bySpot[sid]) bySpot[sid] = { name: log.spots?.name || 'Unknown', logs: [] };
-                    bySpot[sid].logs.push(log);
-                });
-                const spotGroups = Object.values(bySpot);
-
-                if (spotGroups.length === 0) {
-                    document.getElementById('dashSwimmingToday').innerHTML =
-                        `<div style="text-align:center; padding:16px; color:var(--text-secondary); font-size:14px;">No swims logged yet today</div>`;
-                } else {
-                    document.getElementById('dashSwimmingToday').innerHTML = spotGroups.map(g => {
-                        const latest = g.logs[0];
-                        const cond = latest.conditions?.toLowerCase();
-                        const condColor = conditionColors[cond] || '#64748b';
-                        const minAgo = Math.round((Date.now() - new Date(latest.created_at)) / 60000);
-                        const lastStr = minAgo < 60 ? `${minAgo}min ago` : `${Math.round(minAgo/60)}h ago`;
-                        const latestName = todayNameMap[latest.user_id] || 'Swimmer';
-                        return `
-                        <div style="background:rgba(15,23,42,0.5); border:1px solid rgba(56,189,248,0.12); border-radius:12px; padding:12px 14px; margin-bottom:8px;">
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <div style="font-weight:600; color:var(--text-primary); font-size:14px;">${g.name}</div>
-                                <div style="font-size:18px; font-weight:700; color:var(--ocean-light);">${latest.temp_c}°C</div>
-                            </div>
-                            <div style="margin-top:5px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                                <span style="font-size:12px; color:var(--text-secondary);">${g.logs.length} swim${g.logs.length>1?'s':''} logged</span>
-                                <span style="font-size:12px; color:var(--text-secondary);">Last: ${lastStr}</span>
-                                ${cond ? `<span style="background:${condColor}20; color:${condColor}; border:1px solid ${condColor}40; padding:1px 7px; border-radius:4px; font-size:11px; font-weight:600; text-transform:capitalize;">${cond}</span>` : ''}
-                            </div>
-                            <div style="margin-top:4px; font-size:12px; color:var(--text-secondary);">${latestName}</div>
-                        </div>`;
-                    }).join('');
-                }
-
                 // ── Coming Up ─────────────────────────────────────────────────────────
                 const { data: nextSwims } = await supabaseClient
                     .from('swim_events')
@@ -5000,11 +4946,38 @@
         }
 
         // Submit temperature log
+        let _locationConfirmResolve = null;
+
+        function confirmLocationBeforeSubmit(spotName) {
+            return new Promise(resolve => {
+                _locationConfirmResolve = resolve;
+                document.getElementById('locationConfirmSpotName').textContent = spotName;
+                const modal = document.getElementById('locationConfirmModal');
+                modal.style.display = 'flex';
+            });
+        }
+
+        function resolveLocationConfirm(confirmed) {
+            document.getElementById('locationConfirmModal').style.display = 'none';
+            if (_locationConfirmResolve) {
+                _locationConfirmResolve(confirmed);
+                _locationConfirmResolve = null;
+            }
+        }
+
         async function submitTempLog() {
             const submitBtn = document.getElementById('submitTempBtn');
             if (submitBtn.disabled) return;
+
+            // Location confirmation — show before any validation
+            const spotSelectEl = document.querySelector('#logTemp select[data-spots]');
+            const selectedOption = spotSelectEl?.options[spotSelectEl.selectedIndex];
+            const spotNameForConfirm = selectedOption?.textContent?.trim() || 'Unknown spot';
+            const locationConfirmed = await confirmLocationBeforeSubmit(spotNameForConfirm);
+            if (!locationConfirmed) return;
+
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Submitting...';
+            submitBtn.textContent = 'Sharing...';
 
             const spotId = document.querySelector('#logTemp select[data-spots]').value;
             const temp = parseFloat(document.getElementById('tempValue').textContent);
@@ -5030,13 +5003,13 @@
                 if (chosenTime > now) {
                     showToast('Cannot log a future time.', 'error');
                     submitBtn.disabled = false;
-                    submitBtn.textContent = 'Submit Temperature Log';
+                    submitBtn.textContent = 'Share Conditions';
                     return;
                 }
                 if (chosenTime < ago48) {
                     showToast('Cannot backdate more than 48 hours.', 'error');
                     submitBtn.disabled = false;
-                    submitBtn.textContent = 'Submit Temperature Log';
+                    submitBtn.textContent = 'Share Conditions';
                     return;
                 }
                 loggedAt = chosenTime.toISOString();
@@ -5062,7 +5035,7 @@
                 const minsLeft = 60 - minsAgo;
                 showToast(`You already logged this spot within an hour of that time. Try again in ${minsLeft > 0 ? minsLeft : 1} min.`, 'error');
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Submit Temperature Log';
+                submitBtn.textContent = 'Share Conditions';
                 return;
             }
 
@@ -5113,7 +5086,7 @@
                 const proceed = confirm(`⚠️ Temperature Check\n\n${warning}\n\nAre you sure this is correct?`);
                 if (!proceed) {
                     submitBtn.disabled = false;
-                    submitBtn.textContent = 'Submit Temperature Log';
+                    submitBtn.textContent = 'Share Conditions';
                     return;
                 }
             }
@@ -5160,9 +5133,9 @@
                 alert('Error logging temperature: ' + error.message);
                 console.error(error);
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Submit Temperature Log';
+                submitBtn.textContent = 'Share Conditions';
             } else {
-                showToast(loggedAt ? 'Backdated temp logged! +10 points!' : 'Temperature logged successfully! +10 points!', 'success');
+                showToast(loggedAt ? 'Backdated conditions logged! +10 points!' : 'Conditions shared with the community! +10 points!', 'success');
 
                 // Reset backdate picker
                 const bdPicker = document.getElementById('backdatePicker');
@@ -5186,7 +5159,7 @@
 
                 // Re-enable button and switch to dashboard
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Submit Temperature Log';
+                submitBtn.textContent = 'Share Conditions';
                 showPage('dashboard');
                 await loadDashboard();
                 await loadLeaderboard(); // Refresh leaderboard to show new points
@@ -6834,6 +6807,19 @@
     </div>
 
     <!-- Suggest Spot Modal -->
+    <!-- Location confirmation bottom sheet -->
+    <div id="locationConfirmModal" style="display:none; position:fixed; inset:0; z-index:10002; background:rgba(0,0,0,0.7); align-items:flex-end; justify-content:center;">
+        <div style="background:var(--surface); border-radius:20px 20px 0 0; padding:28px 24px 36px; width:100%; max-width:480px;">
+            <div style="font-size:11px; color:var(--text-secondary); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.8px; font-weight:700;">Confirm Location</div>
+            <div style="font-size:20px; font-weight:700; color:var(--text-primary); margin-bottom:6px;" id="locationConfirmSpotName"></div>
+            <div style="font-size:14px; color:var(--text-secondary); margin-bottom:24px;">Is this the right spot for your log?</div>
+            <div style="display:flex; gap:12px;">
+                <button onclick="resolveLocationConfirm(false)" style="flex:1; padding:14px; background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:12px; color:var(--text-primary); font-size:15px; font-weight:600; cursor:pointer;">Change</button>
+                <button onclick="resolveLocationConfirm(true)" style="flex:2; padding:14px; background:linear-gradient(135deg,#0284c7,#0ea5e9); border:none; border-radius:12px; color:white; font-size:15px; font-weight:700; cursor:pointer;">Yes, log here</button>
+            </div>
+        </div>
+    </div>
+
     <div id="suggestSpotModal"
         style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; padding: 20px; overflow-y: auto;">
         <div style="max-width: 500px; margin: 40px auto; background: var(--bg-dark); border: 2px solid var(--border); border-radius: 20px; padding: 30px;">
@@ -7068,11 +7054,6 @@
                         <div id="dashCommunityFeed">Loading...</div>
                     </div>
 
-                    <!-- 3. Logged Today -->
-                    <div style="margin-bottom:20px;">
-                        <div style="font-weight:700; color:var(--text-primary); font-size:16px; margin-bottom:12px;">Logged Today</div>
-                        <div id="dashSwimmingToday">Loading...</div>
-                    </div>
 
                     <!-- 4. Coming Up (hidden until swim found) -->
                     <div id="dashComingUp" style="display:none; margin-bottom:20px;"></div>
@@ -7089,7 +7070,7 @@
             <!-- LOG TEMP -->
             <div id="logTemp" class="page">
                 <div class="card">
-                    <div class="card-title">Log Temperature</div>
+                    <div class="card-title">Log Conditions</div>
 
                     <div class="form-group">
                         <div class="form-label"><i data-lucide="map-pin"
@@ -7142,15 +7123,15 @@
                         <div class="form-label"><i data-lucide="waves"
                                 style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px;"></i>
                             Conditions</div>
-                        <div class="toggle-group">
-                            <div class="toggle-btn active" onclick="toggleSingle(this)"><i data-lucide="sun"
-                                    style="width: 18px; height: 18px; vertical-align: middle;"></i> Calm</div>
-                            <div class="toggle-btn" onclick="toggleSingle(this)"><i data-lucide="waves"
-                                    style="width: 18px; height: 18px; vertical-align: middle;"></i> Choppy</div>
-                            <div class="toggle-btn" onclick="toggleSingle(this)"><i data-lucide="wind"
-                                    style="width: 18px; height: 18px; vertical-align: middle;"></i> Rough</div>
-                            <div class="toggle-btn" onclick="toggleSingle(this)"><i data-lucide="cloud-lightning"
-                                    style="width: 18px; height: 18px; vertical-align: middle;"></i> Extreme</div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;" id="conditionsGrid">
+                            <div class="toggle-btn active" onclick="toggleSingle(this)"
+                                style="padding:16px 12px; border-radius:12px; border:2px solid #10b981; background:rgba(16,185,129,0.15); color:#10b981; font-weight:700; font-size:15px; text-align:center;">Calm</div>
+                            <div class="toggle-btn" onclick="toggleSingle(this)"
+                                style="padding:16px 12px; border-radius:12px; border:2px solid rgba(245,158,11,0.3); background:rgba(245,158,11,0.08); color:var(--text-secondary); font-weight:700; font-size:15px; text-align:center;">Choppy</div>
+                            <div class="toggle-btn" onclick="toggleSingle(this)"
+                                style="padding:16px 12px; border-radius:12px; border:2px solid rgba(249,115,22,0.3); background:rgba(249,115,22,0.08); color:var(--text-secondary); font-weight:700; font-size:15px; text-align:center;">Rough</div>
+                            <div class="toggle-btn" onclick="toggleSingle(this)"
+                                style="padding:16px 12px; border-radius:12px; border:2px solid rgba(239,68,68,0.3); background:rgba(239,68,68,0.08); color:var(--text-secondary); font-weight:700; font-size:15px; text-align:center;">Extreme</div>
                         </div>
                     </div>
 
@@ -7178,14 +7159,8 @@
                         <textarea placeholder="Visibility, currents, etc..."></textarea>
                     </div>
 
-                    <button class="btn btn-success" id="submitTempBtn" onclick="submitTempLog()">Submit Temperature Log</button>
-
-                    <div class="info-box">
-                        <i data-lucide="database"
-                            style="width: 16px; height: 16px; vertical-align: middle; color: var(--ocean-light); margin-right: 4px;"></i>
-                        <strong>Live Database!</strong>
-                        This will save to YOUR Supabase database in real-time!
-                    </div>
+                    <button class="btn btn-success" id="submitTempBtn" onclick="submitTempLog()"
+                        style="font-size:16px; padding:16px; font-weight:700; letter-spacing:0.3px;">Share Conditions</button>
                 </div>
             </div>
 
