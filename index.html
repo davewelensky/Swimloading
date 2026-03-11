@@ -1692,6 +1692,307 @@
 
         // ========== SWIM EVENTS ==========
 
+        // ══════════════════════════════════════════════════════════════════
+        // "I'M SWIMMING" — lightweight swim posts
+        // ══════════════════════════════════════════════════════════════════
+
+        let _swimPostDateTime = null; // ISO string of selected swim time
+
+        function showImSwimming() {
+            _swimPostDateTime = null;
+
+            // Populate spot dropdown from global spots array
+            const sel = document.getElementById('swimPostSpot');
+            sel.innerHTML = spots
+                .filter(s => s.active !== false)
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(s => `<option value="${s.id}">${s.name}</option>`)
+                .join('');
+
+            // Pre-select GPS-suggested spot if available
+            if (gpsSuggestedSpotId) sel.value = gpsSuggestedSpotId;
+
+            document.getElementById('swimPostNote').value = '';
+            document.getElementById('swimPostCustomTime').value = '';
+            document.getElementById('swimCustomTimeWrap').style.display = 'none';
+
+            _buildSwimWhenButtons();
+
+            document.getElementById('imSwimmingModal').style.display = 'flex';
+            initIcons();
+        }
+
+        function hideImSwimming() {
+            document.getElementById('imSwimmingModal').style.display = 'none';
+        }
+
+        function _buildSwimWhenButtons() {
+            const now = new Date();
+            const options = [];
+
+            // In 1 hour — round up to nearest 15 min
+            const inHour = new Date(now.getTime() + 60 * 60 * 1000);
+            const mins = inHour.getMinutes();
+            const roundedMins = mins === 0 ? 0 : Math.ceil(mins / 15) * 15;
+            if (roundedMins === 60) { inHour.setHours(inHour.getHours() + 1, 0, 0, 0); }
+            else { inHour.setMinutes(roundedMins, 0, 0); }
+            options.push({ label: 'In 1 hour', dt: inHour });
+
+            // This afternoon (5pm) — only if it's before 4pm
+            if (now.getHours() < 16) {
+                const afternoon = new Date(now);
+                afternoon.setHours(17, 0, 0, 0);
+                options.push({ label: 'This afternoon (5pm)', dt: afternoon });
+            }
+
+            // Tomorrow morning (7am) — always
+            const tomorrow = new Date(now);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(7, 0, 0, 0);
+            options.push({ label: 'Tomorrow morning (7am)', dt: tomorrow });
+
+            // Custom
+            options.push({ label: 'Custom time', dt: null });
+
+            document.getElementById('swimWhenBtns').innerHTML = options.map((opt, i) => `
+                <button id="swimWhenBtn_${i}" onclick="_selectSwimWhen(${i})"
+                    data-dt="${opt.dt ? opt.dt.toISOString() : ''}"
+                    style="padding:8px 14px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;
+                        border:1px solid rgba(56,189,248,0.3); background:rgba(56,189,248,0.07);
+                        color:var(--text-primary); white-space:nowrap;">
+                    ${opt.label}
+                </button>`).join('');
+        }
+
+        function _selectSwimWhen(idx) {
+            document.querySelectorAll('#swimWhenBtns button').forEach((b, i) => {
+                const active = i === idx;
+                b.style.background = active ? 'rgba(56,189,248,0.22)' : 'rgba(56,189,248,0.07)';
+                b.style.borderColor = active ? 'var(--ocean-light)' : 'rgba(56,189,248,0.3)';
+                b.style.color = active ? 'var(--ocean-light)' : 'var(--text-primary)';
+            });
+            const btn = document.getElementById(`swimWhenBtn_${idx}`);
+            const dtStr = btn?.dataset?.dt;
+            if (dtStr) {
+                _swimPostDateTime = dtStr;
+                document.getElementById('swimCustomTimeWrap').style.display = 'none';
+            } else {
+                _swimPostDateTime = null;
+                document.getElementById('swimCustomTimeWrap').style.display = 'block';
+                document.getElementById('swimPostCustomTime').focus();
+            }
+        }
+
+        async function postImSwimming() {
+            const btn = document.getElementById('swimPostBtn');
+            const spotId = document.getElementById('swimPostSpot').value;
+            const note = document.getElementById('swimPostNote').value.trim();
+
+            // Resolve datetime
+            let swimDt = _swimPostDateTime
+                ? new Date(_swimPostDateTime)
+                : document.getElementById('swimPostCustomTime').value
+                    ? new Date(document.getElementById('swimPostCustomTime').value)
+                    : null;
+
+            if (!spotId) { showToast('Please select a location', 'error'); return; }
+            if (!swimDt || isNaN(swimDt.getTime())) {
+                showToast('Please select when you\'re swimming', 'error'); return;
+            }
+            if (swimDt <= new Date()) {
+                showToast('Pick a time in the future', 'error'); return;
+            }
+
+            // Spam check: max 5 posts per day per user
+            const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+            const { count } = await supabaseClient
+                .from('swimming_posts')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', currentUser.id)
+                .gte('created_at', dayStart.toISOString());
+            if ((count || 0) >= 5) {
+                showToast("You've posted 5 swims today. Focus on swimming! 😊", 'info');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Posting...';
+
+            const expiresAt = new Date(swimDt.getTime() + 2 * 60 * 60 * 1000);
+            const { error } = await supabaseClient.from('swimming_posts').insert({
+                user_id: currentUser.id,
+                spot_id: spotId,
+                swim_datetime: swimDt.toISOString(),
+                notes: note || null,
+                expires_at: expiresAt.toISOString(),
+            });
+
+            btn.disabled = false;
+            btn.textContent = 'Post';
+
+            if (error) {
+                console.error('swimming_posts insert error:', error);
+                showToast('Error posting — try again', 'error');
+                return;
+            }
+
+            hideImSwimming();
+            showToast("You're in the feed! 🌊", 'success');
+            loadSwimmingPosts();
+        }
+
+        async function loadSwimmingPosts() {
+            const feedEl = document.getElementById('swimPostsFeed');
+            if (!feedEl) return;
+
+            const now = new Date().toISOString();
+            const cutoff48h = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+
+            const { data: posts, error } = await supabaseClient
+                .from('swimming_posts')
+                .select(`id, user_id, swim_datetime, notes, spot_id, created_at,
+                    spots!swimming_posts_spot_id_fkey(name, domain),
+                    profiles!swimming_posts_user_id_fkey(display_name)`)
+                .gt('swim_datetime', now)
+                .lte('swim_datetime', cutoff48h)
+                .gt('expires_at', now)
+                .order('swim_datetime', { ascending: true })
+                .limit(20);
+
+            if (error) { console.error('loadSwimmingPosts error:', error); feedEl.style.display = 'none'; return; }
+
+            // Apply home_domain filter
+            let filtered = posts || [];
+            if (currentUserProfile?.home_domain) {
+                filtered = filtered.filter(p => !p.spots?.domain || p.spots.domain === currentUserProfile.home_domain);
+            }
+
+            if (filtered.length === 0) { feedEl.style.display = 'none'; return; }
+
+            // Fetch all interests for these posts in one query
+            const postIds = filtered.map(p => p.id);
+            const { data: interests } = await supabaseClient
+                .from('swimming_post_interest')
+                .select('post_id, user_id, interest_type')
+                .in('post_id', postIds);
+
+            // Build per-post interest map
+            const iMap = {};
+            (interests || []).forEach(i => {
+                if (!iMap[i.post_id]) iMap[i.post_id] = { joins: 0, maybes: 0, myType: null };
+                if (i.interest_type === 'join') iMap[i.post_id].joins++;
+                else iMap[i.post_id].maybes++;
+                if (i.user_id === currentUser?.id) iMap[i.post_id].myType = i.interest_type;
+            });
+
+            const display = filtered.slice(0, 5);
+            const hasMore = filtered.length > 5;
+
+            feedEl.style.display = 'block';
+            feedEl.innerHTML = `
+                <div style="font-weight:700; color:var(--text-primary); font-size:16px; margin-bottom:12px;">Who's Swimming Soon</div>
+                ${display.map(p => _renderSwimPostCard(p, iMap[p.id] || { joins: 0, maybes: 0, myType: null })).join('')}
+                ${hasMore ? `<div style="text-align:right; margin-top:4px;"><a onclick="loadAllSwimmingPosts()" style="font-size:13px; color:var(--ocean-light); cursor:pointer;">View all ${filtered.length} →</a></div>` : ''}
+            `;
+            initIcons();
+        }
+
+        function _renderSwimPostCard(post, interest) {
+            const name = post.profiles?.display_name || 'Swimmer';
+            const initials = name.split(' ').map(w => w[0] || '').join('').toUpperCase().slice(0, 2) || '?';
+            const spotName = post.spots?.name || 'Unknown spot';
+            const dt = new Date(post.swim_datetime);
+            const todayStr = new Date().toDateString();
+            const tomorrowStr = new Date(Date.now() + 86400000).toDateString();
+            const dayLabel = dt.toDateString() === todayStr ? 'Today'
+                : dt.toDateString() === tomorrowStr ? 'Tomorrow'
+                : dt.toLocaleDateString('en-ZA', { weekday: 'short', month: 'short', day: 'numeric' });
+            const timeLabel = dt.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+            const isMe = post.user_id === currentUser?.id;
+            const joinActive = interest.myType === 'join';
+            const maybeActive = interest.myType === 'maybe';
+
+            return `
+            <div style="background:rgba(15,23,42,0.5); border:1px solid rgba(56,189,248,0.12); border-radius:12px; padding:14px; margin-bottom:10px;">
+                <div style="display:flex; gap:12px; align-items:flex-start;">
+                    <div style="width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,#059669,#10b981); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:white; flex-shrink:0;">${initials}</div>
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-weight:700; font-size:14px; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+                            ${name} is swimming
+                            ${isMe ? `<button onclick="deleteSwimPost('${post.id}')" title="Remove post" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size:13px; opacity:0.5; line-height:1; padding:0;">✕</button>` : ''}
+                        </div>
+                        <div style="font-size:13px; color:var(--text-secondary); margin-top:3px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                            <i data-lucide="map-pin" style="width:12px;height:12px;flex-shrink:0;"></i> ${spotName}
+                            <span style="color:rgba(100,116,139,0.5);">·</span>
+                            <i data-lucide="clock" style="width:12px;height:12px;flex-shrink:0;"></i> ${dayLabel} • ${timeLabel}
+                        </div>
+                        ${post.notes ? `<div style="margin-top:5px; font-size:12px; color:var(--text-secondary); font-style:italic;">"${post.notes}"</div>` : ''}
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center; margin-top:12px;">
+                    <button onclick="toggleSwimInterest('${post.id}','join')"
+                        style="padding:7px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;
+                            border:1px solid ${joinActive ? '#0ea5e9' : 'rgba(56,189,248,0.3)'};
+                            background:${joinActive ? 'rgba(14,165,233,0.18)' : 'rgba(56,189,248,0.06)'};
+                            color:${joinActive ? 'var(--ocean-light)' : 'var(--text-secondary)'};">
+                        ${joinActive ? '✓ Joining' : 'Join'}
+                    </button>
+                    <button onclick="toggleSwimInterest('${post.id}','maybe')"
+                        style="padding:7px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;
+                            border:1px solid ${maybeActive ? 'rgba(56,189,248,0.5)' : 'rgba(56,189,248,0.18)'};
+                            background:transparent;
+                            color:${maybeActive ? 'var(--ocean-light)' : 'var(--text-secondary)'};">
+                        ${maybeActive ? '✓ Maybe' : 'Maybe'}
+                    </button>
+                    ${interest.joins > 0 ? `<span style="font-size:12px; color:var(--text-secondary); margin-left:2px;">${interest.joins} joining</span>` : ''}
+                </div>
+            </div>`;
+        }
+
+        async function toggleSwimInterest(postId, interestType) {
+            if (!currentUser) return;
+
+            // Check current state from DB (small, fast query)
+            const { data: existing } = await supabaseClient
+                .from('swimming_post_interest')
+                .select('interest_type')
+                .eq('post_id', postId)
+                .eq('user_id', currentUser.id)
+                .maybeSingle();
+
+            if (existing?.interest_type === interestType) {
+                // Same button tapped again → remove interest (toggle off)
+                await supabaseClient.from('swimming_post_interest')
+                    .delete()
+                    .eq('post_id', postId)
+                    .eq('user_id', currentUser.id);
+            } else {
+                // New or switched interest → upsert
+                await supabaseClient.from('swimming_post_interest').upsert({
+                    post_id: postId,
+                    user_id: currentUser.id,
+                    interest_type: interestType,
+                }, { onConflict: 'post_id,user_id' });
+            }
+
+            loadSwimmingPosts(); // re-render with fresh counts
+        }
+
+        async function deleteSwimPost(postId) {
+            if (!confirm('Remove your swim post?')) return;
+            const { error } = await supabaseClient.from('swimming_posts')
+                .delete()
+                .eq('id', postId)
+                .eq('user_id', currentUser.id);
+            if (!error) loadSwimmingPosts();
+        }
+
+        function loadAllSwimmingPosts() {
+            // Temporary: show toast until a full "all posts" view is built
+            showToast('Showing top 5 — full list coming soon', 'info');
+        }
+
+        // ══════════════════════════════════════════════════════════════════
         // Show/hide create event modal
         function showCreateEvent() {
             // Default to 08:00 AM today
@@ -1784,6 +2085,7 @@
 
         // Load events
         async function loadEvents() {
+            loadSwimmingPosts(); // non-blocking — loads "Who's Swimming Soon" feed in parallel
             try {
                 console.log('Loading events...');
 
@@ -7402,11 +7704,21 @@
                 <div class="card">
                     <div class="card-title">Group Swims</div>
 
-                    <!-- Create Event Button -->
-                    <button class="btn btn-success" onclick="showCreateEvent()" style="margin-bottom: 20px;">
-                        <i data-lucide="plus" style="width: 16px; height: 16px; vertical-align: middle;"></i> Create
-                        New Swim
+                    <!-- I'm Swimming — primary action -->
+                    <button class="btn" onclick="showImSwimming()"
+                        style="width:100%; margin-bottom:8px; background:linear-gradient(135deg,#059669,#10b981); color:white; font-weight:700; font-size:16px; padding:14px; border-radius:12px; border:none; letter-spacing:0.3px; display:flex; align-items:center; justify-content:center; gap:8px;">
+                        <i data-lucide="waves" style="width:18px;height:18px;"></i>
+                        I'm Swimming
                     </button>
+                    <div style="text-align:right; margin-bottom:20px;">
+                        <a onclick="showCreateEvent()" style="font-size:13px; color:var(--text-secondary); cursor:pointer; text-decoration:underline; text-underline-offset:3px;">Create Group Swim →</a>
+                    </div>
+
+                    <!-- Who's Swimming Soon feed (hidden until posts found) -->
+                    <div id="swimPostsFeed" style="display:none; margin-bottom:24px;"></div>
+
+                    <!-- Upcoming Events header -->
+                    <div style="font-weight:700; color:var(--text-primary); font-size:16px; margin-bottom:14px;">Upcoming Events</div>
 
                     <!-- Event Filters -->
                     <div style="display: flex; gap: 10px; margin-bottom: 20px;">
@@ -7449,6 +7761,47 @@
                     </div>
                 </div>
 
+                <!-- ── "I'm Swimming" bottom sheet ──────────────────── -->
+                <div id="imSwimmingModal" style="display:none; position:fixed; inset:0; z-index:10003; background:rgba(0,0,0,0.75); align-items:flex-end; justify-content:center;">
+                    <div style="background:var(--surface); border-radius:20px 20px 0 0; padding:24px 20px 36px; width:100%; max-width:480px;">
+
+                        <!-- Header -->
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                            <div style="font-size:19px; font-weight:800; color:var(--text-primary);">I'm Swimming 🌊</div>
+                            <button onclick="hideImSwimming()" style="background:none; border:none; color:var(--text-secondary); font-size:22px; cursor:pointer; line-height:1;">✕</button>
+                        </div>
+
+                        <!-- Field 1: Location -->
+                        <div class="form-group">
+                            <div class="form-label"><i data-lucide="map-pin" style="width:13px;height:13px;vertical-align:middle;"></i> Where?</div>
+                            <select id="swimPostSpot" style="width:100%;"></select>
+                        </div>
+
+                        <!-- Field 2: When -->
+                        <div class="form-group">
+                            <div class="form-label"><i data-lucide="clock" style="width:13px;height:13px;vertical-align:middle;"></i> When?</div>
+                            <div id="swimWhenBtns" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;"></div>
+                            <div id="swimCustomTimeWrap" style="display:none;">
+                                <input type="datetime-local" id="swimPostCustomTime" style="width:100%; background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:10px; padding:10px 12px; color:var(--text-primary); font-size:14px;">
+                            </div>
+                        </div>
+
+                        <!-- Field 3: Note (optional) -->
+                        <div class="form-group" style="margin-bottom:20px;">
+                            <div class="form-label">Note <span style="color:var(--text-secondary); font-weight:400;">(optional)</span></div>
+                            <input type="text" id="swimPostNote" maxlength="100"
+                                placeholder="e.g., Morning lap, 2km loop, training swim..."
+                                style="width:100%; background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:10px; padding:10px 12px; color:var(--text-primary); font-size:14px;">
+                        </div>
+
+                        <button onclick="postImSwimming()" id="swimPostBtn"
+                            style="width:100%; padding:14px; background:linear-gradient(135deg,#059669,#10b981); border:none; border-radius:12px; color:white; font-size:16px; font-weight:700; cursor:pointer; letter-spacing:0.3px;">
+                            Post
+                        </button>
+                    </div>
+                </div>
+                <!-- ── End "I'm Swimming" modal ─────────────────────── -->
+
                 <!-- Create Event Modal -->
                 <div id="createEventModal"
                     style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; padding: 20px; overflow-y: auto;">
@@ -7456,7 +7809,7 @@
                         style="max-width: 500px; margin: 40px auto; background: var(--bg-dark); border: 2px solid var(--border); border-radius: 20px; padding: 30px;">
                         <div
                             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                            <h3 style="color: var(--text-primary); font-size: 20px;">Create New Swim</h3>
+                            <h3 style="color: var(--text-primary); font-size: 20px;">Create Group Swim</h3>
                             <button onclick="hideCreateEvent()"
                                 style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; padding: 0; width: auto;">✕</button>
                         </div>
