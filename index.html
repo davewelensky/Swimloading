@@ -410,10 +410,23 @@
             // Deep link: if URL has ?swim=ID, open that swim's details
             const urlParams = new URLSearchParams(window.location.search);
             const swimId = urlParams.get('swim');
+            const spotDeepId = urlParams.get('spot');
+
             if (swimId) {
                 // Clean the URL so it doesn't re-trigger on refresh
                 window.history.replaceState({}, '', window.location.pathname + window.location.hash);
                 setTimeout(() => viewEventDetails(swimId), 300);
+            } else if (spotDeepId) {
+                // Deep link: ?spot=ID → open Trends tab → spot detail view
+                window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+                setTimeout(async () => {
+                    const spotInfo = spots.find(s => s.id === spotDeepId);
+                    showPage('history');
+                    await loadTrends();
+                    if (spotInfo) {
+                        await openSpotDetail(spotInfo.id, spotInfo.name, spotInfo.code);
+                    }
+                }, 400);
             }
         }
 
@@ -5041,14 +5054,15 @@
             dismissShareSheet();
         }
 
-        // Phase 3: Share spot conditions from Latest Conditions cards
+        // Phase 3+4: Share spot conditions from Latest Conditions cards (with deep link)
         function shareSpotConditions(spotId) {
             const d = (window._spotShareData || {})[spotId];
             if (!d) return;
             const condStr = d.cond ? ` • ${d.cond.charAt(0).toUpperCase() + d.cond.slice(1)}` : '';
             const countStr = d.logCount ? `\n${d.logCount}` : '';
             const noteStr = d.noteText ? `\n"${d.noteText}"` : '';
-            const msg = `${d.name}: ${d.temp}°C${condStr}${countStr}${noteStr}\n\nCheck conditions on SwimLoading — swimloading.com`;
+            const deepLink = `https://swimloading.com/app?spot=${encodeURIComponent(spotId)}`;
+            const msg = `${d.name}: ${d.temp}°C${condStr}${countStr}${noteStr}\n\nCheck conditions → ${deepLink}`;
             window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
