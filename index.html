@@ -4999,6 +4999,33 @@
             }
         }
 
+        // ── Phase 1: Share conditions after logging ──────────────────────────────
+        let _shareSheetResolve = null;
+        let _shareSheetMessage = '';
+
+        function showShareSheet(spotName, temp, conditions) {
+            const cond = conditions ? conditions.charAt(0).toUpperCase() + conditions.slice(1) : '';
+            const message = `${spotName}: ${temp}°C${cond ? ' • ' + cond : ''}\nLogged on SwimLoading — swimloading.com`;
+            _shareSheetMessage = message;
+            document.getElementById('shareSheetTitle').textContent = `${spotName}: ${temp}°C${cond ? ' • ' + cond : ''}`;
+            document.getElementById('shareSheetMessage').textContent = message;
+            return new Promise(resolve => {
+                _shareSheetResolve = resolve;
+                document.getElementById('shareConditionsModal').style.display = 'flex';
+            });
+        }
+
+        function dismissShareSheet() {
+            document.getElementById('shareConditionsModal').style.display = 'none';
+            if (_shareSheetResolve) { _shareSheetResolve(); _shareSheetResolve = null; }
+        }
+
+        function shareSheetWhatsApp() {
+            const url = `https://wa.me/?text=${encodeURIComponent(_shareSheetMessage)}`;
+            window.open(url, '_blank');
+            dismissShareSheet();
+        }
+
         async function submitTempLog() {
             const submitBtn = document.getElementById('submitTempBtn');
             if (submitBtn.disabled) return;
@@ -5190,6 +5217,11 @@
 
                 // Check for new badges after logging a temp
                 await checkAndAwardBadges();
+
+                // Phase 1: Show WhatsApp share sheet for live (non-backdated) logs
+                if (!loggedAt) {
+                    await showShareSheet(spotNameForConfirm, temp, conditions);
+                }
 
                 // Re-enable button and switch to dashboard
                 submitBtn.disabled = false;
@@ -6841,6 +6873,23 @@
     </div>
 
     <!-- Suggest Spot Modal -->
+    <!-- Share conditions bottom sheet (Phase 1) -->
+    <div id="shareConditionsModal" style="display:none; position:fixed; inset:0; z-index:10002; background:rgba(0,0,0,0.7); align-items:flex-end; justify-content:center;">
+        <div style="background:var(--surface); border-radius:20px 20px 0 0; padding:28px 24px 36px; width:100%; max-width:480px;">
+            <div style="font-size:11px; color:var(--text-secondary); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.8px; font-weight:700;">Conditions logged</div>
+            <div style="font-size:20px; font-weight:800; color:var(--text-primary); margin-bottom:4px;" id="shareSheetTitle"></div>
+            <div style="font-size:14px; color:var(--text-secondary); margin-bottom:16px;">Share with your swim group?</div>
+            <div style="background:rgba(37,211,102,0.08); border:1px solid rgba(37,211,102,0.25); border-radius:12px; padding:14px 16px; margin-bottom:20px;">
+                <div style="font-size:13px; color:var(--text-secondary); margin-bottom:4px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; font-size:10px;">Message preview</div>
+                <div id="shareSheetMessage" style="font-size:14px; color:var(--text-primary); line-height:1.5; white-space:pre-line;"></div>
+            </div>
+            <div style="display:flex; gap:12px;">
+                <button onclick="dismissShareSheet()" style="flex:1; padding:14px; background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:12px; color:var(--text-secondary); font-size:15px; font-weight:600; cursor:pointer;">Skip</button>
+                <button onclick="shareSheetWhatsApp()" style="flex:2; padding:14px; background:#25d366; border:none; border-radius:12px; color:white; font-size:15px; font-weight:700; cursor:pointer;">Share on WhatsApp</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Location confirmation bottom sheet -->
     <div id="locationConfirmModal" style="display:none; position:fixed; inset:0; z-index:10002; background:rgba(0,0,0,0.7); align-items:flex-end; justify-content:center;">
         <div style="background:var(--surface); border-radius:20px 20px 0 0; padding:28px 24px 36px; width:100%; max-width:480px;">
