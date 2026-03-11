@@ -8671,14 +8671,18 @@
 
         async function loadSpotlightBanner() {
             try {
-                const { data } = await supabaseClient
+                // Prioritise 'live' over 'upcoming': order status desc (live > upcoming alphabetically
+                // is not reliable), so fetch both and pick live first in JS
+                const { data: spotRows } = await supabaseClient
                     .from('spotlights')
                     .select('*, spotlight_updates(*)')
                     .eq('active', true)
                     .in('status', ['upcoming', 'live'])
                     .order('created_at', { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
+                    .limit(5);
+                const data = (spotRows || []).find(r => r.status === 'live') ||
+                             (spotRows || []).find(r => r.status === 'upcoming') ||
+                             null;
 
                 const banner = document.getElementById('spotlightBanner');
                 if (!data || !banner) return;
