@@ -31,8 +31,10 @@ CREATE POLICY "Users delete own swimming_posts"
 
 -- Index for feed query (most common: upcoming posts ordered by swim_datetime)
 CREATE INDEX IF NOT EXISTS idx_swimming_posts_datetime
-    ON swimming_posts (swim_datetime ASC)
-    WHERE expires_at > now();
+    ON swimming_posts (swim_datetime ASC);
+
+CREATE INDEX IF NOT EXISTS idx_swimming_posts_expires
+    ON swimming_posts (expires_at ASC);
 
 
 -- ── Table 2: swimming_post_interest ───────────────────────────────────────
