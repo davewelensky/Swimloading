@@ -24,6 +24,11 @@ CREATE POLICY "Users insert own swimming_posts"
     ON swimming_posts FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
+-- Users can only update their own posts
+CREATE POLICY "Users update own swimming_posts"
+    ON swimming_posts FOR UPDATE
+    USING (auth.uid() = user_id);
+
 -- Users can only delete their own posts
 CREATE POLICY "Users delete own swimming_posts"
     ON swimming_posts FOR DELETE

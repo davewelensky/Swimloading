@@ -1696,12 +1696,14 @@
         // "I'M SWIMMING" — lightweight swim posts
         // ══════════════════════════════════════════════════════════════════
 
-        let _swimPostDateTime = null; // ISO string of selected swim time
+        let _swimPostDateTime = null;  // ISO string of selected swim time
+        let _editingSwimPostId = null; // null = new post, string = editing existing
 
-        function showImSwimming() {
+        function showImSwimming(editPayload) {
             _swimPostDateTime = null;
+            _editingSwimPostId = editPayload?.id || null;
 
-            // Populate spot dropdown from global spots array
+            // Populate spot dropdown
             const sel = document.getElementById('swimPostSpot');
             sel.innerHTML = spots
                 .filter(s => s.active !== false)
@@ -1709,24 +1711,48 @@
                 .map(s => `<option value="${s.id}">${s.name}</option>`)
                 .join('');
 
-            // Pre-select GPS-suggested spot if available
-            if (gpsSuggestedSpotId) sel.value = gpsSuggestedSpotId;
-
-            document.getElementById('swimPostNote').value = '';
-            document.getElementById('swimPostCustomTime').value = '';
-            document.getElementById('swimCustomTimeWrap').style.display = 'none';
-
-            _buildSwimWhenButtons();
+            if (editPayload) {
+                // Pre-fill for editing
+                if (editPayload.spotId) sel.value = editPayload.spotId;
+                document.getElementById('swimPostNote').value = editPayload.note || '';
+                // Show current time in custom picker
+                if (editPayload.swimDt) {
+                    const d = new Date(editPayload.swimDt);
+                    // Format for datetime-local input: YYYY-MM-DDTHH:MM
+                    const pad = n => String(n).padStart(2, '0');
+                    document.getElementById('swimPostCustomTime').value =
+                        `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                    _swimPostDateTime = editPayload.swimDt;
+                }
+                document.getElementById('swimCustomTimeWrap').style.display = 'block';
+                document.getElementById('swimPostBtn').textContent = 'Update';
+                _buildSwimWhenButtons(true); // show quick-select but don't auto-select any
+            } else {
+                // New post
+                if (gpsSuggestedSpotId) sel.value = gpsSuggestedSpotId;
+                document.getElementById('swimPostNote').value = '';
+                document.getElementById('swimPostCustomTime').value = '';
+                document.getElementById('swimCustomTimeWrap').style.display = 'none';
+                document.getElementById('swimPostBtn').textContent = 'Post';
+                _buildSwimWhenButtons(false);
+            }
 
             document.getElementById('imSwimmingModal').style.display = 'flex';
             initIcons();
         }
 
         function hideImSwimming() {
+            _editingSwimPostId = null;
             document.getElementById('imSwimmingModal').style.display = 'none';
         }
 
-        function _buildSwimWhenButtons() {
+        function editSwimPost(postId) {
+            const d = (window._swimCardShareData || {})[postId];
+            if (!d) return;
+            showImSwimming({ id: postId, spotId: d.spotId, swimDt: d.swimDt, note: d.note });
+        }
+
+        function _buildSwimWhenButtons(editMode = false) {
             const now = new Date();
             const options = [];
 
@@ -1803,44 +1829,66 @@
                 showToast('Pick a time in the future', 'error'); return;
             }
 
-            // Spam check: max 5 posts per day per user
-            const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
-            const { count } = await supabaseClient
-                .from('swimming_posts')
-                .select('*', { count: 'exact', head: true })
-                .eq('user_id', currentUser.id)
-                .gte('created_at', dayStart.toISOString());
-            if ((count || 0) >= 5) {
-                showToast("You've posted 5 swims today. Focus on swimming! 😊", 'info');
-                return;
-            }
+            const expiresAt = new Date(swimDt.getTime() + 2 * 60 * 60 * 1000);
+            const spotName = document.getElementById('swimPostSpot').options[document.getElementById('swimPostSpot').selectedIndex]?.text || 'the spot';
 
             btn.disabled = true;
-            btn.textContent = 'Posting...';
+            btn.textContent = _editingSwimPostId ? 'Updating...' : 'Posting...';
 
-            const expiresAt = new Date(swimDt.getTime() + 2 * 60 * 60 * 1000);
-            const { error } = await supabaseClient.from('swimming_posts').insert({
-                user_id: currentUser.id,
-                spot_id: spotId,
-                swim_datetime: swimDt.toISOString(),
-                notes: note || null,
-                expires_at: expiresAt.toISOString(),
-            });
+            let error;
+
+            if (_editingSwimPostId) {
+                // ── Update existing post ──
+                ({ error } = await supabaseClient.from('swimming_posts')
+                    .update({
+                        spot_id: spotId,
+                        swim_datetime: swimDt.toISOString(),
+                        notes: note || null,
+                        expires_at: expiresAt.toISOString(),
+                    })
+                    .eq('id', _editingSwimPostId)
+                    .eq('user_id', currentUser.id));
+            } else {
+                // ── Spam check only for new posts ──
+                const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+                const { count } = await supabaseClient
+                    .from('swimming_posts')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('user_id', currentUser.id)
+                    .gte('created_at', dayStart.toISOString());
+                if ((count || 0) >= 5) {
+                    btn.disabled = false;
+                    btn.textContent = 'Post';
+                    showToast("You've posted 5 swims today. Focus on swimming! 😊", 'info');
+                    return;
+                }
+                // ── Insert new post ──
+                ({ error } = await supabaseClient.from('swimming_posts').insert({
+                    user_id: currentUser.id,
+                    spot_id: spotId,
+                    swim_datetime: swimDt.toISOString(),
+                    notes: note || null,
+                    expires_at: expiresAt.toISOString(),
+                }));
+            }
 
             btn.disabled = false;
-            btn.textContent = 'Post';
+            btn.textContent = _editingSwimPostId ? 'Update' : 'Post';
 
             if (error) {
-                console.error('swimming_posts insert error:', error);
-                showToast('Error posting — try again', 'error');
+                console.error('swimming_posts error:', error);
+                showToast('Error saving — try again', 'error');
                 return;
             }
 
+            const wasEditing = !!_editingSwimPostId;
             hideImSwimming();
             loadSwimmingPosts();
-            // Show WhatsApp share prompt
-            const spotName = document.getElementById('swimPostSpot').options[document.getElementById('swimPostSpot').selectedIndex]?.text || 'the spot';
-            showSwimPostShare(spotName, swimDt.toISOString(), note);
+            if (wasEditing) {
+                showToast('Swim updated ✓', 'success');
+            } else {
+                showSwimPostShare(spotName, swimDt.toISOString(), note);
+            }
         }
 
         async function loadSwimmingPosts() {
@@ -1935,7 +1983,8 @@
                     <div style="flex:1; min-width:0;">
                         <div style="font-weight:700; font-size:14px; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
                             ${name} is swimming
-                            ${isMe ? `<button onclick="deleteSwimPost('${post.id}')" title="Remove post" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size:13px; opacity:0.5; line-height:1; padding:0;">✕</button>` : ''}
+                            ${isMe ? `<button onclick="editSwimPost('${post.id}')" title="Edit post" style="background:none; border:none; color:var(--ocean-light); cursor:pointer; font-size:13px; opacity:0.7; line-height:1; padding:0; margin-left:auto;">✏️</button>
+                             <button onclick="deleteSwimPost('${post.id}')" title="Remove post" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size:13px; opacity:0.5; line-height:1; padding:0;">✕</button>` : ''}
                         </div>
                         <div style="font-size:13px; color:var(--text-secondary); margin-top:3px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
                             <i data-lucide="map-pin" style="width:12px;height:12px;flex-shrink:0;"></i> ${spotName}
