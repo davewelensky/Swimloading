@@ -95,6 +95,19 @@
 
         // Check authentication on load
         async function checkAuth() {
+            // Phase 5: Capture share referral BEFORE routing (URL may be cleared after auth)
+            // Stored in localStorage so it survives through the signup flow
+            try {
+                const _cp = new URLSearchParams(window.location.search);
+                if (_cp.get('ref') === 'share') {
+                    const _rt = _cp.get('swim') ? 'swim' : _cp.get('spot') ? 'spot' : null;
+                    const _ri = _cp.get('swim') || _cp.get('spot');
+                    if (_rt && _ri) {
+                        localStorage.setItem('_swimref', JSON.stringify({ type: _rt, id: _ri, ts: Date.now() }));
+                    }
+                }
+            } catch (_) {}
+
             // Use the hash we captured BEFORE Supabase could consume it
             // (Supabase's createClient auto-processes and clears auth hashes)
 
@@ -474,6 +487,23 @@
                 } catch (e) {
                     console.log('Profile insert note:', e);
                 }
+
+                // Phase 5: Log conversion if user arrived via a shared link
+                try {
+                    const _refRaw = localStorage.getItem('_swimref');
+                    if (_refRaw) {
+                        const _ref = JSON.parse(_refRaw);
+                        // Only count within 7 days of the click
+                        if (Date.now() - _ref.ts < 7 * 24 * 60 * 60 * 1000) {
+                            await supabaseClient.from('share_conversions').insert({
+                                user_id:       data.user.id,
+                                ref_type:      _ref.type,
+                                ref_target_id: _ref.id,
+                            });
+                        }
+                        localStorage.removeItem('_swimref');
+                    }
+                } catch (_) {}
 
                 // Check if auto-confirmed (session exists) or needs email verification
                 if (data.session) {
@@ -2467,7 +2497,7 @@
 
         // Share a swim via WhatsApp or copy link
         function getSwimShareUrl(eventId) {
-            return `https://swimloading.com/app?swim=${eventId}`;
+            return `https://swimloading.com/r?type=swim&id=${encodeURIComponent(eventId)}`;
         }
 
         function getSwimShareText(event) {
@@ -5054,15 +5084,15 @@
             dismissShareSheet();
         }
 
-        // Phase 3+4: Share spot conditions from Latest Conditions cards (with deep link)
+        // Phase 3+4+5: Share spot conditions from Latest Conditions cards (tracked deep link)
         function shareSpotConditions(spotId) {
             const d = (window._spotShareData || {})[spotId];
             if (!d) return;
             const condStr = d.cond ? ` • ${d.cond.charAt(0).toUpperCase() + d.cond.slice(1)}` : '';
             const countStr = d.logCount ? `\n${d.logCount}` : '';
             const noteStr = d.noteText ? `\n"${d.noteText}"` : '';
-            const deepLink = `https://swimloading.com/app?spot=${encodeURIComponent(spotId)}`;
-            const msg = `${d.name}: ${d.temp}°C${condStr}${countStr}${noteStr}\n\nCheck conditions → ${deepLink}`;
+            const trackLink = `https://swimloading.com/r?type=spot&id=${encodeURIComponent(spotId)}`;
+            const msg = `${d.name}: ${d.temp}°C${condStr}${countStr}${noteStr}\n\nCheck conditions → ${trackLink}`;
             window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
