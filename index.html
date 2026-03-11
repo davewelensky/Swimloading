@@ -1848,11 +1848,10 @@
             const now = new Date().toISOString();
             const cutoff48h = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
+            // Fetch posts + spot info only (no profiles join — swimming_posts.user_id → auth.users, not profiles)
             const { data: posts, error } = await supabaseClient
                 .from('swimming_posts')
-                .select(`id, user_id, swim_datetime, notes, spot_id, created_at,
-                    spots!swimming_posts_spot_id_fkey(name, domain),
-                    profiles!swimming_posts_user_id_fkey(display_name)`)
+                .select('id, user_id, swim_datetime, notes, spot_id, created_at, spots!swimming_posts_spot_id_fkey(name, domain)')
                 .gt('swim_datetime', now)
                 .lte('swim_datetime', cutoff48h)
                 .gt('expires_at', now)
@@ -1868,6 +1867,13 @@
             }
 
             if (filtered.length === 0) { feedEl.style.display = 'none'; return; }
+
+            // Fetch display names from profiles separately
+            const userIds = [...new Set(filtered.map(p => p.user_id))];
+            const { data: profilesData } = userIds.length
+                ? await supabaseClient.from('profiles').select('id, display_name').in('id', userIds)
+                : { data: [] };
+            const profileMap = Object.fromEntries((profilesData || []).map(p => [p.id, p.display_name]));
 
             // Fetch all interests for these posts in one query
             const postIds = filtered.map(p => p.id);
@@ -1890,15 +1896,18 @@
 
             feedEl.style.display = 'block';
             feedEl.innerHTML = `
-                <div style="font-weight:700; color:var(--text-primary); font-size:16px; margin-bottom:12px;">Who's Swimming Soon</div>
-                ${display.map(p => _renderSwimPostCard(p, iMap[p.id] || { joins: 0, maybes: 0, myType: null })).join('')}
-                ${hasMore ? `<div style="text-align:right; margin-top:4px;"><a onclick="loadAllSwimmingPosts()" style="font-size:13px; color:var(--ocean-light); cursor:pointer;">View all ${filtered.length} →</a></div>` : ''}
+                <div style="font-weight:700; color:var(--text-primary); font-size:15px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:baseline;">
+                    <span>Who's Swimming Soon</span>
+                    ${hasMore ? `<a onclick="loadAllSwimmingPosts()" style="font-size:12px; color:var(--ocean-light); cursor:pointer;">View all ${filtered.length} →</a>` : ''}
+                </div>
+                ${display.map(p => _renderSwimPostCard(p, profileMap, iMap[p.id] || { joins: 0, maybes: 0, myType: null })).join('')}
+                <div style="height:1px; background:rgba(56,189,248,0.1); margin-bottom:16px;"></div>
             `;
             initIcons();
         }
 
-        function _renderSwimPostCard(post, interest) {
-            const name = post.profiles?.display_name || 'Swimmer';
+        function _renderSwimPostCard(post, profileMap, interest) {
+            const name = profileMap[post.user_id] || 'Swimmer';
             const initials = name.split(' ').map(w => w[0] || '').join('').toUpperCase().slice(0, 2) || '?';
             const spotName = post.spots?.name || 'Unknown spot';
             const dt = new Date(post.swim_datetime);
@@ -7702,23 +7711,25 @@
             <!-- SWIM EVENTS -->
             <div id="events" class="page">
                 <div class="card">
-                    <div class="card-title">Group Swims</div>
 
-                    <!-- I'm Swimming — primary action -->
-                    <button class="btn" onclick="showImSwimming()"
-                        style="width:100%; margin-bottom:8px; background:linear-gradient(135deg,#059669,#10b981); color:white; font-weight:700; font-size:16px; padding:14px; border-radius:12px; border:none; letter-spacing:0.3px; display:flex; align-items:center; justify-content:center; gap:8px;">
-                        <i data-lucide="waves" style="width:18px;height:18px;"></i>
-                        I'm Swimming
-                    </button>
-                    <div style="text-align:right; margin-bottom:20px;">
-                        <a onclick="showCreateEvent()" style="font-size:13px; color:var(--text-secondary); cursor:pointer; text-decoration:underline; text-underline-offset:3px;">Create Group Swim →</a>
+                    <!-- Action buttons row -->
+                    <div style="display:flex; gap:10px; margin-bottom:16px; align-items:center;">
+                        <button class="btn" onclick="showImSwimming()"
+                            style="flex:1; background:linear-gradient(135deg,#059669,#10b981); color:white; font-weight:700; font-size:15px; padding:13px 10px; border-radius:12px; border:none; display:flex; align-items:center; justify-content:center; gap:7px;">
+                            <i data-lucide="waves" style="width:16px;height:16px;"></i>
+                            I'm Swimming
+                        </button>
+                        <button class="btn" onclick="showCreateEvent()"
+                            style="flex:0 0 auto; padding:13px 14px; border-radius:12px; background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--text-secondary); font-size:13px; font-weight:600; white-space:nowrap;">
+                            + Group Swim
+                        </button>
                     </div>
 
                     <!-- Who's Swimming Soon feed (hidden until posts found) -->
                     <div id="swimPostsFeed" style="display:none; margin-bottom:24px;"></div>
 
                     <!-- Upcoming Events header -->
-                    <div style="font-weight:700; color:var(--text-primary); font-size:16px; margin-bottom:14px;">Upcoming Events</div>
+                    <div style="font-weight:700; color:var(--text-primary); font-size:15px; margin-bottom:12px; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; font-size:11px;">Upcoming Events</div>
 
                     <!-- Event Filters -->
                     <div style="display: flex; gap: 10px; margin-bottom: 20px;">
