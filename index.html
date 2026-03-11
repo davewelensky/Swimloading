@@ -1837,8 +1837,10 @@
             }
 
             hideImSwimming();
-            showToast("You're in the feed! 🌊", 'success');
             loadSwimmingPosts();
+            // Show WhatsApp share prompt
+            const spotName = document.getElementById('swimPostSpot').options[document.getElementById('swimPostSpot').selectedIndex]?.text || 'the spot';
+            showSwimPostShare(spotName, swimDt.toISOString(), note);
         }
 
         async function loadSwimmingPosts() {
@@ -1922,6 +1924,10 @@
             const joinActive = interest.myType === 'join';
             const maybeActive = interest.myType === 'maybe';
 
+            // Stash data for share button (avoids unsafe inline string escaping)
+            window._swimCardShareData = window._swimCardShareData || {};
+            window._swimCardShareData[post.id] = { name, spotName, swimDt: post.swim_datetime, note: post.notes };
+
             return `
             <div style="background:rgba(15,23,42,0.5); border:1px solid rgba(56,189,248,0.12); border-radius:12px; padding:14px; margin-bottom:10px;">
                 <div style="display:flex; gap:12px; align-items:flex-start;">
@@ -1941,20 +1947,27 @@
                 </div>
                 <div style="display:flex; gap:8px; align-items:center; margin-top:12px;">
                     <button onclick="toggleSwimInterest('${post.id}','join')"
-                        style="padding:7px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;
+                        style="padding:7px 14px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;
                             border:1px solid ${joinActive ? '#0ea5e9' : 'rgba(56,189,248,0.3)'};
                             background:${joinActive ? 'rgba(14,165,233,0.18)' : 'rgba(56,189,248,0.06)'};
                             color:${joinActive ? 'var(--ocean-light)' : 'var(--text-secondary)'};">
                         ${joinActive ? '✓ Joining' : 'Join'}
                     </button>
                     <button onclick="toggleSwimInterest('${post.id}','maybe')"
-                        style="padding:7px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;
+                        style="padding:7px 14px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;
                             border:1px solid ${maybeActive ? 'rgba(56,189,248,0.5)' : 'rgba(56,189,248,0.18)'};
                             background:transparent;
                             color:${maybeActive ? 'var(--ocean-light)' : 'var(--text-secondary)'};">
                         ${maybeActive ? '✓ Maybe' : 'Maybe'}
                     </button>
                     ${interest.joins > 0 ? `<span style="font-size:12px; color:var(--text-secondary); margin-left:2px;">${interest.joins} joining</span>` : ''}
+                    <button onclick="shareSwimPostCard('${post.id}')"
+                        style="margin-left:auto; padding:7px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;
+                            background:#25d36618; border:1px solid #25d36650; color:#25d366;
+                            display:flex; align-items:center; gap:5px;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="#25d366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        Share
+                    </button>
                 </div>
             </div>`;
         }
@@ -1998,8 +2011,49 @@
         }
 
         function loadAllSwimmingPosts() {
-            // Temporary: show toast until a full "all posts" view is built
             showToast('Showing top 5 — full list coming soon', 'info');
+        }
+
+        // ── Swim post WhatsApp share ──────────────────────────────────────────
+        let _swimPostShareMsg = '';
+
+        function showSwimPostShare(spotName, swimDt, note) {
+            const dt = new Date(swimDt);
+            const todayStr = new Date().toDateString();
+            const tomorrowStr = new Date(Date.now() + 86400000).toDateString();
+            const dayLabel = dt.toDateString() === todayStr ? 'today'
+                : dt.toDateString() === tomorrowStr ? 'tomorrow'
+                : dt.toLocaleDateString('en-ZA', { weekday: 'long', month: 'short', day: 'numeric' });
+            const timeLabel = dt.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+
+            document.getElementById('swimPostShareTitle').textContent = `${spotName} — ${dayLabel} at ${timeLabel}`;
+            _swimPostShareMsg = `🌊 I'm swimming at ${spotName} — ${dayLabel} at ${timeLabel}${note ? '\n"' + note + '"' : ''}\n\nCome join me! SwimLoading — swimloading.com/app`;
+            document.getElementById('swimPostShareMessage').textContent = _swimPostShareMsg;
+            document.getElementById('swimPostShareModal').style.display = 'flex';
+        }
+
+        function dismissSwimPostShare() {
+            document.getElementById('swimPostShareModal').style.display = 'none';
+        }
+
+        function swimPostShareWhatsApp() {
+            window.open(`https://wa.me/?text=${encodeURIComponent(_swimPostShareMsg)}`, '_blank');
+            dismissSwimPostShare();
+        }
+
+        // Share button on a feed card (for other users sharing someone else's post)
+        function shareSwimPostCard(postId) {
+            const d = (window._swimCardShareData || {})[postId];
+            if (!d) return;
+            const dt = new Date(d.swimDt);
+            const todayStr = new Date().toDateString();
+            const tomorrowStr = new Date(Date.now() + 86400000).toDateString();
+            const dayLabel = dt.toDateString() === todayStr ? 'today'
+                : dt.toDateString() === tomorrowStr ? 'tomorrow'
+                : dt.toLocaleDateString('en-ZA', { weekday: 'long', month: 'short', day: 'numeric' });
+            const timeLabel = dt.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+            const msg = `🌊 ${d.name} is swimming at ${d.spotName} — ${dayLabel} at ${timeLabel}${d.note ? '\n"' + d.note + '"' : ''}\n\nJoin on SwimLoading — swimloading.com/app`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
         // ══════════════════════════════════════════════════════════════════
@@ -7255,6 +7309,29 @@
     </div>
 
     <!-- Suggest Spot Modal -->
+
+    <!-- Share swim post bottom sheet -->
+    <div id="swimPostShareModal" style="display:none; position:fixed; inset:0; z-index:10004; background:rgba(0,0,0,0.75); align-items:flex-end; justify-content:center;">
+        <div style="background:var(--surface); border-radius:20px 20px 0 0; padding:28px 24px 36px; width:100%; max-width:480px;">
+            <div style="font-size:11px; color:#25d366; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.8px; font-weight:700;">You're in the feed 🌊</div>
+            <div style="font-size:20px; font-weight:800; color:var(--text-primary); margin-bottom:4px;" id="swimPostShareTitle"></div>
+            <div style="font-size:14px; color:var(--text-secondary); margin-bottom:16px;">Invite your swim crew on WhatsApp?</div>
+            <div style="background:rgba(37,211,102,0.08); border:1px solid rgba(37,211,102,0.25); border-radius:12px; padding:14px 16px; margin-bottom:20px;">
+                <div style="font-size:10px; color:var(--text-secondary); margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Message preview</div>
+                <div id="swimPostShareMessage" style="font-size:14px; color:var(--text-primary); line-height:1.6; white-space:pre-line;"></div>
+            </div>
+            <button onclick="swimPostShareWhatsApp()"
+                style="width:100%; padding:15px; background:#25d366; border:none; border-radius:12px; color:white; font-size:16px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:10px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                Share on WhatsApp
+            </button>
+            <button onclick="dismissSwimPostShare()"
+                style="width:100%; padding:12px; background:none; border:none; color:var(--text-secondary); font-size:14px; cursor:pointer;">
+                Skip for now
+            </button>
+        </div>
+    </div>
+
     <!-- Share conditions bottom sheet (Phase 1) -->
     <div id="shareConditionsModal" style="display:none; position:fixed; inset:0; z-index:10002; background:rgba(0,0,0,0.7); align-items:flex-end; justify-content:center;">
         <div style="background:var(--surface); border-radius:20px 20px 0 0; padding:28px 24px 36px; width:100%; max-width:480px;">
