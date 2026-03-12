@@ -9295,22 +9295,21 @@
         // Add or remove a region from the preferred_locations array
         async function toggleRegionPref(region, add) {
             if (!currentUser) return;
-            const reg = await navigator.serviceWorker.ready.catch(() => null);
-            const sub = reg ? await reg.pushManager.getSubscription().catch(() => null) : null;
-            if (!sub) return;
+            // Query by user_id only — endpoint can change when subscriptions renew
             const { data } = await supabaseClient.from('push_subscriptions')
                 .select('preferred_locations')
                 .eq('user_id', currentUser.id)
-                .eq('endpoint', sub.endpoint)
+                .order('created_at', { ascending: false })
+                .limit(1)
                 .maybeSingle();
             let locs = data?.preferred_locations || [];
             if (add) { if (!locs.includes(region)) locs.push(region); }
             else      { locs = locs.filter(r => r !== region); }
+            // Update ALL of this user's subscriptions (covers multi-device)
             await supabaseClient.from('push_subscriptions')
                 .update({ preferred_locations: locs })
-                .eq('user_id', currentUser.id)
-                .eq('endpoint', sub.endpoint);
-            renderNotifOptIn();
+                .eq('user_id', currentUser.id);
+            // Visual state already updated by toggleNotifRegion — no need to re-render
         }
 
         // Unsubscribe from push notifications
@@ -9414,20 +9413,18 @@
             let activeLocs = currentUserProfile?.home_domain ? [currentUserProfile.home_domain] : [];
             let notifyTemp = true, notifySwim = true, notifyMember = false;
             if (subscribed) {
-                const reg = await navigator.serviceWorker.ready.catch(() => null);
-                const sub = reg ? await reg.pushManager.getSubscription().catch(() => null) : null;
-                if (sub) {
-                    const { data } = await supabaseClient.from('push_subscriptions')
-                        .select('preferred_locations, notify_on_temp, notify_on_swim, notify_on_new_member')
-                        .eq('user_id', currentUser.id)
-                        .eq('endpoint', sub.endpoint)
-                        .maybeSingle();
-                    if (data) {
-                        activeLocs    = data.preferred_locations || activeLocs;
-                        notifyTemp    = data.notify_on_temp   ?? true;
-                        notifySwim    = data.notify_on_swim   ?? true;
-                        notifyMember  = data.notify_on_new_member ?? false;
-                    }
+                // Query by user_id only — endpoint can change when subscriptions renew
+                const { data } = await supabaseClient.from('push_subscriptions')
+                    .select('preferred_locations, notify_on_temp, notify_on_swim, notify_on_new_member')
+                    .eq('user_id', currentUser.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                if (data) {
+                    activeLocs    = data.preferred_locations || activeLocs;
+                    notifyTemp    = data.notify_on_temp   ?? true;
+                    notifySwim    = data.notify_on_swim   ?? true;
+                    notifyMember  = data.notify_on_new_member ?? false;
                 }
             }
 
