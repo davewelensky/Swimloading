@@ -2472,6 +2472,9 @@
                     const hazardWarning = eventHazards.length > 0
                         ? `<div style="margin-top:8px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.5);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px;"><span style="font-size:16px;">&#x26A0;&#xFE0F;</span><div><div style="font-size:12px;font-weight:700;color:#ef4444;">HAZARD AT THIS LOCATION</div><div style="font-size:11px;color:var(--text-secondary);margin-top:1px;">${eventHazards[0].title}</div></div></div>`
                         : '';
+                    const posterHtml = event.poster_url
+                        ? `<img src="${event.poster_url}" alt="Event poster" onclick="event.stopPropagation()" style="width:100%;border-radius:8px;margin-top:10px;max-height:220px;object-fit:cover;cursor:default;">`
+                        : '';
 
                     return `
                         <div style="background: rgba(15, 23, 42, 0.6); border: 2px solid ${isCancelled ? 'rgba(239, 68, 68, 0.2)' : (eventHazards.length > 0 ? 'rgba(239,68,68,0.4)' : 'rgba(56, 189, 248, 0.2)')}; border-radius: 12px; padding: 18px; margin-bottom: 14px; cursor: pointer; opacity: ${isCancelled ? '0.6' : '1'}; transition: all 0.2s;" onclick="viewEventDetails('${event.id}')">
@@ -2501,6 +2504,7 @@
                                 <div style="background: rgba(56, 189, 248, 0.15); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; color: var(--ocean-light);">
                                     ${paceLabel}
                                 </div>
+                                ${event.category === 'official_race' ? `<div style="background:rgba(245,158,11,0.15);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;color:#f59e0b;letter-spacing:0.3px;">🏅 OFFICIAL</div>` : ''}
                                 ${event.recurrence_type ? `<div style="background:rgba(16,185,129,0.12);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;color:#10b981;">🔄 ${formatRecurrenceLabel(event.recurrence_type, event.start_at)}</div>` : ''}
                                 ${displayRoute ? `
                                     <div style="background: rgba(56, 189, 248, 0.1); padding: 4px 10px; border-radius: 6px; font-size: 11px; color: var(--text-secondary);">
@@ -2538,6 +2542,7 @@
                             </div>
                             
                             ${hazardWarning}
+                            ${posterHtml}
                             ${rsvpButtons}
                         </div>
                     `;
@@ -2587,6 +2592,7 @@
             const recurrenceType = document.getElementById('eventRecurrence')?.value || '';
             const recurrenceEndVal = document.getElementById('eventRecurrenceEnd')?.value || '';
             const dateTimeVal = document.getElementById('eventDateTime')?.value || '';
+            const eventCategory = document.getElementById('eventCategory')?.value || 'group_swim';
 
             // Block swims set in the past
             if (dateTimeVal && new Date(startAt) < new Date()) {
@@ -2619,34 +2625,64 @@
                 external_chat_url: chatUrl,
                 requires_approval: document.getElementById('eventRequireApproval')?.checked || false,
                 status: 'planned',
-                category: 'open'
+                category: eventCategory,
             };
 
             let eventsToInsert = [];
 
             if (recurrenceType && recurrenceEndVal && dateTimeVal) {
-                // Recurring — generate all instances up to the end date
                 const seriesId = crypto.randomUUID();
-                const stepDays = recurrenceType === 'weekly' ? 7 : recurrenceType === 'fortnightly' ? 14 : 1;
                 const [datePart, timePart] = dateTimeVal.split('T');
-                let cur = new Date(datePart + 'T12:00:00');
-                const end = new Date(recurrenceEndVal + 'T12:00:00');
-                while (cur <= end && eventsToInsert.length < 52) {
-                    const dow = cur.getDay(); // 0=Sun,1=Mon...5=Fri,6=Sat
-                    const include = recurrenceType === 'weekdays' ? (dow >= 1 && dow <= 5)
-                                  : recurrenceType === 'weekends' ? (dow === 0 || dow === 6)
-                                  : true;
-                    const y = cur.getFullYear();
-                    const m = String(cur.getMonth() + 1).padStart(2, '0');
-                    const d = String(cur.getDate()).padStart(2, '0');
-                    if (include) eventsToInsert.push({
+                const endDate = new Date(recurrenceEndVal + 'T12:00:00Z');
+
+                const pushInstance = (dateObj) => {
+                    if (eventsToInsert.length >= 60) return;
+                    const y = dateObj.getUTCFullYear();
+                    const mo = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+                    const d  = String(dateObj.getUTCDate()).padStart(2, '0');
+                    eventsToInsert.push({
                         ...baseEvent,
-                        start_at: `${y}-${m}-${d}T${timePart}:00+02:00`,
+                        start_at: `${y}-${mo}-${d}T${timePart}:00+02:00`,
                         recurrence_type: recurrenceType,
                         recurrence_end_date: recurrenceEndVal,
                         recurrence_series_id: seriesId
                     });
-                    cur.setDate(cur.getDate() + stepDays);
+                };
+
+                if (recurrenceType === 'monthly_last_sunday' || recurrenceType === 'monthly_first_sunday') {
+                    // Walk month by month, find target Sunday in each
+                    const startUTC = new Date(datePart + 'T12:00:00Z');
+                    let curMonth = new Date(Date.UTC(startUTC.getUTCFullYear(), startUTC.getUTCMonth(), 1));
+                    while (curMonth <= endDate && eventsToInsert.length < 60) {
+                        const yr = curMonth.getUTCFullYear();
+                        const mo = curMonth.getUTCMonth();
+                        let target;
+                        if (recurrenceType === 'monthly_last_sunday') {
+                            // Last day of month, back up to Sunday
+                            const lastDay = new Date(Date.UTC(yr, mo + 1, 0));
+                            target = new Date(lastDay);
+                            target.setUTCDate(lastDay.getUTCDate() - lastDay.getUTCDay());
+                        } else {
+                            // First Sunday of month
+                            const firstDay = new Date(Date.UTC(yr, mo, 1));
+                            const offset = (7 - firstDay.getUTCDay()) % 7;
+                            target = new Date(Date.UTC(yr, mo, 1 + offset));
+                        }
+                        if (target >= startUTC && target <= endDate) pushInstance(target);
+                        curMonth.setUTCMonth(curMonth.getUTCMonth() + 1);
+                    }
+                } else {
+                    // Daily / weekdays / weekends / weekly / fortnightly
+                    const stepDays = recurrenceType === 'weekly' ? 7 : recurrenceType === 'fortnightly' ? 14 : 1;
+                    let cur = new Date(datePart + 'T12:00:00Z');
+                    while (cur <= endDate && eventsToInsert.length < 60) {
+                        const dow = cur.getUTCDay();
+                        const include = recurrenceType === 'weekdays' ? (dow >= 1 && dow <= 5)
+                                      : recurrenceType === 'weekends' ? (dow === 0 || dow === 6)
+                                      : true;
+                        if (include) pushInstance(cur);
+                        cur.setUTCDate(cur.getUTCDate() + stepDays);
+                    }
                 }
             } else {
                 // One-time event
@@ -2662,6 +2698,27 @@
                 alert('Error creating event: ' + error.message);
                 console.error('Event creation error:', error);
                 return;
+            }
+
+            // Upload poster and update all instances in the series
+            const posterFile = document.getElementById('eventPoster')?.files?.[0];
+            if (posterFile && data?.length) {
+                try {
+                    const ext = posterFile.name.split('.').pop();
+                    const path = `${data[0].id}.${ext}`;
+                    const { error: upErr } = await supabaseClient.storage
+                        .from('event-posters')
+                        .upload(path, posterFile, { upsert: true, contentType: posterFile.type });
+                    if (!upErr) {
+                        const { data: urlData } = supabaseClient.storage.from('event-posters').getPublicUrl(path);
+                        const posterUrl = urlData?.publicUrl;
+                        if (posterUrl) {
+                            // Apply to all instances in this series (or just the one-off)
+                            const ids = data.map(ev => ev.id);
+                            await supabaseClient.from('swim_events').update({ poster_url: posterUrl }).in('id', ids);
+                        }
+                    }
+                } catch (pErr) { console.warn('Poster upload failed (non-blocking):', pErr); }
             }
 
             // Auto-join creator as organizer for all instances
@@ -2771,6 +2828,8 @@
                 const day = new Date(startAt).toLocaleDateString('en-ZA', { weekday: 'long' });
                 return rt === 'weekly' ? `Every ${day}` : `Every 2nd ${day}`;
             }
+            if (rt === 'monthly_last_sunday') return 'Monthly (last Sunday)';
+            if (rt === 'monthly_first_sunday') return 'Monthly (first Sunday)';
             return { daily:'Daily', weekdays:'Weekdays (Mon–Fri)', weekends:'Weekends (Sat–Sun)' }[rt] || rt;
         }
 
@@ -2780,6 +2839,24 @@
             if (endGroup) endGroup.style.display = val ? 'block' : 'none';
             updateRecurrencePreview();
         }
+
+        function onCategoryChange() {
+            const val = document.getElementById('eventCategory')?.value;
+            const posterGroup = document.getElementById('posterUploadGroup');
+            if (posterGroup) posterGroup.style.display = val === 'official_race' ? 'block' : 'none';
+        }
+
+        // Poster file preview
+        document.addEventListener('change', function(e) {
+            if (e.target.id !== 'eventPoster') return;
+            const file = e.target.files?.[0];
+            const preview = document.getElementById('posterPreview');
+            const img = document.getElementById('posterPreviewImg');
+            if (file && preview && img) {
+                img.src = URL.createObjectURL(file);
+                preview.style.display = 'block';
+            }
+        });
 
         function updateRecurrencePreview() {
             const recurrenceType = document.getElementById('eventRecurrence')?.value;
@@ -5597,9 +5674,12 @@
             const waterType = spotInfo ? spotInfo.water_type : 'OCEAN';
 
             // Absolute range check by water type
+            // KZN / Indian Ocean is significantly warmer — raise ocean ceiling to 30°C
+            const warmDomains = ['KZN'];
+            const isWarmDomain = warmDomains.includes(spotInfo?.domain);
             const ranges = {
-                'OCEAN':  { min: 10, max: 22, label: 'ocean' },
-                'LAGOON': { min: 10, max: 28, label: 'lagoon' },
+                'OCEAN':  isWarmDomain ? { min: 14, max: 30, label: 'ocean' } : { min: 10, max: 22, label: 'ocean' },
+                'LAGOON': { min: 10, max: 30, label: 'lagoon' },
                 'DAM':    { min: 10, max: 28, label: 'dam' },
                 'POOL':   { min: 18, max: 34, label: 'pool' }
             };
@@ -8063,11 +8143,13 @@
                                 <div class="form-label"><i data-lucide="repeat" style="width:14px;height:14px;vertical-align:middle;"></i> Repeats</div>
                                 <select id="eventRecurrence" onchange="onRecurrenceChange()">
                                     <option value="">One-time</option>
-                                    <option value="daily">Daily</option>
-                                    <option value="weekdays">Weekdays (Mon–Fri)</option>
-                                    <option value="weekends">Weekends (Sat–Sun)</option>
                                     <option value="weekly">Weekly</option>
                                     <option value="fortnightly">Every 2 weeks</option>
+                                    <option value="monthly_first_sunday">Monthly — first Sunday</option>
+                                    <option value="monthly_last_sunday">Monthly — last Sunday</option>
+                                    <option value="weekdays">Weekdays (Mon–Fri)</option>
+                                    <option value="weekends">Weekends (Sat–Sun)</option>
+                                    <option value="daily">Daily</option>
                                 </select>
                             </div>
 
@@ -8116,6 +8198,23 @@
                                         Require approval for swimmers below pace level
                                     </span>
                                 </label>
+                            </div>
+
+                            <div class="form-group">
+                                <div class="form-label">🏅 Swim Type</div>
+                                <select id="eventCategory" onchange="onCategoryChange()">
+                                    <option value="group_swim">Group Swim</option>
+                                    <option value="official_race">Official Race / Event</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="posterUploadGroup" style="display:none;">
+                                <div class="form-label">🖼️ Event Poster <span style="font-weight:400;color:var(--text-secondary);">(optional)</span></div>
+                                <input type="file" id="eventPoster" accept="image/*"
+                                    style="width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-secondary);font-size:13px;cursor:pointer;">
+                                <div id="posterPreview" style="display:none;margin-top:8px;">
+                                    <img id="posterPreviewImg" style="max-width:100%;border-radius:8px;max-height:200px;object-fit:cover;">
+                                </div>
                             </div>
 
                             <!-- Overlap warning banner (shown if a swim already exists nearby) -->
