@@ -9212,6 +9212,9 @@
             return outputArray;
         }
 
+        // Tracks whether push is currently subscribed (used by toggleNotifRegion)
+        let _notifSubscribed = false;
+
         // Subscribe to push notifications
         // locations: array of domain codes to subscribe to (defaults to home_domain)
         async function subscribeToPush(locations) {
@@ -9428,27 +9431,26 @@
                 }
             }
 
-            const mkToggle = (checked, onchange) => {
-                const bg = checked ? 'var(--ocean-light)' : 'rgba(255,255,255,0.15)';
+            // Store subscribed state so toggleNotifRegion() knows what to do
+            _notifSubscribed = subscribed;
+
+            const mkToggle = (id, checked, onchange) => {
+                const bg = checked ? 'var(--ocean-light)' : 'rgba(255,255,255,0.2)';
                 const tx = checked ? '20px' : '0px';
-                return `<label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;">
-                    <input type="checkbox" ${checked ? 'checked' : ''} onchange="${onchange}" style="opacity:0;width:0;height:0;">
-                    <span style="position:absolute;cursor:pointer;inset:0;border-radius:24px;transition:0.3s;background:${bg};"></span>
-                    <span style="position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:white;border-radius:50%;transition:0.3s;transform:translateX(${tx});"></span>
+                return `<label style="position:relative;display:inline-block;width:46px;height:26px;flex-shrink:0;cursor:pointer;">
+                    <input type="checkbox" id="${id}" ${checked ? 'checked' : ''} onchange="${onchange}" style="opacity:0;width:0;height:0;position:absolute;">
+                    <span style="position:absolute;inset:0;border-radius:26px;transition:background 0.25s;background:${bg};"></span>
+                    <span style="position:absolute;height:20px;width:20px;left:3px;bottom:3px;background:white;border-radius:50%;transition:transform 0.25s;transform:translateX(${tx});box-shadow:0 1px 3px rgba(0,0,0,0.3);"></span>
                 </label>`;
             };
 
-            // Region chips — all domains as toggle chips
             const regionChips = domains.map(d => {
                 const active = activeLocs.includes(d.code);
-                const action = subscribed
-                    ? `toggleRegionPref('${d.code}', ${!active})`
-                    : `_togglePendingRegion(this, '${d.code}')`;
-                return `<button type="button" onclick="${action}"
+                return `<button type="button" onclick="toggleNotifRegion('${d.code}')"
                     data-region="${d.code}" data-active="${active}"
-                    style="padding:4px 11px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;transition:0.2s;
-                           background:${active ? 'var(--ocean-blue)' : 'rgba(255,255,255,0.06)'};
-                           border:1px solid ${active ? 'var(--ocean-blue)' : 'rgba(255,255,255,0.15)'};
+                    style="padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;
+                           background:${active ? 'var(--ocean-blue)' : 'rgba(255,255,255,0.05)'};
+                           border:1px solid ${active ? 'var(--ocean-blue)' : 'rgba(255,255,255,0.12)'};
                            color:${active ? '#fff' : 'var(--text-secondary)'};">
                     ${d.display_name}
                 </button>`;
@@ -9456,47 +9458,75 @@
 
             el.style.display = 'block';
             el.innerHTML = `
-                <div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);border-radius:12px;padding:14px 16px;">
-                    <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;font-weight:600;">🔔 Swim Notifications</div>
+                <div style="background:linear-gradient(135deg,rgba(2,132,199,0.08),rgba(34,211,238,0.04));border:1px solid rgba(56,189,248,0.18);border-radius:16px;padding:16px 18px;">
 
-                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:7px;">Regions to watch:</div>
-                    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">${regionChips}</div>
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+                        <div style="width:32px;height:32px;background:rgba(56,189,248,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <i data-lucide="bell" style="width:16px;height:16px;color:var(--ocean-light);"></i>
+                        </div>
+                        <div>
+                            <div style="font-size:14px;font-weight:700;color:var(--text-primary);">Swim Alerts</div>
+                            <div style="font-size:11px;color:var(--text-secondary);margin-top:1px;">${subscribed ? 'Tap regions to add or remove' : 'Choose your regions, then enable'}</div>
+                        </div>
+                    </div>
 
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                        <div style="font-size:13px;color:var(--text-primary);">🏊 New swim posts</div>
-                        ${subscribed
-                            ? mkToggle(notifySwim, `updatePushPref('notify_on_swim',this.checked)`)
-                            : `<input type="checkbox" id="_pendingSwim" checked style="width:18px;height:18px;cursor:pointer;">`}
+                    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Regions</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px;">${regionChips}</div>
+
+                    <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:12px;display:flex;flex-direction:column;gap:10px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <div style="font-size:13px;font-weight:500;color:var(--text-primary);">New swim posts</div>
+                                <div style="font-size:11px;color:var(--text-secondary);margin-top:1px;">When a swim is posted in your regions</div>
+                            </div>
+                            ${subscribed
+                                ? mkToggle('notifSwimToggle', notifySwim, `updatePushPref('notify_on_swim',this.checked)`)
+                                : mkToggle('_pendingSwim', true, '')}
+                        </div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <div style="font-size:13px;font-weight:500;color:var(--text-primary);">Water temp logs</div>
+                                <div style="font-size:11px;color:var(--text-secondary);margin-top:1px;">When someone logs a temp at your spots</div>
+                            </div>
+                            ${subscribed
+                                ? mkToggle('notifTempToggle', notifyTemp, `updatePushPref('notify_on_temp',this.checked)`)
+                                : mkToggle('_pendingTemp', true, '')}
+                        </div>
+                        ${currentUserProfile?.is_admin ? `
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <div style="font-size:13px;font-weight:500;color:var(--text-primary);">New members</div>
+                                <div style="font-size:11px;color:var(--text-secondary);margin-top:1px;">When a new swimmer joins</div>
+                            </div>
+                            ${subscribed
+                                ? mkToggle('notifMemberToggle', notifyMember, `updatePushPref('notify_on_new_member',this.checked)`)
+                                : mkToggle('_pendingMember', false, '')}
+                        </div>` : ''}
                     </div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                        <div style="font-size:13px;color:var(--text-primary);">🌡️ Water temp logs</div>
-                        ${subscribed
-                            ? mkToggle(notifyTemp, `updatePushPref('notify_on_temp',this.checked)`)
-                            : `<input type="checkbox" id="_pendingTemp" checked style="width:18px;height:18px;cursor:pointer;">`}
-                    </div>
-                    ${currentUserProfile?.is_admin ? `
-                    <div style="display:flex;justify-content:space-between;align-items:center;${subscribed ? '' : 'margin-bottom:12px;'}">
-                        <div style="font-size:13px;color:var(--text-primary);">👋 New swimmers joining</div>
-                        ${subscribed
-                            ? mkToggle(notifyMember, `updatePushPref('notify_on_new_member',this.checked)`)
-                            : `<input type="checkbox" id="_pendingMember" style="width:18px;height:18px;cursor:pointer;">`}
-                    </div>` : ''}
 
                     ${!subscribed ? `
                     <button onclick="enableNotifFromCard()"
-                        style="width:100%;margin-top:12px;background:var(--ocean-light);color:#000;border:none;padding:9px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
+                        style="width:100%;margin-top:14px;background:linear-gradient(135deg,var(--ocean-blue),var(--ocean-light));color:#fff;border:none;padding:11px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:0.3px;">
                         Enable Notifications
                     </button>` : ''}
                 </div>`;
+
+            // Re-init lucide icons inside the new card
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
-        // Toggle a region chip before subscribing (pre-subscribe state)
-        function _togglePendingRegion(btn, region) {
+        // Toggle a notification region chip (works for both subscribed + pre-subscribe)
+        function toggleNotifRegion(region) {
+            const btn = document.querySelector(`#notifOptIn [data-region="${region}"]`);
+            if (!btn) return;
             const active = btn.dataset.active === 'true';
-            btn.dataset.active = String(!active);
-            btn.style.background  = !active ? 'var(--ocean-blue)' : 'rgba(255,255,255,0.06)';
-            btn.style.borderColor = !active ? 'var(--ocean-blue)' : 'rgba(255,255,255,0.15)';
-            btn.style.color       = !active ? '#fff' : 'var(--text-secondary)';
+            const newActive = !active;
+            btn.dataset.active = String(newActive);
+            btn.style.background  = newActive ? 'var(--ocean-blue)' : 'rgba(255,255,255,0.05)';
+            btn.style.borderColor = newActive ? 'var(--ocean-blue)' : 'rgba(255,255,255,0.12)';
+            btn.style.color       = newActive ? '#fff' : 'var(--text-secondary)';
+            // If already subscribed, persist to DB immediately
+            if (_notifSubscribed) toggleRegionPref(region, newActive);
         }
 
         async function enableNotifFromCard() {
