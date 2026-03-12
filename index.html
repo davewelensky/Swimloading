@@ -847,7 +847,6 @@
             loadMonthlyChallengeSummary(); // non-blocking
             loadSpotlightBanner();         // non-blocking
             loadNotifications();           // non-blocking
-            renderNotifOptIn();            // non-blocking
 
             // Populate shared caches in background (used by Trends/Swims tabs and hazard checks)
             (async () => {
@@ -4867,27 +4866,7 @@
                 // Initialize push toggle
                 if ('PushManager' in window && VAPID_PUBLIC_KEY !== 'REPLACE_WITH_YOUR_VAPID_PUBLIC_KEY') {
                     document.getElementById('pushToggleSection').style.display = 'block';
-                    isPushSubscribed().then(subscribed => {
-                        const toggle = document.getElementById('pushToggle');
-                        const track = document.getElementById('pushToggleTrack');
-                        const thumb = document.getElementById('pushToggleThumb');
-                        if (toggle) {
-                            toggle.checked = subscribed;
-                            if (track) track.style.background = subscribed ? 'var(--success)' : 'rgba(255,255,255,0.15)';
-                            if (thumb) thumb.style.transform = subscribed ? 'translateX(22px)' : 'translateX(0)';
-                        }
-
-                        // Initialize new swim alerts toggle (only relevant when push is available)
-                        const newSwimOn = profile && profile.notify_new_swims === true;
-                        const nsToggle = document.getElementById('newSwimAlertsToggle');
-                        const nsTrack = document.getElementById('newSwimAlertsTrack');
-                        const nsThumb = document.getElementById('newSwimAlertsThumb');
-                        if (nsToggle) {
-                            nsToggle.checked = newSwimOn;
-                            if (nsTrack) nsTrack.style.background = newSwimOn ? 'var(--success)' : 'rgba(255,255,255,0.15)';
-                            if (nsThumb) nsThumb.style.transform = newSwimOn ? 'translateX(22px)' : 'translateX(0)';
-                        }
-                    });
+                    renderNotifOptIn();
                 }
             } catch (err) {
                 console.error('Error loading profile:', err);
@@ -7295,34 +7274,8 @@
 
             <button class="btn btn-success" onclick="saveProfile()" style="margin-bottom: 16px;">Save Profile</button>
 
-            <!-- Push Notifications Toggle -->
-            <div id="pushToggleSection" style="display: none; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px; margin-top: 8px; margin-bottom: 16px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div style="font-weight: 600; color: var(--text-primary); font-size: 14px;">🔔 Push Notifications</div>
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Get alerts when swims are cancelled or changed</div>
-                    </div>
-                    <label style="position: relative; display: inline-block; width: 48px; height: 26px; flex-shrink: 0;">
-                        <input type="checkbox" id="pushToggle" onchange="togglePushNotifications(this.checked)"
-                            style="opacity: 0; width: 0; height: 0;">
-                        <span style="position: absolute; cursor: pointer; inset: 0; background: rgba(255,255,255,0.15); border-radius: 26px; transition: 0.3s;" id="pushToggleTrack"></span>
-                        <span style="position: absolute; height: 20px; width: 20px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s;" id="pushToggleThumb"></span>
-                    </label>
-                </div>
-                <!-- New Swim Alerts Toggle (sub-option under push) -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.04);">
-                    <div>
-                        <div style="font-weight: 600; color: var(--text-primary); font-size: 14px;">🏊 New swim alerts</div>
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Get notified when swimmers post new group swims</div>
-                    </div>
-                    <label style="position: relative; display: inline-block; width: 48px; height: 26px; flex-shrink: 0;">
-                        <input type="checkbox" id="newSwimAlertsToggle" onchange="toggleNewSwimAlerts(this.checked)"
-                            style="opacity: 0; width: 0; height: 0;">
-                        <span style="position: absolute; cursor: pointer; inset: 0; background: rgba(255,255,255,0.15); border-radius: 26px; transition: 0.3s;" id="newSwimAlertsTrack"></span>
-                        <span style="position: absolute; height: 20px; width: 20px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s;" id="newSwimAlertsThumb"></span>
-                    </label>
-                </div>
-            </div>
+            <!-- Swim Alerts — notification preferences (rendered by renderNotifOptIn) -->
+            <div id="notifOptIn" style="border-top:1px solid rgba(255,255,255,0.06); padding-top:16px; margin-top:8px; margin-bottom:16px;"></div>
 
             <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px; margin-top: 8px; display: flex; align-items: center; justify-content: space-between;">
                 <div>
@@ -7840,8 +7793,6 @@
                     <!-- 2. March Challenge (prominent) -->
                     <div id="dashMonthlyChallenge" style="margin-bottom:20px;"></div>
 
-                    <!-- Notification opt-in (contextual — shown near home spot) -->
-                    <div id="notifOptIn" style="margin-bottom:20px; display:none;"></div>
 
                     <!-- 3. Latest Conditions -->
                     <div style="margin-bottom:20px;">
@@ -9403,9 +9354,10 @@
             if (denied) {
                 el.style.display = 'block';
                 el.innerHTML = `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
-                    <span style="font-size:18px;">🔔</span>
-                    <div style="font-size:12px;color:var(--text-secondary);flex:1;">Enable notifications in your browser/app settings to receive swim alerts.</div>
+                    <i data-lucide="bell-off" style="width:18px;height:18px;color:var(--text-secondary);flex-shrink:0;"></i>
+                    <div style="font-size:12px;color:var(--text-secondary);flex:1;">Notifications blocked. Enable them in your browser or app settings to receive swim alerts.</div>
                 </div>`;
+                if (typeof lucide !== 'undefined') lucide.createIcons();
                 return;
             }
 
@@ -9542,7 +9494,7 @@
                 await updatePushPref('notify_on_swim', notifySwim);
                 await updatePushPref('notify_on_temp', notifyTemp);
                 await updatePushPref('notify_on_new_member', notifyMember);
-                showToast('Notifications enabled 🔔', 'success');
+                showToast('Swim alerts enabled!', 'success');
                 renderNotifOptIn();
             } else if (Notification.permission === 'denied') {
                 renderNotifOptIn();
@@ -9567,7 +9519,7 @@
             banner.id = 'pushPromptBanner';
             banner.innerHTML = `
                 <div style="background: linear-gradient(135deg, var(--ocean-blue), var(--ocean-dark)); padding: 16px 20px; border-radius: 12px; margin: 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-                    <div style="font-size: 24px;">🔔</div>
+                    <i data-lucide="bell" style="width:22px;height:22px;color:white;flex-shrink:0;"></i>
                     <div style="flex: 1;">
                         <div style="font-weight: 700; color: white; font-size: 14px;">Get notified when swims change</div>
                         <div style="color: rgba(255,255,255,0.7); font-size: 12px; margin-top: 2px;">Know instantly if a swim is cancelled or moved</div>
@@ -9576,6 +9528,7 @@
                     <button onclick="dismissPushPrompt()" style="background: none; border: none; color: rgba(255,255,255,0.5); font-size: 20px; cursor: pointer; padding: 4px; line-height: 1;">&times;</button>
                 </div>
             `;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
 
             const mainApp = document.getElementById('mainApp');
             if (mainApp) {
