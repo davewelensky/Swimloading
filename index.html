@@ -2504,7 +2504,7 @@
                                 <div style="background: rgba(56, 189, 248, 0.15); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; color: var(--ocean-light);">
                                     ${paceLabel}
                                 </div>
-                                ${event.category === 'official_race' ? `<div style="background:rgba(245,158,11,0.15);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;color:#f59e0b;letter-spacing:0.3px;">🏅 OFFICIAL</div>` : ''}
+                                ${event.category === 'official_race' ? `<div style="background:rgba(245,158,11,0.15);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;color:#f59e0b;letter-spacing:0.3px;">OFFICIAL</div>` : ''}
                                 ${event.recurrence_type ? `<div style="background:rgba(16,185,129,0.12);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;color:#10b981;">🔄 ${formatRecurrenceLabel(event.recurrence_type, event.start_at)}</div>` : ''}
                                 ${displayRoute ? `
                                     <div style="background: rgba(56, 189, 248, 0.1); padding: 4px 10px; border-radius: 6px; font-size: 11px; color: var(--text-secondary);">
@@ -2589,7 +2589,13 @@
             const logistics = document.getElementById('eventLogistics')?.value;
             const chatUrl = document.getElementById('eventChatUrl')?.value;
 
-            const recurrenceType = document.getElementById('eventRecurrence')?.value || '';
+            let recurrenceType = document.getElementById('eventRecurrence')?.value || '';
+            // Resolve flexible monthly selector into stored format monthly_{nth}_{dow}
+            if (recurrenceType === 'monthly') {
+                const nth = document.getElementById('monthlyNth')?.value || '1';
+                const dow = document.getElementById('monthlyDow')?.value || '0';
+                recurrenceType = `monthly_${nth}_${dow}`;
+            }
             const recurrenceEndVal = document.getElementById('eventRecurrenceEnd')?.value || '';
             const dateTimeVal = document.getElementById('eventDateTime')?.value || '';
             const eventCategory = document.getElementById('eventCategory')?.value || 'group_swim';
@@ -2649,24 +2655,31 @@
                     });
                 };
 
-                if (recurrenceType === 'monthly_last_sunday' || recurrenceType === 'monthly_first_sunday') {
-                    // Walk month by month, find target Sunday in each
+                if (recurrenceType.startsWith('monthly_')) {
+                    // Generic monthly_{nth}_{dow} — nth=5 means "last"
+                    const parts = recurrenceType.split('_');
+                    let nth = 1, targetDow = 0;
+                    if (parts.length === 3) { nth = parseInt(parts[1]); targetDow = parseInt(parts[2]); }
+                    // Legacy aliases
+                    if (recurrenceType === 'monthly_first_sunday') { nth = 1; targetDow = 0; }
+                    if (recurrenceType === 'monthly_last_sunday')  { nth = 5; targetDow = 0; }
+
                     const startUTC = new Date(datePart + 'T12:00:00Z');
                     let curMonth = new Date(Date.UTC(startUTC.getUTCFullYear(), startUTC.getUTCMonth(), 1));
                     while (curMonth <= endDate && eventsToInsert.length < 60) {
                         const yr = curMonth.getUTCFullYear();
                         const mo = curMonth.getUTCMonth();
                         let target;
-                        if (recurrenceType === 'monthly_last_sunday') {
-                            // Last day of month, back up to Sunday
+                        if (nth === 5) {
+                            // "Last" occurrence: start from last day of month, go back to targetDow
                             const lastDay = new Date(Date.UTC(yr, mo + 1, 0));
-                            target = new Date(lastDay);
-                            target.setUTCDate(lastDay.getUTCDate() - lastDay.getUTCDay());
+                            const diff = (lastDay.getUTCDay() - targetDow + 7) % 7;
+                            target = new Date(Date.UTC(yr, mo, lastDay.getUTCDate() - diff));
                         } else {
-                            // First Sunday of month
+                            // nth occurrence: find first targetDow, then add (nth-1)*7 days
                             const firstDay = new Date(Date.UTC(yr, mo, 1));
-                            const offset = (7 - firstDay.getUTCDay()) % 7;
-                            target = new Date(Date.UTC(yr, mo, 1 + offset));
+                            const offset = (targetDow - firstDay.getUTCDay() + 7) % 7;
+                            target = new Date(Date.UTC(yr, mo, 1 + offset + (nth - 1) * 7));
                         }
                         if (target >= startUTC && target <= endDate) pushInstance(target);
                         curMonth.setUTCMonth(curMonth.getUTCMonth() + 1);
@@ -2828,15 +2841,30 @@
                 const day = new Date(startAt).toLocaleDateString('en-ZA', { weekday: 'long' });
                 return rt === 'weekly' ? `Every ${day}` : `Every 2nd ${day}`;
             }
+            // Legacy monthly types (backward compat)
             if (rt === 'monthly_last_sunday') return 'Monthly (last Sunday)';
             if (rt === 'monthly_first_sunday') return 'Monthly (first Sunday)';
-            return { daily:'Daily', weekdays:'Weekdays (Mon–Fri)', weekends:'Weekends (Sat–Sun)' }[rt] || rt;
+            // Flexible monthly: monthly_{nth}_{dow}
+            if (rt && rt.startsWith('monthly_')) {
+                const parts = rt.split('_');
+                if (parts.length === 3) {
+                    const nth = parseInt(parts[1]);
+                    const dow = parseInt(parts[2]);
+                    const ordinals = ['', '1st', '2nd', '3rd', '4th', 'last'];
+                    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+                    return `Monthly (${ordinals[nth] || nth} ${days[dow] || dow})`;
+                }
+            }
+            return { monthly:'Monthly', daily:'Daily', weekdays:'Weekdays (Mon–Fri)', weekends:'Weekends (Sat–Sun)' }[rt] || rt;
         }
 
         function onRecurrenceChange() {
             const val = document.getElementById('eventRecurrence')?.value;
             const endGroup = document.getElementById('recurrenceEndGroup');
             if (endGroup) endGroup.style.display = val ? 'block' : 'none';
+            // Show/hide monthly sub-picker
+            const monthlyGroup = document.getElementById('monthlySubGroup');
+            if (monthlyGroup) monthlyGroup.style.display = val === 'monthly' ? 'block' : 'none';
             updateRecurrencePreview();
         }
 
@@ -7942,12 +7970,10 @@
                         <i data-lucide="waves" style="width:18px;height:18px;"></i>
                         I'm Swimming
                     </button>
-                    <div style="text-align:center; margin-bottom:20px;">
-                        <button onclick="showCreateEvent()"
-                            style="background:none; border:none; color:var(--text-secondary); font-size:13px; font-weight:500; cursor:pointer; padding:4px 8px;">
-                            + Organise a Group Swim
-                        </button>
-                    </div>
+                    <button onclick="showCreateEvent()"
+                        style="width:100%; margin-bottom:20px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.12); color:var(--text-secondary); font-size:13px; font-weight:500; cursor:pointer; padding:11px 16px; border-radius:10px;">
+                        + Organise a Group Swim
+                    </button>
 
                     <!-- Who's Swimming Soon feed (hidden until posts found) -->
                     <div id="swimPostsFeed" style="display:none; margin-bottom:24px;"></div>
@@ -8145,12 +8171,39 @@
                                     <option value="">One-time</option>
                                     <option value="weekly">Weekly</option>
                                     <option value="fortnightly">Every 2 weeks</option>
-                                    <option value="monthly_first_sunday">Monthly — first Sunday</option>
-                                    <option value="monthly_last_sunday">Monthly — last Sunday</option>
+                                    <option value="monthly">Monthly</option>
                                     <option value="weekdays">Weekdays (Mon–Fri)</option>
                                     <option value="weekends">Weekends (Sat–Sun)</option>
                                     <option value="daily">Daily</option>
                                 </select>
+                            </div>
+
+                            <!-- Monthly sub-picker: which week + which day -->
+                            <div id="monthlySubGroup" style="display:none; margin-top:-8px; margin-bottom:12px; display:none;">
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                                    <div>
+                                        <div class="form-label" style="font-size:12px; margin-bottom:4px;">Week</div>
+                                        <select id="monthlyNth" onchange="updateRecurrencePreview()">
+                                            <option value="1">1st</option>
+                                            <option value="2">2nd</option>
+                                            <option value="3">3rd</option>
+                                            <option value="4">4th</option>
+                                            <option value="5">Last</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <div class="form-label" style="font-size:12px; margin-bottom:4px;">Day</div>
+                                        <select id="monthlyDow" onchange="updateRecurrencePreview()">
+                                            <option value="0">Sunday</option>
+                                            <option value="1">Monday</option>
+                                            <option value="2">Tuesday</option>
+                                            <option value="3">Wednesday</option>
+                                            <option value="4">Thursday</option>
+                                            <option value="5">Friday</option>
+                                            <option value="6">Saturday</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="form-group" id="recurrenceEndGroup" style="display:none;">
@@ -8201,7 +8254,7 @@
                             </div>
 
                             <div class="form-group">
-                                <div class="form-label">🏅 Swim Type</div>
+                                <div class="form-label">Swim Type</div>
                                 <select id="eventCategory" onchange="onCategoryChange()">
                                     <option value="group_swim">Group Swim</option>
                                     <option value="official_race">Official Race / Event</option>
@@ -8209,7 +8262,7 @@
                             </div>
 
                             <div class="form-group" id="posterUploadGroup" style="display:none;">
-                                <div class="form-label">🖼️ Event Poster <span style="font-weight:400;color:var(--text-secondary);">(optional)</span></div>
+                                <div class="form-label">Event Poster <span style="font-weight:400;color:var(--text-secondary);">(optional)</span></div>
                                 <input type="file" id="eventPoster" accept="image/*"
                                     style="width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-secondary);font-size:13px;cursor:pointer;">
                                 <div id="posterPreview" style="display:none;margin-top:8px;">
