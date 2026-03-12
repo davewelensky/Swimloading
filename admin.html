@@ -614,9 +614,13 @@
                         </select>
                     </div>
                 </div>
-                <div style="margin-bottom:12px;">
-                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Live Tracker URL</label>
+                <div style="margin-bottom:8px;">
+                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Live Tracker URL — Boat 1</label>
                     <input id="slTrackerUrl" type="url" placeholder="https://www.marinetraffic.com/..." style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Live Tracker URL — Boat 2 <span style="opacity:0.5;">(optional)</span></label>
+                    <input id="slTrackerUrl2" type="url" placeholder="https://www.marinetraffic.com/..." style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;box-sizing:border-box;">
                 </div>
                 <div style="margin-bottom:16px;">
                     <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Description</label>
@@ -1525,6 +1529,7 @@ async function saveSpotlight() {
         distance_km: parseFloat(document.getElementById('slDistance').value) || null,
         status: document.getElementById('slStatus').value,
         tracking_url: document.getElementById('slTrackerUrl').value.trim() || null,
+        tracking_url_2: document.getElementById('slTrackerUrl2').value.trim() || null,
         description: document.getElementById('slDescription').value.trim() || null,
     };
 
@@ -1541,7 +1546,7 @@ async function saveSpotlight() {
 }
 
 function clearSpotlightForm() {
-    ['slTitle','slSwimmers','slRoute','slDistance','slTrackerUrl','slDescription','slEditId'].forEach(id => {
+    ['slTitle','slSwimmers','slRoute','slDistance','slTrackerUrl','slTrackerUrl2','slDescription','slEditId'].forEach(id => {
         document.getElementById(id).value = '';
     });
     document.getElementById('slStatus').value = 'upcoming';
@@ -1558,6 +1563,7 @@ async function editSpotlight(id) {
     document.getElementById('slDistance').value = data.distance_km || '';
     document.getElementById('slStatus').value = data.status || 'upcoming';
     document.getElementById('slTrackerUrl').value = data.tracking_url || '';
+    document.getElementById('slTrackerUrl2').value = data.tracking_url_2 || '';
     document.getElementById('slDescription').value = data.description || '';
     document.getElementById('slCancelBtn').style.display = 'inline-block';
     document.getElementById('spotlightSection').scrollIntoView({ behavior: 'smooth' });
