@@ -5477,7 +5477,7 @@
 
                 if (error) throw error;
 
-                // Notify admins that a new swimmer has joined
+                // Notify admins (in-app) + push subscribers who want new member alerts
                 try {
                     const { data: admins } = await supabaseClient
                         .from('profiles')
@@ -5490,6 +5490,11 @@
                             { new_user_id: currentUser.id }
                         );
                     }
+                    // Push broadcast to anyone subscribed to new_member notifications
+                    broadcastPush(null, 'new_member',
+                        '🏊 New swimmer joined!',
+                        `${fullName} just joined SwimLoading — welcome them in!`
+                    );
                 } catch (notifErr) {
                     console.warn('Admin notification failed (non-blocking):', notifErr);
                 }
@@ -9208,7 +9213,8 @@
         }
 
         // Subscribe to push notifications
-        async function subscribeToPush() {
+        // locations: array of domain codes to subscribe to (defaults to home_domain)
+        async function subscribeToPush(locations) {
             if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
                 console.log('Push notifications not supported');
                 return false;
@@ -9226,10 +9232,7 @@
                 }
 
                 const registration = await navigator.serviceWorker.ready;
-
-                // Check for existing subscription
                 let subscription = await registration.pushManager.getSubscription();
-
                 if (!subscription) {
                     subscription = await registration.pushManager.subscribe({
                         userVisibleOnly: true,
@@ -9237,7 +9240,11 @@
                     });
                 }
 
-                // Save subscription to Supabase
+                // Resolve locations array — default to home_domain
+                const locs = (locations && locations.length)
+                    ? locations
+                    : (currentUserProfile?.home_domain ? [currentUserProfile.home_domain] : []);
+
                 const subJson = subscription.toJSON();
                 const { error } = await supabaseClient
                     .from('push_subscriptions')
@@ -9247,15 +9254,14 @@
                         p256dh: subJson.keys.p256dh,
                         auth: subJson.keys.auth,
                         user_agent: navigator.userAgent,
-                        preferred_location: currentUserProfile?.home_domain || null,
+                        preferred_location: locs[0] || null,   // keep for legacy compat
+                        preferred_locations: locs,
                     }, { onConflict: 'user_id,endpoint' });
 
                 if (error) {
                     console.error('Error saving push subscription:', error);
                     return false;
                 }
-
-                console.log('Push subscription saved');
                 return true;
             } catch (err) {
                 console.error('Push subscription failed:', err);
@@ -9263,15 +9269,15 @@
             }
         }
 
-        // Broadcast push to all subscribers at a location (fire-and-forget)
-        // type: 'temp' | 'swim'
+        // Broadcast push — type: 'temp' | 'swim' | 'new_member' (fire-and-forget)
         function broadcastPush(location, type, title, body) {
-            if (!location || !currentUser) return;
+            if (!currentUser) return;
+            if (type !== 'new_member' && !location) return;
             supabaseClient.functions.invoke('send-push', { body: { location, type, title, body } })
                 .catch(e => console.warn('broadcastPush warn:', e));
         }
 
-        // Update notify_on_temp / notify_on_swim preference in DB
+        // Update a scalar pref (notify_on_temp / notify_on_swim / notify_on_new_member)
         async function updatePushPref(key, value) {
             if (!currentUser) return;
             const registration = await navigator.serviceWorker.ready.catch(() => null);
@@ -9282,6 +9288,27 @@
                 .update({ [key]: value })
                 .eq('user_id', currentUser.id)
                 .eq('endpoint', sub.endpoint);
+        }
+
+        // Add or remove a region from the preferred_locations array
+        async function toggleRegionPref(region, add) {
+            if (!currentUser) return;
+            const reg = await navigator.serviceWorker.ready.catch(() => null);
+            const sub = reg ? await reg.pushManager.getSubscription().catch(() => null) : null;
+            if (!sub) return;
+            const { data } = await supabaseClient.from('push_subscriptions')
+                .select('preferred_locations')
+                .eq('user_id', currentUser.id)
+                .eq('endpoint', sub.endpoint)
+                .maybeSingle();
+            let locs = data?.preferred_locations || [];
+            if (add) { if (!locs.includes(region)) locs.push(region); }
+            else      { locs = locs.filter(r => r !== region); }
+            await supabaseClient.from('push_subscriptions')
+                .update({ preferred_locations: locs, preferred_location: locs[0] || null })
+                .eq('user_id', currentUser.id)
+                .eq('endpoint', sub.endpoint);
+            renderNotifOptIn();
         }
 
         // Unsubscribe from push notifications
@@ -9368,85 +9395,130 @@
             if (!el) return;
             if (!('PushManager' in window) || !('Notification' in window)) return;
             if (VAPID_PUBLIC_KEY === 'REPLACE_WITH_YOUR_VAPID_PUBLIC_KEY') return;
-            if (!currentUserProfile?.home_domain) return; // needs a home spot first
 
-            const domainName = (domains.find(d => d.code === currentUserProfile.home_domain) || {}).display_name
-                || currentUserProfile.home_domain;
-
-            const subscribed  = await isPushSubscribed();
-            const denied      = Notification.permission === 'denied';
-
-            // Fetch current prefs if subscribed
-            let notifyTemp = true, notifySwim = true;
-            if (subscribed) {
-                const reg = await navigator.serviceWorker.ready.catch(() => null);
-                const sub = reg ? await reg.pushManager.getSubscription().catch(() => null) : null;
-                if (sub) {
-                    const { data } = await supabaseClient.from('push_subscriptions')
-                        .select('notify_on_temp, notify_on_swim')
-                        .eq('user_id', currentUser.id)
-                        .eq('endpoint', sub.endpoint)
-                        .maybeSingle();
-                    if (data) { notifyTemp = data.notify_on_temp; notifySwim = data.notify_on_swim; }
-                }
-            }
-
-            const toggleStyle = `position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;`;
-            const trackStyle  = `position:absolute;cursor:pointer;inset:0;border-radius:24px;transition:0.3s;`;
-            const thumbStyle  = `position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:white;border-radius:50%;transition:0.3s;`;
-
-            function toggle(id, checked, onchange) {
-                const bg = checked ? 'var(--ocean-light)' : 'rgba(255,255,255,0.15)';
-                const tx = checked ? '20px' : '0px';
-                return `<label style="${toggleStyle}">
-                    <input type="checkbox" ${checked ? 'checked' : ''} onchange="${onchange}"
-                        style="opacity:0;width:0;height:0;">
-                    <span style="${trackStyle}background:${bg};"></span>
-                    <span style="${thumbStyle}transform:translateX(${tx});"></span>
-                </label>`;
-            }
+            const subscribed = await isPushSubscribed();
+            const denied     = Notification.permission === 'denied';
 
             if (denied) {
                 el.style.display = 'block';
                 el.innerHTML = `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
                     <span style="font-size:18px;">🔔</span>
-                    <div style="font-size:12px;color:var(--text-secondary);flex:1;">Enable notifications in your browser settings to get alerts for <strong style="color:var(--text-primary);">${domainName}</strong>.</div>
+                    <div style="font-size:12px;color:var(--text-secondary);flex:1;">Enable notifications in your browser/app settings to receive swim alerts.</div>
                 </div>`;
                 return;
             }
 
+            // Fetch current prefs from DB
+            let activeLocs = currentUserProfile?.home_domain ? [currentUserProfile.home_domain] : [];
+            let notifyTemp = true, notifySwim = true, notifyMember = false;
+            if (subscribed) {
+                const reg = await navigator.serviceWorker.ready.catch(() => null);
+                const sub = reg ? await reg.pushManager.getSubscription().catch(() => null) : null;
+                if (sub) {
+                    const { data } = await supabaseClient.from('push_subscriptions')
+                        .select('preferred_locations, notify_on_temp, notify_on_swim, notify_on_new_member')
+                        .eq('user_id', currentUser.id)
+                        .eq('endpoint', sub.endpoint)
+                        .maybeSingle();
+                    if (data) {
+                        activeLocs    = data.preferred_locations || activeLocs;
+                        notifyTemp    = data.notify_on_temp   ?? true;
+                        notifySwim    = data.notify_on_swim   ?? true;
+                        notifyMember  = data.notify_on_new_member ?? false;
+                    }
+                }
+            }
+
+            const mkToggle = (checked, onchange) => {
+                const bg = checked ? 'var(--ocean-light)' : 'rgba(255,255,255,0.15)';
+                const tx = checked ? '20px' : '0px';
+                return `<label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;">
+                    <input type="checkbox" ${checked ? 'checked' : ''} onchange="${onchange}" style="opacity:0;width:0;height:0;">
+                    <span style="position:absolute;cursor:pointer;inset:0;border-radius:24px;transition:0.3s;background:${bg};"></span>
+                    <span style="position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:white;border-radius:50%;transition:0.3s;transform:translateX(${tx});"></span>
+                </label>`;
+            };
+
+            // Region chips — all domains as toggle chips
+            const regionChips = domains.map(d => {
+                const active = activeLocs.includes(d.code);
+                const action = subscribed
+                    ? `toggleRegionPref('${d.code}', ${!active})`
+                    : `_togglePendingRegion(this, '${d.code}')`;
+                return `<button type="button" onclick="${action}"
+                    data-region="${d.code}" data-active="${active}"
+                    style="padding:4px 11px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;transition:0.2s;
+                           background:${active ? 'var(--ocean-blue)' : 'rgba(255,255,255,0.06)'};
+                           border:1px solid ${active ? 'var(--ocean-blue)' : 'rgba(255,255,255,0.15)'};
+                           color:${active ? '#fff' : 'var(--text-secondary)'};">
+                    ${d.display_name}
+                </button>`;
+            }).join('');
+
             el.style.display = 'block';
             el.innerHTML = `
                 <div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);border-radius:12px;padding:14px 16px;">
-                    <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;font-weight:600;">
-                        📍 Your spot: ${domainName}
+                    <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;font-weight:600;">🔔 Swim Notifications</div>
+
+                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:7px;">Regions to watch:</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">${regionChips}</div>
+
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <div style="font-size:13px;color:var(--text-primary);">🏊 New swim posts</div>
+                        ${subscribed
+                            ? mkToggle(notifySwim, `updatePushPref('notify_on_swim',this.checked)`)
+                            : `<input type="checkbox" id="_pendingSwim" checked style="width:18px;height:18px;cursor:pointer;">`}
                     </div>
-                    ${subscribed ? `
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                        <div style="font-size:13px;color:var(--text-primary);">🌡️ Notify when someone logs temp</div>
-                        ${toggle('notifTemp', notifyTemp, `updatePushPref('notify_on_temp',this.checked)`)}
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <div style="font-size:13px;color:var(--text-primary);">🌡️ Water temp logs</div>
+                        ${subscribed
+                            ? mkToggle(notifyTemp, `updatePushPref('notify_on_temp',this.checked)`)
+                            : `<input type="checkbox" id="_pendingTemp" checked style="width:18px;height:18px;cursor:pointer;">`}
                     </div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <div style="font-size:13px;color:var(--text-primary);">🏊 Notify when a swim is posted</div>
-                        ${toggle('notifSwim', notifySwim, `updatePushPref('notify_on_swim',this.checked)`)}
-                    </div>` : `
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                        <div>
-                            <div style="font-size:13px;color:var(--text-primary);font-weight:600;">Get notified at ${domainName}</div>
-                            <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Temp logs · Swim posts</div>
-                        </div>
-                        <button onclick="enableNotifFromCard()" style="background:var(--ocean-light);color:#000;border:none;padding:7px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Enable</button>
-                    </div>`}
+                    <div style="display:flex;justify-content:space-between;align-items:center;${subscribed ? '' : 'margin-bottom:12px;'}">
+                        <div style="font-size:13px;color:var(--text-primary);">👋 New swimmers joining</div>
+                        ${subscribed
+                            ? mkToggle(notifyMember, `updatePushPref('notify_on_new_member',this.checked)`)
+                            : `<input type="checkbox" id="_pendingMember" style="width:18px;height:18px;cursor:pointer;">`}
+                    </div>
+
+                    ${!subscribed ? `
+                    <button onclick="enableNotifFromCard()"
+                        style="width:100%;margin-top:12px;background:var(--ocean-light);color:#000;border:none;padding:9px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
+                        Enable Notifications
+                    </button>` : ''}
                 </div>`;
         }
 
+        // Toggle a region chip before subscribing (pre-subscribe state)
+        function _togglePendingRegion(btn, region) {
+            const active = btn.dataset.active === 'true';
+            btn.dataset.active = String(!active);
+            btn.style.background  = !active ? 'var(--ocean-blue)' : 'rgba(255,255,255,0.06)';
+            btn.style.borderColor = !active ? 'var(--ocean-blue)' : 'rgba(255,255,255,0.15)';
+            btn.style.color       = !active ? '#fff' : 'var(--text-secondary)';
+        }
+
         async function enableNotifFromCard() {
-            const ok = await subscribeToPush();
+            // Collect selected regions from chips
+            const chips = document.querySelectorAll('#notifOptIn [data-region]');
+            const selectedLocs = Array.from(chips)
+                .filter(c => c.dataset.active === 'true')
+                .map(c => c.dataset.region);
+
+            const ok = await subscribeToPush(selectedLocs.length ? selectedLocs : null);
             if (ok) {
+                // Save any pre-selected toggle prefs
+                const notifySwim   = document.getElementById('_pendingSwim')?.checked   ?? true;
+                const notifyTemp   = document.getElementById('_pendingTemp')?.checked   ?? true;
+                const notifyMember = document.getElementById('_pendingMember')?.checked ?? false;
+                await updatePushPref('notify_on_swim', notifySwim);
+                await updatePushPref('notify_on_temp', notifyTemp);
+                await updatePushPref('notify_on_new_member', notifyMember);
                 showToast('Notifications enabled 🔔', 'success');
-                renderNotifOptIn(); // re-render with toggles
+                renderNotifOptIn();
             } else if (Notification.permission === 'denied') {
-                renderNotifOptIn(); // re-render with "enable in settings" message
+                renderNotifOptIn();
             }
         }
 
