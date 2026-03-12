@@ -2136,6 +2136,12 @@
             if (endGroup) endGroup.style.display = 'none';
             const previewEl = document.getElementById('recurrencePreview');
             if (previewEl) previewEl.style.display = 'none';
+            // Reset distance mode back to single
+            const singleGroup = document.getElementById('singleDistanceGroup');
+            const multiGroup  = document.getElementById('multiDistanceGroup');
+            if (singleGroup) { singleGroup.style.display = 'block'; singleGroup.querySelector('input').required = true; }
+            if (multiGroup)  multiGroup.style.display = 'none';
+            resetRaceDistances();
         }
 
         // ========== SUGGEST A SPOT ==========
@@ -2521,11 +2527,16 @@
                                         Bright Cap
                                     </div>
                                 ` : ''}
-                                ${event.distance_km ? `
-                                    <div style="background: rgba(16, 185, 129, 0.15); padding: 4px 10px; border-radius: 6px; font-size: 11px; color: var(--success);">
+                                ${(event.distances_km && event.distances_km.length)
+                                    ? event.distances_km.map(d => `
+                                    <div style="background:rgba(16,185,129,0.15);padding:4px 10px;border-radius:6px;font-size:11px;color:var(--success);">
+                                        ${d}km
+                                    </div>`).join('')
+                                    : event.distance_km ? `
+                                    <div style="background:rgba(16,185,129,0.15);padding:4px 10px;border-radius:6px;font-size:11px;color:var(--success);">
                                         ${event.distance_km}km
-                                    </div>
-                                ` : ''}
+                                    </div>` : ''
+                                }
                                 <div style="background: rgba(139, 92, 246, 0.15); padding: 4px 10px; border-radius: 6px; font-size: 11px; color: #a78bfa;">
                                     ${confirmed} going${pending > 0 ? ` · ${pending} pending` : ''}${spotsLeft !== null ? ` · ${spotsLeft} left` : ''}
                                 </div>
@@ -2572,7 +2583,9 @@
             const spotId = spotSelect?.value;
             const startAt = document.getElementById('eventDateTime')?.value + ':00+02:00'; // Appending SAST offset (+02:00)
             const paceLevel = document.getElementById('eventPaceLevel')?.value;
-            const distanceKm = parseFloat(document.getElementById('eventDistance')?.value);
+            const distanceKm = eventCategory === 'official_race'
+                ? null
+                : parseFloat(document.getElementById('eventDistance')?.value);
             const notes = document.getElementById('eventDescription')?.value;
 
             // Find the spot name from the ID
@@ -2622,6 +2635,7 @@
                 lat: spot?.latitude || null,
                 lng: spot?.longitude || null,
                 distance_km: distanceKm,
+                distances_km: eventCategory === 'official_race' ? selectedRaceDistances : null,
                 target_pace_sec_per_100m: targetPace,
                 notes: notes,
                 route_type: routeType,
@@ -2868,10 +2882,67 @@
             updateRecurrencePreview();
         }
 
+        // Tracks distances for multi-distance race events
+        let selectedRaceDistances = [];
+
         function onCategoryChange() {
             const val = document.getElementById('eventCategory')?.value;
+            const isRace = val === 'official_race';
+            // Poster upload
             const posterGroup = document.getElementById('posterUploadGroup');
-            if (posterGroup) posterGroup.style.display = val === 'official_race' ? 'block' : 'none';
+            if (posterGroup) posterGroup.style.display = isRace ? 'block' : 'none';
+            // Distance mode
+            const singleGroup = document.getElementById('singleDistanceGroup');
+            const multiGroup  = document.getElementById('multiDistanceGroup');
+            if (singleGroup) {
+                singleGroup.style.display = isRace ? 'none' : 'block';
+                singleGroup.querySelector('input').required = !isRace;
+            }
+            if (multiGroup) multiGroup.style.display = isRace ? 'block' : 'none';
+        }
+
+        function addRaceDistance(val) {
+            const num = parseFloat(val);
+            if (isNaN(num) || num <= 0) return;
+            if (selectedRaceDistances.includes(num)) return; // no duplicates
+            selectedRaceDistances.push(num);
+            selectedRaceDistances.sort((a, b) => a - b);
+            renderDistancePills();
+        }
+
+        function addCustomRaceDistance() {
+            const input = document.getElementById('customDistanceInput');
+            const val = parseFloat(input?.value);
+            if (isNaN(val) || val <= 0) return;
+            addRaceDistance(val);
+            if (input) input.value = '';
+        }
+
+        function removeRaceDistance(val) {
+            selectedRaceDistances = selectedRaceDistances.filter(d => d !== val);
+            renderDistancePills();
+        }
+
+        function renderDistancePills() {
+            const container = document.getElementById('selectedDistancesPills');
+            const hint = document.getElementById('noDistancesHint');
+            if (!container) return;
+            if (hint) hint.style.display = selectedRaceDistances.length ? 'none' : 'inline';
+            // Remove old pills (keep hint span)
+            Array.from(container.children).forEach(el => {
+                if (el.id !== 'noDistancesHint') el.remove();
+            });
+            selectedRaceDistances.forEach(d => {
+                const pill = document.createElement('div');
+                pill.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:var(--success);';
+                pill.innerHTML = `${d}km <span onclick="removeRaceDistance(${d})" style="cursor:pointer;opacity:0.7;font-size:14px;line-height:1;">×</span>`;
+                container.appendChild(pill);
+            });
+        }
+
+        function resetRaceDistances() {
+            selectedRaceDistances = [];
+            renderDistancePills();
         }
 
         // Poster file preview
@@ -8222,11 +8293,36 @@
                                 </select>
                             </div>
 
-                            <div class="form-group">
-                                <div class="form-label"><i data-lucide="ruler"
-                                        style="width: 14px; height: 14px; vertical-align: middle;"></i> Distance (km)
-                                </div>
+                            <!-- Single distance — group swims -->
+                            <div class="form-group" id="singleDistanceGroup">
+                                <div class="form-label"><i data-lucide="ruler" style="width:14px;height:14px;vertical-align:middle;"></i> Distance (km)</div>
                                 <input type="number" id="eventDistance" step="0.1" placeholder="e.g., 2.5" required>
+                            </div>
+
+                            <!-- Multi-distance — official races -->
+                            <div class="form-group" id="multiDistanceGroup" style="display:none;">
+                                <div class="form-label"><i data-lucide="ruler" style="width:14px;height:14px;vertical-align:middle;"></i> Race Distances (km)</div>
+                                <!-- Quick-add chips -->
+                                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+                                    <span style="font-size:11px;color:var(--text-secondary);align-self:center;margin-right:2px;">Quick add:</span>
+                                    ${[1, 2.5, 5, 7.5, 10].map(d => `
+                                    <button type="button" onclick="addRaceDistance(${d})"
+                                        style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:var(--ocean-light);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;">
+                                        ${d}km
+                                    </button>`).join('')}
+                                </div>
+                                <!-- Custom entry -->
+                                <div style="display:flex;gap:8px;margin-bottom:10px;">
+                                    <input type="number" id="customDistanceInput" step="0.1" min="0.1" placeholder="Custom km" style="flex:1;">
+                                    <button type="button" onclick="addCustomRaceDistance()"
+                                        style="background:var(--ocean-blue);color:#fff;border:none;border-radius:8px;padding:0 16px;font-size:13px;font-weight:600;cursor:pointer;">
+                                        + Add
+                                    </button>
+                                </div>
+                                <!-- Selected distances as removable pills -->
+                                <div id="selectedDistancesPills" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px;">
+                                    <span id="noDistancesHint" style="font-size:12px;color:var(--text-secondary);font-style:italic;">No distances added yet</span>
+                                </div>
                             </div>
 
                             <div class="form-group">
