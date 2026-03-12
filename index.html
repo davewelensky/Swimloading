@@ -9254,7 +9254,6 @@
                         p256dh: subJson.keys.p256dh,
                         auth: subJson.keys.auth,
                         user_agent: navigator.userAgent,
-                        preferred_location: locs[0] || null,   // keep for legacy compat
                         preferred_locations: locs,
                     }, { onConflict: 'user_id,endpoint' });
 
@@ -9305,7 +9304,7 @@
             if (add) { if (!locs.includes(region)) locs.push(region); }
             else      { locs = locs.filter(r => r !== region); }
             await supabaseClient.from('push_subscriptions')
-                .update({ preferred_locations: locs, preferred_location: locs[0] || null })
+                .update({ preferred_locations: locs })
                 .eq('user_id', currentUser.id)
                 .eq('endpoint', sub.endpoint);
             renderNotifOptIn();
