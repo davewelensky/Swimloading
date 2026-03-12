@@ -1,4 +1,4 @@
-const CACHE_NAME = 'swimloading-v4';
+const CACHE_NAME = 'swimloading-v5';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
