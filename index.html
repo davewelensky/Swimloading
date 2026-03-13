@@ -4775,101 +4775,162 @@
 
         function renderSafetyRegionalContent() {
             const domain = currentUserProfile?.home_domain || '';
-            const isWC  = ['ATLANTIC','FALSE_BAY','WEST_COAST','SOUTH_COAST','GARDEN_ROUTE'].includes(domain);
-            const isKZN = domain === 'KZN';
 
-            // Show / hide regional tip cards in Community Safety Tips
+            // ── Region group lookup — add new domains here as the app grows ──────
+            const SAFETY_GROUP = {
+                ATLANTIC:     'cape',
+                FALSE_BAY:    'cape',
+                WEST_COAST:   'cape',
+                SOUTH_COAST:  'cape',
+                GARDEN_ROUTE: 'garden_route',
+                EASTERN_CAPE: 'eastern_cape',
+                KZN:          'kzn',
+                NAMIBIA:      'namibia',
+            };
+            const group = SAFETY_GROUP[domain] || '';
+
+            // ── Seal content: Cape Fur Seals (+ rabies) present in WC and Namibia ─
+            const showSeals = group === 'cape' || group === 'namibia';
             const sealVaccineTip = document.getElementById('sealVaccineTip');
-            if (sealVaccineTip) sealVaccineTip.style.display = isWC ? '' : 'none';
-            const sharkKZNTip = document.getElementById('sharkKZNTip');
-            if (sharkKZNTip) sharkKZNTip.style.display = isKZN ? '' : 'none';
-
-            // Show / hide Western Cape-only seal sections
+            if (sealVaccineTip) sealVaccineTip.style.display = showSeals ? '' : 'none';
             ['sealBiteSection','sealsMarineSection'].forEach(id => {
                 const el = document.getElementById(id);
-                if (el) el.style.display = isWC ? '' : 'none';
+                if (el) el.style.display = showSeals ? '' : 'none';
             });
 
-            // Shark regional note
+            // ── Regional alert tip card ──────────────────────────────────────────
+            const alertTip = document.getElementById('regionalAlertTip');
+            if (alertTip) {
+                const ALERT_TIPS = {
+                    kzn: {
+                        color: '#ef4444', icon: 'bell', title: 'KZN Shark Alerts',
+                        body: 'Download the <strong>SharkSmart app</strong> for real-time KZN Sharks Board alerts. The Sharks Board maintains protective nets and drum lines at major KZN beaches — always check net status before swimming at unfamiliar spots.',
+                    },
+                    garden_route: {
+                        color: '#f59e0b', icon: 'alert-triangle', title: 'Garden Route Hazards',
+                        body: 'Watch for strong tidal flows and currents in estuaries and lagoons (Knysna, Keurbooms). No shark nets in this region — Great White and Zambezi sharks are present. Check CapeNature alerts before open water swims.',
+                    },
+                    eastern_cape: {
+                        color: '#f59e0b', icon: 'alert-triangle', title: 'Eastern Cape Conditions',
+                        body: 'No shark nets on most PE/Gqeberha beaches. During the <strong>Sardine Run (June–July)</strong> shark activity is elevated along the coast. Zambezi/Bull sharks frequent river mouths. Monitor local advisories.',
+                    },
+                    namibia: {
+                        color: '#ef4444', icon: 'wifi-off', title: 'Remote Swimming — Extra Caution',
+                        body: 'Namibia\'s coastline is remote. Nearest hospital may be hours away. Always swim with a buddy, notify someone of your plan, and consider carrying a PLB (Personal Locator Beacon). Cold shock risk is HIGH (Benguela current 10–15°C).',
+                    },
+                };
+                const tip = ALERT_TIPS[group];
+                if (tip) {
+                    const rgb = tip.color === '#ef4444' ? '239,68,68' : '245,158,11';
+                    alertTip.style.display = '';
+                    alertTip.innerHTML = `<div style="background:rgba(${rgb},0.08);border:1px solid ${tip.color}40;border-left:3px solid ${tip.color};border-radius:10px;padding:12px;margin-bottom:2px;">
+                        <div style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:13px;color:var(--text-primary);margin-bottom:4px;">
+                            <i data-lucide="${tip.icon}" style="width:13px;height:13px;"></i> ${tip.title}
+                        </div>
+                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">${tip.body.replace(/<strong>/g,'<strong style="color:var(--text-primary);">')}</div>
+                    </div>`;
+                } else {
+                    alertTip.style.display = 'none';
+                    alertTip.innerHTML = '';
+                }
+            }
+
+            // ── Shark regional note (inside Marine Life section) ─────────────────
+            const SHARK_NOTES = {
+                cape:         `<strong>Western Cape:</strong> No shark nets on most Cape beaches. Great White Sharks prevalent near seal colonies (Duiker Island, Boulders, Dyer Island). Check <a href="https://www.sharkspotters.org.za" target="_blank" style="color:#38bdf8;">Shark Spotters</a> flag status before swimming.`,
+                garden_route: `<strong>Garden Route:</strong> No shark nets. Great White and Zambezi/Bull sharks possible, especially near river mouths and estuaries (Knysna Lagoon, Keurbooms River). Check CapeNature advisories.`,
+                eastern_cape: `<strong>Eastern Cape:</strong> No shark nets on most PE/Gqeberha beaches. Zambezi/Bull sharks active near river mouths (Sundays River, Bushmans). Sardine Run (June–July) brings elevated shark activity along the entire EC coastline.`,
+                kzn:          `<strong>KwaZulu-Natal:</strong> KZN Sharks Board protective nets and drum lines at most major beaches. Download the <strong>SharkSmart app</strong> for real-time alerts. Always check net status at unfamiliar spots.`,
+                namibia:      `<strong>Namibia:</strong> No shark nets. Remote coastline with limited rescue infrastructure. Great White and Zambezi/Bull sharks present. Always swim with a buddy.`,
+            };
             const sharksNote = document.getElementById('sharksRegionalNote');
             if (sharksNote) {
-                if (isWC) {
-                    sharksNote.innerHTML = `<div style="margin-top:8px;padding:8px 10px;background:rgba(239,68,68,0.07);border-radius:8px;font-size:12px;color:var(--text-secondary);line-height:1.5;"><strong style="color:var(--text-primary);">Western Cape:</strong> No shark nets on most Cape beaches. Great White Sharks are more prevalent near seal colonies (Duiker Island, Boulders, Dyer Island). Check <a href="https://www.sharkspotters.org.za" target="_blank" style="color:#38bdf8;">Shark Spotters</a> flag status before swimming.</div>`;
-                } else if (isKZN) {
-                    sharksNote.innerHTML = `<div style="margin-top:8px;padding:8px 10px;background:rgba(239,68,68,0.07);border-radius:8px;font-size:12px;color:var(--text-secondary);line-height:1.5;"><strong style="color:var(--text-primary);">KwaZulu-Natal:</strong> The KZN Sharks Board maintains protective nets and drum lines at most major beaches. Download the <strong style="color:var(--text-primary);">SharkSmart app</strong> for real-time alerts. Always check net status at unfamiliar spots.</div>`;
-                } else {
-                    sharksNote.innerHTML = '';
-                }
+                const note = SHARK_NOTES[group];
+                sharksNote.innerHTML = note
+                    ? `<div style="margin-top:8px;padding:8px 10px;background:rgba(239,68,68,0.07);border-radius:8px;font-size:12px;color:var(--text-secondary);line-height:1.5;">${note.replace(/<strong>/g,'<strong style="color:var(--text-primary);">')}</div>`
+                    : '';
             }
 
-            // Cold water regional context
+            // ── Cold water note (inside Cold Water section) ──────────────────────
+            const COLD_NOTES = {
+                cape:         `<strong>Western Cape temps:</strong> Atlantic 10–14°C · False Bay 14–18°C. Cold shock on entry is a real risk — acclimatise gradually and never swim alone in cold water.`,
+                garden_route: `<strong>Garden Route temps:</strong> 18–22°C (Agulhas current). Can drop after upwelling events. Cold shock less likely than the Cape — still dress warmly after swimming.`,
+                eastern_cape: `<strong>Eastern Cape temps:</strong> 17–22°C (mixed Agulhas/Benguela). Cooler in winter. Conditions can vary — always check local reports before open water swims.`,
+                kzn:          `<strong>KZN temps:</strong> Indian Ocean 22–28°C. Hypothermia risk is low, but monitor for thermoclines (sudden cold layers) in deeper open water and after heavy rainfall.`,
+                namibia:      `<strong>Namibia temps:</strong> Cold Benguela current keeps water at 10–15°C year-round. Cold shock risk is HIGH — same as Cape Atlantic. Nearest hospital may be very far away.`,
+            };
             const coldNote = document.getElementById('coldWaterRegionalNote');
             if (coldNote) {
-                if (isWC) {
-                    coldNote.innerHTML = `<div style="margin-top:8px;padding:8px 10px;background:rgba(56,189,248,0.07);border-radius:8px;font-size:12px;color:var(--text-secondary);line-height:1.5;"><strong style="color:var(--text-primary);">Western Cape temps:</strong> Atlantic 10–14°C, False Bay 14–18°C. Cold shock on entry is a real risk — always acclimatise gradually and never swim alone in cold water.</div>`;
-                } else if (isKZN) {
-                    coldNote.innerHTML = `<div style="margin-top:8px;padding:8px 10px;background:rgba(56,189,248,0.07);border-radius:8px;font-size:12px;color:var(--text-secondary);line-height:1.5;"><strong style="color:var(--text-primary);">KZN temps:</strong> Indian Ocean averages 22–28°C. Hypothermia risk is low, but monitor for thermoclines (sudden cold layers) in deeper open water and after heavy rainfall.</div>`;
-                } else {
-                    coldNote.innerHTML = '';
-                }
+                const note = COLD_NOTES[group];
+                coldNote.innerHTML = note
+                    ? `<div style="margin-top:8px;padding:8px 10px;background:rgba(56,189,248,0.07);border-radius:8px;font-size:12px;color:var(--text-secondary);line-height:1.5;">${note.replace(/<strong>/g,'<strong style="color:var(--text-primary);">')}</div>`
+                    : '';
             }
 
-            // Helper: build a standard contact card row
-            function contactCard(href, iconName, label, subtitle, phoneDisplay, phoneColor) {
+            // ── Helper: contact card row ─────────────────────────────────────────
+            function contactCard(href, icon, label, sub, phone, phoneColor) {
                 const col = phoneColor || '#38bdf8';
                 return `<a href="${href}" ${href.startsWith('http') ? 'target="_blank"' : ''} style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
                     <div>
-                        <div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="${iconName}" style="width:14px;height:14px;flex-shrink:0;"></i> ${label}</div>
-                        <div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">${subtitle}</div>
+                        <div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="${icon}" style="width:14px;height:14px;flex-shrink:0;"></i> ${label}</div>
+                        <div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">${sub}</div>
                     </div>
-                    <span style="color:${col};font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">${phoneDisplay}</span>
+                    <span style="color:${col};font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">${phone}</span>
                 </a>`;
             }
 
-            // Regional emergency contacts (appended after national)
+            // ── Regional emergency contacts (added below national) ───────────────
+            const REGIONAL_CONTACTS = {
+                cape:         [['tel:0214807700','building-2','City of Cape Town','Beach closures · Coastal emergencies','021 480 7700']],
+                garden_route: [['tel:0832362924','leaf','CapeNature','Wildlife incidents · Nature reserves','083 236 2924']],
+                eastern_cape: [['tel:0415073911','anchor','NSRI PE (Station 6)','Water rescue · Nelson Mandela Bay','041 507 3911']],
+                kzn:          [
+                    ['tel:0315664400','shield-alert','KZN Sharks Board','Shark incidents · Marine safety','031 566 0400'],
+                    ['tel:0313617500','anchor','NSRI Durban','Local water rescue · Station 5','031 361 7500'],
+                    ['tel:0313119900','building-2','eThekwini Emergency','City emergency services','031 311 9900'],
+                ],
+                namibia:      [['tel:112','phone','Emergency (from mobile)','Police · Ambulance · Rescue','112']],
+            };
             const contactsEl = document.getElementById('safetyRegionalContacts');
             if (contactsEl) {
-                if (isWC) {
-                    contactsEl.innerHTML =
-                        contactCard('tel:0214807700','building-2','City of Cape Town','Beach closures · Coastal emergencies','021 480 7700');
-                } else if (isKZN) {
-                    contactsEl.innerHTML =
-                        contactCard('tel:0315664400','shield-alert','KZN Sharks Board','Shark incidents · Marine safety','031 566 0400') +
-                        contactCard('tel:0313617500','anchor','NSRI Durban','Local water rescue · Station 5','031 361 7500') +
-                        contactCard('tel:0313119900','building-2','eThekwini Emergency','City emergency services','031 311 9900');
-                } else {
-                    contactsEl.innerHTML = '';
-                }
+                contactsEl.innerHTML = (REGIONAL_CONTACTS[group] || []).map(c => contactCard(...c)).join('');
             }
 
-            // Regional reporting section
+            // ── Regional reporting section ───────────────────────────────────────
+            const REGIONAL_REPORTING = {
+                cape: { title: 'Reporting (Western Cape)', contacts: [
+                    ['tel:0217004158','paw-print','Cape of Good Hope SPCA','Rabid / injured seals on beach','021 700 4158'],
+                    ['tel:0832362924','leaf','CapeNature','Wildlife incidents · Nature reserve areas','083 236 2924'],
+                    ['tel:0217830234','mountain-snow','Table Mountain National Park','TMNP coastline incidents','021 783 0234'],
+                    ['tel:0860103089','droplets','Coastal Pollution / Water Quality','City of Cape Town — sewage, pollution, closures','0860 103 089'],
+                    ['https://wa.me/27600181505','message-circle','City WhatsApp Line','Report coastal issues via WhatsApp','060 018 1505','#25d366'],
+                ]},
+                garden_route: { title: 'Reporting (Garden Route)', contacts: [
+                    ['tel:0832362924','leaf','CapeNature','Wildlife incidents · Nature reserve areas','083 236 2924'],
+                    ['tel:0448022455','mountain-snow','Garden Route National Park','Wilderness · Knysna · Tsitsikamma coastline','044 802 2455'],
+                ]},
+                eastern_cape: { title: 'Reporting (Eastern Cape)', contacts: [
+                    ['tel:0415073911','anchor','NSRI PE (Station 6)','Water rescue · Nelson Mandela Bay','041 507 3911'],
+                    ['tel:0415085800','leaf','DEDEAT Nature Conservation','Eastern Cape wildlife incidents','041 508 5800'],
+                ]},
+                kzn: { title: 'Reporting (KwaZulu-Natal)', contacts: [
+                    ['tel:0338451000','leaf','Ezemvelo KZN Wildlife','Marine / nature reserve incidents','033 845 1000'],
+                    ['tel:0315664400','shield-alert','KZN Sharks Board','Report shark incidents · Beach nets','031 566 0400'],
+                ]},
+                namibia: { title: 'Reporting (Namibia)', contacts: [
+                    ['tel:112','phone','Namibia Emergency (mobile)','Police · Ambulance · Search & Rescue','112'],
+                ]},
+            };
             const reportingEl = document.getElementById('safetyRegionalReporting');
             if (reportingEl) {
-                if (isWC) {
-                    reportingEl.innerHTML = `
-                        <div style="background:rgba(30,41,59,0.8);border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid rgba(255,255,255,0.1);">
-                            <div style="font-weight:700;color:var(--text-primary);margin-bottom:12px;font-size:16px;display:flex;align-items:center;gap:8px;">
-                                <i data-lucide="flag" style="width:18px;height:18px;color:#38bdf8;"></i> Reporting (Western Cape)
-                            </div>
-                            <div style="display:grid;gap:8px;">
-                                ${contactCard('tel:0217004158','paw-print','Cape of Good Hope SPCA','Rabid / injured seals on beach','021 700 4158')}
-                                ${contactCard('tel:0832362924','leaf','CapeNature','Wildlife incidents · Nature reserve areas','083 236 2924')}
-                                ${contactCard('tel:0217830234','mountain-snow','Table Mountain National Park','TMNP coastline incidents','021 783 0234')}
-                                ${contactCard('tel:0860103089','droplets','Coastal Pollution / Water Quality','City of Cape Town — sewage, pollution, closures','0860 103 089')}
-                                ${contactCard('https://wa.me/27600181505','message-circle','City WhatsApp Line','Report coastal issues via WhatsApp','060 018 1505','#25d366')}
-                            </div>
-                        </div>`;
-                } else if (isKZN) {
-                    reportingEl.innerHTML = `
-                        <div style="background:rgba(30,41,59,0.8);border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid rgba(255,255,255,0.1);">
-                            <div style="font-weight:700;color:var(--text-primary);margin-bottom:12px;font-size:16px;display:flex;align-items:center;gap:8px;">
-                                <i data-lucide="flag" style="width:18px;height:18px;color:#38bdf8;"></i> Reporting (KwaZulu-Natal)
-                            </div>
-                            <div style="display:grid;gap:8px;">
-                                ${contactCard('tel:0338451000','leaf','Ezemvelo KZN Wildlife','Marine / nature reserve incidents','033 845 1000')}
-                                ${contactCard('tel:0315664400','shield-alert','KZN Sharks Board','Report shark incidents · Beach nets','031 566 0400')}
-                            </div>
-                        </div>`;
+                const rd = REGIONAL_REPORTING[group];
+                if (rd) {
+                    reportingEl.innerHTML = `<div style="background:rgba(30,41,59,0.8);border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid rgba(255,255,255,0.1);">
+                        <div style="font-weight:700;color:var(--text-primary);margin-bottom:12px;font-size:16px;display:flex;align-items:center;gap:8px;">
+                            <i data-lucide="flag" style="width:18px;height:18px;color:#38bdf8;"></i> ${rd.title}
+                        </div>
+                        <div style="display:grid;gap:8px;">${rd.contacts.map(c => contactCard(...c)).join('')}</div>
+                    </div>`;
                 } else {
                     reportingEl.innerHTML = '';
                 }
@@ -5911,7 +5972,8 @@
 
             // Absolute range check by water type
             // KZN / Indian Ocean is significantly warmer — raise ocean ceiling to 30°C
-            const warmDomains = ['KZN'];
+            // Warm-water domains: raise ocean ceiling to 30°C (Agulhas + Indian Ocean)
+            const warmDomains = ['KZN', 'GARDEN_ROUTE', 'EASTERN_CAPE'];
             const isWarmDomain = warmDomains.includes(spotInfo?.domain);
             const ranges = {
                 'OCEAN':  isWarmDomain ? { min: 14, max: 30, label: 'ocean' } : { min: 10, max: 22, label: 'ocean' },
@@ -8549,16 +8611,9 @@
                             Community Safety Tips
                         </div>
                         <div style="display:grid;gap:10px;" id="safetyTipsList">
-                            <!-- KZN shark tip — shown by JS for KZN -->
-                            <div id="sharkKZNTip" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-left:3px solid #ef4444;border-radius:10px;padding:12px;">
-                                <div style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:13px;color:var(--text-primary);margin-bottom:4px;">
-                                    <i data-lucide="bell" style="width:13px;height:13px;"></i> KZN Shark Alerts
-                                </div>
-                                <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">
-                                    Download the <strong style="color:var(--text-primary);">SharkSmart app</strong> for real-time KZN Sharks Board alerts. The Sharks Board maintains protective nets and drum lines at major KZN beaches — always check the board's status before swimming at unfamiliar spots.
-                                </div>
-                            </div>
-                            <!-- WC vaccine tip — shown by JS for Western Cape -->
+                            <!-- Regional alert tip — populated by JS for each region -->
+                            <div id="regionalAlertTip" style="display:none;"></div>
+                            <!-- WC seal vaccine tip — shown by JS for WC + Namibia -->
                             <div id="sealVaccineTip" style="display:none;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-left:3px solid #f59e0b;border-radius:10px;padding:12px;">
                                 <div style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:13px;color:var(--text-primary);margin-bottom:4px;">
                                     <i data-lucide="syringe" style="width:13px;height:13px;"></i> Preventative Rabies Vaccination
