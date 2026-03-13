@@ -4773,6 +4773,79 @@
             }
         }
 
+        function renderSafetyRegionalContent() {
+            const domain = currentUserProfile?.home_domain || '';
+            const isWC  = ['ATLANTIC','FALSE_BAY','WEST_COAST','SOUTH_COAST','GARDEN_ROUTE'].includes(domain);
+            const isKZN = domain === 'KZN';
+
+            // Show / hide Western Cape-only seal sections
+            ['sealBiteSection','sealsMarineSection','sealVaccineTip'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = isWC ? '' : 'none';
+            });
+
+            // Helper: build a standard contact card row
+            function contactCard(href, iconName, label, subtitle, phoneDisplay, phoneColor) {
+                const col = phoneColor || '#38bdf8';
+                return `<a href="${href}" ${href.startsWith('http') ? 'target="_blank"' : ''} style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
+                    <div>
+                        <div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="${iconName}" style="width:14px;height:14px;flex-shrink:0;"></i> ${label}</div>
+                        <div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">${subtitle}</div>
+                    </div>
+                    <span style="color:${col};font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">${phoneDisplay}</span>
+                </a>`;
+            }
+
+            // Regional emergency contacts (appended after national)
+            const contactsEl = document.getElementById('safetyRegionalContacts');
+            if (contactsEl) {
+                if (isWC) {
+                    contactsEl.innerHTML =
+                        contactCard('tel:0214807700','building-2','City of Cape Town','Beach closures · Coastal emergencies','021 480 7700');
+                } else if (isKZN) {
+                    contactsEl.innerHTML =
+                        contactCard('tel:0315664400','shield-alert','KZN Sharks Board','Shark incidents · Marine safety','031 566 0400') +
+                        contactCard('tel:0313617500','anchor','NSRI Durban','Local water rescue · Station 5','031 361 7500') +
+                        contactCard('tel:0313119900','building-2','eThekwini Emergency','City emergency services','031 311 9900');
+                } else {
+                    contactsEl.innerHTML = '';
+                }
+            }
+
+            // Regional reporting section
+            const reportingEl = document.getElementById('safetyRegionalReporting');
+            if (reportingEl) {
+                if (isWC) {
+                    reportingEl.innerHTML = `
+                        <div style="background:rgba(30,41,59,0.8);border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid rgba(255,255,255,0.1);">
+                            <div style="font-weight:700;color:var(--text-primary);margin-bottom:12px;font-size:16px;display:flex;align-items:center;gap:8px;">
+                                <i data-lucide="flag" style="width:18px;height:18px;color:#38bdf8;"></i> Reporting (Western Cape)
+                            </div>
+                            <div style="display:grid;gap:8px;">
+                                ${contactCard('tel:0217004158','paw-print','Cape of Good Hope SPCA','Rabid / injured seals on beach','021 700 4158')}
+                                ${contactCard('tel:0832362924','leaf','CapeNature','Wildlife incidents · Nature reserve areas','083 236 2924')}
+                                ${contactCard('tel:0217830234','mountain-snow','Table Mountain National Park','TMNP coastline incidents','021 783 0234')}
+                                ${contactCard('tel:0860103089','droplets','Coastal Pollution / Water Quality','City of Cape Town — sewage, pollution, closures','0860 103 089')}
+                                ${contactCard('https://wa.me/27600181505','message-circle','City WhatsApp Line','Report coastal issues via WhatsApp','060 018 1505','#25d366')}
+                            </div>
+                        </div>`;
+                } else if (isKZN) {
+                    reportingEl.innerHTML = `
+                        <div style="background:rgba(30,41,59,0.8);border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid rgba(255,255,255,0.1);">
+                            <div style="font-weight:700;color:var(--text-primary);margin-bottom:12px;font-size:16px;display:flex;align-items:center;gap:8px;">
+                                <i data-lucide="flag" style="width:18px;height:18px;color:#38bdf8;"></i> Reporting (KwaZulu-Natal)
+                            </div>
+                            <div style="display:grid;gap:8px;">
+                                ${contactCard('tel:0338451000','leaf','Ezemvelo KZN Wildlife','Marine / nature reserve incidents','033 845 1000')}
+                                ${contactCard('tel:0315664400','shield-alert','KZN Sharks Board','Report shark incidents · Beach nets','031 566 0400')}
+                            </div>
+                        </div>`;
+                } else {
+                    reportingEl.innerHTML = '';
+                }
+            }
+        }
+
         function renderActiveHazards(hazards) {
             const el = document.getElementById('activeHazardsList');
             if (!el) return;
@@ -8436,244 +8509,150 @@
                     <!-- Report a Hazard button -->
                     <button onclick="showHazardReport()"
                         style="background:rgba(239,68,68,0.15);border:1px solid #ef4444;color:#ef4444;border-radius:10px;padding:12px 16px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-bottom:20px;display:flex;align-items:center;justify-content:center;gap:8px;">
-                        &#x1F6A8; Report a Hazard at this Spot
+                        <i data-lucide="siren" style="width:16px;height:16px;"></i> Report a Hazard at this Spot
                     </button>
 
-                    <!-- 💡 Community Safety Tips -->
+                    <!-- Community Safety Tips -->
                     <div style="margin-bottom:20px;">
                         <div style="font-weight:700;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
                             <i data-lucide="lightbulb" style="width:18px;height:18px;color:#f59e0b;"></i>
                             Community Safety Tips
                         </div>
                         <div style="display:grid;gap:10px;" id="safetyTipsList">
-
-                            <!-- Tip: Preventative Rabies Vaccination -->
-                            <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-left:3px solid #f59e0b;border-radius:10px;padding:12px;">
-                                <div style="font-weight:700;font-size:13px;color:var(--text-primary);margin-bottom:4px;">💉 Preventative Rabies Vaccination</div>
+                            <!-- Regional tip injected by renderSafetyRegionalContent() -->
+                            <div id="sealVaccineTip" style="display:none;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-left:3px solid #f59e0b;border-radius:10px;padding:12px;">
+                                <div style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:13px;color:var(--text-primary);margin-bottom:4px;">
+                                    <i data-lucide="syringe" style="width:13px;height:13px;"></i> Preventative Rabies Vaccination
+                                </div>
                                 <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">
-                                    2 injections one week apart, then a booster a year later. This eliminates the need for post-bite immunoglobulin injections at the wound site if bitten by a seal. Consult your GP or Medicross.
+                                    2 injections one week apart, then a booster a year later. Eliminates the need for post-bite immunoglobulin if bitten by a seal. Consult your GP or Medicross.
                                 </div>
                             </div>
-
                         </div>
                     </div>
 
-                    <!-- 🔴 Section 1: Critical Risks -->
-                    <div
-                        style="background: rgba(239, 68, 68, 0.15); border: 2px solid var(--danger); border-radius: 12px; padding: 16px; margin-bottom: 20px;">
-                        <div
-                            style="font-weight: 800; color: var(--danger); margin-bottom: 12px; font-size: 18px; display: flex; align-items: center; gap: 8px;">
-                            <i data-lucide="alert-octagon" style="width: 20px; height: 20px;"></i> 🔴 CRITICAL SAFETY
-                            WARNINGS
+                    <!-- Critical Risks -->
+                    <div style="background:rgba(239,68,68,0.15);border:2px solid var(--danger);border-radius:12px;padding:16px;margin-bottom:20px;">
+                        <div style="font-weight:800;color:var(--danger);margin-bottom:12px;font-size:18px;display:flex;align-items:center;gap:8px;">
+                            <i data-lucide="alert-octagon" style="width:20px;height:20px;"></i> Critical Safety Warnings
                         </div>
 
-                        <div style="margin-bottom: 16px;">
-                            <div
-                                style="font-weight: 700; color: var(--text-primary); font-size: 14px; margin-bottom: 4px;">
-                                SEAL BITES / RABIES — MEDICAL EMERGENCY</div>
-                            <div style="font-size: 12px; color: #fca5a5; font-weight: 600; margin-bottom: 6px;">
-                                ⚠️ Rabies is now considered endemic in Cape Fur Seals across the Western Cape coastline.
-                            </div>
-                            <ul
-                                style="margin: 0 0 0 20px; padding: 0; color: var(--text-primary); font-size: 13px; line-height: 1.4;">
-                                <li style="margin-bottom: 4px;">Any bite or scratch requires <strong>immediate</strong> hospital treatment — do not wait.</li>
-                                <li style="margin-bottom: 4px;">Wash wound with soap + water for 10–15 minutes.</li>
-                                <li style="margin-bottom: 4px;">Tell ER staff about potential rabies exposure — post-exposure treatment is time-critical.</li>
-                                <li style="margin-bottom: 4px;">Watch for seals acting lethargic, unusually friendly, or aggressive — these are red flags.</li>
-                                <li style="margin-bottom: 4px;">Dog owners: keep dogs on leash near the water. Do not let them approach seals.</li>
-                                <li style="margin-bottom: 4px;">If beach closed after seal incident: siren + red flags will be activated.</li>
+                        <!-- Seal bites — Western Cape only, shown by JS -->
+                        <div id="sealBiteSection" style="display:none;margin-bottom:16px;">
+                            <div style="font-weight:700;color:var(--text-primary);font-size:14px;margin-bottom:4px;">SEAL BITES / RABIES — MEDICAL EMERGENCY</div>
+                            <div style="font-size:12px;color:#fca5a5;font-weight:600;margin-bottom:6px;">Rabies is now considered endemic in Cape Fur Seals across the Western Cape coastline.</div>
+                            <ul style="margin:0 0 0 20px;padding:0;color:var(--text-primary);font-size:13px;line-height:1.4;">
+                                <li style="margin-bottom:4px;">Any bite or scratch requires <strong>immediate</strong> hospital treatment — do not wait.</li>
+                                <li style="margin-bottom:4px;">Wash wound with soap + water for 10–15 minutes.</li>
+                                <li style="margin-bottom:4px;">Tell ER staff about potential rabies exposure — post-exposure treatment is time-critical.</li>
+                                <li style="margin-bottom:4px;">Watch for seals acting lethargic, unusually friendly, or aggressive — red flags.</li>
+                                <li style="margin-bottom:4px;">If beach closed after seal incident: siren + red flags will be activated.</li>
                             </ul>
                         </div>
 
                         <div>
-                            <div
-                                style="font-weight: 700; color: var(--text-primary); font-size: 14px; margin-bottom: 4px;">
-                                HYPOTHERMIA — MEDICAL EMERGENCY</div>
-                            <ul
-                                style="margin: 0 0 0 20px; padding: 0; color: var(--text-primary); font-size: 13px; line-height: 1.4;">
-                                <li style="margin-bottom: 4px;">Remove wet clothing and shelter from wind.</li>
-                                <li style="margin-bottom: 4px;">Warm the core first (chest, neck, groin).</li>
-                                <li style="margin-bottom: 4px;">Handle gently — rough movement can trigger cardiac
-                                    arrest.</li>
-                                <li style="margin-bottom: 4px;">Do not give alcohol or rub the skin.</li>
+                            <div style="font-weight:700;color:var(--text-primary);font-size:14px;margin-bottom:4px;">HYPOTHERMIA — MEDICAL EMERGENCY</div>
+                            <ul style="margin:0 0 0 20px;padding:0;color:var(--text-primary);font-size:13px;line-height:1.4;">
+                                <li style="margin-bottom:4px;">Remove wet clothing and shelter from wind.</li>
+                                <li style="margin-bottom:4px;">Warm the core first (chest, neck, groin).</li>
+                                <li style="margin-bottom:4px;">Handle gently — rough movement can trigger cardiac arrest.</li>
+                                <li style="margin-bottom:4px;">Do not give alcohol or rub the skin.</li>
                             </ul>
                         </div>
                     </div>
 
-                    <!-- Section 2: Marine Life -->
-                    <div
-                        style="background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 16px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05);">
-                        <div
-                            style="font-weight: 700; color: var(--text-primary); margin-bottom: 12px; font-size: 16px; display: flex; align-items: center; gap: 8px;">
-                            <i data-lucide="waves" style="width: 18px; height: 18px; color: var(--ocean-light);"></i>
-                            Marine Life
+                    <!-- Marine Life -->
+                    <div style="background:rgba(15,23,42,0.6);border-radius:12px;padding:16px;margin-bottom:20px;border:1px solid rgba(255,255,255,0.05);">
+                        <div style="font-weight:700;color:var(--text-primary);margin-bottom:12px;font-size:16px;display:flex;align-items:center;gap:8px;">
+                            <i data-lucide="waves" style="width:18px;height:18px;color:var(--ocean-light);"></i> Marine Life
                         </div>
-
-                        <div style="display: grid; gap: 12px;">
+                        <div style="display:grid;gap:12px;">
                             <div>
-                                <div
-                                    style="font-weight: 600; color: var(--ocean-light); font-size: 13px; margin-bottom: 2px;">
-                                    SHARKS</div>
-                                <ul
-                                    style="margin: 0 0 0 18px; padding: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.4;">
+                                <div style="font-weight:600;color:var(--ocean-light);font-size:13px;margin-bottom:4px;">SHARKS</div>
+                                <ul style="margin:0 0 0 18px;padding:0;color:var(--text-secondary);font-size:13px;line-height:1.4;">
                                     <li>Avoid dawn/dusk and murky water.</li>
-                                    <li>Exit water calmly if sharks are sighted.</li>
+                                    <li>Exit water calmly if a shark is sighted.</li>
                                     <li>Swim in groups where possible.</li>
-                                    <li></li>
+                                    <li>Follow all beach flags and shark alerts.</li>
                                 </ul>
                             </div>
-                            <div>
-                                <div
-                                    style="font-weight: 600; color: var(--ocean-light); font-size: 13px; margin-bottom: 2px;">
-                                    SEALS (INC. RABID)</div>
-                                <ul
-                                    style="margin: 0 0 0 18px; padding: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.4;">
+                            <!-- Seals section — Western Cape only, shown by JS -->
+                            <div id="sealsMarineSection" style="display:none;">
+                                <div style="font-weight:600;color:var(--ocean-light);font-size:13px;margin-bottom:4px;">SEALS (INCL. RABID)</div>
+                                <ul style="margin:0 0 0 18px;padding:0;color:var(--text-secondary);font-size:13px;line-height:1.4;">
                                     <li>Do not approach or interact.</li>
-                                    <li>Exit immediately if seal acts aggressively or unusually.</li>
-                                    <li>Erratic or overly friendly behavior = DANGER.</li>
+                                    <li>Exit immediately if a seal acts aggressively or unusually.</li>
+                                    <li>Erratic or overly friendly behaviour = DANGER.</li>
                                 </ul>
                             </div>
                             <div>
-                                <div
-                                    style="font-weight: 600; color: var(--ocean-light); font-size: 13px; margin-bottom: 2px;">
-                                    BLUEBOTTLES / JELLYFISH</div>
-                                <ul
-                                    style="margin: 0 0 0 18px; padding: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.4;">
+                                <div style="font-weight:600;color:var(--ocean-light);font-size:13px;margin-bottom:4px;">BLUEBOTTLES / JELLYFISH</div>
+                                <ul style="margin:0 0 0 18px;padding:0;color:var(--text-secondary);font-size:13px;line-height:1.4;">
                                     <li>Rinse with seawater (never fresh water).</li>
                                     <li>Exit water if stings are widespread.</li>
                                     <li>Seek help if pain is severe or systemic.</li>
                                 </ul>
                             </div>
-
-                            <div style="margin-top: 10px;">
-                                <div
-                                    style="font-weight: 600; color: var(--ocean-light); font-size: 13px; margin-bottom: 2px;">
-                                    💩 SEWAGE / WATER POLLUTION</div>
-                                <ul
-                                    style="margin: 0 0 0 18px; padding: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.4;">
+                            <div>
+                                <div style="font-weight:600;color:var(--ocean-light);font-size:13px;margin-bottom:4px;">SEWAGE / WATER POLLUTION</div>
+                                <ul style="margin:0 0 0 18px;padding:0;color:var(--text-secondary);font-size:13px;line-height:1.4;">
                                     <li>Do not swim if water is discoloured or smells foul.</li>
                                     <li>Avoid swimming after heavy rainfall (stormwater runoff).</li>
-                                    <li>Check for City of Cape Town beach closures / advisories.</li>
+                                    <li>Check local municipality beach closures / advisories.</li>
                                     <li>If exposed: shower immediately, avoid swallowing water.</li>
-                                    <li>Seek medical help if you develop gastro, ear or skin infections.</li>
+                                    <li>Seek medical help if gastro, ear or skin infections develop.</li>
                                 </ul>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Section 3: Cold & Exposure -->
-                    <div
-                        style="background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 16px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05);">
-                        <div
-                            style="font-weight: 700; color: var(--text-primary); margin-bottom: 12px; font-size: 16px; display: flex; align-items: center; gap: 8px;">
-                            <i data-lucide="thermometer-snowflake"
-                                style="width: 18px; height: 18px; color: #38bdf8;"></i> Cold Water & Exposure
+                    <!-- Cold Water -->
+                    <div style="background:rgba(15,23,42,0.6);border-radius:12px;padding:16px;margin-bottom:20px;border:1px solid rgba(255,255,255,0.05);">
+                        <div style="font-weight:700;color:var(--text-primary);margin-bottom:12px;font-size:16px;display:flex;align-items:center;gap:8px;">
+                            <i data-lucide="thermometer-snowflake" style="width:18px;height:18px;color:#38bdf8;"></i> Cold Water &amp; Exposure
                         </div>
-                        <ul
-                            style="margin: 0 0 0 20px; padding: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.5;">
-                            <li style="margin-bottom: 4px;">Cold + wind dramatically increases heat loss.</li>
-                            <li style="margin-bottom: 4px;">Shivering, slurred speech, confusion = DANGER SIGNS.</li>
-                            <li style="margin-bottom: 4px;">Get out early — do not "push through".</li>
-                            <li style="margin-bottom: 4px;">Always have a warm change and shelter ready.</li>
+                        <ul style="margin:0 0 0 20px;padding:0;color:var(--text-secondary);font-size:13px;line-height:1.5;">
+                            <li style="margin-bottom:4px;">Cold + wind dramatically increases heat loss.</li>
+                            <li style="margin-bottom:4px;">Shivering, slurred speech, confusion = DANGER SIGNS.</li>
+                            <li style="margin-bottom:4px;">Get out early — do not "push through".</li>
+                            <li style="margin-bottom:4px;">Always have a warm change and shelter ready.</li>
                         </ul>
                     </div>
 
-                    <!-- Section 4: Emergency Contacts -->
-                    <div
-                        style="background: rgba(30, 41, 59, 0.8); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.1);">
-                        <div
-                            style="font-weight: 700; color: var(--text-primary); margin-bottom: 12px; font-size: 16px;">
-                            🆘 Emergency Contacts
+                    <!-- Emergency Contacts: national always + regional injected -->
+                    <div style="background:rgba(30,41,59,0.8);border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid rgba(255,255,255,0.1);">
+                        <div style="font-weight:700;color:var(--text-primary);margin-bottom:12px;font-size:16px;display:flex;align-items:center;gap:8px;">
+                            <i data-lucide="phone-call" style="width:18px;height:18px;color:#ef4444;"></i> Emergency Contacts
                         </div>
-                        <div style="display: grid; gap: 8px;">
-                            <a href="tel:0870949774"
-                                style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; text-decoration: none; border: 1px solid rgba(255,255,255,0.05);">
+                        <div style="display:grid;gap:8px;">
+                            <a href="tel:0870949774" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
                                 <div>
-                                    <div style="color: var(--text-primary); font-weight: 700; font-size: 14px;">🚤 NSRI (Sea Rescue)</div>
-                                    <div style="color: var(--text-secondary); font-size: 11px;">Water rescue / missing swimmer</div>
+                                    <div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="anchor" style="width:14px;height:14px;flex-shrink:0;"></i> NSRI Sea Rescue</div>
+                                    <div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">National · Water rescue / missing swimmer</div>
                                 </div>
-                                <span style="color: #38bdf8; font-weight: 800; font-size: 15px;">087 094 9774</span>
+                                <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">087 094 9774</span>
                             </a>
-                            <a href="tel:10177"
-                                style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; text-decoration: none; border: 1px solid rgba(255,255,255,0.05);">
+                            <a href="tel:10177" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
                                 <div>
-                                    <div style="color: var(--text-primary); font-weight: 700; font-size: 14px;">🚑 Ambulance</div>
-                                    <div style="color: var(--text-secondary); font-size: 11px;">Medical emergency</div>
+                                    <div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="ambulance" style="width:14px;height:14px;flex-shrink:0;"></i> Ambulance</div>
+                                    <div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">National · Medical emergency</div>
                                 </div>
-                                <span style="color: #38bdf8; font-weight: 800; font-size: 15px;">10177</span>
+                                <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">10177</span>
                             </a>
-                            <a href="tel:10111"
-                                style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; text-decoration: none; border: 1px solid rgba(255,255,255,0.05);">
+                            <a href="tel:10111" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
                                 <div>
-                                    <div style="color: var(--text-primary); font-weight: 700; font-size: 14px;">👮 Police</div>
-                                    <div style="color: var(--text-secondary); font-size: 11px;">Immediate danger</div>
+                                    <div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="shield" style="width:14px;height:14px;flex-shrink:0;"></i> Police</div>
+                                    <div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">National · Immediate danger</div>
                                 </div>
-                                <span style="color: #38bdf8; font-weight: 800; font-size: 15px;">10111</span>
+                                <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">10111</span>
                             </a>
-                            <a href="tel:0214807700"
-                                style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; text-decoration: none; border: 1px solid rgba(255,255,255,0.05);">
-                                <div>
-                                    <div style="color: var(--text-primary); font-weight: 700; font-size: 14px;">🏙️ City of Cape Town Emergencies</div>
-                                    <div style="color: var(--text-secondary); font-size: 11px;">Beach closures, coastal emergencies</div>
-                                </div>
-                                <span style="color: #38bdf8; font-weight: 800; font-size: 15px;">021 480 7700</span>
-                            </a>
+                            <!-- Regional contacts injected here -->
+                            <div id="safetyRegionalContacts"></div>
                         </div>
                     </div>
 
-                    <!-- Section 5: Wildlife & Coastal Reporting -->
-                    <div
-                        style="background: rgba(30, 41, 59, 0.8); border-radius: 12px; padding: 16px; border: 1px solid rgba(255,255,255,0.1);">
-                        <div
-                            style="font-weight: 700; color: var(--text-primary); margin-bottom: 4px; font-size: 16px;">
-                            🦭 Wildlife &amp; Coastal Reporting
-                        </div>
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
-                            Report aggressive / sick seals, sharks, pollution, and beach incidents
-                        </div>
-                        <div style="display: grid; gap: 8px;">
-                            <a href="tel:0217004158"
-                                style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; text-decoration: none; border: 1px solid rgba(255,255,255,0.05);">
-                                <div>
-                                    <div style="color: var(--text-primary); font-weight: 700; font-size: 14px;">🐾 Cape of Good Hope SPCA</div>
-                                    <div style="color: var(--text-secondary); font-size: 11px;">Rabid / injured seals on beach</div>
-                                </div>
-                                <span style="color: #38bdf8; font-weight: 800; font-size: 15px;">021 700 4158</span>
-                            </a>
-                            <a href="tel:0832362924"
-                                style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; text-decoration: none; border: 1px solid rgba(255,255,255,0.05);">
-                                <div>
-                                    <div style="color: var(--text-primary); font-weight: 700; font-size: 14px;">🌿 CapeNature</div>
-                                    <div style="color: var(--text-secondary); font-size: 11px;">Wildlife incidents, nature reserve areas</div>
-                                </div>
-                                <span style="color: #38bdf8; font-weight: 800; font-size: 15px;">083 236 2924</span>
-                            </a>
-                            <a href="tel:0217830234"
-                                style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; text-decoration: none; border: 1px solid rgba(255,255,255,0.05);">
-                                <div>
-                                    <div style="color: var(--text-primary); font-weight: 700; font-size: 14px;">🏔️ Table Mountain National Park</div>
-                                    <div style="color: var(--text-secondary); font-size: 11px;">TMNP coastline incidents</div>
-                                </div>
-                                <span style="color: #38bdf8; font-weight: 800; font-size: 15px;">021 783 0234</span>
-                            </a>
-                            <a href="tel:0860103089"
-                                style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; text-decoration: none; border: 1px solid rgba(255,255,255,0.05);">
-                                <div>
-                                    <div style="color: var(--text-primary); font-weight: 700; font-size: 14px;">💧 Coastal Pollution / Water Quality</div>
-                                    <div style="color: var(--text-secondary); font-size: 11px;">City of Cape Town — sewage, pollution, beach closures</div>
-                                </div>
-                                <span style="color: #38bdf8; font-weight: 800; font-size: 15px;">0860 103 089</span>
-                            </a>
-                            <a href="https://wa.me/27600181505" target="_blank"
-                                style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; text-decoration: none; border: 1px solid rgba(255,255,255,0.05);">
-                                <div>
-                                    <div style="color: var(--text-primary); font-weight: 700; font-size: 14px;">💬 City WhatsApp Line</div>
-                                    <div style="color: var(--text-secondary); font-size: 11px;">Report coastal issues via WhatsApp</div>
-                                </div>
-                                <span style="color: #25d366; font-weight: 800; font-size: 15px;">060 018 1505</span>
-                            </a>
-                        </div>
-                    </div>
+                    <!-- Regional reporting section injected by JS -->
+                    <div id="safetyRegionalReporting"></div>
                 </div>
             </div>
 
@@ -8744,6 +8723,7 @@
                 loadLeaderboard();
             } else if (page === 'safety') {
                 loadHazards();
+                renderSafetyRegionalContent();
             }
 
             // Initialize icons after page switch
