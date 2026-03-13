@@ -4778,11 +4778,41 @@
             const isWC  = ['ATLANTIC','FALSE_BAY','WEST_COAST','SOUTH_COAST','GARDEN_ROUTE'].includes(domain);
             const isKZN = domain === 'KZN';
 
+            // Show / hide regional tip cards in Community Safety Tips
+            const sealVaccineTip = document.getElementById('sealVaccineTip');
+            if (sealVaccineTip) sealVaccineTip.style.display = isWC ? '' : 'none';
+            const sharkKZNTip = document.getElementById('sharkKZNTip');
+            if (sharkKZNTip) sharkKZNTip.style.display = isKZN ? '' : 'none';
+
             // Show / hide Western Cape-only seal sections
-            ['sealBiteSection','sealsMarineSection','sealVaccineTip'].forEach(id => {
+            ['sealBiteSection','sealsMarineSection'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.style.display = isWC ? '' : 'none';
             });
+
+            // Shark regional note
+            const sharksNote = document.getElementById('sharksRegionalNote');
+            if (sharksNote) {
+                if (isWC) {
+                    sharksNote.innerHTML = `<div style="margin-top:8px;padding:8px 10px;background:rgba(239,68,68,0.07);border-radius:8px;font-size:12px;color:var(--text-secondary);line-height:1.5;"><strong style="color:var(--text-primary);">Western Cape:</strong> No shark nets on most Cape beaches. Great White Sharks are more prevalent near seal colonies (Duiker Island, Boulders, Dyer Island). Check <a href="https://www.sharkspotters.org.za" target="_blank" style="color:#38bdf8;">Shark Spotters</a> flag status before swimming.</div>`;
+                } else if (isKZN) {
+                    sharksNote.innerHTML = `<div style="margin-top:8px;padding:8px 10px;background:rgba(239,68,68,0.07);border-radius:8px;font-size:12px;color:var(--text-secondary);line-height:1.5;"><strong style="color:var(--text-primary);">KwaZulu-Natal:</strong> The KZN Sharks Board maintains protective nets and drum lines at most major beaches. Download the <strong style="color:var(--text-primary);">SharkSmart app</strong> for real-time alerts. Always check net status at unfamiliar spots.</div>`;
+                } else {
+                    sharksNote.innerHTML = '';
+                }
+            }
+
+            // Cold water regional context
+            const coldNote = document.getElementById('coldWaterRegionalNote');
+            if (coldNote) {
+                if (isWC) {
+                    coldNote.innerHTML = `<div style="margin-top:8px;padding:8px 10px;background:rgba(56,189,248,0.07);border-radius:8px;font-size:12px;color:var(--text-secondary);line-height:1.5;"><strong style="color:var(--text-primary);">Western Cape temps:</strong> Atlantic 10–14°C, False Bay 14–18°C. Cold shock on entry is a real risk — always acclimatise gradually and never swim alone in cold water.</div>`;
+                } else if (isKZN) {
+                    coldNote.innerHTML = `<div style="margin-top:8px;padding:8px 10px;background:rgba(56,189,248,0.07);border-radius:8px;font-size:12px;color:var(--text-secondary);line-height:1.5;"><strong style="color:var(--text-primary);">KZN temps:</strong> Indian Ocean averages 22–28°C. Hypothermia risk is low, but monitor for thermoclines (sudden cold layers) in deeper open water and after heavy rainfall.</div>`;
+                } else {
+                    coldNote.innerHTML = '';
+                }
+            }
 
             // Helper: build a standard contact card row
             function contactCard(href, iconName, label, subtitle, phoneDisplay, phoneColor) {
@@ -8519,7 +8549,16 @@
                             Community Safety Tips
                         </div>
                         <div style="display:grid;gap:10px;" id="safetyTipsList">
-                            <!-- Regional tip injected by renderSafetyRegionalContent() -->
+                            <!-- KZN shark tip — shown by JS for KZN -->
+                            <div id="sharkKZNTip" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-left:3px solid #ef4444;border-radius:10px;padding:12px;">
+                                <div style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:13px;color:var(--text-primary);margin-bottom:4px;">
+                                    <i data-lucide="bell" style="width:13px;height:13px;"></i> KZN Shark Alerts
+                                </div>
+                                <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">
+                                    Download the <strong style="color:var(--text-primary);">SharkSmart app</strong> for real-time KZN Sharks Board alerts. The Sharks Board maintains protective nets and drum lines at major KZN beaches — always check the board's status before swimming at unfamiliar spots.
+                                </div>
+                            </div>
+                            <!-- WC vaccine tip — shown by JS for Western Cape -->
                             <div id="sealVaccineTip" style="display:none;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-left:3px solid #f59e0b;border-radius:10px;padding:12px;">
                                 <div style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:13px;color:var(--text-primary);margin-bottom:4px;">
                                     <i data-lucide="syringe" style="width:13px;height:13px;"></i> Preventative Rabies Vaccination
@@ -8575,6 +8614,8 @@
                                     <li>Swim in groups where possible.</li>
                                     <li>Follow all beach flags and shark alerts.</li>
                                 </ul>
+                                <!-- Regional shark note injected here -->
+                                <div id="sharksRegionalNote"></div>
                             </div>
                             <!-- Seals section — Western Cape only, shown by JS -->
                             <div id="sealsMarineSection" style="display:none;">
@@ -8617,6 +8658,8 @@
                             <li style="margin-bottom:4px;">Get out early — do not "push through".</li>
                             <li style="margin-bottom:4px;">Always have a warm change and shelter ready.</li>
                         </ul>
+                        <!-- Regional cold water context injected here -->
+                        <div id="coldWaterRegionalNote"></div>
                     </div>
 
                     <!-- Emergency Contacts: national always + regional injected -->
