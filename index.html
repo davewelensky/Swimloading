@@ -2141,6 +2141,19 @@
             if (singleGroup) { singleGroup.style.display = 'block'; singleGroup.querySelector('input').required = true; }
             if (multiGroup)  multiGroup.style.display = 'none';
             resetRaceDistances();
+            // Reset swim type to Group Swim
+            const sel = document.getElementById('eventCategory');
+            if (sel) sel.value = 'group_swim';
+            const titleEl = document.getElementById('createModalTitle');
+            if (titleEl) titleEl.textContent = 'Organise a Group Swim';
+            const submitBtn = document.getElementById('createSubmitBtn');
+            if (submitBtn) submitBtn.textContent = 'Create Swim';
+            const groupBtn = document.getElementById('typeGroupSwimBtn');
+            const raceBtn  = document.getElementById('typeRaceBtn');
+            if (groupBtn) { groupBtn.style.borderColor = 'var(--ocean-blue)'; groupBtn.style.background = 'rgba(2,132,199,0.12)'; }
+            if (raceBtn)  { raceBtn.style.borderColor  = 'rgba(255,255,255,0.1)'; raceBtn.style.background = 'rgba(255,255,255,0.03)'; }
+            const posterGroup = document.getElementById('posterUploadGroup');
+            if (posterGroup) posterGroup.style.display = 'none';
         }
 
         // ========== SUGGEST A SPOT ==========
@@ -2887,18 +2900,49 @@
         // Tracks distances for multi-distance race events
         let selectedRaceDistances = [];
 
+        function selectSwimType(val) {
+            const sel = document.getElementById('eventCategory');
+            if (sel) sel.value = val;
+            onCategoryChange();
+        }
+
         function onCategoryChange() {
             const val = document.getElementById('eventCategory')?.value;
             const isRace = val === 'official_race';
-            // Poster upload
+
+            // Update type card button visuals
+            const groupBtn = document.getElementById('typeGroupSwimBtn');
+            const raceBtn  = document.getElementById('typeRaceBtn');
+            if (groupBtn) {
+                groupBtn.style.borderColor = isRace ? 'rgba(255,255,255,0.1)' : 'var(--ocean-blue)';
+                groupBtn.style.background  = isRace ? 'rgba(255,255,255,0.03)' : 'rgba(2,132,199,0.12)';
+            }
+            if (raceBtn) {
+                raceBtn.style.borderColor = isRace ? '#f59e0b' : 'rgba(255,255,255,0.1)';
+                raceBtn.style.background  = isRace ? 'rgba(245,158,11,0.08)' : 'rgba(255,255,255,0.03)';
+            }
+
+            // Update modal title + submit button + name placeholder
+            const titleEl = document.getElementById('createModalTitle');
+            if (titleEl) titleEl.textContent = isRace ? 'Create Official Race' : 'Organise a Group Swim';
+            const submitBtn = document.getElementById('createSubmitBtn');
+            if (submitBtn) submitBtn.textContent = isRace ? 'Create Race' : 'Create Swim';
+            const nameInput = document.getElementById('eventName');
+            if (nameInput) nameInput.placeholder = isRace
+                ? 'e.g., Groenpunt Open Water Challenge'
+                : 'e.g., Morning Clifton Lap';
+
+            // Poster upload visibility
             const posterGroup = document.getElementById('posterUploadGroup');
             if (posterGroup) posterGroup.style.display = isRace ? 'block' : 'none';
-            // Distance mode
+
+            // Distance mode toggle
             const singleGroup = document.getElementById('singleDistanceGroup');
             const multiGroup  = document.getElementById('multiDistanceGroup');
             if (singleGroup) {
                 singleGroup.style.display = isRace ? 'none' : 'block';
-                singleGroup.querySelector('input').required = !isRace;
+                const distInput = singleGroup.querySelector('input');
+                if (distInput) distInput.required = !isRace;
             }
             if (multiGroup) multiGroup.style.display = isRace ? 'block' : 'none';
         }
@@ -2925,6 +2969,10 @@
             renderDistancePills();
         }
 
+        function formatRaceDistance(km) {
+            return km < 1 ? `${Math.round(km * 1000)}m` : `${km}km`;
+        }
+
         function renderDistancePills() {
             const container = document.getElementById('selectedDistancesPills');
             const hint = document.getElementById('noDistancesHint');
@@ -2936,8 +2984,8 @@
             });
             selectedRaceDistances.forEach(d => {
                 const pill = document.createElement('div');
-                pill.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:var(--success);';
-                pill.innerHTML = `${d}km <span onclick="removeRaceDistance(${d})" style="cursor:pointer;opacity:0.7;font-size:14px;line-height:1;">×</span>`;
+                pill.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:20px;padding:5px 14px;font-size:13px;font-weight:600;color:var(--success);';
+                pill.innerHTML = `${formatRaceDistance(d)} <span onclick="removeRaceDistance(${d})" style="cursor:pointer;opacity:0.6;font-size:16px;line-height:1;margin-left:2px;">×</span>`;
                 container.appendChild(pill);
             });
         }
@@ -7156,9 +7204,11 @@
                 <!-- Avatar tab switcher -->
                 <div style="display:flex; gap:8px; margin-bottom:14px;">
                     <button id="avatarTabPhoto" onclick="switchAvatarTab('photo')"
-                        style="background:var(--ocean-blue);color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;flex:1;">📷 Photo</button>
+                        style="background:var(--ocean-blue);color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;flex:1;">
+                        <i data-lucide="camera" style="width:13px;height:13px;vertical-align:middle;margin-right:5px;"></i>Photo</button>
                     <button id="avatarTabIcon" onclick="switchAvatarTab('icon')"
-                        style="background:rgba(255,255,255,0.08);color:var(--text-secondary);border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;flex:1;">🎨 Icon</button>
+                        style="background:rgba(255,255,255,0.08);color:var(--text-secondary);border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;flex:1;">
+                        <i data-lucide="smile" style="width:13px;height:13px;vertical-align:middle;margin-right:5px;"></i>Icon</button>
                 </div>
 
                 <!-- Photo upload panel -->
@@ -7169,7 +7219,7 @@
                     <input type="file" id="avatarFileInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none;" onchange="handleAvatarFileSelect(event)">
                     <button onclick="document.getElementById('avatarFileInput').click()"
                         style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:var(--text-primary);border-radius:8px;padding:10px 20px;font-size:13px;cursor:pointer;">
-                        📷 Choose Photo
+                        <i data-lucide="upload" style="width:13px;height:13px;vertical-align:middle;margin-right:5px;"></i>Choose Photo
                     </button>
                     <div style="font-size:11px;color:var(--text-secondary);margin-top:8px;">Max 2MB · JPG, PNG, WEBP</div>
                 </div>
@@ -7183,20 +7233,23 @@
                 </div>
             </div>
 
+            <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin:20px 0 14px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:8px;">Your Profile</div>
+
             <div class="form-group">
                 <div class="form-label">Display Name</div>
                 <input type="text" id="profileDisplayName" placeholder="Your name">
             </div>
 
             <div class="form-group">
-                <div class="form-label">📱 Phone Number</div>
+                <div class="form-label"><i data-lucide="phone" style="width:13px;height:13px;vertical-align:middle;margin-right:4px;"></i>Phone Number</div>
                 <input type="tel" id="profilePhone" placeholder="082 123 4567 or +27 82 123 4567"
                     onblur="(function(el){const f=formatSAPhone(el.value);if(f){el.value=f;el.style.borderColor='';}else if(el.value.trim()){el.style.borderColor='var(--danger)';}})(this)">
                 <small style="color: var(--text-secondary); font-size: 11px;">Required to join group swims</small>
             </div>
 
             <div style="background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
-                <div style="font-weight: 700; color: var(--text-primary); font-size: 13px; margin-bottom: 10px;">🚨 Emergency Contact</div>
+                <div style="font-weight: 700; color: var(--text-primary); font-size: 13px; margin-bottom: 10px;">
+                    <i data-lucide="heart-pulse" style="width:14px;height:14px;vertical-align:middle;margin-right:5px;color:rgba(239,68,68,0.8);"></i>Emergency Contact</div>
                 <div class="form-group" style="margin-bottom: 10px;">
                     <div class="form-label" style="font-size: 12px;">Contact Name</div>
                     <input type="text" id="profileEmergencyName" placeholder="e.g., Jane Smith">
@@ -7211,7 +7264,8 @@
 
             <!-- Address section -->
             <div style="background: rgba(56,189,248,0.04); border: 1px solid rgba(56,189,248,0.12); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
-                <div style="font-weight: 700; color: var(--text-primary); font-size: 13px; margin-bottom: 10px;">📍 Address</div>
+                <div style="font-weight: 700; color: var(--text-primary); font-size: 13px; margin-bottom: 10px;">
+                    <i data-lucide="map-pin" style="width:14px;height:14px;vertical-align:middle;margin-right:5px;color:var(--ocean-light);"></i>Address</div>
                 <div class="form-group" style="margin-bottom: 10px;">
                     <div class="form-label" style="font-size: 12px;">Street Address</div>
                     <input type="text" id="profileAddress" placeholder="e.g. 257 Main Road">
@@ -7232,6 +7286,8 @@
                 </div>
             </div>
 
+            <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin:20px 0 14px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:8px;">Swimming Preferences</div>
+
             <div class="form-group">
                 <div class="form-label">Home Region</div>
                 <select id="profileHomeDomain">
@@ -7250,7 +7306,7 @@
             </div>
 
             <div class="form-group">
-                <div class="form-label">🏖️ Home Beach</div>
+                <div class="form-label"><i data-lucide="anchor" style="width:13px;height:13px;vertical-align:middle;margin-right:4px;"></i>Home Beach</div>
                 <select id="profileHomeBeach" data-spots></select>
             </div>
 
@@ -7266,15 +7322,21 @@
             </div>
 
             <div class="form-group">
-                <div class="form-label">❄️ Cold Tolerance (°C)</div>
+                <div class="form-label"><i data-lucide="thermometer-snowflake" style="width:13px;height:13px;vertical-align:middle;margin-right:4px;"></i>Cold Tolerance (°C)</div>
                 <input type="number" id="profileColdTolerance" placeholder="e.g., 12" step="0.5">
                 <small style="color: var(--text-secondary); font-size: 11px;">Minimum water temp you're comfortable swimming in</small>
             </div>
 
-            <button class="btn btn-success" onclick="saveProfile()" style="margin-bottom: 16px;">Save Profile</button>
-
             <!-- Swim Alerts — notification preferences (rendered by renderNotifOptIn) -->
-            <div id="notifOptIn" style="border-top:1px solid rgba(255,255,255,0.06); padding-top:16px; margin-top:8px; margin-bottom:16px;"></div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin:20px 0 0;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:8px;">Swim Alerts</div>
+            <div id="notifOptIn" style="padding-top:14px; margin-bottom:8px;"></div>
+
+            <!-- Save Profile — at the bottom so it's clear what it covers -->
+            <button class="btn btn-success" onclick="saveProfile()"
+                style="width:100%;padding:13px;font-size:15px;font-weight:700;margin:8px 0 16px;
+                       background:linear-gradient(135deg,var(--success),#059669);border:none;border-radius:12px;">
+                <i data-lucide="save" style="width:16px;height:16px;vertical-align:middle;margin-right:7px;"></i>Save Profile
+            </button>
 
             <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px; margin-top: 8px; display: flex; align-items: center; justify-content: space-between;">
                 <div>
@@ -8099,7 +8161,7 @@
                         style="max-width: 500px; margin: 40px auto; background: var(--bg-dark); border: 2px solid var(--border); border-radius: 20px; padding: 30px;">
                         <div
                             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                            <h3 style="color: var(--text-primary); font-size: 20px;">Organise a Group Swim</h3>
+                            <h3 id="createModalTitle" style="color: var(--text-primary); font-size: 20px;">Organise a Group Swim</h3>
                             <button onclick="hideCreateEvent()"
                                 style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; padding: 0; width: auto;">✕</button>
                         </div>
@@ -8125,18 +8187,50 @@
                         </div>
 
                         <form id="createEventForm" onsubmit="submitEvent(event)">
+
+                            <!-- 1. Swim Type — first, determines entire form -->
+                            <div class="form-group">
+                                <div class="form-label">What are you creating?</div>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;">
+                                    <button type="button" id="typeGroupSwimBtn" onclick="selectSwimType('group_swim')"
+                                        style="text-align:center;padding:14px 8px;border-radius:12px;border:2px solid var(--ocean-blue);background:rgba(2,132,199,0.12);cursor:pointer;transition:all 0.2s;">
+                                        <i data-lucide="users" style="width:22px;height:22px;color:var(--ocean-light);display:block;margin:0 auto 6px;"></i>
+                                        <div style="font-size:14px;font-weight:700;color:var(--text-primary);">Group Swim</div>
+                                        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Organise a social swim</div>
+                                    </button>
+                                    <button type="button" id="typeRaceBtn" onclick="selectSwimType('official_race')"
+                                        style="text-align:center;padding:14px 8px;border-radius:12px;border:2px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.03);cursor:pointer;transition:all 0.2s;">
+                                        <i data-lucide="trophy" style="width:22px;height:22px;color:var(--text-secondary);display:block;margin:0 auto 6px;"></i>
+                                        <div style="font-size:14px;font-weight:700;color:var(--text-secondary);">Official Race</div>
+                                        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Race or organised event</div>
+                                    </button>
+                                </div>
+                                <select id="eventCategory" onchange="onCategoryChange()" style="display:none;">
+                                    <option value="group_swim">Group Swim</option>
+                                    <option value="official_race">Official Race / Event</option>
+                                </select>
+                            </div>
+
+                            <!-- 2. Name -->
                             <div class="form-group">
                                 <div class="form-label">Swim Name</div>
                                 <input type="text" id="eventName" placeholder="e.g., Morning Clifton Lap" required>
                             </div>
 
+                            <!-- 3. Date & Time -->
                             <div class="form-group">
-                                <div class="form-label"><i data-lucide="map-pin"
-                                        style="width: 14px; height: 14px; vertical-align: middle;"></i> Location</div>
+                                <div class="form-label"><i data-lucide="calendar" style="width:14px;height:14px;vertical-align:middle;"></i> Date & Time</div>
+                                <input type="datetime-local" id="eventDateTime" required onchange="onCreateFormFieldChange()">
+                            </div>
+
+                            <!-- 4. Location -->
+                            <div class="form-group">
+                                <div class="form-label"><i data-lucide="map-pin" style="width:14px;height:14px;vertical-align:middle;"></i> Location</div>
                                 <select id="eventSpot" data-spots required onchange="onCreateFormFieldChange()"></select>
                                 <div id="spotHazardWarning" style="display:none;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.4);border-radius:10px;padding:11px 14px;margin-top:8px;font-size:13px;color:#f59e0b;line-height:1.5;"></div>
                             </div>
 
+                            <!-- 5. Route Type -->
                             <div class="form-group">
                                 <div class="form-label">Route Type</div>
                                 <select id="eventRouteType"
@@ -8147,53 +8241,70 @@
                                 </select>
                             </div>
 
+                            <!-- 6. Logistics + Chat Link -->
                             <div class="form-group">
-                                <div class="form-label">Logistics</div>
-                                <div id="logisticsHint"
-                                    style="display: none; font-size: 11px; color: var(--ocean-light); margin-bottom: 4px;">
-                                    Point-to-point often needs lifts—add the plan here.</div>
-                                <textarea id="eventLogistics"
-                                    placeholder="Meet details / car shuffle plan..."></textarea>
+                                <div class="form-label">Logistics <span style="font-weight:400;color:var(--text-secondary);">(optional)</span></div>
+                                <div id="logisticsHint" style="display:none;font-size:11px;color:var(--ocean-light);margin-bottom:4px;">Point-to-point often needs lifts — add the plan here.</div>
+                                <textarea id="eventLogistics" placeholder="Meet details / car shuffle plan..."></textarea>
                             </div>
 
-                            <!-- Safety Collapsible -->
-                            <details
-                                style="margin-bottom: 20px; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 4px;">
-                                <summary
-                                    style="cursor: pointer; padding: 12px; color: var(--text-secondary); font-size: 14px; font-weight: 600;">
-                                    Safety Recommendations
-                                </summary>
-                                <div style="padding: 12px;">
-                                    <label
-                                        style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; cursor: pointer;">
-                                        <input type="checkbox" id="eventTowFloat" checked
-                                            style="width: 18px; height: 18px;">
-                                        <span style="font-size: 14px; color: var(--text-primary);">Tow float
-                                            recommended</span>
-                                    </label>
-                                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                                        <input type="checkbox" id="eventBrightCap" checked
-                                            style="width: 18px; height: 18px;">
-                                        <span style="font-size: 14px; color: var(--text-primary);">Bright cap
-                                            recommended</span>
-                                    </label>
-                                </div>
-                            </details>
-
                             <div class="form-group">
-                                <div class="form-label">External Group Link (Optional)</div>
+                                <div class="form-label">WhatsApp / Chat Link <span style="font-weight:400;color:var(--text-secondary);">(optional)</span></div>
                                 <input type="url" id="eventChatUrl" placeholder="https://chat.whatsapp.com/...">
-                                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">External
-                                    link. SwimLoading doesn't moderate chats.</div>
+                                <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">SwimLoading doesn't moderate external chats.</div>
                             </div>
 
+                            <!-- 7. Pace -->
                             <div class="form-group">
-                                <div class="form-label"><i data-lucide="calendar"
-                                        style="width: 14px; height: 14px; vertical-align: middle;"></i> Date & Time
-                                </div>
-                                <input type="datetime-local" id="eventDateTime" required onchange="onCreateFormFieldChange()">
+                                <div class="form-label">Pace Category</div>
+                                <select id="eventPaceLevel" required>
+                                    <option value="0">Race Pace</option>
+                                    <option value="100">Fast (1:40/100m)</option>
+                                    <option value="120">Steady (2:00/100m)</option>
+                                    <option value="150" selected>Social (2:30/100m)</option>
+                                    <option value="180">Developing (3:00/100m)</option>
+                                </select>
                             </div>
 
+                            <!-- 8. Distance — single for group swims -->
+                            <div class="form-group" id="singleDistanceGroup">
+                                <div class="form-label"><i data-lucide="ruler" style="width:14px;height:14px;vertical-align:middle;"></i> Distance (km)</div>
+                                <input type="number" id="eventDistance" step="0.1" placeholder="e.g., 2.5" required>
+                            </div>
+
+                            <!-- 8b. Distances — multi for official races -->
+                            <div class="form-group" id="multiDistanceGroup" style="display:none;">
+                                <div class="form-label"><i data-lucide="ruler" style="width:14px;height:14px;vertical-align:middle;"></i> Race Distances</div>
+                                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Tap to add each distance offered at this race</div>
+                                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+                                    <button type="button" onclick="addRaceDistance(0.8)" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:var(--ocean-light);border-radius:20px;padding:5px 14px;font-size:13px;font-weight:600;cursor:pointer;">800m</button>
+                                    <button type="button" onclick="addRaceDistance(1.6)" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:var(--ocean-light);border-radius:20px;padding:5px 14px;font-size:13px;font-weight:600;cursor:pointer;">1.6km</button>
+                                    <button type="button" onclick="addRaceDistance(2.4)" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:var(--ocean-light);border-radius:20px;padding:5px 14px;font-size:13px;font-weight:600;cursor:pointer;">2.4km</button>
+                                    <button type="button" onclick="addRaceDistance(3.2)" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:var(--ocean-light);border-radius:20px;padding:5px 14px;font-size:13px;font-weight:600;cursor:pointer;">3.2km</button>
+                                    <button type="button" onclick="addRaceDistance(5)" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:var(--ocean-light);border-radius:20px;padding:5px 14px;font-size:13px;font-weight:600;cursor:pointer;">5km</button>
+                                    <button type="button" onclick="addRaceDistance(10)" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:var(--ocean-light);border-radius:20px;padding:5px 14px;font-size:13px;font-weight:600;cursor:pointer;">10km</button>
+                                </div>
+                                <div style="display:flex;gap:8px;margin-bottom:10px;">
+                                    <input type="number" id="customDistanceInput" step="0.1" min="0.1" placeholder="Other distance (km)" style="flex:1;">
+                                    <button type="button" onclick="addCustomRaceDistance()"
+                                        style="background:var(--ocean-blue);color:#fff;border:none;border-radius:8px;padding:0 16px;font-size:13px;font-weight:600;cursor:pointer;">+ Add</button>
+                                </div>
+                                <div id="selectedDistancesPills" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px;">
+                                    <span id="noDistancesHint" style="font-size:12px;color:var(--text-secondary);font-style:italic;">Tap distances above to add them</span>
+                                </div>
+                            </div>
+
+                            <!-- 9. Poster — race only, right after distances -->
+                            <div class="form-group" id="posterUploadGroup" style="display:none;">
+                                <div class="form-label">Event Poster <span style="font-weight:400;color:var(--text-secondary);">(optional)</span></div>
+                                <input type="file" id="eventPoster" accept="image/*"
+                                    style="width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-secondary);font-size:13px;cursor:pointer;">
+                                <div id="posterPreview" style="display:none;margin-top:8px;">
+                                    <img id="posterPreviewImg" style="max-width:100%;border-radius:8px;max-height:200px;object-fit:cover;">
+                                </div>
+                            </div>
+
+                            <!-- 10. Repeats -->
                             <div class="form-group">
                                 <div class="form-label"><i data-lucide="repeat" style="width:14px;height:14px;vertical-align:middle;"></i> Repeats</div>
                                 <select id="eventRecurrence" onchange="onRecurrenceChange()">
@@ -8207,7 +8318,6 @@
                                 </select>
                             </div>
 
-                            <!-- Monthly sub-picker: which week + which day -->
                             <div id="monthlySubGroup" style="display:none; margin-top:-8px; margin-bottom:12px; display:none;">
                                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
                                     <div>
@@ -8241,95 +8351,49 @@
                                 <div id="recurrencePreview" style="display:none;margin-top:8px;padding:8px 10px;background:rgba(56,189,248,0.08);border-radius:8px;font-size:12px;color:var(--ocean-light);font-weight:600;"></div>
                             </div>
 
+                            <!-- 11. Max Participants -->
                             <div class="form-group">
-                                <div class="form-label">Pace Category</div>
-                                <select id="eventPaceLevel" required>
-                                    <option value="0">Race Pace</option>
-                                    <option value="100">Fast (1:40/100m)</option>
-                                    <option value="120">Steady (2:00/100m)</option>
-                                    <option value="150" selected>Social (2:30/100m)</option>
-                                    <option value="180">Developing (3:00/100m)</option>
-                                </select>
+                                <div class="form-label"><i data-lucide="users" style="width:14px;height:14px;vertical-align:middle;"></i> Max Participants <span style="font-weight:400;color:var(--text-secondary);">(optional)</span></div>
+                                <input type="number" id="eventMaxParticipants" placeholder="Leave empty for unlimited" min="2">
                             </div>
 
-                            <!-- Single distance — group swims -->
-                            <div class="form-group" id="singleDistanceGroup">
-                                <div class="form-label"><i data-lucide="ruler" style="width:14px;height:14px;vertical-align:middle;"></i> Distance (km)</div>
-                                <input type="number" id="eventDistance" step="0.1" placeholder="e.g., 2.5" required>
-                            </div>
-
-                            <!-- Multi-distance — official races -->
-                            <div class="form-group" id="multiDistanceGroup" style="display:none;">
-                                <div class="form-label"><i data-lucide="ruler" style="width:14px;height:14px;vertical-align:middle;"></i> Race Distances (km)</div>
-                                <!-- Quick-add chips -->
-                                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
-                                    <span style="font-size:11px;color:var(--text-secondary);align-self:center;margin-right:2px;">Quick add:</span>
-                                    <button type="button" onclick="addRaceDistance(1)" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:var(--ocean-light);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;">1km</button>
-                                    <button type="button" onclick="addRaceDistance(2.5)" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:var(--ocean-light);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;">2.5km</button>
-                                    <button type="button" onclick="addRaceDistance(5)" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:var(--ocean-light);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;">5km</button>
-                                    <button type="button" onclick="addRaceDistance(7.5)" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:var(--ocean-light);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;">7.5km</button>
-                                    <button type="button" onclick="addRaceDistance(10)" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:var(--ocean-light);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;">10km</button>
-                                </div>
-                                <!-- Custom entry -->
-                                <div style="display:flex;gap:8px;margin-bottom:10px;">
-                                    <input type="number" id="customDistanceInput" step="0.1" min="0.1" placeholder="Custom km" style="flex:1;">
-                                    <button type="button" onclick="addCustomRaceDistance()"
-                                        style="background:var(--ocean-blue);color:#fff;border:none;border-radius:8px;padding:0 16px;font-size:13px;font-weight:600;cursor:pointer;">
-                                        + Add
-                                    </button>
-                                </div>
-                                <!-- Selected distances as removable pills -->
-                                <div id="selectedDistancesPills" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px;">
-                                    <span id="noDistancesHint" style="font-size:12px;color:var(--text-secondary);font-style:italic;">No distances added yet</span>
-                                </div>
-                            </div>
-
+                            <!-- 12. Description -->
                             <div class="form-group">
-                                <div class="form-label"><i data-lucide="users"
-                                        style="width: 14px; height: 14px; vertical-align: middle;"></i> Max Participants
+                                <div class="form-label">Description / Route <span style="font-weight:400;color:var(--text-secondary);">(optional)</span></div>
+                                <textarea id="eventDescription" placeholder="Describe the route, meeting point, any special notes..." rows="4"></textarea>
+                            </div>
+
+                            <!-- 13. Safety collapsible — near bottom, not in the way -->
+                            <details style="margin-bottom:20px;background:rgba(0,0,0,0.2);border-radius:12px;padding:4px;">
+                                <summary style="cursor:pointer;padding:12px;color:var(--text-secondary);font-size:14px;font-weight:600;">
+                                    <i data-lucide="shield" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"></i> Safety Recommendations
+                                </summary>
+                                <div style="padding:12px;">
+                                    <label style="display:flex;align-items:center;gap:10px;margin-bottom:12px;cursor:pointer;">
+                                        <input type="checkbox" id="eventTowFloat" checked style="width:18px;height:18px;">
+                                        <span style="font-size:14px;color:var(--text-primary);">Tow float recommended</span>
+                                    </label>
+                                    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                                        <input type="checkbox" id="eventBrightCap" checked style="width:18px;height:18px;">
+                                        <span style="font-size:14px;color:var(--text-primary);">Bright cap recommended</span>
+                                    </label>
                                 </div>
-                                <input type="number" id="eventMaxParticipants" placeholder="Leave empty for unlimited"
-                                    min="2">
-                            </div>
+                            </details>
 
+                            <!-- 14. Require Approval -->
                             <div class="form-group">
-                                <div class="form-label">Description / Route</div>
-                                <textarea id="eventDescription"
-                                    placeholder="Describe the route, meeting point, any special notes..."
-                                    rows="4"></textarea>
-                            </div>
-
-                            <div class="form-group">
-                                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                                    <input type="checkbox" id="eventRequireApproval" style="width: auto; margin: 0;">
-                                    <span style="font-size: 13px; color: var(--text-secondary);">
-                                        Require approval for swimmers below pace level
-                                    </span>
+                                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                                    <input type="checkbox" id="eventRequireApproval" style="width:auto;margin:0;">
+                                    <span style="font-size:13px;color:var(--text-secondary);">Require approval for swimmers below pace level</span>
                                 </label>
                             </div>
 
-                            <div class="form-group">
-                                <div class="form-label">Swim Type</div>
-                                <select id="eventCategory" onchange="onCategoryChange()">
-                                    <option value="group_swim">Group Swim</option>
-                                    <option value="official_race">Official Race / Event</option>
-                                </select>
-                            </div>
+                            <div id="swimOverlapWarning" style="display:none;margin-top:16px;"></div>
 
-                            <div class="form-group" id="posterUploadGroup" style="display:none;">
-                                <div class="form-label">Event Poster <span style="font-weight:400;color:var(--text-secondary);">(optional)</span></div>
-                                <input type="file" id="eventPoster" accept="image/*"
-                                    style="width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-secondary);font-size:13px;cursor:pointer;">
-                                <div id="posterPreview" style="display:none;margin-top:8px;">
-                                    <img id="posterPreviewImg" style="max-width:100%;border-radius:8px;max-height:200px;object-fit:cover;">
-                                </div>
-                            </div>
-
-                            <!-- Overlap warning banner (shown if a swim already exists nearby) -->
-                            <div id="swimOverlapWarning" style="display:none; margin-top: 16px;"></div>
-
-                            <button type="submit" class="btn btn-success" style="margin-top: 10px;">Create
-                                Swim</button>
+                            <button type="submit" id="createSubmitBtn" class="btn btn-success"
+                                style="margin-top:10px;width:100%;padding:13px;font-size:15px;font-weight:700;border-radius:12px;">
+                                Create Swim
+                            </button>
                         </form>
                     </div>
                 </div>
