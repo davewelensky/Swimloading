@@ -1082,24 +1082,36 @@
                 const cond           = log.conditions;
                 const logHazards     = Array.isArray(log.hazards) ? log.hazards : [];
 
-                // Only ⚠️ for genuinely dangerous hazards — seals/jellyfish are normal in False Bay
-                const SERIOUS        = ['shark', 'sewage'];
-                const SIGHTING_ICONS = { jellyfish: '🪼', seals: '🦭', shark: '🦈', sewage: '🚫' };
-                const seriousHazards  = logHazards.filter(h => SERIOUS.includes(h));
-                const KNOWN_SIGHTINGS = ['jellyfish', 'seals'];
-                const sightings       = logHazards.filter(h => KNOWN_SIGHTINGS.includes(h));
+                // Serious = red dot warning; notable = info pill shown on card
+                const SERIOUS   = ['shark', 'sewage'];
+                const NOTABLE   = ['jellyfish', 'fireweed', 'seals', 'strong current'];
+                const PILL_CFG  = {
+                    fireweed:         { label: 'Fireweed',        color: '#fb923c' },
+                    jellyfish:        { label: 'Jellyfish',       color: '#60a5fa' },
+                    seals:            { label: 'Seals',           color: '#94a3b8' },
+                    'strong current': { label: 'Strong Current',  color: '#f59e0b' },
+                    shark:            { label: 'Shark',           color: '#ef4444' },
+                    sewage:           { label: 'Sewage',          color: '#ef4444' },
+                };
+                const seriousHazards = logHazards.filter(h => SERIOUS.includes(h));
+                const sightings      = logHazards.filter(h => NOTABLE.includes(h));
                 const hasDanger      = seriousHazards.length > 0 || (activeHazardsBySpot[log.spot_id]?.length > 0);
 
                 const condColor  = cond === 'extreme' ? '#ef4444' : cond === 'rough' ? '#f97316' : '#f59e0b';
                 const condBadge  = (cond && cond !== 'calm')
                     ? `<div style="font-size:9px;font-weight:700;color:${condColor};margin-top:3px;letter-spacing:.05em;">${cond.toUpperCase()}</div>`
                     : '';
-                // Friendly sighting icons (jellyfish/seals) — info, not alarm
+                // Hazard pill badges — info pills for notable, red dot for serious
                 const sightingBadge = sightings.length > 0
-                    ? `<div style="font-size:12px;margin-top:3px;" title="${sightings.join(', ')}">${sightings.map(h => SIGHTING_ICONS[h] || h).join('')}</div>`
+                    ? `<div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;margin-top:4px;">${
+                        sightings.map(h => {
+                            const cfg = PILL_CFG[h] || { label: h, color: '#94a3b8' };
+                            return `<span style="font-size:8px;font-weight:700;color:${cfg.color};background:${cfg.color}22;padding:2px 5px;border-radius:4px;letter-spacing:0.3px;">${cfg.label.toUpperCase()}</span>`;
+                        }).join('')
+                    }</div>`
                     : '';
-                const hazardDot  = hasDanger
-                    ? `<div style="position:absolute;top:6px;right:8px;font-size:12px;line-height:1;" title="${seriousHazards.join(', ')}">⚠️</div>`
+                const hazardDot = hasDanger
+                    ? `<div style="position:absolute;top:7px;right:8px;width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 4px #ef4444;" title="${seriousHazards.join(', ')}"></div>`
                     : '';
 
                 return `
@@ -1166,15 +1178,36 @@
                 else                         temp = 12; // >24
             }
 
-            // -- Hazard penalty (up to -30) --
+            // -- Hazard penalty — frequency-weighted across recent logs + notes scanning --
+            // Checks ALL recent logs (not just the latest) and scans free-text notes for keywords.
+            // If 4/5 logs mention fireweed, the penalty scales up to reflect the real picture.
             let hazardPenalty = 0;
-            if (mostRecentLog && Array.isArray(mostRecentLog.hazards)) {
-                const h = mostRecentLog.hazards;
-                if (h.some(x => x.toLowerCase().includes('shark')))           hazardPenalty += 25;
-                if (h.some(x => x.toLowerCase().includes('strong current')))  hazardPenalty += 18;
-                if (h.some(x => x.toLowerCase().includes('jellyfish')))       hazardPenalty += 8;
-                if (h.some(x => x.toLowerCase().includes('seal')))            hazardPenalty += 3;
+            const logsToScan = (recentLogs || []).slice(0, 10);
+            const logCount   = Math.max(logsToScan.length, 1);
+
+            const HAZARD_CFG = [
+                { keywords: ['shark'],                                                        base: 30 },
+                { keywords: ['sewage', 'sewerage', 'pollution'],                              base: 20 },
+                { keywords: ['strong current', 'rip current', 'rip'],                        base: 18 },
+                { keywords: ['jellyfish', 'jelly', 'bluebottle', 'fireweed',
+                             'fire weed', 'stings', 'stinging', 'sea lice'],                 base: 22 },
+                { keywords: ['seal'],                                                         base: 3  },
+            ];
+
+            for (const cfg of HAZARD_CFG) {
+                let hitCount = 0;
+                for (const log of logsToScan) {
+                    const hazStr  = (Array.isArray(log.hazards) ? log.hazards.join(' ') : '').toLowerCase();
+                    const noteStr = (log.notes || '').toLowerCase();
+                    if (cfg.keywords.some(kw => (hazStr + ' ' + noteStr).includes(kw))) hitCount++;
+                }
+                if (hitCount === 0) continue;
+                // Frequency multiplier: isolated report = 0.5×, majority = 1.3×, overwhelming = 1.6×
+                const freq       = hitCount / logCount;
+                const multiplier = freq >= 0.75 ? 1.6 : freq >= 0.5 ? 1.3 : freq >= 0.25 ? 1.0 : 0.5;
+                hazardPenalty   += Math.round(cfg.base * multiplier);
             }
+            hazardPenalty = Math.min(hazardPenalty, 50); // cap so single spot doesn't go below 0
 
             // -- Activity bonus (up to +10) --
             const spotNameNorm = (spot.spot_name || '').trim().toLowerCase();
@@ -8135,15 +8168,12 @@
                                 style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px;"></i>
                             Hazards (Optional)</div>
                         <div class="toggle-group" id="hazardsToggleGroup">
-                            <div class="toggle-btn" onclick="this.classList.toggle('active')"><i data-lucide="droplet"
-                                    style="width: 18px; height: 18px; vertical-align: middle;"></i> Jellyfish</div>
-                            <div class="toggle-btn" onclick="this.classList.toggle('active')"><i
-                                    data-lucide="circle-dot"
-                                    style="width: 18px; height: 18px; vertical-align: middle;"></i> Seals</div>
-                            <div class="toggle-btn" onclick="this.classList.toggle('active')"><i
-                                    data-lucide="alert-triangle"
-                                    style="width: 18px; height: 18px; vertical-align: middle;"></i> Shark</div>
-                            <div class="toggle-btn" onclick="this.classList.toggle('active')">💩 Sewage</div>
+                            <div class="toggle-btn" onclick="this.classList.toggle('active')"><i data-lucide="zap" style="width:16px;height:16px;vertical-align:middle;margin-right:3px;"></i> Fireweed</div>
+                            <div class="toggle-btn" onclick="this.classList.toggle('active')"><i data-lucide="droplets" style="width:16px;height:16px;vertical-align:middle;margin-right:3px;"></i> Jellyfish</div>
+                            <div class="toggle-btn" onclick="this.classList.toggle('active')"><i data-lucide="circle-dot" style="width:16px;height:16px;vertical-align:middle;margin-right:3px;"></i> Seals</div>
+                            <div class="toggle-btn" onclick="this.classList.toggle('active')"><i data-lucide="alert-triangle" style="width:16px;height:16px;vertical-align:middle;margin-right:3px;"></i> Shark</div>
+                            <div class="toggle-btn" onclick="this.classList.toggle('active')"><i data-lucide="waves" style="width:16px;height:16px;vertical-align:middle;margin-right:3px;"></i> Strong Current</div>
+                            <div class="toggle-btn" onclick="this.classList.toggle('active')"><i data-lucide="trash-2" style="width:16px;height:16px;vertical-align:middle;margin-right:3px;"></i> Sewage</div>
                         </div>
                     </div>
 
