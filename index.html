@@ -4773,8 +4773,24 @@
             }
         }
 
+        function onSafetyRegionChange() {
+            renderSafetyRegionalContent();
+        }
+
+        function populateSafetyRegionSelect() {
+            const sel = document.getElementById('safetyRegionSelect');
+            if (!sel || !domains.length) return;
+            const home = currentUserProfile?.home_domain || '';
+            sel.innerHTML = domains
+                .filter(d => d.code !== 'INLAND') // inland has no marine safety content
+                .map(d => `<option value="${d.code}"${d.code === home ? ' selected' : ''}>${d.display_name}${d.code === home ? ' (home)' : ''}</option>`)
+                .join('');
+            if (!home) sel.innerHTML = '<option value="">Select region…</option>' + sel.innerHTML;
+        }
+
         function renderSafetyRegionalContent() {
-            const domain = currentUserProfile?.home_domain || '';
+            const sel = document.getElementById('safetyRegionSelect');
+            const domain = (sel && sel.value) ? sel.value : (currentUserProfile?.home_domain || '');
 
             // ── Region group lookup — add new domains here as the app grows ──────
             const SAFETY_GROUP = {
@@ -4789,7 +4805,7 @@
             };
             const group = SAFETY_GROUP[domain] || '';
 
-            // ── No home region set — prompt user ────────────────────────────────
+            // ── No region selected — prompt user to pick one ─────────────────────
             const noRegionBanner = document.getElementById('safetyNoRegionBanner');
             if (noRegionBanner) noRegionBanner.style.display = group ? 'none' : '';
 
@@ -8595,8 +8611,17 @@
             <!-- SAFETY -->
             <div id="safety" class="page">
                 <div class="card">
-                    <div class="card-title"><i data-lucide="shield-alert"
-                            style="width: 24px; height: 24px; vertical-align: middle;"></i> Safety Guidance</div>
+                    <!-- Header row: title + region selector -->
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+                        <div class="card-title" style="margin-bottom:0;"><i data-lucide="shield-alert" style="width:24px;height:24px;vertical-align:middle;"></i> Safety Guidance</div>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <i data-lucide="map-pin" style="width:14px;height:14px;color:#38bdf8;flex-shrink:0;"></i>
+                            <select id="safetyRegionSelect" onchange="onSafetyRegionChange()"
+                                style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text-primary);border-radius:8px;padding:6px 10px;font-size:13px;font-weight:600;cursor:pointer;max-width:180px;">
+                                <option value="">Select region…</option>
+                            </select>
+                        </div>
+                    </div>
 
                     <!-- Active Hazard Reports -->
                     <div id="activeHazardsSection" style="margin-bottom:20px;">
@@ -8842,6 +8867,7 @@
             } else if (page === 'leaderboard') {
                 loadLeaderboard();
             } else if (page === 'safety') {
+                populateSafetyRegionSelect();
                 loadHazards();
                 renderSafetyRegionalContent();
             }
