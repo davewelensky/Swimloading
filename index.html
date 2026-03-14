@@ -8153,13 +8153,13 @@
                             Conditions</div>
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;" id="conditionsGrid">
                             <div class="toggle-btn active" onclick="toggleSingle(this)"
-                                style="padding:16px 12px; border-radius:12px; border:2px solid #10b981; background:rgba(16,185,129,0.15); color:#10b981; font-weight:700; font-size:15px; text-align:center;">Calm</div>
+                                style="padding:16px 12px; border-radius:12px; border:2px solid #10b981; background:rgba(16,185,129,0.22); color:#10b981; font-weight:700; font-size:15px; text-align:center; box-shadow:0 0 12px rgba(16,185,129,0.35);">Calm</div>
                             <div class="toggle-btn" onclick="toggleSingle(this)"
-                                style="padding:16px 12px; border-radius:12px; border:2px solid rgba(245,158,11,0.3); background:rgba(245,158,11,0.08); color:var(--text-secondary); font-weight:700; font-size:15px; text-align:center;">Choppy</div>
+                                style="padding:16px 12px; border-radius:12px; border:2px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); color:var(--text-secondary); font-weight:700; font-size:15px; text-align:center;">Choppy</div>
                             <div class="toggle-btn" onclick="toggleSingle(this)"
-                                style="padding:16px 12px; border-radius:12px; border:2px solid rgba(249,115,22,0.3); background:rgba(249,115,22,0.08); color:var(--text-secondary); font-weight:700; font-size:15px; text-align:center;">Rough</div>
+                                style="padding:16px 12px; border-radius:12px; border:2px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); color:var(--text-secondary); font-weight:700; font-size:15px; text-align:center;">Rough</div>
                             <div class="toggle-btn" onclick="toggleSingle(this)"
-                                style="padding:16px 12px; border-radius:12px; border:2px solid rgba(239,68,68,0.3); background:rgba(239,68,68,0.08); color:var(--text-secondary); font-weight:700; font-size:15px; text-align:center;">Extreme</div>
+                                style="padding:16px 12px; border-radius:12px; border:2px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); color:var(--text-secondary); font-weight:700; font-size:15px; text-align:center;">Extreme</div>
                         </div>
                     </div>
 
@@ -10041,8 +10041,28 @@
         }
 
         function toggleSingle(el) {
-            el.parentElement.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            // Colour config per condition — selected state is unmistakably different from unselected
+            const COND_STYLE = {
+                'Calm':    { border:'#10b981', bg:'rgba(16,185,129,0.22)',  color:'#10b981',  shadow:'rgba(16,185,129,0.35)' },
+                'Choppy':  { border:'#f59e0b', bg:'rgba(245,158,11,0.22)', color:'#f59e0b',  shadow:'rgba(245,158,11,0.35)' },
+                'Rough':   { border:'#f97316', bg:'rgba(249,115,22,0.22)', color:'#f97316',  shadow:'rgba(249,115,22,0.35)' },
+                'Extreme': { border:'#ef4444', bg:'rgba(239,68,68,0.22)',  color:'#ef4444',  shadow:'rgba(239,68,68,0.35)'  },
+            };
+            // Reset all to clearly inactive (muted, no glow)
+            el.parentElement.querySelectorAll('.toggle-btn').forEach(b => {
+                b.classList.remove('active');
+                b.style.border      = '2px solid rgba(255,255,255,0.1)';
+                b.style.background  = 'rgba(255,255,255,0.04)';
+                b.style.color       = 'var(--text-secondary)';
+                b.style.boxShadow   = 'none';
+            });
+            // Apply clearly active state to selected button
             el.classList.add('active');
+            const cfg = COND_STYLE[el.textContent.trim()] || COND_STYLE['Calm'];
+            el.style.border     = `2px solid ${cfg.border}`;
+            el.style.background = cfg.bg;
+            el.style.color      = cfg.color;
+            el.style.boxShadow  = `0 0 14px ${cfg.shadow}`;
         }
     </script>
     <!-- Notifications Modal -->
