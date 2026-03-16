@@ -5913,6 +5913,15 @@
             }
         }
 
+        function cancelLocationConfirm() {
+            document.getElementById('locationConfirmModal').style.display = 'none';
+            if (_locationConfirmResolve) {
+                _locationConfirmResolve(false);
+                _locationConfirmResolve = null;
+            }
+            showPage('dashboard');
+        }
+
         // ── Phase 1: Share conditions after logging ──────────────────────────────
         let _shareSheetResolve = null;
         let _shareSheetMessage = '';
@@ -7840,14 +7849,18 @@
 
     <!-- Location confirmation bottom sheet -->
     <div id="locationConfirmModal" style="display:none; position:fixed; inset:0; z-index:10002; background:rgba(0,0,0,0.7); align-items:flex-end; justify-content:center;">
-        <div style="background:var(--surface); border-radius:20px 20px 0 0; padding:28px 24px 36px; width:100%; max-width:480px;">
-            <div style="font-size:11px; color:var(--text-secondary); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.8px; font-weight:700;">Confirm Location</div>
+        <div style="background:var(--surface); border-radius:20px 20px 0 0; padding:24px 24px 36px; width:100%; max-width:480px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                <div style="font-size:11px; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.8px; font-weight:700;">Confirm Location</div>
+                <button onclick="resolveLocationConfirm(false)" style="background:rgba(255,255,255,0.08); border:1px solid var(--border); border-radius:50%; width:32px; height:32px; color:var(--text-secondary); font-size:18px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;">&times;</button>
+            </div>
             <div style="font-size:20px; font-weight:700; color:var(--text-primary); margin-bottom:6px;" id="locationConfirmSpotName"></div>
             <div style="font-size:14px; color:var(--text-secondary); margin-bottom:24px;">Is this the right spot for your log?</div>
-            <div style="display:flex; gap:12px;">
-                <button onclick="resolveLocationConfirm(false)" style="flex:1; padding:14px; background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:12px; color:var(--text-primary); font-size:15px; font-weight:600; cursor:pointer;">Change</button>
+            <div style="display:flex; gap:12px; margin-bottom:14px;">
+                <button onclick="resolveLocationConfirm(false)" style="flex:1; padding:14px; background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:12px; color:var(--text-primary); font-size:15px; font-weight:600; cursor:pointer;">Change spot</button>
                 <button onclick="resolveLocationConfirm(true)" style="flex:2; padding:14px; background:linear-gradient(135deg,#0284c7,#0ea5e9); border:none; border-radius:12px; color:white; font-size:15px; font-weight:700; cursor:pointer;">Yes, log here</button>
             </div>
+            <button onclick="cancelLocationConfirm()" style="width:100%; padding:11px; background:transparent; border:none; color:var(--text-secondary); font-size:14px; cursor:pointer; letter-spacing:0.2px;">Cancel log</button>
         </div>
     </div>
 
@@ -10318,10 +10331,13 @@
                 return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
             });
 
+            const tenDaysAgo = Date.now() - 10 * 24 * 60 * 60 * 1000;
+
             activeRegions.forEach(domain => {
                 const data = trendsData[domain];
                 const hasData = data && data.spots && data.spots.length > 0;
                 if (!hasData) return; // Hide empty regions
+                if (new Date(data.lastUpdated).getTime() < tenDaysAgo) return; // Hide stale regions
 
                 let subtext = `${data.spots.length} spots`;
                 let warmestText = data.maxTemp !== null ? `Warmest: ${data.warmestSpotName} (${data.maxTemp}°C)` : '';

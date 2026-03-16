@@ -17,7 +17,7 @@ Cape Town ocean swimming community app — live at **swimloading.com**. Growing 
 
 **Repo:** `https://github.com/davewelensky/Swimloading.git` — branch `main`
 
-**Users:** ~315+ registered (March 2026). Growing beyond Cape Town — KZN/Durban users arriving.
+**Users:** ~384+ registered (March 2026). Growing nationally — Cape Town, KZN/Durban, and beyond. Open water swimming skews 40–60+ — many users are not super tech-savvy. Every screen must be instantly obvious, zero hesitation required.
 
 **Rule:** Edit files locally → commit → push → Vercel deploys in ~30s. Never edit files on Vercel directly.
 
@@ -399,3 +399,5 @@ Code: `/Users/davewelensky/SwimLoading/device/SwimLoadingDisplay/SwimLoadingDisp
 12. **Adding a new domain** — INSERT into `domains` table only. Never hardcode domain arrays in JS or add a CHECK constraint on `spots.domain`. The FK handles validation.
 13. **water_type constraint** — only `OCEAN`, `LAGOON`, `POOL`, `DAM` are valid (not TIDAL_POOL, LAKE, RIVER — those are UI filter groupings only)
 14. **Never reintroduce hardcoded DOMAINS/COASTAL_REGIONS arrays** — these were removed in March 2026. All domain data comes from `let domains = []` global populated by `loadDomains()` at app start.
+15. **No emoji in UI** — Never use emoji characters as icons or decorative elements in app chrome, labels, buttons, headings, cards, or navigation. Use Lucide icons (`data-lucide="..."` + `initIcons()`) for all iconography. The app must look professional and polished — not like generic AI output. Emoji are only acceptable in user-generated content (swim notes, descriptions entered by users).
+16. **UX is non-negotiable** — The user base skews 40–60+, many not tech-savvy. Every feature must be instantly understandable. No hidden controls, no ambiguous labels, no multi-step flows without clear progress. If a user might hesitate or be confused, redesign it. Clarity > cleverness. Large tap targets, high contrast text, obvious CTAs. When in doubt, simplify.
