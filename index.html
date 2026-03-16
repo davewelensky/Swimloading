@@ -10458,14 +10458,16 @@
             const listEl = document.getElementById('regionSpotList');
             listEl.innerHTML = '';
 
-            if (!data || data.spots.length === 0) {
-                listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">No spots with recent data in this region.</div>';
+            // Filter out spots with no data in the last 10 days, then sort newest first
+            const tenDaysAgo = Date.now() - 10 * 24 * 60 * 60 * 1000;
+            const sortedSpots = (!data || !data.spots) ? [] : [...data.spots]
+                .filter(s => new Date(s.updated_at).getTime() >= tenDaysAgo)
+                .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+
+            if (sortedSpots.length === 0) {
+                listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">No spots with data in the last 10 days.</div>';
                 return;
             }
-
-            // The spots in trendsData[domain].spots are already filtered by loadTrends()
-            // so we can just render them directly.
-            const sortedSpots = [...data.spots].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
 
             sortedSpots.forEach(s => {
                 const spotId = s.spot_id;
