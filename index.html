@@ -10184,9 +10184,13 @@
                     throw error;
                 }
 
-                // Filter by current water type
+                // Filter by current water type, and drop anything older than 10 days
                 const allowedTypes = WATER_TYPE_GROUPS[currentWaterFilter] || [];
-                const filteredData = data ? data.filter(row => allowedTypes.includes(row.water_type)) : [];
+                const tenDaysAgoISO = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+                const filteredData = data ? data.filter(row =>
+                    allowedTypes.includes(row.water_type) &&
+                    row.updated_at >= tenDaysAgoISO
+                ) : [];
 
                 console.log(`Trends filter [${currentWaterFilter}]:`, { count: filteredData.length, allowedTypes });
 
