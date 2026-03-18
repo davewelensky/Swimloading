@@ -5263,11 +5263,18 @@
             }
             let normalizedEmergencyPhone = null;
             if (emergencyPhone) {
+                // Try SA format first, then accept any international number with 7+ digits
                 normalizedEmergencyPhone = formatSAPhone(emergencyPhone);
                 if (!normalizedEmergencyPhone) {
-                    showToast('Emergency contact phone invalid — use e.g. 082 XXX XXXX or +27 82 XXX XXXX', 'error');
-                    document.getElementById('profileEmergencyPhone').style.borderColor = 'var(--danger)';
-                    return;
+                    const digitsOnly = emergencyPhone.replace(/\D/g, '');
+                    if (digitsOnly.length >= 7) {
+                        // Accept as-is (international numbers, Namibia +264, etc.)
+                        normalizedEmergencyPhone = emergencyPhone.trim();
+                    } else {
+                        showToast('Emergency contact phone looks invalid — please check the number', 'error');
+                        document.getElementById('profileEmergencyPhone').style.borderColor = 'var(--danger)';
+                        return;
+                    }
                 }
             }
 
@@ -5699,11 +5706,16 @@
                 document.getElementById('obPhone').style.borderColor = 'var(--danger)';
                 return;
             }
-            const normalizedEmergencyPhone = formatSAPhone(emergencyPhone);
+            let normalizedEmergencyPhone = formatSAPhone(emergencyPhone);
             if (!normalizedEmergencyPhone) {
-                showToast('Emergency contact phone invalid — use e.g. 082 XXX XXXX or +27 82 XXX XXXX', 'error');
-                document.getElementById('obEmergencyPhone').style.borderColor = 'var(--danger)';
-                return;
+                const digitsOnly = emergencyPhone.replace(/\D/g, '');
+                if (digitsOnly.length >= 7) {
+                    normalizedEmergencyPhone = emergencyPhone.trim();
+                } else {
+                    showToast('Emergency contact phone looks invalid — please check the number', 'error');
+                    document.getElementById('obEmergencyPhone').style.borderColor = 'var(--danger)';
+                    return;
+                }
             }
 
             try {
