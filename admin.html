@@ -596,14 +596,18 @@
                         <input id="slSwimmers" type="text" placeholder="e.g. Angus Dobie" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;box-sizing:border-box;">
                     </div>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
                     <div>
                         <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Route</label>
                         <input id="slRoute" type="text" placeholder="e.g. James Bay → Jamestown" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;box-sizing:border-box;">
                     </div>
                     <div>
                         <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Distance (km)</label>
-                        <input id="slDistance" type="number" placeholder="45" step="0.1" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;box-sizing:border-box;">
+                        <input id="slDistance" type="number" placeholder="47" step="0.1" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Planned Start <span style="opacity:0.5;">(optional)</span></label>
+                        <input id="slStartTime" type="datetime-local" style="width:100%;background:rgba(30,30,40,0.9);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;box-sizing:border-box;">
                     </div>
                     <div>
                         <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Status</label>
@@ -614,13 +618,15 @@
                         </select>
                     </div>
                 </div>
-                <div style="margin-bottom:8px;">
-                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Live Tracker URL — Boat 1</label>
-                    <input id="slTrackerUrl" type="url" placeholder="https://www.marinetraffic.com/..." style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;box-sizing:border-box;">
-                </div>
-                <div style="margin-bottom:12px;">
-                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Live Tracker URL — Boat 2 <span style="opacity:0.5;">(optional)</span></label>
-                    <input id="slTrackerUrl2" type="url" placeholder="https://www.marinetraffic.com/..." style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;box-sizing:border-box;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                    <div>
+                        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Live Tracker URL — Boat 1</label>
+                        <input id="slTrackerUrl" type="url" placeholder="https://openwater.africa/live-tracking/" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Live Tracker URL — Boat 2 <span style="opacity:0.5;">(optional)</span></label>
+                        <input id="slTrackerUrl2" type="url" placeholder="https://openwater.africa/live-tracking/" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;box-sizing:border-box;">
+                    </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
                     <div>
@@ -633,8 +639,8 @@
                     </div>
                 </div>
                 <div style="margin-bottom:16px;">
-                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Description</label>
-                    <textarea id="slDescription" placeholder="Brief background on the feat..." rows="2" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;resize:vertical;box-sizing:border-box;"></textarea>
+                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Description <span style="opacity:0.5;">(shown in app — use plain text)</span></label>
+                    <textarea id="slDescription" placeholder="Brief background on the feat — shown on the app banner..." rows="3" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;resize:vertical;box-sizing:border-box;"></textarea>
                 </div>
                 <input type="hidden" id="slEditId">
                 <div style="display:flex;gap:10px;">
@@ -1500,7 +1506,14 @@ async function loadSpotlights() {
                     <button onclick="archiveSpotlight('${sl.id}')" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#ef4444;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;">Archive</button>
                 </div>
             </div>
-            <div style="font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:12px;">${sl.swimmer_names}${sl.route_description?' · '+sl.route_description:''}${sl.distance_km?' · '+sl.distance_km+'km':''}</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:6px;">${sl.swimmer_names}${sl.route_description?' · '+sl.route_description:''}${sl.distance_km?' · '+sl.distance_km+'km':''}${sl.start_time?' · Start: '+new Date(sl.start_time).toLocaleString('en-ZA',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):''}</div>
+            ${sl.description ? `<div style="font-size:12px;color:rgba(255,255,255,0.45);margin-bottom:8px;line-height:1.4;font-style:italic;">${sl.description.slice(0,120)}${sl.description.length>120?'…':''}</div>` : ''}
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+                ${sl.tracking_url?`<a href="${sl.tracking_url}" target="_blank" style="font-size:11px;color:#38bdf8;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);padding:2px 8px;border-radius:6px;text-decoration:none;">Tracker 1</a>`:''}
+                ${sl.tracking_url_2?`<a href="${sl.tracking_url_2}" target="_blank" style="font-size:11px;color:#38bdf8;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);padding:2px 8px;border-radius:6px;text-decoration:none;">Tracker 2</a>`:''}
+                ${sl.whatsapp_url?`<a href="${sl.whatsapp_url}" target="_blank" style="font-size:11px;color:#22c55e;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);padding:2px 8px;border-radius:6px;text-decoration:none;">WhatsApp</a>`:''}
+                ${sl.facebook_url?`<a href="${sl.facebook_url}" target="_blank" style="font-size:11px;color:#818cf8;background:rgba(129,140,248,0.1);border:1px solid rgba(129,140,248,0.25);padding:2px 8px;border-radius:6px;text-decoration:none;">Facebook</a>`:''}
+            </div>
 
             <!-- Add Update -->
             <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:12px;margin-bottom:10px;">
@@ -1532,11 +1545,13 @@ async function saveSpotlight() {
     if (!title || !swimmers) { alert('Title and Swimmer(s) are required.'); return; }
 
     const { data: { user } } = await supabaseClient.auth.getUser();
+    const startTimeVal = document.getElementById('slStartTime').value;
     const payload = {
         title,
         swimmer_names: swimmers,
         route_description: document.getElementById('slRoute').value.trim() || null,
         distance_km: parseFloat(document.getElementById('slDistance').value) || null,
+        start_time: startTimeVal ? new Date(startTimeVal).toISOString() : null,
         status: document.getElementById('slStatus').value,
         tracking_url: document.getElementById('slTrackerUrl').value.trim() || null,
         tracking_url_2: document.getElementById('slTrackerUrl2').value.trim() || null,
@@ -1558,7 +1573,7 @@ async function saveSpotlight() {
 }
 
 function clearSpotlightForm() {
-    ['slTitle','slSwimmers','slRoute','slDistance','slTrackerUrl','slTrackerUrl2','slFacebookUrl','slWhatsappUrl','slDescription','slEditId'].forEach(id => {
+    ['slTitle','slSwimmers','slRoute','slDistance','slStartTime','slTrackerUrl','slTrackerUrl2','slFacebookUrl','slWhatsappUrl','slDescription','slEditId'].forEach(id => {
         document.getElementById(id).value = '';
     });
     document.getElementById('slStatus').value = 'upcoming';
@@ -1574,6 +1589,7 @@ async function editSpotlight(id) {
     document.getElementById('slRoute').value = data.route_description || '';
     document.getElementById('slDistance').value = data.distance_km || '';
     document.getElementById('slStatus').value = data.status || 'upcoming';
+    document.getElementById('slStartTime').value = data.start_time ? new Date(data.start_time).toISOString().slice(0,16) : '';
     document.getElementById('slTrackerUrl').value = data.tracking_url || '';
     document.getElementById('slTrackerUrl2').value = data.tracking_url_2 || '';
     document.getElementById('slFacebookUrl').value = data.facebook_url || '';
