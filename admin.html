@@ -421,6 +421,28 @@
 
     <div class="main">
 
+        <!-- Analytics -->
+        <div class="section-title">Feature Analytics</div>
+        <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <div style="font-size:13px;color:var(--text-secondary);">Events tracked in app — what features are being used.</div>
+                <div style="display:flex;gap:8px;">
+                    <button onclick="loadAnalytics(7)" id="analyticsBtn7" style="background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.4);color:#38bdf8;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;">7 days</button>
+                    <button onclick="loadAnalytics(30)" id="analyticsBtn30" style="background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text-secondary);border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;">30 days</button>
+                    <button onclick="loadAnalytics(90)" id="analyticsBtn90" style="background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text-secondary);border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;">90 days</button>
+                </div>
+            </div>
+            <!-- Event counts grid -->
+            <div id="analyticsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px;">
+                <div style="text-align:center;padding:20px;color:var(--text-secondary);grid-column:1/-1;">Loading…</div>
+            </div>
+            <!-- Daily trend chart -->
+            <div style="margin-top:8px;">
+                <div style="font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">Daily Events</div>
+                <canvas id="analyticsChart" height="80"></canvas>
+            </div>
+        </div>
+
         <!-- KPI Cards -->
         <div class="section-title">Overview</div>
         <div class="kpi-row">
@@ -782,6 +804,116 @@ async function showDashboard(user) {
     document.getElementById('adminEmail').textContent = user.email;
     document.getElementById('dashboard').style.display = 'block';
     await Promise.all([loadAdminDomains(), loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement(), loadSpotlights(), loadSpotSuggestions(), loadRecentLogs()]);
+    loadAnalytics(7);
+}
+
+
+// ── Analytics ──────────────────────────────────────────────────────────────────
+let analyticsChartInstance = null;
+let analyticsDays = 7;
+
+const EVENT_LABELS = {
+    temp_logged:      'Temp Logged',
+    hazard_reported:  'Hazard Reported',
+    swim_joined:      'Swim Joined',
+    swim_created:     'Swim Created',
+    trends_viewed:    'Trends Viewed',
+    events_viewed:    'Events Viewed',
+    safety_viewed:    'Safety Viewed',
+    leaderboard_viewed: 'Leaderboard Viewed',
+    whatsapp_shared:  'WhatsApp Shared',
+};
+
+async function loadAnalytics(days = 7) {
+    analyticsDays = days;
+    // Update button styles
+    ['7','30','90'].forEach(d => {
+        const btn = document.getElementById(`analyticsBtn${d}`);
+        if (!btn) return;
+        const active = String(days) === d;
+        btn.style.background = active ? 'rgba(56,189,248,0.15)' : 'rgba(255,255,255,0.05)';
+        btn.style.borderColor = active ? 'rgba(56,189,248,0.4)' : 'var(--border)';
+        btn.style.color = active ? '#38bdf8' : 'var(--text-secondary)';
+    });
+
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+
+    const { data, error } = await supabaseClient
+        .from('analytics_events')
+        .select('event_name, created_at')
+        .gte('created_at', since)
+        .order('created_at', { ascending: true });
+
+    if (error) {
+        document.getElementById('analyticsGrid').innerHTML =
+            `<div style="color:var(--red);grid-column:1/-1;font-size:13px;">Error loading analytics: ${error.message}</div>`;
+        return;
+    }
+
+    // Count by event name
+    const counts = {};
+    const dailyMap = {}; // 'YYYY-MM-DD' → count
+    (data || []).forEach(ev => {
+        counts[ev.event_name] = (counts[ev.event_name] || 0) + 1;
+        const day = ev.created_at.slice(0, 10);
+        dailyMap[day] = (dailyMap[day] || 0) + 1;
+    });
+
+    // Build event count tiles
+    const grid = document.getElementById('analyticsGrid');
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    if (total === 0) {
+        grid.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary);grid-column:1/-1;font-size:13px;">No events tracked yet — data will appear once users interact with the app.</div>';
+    } else {
+        const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+        grid.innerHTML = sorted.map(([name, count]) => {
+            const label = EVENT_LABELS[name] || name.replace(/_/g, ' ');
+            const pct = Math.round(count / total * 100);
+            return `<div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:14px 16px;">
+                <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">${label}</div>
+                <div style="font-size:28px;font-weight:800;color:#38bdf8;line-height:1;">${count.toLocaleString()}</div>
+                <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">${pct}% of events</div>
+            </div>`;
+        }).join('') + `<div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:10px;padding:14px 16px;">
+            <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Total Events</div>
+            <div style="font-size:28px;font-weight:800;color:#38bdf8;line-height:1;">${total.toLocaleString()}</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">last ${days} days</div>
+        </div>`;
+    }
+
+    // Build daily chart
+    const labels = [];
+    const values = [];
+    for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(Date.now() - i * 86400000);
+        const key = d.toISOString().slice(0, 10);
+        labels.push(d.toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' }));
+        values.push(dailyMap[key] || 0);
+    }
+
+    if (analyticsChartInstance) analyticsChartInstance.destroy();
+    const ctx = document.getElementById('analyticsChart').getContext('2d');
+    analyticsChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                data: values,
+                backgroundColor: 'rgba(56,189,248,0.3)',
+                borderColor: '#38bdf8',
+                borderWidth: 1,
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { display: false } },
+                y: { ticks: { color: '#64748b', font: { size: 10 }, precision: 0 }, grid: { color: 'rgba(255,255,255,0.05)' } }
+            },
+            animation: false
+        }
+    });
 }
 
 // ── Load users ─────────────────────────────────────────────────────────────────

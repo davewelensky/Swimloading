@@ -54,6 +54,18 @@
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         }
 
+        // Analytics — fire-and-forget event tracking to Supabase
+        const analytics = {
+            track(eventName, properties = {}) {
+                if (!supabaseClient) return;
+                supabaseClient.from('analytics_events').insert({
+                    event_name: eventName,
+                    user_id: (typeof currentUser !== 'undefined' && currentUser?.id) || null,
+                    properties: Object.keys(properties).length ? properties : null
+                }).then(() => {});
+            }
+        };
+
         // Global state
         let currentUser = null;
         let currentUserProfile = null;  // full profile object loaded at app start
@@ -2826,6 +2838,7 @@
                 ? `${data.length} ${typeLabel} swims created!`
                 : 'Swim created successfully!';
             showToast(toastMsg, 'success');
+            analytics.track('swim_created', { category: eventCategory, recurrence: recurrenceType || 'none', count: data?.length || 1 });
             hideCreateEvent();
             loadEvents();
 
@@ -3318,6 +3331,7 @@
                 } else {
                     showToast(rsvpStatus === 'going' ? "You're in!" : 'RSVP updated', 'success');
                 }
+                analytics.track('swim_joined', { rsvp: rsvpStatus });
 
                 await showEventDetails(eventId);
                 loadEvents();
@@ -5964,6 +5978,7 @@
             const url = `https://wa.me/?text=${encodeURIComponent(_shareSheetMessage)}`;
             window.open(url, '_blank');
             dismissShareSheet();
+            analytics.track('whatsapp_shared');
         }
 
         // Phase 3+4+5: Share spot conditions from Latest Conditions cards (tracked deep link)
@@ -6153,6 +6168,8 @@
                 submitBtn.textContent = 'Share Conditions';
             } else {
                 showToast(loggedAt ? 'Backdated conditions logged! +10 points!' : 'Conditions shared with the community! +10 points!', 'success');
+                analytics.track('temp_logged', { spot: spotNameForConfirm, temp, conditions });
+                if (hazards.length > 0) analytics.track('hazard_reported', { hazards });
 
                 // Reset backdate picker
                 const bdPicker = document.getElementById('backdatePicker');
@@ -8923,14 +8940,18 @@
                 currentWaterFilter = 'ocean'; // Reset to default
                 updateWaterFilterUI();
                 loadTrends(); // Updated to new function
+                analytics.track('trends_viewed');
             } else if (page === 'events') {
                 loadEvents();
+                analytics.track('events_viewed');
             } else if (page === 'leaderboard') {
                 loadLeaderboard();
+                analytics.track('leaderboard_viewed');
             } else if (page === 'safety') {
                 populateSafetyRegionSelect();
                 loadHazards();
                 renderSafetyRegionalContent();
+                analytics.track('safety_viewed');
             }
 
             // Initialize icons after page switch
