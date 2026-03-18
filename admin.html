@@ -1547,11 +1547,11 @@ async function saveSpotlight() {
     const { data: { user } } = await supabaseClient.auth.getUser();
     const startTimeVal = document.getElementById('slStartTime').value;
     const payload = {
+        active: true,
         title,
         swimmer_names: swimmers,
         route_description: document.getElementById('slRoute').value.trim() || null,
         distance_km: parseFloat(document.getElementById('slDistance').value) || null,
-        start_time: startTimeVal ? new Date(startTimeVal).toISOString() : null,
         status: document.getElementById('slStatus').value,
         tracking_url: document.getElementById('slTrackerUrl').value.trim() || null,
         tracking_url_2: document.getElementById('slTrackerUrl2').value.trim() || null,
@@ -1559,6 +1559,8 @@ async function saveSpotlight() {
         whatsapp_url: document.getElementById('slWhatsappUrl').value.trim() || null,
         description: document.getElementById('slDescription').value.trim() || null,
     };
+    // start_time only included if column exists (run add_spotlight_start_time.sql first)
+    if (startTimeVal) payload.start_time = new Date(startTimeVal).toISOString();
 
     let error;
     if (editId) {
