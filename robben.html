@@ -172,6 +172,7 @@
         <button class="tab-btn" onclick="showTab('window', this)">Window</button>
         <button class="tab-btn" onclick="showTab('records', this)">Records</button>
         <button class="tab-btn" onclick="showTab('double', this)">Double</button>
+        <button class="tab-btn" onclick="showTab('history', this)">History</button>
     </div>
 
     <!-- ══════════════ TAB: NOW ══════════════ -->
@@ -220,7 +221,7 @@
         </div>
 
         <div class="card">
-            <div class="card-label">Water Temp by Month — West Coast Atlantic</div>
+            <div class="card-label">Water Temp by Month — Big Bay / Blouberg / Melkbosstrand</div>
             <div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.5;">
                 Atlantic (Benguela upwelling) water temps at Big Bay / Blouberg — based on community logs and historical data.
                 Skins crossings: <strong style="color:var(--warning)">13°C+</strong> recommended.
@@ -360,6 +361,45 @@
 
     </div>
 
+    <!-- ══════════════ TAB: HISTORY ══════════════ -->
+    <div id="panelHistory" class="panel">
+
+        <div class="card">
+            <div class="card-label">Crossing Intelligence — 134 Recorded Crossings (2014–2026)</div>
+            <div id="histSummary" class="loading-msg">Analysing...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Best Months to Attempt</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Crossing frequency and conditions by month — based on all recorded Big Bay doubles.</div>
+            <div id="histMonths" class="loading-msg">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Speed vs Conditions</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Average crossing time by reported conditions. How much does chop and swell cost?</div>
+            <div id="histConditions" class="loading-msg">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Atlantic Water Temp — Monthly Averages</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">From community logs at Big Bay, Small Bay, Blouberg and Melkbosstrand. Cold months = higher risk for long swims.</div>
+            <div id="histTemps" class="loading-msg">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Year-on-Year Activity</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Number of recorded double crossings per year — showing growth of the community.</div>
+            <div id="histYears" class="loading-msg">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">What the Data Shows</div>
+            <div id="histInsights" class="loading-msg">Analysing...</div>
+        </div>
+
+    </div>
+
 </div>
 
 <script>
@@ -416,6 +456,7 @@ async function startApp(session) {
     loadNow(_liveResult);
     loadWindow();
     loadRecords();
+    loadHistory();
     renderMonthBars();
 
     const ts = new Date().toLocaleTimeString('en-ZA', { hour:'2-digit', minute:'2-digit' });
@@ -527,14 +568,21 @@ function secsToHMS(s) {
 
 // ─── LIVE TEMPS ───────────────────────────────────────────────────────────────
 
+// Spots relevant to RI crossings — Big Bay, Small Bay, Blouberg, Melkbosstrand, Robben Island
+const RI_SPOT_NAMES = ['big bay', 'small bay', 'blouberg', 'melkbosstrand', 'melkbos', 'robben island'];
+
 async function loadLiveTemps() {
-    const { data: spots } = await sb.from('spots')
+    const { data: allSpots } = await sb.from('spots')
         .select('id, name, code')
         .eq('domain', 'WEST_COAST')
         .neq('active', false);
 
+    const spots = (allSpots || []).filter(s =>
+        RI_SPOT_NAMES.some(n => s.name.toLowerCase().includes(n))
+    );
+
     if (!spots?.length) {
-        document.getElementById('liveTemps').innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No West Coast spots found.</div>';
+        document.getElementById('liveTemps').innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No crossing-area spots found.</div>';
         return null;
     }
 
@@ -587,7 +635,7 @@ async function loadLiveTemps() {
         <div class="stat-grid" style="margin-bottom:12px;">
             <div class="stat-box ok">
                 <div class="stat-val" style="color:${tempColor};">${avg.toFixed(1)}°C${trendBadge}</div>
-                <div class="stat-lbl">Community avg · West Coast<br><span style="font-size:10px;">${recentLogs.length} log${recentLogs.length!==1?'s':''} in last 3 days</span></div>
+                <div class="stat-lbl">Community avg · Big Bay / Blouberg<br><span style="font-size:10px;">${recentLogs.length} log${recentLogs.length!==1?'s':''} in last 3 days</span></div>
             </div>
             <div class="stat-box cold">
                 <div class="stat-val purple">${min}°C – ${max}°C</div>
@@ -977,7 +1025,7 @@ async function loadWindow() {
 // ─── MONTH BARS ───────────────────────────────────────────────────────────────
 
 function renderMonthBars() {
-    // West Coast (Benguela) typical monthly temps at Big Bay/Blouberg
+    // Benguela upwelling typical monthly temps at Big Bay / Blouberg
     const monthlyTemps = [16.5, 16.8, 15.5, 14.2, 13.0, 12.5, 12.0, 11.8, 12.5, 13.5, 14.5, 15.8];
     const el = document.getElementById('monthBars');
     if (!el) return;
@@ -1087,6 +1135,240 @@ async function loadRecords() {
     }
 }
 
+// ─── HISTORY / INTELLIGENCE ───────────────────────────────────────────────────
+
+async function loadHistory() {
+    try {
+        // Fetch all RI swims with swimmer join
+        const { data: swims, error } = await supabaseClient
+            .from('historical_swims')
+            .select('*, historical_swimmers(display_name, gender)')
+            .ilike('source', '%big_bay%')
+            .order('swim_date', { ascending: true });
+
+        if (error) throw error;
+
+        const flat = (swims || []).map(s => ({
+            ...s,
+            swimmer_name: s.historical_swimmers?.display_name,
+            gender: s.historical_swimmers?.gender
+        }));
+
+        if (flat.length === 0) {
+            ['histSummary','histMonths','histConditions','histTemps','histYears','histInsights']
+                .forEach(id => { document.getElementById(id).innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No data yet.</div>'; });
+            return;
+        }
+
+        // ── SUMMARY ──────────────────────────────────────────────────────────
+        const uniqueSwimmers = new Set(flat.map(s => s.swimmer_name).filter(Boolean)).size;
+        const withDuration   = flat.filter(s => s.duration != null && s.duration > 0);
+        const fastest        = withDuration.length ? withDuration.reduce((a, b) => a.duration < b.duration ? a : b) : null;
+        const years          = flat.map(s => s.swim_date ? new Date(s.swim_date).getFullYear() : null).filter(Boolean);
+        const minYear        = Math.min(...years);
+        const maxYear        = Math.max(...years);
+
+        document.getElementById('histSummary').innerHTML = `
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;">
+                <div style="background:rgba(14,165,233,0.08);border-radius:12px;padding:16px;text-align:center;">
+                    <div style="font-size:32px;font-weight:700;color:var(--ocean-light);">${flat.length}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;letter-spacing:0.05em;">RECORDED CROSSINGS</div>
+                </div>
+                <div style="background:rgba(14,165,233,0.08);border-radius:12px;padding:16px;text-align:center;">
+                    <div style="font-size:32px;font-weight:700;color:var(--ocean-light);">${uniqueSwimmers}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;letter-spacing:0.05em;">UNIQUE SWIMMERS</div>
+                </div>
+                <div style="background:rgba(14,165,233,0.08);border-radius:12px;padding:16px;text-align:center;">
+                    <div style="font-size:32px;font-weight:700;color:var(--ocean-light);">${fastest ? fmtDur(fastest.duration) : '—'}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;letter-spacing:0.05em;">FASTEST CROSSING</div>
+                    ${fastest ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${fastest.swimmer_name || ''}</div>` : ''}
+                </div>
+                <div style="background:rgba(14,165,233,0.08);border-radius:12px;padding:16px;text-align:center;">
+                    <div style="font-size:32px;font-weight:700;color:var(--ocean-light);">${minYear}–${maxYear}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;letter-spacing:0.05em;">DATA RANGE</div>
+                </div>
+            </div>`;
+
+        // ── MONTHS ──────────────────────────────────────────────────────────
+        const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const monthlyCounts = Array(12).fill(0);
+        flat.forEach(s => {
+            if (s.swim_date) monthlyCounts[new Date(s.swim_date).getMonth()]++;
+        });
+        const maxMonth = Math.max(...monthlyCounts, 1);
+
+        document.getElementById('histMonths').innerHTML = `
+            <div style="display:flex;align-items:flex-end;gap:4px;height:80px;padding-bottom:20px;position:relative;">
+                ${monthlyCounts.map((c, i) => {
+                    const pct = Math.round((c / maxMonth) * 100);
+                    const isTop = c === maxMonth;
+                    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;">
+                        <div style="font-size:10px;color:var(--text-secondary);line-height:1;">${c > 0 ? c : ''}</div>
+                        <div style="width:100%;background:${isTop ? 'var(--ocean-light)' : 'rgba(14,165,233,0.35)'};
+                            border-radius:3px 3px 0 0;height:${Math.max(pct * 0.6, c > 0 ? 4 : 0)}px;transition:height 0.3s;"></div>
+                        <div style="font-size:9px;color:var(--text-secondary);writing-mode:vertical-rl;transform:rotate(180deg);line-height:1;">${monthNames[i]}</div>
+                    </div>`;
+                }).join('')}
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:6px;">
+                Peak month: <strong style="color:var(--text-primary);">${monthNames[monthlyCounts.indexOf(maxMonth)]}</strong>
+                (${maxMonth} crossing${maxMonth !== 1 ? 's' : ''})
+            </div>`;
+
+        // ── CONDITIONS ──────────────────────────────────────────────────────
+        const condLabels = { good:'Good', bumpy:'Bumpy', choppy:'Choppy', misty:'Misty', big_swell:'Big Swell', all_seasons:'Mixed' };
+        const condGroups = {};
+        flat.forEach(s => {
+            const c = s.conditions || 'unknown';
+            if (!condGroups[c]) condGroups[c] = [];
+            condGroups[c].push(s);
+        });
+
+        const condRows = Object.entries(condGroups)
+            .filter(([k]) => k !== 'unknown')
+            .map(([k, arr]) => {
+                const withDur = arr.filter(s => s.duration > 0);
+                const avgMin = withDur.length ? Math.round(withDur.reduce((s, x) => s + x.duration, 0) / withDur.length / 60) : null;
+                return { label: condLabels[k] || k, count: arr.length, avgMin };
+            })
+            .sort((a, b) => b.count - a.count);
+
+        const goodRow = condRows.find(r => r.label === 'Good');
+        const goodAvg = goodRow?.avgMin;
+
+        document.getElementById('histConditions').innerHTML = condRows.length ? `
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                ${condRows.map(r => {
+                    const diff = (r.avgMin && goodAvg && r.label !== 'Good') ? r.avgMin - goodAvg : 0;
+                    const diffStr = diff > 0 ? `<span style="color:var(--warning);font-size:11px;"> +${diff} min vs good</span>` : '';
+                    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;border:1px solid var(--border);">
+                        <div>
+                            <span style="font-size:13px;font-weight:600;">${r.label}</span>
+                            <span style="font-size:11px;color:var(--text-secondary);margin-left:8px;">${r.count} crossing${r.count !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div style="text-align:right;">
+                            ${r.avgMin ? `<div style="font-size:13px;font-weight:600;color:var(--ocean-light);">${fmtDur(r.avgMin * 60)}</div>` : '<div style="font-size:11px;color:var(--text-secondary);">no times</div>'}
+                            ${diffStr}
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>` : '<div style="color:var(--text-secondary);font-size:13px;">No conditions data.</div>';
+
+        // ── ATLANTIC TEMPS (from temp_logs) ──────────────────────────────────
+        try {
+            const since2y = new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString();
+            const { data: tempLogs } = await supabaseClient
+                .from('temp_logs')
+                .select('logged_at, temp_c, spots!temp_logs_spot_id_fkey(name)')
+                .gte('logged_at', since2y);
+
+            const westCoastLogs = (tempLogs || []).filter(t =>
+                t.spots?.name && RI_SPOT_NAMES.some(n => t.spots.name.toLowerCase().includes(n))
+            );
+            const tempByMonth = Array.from({ length: 12 }, () => []);
+            westCoastLogs.forEach(t => {
+                if (t.temp_c != null) tempByMonth[new Date(t.logged_at).getMonth()].push(t.temp_c);
+            });
+
+            const monthAvgs = tempByMonth.map(arr => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1) : null);
+            const hasAny = monthAvgs.some(v => v !== null);
+
+            if (!hasAny) {
+                document.getElementById('histTemps').innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Insufficient temp history for this area yet.</div>';
+            } else {
+                const validTemps = monthAvgs.filter(v => v !== null).map(Number);
+                const minT = Math.min(...validTemps);
+                const maxT = Math.max(...validTemps);
+                const range = maxT - minT || 1;
+
+                document.getElementById('histTemps').innerHTML = `
+                    <div style="display:flex;align-items:flex-end;gap:4px;height:80px;padding-bottom:20px;position:relative;">
+                        ${monthAvgs.map((t, i) => {
+                            if (t === null) return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;">
+                                <div style="font-size:9px;color:transparent;">–</div>
+                                <div style="width:100%;height:0;"></div>
+                                <div style="font-size:9px;color:var(--text-secondary);writing-mode:vertical-rl;transform:rotate(180deg);">${monthNames[i]}</div>
+                            </div>`;
+                            const pct = ((Number(t) - minT) / range);
+                            const hue = Math.round(220 - pct * 60); // 220=blue cold → 160=green warm
+                            const barH = Math.round(12 + pct * 48);
+                            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;">
+                                <div style="font-size:10px;color:var(--text-secondary);line-height:1;">${t}°</div>
+                                <div style="width:100%;background:hsl(${hue},70%,50%);border-radius:3px 3px 0 0;height:${barH}px;"></div>
+                                <div style="font-size:9px;color:var(--text-secondary);writing-mode:vertical-rl;transform:rotate(180deg);">${monthNames[i]}</div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:6px;">
+                        Atlantic range: <strong style="color:var(--ocean-light);">${minT}°C</strong> (coldest) — <strong style="color:var(--ocean-light);">${maxT}°C</strong> (warmest) · Based on Big Bay / Blouberg logs
+                    </div>`;
+            }
+        } catch(e) {
+            document.getElementById('histTemps').innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Temp history unavailable.</div>';
+        }
+
+        // ── YEAR ON YEAR ──────────────────────────────────────────────────────
+        const yearCounts = {};
+        flat.forEach(s => {
+            if (s.swim_date) {
+                const y = new Date(s.swim_date).getFullYear();
+                yearCounts[y] = (yearCounts[y] || 0) + 1;
+            }
+        });
+        const sortedYears = Object.keys(yearCounts).sort();
+        const maxYearCount = Math.max(...Object.values(yearCounts), 1);
+
+        document.getElementById('histYears').innerHTML = `
+            <div style="display:flex;align-items:flex-end;gap:6px;height:80px;padding-bottom:20px;">
+                ${sortedYears.map(y => {
+                    const c = yearCounts[y];
+                    const pct = c / maxYearCount;
+                    const isTop = c === maxYearCount;
+                    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;">
+                        <div style="font-size:10px;color:var(--text-secondary);">${c}</div>
+                        <div style="width:100%;background:${isTop ? 'var(--ocean-light)' : 'rgba(14,165,233,0.35)'};
+                            border-radius:3px 3px 0 0;height:${Math.max(Math.round(pct * 56), 4)}px;"></div>
+                        <div style="font-size:9px;color:var(--text-secondary);writing-mode:vertical-rl;transform:rotate(180deg);">${y}</div>
+                    </div>`;
+                }).join('')}
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:6px;">
+                Busiest year: <strong style="color:var(--text-primary);">${sortedYears[sortedYears.findIndex(y => yearCounts[y] === maxYearCount)]}</strong>
+                (${maxYearCount} crossing${maxYearCount !== 1 ? 's' : ''})
+            </div>`;
+
+        // ── INSIGHTS ──────────────────────────────────────────────────────────
+        const peakMonth = monthNames[monthlyCounts.indexOf(Math.max(...monthlyCounts))];
+        const goodPct   = flat.filter(s => s.conditions === 'good').length;
+        const choppyPct = flat.filter(s => s.conditions === 'choppy' || s.conditions === 'big_swell').length;
+        const skinsOnly = flat.filter(s => s.category === 'skins').length;
+        const womenSwims = flat.filter(s => s.gender === 'F').length;
+        const menSwims   = flat.filter(s => s.gender === 'M').length;
+
+        const insights = [
+            `${peakMonth} is the most popular crossing month based on ${monthlyCounts[monthNames.indexOf(peakMonth)]} recorded crossings.`,
+            skinsOnly === flat.length ? 'All recorded crossings are skins (no wetsuit) — this is a cold-water challenge event.' : `${skinsOnly} of ${flat.length} crossings were skins swims.`,
+            goodAvg ? `Average one-way time in good conditions: ${fmtDur(goodAvg * 60)}.` : '',
+            choppyPct > 0 ? `${choppyPct} crossing${choppyPct !== 1 ? 's' : ''} in choppy or big-swell conditions — the channel can be swum in almost any weather.` : '',
+            womenSwims + menSwims > 0 ? `Gender split: ${menSwims} men's crossings, ${womenSwims} women's crossings.` : '',
+            fastest ? `Fastest recorded crossing: ${fmtDur(fastest.duration)} by ${fastest.swimmer_name || 'unknown'} (${fastest.swim_date ? new Date(fastest.swim_date).getFullYear() : '?'}).` : '',
+        ].filter(Boolean);
+
+        document.getElementById('histInsights').innerHTML = `
+            <div style="display:flex;flex-direction:column;gap:10px;">
+                ${insights.map(t => `<div style="display:flex;gap:10px;align-items:flex-start;">
+                    <div style="width:6px;height:6px;border-radius:50%;background:var(--ocean-light);flex-shrink:0;margin-top:5px;"></div>
+                    <div style="font-size:13px;color:var(--text-primary);line-height:1.5;">${t}</div>
+                </div>`).join('')}
+            </div>`;
+
+    } catch (err) {
+        console.error('loadHistory error:', err);
+        ['histSummary','histMonths','histConditions','histTemps','histYears','histInsights']
+            .forEach(id => { document.getElementById(id).textContent = 'Failed to load.'; });
+    }
+}
+
 // ─── DOUBLE CALCULATOR ────────────────────────────────────────────────────────
 
 let paceMode = 'pool';
@@ -1174,7 +1456,7 @@ async function shareConditions() {
     const temp = _liveResult?.avgTemp;
     const lines = [
         'Robben Island Conditions — SwimLoading.com',
-        temp ? `Water temp: ${temp.toFixed(1)}°C (West Coast)` : '',
+        temp ? `Water temp: ${temp.toFixed(1)}°C (Big Bay area)` : '',
         wf ? `Wind: ${wf.dirLabel} ${wf.windMax?.toFixed(0)}km/h` : '',
         `Tide info: swimloading.com/robben`,
         `Full intel: swimloading.com/robben`
