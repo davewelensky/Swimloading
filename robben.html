@@ -1146,21 +1146,11 @@ async function loadRecords() {
 
 async function loadHistory() {
     try {
-        // Get all Robben Island crossings — singles (RI→BB, 7.4km) and doubles (BB→RI→BB, 15km)
-        const { data: routes } = await sb.from('historical_routes')
-            .select('id')
-            .ilike('name', '%robben%');
-
-        const routeIds = (routes || []).map(r => r.id);
-        if (!routeIds.length) {
-            document.getElementById('histSummary').innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No Robben Island route found.</div>';
-            return;
-        }
-
+        // Only use verified Big Bay Events data (134 double crossings BB→RI→BB we imported)
         const { data: swims, error } = await sb
             .from('historical_swims')
             .select('*, historical_swimmers(display_name, gender)')
-            .in('route_id', routeIds)
+            .eq('source', 'big_bay_events')
             .order('swim_date', { ascending: true });
 
         if (error) throw error;
@@ -1178,20 +1168,15 @@ async function loadHistory() {
         }
 
         // ── SUMMARY ──────────────────────────────────────────────────────────
-        const singles = flat.filter(s => !s.distance_km || s.distance_km <= 10);
-        const doubles = flat.filter(s => s.distance_km && s.distance_km > 10);
         const uniqueSwimmers = new Set(flat.map(s => s.swimmer_name).filter(Boolean)).size;
         const years    = flat.map(s => s.swim_date ? new Date(s.swim_date).getFullYear() : null).filter(Boolean);
         const minYear  = Math.min(...years);
         const maxYear  = Math.max(...years);
 
         const fastest = arr => arr.length ? arr.reduce((a, b) => durSecs(a.duration) < durSecs(b.duration) ? a : b) : null;
-        const withDurS = singles.filter(s => durSecs(s.duration) > 0);
-        const fastestSW = fastest(withDurS.filter(s => s.gender === 'F'));
-        const fastestSM = fastest(withDurS.filter(s => s.gender === 'M'));
-        const withDurD = doubles.filter(s => durSecs(s.duration) > 0);
-        const fastestDW = fastest(withDurD.filter(s => s.gender === 'F'));
-        const fastestDM = fastest(withDurD.filter(s => s.gender === 'M'));
+        const withDur  = flat.filter(s => durSecs(s.duration) > 0);
+        const fastestDW = fastest(withDur.filter(s => s.gender === 'F'));
+        const fastestDM = fastest(withDur.filter(s => s.gender === 'M'));
 
         const statBox = (val, label, sub) => `
             <div style="background:rgba(14,165,233,0.08);border-radius:12px;padding:14px 12px;text-align:center;">
@@ -1202,22 +1187,14 @@ async function loadHistory() {
 
         document.getElementById('histSummary').innerHTML = `
             <div style="margin-bottom:10px;">
-                <div style="font-size:10px;color:var(--text-secondary);letter-spacing:0.08em;margin-bottom:8px;">SINGLE CROSSING — RI→BB · 7.4km</div>
+                <div style="font-size:10px;color:var(--text-secondary);letter-spacing:0.08em;margin-bottom:8px;">DOUBLE CROSSING — BB→RI→BB · 15km · Big Bay Events 2014–2026</div>
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
-                    ${statBox(String(singles.length), 'CROSSINGS', `${minYear}–${maxYear}`)}
-                    ${statBox(fastestSW ? fmtDur(fastestSW.duration) : '—', 'FASTEST WOMEN', fastestSW?.swimmer_name || '')}
-                    ${statBox(fastestSM ? fmtDur(fastestSM.duration) : '—', 'FASTEST MEN', fastestSM?.swimmer_name || '')}
-                </div>
-            </div>
-            <div>
-                <div style="font-size:10px;color:var(--text-secondary);letter-spacing:0.08em;margin-bottom:8px;">DOUBLE CROSSING — BB→RI→BB · 15km</div>
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
-                    ${statBox(String(doubles.length), 'CROSSINGS', `${minYear}–${maxYear}`)}
+                    ${statBox(String(flat.length), 'CROSSINGS', `${minYear}–${maxYear}`)}
                     ${statBox(fastestDW ? fmtDur(fastestDW.duration) : '—', 'FASTEST WOMEN', fastestDW?.swimmer_name || '')}
                     ${statBox(fastestDM ? fmtDur(fastestDM.duration) : '—', 'FASTEST MEN', fastestDM?.swimmer_name || '')}
                 </div>
             </div>
-            <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">${uniqueSwimmers} unique swimmers across all events · ${flat.length} total recorded crossings</div>`;
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">${uniqueSwimmers} unique swimmers · ${flat.length} total crossings</div>`;
 
         // ── MONTHS — all crossings combined ──────────────────────────────────
         const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1377,16 +1354,11 @@ async function loadHistory() {
 
         const insights = [
             `${peakMonth} is the most popular crossing month across all events.`,
-            singles.length > 0 && doubles.length > 0
-                ? `${singles.length} single crossings (RI→BB, 7.4km) and ${doubles.length} double crossings (BB→RI→BB, 15km) on record.`
-                : singles.length > 0 ? `${singles.length} single crossings (RI→BB, 7.4km) on record.`
-                : `${doubles.length} double crossings (BB→RI→BB, 15km) on record.`,
+            `${flat.length} double crossings (BB→RI→BB, 15km) on record from Big Bay Events 2014–2026.`,
             skinsOnly === flat.length ? 'All recorded crossings are skins — no wetsuit, cold Atlantic water.' : `${skinsOnly} of ${flat.length} crossings were skins swims.`,
             goodAvg ? `Average double crossing time in good conditions: ${fmtDur(goodAvg * 60)}.` : '',
             choppyPct > 0 ? `${choppyPct} crossing${choppyPct !== 1 ? 's' : ''} completed in choppy or big-swell — the channel can be done in rough conditions.` : '',
             womenSwims + menSwims > 0 ? `Gender split: ${menSwims} men · ${womenSwims} women.` : '',
-            fastestSW ? `Fastest women's single: ${fmtDur(fastestSW.duration)} — ${fastestSW.swimmer_name || 'unknown'}.` : '',
-            fastestSM ? `Fastest men's single: ${fmtDur(fastestSM.duration)} — ${fastestSM.swimmer_name || 'unknown'}.` : '',
             fastestDW ? `Fastest women's double: ${fmtDur(fastestDW.duration)} — ${fastestDW.swimmer_name || 'unknown'}.` : '',
             fastestDM ? `Fastest men's double: ${fmtDur(fastestDM.duration)} — ${fastestDM.swimmer_name || 'unknown'}.` : '',
         ].filter(Boolean);
