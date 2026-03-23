@@ -539,7 +539,12 @@ function timeAgo(ts) {
 
 function fmtDur(interval) {
     if (!interval) return '—';
-    if (typeof interval === 'string' && interval.includes(':')) {
+    if (typeof interval === 'number') {
+        const h = Math.floor(interval/3600), m = Math.floor((interval%3600)/60), s = Math.floor(interval%60);
+        return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+    if (typeof interval !== 'string') return '—';
+    if (interval.includes(':')) {
         const p = interval.split(':');
         return `${p[0]}:${p[1]}:${(p[2]||'00').split('.')[0]}`;
     }
@@ -551,7 +556,9 @@ function fmtDur(interval) {
 
 function durSecs(interval) {
     if (!interval) return 0;
-    if (typeof interval === 'string' && interval.includes(':')) {
+    if (typeof interval === 'number') return interval;
+    if (typeof interval !== 'string') return 0;
+    if (interval.includes(':')) {
         const [h,m,s] = interval.split(':').map(Number);
         return h*3600 + m*60 + (s||0);
     }
