@@ -1140,7 +1140,7 @@ async function loadRecords() {
 async function loadHistory() {
     try {
         // Fetch all RI swims with swimmer join
-        const { data: swims, error } = await supabaseClient
+        const { data: swims, error } = await sb
             .from('historical_swims')
             .select('*, historical_swimmers(display_name, gender)')
             .ilike('source', '%big_bay%')
@@ -1257,7 +1257,7 @@ async function loadHistory() {
         // ── ATLANTIC TEMPS (from temp_logs) ──────────────────────────────────
         try {
             const since2y = new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString();
-            const { data: tempLogs } = await supabaseClient
+            const { data: tempLogs } = await sb
                 .from('temp_logs')
                 .select('logged_at, temp_c, spots!temp_logs_spot_id_fkey(name)')
                 .gte('logged_at', since2y);
