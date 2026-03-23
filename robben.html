@@ -540,27 +540,29 @@ async function loadLiveTemps() {
 
     const spotIds = spots.map(s => s.id);
     const now = Date.now();
-    const since24h = new Date(now - 24 * 3600 * 1000).toISOString();
-    const since48h = new Date(now - 48 * 3600 * 1000).toISOString();
+    const since72h  = new Date(now - 72 * 3600 * 1000).toISOString();
+    const since144h = new Date(now - 144 * 3600 * 1000).toISOString();
 
     const { data: logs } = await sb.from('temp_logs')
         .select('spot_id, temp_c, conditions, created_at, spots!temp_logs_spot_id_fkey(name)')
         .in('spot_id', spotIds)
-        .gte('created_at', since48h)
+        .gte('created_at', since144h)
         .order('created_at', { ascending: false })
         .limit(100);
 
-    const todayLogs = (logs || []).filter(l => l.created_at >= since24h);
-    const yestLogs  = (logs || []).filter(l => l.created_at < since24h);
+    // Recent = last 72h; previous = 72–144h (for trend)
+    const recentLogs = (logs || []).filter(l => l.created_at >= since72h);
+    const prevLogs   = (logs || []).filter(l => l.created_at < since72h);
 
+    // Latest per spot from recent logs
     const latest = {};
-    todayLogs.forEach(l => { if (!latest[l.spot_id]) latest[l.spot_id] = l; });
+    recentLogs.forEach(l => { if (!latest[l.spot_id]) latest[l.spot_id] = l; });
     const readings = Object.values(latest);
 
     if (!readings.length) {
         document.getElementById('liveTemps').innerHTML = `
             <div class="alert blue">
-                No readings in last 24h. Typical Atlantic temps at Big Bay: 12–16°C year-round (Benguela upwelling). March usually 14–16°C but SE wind upwelling can drop it to 12–13°C overnight.
+                No readings in last 3 days. Typical Atlantic temps at Big Bay: 12–16°C year-round (Benguela upwelling). March usually 14–16°C but SE wind upwelling can drop it to 12–13°C overnight.
             </div>`;
         return { avgTemp: 14.5, hasLive: false };
     }
@@ -570,7 +572,7 @@ async function loadLiveTemps() {
     const min = Math.min(...temps);
     const max = Math.max(...temps);
 
-    const yestTemps = yestLogs.map(l => parseFloat(l.temp_c)).filter(Boolean);
+    const yestTemps = prevLogs.map(l => parseFloat(l.temp_c)).filter(Boolean);
     const yestAvg   = yestTemps.length ? yestTemps.reduce((a,b) => a+b, 0) / yestTemps.length : null;
     const delta     = yestAvg != null ? avg - yestAvg : null;
     const trend     = delta == null ? null : delta > 0.5 ? 'rising' : delta < -0.5 ? 'cooling' : 'stable';
@@ -585,7 +587,7 @@ async function loadLiveTemps() {
         <div class="stat-grid" style="margin-bottom:12px;">
             <div class="stat-box ok">
                 <div class="stat-val" style="color:${tempColor};">${avg.toFixed(1)}°C${trendBadge}</div>
-                <div class="stat-lbl">Community avg · West Coast<br><span style="font-size:10px;">${todayLogs.length} log${todayLogs.length!==1?'s':''} in last 24h</span></div>
+                <div class="stat-lbl">Community avg · West Coast<br><span style="font-size:10px;">${recentLogs.length} log${recentLogs.length!==1?'s':''} in last 3 days</span></div>
             </div>
             <div class="stat-box cold">
                 <div class="stat-val purple">${min}°C – ${max}°C</div>
