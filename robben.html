@@ -1139,23 +1139,11 @@ async function loadRecords() {
 
 async function loadHistory() {
     try {
-        // Get Robben Island route IDs first
-        const { data: routes } = await sb.from('historical_routes')
-            .select('id')
-            .ilike('name', '%robben%');
-
-        const routeIds = (routes || []).map(r => r.id);
-        if (!routeIds.length) {
-            ['histSummary','histMonths','histConditions','histTemps','histYears','histInsights']
-                .forEach(id => { document.getElementById(id).innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No Robben Island route found.</div>'; });
-            return;
-        }
-
-        // Fetch all RI swims with swimmer join
+        // Fetch all RI swims with swimmer join — source='big_bay_events' is unique to RI crossings
         const { data: swims, error } = await sb
             .from('historical_swims')
             .select('*, historical_swimmers(display_name, gender)')
-            .in('route_id', routeIds)
+            .eq('source', 'big_bay_events')
             .order('swim_date', { ascending: true });
 
         if (error) throw error;
@@ -1174,8 +1162,8 @@ async function loadHistory() {
 
         // ── SUMMARY ──────────────────────────────────────────────────────────
         const uniqueSwimmers = new Set(flat.map(s => s.swimmer_name).filter(Boolean)).size;
-        const withDuration   = flat.filter(s => s.duration != null && s.duration > 0);
-        const fastest        = withDuration.length ? withDuration.reduce((a, b) => a.duration < b.duration ? a : b) : null;
+        const withDuration   = flat.filter(s => s.duration != null && durSecs(s.duration) > 0);
+        const fastest        = withDuration.length ? withDuration.reduce((a, b) => durSecs(a.duration) < durSecs(b.duration) ? a : b) : null;
         const years          = flat.map(s => s.swim_date ? new Date(s.swim_date).getFullYear() : null).filter(Boolean);
         const minYear        = Math.min(...years);
         const maxYear        = Math.max(...years);
@@ -1239,8 +1227,9 @@ async function loadHistory() {
         const condRows = Object.entries(condGroups)
             .filter(([k]) => k !== 'unknown')
             .map(([k, arr]) => {
-                const withDur = arr.filter(s => s.duration > 0);
-                const avgMin = withDur.length ? Math.round(withDur.reduce((s, x) => s + x.duration, 0) / withDur.length / 60) : null;
+                const withDur = arr.filter(s => durSecs(s.duration) > 0);
+                const avgSecs = withDur.length ? withDur.reduce((sum, x) => sum + durSecs(x.duration), 0) / withDur.length : null;
+                const avgMin = avgSecs != null ? Math.round(avgSecs / 60) : null;
                 return { label: condLabels[k] || k, count: arr.length, avgMin };
             })
             .sort((a, b) => b.count - a.count);
