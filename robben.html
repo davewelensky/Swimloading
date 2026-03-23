@@ -276,19 +276,48 @@
 
         <div class="card">
             <div class="card-label">Personal Time Estimate</div>
-            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Enter your pace to estimate your double crossing time (15km total, one way 7.4km).</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Enter your pace to estimate your double crossing time (15km total, 7.4km each way).</div>
             <div style="display:flex;gap:6px;margin-bottom:12px;">
                 <button id="btnPool" onclick="setPaceMode('pool')" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.15);color:var(--ocean-light);font-size:12px;font-weight:600;cursor:pointer;">Pool 1500m Time</button>
                 <button id="btnOW" onclick="setPaceMode('ow')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;">Open Water Pace</button>
             </div>
             <div id="poolInputDiv">
                 <input type="text" id="input1500m" placeholder="e.g. 28:30 (mm:ss)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;margin-bottom:6px;">
-                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Your fastest 1500m pool time — race pace, not training.</div>
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Your fastest 1500m pool time — race pace, not training pace.</div>
             </div>
             <div id="owInputDiv" style="display:none;">
                 <input type="text" id="inputOW" placeholder="e.g. 3.0 (km/h)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;margin-bottom:6px;">
-                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Sustained open water pace in km/h.</div>
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Sustained open water pace in km/h — honest effort over distance.</div>
             </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+                <div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">Water temp (°C)</div>
+                    <input type="number" id="inputTemp" placeholder="e.g. 14" min="8" max="22" step="0.5"
+                        style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;">
+                    <div style="font-size:10px;color:var(--text-secondary);margin-top:3px;">Check live temp on Now tab</div>
+                </div>
+                <div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">Tidal conditions</div>
+                    <select id="inputTidal" style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:#111c30;color:var(--text-primary);font-size:13px;">
+                        <option value="0">Neutral / slack start</option>
+                        <option value="-900">Favourable — flood tide outbound</option>
+                        <option value="1800">Adverse — ebb against swimmer</option>
+                    </select>
+                    <div style="font-size:10px;color:var(--text-secondary);margin-top:3px;">Check Tides tab before deciding</div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:12px;">
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">Turnaround at island</div>
+                <select id="inputTransit" style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:#111c30;color:var(--text-primary);font-size:13px;">
+                    <option value="10">Quick touch — 10 min</option>
+                    <option value="20" selected>Standard rest — 20 min</option>
+                    <option value="40">Tide wait — 40 min</option>
+                    <option value="60">Extended tide wait — 60 min</option>
+                </select>
+            </div>
+
             <button onclick="calcDoublePrediction()" style="width:100%;padding:11px;border-radius:8px;border:none;background:var(--ocean);color:white;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px;">Calculate My Double Time &rarr;</button>
             <div id="doubleCalcResult" style="display:none;"></div>
         </div>
@@ -365,7 +394,7 @@
     <div id="panelHistory" class="panel">
 
         <div class="card">
-            <div class="card-label">Crossing Intelligence — 134 Recorded Crossings (2014–2026)</div>
+            <div class="card-label" id="histCardLabel">Crossing Intelligence</div>
             <div id="histSummary" class="loading-msg">Analysing...</div>
         </div>
 
@@ -452,6 +481,11 @@ async function startApp(session) {
     document.getElementById('appContent').style.display = 'block';
 
     _liveResult = await loadLiveTemps();
+    // Pre-fill calculator water temp with live reading if available
+    if (_liveResult?.hasLive && _liveResult.avgTemp) {
+        const ti = document.getElementById('inputTemp');
+        if (ti) ti.value = _liveResult.avgTemp.toFixed(1);
+    }
     loadTides();
     loadNow(_liveResult);
     loadWindow();
@@ -514,20 +548,26 @@ function windDir(deg) {
     return dirs[Math.round(deg / 22.5) % 16];
 }
 
-function isFavourable(deg) {
-    // For RI: N/NW is most favourable. SE (Cape Doctor) is adverse.
-    // Favourable: 270-360 (W/NW/N) and 0-90 (N/NE) when light
-    return deg >= 270 || deg <= 90;
-}
-
 function windAssessRI(deg, speed) {
-    const fav = isFavourable(deg);
-    if (speed < 15)                   return { tier: 'calm',    label: 'Light / calm' };
-    if (fav && speed < 30)            return { tier: 'optimal', label: 'Favourable N/NW' };
-    if (fav && speed < 45)            return { tier: 'strong',  label: 'Strong N/NW' };
-    if (!fav && speed < 25)           return { tier: 'adv-lt',  label: 'Light SE/S' };
-    if (!fav && speed < 40)           return { tier: 'adverse', label: 'Cape Doctor (SE)' };
-    return                                   { tier: 'extreme', label: 'Extreme — abort' };
+    // RI crossing direction is roughly NW (Big Bay) ↔ SE (island).
+    // NW/N: favourable — less chop, good navigation line
+    // NE/E: adverse — pushes swimmers south, off-line toward rocks
+    // SE/S: Cape Doctor — worst conditions, heavy chop against swimmer
+    // SW/W: neutral to variable
+    const northerly = deg >= 315 || deg <= 45;   // NW–N–NNE: genuinely favourable
+    const easterly  = deg > 45  && deg < 135;    // NE–E–SE: off-course push, adverse
+    const capedoc   = deg >= 135 && deg < 225;   // SE–S: Cape Doctor, most adverse
+    // 225–315 (SW–W): neutral/variable
+
+    if (speed < 15)                          return { tier: 'calm',    label: 'Light / calm' };
+    if (northerly && speed < 30)             return { tier: 'optimal', label: 'Favourable N/NW' };
+    if (northerly && speed < 45)             return { tier: 'strong',  label: 'Strong N/NW — building chop' };
+    if (!capedoc && !easterly && speed < 30) return { tier: 'adv-lt',  label: 'Light SW/W — manageable' };
+    if (easterly  && speed < 20)             return { tier: 'adv-lt',  label: 'Light NE/E — off-course push risk' };
+    if (easterly  && speed < 35)             return { tier: 'adverse', label: 'NE/E — navigation challenge, off-line risk' };
+    if (capedoc   && speed < 20)             return { tier: 'adv-lt',  label: 'Light SE — Cape Doctor building' };
+    if (capedoc   && speed < 40)             return { tier: 'adverse', label: 'Cape Doctor (SE/S) — significant chop' };
+    return                                          { tier: 'extreme', label: 'Extreme conditions — do not attempt' };
 }
 
 function timeAgo(ts) {
@@ -891,30 +931,45 @@ function buildGoSignal(liveResult, wf) {
     const el = document.getElementById('goSignal');
     if (!el) return;
 
-    const temp    = liveResult?.avgTemp ?? 14.5;
-    const wSpd    = wf?.windMax ?? 20;
-    const wDeg    = wf?.windDir ?? 180;
-    const wLabel  = wf?.dirLabel ?? '—';
-    const wa      = windAssessRI(wDeg, wSpd);
+    const hasLiveTemp = liveResult?.hasLive === true;
+    const temp        = liveResult?.avgTemp;   // undefined if no live data
+    const wSpd        = wf?.windMax;
+    const wDeg        = wf?.windDir ?? 180;
+    const wLabel      = wf?.dirLabel ?? '—';
+    const hasWind     = wSpd != null;
+    const wa          = windAssessRI(wDeg, wSpd ?? 20);
 
-    const tempOk  = temp >= 14;
-    const windOk  = wSpd < 30;
-    const windGd  = wSpd < 20;
+    // Cannot give a go signal without confirmed live temperature
+    if (!hasLiveTemp) {
+        el.className = 'signal-card caution';
+        el.innerHTML = `
+            <div class="signal-label">No Live Temp</div>
+            <div class="signal-title">Cannot Confirm Conditions</div>
+            <div class="signal-sub">No water temperature logged in the last 3 days for this area. Check the Tides and Window tabs for wind/swell data, but do not rely on this page for a go/no-go decision until live temp is available.${hasWind ? ` Wind: ${wLabel} ${wSpd.toFixed(0)}km/h — ${wa.label}.` : ''}</div>`;
+        return;
+    }
+
+    const tempOk = temp >= 14;
+    const windOk = hasWind && wSpd < 30;
+    const windGd = hasWind && wSpd < 20;
+    const windAdv = hasWind && (wa.tier === 'adverse' || wa.tier === 'extreme');
 
     let tier, title, sub;
+    const tempStr = `${temp.toFixed(1)}°C`;
+    const windStr = hasWind ? `${wLabel} ${wSpd.toFixed(0)}km/h (${wa.label})` : 'wind data unavailable';
 
-    if (tempOk && windGd) {
-        tier = 'go';
+    if (tempOk && windGd && !windAdv) {
+        tier  = 'go';
         title = 'Conditions Look Good';
-        sub = `${temp.toFixed(1)}°C · ${wLabel} ${wSpd?.toFixed(0)}km/h · ${wa.label}. Good window for a crossing attempt.`;
-    } else if (temp >= 13 && wSpd < 40) {
-        tier = 'caution';
+        sub   = `${tempStr} · ${windStr}. Good window for a crossing attempt. Verify tides before committing.`;
+    } else if (temp >= 13 && (!hasWind || wSpd < 40) && !windAdv) {
+        tier  = 'caution';
         title = 'Proceed with Caution';
-        sub = `${!tempOk ? `Water ${temp.toFixed(1)}°C — cold, high core temp management required. ` : ''}${!windOk ? `Wind ${wSpd?.toFixed(0)}km/h ${wLabel} — ${wa.label}. Significant chop expected. ` : ''}Review full window before committing.`;
+        sub   = `${!tempOk ? `Water ${tempStr} — cold, manage core temp carefully, feed frequently. ` : ''}${hasWind && !windOk ? `Wind ${windStr} — expect chop. ` : ''}Verify tides and review full conditions before committing.`;
     } else {
-        tier = 'wait';
-        title = 'Not Recommended Today';
-        sub = `${temp < 13 ? `Water ${temp.toFixed(1)}°C — hypothermia risk too high for a 5+ hour swim. ` : ''}${wSpd >= 40 ? `Wind ${wSpd?.toFixed(0)}km/h — extreme conditions, abort. ` : ''}Wait for better window.`;
+        tier  = 'wait';
+        title = 'Not Recommended';
+        sub   = `${temp < 13 ? `Water ${tempStr} — hypothermia risk for a 3–7hr swim. ` : ''}${windAdv ? `${windStr} — adverse for RI crossing. ` : hasWind && wSpd >= 40 ? `Wind ${wSpd.toFixed(0)}km/h — extreme, abort. ` : ''}Wait for a better window.`;
     }
 
     el.className = `signal-card ${tier}`;
@@ -928,23 +983,23 @@ function buildChecklist(liveResult, wf) {
     const el = document.getElementById('condChecklist');
     if (!el) return;
 
-    const temp  = liveResult?.avgTemp ?? 14.5;
-    const wSpd  = wf?.windMax ?? 20;
+    const temp  = liveResult?.hasLive ? liveResult.avgTemp : null;
+    const wSpd  = wf?.windMax ?? null;
     const wDeg  = wf?.windDir ?? 180;
 
     const checks = [
         {
-            ok: temp >= 14,
-            warn: temp >= 13 && temp < 14,
-            label: `Water temp ${temp.toFixed(1)}°C`,
+            ok: temp != null && temp >= 14,
+            warn: temp != null && temp >= 13 && temp < 14,
+            label: temp != null ? `Water temp ${temp.toFixed(1)}°C (live)` : 'Water temp — no live reading',
             pass: 'Acceptable for acclimatised skins swimmer.',
             warn_msg: 'Cold — manage core temp carefully. Feed frequently.',
-            fail: 'Very cold — high hypothermia risk for a double. Reconsider.'
+            fail: temp == null ? 'No live temp data — cannot assess. Check before committing.' : 'Very cold — high hypothermia risk for a double. Reconsider.'
         },
         {
-            ok: wSpd < 20,
-            warn: wSpd < 30,
-            label: `Wind ${wSpd?.toFixed(0) ?? '—'}km/h ${wf?.dirLabel ?? ''}`,
+            ok: wSpd != null && wSpd < 20,
+            warn: wSpd != null && wSpd < 30,
+            label: wSpd != null ? `Wind ${wSpd.toFixed(0)}km/h ${wf?.dirLabel ?? ''}` : 'Wind — data unavailable',
             pass: 'Light — good navigation conditions.',
             warn_msg: 'Moderate — expect chop, navigation challenge.',
             fail: 'Strong — Cape Doctor conditions. Very difficult for a double.'
@@ -1182,6 +1237,12 @@ async function loadHistory() {
             gender: s.historical_swimmers?.gender
         }));
         const allFlat = swimsAll || [];
+
+        // Update card label with real count
+        const lbl = document.getElementById('histCardLabel');
+        if (lbl && allFlat.length > 0) {
+            lbl.textContent = `Crossing Intelligence — ${allFlat.length} Recorded Crossings`;
+        }
 
         if (allFlat.length === 0) {
             ['histSummary','histMonths','histConditions','histTemps','histYears','histInsights']
@@ -1447,57 +1508,92 @@ function calcDoublePrediction() {
             alert('Enter time as mm:ss e.g. 28:30'); return;
         }
         const secs1500 = parts[0] * 60 + parts[1];
-        // 1500m pool → OW pace: multiply by ~1.12 for OW drag + feeds, then to km/h
-        const owSecs1500 = secs1500 * 1.12;
-        pacekph = (1.5 / owSecs1500) * 3600;
+        if (secs1500 < 900 || secs1500 > 7200) {
+            alert('Time seems unrealistic. Enter your 1500m race pace e.g. 28:30'); return;
+        }
+        // Pool → open water: ~12% slower (open water turn penalty, wetsuitless drag, sighting)
+        pacekph = (1.5 / (secs1500 * 1.12)) * 3600;
     } else {
         const raw = document.getElementById('inputOW').value.trim();
         pacekph = parseFloat(raw);
-        if (!pacekph || isNaN(pacekph)) { alert('Enter pace in km/h e.g. 2.8'); return; }
+        if (!pacekph || isNaN(pacekph) || pacekph < 0.5 || pacekph > 6) {
+            alert('Enter sustained open water pace in km/h e.g. 3.0'); return;
+        }
     }
 
-    // One-way distance: 7.4km
-    // Double: 15km
-    // Current assist/penalty: assume neutral (0 net current for a double — outbound current = return current)
-    // Transition at island: ~10 min rest / turnaround
-    // Cold water penalty: ~5% slower than pool-equivalent OW pace
+    // Cold water penalty — scales with actual temp
+    // Atlantic at Big Bay: 11–16°C. Penalty vs temperate (18°C+):
+    //   15°C+: 3%  |  14°C: 5%  |  13°C: 8%  |  12°C: 12%  |  ≤11°C: 16%
+    const tempInput = parseFloat(document.getElementById('inputTemp').value);
+    const waterTemp = (!isNaN(tempInput) && tempInput >= 8 && tempInput <= 25) ? tempInput : null;
+    let coldPenalty, coldNote;
+    if (waterTemp == null) {
+        coldPenalty = 0.92; // assume 13°C if not entered (conservative)
+        coldNote = 'Cold water penalty: 8% (conservative — enter actual temp for accuracy)';
+    } else if (waterTemp >= 15) {
+        coldPenalty = 0.97; coldNote = `Cold penalty: 3% at ${waterTemp}°C`;
+    } else if (waterTemp >= 14) {
+        coldPenalty = 0.95; coldNote = `Cold penalty: 5% at ${waterTemp}°C`;
+    } else if (waterTemp >= 13) {
+        coldPenalty = 0.92; coldNote = `Cold penalty: 8% at ${waterTemp}°C — manage core temp carefully`;
+    } else if (waterTemp >= 12) {
+        coldPenalty = 0.88; coldNote = `Cold penalty: 12% at ${waterTemp}°C — significant hypothermia risk`;
+    } else {
+        coldPenalty = 0.84; coldNote = `Cold penalty: 16% at ${waterTemp}°C — extreme hypothermia risk, reconsider`;
+    }
 
-    const coldPenalty   = 0.95; // 5% slower in cold Atlantic vs temperate
+    // Tidal adjustment (seconds added to total — negative = faster)
+    const tidalAdj = parseInt(document.getElementById('inputTidal').value) || 0;
+    const tidalLabels = { '-900': 'Favourable flood tide (+15 min saved)', '0': 'Neutral / slack', '1800': 'Adverse ebb (+30 min added)' };
+    const tidalNote = tidalLabels[String(tidalAdj)] || 'Neutral';
+
+    // Turnaround at island
+    const transitMin = parseInt(document.getElementById('inputTransit').value) || 20;
+
     const effectivePace = pacekph * coldPenalty;
-    const onewayHrs     = 7.4 / effectivePace;
-    const transitHrs    = 10 / 60; // 10 min turnaround
-    const doubleHrs     = (onewayHrs * 2) + transitHrs;
+    const onewayS       = (7.4 / effectivePace) * 3600;
+    const transitS      = transitMin * 60;
+    // Feeds: every 30 min, 45s each (more realistic than 60s for experienced swimmers)
+    const feedCount     = Math.round(((onewayS * 2) / 1800));
+    const feedTimeS     = feedCount * 45;
+    const totalS        = (onewayS * 2) + transitS + feedTimeS + tidalAdj;
 
-    const onewayS  = onewayHrs * 3600;
-    const doubleS  = doubleHrs * 3600;
-
-    // Feed schedule: every 30 min, 60s each
-    const feedsOneWay = Math.floor(onewayHrs * 2);
-    const feedsDouble = feedsOneWay * 2;
-    const feedTimeS   = feedsDouble * 60;
-    const totalS      = doubleS + feedTimeS;
+    // Hypothermia risk note
+    let hypoNote = '';
+    if (waterTemp != null) {
+        const swimHrs = totalS / 3600;
+        if (waterTemp < 12 || (waterTemp < 13 && swimHrs > 5))
+            hypoNote = '<div style="margin-top:8px;padding:8px 10px;background:rgba(239,68,68,0.12);border-radius:8px;border:1px solid rgba(239,68,68,0.3);color:#fca5a5;font-size:12px;line-height:1.5;"><strong>Hypothermia warning:</strong> At ' + waterTemp + '°C over ' + swimHrs.toFixed(1) + 'h, this swim carries serious hypothermia risk. Discuss with a medical professional before attempting.</div>';
+        else if (waterTemp < 14 || (waterTemp < 15 && swimHrs > 4))
+            hypoNote = '<div style="margin-top:8px;padding:8px 10px;background:rgba(245,158,11,0.12);border-radius:8px;border:1px solid rgba(245,158,11,0.3);color:#fcd34d;font-size:12px;line-height:1.5;"><strong>Cold water caution:</strong> Plan extra feeds, warm fluids, and monitor core temp throughout.</div>';
+    }
 
     const el = document.getElementById('doubleCalcResult');
     el.style.display = 'block';
     el.innerHTML = `
         <div style="background:rgba(14,165,233,0.06);border:1px solid rgba(14,165,233,0.2);border-radius:12px;padding:16px;margin-top:8px;">
-            <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--ocean-light);margin-bottom:12px;">Your Double Crossing Estimate</div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--ocean-light);margin-bottom:12px;">Double Crossing Estimate</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
                 <div style="text-align:center;">
-                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">ONE WAY</div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">ONE WAY (7.4km)</div>
                     <div style="font-size:26px;font-weight:800;color:var(--text-primary);letter-spacing:-1px;">${secsToHMS(onewayS)}</div>
                 </div>
                 <div style="text-align:center;">
-                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">DOUBLE TOTAL</div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">TOTAL (15km + stops)</div>
                     <div style="font-size:26px;font-weight:800;color:var(--ocean-light);letter-spacing:-1px;">${secsToHMS(totalS)}</div>
                 </div>
             </div>
-            <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;border-top:1px solid var(--border);padding-top:10px;">
-                <strong style="color:var(--text-primary);">Pace:</strong> ${effectivePace.toFixed(2)} km/h (cold water adjusted)<br>
-                <strong style="color:var(--text-primary);">Feeds:</strong> ${feedsDouble} feeds &times; 60s = ${Math.round(feedTimeS/60)} min total<br>
-                <strong style="color:var(--text-primary);">Transition:</strong> ~10 min at island<br>
-                <strong style="color:var(--text-primary);">Note:</strong> Current assumed neutral (outbound = return). Adverse SE current adds 20–40 min per leg.
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.8;border-top:1px solid var(--border);padding-top:10px;">
+                <strong style="color:var(--text-primary);">Effective pace:</strong> ${effectivePace.toFixed(2)} km/h<br>
+                <strong style="color:var(--text-primary);">Cold water:</strong> ${coldNote}<br>
+                <strong style="color:var(--text-primary);">Tidal:</strong> ${tidalNote}<br>
+                <strong style="color:var(--text-primary);">Island turnaround:</strong> ${transitMin} min<br>
+                <strong style="color:var(--text-primary);">Feeds:</strong> ~${feedCount} feeds × 45s = ${Math.round(feedTimeS/60)} min<br>
             </div>
+            <div style="margin-top:10px;padding:8px 10px;background:rgba(255,255,255,0.04);border-radius:8px;font-size:11px;color:var(--text-secondary);line-height:1.5;">
+                This estimate assumes constant pace. Fatigue, current shifts and cold exposure in the second half will slow you down. Add a 15–20% buffer to your planning time.
+            </div>
+            ${hypoNote}
         </div>`;
 }
 
