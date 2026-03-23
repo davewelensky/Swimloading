@@ -1185,12 +1185,13 @@ async function loadHistory() {
         const minYear  = Math.min(...years);
         const maxYear  = Math.max(...years);
 
+        const fastest = arr => arr.length ? arr.reduce((a, b) => durSecs(a.duration) < durSecs(b.duration) ? a : b) : null;
         const withDurS = singles.filter(s => durSecs(s.duration) > 0);
-        const fastestSW = withDurS.filter(s => s.gender === 'F').reduce((a, b) => durSecs(a.duration) < durSecs(b.duration) ? a : b, null);
-        const fastestSM = withDurS.filter(s => s.gender === 'M').reduce((a, b) => durSecs(a.duration) < durSecs(b.duration) ? a : b, null);
+        const fastestSW = fastest(withDurS.filter(s => s.gender === 'F'));
+        const fastestSM = fastest(withDurS.filter(s => s.gender === 'M'));
         const withDurD = doubles.filter(s => durSecs(s.duration) > 0);
-        const fastestDW = withDurD.filter(s => s.gender === 'F').reduce((a, b) => durSecs(a.duration) < durSecs(b.duration) ? a : b, null);
-        const fastestDM = withDurD.filter(s => s.gender === 'M').reduce((a, b) => durSecs(a.duration) < durSecs(b.duration) ? a : b, null);
+        const fastestDW = fastest(withDurD.filter(s => s.gender === 'F'));
+        const fastestDM = fastest(withDurD.filter(s => s.gender === 'M'));
 
         const statBox = (val, label, sub) => `
             <div style="background:rgba(14,165,233,0.08);border-radius:12px;padding:14px 12px;text-align:center;">
