@@ -1146,11 +1146,22 @@ async function loadRecords() {
 
 async function loadHistory() {
     try {
-        // Fetch all RI swims with swimmer join — source='big_bay_events' is unique to RI crossings
+        // Use same route filter as Records tab — get all Robben Island one-way crossings
+        const { data: routes } = await sb.from('historical_routes')
+            .select('id')
+            .ilike('name', '%robben%');
+
+        const routeIds = (routes || []).map(r => r.id);
+        if (!routeIds.length) {
+            document.getElementById('histSummary').innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No Robben Island route found.</div>';
+            return;
+        }
+
         const { data: swims, error } = await sb
             .from('historical_swims')
             .select('*, historical_swimmers(display_name, gender)')
-            .eq('source', 'big_bay_events')
+            .in('route_id', routeIds)
+            .not('distance_km', 'gt', 10)   // exclude doubles (15km) — one-way only
             .order('swim_date', { ascending: true });
 
         if (error) throw error;
@@ -1169,31 +1180,26 @@ async function loadHistory() {
 
         // ── SUMMARY ──────────────────────────────────────────────────────────
         const uniqueSwimmers = new Set(flat.map(s => s.swimmer_name).filter(Boolean)).size;
-        const withDuration   = flat.filter(s => s.duration != null && durSecs(s.duration) > 0);
-        const fastest        = withDuration.length ? withDuration.reduce((a, b) => durSecs(a.duration) < durSecs(b.duration) ? a : b) : null;
-        const years          = flat.map(s => s.swim_date ? new Date(s.swim_date).getFullYear() : null).filter(Boolean);
-        const minYear        = Math.min(...years);
-        const maxYear        = Math.max(...years);
+        const withDuration   = flat.filter(s => durSecs(s.duration) > 0);
+        const fastestW = withDuration.filter(s => s.gender === 'F').reduce((a, b) => durSecs(a.duration) < durSecs(b.duration) ? a : b, null);
+        const fastestM = withDuration.filter(s => s.gender === 'M').reduce((a, b) => durSecs(a.duration) < durSecs(b.duration) ? a : b, null);
+        const years    = flat.map(s => s.swim_date ? new Date(s.swim_date).getFullYear() : null).filter(Boolean);
+        const minYear  = Math.min(...years);
+        const maxYear  = Math.max(...years);
+
+        const statBox = (val, label, sub) => `
+            <div style="background:rgba(14,165,233,0.08);border-radius:12px;padding:14px 12px;text-align:center;">
+                <div style="font-size:${val.length > 7 ? '20px' : '26px'};font-weight:700;color:var(--ocean-light);line-height:1.1;">${val}</div>
+                <div style="font-size:10px;color:var(--text-secondary);margin-top:4px;letter-spacing:0.05em;">${label}</div>
+                ${sub ? `<div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">${sub}</div>` : ''}
+            </div>`;
 
         document.getElementById('histSummary').innerHTML = `
-            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;">
-                <div style="background:rgba(14,165,233,0.08);border-radius:12px;padding:16px;text-align:center;">
-                    <div style="font-size:32px;font-weight:700;color:var(--ocean-light);">${flat.length}</div>
-                    <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;letter-spacing:0.05em;">RECORDED CROSSINGS</div>
-                </div>
-                <div style="background:rgba(14,165,233,0.08);border-radius:12px;padding:16px;text-align:center;">
-                    <div style="font-size:32px;font-weight:700;color:var(--ocean-light);">${uniqueSwimmers}</div>
-                    <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;letter-spacing:0.05em;">UNIQUE SWIMMERS</div>
-                </div>
-                <div style="background:rgba(14,165,233,0.08);border-radius:12px;padding:16px;text-align:center;">
-                    <div style="font-size:32px;font-weight:700;color:var(--ocean-light);">${fastest ? fmtDur(fastest.duration) : '—'}</div>
-                    <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;letter-spacing:0.05em;">FASTEST CROSSING</div>
-                    ${fastest ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${fastest.swimmer_name || ''}</div>` : ''}
-                </div>
-                <div style="background:rgba(14,165,233,0.08);border-radius:12px;padding:16px;text-align:center;">
-                    <div style="font-size:32px;font-weight:700;color:var(--ocean-light);">${minYear}–${maxYear}</div>
-                    <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;letter-spacing:0.05em;">DATA RANGE</div>
-                </div>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+                ${statBox(String(flat.length), 'RECORDED CROSSINGS', `${minYear}–${maxYear}`)}
+                ${statBox(String(uniqueSwimmers), 'UNIQUE SWIMMERS', '')}
+                ${statBox(fastestW ? fmtDur(fastestW.duration) : '—', 'FASTEST WOMEN', fastestW?.swimmer_name || '')}
+                ${statBox(fastestM ? fmtDur(fastestM.duration) : '—', 'FASTEST MEN', fastestM?.swimmer_name || '')}
             </div>`;
 
         // ── MONTHS ──────────────────────────────────────────────────────────
