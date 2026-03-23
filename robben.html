@@ -250,17 +250,17 @@
         </div>
 
         <div class="card">
-            <div class="card-label">Women's RI Crossings — All Time</div>
+            <div class="card-label">Women's RI Crossings — Single (RI→BB · 7.4km)</div>
             <div id="recWomen" class="loading-msg">Loading...</div>
         </div>
 
         <div class="card">
-            <div class="card-label">Men's RI Crossings — All Time</div>
+            <div class="card-label">Men's RI Crossings — Single (RI→BB · 7.4km)</div>
             <div id="recMen" class="loading-msg">Loading...</div>
         </div>
 
         <div class="card">
-            <div class="card-label">Double Crossings — All Time</div>
+            <div class="card-label">Double Crossings — All Time (BB→RI→BB · 15km)</div>
             <div id="recDouble" class="loading-msg">Loading...</div>
         </div>
 
@@ -1152,10 +1152,13 @@ async function loadRecords() {
         gender: s.historical_swimmers?.gender || null,
     }));
 
-    // All records in this dataset are Big Bay doubles — split by gender only
-    const women  = flat.filter(s => s.gender === 'F');
-    const men    = flat.filter(s => s.gender === 'M');
-    const doubles = flat; // all are doubles — show full leaderboard
+    // Singles = RI→BB (7.4km), Doubles = BB→RI→BB (15km)
+    // Use distance_km to separate. Records with no distance default to singles.
+    const singles  = flat.filter(s => !s.distance_km || s.distance_km <= 10);
+    const doublesOnly = flat.filter(s => s.distance_km > 10);
+    const women  = singles.filter(s => s.gender === 'F');
+    const men    = singles.filter(s => s.gender === 'M');
+    const doubles = doublesOnly; // BB→RI→BB 15km leaderboard
 
     function renderList(data, containerId) {
         const el = document.getElementById(containerId);
@@ -1178,7 +1181,12 @@ async function loadRecords() {
 
     renderList(women, 'recWomen');
     renderList(men, 'recMen');
-    renderList(doubles, 'recDouble');
+    if (doubles.length) {
+        renderList(doubles, 'recDouble');
+    } else {
+        const el = document.getElementById('recDouble');
+        if (el) el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:10px 0;">No double crossing records on file yet.</div>';
+    }
 
     // Banner records
     if (women[0]) {
@@ -1226,7 +1234,7 @@ async function loadHistory() {
         // Fetch ALL (including null duration) for date/month/year stats
         const { data: swimsAll } = await sb
             .from('historical_swims')
-            .select('swim_date, distance_km, conditions, category, water_temp_c')
+            .select('swim_date, distance_km, conditions, category, water_temp_c, duration')
             .in('route_id', routeIds);
 
         if (error) throw error;
@@ -1331,29 +1339,43 @@ async function loadHistory() {
         const condRows = Object.entries(condGroups)
             .filter(([k]) => k !== 'unknown')
             .map(([k, arr]) => {
-                const withDur = arr.filter(s => durSecs(s.duration) > 0);
-                const avgSecs = withDur.length ? withDur.reduce((sum, x) => sum + durSecs(x.duration), 0) / withDur.length : null;
-                const avgMin = avgSecs != null ? Math.round(avgSecs / 60) : null;
-                return { label: condLabels[k] || k, count: arr.length, avgMin };
+                // Separate singles and doubles so times are meaningful
+                const singleArr = arr.filter(s => !s.distance_km || s.distance_km <= 10);
+                const doubleArr = arr.filter(s => s.distance_km > 10);
+                const withDurS  = singleArr.filter(s => durSecs(s.duration) > 0);
+                const withDurD  = doubleArr.filter(s => durSecs(s.duration) > 0);
+                const avgS = withDurS.length ? Math.round(withDurS.reduce((sum, x) => sum + durSecs(x.duration), 0) / withDurS.length / 60) : null;
+                const avgD = withDurD.length ? Math.round(withDurD.reduce((sum, x) => sum + durSecs(x.duration), 0) / withDurD.length / 60) : null;
+                return { label: condLabels[k] || k, count: arr.length, sCount: singleArr.length, dCount: doubleArr.length, avgS, avgD };
             })
             .sort((a, b) => b.count - a.count);
 
         const goodRow = condRows.find(r => r.label === 'Good');
-        const goodAvg = goodRow?.avgMin;
+        const goodAvgS = goodRow?.avgS;
+        const goodAvgD = goodRow?.avgD;
 
         document.getElementById('histConditions').innerHTML = condRows.length ? `
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--text-secondary);text-align:center;">SINGLE · RI→BB · 7.4km</div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--text-secondary);text-align:center;">DOUBLE · BB→RI→BB · 15km</div>
+            </div>
             <div style="display:flex;flex-direction:column;gap:8px;">
                 ${condRows.map(r => {
-                    const diff = (r.avgMin && goodAvg && r.label !== 'Good') ? r.avgMin - goodAvg : 0;
-                    const diffStr = diff > 0 ? `<span style="color:var(--warning);font-size:11px;"> +${diff} min vs good</span>` : '';
-                    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;border:1px solid var(--border);">
-                        <div>
-                            <span style="font-size:13px;font-weight:600;">${r.label}</span>
-                            <span style="font-size:11px;color:var(--text-secondary);margin-left:8px;">${r.count} crossing${r.count !== 1 ? 's' : ''}</span>
+                    const diffS = (r.avgS && goodAvgS && r.label !== 'Good') ? r.avgS - goodAvgS : 0;
+                    const diffD = (r.avgD && goodAvgD && r.label !== 'Good') ? r.avgD - goodAvgD : 0;
+                    return `<div style="padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;border:1px solid var(--border);">
+                        <div style="font-size:13px;font-weight:600;margin-bottom:6px;">${r.label}
+                            <span style="font-size:11px;color:var(--text-secondary);font-weight:400;margin-left:6px;">${r.count} crossings</span>
                         </div>
-                        <div style="text-align:right;">
-                            ${r.avgMin ? `<div style="font-size:13px;font-weight:600;color:var(--ocean-light);">${fmtDur(r.avgMin * 60)}</div>` : '<div style="font-size:11px;color:var(--text-secondary);">no times</div>'}
-                            ${diffStr}
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                            <div style="font-size:13px;font-weight:600;color:var(--ocean-light);">
+                                ${r.avgS ? fmtDur(r.avgS * 60) : '<span style="font-size:11px;color:var(--text-secondary);">—</span>'}
+                                ${diffS > 0 ? `<div style="font-size:10px;color:var(--warning);font-weight:400;">+${diffS} min vs good</div>` : ''}
+                            </div>
+                            <div style="font-size:13px;font-weight:600;color:var(--ocean-light);">
+                                ${r.avgD ? fmtDur(r.avgD * 60) : '<span style="font-size:11px;color:var(--text-secondary);">—</span>'}
+                                ${diffD > 0 ? `<div style="font-size:10px;color:var(--warning);font-weight:400;">+${diffD} min vs good</div>` : ''}
+                            </div>
                         </div>
                     </div>`;
                 }).join('')}
