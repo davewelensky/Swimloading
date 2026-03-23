@@ -1139,11 +1139,23 @@ async function loadRecords() {
 
 async function loadHistory() {
     try {
+        // Get Robben Island route IDs first
+        const { data: routes } = await sb.from('historical_routes')
+            .select('id')
+            .ilike('name', '%robben%');
+
+        const routeIds = (routes || []).map(r => r.id);
+        if (!routeIds.length) {
+            ['histSummary','histMonths','histConditions','histTemps','histYears','histInsights']
+                .forEach(id => { document.getElementById(id).innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No Robben Island route found.</div>'; });
+            return;
+        }
+
         // Fetch all RI swims with swimmer join
         const { data: swims, error } = await sb
             .from('historical_swims')
             .select('*, historical_swimmers(display_name, gender)')
-            .ilike('source', '%big_bay%')
+            .in('route_id', routeIds)
             .order('swim_date', { ascending: true });
 
         if (error) throw error;
