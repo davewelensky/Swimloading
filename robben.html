@@ -1365,7 +1365,9 @@ async function loadHistory() {
 
     } catch (err) {
         console.error('loadHistory error:', err);
-        ['histSummary','histMonths','histConditions','histTemps','histYears','histInsights']
+        const msg = err?.message || err?.toString() || 'Unknown error';
+        document.getElementById('histSummary').innerHTML = `<div style="color:var(--danger);font-size:12px;font-family:monospace;word-break:break-all;">Error: ${msg}</div>`;
+        ['histMonths','histConditions','histTemps','histYears','histInsights']
             .forEach(id => { document.getElementById(id).textContent = 'Failed to load.'; });
     }
 }
