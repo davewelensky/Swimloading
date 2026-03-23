@@ -1146,7 +1146,7 @@ async function loadRecords() {
 
 async function loadHistory() {
     try {
-        // Use same route filter as Records tab — get all Robben Island one-way crossings
+        // Get all Robben Island crossings — singles (RI→BB, 7.4km) and doubles (BB→RI→BB, 15km)
         const { data: routes } = await sb.from('historical_routes')
             .select('id')
             .ilike('name', '%robben%');
@@ -1201,7 +1201,7 @@ async function loadHistory() {
 
         document.getElementById('histSummary').innerHTML = `
             <div style="margin-bottom:10px;">
-                <div style="font-size:10px;color:var(--text-secondary);letter-spacing:0.08em;margin-bottom:8px;">SINGLE CROSSING — BB to RI · 7.4km</div>
+                <div style="font-size:10px;color:var(--text-secondary);letter-spacing:0.08em;margin-bottom:8px;">SINGLE CROSSING — RI→BB · 7.4km</div>
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
                     ${statBox(String(singles.length), 'CROSSINGS', `${minYear}–${maxYear}`)}
                     ${statBox(fastestSW ? fmtDur(fastestSW.duration) : '—', 'FASTEST WOMEN', fastestSW?.swimmer_name || '')}
@@ -1377,9 +1377,9 @@ async function loadHistory() {
         const insights = [
             `${peakMonth} is the most popular crossing month across all events.`,
             singles.length > 0 && doubles.length > 0
-                ? `${singles.length} single crossings (BB→RI, 7.4km) and ${doubles.length} double crossings (BB→RI→BB, 15km) on record.`
-                : singles.length > 0 ? `${singles.length} single crossings (7.4km) on record.`
-                : `${doubles.length} double crossings (15km) on record.`,
+                ? `${singles.length} single crossings (RI→BB, 7.4km) and ${doubles.length} double crossings (BB→RI→BB, 15km) on record.`
+                : singles.length > 0 ? `${singles.length} single crossings (RI→BB, 7.4km) on record.`
+                : `${doubles.length} double crossings (BB→RI→BB, 15km) on record.`,
             skinsOnly === flat.length ? 'All recorded crossings are skins — no wetsuit, cold Atlantic water.' : `${skinsOnly} of ${flat.length} crossings were skins swims.`,
             goodAvg ? `Average double crossing time in good conditions: ${fmtDur(goodAvg * 60)}.` : '',
             choppyPct > 0 ? `${choppyPct} crossing${choppyPct !== 1 ? 's' : ''} completed in choppy or big-swell — the channel can be done in rough conditions.` : '',
