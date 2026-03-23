@@ -1132,6 +1132,7 @@ async function loadRecords() {
     const { data: swims } = await sb.from('historical_swims')
         .select('*, historical_swimmers(display_name, gender)')
         .in('route_id', riRouteIds)
+        .in('source', ['big_bay_events', 'big_bay_swimsummary'])
         .not('duration', 'is', null)
         .order('duration', { ascending: true });
 
@@ -1223,11 +1224,17 @@ async function loadHistory() {
 
         const routeIds = routes.map(r => r.id);
 
-        // Fetch all — order by duration asc so fastest is first (same as Records tab)
+        // Only trust data we explicitly imported.
+        // big_bay_events = 134 double crossings (BB→RI→BB)
+        // big_bay_swimsummary = single crossings from xlsx (imported separately)
+        const TRUSTED_SOURCES = ['big_bay_events', 'big_bay_swimsummary'];
+
+        // Fetch with duration for records/times
         const { data: swims, error } = await sb
             .from('historical_swims')
             .select('*, historical_swimmers(display_name, gender)')
             .in('route_id', routeIds)
+            .in('source', TRUSTED_SOURCES)
             .not('duration', 'is', null)
             .order('duration', { ascending: true });
 
@@ -1235,7 +1242,8 @@ async function loadHistory() {
         const { data: swimsAll } = await sb
             .from('historical_swims')
             .select('swim_date, distance_km, conditions, category, water_temp_c, duration')
-            .in('route_id', routeIds);
+            .in('route_id', routeIds)
+            .in('source', TRUSTED_SOURCES);
 
         if (error) throw error;
 
@@ -1478,7 +1486,7 @@ async function loadHistory() {
                 : singles.length > 0 ? `${singles.length} single crossings (RI→BB, 7.4km) on record.`
                 : `${doubles.length} double crossings (BB→RI→BB, 15km) on record.`,
             skinsOnly === allFlat.length ? 'All recorded crossings are skins — no wetsuit, cold Atlantic water.' : `${skinsOnly} of ${allFlat.length} crossings were skins swims.`,
-            goodAvg ? `Average double crossing time in good conditions: ${fmtDur(goodAvg * 60)}.` : '',
+            goodAvgD ? `Average double crossing time in good conditions: ${fmtDur(goodAvgD * 60)}.` : '',
             choppyPct > 0 ? `${choppyPct} crossing${choppyPct !== 1 ? 's' : ''} completed in choppy or big-swell — the channel can be done in rough conditions.` : '',
             womenSwims + menSwims > 0 ? `Gender split: ${menSwims} men · ${womenSwims} women.` : '',
             fastestSW ? `Fastest women's single (RI→BB): ${fmtDur(fastestSW.duration)} — ${fastestSW.swimmer_name || 'unknown'}.` : '',
