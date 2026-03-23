@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Robben Island Intel — SwimLoading</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+        :root {
+            --bg-dark: #0a1628;
+            --bg-card: #111c30;
+            --ocean: #0ea5e9;
+            --ocean-light: #38bdf8;
+            --text-primary: #f0f9ff;
+            --text-secondary: #94a3b8;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --border: rgba(255,255,255,0.08);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            padding: 0 0 60px;
+        }
+        .header {
+            background: linear-gradient(135deg, #0a1628 0%, #091a2e 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 18px 20px 14px;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .header-row { display: flex; align-items: center; justify-content: space-between; }
+        .header-title { font-size: 19px; font-weight: 800; color: var(--ocean-light); letter-spacing: -0.4px; }
+        .header-sub { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+        .user-pill {
+            font-size: 11px; color: var(--ocean-light);
+            background: rgba(14,165,233,0.12);
+            border: 1px solid rgba(14,165,233,0.25);
+            border-radius: 20px; padding: 3px 10px;
+        }
+        .container { padding: 14px; max-width: 600px; margin: 0 auto; }
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px; padding: 18px;
+            margin-bottom: 14px;
+            border: 1px solid var(--border);
+        }
+        .card-label {
+            font-size: 10px; font-weight: 700; letter-spacing: 1px;
+            text-transform: uppercase; color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+        .tab-bar {
+            display: flex; background: rgba(15,23,42,0.8);
+            border-radius: 10px; padding: 3px; margin-bottom: 16px; gap: 2px;
+        }
+        .tab-btn {
+            flex: 1; background: transparent; border: none;
+            color: var(--text-secondary); font-size: 12px; font-weight: 600;
+            padding: 8px 2px; border-radius: 8px; cursor: pointer;
+        }
+        .tab-btn.active { background: var(--ocean); color: white; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+
+        .signal-card {
+            border-radius: 16px; padding: 20px; margin-bottom: 14px;
+            border: 1px solid;
+        }
+        .signal-card.go { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.3); }
+        .signal-card.caution { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.3); }
+        .signal-card.wait { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.3); }
+        .signal-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+        .signal-card.go .signal-label { color: var(--success); }
+        .signal-card.caution .signal-label { color: var(--warning); }
+        .signal-card.wait .signal-label { color: var(--danger); }
+        .signal-title { font-size: 26px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; }
+        .signal-sub { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        .stat-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        .stat-box {
+            background: rgba(15,23,42,0.6); border-radius: 12px;
+            padding: 14px 10px; text-align: center; border: 1px solid var(--border);
+        }
+        .stat-box.hi { background: rgba(14,165,233,0.08); border-color: rgba(14,165,233,0.25); }
+        .stat-box.ok { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.25); }
+        .stat-box.warn { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.25); }
+        .stat-box.cold { background: rgba(99,102,241,0.08); border-color: rgba(99,102,241,0.25); }
+        .stat-val { font-size: 24px; font-weight: 800; color: var(--text-primary); line-height: 1; margin-bottom: 4px; }
+        .stat-val.blue { color: var(--ocean-light); }
+        .stat-val.green { color: var(--success); }
+        .stat-val.amber { color: var(--warning); }
+        .stat-val.red { color: var(--danger); }
+        .stat-val.purple { color: #a78bfa; }
+        .stat-lbl { font-size: 11px; color: var(--text-secondary); line-height: 1.3; }
+
+        .checklist-item {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 12px 0; border-bottom: 1px solid var(--border);
+        }
+        .checklist-item:last-child { border-bottom: none; }
+        .check-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+        .check-label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+        .check-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; line-height: 1.4; }
+
+        .record-row {
+            display: flex; align-items: center; gap: 10px;
+            padding: 11px 0; border-bottom: 1px solid var(--border);
+        }
+        .record-row:last-child { border-bottom: none; }
+        .record-pos { font-size: 16px; font-weight: 800; width: 24px; color: var(--text-secondary); }
+        .record-pos.p1 { color: #f59e0b; }
+        .record-pos.p2 { color: #94a3b8; }
+        .record-pos.p3 { color: #cd7f32; }
+        .record-name { font-size: 13px; font-weight: 600; flex: 1; }
+        .record-detail { font-size: 11px; color: var(--text-secondary); margin-top: 1px; }
+        .record-time { font-size: 14px; font-weight: 700; color: var(--ocean-light); text-align: right; }
+        .record-temp { font-size: 11px; color: var(--text-secondary); text-align: right; }
+
+        .chart-wrap { position: relative; height: 190px; margin-bottom: 12px; }
+
+        .alert { border-radius: 12px; padding: 13px 15px; margin-bottom: 12px; font-size: 13px; line-height: 1.5; }
+        .alert.blue { background: rgba(14,165,233,0.1); border: 1px solid rgba(14,165,233,0.25); color: var(--ocean-light); }
+        .alert.green { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); color: var(--success); }
+        .alert.amber { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25); color: var(--warning); }
+        .alert.red { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: var(--danger); }
+        .alert.purple { background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.25); color: #a78bfa; }
+
+        .divider { height: 1px; background: var(--border); margin: 14px 0; }
+        .loading-msg { text-align: center; color: var(--text-secondary); padding: 30px; font-size: 13px; }
+
+        #initScreen { text-align: center; padding: 80px 20px; color: var(--text-secondary); }
+        #appContent { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-row">
+        <div>
+            <div class="header-title">Robben Island Intel</div>
+            <div class="header-sub">Crossing intelligence · swimloading.com</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <button id="refreshBtn" onclick="refreshIntel()" title="Refresh conditions" style="background:rgba(14,165,233,0.10);border:1px solid rgba(14,165,233,0.25);color:var(--ocean-light);border-radius:20px;padding:3px 10px;font-size:14px;cursor:pointer;line-height:1;">&#8635;</button>
+            <div id="userPill" class="user-pill"></div>
+        </div>
+    </div>
+    <div id="lastRefreshed" style="font-size:10px;color:var(--text-secondary);margin-top:4px;"></div>
+</div>
+
+<div id="initScreen" class="container">
+    Loading...
+</div>
+
+<div id="gateScreen" class="container" style="display:none;text-align:center;padding:80px 20px;">
+    <div style="font-size:48px;margin-bottom:16px;">&#128274;</div>
+    <div style="font-size:17px;font-weight:700;margin-bottom:8px;">Pro Access Required</div>
+    <div style="color:var(--text-secondary);font-size:13px;margin-bottom:24px;">Robben Island Intel is a premium tool.<br>Contact SwimLoading to get access.</div>
+    <a href="/app" style="color:var(--ocean-light);font-size:14px;">Back to SwimLoading</a>
+</div>
+
+<div id="appContent" class="container">
+
+    <div class="tab-bar" style="margin-top:14px;">
+        <button class="tab-btn active" onclick="showTab('now', this)">Now</button>
+        <button class="tab-btn" onclick="showTab('window', this)">Window</button>
+        <button class="tab-btn" onclick="showTab('records', this)">Records</button>
+        <button class="tab-btn" onclick="showTab('double', this)">Double</button>
+    </div>
+
+    <!-- ══════════════ TAB: NOW ══════════════ -->
+    <div id="panelNow" class="panel active">
+
+        <div id="goSignal" class="loading-msg">Analysing conditions...</div>
+
+        <div class="card">
+            <div class="card-label">Atlantic Water Temps — Live</div>
+            <div id="liveTemps" class="loading-msg">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Tides — Big Bay / Table Bay</div>
+            <div id="tideCard" class="loading-msg">Loading tide data...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Swim Window — Hour by Hour</div>
+            <div id="todayHourly" class="loading-msg">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Conditions Checklist</div>
+            <div id="condChecklist" class="loading-msg">Checking...</div>
+        </div>
+
+    </div>
+
+    <!-- ══════════════ TAB: WINDOW ══════════════ -->
+    <div id="panelWindow" class="panel">
+
+        <div class="card">
+            <div class="card-label">7-Day Crossing Window</div>
+            <div id="crossingWindow" class="loading-msg">Analysing conditions...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">7-Day Wind Forecast — Big Bay</div>
+            <div id="windForecast" class="loading-msg">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">7-Day Swell &amp; Wave Forecast — Atlantic</div>
+            <div id="swellForecast" class="loading-msg">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Water Temp by Month — West Coast Atlantic</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.5;">
+                Atlantic (Benguela upwelling) water temps at Big Bay / Blouberg — based on community logs and historical data.
+                Skins crossings: <strong style="color:var(--warning)">13°C+</strong> recommended.
+            </div>
+            <div id="monthBars"></div>
+        </div>
+
+    </div>
+
+    <!-- ══════════════ TAB: RECORDS ══════════════ -->
+    <div id="panelRecords" class="panel">
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+            <div style="background:linear-gradient(135deg,rgba(14,165,233,0.12),rgba(14,165,233,0.04));border:1px solid rgba(14,165,233,0.3);border-radius:14px;padding:14px;text-align:center;">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:6px;">WOMEN'S RECORD</div>
+                <div id="recBannerTimeW" style="font-size:22px;font-weight:900;color:var(--ocean-light);letter-spacing:-1px;">—:——:——</div>
+                <div id="recBannerNameW" style="font-size:12px;font-weight:700;color:var(--text-primary);margin-top:4px;">Loading...</div>
+                <div id="recBannerMetaW" style="font-size:10px;color:var(--text-secondary);margin-top:2px;"></div>
+            </div>
+            <div style="background:linear-gradient(135deg,rgba(14,165,233,0.12),rgba(14,165,233,0.04));border:1px solid rgba(14,165,233,0.3);border-radius:14px;padding:14px;text-align:center;">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:6px;">MEN'S RECORD</div>
+                <div id="recBannerTimeM" style="font-size:22px;font-weight:900;color:var(--ocean-light);letter-spacing:-1px;">—:——:——</div>
+                <div id="recBannerNameM" style="font-size:12px;font-weight:700;color:var(--text-primary);margin-top:4px;">Loading...</div>
+                <div id="recBannerMetaM" style="font-size:10px;color:var(--text-secondary);margin-top:2px;"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Women's RI Crossings — All Time</div>
+            <div id="recWomen" class="loading-msg">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Men's RI Crossings — All Time</div>
+            <div id="recMen" class="loading-msg">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Double Crossings — All Time</div>
+            <div id="recDouble" class="loading-msg">Loading...</div>
+        </div>
+
+    </div>
+
+    <!-- ══════════════ TAB: DOUBLE ══════════════ -->
+    <div id="panelDouble" class="panel">
+
+        <div class="alert purple" style="margin-bottom:14px;">
+            <strong>Double Crossing — Big Bay &rarr; Robben Island &rarr; Big Bay</strong><br>
+            ~22km total &middot; Atlantic (cold) &middot; Two tidal windows &middot; Current is the deciding factor
+        </div>
+
+        <div class="card">
+            <div class="card-label">Personal Time Estimate</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Enter your pace to estimate your double crossing time (22km total, one way ~11km, tidal transit ~45 min each leg).</div>
+            <div style="display:flex;gap:6px;margin-bottom:12px;">
+                <button id="btnPool" onclick="setPaceMode('pool')" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.15);color:var(--ocean-light);font-size:12px;font-weight:600;cursor:pointer;">Pool 1500m Time</button>
+                <button id="btnOW" onclick="setPaceMode('ow')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;">Open Water Pace</button>
+            </div>
+            <div id="poolInputDiv">
+                <input type="text" id="input1500m" placeholder="e.g. 28:30 (mm:ss)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;margin-bottom:6px;">
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Your fastest 1500m pool time — race pace, not training.</div>
+            </div>
+            <div id="owInputDiv" style="display:none;">
+                <input type="text" id="inputOW" placeholder="e.g. 3.0 (km/h)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;margin-bottom:6px;">
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Sustained open water pace in km/h.</div>
+            </div>
+            <button onclick="calcDoublePrediction()" style="width:100%;padding:11px;border-radius:8px;border:none;background:var(--ocean);color:white;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px;">Calculate My Double Time &rarr;</button>
+            <div id="doubleCalcResult" style="display:none;"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Key Requirements — Double Crossing</div>
+            <div class="checklist-item">
+                <div class="check-icon">&#127774;</div>
+                <div>
+                    <div class="check-label">Water temp 13°C+ <span style="font-weight:400;color:var(--text-secondary)">(skins)</span></div>
+                    <div class="check-sub">The Atlantic at Big Bay is Benguela upwelling — cold, year-round. Typical range 12–16°C. March is usually 14–16°C but can spike 13°C with SE upwelling. Cold shock on entry is a real risk — acclimatise gradually. Hypothermia risk increases sharply below 13°C for a 5+ hour swim.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-icon">&#9194;</div>
+                <div>
+                    <div class="check-label">Tidal timing — this is everything</div>
+                    <div class="check-sub">The channel between Big Bay and Robben Island has strong tidal streams. Slack water or favourable flow makes a 45-minute difference per leg. Start the outbound leg on a slack or flood (rising) tide. The return leg needs to align with the next tidal window — plan ~5–7 hours total for a double. Check the tides tab.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-icon">&#128168;</div>
+                <div>
+                    <div class="check-label">Wind — light is best</div>
+                    <div class="check-sub">The Cape Doctor (SE) is the dominant wind at Big Bay — 25–40km/h SE creates significant chop and can push swimmers off line. N/NW winds are less common but more favourable for navigation. Any wind above 30km/h makes a double extremely difficult. Check the 7-day window.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-icon">&#127754;</div>
+                <div>
+                    <div class="check-label">Swell below 1.5m</div>
+                    <div class="check-sub">Big Atlantic swell from the SW adds significant difficulty and navigation challenge. 1.5m or below is comfortable. 2m is challenging but manageable for experienced swimmers. Above 2.5m is a no-go for a double.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-icon">&#128690;</div>
+                <div>
+                    <div class="check-label">Support boat &amp; safety</div>
+                    <div class="check-sub">A support vessel is essential for navigation (Robben Island approach has restricted zones) and safety. The boat must be cleared with SANCCOB and the Robben Island ferry authorities. Swimmer must not land on the island.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Robben Island Crossing — Key Distances</div>
+            <div class="stat-grid-3">
+                <div class="stat-box">
+                    <div class="stat-val blue">11km</div>
+                    <div class="stat-lbl">One way<br>Big Bay to RI</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-val purple">22km</div>
+                    <div class="stat-lbl">Double crossing<br>total distance</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-val amber">5–8h</div>
+                    <div class="stat-lbl">Typical double<br>crossing time</div>
+                </div>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;margin-top:4px;">
+                <strong style="color:var(--text-primary);">Route:</strong> Big Bay (Bloubergstrand) &rarr; Murray's Bay Harbour (east side, Robben Island) &rarr; Big Bay. Touch the rocks at the harbour wall — do not land.<br><br>
+                <strong style="color:var(--text-primary);">Navigation note:</strong> Aim for the lighthouse on the return leg once past mid-channel. The current will push you north — account for 1–2km of drift each way.
+            </div>
+        </div>
+
+        <div style="padding:6px 0 20px;text-align:center;">
+            <button onclick="shareConditions()" style="padding:12px 28px;border-radius:24px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.1);color:var(--ocean-light);font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.02em;">Share Conditions</button>
+            <div id="shareMsg" style="font-size:11px;color:var(--success);margin-top:8px;display:none;">Copied — paste into WhatsApp</div>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+
+// Pro access — add user IDs here to grant access
+const ALLOWED = [
+    'df137255-3add-4153-b368-32e06e2be188', // Dave
+];
+
+// Big Bay / Bloubergstrand coordinates — crossing start
+const BIG_BAY_LAT = -33.7297;
+const BIG_BAY_LNG = 18.4611;
+
+// Robben Island — Murray's Bay Harbour
+const RI_LAT = -33.8069;
+const RI_LNG = 18.3671;
+
+// WorldTides key (same as intel.html)
+const WORLDTIDES_KEY = '7e54bed9-1290-4668-82da-aecaaa714a50';
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, storageKey: 'sb-szgkzuswelntnevobnoh-auth-token' }
+});
+
+let appStarted = false;
+let _windForecastCache = null;
+let _marineForecastCache = null;
+let _liveResult = null;
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+
+async function startApp(session) {
+    if (appStarted) return;
+    appStarted = true;
+
+    document.getElementById('initScreen').style.display = 'none';
+
+    if (!ALLOWED.includes(session.user.id)) {
+        document.getElementById('gateScreen').style.display = 'block';
+        return;
+    }
+
+    const name = (session.user.email || '').split('@')[0].split('.')[0];
+    document.getElementById('userPill').textContent = name.charAt(0).toUpperCase() + name.slice(1);
+    document.getElementById('appContent').style.display = 'block';
+
+    _liveResult = await loadLiveTemps();
+    loadTides();
+    loadNow(_liveResult);
+    loadWindow();
+    loadRecords();
+    renderMonthBars();
+
+    const ts = new Date().toLocaleTimeString('en-ZA', { hour:'2-digit', minute:'2-digit' });
+    const el = document.getElementById('lastRefreshed');
+    if (el) el.textContent = `Updated ${ts}`;
+}
+
+async function refreshIntel() {
+    const btn = document.getElementById('refreshBtn');
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
+
+    appStarted = false;
+    _windForecastCache = null;
+    _marineForecastCache = null;
+    _liveResult = null;
+
+    const reset = (id, msg) => { const e = document.getElementById(id); if (e) e.innerHTML = `<div class="loading-msg">${msg}</div>`; };
+    reset('goSignal', 'Analysing conditions...');
+    reset('liveTemps', 'Loading...');
+    reset('tideCard', 'Loading tide data...');
+    reset('todayHourly', 'Loading...');
+    reset('condChecklist', 'Checking...');
+    reset('crossingWindow', 'Analysing conditions...');
+    reset('windForecast', 'Loading...');
+    reset('swellForecast', 'Loading...');
+
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) await startApp(session);
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+}
+
+async function init() {
+    sb.auth.onAuthStateChange((event, session) => {
+        if (session) startApp(session);
+        else if (!appStarted) window.location.href = '/app';
+    });
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) startApp(session);
+    else setTimeout(() => { if (!appStarted) window.location.href = '/app'; }, 2000);
+}
+
+// ─── TAB SWITCHING ────────────────────────────────────────────────────────────
+
+function showTab(name, btn) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('panel' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+    btn.classList.add('active');
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+function windDir(deg) {
+    const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+    return dirs[Math.round(deg / 22.5) % 16];
+}
+
+function isFavourable(deg) {
+    // For RI: N/NW is most favourable. SE (Cape Doctor) is adverse.
+    // Favourable: 270-360 (W/NW/N) and 0-90 (N/NE) when light
+    return deg >= 270 || deg <= 90;
+}
+
+function windAssessRI(deg, speed) {
+    const fav = isFavourable(deg);
+    if (speed < 15)                   return { tier: 'calm',    label: 'Light / calm' };
+    if (fav && speed < 30)            return { tier: 'optimal', label: 'Favourable N/NW' };
+    if (fav && speed < 45)            return { tier: 'strong',  label: 'Strong N/NW' };
+    if (!fav && speed < 25)           return { tier: 'adv-lt',  label: 'Light SE/S' };
+    if (!fav && speed < 40)           return { tier: 'adverse', label: 'Cape Doctor (SE)' };
+    return                                   { tier: 'extreme', label: 'Extreme — abort' };
+}
+
+function timeAgo(ts) {
+    const diff = (Date.now() - new Date(ts)) / 60000;
+    if (diff < 60) return `${Math.round(diff)}m ago`;
+    if (diff < 1440) return `${Math.round(diff/60)}h ago`;
+    return `${Math.round(diff/1440)}d ago`;
+}
+
+function fmtDur(interval) {
+    if (!interval) return '—';
+    if (typeof interval === 'string' && interval.includes(':')) {
+        const p = interval.split(':');
+        return `${p[0]}:${p[1]}:${(p[2]||'00').split('.')[0]}`;
+    }
+    const h = interval.match(/(\d+) hour/)?.[1] || '0';
+    const m = (interval.match(/(\d+) min/)?.[1] || '0').padStart(2,'0');
+    const s = (interval.match(/(\d+) sec/)?.[1] || '0').padStart(2,'0');
+    return `${h}:${m}:${s}`;
+}
+
+function durSecs(interval) {
+    if (!interval) return 0;
+    if (typeof interval === 'string' && interval.includes(':')) {
+        const [h,m,s] = interval.split(':').map(Number);
+        return h*3600 + m*60 + (s||0);
+    }
+    const h = parseInt(interval.match(/(\d+) hour/)?.[1] || 0);
+    const m = parseInt(interval.match(/(\d+) min/)?.[1] || 0);
+    const s = parseInt(interval.match(/(\d+) sec/)?.[1] || 0);
+    return h*3600+m*60+s;
+}
+
+function secsToHMS(s) {
+    const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = Math.floor(s%60);
+    return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+// ─── LIVE TEMPS ───────────────────────────────────────────────────────────────
+
+async function loadLiveTemps() {
+    const { data: spots } = await sb.from('spots')
+        .select('id, name, code')
+        .eq('domain', 'WEST_COAST')
+        .neq('active', false);
+
+    if (!spots?.length) {
+        document.getElementById('liveTemps').innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No West Coast spots found.</div>';
+        return null;
+    }
+
+    const spotIds = spots.map(s => s.id);
+    const now = Date.now();
+    const since24h = new Date(now - 24 * 3600 * 1000).toISOString();
+    const since48h = new Date(now - 48 * 3600 * 1000).toISOString();
+
+    const { data: logs } = await sb.from('temp_logs')
+        .select('spot_id, temp_c, conditions, created_at, spots!temp_logs_spot_id_fkey(name)')
+        .in('spot_id', spotIds)
+        .gte('created_at', since48h)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+    const todayLogs = (logs || []).filter(l => l.created_at >= since24h);
+    const yestLogs  = (logs || []).filter(l => l.created_at < since24h);
+
+    const latest = {};
+    todayLogs.forEach(l => { if (!latest[l.spot_id]) latest[l.spot_id] = l; });
+    const readings = Object.values(latest);
+
+    if (!readings.length) {
+        document.getElementById('liveTemps').innerHTML = `
+            <div class="alert blue">
+                No readings in last 24h. Typical Atlantic temps at Big Bay: 12–16°C year-round (Benguela upwelling). March usually 14–16°C but SE wind upwelling can drop it to 12–13°C overnight.
+            </div>`;
+        return { avgTemp: 14.5, hasLive: false };
+    }
+
+    const temps = readings.map(r => parseFloat(r.temp_c)).filter(Boolean);
+    const avg = temps.reduce((a,b) => a+b, 0) / temps.length;
+    const min = Math.min(...temps);
+    const max = Math.max(...temps);
+
+    const yestTemps = yestLogs.map(l => parseFloat(l.temp_c)).filter(Boolean);
+    const yestAvg   = yestTemps.length ? yestTemps.reduce((a,b) => a+b, 0) / yestTemps.length : null;
+    const delta     = yestAvg != null ? avg - yestAvg : null;
+    const trend     = delta == null ? null : delta > 0.5 ? 'rising' : delta < -0.5 ? 'cooling' : 'stable';
+    const trendBadge = trend === 'rising'  ? '<span style="color:#10b981;font-weight:700;"> &#8593; warming</span>'
+                     : trend === 'cooling' ? '<span style="color:#38bdf8;font-weight:700;"> &#8595; cooling</span>'
+                     : trend === 'stable'  ? '<span style="color:var(--text-secondary);"> &#8594; stable</span>' : '';
+
+    const tempColor = avg >= 15 ? 'var(--success)' : avg >= 13 ? 'var(--warning)' : 'var(--danger)';
+    const tempLabel = avg >= 15 ? 'Good for skins' : avg >= 13 ? 'Cold — manageable for trained swimmers' : 'Very cold — high hypothermia risk';
+
+    document.getElementById('liveTemps').innerHTML = `
+        <div class="stat-grid" style="margin-bottom:12px;">
+            <div class="stat-box ok">
+                <div class="stat-val" style="color:${tempColor};">${avg.toFixed(1)}°C${trendBadge}</div>
+                <div class="stat-lbl">Community avg · West Coast<br><span style="font-size:10px;">${todayLogs.length} log${todayLogs.length!==1?'s':''} in last 24h</span></div>
+            </div>
+            <div class="stat-box cold">
+                <div class="stat-val purple">${min}°C – ${max}°C</div>
+                <div class="stat-lbl">Range today<br><span style="font-size:10px;">${tempLabel}</span></div>
+            </div>
+        </div>
+        ${readings.slice(0, 6).map(r => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+                <div>
+                    <div style="font-size:13px;font-weight:500;">${r.spots?.name || 'Unknown'}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);">${timeAgo(r.created_at)}</div>
+                </div>
+                <div style="font-size:16px;font-weight:700;color:${r.temp_c>=15?'var(--success)':r.temp_c>=13?'var(--warning)':'var(--danger)'};">${r.temp_c}°C</div>
+            </div>
+        `).join('')}
+        <div style="font-size:10px;color:var(--text-secondary);margin-top:10px;line-height:1.5;">
+            Atlantic temps below 15°C — cold shock on entry is real. Always acclimatise and never swim alone.
+        </div>`;
+
+    return { avgTemp: avg, min, max, hasLive: true };
+}
+
+// ─── TIDES ────────────────────────────────────────────────────────────────────
+
+async function loadTides() {
+    const el = document.getElementById('tideCard');
+    if (!el) return;
+
+    const fallback = `
+        <div style="font-size:12px;color:var(--text-secondary);line-height:1.65;">
+            <strong style="color:var(--text-primary);">Semi-diurnal</strong> — 2 highs · 2 lows per ~24h · range ~1.8m at Big Bay.
+            <strong style="color:var(--warning);">Tidal current is critical</strong> for RI crossings — the channel has strong streams, especially around the island itself.
+            Plan to start on slack water or a favourable flood/ebb depending on direction of swim.
+            <br><br>
+            Live tide times: <a href="https://www.tide-forecast.com/locations/Blouberg-South-Africa/tides/latest" target="_blank" style="color:var(--ocean-light);">tide-forecast.com (Blouberg)</a>
+            &nbsp;&middot;&nbsp; <a href="https://sacoast.weathersa.co.za" target="_blank" style="color:var(--ocean-light);">SA Weather Service</a>
+        </div>`;
+
+    if (!WORLDTIDES_KEY) { el.innerHTML = fallback; return; }
+
+    try {
+        const url = `https://www.worldtides.info/api/v3?extremes&lat=${BIG_BAY_LAT}&lon=${BIG_BAY_LNG}&days=2&datum=LAT&key=${WORLDTIDES_KEY}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!data.extremes?.length) { el.innerHTML = fallback; return; }
+
+        const now = Date.now() / 1000;
+        const allExtremes = data.extremes.slice(0, 8);
+        const upcoming    = allExtremes.filter(e => e.dt > now);
+        const nextTide    = upcoming[0];
+        const tideState   = nextTide?.type === 'High' ? 'Ebbing (falling)' : 'Flooding (rising)';
+        const tideCol     = nextTide?.type === 'High' ? 'var(--ocean-light)' : 'var(--success)';
+        const nextLabel   = nextTide
+            ? `Next ${nextTide.type}: ${new Date(nextTide.dt*1000).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})} (${nextTide.height.toFixed(1)}m)`
+            : '—';
+
+        // Crossing advice based on tide
+        const crossingAdvice = nextTide?.type === 'Low'
+            ? 'Flood tide starting — good time to begin outbound leg'
+            : 'Ebb tide — check current direction, may push north of line';
+
+        const rows = allExtremes.slice(0, 6).map(e => {
+            const t = new Date(e.dt * 1000);
+            const past = e.dt < now;
+            const dayStr = t.toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
+            const timeStr = t.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+            return `
+                <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);opacity:${past?0.45:1};">
+                    <div style="width:90px;font-size:11px;color:var(--text-secondary);">${dayStr}</div>
+                    <div style="width:48px;font-size:12px;font-weight:600;color:var(--text-primary);">${timeStr}</div>
+                    <div style="flex:1;font-size:12px;color:${e.type==='High'?'var(--ocean-light)':'var(--success)'};">${e.type}</div>
+                    <div style="font-size:13px;font-weight:700;color:var(--text-primary);">${e.height.toFixed(1)}m</div>
+                </div>`;
+        }).join('');
+
+        el.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <div>
+                    <div style="font-size:18px;font-weight:800;color:${tideCol};">${tideState}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${nextLabel}</div>
+                </div>
+                <div style="text-align:right;font-size:11px;color:var(--text-secondary);">${crossingAdvice}</div>
+            </div>
+            ${rows}
+            <div style="font-size:10px;color:var(--text-secondary);margin-top:8px;">Big Bay / Table Bay · Source: WorldTides · Tidal current around Robben Island is 2–3x stronger than open channel</div>`;
+
+    } catch(e) {
+        el.innerHTML = fallback;
+    }
+}
+
+// ─── NOW TAB ──────────────────────────────────────────────────────────────────
+
+async function loadNow(liveResult) {
+    const wf = await loadWindForecast();
+    _windForecastCache = wf;
+    loadTodayHourly();
+    buildGoSignal(liveResult, wf);
+    buildChecklist(liveResult, wf);
+}
+
+async function loadWindForecast() {
+    if (_windForecastCache) return _windForecastCache;
+    const today = new Date().toISOString().split('T')[0];
+    const endDate = new Date(); endDate.setDate(endDate.getDate() + 7);
+    const end = endDate.toISOString().split('T')[0];
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${BIG_BAY_LAT}&longitude=${BIG_BAY_LNG}&daily=wind_speed_10m_max,wind_direction_10m_dominant,precipitation_sum&wind_speed_unit=kmh&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${end}`;
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+        const daily = data.daily;
+        const windMax  = daily.wind_speed_10m_max[0];
+        const windDir360 = daily.wind_direction_10m_dominant[0];
+        const dirLabel = windDir(windDir360);
+        const wa = windAssessRI(windDir360, windMax);
+
+        const forecastRows = daily.time.slice(0, 7).map((d, i) => {
+            const wSpd = daily.wind_speed_10m_max[i];
+            const wDir = daily.wind_direction_10m_dominant[i];
+            const wLabel = windDir(wDir);
+            const wa2 = windAssessRI(wDir, wSpd);
+            const isToday = i === 0;
+            const dayName = isToday ? 'Today' : new Date(d).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
+            const favCol  = wa2.tier === 'optimal' ? 'var(--success)' : wa2.tier === 'calm' ? 'var(--success)' : wa2.tier === 'strong' ? 'var(--warning)' : 'var(--danger)';
+            return `
+                <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);${isToday?'background:rgba(14,165,233,0.06);margin:0 -4px;padding:9px 4px;border-radius:8px;':''}">
+                    <div style="width:80px;font-size:12px;font-weight:${isToday?700:400};color:${isToday?'var(--ocean-light)':'var(--text-primary)'};">${dayName}</div>
+                    <div style="font-size:20px;" title="${wDir}°">
+                        <span style="display:inline-block;transform:rotate(${(wDir+180)%360}deg);">&#8593;</span>
+                    </div>
+                    <div style="flex:1;">
+                        <div style="font-size:13px;font-weight:600;">${wLabel} ${wSpd?.toFixed(0)||'?'} km/h</div>
+                        <div style="font-size:11px;color:${favCol};">${wa2.label}</div>
+                    </div>
+                    <div style="font-size:11px;color:${wSpd<20?'var(--success)':wSpd<35?'var(--warning)':'var(--danger)'};">${wSpd<20?'Light':wSpd<35?'Moderate':'Strong'}</div>
+                </div>`;
+        }).join('');
+
+        document.getElementById('windForecast').innerHTML = forecastRows +
+            `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo · Big Bay / Blouberg</div>`;
+
+        return { windMax, windDir: windDir360, dirLabel, wa, daily7: daily.time.slice(0,7).map((d,i) => ({ date: d, windMax: daily.wind_speed_10m_max[i], windDir: daily.wind_direction_10m_dominant[i] })) };
+    } catch(e) {
+        document.getElementById('windForecast').innerHTML = `<div style="color:var(--text-secondary);font-size:13px;">Could not load forecast.</div>`;
+        return null;
+    }
+}
+
+async function loadMarineForecast() {
+    if (_marineForecastCache) return _marineForecastCache;
+    const today = new Date().toISOString().split('T')[0];
+    const endDate = new Date(); endDate.setDate(endDate.getDate() + 7);
+    const end = endDate.toISOString().split('T')[0];
+    const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${BIG_BAY_LAT}&longitude=${BIG_BAY_LNG}&daily=wave_height_max,swell_wave_height_max,wave_period_max&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${end}`;
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+        const daily = data.daily;
+
+        const rows = daily.time.slice(0,7).map((d,i) => {
+            const wh = daily.wave_height_max[i];
+            const sw = daily.swell_wave_height_max[i];
+            const wp = daily.wave_period_max[i];
+            const isToday = i === 0;
+            const dayName = isToday ? 'Today' : new Date(d).toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'short' });
+            const swellOk = wh <= 1.5;
+            return `
+                <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);${isToday?'background:rgba(14,165,233,0.06);margin:0 -4px;padding:9px 4px;border-radius:8px;':''}">
+                    <div style="width:80px;font-size:12px;font-weight:${isToday?700:400};color:${isToday?'var(--ocean-light)':'var(--text-primary)'};">${dayName}</div>
+                    <div style="flex:1;">
+                        <div style="font-size:13px;font-weight:600;">Wave ${wh?.toFixed(1)}m · Swell ${sw?.toFixed(1)}m</div>
+                        <div style="font-size:11px;color:var(--text-secondary);">Period ${wp?.toFixed(0)}s</div>
+                    </div>
+                    <div style="font-size:11px;color:${swellOk?'var(--success)':wh<=2.0?'var(--warning)':'var(--danger)'};">${swellOk?'Calm':wh<=2.0?'Moderate':'Rough'}</div>
+                </div>`;
+        }).join('');
+
+        document.getElementById('swellForecast').innerHTML = rows +
+            `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo Marine · Atlantic / Big Bay</div>`;
+
+        _marineForecastCache = { waveMax: daily.wave_height_max[0], daily7: daily.time.slice(0,7).map((d,i) => ({ date: d, waveMax: daily.wave_height_max[i] })) };
+        return _marineForecastCache;
+    } catch(e) {
+        document.getElementById('swellForecast').innerHTML = `<div style="color:var(--text-secondary);font-size:13px;">Marine forecast unavailable.</div>`;
+        return null;
+    }
+}
+
+async function loadTodayHourly() {
+    const nowLocal = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Johannesburg' }));
+    const useTomorrow = nowLocal.getHours() >= 14;
+    const baseDate = new Date(nowLocal);
+    if (useTomorrow) baseDate.setDate(baseDate.getDate() + 1);
+    const targetDate = baseDate.toISOString().split('T')[0];
+
+    const today = new Date().toISOString().split('T')[0];
+    const endDate = new Date(); endDate.setDate(endDate.getDate() + 3);
+    const end = endDate.toISOString().split('T')[0];
+
+    try {
+        const [windRes, marineRes] = await Promise.all([
+            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${BIG_BAY_LAT}&longitude=${BIG_BAY_LNG}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kmh&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${end}`),
+            fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${BIG_BAY_LAT}&longitude=${BIG_BAY_LNG}&hourly=wave_height,swell_wave_height&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${end}`)
+        ]);
+        const wind   = await windRes.json();
+        const marine = await marineRes.json();
+        const times  = wind.hourly.time;
+        const rows   = [];
+
+        times.forEach((t, i) => {
+            if (!t.startsWith(targetDate)) return;
+            const hour = parseInt(t.split('T')[1]);
+            if (hour < 5 || hour > 16) return;
+            const spd  = wind.hourly.wind_speed_10m[i];
+            const deg  = wind.hourly.wind_direction_10m[i];
+            const gust = wind.hourly.wind_gusts_10m[i];
+            const wh   = marine.hourly.wave_height[i];
+            const dlabel = windDir(deg);
+            const wa = windAssessRI(deg, spd);
+            const timeStr = `${String(hour).padStart(2,'0')}:00`;
+            const overall = (spd < 25 && wh <= 1.5) ? 'var(--success)' : (spd < 35 && wh <= 2.0) ? 'var(--warning)' : 'var(--danger)';
+            rows.push(`
+                <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">
+                    <div style="width:40px;font-weight:600;color:var(--text-secondary);">${timeStr}</div>
+                    <div style="width:20px;text-align:center;font-size:14px;"><span style="display:inline-block;transform:rotate(${(deg+180)%360}deg);">&#8593;</span></div>
+                    <div style="flex:1;">
+                        <span style="color:${wa.tier==='optimal'||wa.tier==='calm'?'var(--success)':wa.tier==='adverse'||wa.tier==='extreme'?'var(--danger)':'var(--text-primary)'};">${dlabel} ${spd?.toFixed(0)}km/h</span>
+                        <span style="color:var(--text-secondary);"> (gust ${gust?.toFixed(0)}) · ${wa.label}</span>
+                    </div>
+                    <div style="color:${wh<=1.5?'var(--success)':wh<=2.0?'var(--warning)':'var(--danger)'};">${wh?.toFixed(1)}m</div>
+                    <div style="width:8px;height:8px;border-radius:50%;background:${overall};flex-shrink:0;"></div>
+                </div>`);
+        });
+
+        const dayLabel = useTomorrow ? 'Tomorrow' : 'Today';
+        document.getElementById('todayHourly').innerHTML = rows.length ? rows.join('') +
+            `<div style="font-size:11px;color:var(--text-secondary);margin-top:8px;">Swim window 05:00–16:00 SAST · ${dayLabel} (${targetDate}) · Dot = overall readiness</div>`
+            : `<div style="font-size:12px;color:var(--text-secondary);">No hourly data for ${targetDate}.</div>`;
+    } catch(e) {
+        document.getElementById('todayHourly').innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Hourly data unavailable.</div>';
+    }
+}
+
+function buildGoSignal(liveResult, wf) {
+    const el = document.getElementById('goSignal');
+    if (!el) return;
+
+    const temp    = liveResult?.avgTemp ?? 14.5;
+    const wSpd    = wf?.windMax ?? 20;
+    const wDeg    = wf?.windDir ?? 180;
+    const wLabel  = wf?.dirLabel ?? '—';
+    const wa      = windAssessRI(wDeg, wSpd);
+
+    const tempOk  = temp >= 14;
+    const windOk  = wSpd < 30;
+    const windGd  = wSpd < 20;
+
+    let tier, title, sub;
+
+    if (tempOk && windGd) {
+        tier = 'go';
+        title = 'Conditions Look Good';
+        sub = `${temp.toFixed(1)}°C · ${wLabel} ${wSpd?.toFixed(0)}km/h · ${wa.label}. Good window for a crossing attempt.`;
+    } else if (temp >= 13 && wSpd < 40) {
+        tier = 'caution';
+        title = 'Proceed with Caution';
+        sub = `${!tempOk ? `Water ${temp.toFixed(1)}°C — cold, high core temp management required. ` : ''}${!windOk ? `Wind ${wSpd?.toFixed(0)}km/h ${wLabel} — ${wa.label}. Significant chop expected. ` : ''}Review full window before committing.`;
+    } else {
+        tier = 'wait';
+        title = 'Not Recommended Today';
+        sub = `${temp < 13 ? `Water ${temp.toFixed(1)}°C — hypothermia risk too high for a 5+ hour swim. ` : ''}${wSpd >= 40 ? `Wind ${wSpd?.toFixed(0)}km/h — extreme conditions, abort. ` : ''}Wait for better window.`;
+    }
+
+    el.className = `signal-card ${tier}`;
+    el.innerHTML = `
+        <div class="signal-label">${tier === 'go' ? 'Go' : tier === 'caution' ? 'Caution' : 'Wait'}</div>
+        <div class="signal-title">${title}</div>
+        <div class="signal-sub">${sub}</div>`;
+}
+
+function buildChecklist(liveResult, wf) {
+    const el = document.getElementById('condChecklist');
+    if (!el) return;
+
+    const temp  = liveResult?.avgTemp ?? 14.5;
+    const wSpd  = wf?.windMax ?? 20;
+    const wDeg  = wf?.windDir ?? 180;
+
+    const checks = [
+        {
+            ok: temp >= 14,
+            warn: temp >= 13 && temp < 14,
+            label: `Water temp ${temp.toFixed(1)}°C`,
+            pass: 'Acceptable for acclimatised skins swimmer.',
+            warn_msg: 'Cold — manage core temp carefully. Feed frequently.',
+            fail: 'Very cold — high hypothermia risk for a double. Reconsider.'
+        },
+        {
+            ok: wSpd < 20,
+            warn: wSpd < 30,
+            label: `Wind ${wSpd?.toFixed(0) ?? '—'}km/h ${wf?.dirLabel ?? ''}`,
+            pass: 'Light — good navigation conditions.',
+            warn_msg: 'Moderate — expect chop, navigation challenge.',
+            fail: 'Strong — Cape Doctor conditions. Very difficult for a double.'
+        },
+        {
+            ok: true,
+            warn: false,
+            label: 'Tidal window',
+            pass: 'Check tide card — plan start on slack/flood tide.',
+            warn_msg: '',
+            fail: ''
+        },
+        {
+            ok: true,
+            warn: false,
+            label: 'Support boat confirmed',
+            pass: 'Essential — required for RI navigation and safety.',
+            warn_msg: '',
+            fail: ''
+        }
+    ];
+
+    el.innerHTML = checks.map(c => {
+        const status = c.ok ? 'ok' : c.warn ? 'warn' : 'fail';
+        const icon   = c.ok ? '&#10003;' : c.warn ? '&#9888;' : '&#10007;';
+        const color  = c.ok ? 'var(--success)' : c.warn ? 'var(--warning)' : 'var(--danger)';
+        const msg    = c.ok ? c.pass : c.warn ? c.warn_msg : c.fail;
+        return `
+            <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+                <div style="font-size:16px;color:${color};font-weight:700;flex-shrink:0;width:20px;">${icon}</div>
+                <div>
+                    <div style="font-size:13px;font-weight:600;color:var(--text-primary);">${c.label}</div>
+                    <div style="font-size:12px;color:${color};margin-top:2px;">${msg}</div>
+                </div>
+            </div>`;
+    }).join('') + `<div style="font-size:10px;color:var(--text-secondary);margin-top:8px;">For a double crossing — conditions need to hold for 5–8 hours.</div>`;
+}
+
+// ─── WINDOW TAB ───────────────────────────────────────────────────────────────
+
+async function loadWindow() {
+    const wf = _windForecastCache || await loadWindForecast();
+    const mf = await loadMarineForecast();
+
+    if (!wf || !mf) {
+        document.getElementById('crossingWindow').innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Could not load window data.</div>';
+        return;
+    }
+
+    const rows = wf.daily7.map((day, i) => {
+        const wSpd = day.windMax;
+        const wDeg = day.windDir;
+        const wh   = mf.daily7[i]?.waveMax;
+        const wa   = windAssessRI(wDeg, wSpd);
+        const dayName = i === 0 ? 'Today' : new Date(day.date).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
+
+        const windGo   = wSpd < 25;
+        const windCaut = wSpd < 35;
+        const swellGo  = wh <= 1.5;
+        const swellCaut= wh <= 2.0;
+
+        let tier, label;
+        if (windGo && swellGo)        { tier = 'go';      label = 'Go'; }
+        else if (windCaut && swellCaut){ tier = 'caution'; label = 'Caution'; }
+        else                           { tier = 'wait';    label = 'Wait'; }
+
+        const dot = tier === 'go' ? 'var(--success)' : tier === 'caution' ? 'var(--warning)' : 'var(--danger)';
+
+        return `
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
+                <div style="width:90px;font-size:12px;font-weight:${i===0?700:400};color:${i===0?'var(--ocean-light)':'var(--text-primary)'};">${dayName}</div>
+                <div style="flex:1;">
+                    <div style="font-size:12px;font-weight:600;">${windDir(wDeg)} ${wSpd?.toFixed(0)}km/h · Wave ${wh?.toFixed(1)}m</div>
+                    <div style="font-size:11px;color:var(--text-secondary);">${wa.label}</div>
+                </div>
+                <div style="font-size:11px;font-weight:700;color:${dot};">${label}</div>
+                <div style="width:10px;height:10px;border-radius:50%;background:${dot};flex-shrink:0;"></div>
+            </div>`;
+    }).join('');
+
+    document.getElementById('crossingWindow').innerHTML = rows +
+        `<div style="font-size:10px;color:var(--text-secondary);margin-top:10px;">Tidal current not included — check tides tab and plan start on slack water.</div>`;
+}
+
+// ─── MONTH BARS ───────────────────────────────────────────────────────────────
+
+function renderMonthBars() {
+    // West Coast (Benguela) typical monthly temps at Big Bay/Blouberg
+    const monthlyTemps = [16.5, 16.8, 15.5, 14.2, 13.0, 12.5, 12.0, 11.8, 12.5, 13.5, 14.5, 15.8];
+    const el = document.getElementById('monthBars');
+    if (!el) return;
+
+    const minT = 10, maxT = 20;
+    el.innerHTML = monthlyTemps.map((t, i) => {
+        const pct = ((t - minT) / (maxT - minT)) * 100;
+        const col = t >= 15 ? '#22c55e' : t >= 13 ? '#f59e0b' : '#6366f1';
+        const flag = t >= 15 ? 'Good' : t >= 13 ? 'Cold' : 'Very cold';
+        return `
+            <div style="margin-bottom:10px;">
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+                    <span style="color:var(--text-primary);font-weight:500;">${MONTHS[i]}</span>
+                    <span style="font-weight:700;color:${col};">${t}°C <span style="font-size:10px;font-weight:400;color:var(--text-secondary);">${flag}</span></span>
+                </div>
+                <div style="background:rgba(15,23,42,0.8);border-radius:4px;height:8px;overflow:hidden;">
+                    <div style="height:100%;border-radius:4px;width:${pct}%;background:${col};"></div>
+                </div>
+            </div>`;
+    }).join('') + `<div style="font-size:10px;color:var(--text-secondary);margin-top:6px;">Typical Benguela upwelling temps at Big Bay — actual conditions vary. Cold spikes possible year-round with strong SE wind.</div>`;
+}
+
+// ─── RECORDS ─────────────────────────────────────────────────────────────────
+
+async function loadRecords() {
+    const { data: routes } = await sb.from('historical_routes')
+        .select('id, name')
+        .ilike('name', '%robben%');
+
+    const riRouteIds = (routes || []).map(r => r.id);
+
+    if (!riRouteIds.length) {
+        ['recWomen', 'recMen', 'recDouble'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:10px 0;">No historical RI crossing records found yet.</div>';
+        });
+        document.getElementById('recBannerNameW').textContent = 'No records yet';
+        document.getElementById('recBannerNameM').textContent = 'No records yet';
+        return;
+    }
+
+    const { data: swims } = await sb.from('historical_swims')
+        .select('*')
+        .in('route_id', riRouteIds)
+        .not('duration', 'is', null)
+        .order('duration', { ascending: true });
+
+    if (!swims?.length) {
+        ['recWomen', 'recMen', 'recDouble'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:10px 0;">No completed RI crossings on record yet.</div>';
+        });
+        document.getElementById('recBannerNameW').textContent = 'Be the first!';
+        document.getElementById('recBannerNameM').textContent = 'Be the first!';
+        return;
+    }
+
+    const isDouble = s => s.notes?.toLowerCase().includes('double') || s.distance_km >= 18;
+    const women  = swims.filter(s => s.gender === 'F' && !isDouble(s));
+    const men    = swims.filter(s => s.gender === 'M' && !isDouble(s));
+    const doubles= swims.filter(s => isDouble(s));
+
+    function renderList(data, containerId) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        if (!data.length) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:10px 0;">No records yet.</div>'; return; }
+        const posClass = i => i===0?'p1':i===1?'p2':i===2?'p3':'';
+        el.innerHTML = data.slice(0, 10).map((s, i) => `
+            <div class="record-row">
+                <div class="record-pos ${posClass(i)}">${i+1}</div>
+                <div style="flex:1;">
+                    <div class="record-name">${s.swimmer_name || '—'}</div>
+                    <div class="record-detail">${s.swim_date ? new Date(s.swim_date).getFullYear() : '—'}${s.water_temp_c ? ` · ${s.water_temp_c}°C` : ''}${s.conditions ? ` · ${s.conditions}` : ''}</div>
+                </div>
+                <div>
+                    <div class="record-time">${fmtDur(s.duration)}</div>
+                    ${s.distance_km ? `<div class="record-temp">${s.distance_km}km</div>` : ''}
+                </div>
+            </div>`).join('');
+    }
+
+    renderList(women, 'recWomen');
+    renderList(men, 'recMen');
+    renderList(doubles, 'recDouble');
+
+    // Banner records
+    if (women[0]) {
+        document.getElementById('recBannerTimeW').textContent = fmtDur(women[0].duration);
+        document.getElementById('recBannerNameW').textContent = women[0].swimmer_name || '—';
+        document.getElementById('recBannerMetaW').textContent = women[0].swim_date ? new Date(women[0].swim_date).getFullYear() : '';
+    } else {
+        document.getElementById('recBannerNameW').textContent = 'No records yet';
+    }
+    if (men[0]) {
+        document.getElementById('recBannerTimeM').textContent = fmtDur(men[0].duration);
+        document.getElementById('recBannerNameM').textContent = men[0].swimmer_name || '—';
+        document.getElementById('recBannerMetaM').textContent = men[0].swim_date ? new Date(men[0].swim_date).getFullYear() : '';
+    } else {
+        document.getElementById('recBannerNameM').textContent = 'No records yet';
+    }
+}
+
+// ─── DOUBLE CALCULATOR ────────────────────────────────────────────────────────
+
+let paceMode = 'pool';
+
+function setPaceMode(mode) {
+    paceMode = mode;
+    document.getElementById('poolInputDiv').style.display = mode === 'pool' ? 'block' : 'none';
+    document.getElementById('owInputDiv').style.display   = mode === 'ow'   ? 'block' : 'none';
+    document.getElementById('btnPool').style.background = mode === 'pool' ? 'rgba(14,165,233,0.15)' : 'transparent';
+    document.getElementById('btnPool').style.color       = mode === 'pool' ? 'var(--ocean-light)' : 'var(--text-secondary)';
+    document.getElementById('btnPool').style.borderColor = mode === 'pool' ? 'rgba(14,165,233,0.4)' : 'var(--border)';
+    document.getElementById('btnOW').style.background  = mode === 'ow' ? 'rgba(14,165,233,0.15)' : 'transparent';
+    document.getElementById('btnOW').style.color        = mode === 'ow' ? 'var(--ocean-light)' : 'var(--text-secondary)';
+    document.getElementById('btnOW').style.borderColor  = mode === 'ow' ? 'rgba(14,165,233,0.4)' : 'var(--border)';
+}
+
+function calcDoublePrediction() {
+    let pacekph;
+
+    if (paceMode === 'pool') {
+        const raw = document.getElementById('input1500m').value.trim();
+        const parts = raw.split(':').map(Number);
+        if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) {
+            alert('Enter time as mm:ss e.g. 28:30'); return;
+        }
+        const secs1500 = parts[0] * 60 + parts[1];
+        // 1500m pool → OW pace: multiply by ~1.12 for OW drag + feeds, then to km/h
+        const owSecs1500 = secs1500 * 1.12;
+        pacekph = (1.5 / owSecs1500) * 3600;
+    } else {
+        const raw = document.getElementById('inputOW').value.trim();
+        pacekph = parseFloat(raw);
+        if (!pacekph || isNaN(pacekph)) { alert('Enter pace in km/h e.g. 2.8'); return; }
+    }
+
+    // One-way distance: 11km
+    // Double: 22km
+    // Current assist/penalty: assume neutral (0 net current for a double — outbound current = return current)
+    // Transition at island: ~10 min rest / turnaround
+    // Cold water penalty: ~5% slower than pool-equivalent OW pace
+
+    const coldPenalty   = 0.95; // 5% slower in cold Atlantic vs temperate
+    const effectivePace = pacekph * coldPenalty;
+    const onewayHrs     = 11 / effectivePace;
+    const transitHrs    = 10 / 60; // 10 min turnaround
+    const doubleHrs     = (onewayHrs * 2) + transitHrs;
+
+    const onewayS  = onewayHrs * 3600;
+    const doubleS  = doubleHrs * 3600;
+
+    // Feed schedule: every 30 min, 60s each
+    const feedsOneWay = Math.floor(onewayHrs * 2);
+    const feedsDouble = feedsOneWay * 2;
+    const feedTimeS   = feedsDouble * 60;
+    const totalS      = doubleS + feedTimeS;
+
+    const el = document.getElementById('doubleCalcResult');
+    el.style.display = 'block';
+    el.innerHTML = `
+        <div style="background:rgba(14,165,233,0.06);border:1px solid rgba(14,165,233,0.2);border-radius:12px;padding:16px;margin-top:8px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--ocean-light);margin-bottom:12px;">Your Double Crossing Estimate</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+                <div style="text-align:center;">
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">ONE WAY</div>
+                    <div style="font-size:26px;font-weight:800;color:var(--text-primary);letter-spacing:-1px;">${secsToHMS(onewayS)}</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">DOUBLE TOTAL</div>
+                    <div style="font-size:26px;font-weight:800;color:var(--ocean-light);letter-spacing:-1px;">${secsToHMS(totalS)}</div>
+                </div>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;border-top:1px solid var(--border);padding-top:10px;">
+                <strong style="color:var(--text-primary);">Pace:</strong> ${effectivePace.toFixed(2)} km/h (cold water adjusted)<br>
+                <strong style="color:var(--text-primary);">Feeds:</strong> ${feedsDouble} feeds &times; 60s = ${Math.round(feedTimeS/60)} min total<br>
+                <strong style="color:var(--text-primary);">Transition:</strong> ~10 min at island<br>
+                <strong style="color:var(--text-primary);">Note:</strong> Current assumed neutral (outbound = return). Adverse SE current adds 20–40 min per leg.
+            </div>
+        </div>`;
+}
+
+// ─── SHARE ────────────────────────────────────────────────────────────────────
+
+async function shareConditions() {
+    const wf = _windForecastCache;
+    const temp = _liveResult?.avgTemp;
+    const lines = [
+        'Robben Island Conditions — SwimLoading.com',
+        temp ? `Water temp: ${temp.toFixed(1)}°C (West Coast)` : '',
+        wf ? `Wind: ${wf.dirLabel} ${wf.windMax?.toFixed(0)}km/h` : '',
+        `Tide info: swimloading.com/robben`,
+        `Full intel: swimloading.com/robben`
+    ].filter(Boolean);
+
+    try {
+        await navigator.clipboard.writeText(lines.join('\n'));
+        const msg = document.getElementById('shareMsg');
+        if (msg) { msg.style.display = 'block'; setTimeout(() => msg.style.display = 'none', 3000); }
+    } catch(e) { alert(lines.join('\n')); }
+}
+
+init();
+</script>
+</body>
+</html>
