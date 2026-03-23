@@ -20,7 +20,9 @@ VALUES (
 ON CONFLICT (name) DO UPDATE SET distance_km = 15.0, description = EXCLUDED.description;
 
 -- ─── 2. SWIMMERS ──────────────────────────────────────────────────────────────
-INSERT INTO historical_swimmers (display_name, name_normalized, gender) VALUES
+INSERT INTO historical_swimmers (display_name, name_normalized, gender)
+SELECT v.display_name, v.name_normalized, v.gender
+FROM (VALUES
 ('Ahloma Esterhuizen',       'ahloma esterhuizen',       'F'),
 ('Andrea Mason',             'andrea mason',             'F'),
 ('Andrew Hoole',             'andrew hoole',             'M'),
@@ -104,7 +106,11 @@ INSERT INTO historical_swimmers (display_name, name_normalized, gender) VALUES
 ('Tyron Venter',             'tyron venter',             'M'),
 ('Walter Hart',              'walter hart',              'M'),
 ('Zani Taitz',               'zani taitz',               'F')
-ON CONFLICT (name_normalized, gender) DO NOTHING;
+) AS v(display_name, name_normalized, gender)
+WHERE NOT EXISTS (
+    SELECT 1 FROM historical_swimmers s
+    WHERE s.name_normalized = v.name_normalized AND s.gender = v.gender
+);
 
 -- ─── 3. SWIMS ─────────────────────────────────────────────────────────────────
 -- All are skins, Big Bay double, 15km
