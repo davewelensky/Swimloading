@@ -1017,7 +1017,7 @@ async function loadRecords() {
     }
 
     const { data: swims } = await sb.from('historical_swims')
-        .select('*')
+        .select('*, historical_swimmers(display_name, gender)')
         .in('route_id', riRouteIds)
         .not('duration', 'is', null)
         .order('duration', { ascending: true });
@@ -1032,10 +1032,17 @@ async function loadRecords() {
         return;
     }
 
-    const isDouble = s => s.notes?.toLowerCase().includes('double') || s.distance_km >= 18;
-    const women  = swims.filter(s => s.gender === 'F' && !isDouble(s));
-    const men    = swims.filter(s => s.gender === 'M' && !isDouble(s));
-    const doubles= swims.filter(s => isDouble(s));
+    // Flatten swimmer fields onto each swim record
+    const flat = swims.map(s => ({
+        ...s,
+        swimmer_name: s.historical_swimmers?.display_name || '—',
+        gender: s.historical_swimmers?.gender || null,
+    }));
+
+    // All records in this dataset are Big Bay doubles — split by gender only
+    const women  = flat.filter(s => s.gender === 'F');
+    const men    = flat.filter(s => s.gender === 'M');
+    const doubles = flat; // all are doubles — show full leaderboard
 
     function renderList(data, containerId) {
         const el = document.getElementById(containerId);
