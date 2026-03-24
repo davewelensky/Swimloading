@@ -278,16 +278,16 @@
             <div class="card-label">Personal Time Estimate</div>
             <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Enter your pace to estimate your double crossing time (15km total, 7.4km each way).</div>
             <div style="display:flex;gap:6px;margin-bottom:12px;">
-                <button id="btnPool" onclick="setPaceMode('pool')" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.15);color:var(--ocean-light);font-size:12px;font-weight:600;cursor:pointer;">Pool 1500m Time</button>
-                <button id="btnOW" onclick="setPaceMode('ow')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;">Open Water Pace</button>
+                <button id="btnPool" onclick="setPaceMode('pool')" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.15);color:var(--ocean-light);font-size:12px;font-weight:600;cursor:pointer;">400m Pool</button>
+                <button id="btnOW" onclick="setPaceMode('ow')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;">1km Open Water</button>
             </div>
             <div id="poolInputDiv">
-                <input type="text" id="input1500m" placeholder="e.g. 28:30 (mm:ss)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;margin-bottom:6px;">
-                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Your fastest 1500m pool time — race pace, not training pace.</div>
+                <input type="text" id="input400m" placeholder="e.g. 6:30 (mm:ss)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;margin-bottom:6px;">
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Your 400m time in a 25m pool — honest race effort, not training.</div>
             </div>
             <div id="owInputDiv" style="display:none;">
-                <input type="text" id="inputOW" placeholder="e.g. 3.0 (km/h)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;margin-bottom:6px;">
-                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Sustained open water pace in km/h — honest effort over distance.</div>
+                <input type="text" id="input1kmOW" placeholder="e.g. 18:00 (mm:ss)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;margin-bottom:6px;">
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Your 1km open water time — sustained effort, not a sprint.</div>
             </div>
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
@@ -1532,23 +1532,30 @@ function calcDoublePrediction() {
     let pacekph;
 
     if (paceMode === 'pool') {
-        const raw = document.getElementById('input1500m').value.trim();
+        const raw = document.getElementById('input400m').value.trim();
         const parts = raw.split(':').map(Number);
         if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) {
-            alert('Enter time as mm:ss e.g. 28:30'); return;
+            alert('Enter your 400m pool time as mm:ss e.g. 6:30'); return;
         }
-        const secs1500 = parts[0] * 60 + parts[1];
-        if (secs1500 < 900 || secs1500 > 7200) {
-            alert('Time seems unrealistic. Enter your 1500m race pace e.g. 28:30'); return;
+        const secs400 = parts[0] * 60 + parts[1];
+        if (secs400 < 240 || secs400 > 1200) {
+            alert('400m time should be between 4:00 and 20:00. Enter your honest race pace.'); return;
         }
-        // Pool → open water: ~12% slower (open water turn penalty, wetsuitless drag, sighting)
-        pacekph = (1.5 / (secs1500 * 1.12)) * 3600;
+        // 400m pool → OW pace: scale up to per-km, apply ~12% OW penalty
+        // (no push-offs, sighting, open water drag vs pool walls)
+        pacekph = (0.4 / (secs400 * 1.12)) * 3600;
     } else {
-        const raw = document.getElementById('inputOW').value.trim();
-        pacekph = parseFloat(raw);
-        if (!pacekph || isNaN(pacekph) || pacekph < 0.5 || pacekph > 6) {
-            alert('Enter sustained open water pace in km/h e.g. 3.0'); return;
+        const raw = document.getElementById('input1kmOW').value.trim();
+        const parts = raw.split(':').map(Number);
+        if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) {
+            alert('Enter your 1km OW time as mm:ss e.g. 18:00'); return;
         }
+        const secs1km = parts[0] * 60 + parts[1];
+        if (secs1km < 600 || secs1km > 3600) {
+            alert('1km time should be between 10:00 and 60:00.'); return;
+        }
+        // 1km OW → direct pace (no conversion needed — already open water)
+        pacekph = (1.0 / secs1km) * 3600;
     }
 
     // Cold water penalty — scales with actual temp
