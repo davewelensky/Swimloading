@@ -1541,9 +1541,10 @@ function calcDoublePrediction() {
         if (secs400 < 240 || secs400 > 1200) {
             alert('400m time should be between 4:00 and 20:00. Enter your honest race pace.'); return;
         }
-        // 400m pool → OW pace: scale up to per-km, apply ~12% OW penalty
-        // (no push-offs, sighting, open water drag vs pool walls)
-        pacekph = (0.4 / (secs400 * 1.12)) * 3600;
+        // 400m pool → OW pace for long crossings
+        // 400m is a speed event — apply 16% penalty (×0.84) not 12%,
+        // to account for sprint vs endurance difference over 7.4–15km
+        pacekph = (0.4 / secs400) * 3600 * 0.84;
     } else {
         const raw = document.getElementById('input1kmOW').value.trim();
         const parts = raw.split(':').map(Number);

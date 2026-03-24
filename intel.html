@@ -1316,9 +1316,11 @@ function calcPersonalPrediction() {
         if (!m) { alert('Enter your 400m pool time as mm:ss — e.g. 6:30'); return; }
         const secs = parseInt(m[1])*60 + parseInt(m[2]);
         if (secs < 240 || secs > 1200) { alert('Enter a realistic 400m time — between 4:00 and 20:00'); return; }
-        // 400m pool pace → OW pace: 12% penalty for no push-offs, sighting, open water drag
+        // 400m pool pace → OW pace for long crossings
+        // 400m is a speed event — apply 16% penalty (not 12%) to account for
+        // sprint vs endurance difference over 34km. Calibrated on Carina's actual crossing.
         fromPool = (0.4 / secs) * 3600;
-        owPace = fromPool * 0.88;
+        owPace = fromPool * 0.84;
     } else {
         const raw = document.getElementById('input1kmOW').value.trim();
         const m = raw.match(/^(\d+):(\d+)$/);
@@ -1329,7 +1331,7 @@ function calcPersonalPrediction() {
     }
     _lastCalcOW = owPace;
     const fmtHM = h => { const hh=Math.floor(h), mm=Math.round((h-hh)*60); return `${hh}:${String(mm).padStart(2,'0')}`; };
-    const srcNote = fromPool ? `Pool 400m → ${fromPool.toFixed(2)} km/h → OW ~${owPace.toFixed(2)} km/h (×0.88)` : `OW 1km → ${owPace.toFixed(2)} km/h`;
+    const srcNote = fromPool ? `Pool 400m → ${fromPool.toFixed(2)} km/h → OW ~${owPace.toFixed(2)} km/h (×0.84)` : `OW 1km → ${owPace.toFixed(2)} km/h`;
     const cards = SCENARIOS.map(s => {
         const timeH = DIST / (owPace + s.cur) + FEEDS;
         const under809 = timeH < 8 + 9/60;
