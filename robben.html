@@ -295,7 +295,15 @@
             </div>
             <div id="owInputDiv" style="display:none;">
                 <input type="text" id="input1kmOW" placeholder="e.g. 18:00 (mm:ss)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;margin-bottom:6px;">
-                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Your 1km open water time — sustained effort over distance, not a sprint.</div>
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Sustained effort over distance, not a sprint.</div>
+                <div style="display:flex;gap:8px;margin-bottom:10px;">
+                    <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-secondary);cursor:pointer;">
+                        <input type="radio" name="owTempRI" value="cold" checked style="accent-color:var(--ocean-light);"> Cold water (&lt;16°C Atlantic)
+                    </label>
+                    <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-secondary);cursor:pointer;">
+                        <input type="radio" name="owTempRI" value="warm" style="accent-color:var(--ocean-light);"> Warm water (18°C+)
+                    </label>
+                </div>
             </div>
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
@@ -1565,19 +1573,28 @@ function calcDoublePrediction() {
         if (secs1km < 600 || secs1km > 3600) {
             alert('1km time should be between 10:00 and 60:00.'); return;
         }
-        // 1km OW → direct pace (no conversion needed — already open water)
+        // 1km OW → direct pace. If from cold Atlantic (<16°C), cold penalty already
+        // baked in — flag it so we don't double-apply below.
         pacekph = (1.0 / secs1km) * 3600;
     }
 
-    // Cold water penalty — scales with actual temp
+    const owFromCold = paceMode === 'ow' &&
+        document.querySelector('input[name="owTempRI"]:checked')?.value === 'cold';
+
+    // Cold water penalty — scales with crossing water temp
+    // Skip if swimmer entered a cold-water OW time (penalty already in their pace)
     // Atlantic at Big Bay: 11–16°C. Penalty vs temperate (18°C+):
     //   15°C+: 3%  |  14°C: 5%  |  13°C: 8%  |  12°C: 12%  |  ≤11°C: 16%
     const tempInput = parseFloat(document.getElementById('inputTemp').value);
     const waterTemp = (!isNaN(tempInput) && tempInput >= 8 && tempInput <= 25) ? tempInput : null;
     let coldPenalty, coldNote;
-    if (waterTemp == null) {
-        coldPenalty = 0.92; // assume 13°C if not entered (conservative)
-        coldNote = 'Cold water penalty: 8% (conservative — enter actual temp for accuracy)';
+    if (owFromCold) {
+        // OW time entered was already from cold Atlantic — penalty baked in, don't re-apply
+        coldPenalty = 1.0;
+        coldNote = `Cold water: already reflected in your OW time — no additional adjustment`;
+    } else if (waterTemp == null) {
+        coldPenalty = 0.92;
+        coldNote = 'Cold water penalty: 8% (conservative — enter crossing temp above for accuracy)';
     } else if (waterTemp >= 15) {
         coldPenalty = 0.97; coldNote = `Cold penalty: 3% at ${waterTemp}°C`;
     } else if (waterTemp >= 14) {
