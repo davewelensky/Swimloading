@@ -343,16 +343,24 @@
             <div class="card-label">🧮 Personal Crossing Prediction</div>
             <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Enter your pace to get a personalised False Bay crossing estimate (34 km · WNW current · feeds).</div>
             <div style="display:flex;gap:6px;margin-bottom:12px;">
-                <button id="btnPool" onclick="setPaceMode('pool')" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.15);color:var(--ocean-light);font-size:12px;font-weight:600;cursor:pointer;">400m Pool</button>
+                <button id="btnPool" onclick="setPaceMode('pool')" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.15);color:var(--ocean-light);font-size:12px;font-weight:600;cursor:pointer;">1km Pool</button>
                 <button id="btnOW" onclick="setPaceMode('ow')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;">1km Open Water</button>
             </div>
             <div id="poolInputDiv">
-                <input type="text" id="input400m" placeholder="e.g. 6:30 (mm:ss)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;margin-bottom:6px;">
-                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Your 400m time in a 25m pool — honest race effort, not training.</div>
+                <input type="text" id="input1kmPool" placeholder="e.g. 15:00 (mm:ss)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;margin-bottom:6px;">
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Your regular training pace per 1km — not a sprint, what you hold in a set.</div>
+                <div style="display:flex;gap:8px;margin-bottom:10px;">
+                    <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-secondary);cursor:pointer;">
+                        <input type="radio" name="poolLen" value="50" checked style="accent-color:var(--ocean-light);"> 50m pool
+                    </label>
+                    <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-secondary);cursor:pointer;">
+                        <input type="radio" name="poolLen" value="25" style="accent-color:var(--ocean-light);"> 25m pool
+                    </label>
+                </div>
             </div>
             <div id="owInputDiv" style="display:none;">
                 <input type="text" id="input1kmOW" placeholder="e.g. 18:00 (mm:ss)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;margin-bottom:6px;">
-                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Your 1km open water time — sustained effort, not a sprint.</div>
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Your 1km open water time — sustained effort over distance, not a sprint.</div>
             </div>
             <button onclick="calcPersonalPrediction()" style="width:100%;padding:11px;border-radius:8px;border:none;background:var(--ocean);color:white;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px;">Calculate My Crossing Time →</button>
             <div id="paceCalcResult" style="display:none;"></div>
@@ -1311,16 +1319,19 @@ function calcPersonalPrediction() {
     ];
     let owPace, fromPool;
     if (_paceMode === 'pool') {
-        const raw = document.getElementById('input400m').value.trim();
+        const raw = document.getElementById('input1kmPool').value.trim();
         const m = raw.match(/^(\d+):(\d+)$/);
-        if (!m) { alert('Enter your 400m pool time as mm:ss — e.g. 6:30'); return; }
+        if (!m) { alert('Enter your 1km pool training pace as mm:ss — e.g. 15:00'); return; }
         const secs = parseInt(m[1])*60 + parseInt(m[2]);
-        if (secs < 240 || secs > 1200) { alert('Enter a realistic 400m time — between 4:00 and 20:00'); return; }
-        // 400m pool pace → OW pace for long crossings
-        // 400m is a speed event — apply 16% penalty (not 12%) to account for
-        // sprint vs endurance difference over 34km. Calibrated on Carina's actual crossing.
-        fromPool = (0.4 / secs) * 3600;
-        owPace = fromPool * 0.84;
+        if (secs < 480 || secs > 3600) { alert('Enter a realistic 1km time — between 8:00 and 60:00'); return; }
+        // 1km pool training pace → OW crossing pace
+        // Calibrated on Carina's actual False Bay crossing:
+        //   50m pool: 15:00/km training → 3.44 km/h OW actual → factor ×0.86
+        //   25m pool: push-offs make it ~4% faster, need bigger discount → ×0.83
+        const is50m = document.querySelector('input[name="poolLen"]:checked')?.value === '50';
+        const factor = is50m ? 0.86 : 0.83;
+        fromPool = (1.0 / secs) * 3600;
+        owPace = fromPool * factor;
     } else {
         const raw = document.getElementById('input1kmOW').value.trim();
         const m = raw.match(/^(\d+):(\d+)$/);
@@ -1331,7 +1342,8 @@ function calcPersonalPrediction() {
     }
     _lastCalcOW = owPace;
     const fmtHM = h => { const hh=Math.floor(h), mm=Math.round((h-hh)*60); return `${hh}:${String(mm).padStart(2,'0')}`; };
-    const srcNote = fromPool ? `Pool 400m → ${fromPool.toFixed(2)} km/h → OW ~${owPace.toFixed(2)} km/h (×0.84)` : `OW 1km → ${owPace.toFixed(2)} km/h`;
+    const poolLabel = document.querySelector('input[name="poolLen"]:checked')?.value === '50' ? '50m pool' : '25m pool';
+    const srcNote = fromPool ? `1km ${poolLabel} → ${fromPool.toFixed(2)} km/h → OW ~${owPace.toFixed(2)} km/h` : `OW 1km → ${owPace.toFixed(2)} km/h`;
     const cards = SCENARIOS.map(s => {
         const timeH = DIST / (owPace + s.cur) + FEEDS;
         const under809 = timeH < 8 + 9/60;
