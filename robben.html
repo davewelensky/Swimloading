@@ -205,6 +205,8 @@
     <!-- ══════════════ TAB: WINDOW ══════════════ -->
     <div id="panelWindow" class="panel">
 
+        <div id="nextRIWindow" class="loading-msg">Analysing window...</div>
+
         <div class="card">
             <div class="card-label">7-Day Crossing Window</div>
             <div id="crossingWindow" class="loading-msg">Analysing conditions...</div>
@@ -1098,6 +1100,68 @@ async function loadWindow() {
 
     document.getElementById('crossingWindow').innerHTML = rows +
         `<div style="font-size:10px;color:var(--text-secondary);margin-top:10px;">Tidal current not included — check tides tab and plan start on slack water.</div>`;
+
+    // ── Summary card (like FB intel "Next Crossing Window") ──
+    const scored = wf.daily7.map((day, i) => {
+        const wSpd = day.windMax;
+        const wDeg = day.windDir;
+        const wh   = mf.daily7[i]?.waveMax;
+        const wa   = windAssessRI(wDeg, wSpd);
+        let tier;
+        if (wSpd < 25 && wh <= 1.5)         tier = 'go';
+        else if (wSpd < 35 && wh <= 2.0)    tier = 'check';
+        else                                  tier = 'nogo';
+        return { ...day, wh, wa, tier, idx: i };
+    });
+
+    const goDay    = scored.find(d => d.tier === 'go');
+    const checkDay = scored.find(d => d.tier === 'check');
+    const best     = goDay || checkDay;
+    const el       = document.getElementById('nextRIWindow');
+    if (!el) return;
+
+    if (!best) {
+        el.innerHTML = `<div class="card" style="border-left:3px solid var(--danger);">
+            <div class="card-label">Next Crossing Window</div>
+            <div style="font-size:14px;color:var(--text-secondary);margin-top:8px;">No GO or CHECK windows in the next 7 days. Wait for a NW wind cycle.</div>
+        </div>`;
+        return;
+    }
+
+    const isToday    = best.idx === 0;
+    const isTomorrow = best.idx === 1;
+    const dayLabel   = isToday ? 'Today' : isTomorrow ? 'Tomorrow' : new Date(best.date).toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'short' });
+    const sig        = best.tier === 'go' ? { label: 'GO', color: 'var(--success)' } : { label: 'CHECK', color: 'var(--warning)' };
+    const borderCol  = best.tier === 'go' ? 'var(--success)' : 'var(--warning)';
+    const waveStr    = best.wh != null ? `${best.wh.toFixed(1)}m swell` : 'swell unknown';
+    const windSpd    = best.windMax != null ? `${best.windMax.toFixed(0)} km/h` : '?';
+
+    const strips = scored.slice(0, 7).map(d => {
+        const col = d.tier === 'go' ? '#10b981' : d.tier === 'check' ? '#f59e0b' : '#ef4444';
+        const lbl = d.idx === 0 ? 'Today' : new Date(d.date).toLocaleDateString('en-ZA', { weekday: 'short' });
+        const bold = d.idx === best.idx ? 'font-weight:700;' : 'opacity:0.6;';
+        return `<div style="text-align:center;flex:1;${bold}">
+            <div style="font-size:9px;color:var(--text-secondary);">${lbl}</div>
+            <div style="width:12px;height:12px;border-radius:50%;background:${col};margin:4px auto 0;"></div>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = `
+        <div class="card" style="border-left:3px solid ${borderCol};padding:16px;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;">
+                <div>
+                    <div style="font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:4px;">NEXT CROSSING WINDOW</div>
+                    <div style="font-size:20px;font-weight:800;color:${sig.color};">${dayLabel}</div>
+                    <div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">${best.wa.label} · ${windSpd} · ${waveStr}</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:22px;font-weight:900;color:${sig.color};">${sig.label}</div>
+                    <div style="font-size:10px;color:var(--text-secondary);">crossing signal</div>
+                </div>
+            </div>
+            <div style="display:flex;gap:4px;background:rgba(0,0,0,0.2);border-radius:8px;padding:8px;">${strips}</div>
+            <div style="font-size:10px;color:var(--text-secondary);margin-top:8px;">GO = N/NW wind &lt;25km/h + wave &lt;1.5m · Temp confirmation required · Tidal timing critical</div>
+        </div>`;
 }
 
 // ─── MONTH BARS ───────────────────────────────────────────────────────────────
