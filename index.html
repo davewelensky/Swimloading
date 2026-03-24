@@ -9171,16 +9171,17 @@
                     .from('spotlights')
                     .select('*, spotlight_updates(*)')
                     .eq('active', true)
-                    .in('status', ['upcoming', 'live'])
+                    .in('status', ['upcoming', 'live', 'completed'])
                     .order('created_at', { ascending: false })
                     .limit(10);
 
                 const banner = document.getElementById('spotlightBanner');
                 if (!spotRows?.length || !banner) return;
 
-                // Live swims first, then upcoming
+                // Live first, then completed (celebration stays visible), then upcoming
                 const sorted = [
                     ...spotRows.filter(r => r.status === 'live'),
+                    ...spotRows.filter(r => r.status === 'completed'),
                     ...spotRows.filter(r => r.status === 'upcoming'),
                 ];
 
@@ -9210,6 +9211,22 @@
                         data.whatsapp_url   ? `<a href="${data.whatsapp_url}"   target="_blank" rel="noopener" style="display:inline-block;background:rgba(37,211,102,0.2);border:1px solid rgba(37,211,102,0.45);color:#25d366;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;margin-right:6px;margin-bottom:6px;">Join WhatsApp</a>` : '',
                         data.facebook_url   ? `<a href="${data.facebook_url}"   target="_blank" rel="noopener" style="display:inline-block;background:rgba(59,89,152,0.25);border:1px solid rgba(59,89,152,0.5);color:#818cf8;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;margin-bottom:6px;">Facebook</a>` : '',
                     ].join('');
+
+                    // Completed: celebration card
+                    if (data.status === 'completed') {
+                        const result = latest?.notes ? latest.notes : 'Swim completed';
+                        return `
+                        <div style="background:linear-gradient(135deg,rgba(21,128,61,0.35),rgba(6,78,59,0.35));border:1px solid rgba(34,197,94,0.3);border-radius:14px;padding:14px 16px;margin-bottom:${idx < sorted.length - 1 ? '8' : '18'}px;">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
+                                <span style="background:#22c55e;color:#000;font-size:10px;font-weight:800;padding:2px 9px;border-radius:20px;letter-spacing:0.3px;">COMPLETED</span>
+                                <span style="font-size:11px;color:rgba(255,255,255,0.45);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;">SA Open Water</span>
+                            </div>
+                            <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:3px;line-height:1.3;">${data.title}</div>
+                            <div style="font-size:13px;color:rgba(255,255,255,0.65);margin-bottom:8px;">${data.swimmer_names}${routePart}${distPart}</div>
+                            <div style="font-size:13px;color:#86efac;font-weight:600;margin-bottom:6px;line-height:1.5;">${result}</div>
+                            ${data.description ? `<div style="font-size:12px;color:rgba(255,255,255,0.5);line-height:1.5;">${data.description}</div>` : ''}
+                        </div>`;
+                    }
 
                     // Live: full card. Upcoming (when a live swim also showing): compact strip.
                     const isCompact = !isLive && sorted.some(r => r.status === 'live');
