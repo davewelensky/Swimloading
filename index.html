@@ -942,7 +942,11 @@
                     const t = new Date(log.created_at);
                     if (t >= todayMidnight) spotMap[sid].todayCount++;
                     else if (t >= yesterdayMidnight) spotMap[sid].yesterdayCount++;
-                    if (!spotMap[sid].latestWithNote && log.notes) spotMap[sid].latestWithNote = log;
+                    // Only carry forward a note if it came from TODAY's logs — avoids stale notes
+                    // being attributed to today's logger
+                    if (!spotMap[sid].latestWithNote && log.notes && new Date(log.created_at) >= todayMidnight) {
+                        spotMap[sid].latestWithNote = log;
+                    }
                 });
 
                 // Sort by most recent, take top 4
