@@ -1,4 +1,4 @@
-const CACHE_NAME = 'swimloading-v5';
+const CACHE_NAME = 'swimloading-v6';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -37,10 +37,12 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // Never intercept Supabase API requests — let the browser handle them natively.
+    // Never intercept Supabase or external API requests — always fresh from network.
     // On iOS Safari PWA, intercepting and returning without respondWith() can abort
     // the underlying network request with "TypeError: Load failed".
     if (url.hostname.includes('supabase')) return;
+    if (url.hostname.includes('worldtides.info')) return;
+    if (url.hostname.includes('open-meteo.com')) return;
 
     // Skip non-GET requests
     if (event.request.method !== 'GET') return;
