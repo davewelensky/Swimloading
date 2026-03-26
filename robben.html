@@ -745,7 +745,7 @@ async function loadTides() {
 
     try {
         const url = `https://www.worldtides.info/api/v3?extremes&lat=${BIG_BAY_LAT}&lon=${BIG_BAY_LNG}&days=2&datum=LAT&key=${WORLDTIDES_KEY}`;
-        const res = await fetch(url);
+        const res = await fetch(url, { cache: 'no-store' });
         const data = await res.json();
 
         if (!data.extremes?.length) { el.innerHTML = fallback; return; }
@@ -812,7 +812,7 @@ async function loadWindForecast() {
     const end = endDate.toISOString().split('T')[0];
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${BIG_BAY_LAT}&longitude=${BIG_BAY_LNG}&daily=wind_speed_10m_max,wind_direction_10m_dominant,precipitation_sum&wind_speed_unit=kmh&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${end}`;
     try {
-        const res = await fetch(url);
+        const res = await fetch(url, { cache: 'no-store' });
         const data = await res.json();
         const daily = data.daily;
         const windMax  = daily.wind_speed_10m_max[0];
@@ -859,7 +859,7 @@ async function loadMarineForecast() {
     const end = endDate.toISOString().split('T')[0];
     const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${BIG_BAY_LAT}&longitude=${BIG_BAY_LNG}&daily=wave_height_max,swell_wave_height_max,wave_period_max&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${end}`;
     try {
-        const res = await fetch(url);
+        const res = await fetch(url, { cache: 'no-store' });
         const data = await res.json();
         const daily = data.daily;
 
