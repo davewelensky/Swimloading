@@ -1434,8 +1434,9 @@ async function loadHistory() {
                 const doubleArr = arr.filter(s => s.distance_km > 10);
                 const withDurS  = singleArr.filter(s => durSecs(s.duration) > 0);
                 const withDurD  = doubleArr.filter(s => durSecs(s.duration) > 0);
-                const avgS = withDurS.length ? Math.round(withDurS.reduce((sum, x) => sum + durSecs(x.duration), 0) / withDurS.length / 60) : null;
-                const avgD = withDurD.length ? Math.round(withDurD.reduce((sum, x) => sum + durSecs(x.duration), 0) / withDurD.length / 60) : null;
+                // Require min 5 timed records — fewer is too noisy to mean anything
+                const avgS = withDurS.length >= 5 ? Math.round(withDurS.reduce((sum, x) => sum + durSecs(x.duration), 0) / withDurS.length / 60) : null;
+                const avgD = withDurD.length >= 5 ? Math.round(withDurD.reduce((sum, x) => sum + durSecs(x.duration), 0) / withDurD.length / 60) : null;
                 return { label: condLabels[k] || k, count: arr.length, sCount: singleArr.length, dCount: doubleArr.length, avgS, avgD };
             })
             .sort((a, b) => b.count - a.count);
