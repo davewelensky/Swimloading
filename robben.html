@@ -1197,7 +1197,7 @@ function renderMonthBars() {
 async function loadRecords() {
     const { data: routes } = await sb.from('historical_routes')
         .select('id, name')
-        .ilike('name', '%robben%');
+        .or('name.ilike.%robben%,name.ilike.%Big Bay - RI%');
 
     if (!routes?.length) {
         ['recWomen', 'recMen', 'recDouble'].forEach(id => {
@@ -1302,7 +1302,7 @@ async function loadHistory() {
         const { data: routes } = await sb
             .from('historical_routes')
             .select('id, name, distance_km')
-            .ilike('name', '%robben%');
+            .or('name.ilike.%robben%,name.ilike.%Big Bay - RI%');
 
         if (!routes?.length) {
             document.getElementById('histSummary').innerHTML =
