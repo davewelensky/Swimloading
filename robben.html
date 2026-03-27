@@ -1199,9 +1199,7 @@ async function loadRecords() {
         .select('id, name')
         .ilike('name', '%robben%');
 
-    const riRouteIds = (routes || []).map(r => r.id);
-
-    if (!riRouteIds.length) {
+    if (!routes?.length) {
         ['recWomen', 'recMen', 'recDouble'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:10px 0;">No historical RI crossing records found yet.</div>';
@@ -1211,9 +1209,17 @@ async function loadRecords() {
         return;
     }
 
+    // Only BB→RI→BB double routes — exclude other RI swims (Around RI, RI–Melkbos, etc.)
+    const isDoubleRoute = n => /double/i.test(n) || n === 'Big Bay - RI - Big Bay';
+    const doubleRouteIds = new Set(routes.filter(r => isDoubleRoute(r.name)).map(r => r.id));
+    // Singles are direct RI→BB or BB→RI crossings (not doubles, not other routes)
+    const singleRouteIds = new Set(routes.filter(r => !isDoubleRoute(r.name)).map(r => r.id));
+
+    const allRouteIds = routes.map(r => r.id);
+
     const { data: swims } = await sb.from('historical_swims')
         .select('*, historical_swimmers(display_name, gender)')
-        .in('route_id', riRouteIds)
+        .in('route_id', allRouteIds)
         .in('source', ['big_bay_events', 'big_bay_swimsummary'])
         .not('duration', 'is', null)
         .order('duration', { ascending: true });
@@ -1235,11 +1241,10 @@ async function loadRecords() {
         gender: s.historical_swimmers?.gender || null,
     }));
 
-    // Singles = RI→BB (7.4km), Doubles = BB→RI→BB (15km)
-    // Use distance_km to separate. Records with no distance default to singles.
-    // Threshold = 13km: GPS can over-track singles to 10–11km, doubles are nominally 15km.
-    const singles  = flat.filter(s => !s.distance_km || s.distance_km < 13);
-    const doublesOnly = flat.filter(s => s.distance_km >= 13);
+    // Doubles = BB→RI→BB only (the two named double routes)
+    // Singles = direct RI→BB/BB→RI crossings (will populate when big_bay_swimsummary is imported)
+    const singles  = flat.filter(s => singleRouteIds.has(s.route_id) && (!s.distance_km || s.distance_km < 13));
+    const doublesOnly = flat.filter(s => doubleRouteIds.has(s.route_id));
     const women  = singles.filter(s => s.gender === 'F');
     const men    = singles.filter(s => s.gender === 'M');
     const doubles = doublesOnly; // BB→RI→BB 15km leaderboard
@@ -1305,10 +1310,14 @@ async function loadHistory() {
             return;
         }
 
+        // Classify routes: only BB→RI→BB named double routes count as doubles
+        const isDoubleRoute = n => /double/i.test(n) || n === 'Big Bay - RI - Big Bay';
+        const doubleRouteIds = new Set(routes.filter(r => isDoubleRoute(r.name)).map(r => r.id));
+        const singleRouteIds = new Set(routes.filter(r => !isDoubleRoute(r.name)).map(r => r.id));
         const routeIds = routes.map(r => r.id);
 
         // Only trust data we explicitly imported.
-        // big_bay_events = 134 double crossings (BB→RI→BB)
+        // big_bay_events = BB→RI→BB double crossings
         // big_bay_swimsummary = single crossings from xlsx (imported separately)
         const TRUSTED_SOURCES = ['big_bay_events', 'big_bay_swimsummary'];
 
@@ -1324,7 +1333,7 @@ async function loadHistory() {
         // Fetch ALL (including null duration) for date/month/year stats
         const { data: swimsAll } = await sb
             .from('historical_swims')
-            .select('swim_date, distance_km, conditions, category, water_temp_c, duration')
+            .select('swim_date, route_id, distance_km, conditions, category, water_temp_c, duration')
             .in('route_id', routeIds)
             .in('source', TRUSTED_SOURCES);
 
@@ -1350,17 +1359,17 @@ async function loadHistory() {
         }
 
         // ── SUMMARY ──────────────────────────────────────────────────────────
-        // Split by distance: singles < 13km (RI→BB 7.4km), doubles >= 13km (BB→RI→BB 15km)
-        const singles = allFlat.filter(s => !s.distance_km || s.distance_km < 13);
-        const doubles = allFlat.filter(s => s.distance_km >= 13);
+        // Doubles = BB→RI→BB named routes only; singles = direct one-way crossings < 13km
+        const singles = allFlat.filter(s => singleRouteIds.has(s.route_id) && (!s.distance_km || s.distance_km < 13));
+        const doubles = allFlat.filter(s => doubleRouteIds.has(s.route_id));
         const uniqueSwimmers = new Set(flat.map(s => s.swimmer_name).filter(Boolean)).size;
         const years    = allFlat.map(s => s.swim_date ? new Date(s.swim_date).getFullYear() : null).filter(Boolean);
         const minYear  = Math.min(...years);
         const maxYear  = Math.max(...years);
 
         // flat is already sorted by duration asc — first match per gender/type is fastest
-        const flatSingles = flat.filter(s => !s.distance_km || s.distance_km < 13);
-        const flatDoubles = flat.filter(s => s.distance_km >= 13);
+        const flatSingles = flat.filter(s => singleRouteIds.has(s.route_id) && (!s.distance_km || s.distance_km < 13));
+        const flatDoubles = flat.filter(s => doubleRouteIds.has(s.route_id));
         const fastestSW = flatSingles.find(s => s.gender === 'F') || null;
         const fastestSM = flatSingles.find(s => s.gender === 'M') || null;
         const fastestDW = flatDoubles.find(s => s.gender === 'F') || null;
@@ -1431,8 +1440,8 @@ async function loadHistory() {
             .filter(([k]) => k !== 'unknown')
             .map(([k, arr]) => {
                 // Separate singles and doubles so times are meaningful
-                const singleArr = arr.filter(s => !s.distance_km || s.distance_km < 13);
-                const doubleArr = arr.filter(s => s.distance_km >= 13);
+                const singleArr = arr.filter(s => singleRouteIds.has(s.route_id) && (!s.distance_km || s.distance_km < 13));
+                const doubleArr = arr.filter(s => doubleRouteIds.has(s.route_id));
                 const withDurS  = singleArr.filter(s => durSecs(s.duration) > 0);
                 const withDurD  = doubleArr.filter(s => durSecs(s.duration) > 0);
                 // Require min 5 timed records — fewer is too noisy to mean anything
