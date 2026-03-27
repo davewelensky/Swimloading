@@ -1209,15 +1209,33 @@ async function loadRecords() {
         return;
     }
 
+    // Singles use all RI routes (< 13km). Doubles use ONE canonical route only
+    // to avoid duplicates (same crossing exists in 'Big Bay - RI - Big Bay' AND
+    // 'Robben Island Double — Big Bay' with slightly different dates).
+    const singleRouteIds = routes.filter(r => r.name !== 'Robben Island Double — Big Bay' && !r.name.includes('Big Bay - RI - Big Bay')).map(r => r.id);
+    const doubleRouteIds = routes.filter(r => r.name === 'Robben Island Double — Big Bay').map(r => r.id);
     const allRouteIds = routes.map(r => r.id);
 
-    const { data: swims } = await sb.from('historical_swims')
-        .select('*, historical_swimmers(display_name, gender)')
-        .in('route_id', allRouteIds)
-        .in('source', ['big_bay_events', 'big_bay_swimsummary'])
-        .not('duration', 'is', null)
-        .order('duration', { ascending: true })
-        .limit(5000);
+    // Fetch singles and doubles separately to avoid mixing
+    const [{ data: singleSwims }, { data: doubleSwims }] = await Promise.all([
+        sb.from('historical_swims')
+            .select('*, historical_swimmers(display_name, gender)')
+            .in('route_id', singleRouteIds)
+            .in('source', ['big_bay_events', 'big_bay_swimsummary'])
+            .not('duration', 'is', null)
+            .lt('distance_km', 13)
+            .order('duration', { ascending: true })
+            .limit(5000),
+        sb.from('historical_swims')
+            .select('*, historical_swimmers(display_name, gender)')
+            .in('route_id', doubleRouteIds)
+            .in('source', ['big_bay_events', 'big_bay_swimsummary'])
+            .not('duration', 'is', null)
+            .order('duration', { ascending: true })
+            .limit(1000)
+    ]);
+
+    const swims = [...(singleSwims || []), ...(doubleSwims || [])];
 
     if (!swims?.length) {
         ['recWomen', 'recMen', 'recDouble'].forEach(id => {
