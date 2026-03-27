@@ -1237,8 +1237,9 @@ async function loadRecords() {
 
     // Singles = RI→BB (7.4km), Doubles = BB→RI→BB (15km)
     // Use distance_km to separate. Records with no distance default to singles.
-    const singles  = flat.filter(s => !s.distance_km || s.distance_km <= 10);
-    const doublesOnly = flat.filter(s => s.distance_km > 10);
+    // Threshold = 13km: GPS can over-track singles to 10–11km, doubles are nominally 15km.
+    const singles  = flat.filter(s => !s.distance_km || s.distance_km < 13);
+    const doublesOnly = flat.filter(s => s.distance_km >= 13);
     const women  = singles.filter(s => s.gender === 'F');
     const men    = singles.filter(s => s.gender === 'M');
     const doubles = doublesOnly; // BB→RI→BB 15km leaderboard
@@ -1349,17 +1350,17 @@ async function loadHistory() {
         }
 
         // ── SUMMARY ──────────────────────────────────────────────────────────
-        // Split by distance: singles ≤ 10km (RI→BB 7.4km), doubles > 10km (BB→RI→BB 15km)
-        const singles = allFlat.filter(s => !s.distance_km || s.distance_km <= 10);
-        const doubles = allFlat.filter(s => s.distance_km > 10);
+        // Split by distance: singles < 13km (RI→BB 7.4km), doubles >= 13km (BB→RI→BB 15km)
+        const singles = allFlat.filter(s => !s.distance_km || s.distance_km < 13);
+        const doubles = allFlat.filter(s => s.distance_km >= 13);
         const uniqueSwimmers = new Set(flat.map(s => s.swimmer_name).filter(Boolean)).size;
         const years    = allFlat.map(s => s.swim_date ? new Date(s.swim_date).getFullYear() : null).filter(Boolean);
         const minYear  = Math.min(...years);
         const maxYear  = Math.max(...years);
 
         // flat is already sorted by duration asc — first match per gender/type is fastest
-        const flatSingles = flat.filter(s => !s.distance_km || s.distance_km <= 10);
-        const flatDoubles = flat.filter(s => s.distance_km > 10);
+        const flatSingles = flat.filter(s => !s.distance_km || s.distance_km < 13);
+        const flatDoubles = flat.filter(s => s.distance_km >= 13);
         const fastestSW = flatSingles.find(s => s.gender === 'F') || null;
         const fastestSM = flatSingles.find(s => s.gender === 'M') || null;
         const fastestDW = flatDoubles.find(s => s.gender === 'F') || null;
@@ -1430,8 +1431,8 @@ async function loadHistory() {
             .filter(([k]) => k !== 'unknown')
             .map(([k, arr]) => {
                 // Separate singles and doubles so times are meaningful
-                const singleArr = arr.filter(s => !s.distance_km || s.distance_km <= 10);
-                const doubleArr = arr.filter(s => s.distance_km > 10);
+                const singleArr = arr.filter(s => !s.distance_km || s.distance_km < 13);
+                const doubleArr = arr.filter(s => s.distance_km >= 13);
                 const withDurS  = singleArr.filter(s => durSecs(s.duration) > 0);
                 const withDurD  = doubleArr.filter(s => durSecs(s.duration) > 0);
                 // Require min 5 timed records — fewer is too noisy to mean anything
