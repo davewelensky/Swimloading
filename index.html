@@ -9390,22 +9390,76 @@
                         ? `<div style="font-size:12px;color:#10b981;font-weight:600;margin-top:6px;">You're leading — hold on! 🌊</div>`
                         : '';
 
-                el.innerHTML = `
-                <div onclick="showPage('leaderboard')" style="cursor:pointer;background:rgba(15,23,42,0.6);border:1px solid ${isApril2026 ? 'rgba(251,191,36,0.3)' : 'rgba(56,189,248,0.2)'};border-radius:16px;padding:16px 18px;">
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
-                        <div>
-                            <div style="font-size:11px;color:${isApril2026 ? '#fbbf24' : 'var(--ocean-light)'};font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px;">April 2026 Challenge · ${daysLeft}d left</div>
-                            <div style="font-size:16px;font-weight:800;color:var(--text-primary);">${challengeTitle}</div>
-                            <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">${challengeSubtitle}</div>
+                // Build top-3 mini leaderboard
+                const top3 = (data || []).slice(0, 3);
+                const top3html = top3.length > 0 ? top3.map((r, i) => {
+                    const isMe = currentUser && r.user_id === currentUser.id;
+                    const medals = ['🥇','🥈','🥉'];
+                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;${i < top3.length-1 ? 'border-bottom:1px solid rgba(255,255,255,0.05);' : ''}">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="font-size:14px;width:20px;">${medals[i]}</span>
+                            <span style="font-size:12px;font-weight:${isMe ? '700' : '500'};color:${isMe ? '#fbbf24' : 'var(--text)'};">${r.display_name}${isMe ? ' (you)' : ''}</span>
                         </div>
-                        ${myRank ? `<div style="background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.25);border-radius:10px;padding:6px 12px;text-align:center;flex-shrink:0;"><div style="font-size:20px;font-weight:800;color:var(--ocean-light);line-height:1;">#${myRank}</div><div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">your rank</div></div>` : `<div style="font-size:12px;color:var(--text-secondary);flex-shrink:0;">Log to enter</div>`}
+                        <span style="font-size:12px;font-weight:700;color:${isMe ? '#fbbf24' : 'var(--ocean-light)'};">${r.total_points} pts</span>
+                    </div>`;
+                }).join('') : `<div style="font-size:12px;color:var(--text-secondary);text-align:center;padding:8px 0;">No logs yet — be the first! 🌊</div>`;
+
+                // State-specific CTA
+                let ctaBlock = '';
+                if (!currentUser || myPoints === 0) {
+                    ctaBlock = `<div style="background:linear-gradient(135deg,rgba(251,191,36,0.15),rgba(251,191,36,0.05));border:1px solid rgba(251,191,36,0.3);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div style="font-size:12px;font-weight:700;color:#fbbf24;">Log a temp to enter</div>
+                            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Every log earns points · 2× outside Cape Town</div>
+                        </div>
+                        <div style="font-size:20px;">🌡️</div>
+                    </div>`;
+                } else if (myRank === 1) {
+                    ctaBlock = `<div style="background:linear-gradient(135deg,rgba(251,191,36,0.2),rgba(251,191,36,0.05));border:1px solid rgba(251,191,36,0.4);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div style="font-size:12px;font-weight:700;color:#fbbf24;">🏆 You're leading! Keep logging.</div>
+                            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${myPoints} pts · ${daysLeft} days to hold on</div>
+                        </div>
+                        <div style="font-size:20px;">🥇</div>
+                    </div>`;
+                } else if (ptGap > 0) {
+                    ctaBlock = `<div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div style="font-size:12px;font-weight:700;color:var(--warning);">${ptGap} pts behind ${leader.display_name}</div>
+                            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">You're #${myRank} · ${myPoints} pts</div>
+                        </div>
+                        <div style="font-size:20px;">🔥</div>
+                    </div>`;
+                }
+
+                el.innerHTML = `
+                <div onclick="showPage('leaderboard')" style="cursor:pointer;border-radius:18px;overflow:hidden;border:1px solid rgba(251,191,36,0.35);box-shadow:0 4px 24px rgba(251,191,36,0.08);">
+                    <!-- Gold header band -->
+                    <div style="background:linear-gradient(135deg,#92400e,#78350f,#451a03);padding:14px 16px;display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div style="font-size:10px;color:rgba(251,191,36,0.8);font-weight:700;text-transform:uppercase;letter-spacing:0.8px;">April Challenge · Art of Endurance</div>
+                            <div style="font-size:17px;font-weight:800;color:#fbbf24;margin-top:2px;line-height:1.2;">Win Maurten Gel 100s 🏅</div>
+                        </div>
+                        <div style="text-align:right;flex-shrink:0;">
+                            <div style="font-size:22px;font-weight:900;color:#fbbf24;line-height:1;">${daysLeft}</div>
+                            <div style="font-size:10px;color:rgba(251,191,36,0.7);text-transform:uppercase;letter-spacing:0.5px;">days left</div>
+                        </div>
                     </div>
-                    <div style="display:flex;gap:20px;padding-top:10px;border-top:1px solid rgba(56,189,248,0.08);">
-                        ${myPoints > 0 ? `<div><div style="font-size:18px;font-weight:800;color:var(--ocean-light);line-height:1;">${myPoints}</div><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;">Your pts</div></div>` : ''}
-                        ${leader ? `<div><div style="font-size:18px;font-weight:800;color:var(--text-primary);line-height:1;">${leader.total_points}</div><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;">Leader (${leader.display_name})</div></div>` : ''}
+                    <!-- Body -->
+                    <div style="background:rgba(15,23,42,0.95);padding:14px 16px;">
+                        <!-- Badges -->
+                        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+                            <div style="background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.25);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:#fbbf24;">2× outside CT</div>
+                            <div style="background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.25);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:#fbbf24;">+30 new spot</div>
+                            <div style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:var(--ocean-light);">10 pts/log</div>
+                        </div>
+                        <!-- Mini leaderboard -->
+                        <div style="margin-bottom:10px;">${top3html}</div>
+                        <!-- CTA -->
+                        ${ctaBlock}
+                        <!-- Footer link -->
+                        <div style="margin-top:10px;font-size:11px;color:rgba(251,191,36,0.7);font-weight:600;display:flex;align-items:center;gap:3px;">Full leaderboard &amp; rules <i data-lucide="chevron-right" style="width:11px;height:11px;"></i></div>
                     </div>
-                    ${ptGapLine}
-                    <div style="margin-top:10px;font-size:12px;color:${isApril2026 ? '#fbbf24' : 'var(--ocean-light)'};font-weight:600;display:flex;align-items:center;gap:3px;">View leaderboard <i data-lucide="chevron-right" style="width:12px;height:12px;"></i></div>
                 </div>`;
                 initIcons();
             } catch (err) {
