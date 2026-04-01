@@ -8986,7 +8986,7 @@
         async function loadMonthlyChallenge() {
             const el = document.getElementById('monthlyChallenge');
             if (!el) return;
-            const { monthStart, monthEnd, daysLeft, monthName, isLive, daysToLaunch } = getMonthWindow();
+            const { now, monthStart, monthEnd, daysLeft, monthName, isLive, daysToLaunch } = getMonthWindow();
 
             // Reusable SwimBETTER explainer section (collapsible)
             const swimbetterSection = `
@@ -9313,7 +9313,7 @@
         async function loadMonthlyChallengeSummary() {
             const el = document.getElementById('dashMonthlyChallenge');
             if (!el) return;
-            const { monthStart, monthEnd, daysLeft, monthName, isLive, daysToLaunch } = getMonthWindow();
+            const { now, monthStart, monthEnd, daysLeft, monthName, isLive, daysToLaunch } = getMonthWindow();
 
             if (!isLive) {
                 el.innerHTML = `
@@ -9410,7 +9410,14 @@
                 initIcons();
             } catch (err) {
                 console.error('Challenge summary error:', err);
-                el.innerHTML = '';
+                el.innerHTML = `
+                <div onclick="showPage('leaderboard')" style="cursor:pointer;background:rgba(15,23,42,0.6);border:1px solid rgba(251,191,36,0.3);border-radius:16px;padding:16px 18px;">
+                    <div style="font-size:11px;color:#fbbf24;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px;">April 2026 Challenge · 30d left</div>
+                    <div style="font-size:16px;font-weight:800;color:var(--text-primary);">April Explorer Challenge</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">2× pts outside CT · Win Maurten Gel 100s</div>
+                    <div style="margin-top:10px;font-size:12px;color:#fbbf24;font-weight:600;">View leaderboard →</div>
+                </div>`;
+                initIcons();
             }
         }
         // ─── End Monthly Challenge ──────────────────────────────────────────────
