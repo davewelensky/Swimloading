@@ -811,19 +811,19 @@ async function loadLiveTemps() {
 
     const spotIds = spots.map(s => s.id);
     const now = Date.now();
-    const since24h = new Date(now - 24 * 3600 * 1000).toISOString();
     const since48h = new Date(now - 48 * 3600 * 1000).toISOString();
+    const since96h = new Date(now - 96 * 3600 * 1000).toISOString();
 
-    // Fetch last 48h of logs so we can compare today vs yesterday
+    // Fetch last 96h of logs so we can compare recent vs previous
     const { data: logs } = await sb.from('temp_logs')
         .select('spot_id, temp_c, conditions, created_at, spots!temp_logs_spot_id_fkey(name)')
         .in('spot_id', spotIds)
-        .gte('created_at', since48h)
+        .gte('created_at', since96h)
         .order('created_at', { ascending: false })
         .limit(100);
 
-    const todayLogs  = (logs || []).filter(l => l.created_at >= since24h);
-    const yestLogs   = (logs || []).filter(l => l.created_at < since24h);
+    const todayLogs  = (logs || []).filter(l => l.created_at >= since48h);
+    const yestLogs   = (logs || []).filter(l => l.created_at < since48h);
 
     // Latest per spot from today's logs
     const latest = {};
@@ -855,7 +855,7 @@ async function loadLiveTemps() {
         <div class="stat-grid" style="margin-bottom:12px;">
             <div class="stat-box ok">
                 <div class="stat-val green">${avg.toFixed(1)}°C${trendBadge}</div>
-                <div class="stat-lbl">Community avg · False Bay<br><span style="font-size:10px;">${todayLogs.length} log${todayLogs.length!==1?'s':''} in last 24h</span></div>
+                <div class="stat-lbl">Community avg · False Bay<br><span style="font-size:10px;">${todayLogs.length} log${todayLogs.length!==1?'s':''} in last 48h</span></div>
             </div>
             <div class="stat-box hi">
                 <div class="stat-val blue">${max}°C</div>
@@ -896,8 +896,10 @@ async function loadWindForecast() {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${MILLERS_LAT}&longitude=${MILLERS_LNG}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&daily=wind_speed_10m_max,wind_direction_10m_dominant,precipitation_sum&wind_speed_unit=kmh&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${end}`;
 
     try {
-        const res = await fetch(url);
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        if (!data.daily) throw new Error('No daily data in response');
 
         // Use today (index 0) for the GO signal
         const daily = data.daily;
@@ -948,8 +950,10 @@ async function loadMarineForecast() {
     const end = endDate.toISOString().split('T')[0];
     const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${MILLERS_LAT}&longitude=${MILLERS_LNG}&hourly=wave_height,wave_period,swell_wave_height&daily=wave_height_max,swell_wave_height_max,wave_period_max&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${end}`;
     try {
-        const res = await fetch(url);
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        if (!data.daily) throw new Error('No daily data in response');
         const daily = data.daily;
 
         // 7-day swell rows — today highlighted
