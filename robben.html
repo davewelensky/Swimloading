@@ -811,46 +811,77 @@ async function loadWindForecast() {
     const endDate = new Date(); endDate.setDate(endDate.getDate() + 7);
     const end = endDate.toISOString().split('T')[0];
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${BIG_BAY_LAT}&longitude=${BIG_BAY_LNG}&daily=wind_speed_10m_max,wind_direction_10m_dominant,precipitation_sum&wind_speed_unit=kmh&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${end}`;
+    // Helper: met.no fallback — hourly into daily max
+    async function fetchWindMetNo(lat, lng) {
+        const r = await fetch(`https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat.toFixed(4)}&lon=${lng.toFixed(4)}`, {
+            headers: { 'User-Agent': 'SwimLoading/1.0 https://swimloading.com' }, cache: 'no-store'
+        });
+        if (!r.ok) throw new Error(`met.no ${r.status}`);
+        const d = await r.json();
+        const byDay = {};
+        d.properties.timeseries.forEach(ts => {
+            const date = ts.time.substring(0, 10);
+            const det = ts.data.instant.details;
+            if (!byDay[date]) byDay[date] = [];
+            byDay[date].push({ spd: (det.wind_speed || 0) * 3.6, dir: det.wind_from_direction || 0 });
+        });
+        return Object.keys(byDay).sort().slice(0, 7).map(date => {
+            const best = byDay[date].reduce((m, r) => r.spd > m.spd ? r : m, byDay[date][0]);
+            return { date, windMax: best.spd, windDir: best.dir };
+        });
+    }
+
+    function renderRIWindRows(days, source) {
+        const rows = days.map((d, i) => {
+            const wSpd = d.windMax, wDir = d.windDir;
+            const wLabel = windDir(wDir);
+            const wa2 = windAssessRI(wDir, wSpd);
+            const isToday = i === 0;
+            const dayName = isToday ? 'Today' : new Date(d.date).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
+            const favCol = wa2.tier === 'optimal' || wa2.tier === 'calm' ? 'var(--success)' : wa2.tier === 'strong' ? 'var(--warning)' : 'var(--danger)';
+            return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);${isToday?'background:rgba(14,165,233,0.06);margin:0 -4px;padding:9px 4px;border-radius:8px;':''}">
+                <div style="width:80px;font-size:12px;font-weight:${isToday?700:400};color:${isToday?'var(--ocean-light)':'var(--text-primary)'};">${dayName}</div>
+                <div style="font-size:20px;" title="${wDir}°"><span style="display:inline-block;transform:rotate(${(wDir+180)%360}deg);">&#8593;</span></div>
+                <div style="flex:1;">
+                    <div style="font-size:13px;font-weight:600;">${wLabel} ${wSpd?.toFixed(0)||'?'} km/h</div>
+                    <div style="font-size:11px;color:${favCol};">${wa2.label}</div>
+                </div>
+                <div style="font-size:11px;color:${wSpd<20?'var(--success)':wSpd<35?'var(--warning)':'var(--danger)'};">${wSpd<20?'Light':wSpd<35?'Moderate':'Strong'}</div>
+            </div>`;
+        }).join('');
+        return rows + `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: ${source} · Big Bay / Blouberg</div>`;
+    }
+
     try {
         const res = await fetch(url, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        if (!data.daily) throw new Error('No daily data in response');
+        if (!data.daily) throw new Error('No daily data');
         const daily = data.daily;
-        const windMax  = daily.wind_speed_10m_max[0];
+        const windMax = daily.wind_speed_10m_max[0];
         const windDir360 = daily.wind_direction_10m_dominant[0];
         const dirLabel = windDir(windDir360);
         const wa = windAssessRI(windDir360, windMax);
-
-        const forecastRows = daily.time.slice(0, 7).map((d, i) => {
-            const wSpd = daily.wind_speed_10m_max[i];
-            const wDir = daily.wind_direction_10m_dominant[i];
-            const wLabel = windDir(wDir);
-            const wa2 = windAssessRI(wDir, wSpd);
-            const isToday = i === 0;
-            const dayName = isToday ? 'Today' : new Date(d).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
-            const favCol  = wa2.tier === 'optimal' ? 'var(--success)' : wa2.tier === 'calm' ? 'var(--success)' : wa2.tier === 'strong' ? 'var(--warning)' : 'var(--danger)';
-            return `
-                <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);${isToday?'background:rgba(14,165,233,0.06);margin:0 -4px;padding:9px 4px;border-radius:8px;':''}">
-                    <div style="width:80px;font-size:12px;font-weight:${isToday?700:400};color:${isToday?'var(--ocean-light)':'var(--text-primary)'};">${dayName}</div>
-                    <div style="font-size:20px;" title="${wDir}°">
-                        <span style="display:inline-block;transform:rotate(${(wDir+180)%360}deg);">&#8593;</span>
-                    </div>
-                    <div style="flex:1;">
-                        <div style="font-size:13px;font-weight:600;">${wLabel} ${wSpd?.toFixed(0)||'?'} km/h</div>
-                        <div style="font-size:11px;color:${favCol};">${wa2.label}</div>
-                    </div>
-                    <div style="font-size:11px;color:${wSpd<20?'var(--success)':wSpd<35?'var(--warning)':'var(--danger)'};">${wSpd<20?'Light':wSpd<35?'Moderate':'Strong'}</div>
-                </div>`;
-        }).join('');
-
-        document.getElementById('windForecast').innerHTML = forecastRows +
-            `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo · Big Bay / Blouberg</div>`;
-
-        return { windMax, windDir: windDir360, dirLabel, wa, daily7: daily.time.slice(0,7).map((d,i) => ({ date: d, windMax: daily.wind_speed_10m_max[i], windDir: daily.wind_direction_10m_dominant[i] })) };
+        const days = daily.time.slice(0, 7).map((date, i) => ({ date, windMax: daily.wind_speed_10m_max[i], windDir: daily.wind_direction_10m_dominant[i] }));
+        document.getElementById('windForecast').innerHTML = renderRIWindRows(days, 'Open-Meteo');
+        return { windMax, windDir: windDir360, dirLabel, wa, daily7: days };
     } catch(e) {
-        document.getElementById('windForecast').innerHTML = `<div style="color:var(--text-secondary);font-size:13px;">Could not load forecast.</div>`;
-        return null;
+        // Open-Meteo down — try MET Norway fallback
+        try {
+            const days = await fetchWindMetNo(BIG_BAY_LAT, BIG_BAY_LNG);
+            const windMax = days[0]?.windMax || 0;
+            const windDir360 = days[0]?.windDir || 0;
+            const wa = windAssessRI(windDir360, windMax);
+            document.getElementById('windForecast').innerHTML = renderRIWindRows(days, 'MET Norway (fallback)');
+            return { windMax, windDir: windDir360, dirLabel: windDir(windDir360), wa, daily7: days };
+        } catch(e2) {
+            document.getElementById('windForecast').innerHTML = `
+                <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;">
+                    Wind forecast temporarily unavailable.<br>
+                    <a href="https://www.windy.com/-33.730/18.461?wind,-33.730,18.461,11" target="_blank" style="color:var(--ocean-light);">Open Windy.com for Big Bay →</a>
+                </div>`;
+            return null;
+        }
     }
 }
 

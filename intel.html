@@ -895,52 +895,81 @@ async function loadWindForecast() {
 
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${MILLERS_LAT}&longitude=${MILLERS_LNG}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&daily=wind_speed_10m_max,wind_direction_10m_dominant,precipitation_sum&wind_speed_unit=kmh&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${end}`;
 
+    // Helper: parse met.no hourly into 7-day daily summaries (fallback)
+    async function fetchWindMetNo(lat, lng) {
+        const r = await fetch(`https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat.toFixed(4)}&lon=${lng.toFixed(4)}`, {
+            headers: { 'User-Agent': 'SwimLoading/1.0 https://swimloading.com' }, cache: 'no-store'
+        });
+        if (!r.ok) throw new Error(`met.no ${r.status}`);
+        const d = await r.json();
+        const byDay = {};
+        d.properties.timeseries.forEach(ts => {
+            const date = ts.time.substring(0, 10);
+            const det = ts.data.instant.details;
+            if (!byDay[date]) byDay[date] = [];
+            byDay[date].push({ spd: (det.wind_speed || 0) * 3.6, dir: det.wind_from_direction || 0 });
+        });
+        return Object.keys(byDay).sort().slice(0, 7).map(date => {
+            const best = byDay[date].reduce((m, r) => r.spd > m.spd ? r : m, byDay[date][0]);
+            return { date, windMax: best.spd, windDir: best.dir };
+        });
+    }
+
+    // Shared renderer for both Open-Meteo and met.no data
+    function renderWindRows(days, source) {
+        const rows = days.map((d, i) => {
+            const wSpd = d.windMax, wDir = d.windDir;
+            const wLabel = windDir(wDir);
+            const favourable = isNW(wDir);
+            const isToday = i === 0;
+            const dayName = isToday ? 'Today' : new Date(d.date).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
+            return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);${isToday?'background:rgba(14,165,233,0.06);margin:0 -4px;padding:9px 4px;border-radius:8px;':''}">
+                <div style="width:80px;font-size:12px;font-weight:${isToday?700:400};color:${isToday?'var(--ocean-light)':'var(--text-primary)'};">${dayName}</div>
+                <div style="font-size:20px;" title="${wDir}°"><span style="display:inline-block;transform:rotate(${(wDir+180)%360}deg);">↑</span></div>
+                <div style="flex:1;">
+                    <div style="font-size:13px;font-weight:600;">${wLabel} ${wSpd?.toFixed(0)||'?'} km/h</div>
+                    <div style="font-size:11px;color:${favourable?'var(--success)':'var(--text-secondary)'};">${favourable?'Favourable NW':'Unfavourable direction'}</div>
+                </div>
+                <div style="font-size:11px;color:${wSpd<20?'var(--success)':wSpd<35?'var(--warning)':'var(--danger)'};">${wSpd<20?'Light':wSpd<35?'Moderate':'Strong'}</div>
+            </div>`;
+        }).join('');
+        return rows + `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: ${source} · Miller's Point</div>`;
+    }
+
     try {
         const res = await fetch(url, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        if (!data.daily) throw new Error('No daily data in response');
+        if (!data.daily) throw new Error('No daily data');
 
-        // Use today (index 0) for the GO signal
         const daily = data.daily;
-        const dates = daily.time;
         const windMax = daily.wind_speed_10m_max[0];
         const windDir360 = daily.wind_direction_10m_dominant[0];
         const rain = daily.precipitation_sum[0];
         const dirLabel = windDir(windDir360);
         const nwFav = isNW(windDir360);
 
-        // Build 7-day forecast — no special day highlighting
-        const forecastRows = dates.slice(0, 7).map((d, i) => {
-            const wSpd = daily.wind_speed_10m_max[i];
-            const wDir = daily.wind_direction_10m_dominant[i];
-            const wLabel = windDir(wDir);
-            const favourable = isNW(wDir);
-            const isToday = i === 0;
-            const dayName = isToday ? 'Today' : new Date(d).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
-            return `
-                <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);${isToday?'background:rgba(14,165,233,0.06);margin:0 -4px;padding:9px 4px;border-radius:8px;':''}">
-                    <div style="width:80px;font-size:12px;font-weight:${isToday?700:400};color:${isToday?'var(--ocean-light)':'var(--text-primary)'};">${dayName}</div>
-                    <div style="font-size:20px;" title="${wDir}°">
-                        <span style="display:inline-block;transform:rotate(${(wDir+180)%360}deg);">↑</span>
-                    </div>
-                    <div style="flex:1;">
-                        <div style="font-size:13px;font-weight:600;">${wLabel} ${wSpd?.toFixed(0)||'?'} km/h</div>
-                        <div style="font-size:11px;color:${favourable?'var(--success)':'var(--text-secondary)'};">${favourable?'Favourable NW':'Unfavourable direction'}</div>
-                    </div>
-                    <div style="font-size:11px;color:${wSpd<20?'var(--success)':wSpd<35?'var(--warning)':'var(--danger)'};">${wSpd<20?'Light':wSpd<35?'Moderate':'Strong'}</div>
-                </div>
-            `;
-        }).join('');
+        const days = daily.time.slice(0, 7).map((date, i) => ({ date, windMax: daily.wind_speed_10m_max[i], windDir: daily.wind_direction_10m_dominant[i] }));
+        document.getElementById('windForecast').innerHTML = renderWindRows(days, 'Open-Meteo');
 
-        document.getElementById('windForecast').innerHTML = forecastRows +
-            `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo · Miller's Point</div>`;
-
-        return { windMax, windDir: windDir360, dirLabel, nwFav, rain, daily7: dates.slice(0,7).map((d,i) => ({ date: d, windMax: daily.wind_speed_10m_max[i], windDir: daily.wind_direction_10m_dominant[i] })) };
+        return { windMax, windDir: windDir360, dirLabel, nwFav, rain, daily7: days };
 
     } catch(e) {
-        document.getElementById('windForecast').innerHTML = `<div style="color:var(--text-secondary);font-size:13px;">Could not load forecast. Check wind.guru or windguru.cz for False Bay.</div>`;
-        return null;
+        // Open-Meteo down — try MET Norway as fallback
+        try {
+            const days = await fetchWindMetNo(MILLERS_LAT, MILLERS_LNG);
+            const windMax = days[0]?.windMax || 0;
+            const windDir360 = days[0]?.windDir || 0;
+            document.getElementById('windForecast').innerHTML = renderWindRows(days, 'MET Norway (fallback)');
+            return { windMax, windDir: windDir360, dirLabel: windDir(windDir360), nwFav: isNW(windDir360), rain: 0, daily7: days };
+        } catch(e2) {
+            document.getElementById('windForecast').innerHTML = `
+                <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;">
+                    Wind forecast temporarily unavailable.<br>
+                    <a href="https://www.windy.com/-34.227/18.465?wind,-34.227,18.465,11" target="_blank" style="color:var(--ocean-light);">Open Windy.com for Miller's Point →</a>
+                </div>`;
+            return null;
+        }
     }
 }
 
