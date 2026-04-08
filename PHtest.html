@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fuel & Hydration Test — SwimLoading</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0a1628;
+            --bg-card: #111c30;
+            --ocean: #0ea5e9;
+            --ocean-light: #38bdf8;
+            --text: #f0f9ff;
+            --text-secondary: #94a3b8;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --border: rgba(255,255,255,0.08);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg-dark);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            padding-bottom: 60px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #0a1628 0%, #0c1f3d 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 20px;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .header-row { display: flex; align-items: center; justify-content: space-between; }
+        .header-left { display: flex; align-items: center; gap: 10px; }
+        .header-icon { width: 32px; height: 32px; background: rgba(14,165,233,0.15); border: 1px solid rgba(14,165,233,0.3); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .header-title { font-size: 17px; font-weight: 800; color: var(--text); letter-spacing: -0.3px; }
+        .header-sub { font-size: 11px; color: var(--text-secondary); margin-top: 1px; }
+        .user-pill { font-size: 11px; color: var(--ocean-light); background: rgba(14,165,233,0.1); border: 1px solid rgba(14,165,233,0.2); border-radius: 20px; padding: 4px 12px; font-weight: 600; }
+
+        /* Layout */
+        .container { padding: 16px; max-width: 600px; margin: 0 auto; }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 14px;
+            padding: 18px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+        }
+        .section-label {
+            font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+            text-transform: uppercase; color: var(--ocean-light);
+            margin-bottom: 14px;
+            display: flex; align-items: center; gap: 7px;
+        }
+        .section-label i { opacity: 0.8; }
+
+        /* Form elements */
+        .field-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 5px; font-weight: 500; }
+        input[type=text], input[type=number], input[type=date], input[type=email], input[type=password], select, textarea {
+            width: 100%;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: var(--text);
+            padding: 10px 12px;
+            font-size: 13px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: rgba(14,165,233,0.4); }
+        textarea { resize: none; }
+        input[type=range] { width: 100%; accent-color: var(--ocean-light); cursor: pointer; }
+
+        /* Toggle buttons */
+        .toggle-btn {
+            padding: 10px 14px; border-radius: 9px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.03);
+            color: var(--text-secondary);
+            font-size: 13px; font-weight: 600;
+            cursor: pointer; text-align: left;
+            transition: all 0.15s; display: flex; align-items: center; gap: 8px;
+        }
+        .toggle-btn.active {
+            background: rgba(14,165,233,0.12);
+            border-color: rgba(14,165,233,0.4);
+            color: var(--ocean-light);
+        }
+        .toggle-chip {
+            padding: 7px 14px; border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.03);
+            color: var(--text-secondary);
+            font-size: 12px; font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .toggle-chip.active {
+            background: rgba(14,165,233,0.12);
+            border-color: rgba(14,165,233,0.4);
+            color: var(--ocean-light);
+        }
+        .verdict-btn {
+            flex: 1; padding: 13px 0; border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.03);
+            color: var(--text-secondary);
+            font-size: 13px; font-weight: 700;
+            cursor: pointer; text-align: center;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            transition: all 0.15s;
+        }
+        .verdict-btn.better.active { background: rgba(34,197,94,0.12); border-color: rgba(34,197,94,0.4); color: var(--success); }
+        .verdict-btn.same.active   { background: rgba(148,163,184,0.1); border-color: rgba(148,163,184,0.3); color: var(--text); }
+        .verdict-btn.worse.active  { background: rgba(239,68,68,0.1);   border-color: rgba(239,68,68,0.3);   color: var(--danger); }
+
+        /* Buttons */
+        .btn-primary {
+            width: 100%; padding: 14px; border-radius: 12px; border: none;
+            background: linear-gradient(135deg, #0284c7, #0ea5e9);
+            color: white; font-size: 15px; font-weight: 700;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+            transition: opacity 0.15s;
+        }
+        .btn-primary:active { opacity: 0.85; }
+        .btn-ghost {
+            width: 100%; padding: 13px; border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: transparent; color: var(--text-secondary);
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: background 0.15s;
+        }
+        .btn-ghost:active { background: rgba(255,255,255,0.05); }
+        .btn-sm {
+            padding: 10px 20px; border-radius: 22px; border: none;
+            background: linear-gradient(135deg, #0284c7, #0ea5e9);
+            color: white; font-size: 13px; font-weight: 700;
+            cursor: pointer; white-space: nowrap;
+            display: flex; align-items: center; gap: 6px;
+        }
+
+        /* Auth screen */
+        #authScreen {
+            min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+        }
+        .auth-box {
+            background: var(--bg-card); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px; padding: 36px 28px; max-width: 380px; width: 100%;
+        }
+        .auth-logo {
+            width: 52px; height: 52px; background: rgba(14,165,233,0.12);
+            border: 1px solid rgba(14,165,233,0.25); border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 20px;
+        }
+        .auth-title { font-size: 22px; font-weight: 800; color: var(--text); text-align: center; margin-bottom: 4px; }
+        .auth-sub { font-size: 13px; color: var(--text-secondary); text-align: center; margin-bottom: 28px; }
+
+        /* Summary preview */
+        .summary-box {
+            background: rgba(14,165,233,0.05);
+            border: 1px solid rgba(14,165,233,0.2);
+            border-radius: 12px; padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+
+        /* History cards */
+        .test-card { background: var(--bg-card); border-radius: 14px; padding: 16px; margin-bottom: 10px; border: 1px solid var(--border); }
+        .verdict-pill {
+            font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+            padding: 3px 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px;
+        }
+        .verdict-pill.better { background: rgba(34,197,94,0.12); color: var(--success); }
+        .verdict-pill.same   { background: rgba(148,163,184,0.1); color: var(--text-secondary); }
+        .verdict-pill.worse  { background: rgba(239,68,68,0.1);   color: var(--danger); }
+
+        /* Comparison table */
+        .compare-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 0; border-bottom: 1px solid var(--border);
+        }
+        .compare-row:last-child { border-bottom: none; }
+
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px);
+            background: #1e293b; border: 1px solid var(--border); border-radius: 12px;
+            padding: 12px 20px; font-size: 14px; font-weight: 600; color: var(--text);
+            z-index: 9999; transition: transform 0.3s ease; white-space: nowrap;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.success { border-color: rgba(34,197,94,0.4); color: var(--success); }
+        .toast.error   { border-color: rgba(239,68,68,0.4);  color: var(--danger); }
+
+        /* Sign out link */
+        .signout-btn {
+            background: none; border: none; color: var(--text-secondary);
+            font-size: 12px; cursor: pointer; padding: 4px 8px;
+        }
+        .signout-btn:hover { color: var(--text); }
+
+        /* Grid helpers */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .flex-row { display: flex; gap: 8px; }
+        .flex-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+        .flex-col { display: flex; flex-direction: column; gap: 8px; }
+    </style>
+</head>
+<body>
+
+<!-- ── Auth screen ──────────────────────────────────────────────────────── -->
+<div id="authScreen" style="display:none;">
+    <div class="auth-box">
+        <div class="auth-logo">
+            <i data-lucide="flask-conical" style="width:24px;height:24px;color:var(--ocean-light);"></i>
+        </div>
+        <div class="auth-title">Fuel &amp; Hydration</div>
+        <div class="auth-sub">Private testing portal — sign in to continue</div>
+        <div style="margin-bottom:12px;">
+            <div class="field-label">Email</div>
+            <input type="email" id="authEmail" placeholder="you@example.com">
+        </div>
+        <div style="margin-bottom:24px;">
+            <div class="field-label">Password</div>
+            <input type="password" id="authPassword" placeholder="••••••••" onkeydown="if(event.key==='Enter')signIn()">
+        </div>
+        <button class="btn-primary" onclick="signIn()">
+            <i data-lucide="log-in" style="width:16px;height:16px;"></i> Sign In
+        </button>
+        <div id="authError" style="display:none;margin-top:12px;text-align:center;font-size:12px;color:var(--danger);"></div>
+    </div>
+</div>
+
+<!-- ── Main app ─────────────────────────────────────────────────────────── -->
+<div id="mainApp" style="display:none;">
+
+    <div class="header">
+        <div class="header-row">
+            <div class="header-left">
+                <div class="header-icon">
+                    <i data-lucide="flask-conical" style="width:16px;height:16px;color:var(--ocean-light);"></i>
+                </div>
+                <div>
+                    <div class="header-title">Fuel &amp; Hydration</div>
+                    <div class="header-sub">Private test portal</div>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div class="user-pill" id="userPill"></div>
+                <button class="signout-btn" onclick="doSignOut()">
+                    <i data-lucide="log-out" style="width:13px;height:13px;vertical-align:middle;"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+
+        <!-- Top action bar -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div>
+                <div style="font-size:16px;font-weight:800;color:var(--text);">Your Tests</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Track what works in the water</div>
+            </div>
+            <button class="btn-sm" onclick="showFuelForm()">
+                <i data-lucide="plus" style="width:14px;height:14px;"></i> New Test
+            </button>
+        </div>
+
+        <!-- ── NEW TEST FORM ──────────────────────────────────────────────── -->
+        <div id="fuelTestForm" style="display:none;">
+
+            <!-- Session -->
+            <div class="card">
+                <div class="section-label">
+                    <i data-lucide="calendar" style="width:13px;height:13px;"></i> Session
+                </div>
+                <div class="grid-2" style="margin-bottom:10px;">
+                    <div>
+                        <div class="field-label">Date</div>
+                        <input type="date" id="fuelDate">
+                    </div>
+                    <div>
+                        <div class="field-label">Water temp (°C)</div>
+                        <input type="number" id="fuelWaterTemp" placeholder="e.g. 16" min="8" max="32" step="0.5">
+                    </div>
+                </div>
+                <div style="margin-bottom:10px;">
+                    <div class="field-label">Location</div>
+                    <select id="fuelSpot">
+                        <option value="">— Select spot —</option>
+                    </select>
+                </div>
+                <div class="grid-2" style="margin-bottom:12px;">
+                    <div>
+                        <div class="field-label">Distance (km)</div>
+                        <input type="number" id="fuelDistance" value="5" min="1" max="50" step="0.5">
+                    </div>
+                    <div>
+                        <div class="field-label">Structure</div>
+                        <input type="text" id="fuelStructure" value="5x1000m" placeholder="e.g. 5x1000m">
+                    </div>
+                </div>
+                <div>
+                    <div class="field-label">Session type</div>
+                    <div class="flex-row">
+                        <button class="toggle-btn active" data-group="session_type" data-value="sea" onclick="fuelToggle(this)" style="flex:1;">
+                            <i data-lucide="waves" style="width:15px;height:15px;"></i> Sea
+                        </button>
+                        <button class="toggle-btn" data-group="session_type" data-value="pool" onclick="fuelToggle(this)" style="flex:1;">
+                            <i data-lucide="droplets" style="width:15px;height:15px;"></i> Pool
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Protocol -->
+            <div class="card">
+                <div class="section-label">
+                    <i data-lucide="beaker" style="width:13px;height:13px;"></i> Protocol
+                </div>
+                <div class="flex-col">
+                    <button class="toggle-btn active" data-group="protocol" data-value="baseline" onclick="fuelToggle(this)">
+                        <i data-lucide="ban" style="width:14px;height:14px;"></i> Baseline — No intake
+                    </button>
+                    <button class="toggle-btn" data-group="protocol" data-value="ph500_during" onclick="fuelToggle(this)">
+                        <i data-lucide="activity" style="width:14px;height:14px;"></i> PH500 During
+                    </button>
+                    <button class="toggle-btn" data-group="protocol" data-value="ph1500_preload" onclick="fuelToggle(this)">
+                        <i data-lucide="battery-charging" style="width:14px;height:14px;"></i> PH1500 Preload
+                    </button>
+                    <button class="toggle-btn" data-group="protocol" data-value="ph1500_ph500" onclick="fuelToggle(this)">
+                        <i data-lucide="layers" style="width:14px;height:14px;"></i> PH1500 + PH500
+                    </button>
+                    <button class="toggle-btn" data-group="protocol" data-value="fuel_test" onclick="fuelToggle(this)">
+                        <i data-lucide="package" style="width:14px;height:14px;"></i> Fuel Test — Gel / Chew
+                    </button>
+                </div>
+            </div>
+
+            <!-- Intake -->
+            <div class="card">
+                <div class="section-label">
+                    <i data-lucide="cup-soda" style="width:13px;height:13px;"></i> Intake
+                </div>
+                <div style="margin-bottom:14px;">
+                    <div class="field-label" style="margin-bottom:8px;">Before</div>
+                    <div class="flex-wrap">
+                        <button class="toggle-chip active" data-group="intake_before" data-value="none" onclick="fuelToggle(this)">None</button>
+                        <button class="toggle-chip" data-group="intake_before" data-value="PH1500" onclick="fuelToggle(this)">PH1500</button>
+                        <button class="toggle-chip" data-group="intake_before" data-value="PH500" onclick="fuelToggle(this)">PH500</button>
+                        <button class="toggle-chip" data-group="intake_before" data-value="other" onclick="fuelToggle(this)">Other</button>
+                    </div>
+                </div>
+                <div style="margin-bottom:14px;">
+                    <div class="field-label" style="margin-bottom:8px;">During</div>
+                    <div class="flex-wrap">
+                        <button class="toggle-chip active" data-group="intake_during" data-value="none" onclick="fuelToggle(this)">None</button>
+                        <button class="toggle-chip" data-group="intake_during" data-value="PH500" onclick="fuelToggle(this)">PH500</button>
+                        <button class="toggle-chip" data-group="intake_during" data-value="water" onclick="fuelToggle(this)">Water</button>
+                        <button class="toggle-chip" data-group="intake_during" data-value="gel" onclick="fuelToggle(this)">Gel</button>
+                        <button class="toggle-chip" data-group="intake_during" data-value="chew" onclick="fuelToggle(this)">Chew</button>
+                    </div>
+                </div>
+                <div>
+                    <div class="field-label">Notes (optional)</div>
+                    <textarea id="fuelIntakeNotes" placeholder="Timing, amounts, anything unusual" rows="2"></textarea>
+                </div>
+            </div>
+
+            <!-- Per-set effort -->
+            <div class="card">
+                <div class="section-label">
+                    <i data-lucide="trending-up" style="width:13px;height:13px;"></i> Per Set — Effort Feel
+                </div>
+                <div id="fuelSetEfforts" class="flex-col"></div>
+            </div>
+
+            <!-- Scores -->
+            <div class="card">
+                <div class="section-label">
+                    <i data-lucide="bar-chart-2" style="width:13px;height:13px;"></i> Session Scores
+                </div>
+                <div id="fuelScores" class="flex-col"></div>
+            </div>
+
+            <!-- Flags -->
+            <div class="card">
+                <div class="section-label">
+                    <i data-lucide="flag" style="width:13px;height:13px;"></i> Flags
+                </div>
+                <div class="grid-2">
+                    <button id="flagStronger" class="toggle-btn" onclick="toggleFlag(this)" style="justify-content:center;text-align:center;">
+                        <i data-lucide="trending-up" style="width:14px;height:14px;"></i> Stronger finish
+                    </button>
+                    <button id="flagFaded" class="toggle-btn" onclick="toggleFlag(this)" style="justify-content:center;text-align:center;">
+                        <i data-lucide="trending-down" style="width:14px;height:14px;"></i> Faded end
+                    </button>
+                    <button id="flagThirst" class="toggle-btn" onclick="toggleFlag(this)" style="justify-content:center;text-align:center;">
+                        <i data-lucide="droplet" style="width:14px;height:14px;"></i> Thirst
+                    </button>
+                    <button id="flagCramping" class="toggle-btn" onclick="toggleFlag(this)" style="justify-content:center;text-align:center;">
+                        <i data-lucide="zap" style="width:14px;height:14px;"></i> Cramping
+                    </button>
+                </div>
+            </div>
+
+            <!-- Verdict -->
+            <div class="card">
+                <div class="section-label">
+                    <i data-lucide="check-circle" style="width:13px;height:13px;"></i> Verdict vs Baseline
+                </div>
+                <div class="flex-row">
+                    <button class="verdict-btn worse" data-group="verdict" data-value="worse" onclick="verdictToggle(this)">
+                        <i data-lucide="thumbs-down" style="width:15px;height:15px;"></i> Worse
+                    </button>
+                    <button class="verdict-btn same" data-group="verdict" data-value="same" onclick="verdictToggle(this)">
+                        <i data-lucide="minus" style="width:15px;height:15px;"></i> Same
+                    </button>
+                    <button class="verdict-btn better active" data-group="verdict" data-value="better" onclick="verdictToggle(this)">
+                        <i data-lucide="thumbs-up" style="width:15px;height:15px;"></i> Better
+                    </button>
+                </div>
+            </div>
+
+            <!-- Auto-summary preview -->
+            <div class="summary-box" id="fuelSummaryPreview" style="display:none;">
+                <div class="section-label" style="margin-bottom:8px;">
+                    <i data-lucide="file-text" style="width:12px;height:12px;"></i> Auto Summary
+                </div>
+                <div id="fuelSummaryText" style="font-size:13px;color:var(--text-secondary);line-height:1.6;"></div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex-row" style="margin-bottom:24px;">
+                <button class="btn-ghost" onclick="cancelFuelForm()">Cancel</button>
+                <button id="fuelSaveBtn" class="btn-primary" onclick="saveFuelTest()" style="flex:2;">
+                    <i data-lucide="save" style="width:16px;height:16px;"></i> Save Test
+                </button>
+            </div>
+        </div>
+
+        <!-- ── HISTORY ─────────────────────────────────────────────────────── -->
+        <div id="fuelTestHistory">
+            <div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:32px 0;">
+                <i data-lucide="loader" style="width:20px;height:20px;display:block;margin:0 auto 10px;opacity:0.4;"></i>
+                Loading tests…
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    const SUPABASE_URL     = 'https://szgkzuswelntnevobnoh.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+    const ALLOWED_USERS    = ['df137255-3add-4153-b368-32e06e2be188','cff2fc33-4a55-451b-8c7f-20f12c1898ce'];
+
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let currentUser = null;
+    let spots = [];
+
+    const PROTOCOL_LABELS = {
+        baseline:       'Baseline — No intake',
+        ph500_during:   'PH500 During',
+        ph1500_preload: 'PH1500 Preload',
+        ph1500_ph500:   'PH1500 + PH500',
+        fuel_test:      'Fuel Test (Gel/Chew)'
+    };
+
+    const SCORE_FIELDS = [
+        { id: 'fuelEnergy',    label: 'Energy consistency' },
+        { id: 'fuelEffort',    label: 'Perceived effort' },
+        { id: 'fuelHydration', label: 'Hydration feeling' },
+        { id: 'fuelStomach',   label: 'Stomach comfort' },
+        { id: 'fuelRecovery',  label: 'Recovery' }
+    ];
+
+    function initIcons() { if (window.lucide) lucide.createIcons(); }
+
+    // ── Auth ──────────────────────────────────────────────────────────────────
+
+    async function init() {
+        initIcons();
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session && ALLOWED_USERS.includes(session.user.id)) {
+            currentUser = session.user;
+            await loadMainApp();
+        } else {
+            if (session) await supabaseClient.auth.signOut();
+            document.getElementById('authScreen').style.display = 'flex';
+            initIcons();
+        }
+    }
+
+    async function signIn() {
+        const email = document.getElementById('authEmail').value.trim();
+        const pw    = document.getElementById('authPassword').value;
+        const errEl = document.getElementById('authError');
+        errEl.style.display = 'none';
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pw });
+        if (error || !data.user) {
+            errEl.textContent = error?.message || 'Sign in failed';
+            errEl.style.display = 'block';
+            return;
+        }
+        if (!ALLOWED_USERS.includes(data.user.id)) {
+            await supabaseClient.auth.signOut();
+            errEl.textContent = 'Access restricted to test participants only.';
+            errEl.style.display = 'block';
+            return;
+        }
+        currentUser = data.user;
+        await loadMainApp();
+    }
+
+    async function doSignOut() {
+        await supabaseClient.auth.signOut();
+        document.getElementById('mainApp').style.display = 'none';
+        document.getElementById('authScreen').style.display = 'flex';
+    }
+
+    async function loadMainApp() {
+        document.getElementById('authScreen').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+        const { data: profile } = await supabaseClient.from('profiles').select('display_name').eq('id', currentUser.id).maybeSingle();
+        document.getElementById('userPill').textContent = profile?.display_name || currentUser.email;
+        const { data } = await supabaseClient.from('spots').select('id, name').order('name');
+        spots = data || [];
+        loadFuelTests();
+        initIcons();
+    }
+
+    // ── Toast ─────────────────────────────────────────────────────────────────
+
+    function showToast(msg, type = '') {
+        const el = document.getElementById('toast');
+        el.textContent = msg;
+        el.className = 'toast show' + (type ? ' ' + type : '');
+        setTimeout(() => { el.className = 'toast'; }, 3000);
+    }
+
+    // ── Toggle helpers ────────────────────────────────────────────────────────
+
+    function fuelToggle(btn) {
+        const group = btn.dataset.group;
+        const scope = btn.closest('#fuelTestForm');
+        scope.querySelectorAll(`.fuel-toggle[data-group="${group}"], .toggle-btn[data-group="${group}"], .toggle-chip[data-group="${group}"]`).forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        updateFuelSummaryPreview();
+    }
+
+    function verdictToggle(btn) {
+        document.querySelectorAll('#fuelTestForm .verdict-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        updateFuelSummaryPreview();
+    }
+
+    function toggleFlag(btn) {
+        btn.classList.toggle('active');
+        updateFuelSummaryPreview();
+    }
+
+    // ── Form builders ─────────────────────────────────────────────────────────
+
+    function buildSetEffortRows(count) {
+        const el = document.getElementById('fuelSetEfforts');
+        el.innerHTML = '';
+        for (let i = 1; i <= count; i++) {
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;gap:10px;';
+            row.innerHTML = `
+                <div style="font-size:12px;color:var(--text-secondary);width:44px;flex-shrink:0;font-weight:600;">Set ${i}</div>
+                <div style="display:flex;gap:6px;flex:1;">
+                    <button class="toggle-chip active" data-group="set_${i}" data-value="same" onclick="fuelToggle(this)" style="flex:1;text-align:center;">Same</button>
+                    <button class="toggle-chip" data-group="set_${i}" data-value="easier" onclick="fuelToggle(this)" style="flex:1;text-align:center;">Easier</button>
+                    <button class="toggle-chip" data-group="set_${i}" data-value="harder" onclick="fuelToggle(this)" style="flex:1;text-align:center;">Harder</button>
+                </div>`;
+            el.appendChild(row);
+        }
+    }
+
+    function buildScoreSliders() {
+        document.getElementById('fuelScores').innerHTML = SCORE_FIELDS.map(f => `
+            <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <div style="font-size:13px;color:var(--text);font-weight:500;">${f.label}</div>
+                    <div id="${f.id}Val" style="font-size:16px;font-weight:800;color:var(--ocean-light);min-width:28px;text-align:right;">7</div>
+                </div>
+                <input type="range" id="${f.id}" min="1" max="10" value="7" step="1"
+                    oninput="document.getElementById('${f.id}Val').textContent=this.value;updateFuelSummaryPreview();">
+                <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-secondary);margin-top:4px;letter-spacing:0.3px;">
+                    <span>1 · Poor</span><span>10 · Great</span>
+                </div>
+            </div>`).join('');
+    }
+
+    // ── Form values ───────────────────────────────────────────────────────────
+
+    function getFuelFormValues() {
+        const dist = parseInt(document.getElementById('fuelDistance')?.value || 5);
+        const setCount = Math.min(Math.max(dist, 1), 10);
+        const sets = [];
+        for (let i = 1; i <= setCount; i++) {
+            const active = document.querySelector(`#fuelTestForm [data-group="set_${i}"].active`);
+            sets.push(active?.dataset.value || 'same');
+        }
+        return {
+            test_date:     document.getElementById('fuelDate').value || new Date().toISOString().slice(0,10),
+            spot_id:       document.getElementById('fuelSpot').value || null,
+            water_temp:    parseFloat(document.getElementById('fuelWaterTemp').value) || null,
+            session_type:  document.querySelector('#fuelTestForm [data-group="session_type"].active')?.dataset.value || 'sea',
+            distance_km:   parseFloat(document.getElementById('fuelDistance').value) || 5,
+            structure:     document.getElementById('fuelStructure').value || '5x1000m',
+            protocol:      document.querySelector('#fuelTestForm [data-group="protocol"].active')?.dataset.value || 'baseline',
+            intake_before: document.querySelector('#fuelTestForm [data-group="intake_before"].active')?.dataset.value || 'none',
+            intake_during: document.querySelector('#fuelTestForm [data-group="intake_during"].active')?.dataset.value || 'none',
+            intake_notes:  document.getElementById('fuelIntakeNotes').value || null,
+            set_efforts:   sets,
+            energy_consistency: parseInt(document.getElementById('fuelEnergy')?.value || 7),
+            perceived_effort:   parseInt(document.getElementById('fuelEffort')?.value || 7),
+            hydration_feeling:  parseInt(document.getElementById('fuelHydration')?.value || 7),
+            stomach_comfort:    parseInt(document.getElementById('fuelStomach')?.value || 7),
+            recovery:           parseInt(document.getElementById('fuelRecovery')?.value || 7),
+            stronger_finish: document.getElementById('flagStronger')?.classList.contains('active') || false,
+            faded_end:       document.getElementById('flagFaded')?.classList.contains('active') || false,
+            thirst:          document.getElementById('flagThirst')?.classList.contains('active') || false,
+            cramping:        document.getElementById('flagCramping')?.classList.contains('active') || false,
+            verdict: document.querySelector('#fuelTestForm .verdict-btn.active')?.dataset.value || 'better'
+        };
+    }
+
+    function generateFuelSummary(d) {
+        const spotName = spots.find(s => s.id === d.spot_id)?.name || 'Unknown location';
+        const proto = PROTOCOL_LABELS[d.protocol] || d.protocol;
+        const scores = [d.energy_consistency, d.perceived_effort, d.hydration_feeling, d.stomach_comfort, d.recovery];
+        const avg = (scores.reduce((a,b) => a+b,0) / scores.length).toFixed(1);
+        const flags = [];
+        if (d.stronger_finish) flags.push('strong finish');
+        if (d.faded_end)       flags.push('faded end');
+        if (d.thirst)          flags.push('thirst noted');
+        if (d.cramping)        flags.push('cramping');
+        let s = `${proto} · ${spotName}`;
+        if (d.water_temp) s += ` (${d.water_temp}°C)`;
+        s += ` · ${d.distance_km}km ${d.structure}. Avg score ${avg}/10`;
+        if (d.stomach_comfort <= 5) s += ' — stomach discomfort';
+        if (d.energy_consistency >= 8) s += ' · high energy consistency';
+        const effortCounts = d.set_efforts.reduce((acc,e) => { acc[e]=(acc[e]||0)+1; return acc; }, {});
+        if (effortCounts.harder > 1) s += ' · faded over sets';
+        if (effortCounts.easier > 1) s += ' · felt progressively easier';
+        if (flags.length) s += ` · ${flags.join(', ')}`;
+        s += `. Verdict: ${d.verdict}.`;
+        return s;
+    }
+
+    function updateFuelSummaryPreview() {
+        try {
+            const summary = generateFuelSummary(getFuelFormValues());
+            document.getElementById('fuelSummaryText').textContent = summary;
+            document.getElementById('fuelSummaryPreview').style.display = 'block';
+        } catch(e) { /* form not ready */ }
+    }
+
+    // ── Show/hide form ────────────────────────────────────────────────────────
+
+    function showFuelForm() {
+        document.getElementById('fuelDate').value = new Date().toISOString().slice(0,10);
+        const sel = document.getElementById('fuelSpot');
+        sel.innerHTML = '<option value="">— Select spot —</option>' +
+            spots.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        buildSetEffortRows(5);
+        buildScoreSliders();
+        updateFuelSummaryPreview();
+        document.getElementById('fuelTestForm').style.display = 'block';
+        document.getElementById('fuelTestHistory').style.display = 'none';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        initIcons();
+    }
+
+    function cancelFuelForm() {
+        document.getElementById('fuelTestForm').style.display = 'none';
+        document.getElementById('fuelTestHistory').style.display = 'block';
+    }
+
+    // ── Save ──────────────────────────────────────────────────────────────────
+
+    async function saveFuelTest() {
+        const btn = document.getElementById('fuelSaveBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader" style="width:15px;height:15px;"></i> Saving…';
+        initIcons();
+        try {
+            const d = getFuelFormValues();
+            d.auto_summary = generateFuelSummary(d);
+            d.user_id = currentUser.id;
+            const { error } = await supabaseClient.from('fuel_tests').insert(d);
+            if (error) throw error;
+            showToast('Test saved', 'success');
+            cancelFuelForm();
+            loadFuelTests();
+        } catch(e) {
+            showToast('Could not save: ' + e.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="save" style="width:16px;height:16px;"></i> Save Test';
+            initIcons();
+        }
+    }
+
+    // ── Load history ──────────────────────────────────────────────────────────
+
+    async function loadFuelTests() {
+        const el = document.getElementById('fuelTestHistory');
+        const { data, error } = await supabaseClient
+            .from('fuel_tests')
+            .select('*, spots(name)')
+            .eq('user_id', currentUser.id)
+            .order('test_date', { ascending: false })
+            .limit(50);
+
+        if (error || !data?.length) {
+            el.innerHTML = `<div style="text-align:center;color:var(--text-secondary);font-size:13px;padding:40px 0;">
+                <i data-lucide="clipboard-list" style="width:28px;height:28px;display:block;margin:0 auto 12px;opacity:0.3;"></i>
+                No tests yet — tap New Test to start tracking.
+            </div>`;
+            initIcons();
+            return;
+        }
+
+        // Protocol comparison
+        const byProto = {};
+        data.forEach(t => { (byProto[t.protocol] = byProto[t.protocol]||[]).push(t); });
+        const protos = Object.keys(byProto);
+        let html = '';
+
+        if (protos.length > 1) {
+            html += `<div class="card" style="margin-bottom:16px;">
+                <div class="section-label"><i data-lucide="git-compare" style="width:13px;height:13px;"></i> Protocol Comparison</div>
+                <div class="flex-col">`;
+            protos.forEach(p => {
+                const tests = byProto[p];
+                const avgStomach = (tests.reduce((s,t) => s+(t.stomach_comfort||7),0)/tests.length).toFixed(1);
+                const avgEnergy  = (tests.reduce((s,t) => s+(t.energy_consistency||7),0)/tests.length).toFixed(1);
+                const betterCount = tests.filter(t => t.verdict==='better').length;
+                html += `<div class="compare-row">
+                    <div>
+                        <div style="font-size:13px;font-weight:700;color:var(--text);">${PROTOCOL_LABELS[p]||p}</div>
+                        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${tests.length} test${tests.length!==1?'s':''}</div>
+                    </div>
+                    <div style="display:flex;gap:16px;text-align:right;">
+                        <div style="font-size:11px;color:var(--text-secondary);">Stomach<br><strong style="color:${avgStomach>=7?'var(--success)':'var(--warning)'};">${avgStomach}</strong></div>
+                        <div style="font-size:11px;color:var(--text-secondary);">Energy<br><strong style="color:var(--ocean-light);">${avgEnergy}</strong></div>
+                        <div style="font-size:11px;color:var(--text-secondary);">Better<br><strong style="color:var(--success);">${betterCount}/${tests.length}</strong></div>
+                    </div>
+                </div>`;
+            });
+            html += '</div></div>';
+        }
+
+        // Individual tests
+        data.forEach(t => {
+            const spotName = t.spots?.name || '—';
+            const dateStr  = new Date(t.test_date).toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' });
+            const verdict  = t.verdict || 'same';
+            const scores   = [t.energy_consistency, t.perceived_effort, t.hydration_feeling, t.stomach_comfort, t.recovery].filter(Boolean);
+            const avg      = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '—';
+            const flagsHtml = [
+                t.cramping       ? `<span style="font-size:11px;color:var(--danger);display:flex;align-items:center;gap:3px;"><i data-lucide="zap" style="width:11px;height:11px;"></i>cramping</span>` : '',
+                t.thirst         ? `<span style="font-size:11px;color:var(--warning);display:flex;align-items:center;gap:3px;"><i data-lucide="droplet" style="width:11px;height:11px;"></i>thirst</span>` : '',
+                t.stronger_finish? `<span style="font-size:11px;color:var(--success);display:flex;align-items:center;gap:3px;"><i data-lucide="trending-up" style="width:11px;height:11px;"></i>strong finish</span>` : '',
+                t.faded_end      ? `<span style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:3px;"><i data-lucide="trending-down" style="width:11px;height:11px;"></i>faded end</span>` : ''
+            ].filter(Boolean).join('');
+
+            html += `<div class="test-card">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+                    <div>
+                        <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:3px;">${PROTOCOL_LABELS[t.protocol]||t.protocol}</div>
+                        <div style="font-size:11px;color:var(--text-secondary);">${dateStr} · ${spotName}${t.water_temp ? ' · '+t.water_temp+'°C' : ''}</div>
+                    </div>
+                    <span class="verdict-pill ${verdict}">${verdict}</span>
+                </div>
+                <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:${flagsHtml||t.auto_summary?'10':'0'}px;">
+                    <div style="font-size:12px;color:var(--text-secondary);">Avg <strong style="color:var(--ocean-light);">${avg}/10</strong></div>
+                    <div style="font-size:12px;color:var(--text-secondary);">${t.distance_km}km ${t.structure||''}</div>
+                </div>
+                ${flagsHtml ? `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:${t.auto_summary?'10':'0'}px;">${flagsHtml}</div>` : ''}
+                ${t.auto_summary ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.5;border-top:1px solid var(--border);padding-top:10px;">${t.auto_summary}</div>` : ''}
+            </div>`;
+        });
+
+        el.innerHTML = html;
+        initIcons();
+    }
+
+    document.addEventListener('change', e => {
+        if (e.target.id === 'fuelDistance') {
+            buildSetEffortRows(Math.min(Math.max(parseInt(e.target.value)||5, 1), 10));
+        }
+    });
+
+    init();
+</script>
+</body>
+</html>
