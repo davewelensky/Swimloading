@@ -386,6 +386,12 @@
             document.getElementById('authScreen').style.display = 'none';
             document.getElementById('mainApp').style.display = 'block';
 
+            // Fuel tab — restricted to PH test participants only
+            const FUEL_USERS = ['df137255-3add-4153-b368-32e06e2be188','cff2fc33-4a55-451b-8c7f-20f12c1898ce'];
+            if (FUEL_USERS.includes(currentUser.id)) {
+                document.getElementById('fuelNavTab').style.display = '';
+            }
+
             // Load user avatar into header
             if (profile.avatar_url) {
                 updateHeaderAvatar(profile.avatar_url);
@@ -8112,7 +8118,7 @@
                     <button class="nav-tab" onclick="showPage('history')">Trends</button>
                     <button class="nav-tab" onclick="showPage('safety')">Safety</button>
                     <button class="nav-tab" onclick="showPage('leaderboard')">Board</button>
-                    <button class="nav-tab" onclick="showPage('fuelTest')">Fuel</button>
+                    <button class="nav-tab" id="fuelNavTab" style="display:none;" onclick="showPage('fuelTest')">Fuel</button>
                 </div>
                 <div class="nav-fade"></div>
             </div>
@@ -9116,6 +9122,8 @@
                 renderSafetyRegionalContent();
                 analytics.track('safety_viewed');
             } else if (page === 'fuelTest') {
+                const FUEL_USERS = ['df137255-3add-4153-b368-32e06e2be188','cff2fc33-4a55-451b-8c7f-20f12c1898ce'];
+                if (!currentUser || !FUEL_USERS.includes(currentUser.id)) { showPage('dashboard'); return; }
                 loadFuelTests();
                 analytics.track('fuel_test_viewed');
             }
