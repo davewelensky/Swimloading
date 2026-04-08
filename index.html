@@ -9505,9 +9505,12 @@
                         : Promise.resolve({ count: 0 })
                 ]);
 
-                const leader = data?.[0];
+                // Exclude data contributor from prize race
+                const CONTRIBUTOR_ID = '2f6666a5-e042-44a5-a08d-558d5791c5bd';
+                const eligible = (data || []).filter(r => r.user_id !== CONTRIBUTOR_ID);
+                const leader = eligible[0] || null;
                 const myCount = countRes?.count || 0;
-                const myRankIdx = data ? data.findIndex(r => r.user_id === currentUser?.id) : -1;
+                const myRankIdx = eligible.findIndex(r => r.user_id === currentUser?.id);
                 const myRank = myRankIdx >= 0 ? myRankIdx + 1 : null;
 
                 const leaderLine = leader
@@ -9532,7 +9535,7 @@
                 const isApril2026 = now.getFullYear() === 2026 && now.getMonth() === 3;
                 const challengeTitle = isApril2026 ? 'April Explorer Challenge' : `${monthName} Challenge`;
                 const challengeSubtitle = isApril2026 ? '2× pts outside CT · Win Maurten Gel 100s' : 'Log the most temps · Win the prize';
-                const myPoints = myRankIdx >= 0 ? data[myRankIdx].total_points : 0;
+                const myPoints = myRankIdx >= 0 ? eligible[myRankIdx].total_points : 0;
                 const ptGap = leader && leader.user_id !== currentUser?.id && myPoints < leader.total_points
                     ? leader.total_points - myPoints : 0;
                 const ptGapLine = ptGap > 0
@@ -9541,8 +9544,8 @@
                         ? `<div style="font-size:12px;color:#10b981;font-weight:600;margin-top:6px;">You're leading — hold on! 🌊</div>`
                         : '';
 
-                // Build top-3 mini leaderboard
-                const top3 = (data || []).slice(0, 3);
+                // Build top-3 mini leaderboard (eligible swimmers only)
+                const top3 = eligible.slice(0, 3);
                 const top3html = top3.length > 0 ? top3.map((r, i) => {
                     const isMe = currentUser && r.user_id === currentUser.id;
                     const medals = ['🥇','🥈','🥉'];
@@ -9659,21 +9662,48 @@
         }
 
         function renderLeaderboardList(data, pointsField) {
+            const CONTRIBUTOR_ID = '2f6666a5-e042-44a5-a08d-558d5791c5bd';
+            const contributor = data.find(r => r.user_id === CONTRIBUTOR_ID);
+            const eligible    = data.filter(r => r.user_id !== CONTRIBUTOR_ID);
             const medals = ['🥇', '🥈', '🥉'];
-            return data.map((row, i) => {
-                const name = row.profiles?.display_name || 'Anonymous Swimmer';
-                const points = row[pointsField] || 0;
-                const medal = medals[i] || `${i + 1}.`;
-                const isTop3 = i < 3;
+            let html = '';
 
-                return `<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; ${isTop3 ? 'background: rgba(56, 189, 248, 0.1);' : ''} border-radius: 8px; margin-bottom: 8px;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: ${isTop3 ? '20px' : '14px'}; width: 30px; text-align: center;">${medal}</span>
-                        <span style="color: var(--text-primary); font-weight: ${isTop3 ? '600' : '400'};">${name}</span>
+            // Data contributor card — shown at top, outside the race
+            if (contributor) {
+                const name   = contributor.profiles?.display_name || 'Anonymous Swimmer';
+                const points = contributor[pointsField] || 0;
+                html += `<div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);border-radius:10px;padding:12px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="font-size:18px;">📡</span>
+                        <div>
+                            <div style="font-size:13px;font-weight:700;color:var(--text-primary);">${name}</div>
+                            <div style="font-size:11px;color:var(--ocean-light);margin-top:1px;">Community Data Contributor · not competing for prize</div>
+                        </div>
                     </div>
-                    <span style="color: var(--ocean-light); font-weight: 700;">${points.toLocaleString()} pts</span>
+                    <span style="font-size:13px;font-weight:700;color:var(--text-secondary);">${points.toLocaleString()} pts</span>
                 </div>`;
-            }).join('');
+            }
+
+            // Prize race — ranked list of eligible swimmers
+            if (eligible.length === 0) {
+                html += `<div style="text-align:center;color:var(--text-secondary);padding:16px 0;font-size:13px;">No eligible swimmers yet — log a temp to enter!</div>`;
+            } else {
+                html += eligible.map((row, i) => {
+                    const name   = row.profiles?.display_name || 'Anonymous Swimmer';
+                    const points = row[pointsField] || 0;
+                    const medal  = medals[i] || `${i + 1}.`;
+                    const isTop3 = i < 3;
+                    const isMe   = currentUser && row.user_id === currentUser.id;
+                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px;${isTop3 ? 'background:rgba(56,189,248,0.1);' : ''}border-radius:8px;margin-bottom:8px;">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <span style="font-size:${isTop3 ? '20px' : '14px'};width:30px;text-align:center;">${medal}</span>
+                            <span style="color:var(--text-primary);font-weight:${isTop3 ? '700' : '400'};">${name}${isMe ? ' <span style="font-size:11px;color:var(--ocean-light);font-weight:600;">(you)</span>' : ''}</span>
+                        </div>
+                        <span style="color:var(--ocean-light);font-weight:700;">${points.toLocaleString()} pts</span>
+                    </div>`;
+                }).join('');
+            }
+            return html;
         }
 
         // Helper to send a notification
