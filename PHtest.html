@@ -80,6 +80,14 @@
         .verdict-pill.same   { background: rgba(148,163,184,0.1); color: var(--text-secondary); }
         .verdict-pill.worse  { background: rgba(239,68,68,0.1);   color: var(--danger); }
 
+        /* Category badge colours */
+        .cat-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 10px; border-radius: 20px; display: inline-flex; align-items: center; }
+        .cat-badge.hydration            { background: rgba(14,165,233,0.15);  color: var(--ocean-light); }
+        .cat-badge.fuel                 { background: rgba(245,158,11,0.15);  color: var(--warning); }
+        .cat-badge.combined             { background: rgba(167,139,250,0.15); color: var(--purple); }
+        .cat-badge.baseline             { background: rgba(100,116,139,0.2);  color: #94a3b8; }
+        .cat-badge.custom_review_needed { background: rgba(239,68,68,0.1);   color: var(--danger); }
+
         .test-card { background: rgba(255,255,255,0.02); border-radius: 12px; padding: 14px 16px; margin-bottom: 8px; border: 1px solid var(--border); }
 
         .summary-box { background: rgba(14,165,233,0.05); border: 1px solid rgba(14,165,233,0.2); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
@@ -96,6 +104,26 @@
         .flex-col { display: flex; flex-direction: column; gap: 8px; }
 
         .chart-wrap { position: relative; height: 200px; margin-top: 8px; }
+
+        /* Score hint text */
+        .score-hint { font-size: 11px; color: var(--text-secondary); line-height: 1.4; margin-top: 4px; }
+
+        /* Delta display */
+        .delta-panel { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+        .delta-chip { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 10px; display: inline-flex; align-items: center; gap: 3px; }
+        .delta-pos  { background: rgba(34,197,94,0.12);   color: var(--success); }
+        .delta-zero { background: rgba(245,158,11,0.1);   color: var(--warning); }
+        .delta-neg  { background: rgba(239,68,68,0.1);    color: var(--danger); }
+
+        /* Category chip active states */
+        .cat-chip.active[data-value="hydration"]            { background: rgba(14,165,233,0.15);  border-color: rgba(14,165,233,0.4);  color: var(--ocean-light); }
+        .cat-chip.active[data-value="fuel"]                 { background: rgba(245,158,11,0.15);  border-color: rgba(245,158,11,0.4);  color: var(--warning); }
+        .cat-chip.active[data-value="combined"]             { background: rgba(167,139,250,0.15); border-color: rgba(167,139,250,0.4); color: var(--purple); }
+        .cat-chip.active[data-value="baseline"]             { background: rgba(100,116,139,0.2);  border-color: rgba(100,116,139,0.4); color: #94a3b8; }
+
+        /* Filter chips on dashboard */
+        .filter-chip { padding: 7px 16px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+        .filter-chip.active { background: rgba(14,165,233,0.12); border-color: rgba(14,165,233,0.4); color: var(--ocean-light); }
     </style>
 </head>
 <body>
@@ -177,70 +205,102 @@
 
         <!-- FORM -->
         <div id="fuelTestForm" style="display:none;">
+
+            <!-- S0 — Test Category -->
             <div class="card">
-                <div class="section-label"><i data-lucide="calendar" style="width:13px;height:13px;"></i> Session</div>
+                <div class="section-label"><i data-lucide="tag" style="width:13px;height:13px;"></i> S0 — Test Category</div>
+                <div class="flex-wrap" style="margin-bottom:10px;">
+                    <button class="toggle-chip cat-chip" data-group="test_category" data-value="hydration"  onclick="fuelToggle(this)">Hydration Only</button>
+                    <button class="toggle-chip cat-chip" data-group="test_category" data-value="fuel"       onclick="fuelToggle(this)">Fuelling</button>
+                    <button class="toggle-chip cat-chip" data-group="test_category" data-value="combined"   onclick="fuelToggle(this)">Hydration + Fuel</button>
+                    <button class="toggle-chip cat-chip" data-group="test_category" data-value="baseline"   onclick="fuelToggle(this)">Baseline</button>
+                </div>
+                <div style="font-size:11px;color:var(--text-secondary);line-height:1.5;padding:8px 10px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.15);border-radius:8px;">
+                    Electrolytes ≠ carbs. Hydration testing is not fuelling testing.
+                </div>
+            </div>
+
+            <!-- S1 — Session -->
+            <div class="card">
+                <div class="section-label"><i data-lucide="calendar" style="width:13px;height:13px;"></i> S1 — Session</div>
                 <div class="grid-2" style="margin-bottom:10px;">
                     <div><div class="field-label">Date</div><input type="date" id="fuelDate"></div>
                     <div><div class="field-label">Water temp (°C)</div><input type="number" id="fuelWaterTemp" placeholder="e.g. 16" min="8" max="32" step="0.5"></div>
                 </div>
-                <div style="margin-bottom:10px;"><div class="field-label">Location</div><select id="fuelSpot"><option value="">— Select spot —</option></select></div>
+                <div class="grid-2" style="margin-bottom:10px;">
+                    <div><div class="field-label">Air temp °C (optional)</div><input type="number" id="fuelAirTemp" placeholder="e.g. 22" min="-5" max="50" step="0.5"></div>
+                    <div><div class="field-label">Location</div><select id="fuelSpot"><option value="">— Select spot —</option></select></div>
+                </div>
                 <div class="grid-2" style="margin-bottom:12px;">
                     <div><div class="field-label">Distance (km)</div><input type="number" id="fuelDistance" value="5" min="1" max="50" step="0.5"></div>
-                    <div><div class="field-label">Structure</div><input type="text" id="fuelStructure" value="5x1000m" placeholder="e.g. 5x1000m"></div>
+                    <div><div class="field-label">Structure</div><input type="text" id="fuelStructure" value="5 x 1000m" placeholder="e.g. 5 x 1000m"></div>
                 </div>
                 <div><div class="field-label">Session type</div>
                     <div class="flex-row">
-                        <button class="toggle-btn active" data-group="session_type" data-value="sea" onclick="fuelToggle(this)" style="flex:1;"><i data-lucide="waves" style="width:15px;height:15px;"></i> Sea</button>
-                        <button class="toggle-btn" data-group="session_type" data-value="pool" onclick="fuelToggle(this)" style="flex:1;"><i data-lucide="droplets" style="width:15px;height:15px;"></i> Pool</button>
+                        <button class="toggle-btn" data-group="session_type" data-value="sea"  onclick="fuelToggle(this)" style="flex:1;"><i data-lucide="waves" style="width:15px;height:15px;"></i> Sea</button>
+                        <button class="toggle-btn active" data-group="session_type" data-value="pool" onclick="fuelToggle(this)" style="flex:1;"><i data-lucide="droplets" style="width:15px;height:15px;"></i> Pool</button>
                     </div>
                 </div>
             </div>
 
+            <!-- S2 — Protocol -->
             <div class="card">
-                <div class="section-label"><i data-lucide="beaker" style="width:13px;height:13px;"></i> Protocol</div>
+                <div class="section-label"><i data-lucide="beaker" style="width:13px;height:13px;"></i> S2 — Protocol</div>
                 <div class="flex-col">
-                    <button class="toggle-btn active" data-group="protocol" data-value="baseline" onclick="fuelToggle(this)"><i data-lucide="ban" style="width:14px;height:14px;"></i> Baseline — No intake</button>
-                    <button class="toggle-btn" data-group="protocol" data-value="ph500_during" onclick="fuelToggle(this)"><i data-lucide="activity" style="width:14px;height:14px;"></i> PH500 During</button>
-                    <button class="toggle-btn" data-group="protocol" data-value="ph1500_preload" onclick="fuelToggle(this)"><i data-lucide="battery-charging" style="width:14px;height:14px;"></i> PH1500 Preload</button>
-                    <button class="toggle-btn" data-group="protocol" data-value="ph1500_ph500" onclick="fuelToggle(this)"><i data-lucide="layers" style="width:14px;height:14px;"></i> PH1500 + PH500</button>
-                    <button class="toggle-btn" data-group="protocol" data-value="fuel_test" onclick="fuelToggle(this)"><i data-lucide="package" style="width:14px;height:14px;"></i> Fuel Test — Gel / Chew</button>
+                    <button class="toggle-btn" data-group="protocol" data-value="baseline"       onclick="protocolToggle(this)"><i data-lucide="ban" style="width:14px;height:14px;"></i> Baseline (Water Only)</button>
+                    <button class="toggle-btn" data-group="protocol" data-value="ph500_during"   onclick="protocolToggle(this)"><i data-lucide="activity" style="width:14px;height:14px;"></i> PH500 During</button>
+                    <button class="toggle-btn" data-group="protocol" data-value="ph1500_preload" onclick="protocolToggle(this)"><i data-lucide="battery-charging" style="width:14px;height:14px;"></i> PH1500 Preload</button>
+                    <button class="toggle-btn" data-group="protocol" data-value="ph1500_ph500"   onclick="protocolToggle(this)"><i data-lucide="layers" style="width:14px;height:14px;"></i> PH1500 + PH500</button>
+                    <button class="toggle-btn" data-group="protocol" data-value="gel_during"     onclick="protocolToggle(this)"><i data-lucide="package" style="width:14px;height:14px;"></i> Gel During</button>
+                    <button class="toggle-btn" data-group="protocol" data-value="chew_during"    onclick="protocolToggle(this)"><i data-lucide="package" style="width:14px;height:14px;"></i> Chew During</button>
+                    <button class="toggle-btn" data-group="protocol" data-value="ph500_gel"      onclick="protocolToggle(this)"><i data-lucide="layers" style="width:14px;height:14px;"></i> PH500 + Gel</button>
+                    <button class="toggle-btn" data-group="protocol" data-value="custom"         onclick="protocolToggle(this)"><i data-lucide="sliders" style="width:14px;height:14px;"></i> Custom</button>
                 </div>
             </div>
 
+            <!-- S3 — Intake -->
             <div class="card">
-                <div class="section-label"><i data-lucide="cup-soda" style="width:13px;height:13px;"></i> Intake</div>
+                <div class="section-label"><i data-lucide="cup-soda" style="width:13px;height:13px;"></i> S3 — Intake</div>
                 <div style="margin-bottom:14px;"><div class="field-label" style="margin-bottom:8px;">Before</div>
                     <div class="flex-wrap">
-                        <button class="toggle-chip active" data-group="intake_before" data-value="none" onclick="fuelToggle(this)">None</button>
-                        <button class="toggle-chip" data-group="intake_before" data-value="PH1500" onclick="fuelToggle(this)">PH1500</button>
-                        <button class="toggle-chip" data-group="intake_before" data-value="PH500" onclick="fuelToggle(this)">PH500</button>
-                        <button class="toggle-chip" data-group="intake_before" data-value="other" onclick="fuelToggle(this)">Other</button>
+                        <button class="toggle-chip active" data-group="intake_before" data-value="none"   onclick="fuelToggle(this)">None</button>
+                        <button class="toggle-chip"        data-group="intake_before" data-value="water"  onclick="fuelToggle(this)">Water</button>
+                        <button class="toggle-chip"        data-group="intake_before" data-value="PH1500" onclick="fuelToggle(this)">PH1500</button>
+                        <button class="toggle-chip"        data-group="intake_before" data-value="PH500"  onclick="fuelToggle(this)">PH500</button>
+                        <button class="toggle-chip"        data-group="intake_before" data-value="gel"    onclick="fuelToggle(this)">Gel</button>
+                        <button class="toggle-chip"        data-group="intake_before" data-value="chew"   onclick="fuelToggle(this)">Chew</button>
+                        <button class="toggle-chip"        data-group="intake_before" data-value="other"  onclick="fuelToggle(this)">Other</button>
                     </div>
                 </div>
                 <div style="margin-bottom:14px;"><div class="field-label" style="margin-bottom:8px;">During</div>
                     <div class="flex-wrap">
-                        <button class="toggle-chip active" data-group="intake_during" data-value="none" onclick="fuelToggle(this)">None</button>
-                        <button class="toggle-chip" data-group="intake_during" data-value="PH500" onclick="fuelToggle(this)">PH500</button>
-                        <button class="toggle-chip" data-group="intake_during" data-value="water" onclick="fuelToggle(this)">Water</button>
-                        <button class="toggle-chip" data-group="intake_during" data-value="gel" onclick="fuelToggle(this)">Gel</button>
-                        <button class="toggle-chip" data-group="intake_during" data-value="chew" onclick="fuelToggle(this)">Chew</button>
+                        <button class="toggle-chip active" data-group="intake_during" data-value="none"   onclick="fuelToggle(this)">None</button>
+                        <button class="toggle-chip"        data-group="intake_during" data-value="water"  onclick="fuelToggle(this)">Water</button>
+                        <button class="toggle-chip"        data-group="intake_during" data-value="PH500"  onclick="fuelToggle(this)">PH500</button>
+                        <button class="toggle-chip"        data-group="intake_during" data-value="PH1500" onclick="fuelToggle(this)">PH1500</button>
+                        <button class="toggle-chip"        data-group="intake_during" data-value="gel"    onclick="fuelToggle(this)">Gel</button>
+                        <button class="toggle-chip"        data-group="intake_during" data-value="chew"   onclick="fuelToggle(this)">Chew</button>
+                        <button class="toggle-chip"        data-group="intake_during" data-value="other"  onclick="fuelToggle(this)">Other</button>
                     </div>
                 </div>
                 <div><div class="field-label">Notes (optional)</div><textarea id="fuelIntakeNotes" placeholder="Timing, amounts, anything unusual" rows="2"></textarea></div>
             </div>
 
+            <!-- S4 — Per-set effort -->
             <div class="card">
-                <div class="section-label"><i data-lucide="trending-up" style="width:13px;height:13px;"></i> Per Set — Effort Feel</div>
+                <div class="section-label"><i data-lucide="trending-up" style="width:13px;height:13px;"></i> S4 — Per Set — Effort Feel</div>
                 <div id="fuelSetEfforts" class="flex-col"></div>
             </div>
 
+            <!-- S5 — Session Scores -->
             <div class="card">
-                <div class="section-label"><i data-lucide="bar-chart-2" style="width:13px;height:13px;"></i> Session Scores</div>
+                <div class="section-label"><i data-lucide="bar-chart-2" style="width:13px;height:13px;"></i> S5 — Session Scores</div>
                 <div id="fuelScores" class="flex-col"></div>
             </div>
 
+            <!-- S6 — Flags -->
             <div class="card">
-                <div class="section-label"><i data-lucide="flag" style="width:13px;height:13px;"></i> Flags</div>
+                <div class="section-label"><i data-lucide="flag" style="width:13px;height:13px;"></i> S6 — Flags</div>
                 <div class="grid-2">
                     <button id="flagStronger" class="toggle-btn" onclick="toggleFlag(this)" style="justify-content:center;"><i data-lucide="trending-up" style="width:14px;height:14px;"></i> Stronger finish</button>
                     <button id="flagFaded"    class="toggle-btn" onclick="toggleFlag(this)" style="justify-content:center;"><i data-lucide="trending-down" style="width:14px;height:14px;"></i> Faded end</button>
@@ -249,11 +309,12 @@
                 </div>
             </div>
 
+            <!-- S7 — Verdict -->
             <div class="card">
-                <div class="section-label"><i data-lucide="check-circle" style="width:13px;height:13px;"></i> Verdict vs Baseline</div>
+                <div class="section-label"><i data-lucide="check-circle" style="width:13px;height:13px;"></i> S7 — Verdict vs Baseline</div>
                 <div class="flex-row">
-                    <button class="verdict-btn worse" data-group="verdict" data-value="worse" onclick="verdictToggle(this)"><i data-lucide="thumbs-down" style="width:15px;height:15px;"></i> Worse</button>
-                    <button class="verdict-btn same"  data-group="verdict" data-value="same"  onclick="verdictToggle(this)"><i data-lucide="minus" style="width:15px;height:15px;"></i> Same</button>
+                    <button class="verdict-btn worse" data-group="verdict" data-value="worse"  onclick="verdictToggle(this)"><i data-lucide="thumbs-down" style="width:15px;height:15px;"></i> Worse</button>
+                    <button class="verdict-btn same"  data-group="verdict" data-value="same"   onclick="verdictToggle(this)"><i data-lucide="minus" style="width:15px;height:15px;"></i> Same</button>
                     <button class="verdict-btn better active" data-group="verdict" data-value="better" onclick="verdictToggle(this)"><i data-lucide="thumbs-up" style="width:15px;height:15px;"></i> Better</button>
                 </div>
             </div>
@@ -267,7 +328,7 @@
                 <button class="btn-ghost" onclick="cancelFuelForm()">Cancel</button>
                 <button id="fuelSaveBtn" class="btn-primary" onclick="saveFuelTest()" style="flex:2;"><i data-lucide="save" style="width:16px;height:16px;"></i> Save Test</button>
             </div>
-        </div>
+        </div><!-- /form -->
 
         <!-- HISTORY -->
         <div id="fuelTestHistory">
@@ -290,23 +351,49 @@
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     let currentUser = null;
     let spots = [];
+    let carinaBaseline = null;
 
     const PROTOCOL_LABELS = {
-        baseline:       'Baseline',
+        baseline:       'Baseline (Water Only)',
         ph500_during:   'PH500 During',
         ph1500_preload: 'PH1500 Preload',
         ph1500_ph500:   'PH1500 + PH500',
-        fuel_test:      'Fuel (Gel/Chew)'
+        fuel_test:      'Fuel (Gel/Chew)',
+        gel_during:     'Gel During',
+        chew_during:    'Chew During',
+        ph500_gel:      'PH500 + Gel',
+        custom:         'Custom'
     };
-    const PROTOCOL_ORDER = ['baseline','ph500_during','ph1500_preload','ph1500_ph500','fuel_test'];
+
+    const PROTOCOL_CATEGORY = {
+        baseline:       'baseline',
+        ph500_during:   'hydration',
+        ph1500_preload: 'hydration',
+        ph1500_ph500:   'hydration',
+        fuel_test:      'fuel',
+        gel_during:     'fuel',
+        chew_during:    'fuel',
+        ph500_gel:      'combined',
+        custom:         null
+    };
+
+    const CATEGORY_LABELS = {
+        hydration:            'Hydration Only',
+        fuel:                 'Fuelling',
+        combined:             'Hydration + Fuel',
+        baseline:             'Baseline',
+        custom_review_needed: 'Review Needed'
+    };
 
     const SCORE_FIELDS = [
-        { id:'fuelEnergy',    label:'Energy consistency' },
-        { id:'fuelEffort',    label:'Perceived effort' },
-        { id:'fuelHydration', label:'Hydration feeling' },
-        { id:'fuelStomach',   label:'Stomach comfort' },
-        { id:'fuelRecovery',  label:'Recovery' }
+        { id:'fuelEnergy',    key:'energy_consistency', label:'Energy',    hint:'10 = strong all the way / stronger at the end  ·  5 = noticeable drop-off  ·  1 = severe fatigue', invertGood: false },
+        { id:'fuelHydration', key:'hydration_feeling',  label:'Hydration', hint:'10 = well hydrated, no thirst  ·  5 = somewhat dry  ·  1 = thirsty / clearly under-hydrated', invertGood: false },
+        { id:'fuelStomach',   key:'stomach_comfort',    label:'Stomach',   hint:'10 = no discomfort at all  ·  5 = mild discomfort  ·  1 = significant discomfort / nausea', invertGood: false },
+        { id:'fuelEffort',    key:'perceived_effort',   label:'Effort',    hint:'10 = very hard session  ·  5 = moderate  ·  1 = unusually easy  ·  Note: lower is not always better', invertGood: true },
+        { id:'fuelRecovery',  key:'recovery',           label:'Recovery',  hint:'10 = recovered well within 1 hour  ·  5 = average  ·  1 = poor / lingering fatigue', invertGood: false }
     ];
+
+    const PROTOCOL_ORDER = ['baseline','ph500_during','ph1500_preload','ph1500_ph500','gel_during','chew_during','ph500_gel','custom'];
 
     function initIcons() { if (window.lucide) lucide.createIcons(); }
 
@@ -352,9 +439,12 @@
         document.getElementById('authScreen').style.display = 'none';
         document.getElementById('appView').style.display = 'block';
         document.getElementById('userPill').textContent = currentUser.id === DAVE_ID ? 'Dave' : 'Carina';
-        const { data } = await supabaseClient.from('spots').select('id,name').order('name');
-        spots = data || [];
-        // Dave defaults to Results, Carina defaults to Log
+        const [spotsRes, baselineRes] = await Promise.all([
+            supabaseClient.from('spots').select('id,name').order('name'),
+            supabaseClient.from('athlete_baselines').select('*').eq('athlete_name','Carina').single()
+        ]);
+        spots = spotsRes.data || [];
+        carinaBaseline = baselineRes.data || null;
         switchTab(currentUser.id === DAVE_ID ? 'results' : 'log');
         initIcons();
     }
@@ -380,7 +470,61 @@
         setTimeout(() => { el.className = 'toast'; }, 3000);
     }
 
+    // ─────────────────────────────────────────── BASELINE HELPERS ──────────────
+
+    function baselineMidpoints() {
+        if (!carinaBaseline) return null;
+        const b = carinaBaseline;
+        return {
+            energy_consistency: (b.baseline_energy_min    + b.baseline_energy_max)    / 2,
+            hydration_feeling:  (b.baseline_hydration_min + b.baseline_hydration_max) / 2,
+            stomach_comfort:    (b.baseline_stomach_min   + b.baseline_stomach_max)   / 2,
+            perceived_effort:   (b.baseline_effort_min    + b.baseline_effort_max)    / 2,
+            recovery:           (b.baseline_recovery_min  + b.baseline_recovery_max)  / 2,
+        };
+    }
+
+    function computeDeltas(testRow) {
+        const mp = baselineMidpoints();
+        if (!mp) return null;
+        const deltas = {};
+        SCORE_FIELDS.forEach(f => {
+            const val = testRow[f.key];
+            if (val == null) return;
+            if (f.invertGood) {
+                // lower effort = better (if energy maintained)
+                deltas[f.key] = mp[f.key] - val;
+            } else {
+                deltas[f.key] = val - mp[f.key];
+            }
+        });
+        return deltas;
+    }
+
+    function deltaPanelHtml(testRow) {
+        const deltas = computeDeltas(testRow);
+        if (!deltas) return '';
+        let html = '<div class="delta-panel">';
+        SCORE_FIELDS.forEach(f => {
+            const d = deltas[f.key];
+            if (d == null) return;
+            const cls = d > 0.5 ? 'delta-pos' : d >= -0.5 ? 'delta-zero' : 'delta-neg';
+            const sign = d > 0 ? '+' : '';
+            html += `<span class="delta-chip ${cls}">${f.label} ${sign}${d.toFixed(1)}</span>`;
+        });
+        html += '</div>';
+        return html;
+    }
+
+    function catBadgeHtml(cat) {
+        if (!cat) return '';
+        const label = CATEGORY_LABELS[cat] || cat;
+        return `<span class="cat-badge ${cat}">${label}</span>`;
+    }
+
     // ─────────────────────────────────────────────── DAVE'S DASHBOARD ─────────
+
+    let dashFilterCat = 'all';
 
     async function loadDashboard() {
         const el = document.getElementById('dashboardContent');
@@ -398,42 +542,69 @@
             initIcons(); return;
         }
 
+        renderDashboard(data, el);
+    }
+
+    function renderDashboard(allData, el) {
+        // Apply category filter
+        const data = dashFilterCat === 'all' ? allData
+            : allData.filter(t => (t.test_category || 'hydration') === dashFilterCat);
+
         const byProto = {};
         PROTOCOL_ORDER.forEach(p => { byProto[p] = []; });
-        data.forEach(t => { if (byProto[t.protocol]) byProto[t.protocol].push(t); });
+        allData.forEach(t => { if (byProto[t.protocol] !== undefined) byProto[t.protocol].push(t); });
         const usedProtos = PROTOCOL_ORDER.filter(p => byProto[p].length > 0);
 
         function avg(arr, key) {
             const vals = arr.map(t => t[key]).filter(v => v != null);
             return vals.length ? vals.reduce((a,b) => a+b,0)/vals.length : null;
         }
-        function pct(arr, key) {
-            return arr.length ? Math.round(arr.filter(t => t[key]).length / arr.length * 100) : 0;
-        }
 
-        const totalTests  = data.length;
-        const betterCount = data.filter(t => t.verdict === 'better').length;
-        const worseCount  = data.filter(t => t.verdict === 'worse').length;
-        const dateRange   = `${new Date(data[0].test_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short'})} – ${new Date(data[data.length-1].test_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})}`;
+        const totalTests     = allData.length;
+        const betterCount    = allData.filter(t => t.verdict === 'better').length;
+        const hydrationTests = allData.filter(t => t.test_category === 'hydration').length;
+        const fuelTests      = allData.filter(t => t.test_category === 'fuel' || t.test_category === 'combined').length;
+        const protocolsCount = usedProtos.length;
+        const withDeltas     = carinaBaseline ? allData.length : 0;
+
+        const dateRange = allData.length >= 2
+            ? `${new Date(allData[0].test_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short'})} – ${new Date(allData[allData.length-1].test_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})}`
+            : new Date(allData[0].test_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
 
         let html = '';
 
-        // Overview strip
+        // Overview strip (6 cells in 2 rows of 3)
         html += `<div class="card">
             <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;display:flex;align-items:center;gap:6px;">
                 <i data-lucide="calendar-range" style="width:13px;height:13px;"></i> ${dateRange}
             </div>
-            <div class="stat-grid">
-                <div class="stat-cell"><div class="stat-num">${totalTests}</div><div class="stat-lbl">Tests logged</div></div>
+            <div class="stat-grid" style="margin-bottom:8px;">
+                <div class="stat-cell"><div class="stat-num">${totalTests}</div><div class="stat-lbl">Total tests</div></div>
                 <div class="stat-cell"><div class="stat-num green">${betterCount}</div><div class="stat-lbl">Better verdict</div></div>
-                <div class="stat-cell"><div class="stat-num" style="color:var(--warning);">${usedProtos.length}</div><div class="stat-lbl">Protocols tested</div></div>
+                <div class="stat-cell"><div class="stat-num" style="color:var(--ocean-light);">${hydrationTests}</div><div class="stat-lbl">Hydration tests</div></div>
+            </div>
+            <div class="stat-grid">
+                <div class="stat-cell"><div class="stat-num" style="color:var(--warning);">${fuelTests}</div><div class="stat-lbl">Fuel tests</div></div>
+                <div class="stat-cell"><div class="stat-num" style="color:var(--purple);">${protocolsCount}</div><div class="stat-lbl">Protocols tested</div></div>
+                <div class="stat-cell"><div class="stat-num" style="color:var(--success);">${withDeltas}</div><div class="stat-lbl">With baseline Δ</div></div>
             </div>
         </div>`;
 
-        // Protocol score comparison
+        // Category filters
+        html += `<div class="card" style="padding:12px 16px;">
+            <div class="section-label" style="margin-bottom:10px;"><i data-lucide="filter" style="width:12px;height:12px;"></i> Filter by Category</div>
+            <div class="flex-wrap" id="dashCatFilters">
+                <button class="filter-chip ${dashFilterCat==='all'?'active':''}" onclick="setDashFilter('all',${JSON.stringify(allData).replace(/</g,'&lt;')})">All</button>
+                <button class="filter-chip ${dashFilterCat==='hydration'?'active':''}" onclick="setDashFilterStr('hydration')">Hydration Only</button>
+                <button class="filter-chip ${dashFilterCat==='fuel'?'active':''}" onclick="setDashFilterStr('fuel')">Fuelling</button>
+                <button class="filter-chip ${dashFilterCat==='baseline'?'active':''}" onclick="setDashFilterStr('baseline')">Baseline</button>
+            </div>
+        </div>`;
+
+        // Protocol comparison chart
         if (usedProtos.length > 1) {
-            const scoreKeys = ['energy_consistency','hydration_feeling','stomach_comfort','perceived_effort','recovery'];
-            const scoreLabels = ['Energy','Hydration','Stomach','Effort','Recovery'];
+            const scoreKeys   = SCORE_FIELDS.map(f => f.key);
+            const scoreLabels = SCORE_FIELDS.map(f => f.label);
 
             html += `<div class="card">
                 <div class="section-label"><i data-lucide="bar-chart-2" style="width:13px;height:13px;"></i> Score Comparison by Protocol</div>
@@ -446,13 +617,11 @@
                 <div class="flex-col">`;
             usedProtos.forEach(p => {
                 const tests = byProto[p];
-                const better = tests.filter(t => t.verdict==='better').length;
-                const same   = tests.filter(t => t.verdict==='same').length;
-                const worse  = tests.filter(t => t.verdict==='worse').length;
+                const better   = tests.filter(t => t.verdict==='better').length;
                 const pctBetter = Math.round(better/tests.length*100);
                 html += `<div class="proto-row">
                     <div style="min-width:130px;">
-                        <div style="font-size:13px;font-weight:700;color:var(--text);">${PROTOCOL_LABELS[p]}</div>
+                        <div style="font-size:13px;font-weight:700;color:var(--text);">${PROTOCOL_LABELS[p]||p}</div>
                         <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${tests.length} test${tests.length!==1?'s':''}</div>
                     </div>
                     <div class="score-bar-wrap"><div class="score-bar" style="width:${pctBetter}%;background:${pctBetter>=50?'var(--success)':'var(--warning)'};"></div></div>
@@ -460,41 +629,10 @@
                 </div>`;
             });
             html += `</div></div>`;
-
-            // Flags heatmap
-            const flagDefs = [
-                { key:'stronger_finish', label:'Stronger finish', icon:'trending-up',   color:'var(--success)' },
-                { key:'faded_end',       label:'Faded end',       icon:'trending-down',  color:'var(--text-secondary)' },
-                { key:'thirst',          label:'Thirst',          icon:'droplet',        color:'var(--warning)' },
-                { key:'cramping',        label:'Cramping',        icon:'zap',            color:'var(--danger)' },
-            ];
-            html += `<div class="card">
-                <div class="section-label"><i data-lucide="flag" style="width:13px;height:13px;"></i> Flag Frequency by Protocol</div>
-                <div style="overflow-x:auto;">
-                <table style="width:100%;border-collapse:collapse;font-size:12px;">
-                    <thead>
-                        <tr>
-                            <th style="text-align:left;padding:6px 8px 10px 0;color:var(--text-secondary);font-weight:600;"></th>`;
-            usedProtos.forEach(p => {
-                html += `<th style="text-align:center;padding:6px 6px 10px;color:var(--text-secondary);font-weight:600;">${PROTOCOL_LABELS[p]}</th>`;
-            });
-            html += `</tr></thead><tbody>`;
-            flagDefs.forEach(f => {
-                html += `<tr><td style="padding:8px 8px 8px 0;color:var(--text-secondary);display:flex;align-items:center;gap:5px;white-space:nowrap;">
-                    <i data-lucide="${f.icon}" style="width:12px;height:12px;color:${f.color};"></i>${f.label}</td>`;
-                usedProtos.forEach(p => {
-                    const tests = byProto[p];
-                    const n = tests.filter(t => t[f.key]).length;
-                    const pct = tests.length ? Math.round(n/tests.length*100) : 0;
-                    const bg = pct >= 50 ? 'rgba(239,68,68,0.15)' : pct > 0 ? 'rgba(245,158,11,0.1)' : 'transparent';
-                    html += `<td style="text-align:center;padding:6px;background:${bg};border-radius:6px;color:${pct>=50?'var(--danger)':pct>0?'var(--warning)':'var(--text-secondary)'};">${n>0?pct+'%':'—'}</td>`;
-                });
-                html += `</tr>`;
-            });
-            html += `</tbody></table></div></div>`;
         }
 
-        // Avg scores per protocol (table)
+        // Avg scores table with baseline reference row
+        const mp = baselineMidpoints();
         html += `<div class="card">
             <div class="section-label"><i data-lucide="table" style="width:13px;height:13px;"></i> Average Scores</div>
             <div style="overflow-x:auto;">
@@ -502,99 +640,130 @@
                 <thead><tr>
                     <th style="text-align:left;padding:6px 8px 10px 0;color:var(--text-secondary);font-weight:600;">Metric</th>`;
         usedProtos.forEach(p => {
-            html += `<th style="text-align:center;padding:6px 6px 10px;color:var(--text-secondary);font-weight:600;">${PROTOCOL_LABELS[p]}</th>`;
+            html += `<th style="text-align:center;padding:6px 6px 10px;color:var(--text-secondary);font-weight:600;white-space:nowrap;">${PROTOCOL_LABELS[p]||p}</th>`;
         });
+        if (mp) html += `<th style="text-align:center;padding:6px 6px 10px;color:var(--text-secondary);font-weight:600;white-space:nowrap;opacity:0.6;">Baseline</th>`;
         html += `</tr></thead><tbody>`;
-        const metrics = [
-            { key:'energy_consistency', label:'Energy' },
-            { key:'hydration_feeling',  label:'Hydration' },
-            { key:'stomach_comfort',    label:'Stomach' },
-            { key:'perceived_effort',   label:'Effort' },
-            { key:'recovery',           label:'Recovery' },
-        ];
-        // Find best protocol per metric
-        metrics.forEach(m => {
-            const avgs = usedProtos.map(p => avg(byProto[p], m.key));
-            const maxVal = Math.max(...avgs.filter(v => v !== null));
-            html += `<tr><td style="padding:8px 8px 8px 0;color:var(--text-secondary);">${m.label}</td>`;
+
+        SCORE_FIELDS.forEach(f => {
+            const avgs = usedProtos.map(p => avg(byProto[p], f.key));
+            // For non-effort metrics, best = highest. For effort (invertGood), best = closest to baseline midpoint or lower
+            const maxVal = f.invertGood ? null : Math.max(...avgs.filter(v => v !== null));
+            html += `<tr><td style="padding:8px 8px 8px 0;color:var(--text-secondary);">${f.label}</td>`;
             usedProtos.forEach((p, i) => {
                 const v = avgs[i];
-                const isBest = v !== null && v === maxVal && usedProtos.length > 1;
+                const isBest = !f.invertGood && v !== null && v === maxVal && usedProtos.length > 1;
                 html += `<td style="text-align:center;padding:6px;font-weight:${isBest?'800':'500'};color:${isBest?'var(--success)':v>=7?'var(--ocean-light)':v>=5?'var(--warning)':'var(--danger)'};">${v!=null?v.toFixed(1):'—'}</td>`;
             });
+            if (mp) {
+                const bv = mp[f.key];
+                html += `<td style="text-align:center;padding:6px;color:var(--text-secondary);opacity:0.7;">${bv.toFixed(1)}</td>`;
+            }
             html += `</tr>`;
         });
         html += `</tbody></table></div></div>`;
 
-        // Individual test log
+        // Full test log
         html += `<div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin:20px 0 10px;display:flex;align-items:center;gap:7px;">
             <i data-lucide="list" style="width:12px;height:12px;"></i> All Tests
         </div>`;
-        [...data].reverse().forEach(t => {
-            const dateStr = new Date(t.test_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
-            const scores  = [t.energy_consistency,t.perceived_effort,t.hydration_feeling,t.stomach_comfort,t.recovery].filter(Boolean);
-            const avgScore = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '—';
-            const verdict = t.verdict||'same';
-            html += `<div class="test-card">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
-                    <div>
-                        <div style="font-size:13px;font-weight:700;color:var(--text);">${PROTOCOL_LABELS[t.protocol]||t.protocol}</div>
-                        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${dateStr}${t.spots?.name?' · '+t.spots.name:''}${t.water_temp?' · '+t.water_temp+'°C':''}</div>
-                    </div>
-                    <span class="verdict-pill ${verdict}">${verdict}</span>
-                </div>
-                <div style="display:flex;gap:14px;flex-wrap:wrap;">
-                    <span style="font-size:11px;color:var(--text-secondary);">Avg <strong style="color:var(--ocean-light);">${avgScore}/10</strong></span>
-                    <span style="font-size:11px;color:var(--text-secondary);">${t.distance_km}km ${t.structure||''}</span>
-                    ${t.cramping?`<span style="font-size:11px;color:var(--danger);display:flex;align-items:center;gap:3px;"><i data-lucide="zap" style="width:11px;height:11px;"></i>cramping</span>`:''}
-                    ${t.thirst?`<span style="font-size:11px;color:var(--warning);display:flex;align-items:center;gap:3px;"><i data-lucide="droplet" style="width:11px;height:11px;"></i>thirst</span>`:''}
-                    ${t.stronger_finish?`<span style="font-size:11px;color:var(--success);display:flex;align-items:center;gap:3px;"><i data-lucide="trending-up" style="width:11px;height:11px;"></i>strong finish</span>`:''}
-                    ${t.faded_end?`<span style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:3px;"><i data-lucide="trending-down" style="width:11px;height:11px;"></i>faded end</span>`:''}
-                </div>
-                ${t.auto_summary?`<div style="font-size:11px;color:var(--text-secondary);line-height:1.5;border-top:1px solid var(--border);margin-top:10px;padding-top:10px;">${t.auto_summary}</div>`:''}
-            </div>`;
+        const displayData = dashFilterCat === 'all' ? allData : data;
+        [...displayData].reverse().forEach(t => {
+            html += buildTestCard(t, true);
         });
 
         el.innerHTML = html;
+
+        // Store allData on element for filter re-renders
+        el._allData = allData;
+
         initIcons();
 
-        // Draw score comparison chart after DOM is ready
+        // Draw score comparison chart
         if (usedProtos.length > 1) {
-            const scoreKeys = ['energy_consistency','hydration_feeling','stomach_comfort','perceived_effort','recovery'];
-            const scoreLabels = ['Energy','Hydration','Stomach','Effort','Recovery'];
+            const scoreKeys   = SCORE_FIELDS.map(f => f.key);
+            const scoreLabels = SCORE_FIELDS.map(f => f.label);
             const colours = ['#38bdf8','#34d399','#fb923c','#a78bfa','#f472b6'];
             const canvas = document.getElementById('scoreChart');
-            if (canvas._chart) canvas._chart.destroy();
-            const ctx = canvas.getContext('2d');
-            canvas._chart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: scoreLabels,
-                    datasets: usedProtos.map((p, i) => ({
-                        label: PROTOCOL_LABELS[p],
-                        data: scoreKeys.map(k => {
-                            const v = avg(byProto[p], k);
-                            return v != null ? parseFloat(v.toFixed(1)) : null;
-                        }),
-                        backgroundColor: colours[i % colours.length] + '33',
-                        borderColor: colours[i % colours.length],
+            if (canvas && canvas._chart) canvas._chart.destroy();
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                const datasets = usedProtos.map((p, i) => ({
+                    label: PROTOCOL_LABELS[p]||p,
+                    data: scoreKeys.map(k => {
+                        const v = avg(byProto[p], k);
+                        return v != null ? parseFloat(v.toFixed(1)) : null;
+                    }),
+                    backgroundColor: colours[i % colours.length] + '33',
+                    borderColor: colours[i % colours.length],
+                    borderWidth: 2,
+                    borderRadius: 5,
+                }));
+                // Add baseline reference dataset if available
+                if (mp) {
+                    datasets.push({
+                        label: 'Baseline',
+                        data: scoreKeys.map(k => mp[k] ? parseFloat(mp[k].toFixed(1)) : null),
+                        backgroundColor: 'rgba(100,116,139,0.1)',
+                        borderColor: 'rgba(100,116,139,0.5)',
                         borderWidth: 2,
                         borderRadius: 5,
-                    }))
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    scales: {
-                        y: { min: 0, max: 10, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#94a3b8', font: { size: 11 } } },
-                        x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 11 } } }
-                    },
-                    plugins: {
-                        legend: { labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12 } },
-                        tooltip: { backgroundColor: '#1e293b', titleColor: '#f0f9ff', bodyColor: '#94a3b8', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1 }
-                    }
+                        borderDash: [4,4],
+                    });
                 }
-            });
+                canvas._chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels: scoreLabels, datasets },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: {
+                            y: { min:0, max:10, grid:{color:'rgba(255,255,255,0.06)'}, ticks:{color:'#94a3b8',font:{size:11}} },
+                            x: { grid:{display:false}, ticks:{color:'#94a3b8',font:{size:11}} }
+                        },
+                        plugins: {
+                            legend: { labels:{color:'#94a3b8',font:{size:11},boxWidth:12} },
+                            tooltip: { backgroundColor:'#1e293b',titleColor:'#f0f9ff',bodyColor:'#94a3b8',borderColor:'rgba(255,255,255,0.1)',borderWidth:1 }
+                        }
+                    }
+                });
+            }
         }
+    }
+
+    function setDashFilterStr(cat) {
+        dashFilterCat = cat;
+        const el = document.getElementById('dashboardContent');
+        if (el._allData) renderDashboard(el._allData, el);
+    }
+
+    function buildTestCard(t, showDelta) {
+        const dateStr  = new Date(t.test_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
+        const scores   = SCORE_FIELDS.map(f => t[f.key]).filter(v => v != null);
+        const avgScore = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '—';
+        const verdict  = t.verdict || 'same';
+        const cat      = t.test_category || 'hydration';
+        return `<div class="test-card">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+                <div>
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
+                        <span style="font-size:13px;font-weight:700;color:var(--text);">${PROTOCOL_LABELS[t.protocol]||t.protocol}</span>
+                        ${catBadgeHtml(cat)}
+                    </div>
+                    <div style="font-size:11px;color:var(--text-secondary);">${dateStr}${t.spots?.name?' · '+t.spots.name:''}${t.water_temp?' · '+t.water_temp+'°C':''}</div>
+                </div>
+                <span class="verdict-pill ${verdict}">${verdict}</span>
+            </div>
+            <div style="display:flex;gap:14px;flex-wrap:wrap;">
+                <span style="font-size:11px;color:var(--text-secondary);">Avg <strong style="color:var(--ocean-light);">${avgScore}/10</strong></span>
+                <span style="font-size:11px;color:var(--text-secondary);">${t.distance_km}km${t.structure?' '+t.structure:''}</span>
+                ${t.cramping?`<span style="font-size:11px;color:var(--danger);display:flex;align-items:center;gap:3px;"><i data-lucide="zap" style="width:11px;height:11px;"></i>cramping</span>`:''}
+                ${t.thirst?`<span style="font-size:11px;color:var(--warning);display:flex;align-items:center;gap:3px;"><i data-lucide="droplet" style="width:11px;height:11px;"></i>thirst</span>`:''}
+                ${t.stronger_finish?`<span style="font-size:11px;color:var(--success);display:flex;align-items:center;gap:3px;"><i data-lucide="trending-up" style="width:11px;height:11px;"></i>strong finish</span>`:''}
+                ${t.faded_end?`<span style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:3px;"><i data-lucide="trending-down" style="width:11px;height:11px;"></i>faded end</span>`:''}
+            </div>
+            ${showDelta && carinaBaseline ? deltaPanelHtml(t) : ''}
+            ${t.auto_summary?`<div style="font-size:11px;color:var(--text-secondary);line-height:1.5;border-top:1px solid var(--border);margin-top:10px;padding-top:10px;">${t.auto_summary}</div>`:''}
+        </div>`;
     }
 
     // ─────────────────────────────────────────── CARINA'S LOG VIEW ────────────
@@ -605,6 +774,28 @@
         btn.classList.add('active');
         updateFuelSummaryPreview();
     }
+
+    function protocolToggle(btn) {
+        // Toggle the protocol button
+        const group = btn.dataset.group;
+        btn.closest('#fuelTestForm').querySelectorAll(`[data-group="${group}"]`).forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // Auto-set test_category from protocol
+        const proto = btn.dataset.value;
+        const cat = PROTOCOL_CATEGORY[proto];
+        if (cat) {
+            btn.closest('#fuelTestForm').querySelectorAll('[data-group="test_category"]').forEach(b => {
+                b.classList.toggle('active', b.dataset.value === cat);
+            });
+        }
+        // If custom, remove any category selection
+        if (proto === 'custom') {
+            btn.closest('#fuelTestForm').querySelectorAll('[data-group="test_category"]').forEach(b => b.classList.remove('active'));
+        }
+        updateFuelSummaryPreview();
+    }
+
     function verdictToggle(btn) {
         document.querySelectorAll('#fuelTestForm .verdict-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
@@ -630,7 +821,7 @@
     function buildScoreSliders() {
         document.getElementById('fuelScores').innerHTML = SCORE_FIELDS.map(f => `
             <div>
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
                     <div style="font-size:13px;color:var(--text);font-weight:500;">${f.label}</div>
                     <div id="${f.id}Val" style="font-size:16px;font-weight:800;color:var(--ocean-light);min-width:28px;text-align:right;">7</div>
                 </div>
@@ -639,6 +830,7 @@
                 <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-secondary);margin-top:4px;">
                     <span>1 · Poor</span><span>10 · Great</span>
                 </div>
+                <div class="score-hint">${f.hint}</div>
             </div>`).join('');
     }
 
@@ -654,53 +846,118 @@
             test_date:     document.getElementById('fuelDate').value||new Date().toISOString().slice(0,10),
             spot_id:       document.getElementById('fuelSpot').value||null,
             water_temp:    parseFloat(document.getElementById('fuelWaterTemp').value)||null,
-            session_type:  document.querySelector('#fuelTestForm [data-group="session_type"].active')?.dataset.value||'sea',
+            air_temp_c:    parseFloat(document.getElementById('fuelAirTemp').value)||null,
+            session_type:  document.querySelector('#fuelTestForm [data-group="session_type"].active')?.dataset.value||'pool',
             distance_km:   parseFloat(document.getElementById('fuelDistance').value)||5,
-            structure:     document.getElementById('fuelStructure').value||'5x1000m',
-            protocol:      document.querySelector('#fuelTestForm [data-group="protocol"].active')?.dataset.value||'baseline',
+            structure:     document.getElementById('fuelStructure').value||'5 x 1000m',
+            protocol:      document.querySelector('#fuelTestForm [data-group="protocol"].active')?.dataset.value||null,
+            test_category: document.querySelector('#fuelTestForm [data-group="test_category"].active')?.dataset.value||null,
             intake_before: document.querySelector('#fuelTestForm [data-group="intake_before"].active')?.dataset.value||'none',
             intake_during: document.querySelector('#fuelTestForm [data-group="intake_during"].active')?.dataset.value||'none',
             intake_notes:  document.getElementById('fuelIntakeNotes').value||null,
             set_efforts:   sets,
             energy_consistency: parseInt(document.getElementById('fuelEnergy')?.value||7),
-            perceived_effort:   parseInt(document.getElementById('fuelEffort')?.value||7),
             hydration_feeling:  parseInt(document.getElementById('fuelHydration')?.value||7),
             stomach_comfort:    parseInt(document.getElementById('fuelStomach')?.value||7),
+            perceived_effort:   parseInt(document.getElementById('fuelEffort')?.value||7),
             recovery:           parseInt(document.getElementById('fuelRecovery')?.value||7),
             stronger_finish: document.getElementById('flagStronger')?.classList.contains('active')||false,
             faded_end:       document.getElementById('flagFaded')?.classList.contains('active')||false,
             thirst:          document.getElementById('flagThirst')?.classList.contains('active')||false,
             cramping:        document.getElementById('flagCramping')?.classList.contains('active')||false,
-            verdict: document.querySelector('#fuelTestForm .verdict-btn.active')?.dataset.value||'better'
+            verdict:         document.querySelector('#fuelTestForm .verdict-btn.active')?.dataset.value||'better',
+            athlete_name:    'Carina'
         };
     }
 
     function generateFuelSummary(d) {
-        const spotName = spots.find(s=>s.id===d.spot_id)?.name||'Unknown location';
-        const proto = PROTOCOL_LABELS[d.protocol]||d.protocol;
-        const scores = [d.energy_consistency,d.perceived_effort,d.hydration_feeling,d.stomach_comfort,d.recovery];
-        const avgScore = (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1);
-        const flags=[];
-        if(d.stronger_finish) flags.push('strong finish');
-        if(d.faded_end)       flags.push('faded end');
-        if(d.thirst)          flags.push('thirst');
-        if(d.cramping)        flags.push('cramping');
-        let s=`${proto} · ${spotName}`;
-        if(d.water_temp) s+=` (${d.water_temp}°C)`;
-        s+=` · ${d.distance_km}km ${d.structure}. Avg ${avgScore}/10`;
-        if(d.stomach_comfort<=5) s+=' — stomach discomfort';
-        if(d.energy_consistency>=8) s+=' · high energy consistency';
-        const ec=d.set_efforts.reduce((a,e)=>{a[e]=(a[e]||0)+1;return a},{});
-        if(ec.harder>1) s+=' · faded over sets';
-        if(ec.easier>1) s+=' · felt progressively easier';
-        if(flags.length) s+=` · ${flags.join(', ')}`;
-        s+=`. Verdict: ${d.verdict}.`;
-        return s;
+        const spotName = spots.find(s=>s.id===d.spot_id)?.name || 'Unknown location';
+        const proto    = PROTOCOL_LABELS[d.protocol] || d.protocol || 'Unknown protocol';
+        const cat      = d.test_category || 'hydration';
+        const scores   = SCORE_FIELDS.map(f => d[f.key]).filter(v => v != null);
+        const avgScore = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '—';
+        const mp       = baselineMidpoints();
+
+        let s = '';
+
+        // Category opener
+        if (cat === 'baseline') {
+            s += 'Baseline session (water only). ';
+        } else if (cat === 'hydration') {
+            s += 'Hydration-only test. ';
+        } else if (cat === 'fuel') {
+            s += 'Fuelling test. ';
+        } else if (cat === 'combined') {
+            s += 'Hydration + fuelling test. ';
+        }
+
+        // Protocol mention
+        s += `Protocol: ${proto}. `;
+        s += `${spotName}, ${d.distance_km}km ${d.structure||''}. Avg ${avgScore}/10. `;
+
+        // Stomach
+        if (d.stomach_comfort >= 8) {
+            s += 'No GI issues. ';
+        } else if (d.stomach_comfort <= 5) {
+            s += `Stomach concern (${d.stomach_comfort}/10). `;
+        }
+
+        // Hydration mention for hydration tests
+        if (cat === 'hydration' || cat === 'combined') {
+            if (d.hydration_feeling >= 8) s += 'Well hydrated throughout. ';
+            else if (d.hydration_feeling <= 5) s += `Hydration felt inadequate (${d.hydration_feeling}/10). `;
+        }
+
+        // Baseline deltas
+        if (mp) {
+            const energyDelta  = d.energy_consistency - mp.energy_consistency;
+            const effortDelta  = mp.perceived_effort  - d.perceived_effort; // inverted
+            if (effortDelta > 0.5 && energyDelta > 0) {
+                s += 'Felt easier than baseline with maintained energy. ';
+            } else if (energyDelta > 1) {
+                s += 'Energy notably above baseline. ';
+            }
+        }
+
+        // Flags
+        const flags = [];
+        if (d.stronger_finish) flags.push('strong finish');
+        if (d.faded_end)       flags.push('faded end');
+        if (d.thirst)          flags.push('thirst');
+        if (d.cramping)        flags.push('cramping');
+        if (flags.length) s += `Flags: ${flags.join(', ')}. `;
+
+        // Set efforts
+        const ec = d.set_efforts ? d.set_efforts.reduce((a,e) => { a[e]=(a[e]||0)+1; return a; }, {}) : {};
+        if (ec.harder > 1) s += 'Faded over sets. ';
+        if (ec.easier > 1) s += 'Felt progressively easier. ';
+
+        s += `Verdict: ${d.verdict}.`;
+        return s.trim();
+    }
+
+    function validateFuelForm(d) {
+        const errors = [];
+        const warnings = [];
+
+        if (!d.test_category) errors.push('Test category is required (S0).');
+        if (!d.protocol)      errors.push('Protocol is required (S2).');
+
+        if (d.intake_before === 'none' && d.intake_during === 'none' && d.test_category !== 'baseline') {
+            warnings.push('Both intake fields are "None" — consider selecting Baseline category.');
+        }
+        if ((d.intake_before === 'gel' || d.intake_before === 'chew' ||
+             d.intake_during === 'gel' || d.intake_during === 'chew') &&
+            d.test_category === 'hydration') {
+            warnings.push('Gel/Chew selected but category is Hydration Only — did you mean Fuelling or Hydration + Fuel?');
+        }
+        return { errors, warnings };
     }
 
     function updateFuelSummaryPreview() {
         try {
-            const summary = generateFuelSummary(getFuelFormValues());
+            const d = getFuelFormValues();
+            const summary = generateFuelSummary(d);
             document.getElementById('fuelSummaryText').textContent = summary;
             document.getElementById('fuelSummaryPreview').style.display = 'block';
         } catch(e) {}
@@ -729,8 +986,25 @@
         initIcons();
         try {
             const d = getFuelFormValues();
+
+            // Validate
+            const { errors, warnings } = validateFuelForm(d);
+            if (errors.length) {
+                showToast(errors[0], 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="save" style="width:16px;height:16px;"></i> Save Test';
+                initIcons();
+                return;
+            }
+            if (warnings.length) {
+                // Warn but don't block — show as toast and proceed
+                showToast(warnings[0], '');
+                await new Promise(r => setTimeout(r, 1200));
+            }
+
             d.auto_summary = generateFuelSummary(d);
             d.user_id = currentUser.id;
+
             const { error } = await supabaseClient.from('fuel_tests').insert(d);
             if (error) throw error;
             showToast('Test saved', 'success');
@@ -762,31 +1036,14 @@
             initIcons(); return;
         }
 
-        el.innerHTML = data.map(t => {
-            const dateStr = new Date(t.test_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
-            const scores  = [t.energy_consistency,t.perceived_effort,t.hydration_feeling,t.stomach_comfort,t.recovery].filter(Boolean);
-            const avgScore = scores.length?(scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1):'—';
-            const verdict  = t.verdict||'same';
-            return `<div class="test-card">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
-                    <div>
-                        <div style="font-size:14px;font-weight:800;color:var(--text);">${PROTOCOL_LABELS[t.protocol]||t.protocol}</div>
-                        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${dateStr}${t.spots?.name?' · '+t.spots.name:''}${t.water_temp?' · '+t.water_temp+'°C':''}</div>
-                    </div>
-                    <span class="verdict-pill ${verdict}">${verdict}</span>
-                </div>
-                <div style="display:flex;gap:14px;flex-wrap:wrap;">
-                    <span style="font-size:11px;color:var(--text-secondary);">Avg <strong style="color:var(--ocean-light);">${avgScore}/10</strong></span>
-                    <span style="font-size:11px;color:var(--text-secondary);">${t.distance_km}km ${t.structure||''}</span>
-                </div>
-                ${t.auto_summary?`<div style="font-size:11px;color:var(--text-secondary);line-height:1.5;border-top:1px solid var(--border);margin-top:10px;padding-top:10px;">${t.auto_summary}</div>`:''}
-            </div>`;
-        }).join('');
+        el.innerHTML = data.map(t => buildTestCard(t, true)).join('');
         initIcons();
     }
 
     document.addEventListener('change', e => {
-        if (e.target.id === 'fuelDistance') buildSetEffortRows(Math.min(Math.max(parseInt(e.target.value)||5,1),10));
+        if (e.target.id === 'fuelDistance') {
+            buildSetEffortRows(Math.min(Math.max(parseInt(e.target.value)||5,1),10));
+        }
     });
 
     init();
