@@ -123,49 +123,49 @@
     </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════ DAVE DASHBOARD -->
-<div id="dashboardView" style="display:none;">
-    <div class="header">
-        <div class="header-row">
-            <div style="display:flex;align-items:center;gap:10px;">
-                <div class="header-icon"><i data-lucide="flask-conical" style="width:16px;height:16px;color:var(--ocean-light);"></i></div>
-                <div>
-                    <div class="header-title">PH Test Dashboard</div>
-                    <div class="header-sub">Carina's results</div>
-                </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;">
-                <div class="user-pill">Dave</div>
-                <button class="signout-btn" onclick="doSignOut()"><i data-lucide="log-out" style="width:13px;height:13px;vertical-align:middle;"></i></button>
-            </div>
-        </div>
-    </div>
-    <div class="container" id="dashboardContent">
-        <div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:40px 0;">
-            <i data-lucide="loader" style="width:20px;height:20px;display:block;margin:0 auto 10px;opacity:0.4;"></i>
-            Loading…
-        </div>
-    </div>
-</div>
+<!-- ══════════════════════════════════════════════════════════════════ APP SHELL -->
+<div id="appView" style="display:none;">
 
-<!-- ══════════════════════════════════════════════════════════ CARINA LOG VIEW -->
-<div id="carinaView" style="display:none;">
+    <!-- Shared header + tab bar -->
     <div class="header">
-        <div class="header-row">
+        <div class="header-row" style="margin-bottom:12px;">
             <div style="display:flex;align-items:center;gap:10px;">
                 <div class="header-icon"><i data-lucide="flask-conical" style="width:16px;height:16px;color:var(--ocean-light);"></i></div>
                 <div>
-                    <div class="header-title">Fuel &amp; Hydration</div>
-                    <div class="header-sub">Log your test</div>
+                    <div class="header-title">PH Fuel Test</div>
+                    <div class="header-sub">Private testing portal</div>
                 </div>
             </div>
             <div style="display:flex;align-items:center;gap:10px;">
-                <div class="user-pill">Carina</div>
+                <div class="user-pill" id="userPill"></div>
                 <button class="signout-btn" onclick="doSignOut()"><i data-lucide="log-out" style="width:13px;height:13px;vertical-align:middle;"></i></button>
+            </div>
+        </div>
+        <!-- Tab switcher -->
+        <div style="display:flex;gap:3px;background:rgba(255,255,255,0.04);border-radius:10px;padding:3px;">
+            <button id="tabLogBtn" onclick="switchTab('log')"
+                style="flex:1;padding:8px 12px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:6px;">
+                <i data-lucide="plus-circle" style="width:14px;height:14px;"></i> Log Test
+            </button>
+            <button id="tabResultsBtn" onclick="switchTab('results')"
+                style="flex:1;padding:8px 12px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:6px;">
+                <i data-lucide="bar-chart-2" style="width:14px;height:14px;"></i> Results
+            </button>
+        </div>
+    </div>
+
+    <!-- ── RESULTS TAB ───────────────────────────────────────────────────── -->
+    <div id="tabResults" style="display:none;">
+        <div class="container" id="dashboardContent">
+            <div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:40px 0;">
+                <i data-lucide="loader" style="width:20px;height:20px;display:block;margin:0 auto 10px;opacity:0.4;"></i>
+                Loading…
             </div>
         </div>
     </div>
 
+    <!-- ── LOG TEST TAB ──────────────────────────────────────────────────── -->
+    <div id="tabLog" style="display:none;">
     <div class="container">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
             <div>
@@ -275,8 +275,9 @@
                 <i data-lucide="loader" style="width:20px;height:20px;display:block;margin:0 auto 10px;opacity:0.4;"></i>Loading…
             </div>
         </div>
-    </div>
-</div>
+    </div><!-- /container -->
+    </div><!-- /tabLog -->
+</div><!-- /appView -->
 
 <div class="toast" id="toast"></div>
 
@@ -343,22 +344,33 @@
 
     async function doSignOut() {
         await supabaseClient.auth.signOut();
-        document.getElementById('dashboardView').style.display = 'none';
-        document.getElementById('carinaView').style.display = 'none';
+        document.getElementById('appView').style.display = 'none';
         document.getElementById('authScreen').style.display = 'flex';
     }
 
     async function startApp() {
         document.getElementById('authScreen').style.display = 'none';
+        document.getElementById('appView').style.display = 'block';
+        document.getElementById('userPill').textContent = currentUser.id === DAVE_ID ? 'Dave' : 'Carina';
         const { data } = await supabaseClient.from('spots').select('id,name').order('name');
         spots = data || [];
-        if (currentUser.id === DAVE_ID) {
-            document.getElementById('dashboardView').style.display = 'block';
-            await loadDashboard();
-        } else {
-            document.getElementById('carinaView').style.display = 'block';
-            await loadFuelTests();
-        }
+        // Dave defaults to Results, Carina defaults to Log
+        switchTab(currentUser.id === DAVE_ID ? 'results' : 'log');
+        initIcons();
+    }
+
+    function switchTab(tab) {
+        const isResults = tab === 'results';
+        document.getElementById('tabResults').style.display = isResults ? 'block' : 'none';
+        document.getElementById('tabLog').style.display     = isResults ? 'none'  : 'block';
+        ['tabResultsBtn','tabLogBtn'].forEach(id => {
+            const btn = document.getElementById(id);
+            const active = (id === 'tabResultsBtn') === isResults;
+            btn.style.background = active ? '#0284c7' : 'transparent';
+            btn.style.color      = active ? 'white'   : 'var(--text-secondary)';
+        });
+        if (isResults) loadDashboard();
+        else loadFuelTests();
         initIcons();
     }
 
@@ -551,8 +563,10 @@
             const scoreKeys = ['energy_consistency','hydration_feeling','stomach_comfort','perceived_effort','recovery'];
             const scoreLabels = ['Energy','Hydration','Stomach','Effort','Recovery'];
             const colours = ['#38bdf8','#34d399','#fb923c','#a78bfa','#f472b6'];
-            const ctx = document.getElementById('scoreChart').getContext('2d');
-            new Chart(ctx, {
+            const canvas = document.getElementById('scoreChart');
+            if (canvas._chart) canvas._chart.destroy();
+            const ctx = canvas.getContext('2d');
+            canvas._chart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: scoreLabels,
