@@ -720,12 +720,13 @@
 
     async function loadFuelTests() {
         const el = document.getElementById('fuelTestHistory');
+
+        // Load all tests from both participants + their display names
         const { data, error } = await supabaseClient
             .from('fuel_tests')
-            .select('*, spots(name)')
-            .eq('user_id', currentUser.id)
+            .select('*, spots(name), profiles(display_name)')
             .order('test_date', { ascending: false })
-            .limit(50);
+            .limit(100);
 
         if (error || !data?.length) {
             el.innerHTML = `<div style="text-align:center;color:var(--text-secondary);font-size:13px;padding:40px 0;">
@@ -736,29 +737,55 @@
             return;
         }
 
-        // Protocol comparison
+        const myTests    = data.filter(t => t.user_id === currentUser.id);
+        const theirTests = data.filter(t => t.user_id !== currentUser.id);
+        let html = '';
+
+        // ── Summary stats strip ───────────────────────────────────────────────
+        const totalTests = data.length;
+        const protocols  = [...new Set(data.map(t => t.protocol))].length;
+        const betterPct  = data.filter(t => t.verdict === 'better').length;
+        html += `<div class="card" style="margin-bottom:16px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;text-align:center;">
+                <div style="padding:4px 0;">
+                    <div style="font-size:24px;font-weight:800;color:var(--ocean-light);">${totalTests}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Total tests</div>
+                </div>
+                <div style="padding:4px 0;border-left:1px solid var(--border);border-right:1px solid var(--border);">
+                    <div style="font-size:24px;font-weight:800;color:var(--ocean-light);">${protocols}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Protocols</div>
+                </div>
+                <div style="padding:4px 0;">
+                    <div style="font-size:24px;font-weight:800;color:var(--success);">${betterPct}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">"Better" verdicts</div>
+                </div>
+            </div>
+        </div>`;
+
+        // ── Protocol comparison (all tests combined) ──────────────────────────
         const byProto = {};
         data.forEach(t => { (byProto[t.protocol] = byProto[t.protocol]||[]).push(t); });
-        const protos = Object.keys(byProto);
-        let html = '';
+        const protos = Object.keys(byProto).sort((a,b) => byProto[b].length - byProto[a].length);
 
         if (protos.length > 1) {
             html += `<div class="card" style="margin-bottom:16px;">
-                <div class="section-label"><i data-lucide="git-compare" style="width:13px;height:13px;"></i> Protocol Comparison</div>
+                <div class="section-label"><i data-lucide="git-compare" style="width:13px;height:13px;"></i> Protocol Comparison — All Tests</div>
                 <div class="flex-col">`;
             protos.forEach(p => {
                 const tests = byProto[p];
                 const avgStomach = (tests.reduce((s,t) => s+(t.stomach_comfort||7),0)/tests.length).toFixed(1);
                 const avgEnergy  = (tests.reduce((s,t) => s+(t.energy_consistency||7),0)/tests.length).toFixed(1);
+                const avgHydration = (tests.reduce((s,t) => s+(t.hydration_feeling||7),0)/tests.length).toFixed(1);
                 const betterCount = tests.filter(t => t.verdict==='better').length;
                 html += `<div class="compare-row">
                     <div>
                         <div style="font-size:13px;font-weight:700;color:var(--text);">${PROTOCOL_LABELS[p]||p}</div>
                         <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${tests.length} test${tests.length!==1?'s':''}</div>
                     </div>
-                    <div style="display:flex;gap:16px;text-align:right;">
+                    <div style="display:flex;gap:14px;text-align:right;">
                         <div style="font-size:11px;color:var(--text-secondary);">Stomach<br><strong style="color:${avgStomach>=7?'var(--success)':'var(--warning)'};">${avgStomach}</strong></div>
                         <div style="font-size:11px;color:var(--text-secondary);">Energy<br><strong style="color:var(--ocean-light);">${avgEnergy}</strong></div>
+                        <div style="font-size:11px;color:var(--text-secondary);">Hydration<br><strong style="color:var(--ocean-light);">${avgHydration}</strong></div>
                         <div style="font-size:11px;color:var(--text-secondary);">Better<br><strong style="color:var(--success);">${betterCount}/${tests.length}</strong></div>
                     </div>
                 </div>`;
@@ -766,36 +793,60 @@
             html += '</div></div>';
         }
 
-        // Individual tests
-        data.forEach(t => {
-            const spotName = t.spots?.name || '—';
-            const dateStr  = new Date(t.test_date).toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' });
-            const verdict  = t.verdict || 'same';
-            const scores   = [t.energy_consistency, t.perceived_effort, t.hydration_feeling, t.stomach_comfort, t.recovery].filter(Boolean);
-            const avg      = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '—';
-            const flagsHtml = [
-                t.cramping       ? `<span style="font-size:11px;color:var(--danger);display:flex;align-items:center;gap:3px;"><i data-lucide="zap" style="width:11px;height:11px;"></i>cramping</span>` : '',
-                t.thirst         ? `<span style="font-size:11px;color:var(--warning);display:flex;align-items:center;gap:3px;"><i data-lucide="droplet" style="width:11px;height:11px;"></i>thirst</span>` : '',
-                t.stronger_finish? `<span style="font-size:11px;color:var(--success);display:flex;align-items:center;gap:3px;"><i data-lucide="trending-up" style="width:11px;height:11px;"></i>strong finish</span>` : '',
-                t.faded_end      ? `<span style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:3px;"><i data-lucide="trending-down" style="width:11px;height:11px;"></i>faded end</span>` : ''
-            ].filter(Boolean).join('');
+        // ── Render a group of test cards ──────────────────────────────────────
+        function renderTestCards(tests) {
+            return tests.map(t => {
+                const spotName = t.spots?.name || '—';
+                const swimmer  = t.profiles?.display_name || (t.user_id === currentUser.id ? 'You' : 'Carina');
+                const isMe     = t.user_id === currentUser.id;
+                const dateStr  = new Date(t.test_date).toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' });
+                const verdict  = t.verdict || 'same';
+                const scores   = [t.energy_consistency, t.perceived_effort, t.hydration_feeling, t.stomach_comfort, t.recovery].filter(Boolean);
+                const avg      = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '—';
+                const flagsHtml = [
+                    t.cramping        ? `<span style="font-size:11px;color:var(--danger);display:flex;align-items:center;gap:3px;"><i data-lucide="zap" style="width:11px;height:11px;"></i>cramping</span>` : '',
+                    t.thirst          ? `<span style="font-size:11px;color:var(--warning);display:flex;align-items:center;gap:3px;"><i data-lucide="droplet" style="width:11px;height:11px;"></i>thirst</span>` : '',
+                    t.stronger_finish ? `<span style="font-size:11px;color:var(--success);display:flex;align-items:center;gap:3px;"><i data-lucide="trending-up" style="width:11px;height:11px;"></i>strong finish</span>` : '',
+                    t.faded_end       ? `<span style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:3px;"><i data-lucide="trending-down" style="width:11px;height:11px;"></i>faded end</span>` : ''
+                ].filter(Boolean).join('');
 
-            html += `<div class="test-card">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-                    <div>
-                        <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:3px;">${PROTOCOL_LABELS[t.protocol]||t.protocol}</div>
-                        <div style="font-size:11px;color:var(--text-secondary);">${dateStr} · ${spotName}${t.water_temp ? ' · '+t.water_temp+'°C' : ''}</div>
+                return `<div class="test-card">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+                        <div>
+                            <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:3px;">${PROTOCOL_LABELS[t.protocol]||t.protocol}</div>
+                            <div style="font-size:11px;color:var(--text-secondary);">${dateStr} · ${spotName}${t.water_temp ? ' · '+t.water_temp+'°C' : ''}</div>
+                        </div>
+                        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
+                            <span class="verdict-pill ${verdict}">${verdict}</span>
+                            <span style="font-size:10px;color:${isMe?'var(--ocean-light)':'#a78bfa'};font-weight:700;letter-spacing:0.3px;">${swimmer}</span>
+                        </div>
                     </div>
-                    <span class="verdict-pill ${verdict}">${verdict}</span>
-                </div>
-                <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:${flagsHtml||t.auto_summary?'10':'0'}px;">
-                    <div style="font-size:12px;color:var(--text-secondary);">Avg <strong style="color:var(--ocean-light);">${avg}/10</strong></div>
-                    <div style="font-size:12px;color:var(--text-secondary);">${t.distance_km}km ${t.structure||''}</div>
-                </div>
-                ${flagsHtml ? `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:${t.auto_summary?'10':'0'}px;">${flagsHtml}</div>` : ''}
-                ${t.auto_summary ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.5;border-top:1px solid var(--border);padding-top:10px;">${t.auto_summary}</div>` : ''}
+                    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:${flagsHtml||t.auto_summary?'10':'0'}px;">
+                        <div style="font-size:12px;color:var(--text-secondary);">Avg <strong style="color:var(--ocean-light);">${avg}/10</strong></div>
+                        <div style="font-size:12px;color:var(--text-secondary);">${t.distance_km}km ${t.structure||''}</div>
+                    </div>
+                    ${flagsHtml ? `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:${t.auto_summary?'10':'0'}px;">${flagsHtml}</div>` : ''}
+                    ${t.auto_summary ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.5;border-top:1px solid var(--border);padding-top:10px;">${t.auto_summary}</div>` : ''}
+                </div>`;
+            }).join('');
+        }
+
+        // ── My tests ──────────────────────────────────────────────────────────
+        if (myTests.length) {
+            html += `<div style="font-size:11px;font-weight:700;color:var(--ocean-light);text-transform:uppercase;letter-spacing:1px;margin:20px 0 10px;display:flex;align-items:center;gap:7px;">
+                <i data-lucide="user" style="width:12px;height:12px;"></i> My Tests
             </div>`;
-        });
+            html += renderTestCards(myTests);
+        }
+
+        // ── Their tests ───────────────────────────────────────────────────────
+        if (theirTests.length) {
+            const theirName = theirTests[0]?.profiles?.display_name || 'Carina';
+            html += `<div style="font-size:11px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:1px;margin:20px 0 10px;display:flex;align-items:center;gap:7px;">
+                <i data-lucide="user" style="width:12px;height:12px;"></i> ${theirName}'s Tests
+            </div>`;
+            html += renderTestCards(theirTests);
+        }
 
         el.innerHTML = html;
         initIcons();
