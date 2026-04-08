@@ -753,13 +753,37 @@
                 </div>
                 <span class="verdict-pill ${verdict}">${verdict}</span>
             </div>
-            <div style="display:flex;gap:14px;flex-wrap:wrap;">
-                <span style="font-size:11px;color:var(--text-secondary);">Avg <strong style="color:var(--ocean-light);">${avgScore}/10</strong></span>
-                <span style="font-size:11px;color:var(--text-secondary);">${t.distance_km}km${t.structure?' '+t.structure:''}</span>
-                ${t.cramping?`<span style="font-size:11px;color:var(--danger);display:flex;align-items:center;gap:3px;"><i data-lucide="zap" style="width:11px;height:11px;"></i>cramping</span>`:''}
-                ${t.thirst?`<span style="font-size:11px;color:var(--warning);display:flex;align-items:center;gap:3px;"><i data-lucide="droplet" style="width:11px;height:11px;"></i>thirst</span>`:''}
-                ${t.stronger_finish?`<span style="font-size:11px;color:var(--success);display:flex;align-items:center;gap:3px;"><i data-lucide="trending-up" style="width:11px;height:11px;"></i>strong finish</span>`:''}
-                ${t.faded_end?`<span style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:3px;"><i data-lucide="trending-down" style="width:11px;height:11px;"></i>faded end</span>`:''}
+            <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:4px;">
+                <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
+                    <span style="font-size:11px;color:var(--text-secondary);">Session score: <strong style="color:var(--ocean-light);">${avgScore}/10</strong></span>
+                    <span style="font-size:11px;color:var(--text-secondary);">${t.distance_km}km${t.structure?' · '+t.structure:''}</span>
+                </div>
+                ${(()=>{
+                    const deltas = carinaBaseline ? computeDeltas(t) : null;
+                    if (!deltas) return '';
+                    const nonEffortDeltas = SCORE_FIELDS.filter(f => !f.invertGood).map(f => deltas[f.key]).filter(v => v != null);
+                    const effortDelta = deltas['perceived_effort'];
+                    const allDeltas = [...nonEffortDeltas, ...(effortDelta != null ? [effortDelta] : [])];
+                    const overallPos = allDeltas.filter(d => d > 0.3).length;
+                    const overallNeg = allDeltas.filter(d => d < -0.3).length;
+                    const baselineLabel = overallPos > overallNeg
+                        ? `<span style="color:var(--success);font-weight:600;">above baseline</span>`
+                        : overallNeg > overallPos
+                        ? `<span style="color:var(--warning);font-weight:600;">below baseline</span>`
+                        : `<span style="color:var(--text-secondary);font-weight:600;">on baseline</span>`;
+                    return `<span style="font-size:11px;color:var(--text-secondary);">vs baseline: ${baselineLabel}</span>`;
+                })()}
+                ${[
+                    t.cramping       ? `<span style="font-size:11px;color:var(--danger);display:flex;align-items:center;gap:3px;"><i data-lucide="zap" style="width:11px;height:11px;"></i>cramping</span>` : '',
+                    t.thirst         ? `<span style="font-size:11px;color:var(--warning);display:flex;align-items:center;gap:3px;"><i data-lucide="droplet" style="width:11px;height:11px;"></i>thirst</span>` : '',
+                    t.stronger_finish? `<span style="font-size:11px;color:var(--success);display:flex;align-items:center;gap:3px;"><i data-lucide="trending-up" style="width:11px;height:11px;"></i>strong finish</span>` : '',
+                    t.faded_end      ? `<span style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:3px;"><i data-lucide="trending-down" style="width:11px;height:11px;"></i>faded end</span>` : ''
+                ].filter(Boolean).length ? `<div style="display:flex;gap:10px;flex-wrap:wrap;">${[
+                    t.cramping       ? `<span style="font-size:11px;color:var(--danger);display:flex;align-items:center;gap:3px;"><i data-lucide="zap" style="width:11px;height:11px;"></i>cramping</span>` : '',
+                    t.thirst         ? `<span style="font-size:11px;color:var(--warning);display:flex;align-items:center;gap:3px;"><i data-lucide="droplet" style="width:11px;height:11px;"></i>thirst</span>` : '',
+                    t.stronger_finish? `<span style="font-size:11px;color:var(--success);display:flex;align-items:center;gap:3px;"><i data-lucide="trending-up" style="width:11px;height:11px;"></i>strong finish</span>` : '',
+                    t.faded_end      ? `<span style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:3px;"><i data-lucide="trending-down" style="width:11px;height:11px;"></i>faded end</span>` : ''
+                ].filter(Boolean).join('')}</div>` : ''}
             </div>
             ${showDelta && carinaBaseline ? deltaPanelHtml(t) : ''}
             ${t.auto_summary?`<div style="font-size:11px;color:var(--text-secondary);line-height:1.5;border-top:1px solid var(--border);margin-top:10px;padding-top:10px;">${t.auto_summary}</div>`:''}
@@ -893,7 +917,7 @@
 
         // Protocol mention
         s += `Protocol: ${proto}. `;
-        s += `${spotName}, ${d.distance_km}km ${d.structure||''}. Avg ${avgScore}/10. `;
+        s += `${spotName}, ${d.distance_km}km ${d.structure||''}. Session score ${avgScore}/10. `;
 
         // Stomach
         if (d.stomach_comfort >= 8) {
