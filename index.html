@@ -9212,6 +9212,10 @@
                     p_month_end:   monthEnd.toISOString()
                 });
 
+                // Filter out community data contributor from prize race
+                const CONTRIBUTOR_ID = '2f6666a5-e042-44a5-a08d-558d5791c5bd';
+                const eligible = (data || []).filter(r => r.user_id !== CONTRIBUTOR_ID);
+
                 // Current user's own count (fallback for users outside top 20)
                 let myCount = 0, myRank = null, myPoints = null;
                 if (currentUser) {
@@ -9222,17 +9226,17 @@
                         .gte('created_at', monthStart.toISOString())
                         .lt('created_at',  monthEnd.toISOString());
                     myCount = count || 0;
-                    if (data) {
-                        const idx = data.findIndex(r => r.user_id === currentUser.id);
+                    if (eligible) {
+                        const idx = eligible.findIndex(r => r.user_id === currentUser.id);
                         if (idx >= 0) {
                             myRank   = idx + 1;
-                            myPoints = data[idx].total_points;
+                            myPoints = eligible[idx].total_points;
                         }
                     }
                 }
 
                 const medals = ['🥇','🥈','🥉'];
-                const rows = (data || []).map((row, i) => {
+                const rows = eligible.map((row, i) => {
                     const isMe = currentUser && row.user_id === currentUser.id;
                     const medal = medals[i] || `${i+1}.`;
                     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;${isMe?'background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.25);':''}border-radius:8px;margin-bottom:6px;">
@@ -9247,14 +9251,14 @@
                     </div>`;
                 }).join('');
 
-                const emptyState = !data || data.length === 0
+                const emptyState = eligible.length === 0
                     ? `<div style="text-align:center;color:var(--text-secondary);padding:16px;font-size:13px;">No logs yet this month — be the first! 🌊</div>`
                     : '';
 
                 // "Your position" callout — shown when user is in the top 20
                 let myPositionCard = '';
                 if (currentUser && myRank !== null && myPoints !== null) {
-                    const personAbove = myRank > 1 ? data[myRank - 2] : null;
+                    const personAbove = myRank > 1 ? eligible[myRank - 2] : null;
                     const gapLine = personAbove
                         ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">${personAbove.total_points - myPoints} pts behind ${personAbove.display_name} (#${myRank - 1})</div>`
                         : `<div style="font-size:11px;color:#10b981;margin-top:3px;">You're leading — hold on! 🌊</div>`;
