@@ -2276,8 +2276,47 @@
             loadEvents();
         }
 
+        // ── FEATURED EVENT (sponsor placement) ─────────────────────────────────
+        // To activate: set FEATURED_EVENT to an object. To hide: set to null.
+        const FEATURED_EVENT = {
+            label: 'Featured Experience',
+            sponsor: 'Pacific Swim',
+            title: 'Swim Alcatraz — San Francisco Bay',
+            description: 'One of the most iconic open water swims in the world. Depart from Alcatraz Island and swim 2.4km to the San Francisco shore escorted by experienced guides and two boats.',
+            detail: 'Year-round · $295 per swimmer · 2 escort boats',
+            url: 'https://pacificswim.com',
+            cta: 'Book a swim',
+            accent: 'rgba(34,211,238,0.18)',
+            accentBorder: 'rgba(34,211,238,0.3)',
+            accentText: 'var(--ocean-light)'
+        };
+
+        function renderFeaturedEvent() {
+            const slot = document.getElementById('featuredEventSlot');
+            if (!slot || !FEATURED_EVENT) return;
+            const f = FEATURED_EVENT;
+            slot.style.display = 'block';
+            slot.innerHTML = `
+                <div style="background:${f.accent};border:1px solid ${f.accentBorder};border-radius:14px;overflow:hidden;">
+                    <div style="padding:14px 16px 0 16px;display:flex;justify-content:space-between;align-items:center;">
+                        <div style="font-size:10px;font-weight:700;color:${f.accentText};text-transform:uppercase;letter-spacing:0.08em;">${f.label}</div>
+                        <div style="font-size:10px;font-weight:600;color:var(--text-secondary);">${f.sponsor}</div>
+                    </div>
+                    <div style="padding:10px 16px 16px 16px;">
+                        <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:6px;">${f.title}</div>
+                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin-bottom:10px;">${f.description}</div>
+                        <div style="font-size:11px;color:${f.accentText};font-weight:600;margin-bottom:12px;">${f.detail}</div>
+                        <a href="${f.url}" target="_blank" rel="noopener"
+                           style="display:inline-block;padding:9px 20px;border-radius:8px;background:rgba(34,211,238,0.15);border:1px solid ${f.accentBorder};color:${f.accentText};font-size:12px;font-weight:700;text-decoration:none;">
+                            ${f.cta} →
+                        </a>
+                    </div>
+                </div>`;
+        }
+
         // Load events
         async function loadEvents() {
+            renderFeaturedEvent(); // inject sponsor featured slot (no-op if FEATURED_EVENT is null)
             loadSwimmingPosts(); // non-blocking — loads "Who's Swimming Soon" feed in parallel
             try {
                 console.log('Loading events...');
@@ -8385,6 +8424,11 @@
                         </div>
                     </div>
 
+                    <!-- Featured Event Slot (sponsor placement) -->
+                    <div id="featuredEventSlot" style="margin-bottom:16px;display:none;">
+                        <!-- Rendered by renderFeaturedEvent() -->
+                    </div>
+
                     <!-- Events List -->
                     <div id="eventsList" style="margin-top: 20px;">
                         <div style="text-align: center; color: var(--text-secondary); padding: 20px;">
@@ -8906,6 +8950,22 @@
                             style="background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 16px;">
                             <div style="text-align: center; color: var(--text-secondary); padding: 20px;">Loading...
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Partners Strip -->
+                    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+                        <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Supported by our partners</div>
+                        <div style="display:flex;flex-direction:column;gap:10px;">
+                            <a href="https://artofendurance.co.za" target="_blank" rel="noopener" style="text-decoration:none;">
+                                <div style="background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.18);border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;transition:border-color 0.2s;">
+                                    <div>
+                                        <div style="font-size:13px;font-weight:700;color:var(--text);">Art of Endurance</div>
+                                        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Maurten SA · April Challenge sponsor</div>
+                                    </div>
+                                    <div style="font-size:11px;font-weight:600;color:#fbbf24;white-space:nowrap;">Shop →</div>
+                                </div>
+                            </a>
                         </div>
                     </div>
                 </div>
