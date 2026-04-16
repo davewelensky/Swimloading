@@ -2314,9 +2314,63 @@
                 </div>`;
         }
 
+        // ── BUCKET LIST SWIMS ───────────────────────────────────────────────────
+        // Iconic open water experiences worth planning a trip around.
+        // Add objects to the array to show them, remove to hide.
+        const BUCKET_LIST_SWIMS = [
+            {
+                location: 'San Francisco, USA',
+                title: 'Swim Alcatraz',
+                tagline: 'The most iconic open water swim in the world.',
+                description: 'Depart from Alcatraz Island and swim to the city shore across San Francisco Bay. Multiple courses from 1.5 to 9 miles, two escort boats, and 22 years of experience on the water. The kind of swim you plan a trip around.',
+                courses: [
+                    { name: 'Classic Alcatraz Escape', detail: '1.5 mi · 45 min · Difficulty 3.5/10' },
+                    { name: 'GGB to Alcatraz',         detail: '3 mi · 40 min · Difficulty 2/10' },
+                    { name: 'Prison to Prison',         detail: '9 mi · 3 hrs · Difficulty 5.5/10' },
+                ],
+                meta: 'From $279 · On the water daily · Cancel for any reason',
+                url: 'https://www.pacificswim.co/alcatraz-swims/',
+                cta: 'Find out more',
+                partner: 'Pacific Swim'
+            }
+        ];
+
+        function renderBucketList() {
+            const section = document.getElementById('bucketListSection');
+            if (!section || !BUCKET_LIST_SWIMS.length) return;
+            section.style.display = 'block';
+            section.innerHTML = `
+                <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Bucket List Swims</div>
+                ${BUCKET_LIST_SWIMS.map(swim => `
+                <div style="background:linear-gradient(135deg,rgba(34,211,238,0.06),rgba(99,102,241,0.04));border:1px solid rgba(34,211,238,0.2);border-radius:14px;overflow:hidden;margin-bottom:12px;">
+                    <div style="padding:14px 16px 0;display:flex;justify-content:space-between;align-items:center;">
+                        <div style="font-size:10px;font-weight:700;color:var(--ocean-light);text-transform:uppercase;letter-spacing:0.07em;">${swim.location}</div>
+                        <div style="font-size:10px;color:var(--text-secondary);">${swim.partner}</div>
+                    </div>
+                    <div style="padding:10px 16px 16px;">
+                        <div style="font-size:18px;font-weight:800;color:var(--text);margin-bottom:3px;">${swim.title}</div>
+                        <div style="font-size:12px;font-weight:600;color:var(--ocean-light);margin-bottom:8px;">${swim.tagline}</div>
+                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.55;margin-bottom:12px;">${swim.description}</div>
+                        <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;flex-direction:column;gap:6px;">
+                            ${swim.courses.map(c => `
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <div style="font-size:11px;color:var(--text-secondary);">${c.name}</div>
+                                <div style="font-size:11px;font-weight:600;color:var(--ocean-light);text-align:right;padding-left:8px;">${c.detail}</div>
+                            </div>`).join('<div style="border-top:1px solid rgba(255,255,255,0.05);margin:2px 0;"></div>')}
+                        </div>
+                        <div style="font-size:11px;color:var(--ocean-light);font-weight:600;margin-bottom:12px;">${swim.meta}</div>
+                        <a href="${swim.url}" target="_blank" rel="noopener"
+                           style="display:inline-block;padding:9px 20px;border-radius:8px;background:rgba(34,211,238,0.12);border:1px solid rgba(34,211,238,0.3);color:var(--ocean-light);font-size:12px;font-weight:700;text-decoration:none;">
+                            ${swim.cta} →
+                        </a>
+                    </div>
+                </div>`).join('')}`;
+        }
+
         // Load events
         async function loadEvents() {
             renderFeaturedEvent(); // inject sponsor featured slot (no-op if FEATURED_EVENT is null)
+            renderBucketList();    // inject bucket list section
             loadSwimmingPosts(); // non-blocking — loads "Who's Swimming Soon" feed in parallel
             try {
                 console.log('Loading events...');
@@ -8427,6 +8481,11 @@
                     <!-- Featured Event Slot (sponsor placement) -->
                     <div id="featuredEventSlot" style="margin-bottom:16px;display:none;">
                         <!-- Rendered by renderFeaturedEvent() -->
+                    </div>
+
+                    <!-- Bucket List Swims -->
+                    <div id="bucketListSection" style="margin-bottom:20px;display:none;">
+                        <!-- Rendered by renderBucketList() -->
                     </div>
 
                     <!-- Events List -->
