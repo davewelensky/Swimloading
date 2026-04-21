@@ -423,6 +423,110 @@
         custom:         'Custom'
     };
 
+    // Predefined testing schedule - each test pre-configured
+    const TESTING_SCHEDULE = [
+        {
+            id: 1,
+            title: 'Baseline (Water Only)',
+            protocol: 'baseline',
+            category: 'baseline',
+            intake_before: 'none',
+            intake_during: 'water',
+            why: 'Establish clean baseline - no products, just water',
+            instructions: ['Standard 5 × 1000m session', 'Water only during swim', 'No fuel or electrolyte products', 'This is your comparison point'],
+        },
+        {
+            id: 2,
+            title: 'PH500 During',
+            protocol: 'ph500_during',
+            category: 'hydration',
+            intake_before: 'none',
+            intake_during: 'PH500',
+            why: 'Test basic hydration protocol for training',
+            instructions: ['Standard 5 × 1000m', 'PH500 in bottle during session', 'No fuel', 'Compare energy vs baseline'],
+        },
+        {
+            id: 3,
+            title: 'PH1500 Preload',
+            protocol: 'ph1500_preload',
+            category: 'hydration',
+            intake_before: 'PH1500',
+            intake_during: 'water',
+            why: 'Test sodium preload for longer sessions',
+            instructions: ['PH1500 90 minutes before', 'Standard 5 × 1000m', 'Water only during', 'Note: not needed for 60-75min training'],
+        },
+        {
+            id: 4,
+            title: 'Baseline Repeat',
+            protocol: 'baseline',
+            category: 'baseline',
+            intake_before: 'none',
+            intake_during: 'water',
+            why: 'Verify baseline consistency before fuel testing',
+            instructions: ['Same as Test 1', 'Water only', 'Check scores are consistent', 'Confirms baseline is stable'],
+        },
+        {
+            id: 5,
+            title: 'Gel During (2 × PF30)',
+            protocol: 'gel_during',
+            category: 'fuel',
+            intake_before: 'none',
+            intake_during: 'gel',
+            why: 'First fuel test - gel format easier to take while swimming',
+            instructions: ['Standard 5 × 1000m', 'PH500 during (proven base)', '1 PF30 gel after set 2 (halfway)', '1 PF30 gel after set 4', 'Focus: stomach comfort, energy boost'],
+        },
+        {
+            id: 6,
+            title: 'Baseline Check',
+            protocol: 'baseline',
+            category: 'baseline',
+            intake_before: 'none',
+            intake_during: 'water',
+            why: 'Quick baseline check between fuel tests',
+            instructions: ['Water only', 'Verify you\'re still in normal range', 'Quick consistency check'],
+        },
+        {
+            id: 7,
+            title: 'Gel Repeat (Confirm)',
+            protocol: 'gel_during',
+            category: 'fuel',
+            intake_before: 'none',
+            intake_during: 'gel',
+            why: 'Confirm gel protocol works consistently',
+            instructions: ['Same as Test 5', '2 × PF30 gels same timing', 'PH500 base', 'Verify results repeat'],
+        },
+        {
+            id: 8,
+            title: 'Chew During (2 × PF30)',
+            protocol: 'chew_during',
+            category: 'fuel',
+            intake_before: 'none',
+            intake_during: 'chew',
+            why: 'Compare chew vs gel format',
+            instructions: ['Standard 5 × 1000m', 'PH500 during', '1 PF30 chew after set 2', '1 PF30 chew after set 4', 'Compare: easier/harder than gel?'],
+        },
+        {
+            id: 9,
+            title: 'Chew Repeat (Confirm)',
+            protocol: 'chew_during',
+            category: 'fuel',
+            intake_before: 'none',
+            intake_during: 'chew',
+            why: 'Confirm chew protocol consistency',
+            instructions: ['Same as Test 8', '2 × PF30 chews', 'Verify it repeats', 'Now you can compare gel vs chew'],
+        },
+        {
+            id: 10,
+            title: 'Race Validation (Winner Format)',
+            protocol: null, // Will be set based on gel vs chew results
+            category: 'fuel',
+            intake_before: 'PH1500',
+            intake_during: null, // gel or chew - whichever tested better
+            why: 'Full race-day protocol test',
+            instructions: ['PH1500 preload 90min before', 'Winning fuel format (gel or chew)', 'Simulate race conditions', 'Final validation before competition'],
+        }
+    ];
+
     const PROTOCOL_CATEGORY = {
         baseline:       'baseline',
         ph500_during:   'hydration',
@@ -691,43 +795,184 @@
         };
     }
 
-    function renderNextTestCard(nextTest) {
+    function renderTestingSchedule(allTests) {
         const card = document.getElementById('nextTestCard');
-        if (!nextTest) { card.style.display = 'none'; return; }
-
-        const protoLabel = PROTOCOL_LABELS[nextTest.protocol] || nextTest.protocol;
         
-        card.innerHTML = `
-            <div class="next-test-card">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-                    <i data-lucide="target" style="width:18px;height:18px;color:var(--ocean-light);"></i>
-                    <div style="font-size:14px;font-weight:800;color:var(--ocean-light);">NEXT TEST</div>
-                </div>
-                <div style="font-size:16px;font-weight:800;margin-bottom:6px;">${protoLabel}</div>
-                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;">${nextTest.reason}</div>
-                
-                <div style="margin-bottom:14px;">
-                    ${nextTest.instructions.map((inst, i) => `
-                        <div class="instruction-step">
-                            <div class="step-num">${i + 1}</div>
-                            <div style="font-size:12px;color:var(--text);line-height:1.5;">${inst}</div>
-                        </div>
-                    `).join('')}
-                </div>
+        // Determine which tests are completed
+        const completedTests = new Set();
+        allTests.forEach(t => {
+            // Match tests to schedule items
+            TESTING_SCHEDULE.forEach(sched => {
+                if (sched.protocol === t.protocol && sched.category === t.test_category) {
+                    completedTests.add(sched.id);
+                }
+            });
+        });
 
-                <div style="display:flex;gap:12px;flex-wrap:wrap;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:10px;">
-                    <div style="flex:1;min-width:120px;">
-                        <div style="font-size:10px;color:var(--text-secondary);margin-bottom:4px;font-weight:600;">PRODUCTS</div>
-                        <div style="font-size:12px;color:var(--text);">${nextTest.products.join(' + ')}</div>
-                    </div>
-                    <div style="flex:1;min-width:120px;">
-                        <div style="font-size:10px;color:var(--text-secondary);margin-bottom:4px;font-weight:600;">AFTER THIS</div>
-                        <div style="font-size:12px;color:var(--text);">${nextTest.afterThis}</div>
-                    </div>
+        // Find next test to do
+        let nextTestId = null;
+        for (const test of TESTING_SCHEDULE) {
+            if (!completedTests.has(test.id)) {
+                nextTestId = test.id;
+                break;
+            }
+        }
+
+        card.innerHTML = `
+            <div class="card" style="background:linear-gradient(135deg, rgba(14,165,233,0.08), rgba(56,189,248,0.05));border:2px solid rgba(14,165,233,0.2);">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+                    <i data-lucide="list-checks" style="width:18px;height:18px;color:var(--ocean-light);"></i>
+                    <div style="font-size:14px;font-weight:800;color:var(--ocean-light);">YOUR TESTING SCHEDULE</div>
+                </div>
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:16px;">
+                    ${completedTests.size}/${TESTING_SCHEDULE.length} tests completed · Follow this sequence for systematic fuel testing
+                </div>
+                
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    ${TESTING_SCHEDULE.map(test => {
+                        const isDone = completedTests.has(test.id);
+                        const isNext = test.id === nextTestId;
+                        
+                        return `
+                            <div style="
+                                padding:12px 14px;
+                                background:${isDone ? 'rgba(34,197,94,0.08)' : isNext ? 'rgba(14,165,233,0.1)' : 'rgba(255,255,255,0.02)'};
+                                border:1px solid ${isDone ? 'rgba(34,197,94,0.3)' : isNext ? 'rgba(14,165,233,0.3)' : 'rgba(255,255,255,0.08)'};
+                                border-radius:10px;
+                                display:flex;
+                                align-items:center;
+                                gap:12px;
+                                ${isDone ? 'opacity:0.6;' : ''}
+                            ">
+                                <div style="
+                                    width:28px;
+                                    height:28px;
+                                    border-radius:14px;
+                                    background:${isDone ? 'rgba(34,197,94,0.15)' : isNext ? 'rgba(14,165,233,0.15)' : 'rgba(255,255,255,0.05)'};
+                                    color:${isDone ? 'var(--success)' : isNext ? 'var(--ocean-light)' : 'var(--text-secondary)'};
+                                    font-weight:800;
+                                    font-size:13px;
+                                    display:flex;
+                                    align-items:center;
+                                    justify-content:center;
+                                    flex-shrink:0;
+                                ">
+                                    ${isDone ? '<i data-lucide="check" style="width:16px;height:16px;"></i>' : test.id}
+                                </div>
+                                
+                                <div style="flex:1;min-width:0;">
+                                    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px;">
+                                        ${test.title}
+                                    </div>
+                                    <div style="font-size:11px;color:var(--text-secondary);line-height:1.4;">
+                                        ${test.why}
+                                    </div>
+                                </div>
+                                
+                                ${isDone 
+                                    ? `<div style="font-size:10px;font-weight:700;color:var(--success);text-transform:uppercase;letter-spacing:0.5px;">Done</div>`
+                                    : isNext
+                                    ? `<button onclick="startScheduledTest(${test.id})" style="
+                                        padding:8px 16px;
+                                        border-radius:20px;
+                                        border:none;
+                                        background:linear-gradient(135deg,#0284c7,#0ea5e9);
+                                        color:white;
+                                        font-size:12px;
+                                        font-weight:700;
+                                        cursor:pointer;
+                                        white-space:nowrap;
+                                        display:flex;
+                                        align-items:center;
+                                        gap:5px;
+                                    ">
+                                        <i data-lucide="play" style="width:12px;height:12px;"></i> START
+                                    </button>`
+                                    : `<div style="font-size:10px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;">Waiting</div>`
+                                }
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
             </div>
         `;
+        
         card.style.display = 'block';
+        initIcons();
+    }
+
+    function startScheduledTest(testId) {
+        const test = TESTING_SCHEDULE.find(t => t.id === testId);
+        if (!test) return;
+
+        // Show the form
+        document.getElementById('fuelTestForm').style.display = 'block';
+        document.getElementById('fuelTestHistory').style.display = 'none';
+        document.getElementById('nextTestCard').style.display = 'none';
+        window.scrollTo({top:0, behavior:'smooth'});
+
+        // Pre-fill form fields
+        document.getElementById('fuelDate').value = new Date().toISOString().slice(0,10);
+        document.getElementById('fuelSpot').innerHTML = '<option value="">— Select spot —</option>' +
+            spots.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+        document.getElementById('fuelDistance').value = '5';
+        document.getElementById('fuelStructure').value = '5 x 1000m';
+
+        // Pre-select protocol
+        document.querySelectorAll('#fuelTestForm [data-group="protocol"]').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.value === test.protocol);
+        });
+
+        // Pre-select category
+        document.querySelectorAll('#fuelTestForm [data-group="test_category"]').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.value === test.category);
+        });
+
+        // Pre-select intake
+        document.querySelectorAll('#fuelTestForm [data-group="intake_before"]').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.value === test.intake_before);
+        });
+        document.querySelectorAll('#fuelTestForm [data-group="intake_during"]').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.value === test.intake_during);
+        });
+
+        // Pre-select session type (pool default)
+        document.querySelectorAll('#fuelTestForm [data-group="session_type"]').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.value === 'pool');
+        });
+
+        // Build set efforts and score sliders
+        buildSetEffortRows(5);
+        buildScoreSliders();
+
+        // Show instructions banner at top of form
+        const formContainer = document.getElementById('fuelTestForm');
+        const existingBanner = formContainer.querySelector('.test-instructions-banner');
+        if (existingBanner) existingBanner.remove();
+
+        const banner = document.createElement('div');
+        banner.className = 'test-instructions-banner';
+        banner.style.cssText = 'background:rgba(14,165,233,0.1);border:1px solid rgba(14,165,233,0.3);border-radius:12px;padding:14px 16px;margin-bottom:16px;';
+        banner.innerHTML = `
+            <div style="display:flex;align-items:start;gap:10px;margin-bottom:12px;">
+                <i data-lucide="clipboard-list" style="width:16px;height:16px;color:var(--ocean-light);flex-shrink:0;margin-top:2px;"></i>
+                <div>
+                    <div style="font-size:14px;font-weight:700;color:var(--ocean-light);margin-bottom:4px;">Test ${test.id}: ${test.title}</div>
+                    <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">${test.why}</div>
+                </div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:10px 12px;">
+                ${test.instructions.map((inst, i) => `
+                    <div style="display:flex;gap:8px;align-items:start;margin-bottom:${i < test.instructions.length - 1 ? '6px' : '0'};">
+                        <div style="color:var(--ocean-light);font-weight:700;font-size:11px;min-width:16px;">${i+1}.</div>
+                        <div style="font-size:11px;color:var(--text);line-height:1.5;">${inst}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        formContainer.insertBefore(banner, formContainer.firstChild);
+
+        updateFuelSummaryPreview();
         initIcons();
     }
 
@@ -1541,17 +1786,17 @@
         if (error || !data?.length) {
             el.innerHTML = `<div style="text-align:center;color:var(--text-secondary);font-size:13px;padding:40px 0;">
                 <i data-lucide="clipboard-list" style="width:28px;height:28px;display:block;margin:0 auto 12px;opacity:0.3;"></i>
-                No tests yet — tap New Test to start.
+                No tests yet — follow the testing schedule above.
             </div>`;
-            document.getElementById('nextTestCard').style.display = 'none';
+            // Still show schedule even with no tests
+            renderTestingSchedule([]);
             initIcons(); return;
         }
 
         allTestData = data;
         
-        // Show next test card
-        const nextTest = determineNextTest(data);
-        renderNextTestCard(nextTest);
+        // Show testing schedule
+        renderTestingSchedule(data);
 
         el.innerHTML = data.map(t => buildTestCard(t, true)).join('');
         initIcons();
