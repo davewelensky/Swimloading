@@ -127,6 +127,25 @@
         /* Filter chips on dashboard */
         .filter-chip { padding: 7px 16px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
         .filter-chip.active { background: rgba(14,165,233,0.12); border-color: rgba(14,165,233,0.4); color: var(--ocean-light); }
+
+        /* Next test card */
+        .next-test-card { background: linear-gradient(135deg, rgba(14,165,233,0.15), rgba(56,189,248,0.1)); border: 2px solid rgba(14,165,233,0.3); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+        .instruction-step { display: flex; align-items: start; gap: 10px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px; margin-bottom: 6px; }
+        .step-num { width: 24px; height: 24px; border-radius: 12px; background: rgba(14,165,233,0.2); color: var(--ocean-light); font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+        /* Progress badges */
+        .progress-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+        .progress-badge.proven { background: rgba(34,197,94,0.15); color: var(--success); }
+        .progress-badge.tested { background: rgba(245,158,11,0.15); color: var(--warning); }
+        .progress-badge.untested { background: rgba(100,116,139,0.15); color: var(--text-secondary); }
+
+        /* Race protocol */
+        .protocol-phase { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+        .phase-num { width: 32px; height: 32px; border-radius: 10px; background: rgba(14,165,233,0.15); color: var(--ocean-light); font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .confidence-badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
+        .confidence-high { background: rgba(34,197,94,0.15); color: var(--success); }
+        .confidence-medium { background: rgba(14,165,233,0.15); color: var(--ocean-light); }
+        .confidence-low { background: rgba(245,158,11,0.15); color: var(--warning); }
     </style>
 </head>
 <body>
@@ -182,6 +201,10 @@
                 style="flex:1;padding:8px 12px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:6px;">
                 <i data-lucide="bar-chart-2" style="width:14px;height:14px;"></i> Results
             </button>
+            <button id="tabRaceBtn" onclick="switchTab('race')"
+                style="flex:1;padding:8px 12px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:6px;">
+                <i data-lucide="calendar" style="width:14px;height:14px;"></i> Race
+            </button>
         </div>
     </div>
 
@@ -195,9 +218,40 @@
         </div>
     </div>
 
+    <!-- ── RACE PROTOCOL TAB ─────────────────────────────────────────────── -->
+    <div id="tabRace" style="display:none;">
+        <div class="container">
+            <div style="margin-bottom:16px;">
+                <div style="font-size:16px;font-weight:800;">Race Day Protocol</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Based on your test results</div>
+            </div>
+
+            <!-- Race Input -->
+            <div class="card">
+                <div class="section-label"><i data-lucide="sliders" style="width:13px;height:13px;"></i> Race Details</div>
+                <div class="grid-2" style="margin-bottom:12px;">
+                    <div>
+                        <div class="field-label">Distance (km)</div>
+                        <input type="number" id="raceDistance" value="5" min="1" max="50" step="0.5" oninput="generateRaceProtocol()">
+                    </div>
+                    <div>
+                        <div class="field-label">Estimated Time (min)</div>
+                        <input type="number" id="raceTime" value="75" min="10" max="600" step="5" oninput="generateRaceProtocol()">
+                    </div>
+                </div>
+            </div>
+
+            <div id="raceProtocolContent"></div>
+        </div>
+    </div>
+
     <!-- ── LOG TEST TAB ──────────────────────────────────────────────────── -->
     <div id="tabLog" style="display:none;">
     <div class="container">
+        
+        <!-- NEXT TEST CARD -->
+        <div id="nextTestCard" style="display:none;"></div>
+
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
             <div>
                 <div style="font-size:16px;font-weight:800;">Your Tests</div>
@@ -355,6 +409,7 @@
     let currentUser = null;
     let spots = [];
     let carinaBaseline = null;
+    let allTestData = []; // Store for race protocol generation
 
     const PROTOCOL_LABELS = {
         baseline:       'Baseline (Water Only)',
@@ -453,17 +508,31 @@
     }
 
     function switchTab(tab) {
-        const isResults = tab === 'results';
-        document.getElementById('tabResults').style.display = isResults ? 'block' : 'none';
-        document.getElementById('tabLog').style.display     = isResults ? 'none'  : 'block';
-        ['tabResultsBtn','tabLogBtn'].forEach(id => {
-            const btn = document.getElementById(id);
-            const active = (id === 'tabResultsBtn') === isResults;
-            btn.style.background = active ? '#0284c7' : 'transparent';
-            btn.style.color      = active ? 'white'   : 'var(--text-secondary)';
+        ['tabResults','tabLog','tabRace'].forEach(id => {
+            document.getElementById(id).style.display = 'none';
         });
-        if (isResults) loadDashboard();
-        else loadFuelTests();
+        ['tabResultsBtn','tabLogBtn','tabRaceBtn'].forEach(id => {
+            const btn = document.getElementById(id);
+            btn.style.background = 'transparent';
+            btn.style.color = 'var(--text-secondary)';
+        });
+
+        if (tab === 'results') {
+            document.getElementById('tabResults').style.display = 'block';
+            document.getElementById('tabResultsBtn').style.background = '#0284c7';
+            document.getElementById('tabResultsBtn').style.color = 'white';
+            loadDashboard();
+        } else if (tab === 'log') {
+            document.getElementById('tabLog').style.display = 'block';
+            document.getElementById('tabLogBtn').style.background = '#0284c7';
+            document.getElementById('tabLogBtn').style.color = 'white';
+            loadFuelTests();
+        } else if (tab === 'race') {
+            document.getElementById('tabRace').style.display = 'block';
+            document.getElementById('tabRaceBtn').style.background = '#0284c7';
+            document.getElementById('tabRaceBtn').style.color = 'white';
+            generateRaceProtocol();
+        }
         initIcons();
     }
 
@@ -495,7 +564,6 @@
             const val = testRow[f.key];
             if (val == null) return;
             if (f.invertGood) {
-                // lower effort = better (if energy maintained)
                 deltas[f.key] = mp[f.key] - val;
             } else {
                 deltas[f.key] = val - mp[f.key];
@@ -525,7 +593,379 @@
         return `<span class="cat-badge ${cat}">${label}</span>`;
     }
 
-    // ─────────────────────────────────────────────── DAVE'S DASHBOARD ─────────
+    // ───────────────────────────────────── NEXT TEST LOGIC ────────────────────
+
+    function determineNextTest(allTests) {
+        // Analyze what's been tested and recommend next test
+        const tested = {};
+        allTests.forEach(t => {
+            const proto = t.protocol;
+            if (!tested[proto]) tested[proto] = { count: 0, better: 0 };
+            tested[proto].count++;
+            if (t.verdict === 'better') tested[proto].better++;
+        });
+
+        // Has baseline been established?
+        if (!tested.baseline || tested.baseline.count < 1) {
+            return {
+                protocol: 'baseline',
+                reason: 'Establish clean baseline before fuel testing',
+                instructions: [
+                    'Standard 5 × 1000m session',
+                    'PH500 during (proven to work from Phase 1)',
+                    'NO fuel products today',
+                    'Focus: How does energy feel across sets with hydration only?',
+                    'This becomes your comparison point for fuel tests'
+                ],
+                products: ['PH500 tablets', 'Water'],
+                afterThis: 'Next: Test PF30 Gel (first fuel product)'
+            };
+        }
+
+        // Fuel testing sequence
+        if (!tested.gel_during || tested.gel_during.count < 2) {
+            return {
+                protocol: 'gel_during',
+                reason: 'Test gel format - easier to take during swim',
+                instructions: [
+                    'Standard 5 × 1000m session',
+                    'PH500 during (hydration base)',
+                    '1 PF30 gel after set 2 (halfway)',
+                    '1 PF30 gel after set 4 (near end)',
+                    'Focus: Gel tolerance, energy boost, stomach comfort'
+                ],
+                products: ['PH500 tablets', '2 × PF30 gels'],
+                afterThis: 'Next: Baseline repeat to verify'
+            };
+        }
+
+        if (!tested.chew_during || tested.chew_during.count < 2) {
+            return {
+                protocol: 'chew_during',
+                reason: 'Compare chew vs gel format',
+                instructions: [
+                    'Standard 5 × 1000m session',
+                    'PH500 during (same hydration base)',
+                    '1 PF30 chew after set 2',
+                    '1 PF30 chew after set 4',
+                    'Focus: Gel vs chew - which is easier to take? Better tolerated?'
+                ],
+                products: ['PH500 tablets', '2 × PF30 chews'],
+                afterThis: 'Next: Identify best fuel format'
+            };
+        }
+
+        // If both gel and chew tested, recommend winner repeat
+        if ((tested.gel_during?.count || 0) >= 1 && (tested.chew_during?.count || 0) >= 1) {
+            const gelBetter = (tested.gel_during?.better || 0) / (tested.gel_during?.count || 1);
+            const chewBetter = (tested.chew_during?.better || 0) / (tested.chew_during?.count || 1);
+            const winner = gelBetter >= chewBetter ? 'gel_during' : 'chew_during';
+            const winnerLabel = gelBetter >= chewBetter ? 'Gel' : 'Chew';
+            
+            return {
+                protocol: winner,
+                reason: `${winnerLabel} format tested better - confirm consistency`,
+                instructions: [
+                    'Standard 5 × 1000m session',
+                    'PH500 during',
+                    `2 × PF30 ${winnerLabel.toLowerCase()}s (same timing as before)`,
+                    'Focus: Confirm this format works consistently',
+                    'This becomes your race-day fuel protocol'
+                ],
+                products: ['PH500 tablets', `2 × PF30 ${winnerLabel.toLowerCase()}s`],
+                afterThis: 'Testing complete - ready for race validation'
+            };
+        }
+
+        // Default fallback
+        return {
+            protocol: 'baseline',
+            reason: 'Continue systematic testing',
+            instructions: [
+                'Standard 5 × 1000m session',
+                'Follow your established protocol',
+                'Log results to build evidence base'
+            ],
+            products: ['As per your protocol'],
+            afterThis: 'Keep building data'
+        };
+    }
+
+    function renderNextTestCard(nextTest) {
+        const card = document.getElementById('nextTestCard');
+        if (!nextTest) { card.style.display = 'none'; return; }
+
+        const protoLabel = PROTOCOL_LABELS[nextTest.protocol] || nextTest.protocol;
+        
+        card.innerHTML = `
+            <div class="next-test-card">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                    <i data-lucide="target" style="width:18px;height:18px;color:var(--ocean-light);"></i>
+                    <div style="font-size:14px;font-weight:800;color:var(--ocean-light);">NEXT TEST</div>
+                </div>
+                <div style="font-size:16px;font-weight:800;margin-bottom:6px;">${protoLabel}</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;">${nextTest.reason}</div>
+                
+                <div style="margin-bottom:14px;">
+                    ${nextTest.instructions.map((inst, i) => `
+                        <div class="instruction-step">
+                            <div class="step-num">${i + 1}</div>
+                            <div style="font-size:12px;color:var(--text);line-height:1.5;">${inst}</div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div style="display:flex;gap:12px;flex-wrap:wrap;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:10px;">
+                    <div style="flex:1;min-width:120px;">
+                        <div style="font-size:10px;color:var(--text-secondary);margin-bottom:4px;font-weight:600;">PRODUCTS</div>
+                        <div style="font-size:12px;color:var(--text);">${nextTest.products.join(' + ')}</div>
+                    </div>
+                    <div style="flex:1;min-width:120px;">
+                        <div style="font-size:10px;color:var(--text-secondary);margin-bottom:4px;font-weight:600;">AFTER THIS</div>
+                        <div style="font-size:12px;color:var(--text);">${nextTest.afterThis}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        card.style.display = 'block';
+        initIcons();
+    }
+
+    // ─────────────────────────────────── RACE PROTOCOL GENERATOR ──────────────
+
+    function getProductStatus(allTests) {
+        const status = {
+            ph500_during: { tested: false, proven: false },
+            ph1500_preload: { tested: false, proven: false },
+            gel_during: { tested: false, proven: false },
+            chew_during: { tested: false, proven: false },
+        };
+
+        allTests.forEach(t => {
+            const proto = t.protocol;
+            if (status[proto] !== undefined) {
+                status[proto].tested = true;
+                if (t.verdict === 'better') status[proto].proven = true;
+            }
+        });
+
+        return status;
+    }
+
+    function generateRaceProtocol() {
+        const distance = parseFloat(document.getElementById('raceDistance')?.value || 5);
+        const duration = parseInt(document.getElementById('raceTime')?.value || 75);
+        const status = getProductStatus(allTestData);
+
+        let protocol, confidence;
+
+        // Determine protocol based on distance/duration and test results
+        if (duration < 60) {
+            // Short race
+            protocol = {
+                category: 'Short Race',
+                description: `${distance}km in ~${duration} minutes - minimal fueling needed`,
+                pre: {
+                    timing: '60 min before',
+                    what: status.ph500_during.proven 
+                        ? 'PH500 (500ml water) ✓ Proven'
+                        : 'PH500 (500ml water) ⚠️ Use cautiously',
+                    why: status.ph500_during.proven ? 'Tested and works well for you' : 'Not fully tested yet'
+                },
+                during: {
+                    what: 'Nothing needed',
+                    why: 'Race too short for fueling'
+                },
+                post: {
+                    timing: 'Immediately after',
+                    what: 'PH500 + normal recovery meal',
+                    why: 'Standard recovery'
+                }
+            };
+            confidence = status.ph500_during.proven ? 'high' : 'medium';
+
+        } else if (duration <= 120) {
+            // Medium race (most common: 3-7km, 60-120 min)
+            const fuelProven = status.gel_during.proven || status.chew_during.proven;
+            const fuelFormat = status.gel_during.proven ? 'gel' : status.chew_during.proven ? 'chew' : 'gel';
+            
+            protocol = {
+                category: 'Medium Race',
+                description: `${distance}km in ~${duration} minutes - light fueling recommended`,
+                pre: {
+                    timing: '90 min before',
+                    what: 'PH1500 preload (500ml) + light breakfast',
+                    why: status.ph1500_preload.tested 
+                        ? 'PH1500 tested - reserved for races'
+                        : '⚠️ PH1500 not race-tested yet - use cautiously'
+                },
+                during: {
+                    what: fuelProven
+                        ? `1 PF30 ${fuelFormat} at halfway (in costume) ✓ Proven format`
+                        : `1 PF30 gel at halfway ⚠️ NOT TESTED - uncertain tolerance`,
+                    why: fuelProven 
+                        ? `${fuelFormat.charAt(0).toUpperCase() + fuelFormat.slice(1)} format tested and works well`
+                        : 'No fuel products tested yet - this is theoretical'
+                },
+                post: {
+                    timing: 'Within 15 min',
+                    what: 'PH500 + recovery fuel',
+                    why: 'Recovery window important'
+                }
+            };
+            confidence = fuelProven ? 'high' : 'low';
+
+        } else {
+            // Long race (7-15km, 120+ min)
+            const fuelProven = status.gel_during.proven || status.chew_during.proven;
+            const fuelFormat = status.gel_during.proven ? 'gel' : status.chew_during.proven ? 'chew' : 'gel';
+            
+            protocol = {
+                category: 'Long Race',
+                description: `${distance}km in ~${duration} minutes - proper fueling required`,
+                pre: {
+                    timing: '90 min before',
+                    what: 'PH1500 preload + proper breakfast (2-3hr before)',
+                    why: 'Long effort needs sodium preload'
+                },
+                during: {
+                    what: fuelProven
+                        ? `2-3 PF30 ${fuelFormat}s in costume (every 40-50 min) ✓ Proven`
+                        : '2-3 PF30 gels in costume ⚠️ NOT TESTED - risky for race',
+                    why: fuelProven
+                        ? `${fuelFormat.charAt(0).toUpperCase() + fuelFormat.slice(1)} format tested well`
+                        : 'No fuel testing done - this is unproven for you'
+                },
+                post: {
+                    timing: 'Immediately',
+                    what: 'PH500 + fuel, then meal within 1hr',
+                    why: 'Significant depletion - proper recovery needed'
+                }
+            };
+            confidence = fuelProven ? 'medium' : 'low';
+        }
+
+        renderRaceProtocol(protocol, confidence, status);
+    }
+
+    function renderRaceProtocol(protocol, confidence, status) {
+        const content = document.getElementById('raceProtocolContent');
+        
+        const confidenceClass = confidence === 'high' ? 'confidence-high' : confidence === 'medium' ? 'confidence-medium' : 'confidence-low';
+        const confidenceLabel = confidence.charAt(0).toUpperCase() + confidence.slice(1);
+
+        let html = `
+            <div class="card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <div>
+                        <div style="font-size:18px;font-weight:800;margin-bottom:4px;">${protocol.category}</div>
+                        <div style="font-size:12px;color:var(--text-secondary);">${protocol.description}</div>
+                    </div>
+                    <span class="confidence-badge ${confidenceClass}">
+                        <i data-lucide="${confidence === 'high' ? 'check-circle' : confidence === 'medium' ? 'alert-circle' : 'alert-triangle'}" style="width:12px;height:12px;"></i>
+                        ${confidenceLabel} Confidence
+                    </span>
+                </div>
+        `;
+
+        if (confidence === 'low') {
+            html += `
+                <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:12px;margin-bottom:14px;">
+                    <div style="display:flex;gap:8px;align-items:start;">
+                        <i data-lucide="alert-triangle" style="width:16px;height:16px;color:var(--warning);flex-shrink:0;margin-top:2px;"></i>
+                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">
+                            <strong style="color:var(--warning);">Low confidence:</strong> Not enough testing completed. 
+                            Recommendations are theoretical - complete fuel testing before racing.
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        html += `
+                <div class="protocol-phase">
+                    <div style="display:flex;gap:12px;margin-bottom:12px;">
+                        <div class="phase-num">1</div>
+                        <div style="flex:1;">
+                            <div style="font-size:14px;font-weight:800;margin-bottom:4px;">Pre-Race</div>
+                            <div style="font-size:11px;color:var(--text-secondary);">${protocol.pre.timing}</div>
+                        </div>
+                    </div>
+                    <div style="padding-left:44px;">
+                        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;">${protocol.pre.what}</div>
+                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">${protocol.pre.why}</div>
+                    </div>
+                </div>
+
+                <div class="protocol-phase">
+                    <div style="display:flex;gap:12px;margin-bottom:12px;">
+                        <div class="phase-num" style="background:rgba(56,189,248,0.15);">2</div>
+                        <div style="flex:1;">
+                            <div style="font-size:14px;font-weight:800;margin-bottom:4px;">During Race</div>
+                            <div style="font-size:11px;color:var(--text-secondary);">Carry in costume</div>
+                        </div>
+                    </div>
+                    <div style="padding-left:44px;">
+                        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;">${protocol.during.what}</div>
+                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">${protocol.during.why}</div>
+                    </div>
+                </div>
+
+                <div class="protocol-phase" style="margin-bottom:0;">
+                    <div style="display:flex;gap:12px;margin-bottom:12px;">
+                        <div class="phase-num" style="background:rgba(34,197,94,0.15);color:var(--success);">3</div>
+                        <div style="flex:1;">
+                            <div style="font-size:14px;font-weight:800;margin-bottom:4px;">Post-Race</div>
+                            <div style="font-size:11px;color:var(--text-secondary);">${protocol.post.timing}</div>
+                        </div>
+                    </div>
+                    <div style="padding-left:44px;">
+                        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;">${protocol.post.what}</div>
+                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">${protocol.post.why}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Based on your tests section
+        html += `
+            <div class="card">
+                <div class="section-label"><i data-lucide="clipboard-check" style="width:13px;height:13px;"></i> Based on Your Test Results</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <div>
+                        <div style="font-size:11px;font-weight:700;color:var(--success);margin-bottom:8px;">✓ PROVEN (use confidently)</div>
+                        ${Object.entries(status).filter(([_, s]) => s.proven).map(([proto, _]) => `
+                            <div style="font-size:12px;color:var(--text);margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+                                <i data-lucide="check-circle" style="width:12px;height:12px;color:var(--success);"></i>
+                                ${PROTOCOL_LABELS[proto]}
+                            </div>
+                        `).join('') || '<div style="font-size:12px;color:var(--text-secondary);">None yet - complete more tests</div>'}
+                    </div>
+                    <div>
+                        <div style="font-size:11px;font-weight:700;color:var(--warning);margin-bottom:8px;">⚠️ NOT TESTED (use cautiously)</div>
+                        ${Object.entries(status).filter(([_, s]) => !s.tested).map(([proto, _]) => `
+                            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+                                <i data-lucide="alert-circle" style="width:12px;height:12px;color:var(--warning);"></i>
+                                ${PROTOCOL_LABELS[proto]}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+                    <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">
+                        <strong style="color:var(--text);">Note:</strong> This protocol improves as you complete more tests. 
+                        Currently based on ${allTestData.length} completed test${allTestData.length !== 1 ? 's' : ''}.
+                    </div>
+                </div>
+            </div>
+        `;
+
+        content.innerHTML = html;
+        initIcons();
+    }
+
+    // ─────────────────────────────────────────── DAVE'S DASHBOARD ─────────────
 
     let dashFilterCat = 'all';
 
@@ -545,6 +985,7 @@
             initIcons(); return;
         }
 
+        allTestData = data; // Store for race protocol
         renderDashboard(data, el);
     }
 
@@ -575,6 +1016,25 @@
             : new Date(allData[0].test_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
 
         let html = '';
+
+        // Testing Progress Section
+        const status = getProductStatus(allData);
+        html += `<div class="card">
+            <div class="section-label"><i data-lucide="trending-up" style="width:13px;height:13px;"></i> Testing Progress</div>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+                ${Object.entries(status).map(([proto, s]) => {
+                    const label = PROTOCOL_LABELS[proto];
+                    const badgeClass = s.proven ? 'proven' : s.tested ? 'tested' : 'untested';
+                    const badgeLabel = s.proven ? '✓ Proven' : s.tested ? 'Tested' : 'Not Tested';
+                    return `
+                        <div style="padding:10px;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid var(--border);">
+                            <div style="font-size:12px;font-weight:700;margin-bottom:6px;">${label}</div>
+                            <span class="progress-badge ${badgeClass}">${badgeLabel}</span>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>`;
 
         // Overview strip (6 cells in 2 rows of 3)
         html += `<div class="card">
@@ -650,7 +1110,6 @@
 
         SCORE_FIELDS.forEach(f => {
             const avgs = usedProtos.map(p => avg(byProto[p], f.key));
-            // For non-effort metrics, best = highest. For effort (invertGood), best = closest to baseline midpoint or lower
             const maxVal = f.invertGood ? null : Math.max(...avgs.filter(v => v !== null));
             html += `<tr><td style="padding:8px 8px 8px 0;color:var(--text-secondary);">${f.label}</td>`;
             usedProtos.forEach((p, i) => {
@@ -676,10 +1135,7 @@
         });
 
         el.innerHTML = html;
-
-        // Store allData on element for filter re-renders
         el._allData = allData;
-
         initIcons();
 
         // Draw score comparison chart
@@ -702,7 +1158,6 @@
                     borderWidth: 2,
                     borderRadius: 5,
                 }));
-                // Add baseline reference dataset if available
                 if (mp) {
                     datasets.push({
                         label: 'Baseline',
@@ -803,12 +1258,10 @@
     }
 
     function protocolToggle(btn) {
-        // Toggle the protocol button
         const group = btn.dataset.group;
         btn.closest('#fuelTestForm').querySelectorAll(`[data-group="${group}"]`).forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
-        // Auto-set test_category from protocol
         const proto = btn.dataset.value;
         const cat = PROTOCOL_CATEGORY[proto];
         if (cat) {
@@ -816,7 +1269,6 @@
                 b.classList.toggle('active', b.dataset.value === cat);
             });
         }
-        // If custom, remove any category selection
         if (proto === 'custom') {
             btn.closest('#fuelTestForm').querySelectorAll('[data-group="test_category"]').forEach(b => b.classList.remove('active'));
         }
@@ -907,7 +1359,6 @@
 
         let s = '';
 
-        // Category opener
         if (cat === 'baseline') {
             s += 'Baseline session (water only). ';
         } else if (cat === 'hydration') {
@@ -918,27 +1369,23 @@
             s += 'Hydration + fuelling test. ';
         }
 
-        // Protocol mention
         s += `Protocol: ${proto}. `;
         s += `${spotName}, ${d.distance_km}km ${d.structure||''}. Session score ${avgScore}/10. `;
 
-        // Stomach
         if (d.stomach_comfort >= 8) {
             s += 'No GI issues. ';
         } else if (d.stomach_comfort <= 5) {
             s += `Stomach concern (${d.stomach_comfort}/10). `;
         }
 
-        // Hydration mention for hydration tests
         if (cat === 'hydration' || cat === 'combined') {
             if (d.hydration_feeling >= 8) s += 'Well hydrated throughout. ';
             else if (d.hydration_feeling <= 5) s += `Hydration felt inadequate (${d.hydration_feeling}/10). `;
         }
 
-        // Baseline deltas
         if (mp) {
             const energyDelta  = d.energy_consistency - mp.energy_consistency;
-            const effortDelta  = mp.perceived_effort  - d.perceived_effort; // inverted
+            const effortDelta  = mp.perceived_effort  - d.perceived_effort;
             if (effortDelta > 0.5 && energyDelta > 0) {
                 s += 'Felt easier than baseline with maintained energy. ';
             } else if (energyDelta > 1) {
@@ -946,7 +1393,6 @@
             }
         }
 
-        // Flags
         const flags = [];
         if (d.stronger_finish) flags.push('strong finish');
         if (d.faded_end)       flags.push('faded end');
@@ -954,7 +1400,6 @@
         if (d.cramping)        flags.push('cramping');
         if (flags.length) s += `Flags: ${flags.join(', ')}. `;
 
-        // Set efforts
         const ec = d.set_efforts ? d.set_efforts.reduce((a,e) => { a[e]=(a[e]||0)+1; return a; }, {}) : {};
         if (ec.harder > 1) s += 'Faded over sets. ';
         if (ec.easier > 1) s += 'Felt progressively easier. ';
@@ -997,6 +1442,7 @@
         buildSetEffortRows(5); buildScoreSliders(); updateFuelSummaryPreview();
         document.getElementById('fuelTestForm').style.display = 'block';
         document.getElementById('fuelTestHistory').style.display = 'none';
+        document.getElementById('nextTestCard').style.display = 'none';
         window.scrollTo({top:0,behavior:'smooth'});
         initIcons();
     }
@@ -1004,6 +1450,7 @@
     function cancelFuelForm() {
         document.getElementById('fuelTestForm').style.display = 'none';
         document.getElementById('fuelTestHistory').style.display = 'block';
+        loadFuelTests(); // Refresh to show next test card
     }
 
     async function saveFuelTest() {
@@ -1014,7 +1461,6 @@
         try {
             const d = getFuelFormValues();
 
-            // Validate
             const { errors, warnings } = validateFuelForm(d);
             if (errors.length) {
                 showToast(errors[0], 'error');
@@ -1024,7 +1470,6 @@
                 return;
             }
             if (warnings.length) {
-                // Warn but don't block — show as toast and proceed
                 showToast(warnings[0], '');
                 await new Promise(r => setTimeout(r, 1200));
             }
@@ -1060,8 +1505,15 @@
                 <i data-lucide="clipboard-list" style="width:28px;height:28px;display:block;margin:0 auto 12px;opacity:0.3;"></i>
                 No tests yet — tap New Test to start.
             </div>`;
+            document.getElementById('nextTestCard').style.display = 'none';
             initIcons(); return;
         }
+
+        allTestData = data;
+        
+        // Show next test card
+        const nextTest = determineNextTest(data);
+        renderNextTestCard(nextTest);
 
         el.innerHTML = data.map(t => buildTestCard(t, true)).join('');
         initIcons();
