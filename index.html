@@ -5922,10 +5922,31 @@
         // Keyboard-aware viewport handler — keeps sheet above the keyboard
         function _spViewportResize() {
             const sheet = document.getElementById('spotPickerSheet');
-            if (!sheet || !window.visualViewport) return;
-            const keyboardHeight = Math.max(0, window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop);
-            sheet.style.bottom = keyboardHeight + 'px';
-            sheet.style.maxHeight = (window.visualViewport.height * 0.92) + 'px';
+            if (!sheet) return;
+            if (window.visualViewport) {
+                const kbHeight = Math.max(0, window.innerHeight - window.visualViewport.height);
+                if (kbHeight > 80) {
+                    // Keyboard is open: push sheet up and shrink it
+                    sheet.style.bottom = kbHeight + 'px';
+                    sheet.style.maxHeight = (window.visualViewport.height * 0.92) + 'px';
+                } else {
+                    sheet.style.bottom = '0';
+                    sheet.style.maxHeight = '88vh';
+                }
+            }
+        }
+
+        function _spSearchFocus() {
+            // Small delay for the keyboard animation to complete
+            setTimeout(_spViewportResize, 320);
+        }
+
+        function _spSearchBlur() {
+            const sheet = document.getElementById('spotPickerSheet');
+            if (sheet) {
+                sheet.style.bottom = '0';
+                sheet.style.maxHeight = '88vh';
+            }
         }
 
         // Open the picker sheet
@@ -7581,12 +7602,15 @@
             position: fixed;
             left: 0; right: 0; bottom: 0;
             max-height: 88vh;
+            max-width: 480px;
+            margin: 0 auto;
             background: #0f1f38;
             border-radius: 20px 20px 0 0;
             z-index: 10011;
             flex-direction: column;
             overflow: hidden;
             box-shadow: 0 -8px 40px rgba(0,0,0,0.6);
+            transition: bottom 0.1s ease, max-height 0.1s ease;
         }
         #spotPickerSheet.sp-open { display: flex; animation: spSlideUp 0.3s cubic-bezier(0.32,0.72,0,1); }
         .sp-handle {
@@ -8343,7 +8367,10 @@
         <!-- Search -->
         <div class="sp-search-wrap">
             <input id="spSearchInput" type="text" placeholder="Search spots..."
-                oninput="onSpPickerSearch(this.value)" autocomplete="off" autocorrect="off" spellcheck="false">
+                oninput="onSpPickerSearch(this.value)"
+                onfocus="_spSearchFocus()"
+                onblur="_spSearchBlur()"
+                autocomplete="off" autocorrect="off" spellcheck="false">
             <button id="spSearchClear" onclick="clearSpPickerSearch()" aria-label="Clear search">&times;</button>
         </div>
         <!-- Spot list -->
