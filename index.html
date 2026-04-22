@@ -34,7 +34,7 @@
         const IS_EMAIL_VERIFY = INITIAL_HASH && INITIAL_HASH.includes('type=signup');
 
         if (IS_PASSWORD_RECOVERY || IS_AUTH_ERROR || IS_EMAIL_VERIFY) {
-            console.log('🔑 Auth hash detected BEFORE Supabase init:',
+            console.log('Auth hash detected BEFORE Supabase init:',
                 IS_PASSWORD_RECOVERY ? 'RECOVERY' : IS_AUTH_ERROR ? 'ERROR' : 'SIGNUP');
         }
 
@@ -125,7 +125,7 @@
 
             // Handle password recovery
             if (IS_PASSWORD_RECOVERY) {
-                console.log('✅ Recovery detected — waiting for Supabase to process token...');
+                console.log('Recovery detected — waiting for Supabase to process token...');
                 // Give Supabase a moment to exchange the token for a session
                 // Then show the reset form
                 await waitForSession(3000);
@@ -146,7 +146,7 @@
                     msgEl.style.display = 'block';
                     msgEl.style.background = 'rgba(239, 68, 68, 0.1)';
                     msgEl.style.color = 'var(--danger)';
-                    msgEl.innerHTML = '⚠️ ' + decodeURIComponent(errorDesc.replace(/\+/g, ' ')) + '<br><span style="font-size:12px; color: var(--text-secondary);">Please request a new reset link below.</span>';
+                    msgEl.innerHTML = decodeURIComponent(errorDesc.replace(/\+/g, ' ')) + '<br><span style="font-size:12px; color: var(--text-secondary);">Please request a new reset link below.</span>';
                 }, 200);
                 return;
             }
@@ -186,8 +186,8 @@
                     const { data: { session } } = await supabaseClient.auth.getSession();
                     if (session || elapsed >= maxMs) {
                         clearInterval(interval);
-                        if (session) console.log('✅ Session ready after', elapsed, 'ms');
-                        else console.log('⚠️ No session after', maxMs, 'ms');
+                        if (session) console.log('Session ready after', elapsed, 'ms');
+                        else console.log('No session after', maxMs, 'ms');
                         resolve(session);
                     }
                 }, 200);
@@ -244,11 +244,11 @@
                 msgEl.style.background = 'rgba(16, 185, 129, 0.08)';
                 msgEl.style.color = 'var(--success)';
                 msgEl.innerHTML = `
-                    <div style="font-weight: 600; margin-bottom: 8px;">✅ Reset link sent!</div>
+                    <div style="font-weight: 600; margin-bottom: 8px;">Reset link sent!</div>
                     <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
-                        📬 Check your inbox for <strong style="color: var(--text-primary);">${email}</strong><br>
-                        📁 Also check your <strong style="color: var(--text-primary);">Spam / Junk</strong> folder<br>
-                        ⏱️ Email can take 1-3 minutes to arrive
+                        Check your inbox for <strong style="color: var(--text-primary);">${email}</strong><br>
+                        Also check your <strong style="color: var(--text-primary);">Spam / Junk</strong> folder<br>
+                        Email can take 1-3 minutes to arrive
                     </div>
                 `;
 
@@ -327,7 +327,7 @@
             } else {
                 msgEl.style.background = 'rgba(16, 185, 129, 0.1)';
                 msgEl.style.color = 'var(--success)';
-                msgEl.innerHTML = '✅ Password updated! Redirecting...';
+                msgEl.innerHTML = 'Password updated! Redirecting...';
 
                 // Clean up URL hash and redirect to app
                 window.location.hash = '';
@@ -522,7 +522,7 @@
                 if (data.session) {
                     // Auto-confirmed! Go straight to app
                     currentUser = data.user;
-                    signupBtn.innerHTML = '✅ Welcome aboard!';
+                    signupBtn.innerHTML = 'Welcome aboard!';
                     setTimeout(() => {
                         signupBtn.disabled = false;
                         signupBtn.textContent = 'Sign Up';
@@ -552,7 +552,6 @@
             verifyEl.style.display = 'block';
             verifyEl.innerHTML = `
                 <div style="text-align: center; padding: 10px 0;">
-                    <div style="font-size: 48px; margin-bottom: 16px;">📬</div>
                     <h3 style="color: var(--text-primary); font-size: 20px; margin-bottom: 8px;">Check your email</h3>
                     <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px; line-height: 1.5;">
                         We sent a verification link to<br>
@@ -561,10 +560,10 @@
 
                     <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: left; margin-bottom: 20px;">
                         <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.8;">
-                            <div>📥 Check your inbox</div>
-                            <div>📁 Check <strong style="color: var(--text-primary);">Spam / Junk</strong> folder</div>
-                            <div>⏱️ Can take 1-3 minutes to arrive</div>
-                            <div>🔗 Click the link in the email to verify</div>
+                            <div>Check your inbox</div>
+                            <div>Check <strong style="color: var(--text-primary);">Spam / Junk</strong> folder</div>
+                            <div>Can take 1-3 minutes to arrive</div>
+                            <div>Click the link in the email to verify</div>
                         </div>
                     </div>
 
@@ -1275,10 +1274,10 @@
 
             // -- Band --
             let label, emoji, color;
-            if (score >= 75)      { label = 'Great'; emoji = '🟢'; color = '#10b981'; }
-            else if (score >= 50) { label = 'Good';  emoji = '🟡'; color = '#f59e0b'; }
-            else if (score >= 25) { label = 'Fair';  emoji = '🟠'; color = '#f97316'; }
-            else                  { label = 'Rough'; emoji = '🔴'; color = '#ef4444'; }
+            if (score >= 75)      { label = 'Great'; emoji = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;vertical-align:middle;flex-shrink:0;"></span>'; color = '#10b981'; }
+            else if (score >= 50) { label = 'Good';  emoji = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;vertical-align:middle;flex-shrink:0;"></span>'; color = '#f59e0b'; }
+            else if (score >= 25) { label = 'Fair';  emoji = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f97316;vertical-align:middle;flex-shrink:0;"></span>'; color = '#f97316'; }
+            else                  { label = 'Rough'; emoji = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4444;vertical-align:middle;flex-shrink:0;"></span>'; color = '#ef4444'; }
 
             return { score, label, emoji, color };
         }
@@ -1324,7 +1323,7 @@
 
             // Wind indicator — only shown when forecast is available
             const windLine = todayForecast
-                ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">🌬 ${todayForecast.windDirText} ${todayForecast.windSpeed} km/h${todayForecast.waveHeight != null ? ' · ' + todayForecast.waveHeight + 'm' : ''}</div>`
+                ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${todayForecast.windDirText} ${todayForecast.windSpeed} km/h${todayForecast.waveHeight != null ? ' · ' + todayForecast.waveHeight + 'm' : ''}</div>`
                 : '';
 
             // Use profile map built during temp-card fetch (shared via window._dashProfileMap)
@@ -1342,7 +1341,7 @@
                 const spotNameSafe = (spot.spot_name || '').replace(/'/g, "\\'");
                 const spotHazards = activeHazardsBySpot[spot.spot_id] || [];
                 const hazardBanner = spotHazards.length > 0
-                    ? `<div style="margin-top:6px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;color:#ef4444;">⚠️ ${spotHazards[0].title}</div>`
+                    ? `<div style="margin-top:6px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;color:#ef4444;">${spotHazards[0].title}</div>`
                     : '';
 
                 // Temperature trend arrow — compare most recent 2 logs with temp_c
@@ -1376,9 +1375,9 @@
                                 <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${ageText}${byLine}</div>
                             </div>
                             <div style="text-align:right;">
-                                <div style="font-size:20px;font-weight:800;color:${getDisplayTempColor(spot.temp_c, spot.water_type)};">${spot.temp_c}°C${hasLogHazard ? ' <span style="font-size:13px;" title="' + recentLogHazards.join(', ') + '">⚠️</span>' : ''}</div>
-                                <div style="display:flex;align-items:center;justify-content:flex-end;gap:3px;margin-top:2px;">
-                                    <span style="font-size:13px;">${emoji}</span>
+                                <div style="font-size:20px;font-weight:800;color:${getDisplayTempColor(spot.temp_c, spot.water_type)};">${spot.temp_c}°C${hasLogHazard ? ' <i data-lucide="alert-triangle" style="width:13px;height:13px;color:#ef4444;vertical-align:middle;" title="' + recentLogHazards.join(', ') + '"></i>' : ''}</div>
+                                <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:2px;">
+                                    ${emoji}
                                     <span style="font-size:11px;font-weight:700;color:${color};">${label}</span>
                                 </div>
                             </div>
@@ -1915,7 +1914,7 @@
                 if ((count || 0) >= 5) {
                     btn.disabled = false;
                     btn.textContent = 'Post';
-                    showToast("You've posted 5 swims today. Focus on swimming! 😊", 'info');
+                    showToast("You've posted 5 swims today. Focus on swimming!", 'info');
                     return;
                 }
                 // ── Insert new post ──
@@ -1948,7 +1947,7 @@
                 const swimSpot = spots.find(s => s.id === spotId);
                 if (swimSpot?.domain) {
                     broadcastPush(swimSpot.domain, 'swim', 'SwimLoading',
-                        `🏊 A swim has been posted at ${spotName} — check conditions`);
+                        `A swim has been posted at ${spotName} — check conditions`);
                 }
             }
         }
@@ -2045,8 +2044,8 @@
                     <div style="flex:1; min-width:0;">
                         <div style="font-weight:700; font-size:14px; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
                             ${name} is swimming
-                            ${isMe ? `<button onclick="editSwimPost('${post.id}')" title="Edit post" style="background:none; border:none; color:var(--ocean-light); cursor:pointer; font-size:13px; opacity:0.7; line-height:1; padding:0; margin-left:auto;">✏️</button>
-                             <button onclick="deleteSwimPost('${post.id}')" title="Remove post" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size:13px; opacity:0.5; line-height:1; padding:0;">✕</button>` : ''}
+                            ${isMe ? `<button onclick="editSwimPost('${post.id}')" title="Edit post" style="background:none; border:none; color:var(--ocean-light); cursor:pointer; font-size:11px; opacity:0.7; line-height:1; padding:0; margin-left:auto;">Edit</button>
+                             <button onclick="deleteSwimPost('${post.id}')" title="Remove post" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size:11px; opacity:0.5; line-height:1; padding:0;">✕</button>` : ''}
                         </div>
                         <div style="font-size:13px; color:var(--text-secondary); margin-top:3px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
                             <i data-lucide="map-pin" style="width:12px;height:12px;flex-shrink:0;"></i> ${spotName}
@@ -2138,7 +2137,7 @@
             const timeLabel = dt.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
 
             document.getElementById('swimPostShareTitle').textContent = `${spotName} — ${dayLabel} at ${timeLabel}`;
-            _swimPostShareMsg = `🌊 I'm swimming at ${spotName} — ${dayLabel} at ${timeLabel}${note ? '\n"' + note + '"' : ''}\n\nCome join me! SwimLoading — swimloading.com/app`;
+            _swimPostShareMsg = `I'm swimming at ${spotName} — ${dayLabel} at ${timeLabel}${note ? '\n"' + note + '"' : ''}\n\nCome join me! SwimLoading — swimloading.com/app`;
             document.getElementById('swimPostShareMessage').textContent = _swimPostShareMsg;
             document.getElementById('swimPostShareModal').style.display = 'flex';
         }
@@ -2163,7 +2162,7 @@
                 : dt.toDateString() === tomorrowStr ? 'tomorrow'
                 : dt.toLocaleDateString('en-ZA', { weekday: 'long', month: 'short', day: 'numeric' });
             const timeLabel = dt.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
-            const msg = `🌊 ${d.name} is swimming at ${d.spotName} — ${dayLabel} at ${timeLabel}${d.note ? '\n"' + d.note + '"' : ''}\n\nJoin on SwimLoading — swimloading.com/app`;
+            const msg = `${d.name} is swimming at ${d.spotName} — ${dayLabel} at ${timeLabel}${d.note ? '\n"' + d.note + '"' : ''}\n\nJoin on SwimLoading — swimloading.com/app`;
             window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
@@ -2564,7 +2563,7 @@
                                         ` : ''}
                                     </div>
                                     <div style="font-size: 13px; color: var(--text-secondary);">
-                                        📍 ${event.location_name || 'Location TBD'}
+                                        ${event.location_name || 'Location TBD'}
                                     </div>
                                 </div>
                                 <div style="text-align: right;">
@@ -2582,7 +2581,7 @@
                                     ${paceLabel}
                                 </div>
                                 ${event.category === 'official_race' ? `<div style="background:rgba(245,158,11,0.15);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;color:#f59e0b;letter-spacing:0.3px;">OFFICIAL</div>` : ''}
-                                ${event.recurrence_type ? `<div style="background:rgba(16,185,129,0.12);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;color:#10b981;">🔄 ${formatRecurrenceLabel(event.recurrence_type, event.start_at)}</div>` : ''}
+                                ${event.recurrence_type ? `<div style="background:rgba(16,185,129,0.12);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;color:#10b981;">${formatRecurrenceLabel(event.recurrence_type, event.start_at)}</div>` : ''}
                                 ${displayRoute ? `
                                     <div style="background: rgba(56, 189, 248, 0.1); padding: 4px 10px; border-radius: 6px; font-size: 11px; color: var(--text-secondary);">
                                         ${displayRoute}
@@ -2876,12 +2875,12 @@
                         for (const user of optedIn) {
                             await notify(
                                 user.id, newEventId, 'new_swim',
-                                `🏊 ${hostName} posted a new swim!`,
+                                `${hostName} posted a new swim!`,
                                 notifMessage,
                                 { swim_event_id: newEventId }
                             );
                         }
-                        showToast(`📣 ${optedIn.length} swimmer${optedIn.length!==1?'s':''} notified`, 'success');
+                        showToast(`${optedIn.length} swimmer${optedIn.length!==1?'s':''} notified`, 'success');
                     }
                 } catch (err) {
                     console.error('Error sending new swim notifications:', err);
@@ -2915,7 +2914,7 @@
                 const _hz = spotId ? (activeHazardsBySpot[spotId] || []) : [];
                 if (_hz.length > 0) {
                     _hw.style.display = 'block';
-                    _hw.innerHTML = '⚠️ <strong>Active hazard at this spot:</strong> ' + _hz.map(h => h.title).join(' · ');
+                    _hw.innerHTML = '<strong>Active hazard at this spot:</strong> ' + _hz.map(h => h.title).join(' · ');
                 } else {
                     _hw.style.display = 'none';
                 }
@@ -3134,17 +3133,17 @@
             (organisers || []).forEach(p => organiserMap[p.id] = p.display_name);
 
             const paceLabel = p => {
-                if (p <= 100) return '⚡ Fast';
-                if (p <= 120) return '📈 Steady';
-                if (p <= 150) return '👥 Social';
-                return '❤️ Developing';
+                if (p <= 100) return 'Fast';
+                if (p <= 120) return 'Steady';
+                if (p <= 150) return 'Social';
+                return 'Developing';
             };
 
             el.innerHTML = `
                 <div style="background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.4);
                             border-radius: 12px; padding: 14px 16px;">
                     <div style="font-weight: 700; color: var(--warning); font-size: 13px; margin-bottom: 10px;">
-                        ⚠️ There's already a swim at this location around this time
+                        There's already a swim at this location around this time
                     </div>
                     ${overlappingSwims.map(s => {
                         const d = new Date(s.start_at);
@@ -3155,9 +3154,9 @@
                         const organiser = organiserMap[s.created_by] || 'Someone';
                         return `
                             <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(245,158,11,0.15);">
-                                <div style="font-weight: 700; color: var(--text-primary); font-size: 14px;">🏊 ${s.title}</div>
+                                <div style="font-weight: 700; color: var(--text-primary); font-size: 14px;">${s.title}</div>
                                 <div style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">
-                                    📅 ${dateStr} at ${timeStr} · ${distStr}${pace}
+                                    ${dateStr} at ${timeStr} · ${distStr}${pace}
                                 </div>
                                 <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
                                     Organiser: <strong style="color: var(--text-primary);">${organiser}</strong>
@@ -3210,7 +3209,7 @@
             const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
             const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
             const distance = event.distance_km ? ` • ${event.distance_km}km` : '';
-            return `🏊 ${event.title}\n📍 ${event.location_name}\n📅 ${dateStr} at ${timeStr}${distance}\n\nJoin us on SwimLoading!`;
+            return `${event.title}\n${event.location_name}\n${dateStr} at ${timeStr}${distance}\n\nJoin us on SwimLoading!`;
         }
 
         function shareSwimWhatsApp(event) {
@@ -3260,7 +3259,7 @@
             modal.style.display = 'block';
             document.getElementById('eventDetailsContent').innerHTML = `
                 <div style="text-align: center; padding: 20px;">
-                    <div style="font-size: 48px; margin-bottom: 16px;">🌊</div>
+                    <div style="margin-bottom: 16px;"><i data-lucide="waves" style="width:48px;height:48px;color:var(--ocean-light);opacity:0.4;"></i></div>
                     <h2 style="color: var(--text-primary); font-size: 22px; margin-bottom: 8px;">Swim Created!</h2>
                     <div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">Invite swimmers to join — even if they're not on the app yet</div>
 
@@ -3441,7 +3440,7 @@
             document.body.style.overflow = 'hidden';
             document.getElementById('eventDetailsContent').innerHTML = `
                 <div style="text-align:center;padding:8px 0 20px;">
-                    <div style="font-size:44px;margin-bottom:12px;">⚠️</div>
+                    <div style="margin-bottom:12px;"><i data-lucide="alert-triangle" style="width:44px;height:44px;color:#ef4444;opacity:0.7;"></i></div>
                     <h3 style="color:#f59e0b;font-size:18px;font-weight:800;margin-bottom:8px;">Hazard at this location</h3>
                     <div style="font-size:13px;line-height:1.6;margin-bottom:16px;">
                         ${hazards.map(h => `<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 14px;margin-bottom:8px;text-align:left;">
@@ -3775,8 +3774,8 @@
                                 </div>
                                 ${isParticipant && m.profiles?.phone ? `
                                     <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; gap: 12px; flex-wrap: wrap;">
-                                        <a href="tel:${m.profiles.phone}" style="color: var(--ocean-light); font-size: 12px; text-decoration: none;">📱 ${m.profiles.phone}</a>
-                                        ${m.profiles.emergency_contact_name ? `<span style="color: var(--text-secondary); font-size: 11px;">🚨 ICE: ${m.profiles.emergency_contact_name} <a href="tel:${m.profiles.emergency_contact_phone}" style="color: var(--danger); text-decoration: none;">${m.profiles.emergency_contact_phone || ''}</a></span>` : ''}
+                                        <a href="tel:${m.profiles.phone}" style="color: var(--ocean-light); font-size: 12px; text-decoration: none;">${m.profiles.phone}</a>
+                                        ${m.profiles.emergency_contact_name ? `<span style="color: var(--text-secondary); font-size: 11px;">ICE: ${m.profiles.emergency_contact_name} <a href="tel:${m.profiles.emergency_contact_phone}" style="color: var(--danger); text-decoration: none;">${m.profiles.emergency_contact_phone || ''}</a></span>` : ''}
                                     </div>
                                 ` : ''}
                             </div>
@@ -4005,15 +4004,15 @@
                 const significantChanges = [];
                 if (oldEvt) {
                     if (locationName && locationName !== oldEvt.location_name)
-                        significantChanges.push(`📍 Location: ${oldEvt.location_name} → ${locationName}`);
+                        significantChanges.push(`Location: ${oldEvt.location_name} → ${locationName}`);
                     if (distanceKm && distanceKm !== oldEvt.distance_km)
-                        significantChanges.push(`📏 Distance: ${oldEvt.distance_km || '?'}km → ${distanceKm}km`);
+                        significantChanges.push(`Distance: ${oldEvt.distance_km || '?'}km → ${distanceKm}km`);
                     const oldTime = new Date(oldEvt.start_at).getTime();
                     const newTime = new Date(startAt).getTime();
                     if (Math.abs(oldTime - newTime) > 60000)
-                        significantChanges.push(`🕐 Time: ${new Date(startAt).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })} on ${new Date(startAt).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' })}`);
+                        significantChanges.push(`Time: ${new Date(startAt).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })} on ${new Date(startAt).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' })}`);
                     if (title && title !== oldEvt.title)
-                        significantChanges.push(`✏️ Name: ${title}`);
+                        significantChanges.push(`Name: ${title}`);
                 }
                 const isSignificant = significantChanges.length > 0;
                 const changeSummary = significantChanges.join(' · ');
@@ -4066,7 +4065,7 @@
                             }
                         }
 
-                        const notifTitle = isSignificant ? '⚠️ Swim changed — please re-confirm' : 'Swim details updated';
+                        const notifTitle = isSignificant ? 'Swim changed — please re-confirm' : 'Swim details updated';
                         const notifMsg = isSignificant
                             ? `"${swimTitle}" has changed: ${significantChanges.join(', ')}. Please re-confirm your RSVP.`
                             : `"${swimTitle}" has been updated.`;
@@ -4227,7 +4226,7 @@
                         .eq('swim_event_id', eventId)
                         .eq('user_id', currentUser.id);
 
-                    showToast("Great — you're still in! 🤙", 'success');
+                    showToast("Great — you're still in!", 'success');
                     await showEventDetails(eventId);
                     loadEvents();
                 } else {
@@ -4719,7 +4718,7 @@
             });
 
             btn.disabled = false;
-            btn.textContent = '🚨 Submit Hazard Report';
+            btn.textContent = 'Submit Hazard Report';
 
             if (error) {
                 console.error('Hazard report error:', error);
@@ -4775,7 +4774,7 @@
                             p.user_id,
                             swim.id,
                             'hazard_alert',
-                            `⚠️ Hazard at ${hazardSpot?.name || 'your swim location'}`,
+                            `Hazard at ${hazardSpot?.name || 'your swim location'}`,
                             `${title} — affects your upcoming swim: ${swim.title}`,
                             { hazard_spot_id: spotId }
                         );
@@ -6508,7 +6507,7 @@
             }
 
             if (warning) {
-                const proceed = confirm(`⚠️ Temperature Check\n\n${warning}\n\nAre you sure this is correct?`);
+                const proceed = confirm(`Temperature Check\n\n${warning}\n\nAre you sure this is correct?`);
                 if (!proceed) {
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Share Conditions';
@@ -6606,7 +6605,7 @@
                     if (loggedSpot?.domain) {
                         const poster = currentUserProfile?.display_name || 'Someone';
                         broadcastPush(loggedSpot.domain, 'temp', 'SwimLoading',
-                            `🌡️ ${poster} just logged ${temp}°C at ${spotNameForConfirm}`);
+                            `${poster} just logged ${temp}°C at ${spotNameForConfirm}`);
                     }
                 }
 
@@ -6841,8 +6840,8 @@
                     html += `
                         <div title="${badge.name}: ${badge.description}"
                              style="width: 56px; height: 56px; border-radius: 14px; background: rgba(255,255,255,0.03); border: 2px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0.35; cursor: pointer;"
-                             onclick="showToast('🔒 ${badge.name} — ${safeDesc}', 'info')">
-                            <span style="font-size: 24px;">🔒</span>
+                             onclick="showToast('${badge.name} — ${safeDesc} (locked)', 'info')">
+                            <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); opacity: 0.5;">LOCKED</span>
                             <span style="font-size: 8px; color: var(--text-secondary); margin-top: 2px; max-width: 50px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${badge.name}</span>
                         </div>
                     `;
@@ -6894,7 +6893,7 @@
                 }
                 for (const badge of locked) {
                     const safeDesc = badge.description.replace(/'/g, "\\'");
-                    html += `<div title="${badge.name}: ${badge.description}" style="width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,0.03);border:2px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0.35;cursor:pointer;" onclick="showToast('🔒 ${badge.name} — ${safeDesc}', 'info')"><span style="font-size:24px;">🔒</span><span style="font-size:8px;color:var(--text-secondary);margin-top:2px;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${badge.name}</span></div>`;
+                    html += `<div title="${badge.name}: ${badge.description}" style="width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,0.03);border:2px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0.35;cursor:pointer;" onclick="showToast('${badge.name} — ${safeDesc}', 'info')"><i data-lucide="lock" style="width:20px;height:20px;color:var(--text-secondary);"></i><span style="font-size:8px;color:var(--text-secondary);margin-top:2px;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${badge.name}</span></div>`;
                 }
                 html += '</div>';
                 html += `<div style="text-align:center;margin-top:8px;color:var(--text-secondary);font-size:12px;">${earnedIds.size} of ${badges.length} badges earned · <span style="cursor:pointer;color:var(--ocean-light);" onclick="renderDashBadges()">show less</span></div>`;
@@ -8564,7 +8563,7 @@
 
     <div id="swimPostShareModal" style="display:none; position:fixed; inset:0; z-index:10004; background:rgba(0,0,0,0.75); align-items:flex-end; justify-content:center;">
         <div style="background:var(--surface); border-radius:20px 20px 0 0; padding:28px 24px 36px; width:100%; max-width:480px;">
-            <div style="font-size:11px; color:#25d366; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.8px; font-weight:700;">You're in the feed 🌊</div>
+            <div style="font-size:11px; color:#25d366; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.8px; font-weight:700;">You're in the feed</div>
             <div style="font-size:20px; font-weight:800; color:var(--text-primary); margin-bottom:4px;" id="swimPostShareTitle"></div>
             <div style="font-size:14px; color:var(--text-secondary); margin-bottom:16px;">Invite your swim crew on WhatsApp?</div>
             <div style="background:rgba(37,211,102,0.08); border:1px solid rgba(37,211,102,0.25); border-radius:12px; padding:14px 16px; margin-bottom:20px;">
@@ -9100,7 +9099,7 @@
 
                         <!-- Header -->
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                            <div style="font-size:19px; font-weight:800; color:var(--text-primary);">I'm Swimming 🌊</div>
+                            <div style="font-size:19px; font-weight:800; color:var(--text-primary);">I'm Swimming</div>
                             <button onclick="hideImSwimming()" style="background:none; border:none; color:var(--text-secondary); font-size:22px; cursor:pointer; line-height:1;">✕</button>
                         </div>
 
@@ -9661,8 +9660,8 @@
                         <div>
                             <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Session type</div>
                             <div style="display:flex;gap:8px;">
-                                <button class="fuel-toggle active" data-group="session_type" data-value="sea" onclick="fuelToggle(this)" style="flex:1;padding:9px 0;border-radius:8px;border:1px solid rgba(56,189,248,0.3);background:rgba(56,189,248,0.15);color:var(--ocean-light);font-size:13px;font-weight:600;cursor:pointer;">🌊 Sea</button>
-                                <button class="fuel-toggle" data-group="session_type" data-value="pool" onclick="fuelToggle(this)" style="flex:1;padding:9px 0;border-radius:8px;border:1px solid var(--border);background:rgba(15,23,42,0.4);color:var(--text-secondary);font-size:13px;font-weight:600;cursor:pointer;">🏊 Pool</button>
+                                <button class="fuel-toggle active" data-group="session_type" data-value="sea" onclick="fuelToggle(this)" style="flex:1;padding:9px 0;border-radius:8px;border:1px solid rgba(56,189,248,0.3);background:rgba(56,189,248,0.15);color:var(--ocean-light);font-size:13px;font-weight:600;cursor:pointer;">Sea</button>
+                                <button class="fuel-toggle" data-group="session_type" data-value="pool" onclick="fuelToggle(this)" style="flex:1;padding:9px 0;border-radius:8px;border:1px solid var(--border);background:rgba(15,23,42,0.4);color:var(--text-secondary);font-size:13px;font-weight:600;cursor:pointer;">Pool</button>
                             </div>
                         </div>
                     </div>
@@ -9725,10 +9724,10 @@
                     <div class="card" style="margin-bottom:10px;">
                         <div style="font-size:11px;font-weight:700;color:var(--ocean-light);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;">Flags</div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                            <button id="flagStronger" class="fuel-flag" onclick="toggleFlag(this)" style="padding:11px 8px;border-radius:10px;border:1px solid var(--border);background:rgba(15,23,42,0.4);color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;text-align:center;">💪 Stronger finish</button>
-                            <button id="flagFaded" class="fuel-flag" onclick="toggleFlag(this)" style="padding:11px 8px;border-radius:10px;border:1px solid var(--border);background:rgba(15,23,42,0.4);color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;text-align:center;">📉 Faded end</button>
-                            <button id="flagThirst" class="fuel-flag" onclick="toggleFlag(this)" style="padding:11px 8px;border-radius:10px;border:1px solid var(--border);background:rgba(15,23,42,0.4);color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;text-align:center;">💧 Thirst</button>
-                            <button id="flagCramping" class="fuel-flag" onclick="toggleFlag(this)" style="padding:11px 8px;border-radius:10px;border:1px solid var(--border);background:rgba(15,23,42,0.4);color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;text-align:center;">⚡ Cramping</button>
+                            <button id="flagStronger" class="fuel-flag" onclick="toggleFlag(this)" style="padding:11px 8px;border-radius:10px;border:1px solid var(--border);background:rgba(15,23,42,0.4);color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;text-align:center;">Stronger finish</button>
+                            <button id="flagFaded" class="fuel-flag" onclick="toggleFlag(this)" style="padding:11px 8px;border-radius:10px;border:1px solid var(--border);background:rgba(15,23,42,0.4);color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;text-align:center;">Faded end</button>
+                            <button id="flagThirst" class="fuel-flag" onclick="toggleFlag(this)" style="padding:11px 8px;border-radius:10px;border:1px solid var(--border);background:rgba(15,23,42,0.4);color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;text-align:center;">Thirst</button>
+                            <button id="flagCramping" class="fuel-flag" onclick="toggleFlag(this)" style="padding:11px 8px;border-radius:10px;border:1px solid var(--border);background:rgba(15,23,42,0.4);color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;text-align:center;">Cramping</button>
                         </div>
                     </div>
 
@@ -9736,9 +9735,9 @@
                     <div class="card" style="margin-bottom:10px;">
                         <div style="font-size:11px;font-weight:700;color:var(--ocean-light);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;">Final Verdict vs Baseline</div>
                         <div style="display:flex;gap:8px;">
-                            <button class="fuel-toggle" data-group="verdict" data-value="worse" onclick="fuelToggle(this)" style="flex:1;padding:13px 0;border-radius:10px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.06);color:var(--text-secondary);font-size:13px;font-weight:700;cursor:pointer;">👎 Worse</button>
-                            <button class="fuel-toggle" data-group="verdict" data-value="same" onclick="fuelToggle(this)" style="flex:1;padding:13px 0;border-radius:10px;border:1px solid var(--border);background:rgba(15,23,42,0.4);color:var(--text-secondary);font-size:13px;font-weight:700;cursor:pointer;">➡️ Same</button>
-                            <button class="fuel-toggle active" data-group="verdict" data-value="better" onclick="fuelToggle(this)" style="flex:1;padding:13px 0;border-radius:10px;border:1px solid rgba(16,185,129,0.3);background:rgba(16,185,129,0.1);color:var(--ocean-light);font-size:13px;font-weight:700;cursor:pointer;">👍 Better</button>
+                            <button class="fuel-toggle" data-group="verdict" data-value="worse" onclick="fuelToggle(this)" style="flex:1;padding:13px 0;border-radius:10px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.06);color:var(--text-secondary);font-size:13px;font-weight:700;cursor:pointer;">Worse</button>
+                            <button class="fuel-toggle" data-group="verdict" data-value="same" onclick="fuelToggle(this)" style="flex:1;padding:13px 0;border-radius:10px;border:1px solid var(--border);background:rgba(15,23,42,0.4);color:var(--text-secondary);font-size:13px;font-weight:700;cursor:pointer;">Same</button>
+                            <button class="fuel-toggle active" data-group="verdict" data-value="better" onclick="fuelToggle(this)" style="flex:1;padding:13px 0;border-radius:10px;border:1px solid rgba(16,185,129,0.3);background:rgba(16,185,129,0.1);color:var(--ocean-light);font-size:13px;font-weight:700;cursor:pointer;">Better</button>
                         </div>
                     </div>
 
@@ -9843,7 +9842,6 @@
             <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:12px;">
                 <div onclick="const b=this.nextElementSibling;b.style.display=b.style.display==='block'?'none':'block';this.querySelector('.sw-chev').style.transform=b.style.display==='block'?'rotate(180deg)':'rotate(0)'" style="cursor:pointer;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;background:rgba(15,23,42,0.4);">
                     <div style="display:flex;align-items:center;gap:10px;">
-                        <span style="font-size:16px;">🔬</span>
                         <div>
                             <div style="font-size:13px;font-weight:700;color:var(--text);">What is eo SwimBETTER?</div>
                             <div style="font-size:11px;color:var(--text-secondary);">by EOLabs · elite coaching tech</div>
@@ -9857,19 +9855,19 @@
                     </div>
                     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
                         <div style="background:rgba(56,189,248,0.06);border-radius:8px;padding:10px 12px;">
-                            <div style="font-size:12px;font-weight:700;color:var(--ocean-light);margin-bottom:3px;">⚡ Swim Power in Watts</div>
+                            <div style="font-size:12px;font-weight:700;color:var(--ocean-light);margin-bottom:3px;">Swim Power in Watts</div>
                             <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">Like a power meter on a bike — but for swimming. See exactly how hard you're working, not just how fast you're going.</div>
                         </div>
                         <div style="background:rgba(56,189,248,0.06);border-radius:8px;padding:10px 12px;">
-                            <div style="font-size:12px;font-weight:700;color:var(--ocean-light);margin-bottom:3px;">🌊 Stroke Efficiency</div>
+                            <div style="font-size:12px;font-weight:700;color:var(--ocean-light);margin-bottom:3px;">Stroke Efficiency</div>
                             <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">Distance per stroke, stroke rate, and where your propulsion drops off — the data coaches use to diagnose what's actually slowing you down.</div>
                         </div>
                         <div style="background:rgba(56,189,248,0.06);border-radius:8px;padding:10px 12px;">
-                            <div style="font-size:12px;font-weight:700;color:var(--ocean-light);margin-bottom:3px;">📉 Fatigue Tracking</div>
+                            <div style="font-size:12px;font-weight:700;color:var(--ocean-light);margin-bottom:3px;">Fatigue Tracking</div>
                             <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">Watch your technique break down in real time. Knowing <em>when</em> your stroke falls apart is the first step to fixing it.</div>
                         </div>
                         <div style="background:rgba(16,185,129,0.06);border-radius:8px;padding:10px 12px;">
-                            <div style="font-size:12px;font-weight:700;color:#10b981;margin-bottom:3px;">🤖 eoi AI Report</div>
+                            <div style="font-size:12px;font-weight:700;color:#10b981;margin-bottom:3px;">eoi AI Report</div>
                             <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">After the session, EOLabs' AI generates a personalised report — not generic tips, but specific drills matched to <strong style="color:var(--text);">your</strong> data and your weaknesses.</div>
                         </div>
                     </div>
@@ -9884,7 +9882,6 @@
                 el.innerHTML = `
                 <div style="background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(2,132,199,0.1));border:1px solid rgba(16,185,129,0.25);border-radius:14px;padding:20px;">
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-                        <span style="font-size:24px;">🏆</span>
                         <div>
                             <div style="font-weight:700;font-size:16px;color:var(--text);">March Temperature Challenge</div>
                             <div style="background:rgba(16,185,129,0.2);color:#10b981;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;display:inline-block;margin-top:4px;">Starts in ${daysToLaunch} day${daysToLaunch !== 1 ? 's' : ''}</div>
@@ -9894,7 +9891,6 @@
                         Starting <strong style="color:var(--text);">1 March</strong>, the swimmer who logs the most water temperatures wins a private stroke analysis session using <strong style="color:var(--text);">eo SwimBETTER</strong> by EOLabs — you'll swim with a power meter on your hand and walk away with a personalised report showing exactly how to go faster. Conducted by <strong style="color:var(--text);">AquaSharks</strong> in Cape Town.
                     </div>
                     <div style="background:rgba(56,189,248,0.08);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start;">
-                        <span style="font-size:13px;flex-shrink:0;">📍</span>
                         <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;"><strong style="color:var(--text);">Open to everyone.</strong> Session held in Cape Town — winner arranges their own travel. Worth the trip.</div>
                     </div>
                     ${swimbetterSection}
@@ -9934,13 +9930,13 @@
                     }
                 }
 
-                const medals = ['🥇','🥈','🥉'];
+                const medals = ['1st','2nd','3rd'];
                 const rows = eligible.map((row, i) => {
                     const isMe = currentUser && row.user_id === currentUser.id;
                     const medal = medals[i] || `${i+1}.`;
                     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;${isMe?'background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.25);':''}border-radius:8px;margin-bottom:6px;">
                         <div style="display:flex;align-items:center;gap:10px;">
-                            <span style="font-size:${i<3?'18px':'13px'};width:26px;text-align:center;">${medal}</span>
+                            <span style="font-size:11px;font-weight:700;width:26px;text-align:center;color:${i<3?'#fbbf24':'var(--text-secondary)'};">${medal}</span>
                             <span style="color:var(--text);font-weight:${i<3||isMe?'600':'400'};font-size:13px;">${row.display_name || 'Anonymous'}${isMe?' (you)':''}</span>
                         </div>
                         <div style="text-align:right;">
@@ -9951,7 +9947,7 @@
                 }).join('');
 
                 const emptyState = eligible.length === 0
-                    ? `<div style="text-align:center;color:var(--text-secondary);padding:16px;font-size:13px;">No logs yet this month — be the first! 🌊</div>`
+                    ? `<div style="text-align:center;color:var(--text-secondary);padding:16px;font-size:13px;">No logs yet this month — be the first!</div>`
                     : '';
 
                 // "Your position" callout — shown when user is in the top 20
@@ -9960,21 +9956,20 @@
                     const personAbove = myRank > 1 ? eligible[myRank - 2] : null;
                     const gapLine = personAbove
                         ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">${personAbove.total_points - myPoints} pts behind ${personAbove.display_name} (#${myRank - 1})</div>`
-                        : `<div style="font-size:11px;color:#10b981;margin-top:3px;">You're leading — hold on! 🌊</div>`;
-                    const rankEmoji = myRank === 1 ? '🥇' : myRank === 2 ? '🥈' : myRank === 3 ? '🥉' : '🏃';
+                        : `<div style="font-size:11px;color:#10b981;margin-top:3px;">You're leading — hold on!</div>`;
                     myPositionCard = `
                     <div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
                         <div>
-                            <div style="font-size:13px;font-weight:700;color:var(--text);">📍 You're #${myRank} · ${myPoints} pts</div>
+                            <div style="font-size:13px;font-weight:700;color:var(--text);">You're #${myRank} · ${myPoints} pts</div>
                             ${gapLine}
                         </div>
-                        <div style="font-size:22px;opacity:0.6;">${rankEmoji}</div>
+                        <div style="font-size:13px;font-weight:800;color:${myRank<=3?'#fbbf24':'var(--text-secondary)'};">#${myRank}</div>
                     </div>`;
                 }
 
                 // Fallback for users outside top 20
                 const myRankLine = currentUser && myRank === null && myCount > 0
-                    ? `<div style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:8px;">You have ${myCount} log${myCount!==1?'s':''} this month — keep going! 🌡️</div>`
+                    ? `<div style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:8px;">You have ${myCount} log${myCount!==1?'s':''} this month — keep going!</div>`
                     : currentUser && myCount === 0
                     ? `<div style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:8px;">You haven't logged yet this month — every log counts!</div>`
                     : '';
@@ -9986,7 +9981,6 @@
                     <!-- Header -->
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
                         <div style="display:flex;align-items:center;gap:10px;">
-                            <span style="font-size:24px;">🌍</span>
                             <div>
                                 <div style="font-size:11px;color:#fbbf24;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:2px;">April Challenge — in partnership with Art of Endurance</div>
                                 <div style="font-weight:700;font-size:18px;color:var(--text);">Win a box of Maurten Gel 100s.</div>
@@ -10095,7 +10089,7 @@
                 banner.innerHTML = sorted.map((data, idx) => {
                     const isLive = data.status === 'live';
                     const statusColor = isLive ? '#22c55e' : '#f59e0b';
-                    const statusLabel = isLive ? '🔴 LIVE' : '⏳ UPCOMING';
+                    const statusLabel = isLive ? 'LIVE' : 'UPCOMING';
                     const routePart = data.route_description ? ` · ${data.route_description}` : '';
                     const distPart = data.distance_km ? ` · ${data.distance_km}km` : '';
 
@@ -10103,7 +10097,7 @@
                         .sort((a, b) => new Date(b.logged_at) - new Date(a.logged_at));
                     const latest = updates[0];
                     const latestHtml = latest
-                        ? `<div style="font-size:12px;color:rgba(255,255,255,0.6);margin-bottom:10px;line-height:1.5;">💬 ${latest.notes}${latest.temp_c != null ? ' · ' + latest.temp_c + '°C' : ''}${latest.km_completed != null ? ' · ' + latest.km_completed + 'km done' : ''}</div>`
+                        ? `<div style="font-size:12px;color:rgba(255,255,255,0.6);margin-bottom:10px;line-height:1.5;">${latest.notes}${latest.temp_c != null ? ' · ' + latest.temp_c + '°C' : ''}${latest.km_completed != null ? ' · ' + latest.km_completed + 'km done' : ''}</div>`
                         : '';
                     const startTimePart = data.start_time
                         ? `<div style="font-size:12px;color:rgba(255,255,255,0.55);margin-bottom:8px;">Starts: ${new Date(data.start_time).toLocaleString('en-ZA',{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})} SA time</div>`
@@ -10174,7 +10168,6 @@
                 <div onclick="showPage('leaderboard')" style="cursor:pointer;background:linear-gradient(135deg,rgba(251,191,36,0.1) 0%,rgba(2,132,199,0.1) 100%);border:1px solid rgba(251,191,36,0.3);border-radius:16px;padding:20px;position:relative;overflow:hidden;">
                     <div style="position:absolute;top:-20px;right:-20px;width:80px;height:80px;background:radial-gradient(circle,rgba(251,191,36,0.15),transparent 70%);border-radius:50%;pointer-events:none;"></div>
                     <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;">
-                        <span style="font-size:30px;line-height:1;">🌍</span>
                         <div>
                             <div style="font-size:11px;color:#fbbf24;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:3px;">April Challenge · Art of Endurance</div>
                             <div style="font-size:15px;font-weight:800;color:var(--text);">April Explorer Challenge</div>
@@ -10185,7 +10178,7 @@
                         Log from outside Cape Town and earn <strong style="color:#fbbf24;">double points</strong> all April. Top the leaderboard and win a full box of <strong style="color:var(--text);">Maurten Gel 100s</strong>.
                     </div>
                     <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <div style="font-size:11px;color:var(--text-secondary);">🏅 Art of Endurance × Maurten · ships nationally</div>
+                        <div style="font-size:11px;color:var(--text-secondary);">Art of Endurance × Maurten · ships nationally</div>
                         <div style="font-size:12px;color:#fbbf24;font-weight:700;display:flex;align-items:center;gap:3px;">See details <i data-lucide="chevron-right" style="width:13px;height:13px;"></i></div>
                     </div>
                 </div>`;
@@ -10244,22 +10237,22 @@
                 const ptGapLine = ptGap > 0
                     ? `<div style="font-size:12px;color:var(--warning);font-weight:600;margin-top:6px;">${ptGap} more pts to catch ${leader.display_name}</div>`
                     : myRank === 1 && myCount > 0
-                        ? `<div style="font-size:12px;color:#10b981;font-weight:600;margin-top:6px;">You're leading — hold on! 🌊</div>`
+                        ? `<div style="font-size:12px;color:#10b981;font-weight:600;margin-top:6px;">You're leading — hold on!</div>`
                         : '';
 
                 // Build top-3 mini leaderboard (eligible swimmers only)
                 const top3 = eligible.slice(0, 3);
                 const top3html = top3.length > 0 ? top3.map((r, i) => {
                     const isMe = currentUser && r.user_id === currentUser.id;
-                    const medals = ['🥇','🥈','🥉'];
+                    const medals = ['1st','2nd','3rd'];
                     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;${i < top3.length-1 ? 'border-bottom:1px solid rgba(255,255,255,0.05);' : ''}">
                         <div style="display:flex;align-items:center;gap:8px;">
-                            <span style="font-size:14px;width:20px;">${medals[i]}</span>
+                            <span style="font-size:11px;font-weight:700;width:24px;color:#fbbf24;">${medals[i]}</span>
                             <span style="font-size:12px;font-weight:${isMe ? '700' : '500'};color:${isMe ? '#fbbf24' : 'var(--text)'};">${r.display_name}${isMe ? ' (you)' : ''}</span>
                         </div>
                         <span style="font-size:12px;font-weight:700;color:${isMe ? '#fbbf24' : 'var(--ocean-light)'};">${r.total_points} pts</span>
                     </div>`;
-                }).join('') : `<div style="font-size:12px;color:var(--text-secondary);text-align:center;padding:8px 0;">No logs yet — be the first! 🌊</div>`;
+                }).join('') : `<div style="font-size:12px;color:var(--text-secondary);text-align:center;padding:8px 0;">No logs yet — be the first!</div>`;
 
                 // State-specific CTA
                 let ctaBlock = '';
@@ -10269,15 +10262,13 @@
                             <div style="font-size:12px;font-weight:700;color:#fbbf24;">Log a temp to enter</div>
                             <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Every log earns points · 2× outside Cape Town</div>
                         </div>
-                        <div style="font-size:20px;">🌡️</div>
                     </div>`;
                 } else if (myRank === 1) {
                     ctaBlock = `<div style="background:linear-gradient(135deg,rgba(251,191,36,0.2),rgba(251,191,36,0.05));border:1px solid rgba(251,191,36,0.4);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
                         <div>
-                            <div style="font-size:12px;font-weight:700;color:#fbbf24;">🏆 You're leading! Keep logging.</div>
+                            <div style="font-size:12px;font-weight:700;color:#fbbf24;">You're leading! Keep logging.</div>
                             <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${myPoints} pts · ${daysLeft} days to hold on</div>
                         </div>
-                        <div style="font-size:20px;">🥇</div>
                     </div>`;
                 } else if (ptGap > 0) {
                     ctaBlock = `<div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
@@ -10285,7 +10276,6 @@
                             <div style="font-size:12px;font-weight:700;color:var(--warning);">${ptGap} pts behind ${leader.display_name}</div>
                             <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">You're #${myRank} · ${myPoints} pts</div>
                         </div>
-                        <div style="font-size:20px;">🔥</div>
                     </div>`;
                 }
 
@@ -10295,7 +10285,7 @@
                     <div style="background:linear-gradient(135deg,#92400e,#78350f,#451a03);padding:14px 16px;display:flex;justify-content:space-between;align-items:center;">
                         <div>
                             <div style="font-size:10px;color:rgba(251,191,36,0.8);font-weight:700;text-transform:uppercase;letter-spacing:0.8px;">April Challenge · Art of Endurance</div>
-                            <div style="font-size:17px;font-weight:800;color:#fbbf24;margin-top:2px;line-height:1.2;">Win Maurten Gel 100s 🏅</div>
+                            <div style="font-size:17px;font-weight:800;color:#fbbf24;margin-top:2px;line-height:1.2;">Win Maurten Gel 100s</div>
                         </div>
                         <div style="text-align:right;flex-shrink:0;">
                             <div style="font-size:22px;font-weight:900;color:#fbbf24;line-height:1;">${daysLeft}</div>
@@ -10349,7 +10339,7 @@
                 if (error) {
                     console.error('Leaderboard error:', error);
                     listEl.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 20px;">
-                        ❌ Could not load leaderboard<br>
+                        Could not load leaderboard<br>
                         <small style="color: var(--text-secondary);">${error.message}</small>
                     </div>`;
                 } else if (!data || data.length === 0) {
@@ -10368,7 +10358,7 @@
             const CONTRIBUTOR_ID = '2f6666a5-e042-44a5-a08d-558d5791c5bd';
             const contributor = data.find(r => r.user_id === CONTRIBUTOR_ID);
             const eligible    = data.filter(r => r.user_id !== CONTRIBUTOR_ID);
-            const medals = ['🥇', '🥈', '🥉'];
+            const medals = ['1st', '2nd', '3rd'];
             let html = '';
 
             // Data contributor card — shown at top, outside the race
@@ -10377,7 +10367,6 @@
                 const points = contributor[pointsField] || 0;
                 html += `<div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);border-radius:10px;padding:12px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
                     <div style="display:flex;align-items:center;gap:10px;">
-                        <span style="font-size:18px;">📡</span>
                         <div>
                             <div style="font-size:13px;font-weight:700;color:var(--text-primary);">${name}</div>
                             <div style="font-size:11px;color:var(--ocean-light);margin-top:1px;">Community Data Contributor · not competing for prize</div>
@@ -10399,7 +10388,7 @@
                     const isMe   = currentUser && row.user_id === currentUser.id;
                     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px;${isTop3 ? 'background:rgba(56,189,248,0.1);' : ''}border-radius:8px;margin-bottom:8px;">
                         <div style="display:flex;align-items:center;gap:12px;">
-                            <span style="font-size:${isTop3 ? '20px' : '14px'};width:30px;text-align:center;">${medal}</span>
+                            <span style="font-size:11px;font-weight:700;width:30px;text-align:center;color:${isTop3 ? '#fbbf24' : 'var(--text-secondary)'};">${medal}</span>
                             <span style="color:var(--text-primary);font-weight:${isTop3 ? '700' : '400'};">${name}${isMe ? ' <span style="font-size:11px;color:var(--ocean-light);font-weight:600;">(you)</span>' : ''}</span>
                         </div>
                         <span style="color:var(--ocean-light);font-weight:700;">${points.toLocaleString()} pts</span>
@@ -10882,7 +10871,6 @@
             banner.id = 'newSwimAlertsBanner';
             banner.innerHTML = `
                 <div style="background: linear-gradient(135deg, rgba(16,185,129,0.9), rgba(5,150,105,0.9)); padding: 16px 20px; border-radius: 12px; margin: 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-                    <div style="font-size: 24px;">🏊</div>
                     <div style="flex: 1;">
                         <div style="font-weight: 700; color: white; font-size: 14px;">Get notified about new swims</div>
                         <div style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 2px;">Know when swimmers post new group swims</div>
@@ -10905,7 +10893,7 @@
                     .from('profiles')
                     .update({ notify_new_swims: true })
                     .eq('id', currentUser.id);
-                showToast('🏊 New swim alerts enabled!', 'success');
+                showToast('New swim alerts enabled!', 'success');
             } catch (err) {
                 console.error('Error enabling new swim alerts:', err);
             }
@@ -11091,18 +11079,18 @@
         }
 
         function getTempLabel(temp) {
-            if (temp < 10) return '🥶 Ice Cold';
-            if (temp < 12) return '❄️ Very Cold';
-            if (temp < 14) return '🧊 Cold';
-            if (temp < 16) return '💧 Cool';
-            if (temp < 18) return '🌊 Refreshing';
-            if (temp < 20) return '👌 Nice';
-            if (temp < 22) return '😎 Warm';
-            if (temp < 24) return '☀️ Quite Warm';
-            if (temp < 26) return '🔥 Hot';
-            if (temp < 28) return '🌶️ Very Hot';
-            if (temp < 30) return '♨️ Scorching';
-            return '🚫 Too Hot!';
+            if (temp < 10) return 'Ice Cold';
+            if (temp < 12) return 'Very Cold';
+            if (temp < 14) return 'Cold';
+            if (temp < 16) return 'Cool';
+            if (temp < 18) return 'Refreshing';
+            if (temp < 20) return 'Nice';
+            if (temp < 22) return 'Warm';
+            if (temp < 24) return 'Quite Warm';
+            if (temp < 26) return 'Hot';
+            if (temp < 28) return 'Very Hot';
+            if (temp < 30) return 'Scorching';
+            return 'Too Hot!';
         }
 
         function updateTempSlider(val) {
@@ -11156,7 +11144,7 @@
     <div id="homeDomainPrompt"
         style="display:none; position:fixed; inset:0; z-index:10010; background:rgba(0,0,0,0.75); align-items:flex-end; justify-content:center;">
         <div style="background:var(--card-bg); border-radius:20px 20px 0 0; padding:28px 24px 44px; width:100%; max-width:480px; border-top:1px solid var(--border);">
-            <div style="font-size:20px; font-weight:700; margin-bottom:8px; color:var(--text);">Personalise your feed 🌊</div>
+            <div style="font-size:20px; font-weight:700; margin-bottom:8px; color:var(--text);">Personalise your feed</div>
             <div style="font-size:14px; color:var(--text-secondary); margin-bottom:20px; line-height:1.5;">
                 SwimLoading has grown nationally! Set your home region so we show you the right conditions on your dashboard.
             </div>
@@ -11856,7 +11844,7 @@
                         const canEdit = isOwn && isRecent;
                         // Conditions + sightings display
                         const logHazards = Array.isArray(log.hazards) ? log.hazards : [];
-                        const SIGHTING_ICONS = { jellyfish: '🪼', seals: '🦭', shark: '🦈', sewage: '🚫' };
+                        const SIGHTING_ICONS = { jellyfish: 'Jellyfish', seals: 'Seals', shark: 'Shark', sewage: 'Sewage' };
                         const SERIOUS = ['shark', 'sewage'];
                         const seriousHazards = logHazards.filter(h => SERIOUS.includes(h));
                         const KNOWN_SIGHTINGS = ['jellyfish', 'seals'];
@@ -11866,10 +11854,10 @@
                             ? `<span style="font-size:10px;font-weight:700;color:${condColor};margin-right:6px;">${log.conditions.toUpperCase()}</span>`
                             : '';
                         const sightingBadge = sightings.length > 0
-                            ? `<span style="font-size:12px;" title="${sightings.join(', ')}">${sightings.map(h => SIGHTING_ICONS[h] || h).join('')}</span>`
+                            ? `<span style="font-size:10px;font-weight:600;color:var(--text-secondary);">${sightings.map(h => SIGHTING_ICONS[h] || h).join(' · ')}</span>`
                             : '';
                         const dangerBadge = seriousHazards.length > 0
-                            ? `<span style="font-size:11px;font-weight:700;color:#ef4444;">⚠️ ${seriousHazards.join(', ')}</span>`
+                            ? `<span style="font-size:11px;font-weight:700;color:#ef4444;">${seriousHazards.join(', ')}</span>`
                             : '';
                         const condLine = (condBadge || sightingBadge || dangerBadge)
                             ? `<div style="margin-top:3px;">${condBadge}${sightingBadge}${dangerBadge}</div>`
@@ -11890,8 +11878,8 @@
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <div style="font-weight: 700; color: ${getTempColor(log.temp_c)};">${log.temp_c}°C</div>
                                 ${canEdit ? `
-                                    <button onclick="editTempLog('${log.id}', ${log.temp_c}, '${(log.conditions || '').replace(/'/g, "\\'")}', '${(log.notes || '').replace(/'/g, "\\'").replace(/\n/g, "\\n")}')" style="background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 4px 6px; cursor: pointer; color: var(--text-secondary); font-size: 11px;" title="Edit">✏️</button>
-                                    <button onclick="deleteTempLog('${log.id}')" style="background: transparent; border: 1px solid rgba(239,68,68,0.2); border-radius: 6px; padding: 4px 6px; cursor: pointer; color: var(--danger); font-size: 11px;" title="Delete">🗑️</button>
+                                    <button onclick="editTempLog('${log.id}', ${log.temp_c}, '${(log.conditions || '').replace(/'/g, "\\'")}', '${(log.notes || '').replace(/'/g, "\\'").replace(/\n/g, "\\n")}')" style="background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 4px 6px; cursor: pointer; color: var(--text-secondary); font-size: 11px;" title="Edit">Edit</button>
+                                    <button onclick="deleteTempLog('${log.id}')" style="background: transparent; border: 1px solid rgba(239,68,68,0.2); border-radius: 6px; padding: 4px 6px; cursor: pointer; color: var(--danger); font-size: 11px;" title="Delete">Del</button>
                                 ` : ''}
                             </div>
                          </div>`;
@@ -12151,7 +12139,7 @@
             if (d.water_temp) s += ` (${d.water_temp}°C)`;
             s += ` · ${d.distance_km}km ${d.structure}`;
             s += `. Avg score ${avg}/10`;
-            if (d.stomach_comfort <= 5) s += ' ⚠️ stomach discomfort';
+            if (d.stomach_comfort <= 5) s += ' stomach discomfort';
             if (d.energy_consistency >= 8) s += ' · high energy consistency';
             const effortCounts = d.set_efforts.reduce((acc, e) => { acc[e] = (acc[e]||0)+1; return acc; }, {});
             if (effortCounts.harder > 1) s += ` · faded over sets`;
@@ -12202,7 +12190,7 @@
                 d.user_id = currentUser.id;
                 const { error } = await supabaseClient.from('fuel_tests').insert(d);
                 if (error) throw error;
-                showToast('Test saved! 🧪', 'success');
+                showToast('Test saved!', 'success');
                 cancelFuelForm();
                 loadFuelTests();
             } catch(e) {
@@ -12262,7 +12250,7 @@
                 const spotName = t.spots?.name || '—';
                 const dateStr = new Date(t.test_date).toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' });
                 const verdictColor = t.verdict==='better' ? 'var(--success)' : t.verdict==='worse' ? 'var(--danger)' : 'var(--text-secondary)';
-                const verdictEmoji = t.verdict==='better' ? '👍' : t.verdict==='worse' ? '👎' : '➡️';
+                const verdictEmoji = t.verdict==='better' ? 'Better' : t.verdict==='worse' ? 'Worse' : 'Same';
                 const scores = [t.energy_consistency, t.perceived_effort, t.hydration_feeling, t.stomach_comfort, t.recovery].filter(Boolean);
                 const avg = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '—';
                 html += `<div class="card" style="margin-bottom:10px;">
@@ -12279,8 +12267,8 @@
                     <div style="display:flex;gap:16px;margin-bottom:${t.auto_summary?'8':'0'}px;">
                         <div style="font-size:11px;color:var(--text-secondary);">Avg score <strong style="color:var(--ocean-light);">${avg}/10</strong></div>
                         <div style="font-size:11px;color:var(--text-secondary);">${t.distance_km}km ${t.structure||''}</div>
-                        ${t.cramping ? '<div style="font-size:11px;color:var(--danger);">⚡ cramping</div>' : ''}
-                        ${t.thirst ? '<div style="font-size:11px;color:var(--warning);">💧 thirst</div>' : ''}
+                        ${t.cramping ? '<div style="font-size:11px;color:var(--danger);">cramping</div>' : ''}
+                        ${t.thirst ? '<div style="font-size:11px;color:var(--warning);">thirst</div>' : ''}
                     </div>
                     ${t.auto_summary ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.5;border-top:1px solid var(--border);padding-top:8px;">${t.auto_summary}</div>` : ''}
                 </div>`;
