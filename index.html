@@ -767,7 +767,9 @@
 
         // Attach Spot Lock Handler
         function attachSpotLockHandler() {
-            const spotSelect = document.querySelector('#logTemp select[data-spots]');
+            // The picker sets selectedSpotLocked directly via selectSpotFromPicker()
+            // Also watch the hidden select for programmatic changes (dashboard auto-select, etc.)
+            const spotSelect = document.getElementById('logTempSpotSelect');
             if (spotSelect) {
                 spotSelect.removeEventListener('change', handleSpotLock);
                 spotSelect.addEventListener('change', handleSpotLock);
@@ -776,7 +778,6 @@
 
         function handleSpotLock() {
             selectedSpotLocked = true;
-            // console.log('Spot selection locked by user');
         }
 
         // Nav Scroll Handler
@@ -5809,9 +5810,8 @@
         // GPS State
         let currentGpsLocation = null;
 
-        // Get current GPS location
+        // Get current GPS location (still callable externally, e.g. from dashboard)
         async function getCurrentLocation() {
-            const btn = document.getElementById('gpsButton');
             const status = document.getElementById('gpsStatus');
 
             if (!navigator.geolocation) {
@@ -5819,52 +5819,47 @@
                 return;
             }
 
-            btn.disabled = true;
-            btn.innerHTML = '<i data-lucide="loader" style="width: 14px; height: 14px; animation: spin 1s linear infinite;"></i> Getting location...';
-            status.textContent = 'Detecting...';
-            status.style.color = 'var(--warning)';
+            if (status) { status.textContent = 'Detecting...'; status.style.color = 'var(--warning)'; }
 
             navigator.geolocation.getCurrentPosition(
                 async (position) => {
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
                     currentGpsLocation = { lat, lng };
+                    pickerGpsCoords = { lat, lng };
 
                     // Find nearest spot
                     const nearest = findNearestSpot(lat, lng);
 
                     if (nearest) {
-                        // Store suggested ID
                         gpsSuggestedSpotId = nearest.spot.id;
 
-                        // Select the nearest spot in dropdown ONLY if not locked
+                        // Update hidden select AND visible trigger if not already locked
                         if (!selectedSpotLocked) {
-                            const select = document.querySelector('#logTemp select[data-spots]');
+                            const select = document.getElementById('logTempSpotSelect');
                             if (select) select.value = nearest.spot.id;
+                            const trigger = document.getElementById('spotPickerTrigger');
+                            const label   = document.getElementById('spTriggerText');
+                            if (trigger) trigger.classList.add('sp-has-value');
+                            if (label)   label.textContent = nearest.spot.name;
                         }
 
-                        status.innerHTML = `📍 ${nearest.spot.name} (${nearest.distance.toFixed(1)}km away)`;
-                        status.style.color = 'var(--success)';
+                        if (status) {
+                            status.innerHTML = `<i data-lucide="map-pin" style="width:11px;height:11px;vertical-align:middle;margin-right:3px;"></i>${nearest.spot.name} · ${nearest.distance.toFixed(1)} km`;
+                            status.style.color = 'var(--success)';
+                        }
                     } else {
-                        status.textContent = `📍 ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-                        status.style.color = 'var(--ocean-light)';
+                        if (status) {
+                            status.textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                            status.style.color = 'var(--ocean-light)';
+                        }
                     }
-
-                    btn.disabled = false;
-                    btn.innerHTML = '<i data-lucide="map-pin" style="width: 14px; height: 14px;"></i> Update Location';
                     initIcons();
                 },
                 (error) => {
                     console.error('GPS error:', error);
-                    status.textContent = 'Location access denied';
-                    status.style.color = 'var(--danger)';
-                    btn.disabled = false;
-                    btn.innerHTML = '<i data-lucide="map-pin" style="width: 14px; height: 14px;"></i> Use My Location';
-                    initIcons();
-
-                    if (error.code === 1) {
-                        alert('Please allow location access to use GPS');
-                    }
+                    if (status) { status.textContent = 'Location access denied'; status.style.color = 'var(--danger)'; }
+                    if (error.code === 1) alert('Please allow location access to use GPS');
                 },
                 { enableHighAccuracy: true, timeout: 10000 }
             );
@@ -5899,6 +5894,227 @@
 
             // Only return if within 10km (reasonable for Cape Town spots)
             return minDistance <= 10 ? nearest : null;
+        }
+
+        // ── SPOT PICKER SHEET ───────────────────────────────────────────────────
+        let pickerCategory = 'OCEAN';
+        let pickerSearch   = '';
+        let pickerUserSpotIds = new Set(); // spot IDs this user has previously logged
+        let pickerGpsCoords   = null;      // { lat, lng } once GPS resolves
+        let pickerGpsLoaded   = false;
+
+        const SP_TYPE_LABELS = { OCEAN: 'Ocean', POOL: 'Pool', LAGOON: 'Lagoon', DAM: 'Inland' };
+        const SP_TYPE_ICONS  = { OCEAN: 'waves', POOL: 'droplets', LAGOON: 'anchor', DAM: 'mountain-snow' };
+        const AREA_DISPLAY = {
+            ATLANTIC: 'Atlantic Seaboard',
+            FALSE_BAY: 'False Bay',
+            KZN: 'KwaZulu-Natal',
+            INLAND: 'Inland',
+        };
+
+        // Format domain code to readable area name, falling back to the domains table
+        function spAreaName(domainCode) {
+            if (AREA_DISPLAY[domainCode]) return AREA_DISPLAY[domainCode];
+            const d = domains.find(d => d.code === domainCode);
+            return d ? d.display_name : domainCode;
+        }
+
+        // Open the picker sheet
+        async function openSpotPicker() {
+            document.getElementById('spotPickerOverlay').classList.add('sp-open');
+            document.getElementById('spotPickerSheet').classList.add('sp-open');
+            document.body.style.overflow = 'hidden';
+
+            // Render immediately with whatever we have
+            renderSpotPickerList();
+
+            // Load user log history once
+            if (currentUser && pickerUserSpotIds.size === 0) {
+                supabaseClient
+                    .from('temp_logs')
+                    .select('spot_id')
+                    .eq('user_id', currentUser.id)
+                    .then(({ data }) => {
+                        if (data) data.forEach(r => pickerUserSpotIds.add(r.spot_id));
+                        renderSpotPickerList();
+                    });
+            }
+
+            // Request GPS (silent — doesn't pop an alert if already denied)
+            if (!pickerGpsLoaded && navigator.geolocation) {
+                pickerGpsLoaded = true;
+                navigator.geolocation.getCurrentPosition(
+                    pos => {
+                        pickerGpsCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                        currentGpsLocation = pickerGpsCoords; // keep global in sync
+                        renderSpotPickerList();
+                    },
+                    () => { /* silently ignore denial */ },
+                    { enableHighAccuracy: true, timeout: 8000 }
+                );
+            } else if (currentGpsLocation) {
+                pickerGpsCoords = currentGpsLocation;
+            }
+        }
+
+        function closeSpotPicker() {
+            document.getElementById('spotPickerOverlay').classList.remove('sp-open');
+            document.getElementById('spotPickerSheet').classList.remove('sp-open');
+            document.body.style.overflow = '';
+        }
+
+        function setPickerCategory(cat, tabEl) {
+            pickerCategory = cat;
+            document.querySelectorAll('.sp-tab').forEach(t => t.classList.remove('active'));
+            if (tabEl) tabEl.classList.add('active');
+            pickerSearch = '';
+            const inp = document.getElementById('spSearchInput');
+            if (inp) inp.value = '';
+            document.getElementById('spSearchClear').style.display = 'none';
+            renderSpotPickerList();
+        }
+
+        function onSpPickerSearch(val) {
+            pickerSearch = val;
+            document.getElementById('spSearchClear').style.display = val ? 'block' : 'none';
+            renderSpotPickerList();
+        }
+
+        function clearSpPickerSearch() {
+            pickerSearch = '';
+            const inp = document.getElementById('spSearchInput');
+            if (inp) inp.value = '';
+            document.getElementById('spSearchClear').style.display = 'none';
+            renderSpotPickerList();
+        }
+
+        // Select a spot from the picker
+        function selectSpotFromPicker(spotId, spotName) {
+            // Update hidden select (used by submitTempLog)
+            const sel = document.getElementById('logTempSpotSelect');
+            if (sel) sel.value = spotId;
+
+            // Update visible trigger
+            const trigger = document.getElementById('spotPickerTrigger');
+            const label   = document.getElementById('spTriggerText');
+            if (trigger) trigger.classList.add('sp-has-value');
+            if (label)   label.textContent = spotName;
+
+            // Mark as user-chosen (locks GPS suggestion)
+            selectedSpotLocked = true;
+            gpsSuggestedSpotId = spotId;
+
+            // GPS status line
+            const status = document.getElementById('gpsStatus');
+            if (status) {
+                status.textContent = '';
+            }
+
+            closeSpotPicker();
+            initIcons();
+        }
+
+        // Render the spot list for current category + search
+        function renderSpotPickerList() {
+            const container = document.getElementById('spList');
+            if (!container) return;
+
+            const q = pickerSearch.trim().toLowerCase();
+            const currentVal = document.getElementById('logTempSpotSelect')?.value || '';
+
+            // Filter spots
+            let filtered = spots.filter(s => s.active !== false && s.water_type === pickerCategory);
+            if (q) {
+                filtered = filtered.filter(s =>
+                    s.name.toLowerCase().includes(q) ||
+                    (s.area || '').toLowerCase().includes(q) ||
+                    spAreaName(s.domain).toLowerCase().includes(q)
+                );
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="sp-empty">
+                        <div class="sp-empty-icon"><i data-lucide="${SP_TYPE_ICONS[pickerCategory]}" style="width:32px;height:32px;"></i></div>
+                        <div class="sp-empty-text">No ${SP_TYPE_LABELS[pickerCategory].toLowerCase()} spots found${q ? ` for "${pickerSearch}"` : ''}</div>
+                    </div>
+                    ${spAddRowHTML()}`;
+                initIcons();
+                return;
+            }
+
+            // Attach distance if GPS available
+            let spotsWithDist = filtered.map(s => {
+                let dist = null;
+                if (pickerGpsCoords && s.latitude && s.longitude) {
+                    dist = getDistanceKm(pickerGpsCoords.lat, pickerGpsCoords.lng, s.latitude, s.longitude);
+                }
+                return { ...s, _dist: dist };
+            });
+
+            // Sort: by distance if available, else by name
+            spotsWithDist.sort((a, b) => {
+                if (a._dist !== null && b._dist !== null) return a._dist - b._dist;
+                if (a._dist !== null) return -1;
+                if (b._dist !== null) return 1;
+                return a.name.localeCompare(b.name);
+            });
+
+            // Group by domain (nearest group first)
+            const domainOrder = [];
+            const byDomain = {};
+            spotsWithDist.forEach(s => {
+                if (!byDomain[s.domain]) {
+                    byDomain[s.domain] = [];
+                    domainOrder.push(s.domain);
+                }
+                byDomain[s.domain].push(s);
+            });
+
+            let html = '';
+            let rowIdx = 0;
+            domainOrder.forEach(domain => {
+                const areaSpots = byDomain[domain];
+                html += `<div class="sp-area-header">${spAreaName(domain)}</div>`;
+                areaSpots.forEach(s => {
+                    const isSelected = s.id === currentVal;
+                    const isLogged   = pickerUserSpotIds.has(s.id);
+                    const distStr    = s._dist !== null ? `${s._dist < 1 ? (s._dist * 1000).toFixed(0) + 'm' : s._dist.toFixed(1) + ' km'}` : '';
+                    const delay      = Math.min(rowIdx * 18, 300);
+                    rowIdx++;
+                    html += `
+                        <div class="sp-row${isSelected ? ' selected' : ''}"
+                             onclick="selectSpotFromPicker('${s.id}', ${JSON.stringify(s.name)})"
+                             style="animation-delay:${delay}ms; animation: spRowFadeIn 0.25s ${delay}ms ease both;">
+                            <div class="sp-row-icon">
+                                <i data-lucide="${SP_TYPE_ICONS[s.water_type] || 'map-pin'}" style="width:16px;height:16px;"></i>
+                            </div>
+                            <div class="sp-row-main">
+                                <div class="sp-row-name">${s.name}</div>
+                            </div>
+                            <div class="sp-row-right">
+                                ${distStr ? `<span class="sp-row-distance">${distStr}</span>` : ''}
+                                ${isLogged ? '<div class="sp-logged-dot" title="Logged here before"></div>' : ''}
+                            </div>
+                        </div>`;
+                });
+            });
+
+            html += spAddRowHTML();
+            container.innerHTML = html;
+            initIcons();
+        }
+
+        function spAddRowHTML() {
+            return `
+                <div class="sp-add-row" onclick="closeSpotPicker(); showSuggestSpot();">
+                    <div class="sp-add-icon">
+                        <i data-lucide="plus" style="width:16px;height:16px;"></i>
+                    </div>
+                    <div>
+                        <div class="sp-add-label">Can't find your spot? Add it</div>
+                    </div>
+                </div>`;
         }
 
         // Toggle backdate picker for temp logging
@@ -6003,16 +6219,15 @@
             if (submitBtn.disabled) return;
 
             // Location confirmation — show before any validation
-            const spotSelectEl = document.querySelector('#logTemp select[data-spots]');
-            const selectedOption = spotSelectEl?.options[spotSelectEl.selectedIndex];
-            const spotNameForConfirm = selectedOption?.textContent?.trim() || 'Unknown spot';
+            const spotSelectEl = document.getElementById('logTempSpotSelect');
+            const spotId = spotSelectEl?.value || '';
+            const spotForConfirm = spots.find(s => s.id === spotId);
+            const spotNameForConfirm = spotForConfirm?.name || document.getElementById('spTriggerText')?.textContent || 'Unknown spot';
             const locationConfirmed = await confirmLocationBeforeSubmit(spotNameForConfirm);
             if (!locationConfirmed) return;
 
             submitBtn.disabled = true;
             submitBtn.textContent = 'Sharing...';
-
-            const spotId = document.querySelector('#logTemp select[data-spots]').value;
             const temp = parseFloat(document.getElementById('tempValue').textContent);
             const conditionsRaw = document.querySelector('#logTemp .toggle-btn.active')?.textContent.trim() || 'Calm';
 
@@ -6194,10 +6409,16 @@
                 const bdInput = document.getElementById('backdateTime');
                 if (bdInput) bdInput.value = '';
 
-                // Reset GPS and Lock state
+                // Reset GPS, lock state, and spot picker trigger
                 selectedSpotLocked = false;
                 gpsSuggestedSpotId = null;
                 currentGpsLocation = null;
+                pickerGpsCoords = null;
+                pickerGpsLoaded = false;
+                const trigger = document.getElementById('spotPickerTrigger');
+                const label   = document.getElementById('spTriggerText');
+                if (trigger) trigger.classList.remove('sp-has-value');
+                if (label)   label.textContent = 'Select a spot...';
                 const status = document.getElementById('gpsStatus');
                 if (status) status.textContent = '';
 
@@ -7312,6 +7533,225 @@
             box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.1);
         }
 
+        /* ── SPOT PICKER SHEET ─────────────────────────────────────────────── */
+        #spotPickerOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.65);
+            z-index: 10010;
+        }
+        #spotPickerOverlay.sp-open { display: block; animation: spFadeIn 0.2s ease; }
+        #spotPickerSheet {
+            display: none;
+            position: fixed;
+            left: 0; right: 0; bottom: 0;
+            max-height: 88vh;
+            background: #0f1f38;
+            border-radius: 20px 20px 0 0;
+            z-index: 10011;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 -8px 40px rgba(0,0,0,0.6);
+        }
+        #spotPickerSheet.sp-open { display: flex; animation: spSlideUp 0.3s cubic-bezier(0.32,0.72,0,1); }
+        .sp-handle {
+            width: 40px; height: 4px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 2px;
+            margin: 12px auto 16px;
+            flex-shrink: 0;
+        }
+        .sp-tabs {
+            display: flex;
+            gap: 8px;
+            padding: 0 16px 14px;
+            flex-shrink: 0;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .sp-tabs::-webkit-scrollbar { display: none; }
+        .sp-tab {
+            flex-shrink: 0;
+            padding: 8px 18px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1.5px solid rgba(34,211,238,0.3);
+            background: transparent;
+            color: #7fa8c9;
+            transition: all 0.18s ease;
+            white-space: nowrap;
+        }
+        .sp-tab.active {
+            background: #22d3ee;
+            border-color: #22d3ee;
+            color: #0a1628;
+        }
+        .sp-search-wrap {
+            margin: 0 16px 12px;
+            position: relative;
+            flex-shrink: 0;
+        }
+        #spSearchInput {
+            width: 100%;
+            background: rgba(255,255,255,0.06);
+            border: 1.5px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 11px 40px 11px 16px;
+            color: #f0f6ff;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        #spSearchInput:focus { border-color: #22d3ee; }
+        #spSearchInput::placeholder { color: #7fa8c9; }
+        #spSearchClear {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #7fa8c9;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 4px 6px;
+            display: none;
+            line-height: 1;
+        }
+        #spList {
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: env(safe-area-inset-bottom, 16px);
+            -webkit-overflow-scrolling: touch;
+        }
+        .sp-area-header {
+            padding: 10px 20px 4px;
+            font-size: 10px;
+            font-weight: 600;
+            color: #4a7a9b;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            position: sticky;
+            top: 0;
+            background: #0f1f38;
+            z-index: 2;
+        }
+        .sp-row {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            cursor: pointer;
+            transition: background 0.12s;
+            position: relative;
+        }
+        .sp-row:active { background: rgba(34,211,238,0.07); }
+        .sp-row.selected {
+            border-left: 3px solid #22d3ee;
+            padding-left: 17px;
+            background: rgba(34,211,238,0.05);
+        }
+        .sp-row-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 9px;
+            background: rgba(255,255,255,0.06);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-right: 12px;
+            color: #7fa8c9;
+        }
+        .sp-row.selected .sp-row-icon { color: #22d3ee; background: rgba(34,211,238,0.12); }
+        .sp-row-main { flex: 1; min-width: 0; }
+        .sp-row-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #f0f6ff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .sp-row-type {
+            font-size: 11px;
+            color: #7fa8c9;
+            margin-top: 1px;
+        }
+        .sp-row-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+            margin-left: 10px;
+        }
+        .sp-row-distance { font-size: 11px; font-weight: 600; color: rgba(34,211,238,0.8); }
+        .sp-logged-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: #22d3ee;
+            opacity: 0.65;
+            flex-shrink: 0;
+        }
+        .sp-add-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 15px 20px;
+            cursor: pointer;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            margin-top: 6px;
+            transition: background 0.12s;
+        }
+        .sp-add-row:active { background: rgba(255,255,255,0.04); }
+        .sp-add-icon {
+            width: 34px; height: 34px;
+            border-radius: 9px;
+            background: rgba(34,211,238,0.08);
+            border: 1px solid rgba(34,211,238,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #22d3ee;
+            flex-shrink: 0;
+        }
+        .sp-add-label { font-size: 13px; font-weight: 600; color: #22d3ee; }
+        .sp-empty { padding: 40px 20px; text-align: center; }
+        .sp-empty-icon { color: #4a7a9b; margin-bottom: 10px; }
+        .sp-empty-text { font-size: 14px; color: #4a7a9b; }
+        /* Spot picker trigger button */
+        #spotPickerTrigger {
+            width: 100%;
+            background: rgba(15,23,42,0.6);
+            border: 2px solid rgba(56,189,248,0.2);
+            border-radius: 12px;
+            padding: 14px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 15px;
+            font-weight: 500;
+            text-align: left;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+        #spotPickerTrigger:hover { border-color: rgba(56,189,248,0.4); }
+        #spotPickerTrigger.sp-has-value { border-color: rgba(34,211,238,0.35); }
+        #spTriggerText { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #7fa8c9; }
+        #spotPickerTrigger.sp-has-value #spTriggerText { color: #f0f6ff; }
+        @keyframes spFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes spSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes spRowFadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
         select {
             width: 100%;
             padding: 14px 16px;
@@ -7855,6 +8295,27 @@
     <!-- Suggest Spot Modal -->
 
     <!-- Share swim post bottom sheet -->
+    <!-- SPOT PICKER BOTTOM SHEET -->
+    <div id="spotPickerOverlay" onclick="closeSpotPicker()"></div>
+    <div id="spotPickerSheet" role="dialog" aria-label="Select a spot">
+        <div class="sp-handle"></div>
+        <!-- Category tabs -->
+        <div class="sp-tabs" id="spTabs">
+            <div class="sp-tab active" onclick="setPickerCategory('OCEAN',this)">Ocean</div>
+            <div class="sp-tab" onclick="setPickerCategory('POOL',this)">Pools</div>
+            <div class="sp-tab" onclick="setPickerCategory('LAGOON',this)">Lagoons</div>
+            <div class="sp-tab" onclick="setPickerCategory('DAM',this)">Inland</div>
+        </div>
+        <!-- Search -->
+        <div class="sp-search-wrap">
+            <input id="spSearchInput" type="text" placeholder="Search spots..."
+                oninput="onSpPickerSearch(this.value)" autocomplete="off" autocorrect="off" spellcheck="false">
+            <button id="spSearchClear" onclick="clearSpPickerSearch()" aria-label="Clear search">&times;</button>
+        </div>
+        <!-- Spot list -->
+        <div id="spList"></div>
+    </div>
+
     <div id="swimPostShareModal" style="display:none; position:fixed; inset:0; z-index:10004; background:rgba(0,0,0,0.75); align-items:flex-end; justify-content:center;">
         <div style="background:var(--surface); border-radius:20px 20px 0 0; padding:28px 24px 36px; width:100%; max-width:480px;">
             <div style="font-size:11px; color:#25d366; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.8px; font-weight:700;">You're in the feed 🌊</div>
@@ -8161,26 +8622,20 @@
                     <div class="form-group">
                         <div class="form-label"><i data-lucide="map-pin"
                                 style="width: 14px; height: 14px; vertical-align: middle;"></i> Location</div>
-                        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                            <select data-spots style="flex: 1;">
-                                <option>Loading spots...</option>
-                            </select>
-                            <button type="button" id="gpsButton" class="btn"
-                                style="width: auto; padding: 12px 16px; font-size: 13px;"
-                                onclick="getCurrentLocation()">
-                                <i data-lucide="navigation" style="width: 14px; height: 14px;"></i> GPS
-                            </button>
-                        </div>
-                        <div id="gpsStatus" style="font-size: 12px; color: var(--text-secondary); min-height: 16px; margin-top: 4px;"></div>
+                        <!-- Hidden select keeps submitTempLog() and handleSpotLock() working -->
+                        <select data-spots id="logTempSpotSelect" style="display:none;"></select>
+                        <!-- Visible spot picker trigger -->
+                        <button type="button" id="spotPickerTrigger" onclick="openSpotPicker()">
+                            <i data-lucide="map-pin" style="width:16px;height:16px;color:#7fa8c9;flex-shrink:0;"></i>
+                            <span id="spTriggerText">Select a spot...</span>
+                            <i data-lucide="chevron-right" style="width:15px;height:15px;color:#4a7a9b;flex-shrink:0;margin-left:auto;"></i>
+                        </button>
+                        <div id="gpsStatus" style="font-size: 12px; color: var(--text-secondary); min-height: 16px; margin-top: 6px;"></div>
                         <!-- Secondary actions row -->
                         <div style="display: flex; gap: 8px; margin-top: 8px;">
                             <div onclick="toggleBackdate()" id="backdateToggleBtn" style="cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 8px 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; transition: all 0.2s;">
                                 <i data-lucide="clock" style="width: 13px; height: 13px; color: var(--text-secondary); flex-shrink: 0;"></i>
                                 <span id="backdateToggleLabel" style="font-size: 12px; color: var(--text-secondary); white-space: nowrap;">Log for earlier?</span>
-                            </div>
-                            <div onclick="showSuggestSpot()" style="cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 8px 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; transition: all 0.2s;">
-                                <i data-lucide="plus-circle" style="width: 13px; height: 13px; color: var(--text-secondary); flex-shrink: 0;"></i>
-                                <span style="font-size: 12px; color: var(--text-secondary); white-space: nowrap;">Suggest a spot</span>
                             </div>
                         </div>
                         <div id="backdateSection">
