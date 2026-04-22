@@ -5919,44 +5919,40 @@
             return d ? d.display_name : domainCode;
         }
 
-        // Keyboard-aware viewport handler — keeps sheet above the keyboard
+        // Keyboard-aware viewport handler — shrinks the overlay to the visual viewport
+        // so the sheet (which sits at flex-end) naturally stays above the keyboard.
         function _spViewportResize() {
-            const sheet = document.getElementById('spotPickerSheet');
-            if (!sheet) return;
+            const overlay = document.getElementById('spotPickerOverlay');
+            if (!overlay || !overlay.classList.contains('sp-open')) return;
             if (window.visualViewport) {
-                const kbHeight = Math.max(0, window.innerHeight - window.visualViewport.height);
-                if (kbHeight > 80) {
-                    // Keyboard is open: push sheet up and shrink it
-                    sheet.style.bottom = kbHeight + 'px';
-                    sheet.style.maxHeight = (window.visualViewport.height * 0.92) + 'px';
-                } else {
-                    sheet.style.bottom = '0';
-                    sheet.style.maxHeight = '88vh';
-                }
+                const vv = window.visualViewport;
+                overlay.style.top    = vv.offsetTop + 'px';
+                overlay.style.height = vv.height + 'px';
+                overlay.style.bottom = 'auto';
             }
+        }
+
+        function _spResetOverlaySize() {
+            const overlay = document.getElementById('spotPickerOverlay');
+            if (!overlay) return;
+            overlay.style.top    = '';
+            overlay.style.height = '';
+            overlay.style.bottom = '';
         }
 
         function _spSearchFocus() {
-            // Small delay for the keyboard animation to complete
-            setTimeout(_spViewportResize, 320);
+            // Fire at multiple intervals to catch keyboard at each animation frame
+            [150, 300, 500].forEach(d => setTimeout(_spViewportResize, d));
         }
 
         function _spSearchBlur() {
-            const sheet = document.getElementById('spotPickerSheet');
-            if (sheet) {
-                sheet.style.bottom = '0';
-                sheet.style.maxHeight = '88vh';
-            }
+            setTimeout(_spResetOverlaySize, 100);
         }
 
         // Open the picker sheet
         async function openSpotPicker() {
-            const sheet = document.getElementById('spotPickerSheet');
-            sheet.style.bottom = '';
-            sheet.style.maxHeight = '';
-
+            _spResetOverlaySize();
             document.getElementById('spotPickerOverlay').classList.add('sp-open');
-            sheet.classList.add('sp-open');
             document.body.style.overflow = 'hidden';
 
             // Track viewport changes (keyboard open/close on mobile)
@@ -5998,11 +5994,8 @@
         }
 
         function closeSpotPicker() {
-            const sheet = document.getElementById('spotPickerSheet');
             document.getElementById('spotPickerOverlay').classList.remove('sp-open');
-            sheet.classList.remove('sp-open');
-            sheet.style.bottom = '';
-            sheet.style.maxHeight = '';
+            _spResetOverlaySize();
             document.body.style.overflow = '';
 
             // Stop watching viewport
@@ -7595,24 +7588,22 @@
             inset: 0;
             background: rgba(0,0,0,0.65);
             z-index: 10010;
+            align-items: flex-end;
+            justify-content: center;
         }
-        #spotPickerOverlay.sp-open { display: block; animation: spFadeIn 0.2s ease; }
+        #spotPickerOverlay.sp-open { display: flex; animation: spFadeIn 0.2s ease; }
         #spotPickerSheet {
-            display: none;
-            position: fixed;
-            left: 0; right: 0; bottom: 0;
-            max-height: 88vh;
+            width: 100%;
             max-width: 480px;
-            margin: 0 auto;
+            max-height: 88vh;
             background: #0f1f38;
             border-radius: 20px 20px 0 0;
-            z-index: 10011;
+            display: flex;
             flex-direction: column;
             overflow: hidden;
             box-shadow: 0 -8px 40px rgba(0,0,0,0.6);
-            transition: bottom 0.1s ease, max-height 0.1s ease;
+            animation: spSlideUp 0.3s cubic-bezier(0.32,0.72,0,1);
         }
-        #spotPickerSheet.sp-open { display: flex; animation: spSlideUp 0.3s cubic-bezier(0.32,0.72,0,1); }
         .sp-handle {
             width: 40px; height: 4px;
             background: rgba(255,255,255,0.15);
@@ -8354,27 +8345,28 @@
 
     <!-- Share swim post bottom sheet -->
     <!-- SPOT PICKER BOTTOM SHEET -->
-    <div id="spotPickerOverlay" onclick="closeSpotPicker()"></div>
-    <div id="spotPickerSheet" role="dialog" aria-label="Select a spot">
-        <div class="sp-handle"></div>
-        <!-- Category tabs -->
-        <div class="sp-tabs" id="spTabs">
-            <div class="sp-tab active" onclick="setPickerCategory('OCEAN',this)">Ocean</div>
-            <div class="sp-tab" onclick="setPickerCategory('POOL',this)">Pools</div>
-            <div class="sp-tab" onclick="setPickerCategory('LAGOON',this)">Lagoons</div>
-            <div class="sp-tab" onclick="setPickerCategory('DAM',this)">Inland</div>
+    <div id="spotPickerOverlay" onclick="closeSpotPicker()">
+        <div id="spotPickerSheet" role="dialog" aria-label="Select a spot" onclick="event.stopPropagation()">
+            <div class="sp-handle"></div>
+            <!-- Category tabs -->
+            <div class="sp-tabs" id="spTabs">
+                <div class="sp-tab active" onclick="setPickerCategory('OCEAN',this)">Ocean</div>
+                <div class="sp-tab" onclick="setPickerCategory('POOL',this)">Pools</div>
+                <div class="sp-tab" onclick="setPickerCategory('LAGOON',this)">Lagoons</div>
+                <div class="sp-tab" onclick="setPickerCategory('DAM',this)">Inland</div>
+            </div>
+            <!-- Search -->
+            <div class="sp-search-wrap">
+                <input id="spSearchInput" type="text" placeholder="Search spots..."
+                    oninput="onSpPickerSearch(this.value)"
+                    onfocus="_spSearchFocus()"
+                    onblur="_spSearchBlur()"
+                    autocomplete="off" autocorrect="off" spellcheck="false">
+                <button id="spSearchClear" onclick="clearSpPickerSearch()" aria-label="Clear search">&times;</button>
+            </div>
+            <!-- Spot list -->
+            <div id="spList"></div>
         </div>
-        <!-- Search -->
-        <div class="sp-search-wrap">
-            <input id="spSearchInput" type="text" placeholder="Search spots..."
-                oninput="onSpPickerSearch(this.value)"
-                onfocus="_spSearchFocus()"
-                onblur="_spSearchBlur()"
-                autocomplete="off" autocorrect="off" spellcheck="false">
-            <button id="spSearchClear" onclick="clearSpPickerSearch()" aria-label="Clear search">&times;</button>
-        </div>
-        <!-- Spot list -->
-        <div id="spList"></div>
     </div>
 
     <div id="swimPostShareModal" style="display:none; position:fixed; inset:0; z-index:10004; background:rgba(0,0,0,0.75); align-items:flex-end; justify-content:center;">
