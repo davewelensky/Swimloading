@@ -5899,6 +5899,7 @@
         // ── SPOT PICKER SHEET ───────────────────────────────────────────────────
         let pickerCategory = 'OCEAN';
         let pickerBrand    = null;   // null=All, 'VIRGIN_ACTIVE', 'PUBLIC' — Pool tab only
+        let pickerDomain   = null;   // null=All, or a domain code — Ocean/Lagoon/Inland tabs
         let pickerSearch   = '';
         let pickerUserSpotIds = new Set(); // spot IDs this user has previously logged
         let pickerGpsCoords   = null;      // { lat, lng } once GPS resolves
@@ -5960,6 +5961,14 @@
                 window.visualViewport.addEventListener('scroll', _spViewportResize);
             }
 
+            // Seed the correct sub-filter strip for the current category
+            if (pickerCategory === 'POOL') {
+                const bs = document.getElementById('spBrandStrip');
+                if (bs) bs.classList.add('sp-visible');
+            } else {
+                renderRegionStrip(pickerCategory);
+            }
+
             // Render immediately with whatever we have
             renderSpotPickerList();
 
@@ -6013,22 +6022,24 @@
             document.querySelectorAll('.sp-tab').forEach(t => t.classList.remove('active'));
             if (tabEl) tabEl.classList.add('active');
             pickerSearch = '';
+            pickerDomain = null;
             const inp = document.getElementById('spSearchInput');
             if (inp) inp.value = '';
             document.getElementById('spSearchClear').style.display = 'none';
 
-            // Show brand strip only for Pool tab; reset brand filter on tab switch
-            const strip = document.getElementById('spBrandStrip');
-            if (strip) {
-                if (cat === 'POOL') {
-                    strip.classList.add('sp-visible');
-                } else {
-                    strip.classList.remove('sp-visible');
-                    pickerBrand = null;
-                    document.querySelectorAll('.sp-brand-pill').forEach((p, i) => {
-                        p.classList.toggle('active', i === 0);
-                    });
-                }
+            const brandStrip = document.getElementById('spBrandStrip');
+            if (cat === 'POOL') {
+                // Show brand strip, hide region strip
+                if (brandStrip) brandStrip.classList.add('sp-visible');
+                const regionStrip = document.getElementById('spRegionStrip');
+                if (regionStrip) { regionStrip.classList.remove('sp-visible'); regionStrip.innerHTML = ''; }
+                pickerBrand = null;
+                document.querySelectorAll('.sp-brand-pill').forEach((p, i) => p.classList.toggle('active', i === 0));
+            } else {
+                // Hide brand strip, build region strip for this category
+                if (brandStrip) brandStrip.classList.remove('sp-visible');
+                pickerBrand = null;
+                renderRegionStrip(cat);
             }
             renderSpotPickerList();
         }
@@ -6038,6 +6049,40 @@
             document.querySelectorAll('.sp-brand-pill').forEach(p => p.classList.remove('active'));
             if (pillEl) pillEl.classList.add('active');
             renderSpotPickerList();
+        }
+
+        function setPickerDomain(domain, pillEl) {
+            pickerDomain = domain;
+            document.querySelectorAll('.sp-region-pill').forEach(p => p.classList.remove('active'));
+            if (pillEl) pillEl.classList.add('active');
+            renderSpotPickerList();
+        }
+
+        // Build region strip pills for the current non-pool category
+        function renderRegionStrip(cat) {
+            const strip = document.getElementById('spRegionStrip');
+            if (!strip) return;
+
+            // Find which domains have spots in this category
+            const activeDomains = [...new Set(
+                spots.filter(s => s.active !== false && s.water_type === cat).map(s => s.domain)
+            )];
+
+            // Only show strip if there are multiple domains
+            if (activeDomains.length <= 1) {
+                strip.classList.remove('sp-visible');
+                strip.innerHTML = '';
+                return;
+            }
+
+            // Build pills — "All" first, then one per domain
+            let html = `<div class="sp-brand-pill sp-region-pill active" onclick="setPickerDomain(null,this)">All</div>`;
+            activeDomains.forEach(code => {
+                const name = spAreaName(code);
+                html += `<div class="sp-brand-pill sp-region-pill" onclick="setPickerDomain('${code}',this)">${name}</div>`;
+            });
+            strip.innerHTML = html;
+            strip.classList.add('sp-visible');
         }
 
         function onSpPickerSearch(val) {
@@ -6120,6 +6165,11 @@
 
             // Base filter: active + category
             let filtered = spots.filter(s => s.active !== false && s.water_type === pickerCategory);
+
+            // Region sub-filter (Ocean / Lagoon / Inland tabs)
+            if (pickerCategory !== 'POOL' && pickerDomain !== null) {
+                filtered = filtered.filter(s => s.domain === pickerDomain);
+            }
 
             // Brand sub-filter (Pool tab only)
             if (pickerCategory === 'POOL' && pickerBrand !== null) {
@@ -6209,10 +6259,14 @@
                 }
 
                 const count = areaSpots.length;
-                const label = pickerCategory === 'POOL'
-                    ? `${spAreaName(domain)} · ${count} pool${count !== 1 ? 's' : ''}`
-                    : spAreaName(domain);
-                html += `<div class="sp-area-header">${label}</div>`;
+                // Suppress area header when user has already filtered to a single domain
+                const singleDomain = pickerDomain !== null || (pickerCategory === 'POOL' && pickerBrand === 'VIRGIN_ACTIVE');
+                if (!singleDomain) {
+                    const label = pickerCategory === 'POOL'
+                        ? `${spAreaName(domain)} · ${count} pool${count !== 1 ? 's' : ''}`
+                        : spAreaName(domain);
+                    html += `<div class="sp-area-header">${label}</div>`;
+                }
                 areaSpots.forEach(s => {
                     html += _spRowHTML(s, currentVal, Math.min(rowIdx * 18, 300));
                     rowIdx++;
@@ -7877,6 +7931,17 @@
             color: #0a1628;
             font-weight: 700;
         }
+        /* Region sub-filter strip — reuses brand pill styles */
+        #spRegionStrip {
+            display: none;
+            gap: 8px;
+            padding: 0 16px 12px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            flex-shrink: 0;
+        }
+        #spRegionStrip::-webkit-scrollbar { display: none; }
+        #spRegionStrip.sp-visible { display: flex; }
         .sp-va-badge {
             width: 32px;
             height: 32px;
@@ -8481,6 +8546,8 @@
                 <div class="sp-brand-pill" onclick="setPickerBrand('VIRGIN_ACTIVE',this)">Virgin Active</div>
                 <div class="sp-brand-pill" onclick="setPickerBrand('PUBLIC',this)">Public Pools</div>
             </div>
+            <!-- Region sub-filter (Ocean / Lagoon / Inland tabs) — pills rendered dynamically -->
+            <div id="spRegionStrip"></div>
             <!-- Search -->
             <div class="sp-search-wrap">
                 <input id="spSearchInput" type="text" placeholder="Search spots..."
