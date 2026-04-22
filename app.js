@@ -1346,7 +1346,7 @@
                             <div style="flex:1;">
                                 <div style="font-weight:700;color:var(--text-primary);font-size:15px;">${spot.spot_name}</div>
                                 ${windLine}
-                                <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${ageText}${byLine}</div>
+                                <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;display:flex;align-items:center;gap:3px;"><i data-lucide="clock" style="width:10px;height:10px;flex-shrink:0;"></i>${ageText}${byLine}</div>
                             </div>
                             <div style="text-align:right;">
                                 <div style="font-size:20px;font-weight:800;color:${getDisplayTempColor(spot.temp_c, spot.water_type)};">${spot.temp_c}°C${hasLogHazard ? ' <i data-lucide="alert-triangle" style="width:13px;height:13px;color:#ef4444;vertical-align:middle;" title="' + recentLogHazards.join(', ') + '"></i>' : ''}</div>
