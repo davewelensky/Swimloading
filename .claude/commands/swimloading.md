@@ -17,7 +17,7 @@ Cape Town ocean swimming community app — live at **swimloading.com**. Growing 
 
 **Repo:** `https://github.com/davewelensky/Swimloading.git` — branch `main`
 
-**Users:** ~384+ registered (March 2026). Growing nationally — Cape Town, KZN/Durban, and beyond. Open water swimming skews 40–60+ — many users are not super tech-savvy. Every screen must be instantly obvious, zero hesitation required.
+**Users:** ~489 registered (April 2026). Growing nationally — Cape Town, KZN/Durban, and beyond. Open water swimming skews 40–60+ — many users are not super tech-savvy. Every screen must be instantly obvious, zero hesitation required.
 
 **Rule:** Edit files locally → commit → push → Vercel deploys in ~30s. Never edit files on Vercel directly.
 
@@ -27,7 +27,12 @@ Cape Town ocean swimming community app — live at **swimloading.com**. Growing 
 
 ```
 /Users/davewelensky/SwimLoading/
-├── index.html          # Main PWA app (~9500+ lines)
+├── index.html          # Main PWA shell — HTML only (~1792 lines)
+├── app.js              # Main app logic: auth, dashboard, events, leaderboard, safety, badges (~6879 lines)
+├── app-nav.js          # Nav, auth tabs, monthly challenge, notifications (~1375 lines)
+├── app-trends.js       # Trends page logic and charts (~829 lines)
+├── app-fuel.js         # Fuel tests + service worker registration (~282 lines)
+├── style.css           # All app CSS (~1138 lines)
 ├── intel.html          # /intel page — False Bay crossing intelligence (~1500 lines)
 ├── admin.html          # /admin page — user analytics + spotlight management
 ├── welcome.html        # Landing page
@@ -45,6 +50,17 @@ Cape Town ocean swimming community app — live at **swimloading.com**. Growing 
 ├── icons/              # App icons
 └── .claude/commands/   # This skill file
 ```
+
+### File split — important notes (April 2026)
+The original monolithic `index.html` (~12,300 lines) was split into separate files to prevent Claude Code context window crashes. All JS files are loaded as regular `<script src>` tags (NOT ES modules), so global scope is fully shared between files. `var conditionsCache`, `var swimEventsCache`, `var todayForecast` in `app.js` are accessible from `app-trends.js`. Inline `onclick` handlers in HTML still work as before.
+
+**When editing:** target the specific file, not index.html.
+- Auth, dashboard, events, leaderboard, hazards, badges → `app.js`
+- Navigation, monthly challenge, notifications → `app-nav.js`
+- Trends page → `app-trends.js`
+- Fuel tests → `app-fuel.js`
+- All CSS → `style.css`
+- HTML structure, modals, forms → `index.html`
 
 ---
 
@@ -238,7 +254,7 @@ const score = Math.max(0, Math.min(scoreCap, Math.round(raw)));
 
 ---
 
-## Main App (index.html) — Key Patterns
+## Main App — Key Patterns
 
 ### Global variables
 ```js
