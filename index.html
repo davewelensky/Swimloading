@@ -5919,11 +5919,30 @@
             return d ? d.display_name : domainCode;
         }
 
+        // Keyboard-aware viewport handler — keeps sheet above the keyboard
+        function _spViewportResize() {
+            const sheet = document.getElementById('spotPickerSheet');
+            if (!sheet || !window.visualViewport) return;
+            const keyboardHeight = Math.max(0, window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop);
+            sheet.style.bottom = keyboardHeight + 'px';
+            sheet.style.maxHeight = (window.visualViewport.height * 0.92) + 'px';
+        }
+
         // Open the picker sheet
         async function openSpotPicker() {
+            const sheet = document.getElementById('spotPickerSheet');
+            sheet.style.bottom = '';
+            sheet.style.maxHeight = '';
+
             document.getElementById('spotPickerOverlay').classList.add('sp-open');
-            document.getElementById('spotPickerSheet').classList.add('sp-open');
+            sheet.classList.add('sp-open');
             document.body.style.overflow = 'hidden';
+
+            // Track viewport changes (keyboard open/close on mobile)
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', _spViewportResize);
+                window.visualViewport.addEventListener('scroll', _spViewportResize);
+            }
 
             // Render immediately with whatever we have
             renderSpotPickerList();
@@ -5946,7 +5965,7 @@
                 navigator.geolocation.getCurrentPosition(
                     pos => {
                         pickerGpsCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                        currentGpsLocation = pickerGpsCoords; // keep global in sync
+                        currentGpsLocation = pickerGpsCoords;
                         renderSpotPickerList();
                     },
                     () => { /* silently ignore denial */ },
@@ -5958,9 +5977,22 @@
         }
 
         function closeSpotPicker() {
+            const sheet = document.getElementById('spotPickerSheet');
             document.getElementById('spotPickerOverlay').classList.remove('sp-open');
-            document.getElementById('spotPickerSheet').classList.remove('sp-open');
+            sheet.classList.remove('sp-open');
+            sheet.style.bottom = '';
+            sheet.style.maxHeight = '';
             document.body.style.overflow = '';
+
+            // Stop watching viewport
+            if (window.visualViewport) {
+                window.visualViewport.removeEventListener('resize', _spViewportResize);
+                window.visualViewport.removeEventListener('scroll', _spViewportResize);
+            }
+
+            // Dismiss keyboard if search was focused
+            const inp = document.getElementById('spSearchInput');
+            if (inp) inp.blur();
         }
 
         function setPickerCategory(cat, tabEl) {
