@@ -346,19 +346,24 @@
                 return;
             }
 
-            // INCOMPLETE USER — accepted legal but never finished personal details
-            // (dropped off between stage 1 and stage 2, or registered before onboarding existed)
-            if (!profile.onboarding_completed_at || !profile.phone) {
-                document.getElementById('authScreen').style.display = 'none';
-                document.getElementById('mainApp').style.display = 'none';
-                showOnboardingPersonal();
-                return;
+            // INCOMPLETE USER — accepted legal but missing phone/profile details
+            // Allow access but show soft banner + prompt before actions
+            const isIncompleteProfile = !profile.onboarding_completed_at || !profile.phone;
+            if (isIncompleteProfile) {
+                window.incompleteProfile = true; // Flag for contextual prompts
             }
 
-            // EXISTING USER - go to main app
+            // Load app regardless of profile completeness
             document.getElementById('authScreen').style.display = 'none';
             document.getElementById('mainApp').style.display = 'block';
 
+            // Show incomplete profile banner if needed
+            if (isIncompleteProfile) {
+                showIncompleteProfileBanner();
+            }
+
+            // Show PWA install prompt if not dismissed
+            showPwaInstallPrompt();
 
             // Load user avatar into header
             if (profile.avatar_url) {
@@ -2620,6 +2625,13 @@
         // Submit new event  
         async function submitEvent(e) {
             e.preventDefault();
+
+            // Check if profile is complete
+            if (window.incompleteProfile) {
+                showToast('Please complete your profile first to RSVP', 'info');
+                showOnboardingPersonal();
+                return;
+            }
 
             // Get form values
             const title = document.getElementById('eventName')?.value;
@@ -6364,6 +6376,13 @@
             const submitBtn = document.getElementById('submitTempBtn');
             if (submitBtn.disabled) return;
 
+            // Check if profile is complete
+            if (window.incompleteProfile) {
+                showToast('Please complete your profile first to log temperatures', 'info');
+                showOnboardingPersonal();
+                return;
+            }
+
             // Location confirmation — show before any validation
             const spotSelectEl = document.getElementById('logTempSpotSelect');
             const spotId = spotSelectEl?.value || '';
@@ -6873,6 +6892,74 @@
                 html += `<div style="text-align:center;margin-top:8px;color:var(--text-secondary);font-size:12px;">${earnedIds.size} of ${badges.length} badges earned · <span style="cursor:pointer;color:var(--ocean-light);" onclick="renderDashBadges()">show less</span></div>`;
                 container.innerHTML = html;
             } catch(err) { console.error('Badge expand error:', err); }
+        }
+
+        // Show incomplete profile banner at top of page
+        function showIncompleteProfileBanner() {
+            const banner = document.createElement('div');
+            banner.id = 'incompleteProfileBanner';
+            banner.style.cssText = `
+                position: sticky; top: 0; z-index: 99;
+                background: linear-gradient(135deg, rgba(245,158,11,0.1), rgba(245,158,11,0.05));
+                border-bottom: 1px solid rgba(245,158,11,0.3);
+                padding: 12px 16px;
+                display: flex; align-items: center; justify-content: space-between; gap: 12px;
+                font-size: 13px; color: var(--text-secondary);
+            `;
+            banner.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                    <i data-lucide="alert-circle" style="width: 16px; height: 16px; color: var(--warning); flex-shrink: 0;"></i>
+                    <span>Complete your profile to RSVP and log temperatures</span>
+                </div>
+                <button onclick="showOnboardingPersonal()" style="background: var(--ocean-light); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">Complete</button>
+                <button onclick="document.getElementById('incompleteProfileBanner').style.display='none';" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 0; font-size: 16px;">✕</button>
+            `;
+            const mainApp = document.getElementById('mainApp');
+            if (mainApp && mainApp.parentNode) {
+                mainApp.parentNode.insertBefore(banner, mainApp);
+                setTimeout(() => initIcons(), 0);
+            }
+        }
+
+        // Show PWA install prompt with iOS/Android instructions
+        function showPwaInstallPrompt() {
+            const dismissKey = 'pwaInstallDismissCount';
+            const dismissCount = parseInt(localStorage.getItem(dismissKey) || '0');
+            if (dismissCount >= 3) return; // Don't show after 3 dismissals
+
+            // Detect device
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const isAndroid = /Android/.test(navigator.userAgent);
+            const isPWACapable = isIOS || isAndroid;
+
+            if (!isPWACapable || window.matchMedia('(display-mode: standalone)').matches) return; // Already installed
+
+            const banner = document.createElement('div');
+            banner.id = 'pwaInstallBanner';
+            banner.style.cssText = `
+                position: sticky; top: 48px; z-index: 98;
+                background: linear-gradient(135deg, rgba(56,189,248,0.1), rgba(56,189,248,0.05));
+                border-bottom: 1px solid rgba(56,189,248,0.3);
+                padding: 12px 16px;
+                display: flex; align-items: center; justify-content: space-between; gap: 12px;
+                font-size: 13px; color: var(--text-secondary);
+            `;
+            const instructions = isIOS
+                ? 'Tap Share → Add to Home Screen for offline access & notifications'
+                : 'Tap menu → Install app for offline access & notifications';
+
+            banner.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                    <i data-lucide="smartphone" style="width: 16px; height: 16px; color: var(--ocean-light); flex-shrink: 0;"></i>
+                    <span>${instructions}</span>
+                </div>
+                <button onclick="document.getElementById('pwaInstallBanner').remove(); localStorage.setItem('${dismissKey}', '${dismissCount + 1}');" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 0; font-size: 16px;">✕</button>
+            `;
+            const mainApp = document.getElementById('mainApp');
+            if (mainApp && mainApp.parentNode) {
+                mainApp.parentNode.insertBefore(banner, mainApp);
+                setTimeout(() => initIcons(), 0);
+            }
         }
 
         // Initialize on page load
