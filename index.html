@@ -5898,6 +5898,7 @@
 
         // ── SPOT PICKER SHEET ───────────────────────────────────────────────────
         let pickerCategory = 'OCEAN';
+        let pickerBrand    = null;   // null=All, 'VIRGIN_ACTIVE', 'PUBLIC' — Pool tab only
         let pickerSearch   = '';
         let pickerUserSpotIds = new Set(); // spot IDs this user has previously logged
         let pickerGpsCoords   = null;      // { lat, lng } once GPS resolves
@@ -6015,6 +6016,27 @@
             const inp = document.getElementById('spSearchInput');
             if (inp) inp.value = '';
             document.getElementById('spSearchClear').style.display = 'none';
+
+            // Show brand strip only for Pool tab; reset brand filter on tab switch
+            const strip = document.getElementById('spBrandStrip');
+            if (strip) {
+                if (cat === 'POOL') {
+                    strip.classList.add('sp-visible');
+                } else {
+                    strip.classList.remove('sp-visible');
+                    pickerBrand = null;
+                    document.querySelectorAll('.sp-brand-pill').forEach((p, i) => {
+                        p.classList.toggle('active', i === 0);
+                    });
+                }
+            }
+            renderSpotPickerList();
+        }
+
+        function setPickerBrand(brand, pillEl) {
+            pickerBrand = brand;
+            document.querySelectorAll('.sp-brand-pill').forEach(p => p.classList.remove('active'));
+            if (pillEl) pillEl.classList.add('active');
             renderSpotPickerList();
         }
 
@@ -6058,45 +6080,107 @@
             initIcons();
         }
 
-        // Render the spot list for current category + search
+        // Build a single spot row HTML
+        function _spRowHTML(s, currentVal, delay) {
+            const isSelected = s.id === currentVal;
+            const isLogged   = pickerUserSpotIds.has(s.id);
+            const distStr    = s._dist !== null
+                ? (s._dist < 1 ? (s._dist * 1000).toFixed(0) + ' m' : s._dist.toFixed(1) + ' km')
+                : '';
+            const isVA   = s.brand === 'VIRGIN_ACTIVE';
+            const iconHtml = isVA
+                ? `<div class="sp-va-badge">VA</div>`
+                : `<div class="sp-row-icon${isSelected ? '' : ''}">
+                       <i data-lucide="${SP_TYPE_ICONS[s.water_type] || 'map-pin'}" style="width:16px;height:16px;"></i>
+                   </div>`;
+            return `
+                <div class="sp-row${isSelected ? ' selected' : ''}"
+                     data-spot-id="${s.id}"
+                     data-spot-name="${s.name.replace(/"/g, '&quot;')}"
+                     onclick="selectSpotFromPicker(this.dataset.spotId, this.dataset.spotName)"
+                     style="animation: spRowFadeIn 0.25s ${delay}ms ease both;">
+                    ${iconHtml}
+                    <div class="sp-row-main">
+                        <div class="sp-row-name">${s.name}</div>
+                    </div>
+                    <div class="sp-row-right">
+                        ${distStr ? `<span class="sp-row-distance">${distStr}</span>` : ''}
+                        ${isLogged ? '<div class="sp-logged-dot" title="Logged here before"></div>' : ''}
+                    </div>
+                </div>`;
+        }
+
+        // Render the spot list for current category + brand + search
         function renderSpotPickerList() {
             const container = document.getElementById('spList');
             if (!container) return;
 
-            const q = pickerSearch.trim().toLowerCase();
+            const q          = pickerSearch.trim().toLowerCase();
             const currentVal = document.getElementById('logTempSpotSelect')?.value || '';
 
-            // Filter spots
+            // Base filter: active + category
             let filtered = spots.filter(s => s.active !== false && s.water_type === pickerCategory);
+
+            // Brand sub-filter (Pool tab only)
+            if (pickerCategory === 'POOL' && pickerBrand !== null) {
+                if (pickerBrand === 'VIRGIN_ACTIVE') {
+                    filtered = filtered.filter(s => s.brand === 'VIRGIN_ACTIVE');
+                } else if (pickerBrand === 'PUBLIC') {
+                    filtered = filtered.filter(s => !s.brand);
+                }
+            }
+
+            // Search filter
             if (q) {
                 filtered = filtered.filter(s =>
                     s.name.toLowerCase().includes(q) ||
-                    (s.area || '').toLowerCase().includes(q) ||
+                    (s.area  || '').toLowerCase().includes(q) ||
                     spAreaName(s.domain).toLowerCase().includes(q)
                 );
             }
 
             if (filtered.length === 0) {
+                const label = pickerBrand === 'VIRGIN_ACTIVE' ? 'Virgin Active'
+                            : pickerBrand === 'PUBLIC'        ? 'public pool'
+                            : SP_TYPE_LABELS[pickerCategory].toLowerCase();
                 container.innerHTML = `
                     <div class="sp-empty">
                         <div class="sp-empty-icon"><i data-lucide="${SP_TYPE_ICONS[pickerCategory]}" style="width:32px;height:32px;"></i></div>
-                        <div class="sp-empty-text">No ${SP_TYPE_LABELS[pickerCategory].toLowerCase()} spots found${q ? ` for "${pickerSearch}"` : ''}</div>
+                        <div class="sp-empty-text">No ${label} spots found${q ? ` for "${pickerSearch}"` : ''}</div>
                     </div>
                     ${spAddRowHTML()}`;
                 initIcons();
                 return;
             }
 
-            // Attach distance if GPS available
+            // Attach distance
             let spotsWithDist = filtered.map(s => {
-                let dist = null;
-                if (pickerGpsCoords && s.latitude && s.longitude) {
-                    dist = getDistanceKm(pickerGpsCoords.lat, pickerGpsCoords.lng, s.latitude, s.longitude);
-                }
+                const dist = (pickerGpsCoords && s.latitude && s.longitude)
+                    ? getDistanceKm(pickerGpsCoords.lat, pickerGpsCoords.lng, s.latitude, s.longitude)
+                    : null;
                 return { ...s, _dist: dist };
             });
 
-            // Sort: by distance if available, else by name
+            // ── Virgin Active: flat list, distance only, no area headers ──────────
+            if (pickerCategory === 'POOL' && pickerBrand === 'VIRGIN_ACTIVE') {
+                spotsWithDist.sort((a, b) => {
+                    if (a._dist !== null && b._dist !== null) return a._dist - b._dist;
+                    if (a._dist !== null) return -1;
+                    if (b._dist !== null) return 1;
+                    return a.name.localeCompare(b.name);
+                });
+                let html = '';
+                spotsWithDist.forEach((s, i) => {
+                    html += _spRowHTML(s, currentVal, Math.min(i * 18, 300));
+                });
+                html += spAddRowHTML();
+                container.innerHTML = html;
+                initIcons();
+                return;
+            }
+
+            // ── Grouped view: sort by distance, group by domain ───────────────────
+            // Global sort: by nearest spot distance first, alphabetical fallback
             spotsWithDist.sort((a, b) => {
                 if (a._dist !== null && b._dist !== null) return a._dist - b._dist;
                 if (a._dist !== null) return -1;
@@ -6104,45 +6188,34 @@
                 return a.name.localeCompare(b.name);
             });
 
-            // Group by domain (nearest group first)
+            // Build domain groups preserving GPS order
             const domainOrder = [];
             const byDomain = {};
             spotsWithDist.forEach(s => {
-                if (!byDomain[s.domain]) {
-                    byDomain[s.domain] = [];
-                    domainOrder.push(s.domain);
-                }
+                if (!byDomain[s.domain]) { byDomain[s.domain] = []; domainOrder.push(s.domain); }
                 byDomain[s.domain].push(s);
             });
 
             let html = '';
             let rowIdx = 0;
             domainOrder.forEach(domain => {
-                const areaSpots = byDomain[domain];
-                html += `<div class="sp-area-header">${spAreaName(domain)}</div>`;
+                let areaSpots = byDomain[domain];
+
+                // "All" pools: VA branches first within each group, then public
+                if (pickerCategory === 'POOL' && pickerBrand === null) {
+                    const va  = areaSpots.filter(s => s.brand === 'VIRGIN_ACTIVE');
+                    const pub = areaSpots.filter(s => s.brand !== 'VIRGIN_ACTIVE');
+                    areaSpots = [...va, ...pub];
+                }
+
+                const count = areaSpots.length;
+                const label = pickerCategory === 'POOL'
+                    ? `${spAreaName(domain)} · ${count} pool${count !== 1 ? 's' : ''}`
+                    : spAreaName(domain);
+                html += `<div class="sp-area-header">${label}</div>`;
                 areaSpots.forEach(s => {
-                    const isSelected = s.id === currentVal;
-                    const isLogged   = pickerUserSpotIds.has(s.id);
-                    const distStr    = s._dist !== null ? `${s._dist < 1 ? (s._dist * 1000).toFixed(0) + 'm' : s._dist.toFixed(1) + ' km'}` : '';
-                    const delay      = Math.min(rowIdx * 18, 300);
+                    html += _spRowHTML(s, currentVal, Math.min(rowIdx * 18, 300));
                     rowIdx++;
-                    html += `
-                        <div class="sp-row${isSelected ? ' selected' : ''}"
-                             data-spot-id="${s.id}"
-                             data-spot-name="${s.name.replace(/"/g, '&quot;')}"
-                             onclick="selectSpotFromPicker(this.dataset.spotId, this.dataset.spotName)"
-                             style="animation: spRowFadeIn 0.25s ${delay}ms ease both;">
-                            <div class="sp-row-icon">
-                                <i data-lucide="${SP_TYPE_ICONS[s.water_type] || 'map-pin'}" style="width:16px;height:16px;"></i>
-                            </div>
-                            <div class="sp-row-main">
-                                <div class="sp-row-name">${s.name}</div>
-                            </div>
-                            <div class="sp-row-right">
-                                ${distStr ? `<span class="sp-row-distance">${distStr}</span>` : ''}
-                                ${isLogged ? '<div class="sp-logged-dot" title="Logged here before"></div>' : ''}
-                            </div>
-                        </div>`;
                 });
             });
 
@@ -7771,6 +7844,55 @@
         .sp-empty { padding: 40px 20px; text-align: center; }
         .sp-empty-icon { color: #4a7a9b; margin-bottom: 10px; }
         .sp-empty-text { font-size: 14px; color: #4a7a9b; }
+        /* Brand sub-filter strip (Pool tab only) */
+        #spBrandStrip {
+            display: none;
+            gap: 8px;
+            padding: 0 16px 12px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            flex-shrink: 0;
+        }
+        #spBrandStrip::-webkit-scrollbar { display: none; }
+        #spBrandStrip.sp-visible { display: flex; }
+        .sp-brand-pill {
+            flex-shrink: 0;
+            height: 28px;
+            padding: 0 14px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid rgba(34,211,238,0.2);
+            background: rgba(34,211,238,0.08);
+            color: #7fa8c9;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            transition: all 0.15s ease;
+        }
+        .sp-brand-pill.active {
+            background: #22d3ee;
+            border-color: #22d3ee;
+            color: #0a1628;
+            font-weight: 700;
+        }
+        .sp-va-badge {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: #0a1628;
+            border: 1px solid rgba(34,211,238,0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-right: 12px;
+            font-size: 11px;
+            font-weight: 800;
+            color: #22d3ee;
+            letter-spacing: 0.02em;
+        }
         /* Spot picker trigger button */
         #spotPickerTrigger {
             width: 100%;
@@ -8352,6 +8474,12 @@
                 <div class="sp-tab" onclick="setPickerCategory('POOL',this)">Pools</div>
                 <div class="sp-tab" onclick="setPickerCategory('LAGOON',this)">Lagoons</div>
                 <div class="sp-tab" onclick="setPickerCategory('DAM',this)">Inland</div>
+            </div>
+            <!-- Brand sub-filter (Pool tab only) -->
+            <div id="spBrandStrip">
+                <div class="sp-brand-pill active" onclick="setPickerBrand(null,this)">All</div>
+                <div class="sp-brand-pill" onclick="setPickerBrand('VIRGIN_ACTIVE',this)">Virgin Active</div>
+                <div class="sp-brand-pill" onclick="setPickerBrand('PUBLIC',this)">Public Pools</div>
             </div>
             <!-- Search -->
             <div class="sp-search-wrap">
