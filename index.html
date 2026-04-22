@@ -5919,34 +5919,32 @@
             return d ? d.display_name : domainCode;
         }
 
-        // Keyboard-aware viewport handler — shrinks the overlay to the visual viewport
-        // so the sheet (which sits at flex-end) naturally stays above the keyboard.
+        // Keyboard-aware viewport handler.
+        // Sets padding-bottom on the overlay = keyboard height.
+        // The sheet (align-items:flex-end) naturally floats above the padding,
+        // which means it sits above the keyboard. No coordinate arithmetic needed.
         function _spViewportResize() {
             const overlay = document.getElementById('spotPickerOverlay');
             if (!overlay || !overlay.classList.contains('sp-open')) return;
-            if (window.visualViewport) {
-                const vv = window.visualViewport;
-                overlay.style.top    = vv.offsetTop + 'px';
-                overlay.style.height = vv.height + 'px';
-                overlay.style.bottom = 'auto';
-            }
+            const kbH = window.visualViewport
+                ? Math.max(0, window.innerHeight - window.visualViewport.height)
+                : 0;
+            overlay.style.paddingBottom = kbH + 'px';
         }
 
         function _spResetOverlaySize() {
             const overlay = document.getElementById('spotPickerOverlay');
             if (!overlay) return;
-            overlay.style.top    = '';
-            overlay.style.height = '';
-            overlay.style.bottom = '';
+            overlay.style.paddingBottom = '';
         }
 
         function _spSearchFocus() {
-            // Fire at multiple intervals to catch keyboard at each animation frame
-            [150, 300, 500].forEach(d => setTimeout(_spViewportResize, d));
+            // Fire at staggered intervals — keyboard animation takes ~300ms on iOS
+            [50, 200, 400].forEach(d => setTimeout(_spViewportResize, d));
         }
 
         function _spSearchBlur() {
-            setTimeout(_spResetOverlaySize, 100);
+            setTimeout(_spResetOverlaySize, 50);
         }
 
         // Open the picker sheet
