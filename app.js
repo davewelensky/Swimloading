@@ -6752,7 +6752,7 @@
 
                     if (!insertErr) {
                         for (const badge of newBadges) {
-                            showToast(`${badge.icon} Badge unlocked: ${badge.name}!`, 'success');
+                            showToast(`Badge unlocked: ${badge.name}!`, 'success');
                         }
                         renderDashBadges(); // refresh home badge section immediately
                     } else {
@@ -6802,8 +6802,8 @@
                     html += `
                         <div title="${badge.name}: ${badge.description}"
                              style="width: 56px; height: 56px; border-radius: 14px; background: rgba(56, 189, 248, 0.15); border: 2px solid rgba(56, 189, 248, 0.3); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;"
-                             onclick="showToast('${badge.icon} ${badge.name} — ${safeDesc}', 'success')">
-                            <span style="font-size: 24px;">${badge.icon}</span>
+                             onclick="showToast('${badge.name} — ${safeDesc}', 'success')">
+                            <i data-lucide="${badge.icon}" style="width: 24px; height: 24px; color: var(--ocean-light);"></i>
                             <span style="font-size: 8px; color: var(--text-secondary); margin-top: 2px; max-width: 50px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${badge.name}</span>
                         </div>
                     `;
@@ -6863,7 +6863,7 @@
                 let html = '<div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">';
                 for (const badge of earned) {
                     const safeDesc = badge.description.replace(/'/g, "\\'");
-                    html += `<div title="${badge.name}" style="width:56px;height:56px;border-radius:14px;background:rgba(56,189,248,0.15);border:2px solid rgba(56,189,248,0.3);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;" onclick="showToast('${badge.icon} ${badge.name} — ${safeDesc}', 'success')"><span style="font-size:24px;">${badge.icon}</span><span style="font-size:8px;color:var(--text-secondary);margin-top:2px;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${badge.name}</span></div>`;
+                    html += `<div title="${badge.name}" style="width:56px;height:56px;border-radius:14px;background:rgba(56,189,248,0.15);border:2px solid rgba(56,189,248,0.3);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;" onclick="showToast('${badge.name} — ${safeDesc}', 'success')"><i data-lucide="${badge.icon}" style="width:24px;height:24px;color:var(--ocean-light);"></i><span style="font-size:8px;color:var(--text-secondary);margin-top:2px;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${badge.name}</span></div>`;
                 }
                 for (const badge of locked) {
                     const safeDesc = badge.description.replace(/'/g, "\\'");
