@@ -163,17 +163,27 @@
                     }
                 }
 
-                const medals = ['1st','2nd','3rd'];
+                const MEDAL_COLORS = ['#fbbf24','#94a3b8','#cd7c2f'];
+                const MEDAL_BG     = ['rgba(251,191,36,0.12)','rgba(148,163,184,0.10)','rgba(205,124,47,0.10)'];
+                const MEDAL_BORDER = ['rgba(251,191,36,0.35)','rgba(148,163,184,0.25)','rgba(205,124,47,0.25)'];
                 const rows = eligible.map((row, i) => {
-                    const isMe = currentUser && row.user_id === currentUser.id;
-                    const medal = medals[i] || `${i+1}.`;
-                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;${isMe?'background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.25);':''}border-radius:8px;margin-bottom:6px;">
+                    const isMe   = currentUser && row.user_id === currentUser.id;
+                    const isTop3 = i < 3;
+                    const iconEl = i === 0
+                        ? `<i data-lucide="crown"  style="width:16px;height:16px;color:${MEDAL_COLORS[0]};flex-shrink:0;"></i>`
+                        : isTop3
+                        ? `<i data-lucide="medal"  style="width:16px;height:16px;color:${MEDAL_COLORS[i]};flex-shrink:0;"></i>`
+                        : `<span style="font-size:11px;font-weight:700;width:16px;text-align:center;color:var(--text-secondary);">${i+1}</span>`;
+                    const bg     = isTop3 ? MEDAL_BG[i]     : isMe ? 'rgba(56,189,248,0.08)' : 'transparent';
+                    const border = isTop3 ? MEDAL_BORDER[i] : isMe ? 'rgba(56,189,248,0.25)' : 'transparent';
+                    const pts_color = isTop3 ? MEDAL_COLORS[i] : 'var(--ocean-light)';
+                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:${isTop3?'12px 14px':'9px 12px'};background:${bg};border:1px solid ${border};border-radius:10px;margin-bottom:6px;">
                         <div style="display:flex;align-items:center;gap:10px;">
-                            <span style="font-size:11px;font-weight:700;width:26px;text-align:center;color:${i<3?'#fbbf24':'var(--text-secondary)'};">${medal}</span>
-                            <span style="color:var(--text);font-weight:${i<3||isMe?'600':'400'};font-size:13px;">${row.display_name || 'Anonymous'}${isMe?' (you)':''}</span>
+                            ${iconEl}
+                            <span style="color:var(--text);font-weight:${isTop3?'700':isMe?'600':'400'};font-size:${isTop3?'14px':'13px'};">${row.display_name || 'Anonymous'}${isMe?' <span style="font-size:11px;color:var(--ocean-light);font-weight:600;">(you)</span>':''}</span>
                         </div>
                         <div style="text-align:right;">
-                            <div style="color:var(--ocean-light);font-weight:700;font-size:13px;">${row.total_points} pts</div>
+                            <div style="color:${pts_color};font-weight:700;font-size:${isTop3?'14px':'13px'};">${row.total_points} pts</div>
                             <div style="color:var(--text-secondary);font-size:10px;margin-top:1px;">${row.log_count} log${row.log_count !== 1 ? 's' : ''}</div>
                         </div>
                     </div>`;
@@ -214,7 +224,7 @@
                     <!-- Header -->
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
                         <div style="display:flex;align-items:center;gap:10px;">
-                            <i data-lucide="globe-2" style="width:24px;height:24px;"></i>
+                            <i data-lucide="trophy" style="width:24px;height:24px;color:#fbbf24;"></i>
                             <div>
                                 <div style="font-size:11px;color:#fbbf24;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:2px;">April Challenge — in partnership with Art of Endurance</div>
                                 <div style="font-weight:700;font-size:18px;color:var(--text);">Win a box of Maurten Gel 100s.</div>
@@ -285,7 +295,7 @@
 
                     <!-- Leaderboard -->
                     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
-                        <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">April Leaderboard</div>
+                        <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;"><i data-lucide="trophy" style="width:13px;height:13px;color:#fbbf24;"></i>April Leaderboard</div>
                         <div style="font-size:10px;color:var(--text-secondary);opacity:0.7;">10 pts/log · +10 per spot/day · 2× outside CT</div>
                     </div>
                     <div style="background:rgba(15,23,42,0.5);border-radius:10px;padding:12px;">
@@ -475,16 +485,19 @@
                         : '';
 
                 // Build top-3 mini leaderboard (eligible swimmers only)
+                const MC = ['#fbbf24','#94a3b8','#cd7c2f'];
                 const top3 = eligible.slice(0, 3);
                 const top3html = top3.length > 0 ? top3.map((r, i) => {
                     const isMe = currentUser && r.user_id === currentUser.id;
-                    const medals = ['1st','2nd','3rd'];
-                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;${i < top3.length-1 ? 'border-bottom:1px solid rgba(255,255,255,0.05);' : ''}">
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <span style="font-size:11px;font-weight:700;width:24px;color:#fbbf24;">${medals[i]}</span>
-                            <span style="font-size:12px;font-weight:${isMe ? '700' : '500'};color:${isMe ? '#fbbf24' : 'var(--text)'};">${r.display_name}${isMe ? ' (you)' : ''}</span>
+                    const icon = i === 0
+                        ? `<i data-lucide="crown" style="width:13px;height:13px;color:${MC[i]};flex-shrink:0;"></i>`
+                        : `<i data-lucide="medal" style="width:13px;height:13px;color:${MC[i]};flex-shrink:0;"></i>`;
+                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;${i < top3.length-1 ? 'border-bottom:1px solid rgba(255,255,255,0.06);' : ''}">
+                        <div style="display:flex;align-items:center;gap:7px;">
+                            ${icon}
+                            <span style="font-size:12px;font-weight:${isMe?'700':'500'};color:${isMe?MC[0]:'var(--text)'};">${r.display_name}${isMe?' (you)':''}</span>
                         </div>
-                        <span style="font-size:12px;font-weight:700;color:${isMe ? '#fbbf24' : 'var(--ocean-light)'};">${r.total_points} pts</span>
+                        <span style="font-size:12px;font-weight:700;color:${MC[i]};">${r.total_points} pts</span>
                     </div>`;
                 }).join('') : `<div style="font-size:12px;color:var(--text-secondary);text-align:center;padding:8px 0;">No logs yet — be the first!</div>`;
 
@@ -580,6 +593,7 @@
                     listEl.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px;">No swimmers on the leaderboard yet. Log a temperature to earn points!</div>';
                 } else {
                     listEl.innerHTML = renderLeaderboardList(data, 'points');
+                    initIcons();
                 }
 
             } catch (err) {
@@ -615,18 +629,28 @@
             if (eligible.length === 0) {
                 html += `<div style="text-align:center;color:var(--text-secondary);padding:16px 0;font-size:13px;">No eligible swimmers yet — log a temp to enter!</div>`;
             } else {
+                const LB_MEDAL_COLORS = ['#fbbf24','#94a3b8','#cd7c2f'];
+                const LB_MEDAL_BG     = ['rgba(251,191,36,0.12)','rgba(148,163,184,0.10)','rgba(205,124,47,0.10)'];
+                const LB_MEDAL_BORDER = ['rgba(251,191,36,0.35)','rgba(148,163,184,0.25)','rgba(205,124,47,0.25)'];
                 html += eligible.map((row, i) => {
                     const name   = row.profiles?.display_name || 'Anonymous Swimmer';
                     const points = row[pointsField] || 0;
-                    const medal  = medals[i] || `${i + 1}.`;
                     const isTop3 = i < 3;
                     const isMe   = currentUser && row.user_id === currentUser.id;
-                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px;${isTop3 ? 'background:rgba(56,189,248,0.1);' : ''}border-radius:8px;margin-bottom:8px;">
+                    const iconEl = i === 0
+                        ? `<i data-lucide="crown" style="width:18px;height:18px;color:${LB_MEDAL_COLORS[0]};flex-shrink:0;"></i>`
+                        : isTop3
+                        ? `<i data-lucide="medal" style="width:18px;height:18px;color:${LB_MEDAL_COLORS[i]};flex-shrink:0;"></i>`
+                        : `<span style="font-size:12px;font-weight:700;width:18px;text-align:center;color:var(--text-secondary);">${i+1}</span>`;
+                    const bg     = isTop3 ? LB_MEDAL_BG[i]     : isMe ? 'rgba(56,189,248,0.08)' : 'transparent';
+                    const border = isTop3 ? LB_MEDAL_BORDER[i] : isMe ? 'rgba(56,189,248,0.25)' : 'transparent';
+                    const pts_color = isTop3 ? LB_MEDAL_COLORS[i] : 'var(--ocean-light)';
+                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:${isTop3?'14px':'11px'} 14px;background:${bg};border:1px solid ${border};border-radius:10px;margin-bottom:8px;">
                         <div style="display:flex;align-items:center;gap:12px;">
-                            <span style="font-size:11px;font-weight:700;width:30px;text-align:center;color:${isTop3 ? '#fbbf24' : 'var(--text-secondary)'};">${medal}</span>
-                            <span style="color:var(--text-primary);font-weight:${isTop3 ? '700' : '400'};">${name}${isMe ? ' <span style="font-size:11px;color:var(--ocean-light);font-weight:600;">(you)</span>' : ''}</span>
+                            ${iconEl}
+                            <span style="color:var(--text-primary);font-weight:${isTop3?'700':isMe?'600':'400'};font-size:${isTop3?'15px':'13px'};">${name}${isMe ? ' <span style="font-size:11px;color:var(--ocean-light);font-weight:600;">(you)</span>' : ''}</span>
                         </div>
-                        <span style="color:var(--ocean-light);font-weight:700;">${points.toLocaleString()} pts</span>
+                        <span style="color:${pts_color};font-weight:700;font-size:${isTop3?'15px':'13px'};">${points.toLocaleString()} pts</span>
                     </div>`;
                 }).join('');
             }
