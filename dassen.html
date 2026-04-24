@@ -767,13 +767,43 @@ function calcPaceFromRoute() {
     const paceStr = `${paceMin}:${String(paceSec).padStart(2, '0')}`;
     const routeNames = {'7.4':'RI→Big Bay','12':'Preekstool 1-way','24':'Double Preekstool','8':'Cape Point','18':'WC Angle','33':'False Bay'};
     const routeName = routeNames[String(routeDist)] || 'that route';
-    resultEl.innerHTML = `Pace from <strong>${routeName}</strong>: <strong style="color:var(--ocean-light);">${paceStr}/km</strong><br><span style="font-size:11px;opacity:0.8;">Tidal routes (Preekstool, False Bay) carry current assist — pace may appear faster than open ocean reality.</span>`;
-    useBtn.style.display = 'inline-block';
-    useBtn.onclick = () => {
-        document.getElementById('inputOWPace').value = paceStr;
-        useBtn.style.display = 'none';
-        resultEl.innerHTML = `Pace set: <strong style="color:var(--success);">${paceStr}/km</strong> — scroll down and calculate.`;
-    };
+
+    // Tidal routes carry current assist — pace appears faster than open-ocean ability
+    // Preekstool (12/24km): ~0.4 km/h lagoon tidal current → +150 sec/km adjustment
+    // False Bay (33km): ~0.35 km/h Agulhas current → +120 sec/km adjustment
+    const tidalAdjSec = {'12': 150, '24': 150, '33': 120};
+    const adj = tidalAdjSec[String(routeDist)];
+
+    if (adj) {
+        const ooSecPerKm = paceSecPerKm + adj;
+        const ooMin = Math.floor(ooSecPerKm / 60);
+        const ooSec = Math.round(ooSecPerKm % 60);
+        const ooPaceStr = `${ooMin}:${String(ooSec).padStart(2, '0')}`;
+        const assistDesc = routeDist === 33 ? '~0.35 km/h Agulhas current' : '~0.4 km/h tidal lagoon current';
+        resultEl.innerHTML = `
+            <div style="margin-bottom:8px;font-size:13px;">From <strong>${routeName}</strong>: raw pace <strong>${paceStr}/km</strong></div>
+            <div style="background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.4);border-radius:8px;padding:12px;margin-bottom:2px;">
+                <div style="font-weight:700;color:var(--warning);margin-bottom:6px;">Tidal route — pace is inflated</div>
+                <div style="font-size:12px;color:var(--text-secondary);line-height:1.55;margin-bottom:10px;">This route carries ${assistDesc}. Your implied pace is 2–2.5 min/km faster than your real open-ocean ability. Use the adjusted pace for an accurate Dassen Island prediction.</div>
+                <div style="font-size:13px;">Open-ocean equivalent: <strong style="color:var(--success);font-size:16px;">${ooPaceStr}/km</strong></div>
+            </div>`;
+        useBtn.style.display = 'inline-block';
+        useBtn.textContent = `Use open-ocean pace (${ooPaceStr}/km) \u2192`;
+        useBtn.onclick = () => {
+            document.getElementById('inputOWPace').value = ooPaceStr;
+            useBtn.style.display = 'none';
+            resultEl.innerHTML = `Pace set: <strong style="color:var(--success);">${ooPaceStr}/km</strong> (adjusted from ${routeName} ${paceStr}/km) — scroll down to calculate.`;
+        };
+    } else {
+        resultEl.innerHTML = `From <strong>${routeName}</strong>: pace <strong style="color:var(--ocean-light);">${paceStr}/km</strong> — open-ocean route, no tidal adjustment needed.`;
+        useBtn.style.display = 'inline-block';
+        useBtn.textContent = `Use this pace (${paceStr}/km) \u2192`;
+        useBtn.onclick = () => {
+            document.getElementById('inputOWPace').value = paceStr;
+            useBtn.style.display = 'none';
+            resultEl.innerHTML = `Pace set: <strong style="color:var(--success);">${paceStr}/km</strong> — scroll down to calculate.`;
+        };
+    }
 }
 
 // ─── SHARE ────────────────────────────────────────────────────────────────────

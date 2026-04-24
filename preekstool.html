@@ -957,13 +957,66 @@ function calcPaceFromRoute() {
     const paceStr = `${paceMin}:${String(paceSec).padStart(2, '0')}`;
     const routeNames = {'7.4':'RI→Big Bay','8':'Cape Point','8.7':'Dassen Island','18':'WC Angle','33':'False Bay'};
     const routeName = routeNames[String(routeDist)] || 'that route';
-    resultEl.innerHTML = `Pace from <strong>${routeName}</strong>: <strong style="color:var(--ocean-light);">${paceStr}/km</strong><br><span style="font-size:11px;opacity:0.8;">Note: False Bay current assist may inflate pace. Open ocean routes give the most accurate base pace for the lagoon.</span>`;
-    useBtn.style.display = 'inline-block';
-    useBtn.onclick = () => {
-        document.getElementById('inputOWPace').value = paceStr;
-        useBtn.style.display = 'none';
-        resultEl.innerHTML = `Pace set: <strong style="color:var(--success);">${paceStr}/km</strong> — scroll down and calculate.`;
-    };
+
+    // False Bay (33km): ~0.35 km/h Agulhas current → +120 sec/km adjustment
+    // (Preekstool routes excluded from this page's calibration dropdown)
+    const tidalAdjSec = {'33': 120};
+    const adj = tidalAdjSec[String(routeDist)];
+
+    if (adj) {
+        const ooSecPerKm = paceSecPerKm + adj;
+        const ooMin = Math.floor(ooSecPerKm / 60);
+        const ooSec = Math.round(ooSecPerKm % 60);
+        const ooPaceStr = `${ooMin}:${String(ooSec).padStart(2, '0')}`;
+        resultEl.innerHTML = `
+            <div style="margin-bottom:8px;font-size:13px;">From <strong>${routeName}</strong>: raw pace <strong>${paceStr}/km</strong></div>
+            <div style="background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.4);border-radius:8px;padding:12px;margin-bottom:2px;">
+                <div style="font-weight:700;color:var(--warning);margin-bottom:6px;">Tidal route — pace is inflated</div>
+                <div style="font-size:12px;color:var(--text-secondary);line-height:1.55;margin-bottom:10px;">False Bay carries ~0.35 km/h Agulhas current. Your implied pace is ~2 min/km faster than open-ocean ability. The lagoon has its own tidal assist, so use the adjusted pace as your base for the Double Preekstool.</div>
+                <div style="font-size:13px;">Open-ocean equivalent: <strong style="color:var(--success);font-size:16px;">${ooPaceStr}/km</strong></div>
+            </div>`;
+        useBtn.style.display = 'inline-block';
+        useBtn.textContent = `Use open-ocean pace (${ooPaceStr}/km) \u2192`;
+        useBtn.onclick = () => {
+            document.getElementById('inputOWPace').value = ooPaceStr;
+            useBtn.style.display = 'none';
+            resultEl.innerHTML = `Pace set: <strong style="color:var(--success);">${ooPaceStr}/km</strong> (adjusted from ${routeName} ${paceStr}/km) — scroll down to calculate.`;
+        };
+    } else {
+        resultEl.innerHTML = `From <strong>${routeName}</strong>: pace <strong style="color:var(--ocean-light);">${paceStr}/km</strong> — open-ocean route, no tidal adjustment needed.`;
+        useBtn.style.display = 'inline-block';
+        useBtn.textContent = `Use this pace (${paceStr}/km) \u2192`;
+        useBtn.onclick = () => {
+            document.getElementById('inputOWPace').value = paceStr;
+            useBtn.style.display = 'none';
+            resultEl.innerHTML = `Pace set: <strong style="color:var(--success);">${paceStr}/km</strong> — scroll down to calculate.`;
+        };
+    }
+}
+
+const PT_RECORDS = [
+    {t:20786,n:'Jocelyn Jansen van Rensburg'},{t:21468,n:'Paula Armstrong / Kay-Lee Mouton'},
+    {t:23138,n:'Yolanda Carstens / Monika Hayes'},{t:23903,n:'Chris Oldnall / Peet Crowther'},
+    {t:24029,n:'Yolanda Carstens'},{t:24335,n:'Jocelyn Jansen van Rensburg'},
+    {t:24658,n:'Lynne Macgregor'},{t:24922,n:'Meinhardt Esterhuizen'},
+    {t:24955,n:'Rebecca Thomas'},{t:24996,n:'Donovan Miller'},
+    {t:25079,n:"Edward O'Sullivan"},{t:25135,n:'Lyle Jacobs'},
+    {t:27063,n:'Tracey Steyn'},{t:29546,n:'Rebecca Wilson'}
+];
+
+function ptRankHTML(predSec) {
+    const fmt = s => { const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60; return `${h}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`; };
+    const faster = PT_RECORDS.filter(r => r.t < predSec);
+    const rank = faster.length + 1;
+    const above = faster.length ? faster[faster.length-1] : null;
+    const below = PT_RECORDS.find(r => r.t >= predSec);
+    return `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:8px;">Where you rank — ${PT_RECORDS.length} completions</div>
+        <div style="font-size:14px;font-weight:800;color:var(--ocean-light);margin-bottom:10px;">Rank #${rank} of ${PT_RECORDS.length}</div>
+        ${above ? `<div style="font-size:12px;color:var(--text-secondary);padding:5px 0;border-bottom:1px solid var(--border);">faster: ${above.n} · ${fmt(above.t)}</div>` : ''}
+        <div style="font-size:12px;font-weight:700;color:var(--text-primary);padding:6px 0;border-bottom:1px solid var(--border);">→ your estimate · ${fmt(predSec)}</div>
+        ${below ? `<div style="font-size:12px;color:var(--text-secondary);padding:5px 0;">slower: ${below.n} · ${fmt(below.t)}</div>` : ''}
+    </div>`;
 }
 
 function calcPrediction() {
@@ -1033,6 +1086,7 @@ function calcPrediction() {
         <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;border-top:1px solid var(--border);padding-top:10px;">
             Individual variability ±45 minutes. Model assumes steady pace and standard feed stops.
         </div>
+        ${ptRankHTML(totalSec)}
     </div>`;
 }
 
