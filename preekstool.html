@@ -393,14 +393,20 @@
             <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.6;">Have a verified time from another Big 5 event? Use it to calculate your implied pace for Double Preekstool.</div>
             <div style="margin-bottom:10px;">
                 <div class="pred-label">Route you've completed</div>
-                <select id="refRoute" class="pred-input" style="background:var(--bg-card);">
+                <select id="refRoute" class="pred-input" style="background:var(--bg-card);" onchange="toggleCustomDist(this.value)">
                     <option value="">Select route...</option>
+                    <option value="5">MSC / Any 5km Open Water Event (5km)</option>
                     <option value="7.4">Robben Island → Big Bay (7.4km)</option>
-                    <option value="8.0">Cape Point, Diaz → Millers (8km)</option>
+                    <option value="8">Cape Point, Diaz → Millers (8km)</option>
                     <option value="8.7">Dassen Island (8.7km)</option>
                     <option value="18">West Coast Angle (18km)</option>
                     <option value="33">False Bay Crossing (33km)</option>
+                    <option value="custom">Other distance — enter below...</option>
                 </select>
+            </div>
+            <div id="customDistDiv" style="display:none;margin-bottom:10px;">
+                <div class="pred-label">Distance (km)</div>
+                <input type="number" id="customDist" class="pred-input" placeholder="e.g. 10.5" step="0.1" min="0.5" max="200">
             </div>
             <div style="margin-bottom:10px;">
                 <div class="pred-label">Your finishing time (h:mm or h:mm:ss)</div>
@@ -412,12 +418,40 @@
         </div>
 
         <div class="card">
+            <div class="card-label">Pool Time Converter — Don't Know Your OW Pace?</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.55;">Enter your pool 1km training time and we'll estimate your open water pace. Pool times are 14–17% faster than open water due to push-offs, tumble turns, and lane conditions.</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+                <div>
+                    <div class="pred-label">Pool 1km time (mm:ss)</div>
+                    <input type="text" id="poolTime" class="pred-input" placeholder="e.g. 17:00">
+                </div>
+                <div>
+                    <div class="pred-label">Pool length</div>
+                    <select id="poolLen" class="pred-input" style="background:var(--bg-card);">
+                        <option value="50">50m pool</option>
+                        <option value="25">25m pool</option>
+                    </select>
+                </div>
+            </div>
+            <div style="font-size:10px;color:var(--text-secondary);margin-bottom:10px;">Use your fastest continuous 1km time — not intervals. If you don't swim 1km sets, use: 400m time × 2.8, or 800m time × 1.35.</div>
+            <button class="pred-btn" style="margin-bottom:10px;" onclick="calcPoolPace()">Estimate My OW Pace →</button>
+            <div id="poolResult" style="font-size:13px;color:var(--text-secondary);min-height:18px;"></div>
+            <button id="usePoolPaceBtn" style="display:none;margin-top:8px;padding:8px 16px;border-radius:8px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.1);color:var(--ocean-light);font-size:12px;font-weight:700;cursor:pointer;"></button>
+        </div>
+
+        <div class="card">
             <div class="card-label">Your Swim Pace</div>
 
             <div style="margin-bottom:14px;">
                 <div class="pred-label">1km open water time (mm:ss) — sustained effort, not a sprint</div>
                 <input type="text" id="inputOWPace" class="pred-input" placeholder="e.g. 22:00">
                 <div style="font-size:10px;color:var(--text-secondary);margin-top:3px;">Typical range: 17:00 (fast) to 30:00 (comfortable)</div>
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <div class="pred-label">Water temp (°C)</div>
+                <input type="number" id="inputTemp" class="pred-input" placeholder="e.g. 20" min="8" max="28" step="0.5">
+                <div style="font-size:9px;color:var(--text-secondary);margin-top:2px;">Auto from live data — lagoon is typically warmer than ocean</div>
             </div>
 
             <div style="margin-bottom:14px;">
@@ -435,6 +469,27 @@
 
             <button class="pred-btn" onclick="calcPrediction()">Calculate My Time &rarr;</button>
             <div id="predResult" style="display:none;margin-top:14px;"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Model Accuracy — What to Expect</div>
+            <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:10px;padding:14px;margin-bottom:14px;">
+                <div style="font-size:11px;font-weight:700;color:var(--success);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Validated — Double Robben Island, March 2026</div>
+                <div style="font-size:13px;color:var(--text-primary);line-height:1.6;margin-bottom:6px;">Yolanda Carstens used the SwimLoading predictor to plan her Double RI crossing. The model was within <strong>90 seconds</strong> of her actual 5:22:24 finish — over a 5-hour open Atlantic swim.</div>
+                <div style="font-size:12px;color:var(--text-secondary);">Accuracy depends entirely on your pace input. The model rewards swimmers who know themselves.</div>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;">
+                <strong style="color:var(--text-primary);">What the model includes:</strong><br>
+                · Your swim pace — the dominant variable<br>
+                · Water temperature penalty — cold slows pace physiologically<br>
+                · Tidal window analysis — flood/ebb assist per leg (this page only)<br>
+                · Wetsuit benefit (+0.3 km/h)<br><br>
+                <strong style="color:var(--text-primary);">What the model cannot predict:</strong><br>
+                · Pacing errors on the day<br>
+                · Nutrition and crew execution<br>
+                · Wind during the swim (use forecast to assess risk)<br><br>
+                <strong style="color:var(--warning);">Important:</strong> Individual results vary by ±45 minutes. Always plan with your support team. Tidal model uses best available window from WorldTides API.
+            </div>
         </div>
 
         <div class="card">
@@ -938,8 +993,44 @@ function renderTideFull(extremes) {
 
 // ─── PREDICTION CALCULATOR ────────────────────────────────────────────────────
 
+function toggleCustomDist(val) {
+    document.getElementById('customDistDiv').style.display = val === 'custom' ? 'block' : 'none';
+}
+
+function calcPoolPace() {
+    const timeStr = document.getElementById('poolTime').value.trim();
+    const poolLen = document.getElementById('poolLen').value;
+    const resultEl = document.getElementById('poolResult');
+    const useBtn = document.getElementById('usePoolPaceBtn');
+    const parts = timeStr.split(':');
+    if (parts.length !== 2 || isNaN(parseInt(parts[0])) || isNaN(parseInt(parts[1]))) {
+        resultEl.textContent = 'Enter your pool 1km time as mm:ss (e.g. 17:00)'; return;
+    }
+    const poolSec = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    if (poolSec < 300 || poolSec > 3600) { resultEl.textContent = 'Enter a realistic 1km time between 5:00 and 60:00'; return; }
+    const factor = poolLen === '50' ? 0.86 : 0.83;
+    const owSec = Math.round(poolSec / factor);
+    const owMin = Math.floor(owSec / 60), owSecR = owSec % 60;
+    const owPaceStr = `${owMin}:${String(owSecR).padStart(2, '0')}`;
+    const penalty = poolLen === '50' ? '14%' : '17%';
+    resultEl.innerHTML = `<div style="margin-bottom:6px;">Pool pace: <strong>${timeStr}/km</strong> (${poolLen}m pool)</div>
+        <div>Estimated open water pace: <strong style="color:var(--ocean-light);font-size:15px;">${owPaceStr}/km</strong></div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;line-height:1.5;">OW is ~${penalty} slower than pool. Use a known OW race time instead if you have one — it will be more accurate.</div>`;
+    useBtn.style.display = 'inline-block';
+    useBtn.textContent = `Use estimated pace (${owPaceStr}/km) \u2192`;
+    useBtn.onclick = () => {
+        document.getElementById('inputOWPace').value = owPaceStr;
+        useBtn.style.display = 'none';
+        resultEl.innerHTML = `Pace set: <strong style="color:var(--success);">${owPaceStr}/km</strong> (pool estimate) — scroll down to calculate.`;
+    };
+}
+
 function calcPaceFromRoute() {
-    const routeDist = parseFloat(document.getElementById('refRoute').value);
+    let routeVal = document.getElementById('refRoute').value;
+    let routeDist = routeVal === 'custom'
+        ? parseFloat(document.getElementById('customDist').value)
+        : parseFloat(routeVal);
+    if (routeVal === 'custom' && isNaN(routeDist)) { document.getElementById('impliedPaceResult').textContent = 'Enter the distance in km above.'; return; }
     const timeStr = document.getElementById('refTime').value.trim();
     const resultEl = document.getElementById('impliedPaceResult');
     const useBtn = document.getElementById('usePaceBtn');
@@ -955,8 +1046,8 @@ function calcPaceFromRoute() {
     const paceMin = Math.floor(paceSecPerKm / 60);
     const paceSec = Math.round(paceSecPerKm % 60);
     const paceStr = `${paceMin}:${String(paceSec).padStart(2, '0')}`;
-    const routeNames = {'7.4':'RI→Big Bay','8':'Cape Point','8.7':'Dassen Island','18':'WC Angle','33':'False Bay'};
-    const routeName = routeNames[String(routeDist)] || 'that route';
+    const routeNames = {'5':'MSC 5km','7.4':'RI→Big Bay','8':'Cape Point','8.7':'Dassen Island','18':'WC Angle','33':'False Bay'};
+    const routeName = routeNames[String(routeVal)] || 'that route';
 
     // False Bay (33km): ~0.35 km/h Agulhas current → +120 sec/km adjustment
     // (Preekstool routes excluded from this page's calibration dropdown)
@@ -1038,6 +1129,23 @@ function calcPrediction() {
     if (windSpd > 30) adjKmh -= 0.4;
     else if (windSpd > 20) adjKmh -= 0.2;
 
+    // Cold water speed penalty
+    const tempInput = parseFloat(document.getElementById('inputTemp').value);
+    const waterTemp = (!isNaN(tempInput) && tempInput >= 8 && tempInput <= 28) ? tempInput : null;
+    let coldPenalty = 0.97; // default if unknown
+    let coldNote = 'Temp unknown — 3% estimate';
+    if (waterTemp !== null) {
+        if (waterTemp >= 20)      { coldPenalty = 1.00; coldNote = `${waterTemp}°C lagoon — no cold penalty`; }
+        else if (waterTemp >= 19) { coldPenalty = 1.00; coldNote = `${waterTemp}°C — no cold penalty`; }
+        else if (waterTemp >= 17) { coldPenalty = 0.99; coldNote = `${waterTemp}°C — 1% cold penalty`; }
+        else if (waterTemp >= 16) { coldPenalty = 0.98; coldNote = `${waterTemp}°C — 2% cold penalty`; }
+        else if (waterTemp >= 15) { coldPenalty = 0.97; coldNote = `${waterTemp}°C — 3% cold penalty`; }
+        else if (waterTemp >= 14) { coldPenalty = 0.95; coldNote = `${waterTemp}°C — 5% cold penalty`; }
+        else if (waterTemp >= 13) { coldPenalty = 0.92; coldNote = `${waterTemp}°C — 8% cold penalty`; }
+        else                      { coldPenalty = 0.88; coldNote = `${waterTemp}°C — 12% cold penalty`; }
+    }
+    adjKmh = adjKmh * coldPenalty;
+
     // Tide assist (from best window)
     let tideAssistLeg1 = 0, tideAssistLeg2 = 0;
     const extremes = _tideData?.extremes;
@@ -1081,7 +1189,8 @@ function calcPrediction() {
             Outbound leg (12km): ${leg1H}:${String(leg1M).padStart(2,'0')} · ${best?.leg1Assist ? 'flood-assisted' : 'ebb headwind'}<br>
             Turnaround at Mykanos: 10 min<br>
             Return leg (12km): ${leg2H}:${String(leg2M).padStart(2,'0')} · ${best?.leg2Assist ? 'ebb-assisted' : 'flood headwind'}<br><br>
-            Base pace: ${Math.floor(paceSec / 60)}:${String(paceSec % 60).padStart(2,'0')}/km · ${category === 'wetsuit' ? 'Wetsuit (+0.3 km/h)' : 'Skins'}${windSpd > 20 ? ` · Wind adjustment (−${windSpd > 30 ? '0.4' : '0.2'} km/h)` : ''}
+            Base pace: ${Math.floor(paceSec / 60)}:${String(paceSec % 60).padStart(2,'0')}/km · ${category === 'wetsuit' ? 'Wetsuit (+0.3 km/h)' : 'Skins'}${windSpd > 20 ? ` · Wind adjustment (−${windSpd > 30 ? '0.4' : '0.2'} km/h)` : ''}<br>
+            Cold water: ${coldNote}
         </div>
         <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;border-top:1px solid var(--border);padding-top:10px;">
             Individual variability ±45 minutes. Model assumes steady pace and standard feed stops.
@@ -1117,11 +1226,17 @@ async function startApp(session) {
     document.getElementById('appContent').style.display = 'block';
 
     // Parallel loads
-    const [, windResult, tideResult] = await Promise.all([
+    const [liveResult, windResult, tideResult] = await Promise.all([
         loadLiveTemps(),
         loadWind(),
         loadTides()
     ]);
+
+    // Auto-fill temp from live lagoon reading
+    if (liveResult?.avg) {
+        const ti = document.getElementById('inputTemp');
+        if (ti && !ti.value) ti.value = liveResult.avg.toFixed(1);
+    }
 
     const extremes = tideResult?.extremes ?? [];
     const tideState = getTideState(extremes);

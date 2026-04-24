@@ -163,6 +163,20 @@
         #gateScreen { display: none; text-align: center; padding: 80px 20px; }
         #initScreen { text-align: center; padding: 80px 20px; color: var(--text-secondary); }
         #appContent { display: none; }
+
+        .pred-input {
+            width: 100%; padding: 10px 12px; border-radius: 8px;
+            border: 1px solid rgba(14,165,233,0.3);
+            background: rgba(14,165,233,0.06); color: var(--text-primary);
+            font-size: 14px; margin-bottom: 4px;
+        }
+        .pred-input:focus { outline: none; border-color: rgba(14,165,233,0.6); }
+        .pred-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 6px; }
+        .pred-btn {
+            width: 100%; padding: 12px; border-radius: 8px; border: none;
+            background: var(--ocean); color: white; font-size: 14px; font-weight: 700;
+            cursor: pointer; margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -344,6 +358,60 @@
     <!-- ══════════════ TAB: CARINA ══════════════ -->
     <div id="panelCarina" class="panel">
 
+        <!-- ── Calibrate from known swim ── -->
+        <div class="card">
+            <div class="card-label">Calibrate from a Known Swim</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.6;">Have a verified time from another Big 5 event? Use it to calculate your implied pace for False Bay.</div>
+            <div style="margin-bottom:10px;">
+                <div class="pred-label">Route you've completed</div>
+                <select id="refRoute" class="pred-input" style="background:var(--bg-card);" onchange="toggleCustomDist(this.value)">
+                    <option value="">Select route...</option>
+                    <option value="5">MSC / Any 5km Open Water Event (5km)</option>
+                    <option value="7.4">Robben Island → Big Bay (7.4km)</option>
+                    <option value="8">Cape Point, Diaz → Millers (8km)</option>
+                    <option value="8.7">Dassen Island (8.7km)</option>
+                    <option value="12">Preekstool 1-way (12km)</option>
+                    <option value="18">West Coast Angle (18km)</option>
+                    <option value="24">Double Preekstool (24km)</option>
+                    <option value="33">False Bay Crossing (33km)</option>
+                    <option value="custom">Other distance — enter below...</option>
+                </select>
+            </div>
+            <div id="customDistDiv" style="display:none;margin-bottom:10px;">
+                <div class="pred-label">Distance (km)</div>
+                <input type="number" id="customDist" class="pred-input" placeholder="e.g. 10.5" step="0.1" min="0.5" max="200">
+            </div>
+            <div style="margin-bottom:10px;">
+                <div class="pred-label">Your finishing time (h:mm or h:mm:ss)</div>
+                <input type="text" id="refTime" class="pred-input" placeholder="e.g. 3:15 or 10:30:00">
+            </div>
+            <button class="pred-btn" style="margin-bottom:10px;" onclick="calcPaceFromRoute()">Calculate My Implied Pace →</button>
+            <div id="impliedPaceResult" style="font-size:13px;color:var(--text-secondary);min-height:18px;"></div>
+        </div>
+
+        <!-- ── Pool time converter ── -->
+        <div class="card">
+            <div class="card-label">Pool Time Converter — Don't Know Your OW Pace?</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.55;">Enter your pool 1km training time and we'll estimate your open water pace. Pool times are 14–17% faster than open water due to push-offs, tumble turns, and lane conditions.</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+                <div>
+                    <div class="pred-label">Pool 1km time (mm:ss)</div>
+                    <input type="text" id="poolTime" class="pred-input" placeholder="e.g. 17:00">
+                </div>
+                <div>
+                    <div class="pred-label">Pool length</div>
+                    <select id="poolLen" class="pred-input" style="background:var(--bg-card);">
+                        <option value="50">50m pool</option>
+                        <option value="25">25m pool</option>
+                    </select>
+                </div>
+            </div>
+            <div style="font-size:10px;color:var(--text-secondary);margin-bottom:10px;">Use your fastest continuous 1km time — not intervals. If you don't swim 1km sets, use: 400m time × 2.8, or 800m time × 1.35.</div>
+            <button class="pred-btn" style="margin-bottom:10px;" onclick="calcPoolPace()">Estimate My OW Pace →</button>
+            <div id="poolResult" style="font-size:13px;color:var(--text-secondary);min-height:18px;"></div>
+            <button id="usePoolPaceBtn" style="display:none;margin-top:8px;padding:8px 16px;border-radius:8px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.1);color:var(--ocean-light);font-size:12px;font-weight:700;cursor:pointer;"></button>
+        </div>
+
         <!-- ── Personal crossing prediction calculator ── -->
         <div class="card">
             <div class="card-label">🧮 Personal Crossing Prediction</div>
@@ -491,6 +559,27 @@
             <div style="margin-top:12px;padding:10px 12px;border-radius:8px;background:rgba(14,165,233,0.06);border:1px solid rgba(14,165,233,0.15);">
                 <div style="font-size:11px;font-weight:700;color:var(--ocean-light);margin-bottom:4px;">🏊 False Bay = English Channel Distance</div>
                 <div style="font-size:11px;color:var(--text-secondary);line-height:1.55;">33km · 16–17°C · open ocean. The only accessible Channel-equivalent crossing in the Southern Hemisphere. See the Prediction tab for Channel-prep benchmarks.</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Model Accuracy — What to Expect</div>
+            <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:10px;padding:14px;margin-bottom:14px;">
+                <div style="font-size:11px;font-weight:700;color:var(--success);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Validated — Double Robben Island, March 2026</div>
+                <div style="font-size:13px;color:var(--text-primary);line-height:1.6;margin-bottom:6px;">Yolanda Carstens used the SwimLoading predictor to plan her Double RI crossing. The model was within <strong>90 seconds</strong> of her actual 5:22:24 finish — over a 5-hour open Atlantic swim.</div>
+                <div style="font-size:12px;color:var(--text-secondary);">Accuracy depends entirely on your pace input. The model rewards swimmers who know themselves.</div>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;">
+                <strong style="color:var(--text-primary);">What the model includes:</strong><br>
+                · Your swim pace — the dominant variable<br>
+                · Water temperature penalty — cold slows pace physiologically<br>
+                · Tidal window analysis — flood/ebb assist per leg (this page only)<br>
+                · Wetsuit benefit (+0.3 km/h)<br><br>
+                <strong style="color:var(--text-primary);">What the model cannot predict:</strong><br>
+                · Pacing errors on the day<br>
+                · Nutrition and crew execution<br>
+                · Wind during the swim (use forecast to assess risk)<br><br>
+                <strong style="color:var(--warning);">Important:</strong> Individual results vary by ±45 minutes. Always plan with your support team. Tidal model uses best available window from WorldTides API.
             </div>
         </div>
 
@@ -1341,6 +1430,85 @@ function buildNextWindowCard(windResult, marineResult) {
         </div>`;
 }
 
+// ─── CALIBRATION / POOL CONVERTER ────────────────────────────────────────────
+
+function toggleCustomDist(val) {
+    document.getElementById('customDistDiv').style.display = val === 'custom' ? 'block' : 'none';
+}
+
+function calcPoolPace() {
+    const timeStr = document.getElementById('poolTime').value.trim();
+    const poolLen = document.getElementById('poolLen').value;
+    const resultEl = document.getElementById('poolResult');
+    const useBtn = document.getElementById('usePoolPaceBtn');
+    const parts = timeStr.split(':');
+    if (parts.length !== 2 || isNaN(parseInt(parts[0])) || isNaN(parseInt(parts[1]))) {
+        resultEl.textContent = 'Enter your pool 1km time as mm:ss (e.g. 17:00)'; return;
+    }
+    const poolSec = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    if (poolSec < 300 || poolSec > 3600) { resultEl.textContent = 'Enter a realistic 1km time between 5:00 and 60:00'; return; }
+    const factor = poolLen === '50' ? 0.86 : 0.83;
+    const owSec = Math.round(poolSec / factor);
+    const owMin = Math.floor(owSec / 60), owSecR = owSec % 60;
+    const owPaceStr = `${owMin}:${String(owSecR).padStart(2, '0')}`;
+    const penalty = poolLen === '50' ? '14%' : '17%';
+    resultEl.innerHTML = `<div style="margin-bottom:6px;">Pool pace: <strong>${timeStr}/km</strong> (${poolLen}m pool)</div>
+        <div>Estimated open water pace: <strong style="color:var(--ocean-light);font-size:15px;">${owPaceStr}/km</strong></div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;line-height:1.5;">OW is ~${penalty} slower than pool. Use a known OW race time instead if you have one — it will be more accurate.</div>`;
+    useBtn.style.display = 'inline-block';
+    useBtn.textContent = `Use estimated pace (${owPaceStr}/km) \u2192`;
+    useBtn.onclick = () => {
+        document.getElementById('input1kmOW').value = owPaceStr;
+        setPaceMode('ow');
+        useBtn.style.display = 'none';
+        resultEl.innerHTML = `Pace set: <strong style="color:var(--success);">${owPaceStr}/km</strong> (pool estimate) — scroll down to calculate.`;
+    };
+}
+
+function calcPaceFromRoute() {
+    let routeVal = document.getElementById('refRoute').value;
+    let routeDist = routeVal === 'custom'
+        ? parseFloat(document.getElementById('customDist').value)
+        : parseFloat(routeVal);
+    if (routeVal === 'custom' && isNaN(routeDist)) { document.getElementById('impliedPaceResult').textContent = 'Enter the distance in km above.'; return; }
+    const timeStr = document.getElementById('refTime').value.trim();
+    const resultEl = document.getElementById('impliedPaceResult');
+    if (!routeDist) { resultEl.textContent = 'Select a route first.'; return; }
+    if (!timeStr) { resultEl.textContent = 'Enter your finishing time.'; return; }
+    const parts = timeStr.split(':');
+    let totalSec;
+    if (parts.length === 3) totalSec = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
+    else if (parts.length === 2) totalSec = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60;
+    else { resultEl.textContent = 'Enter time as h:mm or h:mm:ss'; return; }
+    if (!totalSec || totalSec < 600) { resultEl.textContent = 'Enter a valid finishing time.'; return; }
+    const paceSecPerKm = totalSec / routeDist;
+    const paceMin = Math.floor(paceSecPerKm / 60);
+    const paceSec = Math.round(paceSecPerKm % 60);
+    const paceStr = `${paceMin}:${String(paceSec).padStart(2, '0')}`;
+    const routeNames = {'5':'MSC 5km','7.4':'RI→Big Bay','8':'Cape Point','8.7':'Dassen Island','12':'Preekstool 1-way','18':'WC Angle','24':'Double Preekstool','33':'False Bay'};
+    const routeName = routeNames[String(routeVal)] || 'that route';
+
+    // False Bay (33km): ~0.35 km/h Agulhas current → +120 sec/km adjustment
+    const tidalAdjSec = {'33': 120};
+    const adj = tidalAdjSec[String(routeVal)];
+
+    if (adj) {
+        const ooSecPerKm = paceSecPerKm + adj;
+        const ooMin = Math.floor(ooSecPerKm / 60);
+        const ooSec = Math.round(ooSecPerKm % 60);
+        const ooPaceStr = `${ooMin}:${String(ooSec).padStart(2, '0')}`;
+        resultEl.innerHTML = `
+            <div style="margin-bottom:8px;font-size:13px;">From <strong>${routeName}</strong>: raw pace <strong>${paceStr}/km</strong></div>
+            <div style="background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.4);border-radius:8px;padding:12px;margin-bottom:2px;">
+                <div style="font-weight:700;color:var(--warning);margin-bottom:6px;">Tidal route — pace is inflated</div>
+                <div style="font-size:12px;color:var(--text-secondary);line-height:1.55;margin-bottom:10px;">False Bay carries ~0.35 km/h Agulhas current assist. Your implied pace is ~2 min/km faster than open-ocean ability.</div>
+                <div style="font-size:13px;">Open-ocean equivalent: <strong style="color:var(--success);font-size:16px;">${ooPaceStr}/km</strong></div>
+            </div>`;
+    } else {
+        resultEl.innerHTML = `From <strong>${routeName}</strong>: pace <strong style="color:var(--ocean-light);">${paceStr}/km</strong> — use this as your OW pace in the calculator below.`;
+    }
+}
+
 // ─── PERSONAL PACE CALCULATOR ─────────────────────────────────────────────────
 
 let _paceMode = 'pool';
@@ -1644,6 +1812,7 @@ async function loadRecords() {
         '2022-02-28': { wind: 23, dir: 'NW',  nw: true  }, // Kyle (DB date)
         '2024-02-19': { wind: 27, dir: 'NNW', nw: true  }, // Barend (DB date)
         '2021-03-17': { wind: 26, dir: 'NW',  nw: true  }, // Ryan (DB date)
+        '2026-03-05': { wind: null, dir: null, nw: null  }, // Yolanda Carstens — Skins · 11:40:17 · Mar 5 2026
         '2026-03-06': { wind: 37, dir: 'NW',  nw: true  }, // Carina (peak wind ~37km/h NW, built through swim)
         '2026-03-11': { wind: null, dir: null, nw: null  }, // Peter Emslie — UPDATE after swim. Langebaan 12km: skins 2:47 vs Carina wetsuit 2:44 → est OW pace 3.5–3.7 km/h, projected 9:00–10:10
     };
