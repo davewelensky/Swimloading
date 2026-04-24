@@ -297,7 +297,31 @@
     <div id="panelPrediction" class="panel">
 
         <div class="alert blue">
-            ~7km cold Atlantic crossing to Africa's largest penguin island. Enter your pace for a conditions-adjusted estimate.
+            8.7km cold Atlantic crossing to Africa's largest penguin island. Enter a known Big 5 time to calibrate, or enter your pace directly.
+        </div>
+
+        <div class="card">
+            <div class="card-label">Calibrate from a Known Swim</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.6;">Have a verified time from another Big 5 event? Use it to calculate your implied pace for Dassen Island.</div>
+            <div style="margin-bottom:10px;">
+                <div class="pred-label">Route you've completed</div>
+                <select id="refRoute" class="pred-input" style="background:var(--bg-card);">
+                    <option value="">Select route...</option>
+                    <option value="7.4">Robben Island → Big Bay (7.4km)</option>
+                    <option value="12">Preekstool → Mykanos, 1-way (12km)</option>
+                    <option value="24">Double Preekstool (24km)</option>
+                    <option value="8.0">Cape Point, Diaz → Millers (8km)</option>
+                    <option value="18">West Coast Angle (18km)</option>
+                    <option value="33">False Bay Crossing (33km)</option>
+                </select>
+            </div>
+            <div style="margin-bottom:10px;">
+                <div class="pred-label">Your finishing time (h:mm or h:mm:ss)</div>
+                <input type="text" id="refTime" class="pred-input" placeholder="e.g. 3:15 or 10:30:00">
+            </div>
+            <button class="pred-btn" style="margin-bottom:10px;" onclick="calcPaceFromRoute()">Calculate My Implied Pace →</button>
+            <div id="impliedPaceResult" style="font-size:13px;color:var(--text-secondary);min-height:18px;"></div>
+            <button id="usePaceBtn" style="display:none;margin-top:8px;padding:8px 16px;border-radius:8px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.1);color:var(--ocean-light);font-size:12px;font-weight:700;cursor:pointer;">Use this pace →</button>
         </div>
 
         <div class="card">
@@ -720,6 +744,36 @@ function calcPrediction() {
             Individual variability ±25 min. Current assist or adverse can change total by 10–20 min. Confirm conditions with support skipper before departure.
         </div>
     </div>`;
+}
+
+// ─── PACE CALIBRATION ─────────────────────────────────────────────────────────
+
+function calcPaceFromRoute() {
+    const routeDist = parseFloat(document.getElementById('refRoute').value);
+    const timeStr = document.getElementById('refTime').value.trim();
+    const resultEl = document.getElementById('impliedPaceResult');
+    const useBtn = document.getElementById('usePaceBtn');
+    if (!routeDist) { resultEl.textContent = 'Select a route first.'; return; }
+    if (!timeStr) { resultEl.textContent = 'Enter your finishing time.'; return; }
+    const parts = timeStr.split(':');
+    let totalSec;
+    if (parts.length === 3) totalSec = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
+    else if (parts.length === 2) totalSec = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60;
+    else { resultEl.textContent = 'Enter time as h:mm or h:mm:ss'; return; }
+    if (!totalSec || totalSec < 600) { resultEl.textContent = 'Enter a valid finishing time.'; return; }
+    const paceSecPerKm = totalSec / routeDist;
+    const paceMin = Math.floor(paceSecPerKm / 60);
+    const paceSec = Math.round(paceSecPerKm % 60);
+    const paceStr = `${paceMin}:${String(paceSec).padStart(2, '0')}`;
+    const routeNames = {'7.4':'RI→Big Bay','12':'Preekstool 1-way','24':'Double Preekstool','8':'Cape Point','18':'WC Angle','33':'False Bay'};
+    const routeName = routeNames[String(routeDist)] || 'that route';
+    resultEl.innerHTML = `Pace from <strong>${routeName}</strong>: <strong style="color:var(--ocean-light);">${paceStr}/km</strong><br><span style="font-size:11px;opacity:0.8;">Tidal routes (Preekstool, False Bay) carry current assist — pace may appear faster than open ocean reality.</span>`;
+    useBtn.style.display = 'inline-block';
+    useBtn.onclick = () => {
+        document.getElementById('inputOWPace').value = paceStr;
+        useBtn.style.display = 'none';
+        resultEl.innerHTML = `Pace set: <strong style="color:var(--success);">${paceStr}/km</strong> — scroll down and calculate.`;
+    };
 }
 
 // ─── SHARE ────────────────────────────────────────────────────────────────────
