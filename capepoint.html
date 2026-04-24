@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cape Point Intel — SwimLoading</title>
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+        :root {
+            --bg-dark: #0a1628;
+            --bg-card: #111c30;
+            --ocean: #0ea5e9;
+            --ocean-light: #38bdf8;
+            --text-primary: #f0f9ff;
+            --text-secondary: #94a3b8;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --border: rgba(255,255,255,0.08);
+            --purple: #a78bfa;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            min-height: 100vh; padding: 0 0 60px;
+        }
+        .header {
+            background: linear-gradient(135deg, #0a1628 0%, #130a2b 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 16px;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 600px; margin: 0 auto; }
+        .back-btn { font-size: 13px; color: var(--text-secondary); background: none; border: none; cursor: pointer; padding: 4px; text-decoration: none; }
+        .back-btn:hover { color: var(--ocean-light); }
+        .header-title { font-size: 17px; font-weight: 800; color: var(--ocean-light); letter-spacing: -0.3px; }
+        .header-sub { font-size: 10px; color: var(--text-secondary); margin-top: 1px; }
+        .pro-badge { font-size: 9px; font-weight: 800; letter-spacing: 0.08em; background: linear-gradient(135deg, #f59e0b, #d97706); color: #0a1628; border-radius: 20px; padding: 3px 9px; text-transform: uppercase; flex-shrink: 0; }
+        .user-pill { font-size: 11px; color: var(--ocean-light); background: rgba(14,165,233,0.12); border: 1px solid rgba(14,165,233,0.25); border-radius: 20px; padding: 3px 10px; }
+        .container { padding: 14px; max-width: 600px; margin: 0 auto; }
+        .card { background: var(--bg-card); border-radius: 16px; padding: 18px; margin-bottom: 14px; border: 1px solid var(--border); }
+        .card-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 12px; }
+        .tab-bar { display: flex; background: rgba(15,23,42,0.8); border-radius: 10px; padding: 3px; margin-bottom: 16px; gap: 2px; }
+        .tab-btn { flex: 1; background: transparent; border: none; color: var(--text-secondary); font-size: 12px; font-weight: 600; padding: 8px 2px; border-radius: 8px; cursor: pointer; }
+        .tab-btn.active { background: var(--ocean); color: white; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .signal-card { border-radius: 16px; padding: 20px; margin-bottom: 14px; border: 1px solid; }
+        .signal-card.go     { background: rgba(34,197,94,0.08);  border-color: rgba(34,197,94,0.3); }
+        .signal-card.caution{ background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.3); }
+        .signal-card.wait   { background: rgba(239,68,68,0.08);  border-color: rgba(239,68,68,0.3); }
+        .signal-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+        .signal-card.go .signal-label     { color: var(--success); }
+        .signal-card.caution .signal-label{ color: var(--warning); }
+        .signal-card.wait .signal-label   { color: var(--danger); }
+        .signal-title { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
+        .signal-sub { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+        .stat-grid   { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        .stat-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        .stat-box { background: rgba(15,23,42,0.6); border-radius: 12px; padding: 14px 10px; text-align: center; border: 1px solid var(--border); }
+        .stat-box.hi   { background: rgba(14,165,233,0.08);  border-color: rgba(14,165,233,0.25); }
+        .stat-box.ok   { background: rgba(34,197,94,0.08);   border-color: rgba(34,197,94,0.25); }
+        .stat-box.warn { background: rgba(245,158,11,0.08);  border-color: rgba(245,158,11,0.25); }
+        .stat-box.red  { background: rgba(239,68,68,0.08);   border-color: rgba(239,68,68,0.25); }
+        .stat-box.purple { background: rgba(167,139,250,0.08); border-color: rgba(167,139,250,0.25); }
+        .stat-val { font-size: 24px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+        .stat-val.blue   { color: var(--ocean-light); }
+        .stat-val.green  { color: var(--success); }
+        .stat-val.amber  { color: var(--warning); }
+        .stat-val.red    { color: var(--danger); }
+        .stat-val.purple { color: var(--purple); }
+        .stat-lbl { font-size: 11px; color: var(--text-secondary); line-height: 1.3; }
+        .checklist-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .checklist-item:last-child { border-bottom: none; }
+        .check-num { font-size: 14px; font-weight: 800; color: var(--ocean-light); flex-shrink: 0; margin-top: 1px; width: 22px; }
+        .check-label { font-size: 13px; font-weight: 600; }
+        .check-sub { font-size: 12px; color: var(--text-secondary); margin-top: 3px; line-height: 1.55; }
+        .day-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+        .day-row:last-child { border-bottom: none; }
+        .swell-bar-bg { flex: 1; background: rgba(15,23,42,0.8); border-radius: 4px; height: 8px; overflow: hidden; }
+        .swell-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+        .pred-input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(14,165,233,0.3); background: rgba(14,165,233,0.06); color: var(--text-primary); font-size: 14px; margin-bottom: 4px; }
+        .pred-input:focus { outline: none; border-color: rgba(14,165,233,0.6); }
+        .pred-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 6px; }
+        .pred-btn { width: 100%; padding: 12px; border-radius: 8px; border: none; background: var(--ocean); color: white; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 4px; }
+        .chart-wrap { position: relative; height: 180px; margin-bottom: 12px; }
+        .alert { border-radius: 12px; padding: 13px 15px; margin-bottom: 12px; font-size: 13px; line-height: 1.5; }
+        .alert.blue   { background: rgba(14,165,233,0.08);  border: 1px solid rgba(14,165,233,0.2);  color: var(--ocean-light); }
+        .alert.amber  { background: rgba(245,158,11,0.08);  border: 1px solid rgba(245,158,11,0.2);  color: var(--warning); }
+        .alert.red    { background: rgba(239,68,68,0.08);   border: 1px solid rgba(239,68,68,0.2);   color: var(--danger); }
+        .alert.purple { background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.2); color: var(--purple); }
+        .loading-msg { text-align: center; color: var(--text-secondary); padding: 24px; font-size: 13px; }
+        #initScreen { text-align: center; padding: 80px 20px; color: var(--text-secondary); }
+        #appContent { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-inner">
+        <div style="display:flex;align-items:center;gap:10px;">
+            <a href="/big5" class="back-btn">← Big 5</a>
+            <div>
+                <div class="header-title">Cape Point</div>
+                <div class="header-sub">Diaz Beach → Millers Point · 8km · Swell-intelligence</div>
+            </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+            <button id="refreshBtn" onclick="refreshPage()" title="Refresh" style="background:rgba(14,165,233,0.10);border:1px solid rgba(14,165,233,0.25);color:var(--ocean-light);border-radius:20px;padding:3px 10px;font-size:14px;cursor:pointer;">↻</button>
+            <div class="pro-badge">Pro</div>
+            <div id="userPill" class="user-pill"></div>
+        </div>
+    </div>
+    <div style="max-width:600px;margin:0 auto;padding:0 16px;">
+        <div id="lastRefreshed" style="font-size:10px;color:var(--text-secondary);margin-top:4px;"></div>
+    </div>
+</div>
+
+<div id="initScreen" class="container">Loading...</div>
+
+<div id="appContent" class="container">
+
+    <div class="tab-bar" style="margin-top:14px;">
+        <button class="tab-btn active" onclick="showTab('now',this)">Now</button>
+        <button class="tab-btn" onclick="showTab('forecast',this)">Forecast</button>
+        <button class="tab-btn" onclick="showTab('route',this)">Route</button>
+        <button class="tab-btn" onclick="showTab('prediction',this)">Prediction</button>
+    </div>
+
+    <!-- ══════════ NOW ══════════ -->
+    <div id="panelNow" class="panel active">
+
+        <div id="goSignal" class="loading-msg">Analysing conditions...</div>
+
+        <div class="stat-grid-3">
+            <div class="stat-box warn" id="swellBox">
+                <div class="stat-val amber" id="nowSwell">—</div>
+                <div class="stat-lbl">Swell height<br>Cape Point</div>
+            </div>
+            <div class="stat-box hi">
+                <div class="stat-val blue" id="nowWind">—</div>
+                <div class="stat-lbl">Wind now<br>km/h direction</div>
+            </div>
+            <div class="stat-box purple">
+                <div class="stat-val purple" id="nowTemp">—</div>
+                <div class="stat-lbl">Water temp<br>False Bay</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Conditions Checklist</div>
+            <div id="condChecklist" class="loading-msg">Checking...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Live Water Temps — False Bay</div>
+            <div id="liveTemps" class="loading-msg">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Marine Conditions — Cape Point</div>
+            <div id="marineCard" class="loading-msg">Loading...</div>
+        </div>
+
+    </div>
+
+    <!-- ══════════ FORECAST ══════════ -->
+    <div id="panelForecast" class="panel">
+
+        <div class="card">
+            <div class="card-label">7-Day Swell &amp; Wind — Cape Point</div>
+            <div id="forecastCard" class="loading-msg">Loading forecast...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Best Swim Windows This Week</div>
+            <div id="windowsCard" class="loading-msg">Analysing...</div>
+        </div>
+
+    </div>
+
+    <!-- ══════════ ROUTE ══════════ -->
+    <div id="panelRoute" class="panel">
+
+        <div class="stat-grid-3">
+            <div class="stat-box purple">
+                <div class="stat-val purple">8km</div>
+                <div class="stat-lbl">Total distance<br>one way</div>
+            </div>
+            <div class="stat-box red">
+                <div class="stat-val red">13–15°C</div>
+                <div class="stat-lbl">Atlantic start<br>typical temp</div>
+            </div>
+            <div class="stat-box ok">
+                <div class="stat-val green">2.5–4h</div>
+                <div class="stat-lbl">Typical swim<br>time (skins)</div>
+            </div>
+        </div>
+
+        <div class="alert purple">
+            Cape Point is one of the most dramatic swims on the planet. You start on the cold Atlantic side and finish in the warmer, calmer waters of False Bay — swimming around the tip of the Cape Peninsula.
+        </div>
+
+        <div class="card">
+            <div class="card-label">Route Description</div>
+            <div class="checklist-item">
+                <div class="check-num">01</div>
+                <div>
+                    <div class="check-label">Start — Diaz Beach</div>
+                    <div class="check-sub">Enter at Diaz Beach on the Atlantic/southwestern face of Cape Point within the Cape of Good Hope Nature Reserve. Cold water entry — Benguela upwelling keeps temps at 13–16°C. The beach is exposed to SW swell: this is your go/no-go moment. If swell is above 1.5m at entry, abort.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">02</div>
+                <div>
+                    <div class="check-label">The Cape — rounding the headland</div>
+                    <div class="check-sub">Swim south and then east around the Cape Point headland. This is the most exposed section — expect strong currents as the Benguela and Agulhas systems meet near the point. The current pattern varies with tide: on an ebb (outgoing) tide the flow runs south-to-east around the point, assisting the swimmer. On flood, it can work against you. Swell wraps around the cape — stay focused. Support vessel essential here.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">03</div>
+                <div>
+                    <div class="check-label">Entering False Bay</div>
+                    <div class="check-sub">Once around the headland, conditions change dramatically. Swell drops as you enter the shelter of False Bay. Water temperature rises 2–3°C over the last few kilometres. The transition from cold choppy Atlantic to calmer, warmer False Bay water is one of the most striking experiences in open water swimming.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">04</div>
+                <div>
+                    <div class="check-label">Finish — Millers Point</div>
+                    <div class="check-sub">Exit at Millers Point on the False Bay side, approximately 3km south of Simon's Town. Clear water exit unassisted. The finishing section is sheltered and typically calm, even when the Atlantic start was rough.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Key Requirements</div>
+            <div class="checklist-item">
+                <div class="check-num">01</div>
+                <div>
+                    <div class="check-label">Swell below 1.5m at Diaz Beach — go/no-go threshold</div>
+                    <div class="check-sub">This is the critical gate for the Cape Point swim. Diaz Beach faces directly into the SW Atlantic swell fetch. Swell above 1.5m makes entry dangerous and the rounding extremely demanding. Above 2m is a no-go. Check the Forecast tab for the 7-day swell outlook.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">02</div>
+                <div>
+                    <div class="check-label">No sustained SE wind</div>
+                    <div class="check-sub">SE wind (the Cape Doctor) creates difficult conditions around the point and pushes against the swimmer from Millers Point side. SE above 15 km/h is a caution; above 25 km/h is a no-go. NW or N wind is ideal — it shelters the headland approach and assists the False Bay section.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">03</div>
+                <div>
+                    <div class="check-label">Cape of Good Hope Nature Reserve permit</div>
+                    <div class="check-sub">The swim takes place within the Cape of Good Hope section of Table Mountain National Park. A permit and prior approval from SANParks is required. Swimmer and support vessel must be cleared in advance. The reserve gate opens at specific times — coordinate your start accordingly.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">04</div>
+                <div>
+                    <div class="check-label">Cold water — minimum 13°C viable for skins</div>
+                    <div class="check-sub">Atlantic entry at Diaz Beach is typically 13–16°C year-round due to Benguela upwelling. Cold shock on entry is a real risk. Acclimatise beforehand, enter slowly. The warm False Bay finish (16–18°C) provides some relief for the final kilometres. Minimum 13°C for skins; below that, serious hypothermia risk for a 2.5–4 hour swim.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">05</div>
+                <div>
+                    <div class="check-label">Experienced motorised support vessel — non-negotiable</div>
+                    <div class="check-sub">The support skipper must know the Cape Point headland currents and have experience in exposed Atlantic conditions. Navigation around the cape with breaking waves and current requires a confident skipper. The swim cannot proceed without proper vessel support. A secondary kayak escort is strongly recommended for the headland section.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">The Cape Point Current — What to Expect</div>
+            <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+                Cape Point sits where two of the world's great ocean systems interact — the cold Benguela (northward along the west coast) and the warm Agulhas (southwestward along the east coast). This creates complex, dynamic current patterns around the headland that vary by tide, season, and weather.
+                <br><br>
+                <strong style="color:var(--text-primary);">On a good day:</strong> The southward Benguela surface current assists the swimmer from Diaz Beach toward the point. Once around, residual Agulhas eddy circulation in False Bay can provide mild eastward assist toward Millers Point.
+                <br><br>
+                <strong style="color:var(--text-primary);">On a bad day:</strong> Strong tidal currents around the headland can push the swimmer off course or back. Current speeds of 1–2 knots are possible in the channel near the point.
+                <br><br>
+                <strong style="color:var(--warning);">Navigation note:</strong> Your escort skipper must constantly read and communicate current direction. Do not fight the current — work with it by adjusting your angle of approach to the headland.
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Wildlife — What Shares the Water</div>
+            <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+                The Cape of Good Hope is one of the most biodiverse marine areas on earth. Expect:
+                <br><br>
+                · <strong style="color:var(--text-primary);">Cape fur seals</strong> — common around the cape, curious and harmless<br>
+                · <strong style="color:var(--text-primary);">African penguins</strong> — occasionally seen along the route<br>
+                · <strong style="color:var(--text-primary);">Great white sharks</strong> — present in these waters. Risk is real and must be factored into safety planning. Shark spotters do not operate at this location. Discuss with your support team and consider appropriate shark deterrent equipment.<br>
+                · <strong style="color:var(--text-primary);">Southern right whales</strong> — seasonal (May–November), occasionally approach swimmers<br>
+                · <strong style="color:var(--text-primary);">Sunfish (Mola mola)</strong> — sometimes seen in the area, harmless<br>
+            </div>
+        </div>
+
+        <div style="padding:6px 0 20px;text-align:center;">
+            <button onclick="shareConditions()" style="padding:12px 28px;border-radius:24px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.1);color:var(--ocean-light);font-size:13px;font-weight:700;cursor:pointer;">Share Conditions</button>
+            <div id="shareMsg" style="font-size:11px;color:var(--success);margin-top:8px;display:none;">Copied — paste into WhatsApp</div>
+        </div>
+    </div>
+
+    <!-- ══════════ PREDICTION ══════════ -->
+    <div id="panelPrediction" class="panel">
+
+        <div class="alert blue">
+            8km from cold Atlantic to warm False Bay. Enter your pace for a conditions-adjusted time estimate.
+        </div>
+
+        <div class="card">
+            <div class="card-label">Your Swim Pace</div>
+
+            <div style="margin-bottom:14px;">
+                <div class="pred-label">1km open water time (mm:ss) — sustained effort</div>
+                <input type="text" id="inputOWPace" class="pred-input" placeholder="e.g. 20:00">
+                <div style="font-size:10px;color:var(--text-secondary);margin-top:3px;">Typical range: 17:00 (fast) to 28:00 (comfortable)</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+                <div>
+                    <div class="pred-label">Swell height (m)</div>
+                    <input type="number" id="inputSwell" class="pred-input" placeholder="e.g. 1.2" step="0.1" min="0" max="3">
+                </div>
+                <div>
+                    <div class="pred-label">Swim category</div>
+                    <select id="inputCategory" class="pred-input" style="background:var(--bg-card);">
+                        <option value="skins">Skins</option>
+                        <option value="wetsuit">Wetsuit</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="pred-btn" onclick="calcPrediction()">Calculate My Time &rarr;</button>
+            <div id="predResult" style="display:none;margin-top:14px;"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">What Affects Cape Point Time</div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;">
+                <strong style="color:var(--text-primary);">Swell penalty:</strong><br>
+                · &lt;1.0m — no penalty, clean swimming<br>
+                · 1.0–1.5m — −0.2 km/h (15–20 min slower)<br>
+                · 1.5–2.0m — −0.4 km/h (30–40 min slower)<br>
+                · 2.0m+ — not recommended<br><br>
+                <strong style="color:var(--text-primary);">Temperature gradient:</strong><br>
+                Atlantic start (Diaz Beach) is typically 13–15°C. False Bay finish (Millers Point) is 16–18°C. Cold water slows pace in the first kilometre — factor in 5–10 min extra for acclimatisation to cold entry.<br><br>
+                <strong style="color:var(--text-primary);">Current:</strong><br>
+                Highly variable. Favourable current around the headland can save 20–30 min. Adverse current can add the same. This is the largest uncertainty in time prediction.
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+
+// Cape Point headland — open ocean approach coordinates
+const CP_LAT = -34.31;
+const CP_LON = 18.47;
+// Millers Point — False Bay finish (used for False Bay temps)
+const MILLERS_LAT = -34.2269;
+const MILLERS_LON = 18.4648;
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, storageKey: 'sb-szgkzuswelntnevobnoh-auth-token' }
+});
+
+let appStarted = false;
+let _wind = null;
+let _swell = null;
+let _marine7 = null;
+let _wind7 = null;
+
+function windDirLabel(deg) {
+    const d = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+    return d[Math.round(deg / 22.5) % 16];
+}
+
+function isSE(deg) { return deg >= 90 && deg <= 200; }
+
+function swellColor(h) {
+    if (h < 1.0) return 'var(--success)';
+    if (h < 1.5) return 'var(--warning)';
+    return 'var(--danger)';
+}
+
+function timeAgo(iso) {
+    const d = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (d < 60) return `${d}m ago`;
+    return `${Math.floor(d / 60)}h ago`;
+}
+
+function showTab(name, btn) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('panel' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+    btn.classList.add('active');
+}
+
+// ─── DATA LOADS ───────────────────────────────────────────────────────────────
+
+async function loadMarine() {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const end = new Date(); end.setDate(end.getDate() + 7);
+        const endStr = end.toISOString().split('T')[0];
+        const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${CP_LAT}&longitude=${CP_LON}&current=wave_height,wave_period,wave_direction&hourly=wave_height,wave_period&daily=wave_height_max&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${endStr}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        const data = await res.json();
+        _swell = data.current?.wave_height ?? null;
+        _marine7 = data;
+        return data;
+    } catch (e) { return null; }
+}
+
+async function loadWind7() {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const end = new Date(); end.setDate(end.getDate() + 7);
+        const endStr = end.toISOString().split('T')[0];
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${CP_LAT}&longitude=${CP_LON}&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m&daily=wind_speed_10m_max,wind_direction_10m_dominant&wind_speed_unit=kmh&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${endStr}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        const data = await res.json();
+        _wind = { spd: data.current?.wind_speed_10m ?? 0, dir: data.current?.wind_direction_10m ?? 0, gust: data.current?.wind_gusts_10m ?? 0 };
+        _wind7 = data;
+        return data;
+    } catch (e) { return null; }
+}
+
+// ─── GO SIGNAL ────────────────────────────────────────────────────────────────
+
+function buildGoSignal() {
+    const el = document.getElementById('goSignal');
+    if (!el) return;
+
+    const swell = _swell ?? 0;
+    const windSpd = _wind?.spd ?? 0;
+    const windDir = _wind?.dir ?? 0;
+    const se = isSE(windDir);
+
+    let cls = 'go', title = 'Conditions Good', sub = '';
+
+    if (swell > 2.0 || (se && windSpd > 25) || windSpd > 35) {
+        cls = 'wait'; title = 'Hold Off';
+        const reason = swell > 2.0 ? `Swell ${swell.toFixed(1)}m — too large for Diaz Beach entry.`
+                     : se ? `SE wind ${Math.round(windSpd)} km/h — adverse for rounding the cape.`
+                     : `Wind ${Math.round(windSpd)} km/h — too strong.`;
+        sub = reason + ' Wait for calmer conditions.';
+    } else if (swell > 1.5 || (se && windSpd > 15) || windSpd > 25) {
+        cls = 'caution'; title = 'Use Caution';
+        const notes = [];
+        if (swell > 1.5) notes.push(`Swell ${swell.toFixed(1)}m — entry at Diaz Beach demanding`);
+        if (se && windSpd > 15) notes.push(`SE wind ${Math.round(windSpd)} km/h — adverse direction`);
+        else if (windSpd > 25) notes.push(`Wind ${Math.round(windSpd)} km/h ${windDirLabel(windDir)}`);
+        sub = notes.join(' · ') + '. Experienced swimmers only. Discuss with support skipper before committing.';
+    } else {
+        sub = `Swell ${swell.toFixed(1)}m · Wind ${Math.round(windSpd)} km/h ${windDirLabel(windDir)} — Cape Point conditions acceptable. Confirm with support skipper.`;
+    }
+
+    // Update stat boxes
+    const swellEl = document.getElementById('nowSwell');
+    const windEl = document.getElementById('nowWind');
+    if (swellEl) { swellEl.textContent = `${swell.toFixed(1)}m`; swellEl.style.color = swellColor(swell); }
+    if (windEl) windEl.textContent = `${Math.round(windSpd)} ${windDirLabel(windDir)}`;
+    const swellBox = document.getElementById('swellBox');
+    if (swellBox) { swellBox.style.background = swell < 1.0 ? 'rgba(34,197,94,0.08)' : swell < 1.5 ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)'; swellBox.style.borderColor = swell < 1.0 ? 'rgba(34,197,94,0.25)' : swell < 1.5 ? 'rgba(245,158,11,0.25)' : 'rgba(239,68,68,0.25)'; }
+
+    el.outerHTML = `<div class="signal-card ${cls}">
+        <div class="signal-label">Cape Point Swim</div>
+        <div class="signal-title">${title}</div>
+        <div class="signal-sub">${sub}</div>
+    </div>`;
+}
+
+// ─── CHECKLIST ────────────────────────────────────────────────────────────────
+
+function renderChecklist() {
+    const el = document.getElementById('condChecklist');
+    if (!el) return;
+
+    const swell = _swell ?? 0;
+    const windSpd = _wind?.spd ?? 0;
+    const windDir = _wind?.dir ?? 0;
+    const se = isSE(windDir);
+
+    const item = (ok, label, detail) => {
+        const icon = ok === true ? '✓' : ok === false ? '✗' : '~';
+        const col  = ok === true ? 'var(--success)' : ok === false ? 'var(--danger)' : 'var(--warning)';
+        return `<div class="checklist-item">
+            <div style="font-size:16px;font-weight:800;color:${col};flex-shrink:0;margin-top:1px;">${icon}</div>
+            <div><div class="check-label">${label}</div><div class="check-sub">${detail}</div></div>
+        </div>`;
+    };
+
+    const swellOk = swell < 1.0 ? true : swell < 1.5 ? null : false;
+    const windOk  = windSpd < 20 ? true : windSpd < 30 ? null : false;
+    const seOk    = !se ? true : windSpd < 15 ? null : false;
+
+    el.innerHTML =
+        item(swellOk, 'Swell at Diaz Beach', swell > 0 ? `${swell.toFixed(1)}m — ${swell < 1.0 ? 'flat, ideal entry' : swell < 1.5 ? 'moderate, manageable' : 'too large for safe entry'}` : 'Check marine forecast') +
+        item(windOk,  'Wind speed', `${Math.round(windSpd)} km/h ${windDirLabel(windDir)} — ${windSpd < 20 ? 'light, ideal' : windSpd < 30 ? 'moderate, manageable' : 'too strong'}`) +
+        item(seOk,    'Wind direction (no SE)', se ? `SE component present — ${windSpd < 15 ? 'light, manageable' : 'adverse, difficult around cape'}` : `${windDirLabel(windDir)} — no SE. Acceptable.`) +
+        item(null,    'Water temp at start', 'Check live readings. Atlantic 13–16°C — cold entry, acclimatise carefully.') +
+        item(null,    'SANParks permit', 'Cape of Good Hope reserve permit required. Confirm before swim day.') +
+        item(null,    'Support vessel', 'Experienced Atlantic skipper essential. Cleared for Cape Point headland zone.');
+}
+
+// ─── MARINE CARD ──────────────────────────────────────────────────────────────
+
+function renderMarineCard() {
+    const el = document.getElementById('marineCard');
+    if (!el) return;
+    const swell = _swell ?? 0;
+    const wavePeriod = _marine7?.current?.wave_period ?? null;
+    const waveDir = _marine7?.current?.wave_direction ?? null;
+
+    el.innerHTML = `
+        <div class="stat-grid-3" style="margin-bottom:12px;">
+            <div class="stat-box" style="background:${swell < 1.0 ? 'rgba(34,197,94,0.08)' : swell < 1.5 ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)'};border-color:${swell < 1.0 ? 'rgba(34,197,94,0.25)' : swell < 1.5 ? 'rgba(245,158,11,0.25)' : 'rgba(239,68,68,0.25)'};">
+                <div class="stat-val" style="color:${swellColor(swell)};">${swell > 0 ? swell.toFixed(1) + 'm' : '—'}</div>
+                <div class="stat-lbl">Wave height<br>current</div>
+            </div>
+            <div class="stat-box hi">
+                <div class="stat-val blue">${wavePeriod ? wavePeriod.toFixed(0) + 's' : '—'}</div>
+                <div class="stat-lbl">Wave period<br>current</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-val blue">${waveDir ? windDirLabel(waveDir) : '—'}</div>
+                <div class="stat-lbl">Wave<br>direction</div>
+            </div>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">
+            <strong style="color:var(--text-primary);">Diaz Beach exposure:</strong> SW–NW facing, fully open to Atlantic swell. Shorter wave periods (under 10s) are wind-chop; longer periods (14s+) are ground swell from distant storms — more powerful and harder to manage.
+            <br><br>
+            <strong style="color:var(--text-primary);">Cape rounding:</strong> Swell wraps around the headland — even with good conditions at the start, conditions around the point can be different. Trust your skipper's read.
+        </div>
+        <div style="font-size:10px;color:var(--text-secondary);margin-top:8px;">Source: Open-Meteo Marine API · Cape Point headland</div>`;
+}
+
+// ─── LIVE TEMPS ───────────────────────────────────────────────────────────────
+
+async function loadLiveTemps() {
+    const el = document.getElementById('liveTemps');
+    const tempEl = document.getElementById('nowTemp');
+
+    const { data: spots } = await sb.from('spots').select('id, name').eq('domain', 'FALSE_BAY').neq('active', false);
+    if (!spots?.length) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No False Bay spots found.</div>'; return null; }
+
+    const since72h = new Date(Date.now() - 72 * 3600 * 1000).toISOString();
+    const { data: logs } = await sb.from('temp_logs')
+        .select('spot_id, temp_c, created_at, spots!temp_logs_spot_id_fkey(name)')
+        .in('spot_id', spots.map(s => s.id))
+        .gte('created_at', since72h)
+        .order('created_at', { ascending: false })
+        .limit(80);
+
+    if (!logs?.length) {
+        el.innerHTML = '<div class="alert blue">No recent logs. False Bay finish (Millers Point area) typically 16–18°C. Atlantic start (Diaz Beach) typically 13–15°C.</div>';
+        if (tempEl) tempEl.textContent = '~17°C';
+        return null;
+    }
+
+    const latest = {};
+    logs.forEach(l => { if (!latest[l.spot_id]) latest[l.spot_id] = l; });
+    const readings = Object.values(latest);
+    const temps = readings.map(r => parseFloat(r.temp_c)).filter(Boolean);
+    const avg = temps.reduce((a, b) => a + b, 0) / temps.length;
+    if (tempEl) tempEl.textContent = `${avg.toFixed(1)}°C`;
+
+    el.innerHTML = `
+        <div class="stat-grid" style="margin-bottom:12px;">
+            <div class="stat-box purple">
+                <div class="stat-val purple">${avg.toFixed(1)}°C</div>
+                <div class="stat-lbl">Avg False Bay<br>${logs.length} log${logs.length !== 1 ? 's' : ''} · 72h</div>
+            </div>
+            <div class="stat-box red">
+                <div class="stat-val red">13–15°C</div>
+                <div class="stat-lbl">Atlantic start<br>Diaz Beach est.</div>
+            </div>
+        </div>
+        ${readings.slice(0, 5).map(r => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+                <div>
+                    <div style="font-size:13px;font-weight:500;">${r.spots?.name || 'Unknown'}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);">${timeAgo(r.created_at)}</div>
+                </div>
+                <div style="font-size:16px;font-weight:700;color:${r.temp_c >= 17 ? 'var(--success)' : r.temp_c >= 14 ? 'var(--warning)' : 'var(--danger)'};">${r.temp_c}°C</div>
+            </div>`).join('')}
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:8px;line-height:1.55;">
+            False Bay finish is 2–3°C warmer than Diaz Beach start. Temperature gradient is one of the defining experiences of this swim.
+        </div>`;
+    return { avg, readings };
+}
+
+// ─── 7-DAY FORECAST ───────────────────────────────────────────────────────────
+
+function render7DayForecast() {
+    const el = document.getElementById('forecastCard');
+    if (!el) return;
+
+    const dailySwell = _marine7?.daily;
+    const dailyWind  = _wind7?.daily;
+    if (!dailySwell || !dailyWind) {
+        el.innerHTML = '<div class="alert amber">Forecast data unavailable.</div>';
+        return;
+    }
+
+    const dates = dailySwell.time || [];
+    const rows = dates.map((date, i) => {
+        const swellMax = dailySwell.wave_height_max?.[i] ?? 0;
+        const windMax  = dailyWind.wind_speed_10m_max?.[i] ?? 0;
+        const windDir  = dailyWind.wind_direction_10m_dominant?.[i] ?? 0;
+        const se = isSE(windDir);
+        const swellOk = swellMax < 1.5;
+        const windOk  = windMax < 25 && !se;
+        const signal  = swellOk && windOk ? 'go' : (!swellOk || (se && windMax > 25)) ? 'wait' : 'caution';
+        const sigCol  = signal === 'go' ? 'var(--success)' : signal === 'wait' ? 'var(--danger)' : 'var(--warning)';
+        const sigTxt  = signal === 'go' ? 'Good' : signal === 'wait' ? 'Wait' : 'Caution';
+
+        const d = new Date(date);
+        const dayStr = i === 0 ? 'Today' : d.toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
+        const swellBarW = Math.min(100, (swellMax / 3) * 100);
+        const swellBarCol = swellMax < 1.0 ? '#22c55e' : swellMax < 1.5 ? '#f59e0b' : '#ef4444';
+
+        return `<div class="day-row" style="${i === 0 ? 'background:rgba(14,165,233,0.05);margin:0 -4px;padding:9px 4px;border-radius:8px;' : ''}">
+            <div style="width:80px;font-size:12px;font-weight:${i === 0 ? 700 : 400};color:${i === 0 ? 'var(--ocean-light)' : 'var(--text-primary)'};">${dayStr}</div>
+            <div style="flex:1;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                    <span style="font-size:12px;font-weight:600;color:${swellColor(swellMax)};">Swell ${swellMax.toFixed(1)}m</span>
+                    <span style="font-size:11px;color:var(--text-secondary);">Wind ${Math.round(windMax)} ${windDirLabel(windDir)}</span>
+                </div>
+                <div class="swell-bar-bg"><div class="swell-bar-fill" style="width:${swellBarW}%;background:${swellBarCol};"></div></div>
+            </div>
+            <div style="font-size:11px;font-weight:700;color:${sigCol};text-align:right;width:52px;">${sigTxt}</div>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = rows + `<div style="font-size:10px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo Marine & Atmospheric APIs · Cape Point</div>`;
+}
+
+// ─── BEST WINDOWS ─────────────────────────────────────────────────────────────
+
+function renderWindows() {
+    const el = document.getElementById('windowsCard');
+    if (!el) return;
+
+    const dailySwell = _marine7?.daily;
+    const dailyWind  = _wind7?.daily;
+    if (!dailySwell || !dailyWind) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Forecast data unavailable.</div>'; return; }
+
+    const dates = dailySwell.time || [];
+    const good = [];
+    dates.forEach((date, i) => {
+        const swellMax = dailySwell.wave_height_max?.[i] ?? 0;
+        const windMax  = dailyWind.wind_speed_10m_max?.[i] ?? 0;
+        const windDir  = dailyWind.wind_direction_10m_dominant?.[i] ?? 0;
+        const se = isSE(windDir);
+        if (swellMax <= 1.5 && windMax <= 25 && !se) good.push({ date, swellMax, windMax, windDir });
+    });
+
+    if (!good.length) {
+        el.innerHTML = '<div class="alert amber">No clean Cape Point windows in the 7-day forecast. Conditions remain unsettled — check back tomorrow for updated outlook.</div>';
+        return;
+    }
+
+    el.innerHTML = `
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Days with swell ≤1.5m and no adverse SE wind:</div>
+        ${good.map((w, i) => {
+            const d = new Date(w.date);
+            const isToday = i === 0 && new Date().toDateString() === d.toDateString();
+            const dayStr = isToday ? 'Today' : d.toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' });
+            return `<div style="background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:14px;margin-bottom:10px;">
+                <div style="font-size:10px;font-weight:800;color:var(--success);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:3px;">${isToday ? 'Go today' : 'Good window'}</div>
+                <div style="font-size:18px;font-weight:800;margin-bottom:4px;">${dayStr}</div>
+                <div style="font-size:12px;color:var(--text-secondary);">Swell ${w.swellMax.toFixed(1)}m · Wind ${Math.round(w.windMax)} km/h ${windDirLabel(w.windDir)}</div>
+            </div>`;
+        }).join('')}
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">Windows based on daily max values. Conditions vary through the day — early mornings typically calmer before sea breeze builds.</div>`;
+}
+
+// ─── PREDICTION ───────────────────────────────────────────────────────────────
+
+function calcPrediction() {
+    const paceStr = document.getElementById('inputOWPace').value.trim();
+    const swellStr = document.getElementById('inputSwell').value;
+    const category = document.getElementById('inputCategory').value;
+
+    const parts = paceStr.split(':');
+    if (parts.length < 2) { alert('Enter pace as mm:ss'); return; }
+    const paceSec = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    if (!paceSec || paceSec < 600 || paceSec > 2400) { alert('Enter a valid pace'); return; }
+
+    let baseKmh = 3600 / paceSec;
+    if (category === 'wetsuit') baseKmh += 0.3;
+
+    const swell = parseFloat(swellStr) || (_swell ?? 1.0);
+    let swellPenalty = 0;
+    if (swell >= 1.5) swellPenalty = 0.4;
+    else if (swell >= 1.0) swellPenalty = 0.2;
+
+    const windSpd = _wind?.spd ?? 0;
+    let windPenalty = 0;
+    if (windSpd > 30) windPenalty = 0.3;
+    else if (windSpd > 20) windPenalty = 0.15;
+
+    const effectiveKmh = Math.max(1.0, baseKmh - swellPenalty - windPenalty);
+    const totalSec = Math.round(8000 / effectiveKmh);
+    const coldAccl = 8 * 60; // 8 min cold acclimatisation buffer
+    const adjustedSec = totalSec + coldAccl;
+
+    const h = Math.floor(adjustedSec / 3600), m = Math.floor((adjustedSec % 3600) / 60);
+
+    const el = document.getElementById('predResult');
+    el.style.display = 'block';
+    el.innerHTML = `<div style="background:rgba(14,165,233,0.08);border:1px solid rgba(14,165,233,0.25);border-radius:12px;padding:16px;">
+        <div style="font-size:11px;font-weight:700;color:var(--ocean-light);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Estimated Time — Cape Point 8km</div>
+        <div style="font-size:36px;font-weight:800;letter-spacing:-1px;">${h}:${String(m).padStart(2,'0')}</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:8px;line-height:1.7;">
+            Base pace: ${Math.floor(paceSec/60)}:${String(paceSec%60).padStart(2,'0')}/km${category === 'wetsuit' ? ' · Wetsuit +0.3 km/h' : ''}<br>
+            Swell ${swell.toFixed(1)}m: ${swellPenalty > 0 ? '−' + swellPenalty.toFixed(1) + ' km/h' : 'no penalty'}<br>
+            Wind: ${windPenalty > 0 ? '−' + windPenalty.toFixed(2) + ' km/h' : 'no penalty'}<br>
+            Cold entry buffer: +8 min<br><br>
+            Current variability not modelled — can add or save 20–30 min at the headland.
+        </div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;border-top:1px solid var(--border);padding-top:10px;">
+            Individual variability ±30 min. Confirm conditions with support skipper before committing.
+        </div>
+    </div>`;
+}
+
+// ─── SHARE ────────────────────────────────────────────────────────────────────
+
+function shareConditions() {
+    const swell = _swell ?? 0;
+    const windSpd = Math.round(_wind?.spd ?? 0);
+    const windDir = windDirLabel(_wind?.dir ?? 0);
+    const text = `Cape Point Swim Conditions — SwimLoading\nSwell: ${swell.toFixed(1)}m\nWind: ${windSpd} km/h ${windDir}\nCheck full intel: swimloading.com/capepoint`;
+    navigator.clipboard.writeText(text).then(() => {
+        const msg = document.getElementById('shareMsg');
+        if (msg) { msg.style.display = 'block'; setTimeout(() => msg.style.display = 'none', 3000); }
+    });
+}
+
+// ─── MAIN FLOW ────────────────────────────────────────────────────────────────
+
+async function startApp(session) {
+    if (appStarted) return;
+    appStarted = true;
+
+    const namePart = session.user.email.split('@')[0].split('.')[0];
+    document.getElementById('userPill').textContent = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+    document.getElementById('initScreen').style.display = 'none';
+    document.getElementById('appContent').style.display = 'block';
+
+    await Promise.all([loadMarine(), loadWind7(), loadLiveTemps()]);
+
+    buildGoSignal();
+    renderChecklist();
+    renderMarineCard();
+    render7DayForecast();
+    renderWindows();
+
+    const ts = new Date().toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('lastRefreshed').textContent = `Updated ${ts}`;
+}
+
+async function refreshPage() {
+    appStarted = false;
+    _wind = null; _swell = null; _marine7 = null; _wind7 = null;
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) await startApp(session);
+}
+
+async function init() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) { startApp(session); return; }
+    sb.auth.onAuthStateChange((_, sess) => { if (sess) startApp(sess); else window.location.href = '/app'; });
+    setTimeout(() => { if (!appStarted) window.location.href = '/app'; }, 2000);
+}
+
+init();
+</script>
+</body>
+</html>

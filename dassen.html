@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dassen Island Intel — SwimLoading</title>
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+        :root {
+            --bg-dark: #0a1628;
+            --bg-card: #111c30;
+            --ocean: #0ea5e9;
+            --ocean-light: #38bdf8;
+            --text-primary: #f0f9ff;
+            --text-secondary: #94a3b8;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --border: rgba(255,255,255,0.08);
+            --slate: #64748b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            min-height: 100vh; padding: 0 0 60px;
+        }
+        .header {
+            background: linear-gradient(135deg, #0a1628 0%, #091a2a 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 16px;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 600px; margin: 0 auto; }
+        .back-btn { font-size: 13px; color: var(--text-secondary); background: none; border: none; cursor: pointer; padding: 4px; text-decoration: none; }
+        .back-btn:hover { color: var(--ocean-light); }
+        .header-title { font-size: 17px; font-weight: 800; color: var(--ocean-light); letter-spacing: -0.3px; }
+        .header-sub { font-size: 10px; color: var(--text-secondary); margin-top: 1px; }
+        .pro-badge { font-size: 9px; font-weight: 800; letter-spacing: 0.08em; background: linear-gradient(135deg, #f59e0b, #d97706); color: #0a1628; border-radius: 20px; padding: 3px 9px; text-transform: uppercase; flex-shrink: 0; }
+        .user-pill { font-size: 11px; color: var(--ocean-light); background: rgba(14,165,233,0.12); border: 1px solid rgba(14,165,233,0.25); border-radius: 20px; padding: 3px 10px; }
+        .container { padding: 14px; max-width: 600px; margin: 0 auto; }
+        .card { background: var(--bg-card); border-radius: 16px; padding: 18px; margin-bottom: 14px; border: 1px solid var(--border); }
+        .card-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 12px; }
+        .tab-bar { display: flex; background: rgba(15,23,42,0.8); border-radius: 10px; padding: 3px; margin-bottom: 16px; gap: 2px; }
+        .tab-btn { flex: 1; background: transparent; border: none; color: var(--text-secondary); font-size: 12px; font-weight: 600; padding: 8px 2px; border-radius: 8px; cursor: pointer; }
+        .tab-btn.active { background: var(--ocean); color: white; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .signal-card { border-radius: 16px; padding: 20px; margin-bottom: 14px; border: 1px solid; }
+        .signal-card.go     { background: rgba(34,197,94,0.08);  border-color: rgba(34,197,94,0.3); }
+        .signal-card.caution{ background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.3); }
+        .signal-card.wait   { background: rgba(239,68,68,0.08);  border-color: rgba(239,68,68,0.3); }
+        .signal-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+        .signal-card.go .signal-label     { color: var(--success); }
+        .signal-card.caution .signal-label{ color: var(--warning); }
+        .signal-card.wait .signal-label   { color: var(--danger); }
+        .signal-title { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
+        .signal-sub { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+        .stat-grid   { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        .stat-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        .stat-box { background: rgba(15,23,42,0.6); border-radius: 12px; padding: 14px 10px; text-align: center; border: 1px solid var(--border); }
+        .stat-box.hi   { background: rgba(14,165,233,0.08);  border-color: rgba(14,165,233,0.25); }
+        .stat-box.ok   { background: rgba(34,197,94,0.08);   border-color: rgba(34,197,94,0.25); }
+        .stat-box.warn { background: rgba(245,158,11,0.08);  border-color: rgba(245,158,11,0.25); }
+        .stat-box.red  { background: rgba(239,68,68,0.08);   border-color: rgba(239,68,68,0.25); }
+        .stat-val { font-size: 24px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+        .stat-val.blue  { color: var(--ocean-light); }
+        .stat-val.green { color: var(--success); }
+        .stat-val.amber { color: var(--warning); }
+        .stat-val.red   { color: var(--danger); }
+        .stat-lbl { font-size: 11px; color: var(--text-secondary); line-height: 1.3; }
+        .checklist-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .checklist-item:last-child { border-bottom: none; }
+        .check-num { font-size: 14px; font-weight: 800; color: var(--ocean-light); flex-shrink: 0; margin-top: 1px; width: 22px; }
+        .check-label { font-size: 13px; font-weight: 600; }
+        .check-sub { font-size: 12px; color: var(--text-secondary); margin-top: 3px; line-height: 1.55; }
+        .day-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+        .day-row:last-child { border-bottom: none; }
+        .swell-bar-bg { flex: 1; background: rgba(15,23,42,0.8); border-radius: 4px; height: 8px; overflow: hidden; }
+        .swell-bar-fill { height: 100%; border-radius: 4px; }
+        .pred-input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(14,165,233,0.3); background: rgba(14,165,233,0.06); color: var(--text-primary); font-size: 14px; margin-bottom: 4px; }
+        .pred-input:focus { outline: none; border-color: rgba(14,165,233,0.6); }
+        .pred-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 6px; }
+        .pred-btn { width: 100%; padding: 12px; border-radius: 8px; border: none; background: var(--ocean); color: white; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 4px; }
+        .alert { border-radius: 12px; padding: 13px 15px; margin-bottom: 12px; font-size: 13px; line-height: 1.5; }
+        .alert.blue  { background: rgba(14,165,233,0.08); border: 1px solid rgba(14,165,233,0.2);  color: var(--ocean-light); }
+        .alert.amber { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);  color: var(--warning); }
+        .loading-msg { text-align: center; color: var(--text-secondary); padding: 24px; font-size: 13px; }
+        #initScreen { text-align: center; padding: 80px 20px; color: var(--text-secondary); }
+        #appContent { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-inner">
+        <div style="display:flex;align-items:center;gap:10px;">
+            <a href="/big5" class="back-btn">← Big 5</a>
+            <div>
+                <div class="header-title">Dassen Island</div>
+                <div class="header-sub">Yzerfontein → Dassen Island · ~7km · Atlantic crossing</div>
+            </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+            <button id="refreshBtn" onclick="refreshPage()" title="Refresh" style="background:rgba(14,165,233,0.10);border:1px solid rgba(14,165,233,0.25);color:var(--ocean-light);border-radius:20px;padding:3px 10px;font-size:14px;cursor:pointer;">↻</button>
+            <div class="pro-badge">Pro</div>
+            <div id="userPill" class="user-pill"></div>
+        </div>
+    </div>
+    <div style="max-width:600px;margin:0 auto;padding:0 16px;">
+        <div id="lastRefreshed" style="font-size:10px;color:var(--text-secondary);margin-top:4px;"></div>
+    </div>
+</div>
+
+<div id="initScreen" class="container">Loading...</div>
+
+<div id="appContent" class="container">
+
+    <div class="tab-bar" style="margin-top:14px;">
+        <button class="tab-btn active" onclick="showTab('now',this)">Now</button>
+        <button class="tab-btn" onclick="showTab('forecast',this)">Forecast</button>
+        <button class="tab-btn" onclick="showTab('route',this)">Route</button>
+        <button class="tab-btn" onclick="showTab('prediction',this)">Prediction</button>
+    </div>
+
+    <!-- ══════════ NOW ══════════ -->
+    <div id="panelNow" class="panel active">
+
+        <div id="goSignal" class="loading-msg">Analysing conditions...</div>
+
+        <div class="stat-grid-3">
+            <div class="stat-box warn" id="swellBox">
+                <div class="stat-val amber" id="nowSwell">—</div>
+                <div class="stat-lbl">Swell height<br>West Coast</div>
+            </div>
+            <div class="stat-box hi">
+                <div class="stat-val blue" id="nowWind">—</div>
+                <div class="stat-lbl">Wind now<br>km/h direction</div>
+            </div>
+            <div class="stat-box red">
+                <div class="stat-val red" id="nowTemp">—</div>
+                <div class="stat-lbl">Water temp<br>West Coast</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Conditions Checklist</div>
+            <div id="condChecklist" class="loading-msg">Checking...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Live Water Temps — West Coast</div>
+            <div id="liveTemps" class="loading-msg">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Marine Conditions — West Coast / Dassen</div>
+            <div id="marineCard" class="loading-msg">Loading...</div>
+        </div>
+
+    </div>
+
+    <!-- ══════════ FORECAST ══════════ -->
+    <div id="panelForecast" class="panel">
+
+        <div class="card">
+            <div class="card-label">7-Day Swell &amp; Wind — West Coast / Dassen</div>
+            <div id="forecastCard" class="loading-msg">Loading forecast...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Best Swim Windows This Week</div>
+            <div id="windowsCard" class="loading-msg">Analysing...</div>
+        </div>
+
+    </div>
+
+    <!-- ══════════ ROUTE ══════════ -->
+    <div id="panelRoute" class="panel">
+
+        <div class="stat-grid-3">
+            <div class="stat-box hi">
+                <div class="stat-val blue">~7km</div>
+                <div class="stat-lbl">One way<br>to island</div>
+            </div>
+            <div class="stat-box red">
+                <div class="stat-val red">13–16°C</div>
+                <div class="stat-lbl">Benguela cold<br>typical temp</div>
+            </div>
+            <div class="stat-box ok">
+                <div class="stat-val green">2–3.5h</div>
+                <div class="stat-lbl">Typical time<br>one way (skins)</div>
+            </div>
+        </div>
+
+        <div class="alert blue">
+            Dassen Island is Africa's largest seabird island and home to 60,000 penguins. The crossing is a raw West Coast Atlantic challenge — cold water, open ocean swell, and a dramatic wildlife finish. Swimmers touch the island rocks and return by boat.
+        </div>
+
+        <div class="card">
+            <div class="card-label">Route Description</div>
+            <div class="checklist-item">
+                <div class="check-num">01</div>
+                <div>
+                    <div class="check-label">Start — Yzerfontein</div>
+                    <div class="check-sub">Enter the water at Yzerfontein on the West Coast, approximately 70km north of Cape Town. Yzerfontein is a small fishing village with a sheltered harbour. Entry from the beach or slipway depending on conditions. Cold entry — Benguela upwelling keeps temps at 13–16°C year-round. Start early to complete the crossing in morning conditions before afternoon sea breeze builds.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">02</div>
+                <div>
+                    <div class="check-label">The crossing — open Atlantic</div>
+                    <div class="check-sub">~7km open ocean crossing in the Atlantic. The crossing direction is roughly southwest. The NW swell and wind from the north can provide assistance on the outbound leg. The channel is exposed to the full Atlantic fetch — conditions can build quickly. Stay close to your support vessel throughout. Navigation: Dassen Island is clearly visible from Yzerfontein in clear conditions.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">03</div>
+                <div>
+                    <div class="check-label">Arrival — Dassen Island</div>
+                    <div class="check-sub">Touch the rocks at the island — physically reaching the shoreline is required. Do NOT land on the island. Dassen Island is a strictly protected seabird sanctuary (SANCCOB-managed). Landing without permit is prohibited. Swimmers must remain in the water at the rocks. The penguin colony extends to the waterline — expect close encounters.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">04</div>
+                <div>
+                    <div class="check-label">Return — by support vessel</div>
+                    <div class="check-sub">Standard format is one-way swim with boat return. A two-way double crossing (touch and swim back) is possible but rare — requires exceptional conditions and tidal planning. Confirm your format before the swim.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Key Requirements</div>
+            <div class="checklist-item">
+                <div class="check-num">01</div>
+                <div>
+                    <div class="check-label">Swell below 1.5m — critical threshold</div>
+                    <div class="check-sub">The West Coast Atlantic is exposed to swell from NW storm systems in the South Atlantic. Swell above 1.5m at Yzerfontein makes the crossing uncomfortable and navigation difficult. Above 2.5m is a no-go. Swell tends to be lower in summer (Oct–Mar) when high pressure systems dominate.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">02</div>
+                <div>
+                    <div class="check-label">Wind below 25 km/h</div>
+                    <div class="check-sub">NW wind (the typical prevailing direction here) can assist the outbound crossing but creates heavy return conditions for the boat and makes the rock approach at Dassen dangerous. SE wind (Cape Doctor) blows offshore from the swimmer's perspective on the outbound leg — it can create confused seas in the channel. Light conditions (under 15 km/h) are ideal.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">03</div>
+                <div>
+                    <div class="check-label">Cold water tolerance — 13–16°C for 2–3.5 hours</div>
+                    <div class="check-sub">The Benguela upwelling makes the West Coast significantly colder than False Bay. Temps rarely exceed 17°C here — summer average is 14–15°C. This is a serious cold water swim. Acclimatise thoroughly before attempt. Cold shock entry protocol essential. Below 13°C, hypothermia risk for a 2.5h+ skins swim is significant.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">04</div>
+                <div>
+                    <div class="check-label">SANCCOB / permit for island approach</div>
+                    <div class="check-sub">Dassen Island is managed as a seabird sanctuary. Contact SANCCOB (Southern African Foundation for the Conservation of Coastal Birds) and the relevant maritime authority before planning your swim. Vessel approach to the island must be cleared. Do not disturb the penguin colony.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">05</div>
+                <div>
+                    <div class="check-label">Support vessel with Atlantic ocean experience</div>
+                    <div class="check-sub">Open ocean, 7km from shore, exposed Atlantic — a motorised support vessel is non-negotiable. Your skipper must be comfortable in West Coast conditions and understand Benguela current patterns. A kayak escort in addition to the motorised vessel is strongly recommended. File a float plan before departure.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Wildlife — 60,000 Penguins and More</div>
+            <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+                Dassen Island hosts the largest African penguin colony on earth — approximately 60,000 birds. Reaching the island rocks you will be surrounded by penguins at the waterline. This is one of the most extraordinary wildlife encounters in open water swimming anywhere in the world.
+                <br><br>
+                Also expect:<br>
+                · <strong style="color:var(--text-primary);">Cape fur seals</strong> — colony on the island, curious in the water<br>
+                · <strong style="color:var(--text-primary);">Cormorants, gannets, terns</strong> — the island has massive seabird colonies<br>
+                · <strong style="color:var(--text-primary);">Great white sharks</strong> — present in the West Coast channel. Risk must be assessed and safety protocols agreed with your team. The seal colony on Dassen is a known food source for sharks in the area.<br>
+                · <strong style="color:var(--text-primary);">Dolphins</strong> — common escort companions in the channel<br>
+                · <strong style="color:var(--text-primary);">Sunfish (Mola mola)</strong> — occasionally seen in West Coast waters<br>
+            </div>
+        </div>
+
+        <div style="padding:6px 0 20px;text-align:center;">
+            <button onclick="shareConditions()" style="padding:12px 28px;border-radius:24px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.1);color:var(--ocean-light);font-size:13px;font-weight:700;cursor:pointer;">Share Conditions</button>
+            <div id="shareMsg" style="font-size:11px;color:var(--success);margin-top:8px;display:none;">Copied — paste into WhatsApp</div>
+        </div>
+    </div>
+
+    <!-- ══════════ PREDICTION ══════════ -->
+    <div id="panelPrediction" class="panel">
+
+        <div class="alert blue">
+            ~7km cold Atlantic crossing to Africa's largest penguin island. Enter your pace for a conditions-adjusted estimate.
+        </div>
+
+        <div class="card">
+            <div class="card-label">Your Swim Pace</div>
+
+            <div style="margin-bottom:14px;">
+                <div class="pred-label">1km open water time (mm:ss) — sustained effort in cold water</div>
+                <input type="text" id="inputOWPace" class="pred-input" placeholder="e.g. 22:00">
+                <div style="font-size:10px;color:var(--text-secondary);margin-top:3px;">Cold water (13–15°C) adds 1–3 min/km vs warm water pace</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+                <div>
+                    <div class="pred-label">Swell height (m)</div>
+                    <input type="number" id="inputSwell" class="pred-input" placeholder="e.g. 1.0" step="0.1" min="0" max="3">
+                </div>
+                <div>
+                    <div class="pred-label">Swim category</div>
+                    <select id="inputCategory" class="pred-input" style="background:var(--bg-card);">
+                        <option value="skins">Skins</option>
+                        <option value="wetsuit">Wetsuit</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="pred-btn" onclick="calcPrediction()">Calculate My Time &rarr;</button>
+            <div id="predResult" style="display:none;margin-top:14px;"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Cold Water Pace Adjustment</div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;">
+                Cold water (below 16°C) creates a physiological cost even for acclimatised swimmers. Expect your open water pace to be slower than in warmer conditions:
+                <br><br>
+                · 16°C: ~1 min/km slower than 20°C pace<br>
+                · 15°C: ~2 min/km slower<br>
+                · 14°C: ~2–3 min/km slower<br>
+                · 13°C: ~3–4 min/km slower (significant)<br><br>
+                The prediction uses your stated pace as-is. If your pace is from a warmer swim, manually add the cold water adjustment above.
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+
+// Between Yzerfontein and Dassen Island — open ocean
+const DAS_LAT = -33.38;
+const DAS_LON = 18.10;
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, storageKey: 'sb-szgkzuswelntnevobnoh-auth-token' }
+});
+
+let appStarted = false;
+let _wind = null;
+let _swell = null;
+let _marine7 = null;
+let _wind7 = null;
+
+function windDirLabel(deg) {
+    const d = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+    return d[Math.round(deg / 22.5) % 16];
+}
+
+function swellColor(h) {
+    if (h < 1.0) return 'var(--success)';
+    if (h < 1.5) return 'var(--warning)';
+    return 'var(--danger)';
+}
+
+function timeAgo(iso) {
+    const d = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (d < 60) return `${d}m ago`;
+    return `${Math.floor(d / 60)}h ago`;
+}
+
+function showTab(name, btn) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('panel' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+    btn.classList.add('active');
+}
+
+// ─── DATA LOADS ───────────────────────────────────────────────────────────────
+
+async function loadMarine() {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const end = new Date(); end.setDate(end.getDate() + 7);
+        const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${DAS_LAT}&longitude=${DAS_LON}&current=wave_height,wave_period,wave_direction&hourly=wave_height&daily=wave_height_max&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${end.toISOString().split('T')[0]}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        const data = await res.json();
+        _swell = data.current?.wave_height ?? null;
+        _marine7 = data;
+        return data;
+    } catch (e) { return null; }
+}
+
+async function loadWind7() {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const end = new Date(); end.setDate(end.getDate() + 7);
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${DAS_LAT}&longitude=${DAS_LON}&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m&daily=wind_speed_10m_max,wind_direction_10m_dominant&wind_speed_unit=kmh&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${end.toISOString().split('T')[0]}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        const data = await res.json();
+        _wind = { spd: data.current?.wind_speed_10m ?? 0, dir: data.current?.wind_direction_10m ?? 0, gust: data.current?.wind_gusts_10m ?? 0 };
+        _wind7 = data;
+        return data;
+    } catch (e) { return null; }
+}
+
+// ─── GO SIGNAL ────────────────────────────────────────────────────────────────
+
+function buildGoSignal() {
+    const el = document.getElementById('goSignal');
+    if (!el) return;
+
+    const swell = _swell ?? 0;
+    const windSpd = _wind?.spd ?? 0;
+    const windDir = _wind?.dir ?? 0;
+
+    let cls = 'go', title = 'Conditions Good', sub = '';
+
+    if (swell > 2.5 || windSpd > 40) {
+        cls = 'wait'; title = 'Hold Off';
+        sub = swell > 2.5 ? `Swell ${swell.toFixed(1)}m — too large for a safe 7km crossing.` : `Wind ${Math.round(windSpd)} km/h — too strong for an open ocean crossing.`;
+        sub += ' Wait for calmer Atlantic conditions.';
+    } else if (swell > 1.5 || windSpd > 25) {
+        cls = 'caution'; title = 'Use Caution';
+        const notes = [];
+        if (swell > 1.5) notes.push(`Swell ${swell.toFixed(1)}m — significant for 7km open crossing`);
+        if (windSpd > 25) notes.push(`Wind ${Math.round(windSpd)} km/h ${windDirLabel(windDir)}`);
+        sub = notes.join(' · ') + '. Experienced swimmers with strong support vessel only. Early morning recommended.';
+    } else {
+        sub = `Swell ${swell.toFixed(1)}m · Wind ${Math.round(windSpd)} km/h ${windDirLabel(windDir)} — West Coast conditions manageable. Confirm with skipper. Start early before afternoon sea breeze.`;
+    }
+
+    const swellEl = document.getElementById('nowSwell');
+    const windEl  = document.getElementById('nowWind');
+    if (swellEl) { swellEl.textContent = swell > 0 ? `${swell.toFixed(1)}m` : '—'; swellEl.style.color = swellColor(swell); }
+    if (windEl)  windEl.textContent = `${Math.round(windSpd)} ${windDirLabel(windDir)}`;
+    const swellBox = document.getElementById('swellBox');
+    if (swellBox) { swellBox.style.background = swell < 1.0 ? 'rgba(34,197,94,0.08)' : swell < 1.5 ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)'; swellBox.style.borderColor = swell < 1.0 ? 'rgba(34,197,94,0.25)' : swell < 1.5 ? 'rgba(245,158,11,0.25)' : 'rgba(239,68,68,0.25)'; }
+
+    el.outerHTML = `<div class="signal-card ${cls}">
+        <div class="signal-label">Dassen Island Crossing</div>
+        <div class="signal-title">${title}</div>
+        <div class="signal-sub">${sub}</div>
+    </div>`;
+}
+
+// ─── CHECKLIST ────────────────────────────────────────────────────────────────
+
+function renderChecklist() {
+    const el = document.getElementById('condChecklist');
+    if (!el) return;
+
+    const swell = _swell ?? 0;
+    const windSpd = _wind?.spd ?? 0;
+    const windDir = _wind?.dir ?? 0;
+
+    const item = (ok, label, detail) => {
+        const icon = ok === true ? '✓' : ok === false ? '✗' : '~';
+        const col  = ok === true ? 'var(--success)' : ok === false ? 'var(--danger)' : 'var(--warning)';
+        return `<div class="checklist-item">
+            <div style="font-size:16px;font-weight:800;color:${col};flex-shrink:0;margin-top:1px;">${icon}</div>
+            <div><div class="check-label">${label}</div><div class="check-sub">${detail}</div></div>
+        </div>`;
+    };
+
+    const swellOk = swell < 1.0 ? true : swell < 1.5 ? null : false;
+    const windOk  = windSpd < 20 ? true : windSpd < 30 ? null : false;
+
+    el.innerHTML =
+        item(swellOk, 'Atlantic swell', swell > 0 ? `${swell.toFixed(1)}m — ${swell < 1.0 ? 'flat, ideal' : swell < 1.5 ? 'moderate, manageable' : 'too large for 7km crossing'}` : 'Check marine forecast') +
+        item(windOk,  'Wind speed', `${Math.round(windSpd)} km/h ${windDirLabel(windDir)} — ${windSpd < 20 ? 'light, ideal' : windSpd < 30 ? 'building, proceed with caution' : 'too strong'}`) +
+        item(null,    'Water temp', 'West Coast typically 13–16°C. Check live community temps above.') +
+        item(null,    'Shark risk protocol', 'Discuss shark deterrent measures with your support team. Seal colony at Dassen = shark presence.') +
+        item(null,    'Island approach permit', 'SANCCOB / maritime authority clearance required for vessel approach to Dassen Island.') +
+        item(null,    'Support vessel', 'Open ocean 7km from shore — motorised support vessel non-negotiable.');
+}
+
+// ─── MARINE CARD ──────────────────────────────────────────────────────────────
+
+function renderMarineCard() {
+    const el = document.getElementById('marineCard');
+    if (!el) return;
+
+    const swell = _swell ?? 0;
+    const period = _marine7?.current?.wave_period ?? null;
+    const waveDir = _marine7?.current?.wave_direction ?? null;
+    const gust = _wind?.gust ?? 0;
+
+    el.innerHTML = `
+        <div class="stat-grid-3" style="margin-bottom:12px;">
+            <div class="stat-box" style="background:${swell < 1.0 ? 'rgba(34,197,94,0.08)' : swell < 1.5 ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)'};border-color:${swell < 1.0 ? 'rgba(34,197,94,0.25)' : swell < 1.5 ? 'rgba(245,158,11,0.25)' : 'rgba(239,68,68,0.25)'};">
+                <div class="stat-val" style="color:${swellColor(swell)};">${swell > 0 ? swell.toFixed(1) + 'm' : '—'}</div>
+                <div class="stat-lbl">Swell height<br>current</div>
+            </div>
+            <div class="stat-box hi">
+                <div class="stat-val blue">${period ? period.toFixed(0) + 's' : '—'}</div>
+                <div class="stat-lbl">Wave period<br>current</div>
+            </div>
+            <div class="stat-box warn">
+                <div class="stat-val amber">${gust > 0 ? Math.round(gust) + 'km/h' : '—'}</div>
+                <div class="stat-lbl">Wind gust<br>current</div>
+            </div>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">
+            <strong style="color:var(--text-primary);">West Coast swell character:</strong> NW ground swell from South Atlantic storms. Wave periods of 14–18s are long ground swell — powerful, regular, manageable. Shorter periods (under 10s) are local wind chop — more confused and tiring.
+            <br><br>
+            <strong style="color:var(--text-primary);">Early start advantage:</strong> West Coast winds are typically lightest before 10am. The SE sea breeze and NW afternoon wind can both build quickly after mid-morning. Plan to start by 07:00 to reach the island before conditions deteriorate.
+        </div>
+        <div style="font-size:10px;color:var(--text-secondary);margin-top:8px;">Source: Open-Meteo Marine API · West Coast / Dassen channel</div>`;
+}
+
+// ─── LIVE TEMPS ───────────────────────────────────────────────────────────────
+
+async function loadLiveTemps() {
+    const el = document.getElementById('liveTemps');
+    const tempEl = document.getElementById('nowTemp');
+
+    const { data: spots } = await sb.from('spots').select('id, name').eq('domain', 'WEST_COAST').neq('active', false);
+    if (!spots?.length) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No West Coast spots found.</div>'; return null; }
+
+    const since72h = new Date(Date.now() - 72 * 3600 * 1000).toISOString();
+    const { data: logs } = await sb.from('temp_logs')
+        .select('spot_id, temp_c, created_at, spots!temp_logs_spot_id_fkey(name)')
+        .in('spot_id', spots.map(s => s.id))
+        .gte('created_at', since72h)
+        .order('created_at', { ascending: false })
+        .limit(80);
+
+    if (!logs?.length) {
+        el.innerHTML = '<div class="alert blue">No recent logs. Benguela upwelling keeps West Coast at 13–16°C year-round. Significantly colder than False Bay.</div>';
+        if (tempEl) tempEl.textContent = '~15°C';
+        return null;
+    }
+
+    const latest = {};
+    logs.forEach(l => { if (!latest[l.spot_id]) latest[l.spot_id] = l; });
+    const readings = Object.values(latest);
+    const temps = readings.map(r => parseFloat(r.temp_c)).filter(Boolean);
+    const avg = temps.reduce((a, b) => a + b, 0) / temps.length;
+    if (tempEl) tempEl.textContent = `${avg.toFixed(1)}°C`;
+
+    el.innerHTML = `
+        <div class="stat-grid" style="margin-bottom:12px;">
+            <div class="stat-box red">
+                <div class="stat-val red">${avg.toFixed(1)}°C</div>
+                <div class="stat-lbl">Avg West Coast<br>${logs.length} log${logs.length !== 1 ? 's' : ''} · 72h</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-val blue">${Math.max(...temps)}°C</div>
+                <div class="stat-lbl">Warmest reading<br>recent</div>
+            </div>
+        </div>
+        ${readings.slice(0, 5).map(r => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+                <div>
+                    <div style="font-size:13px;font-weight:500;">${r.spots?.name || 'Unknown'}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);">${timeAgo(r.created_at)}</div>
+                </div>
+                <div style="font-size:16px;font-weight:700;color:${r.temp_c >= 16 ? 'var(--warning)' : r.temp_c >= 13 ? 'var(--ocean-light)' : 'var(--danger)'};">${r.temp_c}°C</div>
+            </div>`).join('')}
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:8px;line-height:1.55;">
+            Benguela upwelling: cold, nutrient-rich water from depth. This is what makes the West Coast one of the most productive fishing grounds on earth — and one of the coldest swim environments.
+        </div>`;
+    return { avg, readings };
+}
+
+// ─── 7-DAY FORECAST ───────────────────────────────────────────────────────────
+
+function render7DayForecast() {
+    const el = document.getElementById('forecastCard');
+    if (!el) return;
+
+    const dailySwell = _marine7?.daily;
+    const dailyWind  = _wind7?.daily;
+    if (!dailySwell || !dailyWind) { el.innerHTML = '<div class="alert amber">Forecast data unavailable.</div>'; return; }
+
+    const dates = dailySwell.time || [];
+    const rows = dates.map((date, i) => {
+        const swellMax = dailySwell.wave_height_max?.[i] ?? 0;
+        const windMax  = dailyWind.wind_speed_10m_max?.[i] ?? 0;
+        const windDir  = dailyWind.wind_direction_10m_dominant?.[i] ?? 0;
+        const swellOk  = swellMax < 1.5;
+        const windOk   = windMax < 25;
+        const signal   = swellOk && windOk ? 'go' : (!swellOk || windMax > 35) ? 'wait' : 'caution';
+        const sigCol   = signal === 'go' ? 'var(--success)' : signal === 'wait' ? 'var(--danger)' : 'var(--warning)';
+        const sigTxt   = signal === 'go' ? 'Good' : signal === 'wait' ? 'Wait' : 'Caution';
+        const d = new Date(date);
+        const dayStr = i === 0 ? 'Today' : d.toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
+        const barW = Math.min(100, (swellMax / 3) * 100);
+        const barCol = swellMax < 1.0 ? '#22c55e' : swellMax < 1.5 ? '#f59e0b' : '#ef4444';
+
+        return `<div class="day-row" style="${i === 0 ? 'background:rgba(14,165,233,0.05);margin:0 -4px;padding:9px 4px;border-radius:8px;' : ''}">
+            <div style="width:80px;font-size:12px;font-weight:${i === 0 ? 700 : 400};color:${i === 0 ? 'var(--ocean-light)' : 'var(--text-primary)'};">${dayStr}</div>
+            <div style="flex:1;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                    <span style="font-size:12px;font-weight:600;color:${swellColor(swellMax)};">Swell ${swellMax.toFixed(1)}m</span>
+                    <span style="font-size:11px;color:var(--text-secondary);">Wind ${Math.round(windMax)} ${windDirLabel(windDir)}</span>
+                </div>
+                <div class="swell-bar-bg"><div class="swell-bar-fill" style="width:${barW}%;background:${barCol};"></div></div>
+            </div>
+            <div style="font-size:11px;font-weight:700;color:${sigCol};text-align:right;width:52px;">${sigTxt}</div>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = rows + `<div style="font-size:10px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo Marine & Atmospheric APIs · West Coast / Dassen channel</div>`;
+}
+
+// ─── BEST WINDOWS ─────────────────────────────────────────────────────────────
+
+function renderWindows() {
+    const el = document.getElementById('windowsCard');
+    if (!el) return;
+
+    const dailySwell = _marine7?.daily;
+    const dailyWind  = _wind7?.daily;
+    if (!dailySwell || !dailyWind) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Forecast unavailable.</div>'; return; }
+
+    const dates = dailySwell.time || [];
+    const good = [];
+    dates.forEach((date, i) => {
+        const swell = dailySwell.wave_height_max?.[i] ?? 0;
+        const wind  = dailyWind.wind_speed_10m_max?.[i] ?? 0;
+        const dir   = dailyWind.wind_direction_10m_dominant?.[i] ?? 0;
+        if (swell <= 1.5 && wind <= 25) good.push({ date, swell, wind, dir });
+    });
+
+    if (!good.length) {
+        el.innerHTML = '<div class="alert amber">No clean Dassen windows in the 7-day forecast. West Coast conditions unsettled — check back daily for updated outlook.</div>';
+        return;
+    }
+
+    el.innerHTML = `
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Days with swell ≤1.5m and wind ≤25 km/h — start early morning (05:00–08:00) to beat afternoon sea breeze:</div>
+        ${good.map((w, i) => {
+            const d = new Date(w.date);
+            const isToday = new Date().toDateString() === d.toDateString();
+            const dayStr = isToday ? 'Today' : d.toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' });
+            return `<div style="background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:14px;margin-bottom:10px;">
+                <div style="font-size:10px;font-weight:800;color:var(--success);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:3px;">${isToday ? 'Go today — start early' : 'Good window'}</div>
+                <div style="font-size:18px;font-weight:800;margin-bottom:4px;">${dayStr}</div>
+                <div style="font-size:12px;color:var(--text-secondary);">Swell ${w.swell.toFixed(1)}m · Wind ${Math.round(w.wind)} km/h ${windDirLabel(w.dir)}</div>
+            </div>`;
+        }).join('')}`;
+}
+
+// ─── PREDICTION ───────────────────────────────────────────────────────────────
+
+function calcPrediction() {
+    const paceStr = document.getElementById('inputOWPace').value.trim();
+    const swellStr = document.getElementById('inputSwell').value;
+    const category = document.getElementById('inputCategory').value;
+
+    const parts = paceStr.split(':');
+    if (parts.length < 2) { alert('Enter pace as mm:ss'); return; }
+    const paceSec = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    if (!paceSec || paceSec < 600 || paceSec > 2400) { alert('Enter a valid pace'); return; }
+
+    let baseKmh = 3600 / paceSec;
+    if (category === 'wetsuit') baseKmh += 0.3;
+
+    const swell = parseFloat(swellStr) || (_swell ?? 1.0);
+    let swellPenalty = 0;
+    if (swell >= 1.5) swellPenalty = 0.4;
+    else if (swell >= 1.0) swellPenalty = 0.2;
+
+    const windSpd = _wind?.spd ?? 0;
+    let windPenalty = 0;
+    if (windSpd > 30) windPenalty = 0.3;
+    else if (windSpd > 20) windPenalty = 0.15;
+
+    const effectiveKmh = Math.max(1.0, baseKmh - swellPenalty - windPenalty);
+    const distKm = 7.0;
+    const totalSec = Math.round(distKm * 1000 / effectiveKmh);
+    const coldBuffer = 5 * 60;
+    const adjusted = totalSec + coldBuffer;
+
+    const h = Math.floor(adjusted / 3600), m = Math.floor((adjusted % 3600) / 60);
+
+    const el = document.getElementById('predResult');
+    el.style.display = 'block';
+    el.innerHTML = `<div style="background:rgba(14,165,233,0.08);border:1px solid rgba(14,165,233,0.25);border-radius:12px;padding:16px;">
+        <div style="font-size:11px;font-weight:700;color:var(--ocean-light);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Estimated Time — Dassen Island ~7km</div>
+        <div style="font-size:36px;font-weight:800;letter-spacing:-1px;">${h}:${String(m).padStart(2,'0')}</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:8px;line-height:1.7;">
+            Base pace: ${Math.floor(paceSec/60)}:${String(paceSec%60).padStart(2,'0')}/km${category === 'wetsuit' ? ' · Wetsuit +0.3 km/h' : ''}<br>
+            Swell ${swell.toFixed(1)}m penalty: ${swellPenalty > 0 ? '−' + swellPenalty.toFixed(1) + ' km/h' : 'none'}<br>
+            Wind penalty: ${windPenalty > 0 ? '−' + windPenalty.toFixed(2) + ' km/h' : 'none'}<br>
+            Cold entry buffer: +5 min<br>
+            Effective pace: ${(effectiveKmh).toFixed(2)} km/h
+        </div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;border-top:1px solid var(--border);padding-top:10px;">
+            Individual variability ±25 min. Current assist or adverse can change total by 10–20 min. Confirm conditions with support skipper before departure.
+        </div>
+    </div>`;
+}
+
+// ─── SHARE ────────────────────────────────────────────────────────────────────
+
+function shareConditions() {
+    const swell = _swell ?? 0;
+    const windSpd = Math.round(_wind?.spd ?? 0);
+    const windDir = windDirLabel(_wind?.dir ?? 0);
+    const text = `Dassen Island Crossing Conditions — SwimLoading\nSwell: ${swell.toFixed(1)}m\nWind: ${windSpd} km/h ${windDir}\nCheck full intel: swimloading.com/dassen`;
+    navigator.clipboard.writeText(text).then(() => {
+        const msg = document.getElementById('shareMsg');
+        if (msg) { msg.style.display = 'block'; setTimeout(() => msg.style.display = 'none', 3000); }
+    });
+}
+
+// ─── MAIN FLOW ────────────────────────────────────────────────────────────────
+
+async function startApp(session) {
+    if (appStarted) return;
+    appStarted = true;
+
+    const namePart = session.user.email.split('@')[0].split('.')[0];
+    document.getElementById('userPill').textContent = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+    document.getElementById('initScreen').style.display = 'none';
+    document.getElementById('appContent').style.display = 'block';
+
+    await Promise.all([loadMarine(), loadWind7(), loadLiveTemps()]);
+
+    buildGoSignal();
+    renderChecklist();
+    renderMarineCard();
+    render7DayForecast();
+    renderWindows();
+
+    const ts = new Date().toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('lastRefreshed').textContent = `Updated ${ts}`;
+}
+
+async function refreshPage() {
+    appStarted = false;
+    _wind = null; _swell = null; _marine7 = null; _wind7 = null;
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) await startApp(session);
+}
+
+async function init() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) { startApp(session); return; }
+    sb.auth.onAuthStateChange((_, sess) => { if (sess) startApp(sess); else window.location.href = '/app'; });
+    setTimeout(() => { if (!appStarted) window.location.href = '/app'; }, 2000);
+}
+
+init();
+</script>
+</body>
+</html>

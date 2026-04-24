@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Big 5 Open Water Intel — SwimLoading</title>
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-dark: #0a1628;
+            --bg-card: #111c30;
+            --ocean: #0ea5e9;
+            --ocean-light: #38bdf8;
+            --text-primary: #f0f9ff;
+            --text-secondary: #94a3b8;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --border: rgba(255,255,255,0.08);
+            --gold: #f59e0b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            padding: 0 0 60px;
+        }
+        .header {
+            background: linear-gradient(135deg, #0a1628 0%, #0c1e3d 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 18px 20px 14px;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .header-row { display: flex; align-items: center; justify-content: space-between; }
+        .header-title { font-size: 21px; font-weight: 800; color: var(--ocean-light); letter-spacing: -0.5px; }
+        .header-sub { font-size: 11px; color: var(--text-secondary); margin-top: 3px; }
+        .pro-badge {
+            font-size: 10px; font-weight: 800; letter-spacing: 0.08em;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: #0a1628; border-radius: 20px; padding: 3px 10px;
+            text-transform: uppercase; flex-shrink: 0;
+        }
+        .user-pill {
+            font-size: 11px; color: var(--ocean-light);
+            background: rgba(14,165,233,0.12);
+            border: 1px solid rgba(14,165,233,0.25);
+            border-radius: 20px; padding: 3px 10px;
+        }
+        .container { padding: 14px; max-width: 600px; margin: 0 auto; }
+
+        /* Swim cards */
+        .swim-card {
+            background: var(--bg-card);
+            border-radius: 18px; padding: 18px 18px 14px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+            text-decoration: none; color: inherit;
+            display: block;
+            position: relative;
+        }
+        .swim-card:hover { border-color: rgba(14,165,233,0.35); }
+        .swim-card.coming-soon { opacity: 0.65; }
+
+        .swim-card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+        .swim-num {
+            font-size: 10px; font-weight: 800; letter-spacing: 0.12em;
+            color: var(--text-secondary); text-transform: uppercase; margin-bottom: 3px;
+        }
+        .swim-name { font-size: 19px; font-weight: 800; letter-spacing: -0.4px; }
+        .swim-route { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+        .signal-badge {
+            font-size: 10px; font-weight: 800; letter-spacing: 0.06em;
+            border-radius: 20px; padding: 4px 11px; text-transform: uppercase;
+            border: 1px solid; flex-shrink: 0; margin-left: 10px; margin-top: 3px;
+            white-space: nowrap;
+        }
+        .signal-badge.go    { background: rgba(34,197,94,0.1);  color: var(--success); border-color: rgba(34,197,94,0.3); }
+        .signal-badge.caution { background: rgba(245,158,11,0.1); color: var(--warning); border-color: rgba(245,158,11,0.3); }
+        .signal-badge.wait  { background: rgba(239,68,68,0.1);  color: var(--danger);  border-color: rgba(239,68,68,0.3); }
+        .signal-badge.loading { background: rgba(148,163,184,0.07); color: var(--text-secondary); border-color: var(--border); }
+        .signal-badge.soon  { background: rgba(245,158,11,0.07); color: var(--gold); border-color: rgba(245,158,11,0.2); }
+
+        .swim-meta { display: flex; gap: 20px; margin-bottom: 10px; }
+        .meta-col { }
+        .meta-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); margin-bottom: 1px; }
+        .meta-val { font-size: 13px; font-weight: 700; }
+
+        .swim-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 11px; }
+
+        .key-factor {
+            font-size: 11px; font-weight: 600;
+            background: rgba(14,165,233,0.07);
+            border: 1px solid rgba(14,165,233,0.15);
+            border-radius: 8px; padding: 7px 10px;
+            color: var(--ocean-light);
+            margin-bottom: 12px;
+        }
+
+        .cond-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 11px; }
+        .cond-chip {
+            font-size: 11px; padding: 3px 9px; border-radius: 20px;
+            background: rgba(15,23,42,0.7); border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .swim-cta {
+            display: flex; align-items: center; justify-content: space-between;
+            padding-top: 10px; border-top: 1px solid var(--border);
+            font-size: 13px; font-weight: 700; color: var(--ocean-light);
+        }
+
+        /* Section labels */
+        .section-label {
+            font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+            text-transform: uppercase; color: var(--text-secondary);
+            margin: 20px 0 10px; display: flex; align-items: center; gap: 10px;
+        }
+        .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+        /* Triple Crown */
+        .crown-card {
+            background: linear-gradient(135deg, rgba(245,158,11,0.07), rgba(180,30,30,0.04));
+            border: 1px solid rgba(245,158,11,0.25);
+            border-radius: 18px; padding: 20px;
+        }
+        .crown-title { font-size: 22px; font-weight: 800; color: var(--gold); letter-spacing: -0.5px; margin-bottom: 6px; }
+        .crown-sub { font-size: 12px; color: var(--text-secondary); line-height: 1.65; }
+        .crown-swims { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+        .crown-swim {
+            font-size: 11px; font-weight: 700; color: var(--gold);
+            background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25);
+            border-radius: 20px; padding: 4px 12px;
+        }
+
+        /* Back link */
+        .back-link { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); text-decoration: none; padding: 8px 0 14px; }
+        .back-link:hover { color: var(--ocean-light); }
+
+        #initScreen { text-align: center; padding: 80px 20px; color: var(--text-secondary); }
+        #appContent { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-row">
+        <div>
+            <div class="header-title">Big 5 Open Water</div>
+            <div class="header-sub">South Africa's defining marathon swims</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <div class="pro-badge">Pro</div>
+            <div id="userPill" class="user-pill"></div>
+        </div>
+    </div>
+    <div id="lastUpdated" style="font-size:10px;color:var(--text-secondary);margin-top:4px;"></div>
+</div>
+
+<div id="initScreen" class="container">Loading...</div>
+
+<div id="appContent" class="container">
+
+    <a href="/app" class="back-link">← SwimLoading</a>
+
+    <div id="swimCards"></div>
+
+    <div class="section-label">Triple Crown</div>
+    <div class="crown-card">
+        <div class="crown-title">Triple Crown</div>
+        <div class="crown-sub">
+            Three of the Big 5 within a defined challenge window. The ultimate test of planning, fitness, and reading conditions across multiple swim environments. Intelligence and prediction model launching soon.
+        </div>
+        <div class="crown-swims">
+            <span class="crown-swim">False Bay</span>
+            <span class="crown-swim">Robben Island Double</span>
+            <span class="crown-swim">+&nbsp;Third challenge TBA</span>
+        </div>
+        <div style="margin-top:14px;font-size:12px;color:var(--warning);font-weight:600;">Coming soon</div>
+    </div>
+
+    <div style="padding:24px 0 10px;text-align:center;">
+        <a href="/app" style="font-size:12px;color:var(--text-secondary);text-decoration:none;">Back to SwimLoading app</a>
+    </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, storageKey: 'sb-szgkzuswelntnevobnoh-auth-token' }
+});
+
+const SWIMS = [
+    {
+        id: 'false-bay', num: '01',
+        name: 'False Bay Crossing',
+        route: "Miller's Point → Strand",
+        distance: '33km', duration: '8–13h',
+        location: 'False Bay',
+        desc: "The Southern Hemisphere's Channel equivalent. Open ocean, current-assisted, crossing the full width of False Bay. A benchmark swim for international marathon swimmers.",
+        keyFactor: 'NW wind essential · Current-assisted · Thermal gradient east',
+        url: '/intel',
+        lat: -34.2269, lon: 18.4648, marineApi: true,
+        goLogic(w, s) {
+            const nw = w.dir >= 270 || w.dir <= 45;
+            const se = w.dir >= 90 && w.dir <= 200;
+            if (s > 2.5 || (se && w.spd > 25)) return 'wait';
+            if (s > 2.0 || w.spd > 40 || (!nw && w.spd > 25)) return 'caution';
+            return 'go';
+        }
+    },
+    {
+        id: 'preekstool', num: '02',
+        name: 'Double Preekstool',
+        route: 'Preekstool → Mykanos → Back',
+        distance: '24km', duration: '8–12h',
+        location: 'Langebaan Lagoon',
+        desc: 'Langebaan Lagoon out-and-back. The tidal flow through the lagoon is the dominant factor — get the tide window right and both legs assist you. Sheltered from ocean swell, warmer water.',
+        keyFactor: 'Tidal window is everything · Sheltered lagoon · Warm water 18–22°C',
+        url: '/preekstool',
+        lat: -33.13, lon: 18.02, marineApi: false,
+        goLogic(w, s) {
+            if (w.spd > 35) return 'wait';
+            if (w.spd > 25) return 'caution';
+            return 'go';
+        }
+    },
+    {
+        id: 'capepoint', num: '03',
+        name: 'Cape Point',
+        route: 'Diaz Beach → Cape Point → Millers Point',
+        distance: '8km', duration: '2.5–4h',
+        location: 'Cape Peninsula tip',
+        desc: "From the cold Atlantic around the Cape Point headland into False Bay. Starts exposed, finishes sheltered. One of the world's great cape swims — dramatic route, two different oceans.",
+        keyFactor: 'Swell at Diaz Beach critical · Cold Atlantic entry · Strong headland current',
+        url: '/capepoint',
+        lat: -34.31, lon: 18.47, marineApi: true,
+        goLogic(w, s) {
+            const se = w.dir >= 90 && w.dir <= 200;
+            if (s > 2.0 || (se && w.spd > 25) || w.spd > 35) return 'wait';
+            if (s > 1.5 || (se && w.spd > 15) || w.spd > 25) return 'caution';
+            return 'go';
+        }
+    },
+    {
+        id: 'dassen', num: '04',
+        name: 'Dassen Island',
+        route: 'Yzerfontein → Dassen Island',
+        distance: '~7km', duration: '2–3.5h',
+        location: 'West Coast Atlantic',
+        desc: "Open Atlantic crossing to Africa's largest seabird island. Cold Benguela upwelling, NW swell exposure, and a finish at the edge of a 60,000-penguin colony. Touch and return by boat.",
+        keyFactor: 'Atlantic NW swell · Cold Benguela water · Protected seabird island',
+        url: '/dassen',
+        lat: -33.38, lon: 18.10, marineApi: true,
+        goLogic(w, s) {
+            if (s > 2.5 || w.spd > 40) return 'wait';
+            if (s > 1.5 || w.spd > 25) return 'caution';
+            return 'go';
+        }
+    },
+    {
+        id: 'westangle', num: '05',
+        name: 'West Coast Angle',
+        route: 'Route TBA',
+        distance: 'TBA', duration: 'TBA',
+        location: 'West Coast',
+        desc: 'The fifth challenge of the Big 5. Route intelligence being built — full conditions analysis and prediction model coming soon.',
+        keyFactor: 'Intelligence launching soon',
+        url: '/westangle',
+        lat: null, lon: null, marineApi: false, coming: true,
+        goLogic() { return 'soon'; }
+    }
+];
+
+let appStarted = false;
+
+function windDirLabel(deg) {
+    const d = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+    return d[Math.round(deg / 22.5) % 16];
+}
+
+function signalText(s) {
+    return { go: 'Conditions Good', caution: 'Use Caution', wait: 'Hold Off', loading: 'Checking...', soon: 'Coming Soon' }[s] || '—';
+}
+
+function renderCards(conditions) {
+    const el = document.getElementById('swimCards');
+    el.innerHTML = SWIMS.map(swim => {
+        const cond = conditions?.find(c => c.id === swim.id);
+        const signal = swim.coming ? 'soon' : (cond?.signal || 'loading');
+
+        let condRow = '';
+        if (cond && !swim.coming) {
+            const wLabel = windDirLabel(cond.wind.dir);
+            const wSpd = Math.round(cond.wind.spd);
+            condRow = `<div class="cond-row">
+                <span class="cond-chip">Wind ${wLabel} ${wSpd} km/h</span>
+                ${cond.swell != null ? `<span class="cond-chip">Swell ${cond.swell.toFixed(1)}m</span>` : ''}
+            </div>`;
+        }
+
+        return `<a href="${swim.url}" class="swim-card${swim.coming ? ' coming-soon' : ''}">
+            <div class="swim-card-top">
+                <div style="flex:1;">
+                    <div class="swim-num">${swim.num}</div>
+                    <div class="swim-name">${swim.name}</div>
+                    <div class="swim-route">${swim.route}</div>
+                </div>
+                <div class="signal-badge ${signal}">${signalText(signal)}</div>
+            </div>
+            <div class="swim-meta">
+                <div class="meta-col">
+                    <div class="meta-label">Distance</div>
+                    <div class="meta-val">${swim.distance}</div>
+                </div>
+                <div class="meta-col">
+                    <div class="meta-label">Typical time</div>
+                    <div class="meta-val">${swim.duration}</div>
+                </div>
+                <div class="meta-col">
+                    <div class="meta-label">Location</div>
+                    <div class="meta-val">${swim.location}</div>
+                </div>
+            </div>
+            <div class="swim-desc">${swim.desc}</div>
+            ${condRow}
+            <div class="key-factor">${swim.keyFactor}</div>
+            <div class="swim-cta">
+                <span>${swim.coming ? 'Details coming soon' : 'View full intel'}</span>
+                ${swim.coming ? '' : '<span>→</span>'}
+            </div>
+        </a>`;
+    }).join('');
+}
+
+async function loadConditions() {
+    const active = SWIMS.filter(s => !s.coming && s.lat != null);
+    const settled = await Promise.allSettled(active.map(async swim => {
+        const wUrl = `https://api.open-meteo.com/v1/forecast?latitude=${swim.lat}&longitude=${swim.lon}&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh&timezone=Africa%2FJohannesburg`;
+        const wr = await fetch(wUrl, { cache: 'no-store' });
+        const wd = await wr.json();
+        const wind = { spd: wd.current?.wind_speed_10m ?? 0, dir: wd.current?.wind_direction_10m ?? 0 };
+
+        let swell = null;
+        if (swim.marineApi) {
+            try {
+                const mUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${swim.lat}&longitude=${swim.lon}&current=wave_height&timezone=Africa%2FJohannesburg`;
+                const mr = await fetch(mUrl, { cache: 'no-store' });
+                const md = await mr.json();
+                swell = md.current?.wave_height ?? null;
+            } catch (_) {}
+        }
+
+        return { id: swim.id, signal: swim.goLogic(wind, swell ?? 0), wind, swell };
+    }));
+    return settled.filter(r => r.status === 'fulfilled').map(r => r.value);
+}
+
+async function startApp(session) {
+    if (appStarted) return;
+    appStarted = true;
+
+    const namePart = session.user.email.split('@')[0].split('.')[0];
+    document.getElementById('userPill').textContent = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+    document.getElementById('initScreen').style.display = 'none';
+    document.getElementById('appContent').style.display = 'block';
+
+    renderCards(null);
+    const conditions = await loadConditions();
+    renderCards(conditions);
+
+    const ts = new Date().toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('lastUpdated').textContent = `Conditions updated ${ts}`;
+}
+
+async function init() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) { startApp(session); return; }
+    sb.auth.onAuthStateChange((_, sess) => { if (sess) startApp(sess); else window.location.href = '/app'; });
+    setTimeout(() => { if (!appStarted) window.location.href = '/app'; }, 2000);
+}
+
+init();
+</script>
+</body>
+</html>

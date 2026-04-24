@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Double Preekstool Intel — SwimLoading</title>
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+        :root {
+            --bg-dark: #0a1628;
+            --bg-card: #111c30;
+            --ocean: #0ea5e9;
+            --ocean-light: #38bdf8;
+            --text-primary: #f0f9ff;
+            --text-secondary: #94a3b8;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --border: rgba(255,255,255,0.08);
+            --teal: #14b8a6;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            min-height: 100vh; padding: 0 0 60px;
+        }
+        .header {
+            background: linear-gradient(135deg, #0a1628 0%, #0c1f3d 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 16px;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 600px; margin: 0 auto; }
+        .header-left { display: flex; align-items: center; gap: 10px; }
+        .back-btn {
+            font-size: 13px; color: var(--text-secondary); background: none; border: none;
+            cursor: pointer; padding: 4px; text-decoration: none;
+        }
+        .back-btn:hover { color: var(--ocean-light); }
+        .header-title { font-size: 17px; font-weight: 800; color: var(--ocean-light); letter-spacing: -0.3px; }
+        .header-sub { font-size: 10px; color: var(--text-secondary); margin-top: 1px; }
+        .pro-badge {
+            font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: #0a1628; border-radius: 20px; padding: 3px 9px;
+            text-transform: uppercase; flex-shrink: 0;
+        }
+        .user-pill {
+            font-size: 11px; color: var(--ocean-light);
+            background: rgba(14,165,233,0.12); border: 1px solid rgba(14,165,233,0.25);
+            border-radius: 20px; padding: 3px 10px;
+        }
+        .container { padding: 14px; max-width: 600px; margin: 0 auto; }
+        .card {
+            background: var(--bg-card); border-radius: 16px; padding: 18px;
+            margin-bottom: 14px; border: 1px solid var(--border);
+        }
+        .card-label {
+            font-size: 10px; font-weight: 700; letter-spacing: 1px;
+            text-transform: uppercase; color: var(--text-secondary); margin-bottom: 12px;
+        }
+        .tab-bar {
+            display: flex; background: rgba(15,23,42,0.8);
+            border-radius: 10px; padding: 3px; margin-bottom: 16px; gap: 2px;
+        }
+        .tab-btn {
+            flex: 1; background: transparent; border: none;
+            color: var(--text-secondary); font-size: 12px; font-weight: 600;
+            padding: 8px 2px; border-radius: 8px; cursor: pointer;
+        }
+        .tab-btn.active { background: var(--ocean); color: white; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+
+        .signal-card { border-radius: 16px; padding: 20px; margin-bottom: 14px; border: 1px solid; }
+        .signal-card.go     { background: rgba(34,197,94,0.08);  border-color: rgba(34,197,94,0.3); }
+        .signal-card.caution{ background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.3); }
+        .signal-card.wait   { background: rgba(239,68,68,0.08);  border-color: rgba(239,68,68,0.3); }
+        .signal-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+        .signal-card.go .signal-label     { color: var(--success); }
+        .signal-card.caution .signal-label{ color: var(--warning); }
+        .signal-card.wait .signal-label   { color: var(--danger); }
+        .signal-title { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
+        .signal-sub { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+
+        .stat-grid   { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        .stat-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        .stat-box {
+            background: rgba(15,23,42,0.6); border-radius: 12px;
+            padding: 14px 10px; text-align: center; border: 1px solid var(--border);
+        }
+        .stat-box.hi   { background: rgba(14,165,233,0.08);  border-color: rgba(14,165,233,0.25); }
+        .stat-box.ok   { background: rgba(34,197,94,0.08);   border-color: rgba(34,197,94,0.25); }
+        .stat-box.warn { background: rgba(245,158,11,0.08);  border-color: rgba(245,158,11,0.25); }
+        .stat-box.teal { background: rgba(20,184,166,0.08);  border-color: rgba(20,184,166,0.25); }
+        .stat-val { font-size: 24px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+        .stat-val.blue  { color: var(--ocean-light); }
+        .stat-val.green { color: var(--success); }
+        .stat-val.amber { color: var(--warning); }
+        .stat-val.teal  { color: var(--teal); }
+        .stat-lbl { font-size: 11px; color: var(--text-secondary); line-height: 1.3; }
+
+        .checklist-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .checklist-item:last-child { border-bottom: none; }
+        .check-num { font-size: 14px; font-weight: 800; color: var(--ocean-light); flex-shrink: 0; margin-top: 1px; width: 22px; }
+        .check-label { font-size: 13px; font-weight: 600; }
+        .check-sub { font-size: 12px; color: var(--text-secondary); margin-top: 3px; line-height: 1.55; }
+
+        .tide-row {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 0; border-bottom: 1px solid var(--border);
+        }
+        .tide-row:last-child { border-bottom: none; }
+        .tide-type-icon { font-size: 14px; width: 20px; text-align: center; flex-shrink: 0; }
+        .tide-time { font-size: 13px; font-weight: 700; flex: 1; }
+        .tide-height { font-size: 14px; font-weight: 800; color: var(--ocean-light); }
+        .tide-label { font-size: 10px; color: var(--text-secondary); text-align: right; }
+
+        /* Tide window optimizer */
+        .window-option {
+            background: rgba(15,23,42,0.5); border-radius: 12px;
+            padding: 14px; margin-bottom: 10px; border: 1px solid var(--border);
+        }
+        .window-option.best { background: rgba(34,197,94,0.07); border-color: rgba(34,197,94,0.3); }
+        .window-option.good { background: rgba(14,165,233,0.07); border-color: rgba(14,165,233,0.2); }
+        .window-score { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+        .window-option.best .window-score { color: var(--success); }
+        .window-option.good .window-score { color: var(--ocean-light); }
+        .window-time { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+        .window-detail { font-size: 12px; color: var(--text-secondary); line-height: 1.55; }
+
+        /* Prediction */
+        .pred-input {
+            width: 100%; padding: 10px 12px; border-radius: 8px;
+            border: 1px solid rgba(14,165,233,0.3);
+            background: rgba(14,165,233,0.06); color: var(--text-primary);
+            font-size: 14px; margin-bottom: 4px;
+        }
+        .pred-input:focus { outline: none; border-color: rgba(14,165,233,0.6); }
+        .pred-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 6px; }
+        .pred-btn {
+            width: 100%; padding: 12px; border-radius: 8px; border: none;
+            background: var(--ocean); color: white; font-size: 14px; font-weight: 700;
+            cursor: pointer; margin-top: 4px;
+        }
+        .pred-result {
+            background: rgba(14,165,233,0.08); border: 1px solid rgba(14,165,233,0.25);
+            border-radius: 12px; padding: 16px; margin-top: 14px;
+        }
+        .pred-time { font-size: 36px; font-weight: 800; letter-spacing: -1px; color: var(--text-primary); }
+        .pred-sub { font-size: 12px; color: var(--text-secondary); margin-top: 4px; line-height: 1.6; }
+
+        .chart-wrap { position: relative; height: 180px; margin-bottom: 12px; }
+        .alert { border-radius: 12px; padding: 13px 15px; margin-bottom: 12px; font-size: 13px; line-height: 1.5; }
+        .alert.blue  { background: rgba(14,165,233,0.08);  border: 1px solid rgba(14,165,233,0.2);  color: var(--ocean-light); }
+        .alert.teal  { background: rgba(20,184,166,0.08);  border: 1px solid rgba(20,184,166,0.2);  color: var(--teal); }
+        .alert.amber { background: rgba(245,158,11,0.08);  border: 1px solid rgba(245,158,11,0.2);  color: var(--warning); }
+        .loading-msg { text-align: center; color: var(--text-secondary); padding: 24px; font-size: 13px; }
+        #initScreen { text-align: center; padding: 80px 20px; color: var(--text-secondary); }
+        #appContent { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-inner">
+        <div class="header-left">
+            <a href="/big5" class="back-btn">← Big 5</a>
+            <div>
+                <div class="header-title">Double Preekstool</div>
+                <div class="header-sub">Langebaan Lagoon · 24km · Tide-intelligence</div>
+            </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+            <button id="refreshBtn" onclick="refreshPage()" title="Refresh" style="background:rgba(14,165,233,0.10);border:1px solid rgba(14,165,233,0.25);color:var(--ocean-light);border-radius:20px;padding:3px 10px;font-size:14px;cursor:pointer;">↻</button>
+            <div class="pro-badge">Pro</div>
+            <div id="userPill" class="user-pill"></div>
+        </div>
+    </div>
+    <div style="max-width:600px;margin:0 auto;padding:0 16px;">
+        <div id="lastRefreshed" style="font-size:10px;color:var(--text-secondary);margin-top:4px;"></div>
+    </div>
+</div>
+
+<div id="initScreen" class="container">Loading...</div>
+
+<div id="appContent" class="container">
+
+    <div class="tab-bar" style="margin-top:14px;">
+        <button class="tab-btn active" onclick="showTab('now',this)">Now</button>
+        <button class="tab-btn" onclick="showTab('tides',this)">Tides</button>
+        <button class="tab-btn" onclick="showTab('route',this)">Route</button>
+        <button class="tab-btn" onclick="showTab('prediction',this)">Prediction</button>
+    </div>
+
+    <!-- ══════════ NOW ══════════ -->
+    <div id="panelNow" class="panel active">
+
+        <div id="goSignal" class="loading-msg">Analysing conditions...</div>
+
+        <div class="stat-grid-3">
+            <div class="stat-box teal">
+                <div class="stat-val teal" id="nowTemp">—</div>
+                <div class="stat-lbl">Water temp<br>Langebaan</div>
+            </div>
+            <div class="stat-box hi">
+                <div class="stat-val blue" id="nowWind">—</div>
+                <div class="stat-lbl">Wind now<br>km/h</div>
+            </div>
+            <div class="stat-box" id="nowTideBox">
+                <div class="stat-val blue" id="nowTideVal">—</div>
+                <div class="stat-lbl">Tide phase<br>Langebaan</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Live Water Temps — West Coast / Langebaan</div>
+            <div id="liveTemps" class="loading-msg">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Today's Swim Window</div>
+            <div id="todayWindow" class="loading-msg">Analysing tides...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Conditions Checklist</div>
+            <div id="condChecklist" class="loading-msg">Checking...</div>
+        </div>
+
+    </div>
+
+    <!-- ══════════ TIDES ══════════ -->
+    <div id="panelTides" class="panel">
+
+        <div class="card">
+            <div class="card-label">Current Tide — Langebaan / Saldanha Bay</div>
+            <div id="tideNow" class="loading-msg">Loading tide data...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Optimal Start Window — Today</div>
+            <div id="tideOptimal" class="loading-msg">Calculating optimal windows...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Tide Extremes — Next 3 Days</div>
+            <div id="tideFull" class="loading-msg">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">How the Lagoon Tide Works</div>
+            <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+                <strong style="color:var(--text-primary);">Langebaan Lagoon</strong> is a 17km enclosed lagoon connected to Saldanha Bay at its southern end, which in turn opens to the Atlantic. It has a semi-diurnal tide — two highs and two lows every ~24h 50min.
+                <br><br>
+                <strong style="color:var(--ocean-light);">Flood tide (rising):</strong> Water flows <em>into</em> the lagoon from the south. Current moves northward through the lagoon — assisting the outbound leg from Preekstool toward Mykanos.
+                <br><br>
+                <strong style="color:var(--ocean-light);">Ebb tide (falling):</strong> Water flows <em>out</em> of the lagoon to the south. Current moves southward — assisting the return leg from Mykanos back to Preekstool.
+                <br><br>
+                <strong style="color:var(--text-primary);">Ideal scenario:</strong> Start at low water (tide just beginning to flood). Swim north on flood for ~4–6 hours to Mykanos. Turn at or near high water. Swim south on ebb for ~4–6 hours back. Both legs assisted.
+                <br><br>
+                <strong style="color:var(--warning);">Tidal current speed:</strong> Typically 0.3–0.8 km/h in the lagoon. Stronger in the narrow channel near Langebaan town. This adds or costs 30–90 minutes over the full 24km.
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ══════════ ROUTE ══════════ -->
+    <div id="panelRoute" class="panel">
+
+        <div class="stat-grid-3">
+            <div class="stat-box hi">
+                <div class="stat-val blue">24km</div>
+                <div class="stat-lbl">Total distance<br>out-and-back</div>
+            </div>
+            <div class="stat-box teal">
+                <div class="stat-val teal">18–22°C</div>
+                <div class="stat-lbl">Typical water<br>temp (summer)</div>
+            </div>
+            <div class="stat-box ok">
+                <div class="stat-val green">8–12h</div>
+                <div class="stat-lbl">Typical swim<br>time (skins)</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Route Description</div>
+            <div class="checklist-item">
+                <div class="check-num">01</div>
+                <div>
+                    <div class="check-label">Start — Preekstool Beach</div>
+                    <div class="check-sub">Enter at Preekstool Beach on the western shore of Langebaan Lagoon. Clear water entry under observer. The lagoon narrows near Langebaan town before opening into the main body northward.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">02</div>
+                <div>
+                    <div class="check-label">Outbound — North through the lagoon</div>
+                    <div class="check-sub">Swim approximately 12km north along the lagoon toward Mykanos resort. The route follows the western shoreline. Start on flood tide — the northward current will assist. Water is sheltered from ocean swell, but NW wind can create significant chop across the lagoon's width.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">03</div>
+                <div>
+                    <div class="check-label">Turnaround — Mykanos</div>
+                    <div class="check-sub">Touch at Mykanos on the northern lagoon. Aim to reach this point within ~10 minutes of high water — tide is turning, current neutral, conditions calmest. Quick feed and turn. The ~10-minute rest rule applies if competing for record status.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">04</div>
+                <div>
+                    <div class="check-label">Return — South on the ebb</div>
+                    <div class="check-sub">Swim 12km back south to Preekstool. The ebb tide now assists — current flows southward. Second leg typically feels faster as water temp stabilises and tidal assist builds. Wind may strengthen as the day progresses (NW in the afternoon).</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">05</div>
+                <div>
+                    <div class="check-label">Finish — Preekstool Beach</div>
+                    <div class="check-sub">Clear water exit unassisted. Finish recorded from water entry to exit, land to land.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Key Requirements</div>
+            <div class="checklist-item">
+                <div class="check-num">01</div>
+                <div>
+                    <div class="check-label">Tide timing — the defining factor</div>
+                    <div class="check-sub">Start at low water on a flood tide. This is non-negotiable for an optimally assisted double. Getting the tide wrong can add 1–2 hours and make the swim brutally difficult. Check the Tides tab for today's optimal window.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">02</div>
+                <div>
+                    <div class="check-label">Wind — below 25 km/h preferred</div>
+                    <div class="check-sub">The lagoon is sheltered from ocean swell but not from wind. The NW (northwesterly) is the prevailing wind here — it blows across the lagoon and creates short steep chop. Above 25 km/h makes navigation difficult and slows progress significantly. Flat mornings with afternoon NW are common — plan your start early.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">03</div>
+                <div>
+                    <div class="check-label">Water temperature — 18°C minimum for skins</div>
+                    <div class="check-sub">Langebaan Lagoon retains heat well — summer temperatures reach 20–24°C, far warmer than the adjacent Atlantic. Minimum 18°C recommended for a 10-hour skins swim. Check live community temps on the Now tab.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">04</div>
+                <div>
+                    <div class="check-label">Support vessel</div>
+                    <div class="check-sub">Kayak escort is standard. A motorised support vessel is not required but is advisable for safety coverage over the 24km route. Boat must respect the lagoon's no-wake zones and designated conservation areas.</div>
+                </div>
+            </div>
+            <div class="checklist-item">
+                <div class="check-num">05</div>
+                <div>
+                    <div class="check-label">West Coast National Park — permits</div>
+                    <div class="check-sub">Langebaan Lagoon falls within the West Coast National Park. Check with WCNP for any swimming permits required, especially for organised events. The sanctuary zones at the northern end of the lagoon must be avoided — confirm the exact permitted route with park management before your swim.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Wildlife &amp; Environment</div>
+            <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+                Langebaan Lagoon is a globally significant wetland (RAMSAR site) — home to tens of thousands of migratory shorebirds, flamingos, and seabirds. The lagoon is also a haven for various marine species. Swimming conditions are generally safe — no significant shark risk in the enclosed lagoon. The water is crystal clear in summer, often with good underwater visibility.
+            </div>
+        </div>
+
+        <div style="padding:6px 0 20px;text-align:center;">
+            <button onclick="shareConditions()" style="padding:12px 28px;border-radius:24px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.1);color:var(--ocean-light);font-size:13px;font-weight:700;cursor:pointer;">Share Conditions</button>
+            <div id="shareMsg" style="font-size:11px;color:var(--success);margin-top:8px;display:none;">Copied — paste into WhatsApp</div>
+        </div>
+
+    </div>
+
+    <!-- ══════════ PREDICTION ══════════ -->
+    <div id="panelPrediction" class="panel">
+
+        <div class="alert blue">
+            Enter your open water pace to get a personalised Double Preekstool time estimate with tide analysis.
+        </div>
+
+        <div class="card">
+            <div class="card-label">Your Swim Pace</div>
+
+            <div style="margin-bottom:14px;">
+                <div class="pred-label">1km open water time (mm:ss) — sustained effort, not a sprint</div>
+                <input type="text" id="inputOWPace" class="pred-input" placeholder="e.g. 22:00">
+                <div style="font-size:10px;color:var(--text-secondary);margin-top:3px;">Typical range: 17:00 (fast) to 30:00 (comfortable)</div>
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <div class="pred-label">Planned start time today</div>
+                <input type="time" id="inputStartTime" class="pred-input" value="07:00">
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <div class="pred-label">Swim category</div>
+                <select id="inputCategory" class="pred-input" style="background:var(--bg-card);">
+                    <option value="skins">Skins (no wetsuit)</option>
+                    <option value="wetsuit">Wetsuit</option>
+                </select>
+            </div>
+
+            <button class="pred-btn" onclick="calcPrediction()">Calculate My Time &rarr;</button>
+            <div id="predResult" style="display:none;margin-top:14px;"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Prediction Model — How It Works</div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;">
+                <strong style="color:var(--text-primary);">Formula:</strong><br>
+                Total time = Leg 1 (12km ÷ pace ± tide assist) + Turnaround (10–15 min) + Leg 2 (12km ÷ pace ± tide assist)<br><br>
+                <strong style="color:var(--text-primary);">Tide assist calibration:</strong><br>
+                · Both legs assisted (ideal start): +0.4 km/h per leg<br>
+                · One leg assisted, one neutral: +0.2 km/h one leg<br>
+                · One leg assisted, one opposed: neutral overall<br>
+                · Both legs opposed: −0.3 km/h per leg<br><br>
+                <strong style="color:var(--text-primary);">Pace adjustments:</strong><br>
+                · Skins in warm lagoon (20°C+): no adjustment<br>
+                · Wetsuit: +0.3 km/h faster<br>
+                · NW wind 20–30 km/h: −0.2 km/h<br>
+                · NW wind 30+ km/h: −0.4 km/h<br><br>
+                Model is based on typical lagoon swimming conditions. Individual fitness, feeding, and navigation add variability of ±45 minutes.
+            </div>
+        </div>
+
+    </div>
+
+</div><!-- /appContent -->
+
+<script>
+const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+const WORLDTIDES_KEY = '7e54bed9-1290-4668-82da-aecaaa714a50';
+
+// Langebaan / Saldanha Bay coordinates
+const LAG_LAT = -33.03;
+const LAG_LON = 17.97;
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, storageKey: 'sb-szgkzuswelntnevobnoh-auth-token' }
+});
+
+let appStarted = false;
+let _windData = null;
+let _tideData = null;
+let _currentWind = null;
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+function windDirLabel(deg) {
+    const d = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+    return d[Math.round(deg / 22.5) % 16];
+}
+
+function secsToHMS(s) {
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+    return `${h}:${String(m).padStart(2, '0')}`;
+}
+
+function timeAgo(iso) {
+    const d = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (d < 60) return `${d}m ago`;
+    const h = Math.floor(d / 60);
+    return `${h}h ago`;
+}
+
+function fmtTime(dt) {
+    return new Date(dt * 1000).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+}
+
+// ─── TAB SWITCHING ────────────────────────────────────────────────────────────
+
+function showTab(name, btn) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('panel' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+    btn.classList.add('active');
+}
+
+// ─── WIND ─────────────────────────────────────────────────────────────────────
+
+async function loadWind() {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const end = new Date(); end.setDate(end.getDate() + 7);
+        const endStr = end.toISOString().split('T')[0];
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAG_LAT}&longitude=${LAG_LON}&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m&hourly=wind_speed_10m,wind_direction_10m&daily=wind_speed_10m_max,wind_direction_10m_dominant&wind_speed_unit=kmh&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${endStr}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        _windData = await res.json();
+        _currentWind = { spd: _windData.current?.wind_speed_10m ?? 0, dir: _windData.current?.wind_direction_10m ?? 0, gust: _windData.current?.wind_gusts_10m ?? 0 };
+        return _windData;
+    } catch (e) { return null; }
+}
+
+// ─── TIDES ────────────────────────────────────────────────────────────────────
+
+async function loadTides() {
+    try {
+        const url = `https://www.worldtides.info/api/v3?extremes&lat=${LAG_LAT}&lon=${LAG_LON}&days=4&datum=LAT&key=${WORLDTIDES_KEY}`;
+        const res = await fetch(url);
+        _tideData = await res.json();
+        return _tideData;
+    } catch (e) { return null; }
+}
+
+function getTideState(extremes) {
+    if (!extremes?.length) return null;
+    const now = Date.now() / 1000;
+    const sorted = [...extremes].sort((a, b) => a.dt - b.dt);
+    const prev = sorted.filter(e => e.dt <= now).pop();
+    const next = sorted.find(e => e.dt > now);
+    if (!prev || !next) return null;
+    const isFlood = next.type === 'High';
+    const pct = (now - prev.dt) / (next.dt - prev.dt);
+    return { isFlood, isEbb: !isFlood, prev, next, pct };
+}
+
+// ─── TIDE WINDOW OPTIMIZER ────────────────────────────────────────────────────
+
+function calcTideWindow(extremes) {
+    if (!extremes?.length) return null;
+    const sorted = [...extremes].sort((a, b) => a.dt - b.dt);
+    const today = new Date();
+    const todayStr = today.toDateString();
+
+    const todayExtremes = sorted.filter(e => new Date(e.dt * 1000).toDateString() === todayStr);
+    if (!todayExtremes.length) return null;
+
+    // Possible start times: every 30 min from 05:00 to 10:00
+    const windows = [];
+    for (let h = 5; h <= 10; h++) {
+        for (let m = 0; m < 60; m += 30) {
+            const startDt = new Date(today.getFullYear(), today.getMonth(), today.getDate(), h, m, 0).getTime() / 1000;
+            if (startDt < Date.now() / 1000 - 600) continue; // Skip past times
+
+            // Leg 1: start to ~5h in (at Mykanos), Leg 2: ~5h to ~10h (back)
+            const leg1End = startDt + 5 * 3600;
+            const leg2End = startDt + 10 * 3600;
+
+            // Determine tide direction for mid-leg-1 and mid-leg-2
+            const leg1Mid = startDt + 2.5 * 3600;
+            const leg2Mid = startDt + 7.5 * 3600;
+
+            const stateAt = (ts) => {
+                const prev = sorted.filter(e => e.dt <= ts).pop();
+                const next = sorted.find(e => e.dt > ts);
+                if (!prev || !next) return null;
+                return { flood: next.type === 'High', ebb: next.type === 'Low' };
+            };
+
+            const s1 = stateAt(leg1Mid);
+            const s2 = stateAt(leg2Mid);
+
+            if (!s1 || !s2) continue;
+
+            let score = 0;
+            let quality = 'neutral';
+            let detail = '';
+
+            // Outbound (north) = flood assists; Return (south) = ebb assists
+            const leg1Assist = s1.flood;
+            const leg2Assist = s2.ebb;
+
+            if (leg1Assist && leg2Assist) {
+                score = 10; quality = 'best';
+                detail = 'Both legs tidal-assisted — flood outbound, ebb return. Optimal.';
+            } else if (leg1Assist && !leg2Assist) {
+                score = 6; quality = 'good';
+                detail = 'Outbound assisted (flood). Return on flood — slight headwind tide. Manageable.';
+            } else if (!leg1Assist && leg2Assist) {
+                score = 6; quality = 'good';
+                detail = 'Outbound on ebb — mild resistance. Return assisted (ebb). Manageable.';
+            } else {
+                score = 2; quality = 'avoid';
+                detail = 'Both legs against tide. Avoid this start time if possible.';
+            }
+
+            // Format start time
+            const startStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+            windows.push({ startStr, startDt, score, quality, detail, leg1Assist, leg2Assist });
+        }
+    }
+    return windows.sort((a, b) => b.score - a.score);
+}
+
+// ─── GO SIGNAL ────────────────────────────────────────────────────────────────
+
+function buildGoSignal(wind, tideState) {
+    const el = document.getElementById('goSignal');
+    if (!el) return;
+
+    let cls = 'go', title = 'Conditions Good', sub = '';
+    const spd = wind?.spd ?? 0;
+
+    if (spd > 35) {
+        cls = 'wait'; title = 'Hold Off';
+        sub = `Wind ${Math.round(spd)} km/h ${windDirLabel(wind?.dir ?? 0)} — too strong for a 24km lagoon swim. Wait for calmer conditions.`;
+    } else if (spd > 25) {
+        cls = 'caution'; title = 'Use Caution';
+        sub = `Wind ${Math.round(spd)} km/h ${windDirLabel(wind?.dir ?? 0)} — chop building across the lagoon. Manageable but demanding. Check tides before committing.`;
+    } else {
+        const tideNote = tideState
+            ? (tideState.isFlood ? 'Flood tide now — north current active.' : 'Ebb tide now — south current active.')
+            : 'Check tides tab for optimal start window.';
+        sub = `Wind ${Math.round(spd)} km/h ${windDirLabel(wind?.dir ?? 0)} — lagoon manageable. ${tideNote}`;
+    }
+
+    // Update small stats
+    const tempEl = document.getElementById('nowTemp');
+    const windEl = document.getElementById('nowWind');
+    const tideEl = document.getElementById('nowTideVal');
+    if (windEl) windEl.textContent = `${Math.round(spd)} ${windDirLabel(wind?.dir ?? 0)}`;
+    if (tideState && tideEl) {
+        tideEl.textContent = tideState.isFlood ? '↑ Flood' : '↓ Ebb';
+        const box = document.getElementById('nowTideBox');
+        if (box) {
+            box.style.background = tideState.isFlood ? 'rgba(34,197,94,0.08)' : 'rgba(14,165,233,0.08)';
+            box.style.borderColor = tideState.isFlood ? 'rgba(34,197,94,0.25)' : 'rgba(14,165,233,0.25)';
+        }
+    }
+
+    el.outerHTML = `<div class="signal-card ${cls}">
+        <div class="signal-label">Double Preekstool</div>
+        <div class="signal-title">${title}</div>
+        <div class="signal-sub">${sub}</div>
+    </div>`;
+}
+
+// ─── LIVE TEMPS ───────────────────────────────────────────────────────────────
+
+async function loadLiveTemps() {
+    const el = document.getElementById('liveTemps');
+    const tempEl = document.getElementById('nowTemp');
+
+    const { data: spots } = await sb.from('spots').select('id, name').eq('domain', 'WEST_COAST').neq('active', false);
+    if (!spots?.length) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No West Coast spots found.</div>'; return null; }
+
+    const since72h = new Date(Date.now() - 72 * 3600 * 1000).toISOString();
+    const { data: logs } = await sb.from('temp_logs')
+        .select('spot_id, temp_c, created_at, spots!temp_logs_spot_id_fkey(name)')
+        .in('spot_id', spots.map(s => s.id))
+        .gte('created_at', since72h)
+        .order('created_at', { ascending: false })
+        .limit(80);
+
+    if (!logs?.length) {
+        el.innerHTML = '<div class="alert teal">No recent logs from West Coast. Langebaan summer temps typically 20–24°C — warmer than the Atlantic.</div>';
+        if (tempEl) tempEl.textContent = '~21°C';
+        return null;
+    }
+
+    const latest = {};
+    logs.forEach(l => { if (!latest[l.spot_id]) latest[l.spot_id] = l; });
+    const readings = Object.values(latest);
+    const temps = readings.map(r => parseFloat(r.temp_c)).filter(Boolean);
+    const avg = temps.reduce((a, b) => a + b, 0) / temps.length;
+    if (tempEl) tempEl.textContent = `${avg.toFixed(1)}°C`;
+
+    el.innerHTML = `
+        <div class="stat-grid" style="margin-bottom:12px;">
+            <div class="stat-box teal">
+                <div class="stat-val teal">${avg.toFixed(1)}°C</div>
+                <div class="stat-lbl">Avg West Coast<br>${logs.length} log${logs.length !== 1 ? 's' : ''} · 72h</div>
+            </div>
+            <div class="stat-box ok">
+                <div class="stat-val green">${Math.max(...temps)}°C</div>
+                <div class="stat-lbl">Warmest reading<br>recent</div>
+            </div>
+        </div>
+        ${readings.slice(0, 5).map(r => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+                <div>
+                    <div style="font-size:13px;font-weight:500;">${r.spots?.name || 'Unknown'}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);">${timeAgo(r.created_at)}</div>
+                </div>
+                <div style="font-size:16px;font-weight:700;color:${r.temp_c >= 18 ? 'var(--teal)' : r.temp_c >= 15 ? 'var(--warning)' : 'var(--danger)'};">${r.temp_c}°C</div>
+            </div>
+        `).join('')}
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:8px;line-height:1.55;">
+            Langebaan Lagoon runs 2–4°C warmer than adjacent Atlantic — heat retention in the enclosed basin. Ideal for long skins swims.
+        </div>`;
+    return { avg, readings };
+}
+
+// ─── TIDE NOW CARD ────────────────────────────────────────────────────────────
+
+function renderTideNow(extremes) {
+    const el = document.getElementById('tideNow');
+    if (!el || !extremes?.length) {
+        if (el) el.innerHTML = '<div class="alert amber">Tide data unavailable. Check <a href="https://www.tide-forecast.com" target="_blank" style="color:var(--warning);">tide-forecast.com</a> for Saldanha Bay times.</div>';
+        return;
+    }
+
+    const state = getTideState(extremes);
+    const now = Date.now() / 1000;
+    const sorted = [...extremes].sort((a, b) => a.dt - b.dt);
+
+    let tideStateHtml = '';
+    if (state) {
+        const minsUntil = Math.round((state.next.dt - now) / 60);
+        const h = Math.floor(minsUntil / 60), m = minsUntil % 60;
+        const col = state.isFlood ? 'var(--success)' : 'var(--ocean-light)';
+        tideStateHtml = `
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                <div>
+                    <div style="font-size:20px;font-weight:800;color:${col};">${state.isFlood ? '↑ Flood (rising)' : '↓ Ebb (falling)'}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">
+                        ${state.next.type} tide at ${fmtTime(state.next.dt)} — ${h > 0 ? h + 'h ' : ''}${m}m
+                    </div>
+                </div>
+                <div style="text-align:right;font-size:11px;color:${col};font-weight:600;">
+                    ${state.isFlood ? 'North current · Outbound assist' : 'South current · Return assist'}
+                </div>
+            </div>`;
+    }
+
+    const rows = sorted.slice(0, 8).map(e => {
+        const isPast = e.dt < now;
+        const t = fmtTime(e.dt);
+        const dayStr = new Date(e.dt * 1000).toDateString() === new Date().toDateString() ? 'Today' : 'Tomorrow';
+        const isHigh = e.type === 'High';
+        return `<div class="tide-row" style="opacity:${isPast ? 0.4 : 1}">
+            <div class="tide-type-icon" style="color:${isHigh ? 'var(--ocean-light)' : 'var(--text-secondary)'};">${isHigh ? '▲' : '▼'}</div>
+            <div class="tide-time">${e.type} <span style="color:var(--text-secondary);font-size:11px;">${dayStr} ${t}</span></div>
+            <div>
+                <div class="tide-height">${e.height.toFixed(2)}m</div>
+                <div class="tide-label">${isHigh ? 'Flood complete' : 'Ebb complete'}</div>
+            </div>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = tideStateHtml + rows + `<div style="font-size:10px;color:var(--text-secondary);margin-top:8px;">Saldanha Bay / Langebaan · Semi-diurnal ~1.5m range · Source: WorldTides</div>`;
+}
+
+// ─── TIDE OPTIMAL CARD ────────────────────────────────────────────────────────
+
+function renderTideOptimal(extremes) {
+    const el = document.getElementById('tideOptimal');
+    if (!el) return;
+
+    const windows = calcTideWindow(extremes);
+    if (!windows?.length) {
+        el.innerHTML = '<div class="alert amber">Tide window analysis unavailable. All possible start times may have passed.</div>';
+        return;
+    }
+
+    const best = windows.filter(w => w.quality !== 'avoid');
+    const top3 = best.slice(0, 3);
+
+    if (!top3.length) {
+        el.innerHTML = '<div class="alert amber">No favourable start windows today. Check tides for tomorrow.</div>';
+        return;
+    }
+
+    el.innerHTML = `
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.55;">
+            Based on today's tide times, these start windows give the best tidal alignment for an out-and-back double.
+        </div>
+        ${top3.map((w, i) => `
+            <div class="window-option ${i === 0 ? 'best' : 'good'}">
+                <div class="window-score">${i === 0 ? 'Optimal start' : 'Good start'} · Tide score ${w.score}/10</div>
+                <div class="window-time">Start ${w.startStr}</div>
+                <div class="window-detail">${w.detail}</div>
+                <div style="display:flex;gap:8px;margin-top:8px;">
+                    <span style="font-size:11px;padding:3px 9px;border-radius:20px;background:${w.leg1Assist ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)'};color:${w.leg1Assist ? 'var(--success)' : 'var(--danger)'};border:1px solid ${w.leg1Assist ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.25)'};">Outbound: ${w.leg1Assist ? 'Assisted' : 'Against'}</span>
+                    <span style="font-size:11px;padding:3px 9px;border-radius:20px;background:${w.leg2Assist ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)'};color:${w.leg2Assist ? 'var(--success)' : 'var(--danger)'};border:1px solid ${w.leg2Assist ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.25)'};">Return: ${w.leg2Assist ? 'Assisted' : 'Against'}</span>
+                </div>
+            </div>
+        `).join('')}
+        <div style="font-size:10px;color:var(--text-secondary);margin-top:6px;">Windows based on typical 5h per leg. Adjust if your pace differs significantly.</div>`;
+}
+
+// ─── TODAY'S WINDOW (NOW TAB) ─────────────────────────────────────────────────
+
+function renderTodayWindow(extremes, wind) {
+    const el = document.getElementById('todayWindow');
+    if (!el) return;
+
+    const windows = calcTideWindow(extremes);
+    const best = windows?.filter(w => w.quality === 'best' || w.quality === 'good')[0];
+
+    const windOk = (wind?.spd ?? 0) < 25;
+
+    if (!best) {
+        el.innerHTML = '<div style="font-size:13px;color:var(--text-secondary);">No optimal start windows remain today. Check tides for tomorrow\'s planning.</div>';
+        return;
+    }
+
+    el.innerHTML = `
+        <div style="background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:14px;margin-bottom:12px;">
+            <div style="font-size:10px;font-weight:800;color:var(--success);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">Recommended Start</div>
+            <div style="font-size:28px;font-weight:800;letter-spacing:-0.5px;">${best.startStr}</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;line-height:1.5;">${best.detail}</div>
+        </div>
+        <div style="font-size:12px;color:${windOk ? 'var(--success)' : 'var(--warning)'};margin-bottom:6px;">
+            ${windOk ? 'Wind OK for swimming' : 'Wind elevated — expect chop'}: ${Math.round(wind?.spd ?? 0)} km/h ${windDirLabel(wind?.dir ?? 0)}
+        </div>
+        <div style="font-size:11px;color:var(--text-secondary);">Full tide window breakdown on the Tides tab.</div>`;
+}
+
+// ─── CHECKLIST ────────────────────────────────────────────────────────────────
+
+function renderChecklist(wind, tideState) {
+    const el = document.getElementById('condChecklist');
+    if (!el) return;
+
+    const spd = wind?.spd ?? 0;
+    const windOk  = spd < 25 ? { ok: true,  text: `${Math.round(spd)} km/h — light. Lagoon flat.` }
+                 : spd < 35 ? { ok: null,   text: `${Math.round(spd)} km/h — chop building. Manageable for experienced swimmers.` }
+                 :            { ok: false,  text: `${Math.round(spd)} km/h — too strong. Hold off.` };
+
+    const tideOk = tideState ? { ok: true, text: tideState.isFlood ? 'Flood tide — north current. Good for outbound leg.' : 'Ebb tide — south current. Good for return leg.' }
+                             : { ok: null, text: 'Check Tides tab for optimal start window.' };
+
+    const item = (ok, label, detail) => {
+        const icon = ok === true ? '✓' : ok === false ? '✗' : '~';
+        const col  = ok === true ? 'var(--success)' : ok === false ? 'var(--danger)' : 'var(--warning)';
+        return `<div class="checklist-item">
+            <div style="font-size:16px;font-weight:800;color:${col};flex-shrink:0;margin-top:1px;">${icon}</div>
+            <div>
+                <div class="check-label">${label}</div>
+                <div class="check-sub">${detail}</div>
+            </div>
+        </div>`;
+    };
+
+    el.innerHTML =
+        item(windOk.ok,  'Wind conditions', windOk.text) +
+        item(tideOk.ok,  'Tide phase', tideOk.text) +
+        item(null,       'Water temp', 'Check live readings above. 18°C+ recommended for a 10h skins swim.') +
+        item(null,       'WCNP permit', 'Confirm West Coast National Park swimming permit before swim day.') +
+        item(null,       'Support vessel', 'Kayak escort minimum. Safety plan filed with someone onshore.');
+}
+
+// ─── TIDE FULL 3-DAY ──────────────────────────────────────────────────────────
+
+function renderTideFull(extremes) {
+    const el = document.getElementById('tideFull');
+    if (!el || !extremes?.length) { if (el) el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Tide data unavailable.</div>'; return; }
+
+    const now = Date.now() / 1000;
+    const sorted = [...extremes].sort((a, b) => a.dt - b.dt);
+
+    const byDay = {};
+    sorted.forEach(e => {
+        const d = new Date(e.dt * 1000);
+        const key = d.toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
+        if (!byDay[key]) byDay[key] = [];
+        byDay[key].push(e);
+    });
+
+    el.innerHTML = Object.entries(byDay).map(([day, exts]) => `
+        <div style="margin-bottom:14px;">
+            <div style="font-size:11px;font-weight:700;color:var(--ocean-light);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">${day}</div>
+            ${exts.map(e => {
+                const isPast = e.dt < now;
+                const isHigh = e.type === 'High';
+                return `<div class="tide-row" style="opacity:${isPast ? 0.35 : 1}">
+                    <div class="tide-type-icon" style="color:${isHigh ? 'var(--ocean-light)' : 'var(--text-secondary)'};">${isHigh ? '▲' : '▼'}</div>
+                    <div class="tide-time">${e.type}</div>
+                    <div style="font-size:12px;color:var(--text-secondary);flex:1;padding-left:6px;">${fmtTime(e.dt)}</div>
+                    <div class="tide-height">${e.height.toFixed(2)}m</div>
+                </div>`;
+            }).join('')}
+        </div>
+    `).join('') + `<div style="font-size:10px;color:var(--text-secondary);margin-top:4px;">Source: WorldTides · Saldanha Bay reference station</div>`;
+}
+
+// ─── PREDICTION CALCULATOR ────────────────────────────────────────────────────
+
+function calcPrediction() {
+    const paceStr = document.getElementById('inputOWPace').value.trim();
+    const startStr = document.getElementById('inputStartTime').value;
+    const category = document.getElementById('inputCategory').value;
+
+    const parts = paceStr.split(':');
+    if (parts.length < 2) { alert('Enter pace as mm:ss (e.g. 22:00)'); return; }
+    const paceSec = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    if (!paceSec || paceSec < 600 || paceSec > 2400) { alert('Enter a valid pace between 10:00 and 40:00 per km'); return; }
+
+    const baseKmh = 3600 / paceSec;
+    let adjKmh = baseKmh;
+    if (category === 'wetsuit') adjKmh += 0.3;
+
+    // Wind adjustment
+    const windSpd = _currentWind?.spd ?? 0;
+    if (windSpd > 30) adjKmh -= 0.4;
+    else if (windSpd > 20) adjKmh -= 0.2;
+
+    // Tide assist (from best window)
+    let tideAssistLeg1 = 0, tideAssistLeg2 = 0;
+    const extremes = _tideData?.extremes;
+    const windows = calcTideWindow(extremes);
+    const best = windows?.filter(w => w.quality !== 'avoid')[0];
+    if (best) {
+        tideAssistLeg1 = best.leg1Assist ? 0.4 : -0.2;
+        tideAssistLeg2 = best.leg2Assist ? 0.4 : -0.2;
+    }
+
+    const leg1Pace = adjKmh + tideAssistLeg1;
+    const leg2Pace = adjKmh + tideAssistLeg2;
+    const leg1Sec = Math.round(12000 / leg1Pace);
+    const leg2Sec = Math.round(12000 / leg2Pace);
+    const turnaroundSec = 10 * 60;
+    const totalSec = leg1Sec + turnaroundSec + leg2Sec;
+
+    const h = Math.floor(totalSec / 3600), m = Math.floor((totalSec % 3600) / 60);
+    const timeStr = `${h}:${String(m).padStart(2, '0')}`;
+
+    const leg1H = Math.floor(leg1Sec / 3600), leg1M = Math.floor((leg1Sec % 3600) / 60);
+    const leg2H = Math.floor(leg2Sec / 3600), leg2M = Math.floor((leg2Sec % 3600) / 60);
+
+    // Finish time
+    let finishLabel = '';
+    if (startStr && best) {
+        const [sh, sm] = startStr.split(':').map(Number);
+        const startMs = sh * 3600 * 1000 + sm * 60 * 1000;
+        const finishMs = startMs + totalSec * 1000;
+        const fh = Math.floor(finishMs / 3600000) % 24, fm = Math.floor((finishMs % 3600000) / 60000);
+        finishLabel = `Estimated finish: ${String(fh).padStart(2,'0')}:${String(fm).padStart(2,'0')}`;
+    }
+
+    const el = document.getElementById('predResult');
+    el.style.display = 'block';
+    el.innerHTML = `<div class="pred-result">
+        <div style="font-size:11px;font-weight:700;color:var(--ocean-light);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Estimated Total Time</div>
+        <div class="pred-time">${timeStr}</div>
+        ${finishLabel ? `<div style="font-size:13px;font-weight:600;color:var(--ocean-light);margin-top:4px;">${finishLabel}${best ? ' (start ' + best.startStr + ')' : ''}</div>` : ''}
+        <div class="pred-sub" style="margin-top:10px;">
+            Outbound leg (12km): ${leg1H}:${String(leg1M).padStart(2,'0')} · ${best?.leg1Assist ? 'flood-assisted' : 'ebb headwind'}<br>
+            Turnaround at Mykanos: 10 min<br>
+            Return leg (12km): ${leg2H}:${String(leg2M).padStart(2,'0')} · ${best?.leg2Assist ? 'ebb-assisted' : 'flood headwind'}<br><br>
+            Base pace: ${Math.floor(paceSec / 60)}:${String(paceSec % 60).padStart(2,'0')}/km · ${category === 'wetsuit' ? 'Wetsuit (+0.3 km/h)' : 'Skins'}${windSpd > 20 ? ` · Wind adjustment (−${windSpd > 30 ? '0.4' : '0.2'} km/h)` : ''}
+        </div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;border-top:1px solid var(--border);padding-top:10px;">
+            Individual variability ±45 minutes. Model assumes steady pace and standard feed stops.
+        </div>
+    </div>`;
+}
+
+// ─── SHARE ────────────────────────────────────────────────────────────────────
+
+function shareConditions() {
+    const wind = _currentWind;
+    const spd = Math.round(wind?.spd ?? 0);
+    const dir = windDirLabel(wind?.dir ?? 0);
+    const state = _tideData?.extremes ? getTideState(_tideData.extremes) : null;
+    const tideTxt = state ? (state.isFlood ? 'Flood (rising)' : 'Ebb (falling)') : 'Check tides';
+    const text = `Double Preekstool Conditions — SwimLoading\nWind: ${spd} km/h ${dir}\nTide: ${tideTxt}\nCheck full intel: swimloading.com/preekstool`;
+    navigator.clipboard.writeText(text).then(() => {
+        const msg = document.getElementById('shareMsg');
+        if (msg) { msg.style.display = 'block'; setTimeout(() => msg.style.display = 'none', 3000); }
+    });
+}
+
+// ─── MAIN FLOW ────────────────────────────────────────────────────────────────
+
+async function startApp(session) {
+    if (appStarted) return;
+    appStarted = true;
+
+    const namePart = session.user.email.split('@')[0].split('.')[0];
+    document.getElementById('userPill').textContent = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+    document.getElementById('initScreen').style.display = 'none';
+    document.getElementById('appContent').style.display = 'block';
+
+    // Parallel loads
+    const [, windResult, tideResult] = await Promise.all([
+        loadLiveTemps(),
+        loadWind(),
+        loadTides()
+    ]);
+
+    const extremes = tideResult?.extremes ?? [];
+    const tideState = getTideState(extremes);
+
+    buildGoSignal(_currentWind, tideState);
+    renderTodayWindow(extremes, _currentWind);
+    renderChecklist(_currentWind, tideState);
+    renderTideNow(extremes);
+    renderTideOptimal(extremes);
+    renderTideFull(extremes);
+
+    const ts = new Date().toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('lastRefreshed').textContent = `Updated ${ts}`;
+}
+
+async function refreshPage() {
+    appStarted = false;
+    _windData = null; _tideData = null; _currentWind = null;
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) await startApp(session);
+}
+
+async function init() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) { startApp(session); return; }
+    sb.auth.onAuthStateChange((_, sess) => { if (sess) startApp(sess); else window.location.href = '/app'; });
+    setTimeout(() => { if (!appStarted) window.location.href = '/app'; }, 2000);
+}
+
+init();
+</script>
+</body>
+</html>
