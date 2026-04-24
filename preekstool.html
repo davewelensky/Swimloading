@@ -526,71 +526,69 @@ function getTideState(extremes) {
 }
 
 // ─── TIDE WINDOW OPTIMIZER ────────────────────────────────────────────────────
+// Scans the next 3 days for optimal start windows — never shows "nothing available"
 
 function calcTideWindow(extremes) {
     if (!extremes?.length) return null;
     const sorted = [...extremes].sort((a, b) => a.dt - b.dt);
-    const today = new Date();
-    const todayStr = today.toDateString();
+    const nowSec = Date.now() / 1000;
 
-    const todayExtremes = sorted.filter(e => new Date(e.dt * 1000).toDateString() === todayStr);
-    if (!todayExtremes.length) return null;
+    const stateAt = (ts) => {
+        const prev = sorted.filter(e => e.dt <= ts).pop();
+        const next = sorted.find(e => e.dt > ts);
+        if (!prev || !next) return null;
+        return { flood: next.type === 'High', ebb: next.type === 'Low' };
+    };
 
-    // Possible start times: every 30 min from 05:00 to 10:00
     const windows = [];
-    for (let h = 5; h <= 10; h++) {
-        for (let m = 0; m < 60; m += 30) {
-            const startDt = new Date(today.getFullYear(), today.getMonth(), today.getDate(), h, m, 0).getTime() / 1000;
-            if (startDt < Date.now() / 1000 - 600) continue; // Skip past times
 
-            // Leg 1: start to ~5h in (at Mykanos), Leg 2: ~5h to ~10h (back)
-            const leg1End = startDt + 5 * 3600;
-            const leg2End = startDt + 10 * 3600;
+    // Check start times 04:00–11:00 across today, tomorrow, day after
+    for (let dayOffset = 0; dayOffset < 3; dayOffset++) {
+        const base = new Date();
+        base.setDate(base.getDate() + dayOffset);
+        base.setHours(0, 0, 0, 0);
 
-            // Determine tide direction for mid-leg-1 and mid-leg-2
-            const leg1Mid = startDt + 2.5 * 3600;
-            const leg2Mid = startDt + 7.5 * 3600;
+        for (let h = 4; h <= 11; h++) {
+            for (let m = 0; m < 60; m += 30) {
+                const startDt = base.getTime() / 1000 + h * 3600 + m * 60;
+                const isPast = startDt < nowSec - 300;
 
-            const stateAt = (ts) => {
-                const prev = sorted.filter(e => e.dt <= ts).pop();
-                const next = sorted.find(e => e.dt > ts);
-                if (!prev || !next) return null;
-                return { flood: next.type === 'High', ebb: next.type === 'Low' };
-            };
+                const leg1Mid = startDt + 2.5 * 3600;
+                const leg2Mid = startDt + 7.5 * 3600;
+                const s1 = stateAt(leg1Mid);
+                const s2 = stateAt(leg2Mid);
+                if (!s1 || !s2) continue;
 
-            const s1 = stateAt(leg1Mid);
-            const s2 = stateAt(leg2Mid);
+                const leg1Assist = s1.flood;
+                const leg2Assist = s2.ebb;
+                let score = 0, quality = 'neutral', detail = '';
 
-            if (!s1 || !s2) continue;
+                if (leg1Assist && leg2Assist) {
+                    score = 10; quality = 'best';
+                    detail = 'Both legs tidal-assisted — flood outbound, ebb return. Optimal.';
+                } else if (leg1Assist) {
+                    score = 6; quality = 'good';
+                    detail = 'Outbound flood-assisted. Return on flood — mild headwind tide.';
+                } else if (leg2Assist) {
+                    score = 6; quality = 'good';
+                    detail = 'Outbound on ebb — mild resistance. Return ebb-assisted.';
+                } else {
+                    score = 2; quality = 'avoid';
+                    detail = 'Both legs against tide. Avoid if possible.';
+                }
 
-            let score = 0;
-            let quality = 'neutral';
-            let detail = '';
-
-            // Outbound (north) = flood assists; Return (south) = ebb assists
-            const leg1Assist = s1.flood;
-            const leg2Assist = s2.ebb;
-
-            if (leg1Assist && leg2Assist) {
-                score = 10; quality = 'best';
-                detail = 'Both legs tidal-assisted — flood outbound, ebb return. Optimal.';
-            } else if (leg1Assist && !leg2Assist) {
-                score = 6; quality = 'good';
-                detail = 'Outbound assisted (flood). Return on flood — slight headwind tide. Manageable.';
-            } else if (!leg1Assist && leg2Assist) {
-                score = 6; quality = 'good';
-                detail = 'Outbound on ebb — mild resistance. Return assisted (ebb). Manageable.';
-            } else {
-                score = 2; quality = 'avoid';
-                detail = 'Both legs against tide. Avoid this start time if possible.';
+                const startStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+                const dayLabel = dayOffset === 0 ? 'Today' : dayOffset === 1 ? 'Tomorrow' : base.toLocaleDateString('en-ZA', { weekday: 'long' });
+                windows.push({ startStr, startDt, score, quality, detail, leg1Assist, leg2Assist, isPast, dayLabel, dayOffset });
             }
-
-            // Format start time
-            const startStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-            windows.push({ startStr, startDt, score, quality, detail, leg1Assist, leg2Assist });
         }
     }
-    return windows.sort((a, b) => b.score - a.score);
+
+    return windows.sort((a, b) => {
+        // Sort: upcoming first (by score desc), then past
+        if (a.isPast !== b.isPast) return a.isPast ? 1 : -1;
+        return b.score - a.score;
+    });
 }
 
 // ─── GO SIGNAL ────────────────────────────────────────────────────────────────
@@ -750,26 +748,22 @@ function renderTideOptimal(extremes) {
 
     const windows = calcTideWindow(extremes);
     if (!windows?.length) {
-        el.innerHTML = '<div class="alert amber">Tide window analysis unavailable. All possible start times may have passed.</div>';
+        el.innerHTML = '<div class="alert amber">Tide data unavailable. Check <a href="https://www.tide-forecast.com" target="_blank" style="color:var(--warning);">tide-forecast.com</a> for Saldanha Bay times.</div>';
         return;
     }
 
-    const best = windows.filter(w => w.quality !== 'avoid');
-    const top3 = best.slice(0, 3);
-
-    if (!top3.length) {
-        el.innerHTML = '<div class="alert amber">No favourable start windows today. Check tides for tomorrow.</div>';
-        return;
-    }
+    // Top upcoming windows (not past, not avoid), max 3
+    const upcoming = windows.filter(w => !w.isPast && w.quality !== 'avoid').slice(0, 3);
+    const toShow = upcoming.length ? upcoming : windows.filter(w => w.quality !== 'avoid').slice(0, 3);
 
     el.innerHTML = `
         <div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.55;">
-            Based on today's tide times, these start windows give the best tidal alignment for an out-and-back double.
+            Best tidal alignment for an out-and-back double — next ${toShow.length} optimal windows across the next 3 days.
         </div>
-        ${top3.map((w, i) => `
+        ${toShow.map((w, i) => `
             <div class="window-option ${i === 0 ? 'best' : 'good'}">
                 <div class="window-score">${i === 0 ? 'Optimal start' : 'Good start'} · Tide score ${w.score}/10</div>
-                <div class="window-time">Start ${w.startStr}</div>
+                <div class="window-time">${w.dayLabel} — Start ${w.startStr}</div>
                 <div class="window-detail">${w.detail}</div>
                 <div style="display:flex;gap:8px;margin-top:8px;">
                     <span style="font-size:11px;padding:3px 9px;border-radius:20px;background:${w.leg1Assist ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)'};color:${w.leg1Assist ? 'var(--success)' : 'var(--danger)'};border:1px solid ${w.leg1Assist ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.25)'};">Outbound: ${w.leg1Assist ? 'Assisted' : 'Against'}</span>
@@ -777,7 +771,7 @@ function renderTideOptimal(extremes) {
                 </div>
             </div>
         `).join('')}
-        <div style="font-size:10px;color:var(--text-secondary);margin-top:6px;">Windows based on typical 5h per leg. Adjust if your pace differs significantly.</div>`;
+        <div style="font-size:10px;color:var(--text-secondary);margin-top:6px;">Based on typical 5h per leg. Adjust if your pace differs. Windows ranked by tidal score across today + next 2 days.</div>`;
 }
 
 // ─── TODAY'S WINDOW (NOW TAB) ─────────────────────────────────────────────────
@@ -787,25 +781,26 @@ function renderTodayWindow(extremes, wind) {
     if (!el) return;
 
     const windows = calcTideWindow(extremes);
-    const best = windows?.filter(w => w.quality === 'best' || w.quality === 'good')[0];
-
+    // Best upcoming window — not past, not avoid
+    const best = windows?.find(w => !w.isPast && w.quality !== 'avoid');
     const windOk = (wind?.spd ?? 0) < 25;
 
     if (!best) {
-        el.innerHTML = '<div style="font-size:13px;color:var(--text-secondary);">No optimal start windows remain today. Check tides for tomorrow\'s planning.</div>';
+        el.innerHTML = '<div style="font-size:13px;color:var(--text-secondary);">Calculating tide windows — check the Tides tab for the full 3-day optimal window breakdown.</div>';
         return;
     }
 
+    const isToday = best.dayOffset === 0;
     el.innerHTML = `
         <div style="background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:14px;margin-bottom:12px;">
-            <div style="font-size:10px;font-weight:800;color:var(--success);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">Recommended Start</div>
+            <div style="font-size:10px;font-weight:800;color:var(--success);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">${isToday ? 'Next optimal start today' : 'Next optimal start — ' + best.dayLabel}</div>
             <div style="font-size:28px;font-weight:800;letter-spacing:-0.5px;">${best.startStr}</div>
             <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;line-height:1.5;">${best.detail}</div>
         </div>
         <div style="font-size:12px;color:${windOk ? 'var(--success)' : 'var(--warning)'};margin-bottom:6px;">
             ${windOk ? 'Wind OK for swimming' : 'Wind elevated — expect chop'}: ${Math.round(wind?.spd ?? 0)} km/h ${windDirLabel(wind?.dir ?? 0)}
         </div>
-        <div style="font-size:11px;color:var(--text-secondary);">Full tide window breakdown on the Tides tab.</div>`;
+        <div style="font-size:11px;color:var(--text-secondary);">Full 3-day window breakdown on the Tides tab.</div>`;
 }
 
 // ─── CHECKLIST ────────────────────────────────────────────────────────────────
