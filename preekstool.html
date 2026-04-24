@@ -471,6 +471,16 @@
             </div>
 
             <div style="margin-bottom:14px;">
+                <div class="pred-label">Moon phase / tidal strength</div>
+                <select id="inputMoonPhase" class="pred-input" style="background:var(--bg-card);">
+                    <option value="spring">Spring tide — new or full moon (strongest current)</option>
+                    <option value="average" selected>Average tide — between spring and neap</option>
+                    <option value="neap">Neap tide — quarter moon (weakest current)</option>
+                </select>
+                <div style="font-size:9px;color:var(--text-secondary);margin-top:2px;">Spring tides give the strongest assist (+0.90 km/h). Neap tides are significantly weaker (+0.30 km/h). Check your moon phase app before planning.</div>
+            </div>
+
+            <div style="margin-bottom:14px;">
                 <div class="pred-label">Swim category</div>
                 <select id="inputCategory" class="pred-input" style="background:var(--bg-card);">
                     <option value="skins">Skins (no wetsuit)</option>
@@ -509,11 +519,12 @@
             <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;">
                 <strong style="color:var(--text-primary);">Formula:</strong><br>
                 Total time = Leg 1 (12km ÷ pace ± tide assist) + Turnaround (10–15 min) + Leg 2 (12km ÷ pace ± tide assist)<br><br>
-                <strong style="color:var(--text-primary);">Tide assist calibration:</strong><br>
-                · Both legs assisted (ideal start): +0.4 km/h per leg<br>
-                · One leg assisted, one neutral: +0.2 km/h one leg<br>
-                · One leg assisted, one opposed: neutral overall<br>
-                · Both legs opposed: −0.3 km/h per leg<br><br>
+                <strong style="color:var(--text-primary);">Tide assist calibration (real data, 2019–2025):</strong><br>
+                · Spring tide (new/full moon): +0.90 km/h per assisted leg<br>
+                · Average tide: +0.55 km/h per assisted leg<br>
+                · Neap tide (quarter moon): +0.30 km/h per assisted leg<br>
+                · Against the tide: −0.15 to −0.50 km/h (moon-phase dependent)<br>
+                · Moon phase matters — the Nov 2025 Express (coefficient 79) showed +0.90 km/h vs open ocean pace<br><br>
                 <strong style="color:var(--text-primary);">Pace adjustments:</strong><br>
                 · Skins in warm lagoon (20°C+): no adjustment<br>
                 · Wetsuit: +0.3 km/h faster<br>
@@ -1180,14 +1191,25 @@ function calcPrediction() {
     }
     adjKmh = adjKmh * coldPenalty;
 
-    // Tide assist (from best window)
+    // Tidal assist — calibrated from Langebaan Express data (2019–2025)
+    // Spring (coeff ~79, full/new moon): +0.90 km/h observed vs 3.06 km/h open ocean pace
+    // Neap (quarter moon): significantly weaker current, ~0.30 km/h assist
+    const tidalStrength = {
+        spring:  { assist: 0.90, against: -0.50 },
+        average: { assist: 0.55, against: -0.30 },
+        neap:    { assist: 0.30, against: -0.15 }
+    };
+    const moonPhase = document.getElementById('inputMoonPhase')?.value || 'average';
+    const ts = tidalStrength[moonPhase] || tidalStrength.average;
+    const moonLabel = { spring: 'Spring tide — new/full moon', average: 'Average tide', neap: 'Neap tide — quarter moon' }[moonPhase];
+
     let tideAssistLeg1 = 0, tideAssistLeg2 = 0;
     const extremes = _tideData?.extremes;
     const windows = calcTideWindow(extremes);
     const best = windows?.filter(w => w.quality !== 'avoid')[0];
     if (best) {
-        tideAssistLeg1 = best.leg1Assist ? 0.4 : -0.2;
-        tideAssistLeg2 = best.leg2Assist ? 0.4 : -0.2;
+        tideAssistLeg1 = best.leg1Assist ? ts.assist : ts.against;
+        tideAssistLeg2 = best.leg2Assist ? ts.assist : ts.against;
     }
 
     const leg1Pace = adjKmh + tideAssistLeg1;
@@ -1224,7 +1246,8 @@ function calcPrediction() {
             Turnaround at Mykanos: 10 min<br>
             Return leg (12km): ${leg2H}:${String(leg2M).padStart(2,'0')} · ${best?.leg2Assist ? 'ebb-assisted' : 'flood headwind'}<br><br>
             Base pace: ${Math.floor(paceSec / 60)}:${String(paceSec % 60).padStart(2,'0')}/km · ${category === 'wetsuit' ? 'Wetsuit (+0.3 km/h)' : 'Skins'}${windSpd > 20 ? ` · Wind adjustment (−${windSpd > 30 ? '0.4' : '0.2'} km/h)` : ''}<br>
-            Cold water: ${coldNote}
+            Cold water: ${coldNote}<br>
+            ${moonLabel} · tidal assist ${ts.assist > 0 ? '+' : ''}${ts.assist} km/h per assisted leg
         </div>
         <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;border-top:1px solid var(--border);padding-top:10px;">
             Individual variability ±45 minutes. Model assumes steady pace and standard feed stops.
