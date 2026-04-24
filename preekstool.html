@@ -400,13 +400,19 @@
                 <div class="pred-label">Route you've completed</div>
                 <select id="refRoute" class="pred-input" style="background:var(--bg-card);" onchange="toggleCustomDist(this.value)">
                     <option value="">Select route...</option>
-                    <option value="5">MSC / Any 5km Open Water Event (5km)</option>
-                    <option value="7.4">Robben Island → Big Bay (7.4km)</option>
-                    <option value="8">Cape Point, Diaz → Millers (8km)</option>
-                    <option value="8.7">Dassen Island (8.7km)</option>
-                    <option value="18">West Coast Angle (18km)</option>
-                    <option value="33">False Bay Crossing (33km)</option>
-                    <option value="custom">Other distance — enter below...</option>
+                    <optgroup label="— Best calibration (same lagoon water) —">
+                        <option value="express6">Langebaan Express 6km (tidal-assisted)</option>
+                        <option value="express12">Langebaan Express 12km (tidal-assisted)</option>
+                    </optgroup>
+                    <optgroup label="— Ocean routes —">
+                        <option value="5">MSC / Any 5km Open Water Event (5km)</option>
+                        <option value="7.4">Robben Island → Big Bay (7.4km)</option>
+                        <option value="8">Cape Point, Diaz → Millers (8km)</option>
+                        <option value="8.7">Dassen Island (8.7km)</option>
+                        <option value="18">West Coast Angle (18km)</option>
+                        <option value="33">False Bay Crossing (33km)</option>
+                        <option value="custom">Other distance — enter below...</option>
+                    </optgroup>
                 </select>
             </div>
             <div id="customDistDiv" style="display:none;margin-bottom:10px;">
@@ -1034,8 +1040,10 @@ function calcPoolPace() {
 
 function calcPaceFromRoute() {
     let routeVal = document.getElementById('refRoute').value;
-    let routeDist = routeVal === 'custom'
-        ? parseFloat(document.getElementById('customDist').value)
+    const isExpress = routeVal === 'express6' || routeVal === 'express12';
+    let routeDist = routeVal === 'custom' ? parseFloat(document.getElementById('customDist').value)
+        : routeVal === 'express6' ? 6
+        : routeVal === 'express12' ? 12
         : parseFloat(routeVal);
     if (routeVal === 'custom' && isNaN(routeDist)) { document.getElementById('impliedPaceResult').textContent = 'Enter the distance in km above.'; return; }
     const timeStr = document.getElementById('refTime').value.trim();
@@ -1053,8 +1061,27 @@ function calcPaceFromRoute() {
     const paceMin = Math.floor(paceSecPerKm / 60);
     const paceSec = Math.round(paceSecPerKm % 60);
     const paceStr = `${paceMin}:${String(paceSec).padStart(2, '0')}`;
-    const routeNames = {'5':'MSC 5km','7.4':'RI→Big Bay','8':'Cape Point','8.7':'Dassen Island','18':'WC Angle','33':'False Bay'};
+    const routeNames = {'express6':'Langebaan Express 6km','express12':'Langebaan Express 12km','5':'MSC 5km','7.4':'RI→Big Bay','8':'Cape Point','8.7':'Dassen Island','18':'WC Angle','33':'False Bay'};
     const routeName = routeNames[String(routeVal)] || 'that route';
+
+    // Express routes: tidal assist already baked into the time — use pace directly, no further adjustment
+    if (isExpress) {
+        resultEl.innerHTML = `
+            <div style="margin-bottom:8px;font-size:13px;">From <strong>${routeName}</strong>: implied pace <strong>${paceStr}/km</strong></div>
+            <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:12px;margin-bottom:2px;">
+                <div style="font-weight:700;color:var(--success);margin-bottom:6px;">Best calibration — same lagoon water</div>
+                <div style="font-size:12px;color:var(--text-secondary);line-height:1.55;margin-bottom:10px;">Your Express time already includes tidal assist. This pace is used directly as your Double Preekstool base — no further tidal adjustment applied. Most accurate input available.</div>
+                <div style="font-size:13px;">Use <strong style="color:var(--success);font-size:16px;">${paceStr}/km</strong> as your lagoon pace.</div>
+            </div>`;
+        useBtn.style.display = 'inline-block';
+        useBtn.textContent = `Use this pace (${paceStr}/km) \u2192`;
+        useBtn.onclick = () => {
+            document.getElementById('inputOWPace').value = paceStr;
+            useBtn.style.display = 'none';
+            resultEl.innerHTML += `<div style="margin-top:6px;font-size:12px;color:var(--success);">Pace set — scroll down to calculate.</div>`;
+        };
+        return;
+    }
 
     // False Bay (33km): ~0.35 km/h Agulhas current → +120 sec/km adjustment
     // (Preekstool routes excluded from this page's calibration dropdown)
