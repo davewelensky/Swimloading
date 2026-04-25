@@ -385,8 +385,8 @@
     <!-- ══════════ PREDICTION ══════════ -->
     <div id="panelPrediction" class="panel">
 
-        <div class="alert amber" style="margin-bottom:12px;">
-            <strong>Tidal model — provisional.</strong> Double Preekstool requires swimming <em>with</em> the tide in both directions. Peak lagoon currents reach <strong>1.3 m/sec (4.68 km/h)</strong> at the inlet — faster than any swimmer. You wait at Mykanos for the tide to turn before the return leg. The prediction below estimates your <strong>swim time only</strong> — it does not include the tidal wait. Do not use it as a total elapsed time target. Tidal window data being gathered with route veterans.
+        <div class="alert blue" style="margin-bottom:12px;">
+            <strong>Spring tide only.</strong> Derrik Frazer runs the Double exclusively on spring tides (new/full moon). Peak lagoon currents reach <strong>1.3 m/sec (4.68 km/h)</strong> at the inlet — swimming against it is impossible. Tidal assist is active for the first and last 6.5km only. The middle 11km (around Mykanos) is still water, plus a wait at Mykanos for the tide to turn. Total time includes the wait.
         </div>
 
         <div class="alert blue">
@@ -477,7 +477,19 @@
                     <option value="average" selected>Average tide — between spring and neap</option>
                     <option value="neap">Neap tide — quarter moon (weakest current)</option>
                 </select>
-                <div style="font-size:9px;color:var(--text-secondary);margin-top:2px;">Spring tides give the strongest assist (+0.90 km/h). Neap tides are significantly weaker (+0.30 km/h). Check your moon phase app before planning.</div>
+                <div style="font-size:9px;color:var(--text-secondary);margin-top:2px;">Derrik Frazer only runs the Double on spring tide. Spring gives +0.90 km/h assist in the tidal zone. Check your moon phase app before planning.</div>
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <div class="pred-label">Estimated wait at Mykanos (minutes)</div>
+                <select id="inputWaitMin" class="pred-input" style="background:var(--bg-card);">
+                    <option value="30">30 min — ideal timing, arrived near tide turn</option>
+                    <option value="60">60 min — good timing</option>
+                    <option value="75" selected>75 min — typical (Derrik Frazer data)</option>
+                    <option value="90">90 min — later arrival into tidal zone</option>
+                    <option value="120">120 min — conservative / poor timing</option>
+                </select>
+                <div style="font-size:9px;color:var(--text-secondary);margin-top:2px;">Swimmers wait at Mykanos for the tide to turn before returning. Spring tide window is finite — late arrivals wait longer.</div>
             </div>
 
             <div style="margin-bottom:14px;">
@@ -510,15 +522,16 @@
                 · Nutrition and crew execution<br>
                 · Wind during the swim (use forecast to assess risk)<br><br>
                 <strong style="color:var(--warning);">Important:</strong> Individual results vary by ±45 minutes. Always plan with your support team.<br><br>
-                <strong style="color:var(--warning);">Tidal wait not yet modelled.</strong> In practice, swimmers wait at Mykanos for the tide to turn before returning — this wait is not included in the prediction below. Historical completion times include the wait. Do not compare your prediction directly to the records.
+                <strong style="color:var(--success);">Tidal wait is now modelled.</strong> Typical wait at Mykanos is 60–90 min on spring tide. Adjust in the prediction input. Total time is now directly comparable to historical records.
             </div>
         </div>
 
         <div class="card">
             <div class="card-label">Prediction Model — How It Works</div>
             <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;">
-                <strong style="color:var(--text-primary);">Formula:</strong><br>
-                Total time = Leg 1 (12km ÷ pace ± tide assist) + Turnaround (10–15 min) + Leg 2 (12km ÷ pace ± tide assist)<br><br>
+                <strong style="color:var(--text-primary);">Formula (confirmed by Derrik Frazer, Apr 2026):</strong><br>
+                Total time = Tidal zone out (6.5km) + Still zone out (5.5km) + Wait at Mykanos + Still zone back (5.5km) + Tidal zone back (6.5km)<br>
+                Tidal current is only effective in the first and last 6.5km. The 11km around Mykanos has no current — the upper lagoon is beyond the tidal reach of the inlet.<br><br>
                 <strong style="color:var(--text-primary);">Tide assist calibration (real data, 2019–2025):</strong><br>
                 · Spring tide (new/full moon): +0.90 km/h per assisted leg<br>
                 · Average tide: +0.55 km/h per assisted leg<br>
@@ -536,7 +549,7 @@
 
         <div class="card">
             <div class="card-label">Completions Record — Double Preekstool 24km · 17 Swims</div>
-            <div style="font-size:11px;color:var(--warning);background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:8px 10px;margin-bottom:12px;">All recorded times include the tidal wait at Mykanos. Swim-only time is shorter — tidal window data being gathered to model this properly.</div>
+            <div style="font-size:11px;color:var(--text-secondary);background:rgba(14,165,233,0.05);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:12px;">All times include the tidal wait at Mykanos. The prediction model now accounts for this — your estimate is directly comparable to these records.</div>
             <div class="stat-grid-3" style="margin-bottom:14px;">
                 <div class="stat-box ok">
                     <div class="stat-val green">5:46</div>
@@ -1203,27 +1216,41 @@ function calcPrediction() {
     const ts = tidalStrength[moonPhase] || tidalStrength.average;
     const moonLabel = { spring: 'Spring tide — new/full moon', average: 'Average tide', neap: 'Neap tide — quarter moon' }[moonPhase];
 
-    let tideAssistLeg1 = 0, tideAssistLeg2 = 0;
+    // 3-zone model (confirmed by Derrik Frazer, Apr 2026):
+    // Zone A — Preekstool→Pearleys (6.5km): tidal current active
+    // Zone B — Pearleys→Mykanos (5.5km): upper lagoon, no current
+    // Wait at Mykanos for tide to turn (spring tide only)
+    // Return mirrors outbound: still zone first, tidal zone second
+    const TIDAL_KM = 6.5;
+    const STILL_KM = 5.5;
+
     const extremes = _tideData?.extremes;
     const windows = calcTideWindow(extremes);
     const best = windows?.filter(w => w.quality !== 'avoid')[0];
-    if (best) {
-        tideAssistLeg1 = best.leg1Assist ? ts.assist : ts.against;
-        tideAssistLeg2 = best.leg2Assist ? ts.assist : ts.against;
-    }
 
-    const leg1Pace = adjKmh + tideAssistLeg1;
-    const leg2Pace = adjKmh + tideAssistLeg2;
-    const leg1Sec = Math.round(12000 / leg1Pace);
-    const leg2Sec = Math.round(12000 / leg2Pace);
-    const turnaroundSec = 10 * 60;
-    const totalSec = leg1Sec + turnaroundSec + leg2Sec;
+    const tidalAssist1 = best?.leg1Assist ? ts.assist : ts.against;
+    const tidalAssist2 = best?.leg2Assist ? ts.assist : ts.against;
+
+    const tidalKmh1 = Math.max(1.2, adjKmh + tidalAssist1);
+    const tidalKmh2 = Math.max(1.2, adjKmh + tidalAssist2);
+    const stillKmh  = Math.max(1.0, adjKmh);
+
+    const waitMin = parseInt(document.getElementById('inputWaitMin')?.value) || 75;
+    const waitSec = waitMin * 60;
+
+    const leg1TidalSec = Math.round(TIDAL_KM * 3600 / tidalKmh1);
+    const leg1StillSec = Math.round(STILL_KM * 3600 / stillKmh);
+    const leg2StillSec = Math.round(STILL_KM * 3600 / stillKmh);
+    const leg2TidalSec = Math.round(TIDAL_KM * 3600 / tidalKmh2);
+
+    const swimSec  = leg1TidalSec + leg1StillSec + leg2StillSec + leg2TidalSec;
+    const totalSec = swimSec + waitSec;
 
     const h = Math.floor(totalSec / 3600), m = Math.floor((totalSec % 3600) / 60);
     const timeStr = `${h}:${String(m).padStart(2, '0')}`;
+    const swimH = Math.floor(swimSec / 3600), swimM = Math.floor((swimSec % 3600) / 60);
 
-    const leg1H = Math.floor(leg1Sec / 3600), leg1M = Math.floor((leg1Sec % 3600) / 60);
-    const leg2H = Math.floor(leg2Sec / 3600), leg2M = Math.floor((leg2Sec % 3600) / 60);
+    const fmt = s => `${Math.floor(s/3600)}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}`;
 
     // Finish time
     let finishLabel = '';
@@ -1238,19 +1265,24 @@ function calcPrediction() {
     const el = document.getElementById('predResult');
     el.style.display = 'block';
     el.innerHTML = `<div class="pred-result">
-        <div style="font-size:11px;font-weight:700;color:var(--ocean-light);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Estimated Total Time</div>
+        <div style="font-size:11px;font-weight:700;color:var(--ocean-light);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Estimated Total Time (swim + tidal wait)</div>
         <div class="pred-time">${timeStr}</div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-top:2px;">Swim only: <strong style="color:var(--text-primary);">${swimH}:${String(swimM).padStart(2,'0')}</strong></div>
         ${finishLabel ? `<div style="font-size:13px;font-weight:600;color:var(--ocean-light);margin-top:4px;">${finishLabel}${best ? ' (start ' + best.startStr + ')' : ''}</div>` : ''}
-        <div class="pred-sub" style="margin-top:10px;">
-            Outbound leg (12km): ${leg1H}:${String(leg1M).padStart(2,'0')} · ${best?.leg1Assist ? 'flood-assisted' : 'ebb headwind'}<br>
-            Turnaround at Mykanos: 10 min<br>
-            Return leg (12km): ${leg2H}:${String(leg2M).padStart(2,'0')} · ${best?.leg2Assist ? 'ebb-assisted' : 'flood headwind'}<br><br>
-            Base pace: ${Math.floor(paceSec / 60)}:${String(paceSec % 60).padStart(2,'0')}/km · ${category === 'wetsuit' ? 'Wetsuit (+0.3 km/h)' : 'Skins'}${windSpd > 20 ? ` · Wind adjustment (−${windSpd > 30 ? '0.4' : '0.2'} km/h)` : ''}<br>
-            Cold water: ${coldNote}<br>
-            ${moonLabel} · tidal assist ${ts.assist > 0 ? '+' : ''}${ts.assist} km/h per assisted leg
+        <div class="pred-sub" style="margin-top:12px;line-height:2.0;">
+            <span style="color:var(--success);">▶</span> Preekstool → Pearleys (6.5km, tidal): <strong>${fmt(leg1TidalSec)}</strong> · ${best?.leg1Assist ? `+${ts.assist} km/h` : `${ts.against} km/h`}<br>
+            <span style="color:var(--text-secondary);">▶</span> Pearleys → Mykanos (5.5km, still water): <strong>${fmt(leg1StillSec)}</strong><br>
+            <span style="color:var(--warning);">▶</span> Wait at Mykanos: <strong>${waitMin} min</strong> · tide turning<br>
+            <span style="color:var(--text-secondary);">▶</span> Mykanos → Pearleys (5.5km, still water): <strong>${fmt(leg2StillSec)}</strong><br>
+            <span style="color:var(--success);">▶</span> Pearleys → Preekstool (6.5km, tidal): <strong>${fmt(leg2TidalSec)}</strong> · ${best?.leg2Assist ? `+${ts.assist} km/h` : `${ts.against} km/h`}
+        </div>
+        <div class="pred-sub" style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;">
+            Base pace: ${Math.floor(paceSec / 60)}:${String(paceSec % 60).padStart(2,'0')}/km · ${category === 'wetsuit' ? 'Wetsuit (+0.3 km/h)' : 'Skins'}${windSpd > 20 ? ` · Wind (−${windSpd > 30 ? '0.4' : '0.2'} km/h)` : ''}<br>
+            ${coldNote} · ${moonLabel}<br>
+            Tidal zone (6.5km each way): ${ts.assist > 0 ? '+' : ''}${ts.assist} km/h assist
         </div>
         <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;border-top:1px solid var(--border);padding-top:10px;">
-            Individual variability ±45 minutes. Model assumes steady pace and standard feed stops.
+            ±45 min variability. Tidal zone confirmed by Derrik Frazer (Big Bay Events, Apr 2026). Total time is now directly comparable to historical records.
         </div>
         ${ptRankHTML(totalSec)}
     </div>`;
