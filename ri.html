@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Robben Island Crossing Intel — SwimLoading</title>
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-dark: #0a1628; --bg-card: #111c30;
+            --ocean: #0ea5e9; --ocean-light: #38bdf8;
+            --text-primary: #f0f9ff; --text-secondary: #94a3b8;
+            --danger: #ef4444; --success: #22c55e; --warning: #f59e0b;
+            --border: rgba(255,255,255,0.08); --purple: #a78bfa;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; padding: 0 0 60px; }
+        .header { background: linear-gradient(135deg, #0a1628 0%, #130a2b 100%); border-bottom: 1px solid var(--border); padding: 10px 16px; position: sticky; top: 0; z-index: 100; }
+        .header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 600px; margin: 0 auto; }
+        .back-btn { font-size: 13px; color: var(--text-secondary); background: none; border: none; cursor: pointer; padding: 4px; text-decoration: none; }
+        .back-btn:hover { color: var(--ocean-light); }
+        .header-title { font-size: 17px; font-weight: 800; color: var(--ocean-light); letter-spacing: -0.3px; }
+        .header-sub { font-size: 10px; color: var(--text-secondary); margin-top: 1px; }
+        .container { padding: 14px; max-width: 600px; margin: 0 auto; }
+        .card { background: var(--bg-card); border-radius: 16px; padding: 18px; margin-bottom: 14px; border: 1px solid var(--border); }
+        .card-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 12px; }
+        .tab-bar { display: flex; background: rgba(15,23,42,0.8); border-radius: 10px; padding: 3px; margin-bottom: 16px; gap: 2px; }
+        .tab-btn { flex: 1; background: transparent; border: none; color: var(--text-secondary); font-size: 12px; font-weight: 600; padding: 8px 2px; border-radius: 8px; cursor: pointer; }
+        .tab-btn.active { background: var(--ocean); color: white; }
+        .panel { display: none; } .panel.active { display: block; }
+        .signal-card { border-radius: 16px; padding: 20px; margin-bottom: 14px; border: 1px solid; }
+        .signal-card.go     { background: rgba(34,197,94,0.08);  border-color: rgba(34,197,94,0.3); }
+        .signal-card.caution{ background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.3); }
+        .signal-card.wait   { background: rgba(239,68,68,0.08);  border-color: rgba(239,68,68,0.3); }
+        .signal-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+        .signal-card.go .signal-label { color: var(--success); }
+        .signal-card.caution .signal-label { color: var(--warning); }
+        .signal-card.wait .signal-label { color: var(--danger); }
+        .signal-title { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
+        .signal-sub { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        .stat-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        .stat-box { background: rgba(15,23,42,0.6); border-radius: 12px; padding: 14px 10px; text-align: center; border: 1px solid var(--border); }
+        .stat-box.hi   { background: rgba(14,165,233,0.08);  border-color: rgba(14,165,233,0.25); }
+        .stat-box.ok   { background: rgba(34,197,94,0.08);   border-color: rgba(34,197,94,0.25); }
+        .stat-box.warn { background: rgba(245,158,11,0.08);  border-color: rgba(245,158,11,0.25); }
+        .stat-box.red  { background: rgba(239,68,68,0.08);   border-color: rgba(239,68,68,0.25); }
+        .stat-val { font-size: 24px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+        .stat-val.blue  { color: var(--ocean-light); }
+        .stat-val.green { color: var(--success); }
+        .stat-val.amber { color: var(--warning); }
+        .stat-val.red   { color: var(--danger); }
+        .stat-lbl { font-size: 11px; color: var(--text-secondary); line-height: 1.3; }
+        .checklist-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .checklist-item:last-child { border-bottom: none; }
+        .check-num { font-size: 11px; font-weight: 800; color: var(--ocean-light); background: rgba(14,165,233,0.12); border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+        .check-label { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 3px; }
+        .check-sub { font-size: 12px; color: var(--text-secondary); line-height: 1.55; }
+        .alert { border-radius: 12px; padding: 14px; margin-bottom: 14px; font-size: 13px; line-height: 1.6; }
+        .alert.blue   { background: rgba(14,165,233,0.08);  border: 1px solid rgba(14,165,233,0.25);  color: var(--text-secondary); }
+        .alert.amber  { background: rgba(245,158,11,0.08);  border: 1px solid rgba(245,158,11,0.25);  color: var(--text-secondary); }
+        .alert.green  { background: rgba(34,197,94,0.08);   border: 1px solid rgba(34,197,94,0.25);   color: var(--text-secondary); }
+        .pred-label { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 5px; }
+        .pred-input { width: 100%; background: rgba(15,23,42,0.8); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 10px 12px; color: var(--text-primary); font-size: 14px; outline: none; }
+        .pred-input:focus { border-color: var(--ocean); }
+        .pred-btn { width: 100%; background: var(--ocean); color: white; border: none; border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer; }
+        .pred-btn:hover { background: var(--ocean-light); color: #0a1628; }
+        .loading-msg { font-size: 13px; color: var(--text-secondary); padding: 8px 0; }
+        .nw-pill { display: inline-block; background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.35); border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 700; color: var(--success); margin-right: 6px; margin-bottom: 4px; }
+        .pct-bar-wrap { margin: 14px 0; }
+        .pct-bar-track { background: rgba(255,255,255,0.08); border-radius: 8px; height: 14px; overflow: hidden; }
+        .pct-bar-fill { height: 100%; border-radius: 8px; background: linear-gradient(90deg, var(--ocean), var(--success)); transition: width 0.5s ease; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-inner">
+        <div style="display:flex;align-items:center;gap:10px;">
+            <a href="/big5" class="back-btn">← Big 5</a>
+            <div>
+                <div class="header-title">Robben Island Crossing</div>
+                <div class="header-sub">Robben Island → Big Bay · 7.4km · Atlantic</div>
+            </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+            <button id="refreshBtn" onclick="refreshPage()" title="Refresh" style="background:rgba(14,165,233,0.10);border:1px solid rgba(14,165,233,0.25);color:var(--ocean-light);border-radius:20px;padding:3px 10px;font-size:14px;cursor:pointer;">↻</button>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="showPanel('panelConditions',this)">Conditions</button>
+        <button class="tab-btn" onclick="showPanel('panelPrediction',this)">Prediction</button>
+        <button class="tab-btn" onclick="showPanel('panelRecords',this)">Records</button>
+    </div>
+
+    <!-- ══════════ CONDITIONS ══════════ -->
+    <div id="panelConditions" class="panel active">
+
+        <div id="signalCard" class="loading-msg">Loading conditions...</div>
+
+        <div class="card">
+            <div class="card-label">Marine Forecast — Big Bay</div>
+            <div id="marineCard" class="loading-msg">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Live Water Temperature</div>
+            <div id="tempCard" class="loading-msg">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">The NW Window — What Makes This Swim Possible</div>
+            <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+                The Robben Island crossing is unique among Cape Town swims: conditions can transform it from a brutal slog into a gliding, current-assisted passage. The difference is the NW wind.
+                <br><br>
+                <strong style="color:var(--text-primary);">NW 15–30 km/h:</strong> The ideal window. North-westerly wind generates a surface current pushing from the island directly toward Big Bay. Swimmers on a strong NW day can run 20–30 minutes faster than their open-ocean pace would suggest. This is the swim people dream about.
+                <br><br>
+                <strong style="color:var(--text-primary);">NW 10–15 km/h:</strong> Some assist — conditions manageable, modest push. Good days for first-timers.
+                <br><br>
+                <strong style="color:var(--warning);">SE wind:</strong> The Cape Doctor works against you. Fighting a SE headwind for 7.4km is significantly harder. Times are 20–35 minutes slower. Not a day to attempt a PB.
+                <br><br>
+                <strong style="color:var(--text-primary);">Swell:</strong> Below 1.5m is comfortable. 1.5–2.0m adds chop and navigation difficulty. Above 2.0m: the island approach and Big Bay landing become hazardous.
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Historical Conditions Breakdown — 920 Swims (2014–2024)</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+                <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:10px;padding:12px;text-align:center;">
+                    <div style="font-size:22px;font-weight:800;color:var(--success);">57%</div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Good / Misty<br>(NW assist days)</div>
+                </div>
+                <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:10px;padding:12px;text-align:center;">
+                    <div style="font-size:22px;font-weight:800;color:var(--warning);">16%</div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Bumpy / Choppy<br>(reduced assist)</div>
+                </div>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">
+                <strong style="color:var(--text-primary);">Good conditions median (skins):</strong> 2:36 &nbsp;·&nbsp; <strong style="color:var(--text-primary);">Bumpy median:</strong> 2:58<br>
+                <strong style="color:var(--text-primary);">Conditions impact:</strong> ~22 minutes difference between a NW push day and a bumpy day for the same swimmer. The most conditions-sensitive swim in the Big 5.
+            </div>
+        </div>
+
+        <div style="padding:6px 0 20px;text-align:center;">
+            <button onclick="shareConditions()" style="padding:12px 28px;border-radius:24px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.1);color:var(--ocean-light);font-size:13px;font-weight:700;cursor:pointer;">Share Conditions</button>
+            <div id="shareMsg" style="font-size:11px;color:var(--success);margin-top:8px;display:none;">Copied — paste into WhatsApp</div>
+        </div>
+    </div>
+
+    <!-- ══════════ PREDICTION ══════════ -->
+    <div id="panelPrediction" class="panel">
+
+        <div class="alert blue">
+            7.4km, Robben Island → Big Bay. The NW window is the critical variable — enter your pace and see how conditions change your time, plus where you'd rank against 920 historical finishers.
+        </div>
+
+        <div class="card">
+            <div class="card-label">Calibrate from a Known Swim</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.6;">Have a previous RI time or another Big 5 time? Use it to calculate your implied open-ocean pace.</div>
+            <div style="margin-bottom:10px;">
+                <div class="pred-label">Route you've completed</div>
+                <select id="refRoute" class="pred-input" style="background:var(--bg-card);" onchange="toggleCustomDist(this.value)">
+                    <option value="">Select route...</option>
+                    <option value="ri_good">Previous RI Crossing — Good / Misty (NW day)</option>
+                    <option value="ri_bumpy">Previous RI Crossing — Bumpy / Choppy</option>
+                    <option value="5">MSC / Any 5km Open Water Event (5km)</option>
+                    <option value="8">Cape Point, Diaz → Millers (8km)</option>
+                    <option value="8.7">Dassen Island (8.7km)</option>
+                    <option value="12">Preekstool 1-way (12km)</option>
+                    <option value="18">West Coast Angle (18km)</option>
+                    <option value="33">False Bay Crossing (33km)</option>
+                    <option value="custom">Other distance — enter below...</option>
+                </select>
+            </div>
+            <div id="customDistDiv" style="display:none;margin-bottom:10px;">
+                <div class="pred-label">Distance (km)</div>
+                <input type="number" id="customDist" class="pred-input" placeholder="e.g. 10.5" step="0.1" min="0.5" max="200">
+            </div>
+            <div style="margin-bottom:10px;">
+                <div class="pred-label">Your finishing time (h:mm or h:mm:ss)</div>
+                <input type="text" id="refTime" class="pred-input" placeholder="e.g. 2:36 or 2:36:00">
+            </div>
+            <button class="pred-btn" style="margin-bottom:10px;" onclick="calcPaceFromRoute()">Calculate My Implied Pace →</button>
+            <div id="impliedPaceResult" style="font-size:13px;color:var(--text-secondary);min-height:18px;"></div>
+            <button id="usePaceBtn" style="display:none;margin-top:8px;padding:8px 16px;border-radius:8px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.1);color:var(--ocean-light);font-size:12px;font-weight:700;cursor:pointer;">Use this pace →</button>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Pool Time Converter</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.55;">Enter your pool 1km time. Pool times are 14–17% faster than open water.</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+                <div>
+                    <div class="pred-label">Pool 1km time (mm:ss)</div>
+                    <input type="text" id="poolTime" class="pred-input" placeholder="e.g. 17:00">
+                </div>
+                <div>
+                    <div class="pred-label">Pool length</div>
+                    <select id="poolLen" class="pred-input" style="background:var(--bg-card);">
+                        <option value="50">50m pool</option>
+                        <option value="25">25m pool</option>
+                    </select>
+                </div>
+            </div>
+            <div style="font-size:10px;color:var(--text-secondary);margin-bottom:10px;">Use your fastest continuous 1km. If you don't swim 1km sets: 400m × 2.8, or 800m × 1.35.</div>
+            <button class="pred-btn" style="margin-bottom:10px;" onclick="calcPoolPace()">Estimate My OW Pace →</button>
+            <div id="poolResult" style="font-size:13px;color:var(--text-secondary);min-height:18px;"></div>
+            <button id="usePoolPaceBtn" style="display:none;margin-top:8px;padding:8px 16px;border-radius:8px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.1);color:var(--ocean-light);font-size:12px;font-weight:700;cursor:pointer;"></button>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Your Swim Prediction</div>
+
+            <div style="margin-bottom:12px;">
+                <div class="pred-label">1km open water pace (mm:ss) — sustained effort</div>
+                <input type="text" id="inputOWPace" class="pred-input" placeholder="e.g. 21:00">
+                <div style="font-size:10px;color:var(--text-secondary);margin-top:3px;">Typical range: 16:00 (elite) to 28:00 (comfortable). Use calibration above if unsure.</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+                <div>
+                    <div class="pred-label">Water temp (°C)</div>
+                    <input type="number" id="inputTemp" class="pred-input" placeholder="e.g. 14" min="8" max="22" step="0.5">
+                    <div style="font-size:9px;color:var(--text-secondary);margin-top:2px;">Auto from live data</div>
+                </div>
+                <div>
+                    <div class="pred-label">Category</div>
+                    <select id="inputCategory" class="pred-input" style="background:var(--bg-card);">
+                        <option value="skins">Skins</option>
+                        <option value="wetsuit">Wetsuit (+0.15 km/h)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <div class="pred-label">Expected conditions on swim day</div>
+                <select id="inputConditions" class="pred-input" style="background:var(--bg-card);">
+                    <option value="strong_nw">Strong NW — 25+ km/h (big push, fast day)</option>
+                    <option value="moderate_nw" selected>Moderate NW — 15–25 km/h (solid assist)</option>
+                    <option value="light">Light / Calm — under 15 km/h (little push)</option>
+                    <option value="se">SE Wind (headwind — tough day)</option>
+                </select>
+                <div style="font-size:10px;color:var(--text-secondary);margin-top:3px;">This is the biggest lever — conditions swing your time by 20–35 minutes.</div>
+            </div>
+
+            <button class="pred-btn" onclick="calcPrediction()">Predict My Time →</button>
+
+            <div id="predResult" style="display:none;margin-top:16px;"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Model Accuracy — What to Expect</div>
+            <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:10px;padding:14px;margin-bottom:14px;">
+                <div style="font-size:11px;font-weight:700;color:var(--success);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Validated — Double Robben Island, March 2026</div>
+                <div style="font-size:13px;color:var(--text-primary);line-height:1.6;margin-bottom:6px;">Yolanda Carstens used the SwimLoading predictor to plan her Double RI crossing. The model was within <strong>90 seconds</strong> of her actual 5:22:24 finish — over a 5-hour open Atlantic swim.</div>
+                <div style="font-size:12px;color:var(--text-secondary);">Accuracy depends entirely on your pace input. The model rewards swimmers who know themselves.</div>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;">
+                <strong style="color:var(--text-primary);">What the model includes:</strong> your open-ocean pace, conditions current assist, cold water speed penalty (below 16°C), and wetsuit speed benefit.<br><br>
+                <strong style="color:var(--text-primary);">What it can't predict:</strong> unexpected current shifts mid-crossing, significant nutrition stops, medical holds, or extraordinary fatigue. Add 5–10% buffer when planning your safety window with your skipper.
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════ RECORDS ══════════ -->
+    <div id="panelRecords" class="panel">
+
+        <div class="stat-grid-3" style="margin-bottom:14px;">
+            <div class="stat-box ok">
+                <div class="stat-val green">920</div>
+                <div class="stat-lbl">Verified<br>finishes</div>
+            </div>
+            <div class="stat-box hi">
+                <div class="stat-val blue">1:31</div>
+                <div class="stat-lbl">All-time<br>fastest</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-val" style="color:var(--text-primary);">2014</div>
+                <div class="stat-lbl">First year<br>recorded</div>
+            </div>
+        </div>
+
+        <div style="background:linear-gradient(135deg,rgba(34,197,94,0.10),rgba(14,165,233,0.08));border:1px solid rgba(34,197,94,0.3);border-radius:16px;padding:18px;margin-bottom:14px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--success);margin-bottom:10px;">All-Time Record Holder</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div>
+                    <div style="font-size:18px;font-weight:800;color:var(--text-primary);">Michelle Weber</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Fastest <em>ever</em> — both skins and wetsuit</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:28px;font-weight:900;color:var(--success);letter-spacing:-1px;">1:31:22</div>
+                    <div style="font-size:10px;color:var(--text-secondary);">Wetsuit · Sep 2021 · Good · 15°C</div>
+                </div>
+            </div>
+            <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;margin-top:4px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+                    <span style="color:var(--text-secondary);">Skins record (same swimmer)</span>
+                    <span style="font-weight:700;color:var(--ocean-light);">1:38:00 · Sep 2020 · Bumpy</span>
+                </div>
+                <div style="font-size:11px;color:var(--text-secondary);margin-top:6px;line-height:1.5;">Michelle holds the outright RI record in both categories. The skins 1:38 was done on a <em>bumpy</em> day — what she'd do on a perfect NW is open to speculation.</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">All-Time Top 10 — Robben Island Crossing</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">
+                <div><span style="font-weight:600;color:var(--text-primary);">Michelle Weber</span> <span style="color:var(--text-secondary);">Wetsuit · 15°C · Sep 2021 · Good</span></div>
+                <div style="font-weight:700;color:var(--success);">1:31:22</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">
+                <div><span style="font-weight:600;color:var(--text-primary);">Michelle Weber</span> <span style="color:var(--text-secondary);">Skins · 14.5°C · Sep 2020 · Bumpy</span></div>
+                <div style="font-weight:700;color:var(--success);">1:38:00</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">
+                <div><span style="font-weight:600;color:var(--text-primary);">Danie Marais</span> <span style="color:var(--text-secondary);">Wetsuit · 14.5°C · Sep 2020 · Bumpy</span></div>
+                <div style="font-weight:700;color:var(--ocean-light);">1:38:00</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">
+                <div><span style="font-weight:600;color:var(--text-primary);">Kieron Palframan</span> <span style="color:var(--text-secondary);">Skins · 15°C · Apr 2017 · Misty</span></div>
+                <div style="font-weight:700;color:var(--ocean-light);">1:46:00</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">
+                <div><span style="font-weight:600;color:var(--text-primary);">Ryan Stramrood</span> <span style="color:var(--text-secondary);">Skins · 15°C · Apr 2017 · Misty</span></div>
+                <div style="font-weight:700;color:var(--ocean-light);">1:46:00</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">
+                <div><span style="font-weight:600;color:var(--text-primary);">Ryan Stramrood</span> <span style="color:var(--text-secondary);">Skins · 14.5°C · Dec 2020</span></div>
+                <div style="font-weight:700;color:var(--ocean-light);">1:48:00</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">
+                <div><span style="font-weight:600;color:var(--text-primary);">Justin Hardcastle</span> <span style="color:var(--text-secondary);">Skins · 14.5°C · Dec 2020</span></div>
+                <div style="font-weight:700;color:var(--ocean-light);">1:49:00</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">
+                <div><span style="font-weight:600;color:var(--text-primary);">Philippe Drolet</span> <span style="color:var(--text-secondary);">Wetsuit · 13°C · Dec 2020</span></div>
+                <div style="font-weight:700;color:var(--ocean-light);">1:49:00</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">
+                <div><span style="font-weight:600;color:var(--text-primary);">Shonee Cornelissen</span> <span style="color:var(--text-secondary);">Skins · 14.5°C · Dec 2020</span></div>
+                <div style="font-weight:700;color:var(--ocean-light);">1:50:00</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:12px;">
+                <div><span style="font-weight:600;color:var(--text-primary);">Ryan Stramrood</span> <span style="color:var(--text-secondary);">Skins · 16°C · Feb 2018 · Good</span></div>
+                <div style="font-weight:700;color:var(--ocean-light);">1:51:00</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Most Crossings — Ryan Stramrood</div>
+            <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+                Ryan Stramrood appears more times in the RI record than any other swimmer. Six appearances in the all-time top 10 alone — across multiple years and conditions. His fastest skins time of 1:46 was set in 2017 on a misty morning. Consistent performer in cold Atlantic conditions.
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Skins vs Wetsuit — The Data</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+                <div style="background:rgba(14,165,233,0.08);border:1px solid rgba(14,165,233,0.25);border-radius:10px;padding:14px;">
+                    <div style="font-size:10px;font-weight:700;color:var(--ocean-light);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Skins · 676 swims</div>
+                    <div style="font-size:13px;margin-bottom:4px;"><span style="color:var(--text-secondary);">Record:</span> <strong>1:38:00</strong></div>
+                    <div style="font-size:13px;margin-bottom:4px;"><span style="color:var(--text-secondary);">Median:</span> <strong>2:37</strong></div>
+                    <div style="font-size:13px;"><span style="color:var(--text-secondary);">Top 25%:</span> <strong>&lt; 2:20</strong></div>
+                </div>
+                <div style="background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.25);border-radius:10px;padding:14px;">
+                    <div style="font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Wetsuit · 240 swims</div>
+                    <div style="font-size:13px;margin-bottom:4px;"><span style="color:var(--text-secondary);">Record:</span> <strong>1:31:22</strong></div>
+                    <div style="font-size:13px;margin-bottom:4px;"><span style="color:var(--text-secondary);">Median:</span> <strong>2:47</strong></div>
+                    <div style="font-size:13px;"><span style="color:var(--text-secondary);">Top 25%:</span> <strong>&lt; 2:28</strong></div>
+                </div>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;">
+                The data shows something counterintuitive: the <strong style="color:var(--text-primary);">median skins swimmer (2:37) is faster than the median wetsuit swimmer (2:47)</strong>. This reflects selection bias — skins swimmers are generally more experienced cold-water athletes. The top wetsuit performers (1:31) are faster than the top skins performers (1:38), confirming that a wetsuit does add speed for elite-level swimmers. For the majority of the field, the bigger factor is fitness, not suit choice.
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Year by Year — 2014 to 2024</div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%;font-size:12px;border-collapse:collapse;">
+                    <thead>
+                        <tr style="color:var(--text-secondary);border-bottom:1px solid var(--border);">
+                            <td style="padding:6px 4px;font-weight:700;">Year</td>
+                            <td style="padding:6px 4px;text-align:center;font-weight:700;">Skins</td>
+                            <td style="padding:6px 4px;text-align:center;font-weight:700;">Wetsuit</td>
+                            <td style="padding:6px 4px;text-align:right;font-weight:700;">Fastest</td>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px 4px;color:var(--text-secondary);">2014</td><td style="padding:6px 4px;text-align:center;">37</td><td style="padding:6px 4px;text-align:center;color:var(--text-secondary);">—</td><td style="padding:6px 4px;text-align:right;font-weight:600;">2:00 (skins)</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px 4px;color:var(--text-secondary);">2015</td><td style="padding:6px 4px;text-align:center;">49</td><td style="padding:6px 4px;text-align:center;color:var(--text-secondary);">—</td><td style="padding:6px 4px;text-align:right;font-weight:600;">2:02 (skins)</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px 4px;color:var(--text-secondary);">2016</td><td style="padding:6px 4px;text-align:center;">51</td><td style="padding:6px 4px;text-align:center;color:var(--text-secondary);">—</td><td style="padding:6px 4px;text-align:right;font-weight:600;">2:03 (skins)</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px 4px;color:var(--text-secondary);">2017</td><td style="padding:6px 4px;text-align:center;">107</td><td style="padding:6px 4px;text-align:center;color:var(--text-secondary);">—</td><td style="padding:6px 4px;text-align:right;font-weight:600;color:var(--ocean-light);">1:46 (skins)</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px 4px;color:var(--text-secondary);">2018</td><td style="padding:6px 4px;text-align:center;">122</td><td style="padding:6px 4px;text-align:center;">30</td><td style="padding:6px 4px;text-align:right;font-weight:600;">1:51 (skins)</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px 4px;color:var(--text-secondary);">2019</td><td style="padding:6px 4px;text-align:center;">94</td><td style="padding:6px 4px;text-align:center;">58</td><td style="padding:6px 4px;text-align:right;font-weight:600;">1:55 (skins)</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px 4px;color:var(--text-secondary);">2020</td><td style="padding:6px 4px;text-align:center;">117</td><td style="padding:6px 4px;text-align:center;">79</td><td style="padding:6px 4px;text-align:right;font-weight:600;color:var(--success);">1:38 (both)</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px 4px;color:var(--text-secondary);">2021</td><td style="padding:6px 4px;text-align:center;">69</td><td style="padding:6px 4px;text-align:center;">56</td><td style="padding:6px 4px;text-align:right;font-weight:600;color:var(--success);">1:31 ★ (wetsuit)</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px 4px;color:var(--text-secondary);">2022</td><td style="padding:6px 4px;text-align:center;">26</td><td style="padding:6px 4px;text-align:center;">13</td><td style="padding:6px 4px;text-align:right;font-weight:600;">1:54 (skins)</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px 4px;color:var(--text-secondary);">2023</td><td style="padding:6px 4px;text-align:center;">1</td><td style="padding:6px 4px;text-align:center;">2</td><td style="padding:6px 4px;text-align:right;font-weight:600;">2:21 (wetsuit)</td></tr>
+                        <tr><td style="padding:6px 4px;color:var(--text-secondary);">2024</td><td style="padding:6px 4px;text-align:center;">2</td><td style="padding:6px 4px;text-align:center;color:var(--text-secondary);">—</td><td style="padding:6px 4px;text-align:right;font-weight:600;">2:12 (skins)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;line-height:1.55;">
+                Wetsuit entries first appear in 2018. By 2020 they're nearly half the field. The 2021 all-time record (1:31:22) stands despite the smaller field. 2022–2024 counts are low — this data reflects Big Bay Events records only.
+            </div>
+            <div style="font-size:10px;color:var(--text-secondary);margin-top:6px;">Source: Derrik Frazer, Big Bay Events · 2014–2024</div>
+        </div>
+
+    </div><!-- end panelRecords -->
+</div><!-- end container -->
+
+<script>
+const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Big Bay marine coords
+const LAT = -33.799, LON = 18.484;
+
+// Cumulative time distributions [minutes_bucket, cumulative_count]
+// Skins: 676 total on main route (0c3a25cf), Big Bay Events 2014–2024
+const DIST_SKINS = [
+    [95,1],[100,2],[110,6],[115,9],[120,25],[125,61],[130,88],[135,117],
+    [140,162],[145,208],[150,255],[155,309],[160,364],[165,398],[170,440],
+    [175,476],[180,496],[185,525],[190,559],[195,573],[200,587],[205,613],
+    [210,621],[215,631],[220,642],[225,647],[230,652],[235,657],[240,662],
+    [245,666],[255,671],[260,673],[275,676]
+];
+const TOTAL_SKINS = 676;
+
+// Wetsuit: 240 total
+const DIST_WETSUIT = [
+    [95,1],[100,2],[115,5],[120,10],[125,11],[130,15],[135,21],[140,28],
+    [145,53],[150,68],[155,90],[160,108],[165,117],[170,130],[175,143],
+    [180,157],[185,175],[190,184],[195,205],[200,210],[205,216],[210,226],
+    [215,228],[220,231],[225,234],[235,236],[240,237],[245,238],[270,239],[315,240]
+];
+const TOTAL_WETSUIT = 240;
+
+// Returns % of historical field you'd beat with this time
+function getPercentileBeat(minutes, category) {
+    const dist = category === 'skins' ? DIST_SKINS : DIST_WETSUIT;
+    const total = category === 'skins' ? TOTAL_SKINS : TOTAL_WETSUIT;
+    for (let i = 0; i < dist.length; i++) {
+        if (minutes <= dist[i][0]) {
+            const slower = total - dist[i][1];
+            return Math.round(slower / total * 100);
+        }
+    }
+    return 0;
+}
+
+function coldPenalty(temp) {
+    if (!temp || temp >= 16) return 1.00;
+    if (temp >= 15) return 0.97;
+    if (temp >= 14) return 0.95;
+    if (temp >= 13) return 0.92;
+    if (temp >= 12) return 0.88;
+    return 0.84;
+}
+
+// km/h assist by conditions
+const CONDITIONS_ASSIST = {
+    strong_nw:   0.65,
+    moderate_nw: 0.40,
+    light:       0.05,
+    se:         -0.25
+};
+
+const CONDITIONS_LABEL = {
+    strong_nw:   'Strong NW 25+ km/h',
+    moderate_nw: 'Moderate NW 15–25 km/h',
+    light:       'Light / Calm',
+    se:          'SE Wind'
+};
+
+function parseTime(str) {
+    if (!str) return null;
+    str = str.trim();
+    const parts = str.split(':').map(Number);
+    if (parts.some(isNaN)) return null;
+    if (parts.length === 2) return parts[0] * 3600 + parts[1] * 60;
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return null;
+}
+
+function fmtTime(sec) {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    return `${h}:${String(m).padStart(2,'0')}`;
+}
+
+function showPanel(id, btn) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    if (btn) btn.classList.add('active');
+}
+
+function toggleCustomDist(val) {
+    document.getElementById('customDistDiv').style.display = val === 'custom' ? 'block' : 'none';
+}
+
+function calcPoolPace() {
+    const timeStr = document.getElementById('poolTime').value;
+    const poolLen = parseInt(document.getElementById('poolLen').value);
+    const sec = parseTime(timeStr);
+    if (!sec) { document.getElementById('poolResult').textContent = 'Enter a valid pool time (mm:ss)'; return; }
+    const factor = poolLen === 50 ? 0.86 : 0.83;
+    const owSec = sec / factor;
+    const owMin = Math.floor(owSec / 60);
+    const owS = Math.round(owSec % 60);
+    const owStr = `${owMin}:${String(owS).padStart(2,'0')}`;
+    document.getElementById('poolResult').innerHTML = `Estimated open water pace: <strong style="color:var(--ocean-light);">${owStr}/km</strong>`;
+    const btn = document.getElementById('usePoolPaceBtn');
+    btn.textContent = `Use ${owStr}/km →`;
+    btn.style.display = 'inline-block';
+    btn.onclick = () => { document.getElementById('inputOWPace').value = owStr; btn.style.display = 'none'; };
+}
+
+let _impliedOpenOceanSec = null;
+
+function calcPaceFromRoute() {
+    const routeVal = document.getElementById('refRoute').value;
+    const timeStr = document.getElementById('refTime').value;
+    if (!routeVal || !timeStr) { document.getElementById('impliedPaceResult').textContent = 'Select a route and enter your time.'; return; }
+    const totalSec = parseTime(timeStr);
+    if (!totalSec) { document.getElementById('impliedPaceResult').textContent = 'Enter time as h:mm or h:mm:ss'; return; }
+
+    const el = document.getElementById('impliedPaceResult');
+    const btn = document.getElementById('usePaceBtn');
+
+    // Previous RI crossings — reverse out conditions assist
+    if (routeVal === 'ri_good' || routeVal === 'ri_bumpy') {
+        const assist = routeVal === 'ri_good' ? CONDITIONS_ASSIST.moderate_nw : CONDITIONS_ASSIST.light;
+        const dist = 7.4;
+        const rawKmh = dist / (totalSec / 3600);
+        const ooKmh = rawKmh - assist;
+        const ooPaceSec = 3600 / ooKmh;
+        const min = Math.floor(ooPaceSec / 60), s = Math.round(ooPaceSec % 60);
+        const paceStr = `${min}:${String(s).padStart(2,'0')}`;
+        _impliedOpenOceanSec = ooPaceSec;
+        el.innerHTML = `<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:12px;margin-top:6px;">
+            <div style="font-weight:700;color:var(--success);margin-bottom:4px;">RI calibration — most accurate</div>
+            <div style="font-size:12px;color:var(--text-secondary);">Raw RI pace: ${Math.floor(totalSec/60/dist)}:${String(Math.round((totalSec/dist)%60)).padStart(2,'0')}/km · Minus conditions assist · Open-ocean equivalent: <strong style="color:var(--ocean-light);">${paceStr}/km</strong></div>
+        </div>`;
+        btn.textContent = `Use ${paceStr}/km →`;
+        btn.style.display = 'inline-block';
+        btn.onclick = () => { document.getElementById('inputOWPace').value = paceStr; btn.style.display = 'none'; };
+        return;
+    }
+
+    // Tidal routes need adjustment
+    const tidalRoutes = { '12': 0.55, '24': 0.55 };
+    let dist = parseFloat(routeVal);
+    if (routeVal === 'custom') dist = parseFloat(document.getElementById('customDist').value);
+    if (!dist || isNaN(dist)) { el.textContent = 'Enter distance.'; return; }
+
+    const rawKmh = dist / (totalSec / 3600);
+    const paceSec = 3600 / rawKmh;
+    const paceMin = Math.floor(paceSec / 60), paceS = Math.round(paceSec % 60);
+    const paceStr = `${paceMin}:${String(paceS).padStart(2,'0')}`;
+
+    if (tidalRoutes[routeVal]) {
+        const assist = tidalRoutes[routeVal];
+        const ooKmh = rawKmh - assist;
+        const ooPaceSec = 3600 / ooKmh;
+        const oMin = Math.floor(ooPaceSec / 60), oS = Math.round(ooPaceSec % 60);
+        const ooPaceStr = `${oMin}:${String(oS).padStart(2,'0')}`;
+        _impliedOpenOceanSec = ooPaceSec;
+        el.innerHTML = `<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:12px;">
+            <div style="font-weight:700;color:var(--warning);margin-bottom:4px;">Tidal route — pace adjusted</div>
+            <div style="font-size:12px;color:var(--text-secondary);">Raw pace ${paceStr}/km · Open-ocean equivalent: <strong style="color:var(--ocean-light);">${ooPaceStr}/km</strong></div>
+        </div>`;
+        btn.textContent = `Use ${ooPaceStr}/km →`;
+        btn.style.display = 'inline-block';
+        btn.onclick = () => { document.getElementById('inputOWPace').value = ooPaceStr; btn.style.display = 'none'; };
+    } else {
+        _impliedOpenOceanSec = paceSec;
+        el.innerHTML = `Implied pace: <strong style="color:var(--ocean-light);">${paceStr}/km</strong>`;
+        btn.textContent = `Use ${paceStr}/km →`;
+        btn.style.display = 'inline-block';
+        btn.onclick = () => { document.getElementById('inputOWPace').value = paceStr; btn.style.display = 'none'; };
+    }
+}
+
+function calcPrediction() {
+    const paceStr = document.getElementById('inputOWPace').value.trim();
+    const temp = parseFloat(document.getElementById('inputTemp').value);
+    const category = document.getElementById('inputCategory').value;
+    const condKey = document.getElementById('inputConditions').value;
+
+    const paceSec = parseTime(paceStr);
+    if (!paceSec) { alert('Enter your open water pace (mm:ss per km)'); return; }
+
+    const baseKmh = 3600 / paceSec;
+    const penalty = coldPenalty(temp);
+    const wetsuitBonus = category === 'wetsuit' ? 0.15 : 0;
+    const adjKmh = baseKmh * penalty + wetsuitBonus;
+    const assist = CONDITIONS_ASSIST[condKey];
+    const effectiveKmh = Math.max(1.0, adjKmh + assist);
+    const predSec = Math.round(7.4 * 3600 / effectiveKmh);
+    const pctBeat = getPercentileBeat(predSec / 60, category);
+    const total = category === 'skins' ? TOTAL_SKINS : TOTAL_WETSUIT;
+    const timeStr = fmtTime(predSec);
+
+    // Conditions comparison
+    const allConds = ['strong_nw', 'moderate_nw', 'light', 'se'];
+    const compRows = allConds.map(c => {
+        const eff = Math.max(1.0, adjKmh + CONDITIONS_ASSIST[c]);
+        const s = Math.round(7.4 * 3600 / eff);
+        const diff = predSec - s;
+        const diffStr = diff === 0 ? '← your prediction' : diff > 0 ? `↑ ${Math.round(diff/60)} min faster` : `↓ ${Math.round(Math.abs(diff)/60)} min slower`;
+        const isSelected = c === condKey;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;${isSelected ? 'background:rgba(14,165,233,0.06);margin:0 -6px;padding:6px;border-radius:6px;' : ''}">
+            <span style="color:${isSelected ? 'var(--ocean-light)' : 'var(--text-secondary)'};">${CONDITIONS_LABEL[c]}</span>
+            <span style="font-weight:${isSelected ? '800' : '600'};color:${isSelected ? 'var(--text-primary)' : 'var(--text-secondary)'};">${fmtTime(s)} <span style="font-size:10px;opacity:0.7;">${isSelected ? '' : diffStr}</span></span>
+        </div>`;
+    }).join('');
+
+    // Category label
+    const catLabel = category === 'skins' ? 'skins' : 'wetsuit';
+    const condLabel = CONDITIONS_LABEL[condKey];
+
+    // Penalty notes
+    const notes = [];
+    if (penalty < 1.0) notes.push(`${temp}°C cold penalty (${Math.round((1-penalty)*100)}% speed reduction)`);
+    if (wetsuitBonus > 0) notes.push('Wetsuit +0.15 km/h');
+    if (assist !== 0) notes.push(`${condLabel}: ${assist > 0 ? '+' : ''}${assist.toFixed(2)} km/h current`);
+
+    document.getElementById('predResult').style.display = 'block';
+    document.getElementById('predResult').innerHTML = `
+        <div style="background:rgba(14,165,233,0.08);border:1px solid rgba(14,165,233,0.25);border-radius:12px;padding:16px;margin-bottom:12px;">
+            <div style="font-size:11px;font-weight:700;color:var(--ocean-light);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">${condLabel} · ${catLabel} · ${isNaN(temp) ? '' : temp + '°C · '}7.4km RI → Big Bay</div>
+            <div style="font-size:44px;font-weight:900;letter-spacing:-2px;line-height:1;">${timeStr}</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:6px;line-height:1.6;">${notes.join(' · ')}</div>
+        </div>
+        <div style="background:rgba(15,23,42,0.6);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span style="font-size:12px;color:var(--text-secondary);">Slower than you</span>
+                <span style="font-size:13px;font-weight:700;color:${pctBeat >= 50 ? 'var(--success)' : pctBeat >= 25 ? 'var(--ocean-light)' : 'var(--text-secondary)'};">You'd beat ${pctBeat}% of the field</span>
+            </div>
+            <div class="pct-bar-track"><div class="pct-bar-fill" style="width:${pctBeat}%;"></div></div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:6px;">Based on ${total.toLocaleString()} ${catLabel} swims · Big Bay Events 2014–2024</div>
+        </div>
+        <div style="background:rgba(15,23,42,0.6);border:1px solid var(--border);border-radius:12px;padding:14px;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-secondary);margin-bottom:8px;">How conditions change your time</div>
+            ${compRows}
+        </div>`;
+}
+
+// ── Marine forecast ──────────────────────────────────────────────
+let _swell = null, _wind = null;
+
+function windDirLabel(deg) {
+    const d = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+    return d[Math.round(deg / 22.5) % 16];
+}
+
+function isNW(deg) { return (deg >= 270 && deg <= 360) || deg <= 30; }
+
+async function loadMarine() {
+    try {
+        const [mRes, wRes] = await Promise.all([
+            fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${LAT}&longitude=${LON}&hourly=wave_height&forecast_days=2&timezone=auto`),
+            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh&forecast_days=2&timezone=auto`)
+        ]);
+        const [mData, wData] = await Promise.all([mRes.json(), wRes.json()]);
+
+        const now = new Date();
+        const hour = now.getHours();
+        const swellHours = mData.hourly?.wave_height || [];
+        const windSpds = wData.hourly?.wind_speed_10m || [];
+        const windDirs = wData.hourly?.wind_direction_10m || [];
+
+        // Use early morning forecast (optimal swim window 05:00-09:00)
+        const mornIdx = Math.min(hour < 6 ? hour + 5 : hour, swellHours.length - 1);
+        const swell = swellHours[mornIdx] ?? swellHours[hour] ?? 0;
+        const windSpd = windSpds[mornIdx] ?? windSpds[hour] ?? 0;
+        const windDir = windDirs[mornIdx] ?? windDirs[hour] ?? 0;
+        const windLabel = windDirLabel(windDir);
+        const nw = isNW(windDir);
+
+        _swell = swell; _wind = { spd: windSpd, dir: windDir };
+
+        // Marine card
+        const swellEl = document.getElementById('marineCard');
+        if (swellEl) {
+            swellEl.innerHTML = `
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+                    <div style="text-align:center;">
+                        <div style="font-size:22px;font-weight:800;color:${swell < 1.0 ? 'var(--success)' : swell < 1.5 ? 'var(--warning)' : 'var(--danger)'};">${swell.toFixed(1)}m</div>
+                        <div style="font-size:10px;color:var(--text-secondary);">Swell height</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:22px;font-weight:800;color:${nw ? 'var(--success)' : windSpd < 15 ? 'var(--text-primary)' : 'var(--warning)'};">${Math.round(windSpd)}</div>
+                        <div style="font-size:10px;color:var(--text-secondary);">km/h ${windLabel}</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:22px;font-weight:800;color:${nw ? 'var(--success)' : 'var(--warning)'};">${windLabel}</div>
+                        <div style="font-size:10px;color:var(--text-secondary);">${nw ? 'NW assist' : 'No assist'}</div>
+                    </div>
+                </div>
+                <div style="font-size:11px;color:var(--text-secondary);line-height:1.55;">
+                    ${nw && windSpd >= 15 ? `<span style="color:var(--success);font-weight:700;">NW ${Math.round(windSpd)} km/h — current assist active.</span> ` : ''}
+                    ${nw && windSpd >= 25 ? 'Strong NW: expect a fast, push-assisted crossing.' : ''}
+                    ${nw && windSpd >= 10 && windSpd < 25 ? 'Moderate NW: some assist, manageable conditions.' : ''}
+                    ${!nw ? `Wind from ${windLabel} — no NW assist today. Conditions-based prediction applies.` : ''}
+                    Swell ${swell.toFixed(1)}m — ${swell < 1.0 ? 'flat, ideal' : swell < 1.5 ? 'moderate, manageable' : swell < 2.0 ? 'significant, approach with caution' : 'too large — hold off'}.
+                </div>`;
+        }
+
+        updateSignal(swell, windSpd, windDir);
+        // Auto-fill conditions selector
+        const condSel = document.getElementById('inputConditions');
+        if (condSel) {
+            if (nw && windSpd >= 25) condSel.value = 'strong_nw';
+            else if (nw && windSpd >= 10) condSel.value = 'moderate_nw';
+            else if (!nw && windSpd > 20) condSel.value = 'se';
+            else condSel.value = 'light';
+        }
+    } catch(e) {
+        const el = document.getElementById('marineCard');
+        if (el) el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Marine forecast unavailable. Check wind.guru or windyty.</div>';
+        updateSignal(0, 0, 315);
+    }
+}
+
+function updateSignal(swell, windSpd, windDir) {
+    const el = document.getElementById('signalCard');
+    if (!el) return;
+    const nw = isNW(windDir);
+    const windLabel = windDirLabel(windDir);
+    let cls, title, sub;
+
+    if (swell > 2.0 || windSpd > 40) {
+        cls = 'wait'; title = 'Hold Off';
+        sub = swell > 2.0 ? `Swell ${swell.toFixed(1)}m — island approach and Big Bay landing dangerous.` : `Wind ${Math.round(windSpd)} km/h — too strong for a safe crossing.`;
+        sub += ' Wait for calmer conditions.';
+    } else if (!nw && windSpd > 20) {
+        cls = 'caution'; title = 'Tough Day';
+        sub = `${windLabel} ${Math.round(windSpd)} km/h — headwind against the crossing. No NW assist. Times will be 20–30 min slower. Experienced swimmers only.`;
+    } else if (swell > 1.5 || (!nw && windSpd > 10)) {
+        cls = 'caution'; title = 'Use Caution';
+        const notes = [];
+        if (swell > 1.5) notes.push(`Swell ${swell.toFixed(1)}m`);
+        if (!nw) notes.push(`Wind from ${windLabel} — no assist`);
+        sub = notes.join(' · ') + '. Manageable for experienced swimmers with solid support vessel.';
+    } else if (nw && windSpd >= 15) {
+        cls = 'go'; title = windSpd >= 25 ? 'NW Window — Strong Push' : 'NW Window — Solid Assist';
+        sub = `NW ${Math.round(windSpd)} km/h, swell ${swell.toFixed(1)}m. ${windSpd >= 25 ? 'Strong NW — expect a fast, current-assisted crossing. This is what the swim was made for.' : 'Moderate NW assist — good conditions for a controlled attempt.'}`;
+    } else {
+        cls = 'caution'; title = 'Light Conditions';
+        sub = `Wind ${Math.round(windSpd)} km/h ${windLabel}, swell ${swell.toFixed(1)}m. Minimal current assist today. Times will be 15–20 min slower than a strong NW day.`;
+    }
+
+    el.outerHTML = `<div class="signal-card ${cls}">
+        <div class="signal-label">Robben Island Crossing · 7.4km</div>
+        <div class="signal-title">${title}</div>
+        <div class="signal-sub">${sub}</div>
+    </div>`;
+}
+
+// ── Live temps ───────────────────────────────────────────────────
+async function loadLiveTemps() {
+    const el = document.getElementById('tempCard');
+    if (!el) return;
+    try {
+        const { data: logs } = await sb
+            .from('temp_logs')
+            .select('temp_c, created_at, spots!temp_logs_spot_id_fkey(name, domain)')
+            .in('spots.domain', ['ATLANTIC', 'WEST_COAST'])
+            .gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString())
+            .order('created_at', { ascending: false })
+            .limit(60);
+
+        const recent = (logs || []).filter(l => l.spots);
+        if (!recent.length) {
+            el.innerHTML = '<div style="font-size:13px;color:var(--text-secondary);">No recent temp logs. West Coast typically 12–16°C. Expect cold.</div>';
+            return;
+        }
+        const avg = recent.reduce((s, l) => s + l.temp_c, 0) / recent.length;
+        const tempEl = document.getElementById('inputTemp');
+        if (tempEl && !tempEl.value) tempEl.value = Math.round(avg * 2) / 2;
+
+        const tempColor = avg >= 16 ? 'var(--warning)' : avg >= 14 ? 'var(--ocean-light)' : avg >= 12 ? 'var(--text-primary)' : 'var(--danger)';
+        const tempDesc = avg >= 16 ? 'Warmer than usual' : avg >= 14 ? 'Typical West Coast' : avg >= 12 ? 'Cold — acclimatise well' : 'Very cold — significant exposure risk';
+
+        el.innerHTML = `<div style="text-align:center;margin-bottom:12px;">
+            <div style="font-size:36px;font-weight:900;color:${tempColor};">${avg.toFixed(1)}°C</div>
+            <div style="font-size:12px;color:var(--text-secondary);">${tempDesc} · avg from ${recent.length} recent logs</div>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">
+            ${recent.slice(0,4).map(l => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
+                <span>${l.spots?.name || 'West Coast'}</span>
+                <span style="font-weight:600;color:${l.temp_c >= 16 ? 'var(--warning)' : l.temp_c >= 13 ? 'var(--ocean-light)' : 'var(--danger)'};">${l.temp_c}°C</span>
+            </div>`).join('')}
+        </div>`;
+    } catch(e) {
+        el.innerHTML = '<div style="font-size:13px;color:var(--text-secondary);">West Coast temps 12–16°C year-round. Below 14°C is common outside summer.</div>';
+    }
+}
+
+function shareConditions() {
+    const swell = _swell ?? 0;
+    const windSpd = Math.round(_wind?.spd ?? 0);
+    const windDir = windDirLabel(_wind?.dir ?? 0);
+    const nw = isNW(_wind?.dir ?? 315);
+    const text = `Robben Island Crossing Conditions — SwimLoading\nSwell: ${swell.toFixed(1)}m\nWind: ${windSpd} km/h ${windDir}${nw ? ' (NW assist)' : ''}\nFull intel: swimloading.com/ri`;
+    navigator.clipboard.writeText(text).then(() => {
+        const msg = document.getElementById('shareMsg');
+        if (msg) { msg.style.display = 'block'; setTimeout(() => msg.style.display = 'none', 3000); }
+    });
+}
+
+function refreshPage() { window.location.reload(); }
+
+async function startApp() {
+    await Promise.all([loadMarine(), loadLiveTemps()]);
+}
+
+startApp();
+</script>
+</body>
+</html>
