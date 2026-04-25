@@ -323,10 +323,10 @@ const SWIMS = [
     {
         id: 'dassen', num: '04',
         name: 'Dassen Island',
-        route: 'Yzerfontein → Dassen Island',
-        distance: '~7km', duration: '2–3.5h',
+        route: 'Dassen Island → Yzerfontein',
+        distance: '8.7km', duration: '2–4h',
         location: 'West Coast Atlantic',
-        desc: "Open Atlantic crossing to Africa's largest seabird island. Cold Benguela upwelling, NW swell exposure, and a finish at the edge of a 60,000-penguin colony. Touch and return by boat.",
+        desc: "Boat out to Africa's largest seabird island — touch the rocks among 60,000 penguins, then swim 8.7km back to the mainland. Cold Benguela upwelling, open Atlantic exposure, and an unforgettable start.",
         keyFactor: 'Atlantic NW swell · Cold Benguela water · Protected seabird island',
         url: '/dassen',
         lat: -33.38, lon: 18.10, marineApi: true,
@@ -339,14 +339,18 @@ const SWIMS = [
     {
         id: 'westangle', num: '05',
         name: 'West Coast Angle',
-        route: 'Route TBA',
-        distance: 'TBA', duration: 'TBA',
-        location: 'West Coast',
-        desc: 'The fifth challenge of the Big 5. Route intelligence being built — full conditions analysis and prediction model coming soon.',
-        keyFactor: 'Intelligence launching soon',
+        route: 'Big Bay → Robben Island → Melkbosstrand',
+        distance: '18km', duration: '6–7.5h',
+        location: 'West Coast Atlantic',
+        desc: 'Two-leg crossing via Robben Island. Swim west to the island, touch, then turn northeast to Melkbosstrand. The "angle" is the direction change at RI. All 4 completions in 13–14°C Benguela water.',
+        keyFactor: 'Two-leg via Robben Island · Cold Benguela 13–14°C · 6–7 hour commitment',
         url: '/westangle',
-        lat: null, lon: null, marineApi: false, coming: true,
-        goLogic() { return 'soon'; }
+        lat: -33.799, lon: 18.484, marineApi: true,
+        goLogic(w, s) {
+            if (s > 2.5 || w.spd > 40) return 'wait';
+            if (s > 1.5 || w.spd > 30) return 'caution';
+            return 'go';
+        }
     }
 ];
 
