@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Big Water Intel — SwimLoading Pro</title>
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <style>
+        :root {
+            --bg-dark: #050d1a;
+            --bg-card: #0d1b2e;
+            --bg-card2: #111c30;
+            --ocean: #0ea5e9;
+            --ocean-light: #38bdf8;
+            --ocean-deep: #0369a1;
+            --text-primary: #f0f9ff;
+            --text-secondary: #94a3b8;
+            --text-dim: #4a6080;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --gold: #d97706;
+            --border: rgba(255,255,255,0.07);
+            --border-bright: rgba(14,165,233,0.25);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+
+        /* ── Hero ── */
+        .hero {
+            background: linear-gradient(160deg, #050d1a 0%, #071524 40%, #04111f 70%, #050d1a 100%);
+            border-bottom: 1px solid rgba(14,165,233,0.12);
+            padding: 48px 20px 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -60px; left: 50%; transform: translateX(-50%);
+            width: 600px; height: 300px;
+            background: radial-gradient(ellipse at center, rgba(14,165,233,0.08) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .hero-wordmark {
+            font-size: 11px; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase;
+            color: var(--ocean-light); margin-bottom: 14px; opacity: 0.8;
+        }
+        .hero-title {
+            font-size: clamp(36px, 8vw, 52px); font-weight: 900; letter-spacing: -2px;
+            line-height: 1.05; color: var(--text-primary); margin-bottom: 14px;
+        }
+        .hero-title span { color: var(--ocean-light); }
+        .hero-sub {
+            font-size: 15px; color: var(--text-secondary); line-height: 1.6;
+            max-width: 420px; margin: 0 auto 28px;
+        }
+        .hero-stats {
+            display: flex; justify-content: center; gap: 28px; flex-wrap: wrap;
+            margin-bottom: 28px;
+        }
+        .hero-stat { text-align: center; }
+        .hero-stat-num { font-size: 28px; font-weight: 900; color: var(--ocean-light); letter-spacing: -1px; }
+        .hero-stat-lbl { font-size: 10px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+        .hero-cta {
+            display: inline-flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+        }
+        .btn-primary {
+            background: var(--ocean); color: white; border: none; border-radius: 24px;
+            padding: 12px 28px; font-size: 14px; font-weight: 700; cursor: pointer;
+            text-decoration: none; display: inline-block; letter-spacing: 0.02em;
+        }
+        .btn-primary:hover { background: var(--ocean-light); color: #050d1a; }
+        .btn-ghost {
+            background: rgba(14,165,233,0.08); color: var(--ocean-light);
+            border: 1px solid rgba(14,165,233,0.3); border-radius: 24px;
+            padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer;
+            text-decoration: none; display: inline-block;
+        }
+        .btn-ghost:hover { background: rgba(14,165,233,0.15); }
+
+        /* ── Section ── */
+        .section { padding: 32px 16px; max-width: 640px; margin: 0 auto; }
+        .section-eyebrow {
+            font-size: 10px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase;
+            color: var(--ocean); margin-bottom: 6px;
+        }
+        .section-title { font-size: 22px; font-weight: 800; color: var(--text-primary); margin-bottom: 18px; letter-spacing: -0.5px; }
+        .section-title span { color: var(--ocean-light); }
+        .divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(14,165,233,0.15), transparent); margin: 0 16px; }
+
+        /* ── Swim cards ── */
+        .swim-card {
+            display: flex; align-items: center; gap: 14px;
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 16px; margin-bottom: 10px;
+            text-decoration: none; color: inherit;
+            transition: border-color 0.2s, background 0.2s;
+            position: relative; overflow: hidden;
+        }
+        .swim-card::after {
+            content: '→'; position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+            font-size: 16px; color: var(--text-dim); transition: color 0.2s, right 0.2s;
+        }
+        .swim-card:hover { border-color: rgba(14,165,233,0.3); background: #0f2035; }
+        .swim-card:hover::after { color: var(--ocean-light); right: 13px; }
+        .swim-num {
+            font-size: 11px; font-weight: 900; color: var(--ocean);
+            background: rgba(14,165,233,0.1); border: 1px solid rgba(14,165,233,0.2);
+            border-radius: 8px; width: 36px; height: 36px;
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+            letter-spacing: 0.04em;
+        }
+        .swim-body { flex: 1; min-width: 0; }
+        .swim-name { font-size: 15px; font-weight: 800; color: var(--text-primary); margin-bottom: 2px; letter-spacing: -0.2px; }
+        .swim-animal { font-size: 10px; font-weight: 700; color: var(--ocean-light); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 3px; }
+        .swim-route { font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .swim-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+        .swim-dist { font-size: 11px; font-weight: 700; color: var(--text-primary); background: rgba(255,255,255,0.05); border-radius: 6px; padding: 2px 7px; }
+        .swim-fast { font-size: 11px; color: var(--text-secondary); }
+        .cond-chip {
+            font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+            border-radius: 20px; padding: 2px 8px; border: 1px solid; flex-shrink: 0;
+        }
+        .cond-chip.go     { background: rgba(34,197,94,0.12);  border-color: rgba(34,197,94,0.4);  color: #22c55e; }
+        .cond-chip.caution{ background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.4); color: #f59e0b; }
+        .cond-chip.wait   { background: rgba(239,68,68,0.12);  border-color: rgba(239,68,68,0.4);  color: #ef4444; }
+        .cond-chip.loading{ background: rgba(148,163,184,0.08); border-color: rgba(148,163,184,0.2); color: #64748b; }
+
+        /* RI section distinct card */
+        .swim-card.island { border-color: rgba(14,165,233,0.15); }
+        .swim-num.island-num { background: rgba(56,189,248,0.1); border-color: rgba(56,189,248,0.25); color: var(--ocean-light); }
+
+        /* ── Pro features ── */
+        .features-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .feature-card {
+            background: var(--bg-card2); border: 1px solid var(--border);
+            border-radius: 14px; padding: 16px;
+        }
+        .feature-icon { font-size: 20px; margin-bottom: 8px; }
+        .feature-title { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+        .feature-desc { font-size: 11px; color: var(--text-secondary); line-height: 1.5; }
+
+        /* ── Triple Crown ── */
+        .tc-card {
+            background: linear-gradient(135deg, rgba(14,165,233,0.07), rgba(34,197,94,0.05));
+            border: 1px solid rgba(14,165,233,0.2); border-radius: 16px; padding: 20px;
+            margin-bottom: 10px; text-decoration: none; display: block; color: inherit;
+        }
+        .tc-card:hover { border-color: rgba(14,165,233,0.4); }
+        .tc-eyebrow { font-size: 9px; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ocean); margin-bottom: 6px; }
+        .tc-title { font-size: 18px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; }
+        .tc-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+        /* ── Footer ── */
+        .footer { padding: 32px 20px; text-align: center; border-top: 1px solid var(--border); }
+        .footer-wordmark { font-size: 13px; font-weight: 800; color: var(--ocean-light); margin-bottom: 6px; }
+        .footer-links { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-top: 10px; }
+        .footer-link { font-size: 12px; color: var(--text-dim); text-decoration: none; }
+        .footer-link:hover { color: var(--ocean-light); }
+
+        @media (max-width: 420px) {
+            .hero-title { letter-spacing: -1px; }
+            .hero-stats { gap: 18px; }
+            .features-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ══════════ HERO ══════════ -->
+<div class="hero">
+    <div class="hero-wordmark">SwimLoading · Big Water Intel</div>
+    <h1 class="hero-title">Know the water.<br><span>Before you enter it.</span></h1>
+    <p class="hero-sub">Race intelligence for South Africa's greatest open water swims. Built from 2,685 historical crossings and live marine data.</p>
+    <div class="hero-stats">
+        <div class="hero-stat">
+            <div class="hero-stat-num">2,685</div>
+            <div class="hero-stat-lbl">Historical swims</div>
+        </div>
+        <div class="hero-stat">
+            <div class="hero-stat-num">920</div>
+            <div class="hero-stat-lbl">RI crossings</div>
+        </div>
+        <div class="hero-stat">
+            <div class="hero-stat-num">7</div>
+            <div class="hero-stat-lbl">Routes covered</div>
+        </div>
+        <div class="hero-stat">
+            <div class="hero-stat-num">10yr</div>
+            <div class="hero-stat-lbl">Data depth</div>
+        </div>
+    </div>
+    <div class="hero-cta">
+        <a href="/pricing" class="btn-primary">View Pricing →</a>
+        <a href="/app" class="btn-ghost">Open App</a>
+    </div>
+</div>
+
+<!-- ══════════ BIG 5 ══════════ -->
+<div class="section">
+    <div class="section-eyebrow">Big 5 Open Water</div>
+    <div class="section-title">The Big Game</div>
+
+    <a href="/intel" class="swim-card">
+        <div class="swim-num">01</div>
+        <div class="swim-body">
+            <div class="swim-animal">The Lion</div>
+            <div class="swim-name">False Bay Crossing</div>
+            <div class="swim-route">Miller's Point → Strand · False Bay</div>
+            <div class="swim-meta">
+                <span class="swim-dist">33km</span>
+                <span class="swim-fast">Fastest 8:09:26</span>
+                <span class="cond-chip loading" id="chip-fb">loading</span>
+            </div>
+        </div>
+    </a>
+
+    <a href="/preekstool" class="swim-card">
+        <div class="swim-num">02</div>
+        <div class="swim-body">
+            <div class="swim-animal">The Elephant</div>
+            <div class="swim-name">Double Preekstoel</div>
+            <div class="swim-route">Preekstool → Mykanos → Return · Langebaan</div>
+            <div class="swim-meta">
+                <span class="swim-dist">24km</span>
+                <span class="swim-fast">Tidal window critical</span>
+                <span class="cond-chip loading" id="chip-pp">loading</span>
+            </div>
+        </div>
+    </a>
+
+    <a href="/westangle" class="swim-card">
+        <div class="swim-num">03</div>
+        <div class="swim-body">
+            <div class="swim-animal">The Rhinoceros</div>
+            <div class="swim-name">West Coast Angle</div>
+            <div class="swim-route">Big Bay → Robben Island → Melkbosstrand</div>
+            <div class="swim-meta">
+                <span class="swim-dist">18km</span>
+                <span class="swim-fast">Fastest 6:13 · 4 completions</span>
+                <span class="cond-chip loading" id="chip-wca">loading</span>
+            </div>
+        </div>
+    </a>
+
+    <a href="/dassen" class="swim-card">
+        <div class="swim-num">04</div>
+        <div class="swim-body">
+            <div class="swim-animal">The Buffalo</div>
+            <div class="swim-name">Dassen Island</div>
+            <div class="swim-route">Dassen Island → Yzerfontein · West Coast</div>
+            <div class="swim-meta">
+                <span class="swim-dist">8.7km</span>
+                <span class="swim-fast">Fastest 3:34:41</span>
+                <span class="cond-chip loading" id="chip-da">loading</span>
+            </div>
+        </div>
+    </a>
+
+    <a href="/capepoint" class="swim-card">
+        <div class="swim-num">05</div>
+        <div class="swim-body">
+            <div class="swim-animal">The Leopard</div>
+            <div class="swim-name">Cape Point</div>
+            <div class="swim-route">Diaz Beach → Cape Point → Miller's Point</div>
+            <div class="swim-meta">
+                <span class="swim-dist">8km</span>
+                <span class="swim-fast">Two oceans · Headland current</span>
+                <span class="cond-chip loading" id="chip-cp">loading</span>
+            </div>
+        </div>
+    </a>
+</div>
+
+<div class="divider"></div>
+
+<!-- ══════════ ROBBEN ISLAND ══════════ -->
+<div class="section">
+    <div class="section-eyebrow">Robben Island</div>
+    <div class="section-title">The Island</div>
+
+    <a href="/ri" class="swim-card island">
+        <div class="swim-num island-num">RI</div>
+        <div class="swim-body">
+            <div class="swim-animal">The Classic</div>
+            <div class="swim-name">Robben Island Crossing</div>
+            <div class="swim-route">Robben Island → Big Bay · Atlantic</div>
+            <div class="swim-meta">
+                <span class="swim-dist">7.4km</span>
+                <span class="swim-fast">920 verified swims · Record 1:31:22</span>
+                <span class="cond-chip loading" id="chip-ri">loading</span>
+            </div>
+        </div>
+    </a>
+
+    <a href="/robben" class="swim-card island">
+        <div class="swim-num island-num" style="font-size:9px;">2×RI</div>
+        <div class="swim-body">
+            <div class="swim-animal">The Double</div>
+            <div class="swim-name">Double Robben Island</div>
+            <div class="swim-route">Big Bay → RI → Big Bay · 15km</div>
+            <div class="swim-meta">
+                <span class="swim-dist">15km</span>
+                <span class="swim-fast">19 verified completions · Record 5:22:24</span>
+                <span class="cond-chip loading" id="chip-dri">loading</span>
+            </div>
+        </div>
+    </a>
+</div>
+
+<div class="divider"></div>
+
+<!-- ══════════ PRO FEATURES ══════════ -->
+<div class="section">
+    <div class="section-eyebrow">Pro Intelligence</div>
+    <div class="section-title">What <span>Pro</span> unlocks</div>
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon" style="width:28px;height:28px;background:rgba(14,165,233,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            </div>
+            <div class="feature-title">Pace prediction</div>
+            <div class="feature-desc">Enter your pace, get a precise time prediction — calibrated to each route's conditions and current assist.</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="width:28px;height:28px;background:rgba(34,197,94,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <div class="feature-title">Percentile ranking</div>
+            <div class="feature-desc">See where your predicted time sits against 2,685 historical finishers. "You'd beat 63% of all RI skins swimmers."</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="width:28px;height:28px;background:rgba(245,158,11,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            </div>
+            <div class="feature-title">Conditions modeling</div>
+            <div class="feature-desc">Strong NW vs calm vs SE — see exactly how today's forecast changes your predicted time.</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="width:28px;height:28px;background:rgba(167,139,250,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </div>
+            <div class="feature-title">Pool → OW converter</div>
+            <div class="feature-desc">Convert your pool 1km time to an open water pace with route-specific adjustment factors.</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="width:28px;height:28px;background:rgba(14,165,233,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.5"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>
+            </div>
+            <div class="feature-title">10 years of data</div>
+            <div class="feature-desc">Big Bay Events records from 2014–2024. All-time leaderboards, year-by-year trends, conditions breakdowns.</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="width:28px;height:28px;background:rgba(34,197,94,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z"/></svg>
+            </div>
+            <div class="feature-title">Live conditions</div>
+            <div class="feature-desc">Real-time marine forecast, GO / CAUTION / HOLD signal, and live water temperature for every route — always free.</div>
+        </div>
+    </div>
+    <div style="text-align:center;padding:4px 0 10px;">
+        <a href="/pricing" class="btn-primary" style="font-size:15px;padding:14px 36px;">View pricing & unlock →</a>
+    </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ══════════ TRIPLE CROWN ══════════ -->
+<div class="section">
+    <div class="section-eyebrow">The Ultimate</div>
+    <div class="section-title">Triple Crown</div>
+    <a href="/big5#triple" class="tc-card">
+        <div class="tc-eyebrow">6 completions as of April 2026</div>
+        <div class="tc-title">False Bay + Double RI + Three Capes</div>
+        <div class="tc-desc">Three of South Africa's greatest open water challenges completed by a single swimmer. The rarest achievement in SA open water swimming.</div>
+        <div style="margin-top:12px;font-size:12px;color:var(--ocean-light);font-weight:700;">View the leaderboard →</div>
+    </a>
+    <a href="/big5" class="btn-ghost" style="width:100%;text-align:center;display:block;margin-top:6px;">Full Big 5 hub →</a>
+</div>
+
+<!-- ══════════ FOOTER ══════════ -->
+<div class="footer">
+    <div class="footer-wordmark">SwimLoading</div>
+    <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Big Water Intel · swimloading.com</div>
+    <div class="footer-links">
+        <a href="/app" class="footer-link">Main App</a>
+        <a href="/big5" class="footer-link">Big 5</a>
+        <a href="/intel" class="footer-link">False Bay</a>
+        <a href="/ri" class="footer-link">Robben Island</a>
+        <a href="/pricing" class="footer-link">Pricing</a>
+    </div>
+    <div style="font-size:10px;color:var(--text-dim);margin-top:16px;">Data: Derrick Frazer · Big Bay Events · 2014–2024</div>
+</div>
+
+<script>
+// Load live conditions for all 7 cards
+// Two API calls: West Coast (covers RI, Dassen, WCA, Double RI) + False Bay (False Bay, Cape Point)
+
+function windDirLabel(d) {
+    return ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'][Math.round(d/22.5)%16];
+}
+function isNW(d) { return (d >= 270 && d <= 360) || d <= 30; }
+
+function goClass(swell, windSpd, windDir, type) {
+    if (type === 'lagoon') {
+        if (windSpd > 35) return 'wait';
+        if (windSpd > 25) return 'caution';
+        return 'go';
+    }
+    const nw = isNW(windDir);
+    const se = windDir >= 90 && windDir <= 200;
+    if (type === 'false_bay') {
+        if (swell > 2.5 || (se && windSpd > 25)) return 'wait';
+        if (swell > 2.0 || (!nw && windSpd > 25)) return 'caution';
+        return 'go';
+    }
+    // Atlantic / West Coast
+    if (swell > 2.0 || windSpd > 40) return 'wait';
+    if (swell > 1.5 || windSpd > 30) return 'caution';
+    return 'go';
+}
+
+function goLabel(cls) {
+    return { go: 'GO', caution: 'CAUTION', wait: 'HOLD' }[cls];
+}
+
+function setChip(id, cls) {
+    const el = document.getElementById(id);
+    if (el) { el.className = `cond-chip ${cls}`; el.textContent = goLabel(cls); }
+}
+
+async function loadConditions() {
+    try {
+        const wc = await fetch('https://api.open-meteo.com/v1/forecast?latitude=-33.799&longitude=18.484&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh&forecast_days=1&timezone=auto');
+        const wcW = await wc.json();
+        const wcMar = await fetch('https://marine-api.open-meteo.com/v1/marine?latitude=-33.799&longitude=18.484&hourly=wave_height&forecast_days=1&timezone=auto');
+        const wcM = await wcMar.json();
+
+        const hour = new Date().getHours();
+        const wcSpd = wcW.hourly?.wind_speed_10m?.[hour] ?? 0;
+        const wcDir = wcW.hourly?.wind_direction_10m?.[hour] ?? 315;
+        const wcSwell = wcM.hourly?.wave_height?.[hour] ?? 0;
+
+        const wcCls = goClass(wcSwell, wcSpd, wcDir, 'atlantic');
+        setChip('chip-ri', wcCls);
+        setChip('chip-dri', wcCls);
+        setChip('chip-da', wcCls);
+        setChip('chip-wca', wcCls);
+    } catch(e) {
+        ['chip-ri','chip-dri','chip-da','chip-wca'].forEach(id => setChip(id, 'caution'));
+    }
+
+    try {
+        const fb = await fetch('https://api.open-meteo.com/v1/forecast?latitude=-34.2269&longitude=18.4648&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh&forecast_days=1&timezone=auto');
+        const fbW = await fb.json();
+        const fbMar = await fetch('https://marine-api.open-meteo.com/v1/marine?latitude=-34.2269&longitude=18.4648&hourly=wave_height&forecast_days=1&timezone=auto');
+        const fbM = await fbMar.json();
+
+        const hour = new Date().getHours();
+        const fbSpd = fbW.hourly?.wind_speed_10m?.[hour] ?? 0;
+        const fbDir = fbW.hourly?.wind_direction_10m?.[hour] ?? 315;
+        const fbSwell = fbM.hourly?.wave_height?.[hour] ?? 0;
+
+        setChip('chip-fb', goClass(fbSwell, fbSpd, fbDir, 'false_bay'));
+        setChip('chip-cp', goClass(fbSwell, fbSpd, fbDir, 'atlantic'));
+    } catch(e) {
+        ['chip-fb','chip-cp'].forEach(id => setChip(id, 'caution'));
+    }
+
+    // Langebaan (wind only)
+    try {
+        const lb = await fetch('https://api.open-meteo.com/v1/forecast?latitude=-33.13&longitude=18.02&hourly=wind_speed_10m&wind_speed_unit=kmh&forecast_days=1&timezone=auto');
+        const lbW = await lb.json();
+        const hour = new Date().getHours();
+        const lbSpd = lbW.hourly?.wind_speed_10m?.[hour] ?? 0;
+        setChip('chip-pp', goClass(0, lbSpd, 315, 'lagoon'));
+    } catch(e) {
+        setChip('chip-pp', 'caution');
+    }
+}
+
+loadConditions();
+</script>
+</body>
+</html>
