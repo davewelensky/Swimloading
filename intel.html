@@ -84,6 +84,7 @@
         .signal-card.wait .signal-label { color: var(--danger); }
         .signal-title { font-size: 26px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; }
         .signal-sub { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+        .signal-attr { font-size: 10px; color: var(--text-secondary); opacity: 0.55; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); }
 
         /* Stat grid */
         .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
@@ -1190,34 +1191,34 @@ function buildGoSignal(live, forecast) {
     let cls, label, title, sub;
 
     if (!tempOk) {
-        cls = 'wait'; label = 'Conditions'; title = 'NOT YET';
-        sub = `Water ${tempSource} — below 18°C threshold for skins. Wait for warmer conditions.`;
+        cls = 'wait'; label = 'False Bay · 33km'; title = 'Below Temp Threshold';
+        sub = `Water ${tempSource} — below the 18°C skins threshold. Conditions not aligned for a crossing attempt.`;
     } else if (!forecast) {
-        cls = 'go'; label = 'Water Temp'; title = 'VIABLE';
-        sub = `False Bay at ${tempSource} — above the 18°C skins threshold. Load forecast to check wind.`;
+        cls = 'go'; label = 'False Bay · 33km'; title = 'Temperature Window';
+        sub = `False Bay at ${tempSource} — above the 18°C skins threshold. Load forecast to assess wind conditions.`;
     } else {
         const wa = windAssess(forecast.windDir, forecast.windMax);
         const spd = `${forecast.windMax?.toFixed(0)} km/h`;
         switch (wa.tier) {
             case 'optimal':
-                cls = 'go'; label = 'Conditions'; title = 'GO';
-                sub = `Water ${tempSource} ✓ · ${forecast.dirLabel} wind ${spd} ✓ · Current and conditions align for crossing.`;
+                cls = 'go'; label = 'False Bay · 33km'; title = 'Conditions Aligned';
+                sub = `Water ${tempSource} ✓ · ${forecast.dirLabel} wind ${spd} ✓ · Current and conditions aligned for a crossing.`;
                 break;
             case 'calm':
-                cls = 'caution'; label = 'Calm Window'; title = 'CAUTION';
-                sub = `Water ${tempSource} ✓ · Wind ${spd} — essentially calm. Flat water, no current assist but no headcurrent. A viable crossing window — confirm closer to swim day.`;
+                cls = 'caution'; label = 'False Bay · 33km'; title = 'Calm Conditions';
+                sub = `Water ${tempSource} ✓ · Wind ${spd} — essentially calm. Flat water, minimal current assist. A viable crossing window — confirm with Derrick Frazer closer to swim day.`;
                 break;
             case 'nw-strong':
-                cls = 'caution'; label = 'Mixed Signals'; title = 'MONITOR';
-                sub = `Water ${tempSource} ✓ · ${forecast.dirLabel} wind ${spd} — direction is right but strong. Expect chop. Monitor for lighter forecast.`;
+                cls = 'caution'; label = 'False Bay · 33km'; title = 'Developing Conditions';
+                sub = `Water ${tempSource} ✓ · ${forecast.dirLabel} wind ${spd} — direction is right but building. Expect chop. Monitor forecast for lighter window.`;
                 break;
             case 'sw-light':
             case 'adv-light':
-                cls = 'caution'; label = 'Mixed Signals'; title = 'MONITOR';
+                cls = 'caution'; label = 'False Bay · 33km'; title = 'Developing Conditions';
                 sub = `Water ${tempSource} ✓ · ${forecast.dirLabel} wind ${spd} — light adverse direction. Manageable, but expect reduced current assist. Check updated forecast closer to crossing day.`;
                 break;
             default: // adverse
-                cls = 'caution'; label = 'Unfavourable'; title = 'CAUTION';
+                cls = 'caution'; label = 'False Bay · 33km'; title = 'Unfavourable Direction';
                 sub = `Water ${tempSource} ✓ · ${forecast.dirLabel} wind ${spd} — unfavourable direction drives crosscurrent. Wait for NW window.`;
         }
     }
@@ -1227,6 +1228,7 @@ function buildGoSignal(live, forecast) {
             <div class="signal-label">${label}</div>
             <div class="signal-title">${title}</div>
             <div class="signal-sub">${sub}</div>
+            <div class="signal-attr">All go/no-go decisions are made by Derrick Frazer · Big Bay Events</div>
         </div>
     `;
 }

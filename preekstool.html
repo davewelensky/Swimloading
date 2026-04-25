@@ -88,6 +88,7 @@
         .signal-card.wait .signal-label   { color: var(--danger); }
         .signal-title { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
         .signal-sub { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+        .signal-attr { font-size: 10px; color: var(--text-secondary); opacity: 0.55; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); }
 
         .stat-grid   { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
         .stat-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
@@ -754,20 +755,20 @@ function buildGoSignal(wind, tideState) {
     const el = document.getElementById('goSignal');
     if (!el) return;
 
-    let cls = 'go', title = 'Conditions Good', sub = '';
+    let cls = 'go', title = 'Conditions Favourable', sub = '';
     const spd = wind?.spd ?? 0;
 
     if (spd > 35) {
-        cls = 'wait'; title = 'Hold Off';
-        sub = `Wind ${Math.round(spd)} km/h ${windDirLabel(wind?.dir ?? 0)} — too strong for a 24km lagoon swim. Wait for calmer conditions.`;
+        cls = 'wait'; title = 'Difficult Conditions';
+        sub = `Wind ${Math.round(spd)} km/h ${windDirLabel(wind?.dir ?? 0)} — strong conditions for a 24km lagoon crossing.`;
     } else if (spd > 25) {
-        cls = 'caution'; title = 'Use Caution';
-        sub = `Wind ${Math.round(spd)} km/h ${windDirLabel(wind?.dir ?? 0)} — chop building across the lagoon. Manageable but demanding. Check tides before committing.`;
+        cls = 'caution'; title = 'Mixed Conditions';
+        sub = `Wind ${Math.round(spd)} km/h ${windDirLabel(wind?.dir ?? 0)} — chop building across the lagoon. Check tides before committing.`;
     } else {
         const tideNote = tideState
             ? (tideState.isFlood ? 'Flood tide now — north current active.' : 'Ebb tide now — south current active.')
             : 'Check tides tab for optimal start window.';
-        sub = `Wind ${Math.round(spd)} km/h ${windDirLabel(wind?.dir ?? 0)} — lagoon manageable. ${tideNote}`;
+        sub = `Wind ${Math.round(spd)} km/h ${windDirLabel(wind?.dir ?? 0)} — lagoon conditions favourable. ${tideNote}`;
     }
 
     // Update small stats
@@ -785,9 +786,10 @@ function buildGoSignal(wind, tideState) {
     }
 
     el.outerHTML = `<div class="signal-card ${cls}">
-        <div class="signal-label">Double Preekstool</div>
+        <div class="signal-label">Double Preekstoel · 24km</div>
         <div class="signal-title">${title}</div>
         <div class="signal-sub">${sub}</div>
+        <div class="signal-attr">All go/no-go decisions are made by Derrick Frazer · Big Bay Events</div>
     </div>`;
 }
 

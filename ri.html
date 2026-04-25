@@ -41,6 +41,7 @@
         .signal-card.wait .signal-label { color: var(--danger); }
         .signal-title { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
         .signal-sub { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+        .signal-attr { font-size: 10px; color: var(--text-secondary); opacity: 0.55; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); }
         .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
         .stat-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
         .stat-box { background: rgba(15,23,42,0.6); border-radius: 12px; padding: 14px 10px; text-align: center; border: 1px solid var(--border); }
@@ -157,7 +158,7 @@
     <div id="panelPrediction" class="panel">
 
         <div class="alert blue">
-            7.4km, Robben Island → Big Bay. The NW window is the critical variable — enter your pace and see how conditions change your time, plus where you'd rank against 920 historical finishers.
+            7.4km, Robben Island → Big Bay. The NW window is the critical variable — enter your pace and see how conditions change your time, plus where you'd rank against all historical finishers.
         </div>
 
         <div class="card">
@@ -739,30 +740,30 @@ function updateSignal(swell, windSpd, windDir) {
     let cls, title, sub;
 
     if (swell > 2.0 || windSpd > 40) {
-        cls = 'wait'; title = 'Hold Off';
-        sub = swell > 2.0 ? `Swell ${swell.toFixed(1)}m — island approach and Big Bay landing dangerous.` : `Wind ${Math.round(windSpd)} km/h — too strong for a safe crossing.`;
-        sub += ' Wait for calmer conditions.';
+        cls = 'wait'; title = 'Difficult Conditions';
+        sub = swell > 2.0 ? `Swell ${swell.toFixed(1)}m — island approach and Big Bay landing demanding.` : `Wind ${Math.round(windSpd)} km/h — strong conditions for a 7.4km Atlantic crossing.`;
     } else if (!nw && windSpd > 20) {
-        cls = 'caution'; title = 'Tough Day';
-        sub = `${windLabel} ${Math.round(windSpd)} km/h — headwind against the crossing. No NW assist. Times will be 20–30 min slower. Experienced swimmers only.`;
+        cls = 'caution'; title = 'Adverse Wind Direction';
+        sub = `${windLabel} ${Math.round(windSpd)} km/h — headwind against the crossing, no NW assist. Times typically 20–30 min slower on adverse days.`;
     } else if (swell > 1.5 || (!nw && windSpd > 10)) {
-        cls = 'caution'; title = 'Use Caution';
+        cls = 'caution'; title = 'Mixed Conditions';
         const notes = [];
         if (swell > 1.5) notes.push(`Swell ${swell.toFixed(1)}m`);
-        if (!nw) notes.push(`Wind from ${windLabel} — no assist`);
-        sub = notes.join(' · ') + '. Manageable for experienced swimmers with solid support vessel.';
+        if (!nw) notes.push(`Wind from ${windLabel} — no NW assist`);
+        sub = notes.join(' · ') + '. Manageable window with solid support vessel.';
     } else if (nw && windSpd >= 15) {
-        cls = 'go'; title = windSpd >= 25 ? 'NW Window — Strong Push' : 'NW Window — Solid Assist';
-        sub = `NW ${Math.round(windSpd)} km/h, swell ${swell.toFixed(1)}m. ${windSpd >= 25 ? 'Strong NW — expect a fast, current-assisted crossing. This is what the swim was made for.' : 'Moderate NW assist — good conditions for a controlled attempt.'}`;
+        cls = 'go'; title = windSpd >= 25 ? 'Strong NW Window' : 'NW Window — Solid Assist';
+        sub = `NW ${Math.round(windSpd)} km/h, swell ${swell.toFixed(1)}m. ${windSpd >= 25 ? 'Strong NW — expect a current-assisted crossing. This is what the swim was made for.' : 'Moderate NW assist — good conditions for a controlled crossing.'}`;
     } else {
         cls = 'caution'; title = 'Light Conditions';
-        sub = `Wind ${Math.round(windSpd)} km/h ${windLabel}, swell ${swell.toFixed(1)}m. Minimal current assist today. Times will be 15–20 min slower than a strong NW day.`;
+        sub = `Wind ${Math.round(windSpd)} km/h ${windLabel}, swell ${swell.toFixed(1)}m. Minimal current assist today. Times typically 15–20 min slower than a strong NW day.`;
     }
 
     el.outerHTML = `<div class="signal-card ${cls}">
         <div class="signal-label">Robben Island Crossing · 7.4km</div>
         <div class="signal-title">${title}</div>
         <div class="signal-sub">${sub}</div>
+        <div class="signal-attr">All go/no-go decisions are made by Derrick Frazer · Big Bay Events</div>
     </div>`;
 }
 

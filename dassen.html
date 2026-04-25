@@ -61,6 +61,7 @@
         .signal-card.wait .signal-label   { color: var(--danger); }
         .signal-title { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
         .signal-sub { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+        .signal-attr { font-size: 10px; color: var(--text-secondary); opacity: 0.55; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); }
         .stat-grid   { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
         .stat-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
         .stat-box { background: rgba(15,23,42,0.6); border-radius: 12px; padding: 14px 10px; text-align: center; border: 1px solid var(--border); }
@@ -520,20 +521,19 @@ function buildGoSignal() {
     const windSpd = _wind?.spd ?? 0;
     const windDir = _wind?.dir ?? 0;
 
-    let cls = 'go', title = 'Conditions Good', sub = '';
+    let cls = 'go', title = 'Conditions Favourable', sub = '';
 
     if (swell > 2.5 || windSpd > 40) {
-        cls = 'wait'; title = 'Hold Off';
-        sub = swell > 2.5 ? `Swell ${swell.toFixed(1)}m — too large for a safe 7km crossing.` : `Wind ${Math.round(windSpd)} km/h — too strong for an open ocean crossing.`;
-        sub += ' Wait for calmer Atlantic conditions.';
+        cls = 'wait'; title = 'Difficult Conditions';
+        sub = swell > 2.5 ? `Swell ${swell.toFixed(1)}m — demanding for an 8.7km open ocean crossing.` : `Wind ${Math.round(windSpd)} km/h — strong conditions for a West Coast crossing.`;
     } else if (swell > 1.5 || windSpd > 25) {
-        cls = 'caution'; title = 'Use Caution';
+        cls = 'caution'; title = 'Mixed Conditions';
         const notes = [];
-        if (swell > 1.5) notes.push(`Swell ${swell.toFixed(1)}m — significant for 7km open crossing`);
+        if (swell > 1.5) notes.push(`Swell ${swell.toFixed(1)}m — significant for 8.7km open crossing`);
         if (windSpd > 25) notes.push(`Wind ${Math.round(windSpd)} km/h ${windDirLabel(windDir)}`);
-        sub = notes.join(' · ') + '. Experienced swimmers with strong support vessel only. Early morning recommended.';
+        sub = notes.join(' · ') + '. Early morning start recommended.';
     } else {
-        sub = `Swell ${swell.toFixed(1)}m · Wind ${Math.round(windSpd)} km/h ${windDirLabel(windDir)} — West Coast conditions manageable. Confirm with skipper. Start early before afternoon sea breeze.`;
+        sub = `Swell ${swell.toFixed(1)}m · Wind ${Math.round(windSpd)} km/h ${windDirLabel(windDir)} — West Coast conditions favourable. Start early before afternoon sea breeze.`;
     }
 
     const swellEl = document.getElementById('nowSwell');
@@ -544,9 +544,10 @@ function buildGoSignal() {
     if (swellBox) { swellBox.style.background = swell < 1.0 ? 'rgba(34,197,94,0.08)' : swell < 1.5 ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)'; swellBox.style.borderColor = swell < 1.0 ? 'rgba(34,197,94,0.25)' : swell < 1.5 ? 'rgba(245,158,11,0.25)' : 'rgba(239,68,68,0.25)'; }
 
     el.outerHTML = `<div class="signal-card ${cls}">
-        <div class="signal-label">Dassen Island Crossing</div>
+        <div class="signal-label">Dassen Island Crossing · 8.7km</div>
         <div class="signal-title">${title}</div>
         <div class="signal-sub">${sub}</div>
+        <div class="signal-attr">All go/no-go decisions are made by Derrick Frazer · Big Bay Events</div>
     </div>`;
 }
 

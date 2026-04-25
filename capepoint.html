@@ -61,6 +61,7 @@
         .signal-card.wait .signal-label   { color: var(--danger); }
         .signal-title { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
         .signal-sub { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+        .signal-attr { font-size: 10px; color: var(--text-secondary); opacity: 0.55; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); }
         .stat-grid   { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
         .stat-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
         .stat-box { background: rgba(15,23,42,0.6); border-radius: 12px; padding: 14px 10px; text-align: center; border: 1px solid var(--border); }
@@ -581,23 +582,23 @@ function buildGoSignal() {
     const windDir = _wind?.dir ?? 0;
     const se = isSE(windDir);
 
-    let cls = 'go', title = 'Conditions Good', sub = '';
+    let cls = 'go', title = 'Conditions Favourable', sub = '';
 
     if (swell > 2.0 || (se && windSpd > 25) || windSpd > 35) {
-        cls = 'wait'; title = 'Hold Off';
-        const reason = swell > 2.0 ? `Swell ${swell.toFixed(1)}m — too large for Diaz Beach entry.`
+        cls = 'wait'; title = 'Difficult Conditions';
+        const reason = swell > 2.0 ? `Swell ${swell.toFixed(1)}m — demanding entry at Diaz Beach.`
                      : se ? `SE wind ${Math.round(windSpd)} km/h — adverse for rounding the cape.`
-                     : `Wind ${Math.round(windSpd)} km/h — too strong.`;
-        sub = reason + ' Wait for calmer conditions.';
+                     : `Wind ${Math.round(windSpd)} km/h — strong conditions for a cape rounding.`;
+        sub = reason;
     } else if (swell > 1.5 || (se && windSpd > 15) || windSpd > 25) {
-        cls = 'caution'; title = 'Use Caution';
+        cls = 'caution'; title = 'Mixed Conditions';
         const notes = [];
-        if (swell > 1.5) notes.push(`Swell ${swell.toFixed(1)}m — entry at Diaz Beach demanding`);
+        if (swell > 1.5) notes.push(`Swell ${swell.toFixed(1)}m — demanding entry at Diaz Beach`);
         if (se && windSpd > 15) notes.push(`SE wind ${Math.round(windSpd)} km/h — adverse direction`);
         else if (windSpd > 25) notes.push(`Wind ${Math.round(windSpd)} km/h ${windDirLabel(windDir)}`);
-        sub = notes.join(' · ') + '. Experienced swimmers only. Discuss with support skipper before committing.';
+        sub = notes.join(' · ') + '. Discuss full conditions with support skipper.';
     } else {
-        sub = `Swell ${swell.toFixed(1)}m · Wind ${Math.round(windSpd)} km/h ${windDirLabel(windDir)} — Cape Point conditions acceptable. Confirm with support skipper.`;
+        sub = `Swell ${swell.toFixed(1)}m · Wind ${Math.round(windSpd)} km/h ${windDirLabel(windDir)} — Cape Point conditions favourable. Confirm full briefing with support skipper.`;
     }
 
     // Update stat boxes
@@ -609,9 +610,10 @@ function buildGoSignal() {
     if (swellBox) { swellBox.style.background = swell < 1.0 ? 'rgba(34,197,94,0.08)' : swell < 1.5 ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)'; swellBox.style.borderColor = swell < 1.0 ? 'rgba(34,197,94,0.25)' : swell < 1.5 ? 'rgba(245,158,11,0.25)' : 'rgba(239,68,68,0.25)'; }
 
     el.outerHTML = `<div class="signal-card ${cls}">
-        <div class="signal-label">Cape Point Swim</div>
+        <div class="signal-label">Cape Point Swim · 27km</div>
         <div class="signal-title">${title}</div>
         <div class="signal-sub">${sub}</div>
+        <div class="signal-attr">All go/no-go decisions are made by Derrick Frazer · Big Bay Events</div>
     </div>`;
 }
 

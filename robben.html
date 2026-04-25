@@ -89,6 +89,7 @@
         .signal-card.wait .signal-label { color: var(--danger); }
         .signal-title { font-size: 26px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; }
         .signal-sub { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+        .signal-attr { font-size: 10px; color: var(--text-secondary); opacity: 0.55; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); }
 
         .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
         .stat-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
@@ -1135,23 +1136,24 @@ function buildGoSignal(liveResult, wf) {
 
     if (tempOk && windGd && !windAdv) {
         tier  = 'go';
-        title = 'Conditions Look Good';
-        sub   = `${tempStr} · ${windStr}. Good window for a crossing attempt. Verify tides before committing.`;
+        title = 'Conditions Favourable';
+        sub   = `${tempStr} · ${windStr}. Good window for a crossing. Verify tides and confirm timing with Derrick Frazer.`;
     } else if (temp >= 13 && (!hasWind || wSpd < 40) && !windAdv) {
         tier  = 'caution';
-        title = 'Proceed with Caution';
-        sub   = `${!tempOk ? `Water ${tempStr} — cold, manage core temp carefully, feed frequently. ` : ''}${hasWind && !windOk ? `Wind ${windStr} — expect chop. ` : ''}Verify tides and review full conditions before committing.`;
+        title = 'Marginal Conditions';
+        sub   = `${!tempOk ? `Water ${tempStr} — cold, manage core temp carefully, feed frequently. ` : ''}${hasWind && !windOk ? `Wind ${windStr} — expect chop. ` : ''}Review full conditions with your support team.`;
     } else {
         tier  = 'wait';
-        title = 'Not Recommended';
-        sub   = `${temp < 13 ? `Water ${tempStr} — hypothermia risk for a 3–7hr swim. ` : ''}${windAdv ? `${windStr} — adverse for RI crossing. ` : hasWind && wSpd >= 40 ? `Wind ${wSpd.toFixed(0)}km/h — extreme, abort. ` : ''}Wait for a better window.`;
+        title = 'Difficult Conditions';
+        sub   = `${temp < 13 ? `Water ${tempStr} — cold for a 3–7hr swim. ` : ''}${windAdv ? `${windStr} — adverse for RI crossing. ` : hasWind && wSpd >= 40 ? `Wind ${wSpd.toFixed(0)}km/h — strong conditions. ` : ''}Monitor the forecast for a better window.`;
     }
 
     el.className = `signal-card ${tier}`;
     el.innerHTML = `
-        <div class="signal-label">${tier === 'go' ? 'Go' : tier === 'caution' ? 'Caution' : 'Wait'}</div>
+        <div class="signal-label">Double Robben Island · 14.8km</div>
         <div class="signal-title">${title}</div>
-        <div class="signal-sub">${sub}</div>`;
+        <div class="signal-sub">${sub}</div>
+        <div class="signal-attr">All go/no-go decisions are made by Derrick Frazer · Big Bay Events</div>`;
 }
 
 function buildChecklist(liveResult, wf) {
