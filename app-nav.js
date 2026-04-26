@@ -1397,3 +1397,110 @@
             el.style.color      = cfg.color;
             el.style.boxShadow  = `0 0 14px ${cfg.shadow}`;
         }
+
+        // ─── Strava Integration ───────────────────────────────────────────────
+
+        async function initStravaSection() {
+            const card = document.getElementById('stravaConnectionCard');
+            if (!card || !currentUser) return;
+
+            card.innerHTML = `<div style="color:var(--text-secondary);font-size:13px;">Checking Strava…</div>`;
+
+            try {
+                const { data } = await supabaseClient
+                    .from('strava_connections')
+                    .select('strava_athlete_id, connected_at')
+                    .eq('user_id', currentUser.id)
+                    .maybeSingle();
+
+                if (data) {
+                    renderStravaConnected(card, data);
+                } else {
+                    renderStravaDisconnected(card);
+                }
+            } catch (err) {
+                console.error('[strava] initStravaSection error:', err);
+                renderStravaDisconnected(card);
+            }
+        }
+
+        function renderStravaDisconnected(card) {
+            card.innerHTML = `
+                <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;">
+                    <div style="width:36px;height:36px;background:#fc4c02;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+                    </div>
+                    <div style="flex:1;">
+                        <div style="font-weight:600;font-size:14px;color:var(--text-primary);">Strava</div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Import your swims. Add the water conditions here.</div>
+                    </div>
+                    <button onclick="connectStrava()"
+                        style="background:#fc4c02;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;">
+                        Connect
+                    </button>
+                </div>`;
+        }
+
+        function renderStravaConnected(card, data) {
+            const connectedDate = new Date(data.connected_at).toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' });
+            card.innerHTML = `
+                <div style="background:rgba(252,76,2,0.06);border:1px solid rgba(252,76,2,0.25);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;">
+                    <div style="width:36px;height:36px;background:#fc4c02;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+                    </div>
+                    <div style="flex:1;">
+                        <div style="font-weight:600;font-size:14px;color:var(--text-primary);">Strava <span style="font-size:11px;color:#fc4c02;background:rgba(252,76,2,0.12);padding:2px 7px;border-radius:10px;margin-left:4px;">Connected</span></div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Since ${connectedDate}</div>
+                    </div>
+                    <button onclick="disconnectStrava()"
+                        style="background:transparent;color:var(--text-secondary);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0;">
+                        Disconnect
+                    </button>
+                </div>`;
+        }
+
+        async function connectStrava() {
+            if (!currentUser) return;
+
+            const btn = event.target;
+            btn.textContent = 'Connecting…';
+            btn.disabled = true;
+
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (!session) throw new Error('No session');
+
+                const res = await fetch('/api/strava/connect-url', {
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                });
+
+                if (!res.ok) throw new Error('Could not get connect URL');
+
+                const { url } = await res.json();
+                window.location.href = url;
+            } catch (err) {
+                console.error('[strava] connectStrava error:', err);
+                showToast('Could not connect to Strava. Please try again.', 'error');
+                btn.textContent = 'Connect';
+                btn.disabled = false;
+            }
+        }
+
+        async function disconnectStrava() {
+            if (!currentUser) return;
+            if (!confirm('Disconnect Strava? Your existing SwimLoading logs will not be affected.')) return;
+
+            try {
+                await supabaseClient
+                    .from('strava_connections')
+                    .delete()
+                    .eq('user_id', currentUser.id);
+
+                const card = document.getElementById('stravaConnectionCard');
+                if (card) renderStravaDisconnected(card);
+                showToast('Strava disconnected.', 'info');
+            } catch (err) {
+                console.error('[strava] disconnectStrava error:', err);
+                showToast('Could not disconnect Strava. Please try again.', 'error');
+            }
+        }

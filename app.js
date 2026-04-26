@@ -415,6 +415,19 @@
             const urlParams = new URLSearchParams(window.location.search);
             const swimId = urlParams.get('swim');
             const spotDeepId = urlParams.get('spot');
+            const stravaParam = urlParams.get('strava');
+
+            if (stravaParam) {
+                window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+                if (stravaParam === 'connected') {
+                    showToast('Strava connected! You can now import your swims.', 'success');
+                } else if (stravaParam === 'denied') {
+                    showToast('Strava connection cancelled.', 'info');
+                } else if (stravaParam === 'error') {
+                    const reason = urlParams.get('reason') || 'unknown';
+                    showToast(`Strava connection failed (${reason}). Please try again.`, 'error');
+                }
+            }
 
             if (swimId) {
                 // Clean the URL so it doesn't re-trigger on refresh
@@ -5149,6 +5162,9 @@
                 if ('PushManager' in window && VAPID_PUBLIC_KEY !== 'REPLACE_WITH_YOUR_VAPID_PUBLIC_KEY') {
                     renderNotifOptIn();
                 }
+
+                // Render Strava connection card
+                if (typeof initStravaSection === 'function') initStravaSection();
             } catch (err) {
                 console.error('Error loading profile:', err);
             } finally {
