@@ -721,13 +721,13 @@
             row.innerHTML = `
                 <div style="width: 100%; padding: 4px 0;">
                     <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
-                        <label style="font-size: 12px; color: var(--text-secondary); width: 50px;">Temp:</label>
-                        <input type="number" id="editTemp-${logId}" value="${currentTemp}" step="0.5" min="8" max="32" style="flex: 1; padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-primary);">
-                        <span style="color: var(--text-secondary);">°C</span>
+                        <label style="font-size: 12px; color: var(--text-secondary); width: 50px; flex-shrink:0;">Temp:</label>
+                        <input type="number" id="editTemp-${logId}" value="${currentTemp}" step="0.5" min="8" max="32" class="form-control-sm" style="flex:1;">
+                        <span style="color: var(--text-secondary); flex-shrink:0;">°C</span>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
-                        <label style="font-size: 12px; color: var(--text-secondary); width: 50px;">Cond:</label>
-                        <select id="editCond-${logId}" style="flex: 1; padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-primary);">
+                        <label style="font-size: 12px; color: var(--text-secondary); width: 50px; flex-shrink:0;">Cond:</label>
+                        <select id="editCond-${logId}" class="form-control-sm" style="flex:1;">
                             <option value="calm" ${currentConditions === 'calm' ? 'selected' : ''}>Calm</option>
                             <option value="choppy" ${currentConditions === 'choppy' ? 'selected' : ''}>Choppy</option>
                             <option value="rough" ${currentConditions === 'rough' ? 'selected' : ''}>Rough</option>
@@ -735,11 +735,11 @@
                         </select>
                     </div>
                     <div style="margin-bottom: 8px;">
-                        <textarea id="editNotes-${logId}" placeholder="Notes..." style="width: 100%; padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-primary); font-size: 12px; resize: none; height: 50px;">${currentNotes || ''}</textarea>
+                        <textarea id="editNotes-${logId}" placeholder="Notes..." class="form-control-sm" style="resize:none;height:50px;font-size:12px;">${currentNotes || ''}</textarea>
                     </div>
                     <div style="display: flex; gap: 8px;">
-                        <button onclick="saveTempLogEdit('${logId}')" class="btn btn-success" style="flex: 1; padding: 8px; font-size: 12px;">Save</button>
-                        <button onclick="loadSpotChartData()" class="btn" style="flex: 1; padding: 8px; font-size: 12px; background: rgba(255,255,255,0.1);">Cancel</button>
+                        <button onclick="saveTempLogEdit('${logId}')" class="btn btn-success" style="flex:1;padding:8px;font-size:12px;">Save</button>
+                        <button onclick="loadSpotChartData()" class="btn-secondary" style="flex:1;padding:8px;font-size:12px;">Cancel</button>
                     </div>
                 </div>
             `;

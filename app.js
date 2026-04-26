@@ -2200,8 +2200,8 @@
             if (submitBtn) submitBtn.textContent = 'Create Swim';
             const groupBtn = document.getElementById('typeGroupSwimBtn');
             const raceBtn  = document.getElementById('typeRaceBtn');
-            if (groupBtn) { groupBtn.style.borderColor = 'var(--ocean-blue)'; groupBtn.style.background = 'rgba(2,132,199,0.12)'; }
-            if (raceBtn)  { raceBtn.style.borderColor  = 'rgba(255,255,255,0.1)'; raceBtn.style.background = 'rgba(255,255,255,0.03)'; }
+            if (groupBtn) { groupBtn.style.borderColor = 'var(--ocean-blue)'; groupBtn.style.background = 'rgba(2,132,199,0.15)'; }
+            if (raceBtn)  { raceBtn.style.borderColor  = 'rgba(56,189,248,0.15)'; raceBtn.style.background = 'rgba(15,23,42,0.6)'; }
             const posterGroup = document.getElementById('posterUploadGroup');
             if (posterGroup) posterGroup.style.display = 'none';
         }
@@ -2972,12 +2972,12 @@
             const groupBtn = document.getElementById('typeGroupSwimBtn');
             const raceBtn  = document.getElementById('typeRaceBtn');
             if (groupBtn) {
-                groupBtn.style.borderColor = isRace ? 'rgba(255,255,255,0.1)' : 'var(--ocean-blue)';
-                groupBtn.style.background  = isRace ? 'rgba(255,255,255,0.03)' : 'rgba(2,132,199,0.12)';
+                groupBtn.style.borderColor = isRace ? 'rgba(56,189,248,0.15)' : 'var(--ocean-blue)';
+                groupBtn.style.background  = isRace ? 'rgba(15,23,42,0.6)' : 'rgba(2,132,199,0.15)';
             }
             if (raceBtn) {
-                raceBtn.style.borderColor = isRace ? '#f59e0b' : 'rgba(255,255,255,0.1)';
-                raceBtn.style.background  = isRace ? 'rgba(245,158,11,0.08)' : 'rgba(255,255,255,0.03)';
+                raceBtn.style.borderColor = isRace ? '#f59e0b' : 'rgba(56,189,248,0.15)';
+                raceBtn.style.background  = isRace ? 'rgba(245,158,11,0.12)' : 'rgba(15,23,42,0.6)';
             }
 
             // Update modal title + submit button + name placeholder
@@ -3179,9 +3179,9 @@
                             </button>
                         `).join('')}
                         <button onclick="dismissOverlapWarning()"
-                            style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-                                   color: var(--text-secondary); padding: 6px 14px; border-radius: 8px;
-                                   font-size: 12px; font-weight: 700; cursor: pointer;">
+                            style="background: rgba(15,23,42,0.6); border: 1.5px solid rgba(56,189,248,0.2);
+                                   color: var(--text-primary); padding: 6px 14px; border-radius: 8px;
+                                   font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s;">
                             Create anyway →
                         </button>
                     </div>
@@ -3455,7 +3455,7 @@
                         NSRI Emergency: <strong style="color:var(--text);">087 094 9774</strong>
                     </div>
                     <div style="display:flex;gap:10px;">
-                        <button onclick="hideEventDetails()" style="flex:1;padding:13px;background:rgba(255,255,255,0.08);border:1px solid var(--border);border-radius:12px;color:var(--text);font-weight:600;font-size:14px;cursor:pointer;">Cancel</button>
+                        <button onclick="hideEventDetails()" style="flex:1;padding:13px;background:rgba(15,23,42,0.6);border:2px solid rgba(56,189,248,0.2);border-radius:12px;color:var(--text-primary);font-weight:600;font-size:14px;cursor:pointer;transition:all 0.2s;">Cancel</button>
                         <button onclick="proceedCreateAnyway()" style="flex:1;padding:13px;background:#f59e0b;border:none;border-radius:12px;color:#000;font-weight:700;font-size:14px;cursor:pointer;">Create anyway</button>
                     </div>
                 </div>`;
@@ -4563,8 +4563,8 @@
             const tabPhoto = document.getElementById('avatarTabPhoto');
             const tabIcon = document.getElementById('avatarTabIcon');
             if (!photoPanel || !iconPanel) return;
-            const activeStyle = 'background:var(--ocean-blue);color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;';
-            const inactiveStyle = 'background:rgba(255,255,255,0.08);color:var(--text-secondary);border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;';
+            const activeStyle = 'background:linear-gradient(135deg,var(--ocean-blue),var(--ocean-dark));color:white;border:2px solid var(--ocean-blue);border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;';
+            const inactiveStyle = 'background:rgba(15,23,42,0.6);color:var(--text-secondary);border:2px solid rgba(56,189,248,0.15);border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;';
             if (tab === 'photo') {
                 photoPanel.style.display = 'block';
                 iconPanel.style.display = 'none';
@@ -6315,8 +6315,8 @@
                 input.value = fmt(now);
             } else {
                 picker.style.display = 'none';
-                btn.style.background = 'rgba(255,255,255,0.04)';
-                btn.style.borderColor = 'var(--border)';
+                btn.style.background = 'rgba(15,23,42,0.6)';
+                btn.style.borderColor = 'rgba(56,189,248,0.2)';
                 label.style.color = 'var(--text-secondary)';
                 input.value = '';
             }
@@ -6588,7 +6588,7 @@
                 const bdBtn = document.getElementById('backdateToggleBtn');
                 const bdLabel = document.getElementById('backdateToggleLabel');
                 if (bdPicker) bdPicker.style.display = 'none';
-                if (bdBtn) { bdBtn.style.background = 'rgba(255,255,255,0.04)'; bdBtn.style.borderColor = 'var(--border)'; }
+                if (bdBtn) { bdBtn.style.background = 'rgba(15,23,42,0.6)'; bdBtn.style.borderColor = 'rgba(56,189,248,0.2)'; }
                 if (bdLabel) bdLabel.style.color = 'var(--text-secondary)';
                 const bdInput = document.getElementById('backdateTime');
                 if (bdInput) bdInput.value = '';
