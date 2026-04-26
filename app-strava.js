@@ -174,6 +174,8 @@ function renderActivityRow(a) {
 
 function openStravaLogForm(activity) {
     _selectedStravaActivity = activity;
+    _selectedCondition = null;
+    _selectedHazards.clear();
     closeStravaImportModal();
 
     const modal = document.getElementById('stravaLogModal');
@@ -333,6 +335,8 @@ async function submitStravaLog() {
                 conditions,
                 hazards:            [..._selectedHazards],
                 notes,
+                activity_name:      activity.name,
+                start_date_local:   activity.start_date_local,
             }),
         });
 

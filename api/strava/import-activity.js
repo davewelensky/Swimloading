@@ -48,22 +48,47 @@ export default async function handler(req, res) {
         conditions,
         hazards,
         notes,
+        // activity metadata passed from frontend as fallback if strava_imports row missing
+        activity_name,
+        start_date_local,
     } = req.body || {};
 
     // Validate required fields
-    if (!strava_activity_id)          return res.status(400).json({ error: 'strava_activity_id required' });
-    if (!spot_id)                      return res.status(400).json({ error: 'spot_id required' });
+    if (!strava_activity_id) return res.status(400).json({ error: 'strava_activity_id required' });
+    if (!spot_id)             return res.status(400).json({ error: 'spot_id required' });
     if (temperature === undefined || temperature === null || temperature === '')
-                                       return res.status(400).json({ error: 'temperature required' });
-    if (!conditions)                   return res.status(400).json({ error: 'conditions required' });
+                              return res.status(400).json({ error: 'temperature required' });
+    if (!conditions)          return res.status(400).json({ error: 'conditions required' });
 
-    // Load the strava_import row — verify it belongs to this user
+    // Load strava_import row — create it inline if the background upsert missed it
     const importRes = await fetch(
         `${SUPABASE_URL}/rest/v1/strava_imports?user_id=eq.${userId}&strava_activity_id=eq.${strava_activity_id}&limit=1`,
         { headers: { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` } }
     );
-    const imports = importRes.ok ? await importRes.json() : [];
-    if (imports.length === 0) return res.status(404).json({ error: 'strava_import_not_found' });
+    let imports = importRes.ok ? await importRes.json() : [];
+
+    if (imports.length === 0) {
+        // Row missing — upsert a minimal record so we can proceed
+        const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/strava_imports`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': SERVICE_KEY,
+                'Authorization': `Bearer ${SERVICE_KEY}`,
+                'Prefer': 'resolution=merge-duplicates,return=representation',
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                strava_activity_id,
+                name: activity_name || 'Strava activity',
+                start_date_local: start_date_local || null,
+            }),
+        });
+        imports = upsertRes.ok ? await upsertRes.json() : [];
+        if (imports.length === 0) {
+            return res.status(500).json({ error: 'could_not_create_import_record' });
+        }
+    }
 
     const stravaImport = imports[0];
     if (stravaImport.imported_to_log_id) {

@@ -4486,7 +4486,7 @@
                 padding: 16px 24px;
                 border-radius: 12px;
                 font-weight: 600;
-                z-index: 10000;
+                z-index: 99999;
                 animation: slideUp 0.3s ease;
             `;
             toast.textContent = message;
