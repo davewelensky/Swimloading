@@ -24,8 +24,8 @@ async function matchSpot(startLatlng, spots) {
     let nearest = null;
     let nearestDist = Infinity;
     for (const spot of spots) {
-        if (!spot.lat || !spot.lng) continue;
-        const dist = haversineKm(lat, lng, spot.lat, spot.lng);
+        if (!spot.latitude || !spot.longitude) continue;
+        const dist = haversineKm(lat, lng, spot.latitude, spot.longitude);
         if (dist < nearestDist) { nearestDist = dist; nearest = spot; }
     }
     return nearestDist <= MATCH_RADIUS_KM ? nearest : null;
@@ -63,7 +63,7 @@ export default async function handler(req, res) {
 
     // Load all active spots (with GPS) for matching
     const spotsRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/spots?select=id,name,code,lat,lng&order=name`,
+        `${SUPABASE_URL}/rest/v1/spots?select=id,name,code,latitude,longitude&order=name`,
         { headers: { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` } }
     );
     const spots = spotsRes.ok ? await spotsRes.json() : [];
