@@ -706,6 +706,88 @@
             loadEvents();
         }
 
+        // For static fd dropdowns — syncs hidden <select>, updates label, marks selection, fires optional callback
+        function fdSetSelect(selectId, value, label, fdId, callback) {
+            const sel = document.getElementById(selectId);
+            if (sel) sel.value = value;
+            const labelEl = document.getElementById(fdId + 'Label');
+            if (labelEl) labelEl.textContent = label;
+            const trigger = document.getElementById(fdId + 'Trigger');
+            const panel   = document.getElementById(fdId + 'Panel');
+            if (trigger) { trigger.classList.remove('fd-open'); trigger.classList.toggle('fd-active', !!value); }
+            if (panel) {
+                panel.classList.remove('fd-open');
+                panel.querySelectorAll('.fd-option').forEach(o =>
+                    o.classList.toggle('fd-selected', o.dataset.value === String(value))
+                );
+            }
+            if (callback) callback();
+        }
+
+        // For the dynamic spot dropdown in the create event form
+        function fdEventSpotSelect(spotId, spotName) {
+            const sel = document.getElementById('eventSpot');
+            if (sel) sel.value = spotId;
+            const labelEl = document.getElementById('fdEventSpotLabel');
+            if (labelEl) { labelEl.textContent = spotName; labelEl.style.color = ''; }
+            const trigger = document.getElementById('fdEventSpotTrigger');
+            const panel   = document.getElementById('fdEventSpotPanel');
+            if (trigger) { trigger.classList.remove('fd-open'); trigger.classList.add('fd-active'); }
+            if (panel) {
+                panel.classList.remove('fd-open');
+                panel.querySelectorAll('.fd-option').forEach(o =>
+                    o.classList.toggle('fd-selected', o.dataset.value === String(spotId))
+                );
+            }
+            if (typeof onCreateFormFieldChange === 'function') onCreateFormFieldChange();
+        }
+
+        // Reset all custom fd dropdowns in the create event form to defaults
+        function fdResetCreateEventDropdowns() {
+            const labelEl = document.getElementById('fdEventSpotLabel');
+            if (labelEl) { labelEl.textContent = 'Select location…'; labelEl.style.color = 'var(--text-secondary)'; }
+            const spotTrigger = document.getElementById('fdEventSpotTrigger');
+            if (spotTrigger) spotTrigger.classList.remove('fd-active', 'fd-open');
+            const spotPanel = document.getElementById('fdEventSpotPanel');
+            if (spotPanel) { spotPanel.classList.remove('fd-open'); spotPanel.querySelectorAll('.fd-option').forEach(o => o.classList.remove('fd-selected')); }
+
+            const paceLabel = document.getElementById('fdPaceLevelLabel');
+            if (paceLabel) paceLabel.textContent = 'Social (2:30/100m)';
+            const paceTrigger = document.getElementById('fdPaceLevelTrigger');
+            if (paceTrigger) { paceTrigger.classList.remove('fd-open'); paceTrigger.classList.add('fd-active'); }
+            const pacePanel = document.getElementById('fdPaceLevelPanel');
+            if (pacePanel) {
+                pacePanel.classList.remove('fd-open');
+                pacePanel.querySelectorAll('.fd-option').forEach(o =>
+                    o.classList.toggle('fd-selected', o.dataset.value === '150')
+                );
+            }
+
+            const recLabel = document.getElementById('fdRecurrenceLabel');
+            if (recLabel) recLabel.textContent = 'One-time';
+            const recTrigger = document.getElementById('fdRecurrenceTrigger');
+            if (recTrigger) { recTrigger.classList.remove('fd-open', 'fd-active'); }
+            const recPanel = document.getElementById('fdRecurrencePanel');
+            if (recPanel) {
+                recPanel.classList.remove('fd-open');
+                recPanel.querySelectorAll('.fd-option').forEach(o =>
+                    o.classList.toggle('fd-selected', o.dataset.value === '')
+                );
+            }
+
+            const routeLabel = document.getElementById('fdRouteTypeLabel');
+            if (routeLabel) routeLabel.textContent = 'Loop (start/end same)';
+            const routeTrigger = document.getElementById('fdRouteTypeTrigger');
+            if (routeTrigger) { routeTrigger.classList.remove('fd-open', 'fd-active'); }
+            const routePanel = document.getElementById('fdRouteTypePanel');
+            if (routePanel) {
+                routePanel.classList.remove('fd-open');
+                routePanel.querySelectorAll('.fd-option').forEach(o =>
+                    o.classList.toggle('fd-selected', o.dataset.value === 'loop')
+                );
+            }
+        }
+
         // Close dropdowns on outside click
         document.addEventListener('click', e => {
             if (!e.target.closest('.fd-wrap')) {
@@ -786,6 +868,28 @@
                 historyFilter.innerHTML = groupedOptionsWithAll;
             }
 
+            // Populate custom fd dropdown panel for create event form
+            const eventSpotPanel = document.getElementById('fdEventSpotPanel');
+            if (eventSpotPanel) {
+                const domainCodes = domains.map(d => d.code);
+                let fdHtml = '';
+                domains.forEach(d => {
+                    const domainSpots = spots.filter(s => s.domain === d.code);
+                    if (domainSpots.length === 0) return;
+                    fdHtml += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);padding:8px 16px 4px;font-weight:700;pointer-events:none;">— ${d.display_name} —</div>`;
+                    domainSpots.forEach(spot => {
+                        fdHtml += `<div class="fd-option" data-value="${spot.id}" onclick="fdEventSpotSelect(${spot.id},'${spot.name.replace(/'/g, "\\'")}')">${spot.name}</div>`;
+                    });
+                });
+                const ungrouped = spots.filter(s => !domainCodes.includes(s.domain));
+                if (ungrouped.length > 0) {
+                    fdHtml += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);padding:8px 16px 4px;font-weight:700;pointer-events:none;">— Other —</div>`;
+                    ungrouped.forEach(spot => {
+                        fdHtml += `<div class="fd-option" data-value="${spot.id}" onclick="fdEventSpotSelect(${spot.id},'${spot.name.replace(/'/g, "\\'")}')">${spot.name}</div>`;
+                    });
+                }
+                eventSpotPanel.innerHTML = fdHtml;
+            }
         }
 
         // Populate the "When" month filter with the next 12 months
@@ -2249,6 +2353,8 @@
             if (raceBtn)  { raceBtn.style.borderColor  = 'rgba(56,189,248,0.15)'; raceBtn.style.background = 'rgba(15,23,42,0.6)'; }
             const posterGroup = document.getElementById('posterUploadGroup');
             if (posterGroup) posterGroup.style.display = 'none';
+            // Reset custom fd dropdowns
+            fdResetCreateEventDropdowns();
         }
 
         // ========== SUGGEST A SPOT ==========

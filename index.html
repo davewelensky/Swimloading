@@ -24,9 +24,9 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <script src="app.js?v=4"></script>
+    <script src="app.js?v=5"></script>
 
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="style.css?v=5">
 </head>
 
 <body>
@@ -1192,19 +1192,36 @@
                             <!-- 4. Location -->
                             <div class="form-group">
                                 <div class="form-label"><i data-lucide="map-pin" style="width:14px;height:14px;vertical-align:middle;"></i> Location</div>
-                                <select id="eventSpot" data-spots required onchange="onCreateFormFieldChange()"></select>
+                                <select id="eventSpot" data-spots required style="display:none;"></select>
+                                <div class="fd-wrap" id="fdEventSpotWrap">
+                                    <button type="button" class="fd-trigger" id="fdEventSpotTrigger" onclick="fdToggle('fdEventSpot')">
+                                        <span class="fd-label" id="fdEventSpotLabel" style="color:var(--text-secondary);">Select location…</span>
+                                        <svg class="fd-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                                    </button>
+                                    <div class="fd-panel" id="fdEventSpotPanel" style="max-height:220px;overflow-y:auto;"></div>
+                                </div>
                                 <div id="spotHazardWarning" style="display:none;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.4);border-radius:10px;padding:11px 14px;margin-top:8px;font-size:13px;color:#f59e0b;line-height:1.5;"></div>
                             </div>
 
                             <!-- 5. Route Type -->
                             <div class="form-group">
                                 <div class="form-label">Route Type</div>
-                                <select id="eventRouteType"
-                                    onchange="const hint = document.getElementById('logisticsHint'); if(this.value === 'point_to_point') { hint.style.display = 'block' } else { hint.style.display = 'none' }">
+                                <select id="eventRouteType" style="display:none;">
                                     <option value="loop">Loop (start/end same)</option>
                                     <option value="out_and_back">Out & back (turnaround)</option>
                                     <option value="point_to_point">Point-to-point (lifts likely)</option>
                                 </select>
+                                <div class="fd-wrap">
+                                    <button type="button" class="fd-trigger" id="fdRouteTypeTrigger" onclick="fdToggle('fdRouteType')">
+                                        <span class="fd-label" id="fdRouteTypeLabel">Loop (start/end same)</span>
+                                        <svg class="fd-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                                    </button>
+                                    <div class="fd-panel" id="fdRouteTypePanel">
+                                        <div class="fd-option fd-selected" data-value="loop" onclick="fdSetSelect('eventRouteType','loop','Loop (start/end same)','fdRouteType',()=>{document.getElementById('logisticsHint').style.display='none'})">Loop (start/end same)</div>
+                                        <div class="fd-option" data-value="out_and_back" onclick="fdSetSelect('eventRouteType','out_and_back','Out &amp; back (turnaround)','fdRouteType',()=>{document.getElementById('logisticsHint').style.display='none'})">Out &amp; back (turnaround)</div>
+                                        <div class="fd-option" data-value="point_to_point" onclick="fdSetSelect('eventRouteType','point_to_point','Point-to-point (lifts likely)','fdRouteType',()=>{document.getElementById('logisticsHint').style.display='block'})">Point-to-point (lifts likely)</div>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- 6. Logistics + Chat Link -->
@@ -1223,13 +1240,26 @@
                             <!-- 7. Pace -->
                             <div class="form-group">
                                 <div class="form-label">Pace Category</div>
-                                <select id="eventPaceLevel" required>
+                                <select id="eventPaceLevel" required style="display:none;">
                                     <option value="0">Race Pace</option>
                                     <option value="100">Fast (1:40/100m)</option>
                                     <option value="120">Steady (2:00/100m)</option>
                                     <option value="150" selected>Social (2:30/100m)</option>
                                     <option value="180">Developing (3:00/100m)</option>
                                 </select>
+                                <div class="fd-wrap">
+                                    <button type="button" class="fd-trigger fd-active" id="fdPaceLevelTrigger" onclick="fdToggle('fdPaceLevel')">
+                                        <span class="fd-label" id="fdPaceLevelLabel">Social (2:30/100m)</span>
+                                        <svg class="fd-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                                    </button>
+                                    <div class="fd-panel" id="fdPaceLevelPanel">
+                                        <div class="fd-option" data-value="0" onclick="fdSetSelect('eventPaceLevel','0','Race Pace','fdPaceLevel')">Race Pace</div>
+                                        <div class="fd-option" data-value="100" onclick="fdSetSelect('eventPaceLevel','100','Fast (1:40/100m)','fdPaceLevel')">Fast (1:40/100m)</div>
+                                        <div class="fd-option" data-value="120" onclick="fdSetSelect('eventPaceLevel','120','Steady (2:00/100m)','fdPaceLevel')">Steady (2:00/100m)</div>
+                                        <div class="fd-option fd-selected" data-value="150" onclick="fdSetSelect('eventPaceLevel','150','Social (2:30/100m)','fdPaceLevel')">Social (2:30/100m)</div>
+                                        <div class="fd-option" data-value="180" onclick="fdSetSelect('eventPaceLevel','180','Developing (3:00/100m)','fdPaceLevel')">Developing (3:00/100m)</div>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- 8. Distance — single for group swims -->
@@ -1273,7 +1303,7 @@
                             <!-- 10. Repeats -->
                             <div class="form-group">
                                 <div class="form-label"><i data-lucide="repeat" style="width:14px;height:14px;vertical-align:middle;"></i> Repeats</div>
-                                <select id="eventRecurrence" onchange="onRecurrenceChange()">
+                                <select id="eventRecurrence" style="display:none;">
                                     <option value="">One-time</option>
                                     <option value="weekly">Weekly</option>
                                     <option value="fortnightly">Every 2 weeks</option>
@@ -1282,31 +1312,61 @@
                                     <option value="weekends">Weekends (Sat–Sun)</option>
                                     <option value="daily">Daily</option>
                                 </select>
+                                <div class="fd-wrap">
+                                    <button type="button" class="fd-trigger" id="fdRecurrenceTrigger" onclick="fdToggle('fdRecurrence')">
+                                        <span class="fd-label" id="fdRecurrenceLabel">One-time</span>
+                                        <svg class="fd-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                                    </button>
+                                    <div class="fd-panel" id="fdRecurrencePanel">
+                                        <div class="fd-option fd-selected" data-value="" onclick="fdSetSelect('eventRecurrence','','One-time','fdRecurrence',onRecurrenceChange)">One-time</div>
+                                        <div class="fd-option" data-value="weekly" onclick="fdSetSelect('eventRecurrence','weekly','Weekly','fdRecurrence',onRecurrenceChange)">Weekly</div>
+                                        <div class="fd-option" data-value="fortnightly" onclick="fdSetSelect('eventRecurrence','fortnightly','Every 2 weeks','fdRecurrence',onRecurrenceChange)">Every 2 weeks</div>
+                                        <div class="fd-option" data-value="monthly" onclick="fdSetSelect('eventRecurrence','monthly','Monthly','fdRecurrence',onRecurrenceChange)">Monthly</div>
+                                        <div class="fd-option" data-value="weekdays" onclick="fdSetSelect('eventRecurrence','weekdays','Weekdays (Mon–Fri)','fdRecurrence',onRecurrenceChange)">Weekdays (Mon–Fri)</div>
+                                        <div class="fd-option" data-value="weekends" onclick="fdSetSelect('eventRecurrence','weekends','Weekends (Sat–Sun)','fdRecurrence',onRecurrenceChange)">Weekends (Sat–Sun)</div>
+                                        <div class="fd-option" data-value="daily" onclick="fdSetSelect('eventRecurrence','daily','Daily','fdRecurrence',onRecurrenceChange)">Daily</div>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div id="monthlySubGroup" style="display:none; margin-top:-8px; margin-bottom:12px; display:none;">
+                            <div id="monthlySubGroup" style="display:none; margin-top:-8px; margin-bottom:12px;">
+                                <!-- hidden native selects keep the values readable by JS -->
+                                <select id="monthlyNth" style="display:none;"><option value="1" selected>1st</option><option value="2">2nd</option><option value="3">3rd</option><option value="4">4th</option><option value="5">Last</option></select>
+                                <select id="monthlyDow" style="display:none;"><option value="0" selected>Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select>
                                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
                                     <div>
                                         <div class="form-label" style="font-size:12px; margin-bottom:4px;">Week</div>
-                                        <select id="monthlyNth" onchange="updateRecurrencePreview()">
-                                            <option value="1">1st</option>
-                                            <option value="2">2nd</option>
-                                            <option value="3">3rd</option>
-                                            <option value="4">4th</option>
-                                            <option value="5">Last</option>
-                                        </select>
+                                        <div class="fd-wrap">
+                                            <button type="button" class="fd-trigger fd-active" id="fdMonthlyNthTrigger" onclick="fdToggle('fdMonthlyNth')">
+                                                <span class="fd-label" id="fdMonthlyNthLabel">1st</span>
+                                                <svg class="fd-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                                            </button>
+                                            <div class="fd-panel" id="fdMonthlyNthPanel">
+                                                <div class="fd-option fd-selected" data-value="1" onclick="fdSetSelect('monthlyNth','1','1st','fdMonthlyNth',updateRecurrencePreview)">1st</div>
+                                                <div class="fd-option" data-value="2" onclick="fdSetSelect('monthlyNth','2','2nd','fdMonthlyNth',updateRecurrencePreview)">2nd</div>
+                                                <div class="fd-option" data-value="3" onclick="fdSetSelect('monthlyNth','3','3rd','fdMonthlyNth',updateRecurrencePreview)">3rd</div>
+                                                <div class="fd-option" data-value="4" onclick="fdSetSelect('monthlyNth','4','4th','fdMonthlyNth',updateRecurrencePreview)">4th</div>
+                                                <div class="fd-option" data-value="5" onclick="fdSetSelect('monthlyNth','5','Last','fdMonthlyNth',updateRecurrencePreview)">Last</div>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div>
                                         <div class="form-label" style="font-size:12px; margin-bottom:4px;">Day</div>
-                                        <select id="monthlyDow" onchange="updateRecurrencePreview()">
-                                            <option value="0">Sunday</option>
-                                            <option value="1">Monday</option>
-                                            <option value="2">Tuesday</option>
-                                            <option value="3">Wednesday</option>
-                                            <option value="4">Thursday</option>
-                                            <option value="5">Friday</option>
-                                            <option value="6">Saturday</option>
-                                        </select>
+                                        <div class="fd-wrap">
+                                            <button type="button" class="fd-trigger fd-active" id="fdMonthlyDowTrigger" onclick="fdToggle('fdMonthlyDow')">
+                                                <span class="fd-label" id="fdMonthlyDowLabel">Sunday</span>
+                                                <svg class="fd-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                                            </button>
+                                            <div class="fd-panel" id="fdMonthlyDowPanel">
+                                                <div class="fd-option fd-selected" data-value="0" onclick="fdSetSelect('monthlyDow','0','Sunday','fdMonthlyDow',updateRecurrencePreview)">Sunday</div>
+                                                <div class="fd-option" data-value="1" onclick="fdSetSelect('monthlyDow','1','Monday','fdMonthlyDow',updateRecurrencePreview)">Monday</div>
+                                                <div class="fd-option" data-value="2" onclick="fdSetSelect('monthlyDow','2','Tuesday','fdMonthlyDow',updateRecurrencePreview)">Tuesday</div>
+                                                <div class="fd-option" data-value="3" onclick="fdSetSelect('monthlyDow','3','Wednesday','fdMonthlyDow',updateRecurrencePreview)">Wednesday</div>
+                                                <div class="fd-option" data-value="4" onclick="fdSetSelect('monthlyDow','4','Thursday','fdMonthlyDow',updateRecurrencePreview)">Thursday</div>
+                                                <div class="fd-option" data-value="5" onclick="fdSetSelect('monthlyDow','5','Friday','fdMonthlyDow',updateRecurrencePreview)">Friday</div>
+                                                <div class="fd-option" data-value="6" onclick="fdSetSelect('monthlyDow','6','Saturday','fdMonthlyDow',updateRecurrencePreview)">Saturday</div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1751,7 +1811,7 @@
         </div>
     </div>
 
-    <script src="app-nav.js?v=4"></script>
+    <script src="app-nav.js?v=5"></script>
     <!-- Notifications Modal -->
     <!-- Home Region Prompt — shown once to users with no home_domain set -->
     <div id="homeDomainPrompt"
@@ -1789,11 +1849,11 @@
             </div>
         </div>
     </div>
-    <script src="app-trends.js?v=4"></script>
+    <script src="app-trends.js?v=5"></script>
 
     <!-- Service Worker Registration -->
-    <script src="app-fuel.js?v=4"></script>
-    <script src="app-strava.js?v=3"></script>
+    <script src="app-fuel.js?v=5"></script>
+    <script src="app-strava.js?v=5"></script>
 
     <!-- Strava Import Modal -->
     <div id="stravaImportModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:10003;padding:20px;overflow-y:auto;">
