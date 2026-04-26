@@ -818,6 +818,9 @@
                     <!-- SA Open Water Spotlight Banner -->
                     <div id="spotlightBanner" style="display:none; margin-bottom:16px;"></div>
 
+                    <!-- Strava import banner (shown when unimported swim detected) -->
+                    <div id="stravaBanner" style="display:none; margin-bottom:16px;"></div>
+
                     <!-- 1. Hero CTA -->
                     <div style="margin-bottom:20px; background:linear-gradient(135deg,rgba(2,132,199,0.15),rgba(12,74,110,0.25)); border:1px solid rgba(56,189,248,0.25); border-radius:16px; padding:20px 20px 18px;">
                         <div style="font-size:13px; color:var(--text-secondary); margin-bottom:4px; font-weight:500;">Just finished a swim?</div>
@@ -1793,6 +1796,40 @@
 
     <!-- Service Worker Registration -->
     <script src="app-fuel.js?v=2"></script>
+    <script src="app-strava.js?v=1"></script>
+
+    <!-- Strava Import Modal -->
+    <div id="stravaImportModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:10003;padding:20px;overflow-y:auto;">
+        <div style="max-width:520px;margin:40px auto;background:var(--bg-dark);border:1px solid var(--border);border-radius:20px;padding:28px;position:relative;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:32px;height:32px;background:#fc4c02;border-radius:8px;display:flex;align-items:center;justify-content:center;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+                    </div>
+                    <h3 style="color:var(--text-primary);font-size:18px;margin:0;">Import from Strava</h3>
+                </div>
+                <button onclick="closeStravaImportModal()" style="background:transparent;border:none;color:var(--text-secondary);font-size:24px;cursor:pointer;padding:0;line-height:1;">✕</button>
+            </div>
+            <div id="stravaImportList">
+                <div style="text-align:center;padding:40px;color:var(--text-secondary);">
+                    <i data-lucide="loader" style="width:24px;height:24px;animation:spin 1s linear infinite;display:block;margin:0 auto 12px;"></i>
+                    Loading your swims…
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Strava Prefill Log Modal -->
+    <div id="stravaLogModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:10004;padding:20px;overflow-y:auto;">
+        <div style="max-width:520px;margin:40px auto;background:var(--bg-dark);border:1px solid var(--border);border-radius:20px;padding:28px;position:relative;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <h3 style="color:var(--text-primary);font-size:18px;margin:0;">Complete Your Log</h3>
+                <button onclick="closeStravaLogModal()" style="background:transparent;border:none;color:var(--text-secondary);font-size:24px;cursor:pointer;padding:0;line-height:1;">✕</button>
+            </div>
+            <div style="font-size:13px;color:#fc4c02;margin-bottom:20px;">Strava gave us the swim. SwimLoading needs the water.</div>
+            <div id="stravaLogForm"></div>
+        </div>
+    </div>
 </body>
 
 </html>

@@ -391,6 +391,9 @@
             // Load dashboard data
             await loadDashboard();
 
+            // Check for unimported Strava swims (non-blocking)
+            if (typeof checkStravaBanner === 'function') checkStravaBanner();
+
             // Prompt existing users who haven't set their home region yet
             if (!currentUserProfile?.home_domain) setTimeout(showHomeDomainPrompt, 800);
 
