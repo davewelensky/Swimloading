@@ -146,8 +146,8 @@ function renderActivityRow(a) {
     const spot     = a.matched_spot_name
         ? `<span style="color:#fc4c02;font-size:11px;">● ${a.matched_spot_name}</span>`
         : isPool
-            ? `<span style="font-size:11px;color:var(--text-secondary);">🏊 Pool · pick a location to log temp</span>`
-            : `<span style="font-size:11px;color:var(--text-secondary);">Open water · no spot matched</span>`;
+            ? `<span style="font-size:11px;color:var(--text-secondary);display:inline-flex;align-items:center;gap:4px;"><i data-lucide="waves" style="width:11px;height:11px;"></i> Pool · pick a location to log temp</span>`
+            : `<span style="font-size:11px;color:var(--text-secondary);display:inline-flex;align-items:center;gap:4px;"><i data-lucide="map-pin-off" style="width:11px;height:11px;"></i> Open water · no spot matched</span>`;
 
     if (a.already_imported) {
         return `
