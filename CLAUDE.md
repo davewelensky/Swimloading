@@ -38,6 +38,19 @@ app-fuel.js (282 lines)
   ├─ Leaderboard
   └─ Points system
 
+app-strava.js
+  ├─ Strava connection UI (dashboard banner, profile card)
+  ├─ Activity import modal
+  ├─ Log form (prefill spot/date from activity)
+  └─ Submit to /api/strava/import-activity
+
+api/strava/
+  ├─ connect-url.js   — GET, returns signed OAuth URL
+  ├─ callback.js      — handles OAuth redirect, stores tokens
+  ├─ token-helper.js  — shared: getValidStravaToken, getUserId
+  ├─ activities.js    — fetches swims, spot matching, upserts strava_imports
+  └─ import-activity.js — creates temp_log from selected activity
+
 style.css (1,138 lines)
   ├─ All styling (dark theme)
   ├─ Desktop & mobile responsive
@@ -61,18 +74,23 @@ All scripts are loaded sequentially in `index.html` **with global scope** (no ES
 2. `app-nav.js` — depends on app.js globals
 3. `app-trends.js` — depends on app.js globals
 4. `app-fuel.js` — depends on app.js globals
-5. `style.css` — styling applied after DOM loaded
+5. `app-strava.js` — depends on app.js globals (Strava integration)
+6. `style.css` — styling applied after DOM loaded
+
+**Cache busting:** Bump the `?v=N` query string on any script tag when you change that file (e.g. `app-strava.js?v=3`). Vercel's edge cache won't invalidate otherwise.
 
 ## Data Model
 
 ### Key Supabase Tables
 
 - **users** — auth, profile status (onboarding_completed_at), home_domain
-- **spots** — swim locations (name, code, domain, type)
+- **spots** — swim locations (name, code, domain, type, latitude, longitude)
 - **domains** — regions (code, display_name, is_coastal, sort_order)
 - **temp_logs** — temperature readings (spot_id, temperature, created_at, created_by)
 - **swim_events** — upcoming group swims (title, date, domain, participants)
 - **leaderboard** — April 2026 challenge scores (user_id, points, rank)
+- **strava_connections** — OAuth tokens per user (service role writes; RLS enforced)
+- **strava_imports** — cached Strava activities; `imported_to_log_id` set once imported
 
 ### Key Global Variables
 
@@ -221,14 +239,36 @@ Vercel provides Lighthouse scores in deployment preview. Monitor:
 | Error | Cause | Fix |
 |-------|-------|-----|
 | Blank page | Script load failed | Check browser console (F12), verify all .js files exist |
-| Old CSS still visible | Edge cache not invalidated | Add `Cache-Control: no-cache` to vercel.json |
+| Old CSS/JS still visible | Edge cache not invalidated | Bump `?v=N` on script tags; verify `Cache-Control: no-cache` in vercel.json |
 | Nav icons squeezed | CSS not applied to mobile | Check `@media (max-width: 520px)` rules |
 | Supabase error 401 | Auth token expired | Auto-refreshes on page reload |
 | Changes don't appear | Not pushed to git | Run `git push` before hard refresh |
+| Strava "Limit of connected athletes" | Sandbox = 1 athlete max | Revoke existing connection at strava.com → My Apps, reconnect |
+| Strava save does nothing | Missing strava_imports row or stale form state | import-activity.js creates row inline; form state resets on open |
+| Toast hidden behind modal | z-index clash | Toast z-index must be 99999; stravaLogModal is 10004 |
+| Strava connect-url 500 | Missing env vars in Preview | SUPABASE_URL hardcoded fallback in all api/strava/*.js files |
+
+## Strava Integration
+
+### Principle
+"Strava tracks the swim. SwimLoading tracks the water." Users import a Strava activity and add water temperature, conditions, and hazards that Strava doesn't capture.
+
+### Required Vercel Env Vars
+- `STRAVA_CLIENT_ID` — 230706
+- `STRAVA_CLIENT_SECRET` — (secret; regenerate at strava.com/settings/api if leaked)
+- `STRAVA_REDIRECT_URI` — `https://www.swimloading.com/api/strava/callback`
+- `STRAVA_HMAC_SECRET` — signs OAuth state parameter
+
+### Sandbox Limit
+Currently 1 athlete allowed (sandbox). Production quota requires emailing `developers@strava.com` — 7-10 business day review. Include Client ID 230706 and read-only justification.
+
+### GPS Spot Matching
+Spots GPS columns: `latitude`/`longitude` (NOT `lat`/`lng`). Haversine radius: 1.5km.
 
 ## Deployment Monitoring
 
-- **Live site:** https://swimloading.vercel.app
+- **Live site:** https://www.swimloading.com
+- **Vercel fallback:** https://swimloading.vercel.app
 - **Vercel dashboard:** https://vercel.com/davewelensky/swimloading
 - **GitHub commits:** https://github.com/davewelensky/Swimloading/commits/main
 
@@ -241,5 +281,5 @@ If code size becomes an issue again:
 
 ---
 
-**Last Updated:** April 24, 2026  
+**Last Updated:** April 26, 2026  
 **Maintained by:** Dave Welensky & Claude
