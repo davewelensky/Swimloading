@@ -107,6 +107,7 @@ export default async function handler(req, res) {
             strava_activity_id:  a.id,
             name:                a.name,
             sport_type:          a.sport_type || a.type,
+            has_gps:             !!(a.start_latlng && a.start_latlng.length >= 2),
             start_date_local:    a.start_date_local,
             distance_m:          a.distance,
             elapsed_time_seconds: a.elapsed_time,

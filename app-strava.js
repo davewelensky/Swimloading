@@ -142,7 +142,12 @@ function renderActivityRow(a) {
     const date     = a.start_date_local ? new Date(a.start_date_local).toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'short' }) : '—';
     const distKm   = a.distance_m ? (a.distance_m / 1000).toFixed(1) + ' km' : '—';
     const duration = a.elapsed_time_seconds ? formatDuration(a.elapsed_time_seconds) : '—';
-    const spot     = a.matched_spot_name ? `<span style="color:#fc4c02;font-size:11px;">● ${a.matched_spot_name}</span>` : `<span style="color:var(--text-secondary);font-size:11px;">No location matched</span>`;
+    const isPool   = !a.has_gps;
+    const spot     = a.matched_spot_name
+        ? `<span style="color:#fc4c02;font-size:11px;">● ${a.matched_spot_name}</span>`
+        : isPool
+            ? `<span style="font-size:11px;color:var(--text-secondary);">🏊 Pool · pick a location to log temp</span>`
+            : `<span style="font-size:11px;color:var(--text-secondary);">Open water · no spot matched</span>`;
 
     if (a.already_imported) {
         return `
