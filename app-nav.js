@@ -1444,18 +1444,26 @@
         function renderStravaConnected(card, data) {
             const connectedDate = new Date(data.connected_at).toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' });
             card.innerHTML = `
-                <div style="background:rgba(252,76,2,0.06);border:1px solid rgba(252,76,2,0.25);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;">
-                    <div style="width:36px;height:36px;background:#fc4c02;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+                <div style="background:rgba(252,76,2,0.06);border:1px solid rgba(252,76,2,0.25);border-radius:12px;padding:14px 16px;">
+                    <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+                        <div style="width:36px;height:36px;background:#fc4c02;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+                        </div>
+                        <div style="flex:1;">
+                            <div style="font-weight:600;font-size:14px;color:var(--text-primary);">Strava <span style="font-size:11px;color:#fc4c02;background:rgba(252,76,2,0.12);padding:2px 7px;border-radius:10px;margin-left:4px;">Connected</span></div>
+                            <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Since ${connectedDate}</div>
+                        </div>
                     </div>
-                    <div style="flex:1;">
-                        <div style="font-weight:600;font-size:14px;color:var(--text-primary);">Strava <span style="font-size:11px;color:#fc4c02;background:rgba(252,76,2,0.12);padding:2px 7px;border-radius:10px;margin-left:4px;">Connected</span></div>
-                        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Since ${connectedDate}</div>
+                    <div style="display:flex;gap:8px;">
+                        <button onclick="openStravaImportModal()"
+                            style="flex:1;background:#fc4c02;color:white;border:none;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;">
+                            View &amp; import swims
+                        </button>
+                        <button onclick="disconnectStrava()"
+                            style="background:transparent;color:var(--text-secondary);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0;">
+                            Disconnect
+                        </button>
                     </div>
-                    <button onclick="disconnectStrava()"
-                        style="background:transparent;color:var(--text-secondary);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0;">
-                        Disconnect
-                    </button>
                 </div>`;
         }
 
