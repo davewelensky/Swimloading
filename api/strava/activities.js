@@ -4,7 +4,7 @@
 
 import { getUserId, getValidStravaToken } from './token-helper.js';
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://szgkzuswelntnevobnoh.supabase.co';
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY;
 const SWIM_TYPES   = new Set(['Swim', 'OpenWaterSwim', 'VirtualSwim']);
 const MATCH_RADIUS_KM = 1.5;

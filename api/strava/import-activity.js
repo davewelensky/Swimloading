@@ -4,7 +4,7 @@
 
 import { getUserId } from './token-helper.js';
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://szgkzuswelntnevobnoh.supabase.co';
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY;
 
 async function supabasePost(path, body, prefer = 'return=representation') {

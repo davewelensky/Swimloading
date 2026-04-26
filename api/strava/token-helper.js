@@ -1,7 +1,7 @@
 // Shared helper — get a valid Strava access token for a user.
 // Refreshes automatically if token is within 10 minutes of expiry.
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://szgkzuswelntnevobnoh.supabase.co';
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY;
 
 async function dbGet(path) {
