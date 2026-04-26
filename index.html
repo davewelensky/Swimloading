@@ -1031,8 +1031,10 @@
                         <i data-lucide="waves" style="width:18px;height:18px;"></i>
                         I'm Swimming
                     </button>
-                    <button onclick="showCreateEvent()" class="btn-secondary"
-                        style="margin-bottom:20px; font-size:13px; padding:11px 16px; border-radius:10px;">
+                    <button onclick="showCreateEvent()"
+                        style="width:100%;margin-bottom:20px;background:rgba(15,23,42,0.6);border:1.5px solid rgba(56,189,248,0.22);border-radius:10px;color:var(--text-primary);font-size:13px;font-weight:600;cursor:pointer;padding:11px 16px;display:flex;align-items:center;justify-content:center;gap:7px;transition:all 0.2s;font-family:inherit;"
+                        onmouseover="this.style.borderColor='rgba(56,189,248,0.45)';this.style.background='rgba(56,189,248,0.07)'"
+                        onmouseout="this.style.borderColor='rgba(56,189,248,0.22)';this.style.background='rgba(15,23,42,0.6)'">
                         <i data-lucide="calendar-plus" style="width:14px;height:14px;color:var(--ocean-light);"></i>Organise a Group Swim
                     </button>
 
@@ -1043,35 +1045,29 @@
                     <div style="color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; font-size:11px; font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:6px;"><i data-lucide="calendar" style="width:12px;height:12px;"></i>Upcoming Swims</div>
 
                     <!-- Event Filters -->
-                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                        <!-- Region filter -->
-                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                            <div class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
-                                <span><i data-lucide="map-pin" style="width: 14px; height: 14px; vertical-align: middle;"></i> Region</span>
-                                <span id="clearEventFilter" onclick="clearEventFilter()"
-                                    style="display: none; font-size: 11px; color: var(--ocean-light); cursor: pointer; font-weight: 500;">Clear</span>
+                    <div style="display:flex;gap:10px;margin-bottom:20px;align-items:flex-end;">
+                        <!-- Region custom dropdown -->
+                        <div class="fd-wrap" id="fdRegionWrap">
+                            <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+                                <span><i data-lucide="map-pin" style="width:12px;height:12px;vertical-align:middle;margin-right:3px;"></i>Region</span>
+                                <span id="clearEventFilter" onclick="clearEventFilter()" style="display:none;font-size:11px;color:var(--ocean-light);cursor:pointer;font-weight:600;text-transform:none;letter-spacing:0;">Clear</span>
                             </div>
-                            <select id="eventRegionFilter" onchange="loadEvents()">
-                                <option value="">All Regions</option>
-                                <option value="ATLANTIC">Atlantic</option>
-                                <option value="FALSE_BAY">False Bay</option>
-                                <option value="WEST_COAST">West Coast</option>
-                                <option value="SOUTH_COAST">South Coast</option>
-                                <option value="GARDEN_ROUTE">Garden Route</option>
-                                <option value="EASTERN_CAPE">Eastern Cape</option>
-                                <option value="KZN">KwaZulu-Natal</option>
-                                <option value="INLAND">Pools &amp; Inland</option>
-                                <option value="NAMIBIA">Namibia</option>
-                            </select>
+                            <button type="button" class="fd-trigger" id="fdRegionTrigger" onclick="fdToggle('fdRegion')">
+                                <span class="fd-label" id="fdRegionLabel">All Regions</span>
+                                <svg class="fd-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                            </button>
+                            <div class="fd-panel" id="fdRegionPanel"></div>
                         </div>
-                        <!-- When filter -->
-                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                            <div class="form-label">
-                                <i data-lucide="calendar" style="width: 14px; height: 14px; vertical-align: middle;"></i> When
+                        <!-- When custom dropdown -->
+                        <div class="fd-wrap" id="fdWhenWrap">
+                            <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">
+                                <i data-lucide="calendar" style="width:12px;height:12px;vertical-align:middle;margin-right:3px;"></i>When
                             </div>
-                            <select id="eventMonthFilter" onchange="loadEvents()">
-                                <option value="">All upcoming</option>
-                            </select>
+                            <button type="button" class="fd-trigger" id="fdWhenTrigger" onclick="fdToggle('fdWhen')">
+                                <span class="fd-label" id="fdWhenLabel">All upcoming</span>
+                                <svg class="fd-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                            </button>
+                            <div class="fd-panel" id="fdWhenPanel"></div>
                         </div>
                     </div>
 

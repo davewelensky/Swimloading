@@ -669,15 +669,60 @@
             }
         }
 
+        // ── Custom filter dropdown state ──────────────────────────────────────
+        let _fdRegionValue = '';
+        let _fdWhenValue   = '';
+
+        function fdToggle(id) {
+            const trigger = document.getElementById(id + 'Trigger');
+            const panel   = document.getElementById(id + 'Panel');
+            if (!trigger || !panel) return;
+            const isOpen = panel.classList.contains('fd-open');
+            // Close all open panels first
+            document.querySelectorAll('.fd-panel.fd-open').forEach(p => p.classList.remove('fd-open'));
+            document.querySelectorAll('.fd-trigger.fd-open').forEach(t => t.classList.remove('fd-open'));
+            if (!isOpen) {
+                panel.classList.add('fd-open');
+                trigger.classList.add('fd-open');
+            }
+        }
+
+        function fdSelect(id, value, label) {
+            const trigger = document.getElementById(id + 'Trigger');
+            const panel   = document.getElementById(id + 'Panel');
+            const labelEl = document.getElementById(id + 'Label');
+            if (labelEl) labelEl.textContent = label;
+            if (trigger) {
+                trigger.classList.remove('fd-open');
+                trigger.classList.toggle('fd-active', !!value);
+            }
+            if (panel) panel.classList.remove('fd-open');
+            // Mark selected option
+            panel?.querySelectorAll('.fd-option').forEach(o => {
+                o.classList.toggle('fd-selected', o.dataset.value === value);
+            });
+            if (id === 'fdRegion') _fdRegionValue = value;
+            if (id === 'fdWhen')   _fdWhenValue   = value;
+            loadEvents();
+        }
+
+        // Close dropdowns on outside click
+        document.addEventListener('click', e => {
+            if (!e.target.closest('.fd-wrap')) {
+                document.querySelectorAll('.fd-panel.fd-open').forEach(p => p.classList.remove('fd-open'));
+                document.querySelectorAll('.fd-trigger.fd-open').forEach(t => t.classList.remove('fd-open'));
+            }
+        });
+
         // Populate the Swims tab Region filter dynamically from loaded domains
         function populateRegionFilter() {
-            const sel = document.getElementById('eventRegionFilter');
-            if (!sel) return;
-            let html = '<option value="">All Regions</option>';
+            const panel = document.getElementById('fdRegionPanel');
+            if (!panel) return;
+            let html = `<div class="fd-option fd-selected" data-value="" onclick="fdSelect('fdRegion','','All Regions')">All Regions</div>`;
             domains.forEach(d => {
-                html += `<option value="${d.code}">${d.display_name}</option>`;
+                html += `<div class="fd-option" data-value="${d.code}" onclick="fdSelect('fdRegion','${d.code}','${d.display_name}')">${d.display_name}</div>`;
             });
-            sel.innerHTML = html;
+            panel.innerHTML = html;
         }
 
         // Load spots
@@ -745,18 +790,18 @@
 
         // Populate the "When" month filter with the next 12 months
         function populateMonthFilter() {
-            const sel = document.getElementById('eventMonthFilter');
-            if (!sel) return;
+            const panel = document.getElementById('fdWhenPanel');
+            if (!panel) return;
             const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
             const now = new Date();
-            let html = '<option value="">All upcoming</option>';
+            let html = `<div class="fd-option fd-selected" data-value="" onclick="fdSelect('fdWhen','','All upcoming')">All upcoming</div>`;
             for (let i = 0; i < 12; i++) {
                 const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
                 const val = `${d.getFullYear()}-${d.getMonth() + 1}`;
                 const label = `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-                html += `<option value="${val}">${label}</option>`;
+                html += `<div class="fd-option" data-value="${val}" onclick="fdSelect('fdWhen','${val}','${label}')">${label}</div>`;
             }
-            sel.innerHTML = html;
+            panel.innerHTML = html;
         }
 
         // Attach Spot Lock Handler
@@ -2264,11 +2309,8 @@
         }
 
         function clearEventFilter() {
-            const region = document.getElementById('eventRegionFilter');
-            const month = document.getElementById('eventMonthFilter');
-            if (region) region.value = '';
-            if (month) month.value = '';
-            loadEvents();
+            fdSelect('fdRegion', '', 'All Regions');
+            fdSelect('fdWhen',   '', 'All upcoming');
         }
 
         // Load events
@@ -2323,8 +2365,8 @@
                 let upcomingEvents = events?.filter(e => new Date(e.start_at) >= now) || [];
 
                 // Apply region + month filters
-                const selectedRegion = document.getElementById('eventRegionFilter')?.value || '';
-                const selectedMonth = document.getElementById('eventMonthFilter')?.value || '';
+                const selectedRegion = _fdRegionValue;
+                const selectedMonth  = _fdWhenValue;
 
                 // Show/hide clear link
                 const clearLink = document.getElementById('clearEventFilter');
