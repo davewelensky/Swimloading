@@ -24,9 +24,9 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <script src="app.js?v=5"></script>
+    <script src="app.js?v=6"></script>
 
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=6">
 </head>
 
 <body>
@@ -225,24 +225,47 @@
 
             <div class="form-group">
                 <div class="form-label">Home Region</div>
-                <select id="profileHomeDomain">
-                    <option value="">Select region...</option>
-                </select>
+                <select id="profileHomeDomain" style="display:none;"><option value="">Select region...</option></select>
+                <div class="fd-wrap">
+                    <button type="button" class="fd-trigger" id="fdProfileDomainTrigger" onclick="fdToggle('fdProfileDomain')">
+                        <span class="fd-label" id="fdProfileDomainLabel" style="color:var(--text-secondary);">Select region...</span>
+                        <svg class="fd-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <div class="fd-panel" id="fdProfileDomainPanel" style="max-height:200px;overflow-y:auto;"></div>
+                </div>
                 <div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">Filters your dashboard to show conditions from your home region.</div>
             </div>
 
             <div class="form-group">
                 <div class="form-label">Preferred Suit</div>
-                <select id="profilePreferredSuit">
+                <select id="profilePreferredSuit" style="display:none;">
                     <option value="skins">Skins (No Wetsuit)</option>
                     <option value="wetsuit">Wetsuit</option>
-                    <option value="both">Both</option>
+                    <option value="both" selected>Both</option>
                 </select>
+                <div class="fd-wrap">
+                    <button type="button" class="fd-trigger fd-active" id="fdProfileSuitTrigger" onclick="fdToggle('fdProfileSuit')">
+                        <span class="fd-label" id="fdProfileSuitLabel">Both</span>
+                        <svg class="fd-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <div class="fd-panel" id="fdProfileSuitPanel">
+                        <div class="fd-option" data-value="skins" onclick="fdSetSelect('profilePreferredSuit','skins','Skins (No Wetsuit)','fdProfileSuit')">Skins (No Wetsuit)</div>
+                        <div class="fd-option" data-value="wetsuit" onclick="fdSetSelect('profilePreferredSuit','wetsuit','Wetsuit','fdProfileSuit')">Wetsuit</div>
+                        <div class="fd-option fd-selected" data-value="both" onclick="fdSetSelect('profilePreferredSuit','both','Both','fdProfileSuit')">Both</div>
+                    </div>
+                </div>
             </div>
 
             <div class="form-group">
                 <div class="form-label"><i data-lucide="anchor" style="width:13px;height:13px;vertical-align:middle;margin-right:4px;"></i>Home Beach</div>
-                <select id="profileHomeBeach" data-spots></select>
+                <select id="profileHomeBeach" data-spots style="display:none;"></select>
+                <div class="fd-wrap">
+                    <button type="button" class="fd-trigger" id="fdProfileBeachTrigger" onclick="fdToggle('fdProfileBeach')">
+                        <span class="fd-label" id="fdProfileBeachLabel" style="color:var(--text-secondary);">Select beach...</span>
+                        <svg class="fd-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <div class="fd-panel" id="fdProfileBeachPanel" style="max-height:220px;overflow-y:auto;"></div>
+                </div>
             </div>
 
             <div class="form-group">
@@ -1811,7 +1834,7 @@
         </div>
     </div>
 
-    <script src="app-nav.js?v=5"></script>
+    <script src="app-nav.js?v=6"></script>
     <!-- Notifications Modal -->
     <!-- Home Region Prompt — shown once to users with no home_domain set -->
     <div id="homeDomainPrompt"

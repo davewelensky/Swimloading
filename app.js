@@ -742,6 +742,26 @@
             if (typeof onCreateFormFieldChange === 'function') onCreateFormFieldChange();
         }
 
+        // For the dynamic spot dropdown in the profile home beach field
+        function fdProfileBeachSelect(spotId, spotName) {
+            const sel = document.getElementById('profileHomeBeach');
+            if (sel) sel.value = spotId;
+            const labelEl = document.getElementById('fdProfileBeachLabel');
+            if (labelEl) {
+                if (spotId) { labelEl.textContent = spotName; labelEl.style.color = ''; }
+                else { labelEl.textContent = 'Select beach...'; labelEl.style.color = 'var(--text-secondary)'; }
+            }
+            const trigger = document.getElementById('fdProfileBeachTrigger');
+            const panel   = document.getElementById('fdProfileBeachPanel');
+            if (trigger) { trigger.classList.remove('fd-open'); trigger.classList.toggle('fd-active', !!spotId); }
+            if (panel) {
+                panel.classList.remove('fd-open');
+                panel.querySelectorAll('.fd-option').forEach(o =>
+                    o.classList.toggle('fd-selected', o.dataset.value === String(spotId))
+                );
+            }
+        }
+
         // Reset all custom fd dropdowns in the create event form to defaults
         function fdResetCreateEventDropdowns() {
             const labelEl = document.getElementById('fdEventSpotLabel');
@@ -866,6 +886,29 @@
             const historyFilter = document.getElementById('historySpotFilter');
             if (historyFilter) {
                 historyFilter.innerHTML = groupedOptionsWithAll;
+            }
+
+            // Populate custom fd dropdown panel for profile home beach
+            const profileBeachPanel = document.getElementById('fdProfileBeachPanel');
+            if (profileBeachPanel) {
+                const domainCodes = domains.map(d => d.code);
+                let fdHtml = `<div class="fd-option" data-value="" onclick="fdProfileBeachSelect('','Select beach...')">None</div>`;
+                domains.forEach(d => {
+                    const domainSpots = spots.filter(s => s.domain === d.code);
+                    if (domainSpots.length === 0) return;
+                    fdHtml += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);padding:8px 16px 4px;font-weight:700;pointer-events:none;">— ${d.display_name} —</div>`;
+                    domainSpots.forEach(spot => {
+                        fdHtml += `<div class="fd-option" data-value="${spot.id}" onclick="fdProfileBeachSelect(${spot.id},'${spot.name.replace(/'/g, "\\'")}')">${spot.name}</div>`;
+                    });
+                });
+                const ungrouped = spots.filter(s => !domainCodes.includes(s.domain));
+                if (ungrouped.length > 0) {
+                    fdHtml += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);padding:8px 16px 4px;font-weight:700;pointer-events:none;">— Other —</div>`;
+                    ungrouped.forEach(spot => {
+                        fdHtml += `<div class="fd-option" data-value="${spot.id}" onclick="fdProfileBeachSelect(${spot.id},'${spot.name.replace(/'/g, "\\'")}')">${spot.name}</div>`;
+                    });
+                }
+                profileBeachPanel.innerHTML = fdHtml;
             }
 
             // Populate custom fd dropdown panel for create event form
@@ -5311,11 +5354,46 @@
                     document.getElementById('profileCity').value = profile.city || '';
                     document.getElementById('profilePostal').value = profile.postal_code || '';
                     document.getElementById('profileHomeBeach').value = profile.home_beach_id || '';
+                    // Sync fd beach label
+                    const beachLabel = document.getElementById('fdProfileBeachLabel');
+                    const beachTrigger = document.getElementById('fdProfileBeachTrigger');
+                    if (profile.home_beach_id) {
+                        const beachSpot = spots.find(s => String(s.id) === String(profile.home_beach_id));
+                        if (beachSpot && beachLabel) { beachLabel.textContent = beachSpot.name; beachLabel.style.color = ''; }
+                        if (beachTrigger) beachTrigger.classList.add('fd-active');
+                    } else {
+                        if (beachLabel) { beachLabel.textContent = 'Select beach...'; beachLabel.style.color = 'var(--text-secondary)'; }
+                        if (beachTrigger) beachTrigger.classList.remove('fd-active');
+                    }
+
                     const hds = document.getElementById('profileHomeDomain');
                     hds.innerHTML = '<option value="">Select region...</option>'
                         + domains.map(d => `<option value="${d.code}">${d.display_name}</option>`).join('');
                     hds.value = profile.home_domain || '';
+                    // Sync fd domain panel and label
+                    const fdDomainPanel = document.getElementById('fdProfileDomainPanel');
+                    if (fdDomainPanel) {
+                        let fdHtml = `<div class="fd-option${!profile.home_domain ? ' fd-selected' : ''}" data-value="" onclick="fdSetSelect('profileHomeDomain','','Select region...','fdProfileDomain')">Select region...</div>`;
+                        domains.forEach(d => {
+                            const sel = d.code === profile.home_domain ? ' fd-selected' : '';
+                            fdHtml += `<div class="fd-option${sel}" data-value="${d.code}" onclick="fdSetSelect('profileHomeDomain','${d.code}','${d.display_name}','fdProfileDomain')">${d.display_name}</div>`;
+                        });
+                        fdDomainPanel.innerHTML = fdHtml;
+                    }
+                    const domainLabel = profile.home_domain ? domains.find(d => d.code === profile.home_domain)?.display_name : null;
+                    const fdDomainLabelEl = document.getElementById('fdProfileDomainLabel');
+                    if (fdDomainLabelEl) { fdDomainLabelEl.textContent = domainLabel || 'Select region...'; fdDomainLabelEl.style.color = domainLabel ? '' : 'var(--text-secondary)'; }
+                    const fdDomainTrigger = document.getElementById('fdProfileDomainTrigger');
+                    if (fdDomainTrigger) fdDomainTrigger.classList.toggle('fd-active', !!profile.home_domain);
+
                     document.getElementById('profilePreferredSuit').value = profile.preferred_suit || 'both';
+                    // Sync fd suit label
+                    const suitVal = profile.preferred_suit || 'both';
+                    const suitLabels = { skins: 'Skins (No Wetsuit)', wetsuit: 'Wetsuit', both: 'Both' };
+                    const fdSuitLabelEl = document.getElementById('fdProfileSuitLabel');
+                    if (fdSuitLabelEl) fdSuitLabelEl.textContent = suitLabels[suitVal] || 'Both';
+                    const fdSuitPanel = document.getElementById('fdProfileSuitPanel');
+                    if (fdSuitPanel) fdSuitPanel.querySelectorAll('.fd-option').forEach(o => o.classList.toggle('fd-selected', o.dataset.value === suitVal));
                     document.getElementById('profileColdTolerance').value = profile.cold_tolerance_min_c || '';
 
                     // Times

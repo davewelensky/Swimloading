@@ -719,6 +719,8 @@
 
         // Tracks whether push is currently subscribed (used by toggleNotifRegion)
         let _notifSubscribed = false;
+        // In-memory copy of preferred_locations — avoids race conditions from concurrent read-modify-write
+        let _activeNotifLocs = [];
 
         // Subscribe to push notifications
         // locations: array of domain codes to subscribe to (defaults to home_domain)
@@ -797,24 +799,12 @@
                 .eq('endpoint', sub.endpoint);
         }
 
-        // Add or remove a region from the preferred_locations array
-        async function toggleRegionPref(region, add) {
+        // Write _activeNotifLocs directly to DB — no read, no race condition
+        async function saveNotifLocs() {
             if (!currentUser) return;
-            // Query by user_id only — endpoint can change when subscriptions renew
-            const { data } = await supabaseClient.from('push_subscriptions')
-                .select('preferred_locations')
-                .eq('user_id', currentUser.id)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-            let locs = data?.preferred_locations || [];
-            if (add) { if (!locs.includes(region)) locs.push(region); }
-            else      { locs = locs.filter(r => r !== region); }
-            // Update ALL of this user's subscriptions (covers multi-device)
             await supabaseClient.from('push_subscriptions')
-                .update({ preferred_locations: locs })
+                .update({ preferred_locations: _activeNotifLocs })
                 .eq('user_id', currentUser.id);
-            // Visual state already updated by toggleNotifRegion — no need to re-render
         }
 
         // Unsubscribe from push notifications
@@ -936,6 +926,8 @@
 
             // Store subscribed state so toggleNotifRegion() knows what to do
             _notifSubscribed = subscribed;
+            // Seed in-memory array so toggleNotifRegion() can write without reading
+            _activeNotifLocs = [...activeLocs];
 
             const mkToggle = (id, checked, onchange) => {
                 const bg = checked ? 'var(--ocean-light)' : 'rgba(255,255,255,0.2)';
@@ -1028,8 +1020,11 @@
             btn.style.background  = newActive ? 'var(--ocean-blue)' : 'rgba(255,255,255,0.05)';
             btn.style.borderColor = newActive ? 'var(--ocean-blue)' : 'rgba(255,255,255,0.12)';
             btn.style.color       = newActive ? '#fff' : 'var(--text-secondary)';
+            // Update in-memory array (no DB read — eliminates race condition)
+            if (newActive) { if (!_activeNotifLocs.includes(region)) _activeNotifLocs.push(region); }
+            else { _activeNotifLocs = _activeNotifLocs.filter(r => r !== region); }
             // If already subscribed, persist to DB immediately
-            if (_notifSubscribed) toggleRegionPref(region, newActive);
+            if (_notifSubscribed) saveNotifLocs();
         }
 
         async function enableNotifFromCard() {
