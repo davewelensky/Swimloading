@@ -4874,24 +4874,53 @@
             }
         }
 
+        let _fdSafetyValue = '';
+
         function onSafetyRegionChange() {
             renderSafetyRegionalContent();
         }
 
         function populateSafetyRegionSelect() {
-            const sel = document.getElementById('safetyRegionSelect');
-            if (!sel || !domains.length) return;
+            const panel = document.getElementById('fdSafetyPanel');
+            if (!panel || !domains.length) return;
             const home = currentUserProfile?.home_domain || '';
-            sel.innerHTML = domains
-                .filter(d => d.code !== 'INLAND') // inland has no marine safety content
-                .map(d => `<option value="${d.code}"${d.code === home ? ' selected' : ''}>${d.display_name}${d.code === home ? ' (home)' : ''}</option>`)
-                .join('');
-            if (!home) sel.innerHTML = '<option value="">Select region…</option>' + sel.innerHTML;
+            if (home) {
+                _fdSafetyValue = home;
+                const homeLabel = (domains.find(d => d.code === home)?.display_name || home) + ' (home)';
+                const labelEl = document.getElementById('fdSafetyLabel');
+                if (labelEl) labelEl.textContent = homeLabel;
+                const trigger = document.getElementById('fdSafetyTrigger');
+                if (trigger) trigger.classList.add('fd-active');
+            }
+            let html = '';
+            if (!home) html = `<div class="fd-option fd-selected" data-value="" onclick="fdSafetySelect('','Select region…')">Select region…</div>`;
+            domains
+                .filter(d => d.code !== 'INLAND')
+                .forEach(d => {
+                    const label = d.display_name + (d.code === home ? ' (home)' : '');
+                    const sel = d.code === home ? 'fd-selected' : '';
+                    html += `<div class="fd-option ${sel}" data-value="${d.code}" onclick="fdSafetySelect('${d.code}','${label}')">${label}</div>`;
+                });
+            panel.innerHTML = html;
+            if (home) renderSafetyRegionalContent();
+        }
+
+        function fdSafetySelect(value, label) {
+            _fdSafetyValue = value;
+            const labelEl = document.getElementById('fdSafetyLabel');
+            if (labelEl) labelEl.textContent = label || 'Select region…';
+            const trigger = document.getElementById('fdSafetyTrigger');
+            if (trigger) { trigger.classList.remove('fd-open'); trigger.classList.toggle('fd-active', !!value); }
+            const panel = document.getElementById('fdSafetyPanel');
+            if (panel) {
+                panel.classList.remove('fd-open');
+                panel.querySelectorAll('.fd-option').forEach(o => o.classList.toggle('fd-selected', o.dataset.value === value));
+            }
+            renderSafetyRegionalContent();
         }
 
         function renderSafetyRegionalContent() {
-            const sel = document.getElementById('safetyRegionSelect');
-            const domain = (sel && sel.value) ? sel.value : (currentUserProfile?.home_domain || '');
+            const domain = _fdSafetyValue || (currentUserProfile?.home_domain || '');
 
             // ── Region group lookup — add new domains here as the app grows ──────
             const SAFETY_GROUP = {
