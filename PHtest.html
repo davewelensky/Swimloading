@@ -1277,7 +1277,20 @@
 
         const byProto = {};
         PROTOCOL_ORDER.forEach(p => { byProto[p] = []; });
-        data.forEach(t => { if (byProto[t.protocol] !== undefined) byProto[t.protocol].push(t); });
+        data.forEach(t => {
+            if (byProto[t.protocol] !== undefined) {
+                byProto[t.protocol].push(t);
+            }
+            // Also add combined protocols to their component protocols
+            if (t.protocol === 'ph1500_gel') {
+                if (byProto['ph1500_preload']) byProto['ph1500_preload'].push(t);
+                if (byProto['gel_during']) byProto['gel_during'].push(t);
+            }
+            if (t.protocol === 'ph500_gel') {
+                if (byProto['ph500_during']) byProto['ph500_during'].push(t);
+                if (byProto['gel_during']) byProto['gel_during'].push(t);
+            }
+        });
         const usedProtos = PROTOCOL_ORDER.filter(p => byProto[p].length > 0);
 
         function avg(arr, key) {
