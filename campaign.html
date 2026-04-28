@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Big 5 Campaign Intel — SwimLoading Pro</title>
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-dark: #0a1628;
+            --bg-card: #111c30;
+            --ocean: #0ea5e9;
+            --ocean-light: #38bdf8;
+            --text-primary: #f0f9ff;
+            --text-secondary: #94a3b8;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --border: rgba(255,255,255,0.08);
+            --gold: #f59e0b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            padding: 0 0 80px;
+        }
+
+        /* ── Header ─────────────────────────────────────── */
+        .header {
+            background: linear-gradient(135deg, #0a1628 0%, #0c1e3d 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 18px 20px 14px;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .header-row { display: flex; align-items: center; justify-content: space-between; }
+        .header-title { font-size: 20px; font-weight: 800; color: var(--ocean-light); letter-spacing: -0.5px; }
+        .header-sub { font-size: 11px; color: var(--text-secondary); margin-top: 3px; }
+        .pro-badge {
+            font-size: 10px; font-weight: 800; letter-spacing: 0.08em;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: #0a1628; border-radius: 20px; padding: 3px 10px;
+            text-transform: uppercase; flex-shrink: 0;
+        }
+        .user-pill {
+            font-size: 11px; color: var(--ocean-light);
+            background: rgba(14,165,233,0.12);
+            border: 1px solid rgba(14,165,233,0.25);
+            border-radius: 20px; padding: 3px 10px;
+        }
+
+        .container { padding: 14px; max-width: 600px; margin: 0 auto; }
+
+        /* ── Campaign Window card ─────────────────────── */
+        .window-card {
+            background: linear-gradient(135deg, rgba(14,165,233,0.10) 0%, rgba(56,189,248,0.05) 100%);
+            border: 1px solid rgba(56,189,248,0.22);
+            border-radius: 18px;
+            padding: 18px 18px 16px;
+            margin-bottom: 16px;
+        }
+        .window-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+        .window-athlete { font-size: 18px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.3px; }
+        .window-sub { font-size: 11px; color: var(--text-secondary); margin-top: 3px; }
+        .progress-pills { display: flex; gap: 6px; }
+        .progress-pill {
+            width: 28px; height: 28px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 800;
+            border: 2px solid rgba(56,189,248,0.25);
+            color: var(--text-secondary);
+            background: rgba(15,23,42,0.6);
+            transition: all 0.3s;
+        }
+        .progress-pill.done {
+            background: linear-gradient(135deg, var(--ocean), #0284c7);
+            border-color: var(--ocean);
+            color: white;
+        }
+        .window-bar-wrap { margin-bottom: 10px; }
+        .window-bar-track {
+            height: 5px; background: rgba(255,255,255,0.08);
+            border-radius: 10px; overflow: hidden;
+        }
+        .window-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--ocean), var(--ocean-light));
+            border-radius: 10px;
+            transition: width 0.6s ease;
+        }
+        .window-bar-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); margin-top: 5px; }
+        .guide-row {
+            display: flex; align-items: center; gap-6px;
+            font-size: 11px; color: var(--text-secondary);
+            margin-top: 10px; padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .guide-name { color: var(--ocean-light); font-weight: 600; }
+
+        /* ── Section label ───────────────────────────── */
+        .section-label {
+            font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+            text-transform: uppercase; color: var(--text-secondary);
+            margin: 18px 0 10px;
+        }
+
+        /* ── Swim cards ───────────────────────────────── */
+        .swim-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 10px;
+            transition: border-color 0.2s;
+        }
+        .swim-card.done-card {
+            opacity: 0.55;
+            border-color: rgba(34,197,94,0.2);
+        }
+        .swim-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+        .swim-num { font-size: 10px; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.05em; margin-bottom: 3px; }
+        .swim-name { font-size: 16px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.3px; }
+        .swim-route { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+        /* Signal badges */
+        .signal-badge {
+            font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
+            border-radius: 20px; padding: 4px 10px; white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .signal-badge.go      { background: rgba(34,197,94,0.15);  color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+        .signal-badge.caution { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+        .signal-badge.wait    { background: rgba(239,68,68,0.12);  color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+        .signal-badge.loading { background: rgba(255,255,255,0.06); color: var(--text-secondary); border: 1px solid var(--border); }
+        .signal-badge.done-badge { background: rgba(34,197,94,0.1); color: #4ade80; border: 1px solid rgba(34,197,94,0.2); }
+
+        /* Conditions chips */
+        .cond-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+        .cond-chip {
+            font-size: 11px; font-weight: 600;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px; padding: 3px 10px;
+            color: var(--text-secondary);
+        }
+
+        /* Swim meta row */
+        .swim-meta { display: flex; gap: 12px; margin-bottom: 10px; }
+        .meta-col { flex: 1; }
+        .meta-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 2px; }
+        .meta-val { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+
+        /* Key factor */
+        .key-factor { font-size: 11px; color: var(--ocean-light); margin-bottom: 10px; line-height: 1.5; }
+
+        /* Mark complete button */
+        .mark-btn {
+            width: 100%; padding: 10px;
+            background: rgba(15,23,42,0.6);
+            border: 1.5px solid rgba(56,189,248,0.2);
+            border-radius: 10px;
+            color: var(--text-secondary);
+            font-size: 12px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .mark-btn:hover { background: rgba(56,189,248,0.08); border-color: rgba(56,189,248,0.4); color: var(--text-primary); }
+        .done-row {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 12px;
+            background: rgba(34,197,94,0.08);
+            border: 1px solid rgba(34,197,94,0.2);
+            border-radius: 10px;
+            font-size: 12px; font-weight: 600; color: #4ade80;
+        }
+        .done-date { font-size: 11px; color: var(--text-secondary); font-weight: 400; margin-left: auto; }
+
+        /* Disclaimer */
+        .disclaimer {
+            font-size: 11px; color: var(--text-secondary);
+            line-height: 1.6;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-top: 20px;
+        }
+
+        /* Back link */
+        .back-link { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); text-decoration: none; padding: 8px 0 14px; }
+        .back-link:hover { color: var(--ocean-light); }
+
+        #initScreen { text-align: center; padding: 80px 20px; color: var(--text-secondary); }
+        #appContent { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-row">
+        <div>
+            <div class="header-title">Big 5 Campaign Intel</div>
+            <div class="header-sub">Live conditions across all venues · Updated hourly</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <div class="pro-badge">Pro</div>
+            <div id="userPill" class="user-pill"></div>
+        </div>
+    </div>
+    <div id="lastUpdated" style="font-size:10px;color:var(--text-secondary);margin-top:4px;"></div>
+</div>
+
+<div id="initScreen" class="container">Loading…</div>
+
+<div id="appContent" class="container">
+
+    <a href="/big5" class="back-link">← Big 5 Overview</a>
+
+    <!-- Campaign window block -->
+    <div class="window-card">
+        <div class="window-header">
+            <div>
+                <div class="window-athlete" id="athleteName">Campaign</div>
+                <div class="window-sub" id="windowDates">Set your campaign window below</div>
+            </div>
+            <div class="progress-pills" id="progressPills"></div>
+        </div>
+        <div class="window-bar-wrap">
+            <div class="window-bar-track">
+                <div class="window-bar-fill" id="windowBarFill" style="width:0%"></div>
+            </div>
+            <div class="window-bar-labels">
+                <span id="windowStart">—</span>
+                <span id="windowDaysLeft"></span>
+                <span id="windowEnd">—</span>
+            </div>
+        </div>
+        <!-- Window date inputs -->
+        <div id="windowSetup" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);">
+            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">Set your campaign window</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
+                <div>
+                    <div style="font-size:10px;color:var(--text-secondary);margin-bottom:4px;">Arrival</div>
+                    <input type="date" id="windowStartInput" style="width:100%;background:rgba(15,23,42,0.8);border:1.5px solid rgba(56,189,248,0.2);border-radius:8px;padding:7px 10px;color:var(--text-primary);font-size:12px;">
+                </div>
+                <div>
+                    <div style="font-size:10px;color:var(--text-secondary);margin-bottom:4px;">Departure</div>
+                    <input type="date" id="windowEndInput" style="width:100%;background:rgba(15,23,42,0.8);border:1.5px solid rgba(56,189,248,0.2);border-radius:8px;padding:7px 10px;color:var(--text-primary);font-size:12px;">
+                </div>
+                <button onclick="saveWindow()" style="background:var(--ocean);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">Save</button>
+            </div>
+        </div>
+        <div class="guide-row">
+            <span>Guide:</span>&nbsp;<span class="guide-name">Derrick Trytsman</span>
+            <span style="margin-left:auto;font-size:10px;color:rgba(148,163,184,0.5);">Your guide makes the final call</span>
+        </div>
+    </div>
+
+    <!-- Swim cards — sorted by conditions signal -->
+    <div class="section-label" id="condLabel">Conditions · All venues</div>
+    <div id="swimCards"></div>
+
+    <div class="disclaimer">
+        Conditions data is sourced from Open-Meteo weather and marine APIs, refreshed hourly. Wind and swell readings are indicative — localised conditions vary. <strong style="color:var(--text-primary);">Your guide makes the final go/no-go call.</strong> Never attempt a Big 5 swim without an experienced escort and current local knowledge.
+    </div>
+
+    <div style="padding:24px 0 10px;text-align:center;">
+        <a href="/app" style="font-size:12px;color:var(--text-secondary);text-decoration:none;">Back to SwimLoading</a>
+    </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, storageKey: 'sb-szgkzuswelntnevobnoh-auth-token' }
+});
+
+const SWIMS = [
+    {
+        id: 'false-bay', num: '01',
+        name: 'False Bay Crossing',
+        route: "Miller's Point → Strand",
+        distance: '33km', duration: '10–14h',
+        location: 'False Bay',
+        keyFactor: 'NW wind essential · Current-assisted · Best window: early morning',
+        url: '/intel',
+        lat: -34.2269, lon: 18.4648, marineApi: true,
+        goLogic(w, s) {
+            const nw = w.dir >= 270 || w.dir <= 45;
+            const se = w.dir >= 90 && w.dir <= 200;
+            if (s > 2.5 || (se && w.spd > 25)) return 'wait';
+            if (s > 2.0 || w.spd > 40 || (!nw && w.spd > 25)) return 'caution';
+            return 'go';
+        }
+    },
+    {
+        id: 'preekstool', num: '02',
+        name: 'Double Preekstool',
+        route: 'Preekstool → Mykanos → Back',
+        distance: '24km', duration: '8–12h',
+        location: 'Langebaan Lagoon',
+        keyFactor: 'Tidal window is everything · Sheltered lagoon · Warm water 18–22°C',
+        url: '/preekstool',
+        lat: -33.13, lon: 18.02, marineApi: false,
+        goLogic(w, s) {
+            if (w.spd > 35) return 'wait';
+            if (w.spd > 25) return 'caution';
+            return 'go';
+        }
+    },
+    {
+        id: 'capepoint', num: '03',
+        name: 'Cape Point',
+        route: 'Diaz Beach → Cape Point → Millers Point',
+        distance: '8km', duration: '2.5–4h',
+        location: 'Cape Peninsula tip',
+        keyFactor: 'Swell at Diaz Beach critical · Cold Atlantic entry · Strong headland current',
+        url: '/capepoint',
+        lat: -34.31, lon: 18.47, marineApi: true,
+        goLogic(w, s) {
+            const se = w.dir >= 90 && w.dir <= 200;
+            if (s > 2.0 || (se && w.spd > 25) || w.spd > 35) return 'wait';
+            if (s > 1.5 || (se && w.spd > 15) || w.spd > 25) return 'caution';
+            return 'go';
+        }
+    },
+    {
+        id: 'dassen', num: '04',
+        name: 'Dassen Island',
+        route: 'Dassen Island → Yzerfontein',
+        distance: '8.7km', duration: '2.5–4h',
+        location: 'West Coast Atlantic',
+        keyFactor: 'Atlantic NW swell · Cold Benguela 13–14°C · Boat transfer to island',
+        url: '/dassen',
+        lat: -33.38, lon: 18.10, marineApi: true,
+        goLogic(w, s) {
+            if (s > 2.5 || w.spd > 40) return 'wait';
+            if (s > 1.5 || w.spd > 25) return 'caution';
+            return 'go';
+        }
+    },
+    {
+        id: 'westangle', num: '05',
+        name: 'West Coast Angle',
+        route: 'Big Bay → Robben Island → Melkbosstrand',
+        distance: '18km', duration: '6–8h',
+        location: 'West Coast Atlantic',
+        keyFactor: 'Two-leg via Robben Island · Cold Benguela 13–14°C · 6–8h commitment',
+        url: '/westangle',
+        lat: -33.799, lon: 18.484, marineApi: true,
+        goLogic(w, s) {
+            if (s > 2.5 || w.spd > 40) return 'wait';
+            if (s > 1.5 || w.spd > 30) return 'caution';
+            return 'go';
+        }
+    }
+];
+
+// ── State ────────────────────────────────────────────────────────────────────
+
+let _currentUser = null;
+let _campaignKey = '';   // localStorage namespace per user
+
+function storageKey(k) { return `${_campaignKey}_${k}`; }
+
+function getCompleted() {
+    try { return JSON.parse(localStorage.getItem(storageKey('completed')) || '{}'); }
+    catch { return {}; }
+}
+
+function setCompleted(id, done) {
+    const c = getCompleted();
+    if (done) c[id] = new Date().toISOString();
+    else delete c[id];
+    localStorage.setItem(storageKey('completed'), JSON.stringify(c));
+}
+
+function getWindow() {
+    return {
+        start: localStorage.getItem(storageKey('windowStart')) || '',
+        end:   localStorage.getItem(storageKey('windowEnd'))   || ''
+    };
+}
+
+// ── Window ───────────────────────────────────────────────────────────────────
+
+function saveWindow() {
+    const s = document.getElementById('windowStartInput').value;
+    const e = document.getElementById('windowEndInput').value;
+    if (!s || !e) return;
+    localStorage.setItem(storageKey('windowStart'), s);
+    localStorage.setItem(storageKey('windowEnd'), e);
+    renderWindow();
+    document.getElementById('windowSetup').style.display = 'none';
+}
+
+function renderWindow() {
+    const { start, end } = getWindow();
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    const setupEl = document.getElementById('windowSetup');
+
+    if (!start || !end) {
+        document.getElementById('windowDates').textContent = 'Tap to set your campaign window';
+        document.getElementById('windowDaysLeft').textContent = '';
+        document.getElementById('windowStart').textContent = '—';
+        document.getElementById('windowEnd').textContent = '—';
+        document.getElementById('windowBarFill').style.width = '0%';
+        if (setupEl) setupEl.style.display = 'block';
+        document.getElementById('windowStartInput').value = start;
+        document.getElementById('windowEndInput').value = end;
+        return;
+    }
+
+    const s = new Date(start); s.setHours(0,0,0,0);
+    const e = new Date(end);   e.setHours(0,0,0,0);
+    const totalDays = Math.round((e - s) / 86400000);
+    const elapsed   = Math.max(0, Math.round((today - s) / 86400000));
+    const remaining = Math.max(0, Math.round((e - today) / 86400000));
+    const pct = Math.min(100, Math.round((elapsed / totalDays) * 100));
+
+    const fmt = d => d.toLocaleDateString('en-ZA', { day:'numeric', month:'short' });
+
+    document.getElementById('windowDates').textContent =
+        `${fmt(s)} – ${fmt(e)} · ${totalDays}-day window`;
+    document.getElementById('windowDaysLeft').textContent =
+        today < s ? `Starts in ${Math.round((s-today)/86400000)} days`
+        : remaining > 0 ? `${remaining} days remaining`
+        : 'Window closed';
+    document.getElementById('windowStart').textContent = fmt(s);
+    document.getElementById('windowEnd').textContent   = fmt(e);
+    document.getElementById('windowBarFill').style.width = pct + '%';
+
+    // Pre-fill inputs for editing
+    document.getElementById('windowStartInput').value = start;
+    document.getElementById('windowEndInput').value   = end;
+}
+
+function toggleWindowSetup() {
+    const el = document.getElementById('windowSetup');
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// ── Progress pills ───────────────────────────────────────────────────────────
+
+function renderProgressPills(completed) {
+    const el = document.getElementById('progressPills');
+    el.innerHTML = SWIMS.map((s, i) =>
+        `<div class="progress-pill ${completed[s.id] ? 'done' : ''}" title="${s.name}">${i+1}</div>`
+    ).join('');
+}
+
+// ── Conditions helpers ───────────────────────────────────────────────────────
+
+function windDirLabel(deg) {
+    const d = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+    return d[Math.round(deg / 22.5) % 16];
+}
+
+function signalText(s) {
+    return {
+        go:      'Conditions Good',
+        caution: 'Use Caution',
+        wait:    'Hold Off',
+        loading: 'Checking…',
+        done:    'Completed'
+    }[s] || '—';
+}
+
+// ── Render cards ─────────────────────────────────────────────────────────────
+
+function renderCards(conditions, completed) {
+    // Sort: done swims last; within active, go → caution → wait → loading
+    const signalOrder = { go: 0, caution: 1, wait: 2, loading: 3 };
+
+    const sorted = [...SWIMS].sort((a, b) => {
+        const aDone = !!completed[a.id];
+        const bDone = !!completed[b.id];
+        if (aDone !== bDone) return aDone ? 1 : -1;
+        const aSig = conditions?.find(c => c.id === a.id)?.signal || 'loading';
+        const bSig = conditions?.find(c => c.id === b.id)?.signal || 'loading';
+        return (signalOrder[aSig] ?? 3) - (signalOrder[bSig] ?? 3);
+    });
+
+    const el = document.getElementById('swimCards');
+    el.innerHTML = sorted.map(swim => {
+        const cond    = conditions?.find(c => c.id === swim.id);
+        const isDone  = !!completed[swim.id];
+        const signal  = isDone ? 'done' : (cond?.signal || 'loading');
+
+        let condRow = '';
+        if (cond && !isDone) {
+            const wLabel = windDirLabel(cond.wind.dir);
+            const wSpd   = Math.round(cond.wind.spd);
+            condRow = `<div class="cond-row">
+                <span class="cond-chip">Wind ${wLabel} ${wSpd} km/h</span>
+                ${cond.swell != null ? `<span class="cond-chip">Swell ${cond.swell.toFixed(1)}m</span>` : ''}
+            </div>`;
+        }
+
+        let actionRow = '';
+        if (isDone) {
+            const doneDate = new Date(completed[swim.id]).toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' });
+            actionRow = `<div class="done-row">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                Completed
+                <span class="done-date">${doneDate}</span>
+                <button onclick="unmarkDone('${swim.id}',event)" style="background:none;border:none;color:rgba(148,163,184,0.4);font-size:11px;cursor:pointer;padding:0 4px;margin-left:4px;">undo</button>
+            </div>`;
+        } else {
+            actionRow = `<button class="mark-btn" onclick="markDone('${swim.id}')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                Mark as completed
+            </button>`;
+        }
+
+        return `<div class="swim-card ${isDone ? 'done-card' : ''}" id="card-${swim.id}">
+            <div class="swim-card-top">
+                <div style="flex:1;">
+                    <div class="swim-num">${swim.num} · ${swim.location}</div>
+                    <div class="swim-name">${swim.name}</div>
+                    <div class="swim-route">${swim.route}</div>
+                </div>
+                <div class="signal-badge ${isDone ? 'done-badge' : signal}">${signalText(signal)}</div>
+            </div>
+            <div class="swim-meta">
+                <div class="meta-col">
+                    <div class="meta-label">Distance</div>
+                    <div class="meta-val">${swim.distance}</div>
+                </div>
+                <div class="meta-col">
+                    <div class="meta-label">Est. time</div>
+                    <div class="meta-val">${swim.duration}</div>
+                </div>
+            </div>
+            ${condRow}
+            <div class="key-factor">${swim.keyFactor}</div>
+            ${actionRow}
+        </div>`;
+    }).join('');
+}
+
+// ── Mark done / undo ─────────────────────────────────────────────────────────
+
+function markDone(id) {
+    setCompleted(id, true);
+    refresh();
+}
+
+function unmarkDone(id, e) {
+    e.stopPropagation();
+    setCompleted(id, false);
+    refresh();
+}
+
+// ── Load conditions ───────────────────────────────────────────────────────────
+
+async function loadConditions() {
+    const active = SWIMS.filter(s => s.lat != null);
+    const settled = await Promise.allSettled(active.map(async swim => {
+        const wUrl = `https://api.open-meteo.com/v1/forecast?latitude=${swim.lat}&longitude=${swim.lon}&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh&timezone=Africa%2FJohannesburg`;
+        const wr = await fetch(wUrl, { cache: 'no-store' });
+        const wd = await wr.json();
+        const wind = { spd: wd.current?.wind_speed_10m ?? 0, dir: wd.current?.wind_direction_10m ?? 0 };
+
+        let swell = null;
+        if (swim.marineApi) {
+            try {
+                const mUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${swim.lat}&longitude=${swim.lon}&current=wave_height&timezone=Africa%2FJohannesburg`;
+                const mr = await fetch(mUrl, { cache: 'no-store' });
+                const md = await mr.json();
+                swell = md.current?.wave_height ?? null;
+            } catch (_) {}
+        }
+
+        return { id: swim.id, signal: swim.goLogic(wind, swell ?? 0), wind, swell };
+    }));
+    return settled.filter(r => r.status === 'fulfilled').map(r => r.value);
+}
+
+// ── Refresh ───────────────────────────────────────────────────────────────────
+
+let _conditions = null;
+
+async function refresh() {
+    const completed = getCompleted();
+    renderProgressPills(completed);
+    renderWindow();
+    renderCards(_conditions, completed);
+}
+
+// ── Start ────────────────────────────────────────────────────────────────────
+
+let appStarted = false;
+
+async function startApp(session) {
+    if (appStarted) return;
+    appStarted = true;
+
+    _currentUser = session.user;
+    _campaignKey = `campaign_${session.user.id}`;
+
+    // Show user pill
+    const namePart = session.user.email.split('@')[0].split('.')[0];
+    document.getElementById('userPill').textContent = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+    document.getElementById('athleteName').textContent = (namePart.charAt(0).toUpperCase() + namePart.slice(1)) + "'s Big 5";
+
+    document.getElementById('initScreen').style.display = 'none';
+    document.getElementById('appContent').style.display = 'block';
+
+    // Make window card clickable to edit
+    document.querySelector('.window-card').addEventListener('click', e => {
+        if (!e.target.closest('button') && !e.target.closest('input')) {
+            toggleWindowSetup();
+        }
+    });
+
+    // Initial render with no conditions yet
+    await refresh();
+
+    // Load conditions
+    _conditions = await loadConditions();
+    const ts = new Date().toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('lastUpdated').textContent = `Conditions updated ${ts}`;
+
+    // Re-render with live conditions
+    await refresh();
+}
+
+async function init() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) { startApp(session); return; }
+    sb.auth.onAuthStateChange((_, sess) => {
+        if (sess) startApp(sess);
+        else window.location.href = '/app';
+    });
+    setTimeout(() => { if (!appStarted) window.location.href = '/app'; }, 2000);
+}
+
+init();
+</script>
+</body>
+</html>
