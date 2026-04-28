@@ -306,10 +306,12 @@
                 <div class="flex-col">
                     <button class="toggle-btn" data-group="protocol" data-value="baseline"       onclick="protocolToggle(this)"><i data-lucide="ban" style="width:14px;height:14px;"></i> Baseline (Water Only)</button>
                     <button class="toggle-btn" data-group="protocol" data-value="ph500_during"   onclick="protocolToggle(this)"><i data-lucide="activity" style="width:14px;height:14px;"></i> PH500 During</button>
+                    <button class="toggle-btn" data-group="protocol" data-value="ph500_caps"     onclick="protocolToggle(this)"><i data-lucide="pill" style="width:14px;height:14px;"></i> PH500 + Electrolyte Caps</button>
                     <button class="toggle-btn" data-group="protocol" data-value="ph1500_preload" onclick="protocolToggle(this)"><i data-lucide="battery-charging" style="width:14px;height:14px;"></i> PH1500 Preload</button>
                     <button class="toggle-btn" data-group="protocol" data-value="ph1500_ph500"   onclick="protocolToggle(this)"><i data-lucide="layers" style="width:14px;height:14px;"></i> PH1500 + PH500</button>
                     <button class="toggle-btn" data-group="protocol" data-value="gel_during"     onclick="protocolToggle(this)"><i data-lucide="package" style="width:14px;height:14px;"></i> Gel During</button>
                     <button class="toggle-btn" data-group="protocol" data-value="chew_during"    onclick="protocolToggle(this)"><i data-lucide="package" style="width:14px;height:14px;"></i> Chew During</button>
+                    <button class="toggle-btn" data-group="protocol" data-value="carb_only_caps" onclick="protocolToggle(this)"><i data-lucide="pill" style="width:14px;height:14px;"></i> Carb-Only Drink + Caps</button>
                     <button class="toggle-btn" data-group="protocol" data-value="ph500_gel"      onclick="protocolToggle(this)"><i data-lucide="layers" style="width:14px;height:14px;"></i> PH500 + Gel</button>
                     <button class="toggle-btn" data-group="protocol" data-value="ph1500_gel"     onclick="protocolToggle(this)"><i data-lucide="layers" style="width:14px;height:14px;"></i> PH1500 + Gel</button>
                     <button class="toggle-btn" data-group="protocol" data-value="custom"         onclick="protocolToggle(this)"><i data-lucide="sliders" style="width:14px;height:14px;"></i> Custom</button>
@@ -332,13 +334,15 @@
                 </div>
                 <div style="margin-bottom:14px;"><div class="field-label" style="margin-bottom:8px;">During</div>
                     <div class="flex-wrap">
-                        <button class="toggle-chip active" data-group="intake_during" data-value="none"   onclick="fuelToggle(this)">None</button>
-                        <button class="toggle-chip"        data-group="intake_during" data-value="water"  onclick="fuelToggle(this)">Water</button>
-                        <button class="toggle-chip"        data-group="intake_during" data-value="PH500"  onclick="fuelToggle(this)">PH500</button>
-                        <button class="toggle-chip"        data-group="intake_during" data-value="PH1500" onclick="fuelToggle(this)">PH1500</button>
-                        <button class="toggle-chip"        data-group="intake_during" data-value="gel"    onclick="fuelToggle(this)">Gel</button>
-                        <button class="toggle-chip"        data-group="intake_during" data-value="chew"   onclick="fuelToggle(this)">Chew</button>
-                        <button class="toggle-chip"        data-group="intake_during" data-value="other"  onclick="fuelToggle(this)">Other</button>
+                        <button class="toggle-chip active" data-group="intake_during" data-value="none"    onclick="fuelToggle(this)">None</button>
+                        <button class="toggle-chip"        data-group="intake_during" data-value="water"   onclick="fuelToggle(this)">Water</button>
+                        <button class="toggle-chip"        data-group="intake_during" data-value="PH500"   onclick="fuelToggle(this)">PH500</button>
+                        <button class="toggle-chip"        data-group="intake_during" data-value="PH1500"  onclick="fuelToggle(this)">PH1500</button>
+                        <button class="toggle-chip"        data-group="intake_during" data-value="gel"     onclick="fuelToggle(this)">Gel</button>
+                        <button class="toggle-chip"        data-group="intake_during" data-value="chew"    onclick="fuelToggle(this)">Chew</button>
+                        <button class="toggle-chip"        data-group="intake_during" data-value="carb_drink" onclick="fuelToggle(this)">Carb-Only Drink</button>
+                        <button class="toggle-chip"        data-group="intake_during" data-value="electrolyte_caps" onclick="fuelToggle(this)">Electrolyte Caps</button>
+                        <button class="toggle-chip"        data-group="intake_during" data-value="other"   onclick="fuelToggle(this)">Other</button>
                     </div>
                 </div>
                 <div><div class="field-label">Notes (optional)</div><textarea id="fuelIntakeNotes" placeholder="Timing, amounts, anything unusual" rows="2"></textarea></div>
@@ -413,16 +417,18 @@
     let allTestData = []; // Store for race protocol generation
 
     const PROTOCOL_LABELS = {
-        baseline:       'Baseline (Water Only)',
-        ph500_during:   'PH500 During',
-        ph1500_preload: 'PH1500 Preload',
-        ph1500_ph500:   'PH1500 + PH500',
-        fuel_test:      'Fuel (Gel/Chew)',
-        gel_during:     'Gel During',
-        chew_during:    'Chew During',
-        ph500_gel:      'PH500 + Gel',
-        ph1500_gel:     'PH1500 + Gel',
-        custom:         'Custom'
+        baseline:            'Baseline (Water Only)',
+        ph500_during:        'PH500 During',
+        ph1500_preload:      'PH1500 Preload',
+        ph1500_ph500:        'PH1500 + PH500',
+        fuel_test:           'Fuel (Gel/Chew)',
+        gel_during:          'Gel During',
+        chew_during:         'Chew During',
+        ph500_gel:           'PH500 + Gel',
+        ph1500_gel:          'PH1500 + Gel',
+        carb_only_caps:      'Carb-Only Drink + Electrolyte Caps',
+        ph500_caps:          'PH500 + Extra Electrolyte Caps',
+        custom:              'Custom'
     };
 
     // Predefined testing schedule - each test pre-configured
@@ -530,16 +536,18 @@
     ];
 
     const PROTOCOL_CATEGORY = {
-        baseline:       'baseline',
-        ph500_during:   'hydration',
-        ph1500_preload: 'hydration',
-        ph1500_ph500:   'hydration',
-        fuel_test:      'fuel',
-        gel_during:     'fuel',
-        chew_during:    'fuel',
-        ph500_gel:      'combined',
-        ph1500_gel:     'combined',
-        custom:         null
+        baseline:            'baseline',
+        ph500_during:        'hydration',
+        ph1500_preload:      'hydration',
+        ph1500_ph500:        'hydration',
+        fuel_test:           'fuel',
+        gel_during:          'fuel',
+        chew_during:         'fuel',
+        ph500_gel:           'combined',
+        ph1500_gel:          'combined',
+        carb_only_caps:      'combined',
+        ph500_caps:          'hydration',
+        custom:              null
     };
 
     const CATEGORY_LABELS = {
@@ -558,7 +566,7 @@
         { id:'fuelRecovery',  key:'recovery',           label:'Recovery',  hint:'10 = recovered well within 1 hour  ·  5 = average  ·  1 = poor / lingering fatigue', invertGood: false }
     ];
 
-    const PROTOCOL_ORDER = ['baseline','ph500_during','ph1500_preload','ph1500_ph500','gel_during','chew_during','ph500_gel','custom'];
+    const PROTOCOL_ORDER = ['baseline','ph500_during','ph1500_preload','ph1500_ph500','ph500_caps','gel_during','chew_during','carb_only_caps','ph500_gel','ph1500_gel','custom'];
 
     function initIcons() { if (window.lucide) lucide.createIcons(); }
 
@@ -996,9 +1004,11 @@
     function getProductStatus(allTests) {
         const status = {
             ph500_during: { tested: false, proven: false },
+            ph500_caps: { tested: false, proven: false },
             ph1500_preload: { tested: false, proven: false },
             gel_during: { tested: false, proven: false },
             chew_during: { tested: false, proven: false },
+            carb_only_caps: { tested: false, proven: false },
         };
 
         allTests.forEach(t => {
@@ -1027,6 +1037,14 @@
                     status.ph1500_preload.proven = true;
                     status.gel_during.proven = true;
                 }
+            }
+            if (proto === 'carb_only_caps') {
+                status.carb_only_caps.tested = true;
+                if (isBetter) status.carb_only_caps.proven = true;
+            }
+            if (proto === 'ph500_caps') {
+                status.ph500_caps.tested = true;
+                if (isBetter) status.ph500_caps.proven = true;
             }
         });
 
