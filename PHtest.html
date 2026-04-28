@@ -998,9 +998,30 @@
 
         allTests.forEach(t => {
             const proto = t.protocol;
+            const isBetter = t.verdict === 'better';
+
+            // Direct protocol matches
             if (status[proto] !== undefined) {
                 status[proto].tested = true;
-                if (t.verdict === 'better') status[proto].proven = true;
+                if (isBetter) status[proto].proven = true;
+            }
+
+            // Combined protocols count as multiple
+            if (proto === 'ph500_gel') {
+                status.ph500_during.tested = true;
+                status.gel_during.tested = true;
+                if (isBetter) {
+                    status.ph500_during.proven = true;
+                    status.gel_during.proven = true;
+                }
+            }
+            if (proto === 'ph1500_gel') {
+                status.ph1500_preload.tested = true;
+                status.gel_during.tested = true;
+                if (isBetter) {
+                    status.ph1500_preload.proven = true;
+                    status.gel_during.proven = true;
+                }
             }
         });
 
