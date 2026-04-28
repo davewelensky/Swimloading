@@ -538,6 +538,7 @@
         gel_during:     'fuel',
         chew_during:    'fuel',
         ph500_gel:      'combined',
+        ph1500_gel:     'combined',
         custom:         null
     };
 
@@ -729,7 +730,9 @@
         }
 
         // Fuel testing sequence
-        if (!tested.gel_during || tested.gel_during.count < 2) {
+        // Count both gel_during and ph1500_gel as gel testing
+        const gelCount = (tested.gel_during?.count || 0) + (tested.ph1500_gel?.count || 0);
+        if (gelCount < 2) {
             return {
                 protocol: 'gel_during',
                 reason: 'Test gel format - easier to take during swim',
@@ -762,9 +765,14 @@
         }
 
         // If both gel and chew tested, recommend winner repeat
-        if ((tested.gel_during?.count || 0) >= 1 && (tested.chew_during?.count || 0) >= 1) {
-            const gelBetter = (tested.gel_during?.better || 0) / (tested.gel_during?.count || 1);
-            const chewBetter = (tested.chew_during?.better || 0) / (tested.chew_during?.count || 1);
+        const gelTotal = (tested.gel_during?.count || 0) + (tested.ph1500_gel?.count || 0);
+        const gelBetterTotal = (tested.gel_during?.better || 0) + (tested.ph1500_gel?.better || 0);
+        const chewTotal = (tested.chew_during?.count || 0);
+        const chewBetterTotal = (tested.chew_during?.better || 0);
+
+        if (gelTotal >= 1 && chewTotal >= 1) {
+            const gelBetter = gelBetterTotal / (gelTotal || 1);
+            const chewBetter = chewBetterTotal / (chewTotal || 1);
             const winner = gelBetter >= chewBetter ? 'gel_during' : 'chew_during';
             const winnerLabel = gelBetter >= chewBetter ? 'Gel' : 'Chew';
             
