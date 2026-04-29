@@ -367,7 +367,7 @@ function pageShell({ title, description, canonical, jsonLd, body }) {
 <body>
   <header>
     <div class="container header-inner">
-      <a href="/" class="logo">Swim<span>Loading</span></a>
+      <a href="/" class="logo"><img src="/icons/logo-nav.png" alt="SwimLoading" style="height:30px;width:auto;display:block;"></a>
       <a href="/app" class="btn-app">Get the App</a>
     </div>
   </header>
