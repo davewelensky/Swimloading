@@ -367,7 +367,10 @@ function pageShell({ title, description, canonical, jsonLd, body }) {
 <body>
   <header>
     <div class="container header-inner">
-      <a href="/" class="logo"><img src="/icons/logo-nav.png" alt="SwimLoading" style="height:30px;width:auto;display:block;"></a>
+      <a href="/" class="logo">
+        <div class="logo-icon"><img src="/icons/logo-wave.png" alt="SwimLoading"></div>
+        <span class="logo-text">SwimLoading</span>
+      </a>
       <a href="/app" class="btn-app">Get the App</a>
     </div>
   </header>
@@ -395,7 +398,10 @@ a{color:var(--ocean-lt);text-decoration:none}a:hover{text-decoration:underline}
 .container{max-width:760px;margin:0 auto;padding:0 20px}
 header{background:rgba(10,22,40,0.95);border-bottom:1px solid var(--border);padding:13px 0;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px)}
 .header-inner{display:flex;align-items:center;justify-content:space-between}
-.logo{font-weight:800;font-size:18px;color:var(--text)}.logo span{color:var(--ocean-lt)}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.logo-icon{width:42px;height:42px;border-radius:12px;overflow:hidden;flex-shrink:0}
+.logo-icon img{width:100%;height:100%;object-fit:contain}
+.logo-text{font-size:20px;font-weight:800;background:linear-gradient(135deg,var(--ocean-lt),var(--ocean-lt));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-0.5px}
 .btn-app{background:var(--ocean);color:#fff!important;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none!important}
 .btn-app:hover{background:#0369a1}
 nav.breadcrumb{font-size:13px;color:var(--subtle);padding:10px 0}
