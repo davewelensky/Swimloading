@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   const slug = parts[1] || '';
 
   if (!slug) {
-    res.writeHead(301, { Location: '/spots/cape-town' });
+    res.writeHead(301, { Location: '/spots/atlantic' });
     return res.end();
   }
 
@@ -261,7 +261,7 @@ async function renderRegionalPage(regionSlug) {
 
   const spots = await dbRpc('seo_regional_spots', { p_domains: domains }) || [];
   const poolSpots = spots.filter(s => s.water_type === 'POOL');
-  const showWinter = ['cape-town', 'eastern-cape', 'garden-route'].includes(regionSlug) && poolSpots.length > 0;
+  const showWinter = ['west-coast', 'atlantic', 'false-bay', 'eastern-cape', 'garden-route'].includes(regionSlug) && poolSpots.length > 0;
   const allPools = spots.length > 0 && spots.every(s => s.water_type === 'POOL');
 
   const title = allPools
@@ -446,7 +446,9 @@ tr:last-child td{border-bottom:none}tr:hover td{background:rgba(56,189,248,0.04)
 const FOOTER_HTML = `
 <div class="f-label">Explore by region</div>
 <div class="f-links">
-  <a href="/spots/cape-town">Cape Town</a>
+  <a href="/spots/west-coast">West Coast</a>
+  <a href="/spots/atlantic">Atlantic Seaboard</a>
+  <a href="/spots/false-bay">False Bay</a>
   <a href="/spots/kwazulu-natal">KwaZulu-Natal</a>
   <a href="/spots/garden-route">Garden Route</a>
   <a href="/spots/eastern-cape">Eastern Cape</a>
@@ -488,7 +490,7 @@ function render404(slug) {
       <main class="container page-body" style="text-align:center">
         <h1 style="margin-top:40px">Spot not found</h1>
         <p style="color:var(--muted)">We couldn't find a swimming spot matching this URL.</p>
-        <a href="/spots/cape-town" class="btn-cta" style="margin-top:16px">Browse Cape Town spots</a>
+        <a href="/spots/atlantic" class="btn-cta" style="margin-top:16px">Browse Atlantic Seaboard spots</a>
       </main>`,
   });
 }

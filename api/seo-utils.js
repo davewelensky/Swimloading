@@ -42,9 +42,9 @@ export function generateSlug(name) {
 }
 
 export const DOMAIN_MAP = {
-  WEST_COAST:   { display: 'West Coast',        region: 'cape-town' },
-  ATLANTIC:     { display: 'Atlantic Seaboard',  region: 'cape-town' },
-  FALSE_BAY:    { display: 'False Bay',          region: 'cape-town' },
+  WEST_COAST:   { display: 'West Coast',        region: 'west-coast' },
+  ATLANTIC:     { display: 'Atlantic Seaboard',  region: 'atlantic' },
+  FALSE_BAY:    { display: 'False Bay',          region: 'false-bay' },
   KZN:          { display: 'KwaZulu-Natal',      region: 'kwazulu-natal' },
   EASTERN_CAPE: { display: 'Eastern Cape',       region: 'eastern-cape' },
   GARDEN_ROUTE: { display: 'Garden Route',       region: 'garden-route' },
@@ -73,7 +73,9 @@ export const AREA_MAP = {
 };
 
 export const REGION_DOMAINS = {
-  'cape-town':     ['WEST_COAST', 'ATLANTIC', 'FALSE_BAY'],
+  'west-coast':    ['WEST_COAST'],
+  'atlantic':      ['ATLANTIC'],
+  'false-bay':     ['FALSE_BAY'],
   'kwazulu-natal': ['KZN'],
   'eastern-cape':  ['EASTERN_CAPE'],
   'garden-route':  ['GARDEN_ROUTE'],
@@ -83,18 +85,24 @@ export const REGION_DOMAINS = {
 };
 
 export const REGION_NAMES = {
-  'cape-town':     'Cape Town',
+  'west-coast':    'West Coast',
+  'atlantic':      'Atlantic Seaboard',
+  'false-bay':     'False Bay',
   'kwazulu-natal': 'KwaZulu-Natal',
   'eastern-cape':  'Eastern Cape',
   'garden-route':  'Garden Route',
   'south-coast':   'South Coast',
-  'inland':        'Inland',
+  'inland':        'Inland & Pools',
   'namibia':       'Namibia',
 };
 
 export const REGION_INTROS = {
-  'cape-town':
-    "Cape Town is home to some of South Africa's most popular open water swimming spots, from the cold Atlantic Seaboard to the warmer waters of False Bay. Conditions vary significantly between the two sides of the peninsula.",
+  'west-coast':
+    "The West Coast stretches north from Cape Town through Langebaan, Paternoster, and beyond. Water temperatures here are influenced by the cold Benguela current upwelling, typically ranging from 10–17°C year-round.",
+  'atlantic':
+    "The Atlantic Seaboard — from Sea Point to Llandudno and Camps Bay — is one of Cape Town's most iconic open water swimming zones. Cold Benguela current water keeps temperatures brisk, typically 10–16°C.",
+  'false-bay':
+    "False Bay is significantly warmer than the Atlantic side, with water temperatures often 3–5°C higher. Popular spots include Fish Hoek, Simons Town, Glencairn, and Gordons Bay.",
   'kwazulu-natal':
     "KwaZulu-Natal offers some of South Africa's warmest ocean swimming year-round, with water temperatures regularly exceeding 22°C. Popular spots include Umhlanga, Durban's beachfront, and the Dolphin Coast.",
   'eastern-cape':
