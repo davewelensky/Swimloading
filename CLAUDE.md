@@ -272,6 +272,55 @@ Spots GPS columns: `latitude`/`longitude` (NOT `lat`/`lng`). Haversine radius: 1
 - **Vercel dashboard:** https://vercel.com/davewelensky/swimloading
 - **GitHub commits:** https://github.com/davewelensky/Swimloading/commits/main
 
+## Brand Guidelines
+
+Use these for every page, demo, email, or component built for SwimLoading. Do not deviate without explicit instruction.
+
+### Logo Assets (`/icons/`)
+
+| File | What it is | When to use |
+|------|-----------|-------------|
+| `logo-nav.png` | Wave mark + "SWIMLOADING" wordmark, cyan on transparent | **Nav bars, headers, emails** — always use this as the SwimLoading logo |
+| `logo-wave.png` | Wave mark only (no text), cyan | Standalone icon contexts only |
+| `logo.png` | Rounded square app icon (swimmer in water) | App store, PWA, favicon contexts only |
+| `icons/icon.svg` | SVG wave icon | Favicon / `<link rel="icon">` |
+
+**Nav logo HTML:**
+```html
+<img src="/icons/logo-nav.png" alt="SwimLoading" style="height:40px;width:auto;">
+```
+For pages in subdirectories (e.g. `/blog/`), use `../icons/logo-nav.png`.
+
+### Colors
+
+```css
+--bg:          #080f1a   /* primary dark background */
+--bg-card:     #0d1728   /* card background */
+--cyan:        #38bdf8   /* brand accent — buttons, links, highlights */
+--text:        #f1f5f9   /* primary text */
+--text-sec:    #64748b   /* secondary/muted text */
+--border:      rgba(255,255,255,0.06)
+--amber:       #f59e0b   /* warnings, alerts */
+--green:       #10b981   /* success, qualifies */
+--danger:      #ef4444   /* errors */
+```
+
+### Typography
+
+- **Headings / display:** `Bebas Neue` (Google Fonts)
+- **Body / UI:** `DM Sans` (Google Fonts)
+- Never use Inter, Roboto, Arial, or system-ui for SwimLoading branded pages
+
+Google Fonts import:
+```html
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+```
+
+### No emojis
+Never use emojis in any SwimLoading UI. Use Lucide icons instead (`https://unpkg.com/lucide@latest`).
+
+---
+
 ## Future Considerations
 
 If code size becomes an issue again:
@@ -281,5 +330,5 @@ If code size becomes an issue again:
 
 ---
 
-**Last Updated:** April 26, 2026  
+**Last Updated:** May 1, 2026  
 **Maintained by:** Dave Welensky & Claude
