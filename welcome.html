@@ -69,6 +69,19 @@
             -webkit-font-smoothing: antialiased;
         }
 
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 9999;
+            background:
+                radial-gradient(18px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+                    rgba(56, 189, 248, 0.55), transparent 100%),
+                radial-gradient(500px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+                    rgba(56, 189, 248, 0.07), transparent 70%);
+        }
+
         /* ═══════════════════════════════════════
            ANIMATED OCEAN BACKGROUND
         ═══════════════════════════════════════ */
@@ -1557,10 +1570,12 @@
         }, { threshold: 0.5 });
         document.querySelectorAll('.stat-item .num').forEach(el => counterObserver.observe(el));
 
-        // Subtle mouse parallax on hero phones
+        // Mouse: spotlight + hero phone parallax
         const heroPhones = document.querySelector('.hero-phones');
-        if (heroPhones && window.innerWidth > 900) {
-            document.addEventListener('mousemove', (e) => {
+        document.addEventListener('mousemove', (e) => {
+            document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+            document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+            if (heroPhones && window.innerWidth > 900) {
                 const x = (e.clientX / window.innerWidth - 0.5) * 12;
                 const y = (e.clientY / window.innerHeight - 0.5) * 8;
                 const center = heroPhones.querySelector('.phone-center');
@@ -1569,8 +1584,8 @@
                 if (center) center.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
                 if (left) left.style.transform = `translateY(calc(-50% + ${y * 1.5}px)) rotate(-6deg) scale(0.85) translateX(${x * 0.5}px)`;
                 if (right) right.style.transform = `translateY(calc(-50% + ${y * 1.5}px)) rotate(6deg) scale(0.85) translateX(${x * 0.5}px)`;
-            });
-        }
+            }
+        });
 
         // Carousel dots
         const track = document.getElementById('carouselTrack');
