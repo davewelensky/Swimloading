@@ -287,10 +287,11 @@ Use these for every page, demo, email, or component built for SwimLoading. Do no
 
 **Nav brand HTML (always this pattern):**
 ```html
-<a href="https://swimloading.com" style="display:flex;align-items:center;gap:7px;text-decoration:none;color:#f1f5f9;font-size:15px;font-weight:600;">
+<a href="https://swimloading.com" style="display:flex;align-items:center;gap:7px;text-decoration:none;font-size:15px;font-weight:800;letter-spacing:-0.5px;background:linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
   <img src="/icons/logo-wave.png" alt="" style="height:22px;width:auto;">SwimLoading
 </a>
 ```
+The text uses a **cyan gradient** (`#38bdf8 → #0ea5e9 → #0284c7`), weight 800, letter-spacing -0.5px. Never plain white.
 For pages in subdirectories (e.g. `/blog/`), use `../icons/logo-wave.png`.
 
 ### Colors
