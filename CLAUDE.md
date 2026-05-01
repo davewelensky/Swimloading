@@ -280,16 +280,18 @@ Use these for every page, demo, email, or component built for SwimLoading. Do no
 
 | File | What it is | When to use |
 |------|-----------|-------------|
-| `logo-nav.png` | Wave mark + "SWIMLOADING" wordmark, cyan on transparent | **Nav bars, headers, emails** — always use this as the SwimLoading logo |
-| `logo-wave.png` | Wave mark only (no text), cyan | Standalone icon contexts only |
+| `logo-wave.png` | Wave mark only (no text), cyan on transparent | **Nav bars** — use alongside "SwimLoading" text |
+| `logo-nav.png` | Wave mark + "SWIMLOADING" wordmark stacked, cyan | Auth screens / login panels only (used at ~56px) |
 | `logo.png` | Rounded square app icon (swimmer in water) | App store, PWA, favicon contexts only |
 | `icons/icon.svg` | SVG wave icon | Favicon / `<link rel="icon">` |
 
-**Nav logo HTML:**
+**Nav brand HTML (always this pattern):**
 ```html
-<img src="/icons/logo-nav.png" alt="SwimLoading" style="height:40px;width:auto;">
+<a href="https://swimloading.com" style="display:flex;align-items:center;gap:7px;text-decoration:none;color:#f1f5f9;font-size:15px;font-weight:600;">
+  <img src="/icons/logo-wave.png" alt="" style="height:22px;width:auto;">SwimLoading
+</a>
 ```
-For pages in subdirectories (e.g. `/blog/`), use `../icons/logo-nav.png`.
+For pages in subdirectories (e.g. `/blog/`), use `../icons/logo-wave.png`.
 
 ### Colors
 
