@@ -291,7 +291,11 @@ Use these for every page, demo, email, or component built for SwimLoading. Do no
   <img src="/icons/logo-wave.png" alt="" style="height:22px;width:auto;">SwimLoading
 </a>
 ```
-The text uses a **cyan gradient** (`#38bdf8 → #0ea5e9 → #0284c7`), weight 800, letter-spacing -0.5px. Never plain white.
+The text uses a **cyan gradient** (`#38bdf8 → #0ea5e9 → #0284c7`), weight 800, font-size 20px (mobile) / 24px (desktop), letter-spacing -0.5px. Never plain white.
+
+### Buttons (marketing pages / demos)
+- **Primary**: `background: #38bdf8`, `color: #080f1a`, `border-radius: 50px`, `font-weight: 700`, `padding: 13px 26px` — pill shape
+- **Ghost**: `background: transparent`, `border: 1px solid rgba(255,255,255,0.15)`, `border-radius: 50px`, same padding
 For pages in subdirectories (e.g. `/blog/`), use `../icons/logo-wave.png`.
 
 ### Colors
