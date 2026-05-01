@@ -326,6 +326,34 @@ Google Fonts import:
 ### No emojis
 Never use emojis in any SwimLoading UI. Use Lucide icons instead (`https://unpkg.com/lucide@latest`).
 
+### Mouse Spotlight Effect
+Used on `welcome.html` and all club demo pages. Add to any dark-background SwimLoading page:
+
+**CSS** (inside `<style>`, on `body`):
+```css
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background:
+    radial-gradient(18px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+      rgba(56, 189, 248, 0.55), transparent 100%),
+    radial-gradient(500px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+      rgba(56, 189, 248, 0.07), transparent 70%);
+}
+```
+
+**JS** (single `mousemove` listener — merge with any existing one, don't duplicate):
+```javascript
+document.addEventListener('mousemove', e => {
+  document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+  document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+});
+```
+Default `-999px` keeps the dot off-screen until the mouse enters.
+
 ---
 
 ## Future Considerations
