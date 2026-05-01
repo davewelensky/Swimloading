@@ -6827,14 +6827,8 @@
                 submitBtn.textContent = 'Share Conditions';
             } else {
                 // Calculate points earned for this log
-                const loggedSpotDomain = spots.find(s => s.id === spotId)?.domain || 'ATLANTIC';
-                const ctDomains = ['ATLANTIC', 'FALSE_BAY', 'WEST_COAST'];
-                const now = new Date();
-                const isApril2026 = now.getFullYear() === 2026 && now.getMonth() === 3;
-                const multiplier = (isApril2026 && !ctDomains.includes(loggedSpotDomain)) ? 2 : 1;
-                const ptsEarned = 10 * multiplier;
-                const bonusNote = multiplier === 2 ? ' (2× April Explorer!)' : '';
-                showToast(loggedAt ? `Backdated conditions logged! +${ptsEarned} points!` : `Conditions shared! +${ptsEarned} points${bonusNote}`, 'success');
+                const ptsEarned = 10;
+                showToast(loggedAt ? `Backdated conditions logged! +${ptsEarned} points!` : `Conditions shared! +${ptsEarned} points`, 'success');
                 analytics.track('temp_logged', { spot: spotNameForConfirm, temp, conditions });
                 if (hazards.length > 0) analytics.track('hazard_reported', { hazards });
 

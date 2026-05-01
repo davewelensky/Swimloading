@@ -217,76 +217,70 @@
                     ? `<div style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:8px;">You haven't logged yet this month — every log counts!</div>`
                     : '';
 
-                const isApril2026ch = now.getFullYear() === 2026 && now.getMonth() === 3;
-
                 el.innerHTML = `
-                <div style="background:linear-gradient(135deg,rgba(251,191,36,0.08),rgba(2,132,199,0.08));border:1px solid rgba(251,191,36,0.3);border-radius:14px;padding:20px;margin-bottom:4px;">
+                <div style="background:linear-gradient(135deg,rgba(14,116,144,0.1),rgba(125,211,252,0.06));border:1px solid rgba(125,211,252,0.3);border-radius:14px;padding:20px;margin-bottom:4px;">
                     <!-- Header -->
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
                         <div style="display:flex;align-items:center;gap:10px;">
-                            <i data-lucide="trophy" style="width:24px;height:24px;color:#fbbf24;"></i>
+                            <i data-lucide="waves" style="width:24px;height:24px;color:#7dd3fc;"></i>
                             <div>
-                                <div style="font-size:11px;color:#fbbf24;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:2px;">April Challenge — in partnership with Art of Endurance</div>
-                                <div style="font-weight:700;font-size:18px;color:var(--text);">Win a box of Maurten Gel 100s.</div>
+                                <div style="font-size:11px;color:#7dd3fc;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:2px;">May Winter Challenge</div>
+                                <div style="font-weight:700;font-size:18px;color:var(--text);">Log a pool temp. Win Maurten.</div>
                             </div>
                         </div>
-                        <div style="background:rgba(251,191,36,0.15);color:#fbbf24;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;">${daysLeft}d left</div>
+                        <div style="background:rgba(125,211,252,0.15);color:#7dd3fc;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;">${daysLeft}d left</div>
                     </div>
 
                     <!-- Prize -->
                     <div style="background:rgba(0,0,0,0.25);border-radius:12px;padding:16px;margin-bottom:14px;">
                         <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:14px;">
-                            <strong style="color:var(--text);">Art of Endurance</strong> — Maurten SA outlet partner — is putting up a full box of Maurten Gel 100s for April's challenge winner. Ships anywhere in South Africa. Whether you're in Cape Town, Durban, PE or Namibia, this prize reaches you.
+                            It's winter. The ocean is cold. The pools are heated. Log a pool temperature — indoor (Virgin Active, gym pools) or outdoor — and you stand a chance to win a <strong style="color:var(--text);">Maurten prize pack</strong>. Every log is an entry.
                         </div>
-                        <div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;">
+                        <div style="background:rgba(125,211,252,0.08);border:1px solid rgba(125,211,252,0.2);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;">
                             <div>
-                                <div style="font-size:10px;color:#fbbf24;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:3px;">Prize Sponsor</div>
-                                <div style="font-size:14px;font-weight:800;color:#fbbf24;">Art of Endurance × Maurten</div>
-                                <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">artofendurance.co.za · Maurten SA outlet partner</div>
+                                <div style="font-size:10px;color:#7dd3fc;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:3px;">Prize</div>
+                                <div style="font-size:14px;font-weight:800;color:#7dd3fc;">Maurten Prize Pack</div>
+                                <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Ships anywhere in South Africa</div>
                             </div>
                             <div style="text-align:right;">
-                                <div style="font-size:20px;font-weight:800;color:#fbbf24;">Gel 100</div>
-                                <div style="font-size:10px;color:var(--text-secondary);">Full box · ships nationally</div>
+                                <div style="font-size:20px;">🏊</div>
+                                <div style="font-size:10px;color:var(--text-secondary);">Any pool counts</div>
                             </div>
                         </div>
                     </div>
 
                     <!-- How points work -->
                     <div style="margin-bottom:16px;">
-                        <div style="font-size:10px;font-weight:700;color:#fbbf24;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">How the points system works</div>
-                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;margin-bottom:10px;">The app rewards consistency and variety — not just hammering the same spot every day.</div>
+                        <div style="font-size:10px;font-weight:700;color:#7dd3fc;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">How it works</div>
+                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;margin-bottom:10px;">Log any pool temperature — every log earns points and enters you into the draw.</div>
                         <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
-                            <div style="background:rgba(56,189,248,0.06);border-radius:8px;padding:10px 12px;display:flex;gap:12px;align-items:center;">
-                                <div style="background:rgba(56,189,248,0.15);border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--ocean-light);flex-shrink:0;">10</div>
-                                <div><div style="font-size:12px;font-weight:700;color:var(--text);">10 points for every temp log</div><div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Every time you log a temperature at any spot, you earn 10 points. Simple.</div></div>
+                            <div style="background:rgba(125,211,252,0.06);border-radius:8px;padding:10px 12px;display:flex;gap:12px;align-items:center;">
+                                <div style="background:rgba(125,211,252,0.15);border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#7dd3fc;flex-shrink:0;">10</div>
+                                <div><div style="font-size:12px;font-weight:700;color:var(--text);">10 points for every pool temp log</div><div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Log the water temp at any pool — heated indoor or outdoor — and earn 10 points per log.</div></div>
                             </div>
-                            <div style="background:rgba(56,189,248,0.06);border-radius:8px;padding:10px 12px;display:flex;gap:12px;align-items:center;">
-                                <div style="background:rgba(56,189,248,0.15);border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--ocean-light);flex-shrink:0;">+10</div>
-                                <div><div style="font-size:12px;font-weight:700;color:var(--text);">+10 bonus for the first log at each spot each day</div><div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Log Big Bay every day? You get the +10 bonus once per day at Big Bay. But log <em>three different spots in one day</em> — you earn the bonus three times.</div></div>
+                            <div style="background:rgba(125,211,252,0.06);border-radius:8px;padding:10px 12px;display:flex;gap:12px;align-items:center;">
+                                <div style="background:rgba(125,211,252,0.15);border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#7dd3fc;flex-shrink:0;">+10</div>
+                                <div><div style="font-size:12px;font-weight:700;color:var(--text);">+10 bonus for the first log at each spot each day</div><div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Log the same pool daily? You get the +10 bonus once per day. Log <em>two different pools</em> in one day — you earn it twice.</div></div>
                             </div>
-                            <div style="background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.2);border-radius:8px;padding:10px 12px;display:flex;gap:12px;align-items:center;">
-                                <div style="background:rgba(251,191,36,0.15);border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fbbf24;flex-shrink:0;">2×</div>
-                                <div><div style="font-size:12px;font-weight:700;color:var(--text);">Double points outside Cape Town — all April</div><div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Log anywhere outside Atlantic, False Bay &amp; West Coast and every point doubles. KZN, Garden Route, Eastern Cape, Namibia — all 2×.</div></div>
-                            </div>
-                            <div style="background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.2);border-radius:8px;padding:10px 12px;display:flex;gap:12px;align-items:center;">
-                                <div style="background:rgba(251,191,36,0.15);border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fbbf24;flex-shrink:0;">+30</div>
-                                <div><div style="font-size:12px;font-weight:700;color:var(--text);">+30 for being first ever to log a brand-new spot</div><div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Find a spot no one has logged before and be the first — that's a flat 30-point bonus on top of everything else.</div></div>
+                            <div style="background:rgba(125,211,252,0.06);border:1px solid rgba(125,211,252,0.15);border-radius:8px;padding:10px 12px;display:flex;gap:12px;align-items:center;">
+                                <div style="background:rgba(125,211,252,0.15);border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#7dd3fc;flex-shrink:0;">🏊</div>
+                                <div><div style="font-size:12px;font-weight:700;color:var(--text);">Any pool counts — indoor or outdoor</div><div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Virgin Active, gym pool, public pool, outdoor heated pool. If it's a pool and you're in it, log it.</div></div>
                             </div>
                         </div>
 
                         <!-- Quick example -->
                         <div style="background:rgba(15,23,42,0.6);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
-                            <div style="font-size:10px;color:#fbbf24;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">Quick Example</div>
+                            <div style="font-size:10px;color:#7dd3fc;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">Quick Example</div>
                             <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
-                                <div style="font-size:12px;color:var(--text);">Log Big Bay + Clifton + Camps Bay in one day</div>
-                                <div style="font-size:13px;font-weight:800;color:#10b981;">50 pts</div>
+                                <div style="font-size:12px;color:var(--text);">Log your gym pool on Monday + Wednesday + Friday</div>
+                                <div style="font-size:13px;font-weight:800;color:#10b981;">60 pts</div>
                             </div>
-                            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">(3 logs × 10 pts) + (2 new spot bonuses × 10 pts) = 50 pts</div>
+                            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">(3 logs × 10 pts) + (3 first-of-day bonuses × 10 pts) = 60 pts</div>
                             <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
-                                <div style="font-size:12px;color:var(--text);">vs. Log Big Bay 3 times in one day</div>
-                                <div style="font-size:13px;font-weight:800;color:var(--text-secondary);">30 pts</div>
+                                <div style="font-size:12px;color:var(--text);">Log the same pool twice in one day</div>
+                                <div style="font-size:13px;font-weight:800;color:var(--text-secondary);">20 pts</div>
                             </div>
-                            <div style="font-size:11px;color:var(--text-secondary);">(3 logs × 10 pts) + (no new spot bonus) = 30 pts</div>
+                            <div style="font-size:11px;color:var(--text-secondary);">(2 logs × 10 pts) + (only 1 first-of-day bonus) = 20 pts</div>
                         </div>
                     </div>
 
@@ -295,8 +289,8 @@
 
                     <!-- Leaderboard -->
                     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
-                        <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;"><i data-lucide="trophy" style="width:13px;height:13px;color:#fbbf24;"></i>April Leaderboard</div>
-                        <div style="font-size:10px;color:var(--text-secondary);opacity:0.7;">10 pts/log · +10 per spot/day · 2× outside CT</div>
+                        <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;"><i data-lucide="trophy" style="width:13px;height:13px;color:#7dd3fc;"></i>May Pool Leaderboard</div>
+                        <div style="font-size:10px;color:var(--text-secondary);opacity:0.7;">10 pts/log · +10 per pool/day</div>
                     </div>
                     <div style="background:rgba(15,23,42,0.5);border-radius:10px;padding:12px;">
                         ${emptyState}${rows}${myRankLine}
@@ -472,9 +466,8 @@
                         ? `<div style="font-size:12px;color:#10b981;font-weight:600;margin-top:6px;">You're in the lead — keep going!</div>`
                         : '';
 
-                const isApril2026 = now.getFullYear() === 2026 && now.getMonth() === 3;
-                const challengeTitle = isApril2026 ? 'April Explorer Challenge' : `${monthName} Challenge`;
-                const challengeSubtitle = isApril2026 ? '2× pts outside CT · Win Maurten Gel 100s' : 'Log the most temps · Win the prize';
+                const challengeTitle = 'May Pool Challenge';
+                const challengeSubtitle = 'Log any pool temp · Win Maurten';
                 const myPoints = myRankIdx >= 0 ? eligible[myRankIdx].total_points : 0;
                 const ptGap = leader && leader.user_id !== currentUser?.id && myPoints < leader.total_points
                     ? leader.total_points - myPoints : 0;
@@ -485,7 +478,7 @@
                         : '';
 
                 // Build top-3 mini leaderboard (eligible swimmers only)
-                const MC = ['#fbbf24','#94a3b8','#cd7c2f'];
+                const MC = ['#7dd3fc','#94a3b8','#67e8f9'];
                 const top3 = eligible.slice(0, 3);
                 const top3html = top3.length > 0 ? top3.map((r, i) => {
                     const isMe = currentUser && r.user_id === currentUser.id;
@@ -504,16 +497,16 @@
                 // State-specific CTA
                 let ctaBlock = '';
                 if (!currentUser || myPoints === 0) {
-                    ctaBlock = `<div style="background:linear-gradient(135deg,rgba(251,191,36,0.15),rgba(251,191,36,0.05));border:1px solid rgba(251,191,36,0.3);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+                    ctaBlock = `<div style="background:linear-gradient(135deg,rgba(125,211,252,0.12),rgba(125,211,252,0.04));border:1px solid rgba(125,211,252,0.3);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
                         <div>
-                            <div style="font-size:12px;font-weight:700;color:#fbbf24;">Log a temp to enter</div>
-                            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Every log earns points · 2× outside Cape Town</div>
+                            <div style="font-size:12px;font-weight:700;color:#7dd3fc;">Log a pool temp to enter</div>
+                            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Indoor or outdoor · every log counts</div>
                         </div>
                     </div>`;
                 } else if (myRank === 1) {
-                    ctaBlock = `<div style="background:linear-gradient(135deg,rgba(251,191,36,0.2),rgba(251,191,36,0.05));border:1px solid rgba(251,191,36,0.4);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+                    ctaBlock = `<div style="background:linear-gradient(135deg,rgba(125,211,252,0.18),rgba(125,211,252,0.05));border:1px solid rgba(125,211,252,0.4);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
                         <div>
-                            <div style="font-size:12px;font-weight:700;color:#fbbf24;">You're leading! Keep logging.</div>
+                            <div style="font-size:12px;font-weight:700;color:#7dd3fc;">You're leading! Keep logging.</div>
                             <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${myPoints} pts · ${daysLeft} days to hold on</div>
                         </div>
                     </div>`;
@@ -527,43 +520,43 @@
                 }
 
                 el.innerHTML = `
-                <div onclick="showPage('leaderboard')" style="cursor:pointer;border-radius:18px;overflow:hidden;border:1px solid rgba(251,191,36,0.35);box-shadow:0 4px 24px rgba(251,191,36,0.08);">
-                    <!-- Gold header band -->
-                    <div style="background:linear-gradient(135deg,#92400e,#78350f,#451a03);padding:14px 16px;display:flex;justify-content:space-between;align-items:center;">
+                <div onclick="showPage('leaderboard')" style="cursor:pointer;border-radius:18px;overflow:hidden;border:1px solid rgba(125,211,252,0.3);box-shadow:0 4px 24px rgba(125,211,252,0.06);">
+                    <!-- Icy blue header band -->
+                    <div style="background:linear-gradient(135deg,#0c4a6e,#0369a1,#0284c7);padding:14px 16px;display:flex;justify-content:space-between;align-items:center;">
                         <div>
-                            <div style="font-size:10px;color:rgba(251,191,36,0.8);font-weight:700;text-transform:uppercase;letter-spacing:0.8px;">April Challenge · Art of Endurance</div>
-                            <div style="font-size:17px;font-weight:800;color:#fbbf24;margin-top:2px;line-height:1.2;">Win Maurten Gel 100s</div>
+                            <div style="font-size:10px;color:rgba(186,230,253,0.85);font-weight:700;text-transform:uppercase;letter-spacing:0.8px;">May Winter Challenge</div>
+                            <div style="font-size:17px;font-weight:800;color:#bae6fd;margin-top:2px;line-height:1.2;">Log a pool temp · Win Maurten</div>
                         </div>
                         <div style="text-align:right;flex-shrink:0;">
-                            <div style="font-size:22px;font-weight:900;color:#fbbf24;line-height:1;">${daysLeft}</div>
-                            <div style="font-size:10px;color:rgba(251,191,36,0.7);text-transform:uppercase;letter-spacing:0.5px;">days left</div>
+                            <div style="font-size:22px;font-weight:900;color:#7dd3fc;line-height:1;">${daysLeft}</div>
+                            <div style="font-size:10px;color:rgba(186,230,253,0.65);text-transform:uppercase;letter-spacing:0.5px;">days left</div>
                         </div>
                     </div>
                     <!-- Body -->
-                    <div style="background:rgba(15,23,42,0.95);padding:14px 16px;">
+                    <div style="background:rgba(12,20,40,0.97);padding:14px 16px;">
                         <!-- Badges -->
                         <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
-                            <div style="background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.25);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:#fbbf24;">2× outside CT</div>
-                            <div style="background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.25);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:#fbbf24;">+30 new spot</div>
-                            <div style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:var(--ocean-light);">10 pts/log</div>
+                            <div style="background:rgba(125,211,252,0.1);border:1px solid rgba(125,211,252,0.25);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:#7dd3fc;">any pool</div>
+                            <div style="background:rgba(125,211,252,0.1);border:1px solid rgba(125,211,252,0.25);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:#7dd3fc;">indoor or outdoor</div>
+                            <div style="background:rgba(125,211,252,0.08);border:1px solid rgba(125,211,252,0.15);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:#93c5fd;">10 pts/log</div>
                         </div>
                         <!-- Mini leaderboard -->
                         <div style="margin-bottom:10px;">${top3html}</div>
                         <!-- CTA -->
                         ${ctaBlock}
                         <!-- Footer link -->
-                        <div style="margin-top:10px;font-size:11px;color:rgba(251,191,36,0.7);font-weight:600;display:flex;align-items:center;gap:3px;">Full leaderboard &amp; rules <i data-lucide="chevron-right" style="width:11px;height:11px;"></i></div>
+                        <div style="margin-top:10px;font-size:11px;color:rgba(125,211,252,0.7);font-weight:600;display:flex;align-items:center;gap:3px;">Full leaderboard &amp; details <i data-lucide="chevron-right" style="width:11px;height:11px;"></i></div>
                     </div>
                 </div>`;
                 initIcons();
             } catch (err) {
                 console.error('Challenge summary error:', err);
                 el.innerHTML = `
-                <div onclick="showPage('leaderboard')" style="cursor:pointer;background:rgba(15,23,42,0.6);border:1px solid rgba(251,191,36,0.3);border-radius:16px;padding:16px 18px;">
-                    <div style="font-size:11px;color:#fbbf24;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px;">April 2026 Challenge · 30d left</div>
-                    <div style="font-size:16px;font-weight:800;color:var(--text-primary);">April Explorer Challenge</div>
-                    <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">2× pts outside CT · Win Maurten Gel 100s</div>
-                    <div style="margin-top:10px;font-size:12px;color:#fbbf24;font-weight:600;">View leaderboard →</div>
+                <div onclick="showPage('leaderboard')" style="cursor:pointer;background:rgba(12,74,110,0.3);border:1px solid rgba(125,211,252,0.3);border-radius:16px;padding:16px 18px;">
+                    <div style="font-size:11px;color:#7dd3fc;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px;">May 2026 · Pool Challenge</div>
+                    <div style="font-size:16px;font-weight:800;color:var(--text-primary);">May Pool Challenge</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Log any pool temp · Win Maurten</div>
+                    <div style="margin-top:10px;font-size:12px;color:#7dd3fc;font-weight:600;">View leaderboard →</div>
                 </div>`;
                 initIcons();
             }
