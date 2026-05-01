@@ -144,13 +144,14 @@
                 const CONTRIBUTOR_ID = '2f6666a5-e042-44a5-a08d-558d5791c5bd';
                 const eligible = (data || []).filter(r => r.user_id !== CONTRIBUTOR_ID);
 
-                // Current user's own count (fallback for users outside top 20)
+                // Current user's own pool log count (fallback for users outside top 20)
                 let myCount = 0, myRank = null, myPoints = null;
                 if (currentUser) {
                     const { count } = await supabaseClient
                         .from('temp_logs')
-                        .select('*', { count: 'exact', head: true })
+                        .select('id, spots!inner(water_type)', { count: 'exact', head: true })
                         .eq('user_id', currentUser.id)
+                        .eq('spots.water_type', 'POOL')
                         .gte('created_at', monthStart.toISOString())
                         .lt('created_at',  monthEnd.toISOString());
                     myCount = count || 0;
@@ -432,8 +433,9 @@
                     }),
                     currentUser ? supabaseClient
                         .from('temp_logs')
-                        .select('*', { count: 'exact', head: true })
+                        .select('id, spots!inner(water_type)', { count: 'exact', head: true })
                         .eq('user_id', currentUser.id)
+                        .eq('spots.water_type', 'POOL')
                         .gte('created_at', monthStart.toISOString())
                         .lt('created_at',  monthEnd.toISOString())
                         : Promise.resolve({ count: 0 })
