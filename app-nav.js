@@ -244,8 +244,8 @@
                                 <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Ships anywhere in South Africa</div>
                             </div>
                             <div style="text-align:right;">
-                                <div style="font-size:20px;">🏊</div>
-                                <div style="font-size:10px;color:var(--text-secondary);">Any pool counts</div>
+                                <i data-lucide="waves" style="width:22px;height:22px;color:#7dd3fc;"></i>
+                                <div style="font-size:10px;color:var(--text-secondary);margin-top:4px;">Any pool counts</div>
                             </div>
                         </div>
                     </div>
@@ -264,7 +264,7 @@
                                 <div><div style="font-size:12px;font-weight:700;color:var(--text);">+10 bonus for the first log at each spot each day</div><div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Log the same pool daily? You get the +10 bonus once per day. Log <em>two different pools</em> in one day — you earn it twice.</div></div>
                             </div>
                             <div style="background:rgba(125,211,252,0.06);border:1px solid rgba(125,211,252,0.15);border-radius:8px;padding:10px 12px;display:flex;gap:12px;align-items:center;">
-                                <div style="background:rgba(125,211,252,0.15);border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#7dd3fc;flex-shrink:0;">🏊</div>
+                                <div style="background:rgba(125,211,252,0.15);border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i data-lucide="waves" style="width:16px;height:16px;color:#7dd3fc;"></i></div>
                                 <div><div style="font-size:12px;font-weight:700;color:var(--text);">Any pool counts — indoor or outdoor</div><div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Virgin Active, gym pool, public pool, outdoor heated pool. If it's a pool and you're in it, log it.</div></div>
                             </div>
                         </div>
