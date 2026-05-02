@@ -6166,6 +6166,7 @@
 
         const SP_TYPE_LABELS = { OCEAN: 'Ocean', POOL: 'Pool', LAGOON: 'Lagoon', DAM: 'Inland', LAKE: 'Lake' };
         const SP_TYPE_ICONS  = { OCEAN: 'waves', POOL: 'droplets', LAGOON: 'anchor', DAM: 'mountain-snow', LAKE: 'waves' };
+        const INTERNATIONAL_DOMAINS = new Set(['EUROPE']);
         const AREA_DISPLAY = {
             ATLANTIC: 'Atlantic Seaboard',
             FALSE_BAY: 'False Bay',
@@ -6338,7 +6339,10 @@
             let html = `<div class="sp-brand-pill sp-region-pill active" onclick="setPickerDomain(null,this)">All</div>`;
             activeDomains.forEach(code => {
                 const name = spAreaName(code);
-                html += `<div class="sp-brand-pill sp-region-pill" onclick="setPickerDomain('${code}',this)">${name}</div>`;
+                const intl = INTERNATIONAL_DOMAINS.has(code);
+                const style = intl ? ' style="border-color:#fbbf24;color:#fbbf24;"' : '';
+                const icon = intl ? `<i data-lucide="globe" style="width:11px;height:11px;display:inline-block;vertical-align:middle;margin-right:3px;"></i>` : '';
+                html += `<div class="sp-brand-pill sp-region-pill"${style} onclick="setPickerDomain('${code}',this)">${icon}${name}</div>`;
             });
             strip.innerHTML = html;
             strip.classList.add('sp-visible');
@@ -6405,7 +6409,7 @@
                      style="animation: spRowFadeIn 0.25s ${delay}ms ease both;">
                     ${iconHtml}
                     <div class="sp-row-main">
-                        <div class="sp-row-name">${s.name}</div>
+                        <div class="sp-row-name">${s.name}${INTERNATIONAL_DOMAINS.has(s.domain) ? ' <i data-lucide="globe" style="width:11px;height:11px;color:#fbbf24;vertical-align:middle;display:inline-block;"></i>' : ''}</div>
                     </div>
                     <div class="sp-row-right">
                         ${distStr ? `<span class="sp-row-distance">${distStr}</span>` : ''}

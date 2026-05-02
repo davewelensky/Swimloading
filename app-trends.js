@@ -251,13 +251,15 @@
                     else                      { trendArrow = '→'; trendColor = 'var(--text-secondary)'; }
                 }
 
+                const isIntl = typeof INTERNATIONAL_DOMAINS !== 'undefined' && INTERNATIONAL_DOMAINS.has(domain);
                 const card = document.createElement('div');
                 card.className = 'region-card';
+                if (isIntl) card.style.cssText += 'border-color:#fbbf24;border-width:1.5px;';
                 card.onclick = () => openRegionDetail(domain);
                 card.innerHTML = `
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
                         <div style="flex:1;min-width:0;">
-                            <div class="region-name" style="font-weight:700;font-size:16px;">${formatDomain(domain)}</div>
+                            <div class="region-name" style="font-weight:700;font-size:16px;">${isIntl ? '<i data-lucide="globe" style="width:13px;height:13px;color:#fbbf24;vertical-align:middle;margin-right:4px;display:inline-block;"></i>' : ''}${formatDomain(domain)}</div>
                             <div class="region-temp" style="font-size:32px;font-weight:800;color:${tempColor};margin:4px 0;line-height:1;">${data.avgTemp}°C</div>
                             <div class="region-stat" style="font-size:13px;font-weight:600;">${subtext}</div>
                             <div class="region-stat" style="font-size:11px;opacity:0.8;">${updatedText}</div>
