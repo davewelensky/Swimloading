@@ -1,5 +1,7 @@
 # SwimLoading — Architecture & Deployment Guide
 
+> **Adding a region, spot, or international domain?** See [EXPANDING.md](EXPANDING.md) — it has the complete checklist, hardcode map, and cross-app consistency checks.
+
 ## Architecture Overview (Split April 2026)
 
 The codebase was split from a single 12,300-line `index.html` into modular files to prevent crashes and improve maintainability.
