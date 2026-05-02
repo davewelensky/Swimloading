@@ -4839,12 +4839,31 @@
         let selectedHazardSeverity = 'caution';
         let hazardPhotoUrl = null;
 
+        function buildHazardSpotOptions() {
+            // Flat list — no optgroups. Every item is a selectable spot.
+            // Domain shown after the dash so the user knows exactly where the spot is.
+            let html = '<option value="">Select a spot…</option>';
+            domains.forEach(d => {
+                const domainSpots = spots
+                    .filter(s => s.domain === d.code)
+                    .sort((a, b) => a.name.localeCompare(b.name));
+                domainSpots.forEach(spot => {
+                    html += `<option value="${spot.id}">${spot.name} — ${d.display_name}</option>`;
+                });
+            });
+            // Spots with no matching domain (shouldn't happen, but safe fallback)
+            const domainCodes = domains.map(d => d.code);
+            spots.filter(s => !domainCodes.includes(s.domain))
+                 .forEach(spot => { html += `<option value="${spot.id}">${spot.name}</option>`; });
+            return html;
+        }
+
         function showHazardReport() {
             const modal = document.getElementById('hazardReportModal');
             if (!modal) return;
             modal.style.display = 'block';
             const sel = document.getElementById('hazardSpot');
-            if (sel) sel.innerHTML = buildGroupedSpotOptions(false);
+            if (sel) sel.innerHTML = buildHazardSpotOptions();
             hazardPhotoUrl = null;
             document.getElementById('hazardPhotoPreview').innerHTML = '';
             document.getElementById('hazardTitle').value = '';
