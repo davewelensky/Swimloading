@@ -1149,14 +1149,17 @@
                     : { data: [] };
                 const spotNameMap = Object.fromEntries((spotProfiles || []).map(p => [p.id, p.display_name]));
 
+                const recentLogsEl = document.getElementById('dashRecentLogs');
+                const recentLogsWrap = document.getElementById('dashRecentLogsWrap');
+
                 if (topSpots.length === 0) {
-                    document.getElementById('dashBestSpots').innerHTML =
-                        `<div style="text-align:center; padding:16px; color:var(--text-secondary); font-size:14px;">No conditions logged in the last 7 days</div>`;
+                    if (recentLogsWrap) recentLogsWrap.style.display = 'none';
                 } else {
+                    if (recentLogsWrap) recentLogsWrap.style.display = 'block';
                     // Store share data keyed by spot_id for safe inline onclick access
                     window._spotShareData = {};
 
-                    document.getElementById('dashBestSpots').innerHTML = topSpots.map(s => {
+                    recentLogsEl.innerHTML = topSpots.map(s => {
                         const log = s.latestLog;
                         const cond = log.conditions?.toLowerCase();
                         const condColor = conditionColors[cond] || '#64748b';
