@@ -1965,13 +1965,9 @@
             _swimPostDateTime = null;
             _editingSwimPostId = editPayload?.id || null;
 
-            // Populate spot dropdown
+            // Populate spot dropdown — same grouped options as every other spot picker
             const sel = document.getElementById('swimPostSpot');
-            sel.innerHTML = spots
-                .filter(s => s.active !== false)
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map(s => `<option value="${s.id}">${s.name}</option>`)
-                .join('');
+            sel.innerHTML = buildGroupedSpotOptions(false);
 
             if (editPayload) {
                 // Pre-fill for editing
@@ -6319,7 +6315,7 @@
         function renderRecentsStrip() {
             const strip = document.getElementById('spRecentsStrip');
             if (!strip || pickerRecentSpots.length === 0) return;
-            strip.style.cssText = 'display:block; padding:0 16px 12px; flex-shrink:0;';
+            strip.style.cssText = 'display:block; padding:0 16px 10px; flex-shrink:0; max-height:70px; overflow:hidden;';
             strip.innerHTML = `
                 <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Recent</div>
                 <div style="display:flex;flex-wrap:nowrap;gap:7px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;">
