@@ -4872,14 +4872,23 @@
             const modal = document.getElementById('hazardReportModal');
             if (!modal) return;
             modal.style.display = 'block';
-            // Populate spot dropdown — blank first option so initial state is no selection
+            // Populate spot dropdown — all spots including international
             const sel = document.getElementById('hazardSpot');
             if (sel) {
-                sel.innerHTML = '<option value="">Select a location…</option>' + buildGroupedSpotOptions(false);
-                sel.value = '';
+                sel.innerHTML = buildGroupedSpotOptions(false);
                 sel.onchange = updateHazardTypeOptions; // onchange replaces; addEventListener accumulates
             }
-            updateHazardTypeOptions(); // value='' → isIntl=false → full SA list (sharks visible) by default
+            // Default hazard types to full SA list on open; onchange updates when user picks an intl spot
+            const typesSel = document.getElementById('hazardType');
+            if (typesSel) typesSel.innerHTML = `
+                <option value="seal_aggression">Seal Aggression / Bite</option>
+                <option value="shark_sighting">Shark Sighting</option>
+                <option value="jellyfish">Jellyfish / Bluebottle bloom</option>
+                <option value="sewage">Sewage / Pollution</option>
+                <option value="rip_current">Rip Current</option>
+                <option value="beach_closure">Official Beach Closure</option>
+                <option value="other">Other Hazard</option>
+            `;
             hazardPhotoUrl = null;
             document.getElementById('hazardPhotoPreview').innerHTML = '';
             document.getElementById('hazardTitle').value = '';
