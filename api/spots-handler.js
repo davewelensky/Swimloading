@@ -451,6 +451,7 @@ function pageShell({ title, description, canonical, jsonLd, body }) {
       ${FOOTER_HTML}
     </div>
   </footer>
+<script>document.addEventListener('mousemove',e=>{document.body.style.setProperty('--mouse-x',e.clientX+'px');document.body.style.setProperty('--mouse-y',e.clientY+'px')});</script>
 </body>
 </html>`;
 }
@@ -467,6 +468,7 @@ const INLINE_CSS = `
 @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}
 @keyframes fade-up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;font-size:16px;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;background:radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,0.55),transparent 100%),radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,0.07),transparent 70%)}
 a{color:var(--ocean-lt);text-decoration:none}a:hover{text-decoration:underline}
 .container{max-width:820px;margin:0 auto;padding:0 20px}
 /* ── Header ── */

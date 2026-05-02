@@ -276,6 +276,14 @@ Spots GPS columns: `latitude`/`longitude` (NOT `lat`/`lng`). Haversine radius: 1
 
 Use these for every page, demo, email, or component built for SwimLoading. Do not deviate without explicit instruction.
 
+### New Page Checklist
+Every SwimLoading HTML page must have all of the following before shipping:
+1. **Nav brand** — `logo-wave.png` (22px) + "SwimLoading" gradient text (see below)
+2. **Mouse spotlight** — `body::before` CSS + `mousemove` JS (see below)
+3. **No emojis** — Lucide icons only
+4. **Dark background** — `#080f1a` or `#0a1628`
+5. **Fonts** — Bebas Neue (headings) + DM Sans (body) — never Inter/Roboto/system-ui on branded pages
+
 ### Logo Assets (`/icons/`)
 
 | File | What it is | When to use |
