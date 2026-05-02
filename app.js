@@ -1152,14 +1152,20 @@
                 const recentLogsEl = document.getElementById('dashRecentLogs');
                 const recentLogsWrap = document.getElementById('dashRecentLogsWrap');
 
-                if (topSpots.length === 0) {
+                // Only show international spots here — SA spots are already in the scored section above
+                const intlSpots = topSpots.filter(s => {
+                    const domain = spots.find(sp => sp.id === s.latestLog.spot_id)?.domain || '';
+                    return INTERNATIONAL_DOMAINS.has(domain);
+                });
+
+                if (intlSpots.length === 0) {
                     if (recentLogsWrap) recentLogsWrap.style.display = 'none';
                 } else {
                     if (recentLogsWrap) recentLogsWrap.style.display = 'block';
                     // Store share data keyed by spot_id for safe inline onclick access
-                    window._spotShareData = {};
+                    window._spotShareData = window._spotShareData || {};
 
-                    recentLogsEl.innerHTML = topSpots.map(s => {
+                    recentLogsEl.innerHTML = intlSpots.map(s => {
                         const log = s.latestLog;
                         const cond = log.conditions?.toLowerCase();
                         const condColor = conditionColors[cond] || '#64748b';
