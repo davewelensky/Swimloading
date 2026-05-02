@@ -6319,12 +6319,12 @@
         function renderRecentsStrip() {
             const strip = document.getElementById('spRecentsStrip');
             if (!strip || pickerRecentSpots.length === 0) return;
-            strip.style.display = 'block';
+            strip.style.cssText = 'display:block; padding:0 16px 12px; flex-shrink:0;';
             strip.innerHTML = `
-                <div class="sp-recents-label">Recent</div>
-                <div class="sp-recents-pills">
+                <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Recent</div>
+                <div style="display:flex;flex-wrap:nowrap;gap:7px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;">
                     ${pickerRecentSpots.map(r =>
-                        `<div class="sp-recent-pill"
+                        `<div style="flex-shrink:0;padding:6px 13px;background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.22);border-radius:100px;font-size:12px;font-weight:600;color:#7ec8e3;cursor:pointer;white-space:nowrap;"
                               data-spot-id="${r.id}"
                               data-spot-name="${r.name.replace(/"/g, '&quot;')}"
                               onclick="selectSpotFromPicker(this.dataset.spotId, this.dataset.spotName)">${r.name}</div>`
