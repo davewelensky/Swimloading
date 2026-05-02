@@ -6364,6 +6364,8 @@
 
         function setPickerDomain(domain, pillEl) {
             pickerDomain = domain;
+            // Clear __intl__ token if set (switching back to normal category view)
+            if (pickerSearch === '__intl__') pickerSearch = '';
             document.querySelectorAll('.sp-region-pill').forEach(p => p.classList.remove('active'));
             if (pillEl) pillEl.classList.add('active');
             renderSpotPickerList();
@@ -6379,24 +6381,47 @@
                 spots.filter(s => s.active !== false && s.water_type === cat).map(s => s.domain)
             )];
 
-            // Only show strip if there are multiple domains
-            if (activeDomains.length <= 1) {
+            // Check if any international spots exist across ALL categories
+            const hasIntlSpots = spots.some(s => s.active !== false && INTERNATIONAL_DOMAINS.has(s.domain));
+
+            // Only show strip if there are multiple domains OR international spots exist
+            if (activeDomains.length <= 1 && !hasIntlSpots) {
                 strip.classList.remove('sp-visible');
                 strip.innerHTML = '';
                 return;
             }
 
-            // Build pills — "All" first, then one per domain
+            // Separate local domains from international ones in this category
+            const localDomains = activeDomains.filter(c => !INTERNATIONAL_DOMAINS.has(c));
+            const intlInCat    = activeDomains.filter(c => INTERNATIONAL_DOMAINS.has(c));
+
+            // Build pills — "All" first, then local domains, then a single "International" pill
             let html = `<div class="sp-brand-pill sp-region-pill active" onclick="setPickerDomain(null,this)">All</div>`;
-            activeDomains.forEach(code => {
+            localDomains.forEach(code => {
                 const name = spAreaName(code);
-                const intl = INTERNATIONAL_DOMAINS.has(code);
-                const style = intl ? ' style="border-color:#fbbf24;color:#fbbf24;"' : '';
-                const icon = intl ? `<i data-lucide="globe" style="width:11px;height:11px;display:inline-block;vertical-align:middle;margin-right:3px;"></i>` : '';
-                html += `<div class="sp-brand-pill sp-region-pill"${style} onclick="setPickerDomain('${code}',this)">${icon}${name}</div>`;
+                html += `<div class="sp-brand-pill sp-region-pill" onclick="setPickerDomain('${code}',this)">${name}</div>`;
             });
+
+            // Always show International pill if any intl spots exist anywhere
+            if (hasIntlSpots) {
+                html += `<div class="sp-brand-pill sp-region-pill" style="border-color:#d97706;color:#d97706;" onclick="setPickerIntl(this)"><i data-lucide="globe" style="width:11px;height:11px;display:inline-block;vertical-align:middle;margin-right:3px;"></i>International</div>`;
+            }
+
             strip.innerHTML = html;
             strip.classList.add('sp-visible');
+            initIcons();
+        }
+
+        // Show all international spots cross-category
+        function setPickerIntl(pillEl) {
+            // Deselect all pills, highlight this one
+            document.querySelectorAll('.sp-region-pill').forEach(p => p.classList.remove('active'));
+            if (pillEl) pillEl.classList.add('active');
+
+            // Trigger cross-category search for international spots
+            pickerDomain = null;
+            pickerSearch = '__intl__';
+            renderSpotPickerList();
         }
 
         function onSpPickerSearch(val) {
@@ -6477,6 +6502,33 @@
 
             const q          = pickerSearch.trim().toLowerCase();
             const currentVal = document.getElementById('logTempSpotSelect')?.value || '';
+
+            if (q === '__intl__') {
+                // International pill — show all spots from international domains, any water type
+                const filtered = spots.filter(s => s.active !== false && INTERNATIONAL_DOMAINS.has(s.domain));
+                if (filtered.length === 0) {
+                    container.innerHTML = `<div class="sp-empty"><div class="sp-empty-icon"><i data-lucide="globe" style="width:32px;height:32px;"></i></div><div class="sp-empty-text">No international spots found</div></div>${spAddRowHTML()}`;
+                    initIcons();
+                    return;
+                }
+                const spotsWithDist = filtered.map(s => ({
+                    ...s,
+                    _dist: (pickerGpsCoords && s.latitude && s.longitude)
+                        ? getDistanceKm(pickerGpsCoords.lat, pickerGpsCoords.lng, s.latitude, s.longitude)
+                        : null
+                })).sort((a, b) => {
+                    if (a._dist !== null && b._dist !== null) return a._dist - b._dist;
+                    if (a._dist !== null) return -1;
+                    if (b._dist !== null) return 1;
+                    return a.name.localeCompare(b.name);
+                });
+                let html = '';
+                spotsWithDist.forEach((s, i) => { html += _spRowHTML(s, currentVal, Math.min(i * 18, 300)); });
+                html += spAddRowHTML();
+                container.innerHTML = html;
+                initIcons();
+                return;
+            }
 
             if (q) {
                 // Cross-category search — ignore active tab, find any matching spot
