@@ -50,6 +50,8 @@ export const DOMAIN_MAP = {
   GARDEN_ROUTE: { display: 'Garden Route',       region: 'garden-route' },
   SOUTH_COAST:  { display: 'South Coast',        region: 'south-coast' },
   INLAND:       { display: null,                 region: 'inland' },
+  GAUTENG:      { display: 'Gauteng',            region: 'gauteng' },
+  FREE_STATE:   { display: 'Free State',         region: 'free-state' },
   NAMIBIA:      { display: 'Namibia',            region: 'namibia' },
   NON_COASTAL:  { display: null,                 region: 'inland' },
 };
@@ -81,6 +83,8 @@ export const REGION_DOMAINS = {
   'garden-route':  ['GARDEN_ROUTE'],
   'south-coast':   ['SOUTH_COAST'],
   'inland':        ['INLAND', 'NON_COASTAL'],
+  'gauteng':       ['GAUTENG'],
+  'free-state':    ['FREE_STATE'],
   'namibia':       ['NAMIBIA'],
 };
 
@@ -93,6 +97,8 @@ export const REGION_NAMES = {
   'garden-route':  'Garden Route',
   'south-coast':   'South Coast',
   'inland':        'Inland & Pools',
+  'gauteng':       'Gauteng',
+  'free-state':    'Free State',
   'namibia':       'Namibia',
 };
 
@@ -113,6 +119,10 @@ export const REGION_INTROS = {
     "The Western Cape South Coast, including Hermanus and surrounds, offers sheltered swimming spots with water temperatures between the cold Atlantic and the warmer Agulhas system.",
   'inland':
     "SwimLoading tracks heated pool temperatures across South Africa's inland cities, helping swimmers plan training sessions year-round.",
+  'gauteng':
+    "Gauteng is South Africa's swimming heartland, with heated indoor and outdoor pools across Johannesburg and Pretoria. SwimLoading tracks pool temperatures so you know what to expect before you dive in.",
+  'free-state':
+    "SwimLoading tracks pool temperatures in Bloemfontein and the Free State, helping inland swimmers plan training sessions year-round.",
   'namibia':
     "SwimLoading is expanding into Namibia, tracking ocean temperatures at coastal spots including Swakopmund and Walvis Bay.",
 };

@@ -599,6 +599,8 @@ const FOOTER_HTML = `
   <a href="/spots/eastern-cape">Eastern Cape</a>
   <a href="/spots/south-coast">South Coast</a>
   <a href="/spots/inland">Inland &amp; Pools</a>
+  <a href="/spots/gauteng">Gauteng</a>
+  <a href="/spots/free-state">Free State</a>
   <a href="/spots/namibia">Namibia</a>
 </div>
 <div class="f-label">Popular spots</div>
