@@ -8,7 +8,7 @@
         let currentSpotId = null;
         let currentChartSource = 'community'; // 'community' | 'my'
         let currentChartWindow = '30d'; // '7d' | '30d' | '90d' | 'all'
-        let currentWaterFilter = 'ocean'; // 'ocean' | 'lagoons' | 'pools' | 'inland'
+        let currentWaterFilter = 'ocean'; // 'ocean' | 'lagoons' | 'pools' | 'inland' | 'international'
 
         // Water type group mappings
         const WATER_TYPE_GROUPS = {
@@ -89,7 +89,61 @@
                 }
 
                 // Render based on filter type
-                if (currentWaterFilter === 'ocean' || currentWaterFilter === 'lagoons') {
+                if (currentWaterFilter === 'international') {
+                    // Show all spots from international domains, any water type
+                    const intlData = data ? data.filter(row =>
+                        typeof INTERNATIONAL_DOMAINS !== 'undefined' && INTERNATIONAL_DOMAINS.has(row.domain) &&
+                        row.updated_at >= tenDaysAgoISO
+                    ) : [];
+
+                    if (intlData.length === 0) {
+                        loadingEl.style.display = 'none';
+                        gridEl.style.display = 'block';
+                        gridEl.innerHTML = `
+                            <div style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+                                <div style="font-size: 18px; font-weight: 500;">No recent international updates.</div>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    const { data: spotsData } = await supabaseClient.from('spots').select('code, area');
+                    const spotAreaMap = {};
+                    if (spotsData) spotsData.forEach(s => spotAreaMap[s.code] = s.area);
+
+                    const grouped = {};
+                    intlData.forEach(row => {
+                        if (!grouped[row.domain]) {
+                            grouped[row.domain] = { domain: row.domain, spots: [], avgTemp: 0, maxTemp: -100, warmestSpotName: '', lastUpdated: null };
+                        }
+                        const group = grouped[row.domain];
+                        group.spots.push({ ...row, area: spotAreaMap[row.spot_code] });
+                        if (row.temp_c > group.maxTemp) { group.maxTemp = row.temp_c; group.warmestSpotName = row.spot_name; }
+                        const rowDate = new Date(row.updated_at);
+                        if (!group.lastUpdated || rowDate > new Date(group.lastUpdated)) group.lastUpdated = row.updated_at;
+                    });
+                    Object.keys(grouped).forEach(d => {
+                        const g = grouped[d];
+                        const sum = g.spots.reduce((acc, s) => acc + s.temp_c, 0);
+                        g.avgTemp = (sum / g.spots.length).toFixed(1);
+                    });
+
+                    trendsData = grouped;
+
+                    const since96h = new Date(Date.now() - 96 * 60 * 60 * 1000).toISOString();
+                    const [condRes, evtRes] = await Promise.all([
+                        supabaseClient.from('temp_logs').select('spot_id, conditions, hazards, created_at, temp_c').gte('created_at', since96h).order('created_at', { ascending: false }).limit(200),
+                        supabaseClient.from('swim_events').select('location_name, start_at, status').eq('status', 'active').gte('start_at', new Date().toISOString()).limit(50)
+                    ]);
+                    conditionsCache = {};
+                    (condRes.data || []).forEach(log => {
+                        if (!conditionsCache[log.spot_id]) conditionsCache[log.spot_id] = [];
+                        conditionsCache[log.spot_id].push(log);
+                    });
+                    swimEventsCache = evtRes.data || [];
+
+                    renderRegionalGrid();
+                } else if (currentWaterFilter === 'ocean' || currentWaterFilter === 'lagoons') {
                     // Fetch spots metadata for area mapping
                     const { data: spotsData } = await supabaseClient
                         .from('spots')
@@ -495,10 +549,12 @@
             const lagoonsEl = document.getElementById('filterLagoons');
             const poolsEl = document.getElementById('filterPools');
             const inlandEl = document.getElementById('filterInland');
+            const intlEl = document.getElementById('filterInternational');
             if (oceanEl) oceanEl.className = currentWaterFilter === 'ocean' ? 'toggle-btn active' : 'toggle-btn';
             if (lagoonsEl) lagoonsEl.className = currentWaterFilter === 'lagoons' ? 'toggle-btn active' : 'toggle-btn';
             if (poolsEl) poolsEl.className = currentWaterFilter === 'pools' ? 'toggle-btn active' : 'toggle-btn';
             if (inlandEl) inlandEl.className = currentWaterFilter === 'inland' ? 'toggle-btn active' : 'toggle-btn';
+            if (intlEl) intlEl.className = currentWaterFilter === 'international' ? 'toggle-btn active' : 'toggle-btn';
         }
 
         function toggleChartSource(source) {

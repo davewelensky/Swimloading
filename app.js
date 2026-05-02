@@ -4839,13 +4839,46 @@
         let selectedHazardSeverity = 'caution';
         let hazardPhotoUrl = null;
 
+        function updateHazardTypeOptions() {
+            const spotId = document.getElementById('hazardSpot')?.value;
+            const spot = (spots || []).find(s => String(s.id) === String(spotId));
+            const isIntl = spot && typeof INTERNATIONAL_DOMAINS !== 'undefined' && INTERNATIONAL_DOMAINS.has(spot.domain);
+            const sel = document.getElementById('hazardType');
+            if (!sel) return;
+            if (isIntl) {
+                sel.innerHTML = `
+                    <option value="seal_aggression">Seal Aggression / Bite</option>
+                    <option value="jellyfish">Jellyfish bloom</option>
+                    <option value="blue_green_algae">Blue-Green Algae (toxic)</option>
+                    <option value="sewage">Sewage / Pollution</option>
+                    <option value="rip_current">Rip Current / Strong Flow</option>
+                    <option value="beach_closure">Official Swim Ban / Closure</option>
+                    <option value="other">Other Hazard</option>
+                `;
+            } else {
+                sel.innerHTML = `
+                    <option value="seal_aggression">Seal Aggression / Bite</option>
+                    <option value="shark_sighting">Shark Sighting</option>
+                    <option value="jellyfish">Jellyfish / Bluebottle bloom</option>
+                    <option value="sewage">Sewage / Pollution</option>
+                    <option value="rip_current">Rip Current</option>
+                    <option value="beach_closure">Official Beach Closure</option>
+                    <option value="other">Other Hazard</option>
+                `;
+            }
+        }
+
         function showHazardReport() {
             const modal = document.getElementById('hazardReportModal');
             if (!modal) return;
             modal.style.display = 'block';
             // Populate spot dropdown
             const sel = document.getElementById('hazardSpot');
-            if (sel) sel.innerHTML = buildGroupedSpotOptions(false);
+            if (sel) {
+                sel.innerHTML = buildGroupedSpotOptions(false);
+                sel.addEventListener('change', updateHazardTypeOptions);
+            }
+            updateHazardTypeOptions();
             hazardPhotoUrl = null;
             document.getElementById('hazardPhotoPreview').innerHTML = '';
             document.getElementById('hazardTitle').value = '';
@@ -5097,8 +5130,46 @@
                 EASTERN_CAPE: 'eastern_cape',
                 KZN:          'kzn',
                 NAMIBIA:      'namibia',
+                UK:           'uk',
+                EUROPE:       'europe',
             };
             const group = SAFETY_GROUP[domain] || '';
+
+            const isIntlGroup = group === 'uk' || group === 'europe';
+
+            // ── Show/hide sharks section — no sharks for UK/Europe ───────────────
+            const sharksSection = document.getElementById('sharksSection');
+            if (sharksSection) sharksSection.style.display = isIntlGroup ? 'none' : '';
+
+            // ── Swap national emergency contacts for international regions ────────
+            const contactsList = document.getElementById('safetyEmergencyContactsList');
+            if (contactsList) {
+                if (isIntlGroup) {
+                    const intlNational = group === 'uk'
+                        ? `<a href="tel:999" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
+                            <div><div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="phone-call" style="width:14px;height:14px;flex-shrink:0;"></i> Emergency Services</div><div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">Police · Ambulance · Fire · Coastguard</div></div>
+                            <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">999</span></a>`
+                        : `<a href="tel:112" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
+                            <div><div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="phone-call" style="width:14px;height:14px;flex-shrink:0;"></i> Emergency Services</div><div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">Police · Ambulance · Fire · Rescue</div></div>
+                            <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">112</span></a>`;
+                    contactsList.innerHTML = intlNational + '<div id="safetyRegionalContacts"></div>';
+                } else {
+                    // Restore SA defaults if switching back from international
+                    if (!contactsList.querySelector('a[href="tel:0870949774"]')) {
+                        contactsList.innerHTML = `
+                            <a href="tel:0870949774" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
+                                <div><div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="anchor" style="width:14px;height:14px;flex-shrink:0;"></i> NSRI Sea Rescue</div><div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">National · Water rescue / missing swimmer</div></div>
+                                <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">087 094 9774</span></a>
+                            <a href="tel:10177" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
+                                <div><div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="ambulance" style="width:14px;height:14px;flex-shrink:0;"></i> Ambulance</div><div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">National · Medical emergency</div></div>
+                                <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">10177</span></a>
+                            <a href="tel:10111" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
+                                <div><div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="shield" style="width:14px;height:14px;flex-shrink:0;"></i> Police</div><div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">National · Immediate danger</div></div>
+                                <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">10111</span></a>
+                            <div id="safetyRegionalContacts"></div>`;
+                    }
+                }
+            }
 
             // ── No region selected — prompt user to pick one ─────────────────────
             const noRegionBanner = document.getElementById('safetyNoRegionBanner');
@@ -5133,6 +5204,14 @@
                         color: '#ef4444', icon: 'wifi-off', title: 'Remote Swimming — Extra Caution',
                         body: 'Namibia\'s coastline is remote. Nearest hospital may be hours away. Always swim with a buddy, notify someone of your plan, and consider carrying a PLB (Personal Locator Beacon). Cold shock risk is HIGH (Benguela current 10–15°C).',
                     },
+                    uk: {
+                        color: '#f59e0b', icon: 'alert-triangle', title: 'UK Open Water Hazards',
+                        body: 'Check <strong>Swim England</strong> or local club advisories before swimming at unfamiliar spots. Blue-green algae blooms are common in lakes and reservoirs May–September — if water looks green/foamy, stay out. Cold shock risk is HIGH in winter (UK rivers/lakes 3–10°C).',
+                    },
+                    europe: {
+                        color: '#f59e0b', icon: 'alert-triangle', title: 'European Open Water Hazards',
+                        body: 'Water quality varies by country. Check local bathing water status before swimming. Blue-green algae blooms occur in warm, calm freshwater in summer. Cold shock is a real risk in northern European waters.',
+                    },
                 };
                 const tip = ALERT_TIPS[group];
                 if (tip) {
@@ -5157,6 +5236,8 @@
                 eastern_cape: `<strong>Eastern Cape:</strong> No shark nets on most PE/Gqeberha beaches. Zambezi/Bull sharks active near river mouths (Sundays River, Bushmans). Sardine Run (June–July) brings elevated shark activity along the entire EC coastline.`,
                 kzn:          `<strong>KwaZulu-Natal:</strong> KZN Sharks Board protective nets and drum lines at most major beaches. Download the <strong>SharkSmart app</strong> for real-time alerts. Always check net status at unfamiliar spots.`,
                 namibia:      `<strong>Namibia:</strong> No shark nets. Remote coastline with limited rescue infrastructure. Great White and Zambezi/Bull sharks present. Always swim with a buddy.`,
+                uk:           null,
+                europe:       null,
             };
             const sharksNote = document.getElementById('sharksRegionalNote');
             if (sharksNote) {
@@ -5173,6 +5254,8 @@
                 eastern_cape: `<strong>Eastern Cape temps:</strong> 17–22°C (mixed Agulhas/Benguela). Cooler in winter. Conditions can vary — always check local reports before open water swims.`,
                 kzn:          `<strong>KZN temps:</strong> Indian Ocean 22–28°C. Hypothermia risk is low, but monitor for thermoclines (sudden cold layers) in deeper open water and after heavy rainfall.`,
                 namibia:      `<strong>Namibia temps:</strong> Cold Benguela current keeps water at 10–15°C year-round. Cold shock risk is HIGH — same as Cape Atlantic. Nearest hospital may be very far away.`,
+                uk:           `<strong>UK temps:</strong> Rivers, lakes and lidos range from 3–8°C in winter to 16–20°C in summer. Cold shock on entry is a serious risk in cooler months — acclimatise gradually, never swim alone, and have warm layers ready immediately after.`,
+                europe:       `<strong>European open water:</strong> Temperatures vary widely by region and season. Nordic/Alpine lakes can be 5–15°C even in summer. Check local conditions before swimming and always have a warm change ready.`,
             };
             const coldNote = document.getElementById('coldWaterRegionalNote');
             if (coldNote) {
@@ -5205,6 +5288,12 @@
                     ['tel:0313119900','building-2','eThekwini Emergency','City emergency services','031 311 9900'],
                 ],
                 namibia:      [['tel:112','phone','Emergency (from mobile)','Police · Ambulance · Rescue','112']],
+                uk:           [
+                    ['tel:999','phone','Emergency Services','Police · Ambulance · Fire','999'],
+                    ['tel:999','anchor','HM Coastguard','Maritime emergency · Coastal rescue','999'],
+                    ['tel:116006','heart','Samaritans','Mental health emergency','116 006'],
+                ],
+                europe:       [['tel:112','phone','European Emergency','Police · Ambulance · Rescue','112']],
             };
             const contactsEl = document.getElementById('safetyRegionalContacts');
             if (contactsEl) {
@@ -5234,6 +5323,14 @@
                 ]},
                 namibia: { title: 'Reporting (Namibia)', contacts: [
                     ['tel:112','phone','Namibia Emergency (mobile)','Police · Ambulance · Search & Rescue','112'],
+                ]},
+                uk: { title: 'Reporting (United Kingdom)', contacts: [
+                    ['tel:999','anchor','HM Coastguard','Maritime emergency · Coastal rescue','999'],
+                    ['https://www.environmentagency.gov.uk/','droplets','Environment Agency','Water quality · Pollution incidents','0800 807 060'],
+                    ['https://www.wildswimming.co.uk/','waves','Outdoor Swimming Society','Community advice · UK swim spots','wildswimming.co.uk'],
+                ]},
+                europe: { title: 'Reporting (Europe)', contacts: [
+                    ['tel:112','phone','European Emergency','Police · Ambulance · Rescue','112'],
                 ]},
             };
             const reportingEl = document.getElementById('safetyRegionalReporting');
