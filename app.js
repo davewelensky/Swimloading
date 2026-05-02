@@ -6167,9 +6167,10 @@
         let pickerBrand    = null;   // null=All, 'VIRGIN_ACTIVE', 'PUBLIC' — Pool tab only
         let pickerDomain   = null;   // null=All, or a domain code — Ocean/Lagoon/Inland tabs
         let pickerSearch   = '';
-        let pickerUserSpotIds = new Set(); // spot IDs this user has previously logged
-        let pickerGpsCoords   = null;      // { lat, lng } once GPS resolves
-        let pickerGpsLoaded   = false;
+        let pickerUserSpotIds  = new Set(); // spot IDs this user has previously logged
+        let pickerRecentSpots  = [];        // [{id, name}] ordered by most recent log, max 5
+        let pickerGpsCoords    = null;      // { lat, lng } once GPS resolves
+        let pickerGpsLoaded    = false;
 
         const SP_TYPE_LABELS = { OCEAN: 'Ocean', POOL: 'Pool', LAGOON: 'Lagoon', DAM: 'Inland', LAKE: 'Lake' };
         const SP_TYPE_ICONS  = { OCEAN: 'waves', POOL: 'droplets', LAGOON: 'anchor', DAM: 'mountain-snow', LAKE: 'waves' };
@@ -6239,16 +6240,33 @@
             // Render immediately with whatever we have
             renderSpotPickerList();
 
-            // Load user log history once
+            // Load user log history once — also build recents list
             if (currentUser && pickerUserSpotIds.size === 0) {
                 supabaseClient
                     .from('temp_logs')
                     .select('spot_id')
                     .eq('user_id', currentUser.id)
+                    .order('created_at', { ascending: false })
+                    .limit(100)
                     .then(({ data }) => {
-                        if (data) data.forEach(r => pickerUserSpotIds.add(r.spot_id));
-                        renderSpotPickerList();
+                        if (data) {
+                            const seen = new Set();
+                            pickerRecentSpots = [];
+                            data.forEach(r => {
+                                pickerUserSpotIds.add(r.spot_id);
+                                if (!seen.has(r.spot_id)) {
+                                    seen.add(r.spot_id);
+                                    const spot = spots.find(s => s.id === r.spot_id);
+                                    if (spot) pickerRecentSpots.push({ id: spot.id, name: spot.name });
+                                    if (pickerRecentSpots.length >= 5) return;
+                                }
+                            });
+                            renderRecentsStrip();
+                            renderSpotPickerList();
+                        }
                     });
+            } else if (pickerRecentSpots.length > 0) {
+                renderRecentsStrip();
             }
 
             // Request GPS (silent — doesn't pop an alert if already denied)
@@ -6282,6 +6300,22 @@
             // Dismiss keyboard if search was focused
             const inp = document.getElementById('spSearchInput');
             if (inp) inp.blur();
+        }
+
+        function renderRecentsStrip() {
+            const strip = document.getElementById('spRecentsStrip');
+            if (!strip || pickerRecentSpots.length === 0) return;
+            strip.style.display = 'block';
+            strip.innerHTML = `
+                <div class="sp-recents-label">Recent</div>
+                <div class="sp-recents-pills">
+                    ${pickerRecentSpots.map(r =>
+                        `<div class="sp-recent-pill"
+                              data-spot-id="${r.id}"
+                              data-spot-name="${r.name.replace(/"/g, '&quot;')}"
+                              onclick="selectSpotFromPicker(this.dataset.spotId, this.dataset.spotName)">${r.name}</div>`
+                    ).join('')}
+                </div>`;
         }
 
         function setPickerCategory(cat, tabEl) {
@@ -6417,6 +6451,7 @@
                     ${iconHtml}
                     <div class="sp-row-main">
                         <div class="sp-row-name">${s.name}${INTERNATIONAL_DOMAINS.has(s.domain) ? ' <i data-lucide="globe" style="width:11px;height:11px;color:#fbbf24;vertical-align:middle;display:inline-block;"></i>' : ''}</div>
+                        <div class="sp-row-type">${spAreaName(s.domain)} · ${SP_TYPE_LABELS[s.water_type] || s.water_type}</div>
                     </div>
                     <div class="sp-row-right">
                         ${distStr ? `<span class="sp-row-distance">${distStr}</span>` : ''}
@@ -6433,7 +6468,50 @@
             const q          = pickerSearch.trim().toLowerCase();
             const currentVal = document.getElementById('logTempSpotSelect')?.value || '';
 
-            // Base filter: active + category
+            if (q) {
+                // Cross-category search — ignore active tab, find any matching spot
+                const filtered = spots.filter(s => s.active !== false && (
+                    s.name.toLowerCase().includes(q) ||
+                    (s.area || '').toLowerCase().includes(q) ||
+                    spAreaName(s.domain).toLowerCase().includes(q) ||
+                    (s.domain || '').toLowerCase().includes(q)
+                ));
+
+                if (filtered.length === 0) {
+                    container.innerHTML = `
+                        <div class="sp-empty">
+                            <div class="sp-empty-icon"><i data-lucide="search" style="width:32px;height:32px;"></i></div>
+                            <div class="sp-empty-text">No spots found for "${pickerSearch}"</div>
+                        </div>
+                        ${spAddRowHTML()}`;
+                    initIcons();
+                    return;
+                }
+
+                // Attach distance + render flat list with type label
+                const spotsWithDist = filtered.map(s => ({
+                    ...s,
+                    _dist: (pickerGpsCoords && s.latitude && s.longitude)
+                        ? getDistanceKm(pickerGpsCoords.lat, pickerGpsCoords.lng, s.latitude, s.longitude)
+                        : null
+                })).sort((a, b) => {
+                    if (a._dist !== null && b._dist !== null) return a._dist - b._dist;
+                    if (a._dist !== null) return -1;
+                    if (b._dist !== null) return 1;
+                    return a.name.localeCompare(b.name);
+                });
+
+                let html = '';
+                spotsWithDist.forEach((s, i) => {
+                    html += _spRowHTML(s, currentVal, Math.min(i * 18, 300));
+                });
+                html += spAddRowHTML();
+                container.innerHTML = html;
+                initIcons();
+                return;
+            }
+
+            // ── Normal (no search): category + sub-filters ────────────────────────
             let filtered = spots.filter(s => s.active !== false && s.water_type === pickerCategory);
 
             // Region sub-filter (Ocean / Lagoon / Inland tabs)
@@ -6448,15 +6526,6 @@
                 } else if (pickerBrand === 'PUBLIC') {
                     filtered = filtered.filter(s => !s.brand);
                 }
-            }
-
-            // Search filter
-            if (q) {
-                filtered = filtered.filter(s =>
-                    s.name.toLowerCase().includes(q) ||
-                    (s.area  || '').toLowerCase().includes(q) ||
-                    spAreaName(s.domain).toLowerCase().includes(q)
-                );
             }
 
             if (filtered.length === 0) {
