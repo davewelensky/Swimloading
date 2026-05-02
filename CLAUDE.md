@@ -364,6 +364,92 @@ Default `-999px` keeps the dot off-screen until the mouse enters.
 
 ---
 
+## Page Index — All swimloading.com Routes
+
+Complete inventory of every public page. Brand checklist: spotlight = mouse cursor glow, logo = logo-wave.png + gradient text nav, pill = border-radius:50px buttons.
+
+### App (authenticated)
+
+| Route | File | Purpose | Spotlight | Logo Nav | Pill Btns |
+|-------|------|---------|-----------|----------|-----------|
+| `/app` | `index.html` + `app.js` etc | Main PWA — Dashboard, Temps, Swims, Trends, Safety, Leaderboard | n/a (mobile app) | n/a | ✅ (style.css .btn) |
+
+### Marketing / Landing Pages
+
+| Route | File | Purpose | Spotlight | Logo Nav | Pill Btns |
+|-------|------|---------|-----------|----------|-----------|
+| `/` | `welcome.html` | Main landing page — hero, features, sign up CTA | ✅ | ✅ | ✅ |
+| `/pricing` | `pricing.html` | Pricing tiers (Free / Pro / Club) | ✅ | ✅ | ✅ |
+| `/landing` | `landing.html` | Alternate landing / campaign page | ✅ | ✅ | ✅ |
+| `/pro` | `pro.html` | Big Water Intel — race intelligence product page | ✅ | ✅ | ✅ |
+
+### Intelligence / Race Pages (paid data)
+
+| Route | File | Purpose | Spotlight | Logo Nav | Pill Btns |
+|-------|------|---------|-----------|----------|-----------|
+| `/intel` | `intel.html` | Open water race intelligence hub | ✅ | ✅ | ✅ |
+| `/robben` | `robben.html` | Robben Island crossing intelligence | ✅ | ✅ | ✅ |
+| `/ri` | `ri.html` | RI swim data / conditions | ✅ | ✅ | ✅ |
+| `/big5` | `big5.html` | Big 5 swim event intelligence | ✅ | ✅ | ✅ |
+| `/capepoint` | `capepoint.html` | Cape Point swim intelligence | ✅ | ✅ | ✅ |
+| `/dassen` | `dassen.html` | Dassen Island intelligence | ✅ | ✅ | ✅ |
+| `/preekstool` | `preekstool.html` | Preekstoel crossing intelligence | ✅ | ✅ | ✅ |
+| `/westangle` | `westangle.html` | West Angle crossing intelligence | ✅ | ✅ | ✅ |
+
+### Campaign / Demo Pages
+
+| Route | File | Purpose | Spotlight | Logo Nav | Pill Btns |
+|-------|------|---------|-----------|----------|-----------|
+| `/campaign` | `campaign.html` | Marketing campaign page | ✅ | ✅ | ✅ |
+| n/a (direct link) | `blog/duc-demo.html` | DUC Club tier sales demo | ✅ | ✅ | ✅ |
+
+### SEO Pages (SSR via Vercel)
+
+| Route | Handler | Purpose | Spotlight | Logo Nav |
+|-------|---------|---------|-----------|----------|
+| `/spots` | `api/spots-handler.js` | All spots overview | ✅ | ✅ |
+| `/spots/atlantic` | `api/spots-handler.js` | Atlantic Seaboard spots | ✅ | ✅ |
+| `/spots/false-bay` | `api/spots-handler.js` | False Bay spots | ✅ | ✅ |
+| `/spots/west-coast` | `api/spots-handler.js` | West Coast spots | ✅ | ✅ |
+| `/spots/kzn` | `api/spots-handler.js` | KwaZulu-Natal spots | ✅ | ✅ |
+| `/spots/garden-route` | `api/spots-handler.js` | Garden Route spots | ✅ | ✅ |
+| `/spots/overberg` | `api/spots-handler.js` | Overberg spots | ✅ | ✅ |
+| `/spots/inland` | `api/spots-handler.js` | Inland spots (dams/rivers) | ✅ | ✅ |
+| `/spots/gauteng` | `api/spots-handler.js` | Gauteng (JHB/Pretoria) pools | ✅ | ✅ |
+| `/spots/free-state` | `api/spots-handler.js` | Free State (Bloemfontein) | ✅ | ✅ |
+| `/spots/{spot-name}` | `api/spots-handler.js` | Individual spot pages (~90+) | ✅ | ✅ |
+
+**SEO config lives in:** `api/seo-utils.js` (DOMAIN_MAP, REGION_DOMAINS, REGION_NAMES, REGION_INTROS)
+
+### Internal / Admin
+
+| Route | File | Purpose | Brand Required |
+|-------|------|---------|---------------|
+| `/admin` | `admin.html` | Admin panel (internal only) | No |
+| n/a | `blog/march-challenge.html` | Email template (March challenge) | Email only |
+| n/a | `blog/april-recap_8.html` | Email template (April recap) | Email only |
+
+### New Page Checklist
+
+Every new public-facing SwimLoading page MUST have:
+
+1. **Nav bar** — `logo-wave.png` (22px) + SwimLoading gradient text + CTA button
+   ```html
+   <nav style="...sticky top-0...">
+     <a href="/" style="display:flex;align-items:center;gap:8px;text-decoration:none;">
+       <img src="icons/logo-wave.png" alt="" style="height:22px;">
+       <span style="font-size:20px;font-weight:800;background:linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-0.5px;">SwimLoading</span>
+     </a>
+   </nav>
+   ```
+2. **Mouse spotlight** — `body::before` CSS + `mousemove` JS (see Brand Guidelines above)
+3. **Pill buttons** — `border-radius: 50px` on all primary CTAs
+4. **Dark background** — `#050d1a` or similar (never white/light backgrounds)
+5. **No emojis** — use Lucide icons only
+6. **Brand fonts** — Bebas Neue (display) + DM Sans (body) from Google Fonts
+
+---
+
 ## Future Considerations
 
 If code size becomes an issue again:
