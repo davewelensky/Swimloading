@@ -6252,15 +6252,15 @@
                         if (data) {
                             const seen = new Set();
                             pickerRecentSpots = [];
-                            data.forEach(r => {
+                            for (const r of data) {
                                 pickerUserSpotIds.add(r.spot_id);
                                 if (!seen.has(r.spot_id)) {
                                     seen.add(r.spot_id);
                                     const spot = spots.find(s => s.id === r.spot_id);
                                     if (spot) pickerRecentSpots.push({ id: spot.id, name: spot.name });
-                                    if (pickerRecentSpots.length >= 5) return;
+                                    if (pickerRecentSpots.length >= 5) break;
                                 }
-                            });
+                            }
                             renderRecentsStrip();
                             renderSpotPickerList();
                         }
