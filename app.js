@@ -4839,56 +4839,12 @@
         let selectedHazardSeverity = 'caution';
         let hazardPhotoUrl = null;
 
-        function updateHazardTypeOptions() {
-            const spotId = document.getElementById('hazardSpot')?.value;
-            const spot = (spots || []).find(s => String(s.id) === String(spotId));
-            const isIntl = spot && typeof INTERNATIONAL_DOMAINS !== 'undefined' && INTERNATIONAL_DOMAINS.has(spot.domain);
-            const sel = document.getElementById('hazardType');
-            if (!sel) return;
-            if (isIntl) {
-                sel.innerHTML = `
-                    <option value="seal_aggression">Seal Aggression / Bite</option>
-                    <option value="jellyfish">Jellyfish bloom</option>
-                    <option value="blue_green_algae">Blue-Green Algae (toxic)</option>
-                    <option value="sewage">Sewage / Pollution</option>
-                    <option value="rip_current">Rip Current / Strong Flow</option>
-                    <option value="beach_closure">Official Swim Ban / Closure</option>
-                    <option value="other">Other Hazard</option>
-                `;
-            } else {
-                sel.innerHTML = `
-                    <option value="seal_aggression">Seal Aggression / Bite</option>
-                    <option value="shark_sighting">Shark Sighting</option>
-                    <option value="jellyfish">Jellyfish / Bluebottle bloom</option>
-                    <option value="sewage">Sewage / Pollution</option>
-                    <option value="rip_current">Rip Current</option>
-                    <option value="beach_closure">Official Beach Closure</option>
-                    <option value="other">Other Hazard</option>
-                `;
-            }
-        }
-
         function showHazardReport() {
             const modal = document.getElementById('hazardReportModal');
             if (!modal) return;
             modal.style.display = 'block';
-            // Populate spot dropdown — all spots including international
             const sel = document.getElementById('hazardSpot');
-            if (sel) {
-                sel.innerHTML = buildGroupedSpotOptions(false);
-                sel.onchange = updateHazardTypeOptions; // onchange replaces; addEventListener accumulates
-            }
-            // Default hazard types to full SA list on open; onchange updates when user picks an intl spot
-            const typesSel = document.getElementById('hazardType');
-            if (typesSel) typesSel.innerHTML = `
-                <option value="seal_aggression">Seal Aggression / Bite</option>
-                <option value="shark_sighting">Shark Sighting</option>
-                <option value="jellyfish">Jellyfish / Bluebottle bloom</option>
-                <option value="sewage">Sewage / Pollution</option>
-                <option value="rip_current">Rip Current</option>
-                <option value="beach_closure">Official Beach Closure</option>
-                <option value="other">Other Hazard</option>
-            `;
+            if (sel) sel.innerHTML = buildGroupedSpotOptions(false);
             hazardPhotoUrl = null;
             document.getElementById('hazardPhotoPreview').innerHTML = '';
             document.getElementById('hazardTitle').value = '';
