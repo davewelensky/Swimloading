@@ -1167,7 +1167,8 @@
                         const latestUser = spotNameMap[log.user_id] || 'Swimmer';
                         const noteLog = s.latestWithNote;
                         const noteUser = noteLog ? (spotNameMap[noteLog.user_id] || 'Swimmer').split(' ')[0] : null;
-                        const noteText = noteLog?.notes;
+                        const rawNote = noteLog?.notes || '';
+                        const noteText = rawNote.replace(/\[GPS:[\s\d.,+-]+\]/g, '').trim() || null;
 
                         // Smart card alerting
                         const notesLower = (noteText || '').toLowerCase();
@@ -1181,10 +1182,16 @@
                         // Stash share data so the inline button can access it safely
                         window._spotShareData[log.spot_id] = { name: s.name, temp: log.temp_c, cond, noteUser, noteText, logCount };
 
+                        // International spot detection — gold accent treatment
+                        const spotDomain = spots.find(sp => sp.id === log.spot_id)?.domain || '';
+                        const isIntl = INTERNATIONAL_DOMAINS.has(spotDomain);
+                        const intlBorder = isIntl ? 'border-left:3px solid #d97706;' : '';
+                        const intlGlobe = isIntl ? `<i data-lucide="globe" style="width:12px;height:12px;color:#d97706;flex-shrink:0;" title="International"></i>` : '';
+
                         return `
-                        <div style="background:${cardBg}; border:1px solid ${cardBorder}; border-radius:12px; padding:14px; margin-bottom:8px;">
+                        <div style="background:${isIntl ? 'rgba(217,119,6,0.06)' : cardBg}; border:1px solid ${isIntl ? 'rgba(217,119,6,0.35)' : cardBorder}; border-radius:12px; padding:14px; margin-bottom:8px;${intlBorder}">
                             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                                <div style="font-weight:700; color:var(--text-primary); font-size:15px;">${s.name}</div>
+                                <div style="font-weight:700; color:var(--text-primary); font-size:15px; display:flex; align-items:center; gap:5px;">${s.name}${intlGlobe}</div>
                                 <div style="font-size:22px; font-weight:800; color:${tempColor}; line-height:1;">${log.temp_c}°C</div>
                             </div>
                             <div style="margin-top:7px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
@@ -6166,7 +6173,7 @@
 
         const SP_TYPE_LABELS = { OCEAN: 'Ocean', POOL: 'Pool', LAGOON: 'Lagoon', DAM: 'Inland', LAKE: 'Lake' };
         const SP_TYPE_ICONS  = { OCEAN: 'waves', POOL: 'droplets', LAGOON: 'anchor', DAM: 'mountain-snow', LAKE: 'waves' };
-        const INTERNATIONAL_DOMAINS = new Set(['EUROPE']);
+        const INTERNATIONAL_DOMAINS = new Set(['EUROPE', 'NAMIBIA']);
         const AREA_DISPLAY = {
             ATLANTIC: 'Atlantic Seaboard',
             FALSE_BAY: 'False Bay',
@@ -6812,13 +6819,10 @@
                 logData.logged_at = loggedAt;
             }
 
-            // Add GPS coordinates if available (for future custom spots feature)
-            // Note: Could store in notes or a separate field later
+            // Store GPS in dedicated lat/lng columns only — never in notes
             if (currentGpsLocation) {
                 logData.lat = currentGpsLocation.lat;
                 logData.lng = currentGpsLocation.lng;
-                logData.notes = (notes ? notes + '\n' : '') +
-                    `[GPS: ${currentGpsLocation.lat.toFixed(5)}, ${currentGpsLocation.lng.toFixed(5)}]`;
             }
 
             const { data, error } = await supabaseClient
