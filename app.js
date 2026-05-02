@@ -6164,8 +6164,8 @@
         let pickerGpsCoords   = null;      // { lat, lng } once GPS resolves
         let pickerGpsLoaded   = false;
 
-        const SP_TYPE_LABELS = { OCEAN: 'Ocean', POOL: 'Pool', LAGOON: 'Lagoon', DAM: 'Inland' };
-        const SP_TYPE_ICONS  = { OCEAN: 'waves', POOL: 'droplets', LAGOON: 'anchor', DAM: 'mountain-snow' };
+        const SP_TYPE_LABELS = { OCEAN: 'Ocean', POOL: 'Pool', LAGOON: 'Lagoon', DAM: 'Inland', LAKE: 'Lake' };
+        const SP_TYPE_ICONS  = { OCEAN: 'waves', POOL: 'droplets', LAGOON: 'anchor', DAM: 'mountain-snow', LAKE: 'waves' };
         const AREA_DISPLAY = {
             ATLANTIC: 'Atlantic Seaboard',
             FALSE_BAY: 'False Bay',
@@ -6739,6 +6739,7 @@
                 'OCEAN':  isWarmDomain ? { min: 14, max: 30, label: 'ocean' } : { min: 10, max: 22, label: 'ocean' },
                 'LAGOON': { min: 10, max: 30, label: 'lagoon' },
                 'DAM':    { min: 10, max: 28, label: 'dam' },
+                'LAKE':   { min: 4,  max: 28, label: 'lake' },
                 'POOL':   { min: 18, max: 34, label: 'pool' }
             };
             const range = ranges[waterType] || ranges['OCEAN'];
