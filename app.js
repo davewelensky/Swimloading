@@ -1192,15 +1192,19 @@
                         window._spotShareData[log.spot_id] = { name: s.name, temp: log.temp_c, cond, noteUser, noteText, logCount };
 
                         // International spot detection — gold accent treatment
-                        const spotDomain = spots.find(sp => sp.id === log.spot_id)?.domain || '';
+                        const spotInfo2 = spots.find(sp => sp.id === log.spot_id);
+                        const spotDomain = spotInfo2?.domain || '';
                         const isIntl = INTERNATIONAL_DOMAINS.has(spotDomain);
+                        const countryCode = spotInfo2?.country_code || '';
+                        const countryLabel = isIntl && countryCode && COUNTRY_NAMES[countryCode]
+                            ? ` <span style="font-size:12px;font-weight:500;color:#d97706;">(${COUNTRY_NAMES[countryCode]})</span>` : '';
                         const intlBorder = isIntl ? 'border-left:3px solid #d97706;' : '';
                         const intlGlobe = isIntl ? `<i data-lucide="globe" style="width:12px;height:12px;color:#d97706;flex-shrink:0;" title="International"></i>` : '';
 
                         return `
                         <div style="background:${isIntl ? 'rgba(217,119,6,0.06)' : cardBg}; border:1px solid ${isIntl ? 'rgba(217,119,6,0.35)' : cardBorder}; border-radius:12px; padding:14px; margin-bottom:8px;${intlBorder}">
                             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                                <div style="font-weight:700; color:var(--text-primary); font-size:15px; display:flex; align-items:center; gap:5px;">${s.name}${intlGlobe}</div>
+                                <div style="font-weight:700; color:var(--text-primary); font-size:15px; display:flex; align-items:center; gap:5px;">${s.name}${countryLabel}${intlGlobe}</div>
                                 <div style="font-size:22px; font-weight:800; color:${tempColor}; line-height:1;">${log.temp_c}°C</div>
                             </div>
                             <div style="margin-top:7px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
@@ -6184,6 +6188,7 @@
         const SP_TYPE_LABELS = { OCEAN: 'Ocean', POOL: 'Pool', LAGOON: 'Lagoon', DAM: 'Inland', LAKE: 'Lake' };
         const SP_TYPE_ICONS  = { OCEAN: 'waves', POOL: 'droplets', LAGOON: 'anchor', DAM: 'mountain-snow', LAKE: 'waves' };
         const INTERNATIONAL_DOMAINS = new Set(['EUROPE', 'NAMIBIA']);
+        const COUNTRY_NAMES = { ZA: 'South Africa', NA: 'Namibia', CH: 'Switzerland', AU: 'Australia', GB: 'United Kingdom', FR: 'France', DE: 'Germany', IT: 'Italy' };
         const AREA_DISPLAY = {
             ATLANTIC: 'Atlantic Seaboard',
             FALSE_BAY: 'False Bay',
