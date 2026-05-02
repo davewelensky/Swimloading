@@ -4872,13 +4872,14 @@
             const modal = document.getElementById('hazardReportModal');
             if (!modal) return;
             modal.style.display = 'block';
-            // Populate spot dropdown
+            // Populate spot dropdown — blank first option so initial state is no selection
             const sel = document.getElementById('hazardSpot');
             if (sel) {
-                sel.innerHTML = buildGroupedSpotOptions(false);
-                sel.addEventListener('change', updateHazardTypeOptions);
+                sel.innerHTML = '<option value="">Select a location…</option>' + buildGroupedSpotOptions(false);
+                sel.value = '';
+                sel.onchange = updateHazardTypeOptions; // onchange replaces; addEventListener accumulates
             }
-            updateHazardTypeOptions();
+            updateHazardTypeOptions(); // value='' → isIntl=false → full SA list (sharks visible) by default
             hazardPhotoUrl = null;
             document.getElementById('hazardPhotoPreview').innerHTML = '';
             document.getElementById('hazardTitle').value = '';
