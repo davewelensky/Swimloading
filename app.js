@@ -5141,17 +5141,21 @@
                 GARDEN_ROUTE: 'garden_route',
                 EASTERN_CAPE: 'eastern_cape',
                 KZN:          'kzn',
-                NAMIBIA:      'namibia',
-                UK:           'uk',
-                EUROPE:       'europe',
+                NAMIBIA:           'namibia',
+                UK:                'uk',
+                EUROPE:            'europe',
+                WESTERN_AUSTRALIA: 'western_australia',
             };
             const group = SAFETY_GROUP[domain] || '';
 
-            const isIntlGroup = group === 'uk' || group === 'europe';
+            const isIntlGroup = group === 'uk' || group === 'europe' || group === 'western_australia';
 
-            // ── Show/hide sharks section — no sharks for UK/Europe ───────────────
+            // ── Show/hide sharks section — no sharks for UK/Europe (WA has sharks) ─
             const sharksSection = document.getElementById('sharksSection');
-            if (sharksSection) sharksSection.style.display = isIntlGroup ? 'none' : '';
+            if (sharksSection) {
+                const noSharks = group === 'uk' || group === 'europe';
+                sharksSection.style.display = noSharks ? 'none' : '';
+            }
 
             // ── Swap national emergency contacts for international regions ────────
             const contactsList = document.getElementById('safetyEmergencyContactsList');
@@ -5161,6 +5165,10 @@
                         ? `<a href="tel:999" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
                             <div><div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="phone-call" style="width:14px;height:14px;flex-shrink:0;"></i> Emergency Services</div><div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">Police · Ambulance · Fire · Coastguard</div></div>
                             <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">999</span></a>`
+                        : group === 'western_australia'
+                        ? `<a href="tel:000" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
+                            <div><div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="phone-call" style="width:14px;height:14px;flex-shrink:0;"></i> Emergency Services</div><div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">Police · Ambulance · Fire · Sea Rescue</div></div>
+                            <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">000</span></a>`
                         : `<a href="tel:112" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
                             <div><div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="phone-call" style="width:14px;height:14px;flex-shrink:0;"></i> Emergency Services</div><div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">Police · Ambulance · Fire · Rescue</div></div>
                             <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">112</span></a>`;
@@ -5224,6 +5232,10 @@
                         color: '#f59e0b', icon: 'alert-triangle', title: 'European Open Water Hazards',
                         body: 'Water quality varies by country. Check local bathing water status before swimming. Blue-green algae blooms occur in warm, calm freshwater in summer. Cold shock is a real risk in northern European waters.',
                     },
+                    western_australia: {
+                        color: '#ef4444', icon: 'alert-triangle', title: 'WA Shark Alert',
+                        body: 'Western Australia has one of the highest rates of shark encounters globally. Download the <strong>SharkSmart WA app</strong> for real-time alerts. Always swim between the flags at patrolled beaches and check Surf Life Saving WA advisories before entering the water.',
+                    },
                 };
                 const tip = ALERT_TIPS[group];
                 if (tip) {
@@ -5248,8 +5260,9 @@
                 eastern_cape: `<strong>Eastern Cape:</strong> No shark nets on most PE/Gqeberha beaches. Zambezi/Bull sharks active near river mouths (Sundays River, Bushmans). Sardine Run (June–July) brings elevated shark activity along the entire EC coastline.`,
                 kzn:          `<strong>KwaZulu-Natal:</strong> KZN Sharks Board protective nets and drum lines at most major beaches. Download the <strong>SharkSmart app</strong> for real-time alerts. Always check net status at unfamiliar spots.`,
                 namibia:      `<strong>Namibia:</strong> No shark nets. Remote coastline with limited rescue infrastructure. Great White and Zambezi/Bull sharks present. Always swim with a buddy.`,
-                uk:           null,
-                europe:       null,
+                uk:                null,
+                europe:            null,
+                western_australia: `<strong>Western Australia:</strong> Great White Sharks are active along the WA coast year-round. No shark nets at Cottesloe — swim at patrolled beaches between the flags. Download the <strong>SharkSmart WA app</strong> for real-time tagged shark alerts.`,
             };
             const sharksNote = document.getElementById('sharksRegionalNote');
             if (sharksNote) {
@@ -5266,8 +5279,9 @@
                 eastern_cape: `<strong>Eastern Cape temps:</strong> 17–22°C (mixed Agulhas/Benguela). Cooler in winter. Conditions can vary — always check local reports before open water swims.`,
                 kzn:          `<strong>KZN temps:</strong> Indian Ocean 22–28°C. Hypothermia risk is low, but monitor for thermoclines (sudden cold layers) in deeper open water and after heavy rainfall.`,
                 namibia:      `<strong>Namibia temps:</strong> Cold Benguela current keeps water at 10–15°C year-round. Cold shock risk is HIGH — same as Cape Atlantic. Nearest hospital may be very far away.`,
-                uk:           `<strong>UK temps:</strong> Rivers, lakes and lidos range from 3–8°C in winter to 16–20°C in summer. Cold shock on entry is a serious risk in cooler months — acclimatise gradually, never swim alone, and have warm layers ready immediately after.`,
-                europe:       `<strong>European open water:</strong> Temperatures vary widely by region and season. Nordic/Alpine lakes can be 5–15°C even in summer. Check local conditions before swimming and always have a warm change ready.`,
+                uk:                `<strong>UK temps:</strong> Rivers, lakes and lidos range from 3–8°C in winter to 16–20°C in summer. Cold shock on entry is a serious risk in cooler months — acclimatise gradually, never swim alone, and have warm layers ready immediately after.`,
+                europe:            `<strong>European open water:</strong> Temperatures vary widely by region and season. Nordic/Alpine lakes can be 5–15°C even in summer. Check local conditions before swimming and always have a warm change ready.`,
+                western_australia: `<strong>WA (Indian Ocean) temps:</strong> Perth's Indian Ocean runs 17–22°C in summer and 15–18°C in winter — comfortable year-round. Cold shock is a low risk, but be aware of strong afternoon sea breezes (Fremantle Doctor) creating chop and currents at exposed beaches.`,
             };
             const coldNote = document.getElementById('coldWaterRegionalNote');
             if (coldNote) {
@@ -5305,7 +5319,11 @@
                     ['tel:999','anchor','HM Coastguard','Maritime emergency · Coastal rescue','999'],
                     ['tel:116006','heart','Samaritans','Mental health emergency','116 006'],
                 ],
-                europe:       [['tel:112','phone','European Emergency','Police · Ambulance · Rescue','112']],
+                europe:            [['tel:112','phone','European Emergency','Police · Ambulance · Rescue','112']],
+                western_australia: [
+                    ['tel:000','phone','Emergency Services','Police · Ambulance · Fire','000'],
+                    ['tel:1800075111','anchor','Volunteer Sea Rescue','VMRWA — Marine emergency · WA coastline','1800 075 111'],
+                ],
             };
             const contactsEl = document.getElementById('safetyRegionalContacts');
             if (contactsEl) {
@@ -5343,6 +5361,11 @@
                 ]},
                 europe: { title: 'Reporting (Europe)', contacts: [
                     ['tel:112','phone','European Emergency','Police · Ambulance · Rescue','112'],
+                ]},
+                western_australia: { title: 'Reporting (Western Australia)', contacts: [
+                    ['tel:000','phone','Emergency Services','Police · Ambulance · Fire','000'],
+                    ['https://www.sharksmart.com.au/','shield-alert','SharkSmart WA','Report shark sightings · Real-time alerts','sharksmart.com.au'],
+                    ['tel:0897226300','droplets','WA Dept of Water & Environmental Reg.','Water quality · Pollution incidents','08 9722 6300'],
                 ]},
             };
             const reportingEl = document.getElementById('safetyRegionalReporting');
@@ -6292,7 +6315,7 @@
 
         const SP_TYPE_LABELS = { OCEAN: 'Ocean', POOL: 'Pool', LAGOON: 'Lagoon', DAM: 'Inland', LAKE: 'Lake' };
         const SP_TYPE_ICONS  = { OCEAN: 'waves', POOL: 'droplets', LAGOON: 'anchor', DAM: 'mountain-snow', LAKE: 'waves' };
-        const INTERNATIONAL_DOMAINS = new Set(['EUROPE', 'NAMIBIA', 'UK']);
+        const INTERNATIONAL_DOMAINS = new Set(['EUROPE', 'NAMIBIA', 'UK', 'WESTERN_AUSTRALIA']);
         const COUNTRY_NAMES = { ZA: 'South Africa', NA: 'Namibia', CH: 'Switzerland', AU: 'Australia', GB: 'United Kingdom', FR: 'France', DE: 'Germany', IT: 'Italy' };
         const AREA_DISPLAY = {
             ATLANTIC: 'Atlantic Seaboard',
