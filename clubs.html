@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Club · SwimLoading</title>
+  <meta name="description" content="Open water swim club powered by SwimLoading — live conditions, events, and league standings.">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #080f1a;
+      --bg-card:   #0d1728;
+      --cyan:      #38bdf8;
+      --cyan-dim:  rgba(56,189,248,0.10);
+      --text:      #f1f5f9;
+      --text-sec:  #64748b;
+      --border:    rgba(255,255,255,0.06);
+      --green:     #10b981;
+      --amber:     #f59e0b;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      --mouse-x: -999px;
+      --mouse-y: -999px;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      background:
+        radial-gradient(18px circle at var(--mouse-x) var(--mouse-y),
+          rgba(56,189,248,0.55), transparent 100%),
+        radial-gradient(500px circle at var(--mouse-x) var(--mouse-y),
+          rgba(56,189,248,0.07), transparent 70%);
+    }
+
+    /* ── NAV ──────────────────────────────────────────────────────────────── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8,15,26,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 7px; text-decoration: none;
+      font-size: 16px; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 50%, #0284c7 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .nav-brand img { height: 22px; width: auto; }
+    .nav-cta {
+      background: var(--cyan); color: #080f1a; font-size: 13px; font-weight: 700;
+      padding: 8px 18px; border-radius: 50px; text-decoration: none;
+      display: flex; align-items: center; gap: 6px;
+      transition: opacity 0.15s;
+    }
+    .nav-cta:hover { opacity: 0.9; }
+
+    /* ── LOADING / ERROR STATES ───────────────────────────────────────────── */
+    .state-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      padding: 40px 24px;
+      text-align: center;
+      gap: 16px;
+    }
+    .state-screen.active { display: flex; }
+    .state-icon { color: var(--cyan); opacity: 0.6; margin-bottom: 8px; }
+    .state-title { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 0.04em; color: var(--text); }
+    .state-sub { font-size: 14px; color: var(--text-sec); max-width: 340px; line-height: 1.6; }
+    .spin {
+      width: 28px; height: 28px; border: 3px solid rgba(56,189,248,0.2);
+      border-top-color: var(--cyan); border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── CLUB PAGE LAYOUT ─────────────────────────────────────────────────── */
+    #clubApp { display: none; }
+    #clubApp.active { display: block; }
+
+    /* Hero */
+    .club-hero {
+      background: linear-gradient(180deg, rgba(56,189,248,0.04) 0%, transparent 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 48px 24px 36px;
+      text-align: center;
+    }
+    .club-eyebrow {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--cyan); margin-bottom: 12px;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .club-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(36px, 8vw, 64px);
+      letter-spacing: 0.04em;
+      color: var(--text);
+      margin-bottom: 8px;
+      line-height: 1.05;
+    }
+    .club-tagline { font-size: 15px; color: var(--text-sec); margin-bottom: 24px; }
+    .club-meta { display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap; }
+    .club-meta-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-sec); }
+    .club-meta-item i { width: 13px; height: 13px; color: var(--cyan); }
+
+    /* ── CONTENT ──────────────────────────────────────────────────────────── */
+    .content { max-width: 900px; margin: 0 auto; padding: 32px 24px 80px; }
+
+    .section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--text-sec);
+      margin-bottom: 16px; margin-top: 40px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section-label::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* Conditions card */
+    .conditions-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      align-items: center;
+    }
+    @media (max-width: 520px) { .conditions-card { grid-template-columns: 1fr; } }
+    .conditions-spot { font-size: 13px; color: var(--text-sec); margin-bottom: 4px; }
+    .conditions-temp {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 56px; line-height: 1;
+      letter-spacing: -1px;
+      background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .conditions-unit { font-size: 20px; font-weight: 700; color: var(--text-sec); }
+    .conditions-updated { font-size: 11px; color: var(--text-sec); margin-top: 6px; }
+    .conditions-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+    .cond-badge {
+      display: flex; align-items: center; gap: 5px;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      border-radius: 20px; padding: 5px 12px;
+      font-size: 12px; color: var(--text-sec);
+    }
+    .cond-badge i { width: 12px; height: 12px; color: var(--cyan); }
+    .conditions-empty {
+      grid-column: 1 / -1; text-align: center;
+      padding: 32px 0; color: var(--text-sec); font-size: 14px;
+    }
+
+    /* Events list */
+    .events-list { display: flex; flex-direction: column; gap: 10px; }
+    .event-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: 56px 1fr auto;
+      gap: 16px;
+      align-items: center;
+      text-decoration: none;
+    }
+    .event-date-block {
+      text-align: center;
+      background: rgba(56,189,248,0.08);
+      border: 1px solid rgba(56,189,248,0.18);
+      border-radius: 10px;
+      padding: 8px 4px;
+    }
+    .event-date-day { font-family: 'Bebas Neue', sans-serif; font-size: 22px; line-height: 1; color: var(--cyan); }
+    .event-date-mon { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-sec); }
+    .event-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+    .event-meta { font-size: 12px; color: var(--text-sec); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .event-meta i { width: 11px; height: 11px; }
+    .event-league-badge {
+      display: inline-block; background: rgba(245,158,11,0.12);
+      border: 1px solid rgba(245,158,11,0.3); color: var(--amber);
+      font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; padding: 2px 8px; border-radius: 20px;
+    }
+    .event-entries { font-size: 12px; color: var(--text-sec); white-space: nowrap; }
+    .event-entries strong { color: var(--cyan); }
+    .events-empty { text-align: center; padding: 40px 20px; color: var(--text-sec); font-size: 14px; }
+
+    /* League standings */
+    .league-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+    .league-tab-btn {
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      color: var(--text-sec); font-size: 12px; font-weight: 600;
+      padding: 6px 14px; border-radius: 20px; cursor: pointer;
+      font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+    }
+    .league-tab-btn.active {
+      background: rgba(56,189,248,0.12); border-color: rgba(56,189,248,0.35);
+      color: var(--cyan);
+    }
+    .standings-table {
+      width: 100%; border-collapse: collapse;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+      overflow: hidden;
+    }
+    .standings-table th {
+      padding: 10px 14px; font-size: 11px; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-sec);
+      border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02);
+      text-align: left;
+    }
+    .standings-table td {
+      padding: 12px 14px; font-size: 13px; color: var(--text);
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .standings-table tr:last-child td { border-bottom: none; }
+    .standings-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .standing-pos { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--text-sec); }
+    .standing-pos.gold   { color: #fbbf24; }
+    .standing-pos.silver { color: #94a3b8; }
+    .standing-pos.bronze { color: #c47b2b; }
+    .standing-name { font-weight: 600; }
+    .standing-num  { font-size: 12px; color: var(--text-sec); }
+    .standing-pts  { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--cyan); text-align: right; }
+    .standings-empty { text-align: center; padding: 40px; color: var(--text-sec); font-size: 14px; }
+
+    /* Join banner */
+    .join-banner {
+      margin-top: 48px;
+      background: linear-gradient(135deg, rgba(56,189,248,0.08), rgba(14,165,233,0.04));
+      border: 1px solid rgba(56,189,248,0.18);
+      border-radius: 20px;
+      padding: 32px 28px;
+      text-align: center;
+    }
+    .join-title {
+      font-family: 'Bebas Neue', sans-serif; font-size: 28px;
+      letter-spacing: 0.04em; color: var(--text); margin-bottom: 8px;
+    }
+    .join-sub { font-size: 14px; color: var(--text-sec); margin-bottom: 20px; line-height: 1.5; }
+    .join-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--cyan); color: #080f1a; font-size: 14px; font-weight: 700;
+      padding: 12px 24px; border-radius: 50px; text-decoration: none;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary i { width: 15px; height: 15px; }
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: transparent; border: 1px solid rgba(255,255,255,0.15);
+      color: var(--text); font-size: 14px; font-weight: 600;
+      padding: 12px 24px; border-radius: 50px; text-decoration: none;
+      transition: border-color 0.15s;
+    }
+    .btn-ghost:hover { border-color: rgba(255,255,255,0.3); }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 24px;
+      text-align: center;
+    }
+    .footer-brand {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      text-decoration: none; margin-bottom: 8px;
+      font-size: 14px; font-weight: 800; letter-spacing: -0.3px;
+      background: linear-gradient(135deg, #38bdf8, #0ea5e9, #0284c7);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .footer-brand img { height: 18px; }
+    .footer-note { font-size: 12px; color: var(--text-sec); }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="https://swimloading.com" class="nav-brand">
+    <img src="/icons/logo-wave.png" alt="">SwimLoading
+  </a>
+  <a href="/app" class="nav-cta">
+    <i data-lucide="log-in" style="width:14px;height:14px;"></i>
+    Open app
+  </a>
+</nav>
+
+<!-- LOADING -->
+<div id="screenLoading" class="state-screen active">
+  <div class="spin"></div>
+  <div class="state-sub">Loading club...</div>
+</div>
+
+<!-- NOT FOUND -->
+<div id="screenNotFound" class="state-screen">
+  <div class="state-icon"><i data-lucide="anchor" style="width:40px;height:40px;"></i></div>
+  <div class="state-title">Club not found</div>
+  <div class="state-sub">We couldn't find a club at this address. Check the link or head back to SwimLoading.</div>
+  <a href="https://swimloading.com" class="btn-primary" style="margin-top:8px;">
+    <i data-lucide="home"></i>Back to SwimLoading
+  </a>
+</div>
+
+<!-- CLUB APP -->
+<div id="clubApp">
+
+  <div class="club-hero">
+    <div class="club-eyebrow">
+      <i data-lucide="anchor" style="width:12px;height:12px;"></i>
+      <span id="heroCountry">Open water swim club</span>
+    </div>
+    <div class="club-name" id="heroName">Club Name</div>
+    <div class="club-tagline" id="heroTagline"></div>
+    <div class="club-meta">
+      <div class="club-meta-item" id="heroCity" style="display:none;">
+        <i data-lucide="map-pin"></i><span id="heroCityText"></span>
+      </div>
+      <div class="club-meta-item" id="heroFounded" style="display:none;">
+        <i data-lucide="calendar"></i><span id="heroFoundedText"></span>
+      </div>
+      <div class="club-meta-item">
+        <i data-lucide="users"></i><span id="heroMembers">— members</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- CONDITIONS -->
+    <div class="section-label">
+      <i data-lucide="thermometer" style="width:12px;height:12px;color:var(--cyan);"></i>
+      Water conditions
+    </div>
+    <div class="conditions-card" id="conditionsCard">
+      <div class="conditions-empty" style="grid-column:1/-1;">
+        <div class="spin" style="margin:0 auto 12px;"></div>
+        Loading conditions...
+      </div>
+    </div>
+
+    <!-- UPCOMING EVENTS -->
+    <div class="section-label">
+      <i data-lucide="calendar" style="width:12px;height:12px;color:var(--cyan);"></i>
+      Upcoming events
+    </div>
+    <div class="events-list" id="eventsList">
+      <div class="events-empty">
+        <div class="spin" style="margin:0 auto 12px;"></div>
+        Loading events...
+      </div>
+    </div>
+
+    <!-- LEAGUE STANDINGS -->
+    <div class="section-label" id="leagueSection" style="display:none;">
+      <i data-lucide="trophy" style="width:12px;height:12px;color:var(--cyan);"></i>
+      League standings
+    </div>
+    <div id="leagueContent" style="display:none;"></div>
+
+    <!-- JOIN BANNER -->
+    <div class="join-banner" id="joinBanner" style="display:none;">
+      <div class="join-title" id="joinTitle">Join the club</div>
+      <div class="join-sub" id="joinSub">Already on SwimLoading? Tap your invite link to join and get your race number instantly.</div>
+      <div class="join-actions">
+        <a href="/app" class="btn-primary" id="joinBtn">
+          <i data-lucide="user-plus"></i>
+          Join via invite link
+        </a>
+        <a href="/app" class="btn-ghost">
+          <i data-lucide="waves"></i>
+          Open SwimLoading
+        </a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <a href="https://swimloading.com" class="footer-brand">
+    <img src="/icons/logo-wave.png" alt="">SwimLoading
+  </a>
+  <div class="footer-note">Water conditions · Swim events · Club management</div>
+</footer>
+
+<script>
+  const SUPABASE_URL      = 'https://szgkzuswelntnevobnoh.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  lucide.createIcons();
+
+  document.addEventListener('mousemove', e => {
+    document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+    document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+  });
+
+  // ── READ SLUG FROM URL ───────────────────────────────────────────────────
+  const slug = location.pathname.replace(/^\/clubs\/?/, '').split('/')[0].toLowerCase();
+
+  function show(id) {
+    ['screenLoading','screenNotFound','clubApp'].forEach(s => {
+      const el = document.getElementById(s);
+      if (el) { el.classList.toggle('active', s === id); el.style.display = s === id ? (s === 'clubApp' ? 'block' : 'flex') : 'none'; }
+    });
+  }
+
+  function timeAgo(iso) {
+    const diff = (Date.now() - new Date(iso)) / 1000;
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return Math.floor(diff / 86400) + 'd ago';
+  }
+
+  function formatDate(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    return { day: d.getDate(), mon: d.toLocaleString('en', { month: 'short' }).toUpperCase() };
+  }
+
+  function posClass(i) {
+    return i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+  }
+
+  // ── RENDER CONDITIONS ────────────────────────────────────────────────────
+  function renderConditions(spot, log) {
+    const card = document.getElementById('conditionsCard');
+    if (!spot || !log) {
+      card.innerHTML = `<div class="conditions-empty" style="grid-column:1/-1;">
+        No recent conditions logged for this club's home water yet.<br>
+        <a href="/app" style="color:var(--cyan);font-size:13px;margin-top:8px;display:inline-block;">Log the first reading</a>
+      </div>`;
+      return;
+    }
+    const conds = log.conditions ? log.conditions.split(',').map(c => c.trim()).filter(Boolean) : [];
+    const condIcons = { calm:'wind', choppy:'waves', rough:'alert-triangle', flat:'minus', foggy:'cloud', sunny:'sun', overcast:'cloud', rainy:'cloud-rain' };
+    const badgeHTML = conds.map(c => `<div class="cond-badge"><i data-lucide="${condIcons[c] || 'droplets'}"></i>${c}</div>`).join('');
+    card.innerHTML = `
+      <div>
+        <div class="conditions-spot">${spot.name}</div>
+        <div class="conditions-temp">${Math.round(log.temp_c)}<span class="conditions-unit">°C</span></div>
+        <div class="conditions-updated">Updated ${timeAgo(log.created_at)}</div>
+      </div>
+      <div class="conditions-badges">
+        ${badgeHTML || `<div class="cond-badge"><i data-lucide="droplets"></i>Temp logged</div>`}
+      </div>`;
+    lucide.createIcons();
+  }
+
+  // ── RENDER EVENTS ────────────────────────────────────────────────────────
+  function renderEvents(events) {
+    const el = document.getElementById('eventsList');
+    if (!events || events.length === 0) {
+      el.innerHTML = `<div class="events-empty">No upcoming events scheduled yet.</div>`;
+      return;
+    }
+    el.innerHTML = events.map(ev => {
+      const { day, mon } = formatDate(ev.event_date);
+      const timeStr = ev.start_time ? ev.start_time.slice(0,5) : '';
+      const spotStr = ev.spots?.name || '';
+      const leagueBadge = ev.is_league ? `<span class="event-league-badge">League</span>` : '';
+      return `
+        <div class="event-card">
+          <div class="event-date-block">
+            <div class="event-date-day">${day}</div>
+            <div class="event-date-mon">${mon}</div>
+          </div>
+          <div>
+            <div class="event-title">${ev.title} ${leagueBadge}</div>
+            <div class="event-meta">
+              ${timeStr ? `<span><i data-lucide="clock"></i>${timeStr}</span>` : ''}
+              ${spotStr ? `<span><i data-lucide="map-pin"></i>${spotStr}</span>` : ''}
+            </div>
+          </div>
+          <div class="event-entries" id="entryCount-${ev.id}"></div>
+        </div>`;
+    }).join('');
+    lucide.createIcons();
+  }
+
+  // ── RENDER LEAGUE ────────────────────────────────────────────────────────
+  function renderLeague(categories, results) {
+    const section = document.getElementById('leagueSection');
+    const content = document.getElementById('leagueContent');
+
+    // Group results by category
+    const byCat = {};
+    results.forEach(r => {
+      const catId = r.club_members?.category_id || r.category_id;
+      if (!byCat[catId]) byCat[catId] = [];
+      byCat[catId].push(r);
+    });
+
+    const catsWithResults = categories.filter(c => byCat[c.id] && byCat[c.id].length > 0);
+    if (catsWithResults.length === 0) return; // no standings yet
+
+    section.style.display = 'flex';
+    content.style.display = 'block';
+
+    // Tab buttons
+    const tabsHTML = catsWithResults.map((c, i) =>
+      `<button class="league-tab-btn ${i === 0 ? 'active' : ''}" onclick="showCat('${c.id}', this)">${c.name}</button>`
+    ).join('');
+
+    const tablesHTML = catsWithResults.map((cat, i) => {
+      const rows = (byCat[cat.id] || [])
+        .sort((a, b) => (b.points || 0) - (a.points || 0))
+        .map((r, idx) => {
+          const name = r.club_members?.profiles?.display_name || r.club_members?.user_id?.slice(0,8) || '—';
+          const num  = r.club_members?.member_number || '—';
+          const pts  = r.points || 0;
+          const pc   = posClass(idx);
+          return `<tr>
+            <td><span class="standing-pos ${pc}">${idx + 1}</span></td>
+            <td><div class="standing-name">${name}</div><div class="standing-num">${num}</div></td>
+            <td class="standing-pts">${pts}</td>
+          </tr>`;
+        }).join('');
+      return `
+        <div class="cat-table ${i === 0 ? '' : 'hidden'}" id="cat-${cat.id}" style="${i === 0 ? '' : 'display:none;'}">
+          <table class="standings-table">
+            <thead><tr><th>#</th><th>Swimmer</th><th style="text-align:right;">Points</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }).join('');
+
+    content.innerHTML = `<div class="league-tabs">${tabsHTML}</div>${tablesHTML}`;
+    lucide.createIcons();
+  }
+
+  window.showCat = function(catId, btn) {
+    document.querySelectorAll('.cat-table').forEach(t => t.style.display = 'none');
+    document.querySelectorAll('.league-tab-btn').forEach(b => b.classList.remove('active'));
+    const el = document.getElementById('cat-' + catId);
+    if (el) el.style.display = 'block';
+    if (btn) btn.classList.add('active');
+  };
+
+  // ── FETCH ENTRY COUNTS ───────────────────────────────────────────────────
+  async function fetchEntryCounts(events) {
+    const ids = events.map(e => e.id);
+    if (!ids.length) return;
+    const { data } = await sb.from('club_race_entries').select('club_event_id').in('club_event_id', ids);
+    const counts = {};
+    (data || []).forEach(r => { counts[r.club_event_id] = (counts[r.club_event_id] || 0) + 1; });
+    events.forEach(ev => {
+      const el = document.getElementById('entryCount-' + ev.id);
+      if (el && counts[ev.id]) el.innerHTML = `<strong>${counts[ev.id]}</strong> entered`;
+    });
+  }
+
+  // ── MAIN LOAD ─────────────────────────────────────────────────────────────
+  async function loadClub() {
+    if (!slug) { show('screenNotFound'); return; }
+
+    // Fetch club
+    const { data: club, error } = await sb.from('clubs').select('*').eq('slug', slug).eq('is_active', true).single();
+    if (error || !club) { show('screenNotFound'); return; }
+
+    // Update page title & meta
+    document.title = `${club.name} · SwimLoading`;
+
+    // Hero
+    document.getElementById('heroName').textContent = club.name;
+    document.getElementById('heroTagline').textContent = club.tagline || '';
+    document.getElementById('heroMembers').textContent = `${club.member_count || 0} members`;
+    if (club.country) {
+      const countryLabels = { ZA: 'South Africa', GB: 'United Kingdom', AU: 'Australia', NZ: 'New Zealand' };
+      document.getElementById('heroCountry').textContent = countryLabels[club.country] || club.country;
+    }
+    if (club.city) {
+      document.getElementById('heroCity').style.display = 'flex';
+      document.getElementById('heroCityText').textContent = club.city;
+    }
+    if (club.founded_year) {
+      document.getElementById('heroFounded').style.display = 'flex';
+      document.getElementById('heroFoundedText').textContent = `Founded ${club.founded_year}`;
+    }
+
+    show('clubApp');
+    lucide.createIcons();
+
+    // Parallel fetches
+    const today = new Date().toISOString().slice(0, 10);
+    const [catRes, evtRes, resRes] = await Promise.all([
+      sb.from('club_categories').select('*').eq('club_id', club.id).order('sort_order'),
+      sb.from('club_events').select('*, spots(name)').eq('club_id', club.id).eq('is_active', true).gte('event_date', today).order('event_date').limit(6),
+      sb.from('club_league_results').select('*, club_members(member_number, category_id, user_id)').eq('club_events.club_id', club.id).limit(200),
+    ]);
+
+    const categories = catRes.data || [];
+    const events = evtRes.data || [];
+    const leagueResults = resRes.data || [];
+
+    renderEvents(events);
+    fetchEntryCounts(events);
+    if (leagueResults.length > 0) renderLeague(categories, leagueResults);
+
+    // Conditions — home spot or most recent log for any club spot
+    if (club.home_spot_id) {
+      const [spotRes, logRes] = await Promise.all([
+        sb.from('spots').select('name, code').eq('id', club.home_spot_id).single(),
+        sb.from('temp_logs').select('temp_c, conditions, created_at').eq('spot_id', club.home_spot_id).order('created_at', { ascending: false }).limit(1).single(),
+      ]);
+      renderConditions(spotRes.data, logRes.data);
+    } else {
+      renderConditions(null, null);
+    }
+
+    // Join banner
+    const { data: link } = await sb.from('club_join_links').select('code').eq('club_id', club.id).eq('is_active', true).order('created_at', { ascending: false }).limit(1).single();
+    const joinBanner = document.getElementById('joinBanner');
+    if (link) {
+      document.getElementById('joinTitle').textContent = `Join ${club.name}`;
+      document.getElementById('joinSub').textContent = `Already on SwimLoading? Tap below to join ${club.name} and get your race number instantly.`;
+      document.getElementById('joinBtn').href = `/join/${link.code}`;
+      joinBanner.style.display = 'block';
+      lucide.createIcons();
+    }
+  }
+
+  loadClub();
+</script>
+</body>
+</html>

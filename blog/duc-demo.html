@@ -462,6 +462,12 @@
     .pricing-line i { color: var(--cyan); width: 13px; height: 13px; flex-shrink: 0; }
     .pricing-cta { display: flex; flex-direction: column; gap: 10px; }
 
+    /* Currency switcher */
+    .currency-toggle { display: flex; gap: 6px; margin-bottom: 20px; }
+    .cur-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-sec); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; padding: 6px 14px; border-radius: 20px; cursor: pointer; transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
+    .cur-btn:hover { border-color: rgba(56,189,248,0.4); color: var(--text); }
+    .cur-btn.active { background: rgba(56,189,248,0.12); border-color: var(--cyan); color: var(--cyan); }
+
     /* What you're replacing */
     .replace-card {
       background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 20px; padding: 28px 24px;
@@ -1306,7 +1312,7 @@
 
     <div class="pitch-eyebrow">Club tier</div>
     <div class="pitch-headline">Get Value From Day One.<br>More As We Build Together.</div>
-    <div class="pitch-sub">Four features are live and working right now — conditions, events, leaderboard, hazard alerts. That's enough to replace the "anyone know the temp?" WhatsApp thread immediately. League management, pre-entry, and race day check-in are in build. DUC joins free while these ship, then moves to the full club tier when it's ready.</div>
+    <div class="pitch-sub">Four features are live and working right now — conditions, events, leaderboard, hazard alerts. That's enough to replace the "anyone know the temp?" WhatsApp thread immediately. League management, pre-entry, and race day check-in are in active build. Your club gets full access from day one, and more as the platform grows.</div>
 
     <!-- 3 steps -->
     <div class="steps">
@@ -1346,7 +1352,7 @@
           <tbody>
             <tr class="comp-us">
               <td class="comp-name">SwimLoading <span class="comp-us-badge">This</span><small>Swim-specific, SA-first</small></td>
-              <td class="comp-price" style="color:var(--cyan);">Free now<br><span style="font-size:11px;color:var(--text-sec);">R999/mo full suite</span></td>
+              <td class="comp-price" style="color:var(--cyan);"><span id="compPrice">R799/mo</span><br><span style="font-size:11px;color:var(--text-sec);">30-day trial</span></td>
               <td><span class="comp-tick">&#x2713;</span></td>
               <td><span class="comp-partial">Soon</span></td>
               <td><span class="comp-tick">&#x2713;</span></td>
@@ -1483,26 +1489,34 @@
       <div class="pricing-card">
         <div class="pricing-badge">Club tier</div>
         <div class="pricing-name">SwimLoading Club</div>
+
+        <!-- Currency toggle -->
+        <div class="currency-toggle">
+          <button class="cur-btn active" onclick="setCurrency('za')">ZAR</button>
+          <button class="cur-btn" onclick="setCurrency('uk')">GBP</button>
+          <button class="cur-btn" onclick="setCurrency('aus')">AUD</button>
+        </div>
+
         <div class="pricing-amount">
-          <span class="pricing-currency">R</span>
-          <span class="pricing-price">999</span>
+          <span class="pricing-currency" id="priceCurrency">R</span>
+          <span class="pricing-price" id="priceAmount">799</span>
           <span class="pricing-period">&nbsp;/ month</span>
         </div>
-        <div class="pricing-note"><span>Free while in beta</span> &nbsp;·&nbsp; R999/month when full suite launches &nbsp;·&nbsp; Cancel anytime</div>
+        <div class="pricing-note" id="priceNote"><span>30-day free trial</span> &nbsp;·&nbsp; R599/mo billed annually &nbsp;·&nbsp; Cancel anytime</div>
         <div class="pricing-includes">
           <div class="pricing-line"><i data-lucide="check"></i>Conditions feed &amp; hazard alerts <span class="badge-live" style="margin-left:auto;">Live</span></div>
           <div class="pricing-line"><i data-lucide="check"></i>Swim events &amp; attendance tracking <span class="badge-live" style="margin-left:auto;">Live</span></div>
           <div class="pricing-line"><i data-lucide="check"></i>Club leaderboard <span class="badge-live" style="margin-left:auto;">Live</span></div>
           <div class="pricing-line soon"><i data-lucide="clock"></i>Public club page + organiser dashboard <span class="badge-soon" style="margin-left:auto;">Soon</span></div>
           <div class="pricing-line soon"><i data-lucide="clock"></i>League management + pre-entry system <span class="badge-soon" style="margin-left:auto;">Soon</span></div>
-          <div class="pricing-line soon"><i data-lucide="clock"></i>Race day safety check-in <span class="badge-soon" style="margin-left:auto;">Soon</span></div>
+          <div class="pricing-line soon"><i data-lucide="clock"></i>Race day start headcount <span class="badge-soon" style="margin-left:auto;">Soon</span></div>
         </div>
         <div class="pricing-cta">
-          <a href="mailto:support@swimloading.com?subject=DUC%20Club%20-%20Get%20Started&body=Hi%2C%20we'd%20like%20to%20get%20DUC%20set%20up%20on%20SwimLoading." class="btn-primary" style="justify-content:center;">
+          <a id="pricingCta" href="mailto:support@swimloading.com?subject=Club%20Tier%20Enquiry&body=Hi%2C%20we%27d%20like%20to%20get%20our%20club%20set%20up%20on%20SwimLoading." class="btn-primary" style="justify-content:center;">
             <i data-lucide="send" style="width:15px;height:15px;"></i>
-            Get DUC set up — it's free to start
+            Start your free 30-day trial
           </a>
-          <a href="mailto:support@swimloading.com?subject=DUC%20Club%20-%20Question" class="btn-ghost" style="justify-content:center;font-size:13px;">
+          <a href="mailto:support@swimloading.com?subject=Club%20Tier%20Question" class="btn-ghost" style="justify-content:center;font-size:13px;">
             Ask a question first
           </a>
         </div>
@@ -1534,9 +1548,9 @@
         <div class="replace-item">
           <div>
             <div class="replace-tool">Beach roll call</div>
-            <div class="replace-pain">Shouting names to check who's out</div>
+            <div class="replace-pain">Manual headcount before the gun</div>
           </div>
-          <div class="replace-cross">Real-time</div>
+          <div class="replace-cross">App list</div>
         </div>
         <div class="replace-item">
           <div>
@@ -1547,7 +1561,7 @@
         </div>
         <div class="replace-total">
           <div class="replace-total-label">Club tier</div>
-          <div class="replace-total-val">R999 / month</div>
+          <div class="replace-total-val" id="replaceTotalVal">R799 / month</div>
         </div>
       </div>
     </div>
@@ -1557,7 +1571,7 @@
     <div class="faq-pitch">
       <div class="faq-pitch-item">
         <div class="faq-pitch-q">Do members pay separately?</div>
-        <div class="faq-pitch-a">No. R999/month covers the whole club — all members get full SwimLoading app access as part of the club subscription. No per-head billing.</div>
+        <div class="faq-pitch-a" id="faqPayAnswer">No. R799/month covers the whole club — all members get full SwimLoading app access included. No per-head billing. Annual billing saves you R2,400.</div>
       </div>
       <div class="faq-pitch-item">
         <div class="faq-pitch-q">How long does setup take?</div>
@@ -1600,6 +1614,46 @@
     document.body.style.setProperty('--mouse-x', e.clientX + 'px');
     document.body.style.setProperty('--mouse-y', e.clientY + 'px');
   });
+
+  // ── CURRENCY SWITCHER ─────────────────────────────────────────────────────
+  const PRICING = {
+    za:  {
+      symbol: 'R', amount: '799', compPrice: 'R799/mo',
+      note: '<span>30-day free trial</span> &nbsp;·&nbsp; R599/mo billed annually &nbsp;·&nbsp; Cancel anytime',
+      total: 'R799 / month',
+      faq: 'No. R799/month covers the whole club — all members get full SwimLoading access included. No per-head billing. Annual plan saves you R2,400.',
+      ctaHref: 'mailto:support@swimloading.com?subject=Club%20Tier%20Enquiry%20(ZA)&body=Hi%2C%20we%27d%20like%20to%20get%20our%20club%20set%20up%20on%20SwimLoading.',
+    },
+    uk:  {
+      symbol: '£', amount: '49', compPrice: '£49/mo',
+      note: '<span>30-day free trial</span> &nbsp;·&nbsp; £39/mo billed annually &nbsp;·&nbsp; Cancel anytime',
+      total: '£49 / month',
+      faq: 'No. £49/month covers your whole club — unlimited members included. No per-head billing. Annual plan saves you £120.',
+      ctaHref: 'mailto:support@swimloading.com?subject=Club%20Tier%20Enquiry%20(UK)&body=Hi%2C%20we%27d%20like%20to%20get%20our%20club%20set%20up%20on%20SwimLoading.',
+    },
+    aus: {
+      symbol: 'A$', amount: '79', compPrice: 'A$79/mo',
+      note: '<span>30-day free trial</span> &nbsp;·&nbsp; A$59/mo billed annually &nbsp;·&nbsp; Cancel anytime',
+      total: 'A$79 / month',
+      faq: 'No. A$79/month covers your whole club — unlimited members included. No per-head billing. Annual plan saves you A$240.',
+      ctaHref: 'mailto:support@swimloading.com?subject=Club%20Tier%20Enquiry%20(AUS)&body=Hi%2C%20we%27d%20like%20to%20get%20our%20club%20set%20up%20on%20SwimLoading.',
+    },
+  };
+
+  function setCurrency(cur) {
+    const p = PRICING[cur];
+    document.getElementById('priceCurrency').textContent   = p.symbol;
+    document.getElementById('priceAmount').textContent     = p.amount;
+    document.getElementById('priceNote').innerHTML         = p.note;
+    document.getElementById('replaceTotalVal').textContent = p.total;
+    document.getElementById('faqPayAnswer').textContent    = p.faq;
+    document.getElementById('compPrice').textContent       = p.compPrice;
+    const cta = document.getElementById('pricingCta');
+    if (cta) cta.href = p.ctaHref;
+    document.querySelectorAll('.cur-btn').forEach((btn, i) => {
+      btn.classList.toggle('active', ['za','uk','aus'][i] === cur);
+    });
+  }
 
   // ── TAB SWITCHER ──────────────────────────────────────────────────────────
   function switchTab(id) {
