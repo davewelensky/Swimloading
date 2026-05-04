@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Club Admin · SwimLoading</title>
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #080f1a;
+      --bg-card:  #0d1728;
+      --bg-card2: #101e30;
+      --cyan:     #38bdf8;
+      --cyan-dim: rgba(56,189,248,0.1);
+      --cyan-border: rgba(56,189,248,0.2);
+      --amber:    #f59e0b;
+      --green:    #10b981;
+      --danger:   #ef4444;
+      --text:     #f1f5f9;
+      --text-sec: #64748b;
+      --border:   rgba(255,255,255,0.06);
+      --gold:     #fbbf24;
+      --silver:   #94a3b8;
+      --bronze:   #c47b2b;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
+
+    /* ── AUTH GATE ── */
+    #authGate { display:flex; align-items:center; justify-content:center; min-height:100vh; padding:24px; }
+    .auth-box { background:var(--bg-card); border:1px solid var(--border); border-radius:20px; padding:36px; max-width:380px; width:100%; text-align:center; }
+    .auth-logo { display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:24px; }
+    .auth-logo img { height:28px; }
+    .auth-logo span { font-size:20px; font-weight:800; background:linear-gradient(135deg,#38bdf8,#0284c7); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .auth-title { font-size:18px; font-weight:700; margin-bottom:6px; }
+    .auth-sub { font-size:13px; color:var(--text-sec); margin-bottom:24px; }
+    .auth-box input { width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:10px; padding:12px 14px; color:var(--text); font-size:14px; margin-bottom:10px; outline:none; }
+    .auth-box input:focus { border-color:var(--cyan-border); }
+    .btn-primary { display:inline-flex; align-items:center; justify-content:center; gap:8px; background:var(--cyan); color:#080f1a; font-size:14px; font-weight:700; padding:12px 24px; border-radius:50px; border:none; cursor:pointer; width:100%; }
+    .btn-primary:hover { opacity:0.9; }
+    #authError { color:var(--danger); font-size:12px; margin-top:8px; display:none; }
+
+    /* ── NAV ── */
+    .nav { position:sticky; top:0; z-index:100; background:rgba(8,15,26,0.95); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); height:52px; display:flex; align-items:center; justify-content:space-between; padding:0 20px; }
+    .nav-brand { display:flex; align-items:center; gap:8px; text-decoration:none; }
+    .nav-brand img { height:20px; }
+    .nav-brand span { font-size:16px; font-weight:800; background:linear-gradient(135deg,#38bdf8,#0284c7); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .nav-club { font-size:13px; font-weight:700; color:var(--cyan); }
+    .nav-right { display:flex; align-items:center; gap:12px; }
+    .btn-sm { display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; color:var(--text-sec); cursor:pointer; }
+    .btn-sm:hover { border-color:var(--cyan-border); color:var(--cyan); }
+    .btn-sm.danger:hover { border-color:rgba(239,68,68,0.4); color:var(--danger); }
+
+    /* ── LAYOUT ── */
+    .shell { display:grid; grid-template-columns:220px 1fr; min-height:calc(100vh - 52px); }
+    @media(max-width:700px) { .shell { grid-template-columns:1fr; } }
+
+    /* ── SIDEBAR ── */
+    .sidebar { border-right:1px solid var(--border); padding:20px 12px; display:flex; flex-direction:column; gap:4px; }
+    @media(max-width:700px) { .sidebar { flex-direction:row; overflow-x:auto; border-right:none; border-bottom:1px solid var(--border); padding:10px 12px; gap:6px; } }
+    .nav-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; cursor:pointer; font-size:13px; font-weight:500; color:var(--text-sec); border:none; background:transparent; width:100%; text-align:left; white-space:nowrap; }
+    .nav-item i { width:16px; height:16px; flex-shrink:0; }
+    .nav-item:hover { background:rgba(255,255,255,0.04); color:var(--text); }
+    .nav-item.active { background:var(--cyan-dim); color:var(--cyan); font-weight:700; }
+    .sidebar-divider { height:1px; background:var(--border); margin:8px 4px; }
+    @media(max-width:700px) { .sidebar-divider { display:none; } }
+
+    /* ── MAIN ── */
+    .main { padding:24px; overflow-y:auto; }
+    .page { display:none; }
+    .page.active { display:block; }
+
+    /* ── PAGE HEADER ── */
+    .page-header { margin-bottom:24px; }
+    .page-title { font-size:22px; font-weight:800; color:var(--text); margin-bottom:4px; }
+    .page-sub { font-size:13px; color:var(--text-sec); }
+
+    /* ── STAT CARDS ── */
+    .stat-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
+    @media(max-width:800px) { .stat-row { grid-template-columns:repeat(2,1fr); } }
+    .stat-card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:16px; }
+    .stat-label { font-size:11px; font-weight:700; color:var(--text-sec); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:6px; }
+    .stat-val { font-size:28px; font-weight:800; color:var(--text); line-height:1; }
+    .stat-val span { font-size:13px; font-weight:500; color:var(--text-sec); }
+    .stat-note { font-size:11px; color:var(--text-sec); margin-top:4px; }
+
+    /* ── TABLE ── */
+    .card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:20px; }
+    .card-header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--border); }
+    .card-title { font-size:13px; font-weight:700; color:var(--text); }
+    .card-actions { display:flex; gap:8px; align-items:center; }
+    table { width:100%; border-collapse:collapse; }
+    th { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-sec); padding:10px 16px; text-align:left; border-bottom:1px solid var(--border); }
+    td { padding:11px 16px; border-bottom:1px solid rgba(255,255,255,0.03); vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:rgba(255,255,255,0.015); }
+    .member-num { font-size:12px; font-weight:800; color:var(--cyan); font-family:monospace; }
+    .member-name { font-weight:600; color:var(--text); }
+    .member-email { font-size:12px; color:var(--text-sec); }
+    .cat-badge { display:inline-block; font-size:10px; font-weight:700; padding:3px 9px; border-radius:20px; border:1px solid; }
+    .cat-guppies    { color:#34d399; border-color:rgba(52,211,153,0.3); background:rgba(52,211,153,0.08); }
+    .cat-sailfish   { color:var(--cyan); border-color:var(--cyan-border); background:var(--cyan-dim); }
+    .cat-makos      { color:var(--amber); border-color:rgba(245,158,11,0.3); background:rgba(245,158,11,0.08); }
+    .cat-walrus     { color:#a78bfa; border-color:rgba(167,139,250,0.3); background:rgba(167,139,250,0.08); }
+    .cat-coelacanths { color:#fb923c; border-color:rgba(251,146,60,0.3); background:rgba(251,146,60,0.08); }
+    .role-badge { font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; text-transform:uppercase; letter-spacing:0.08em; }
+    .role-admin     { background:rgba(239,68,68,0.1); color:var(--danger); border:1px solid rgba(239,68,68,0.25); }
+    .role-organiser { background:rgba(245,158,11,0.1); color:var(--amber); border:1px solid rgba(245,158,11,0.25); }
+    .role-member    { background:rgba(255,255,255,0.05); color:var(--text-sec); border:1px solid var(--border); }
+    .action-btn { background:transparent; border:1px solid var(--border); border-radius:6px; padding:4px 10px; font-size:11px; font-weight:600; color:var(--text-sec); cursor:pointer; }
+    .action-btn:hover { border-color:var(--cyan-border); color:var(--cyan); }
+
+    /* ── SEARCH / FILTER ── */
+    .filter-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .search-input { background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:8px; padding:8px 12px; color:var(--text); font-size:13px; outline:none; min-width:200px; }
+    .search-input:focus { border-color:var(--cyan-border); }
+    .filter-select { background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:8px; padding:8px 12px; color:var(--text); font-size:13px; outline:none; cursor:pointer; }
+
+    /* ── JOIN LINK ── */
+    .join-link-box { background:var(--bg-card2); border:1px solid var(--cyan-border); border-radius:12px; padding:16px 18px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    .join-link-url { font-family:monospace; font-size:13px; color:var(--cyan); flex:1; word-break:break-all; }
+    .copy-btn { display:inline-flex; align-items:center; gap:6px; background:var(--cyan-dim); border:1px solid var(--cyan-border); border-radius:8px; padding:7px 14px; font-size:12px; font-weight:700; color:var(--cyan); cursor:pointer; white-space:nowrap; }
+    .copy-btn:hover { background:rgba(56,189,248,0.18); }
+
+    /* ── EVENTS ── */
+    .event-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:10px; display:flex; align-items:flex-start; gap:14px; }
+    .event-date-block { background:rgba(56,189,248,0.08); border:1px solid var(--cyan-border); border-radius:10px; padding:8px 12px; text-align:center; flex-shrink:0; min-width:52px; }
+    .event-date-day { font-size:22px; font-weight:800; color:var(--cyan); line-height:1; }
+    .event-date-mon { font-size:10px; font-weight:700; color:var(--text-sec); text-transform:uppercase; letter-spacing:0.1em; margin-top:2px; }
+    .event-info { flex:1; }
+    .event-title { font-size:14px; font-weight:700; color:var(--text); margin-bottom:4px; }
+    .event-meta { font-size:12px; color:var(--text-sec); display:flex; gap:14px; flex-wrap:wrap; }
+    .event-entries { font-size:13px; font-weight:700; color:var(--cyan); }
+    .league-tag { display:inline-block; background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.3); color:var(--gold); font-size:9px; font-weight:800; padding:2px 7px; border-radius:4px; text-transform:uppercase; letter-spacing:0.1em; margin-left:6px; }
+
+    /* ── MODAL ── */
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center; padding:20px; }
+    .modal-overlay.open { display:flex; }
+    .modal { background:var(--bg-card); border:1px solid var(--border); border-radius:20px; padding:28px; max-width:460px; width:100%; max-height:90vh; overflow-y:auto; }
+    .modal-title { font-size:17px; font-weight:800; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; }
+    .modal-close { background:transparent; border:none; color:var(--text-sec); font-size:22px; cursor:pointer; padding:0; line-height:1; }
+    .form-group { margin-bottom:14px; }
+    .form-label { font-size:11px; font-weight:700; color:var(--text-sec); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:6px; }
+    .form-input { width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:10px; padding:10px 14px; color:var(--text); font-size:13px; outline:none; }
+    .form-input:focus { border-color:var(--cyan-border); }
+    select.form-input option { background:var(--bg-card); }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .checkbox-row { display:flex; align-items:center; gap:10px; font-size:13px; color:var(--text-sec); }
+    .checkbox-row input[type=checkbox] { width:16px; height:16px; accent-color:var(--cyan); }
+    .modal-actions { display:flex; gap:10px; margin-top:20px; }
+    .btn-modal-primary { flex:1; background:var(--cyan); color:#080f1a; border:none; border-radius:10px; padding:12px; font-size:14px; font-weight:700; cursor:pointer; }
+    .btn-modal-cancel  { background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:10px; padding:12px 20px; font-size:14px; font-weight:600; color:var(--text-sec); cursor:pointer; }
+
+    /* ── EMPTY STATE ── */
+    .empty { text-align:center; padding:48px 20px; color:var(--text-sec); }
+    .empty i { width:40px; height:40px; margin:0 auto 12px; display:block; opacity:0.3; }
+    .empty-title { font-size:15px; font-weight:600; margin-bottom:6px; }
+    .empty-desc { font-size:13px; }
+
+    /* ── TOAST ── */
+    #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:#1e293b; border:1px solid var(--border); border-radius:10px; padding:10px 20px; font-size:13px; font-weight:600; z-index:9999; transition:transform 0.25s; pointer-events:none; }
+    #toast.show { transform:translateX(-50%) translateY(0); }
+    #toast.success { border-color:rgba(16,185,129,0.4); color:#34d399; }
+    #toast.error   { border-color:rgba(239,68,68,0.4); color:var(--danger); }
+
+    /* ── LOADING ── */
+    .loading { display:flex; align-items:center; justify-content:center; padding:40px; }
+    .spinner { width:24px; height:24px; border:2px solid var(--border); border-top-color:var(--cyan); border-radius:50%; animation:spin 0.7s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- AUTH GATE -->
+<div id="authGate" style="display:none;">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <img src="icons/logo-wave.png" alt="">
+      <span>SwimLoading</span>
+    </div>
+    <div class="auth-title">Club Admin</div>
+    <div class="auth-sub">Sign in with your club admin account</div>
+    <input type="email" id="authEmail" placeholder="Email address" autocomplete="email">
+    <input type="password" id="authPassword" placeholder="Password" autocomplete="current-password">
+    <button class="btn-primary" onclick="signIn()">
+      <i data-lucide="log-in" style="width:15px;height:15px;"></i> Sign in
+    </button>
+    <div id="authError"></div>
+  </div>
+</div>
+
+<!-- NOT ADMIN -->
+<div id="notAdminGate" style="display:none; align-items:center; justify-content:center; min-height:100vh; padding:24px; flex-direction:column; gap:16px; text-align:center;">
+  <i data-lucide="shield-off" style="width:48px;height:48px;color:var(--text-sec);opacity:0.4;"></i>
+  <div style="font-size:16px;font-weight:700;">You don't have admin access to any club.</div>
+  <div style="font-size:13px;color:var(--text-sec);">Contact your club administrator to be granted access.</div>
+  <button class="btn-sm danger" onclick="signOut()" style="margin-top:8px;">Sign out</button>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" style="display:none;">
+  <!-- NAV -->
+  <nav class="nav">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <a class="nav-brand" href="/app">
+        <img src="icons/logo-wave.png" alt="">
+        <span>SwimLoading</span>
+      </a>
+      <div class="nav-club" id="navClubName">—</div>
+    </div>
+    <div class="nav-right">
+      <span id="navAdminName" style="font-size:12px;color:var(--text-sec);"></span>
+      <button class="btn-sm danger" onclick="signOut()">
+        <i data-lucide="log-out" style="width:13px;height:13px;"></i> Sign out
+      </button>
+    </div>
+  </nav>
+
+  <div class="shell">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <button class="nav-item active" onclick="showPage('overview')" id="nav-overview">
+        <i data-lucide="layout-dashboard"></i> Overview
+      </button>
+      <button class="nav-item" onclick="showPage('members')" id="nav-members">
+        <i data-lucide="users"></i> Members
+      </button>
+      <button class="nav-item" onclick="showPage('events')" id="nav-events">
+        <i data-lucide="calendar"></i> Events
+      </button>
+      <button class="nav-item" onclick="showPage('entries')" id="nav-entries">
+        <i data-lucide="ticket"></i> Race Entries
+      </button>
+      <button class="nav-item" onclick="showPage('league')" id="nav-league">
+        <i data-lucide="trophy"></i> League
+      </button>
+      <div class="sidebar-divider"></div>
+      <button class="nav-item" onclick="showPage('joinlink')" id="nav-joinlink">
+        <i data-lucide="link"></i> Join Link
+      </button>
+      <button class="nav-item" onclick="showPage('settings')" id="nav-settings">
+        <i data-lucide="settings"></i> Settings
+      </button>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main">
+
+      <!-- ── OVERVIEW ── -->
+      <div id="page-overview" class="page active">
+        <div class="page-header">
+          <div class="page-title" id="overviewTitle">Club Dashboard</div>
+          <div class="page-sub">Welcome back. Here's what's happening.</div>
+        </div>
+        <div class="stat-row" id="overviewStats">
+          <div class="stat-card"><div class="stat-label">Members</div><div class="stat-val" id="statMembers">—</div><div class="stat-note">active members</div></div>
+          <div class="stat-card"><div class="stat-label">Upcoming events</div><div class="stat-val" id="statEvents">—</div><div class="stat-note">next 30 days</div></div>
+          <div class="stat-card"><div class="stat-label">Temp logs</div><div class="stat-val" id="statLogs">—</div><div class="stat-note">by members this month</div></div>
+          <div class="stat-card"><div class="stat-label">Open entries</div><div class="stat-val" id="statEntries">—</div><div class="stat-note">pre-entered, next race</div></div>
+        </div>
+        <div id="overviewCategories"></div>
+        <div id="overviewUpcoming"></div>
+      </div>
+
+      <!-- ── MEMBERS ── -->
+      <div id="page-members" class="page">
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="page-title">Members</div>
+            <div class="page-sub">All registered club members</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-sm" onclick="showPage('joinlink')">
+              <i data-lucide="link" style="width:13px;height:13px;"></i> Share join link
+            </button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="filter-row">
+              <input type="text" class="search-input" placeholder="Search name or number…" oninput="filterMembers(this.value)" id="memberSearch">
+              <select class="filter-select" onchange="filterMembersByCategory(this.value)" id="categoryFilter">
+                <option value="">All categories</option>
+              </select>
+            </div>
+            <div class="card-actions">
+              <span id="memberCount" style="font-size:12px;color:var(--text-sec);"></span>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Name</th>
+                  <th>Category</th>
+                  <th>Role</th>
+                  <th>Joined</th>
+                  <th>Logs (30d)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="membersTableBody">
+                <tr><td colspan="7"><div class="loading"><div class="spinner"></div></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── EVENTS ── -->
+      <div id="page-events" class="page">
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="page-title">Events</div>
+            <div class="page-sub">Club swims and races</div>
+          </div>
+          <button class="btn-primary" style="width:auto;padding:10px 20px;border-radius:10px;font-size:13px;" onclick="openCreateEvent()">
+            <i data-lucide="plus" style="width:14px;height:14px;"></i> New event
+          </button>
+        </div>
+        <div id="eventsList"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+
+      <!-- ── RACE ENTRIES ── -->
+      <div id="page-entries" class="page">
+        <div class="page-header">
+          <div class="page-title">Race Entries</div>
+          <div class="page-sub">Pre-entries and day-of registrations</div>
+        </div>
+        <div class="card" style="margin-bottom:14px;">
+          <div class="card-header">
+            <div class="card-title">Select an event</div>
+          </div>
+          <div style="padding:14px 16px;">
+            <select class="filter-select" style="width:100%;" onchange="loadEntries(this.value)" id="entriesEventSelect">
+              <option value="">Choose event…</option>
+            </select>
+          </div>
+        </div>
+        <div id="entriesContent"></div>
+      </div>
+
+      <!-- ── LEAGUE ── -->
+      <div id="page-league" class="page">
+        <div class="page-header">
+          <div class="page-title">League Standings</div>
+          <div class="page-sub">Points accumulate across all league races</div>
+        </div>
+        <div id="leagueContent"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+
+      <!-- ── JOIN LINK ── -->
+      <div id="page-joinlink" class="page">
+        <div class="page-header">
+          <div class="page-title">Join Link</div>
+          <div class="page-sub">Share this link with your members. They tap it, confirm, and they're in — race number assigned automatically.</div>
+        </div>
+        <div class="card" style="padding:20px;">
+          <div style="font-size:12px;color:var(--text-sec);margin-bottom:12px;">Active join link</div>
+          <div class="join-link-box" id="joinLinkBox">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+          <div style="margin-top:16px;font-size:12px;color:var(--text-sec);line-height:1.7;">
+            Anyone with this link who already has a SwimLoading account will be added to your club automatically.<br>
+            Their category is assigned from their date of birth. If DOB isn't set they'll be placed in the <strong style="color:var(--text);">Makos</strong> category and you can reassign them from the Members page.
+          </div>
+          <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn-sm" onclick="generateNewLink()">
+              <i data-lucide="refresh-cw" style="width:13px;height:13px;"></i> Generate new link
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SETTINGS ── -->
+      <div id="page-settings" class="page">
+        <div class="page-header">
+          <div class="page-title">Club Settings</div>
+          <div class="page-sub">Basic club details. Contact SwimLoading to change categories or domain.</div>
+        </div>
+        <div class="card" style="padding:20px;">
+          <div id="settingsContent"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- CREATE EVENT MODAL -->
+<div class="modal-overlay" id="createEventModal">
+  <div class="modal">
+    <div class="modal-title">
+      New Event
+      <button class="modal-close" onclick="closeCreateEvent()">&times;</button>
+    </div>
+    <div class="form-group">
+      <div class="form-label">Title</div>
+      <input type="text" class="form-input" id="evTitle" placeholder="e.g. DUC League Swim #9">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Date</div>
+        <input type="date" class="form-input" id="evDate">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Start time</div>
+        <input type="time" class="form-input" id="evTime">
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="form-label">Description (optional)</div>
+      <textarea class="form-input" id="evDesc" rows="3" style="resize:vertical;" placeholder="Distance, conditions, special notes…"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Entry cap (optional)</div>
+        <input type="number" class="form-input" id="evCap" placeholder="Unlimited">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Pre-entry cutoff</div>
+        <input type="datetime-local" class="form-input" id="evCutoff">
+      </div>
+    </div>
+    <div class="checkbox-row" style="margin-bottom:10px;">
+      <input type="checkbox" id="evIsLeague">
+      <label for="evIsLeague">This is a league race (counts for standings)</label>
+    </div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="evAllowsDay" checked>
+      <label for="evAllowsDay">Allow day-of entries</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeCreateEvent()">Cancel</button>
+      <button class="btn-modal-primary" onclick="submitCreateEvent()">Create event</button>
+    </div>
+  </div>
+</div>
+
+<!-- MEMBER DETAIL MODAL -->
+<div class="modal-overlay" id="memberModal">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="memberModalTitle">Member</span>
+      <button class="modal-close" onclick="closeMemberModal()">&times;</button>
+    </div>
+    <div id="memberModalContent"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const SUPABASE_URL     = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser    = null;
+let currentClub    = null;
+let currentMemberRecord = null;
+let allMembers     = [];
+let allCategories  = [];
+let allEvents      = [];
+let memberLogs     = {};  // user_id → log count this month
+
+// ── INIT ──────────────────────────────────────────────────────────
+async function init() {
+  lucide.createIcons();
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { show('authGate'); return; }
+  currentUser = session.user;
+  await loadClubContext();
+}
+
+async function loadClubContext() {
+  // Check if this user is an admin/organiser of any club
+  const { data: membership } = await sb
+    .from('club_members')
+    .select('*, clubs(*), club_categories(name)')
+    .eq('user_id', currentUser.id)
+    .in('role', ['admin','organiser'])
+    .eq('is_active', true)
+    .single();
+
+  if (!membership) { show('notAdminGate'); lucide.createIcons(); return; }
+
+  currentMemberRecord = membership;
+  currentClub = membership.clubs;
+  show('app');
+
+  document.getElementById('navClubName').textContent = currentClub.name;
+  document.getElementById('navAdminName').textContent =
+    currentUser.user_metadata?.full_name || currentUser.email;
+  document.getElementById('overviewTitle').textContent = currentClub.name + ' — Overview';
+
+  lucide.createIcons();
+  await Promise.all([loadCategories(), loadMembers(), loadEvents()]);
+  renderOverview();
+  loadJoinLink();
+  loadSettings();
+}
+
+// ── AUTH ──────────────────────────────────────────────────────────
+async function signIn() {
+  const email    = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const errEl    = document.getElementById('authError');
+  errEl.style.display = 'none';
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return; }
+  const { data: { session } } = await sb.auth.getSession();
+  currentUser = session.user;
+  await loadClubContext();
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  location.reload();
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────
+function show(id) {
+  document.getElementById('authGate').style.display      = id === 'authGate'    ? 'flex' : 'none';
+  document.getElementById('notAdminGate').style.display  = id === 'notAdminGate'? 'flex' : 'none';
+  document.getElementById('app').style.display           = id === 'app'         ? 'block': 'none';
+}
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name)?.classList.add('active');
+  document.getElementById('nav-' + name)?.classList.add('active');
+  if (name === 'entries') populateEntriesEventSelect();
+  if (name === 'league')  renderLeague();
+}
+
+// ── DATA LOADERS ──────────────────────────────────────────────────
+async function loadCategories() {
+  const { data } = await sb.from('club_categories')
+    .select('*').eq('club_id', currentClub.id).order('sort_order');
+  allCategories = data || [];
+  // Populate filter dropdown
+  const sel = document.getElementById('categoryFilter');
+  allCategories.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id; opt.textContent = c.name;
+    sel.appendChild(opt);
+  });
+}
+
+async function loadMembers() {
+  const { data } = await sb.from('club_members')
+    .select('*, club_categories(name), user:user_id(id, email, raw_user_meta_data)')
+    .eq('club_id', currentClub.id)
+    .eq('is_active', true)
+    .order('member_number');
+  allMembers = data || [];
+
+  // Load temp log counts for this month
+  const since = new Date();
+  since.setDate(1); since.setHours(0,0,0,0);
+  const userIds = allMembers.map(m => m.user_id);
+  if (userIds.length) {
+    const { data: logs } = await sb.from('temp_logs')
+      .select('created_by')
+      .in('created_by', userIds)
+      .gte('created_at', since.toISOString());
+    (logs || []).forEach(l => {
+      memberLogs[l.created_by] = (memberLogs[l.created_by] || 0) + 1;
+    });
+  }
+  renderMembersTable(allMembers);
+}
+
+async function loadEvents() {
+  const { data } = await sb.from('club_events')
+    .select('*')
+    .eq('club_id', currentClub.id)
+    .eq('is_active', true)
+    .order('event_date');
+  allEvents = data || [];
+  renderEvents();
+}
+
+// ── OVERVIEW ──────────────────────────────────────────────────────
+function renderOverview() {
+  document.getElementById('statMembers').textContent = allMembers.length;
+  const now = new Date();
+  const in30 = new Date(Date.now() + 30*24*60*60*1000);
+  const upcomingEvents = allEvents.filter(e => new Date(e.event_date) >= now && new Date(e.event_date) <= in30);
+  document.getElementById('statEvents').textContent = upcomingEvents.length;
+  const totalLogs = Object.values(memberLogs).reduce((a,b) => a+b, 0);
+  document.getElementById('statLogs').textContent = totalLogs;
+  document.getElementById('statEntries').textContent = '—'; // loaded async if needed
+
+  // Category breakdown
+  const catCounts = {};
+  allMembers.forEach(m => {
+    const cat = m.club_categories?.name || 'Unassigned';
+    catCounts[cat] = (catCounts[cat] || 0) + 1;
+  });
+  const catEl = document.getElementById('overviewCategories');
+  catEl.innerHTML = `
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header"><div class="card-title">Members by Category</div></div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;padding:16px;">
+        ${Object.entries(catCounts).map(([cat, count]) => `
+          <div style="text-align:center;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:12px 20px;">
+            <div style="font-size:22px;font-weight:800;color:var(--cyan);">${count}</div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;">${cat}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+
+  // Upcoming swims
+  const upEl = document.getElementById('overviewUpcoming');
+  if (upcomingEvents.length === 0) {
+    upEl.innerHTML = '<div class="empty"><div class="empty-title">No upcoming events</div><div class="empty-desc">Create an event from the Events tab.</div></div>';
+    return;
+  }
+  upEl.innerHTML = `
+    <div class="card">
+      <div class="card-header"><div class="card-title">Upcoming Events</div></div>
+      <div style="padding:12px;">
+        ${upcomingEvents.slice(0,3).map(e => {
+          const d = new Date(e.event_date);
+          return `<div class="event-card">
+            <div class="event-date-block">
+              <div class="event-date-day">${d.getDate()}</div>
+              <div class="event-date-mon">${d.toLocaleString('default',{month:'short'})}</div>
+            </div>
+            <div class="event-info">
+              <div class="event-title">${e.title}${e.is_league ? '<span class="league-tag">League</span>' : ''}</div>
+              <div class="event-meta">
+                ${e.start_time ? `<span>${e.start_time.slice(0,5)}</span>` : ''}
+                ${e.entry_cap  ? `<span>Cap: ${e.entry_cap}</span>` : ''}
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+// ── MEMBERS TABLE ─────────────────────────────────────────────────
+function catClass(catName) {
+  const map = { Guppies:'cat-guppies', Sailfish:'cat-sailfish', Makos:'cat-makos', Walrus:'cat-walrus', Coelacanths:'cat-coelacanths' };
+  return map[catName] || 'cat-sailfish';
+}
+
+function renderMembersTable(members) {
+  const tbody = document.getElementById('membersTableBody');
+  document.getElementById('memberCount').textContent = members.length + ' members';
+  if (!members.length) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty">
+      <div class="empty-title">No members yet</div>
+      <div class="empty-desc">Share the join link to invite your swimmers.</div>
+    </div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = members.map(m => {
+    const name  = m.user?.raw_user_meta_data?.full_name || m.user?.email || '—';
+    const email = m.user?.email || '';
+    const cat   = m.club_categories?.name || 'Unassigned';
+    const logs  = memberLogs[m.user_id] || 0;
+    const joined = new Date(m.joined_at).toLocaleDateString('en-ZA', {day:'numeric',month:'short',year:'numeric'});
+    return `<tr>
+      <td><span class="member-num">${m.member_number}</span></td>
+      <td><div class="member-name">${name}</div><div class="member-email">${email}</div></td>
+      <td><span class="cat-badge ${catClass(cat)}">${cat}</span></td>
+      <td><span class="role-badge role-${m.role}">${m.role}</span></td>
+      <td style="font-size:12px;color:var(--text-sec);">${joined}</td>
+      <td style="font-size:13px;font-weight:600;color:${logs > 0 ? 'var(--cyan)' : 'var(--text-sec)'};">${logs}</td>
+      <td><button class="action-btn" onclick="openMemberModal('${m.id}')">Edit</button></td>
+    </tr>`;
+  }).join('');
+  lucide.createIcons();
+}
+
+function filterMembers(q) {
+  const cat = document.getElementById('categoryFilter').value;
+  applyMemberFilters(q, cat);
+}
+function filterMembersByCategory(cat) {
+  const q = document.getElementById('memberSearch').value;
+  applyMemberFilters(q, cat);
+}
+function applyMemberFilters(q, catId) {
+  const filtered = allMembers.filter(m => {
+    const name  = (m.user?.raw_user_meta_data?.full_name || m.user?.email || '').toLowerCase();
+    const num   = m.member_number.toLowerCase();
+    const matchQ   = !q || name.includes(q.toLowerCase()) || num.includes(q.toLowerCase());
+    const matchCat = !catId || m.category_id === catId;
+    return matchQ && matchCat;
+  });
+  renderMembersTable(filtered);
+}
+
+// ── MEMBER MODAL ──────────────────────────────────────────────────
+function openMemberModal(memberId) {
+  const m = allMembers.find(x => x.id === memberId);
+  if (!m) return;
+  const name  = m.user?.raw_user_meta_data?.full_name || m.user?.email || '—';
+  document.getElementById('memberModalTitle').textContent = name;
+  document.getElementById('memberModalContent').innerHTML = `
+    <div class="form-group">
+      <div class="form-label">Member number</div>
+      <input type="text" class="form-input" id="editMemberNum" value="${m.member_number}">
+    </div>
+    <div class="form-group">
+      <div class="form-label">Category</div>
+      <select class="form-input" id="editMemberCat">
+        ${allCategories.map(c => `<option value="${c.id}" ${c.id === m.category_id ? 'selected' : ''}>${c.name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <div class="form-label">Role</div>
+      <select class="form-input" id="editMemberRole">
+        <option value="member" ${m.role==='member'?'selected':''}>Member</option>
+        <option value="organiser" ${m.role==='organiser'?'selected':''}>Organiser</option>
+        <option value="admin" ${m.role==='admin'?'selected':''}>Admin</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <div class="form-label">Admin notes (private)</div>
+      <textarea class="form-input" id="editMemberNotes" rows="2" style="resize:vertical;">${m.notes || ''}</textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeMemberModal()">Cancel</button>
+      <button class="btn-modal-primary" onclick="saveMember('${m.id}')">Save changes</button>
+    </div>`;
+  document.getElementById('memberModal').classList.add('open');
+}
+
+function closeMemberModal() {
+  document.getElementById('memberModal').classList.remove('open');
+}
+
+async function saveMember(memberId) {
+  const num   = document.getElementById('editMemberNum').value.trim();
+  const catId = document.getElementById('editMemberCat').value;
+  const role  = document.getElementById('editMemberRole').value;
+  const notes = document.getElementById('editMemberNotes').value.trim();
+  const { error } = await sb.from('club_members')
+    .update({ member_number: num, category_id: catId, role, notes, })
+    .eq('id', memberId);
+  if (error) { showToast('Save failed: ' + error.message, 'error'); return; }
+  showToast('Member updated', 'success');
+  closeMemberModal();
+  await loadMembers();
+}
+
+// ── EVENTS ────────────────────────────────────────────────────────
+function renderEvents() {
+  const el = document.getElementById('eventsList');
+  if (!allEvents.length) {
+    el.innerHTML = `<div class="empty">
+      <i data-lucide="calendar-off"></i>
+      <div class="empty-title">No events yet</div>
+      <div class="empty-desc">Create your first swim or league race.</div>
+    </div>`;
+    lucide.createIcons();
+    return;
+  }
+  const now = new Date();
+  const upcoming = allEvents.filter(e => new Date(e.event_date) >= now);
+  const past     = allEvents.filter(e => new Date(e.event_date) < now);
+
+  const renderGroup = (events, label) => events.length ? `
+    <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;margin-top:20px;">${label}</div>
+    ${events.map(e => {
+      const d = new Date(e.event_date);
+      return `<div class="event-card">
+        <div class="event-date-block">
+          <div class="event-date-day">${d.getDate()}</div>
+          <div class="event-date-mon">${d.toLocaleString('default',{month:'short'})}</div>
+        </div>
+        <div class="event-info">
+          <div class="event-title">${e.title}${e.is_league?'<span class="league-tag">League</span>':''}</div>
+          <div class="event-meta">
+            ${e.start_time ? `<span>${e.start_time.slice(0,5)}</span>` : ''}
+            ${e.entry_cap  ? `<span>Cap: ${e.entry_cap}</span>` : '<span>No cap</span>'}
+            ${e.allows_day_entries ? '<span>Day entries: yes</span>' : '<span>Pre-entry only</span>'}
+            ${e.pre_entry_cutoff ? `<span>Cutoff: ${new Date(e.pre_entry_cutoff).toLocaleDateString('en-ZA',{day:'numeric',month:'short'})}</span>` : ''}
+          </div>
+        </div>
+        <button class="action-btn" onclick="viewEntries('${e.id}')">Entries</button>
+      </div>`;
+    }).join('')}` : '';
+
+  el.innerHTML = renderGroup(upcoming, 'Upcoming') + renderGroup(past, 'Past');
+  lucide.createIcons();
+}
+
+function openCreateEvent() { document.getElementById('createEventModal').classList.add('open'); }
+function closeCreateEvent() { document.getElementById('createEventModal').classList.remove('open'); }
+
+async function submitCreateEvent() {
+  const title  = document.getElementById('evTitle').value.trim();
+  const date   = document.getElementById('evDate').value;
+  const time   = document.getElementById('evTime').value || null;
+  const desc   = document.getElementById('evDesc').value.trim() || null;
+  const cap    = document.getElementById('evCap').value || null;
+  const cutoff = document.getElementById('evCutoff').value || null;
+  const league = document.getElementById('evIsLeague').checked;
+  const dayOf  = document.getElementById('evAllowsDay').checked;
+  if (!title || !date) { showToast('Title and date are required', 'error'); return; }
+  const { error } = await sb.from('club_events').insert({
+    club_id: currentClub.id, title, event_date: date, start_time: time,
+    description: desc, entry_cap: cap ? parseInt(cap) : null,
+    pre_entry_cutoff: cutoff || null,
+    allows_day_entries: dayOf, is_league: league,
+    created_by: currentUser.id,
+  });
+  if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+  showToast('Event created', 'success');
+  closeCreateEvent();
+  await loadEvents();
+}
+
+// ── ENTRIES ───────────────────────────────────────────────────────
+function populateEntriesEventSelect() {
+  const sel = document.getElementById('entriesEventSelect');
+  sel.innerHTML = '<option value="">Choose event…</option>';
+  allEvents.forEach(e => {
+    const opt = document.createElement('option');
+    opt.value = e.id;
+    opt.textContent = e.title + ' — ' + new Date(e.event_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short'});
+    sel.appendChild(opt);
+  });
+}
+
+function viewEntries(eventId) {
+  showPage('entries');
+  setTimeout(() => {
+    document.getElementById('entriesEventSelect').value = eventId;
+    loadEntries(eventId);
+  }, 50);
+}
+
+async function loadEntries(eventId) {
+  if (!eventId) { document.getElementById('entriesContent').innerHTML = ''; return; }
+  document.getElementById('entriesContent').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const { data, error } = await sb.from('club_race_entries')
+    .select('*, club_members(member_number, club_categories(name)), club_categories(name)')
+    .eq('club_event_id', eventId)
+    .order('race_number');
+  if (error) { showToast(error.message, 'error'); return; }
+  const entries = data || [];
+  const event   = allEvents.find(e => e.id === eventId);
+
+  // Group by category
+  const byCat = {};
+  entries.forEach(e => {
+    const cat = e.club_categories?.name || e.club_members?.club_categories?.name || 'Guest';
+    if (!byCat[cat]) byCat[cat] = [];
+    byCat[cat].push(e);
+  });
+
+  const html = `
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">${event?.title || 'Event'}</div>
+          <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${entries.length} entries</div>
+        </div>
+        <div class="card-actions">
+          <button class="btn-sm" onclick="exportStartList('${eventId}')">
+            <i data-lucide="download" style="width:13px;height:13px;"></i> Export start list
+          </button>
+        </div>
+      </div>
+      ${Object.keys(byCat).length === 0
+        ? `<div class="empty"><div class="empty-title">No entries yet</div></div>`
+        : Object.entries(byCat).map(([cat, catEntries]) => `
+        <div style="padding:0 0 4px;">
+          <div style="font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;padding:12px 16px 6px;">${cat} — ${catEntries.length}</div>
+          <table>
+            <thead><tr><th>#</th><th>Name</th><th>Type</th><th>Arrived</th><th></th></tr></thead>
+            <tbody>
+              ${catEntries.map(e => `<tr>
+                <td><span class="member-num">${e.race_number}</span></td>
+                <td><div class="member-name">${e.guest_name || '—'}</div></td>
+                <td><span style="font-size:11px;color:var(--text-sec);">${e.entry_type === 'pre_entry' ? 'Pre-entry' : 'Day of'}</span></td>
+                <td>
+                  <input type="checkbox" ${e.arrived ? 'checked' : ''} onchange="markArrived('${e.id}', this.checked)"
+                    style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;">
+                </td>
+                <td></td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`).join('')
+      }
+    </div>`;
+  document.getElementById('entriesContent').innerHTML = html;
+  lucide.createIcons();
+}
+
+async function markArrived(entryId, arrived) {
+  const { error } = await sb.from('club_race_entries')
+    .update({ arrived, arrived_at: arrived ? new Date().toISOString() : null })
+    .eq('id', entryId);
+  if (error) showToast('Failed to update', 'error');
+}
+
+async function exportStartList(eventId) {
+  const { data } = await sb.from('club_race_entries')
+    .select('race_number, guest_name, entry_type, club_categories(name)')
+    .eq('club_event_id', eventId)
+    .order('race_number');
+  const rows = ['Race #,Name,Category,Entry type'];
+  (data || []).forEach(e => {
+    rows.push(`${e.race_number},"${e.guest_name || ''}","${e.club_categories?.name || ''}","${e.entry_type}"`);
+  });
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = 'start-list.csv';
+  a.click();
+}
+
+// ── LEAGUE ────────────────────────────────────────────────────────
+async function renderLeague() {
+  const el = document.getElementById('leagueContent');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const { data } = await sb.from('club_league_results')
+    .select('*, club_members(member_number, user:user_id(raw_user_meta_data)), club_categories(name), club_events(title, event_date)')
+    .eq('club_members.club_id', currentClub.id)
+    .order('points', { ascending: false });
+
+  if (!data || data.length === 0) {
+    el.innerHTML = `<div class="empty">
+      <div class="empty-title">No results yet</div>
+      <div class="empty-desc">Results are entered after each league race. Contact SwimLoading to enter results for your first race.</div>
+    </div>`; return;
+  }
+
+  // Aggregate points per member
+  const standings = {};
+  data.forEach(r => {
+    const uid = r.club_members?.user?.raw_user_meta_data?.full_name || r.club_members?.member_number || '?';
+    if (!standings[uid]) standings[uid] = { name: uid, cat: r.club_categories?.name, points: 0, swims: 0 };
+    standings[uid].points += r.points;
+    standings[uid].swims  += 1;
+  });
+
+  const sorted = Object.values(standings).sort((a,b) => b.points - a.points);
+  el.innerHTML = `<div class="card">
+    <div class="card-header"><div class="card-title">Overall Standings</div></div>
+    <table>
+      <thead><tr><th>Rank</th><th>Member</th><th>Category</th><th>Swims</th><th>Points</th></tr></thead>
+      <tbody>
+        ${sorted.map((s, i) => `<tr>
+          <td style="font-weight:800;color:${i===0?'var(--gold)':i===1?'var(--silver)':i===2?'var(--bronze)':'var(--text-sec)'};">${i+1}</td>
+          <td class="member-name">${s.name}</td>
+          <td><span class="cat-badge ${catClass(s.cat)}">${s.cat}</span></td>
+          <td style="color:var(--text-sec);">${s.swims}</td>
+          <td style="font-weight:700;color:var(--cyan);">${s.points}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+// ── JOIN LINK ─────────────────────────────────────────────────────
+async function loadJoinLink() {
+  const { data } = await sb.from('club_join_links')
+    .select('*').eq('club_id', currentClub.id).eq('is_active', true)
+    .order('created_at', { ascending: false }).limit(1).single();
+  if (!data) { await generateNewLink(); return; }
+  renderJoinLink(data);
+}
+
+function renderJoinLink(link) {
+  const url = `https://www.swimloading.com/join/${link.code}`;
+  document.getElementById('joinLinkBox').innerHTML = `
+    <div class="join-link-url">${url}</div>
+    <button class="copy-btn" onclick="copyLink('${url}')">
+      <i data-lucide="copy" style="width:13px;height:13px;"></i> Copy
+    </button>`;
+  lucide.createIcons();
+}
+
+async function generateNewLink() {
+  const code = currentClub.slug + '-' + Math.random().toString(36).slice(2,7);
+  const { data, error } = await sb.from('club_join_links').insert({
+    club_id: currentClub.id, code, created_by: currentUser.id, is_active: true,
+  }).select().single();
+  if (error) { showToast('Failed to generate link: ' + error.message, 'error'); return; }
+  // Deactivate old links
+  await sb.from('club_join_links')
+    .update({ is_active: false })
+    .eq('club_id', currentClub.id)
+    .neq('id', data.id);
+  renderJoinLink(data);
+  showToast('New link generated', 'success');
+}
+
+function copyLink(url) {
+  navigator.clipboard.writeText(url).then(() => showToast('Link copied', 'success'));
+}
+
+// ── SETTINGS ──────────────────────────────────────────────────────
+function loadSettings() {
+  const c = currentClub;
+  document.getElementById('settingsContent').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+      <div><div class="form-label" style="margin-bottom:6px;">Club name</div><div style="font-weight:600;">${c.name}</div></div>
+      <div><div class="form-label" style="margin-bottom:6px;">Code</div><div style="font-family:monospace;color:var(--cyan);">${c.code}</div></div>
+      <div><div class="form-label" style="margin-bottom:6px;">Slug</div><div style="font-family:monospace;color:var(--text-sec);">swimloading.com/clubs/${c.slug}</div></div>
+      <div><div class="form-label" style="margin-bottom:6px;">Country</div><div>${c.country}</div></div>
+      <div><div class="form-label" style="margin-bottom:6px;">City</div><div>${c.city || '—'}</div></div>
+      <div><div class="form-label" style="margin-bottom:6px;">Founded</div><div>${c.founded_year || '—'}</div></div>
+    </div>
+    <div style="font-size:12px;color:var(--text-sec);padding-top:14px;border-top:1px solid var(--border);">
+      To update club details or category age ranges, contact <a href="mailto:support@swimloading.com" style="color:var(--cyan);">support@swimloading.com</a>
+    </div>`;
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = '', 3000);
+}
+
+// ── BOOT ──────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
