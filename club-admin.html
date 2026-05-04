@@ -200,6 +200,20 @@
   <button class="btn-sm danger" onclick="signOut()" style="margin-top:8px;">Sign out</button>
 </div>
 
+<!-- CLUB PICKER (multi-club admins) -->
+<div id="clubPickerGate" style="display:none; align-items:center; justify-content:center; min-height:100vh; padding:24px;">
+  <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:20px;padding:32px;max-width:400px;width:100%;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:24px;">
+      <img src="icons/logo-wave.png" style="height:22px;">
+      <span style="font-size:16px;font-weight:800;background:linear-gradient(135deg,#38bdf8,#0284c7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">SwimLoading</span>
+    </div>
+    <div style="font-size:17px;font-weight:800;margin-bottom:6px;">Select a club</div>
+    <div style="font-size:13px;color:var(--text-sec);margin-bottom:20px;">You have admin access to multiple clubs.</div>
+    <div id="clubPickerList" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <button class="btn-sm danger" onclick="signOut()" style="margin-top:20px;width:100%;justify-content:center;">Sign out</button>
+  </div>
+</div>
+
 <!-- MAIN APP -->
 <div id="app" style="display:none;">
   <!-- NAV -->
@@ -477,19 +491,42 @@ async function init() {
 }
 
 async function loadClubContext() {
-  // Check if this user is an admin/organiser of any club
-  const { data: membership } = await sb
+  // Slug from URL: /club-admin/duc → pick that club. /club-admin → auto-pick or show picker.
+  const urlSlug = location.pathname.replace(/^\/club-admin\/?/, '').replace(/\/$/, '') || null;
+
+  // Fetch ALL clubs this user admins
+  const { data: memberships } = await sb
     .from('club_members')
     .select('*, clubs(*), club_categories(name)')
     .eq('user_id', currentUser.id)
     .in('role', ['admin','organiser'])
-    .eq('is_active', true)
-    .single();
+    .eq('is_active', true);
 
-  if (!membership) { show('notAdminGate'); lucide.createIcons(); return; }
+  if (!memberships || memberships.length === 0) {
+    show('notAdminGate'); lucide.createIcons(); return;
+  }
+
+  let membership;
+  if (urlSlug) {
+    // URL specifies a club slug — use that one if the user is an admin of it
+    membership = memberships.find(m => m.clubs?.slug === urlSlug);
+    if (!membership) { show('notAdminGate'); lucide.createIcons(); return; }
+  } else if (memberships.length === 1) {
+    membership = memberships[0];
+  } else {
+    // Multiple clubs — show picker
+    showClubPicker(memberships); return;
+  }
 
   currentMemberRecord = membership;
   currentClub = membership.clubs;
+
+  // Update URL to /club-admin/:slug so it's bookmarkable and shareable
+  const targetPath = '/club-admin/' + currentClub.slug;
+  if (location.pathname !== targetPath) {
+    history.replaceState({}, '', targetPath);
+  }
+
   show('app');
 
   document.getElementById('navClubName').textContent = currentClub.name;
@@ -502,6 +539,27 @@ async function loadClubContext() {
   renderOverview();
   loadJoinLink();
   loadSettings();
+}
+
+// ── CLUB PICKER ───────────────────────────────────────────────────
+function showClubPicker(memberships) {
+  const list = document.getElementById('clubPickerList');
+  list.innerHTML = memberships.map(m => `
+    <button onclick="selectClub('${m.clubs.slug}')"
+      style="display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;text-align:left;width:100%;transition:border-color 0.15s;">
+      <i data-lucide="shield" style="width:20px;height:20px;color:var(--cyan);flex-shrink:0;"></i>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:var(--text);">${m.clubs.name}</div>
+        <div style="font-size:11px;color:var(--text-sec);margin-top:2px;">${m.role} · ${m.clubs.city || m.clubs.country}</div>
+      </div>
+    </button>`).join('');
+  show('clubPickerGate');
+  lucide.createIcons();
+}
+
+function selectClub(slug) {
+  history.pushState({}, '', '/club-admin/' + slug);
+  loadClubContext();
 }
 
 // ── AUTH ──────────────────────────────────────────────────────────
@@ -524,9 +582,10 @@ async function signOut() {
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 function show(id) {
-  document.getElementById('authGate').style.display      = id === 'authGate'    ? 'flex' : 'none';
-  document.getElementById('notAdminGate').style.display  = id === 'notAdminGate'? 'flex' : 'none';
-  document.getElementById('app').style.display           = id === 'app'         ? 'block': 'none';
+  document.getElementById('authGate').style.display       = id === 'authGate'       ? 'flex'  : 'none';
+  document.getElementById('notAdminGate').style.display   = id === 'notAdminGate'   ? 'flex'  : 'none';
+  document.getElementById('clubPickerGate').style.display = id === 'clubPickerGate' ? 'flex'  : 'none';
+  document.getElementById('app').style.display            = id === 'app'            ? 'block' : 'none';
 }
 
 function showPage(name) {
