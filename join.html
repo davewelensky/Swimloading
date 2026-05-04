@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Join Club · SwimLoading</title>
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #080f1a; --bg-card: #0d1728; --cyan: #38bdf8;
+      --cyan-dim: rgba(56,189,248,0.1); --cyan-border: rgba(56,189,248,0.2);
+      --text: #f1f5f9; --text-sec: #64748b; --border: rgba(255,255,255,0.06);
+      --green: #10b981; --danger: #ef4444; --amber: #f59e0b;
+    }
+    html, body { min-height: 100vh; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-size: 15px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    body::before {
+      content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+      background:
+        radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px), rgba(56,189,248,0.55), transparent 100%),
+        radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px), rgba(56,189,248,0.07), transparent 70%);
+    }
+
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 24px; padding: 36px 32px; max-width: 420px; width: 100%;
+      text-align: center;
+    }
+
+    /* Brand */
+    .brand { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 28px; }
+    .brand img { height: 24px; }
+    .brand span { font-size: 18px; font-weight: 800; background: linear-gradient(135deg,#38bdf8,#0284c7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+    /* Club header */
+    .club-badge { display: inline-block; background: var(--cyan-dim); border: 1px solid var(--cyan-border); color: var(--cyan); font-size: 10px; font-weight: 800; letter-spacing: 0.14em; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; margin-bottom: 14px; }
+    .club-name { font-family: 'Bebas Neue', sans-serif; font-size: 38px; letter-spacing: 0.04em; color: var(--text); line-height: 1; margin-bottom: 6px; }
+    .club-tagline { font-size: 13px; color: var(--text-sec); margin-bottom: 28px; }
+
+    /* Divider */
+    .divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+    /* Member preview */
+    .member-preview { background: rgba(56,189,248,0.05); border: 1px solid var(--cyan-border); border-radius: 14px; padding: 18px; margin-bottom: 20px; text-align: left; }
+    .preview-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .preview-row:last-child { margin-bottom: 0; }
+    .preview-label { font-size: 11px; font-weight: 700; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.1em; }
+    .preview-val { font-size: 14px; font-weight: 700; color: var(--text); }
+    .preview-val.cyan { color: var(--cyan); font-family: monospace; font-size: 16px; }
+    .cat-pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; border: 1px solid; }
+    .cat-guppies    { color:#34d399; border-color:rgba(52,211,153,0.3); background:rgba(52,211,153,0.08); }
+    .cat-sailfish   { color:var(--cyan); border-color:var(--cyan-border); background:var(--cyan-dim); }
+    .cat-makos      { color:var(--amber); border-color:rgba(245,158,11,0.3); background:rgba(245,158,11,0.08); }
+    .cat-walrus     { color:#a78bfa; border-color:rgba(167,139,250,0.3); background:rgba(167,139,250,0.08); }
+    .cat-coelacanths{ color:#fb923c; border-color:rgba(251,146,60,0.3); background:rgba(251,146,60,0.08); }
+
+    /* Inputs */
+    input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; color: var(--text); font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; margin-bottom: 10px; }
+    input:focus { border-color: var(--cyan-border); }
+    input::placeholder { color: var(--text-sec); }
+
+    /* Buttons */
+    .btn-primary { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; background: var(--cyan); color: #080f1a; font-size: 15px; font-weight: 800; padding: 14px 24px; border-radius: 50px; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: opacity 0.15s, transform 0.15s; }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-ghost { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; background: transparent; color: var(--text-sec); font-size: 14px; font-weight: 500; padding: 12px 24px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; font-family: 'DM Sans', sans-serif; margin-top: 10px; }
+    .btn-ghost:hover { border-color: var(--cyan-border); color: var(--cyan); }
+
+    /* Error */
+    .error-msg { color: var(--danger); font-size: 13px; margin-top: 8px; display: none; }
+
+    /* Screens */
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* Success */
+    .success-icon { width: 64px; height: 64px; background: rgba(16,185,129,0.1); border: 2px solid rgba(16,185,129,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
+    .success-icon i { color: var(--green); width: 28px; height: 28px; }
+    .success-title { font-family: 'Bebas Neue', sans-serif; font-size: 32px; letter-spacing: 0.04em; color: var(--text); margin-bottom: 8px; }
+    .success-sub { font-size: 14px; color: var(--text-sec); line-height: 1.65; margin-bottom: 24px; }
+    .num-display { font-family: 'Bebas Neue', sans-serif; font-size: 72px; color: var(--cyan); line-height: 1; margin: 16px 0; }
+    .num-label { font-size: 11px; font-weight: 700; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.12em; }
+
+    /* Loading spinner */
+    .spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Not found */
+    .not-found-icon { font-size: 48px; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="brand">
+    <img src="/icons/logo-wave.png" alt="">
+    <span>SwimLoading</span>
+  </div>
+
+  <!-- LOADING -->
+  <div id="screen-loading" class="screen active">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- INVALID LINK -->
+  <div id="screen-invalid" class="screen">
+    <div style="font-size:40px;margin-bottom:16px;opacity:0.4;">
+      <i data-lucide="link-off" style="width:48px;height:48px;color:var(--text-sec);display:block;margin:0 auto;"></i>
+    </div>
+    <div style="font-size:17px;font-weight:700;margin-bottom:8px;">Link not found</div>
+    <div style="font-size:13px;color:var(--text-sec);">This join link is invalid or has expired. Ask your club admin for a new one.</div>
+  </div>
+
+  <!-- AUTH — not logged in -->
+  <div id="screen-auth" class="screen">
+    <div id="clubHeaderAuth"></div>
+    <div style="font-size:14px;color:var(--text-sec);margin-bottom:20px;">Sign in to your SwimLoading account to join.</div>
+    <input type="email" id="authEmail" placeholder="Email address" autocomplete="email">
+    <input type="password" id="authPassword" placeholder="Password" autocomplete="current-password">
+    <button class="btn-primary" onclick="doSignIn()">
+      <i data-lucide="log-in" style="width:15px;height:15px;"></i>
+      Sign in and join
+    </button>
+    <div class="error-msg" id="authError"></div>
+    <div class="divider"></div>
+    <div style="font-size:12px;color:var(--text-sec);">Don't have an account? <a href="/app" style="color:var(--cyan);text-decoration:none;">Create one on SwimLoading</a> first, then tap this link again.</div>
+  </div>
+
+  <!-- CONFIRM JOIN -->
+  <div id="screen-confirm" class="screen">
+    <div id="clubHeader"></div>
+    <div id="memberPreview"></div>
+    <div style="font-size:13px;color:var(--text-sec);margin-bottom:20px;text-align:left;">
+      By joining you agree to the club's use of SwimLoading for event management and conditions tracking.
+    </div>
+    <button class="btn-primary" id="confirmBtn" onclick="confirmJoin()">
+      <i data-lucide="user-check" style="width:15px;height:15px;"></i>
+      Confirm — join the club
+    </button>
+    <button class="btn-ghost" onclick="signOut()">Not you? Sign out</button>
+    <div class="error-msg" id="confirmError"></div>
+  </div>
+
+  <!-- ALREADY A MEMBER -->
+  <div id="screen-already" class="screen">
+    <div id="alreadyClubHeader"></div>
+    <div style="font-size:15px;font-weight:700;margin-bottom:8px;">You're already a member</div>
+    <div style="font-size:13px;color:var(--text-sec);margin-bottom:24px;">Your membership is active. Head to the app to see your club's conditions, events, and standings.</div>
+    <a href="/app" class="btn-primary" style="text-decoration:none;">
+      <i data-lucide="arrow-right" style="width:15px;height:15px;"></i>
+      Open SwimLoading
+    </a>
+  </div>
+
+  <!-- SUCCESS -->
+  <div id="screen-success" class="screen">
+    <div class="success-icon"><i data-lucide="check"></i></div>
+    <div class="success-title">Welcome to the club</div>
+    <div id="successClubName" style="font-size:14px;color:var(--cyan);font-weight:700;margin-bottom:8px;"></div>
+    <div class="num-label">Your race number</div>
+    <div class="num-display" id="successNumber">—</div>
+    <div style="margin-bottom:16px;">
+      <span id="successCatPill" class="cat-pill"></span>
+    </div>
+    <div class="success-sub">You're in. Your number is permanent — it follows you to every race. Open the app to see upcoming swims and current conditions.</div>
+    <a href="/app" class="btn-primary" style="text-decoration:none;">
+      <i data-lucide="waves" style="width:15px;height:15px;"></i>
+      Open SwimLoading
+    </a>
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL      = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let linkData    = null;  // club_join_links row
+let clubData    = null;  // clubs row
+let categories  = [];
+let currentUser = null;
+let assignedCategory = null;
+let nextMemberNumber = null;
+
+// Mouse spotlight
+document.addEventListener('mousemove', e => {
+  document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+  document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+});
+
+async function init() {
+  lucide.createIcons();
+
+  // Extract join code from URL path: /join/duc-2026-join
+  const code = location.pathname.replace(/^\/join\//, '').replace(/\/$/, '');
+  if (!code) { showScreen('invalid'); lucide.createIcons(); return; }
+
+  // Load the join link
+  const { data: link } = await sb.from('club_join_links')
+    .select('*, clubs(*)')
+    .eq('code', code)
+    .eq('is_active', true)
+    .single();
+
+  if (!link || !link.clubs) { showScreen('invalid'); lucide.createIcons(); return; }
+
+  // Check expiry
+  if (link.expires_at && new Date(link.expires_at) < new Date()) {
+    showScreen('invalid'); lucide.createIcons(); return;
+  }
+
+  linkData = link;
+  clubData = link.clubs;
+
+  // Load categories for this club
+  const { data: cats } = await sb.from('club_categories')
+    .select('*').eq('club_id', clubData.id).order('sort_order');
+  categories = cats || [];
+
+  // Check auth
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) {
+    renderClubHeader('clubHeaderAuth');
+    showScreen('auth');
+    lucide.createIcons();
+    return;
+  }
+  currentUser = session.user;
+  await continueWithUser();
+}
+
+function renderClubHeader(containerId) {
+  const el = document.getElementById(containerId);
+  if (!el || !clubData) return;
+  el.innerHTML = `
+    <div class="club-badge">You're invited to join</div>
+    <div class="club-name">${clubData.name}</div>
+    <div class="club-tagline">${clubData.tagline || clubData.city || ''}</div>
+    <div class="divider"></div>`;
+}
+
+async function continueWithUser() {
+  // Check if already a member
+  const { data: existing } = await sb.from('club_members')
+    .select('id, member_number, club_categories(name)')
+    .eq('club_id', clubData.id)
+    .eq('user_id', currentUser.id)
+    .eq('is_active', true)
+    .single();
+
+  if (existing) {
+    renderClubHeader('alreadyClubHeader');
+    showScreen('already');
+    lucide.createIcons();
+    return;
+  }
+
+  // Determine category from DOB
+  const dob = currentUser.user_metadata?.date_of_birth;
+  assignedCategory = assignCategory(dob);
+
+  // Work out next member number
+  const { data: lastMember } = await sb.from('club_members')
+    .select('member_number')
+    .eq('club_id', clubData.id)
+    .order('joined_at', { ascending: false })
+    .limit(1);
+
+  const lastNum = lastMember?.[0]?.member_number
+    ? parseInt(lastMember[0].member_number.replace('#','')) || 0
+    : 0;
+  nextMemberNumber = '#' + String(lastNum + 1).padStart(2, '0');
+
+  // Render confirm screen
+  renderClubHeader('clubHeader');
+  const userName = currentUser.user_metadata?.full_name || currentUser.email;
+  const catClass  = catClassName(assignedCategory?.name);
+  document.getElementById('memberPreview').innerHTML = `
+    <div class="member-preview">
+      <div class="preview-row">
+        <span class="preview-label">Joining as</span>
+        <span class="preview-val">${userName}</span>
+      </div>
+      <div class="preview-row">
+        <span class="preview-label">Race number</span>
+        <span class="preview-val cyan">${nextMemberNumber}</span>
+      </div>
+      <div class="preview-row">
+        <span class="preview-label">Category</span>
+        <span class="cat-pill ${catClass}">${assignedCategory?.name || 'To be assigned'}</span>
+      </div>
+      ${!dob ? `<div style="font-size:11px;color:var(--amber);margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+        No date of birth on your profile — category assigned by admin. You can update your DOB in the SwimLoading app settings.
+      </div>` : ''}
+    </div>`;
+  showScreen('confirm');
+  lucide.createIcons();
+}
+
+function assignCategory(dob) {
+  if (!dob || !categories.length) {
+    // Default: find middle category or first available
+    return categories.find(c => c.name === 'Makos') || categories[Math.floor(categories.length / 2)] || null;
+  }
+  const today = new Date();
+  const birth = new Date(dob);
+  const age   = Math.floor((today - birth) / (365.25 * 24 * 60 * 60 * 1000));
+  return categories.find(c => {
+    const minOk = c.min_age == null || age >= c.min_age;
+    const maxOk = c.max_age == null || age <= c.max_age;
+    return minOk && maxOk;
+  }) || categories[categories.length - 1];
+}
+
+function catClassName(name) {
+  const map = { Guppies:'cat-guppies', Sailfish:'cat-sailfish', Makos:'cat-makos', Walrus:'cat-walrus', Coelacanths:'cat-coelacanths' };
+  return map[name] || 'cat-sailfish';
+}
+
+async function doSignIn() {
+  const email    = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const errEl    = document.getElementById('authError');
+  errEl.style.display = 'none';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return; }
+  currentUser = data.user;
+  await continueWithUser();
+}
+
+async function confirmJoin() {
+  const btn = document.getElementById('confirmBtn');
+  const err = document.getElementById('confirmError');
+  btn.disabled = true; btn.textContent = 'Joining…';
+  err.style.display = 'none';
+
+  const { error } = await sb.from('club_members').insert({
+    club_id:       clubData.id,
+    user_id:       currentUser.id,
+    member_number: nextMemberNumber,
+    category_id:   assignedCategory?.id || null,
+    role:          'member',
+    is_active:     true,
+  });
+
+  if (error) {
+    btn.disabled = false; btn.textContent = 'Confirm — join the club';
+    err.textContent = error.message; err.style.display = 'block';
+    return;
+  }
+
+  // Increment use_count on the join link
+  await sb.from('club_join_links')
+    .update({ use_count: (linkData.use_count || 0) + 1 })
+    .eq('id', linkData.id);
+
+  // Show success
+  document.getElementById('successClubName').textContent = clubData.name;
+  document.getElementById('successNumber').textContent = nextMemberNumber;
+  const catEl = document.getElementById('successCatPill');
+  catEl.textContent = assignedCategory?.name || '';
+  catEl.className   = 'cat-pill ' + catClassName(assignedCategory?.name);
+  showScreen('success');
+  lucide.createIcons();
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  location.reload();
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name)?.classList.add('active');
+}
+
+init();
+</script>
+</body>
+</html>
