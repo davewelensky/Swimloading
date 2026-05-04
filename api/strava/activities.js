@@ -55,7 +55,11 @@ export default async function handler(req, res) {
     }
 
     const all = await stravaRes.json();
+    console.log('[strava/activities] total activities:', all.length,
+        '| types:', [...new Set(all.map(a => a.sport_type || a.type))].join(', '),
+        '| athlete:', all[0]?.athlete?.id ?? 'unknown');
     const swims = all.filter(a => SWIM_TYPES.has(a.sport_type || a.type));
+    console.log('[strava/activities] swims after filter:', swims.length);
 
     if (swims.length === 0) {
         return res.status(200).json({ activities: [] });
