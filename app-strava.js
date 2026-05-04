@@ -23,7 +23,7 @@ async function checkStravaBanner() {
 
     // Fetch activities (cached)
     const activities = await fetchStravaActivities();
-    if (!activities) return;
+    if (!activities || activities === 'reconnect_required') return;
 
     // Look for unimported swim in the last 24 hours
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
@@ -91,7 +91,10 @@ async function fetchStravaActivities() {
 
         if (!res.ok) {
             const { error } = await res.json().catch(() => ({}));
-            if (error === 'strava_not_connected') return null;
+            if (error === 'strava_not_connected') {
+                // Token expired and refresh failed — user needs to reconnect
+                return 'reconnect_required';
+            }
             console.error('[strava] fetchStravaActivities error:', error);
             return null;
         }
@@ -136,6 +139,19 @@ async function loadStravaImportList() {
     initIcons();
 
     const activities = await fetchStravaActivities();
+
+    if (activities === 'reconnect_required') {
+        list.innerHTML = `
+            <div style="text-align:center;padding:40px 20px;">
+                <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Strava connection needs refreshing</div>
+                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;">Your connection expired. Disconnect and reconnect Strava to fetch your latest swims.</div>
+                <button onclick="closeStravaImportModal();showPage('profile');"
+                    style="background:#fc4c02;color:white;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;">
+                    Go to Profile to reconnect
+                </button>
+            </div>`;
+        return;
+    }
 
     if (!activities || activities.length === 0) {
         list.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-secondary);font-size:14px;">No recent swims found. Sync your watch, then try again.</div>`;
