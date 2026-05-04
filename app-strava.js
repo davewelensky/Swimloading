@@ -4,7 +4,7 @@
 let _stravaActivitiesCache = null;   // cache per session
 let _stravaFetchedAt       = 0;
 let _selectedStravaActivity = null;  // activity being imported
-const STRAVA_CACHE_MS = 15 * 60 * 1000; // 15 minutes
+const STRAVA_CACHE_MS = 3 * 60 * 1000; // 3 minutes (manual refresh available)
 
 // ─── Dashboard Banner ────────────────────────────────────────────────────────
 
@@ -109,6 +109,19 @@ async function fetchStravaActivities() {
 // ─── Import Modal ────────────────────────────────────────────────────────────
 
 async function openStravaImportModal() {
+    // Always fetch fresh when opening the modal
+    _stravaActivitiesCache = null;
+    _stravaFetchedAt = 0;
+    await loadStravaImportList();
+}
+
+async function refreshStravaImportList() {
+    _stravaActivitiesCache = null;
+    _stravaFetchedAt = 0;
+    await loadStravaImportList();
+}
+
+async function loadStravaImportList() {
     const modal = document.getElementById('stravaImportModal');
     if (!modal) return;
     modal.style.display = 'block';
