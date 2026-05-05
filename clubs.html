@@ -496,6 +496,11 @@
       </div>
     </div>
 
+    <!-- TEMP CHALLENGE -->
+    <div id="sectionTempChallenge" style="margin-bottom:40px;">
+      <div id="tempChallengeContainer"></div>
+    </div>
+
     <!-- LEAGUE STANDINGS -->
     <div id="sectionLeague">
       <div class="section-head">
@@ -658,18 +663,37 @@
       .select('*, club_members(member_number, profiles!club_members_user_id_fkey(display_name, first_name, last_name)), club_categories(name)')
       .eq('club_id', club.id);
 
-    // Fetch member count
-    const { count: memberCount } = await sb
+    // Fetch members with profiles for temp challenge
+    const { data: members } = await sb
       .from('club_members')
-      .select('id', { count: 'exact', head: true })
+      .select('user_id, member_number, category_id, club_categories(name), profiles!club_members_user_id_fkey(display_name)')
       .eq('club_id', club.id)
       .eq('is_active', true);
 
+    const memberCount = members?.length || 0;
+
+    // Fetch this month's temp logs by members
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+    const memberIds  = (members || []).map(m => m.user_id);
+    let memberTempLogs = [];
+    if (memberIds.length) {
+      const { data: mtl } = await sb
+        .from('temp_logs')
+        .select('user_id, spot_id, created_at, logged_at')
+        .in('user_id', memberIds)
+        .gte('created_at', monthStart)
+        .lt('created_at', monthEnd);
+      memberTempLogs = mtl || [];
+    }
+
     // ── Render ──────────────────────────────────────────────────────
-    renderHero(club, spotName, recentLogs, memberCount || 0);
+    renderHero(club, spotName, recentLogs, memberCount);
     renderConditions(recentLogs, spotName);
     renderChart(recentLogs);
     renderEvents(events);
+    renderTempChallenge(members || [], memberTempLogs, categories);
     renderLeague(categories, leagueResults || []);
     renderLogs(recentLogs);
     renderJoinBanner(club);
@@ -881,6 +905,93 @@
     }).join('');
 
     container.innerHTML = `<div class="swims-list">${html}</div>`;
+  }
+
+  // ── TEMP CHALLENGE ───────────────────────────────────────────────
+  function renderTempChallenge(members, logs, categories) {
+    const container = document.getElementById('tempChallengeContainer');
+    if (!container) return;
+
+    const now = new Date();
+    const monthName = now.toLocaleString('en-ZA', { month: 'long', year: 'numeric' });
+
+    // Calculate points per member
+    const byUser = {};
+    logs.forEach(l => {
+      if (!byUser[l.user_id]) byUser[l.user_id] = { days: {} };
+      const day = (l.logged_at || l.created_at).slice(0, 10);
+      if (!byUser[l.user_id].days[day]) byUser[l.user_id].days[day] = new Set();
+      byUser[l.user_id].days[day].add(l.spot_id);
+    });
+
+    const standings = members.map(m => {
+      const ud = byUser[m.user_id] || { days: {} };
+      const logCount = Object.values(ud.days).reduce((s, spots) => s + spots.size, 0);
+      const basePoints = logCount * 10;
+      const bonusPoints = Object.values(ud.days).reduce((s, spots) => s + spots.size * 10, 0);
+      return {
+        userId: m.user_id,
+        name: m.profiles?.display_name || 'Member',
+        memberNum: m.member_number,
+        cat: m.club_categories?.name || 'Member',
+        logCount,
+        swimDays: Object.keys(ud.days).length,
+        points: basePoints + bonusPoints,
+      };
+    }).sort((a, b) => b.points - a.points);
+
+    const hasActivity = standings.some(s => s.points > 0);
+    const CAT_COLORS = { Guppies:'#34d399', Sailfish:'var(--cyan)', Makos:'var(--amber)', Walrus:'#a78bfa', Coelacanths:'#fb923c' };
+    const MEDAL = ['var(--gold)', 'var(--silver)', 'var(--bronze)'];
+
+    if (!hasActivity) {
+      container.innerHTML = `
+        <div class="section-header">
+          <div class="section-tag">Temp Challenge</div>
+          <div class="section-title">${monthName} — Logging Leaderboard</div>
+        </div>
+        <div class="card">
+          <div class="empty-state">
+            <div class="empty-state-icon"><i data-lucide="thermometer"></i></div>
+            <div class="empty-state-title">Challenge starts when members log</div>
+            <div class="empty-state-desc">Members earn 10 pts per log + 10 pts bonus per unique spot per day. Log anywhere — ocean, pool, dam. Leaderboard updates in real time.</div>
+          </div>
+        </div>`;
+      return;
+    }
+
+    const rows = standings.slice(0, 10).map((s, i) => {
+      const col = i < 3 ? MEDAL[i] : 'var(--text-sec)';
+      const catCol = CAT_COLORS[s.cat] || 'var(--cyan)';
+      return `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:${i < 3 ? '12px 16px' : '9px 16px'};border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="font-size:13px;font-weight:800;color:${col};width:20px;flex-shrink:0;">${i + 1}</span>
+            <div>
+              <div style="font-size:${i < 3 ? '14px' : '13px'};font-weight:${i < 3 ? '700' : '500'};color:var(--text);">${s.name}</div>
+              <div style="font-size:11px;color:var(--text-sec);margin-top:2px;">
+                <span style="color:${catCol};font-weight:600;">${s.cat}</span>
+                &nbsp;·&nbsp;${s.logCount} log${s.logCount !== 1 ? 's' : ''}
+                &nbsp;·&nbsp;${s.swimDays} day${s.swimDays !== 1 ? 's' : ''}
+              </div>
+            </div>
+          </div>
+          <div style="font-size:${i < 3 ? '16px' : '14px'};font-weight:800;color:${s.points > 0 ? 'var(--cyan)' : 'var(--text-sec)'};">${s.points}<span style="font-size:10px;font-weight:600;color:var(--text-sec);margin-left:2px;">pts</span></div>
+        </div>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div class="section-header">
+        <div class="section-tag">Temp Challenge</div>
+        <div class="section-title">${monthName} — Logging Leaderboard</div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:12px;color:var(--text-sec);">10 pts per log · +10 per unique spot per day · log anywhere</div>
+          <div style="font-size:12px;color:var(--text-sec);">${members.length} members</div>
+        </div>
+        ${rows}
+      </div>`;
   }
 
   // ── LEAGUE STANDINGS ─────────────────────────────────────────────

@@ -251,6 +251,9 @@
       <button class="nav-item" onclick="showPage('league')" id="nav-league">
         <i data-lucide="trophy"></i> League
       </button>
+      <button class="nav-item" onclick="showPage('tempchallenge')" id="nav-tempchallenge">
+        <i data-lucide="thermometer"></i> Temp Challenge
+      </button>
       <div class="sidebar-divider"></div>
       <button class="nav-item" onclick="showPage('joinlink')" id="nav-joinlink">
         <i data-lucide="link"></i> Join Link
@@ -356,6 +359,21 @@
           </div>
         </div>
         <div id="entriesContent"></div>
+      </div>
+
+      <!-- ── TEMP CHALLENGE ── -->
+      <div id="page-tempchallenge" class="page">
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="page-title">Temp Challenge</div>
+            <div class="page-sub" id="tempChallengeSubtitle">Members compete by logging water temps — anywhere they swim.</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select class="filter-select" id="tempChallengeMonth" onchange="loadTempChallenge()">
+            </select>
+          </div>
+        </div>
+        <div id="tempChallengeContent"><div class="loading"><div class="spinner"></div></div></div>
       </div>
 
       <!-- ── LEAGUE ── -->
@@ -593,8 +611,9 @@ function showPage(name) {
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + name)?.classList.add('active');
   document.getElementById('nav-' + name)?.classList.add('active');
-  if (name === 'entries') populateEntriesEventSelect();
-  if (name === 'league')  renderLeague();
+  if (name === 'entries')       populateEntriesEventSelect();
+  if (name === 'league')        renderLeague();
+  if (name === 'tempchallenge') loadTempChallenge();
 }
 
 // ── DATA LOADERS ──────────────────────────────────────────────────
@@ -625,11 +644,11 @@ async function loadMembers() {
   const userIds = allMembers.map(m => m.user_id);
   if (userIds.length) {
     const { data: logs } = await sb.from('temp_logs')
-      .select('created_by')
-      .in('created_by', userIds)
+      .select('user_id')
+      .in('user_id', userIds)
       .gte('created_at', since.toISOString());
     (logs || []).forEach(l => {
-      memberLogs[l.created_by] = (memberLogs[l.created_by] || 0) + 1;
+      memberLogs[l.user_id] = (memberLogs[l.user_id] || 0) + 1;
     });
   }
   renderMembersTable(allMembers);
@@ -982,6 +1001,150 @@ async function exportStartList(eventId) {
   a.href     = URL.createObjectURL(blob);
   a.download = 'start-list.csv';
   a.click();
+}
+
+// ── TEMP CHALLENGE ────────────────────────────────────────────────
+function initTempChallengeMonthPicker() {
+  const sel = document.getElementById('tempChallengeMonth');
+  if (!sel || sel.options.length > 0) return;
+  const now = new Date();
+  for (let i = 0; i < 4; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = d.toISOString().slice(0, 7);
+    const label = d.toLocaleString('en-ZA', { month: 'long', year: 'numeric' });
+    const opt = document.createElement('option');
+    opt.value = val; opt.textContent = label;
+    sel.appendChild(opt);
+  }
+}
+
+async function loadTempChallenge() {
+  initTempChallengeMonthPicker();
+  const el = document.getElementById('tempChallengeContent');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  const monthVal = document.getElementById('tempChallengeMonth')?.value || new Date().toISOString().slice(0, 7);
+  const [year, month] = monthVal.split('-').map(Number);
+  const monthStart = new Date(year, month - 1, 1).toISOString();
+  const monthEnd   = new Date(year, month, 1).toISOString();
+
+  // Get all active members
+  const memberIds = allMembers.map(m => m.user_id);
+  if (!memberIds.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-title">No members yet</div><div class="empty-desc">Share the join link to add members first.</div></div>`;
+    return;
+  }
+
+  // Fetch their temp logs for the month
+  const { data: logs } = await sb.from('temp_logs')
+    .select('user_id, spot_id, created_at, logged_at, spots(name, domain)')
+    .in('user_id', memberIds)
+    .gte('created_at', monthStart)
+    .lt('created_at', monthEnd);
+
+  // Calculate points per member: 10pts/log + 10pts per unique spot per day
+  const byUser = {};
+  (logs || []).forEach(l => {
+    if (!byUser[l.user_id]) byUser[l.user_id] = { logs: [], days: {} };
+    const day = (l.logged_at || l.created_at).slice(0, 10);
+    if (!byUser[l.user_id].days[day]) byUser[l.user_id].days[day] = new Set();
+    byUser[l.user_id].days[day].add(l.spot_id);
+    byUser[l.user_id].logs.push(l);
+  });
+
+  const standings = allMembers.map(m => {
+    const ud = byUser[m.user_id] || { logs: [], days: {} };
+    const logCount = ud.logs.length;
+    const basePoints = logCount * 10;
+    const bonusPoints = Object.values(ud.days).reduce((sum, spots) => sum + spots.size * 10, 0);
+    return {
+      member: m,
+      logCount,
+      swimDays: Object.keys(ud.days).length,
+      points: basePoints + bonusPoints,
+      name: m.user?.raw_user_meta_data?.full_name || m.user?.email || '—',
+      cat: m.club_categories?.name || 'Unassigned',
+      catId: m.category_id,
+      memberNum: m.member_number,
+    };
+  }).sort((a, b) => b.points - a.points || b.logCount - a.logCount);
+
+  const MEDAL = ['var(--gold)', 'var(--silver)', 'var(--bronze)'];
+  const monthLabel = new Date(year, month - 1, 1).toLocaleString('en-ZA', { month: 'long', year: 'numeric' });
+
+  // Overall leaderboard
+  const overallRows = standings.map((s, i) => {
+    const col = i < 3 ? MEDAL[i] : 'var(--text-sec)';
+    return `<tr>
+      <td style="font-weight:800;color:${col};">${i + 1}</td>
+      <td><div class="member-name">${s.name}</div><div class="member-email">${s.memberNum}</div></td>
+      <td><span class="cat-badge ${catClass(s.cat)}">${s.cat}</span></td>
+      <td style="color:var(--text-sec);font-size:12px;">${s.logCount} log${s.logCount !== 1 ? 's' : ''} · ${s.swimDays}d</td>
+      <td style="font-weight:800;color:${s.points > 0 ? 'var(--cyan)' : 'var(--text-sec)'};">${s.points}</td>
+    </tr>`;
+  }).join('');
+
+  // Per-category breakdown
+  const catGroups = {};
+  allCategories.forEach(c => { catGroups[c.name] = []; });
+  standings.forEach(s => {
+    if (catGroups[s.cat]) catGroups[s.cat].push(s);
+    else catGroups['Unassigned'] = [...(catGroups['Unassigned'] || []), s];
+  });
+
+  const catCards = Object.entries(catGroups).filter(([, members]) => members.length > 0).map(([cat, members]) => {
+    const top = members[0];
+    const catCls = catClass(cat);
+    return `
+    <div class="card" style="margin-bottom:14px;">
+      <div class="card-header">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="cat-badge ${catCls}">${cat}</span>
+          <div class="card-title" style="font-size:12px;">${members.length} member${members.length !== 1 ? 's' : ''}</div>
+        </div>
+        ${top.points > 0 ? `<div style="font-size:11px;color:var(--text-sec);">Leading: <strong style="color:var(--text);">${top.name}</strong> · ${top.points} pts</div>` : ''}
+      </div>
+      <table>
+        <thead><tr><th>Rank</th><th>Member</th><th>Logs</th><th>Days</th><th>Points</th></tr></thead>
+        <tbody>
+          ${members.map((s, i) => `<tr>
+            <td style="font-weight:700;color:${i === 0 && s.points > 0 ? 'var(--gold)' : 'var(--text-sec)'};">${i + 1}</td>
+            <td class="member-name">${s.name}</td>
+            <td style="color:var(--text-sec);">${s.logCount}</td>
+            <td style="color:var(--text-sec);">${s.swimDays}</td>
+            <td style="font-weight:700;color:${s.points > 0 ? 'var(--cyan)' : 'var(--text-sec)'};">${s.points}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  }).join('');
+
+  const noLogs = standings.every(s => s.points === 0);
+
+  el.innerHTML = `
+    <div style="background:var(--cyan-dim);border:1px solid var(--cyan-border);border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">${monthLabel} Challenge</div>
+        <div style="font-size:13px;color:var(--text-sec);">10 pts per log · +10 per unique spot per day · log anywhere</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:22px;font-weight:800;color:var(--text);">${standings.reduce((s, m) => s + m.logCount, 0)}</div>
+        <div style="font-size:11px;color:var(--text-sec);">total logs by members</div>
+      </div>
+    </div>
+
+    ${noLogs ? `<div class="empty"><i data-lucide="thermometer"></i><div class="empty-title">No logs yet this month</div><div class="empty-desc">Members earn points by logging water temps anywhere they swim. Share the join link to get more members in.</div></div>` : `
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header"><div class="card-title">Overall Standings</div></div>
+      <table>
+        <thead><tr><th>Rank</th><th>Member</th><th>Category</th><th>Activity</th><th>Points</th></tr></thead>
+        <tbody>${overallRows}</tbody>
+      </table>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px;">By Category</div>
+    ${catCards}`}`;
+
+  lucide.createIcons();
 }
 
 // ── LEAGUE ────────────────────────────────────────────────────────
