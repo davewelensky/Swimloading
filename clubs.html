@@ -428,6 +428,7 @@
         <div class="hero-member-num" id="heroMemberNum">—</div>
         <div class="hero-member-label">Members</div>
       </div>
+      <div id="heroLogoSlot"></div>
       <div class="hero-eyebrow">
         <div class="hero-eyebrow-line"></div>
         <span id="heroLocation">—</span>
@@ -442,6 +443,14 @@
 
   <!-- CONTENT -->
   <div class="content">
+
+    <!-- ABOUT -->
+    <div id="sectionAbout" style="display:none;">
+      <div class="section-head">
+        <div class="section-title">About</div>
+      </div>
+      <div id="aboutContainer"></div>
+    </div>
 
     <!-- CURRENT CONDITIONS -->
     <div id="sectionConditions" style="display:none;">
@@ -700,6 +709,7 @@
 
     // ── Render ──────────────────────────────────────────────────────
     renderHero(club, spotName, recentLogs, memberCount);
+    renderAbout(club);
     renderConditions(recentLogs, spotName);
     renderChart(recentLogs);
     renderEvents(events);
@@ -722,10 +732,20 @@
 
   // ── HERO ─────────────────────────────────────────────────────────
   function renderHero(club, spotName, logs, memberCount) {
+    // Use declared member_count from DB if set, else fall back to actual SW members
+    const displayCount = club.member_count || memberCount || 0;
+
     document.getElementById('heroCode').textContent = club.code;
     document.getElementById('heroFullname').textContent = club.name;
     if (club.tagline) document.getElementById('heroTagline').textContent = club.tagline;
-    document.getElementById('heroMemberNum').textContent = memberCount > 0 ? memberCount : '—';
+    document.getElementById('heroMemberNum').textContent = displayCount > 0 ? displayCount : '—';
+
+    // Club logo — inject before code name if available
+    const logoSlot = document.getElementById('heroLogoSlot');
+    if (logoSlot && club.logo_url) {
+      logoSlot.innerHTML = `<img src="${club.logo_url}" alt="${club.name} logo"
+        style="height:64px;width:auto;max-width:180px;object-fit:contain;margin-bottom:14px;filter:drop-shadow(0 2px 12px rgba(0,0,0,0.4));">`;
+    }
 
     // Location eyebrow
     const parts = [];
@@ -736,13 +756,12 @@
     // Meta stats
     const meta = document.getElementById('heroMeta');
     const statsHtml = [];
-    if (memberCount > 0) {
-      statsHtml.push(`<div class="hero-stat"><i data-lucide="users"></i><span class="hero-stat-val">${memberCount}</span><span class="hero-stat-label">members</span></div>`);
+    if (displayCount > 0) {
+      statsHtml.push(`<div class="hero-stat"><i data-lucide="users"></i><span class="hero-stat-val">${displayCount}</span><span class="hero-stat-label">members</span></div>`);
     }
-    if (spotName) {
+    if (spotName && club.home_spot_id) {
       statsHtml.push(`<div class="hero-stat"><i data-lucide="map-pin"></i><span class="hero-stat-val">${spotName}</span><span class="hero-stat-label">home water</span></div>`);
     }
-    // 7-day avg temp
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const recentLogs7 = logs.filter(l => new Date(l.created_at) >= sevenDaysAgo && l.temp_c != null);
     if (recentLogs7.length > 0) {
@@ -760,6 +779,35 @@
         <i data-lucide="thermometer" style="width:15px;height:15px;"></i>Log conditions
       </a>
     `;
+  }
+
+  // ── ABOUT ─────────────────────────────────────────────────────────
+  function renderAbout(club) {
+    const container = document.getElementById('aboutContainer');
+    if (!container) return;
+    if (!club.description && !club.website && !club.contact_email) return;
+
+    const links = [];
+    if (club.website) {
+      links.push(`<a href="${club.website}" target="_blank" rel="noopener"
+        style="display:inline-flex;align-items:center;gap:6px;color:var(--cyan);font-size:13px;font-weight:600;text-decoration:none;">
+        <i data-lucide="external-link" style="width:13px;height:13px;"></i>Website
+      </a>`);
+    }
+    if (club.contact_email) {
+      links.push(`<a href="mailto:${club.contact_email}"
+        style="display:inline-flex;align-items:center;gap:6px;color:var(--cyan);font-size:13px;font-weight:600;text-decoration:none;">
+        <i data-lucide="mail" style="width:13px;height:13px;"></i>${club.contact_email}
+      </a>`);
+    }
+
+    container.innerHTML = `
+      <div class="card" style="padding:20px;">
+        ${club.description ? `<p style="font-size:13px;color:var(--text-sec);line-height:1.75;margin-bottom:${links.length ? '16px' : '0'};">${club.description}</p>` : ''}
+        ${links.length ? `<div style="display:flex;flex-wrap:wrap;gap:16px;">${links.join('')}</div>` : ''}
+      </div>`;
+
+    document.getElementById('sectionAbout').style.display = '';
   }
 
   // ── CONDITIONS ───────────────────────────────────────────────────
