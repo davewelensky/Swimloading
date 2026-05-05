@@ -660,23 +660,33 @@
     // Fetch league results (for standings)
     const { data: leagueResults } = await sb
       .from('club_league_results')
-      .select('*, club_members(member_number, profiles!club_members_user_id_fkey(display_name, first_name, last_name)), club_categories(name)')
+      .select('*, club_members(member_number, user_id), club_categories(name)')
       .eq('club_id', club.id);
 
-    // Fetch members with profiles for temp challenge
+    // Fetch members for temp challenge (no profiles join — separate query)
     const { data: members } = await sb
       .from('club_members')
-      .select('user_id, member_number, category_id, club_categories(name), profiles!club_members_user_id_fkey(display_name)')
+      .select('user_id, member_number, category_id, club_categories(name)')
       .eq('club_id', club.id)
       .eq('is_active', true);
 
     const memberCount = members?.length || 0;
+    const memberIds   = (members || []).map(m => m.user_id);
+
+    // Fetch display names separately
+    let profileMap = {};
+    if (memberIds.length) {
+      const { data: profs } = await sb
+        .from('profiles')
+        .select('id, display_name')
+        .in('id', memberIds);
+      (profs || []).forEach(p => { profileMap[p.id] = p.display_name; });
+    }
 
     // Fetch this month's temp logs by members
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
-    const memberIds  = (members || []).map(m => m.user_id);
     let memberTempLogs = [];
     if (memberIds.length) {
       const { data: mtl } = await sb
@@ -693,7 +703,7 @@
     renderConditions(recentLogs, spotName);
     renderChart(recentLogs);
     renderEvents(events);
-    renderTempChallenge(members || [], memberTempLogs, categories);
+    renderTempChallenge(members || [], memberTempLogs, categories, profileMap);
     renderLeague(categories, leagueResults || []);
     renderLogs(recentLogs);
     renderJoinBanner(club);
@@ -908,7 +918,7 @@
   }
 
   // ── TEMP CHALLENGE ───────────────────────────────────────────────
-  function renderTempChallenge(members, logs, categories) {
+  function renderTempChallenge(members, logs, categories, profileMap = {}) {
     const container = document.getElementById('tempChallengeContainer');
     if (!container) return;
 
@@ -931,7 +941,7 @@
       const bonusPoints = Object.values(ud.days).reduce((s, spots) => s + spots.size * 10, 0);
       return {
         userId: m.user_id,
-        name: m.profiles?.display_name || 'Member',
+        name: profileMap[m.user_id] || 'Member',
         memberNum: m.member_number,
         cat: m.club_categories?.name || 'Member',
         logCount,
