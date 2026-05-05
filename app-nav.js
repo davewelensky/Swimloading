@@ -1388,6 +1388,88 @@
             el.style.boxShadow  = `0 0 14px ${cfg.shadow}`;
         }
 
+        // ─── Club Membership ──────────────────────────────────────────────────
+
+        async function loadClubMembership() {
+            const section = document.getElementById('clubMembershipSection');
+            const card    = document.getElementById('clubMembershipCard');
+            if (!section || !card || !currentUser) return;
+
+            // Fetch all clubs this user belongs to
+            const { data: memberships, error } = await supabaseClient
+                .from('club_members')
+                .select('member_number, role, joined_at, club_categories(name), clubs(id, name, slug, code, country, tagline, logo_url)')
+                .eq('user_id', currentUser.id)
+                .eq('is_active', true);
+
+            if (error || !memberships || memberships.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+
+            const CAT_COLORS = {
+                Guppies:     { color: '#34d399', bg: 'rgba(52,211,153,0.1)',  border: 'rgba(52,211,153,0.25)' },
+                Sailfish:    { color: '#38bdf8', bg: 'rgba(56,189,248,0.1)',  border: 'rgba(56,189,248,0.25)' },
+                Makos:       { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.25)' },
+                Walrus:      { color: '#a78bfa', bg: 'rgba(167,139,250,0.1)', border: 'rgba(167,139,250,0.25)' },
+                Coelacanths: { color: '#fb923c', bg: 'rgba(251,146,60,0.1)',  border: 'rgba(251,146,60,0.25)' },
+            };
+
+            card.innerHTML = memberships.map(m => {
+                const club   = m.clubs;
+                if (!club) return '';
+                const cat    = m.club_categories?.name || null;
+                const catCfg = cat ? (CAT_COLORS[cat] || { color: '#38bdf8', bg: 'rgba(56,189,248,0.1)', border: 'rgba(56,189,248,0.25)' }) : null;
+                const isAdmin = m.role === 'admin' || m.role === 'organiser';
+                const joinDate = new Date(m.joined_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' });
+
+                return `
+                <div style="background:rgba(56,189,248,0.04);border:1px solid rgba(56,189,248,0.15);border-radius:14px;padding:16px;margin-bottom:10px;">
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                        ${club.logo_url
+                            ? `<img src="${club.logo_url}" alt="" style="height:36px;width:36px;object-fit:contain;border-radius:6px;background:rgba(255,255,255,0.05);padding:3px;flex-shrink:0;">`
+                            : `<div style="height:36px;width:36px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i data-lucide="waves" style="width:16px;height:16px;color:var(--ocean-light);"></i></div>`
+                        }
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-size:14px;font-weight:700;color:var(--text-primary);line-height:1.2;">${club.name}</div>
+                            ${club.tagline ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${club.tagline}</div>` : ''}
+                        </div>
+                        ${isAdmin ? `<span style="font-size:10px;font-weight:700;background:rgba(245,158,11,0.12);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);padding:2px 8px;border-radius:6px;white-space:nowrap;">ADMIN</span>` : ''}
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+                        <div style="background:rgba(0,0,0,0.25);border-radius:8px;padding:8px 12px;text-align:center;min-width:64px;">
+                            <div style="font-size:18px;font-weight:800;color:var(--ocean-light);font-family:monospace;line-height:1;">${m.member_number}</div>
+                            <div style="font-size:10px;color:var(--text-secondary);margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Race #</div>
+                        </div>
+                        ${catCfg ? `
+                        <div style="background:${catCfg.bg};border:1px solid ${catCfg.border};border-radius:8px;padding:8px 12px;text-align:center;min-width:64px;">
+                            <div style="font-size:13px;font-weight:700;color:${catCfg.color};line-height:1;">${cat}</div>
+                            <div style="font-size:10px;color:var(--text-secondary);margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Category</div>
+                        </div>` : ''}
+                        <div style="background:rgba(0,0,0,0.25);border-radius:8px;padding:8px 12px;text-align:center;">
+                            <div style="font-size:12px;font-weight:600;color:var(--text-primary);line-height:1;">${joinDate}</div>
+                            <div style="font-size:10px;color:var(--text-secondary);margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Joined</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <a href="/clubs/${club.slug}" target="_blank"
+                           style="flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);border-radius:8px;padding:9px 14px;font-size:12px;font-weight:700;color:var(--ocean-light);text-decoration:none;">
+                            <i data-lucide="trophy" style="width:13px;height:13px;"></i>Club page &amp; leaderboard
+                        </a>
+                        ${isAdmin ? `
+                        <a href="/club-admin/${club.slug}" target="_blank"
+                           style="display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:9px 14px;font-size:12px;font-weight:700;color:#f59e0b;text-decoration:none;">
+                            <i data-lucide="settings" style="width:13px;height:13px;"></i>Admin
+                        </a>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+
+            initIcons();
+        }
+
         // ─── Strava Integration ───────────────────────────────────────────────
 
         async function initStravaSection() {

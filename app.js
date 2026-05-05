@@ -5571,6 +5571,9 @@
 
                 // Render Strava connection card
                 if (typeof initStravaSection === 'function') initStravaSection();
+
+                // Render club membership card (if member of any club)
+                if (typeof loadClubMembership === 'function') loadClubMembership();
             } catch (err) {
                 console.error('Error loading profile:', err);
             } finally {
