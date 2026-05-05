@@ -462,9 +462,18 @@
       <input type="checkbox" id="evIsLeague">
       <label for="evIsLeague">This is a league race (counts for standings)</label>
     </div>
-    <div class="checkbox-row">
+    <div class="checkbox-row" style="margin-bottom:10px;">
       <input type="checkbox" id="evAllowsDay" checked>
       <label for="evAllowsDay">Allow day-of entries</label>
+    </div>
+    <div style="background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.15);border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+      <div class="checkbox-row">
+        <input type="checkbox" id="evIsPublic">
+        <label for="evIsPublic" style="color:var(--text);">Make this event public</label>
+      </div>
+      <div style="font-size:11px;color:var(--text-sec);margin-top:6px;padding-left:26px;line-height:1.5;">
+        Public events appear in the SwimLoading events feed for <strong style="color:var(--text);">all users</strong> — not just club members. Ideal for league races and open swims. Leave unticked for private training sessions.
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="closeCreateEvent()">Cancel</button>
@@ -885,14 +894,15 @@ async function submitCreateEvent() {
   const desc   = document.getElementById('evDesc').value.trim() || null;
   const cap    = document.getElementById('evCap').value || null;
   const cutoff = document.getElementById('evCutoff').value || null;
-  const league = document.getElementById('evIsLeague').checked;
-  const dayOf  = document.getElementById('evAllowsDay').checked;
+  const league   = document.getElementById('evIsLeague').checked;
+  const dayOf    = document.getElementById('evAllowsDay').checked;
+  const isPublic = document.getElementById('evIsPublic').checked;
   if (!title || !date) { showToast('Title and date are required', 'error'); return; }
   const { error } = await sb.from('club_events').insert({
     club_id: currentClub.id, title, event_date: date, start_time: time,
     description: desc, entry_cap: cap ? parseInt(cap) : null,
     pre_entry_cutoff: cutoff || null,
-    allows_day_entries: dayOf, is_league: league,
+    allows_day_entries: dayOf, is_league: league, is_public: isPublic,
     created_by: currentUser.id,
   });
   if (error) { showToast('Failed: ' + error.message, 'error'); return; }

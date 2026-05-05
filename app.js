@@ -2505,13 +2505,43 @@
                     console.warn('Could not load hazards for events tab:', hazErr);
                 }
 
-                // Query using your actual column names
-                const { data: events, error } = await supabaseClient
-                    .from('swim_events')
-                    .select('*')
-                    .gte('start_at', new Date().toISOString())
-                    .order('start_at', { ascending: true })
-                    .limit(50);
+                // Query swim_events + public club_events in parallel
+                const nowIso = new Date().toISOString();
+                const [{ data: events, error }, { data: clubEventsRaw }] = await Promise.all([
+                    supabaseClient
+                        .from('swim_events')
+                        .select('*')
+                        .gte('start_at', nowIso)
+                        .order('start_at', { ascending: true })
+                        .limit(50),
+                    supabaseClient
+                        .from('club_events')
+                        .select('*, clubs(id, name, code, slug, logo_url, domain)')
+                        .eq('is_public', true)
+                        .eq('is_active', true)
+                        .gte('event_date', nowIso.slice(0, 10))
+                        .order('event_date', { ascending: true })
+                        .limit(30),
+                ]);
+
+                // Normalise public club events to match swim_events shape
+                const clubEventsNormalised = (clubEventsRaw || []).map(ce => ({
+                    id:              'club::' + ce.id,   // prefix to distinguish
+                    _isClubEvent:    true,
+                    _club:           ce.clubs,
+                    _clubEventId:    ce.id,
+                    _allowsDayOf:    ce.allows_day_entries,
+                    _isLeague:       ce.is_league,
+                    title:           ce.title,
+                    location_name:   ce.title,
+                    description:     ce.description,
+                    start_at:        ce.event_date + (ce.start_time ? 'T' + ce.start_time : 'T07:00:00'),
+                    status:          'active',
+                    domain:          ce.clubs?.domain || null,
+                    spot_id:         null,
+                    max_participants: ce.entry_cap || null,
+                    created_by:      ce.created_by,
+                }));
 
                 console.log('Events query result:', { events, error });
 
@@ -2525,9 +2555,11 @@
                     return;
                 }
 
-                // Filter out past events
+                // Merge swim_events + public club events, sort by date
                 const now = new Date();
-                let upcomingEvents = events?.filter(e => new Date(e.start_at) >= now) || [];
+                const swimEventsFiltered = (events || []).filter(e => new Date(e.start_at) >= now);
+                let upcomingEvents = [...swimEventsFiltered, ...clubEventsNormalised]
+                    .sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
 
                 // Apply region + month filters
                 const selectedRegion = _fdRegionValue;
@@ -2599,13 +2631,15 @@
                 console.log('Profile map:', profileMap);
                 console.log('Creator IDs needed:', creatorIds);
 
-                // Load user's status for these events
-                const eventIds = upcomingEvents.map(e => e.id);
+                // Only pass real swim_event IDs to participant queries (not club:: prefixed)
+                const realEventIds = upcomingEvents.filter(e => !e._isClubEvent).map(e => e.id);
+
+                // Load user's status for these events (swim_events only)
                 const { data: userStatuses } = await supabaseClient
                     .from('swim_participants')
                     .select('swim_event_id, status, needs_reconfirm')
                     .eq('user_id', currentUser.id)
-                    .in('swim_event_id', eventIds);
+                    .in('swim_event_id', realEventIds.length ? realEventIds : ['00000000-0000-0000-0000-000000000000']);
 
                 const statusMap = {};
                 const reconfirmMap = {};
@@ -2618,7 +2652,7 @@
                 const { data: counts } = await supabaseClient
                     .from('swim_participants')
                     .select('swim_event_id, status')
-                    .in('swim_event_id', eventIds);
+                    .in('swim_event_id', realEventIds.length ? realEventIds : ['00000000-0000-0000-0000-000000000000']);
 
                 const countMap = {};
                 if (counts) {
@@ -2631,6 +2665,37 @@
 
                 // Show events with your actual data structure
                 const html = upcomingEvents.map(event => {
+                    // ── Club event — simplified card ─────────────────────────────
+                    if (event._isClubEvent) {
+                        const club = event._club;
+                        const eventDate = new Date(event.start_at);
+                        const dateStr = eventDate.toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
+                        const timeStr = eventDate.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+                        return `
+                        <div style="background:var(--card-bg);border:1px solid rgba(56,189,248,0.15);border-radius:16px;padding:16px;margin-bottom:12px;position:relative;overflow:hidden;">
+                            <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,rgba(56,189,248,0.6),transparent);"></div>
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                                ${club?.logo_url ? `<img src="${club.logo_url}" style="height:20px;width:auto;object-fit:contain;opacity:0.85;">` : ''}
+                                <span style="font-size:10px;font-weight:800;color:var(--ocean-light);text-transform:uppercase;letter-spacing:0.1em;">${club?.name || 'Club Event'}</span>
+                                ${event._isLeague ? `<span style="font-size:9px;font-weight:800;background:rgba(251,191,36,0.12);color:#fbbf24;border:1px solid rgba(251,191,36,0.3);padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:0.08em;">League</span>` : ''}
+                            </div>
+                            <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:6px;">${event.title}</div>
+                            <div style="display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--text-secondary);margin-bottom:12px;">
+                                <span style="display:flex;align-items:center;gap:4px;"><i data-lucide="calendar" style="width:12px;height:12px;"></i>${dateStr}</span>
+                                <span style="display:flex;align-items:center;gap:4px;"><i data-lucide="clock" style="width:12px;height:12px;"></i>${timeStr}</span>
+                                ${event.max_participants ? `<span style="display:flex;align-items:center;gap:4px;"><i data-lucide="users" style="width:12px;height:12px;"></i>Cap: ${event.max_participants}</span>` : ''}
+                            </div>
+                            ${event.description ? `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">${event.description}</div>` : ''}
+                            <div style="display:flex;gap:8px;">
+                                <a href="/clubs/${club?.slug || ''}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);border-radius:10px;padding:9px 14px;font-size:12px;font-weight:700;color:var(--ocean-light);text-decoration:none;">
+                                    <i data-lucide="external-link" style="width:12px;height:12px;"></i>View on club page
+                                </a>
+                                ${event._allowsDayOf ? `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--success);font-weight:600;padding:0 4px;"><i data-lucide="check-circle" style="width:12px;height:12px;"></i>Open — day-of entry</div>` : `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-secondary);font-weight:600;padding:0 4px;"><i data-lucide="lock" style="width:12px;height:12px;"></i>Members only</div>`}
+                            </div>
+                        </div>`;
+                    }
+
+                    // ── Standard swim_event card ──────────────────────────────────
                     const eventDate = new Date(event.start_at);
                     const dateStr = eventDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                     const timeStr = eventDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
