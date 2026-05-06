@@ -44,6 +44,7 @@
         let currentUserProfile = null;  // full profile object loaded at app start
         let spots = [];
         let domains = [];  // loaded from DB — replaces all hardcoded DOMAINS arrays
+        let internationalSpotIds = new Set(); // spot IDs where countries.is_domestic = false
 
         // Swim Score caches — var so they're accessible across all script blocks
         var conditionsCache = {}; // spot_id → array of recent temp_logs (last 96h, desc)
@@ -388,6 +389,9 @@
             // Load spots
             await loadSpots();
 
+            // Build international spot ID set from countries table
+            await loadCountriesAndRebuildIntl();
+
             // Load dashboard data
             await loadDashboard();
 
@@ -666,6 +670,23 @@
             } catch (err) {
                 console.error('loadDomains failed:', err);
                 // Non-fatal — app still works, dropdowns may be ungrouped
+            }
+        }
+
+        // Load countries and rebuild the internationalSpotIds Set.
+        // Must be called after loadSpots() so the spots array is populated.
+        async function loadCountriesAndRebuildIntl() {
+            try {
+                const { data } = await supabaseClient
+                    .from('countries')
+                    .select('iso_code, is_domestic');
+                if (!data) return;
+                const intlCodes = new Set(data.filter(c => !c.is_domestic).map(c => c.iso_code));
+                internationalSpotIds = new Set(spots.filter(s => intlCodes.has(s.country_code)).map(s => s.id));
+            } catch (err) {
+                console.error('loadCountriesAndRebuildIntl failed:', err);
+                // Fallback: use hardcoded domain list so the app still works
+                internationalSpotIds = new Set(spots.filter(s => INTERNATIONAL_DOMAINS.has(s.domain)).map(s => s.id));
             }
         }
 
@@ -1153,10 +1174,7 @@
                 const recentLogsWrap = document.getElementById('dashRecentLogsWrap');
 
                 // Only show international spots here — SA spots are already in the scored section above
-                const intlSpots = topSpots.filter(s => {
-                    const domain = spots.find(sp => sp.id === s.latestLog.spot_id)?.domain || '';
-                    return INTERNATIONAL_DOMAINS.has(domain);
-                });
+                const intlSpots = topSpots.filter(s => internationalSpotIds.has(s.latestLog.spot_id));
 
                 if (intlSpots.length === 0) {
                     if (recentLogsWrap) recentLogsWrap.style.display = 'none';
@@ -1193,8 +1211,7 @@
 
                         // International spot detection — gold accent treatment
                         const spotInfo2 = spots.find(sp => sp.id === log.spot_id);
-                        const spotDomain = spotInfo2?.domain || '';
-                        const isIntl = INTERNATIONAL_DOMAINS.has(spotDomain);
+                        const isIntl = internationalSpotIds.has(log.spot_id);
                         const countryCode = spotInfo2?.country_code || '';
                         const countryLabel = isIntl && countryCode && COUNTRY_NAMES[countryCode]
                             ? ` <span style="font-size:12px;font-weight:500;color:#d97706;">(${COUNTRY_NAMES[countryCode]})</span>` : '';
@@ -6582,7 +6599,7 @@
             )];
 
             // Check if any international spots exist across ALL categories
-            const hasIntlSpots = spots.some(s => s.active !== false && INTERNATIONAL_DOMAINS.has(s.domain));
+            const hasIntlSpots = spots.some(s => s.active !== false && internationalSpotIds.has(s.id));
 
             // Only show strip if there are multiple domains OR international spots exist
             if (activeDomains.length <= 1 && !hasIntlSpots) {
@@ -6591,9 +6608,9 @@
                 return;
             }
 
-            // Separate local domains from international ones in this category
-            const localDomains = activeDomains.filter(c => !INTERNATIONAL_DOMAINS.has(c));
-            const intlInCat    = activeDomains.filter(c => INTERNATIONAL_DOMAINS.has(c));
+            // Separate local domains from international ones using spot-level country data
+            const localDomains = activeDomains.filter(c => !spots.some(s => s.domain === c && internationalSpotIds.has(s.id)));
+            const intlInCat    = activeDomains.filter(c =>  spots.some(s => s.domain === c && internationalSpotIds.has(s.id)));
 
             // Build pills — "All" first, then local domains, then a single "International" pill
             let html = `<div class="sp-brand-pill sp-region-pill active" onclick="setPickerDomain(null,this)">All</div>`;
@@ -6685,7 +6702,7 @@
                      style="animation: spRowFadeIn 0.25s ${delay}ms ease both;">
                     ${iconHtml}
                     <div class="sp-row-main">
-                        <div class="sp-row-name">${s.name}${INTERNATIONAL_DOMAINS.has(s.domain) ? ' <i data-lucide="globe" style="width:11px;height:11px;color:#fbbf24;vertical-align:middle;display:inline-block;"></i>' : ''}</div>
+                        <div class="sp-row-name">${s.name}${internationalSpotIds.has(s.id) ? ' <i data-lucide="globe" style="width:11px;height:11px;color:#fbbf24;vertical-align:middle;display:inline-block;"></i>' : ''}</div>
                         <div class="sp-row-type">${spAreaName(s.domain)} · ${SP_TYPE_LABELS[s.water_type] || s.water_type}</div>
                     </div>
                     <div class="sp-row-right">
@@ -6704,8 +6721,8 @@
             const currentVal = document.getElementById('logTempSpotSelect')?.value || '';
 
             if (q === '__intl__') {
-                // International pill — show all spots from international domains, any water type
-                const filtered = spots.filter(s => s.active !== false && INTERNATIONAL_DOMAINS.has(s.domain));
+                // International pill — show all spots where countries.is_domestic = false
+                const filtered = spots.filter(s => s.active !== false && internationalSpotIds.has(s.id));
                 if (filtered.length === 0) {
                     container.innerHTML = `<div class="sp-empty"><div class="sp-empty-icon"><i data-lucide="globe" style="width:32px;height:32px;"></i></div><div class="sp-empty-text">No international spots found</div></div>${spAddRowHTML()}`;
                     initIcons();

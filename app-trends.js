@@ -71,7 +71,8 @@
                 const tenDaysAgoISO = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
                 const filteredData = data ? data.filter(row =>
                     allowedTypes.includes(row.water_type) &&
-                    row.updated_at >= tenDaysAgoISO
+                    row.updated_at >= tenDaysAgoISO &&
+                    !internationalSpotIds.has(row.spot_id)   // domestic tabs never show international spots
                 ) : [];
 
                 console.log(`Trends filter [${currentWaterFilter}]:`, { count: filteredData.length, allowedTypes });
@@ -90,9 +91,9 @@
 
                 // Render based on filter type
                 if (currentWaterFilter === 'international') {
-                    // Show all spots from international domains, any water type
+                    // Show all spots where countries.is_domestic = false, any water type
                     const intlData = data ? data.filter(row =>
-                        typeof INTERNATIONAL_DOMAINS !== 'undefined' && INTERNATIONAL_DOMAINS.has(row.domain) &&
+                        internationalSpotIds.has(row.spot_id) &&
                         row.updated_at >= tenDaysAgoISO
                     ) : [];
 
@@ -305,7 +306,7 @@
                     else                      { trendArrow = '→'; trendColor = 'var(--text-secondary)'; }
                 }
 
-                const isIntl = typeof INTERNATIONAL_DOMAINS !== 'undefined' && INTERNATIONAL_DOMAINS.has(domain);
+                const isIntl = spots.some(s => s.domain === domain && internationalSpotIds.has(s.id));
                 const card = document.createElement('div');
                 card.className = 'region-card';
                 if (isIntl) card.style.cssText += 'border-color:#fbbf24;border-width:1.5px;';
