@@ -1483,7 +1483,7 @@
             try {
                 const { data } = await supabaseClient
                     .from('strava_connections')
-                    .select('strava_athlete_id, connected_at')
+                    .select('strava_athlete_id, updated_at')
                     .eq('user_id', currentUser.id)
                     .maybeSingle();
 
@@ -1498,50 +1498,27 @@
             }
         }
 
-        // Developer email allowed to connect during sandbox (1-athlete limit)
-        const STRAVA_BETA_EMAIL = 'dave.welensky@gmail.com';
-
         function renderStravaDisconnected(card) {
-            const isDev = currentUser?.email === STRAVA_BETA_EMAIL;
-
-            if (isDev) {
-                // Full connect flow — official Strava branded button
-                card.innerHTML = `
-                    <div style="background:rgba(252,76,2,0.05);border:1px solid rgba(252,76,2,0.2);border-radius:12px;padding:14px 16px;">
-                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-                            <div style="width:36px;height:36px;background:#fc4c02;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
-                            </div>
-                            <div>
-                                <div style="font-weight:700;font-size:14px;color:var(--text-primary);">Strava</div>
-                                <div style="font-size:12px;color:var(--text-secondary);margin-top:1px;">Import your swims. Add water conditions here.</div>
-                            </div>
-                        </div>
-                        <button onclick="connectStrava()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fc4c02;color:white;border:none;border-radius:8px;padding:11px 16px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:0.2px;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
-                            Connect with Strava
-                        </button>
-                    </div>`;
-            } else {
-                // Coming-soon state for non-beta users
-                card.innerHTML = `
-                    <div style="background:rgba(15,23,42,0.6);border:1.5px solid rgba(56,189,248,0.15);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;">
-                        <div style="width:36px;height:36px;background:#fc4c02;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:0.7;">
+            card.innerHTML = `
+                <div style="background:rgba(252,76,2,0.05);border:1px solid rgba(252,76,2,0.2);border-radius:12px;padding:14px 16px;">
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                        <div style="width:36px;height:36px;background:#fc4c02;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
                         </div>
-                        <div style="flex:1;">
-                            <div style="display:flex;align-items:center;gap:8px;">
-                                <span style="font-weight:700;font-size:14px;color:var(--text-primary);">Strava</span>
-                                <span style="font-size:10px;font-weight:700;color:var(--ocean-light);background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.25);padding:2px 7px;border-radius:10px;letter-spacing:0.5px;">COMING SOON</span>
-                            </div>
-                            <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.4;">Import Strava swims &amp; add water conditions. Launching to all users soon.</div>
+                        <div>
+                            <div style="font-weight:700;font-size:14px;color:var(--text-primary);">Strava</div>
+                            <div style="font-size:12px;color:var(--text-secondary);margin-top:1px;">Import your swims. Add water conditions here.</div>
                         </div>
-                    </div>`;
-            }
+                    </div>
+                    <button onclick="connectStrava()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fc4c02;color:white;border:none;border-radius:8px;padding:11px 16px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:0.2px;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+                        Connect with Strava
+                    </button>
+                </div>`;
         }
 
         function renderStravaConnected(card, data) {
-            const connectedDate = new Date(data.connected_at).toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' });
+            const connectedDate = new Date(data.updated_at || data.created_at).toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' });
             card.innerHTML = `
                 <div style="background:rgba(252,76,2,0.06);border:1px solid rgba(252,76,2,0.25);border-radius:12px;padding:14px 16px;">
                     <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
