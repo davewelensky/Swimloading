@@ -8,32 +8,17 @@ function verifyState(state) {
     try {
         const decoded = Buffer.from(state, 'base64url').toString('utf8');
         const parts   = decoded.split('|');
-        console.log('[strava/callback] state parts:', parts.length, '| age_ms:', parts.length >= 2 ? Date.now() - parseInt(parts[1]) : 'n/a');
-        if (parts.length !== 3) {
-            console.log('[strava/callback] bad part count:', parts.length);
-            return null;
-        }
+        if (parts.length !== 3) return null;
 
         const [userId, ts, receivedHmac] = parts;
-        const age = Date.now() - parseInt(ts);
-        console.log('[strava/callback] userId prefix:', userId.slice(0, 8), '| age_ms:', age, '| hmac_len:', receivedHmac.length);
 
         // Reject states older than 10 minutes
-        if (age > 10 * 60 * 1000) {
-            console.log('[strava/callback] state expired');
-            return null;
-        }
-
-        const secret = process.env.STRAVA_CLIENT_SECRET;
-        console.log('[strava/callback] secret set:', !!secret, '| secret_len:', secret?.length ?? 0);
+        if (Date.now() - parseInt(ts) > 10 * 60 * 1000) return null;
 
         const expectedHmac = crypto
-            .createHmac('sha256', secret)
+            .createHmac('sha256', process.env.STRAVA_CLIENT_SECRET)
             .update(`${userId}|${ts}`)
             .digest('hex');
-
-        const match = receivedHmac === expectedHmac;
-        console.log('[strava/callback] hmac match:', match, '| received_len:', receivedHmac.length, '| expected_len:', expectedHmac.length);
 
         if (!crypto.timingSafeEqual(
             Buffer.from(receivedHmac, 'hex'),
@@ -41,8 +26,7 @@ function verifyState(state) {
         )) return null;
 
         return userId;
-    } catch (e) {
-        console.log('[strava/callback] verifyState exception:', e.message);
+    } catch {
         return null;
     }
 }
