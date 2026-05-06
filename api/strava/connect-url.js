@@ -43,9 +43,11 @@ export default async function handler(req, res) {
             .digest('hex');
         const state = Buffer.from(`${raw}|${hmac}`).toString('base64url');
 
+        const redirectUri = process.env.STRAVA_REDIRECT_URI || 'https://www.swimloading.com/api/strava/callback';
+
         const params = new URLSearchParams({
             client_id:       process.env.STRAVA_CLIENT_ID,
-            redirect_uri:    process.env.STRAVA_REDIRECT_URI,
+            redirect_uri:    redirectUri,
             response_type:   'code',
             approval_prompt: 'auto',
             scope:           'activity:read',
