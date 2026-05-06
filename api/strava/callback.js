@@ -78,28 +78,38 @@ export default async function handler(req, res) {
     const { athlete, access_token, refresh_token, expires_at } = tokenData;
 
     // Store tokens in strava_connections (upsert — user may reconnect)
+    // Retries once on transient failure before giving up.
     const supabaseUrl = process.env.SUPABASE_URL;
     const serviceKey  = process.env.SUPABASE_SERVICE_KEY;
 
+    const doUpsert = () => fetch(`${supabaseUrl}/rest/v1/strava_connections`, {
+        method: 'POST',
+        headers: {
+            'Content-Type':  'application/json',
+            'apikey':        serviceKey,
+            'Authorization': `Bearer ${serviceKey}`,
+            'Prefer':        'resolution=merge-duplicates,return=minimal',
+        },
+        body: JSON.stringify({
+            user_id:           userId,
+            strava_athlete_id: athlete.id,
+            access_token,
+            refresh_token,
+            expires_at,
+            scope,
+            updated_at:        new Date().toISOString(),
+        }),
+    });
+
     try {
-        const upsertRes = await fetch(`${supabaseUrl}/rest/v1/strava_connections`, {
-            method: 'POST',
-            headers: {
-                'Content-Type':  'application/json',
-                'apikey':        serviceKey,
-                'Authorization': `Bearer ${serviceKey}`,
-                'Prefer':        'resolution=merge-duplicates,return=minimal',
-            },
-            body: JSON.stringify({
-                user_id:           userId,
-                strava_athlete_id: athlete.id,
-                access_token,
-                refresh_token,
-                expires_at,
-                scope,
-                updated_at:        new Date().toISOString(),
-            }),
-        });
+        let upsertRes = await doUpsert();
+
+        // One automatic retry on transient failure (5xx or network error)
+        if (!upsertRes.ok && upsertRes.status >= 500) {
+            console.warn('[strava/callback] DB upsert transient failure, retrying once...');
+            await new Promise(r => setTimeout(r, 800));
+            upsertRes = await doUpsert();
+        }
 
         if (!upsertRes.ok) {
             const errText = await upsertRes.text();
