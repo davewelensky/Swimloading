@@ -69,6 +69,51 @@ function dismissStravaBanner() {
     if (banner) banner.style.display = 'none';
 }
 
+// ─── Log Conditions Entry Point ──────────────────────────────────────────────
+// Called whenever the Log Conditions page is shown.
+// Shows "Import from Strava" if connected, or a subtle connect prompt if not.
+
+async function checkStravaLogEntry() {
+    const el = document.getElementById('stravaLogEntry');
+    if (!el || !currentUser) return;
+
+    try {
+        const { data: conn } = await supabaseClient
+            .from('strava_connections')
+            .select('strava_athlete_id')
+            .eq('user_id', currentUser.id)
+            .maybeSingle();
+
+        if (conn) {
+            // Connected — show prominent import button + "or log manually" divider
+            el.style.display = 'block';
+            el.innerHTML = `
+                <button onclick="openStravaImportModal()"
+                    style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(252,76,2,0.10);border:1.5px solid rgba(252,76,2,0.35);border-radius:12px;padding:13px 16px;cursor:pointer;transition:background 0.15s;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#fc4c02"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+                    <span style="font-size:14px;font-weight:600;color:#fc4c02;">Import from Strava</span>
+                </button>
+                <div style="display:flex;align-items:center;gap:10px;margin:14px 4px 4px;">
+                    <div style="flex:1;height:1px;background:rgba(255,255,255,0.07);"></div>
+                    <span style="font-size:11px;color:var(--text-secondary);white-space:nowrap;letter-spacing:0.03em;">or log manually below</span>
+                    <div style="flex:1;height:1px;background:rgba(255,255,255,0.07);"></div>
+                </div>`;
+        } else {
+            // Not connected — soft prompt, doesn't dominate the form
+            el.style.display = 'block';
+            el.innerHTML = `
+                <div style="background:rgba(252,76,2,0.05);border:1px solid rgba(252,76,2,0.15);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="rgba(252,76,2,0.55)" style="flex-shrink:0;"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+                    <span style="font-size:12px;color:var(--text-secondary);">Already swam? <button onclick="showPage('profile')" style="background:none;border:none;color:#fc4c02;font-size:12px;font-weight:600;cursor:pointer;padding:0;">Connect Strava</button> to import your swim directly.</span>
+                </div>`;
+        }
+    } catch (err) {
+        // Silently ignore — don't break the form if this check fails
+        console.warn('[strava] checkStravaLogEntry error:', err.message);
+        el.style.display = 'none';
+    }
+}
+
 // ─── Activities Fetch (cached) ───────────────────────────────────────────────
 
 async function fetchStravaActivities() {

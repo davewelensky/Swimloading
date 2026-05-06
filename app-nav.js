@@ -46,6 +46,8 @@
                 loadHazards();
                 renderSafetyRegionalContent();
                 analytics.track('safety_viewed');
+            } else if (page === 'logTemp') {
+                if (typeof checkStravaLogEntry === 'function') checkStravaLogEntry();
             }
 
             // Initialize icons after page switch
