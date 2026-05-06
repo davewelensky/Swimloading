@@ -1,4 +1,4 @@
-const CACHE_NAME = 'swimloading-v8';
+const CACHE_NAME = 'swimloading-v9';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -43,6 +43,9 @@ self.addEventListener('fetch', (event) => {
     if (url.hostname.includes('supabase')) return;
     if (url.hostname.includes('worldtides.info')) return;
     if (url.hostname.includes('open-meteo.com')) return;
+
+    // Never cache internal API calls — they must always be fresh from the server.
+    if (url.pathname.startsWith('/api/')) return;
 
     // Skip non-GET requests
     if (event.request.method !== 'GET') return;

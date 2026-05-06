@@ -54,6 +54,7 @@ export default async function handler(req, res) {
             state,
         });
 
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         return res.status(200).json({ url: `https://www.strava.com/oauth/authorize?${params}` });
     } catch (err) {
         console.error('[strava/connect-url] unexpected error:', err.message);
