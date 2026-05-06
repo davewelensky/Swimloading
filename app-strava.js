@@ -19,13 +19,39 @@ async function checkStravaBanner() {
         .eq('user_id', currentUser.id)
         .maybeSingle();
 
-    if (!conn) return; // Not connected — no banner
+    if (!conn) {
+        // Not connected — show connect prompt unless they've dismissed it
+        const dismissedKey = `strava_connect_dismissed_${currentUser.id}`;
+        if (localStorage.getItem(dismissedKey)) return;
 
-    // Fetch activities (cached)
+        banner.style.display = 'block';
+        banner.innerHTML = `
+            <div style="background:rgba(252,76,2,0.07);border:1px solid rgba(252,76,2,0.25);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:14px;margin-bottom:4px;">
+                <div style="width:38px;height:38px;background:#fc4c02;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="21" height="21" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:2px;">Swim with Strava?</div>
+                    <div style="font-size:12px;color:var(--text-secondary);line-height:1.45;">Import your swims directly — we add the water conditions Strava doesn't capture.</div>
+                </div>
+                <div style="display:flex;gap:8px;flex-shrink:0;">
+                    <button onclick="connectStravaFromBanner()"
+                        style="background:#fc4c02;color:white;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
+                        Connect
+                    </button>
+                    <button onclick="dismissStravaBanner()"
+                        style="background:transparent;color:var(--text-secondary);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 10px;font-size:13px;cursor:pointer;line-height:1;">
+                        ✕
+                    </button>
+                </div>
+            </div>`;
+        return;
+    }
+
+    // Connected — look for an unimported swim in the last 24 hours
     const activities = await fetchStravaActivities();
     if (!activities || activities === 'reconnect_required') return;
 
-    // Look for unimported swim in the last 24 hours
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
     const recent = activities.find(a =>
         !a.already_imported &&
@@ -67,6 +93,33 @@ async function checkStravaBanner() {
 function dismissStravaBanner() {
     const banner = document.getElementById('stravaBanner');
     if (banner) banner.style.display = 'none';
+    // Remember the dismissal so it doesn't reappear every session
+    if (currentUser) {
+        localStorage.setItem(`strava_connect_dismissed_${currentUser.id}`, '1');
+    }
+}
+
+async function connectStravaFromBanner() {
+    // Reuse the profile connect flow
+    if (!currentUser) return;
+    const btn = event.target;
+    btn.textContent = 'Connecting…';
+    btn.disabled = true;
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) throw new Error('No session');
+        const res = await fetch('/api/strava/connect-url', {
+            headers: { 'Authorization': `Bearer ${session.access_token}` }
+        });
+        if (!res.ok) throw new Error('Could not get connect URL');
+        const { url } = await res.json();
+        window.location.href = url;
+    } catch (err) {
+        console.error('[strava] connectStravaFromBanner error:', err);
+        showToast('Could not connect to Strava. Please try again.', 'error');
+        btn.textContent = 'Connect';
+        btn.disabled = false;
+    }
 }
 
 // ─── Log Conditions Entry Point ──────────────────────────────────────────────
