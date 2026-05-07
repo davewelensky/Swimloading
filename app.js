@@ -6337,6 +6337,8 @@
                             const label   = document.getElementById('spTriggerText');
                             if (trigger) trigger.classList.add('sp-has-value');
                             if (label)   label.textContent = nearest.spot.name;
+                            // Adapt form fields for pool vs open water
+                            applyPoolFormMode(nearest.spot.id);
                         }
 
                         if (status) {
@@ -6680,8 +6682,38 @@
                 status.textContent = '';
             }
 
+            // Adapt form for pool vs open water
+            applyPoolFormMode(spotId);
+
             closeSpotPicker();
             initIcons();
+        }
+
+        // Show/hide conditions & hazards based on whether the selected spot is a pool.
+        // Pools are always calm — no choppy/rough/extreme, no ocean hazards.
+        function applyPoolFormMode(spotId) {
+            const spot = spots.find(s => s.id === spotId || s.id === parseInt(spotId));
+            const isPool = spot && (spot.water_type === 'POOL' || spot.water_type === 'TIDAL_POOL');
+
+            const conditionsGroup  = document.getElementById('conditionsFormGroup');
+            const hazardsGroup     = document.getElementById('hazardsFormGroup');
+            const poolNotice       = document.getElementById('poolModeNotice');
+
+            if (isPool) {
+                // Hide conditions grid, show pool notice, hide hazards
+                if (conditionsGroup) conditionsGroup.style.display = 'none';
+                if (poolNotice)      poolNotice.style.display = 'block';
+                if (hazardsGroup)    hazardsGroup.style.display = 'none';
+                // Ensure Calm is active so submitTempLog reads 'Calm'
+                document.querySelectorAll('#conditionsGrid .toggle-btn').forEach((btn, i) => {
+                    btn.classList.toggle('active', i === 0);
+                });
+            } else {
+                // Restore full form for open water
+                if (conditionsGroup) conditionsGroup.style.display = 'block';
+                if (poolNotice)      poolNotice.style.display = 'none';
+                if (hazardsGroup)    hazardsGroup.style.display = 'block';
+            }
         }
 
         // Build a single spot row HTML

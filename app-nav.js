@@ -48,6 +48,8 @@
                 analytics.track('safety_viewed');
             } else if (page === 'logTemp') {
                 if (typeof checkStravaLogEntry === 'function') checkStravaLogEntry();
+                // Reset form to open-water mode; pool mode applies when a spot is selected
+                if (typeof applyPoolFormMode === 'function') applyPoolFormMode(null);
             }
 
             // Initialize icons after page switch
