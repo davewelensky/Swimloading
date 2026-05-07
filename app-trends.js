@@ -75,21 +75,20 @@
                     throw error;
                 }
 
-                // Filter by current water type, drop stale rows.
-                // Window widens in SA winter (May–Aug) to avoid blank screens.
+                // Build domestic filteredData (used by ocean/lagoons/pools/inland branches).
+                // International has its own filter below — skip early return for that tab.
                 const allowedTypes = WATER_TYPE_GROUPS[currentWaterFilter] || [];
                 const staleMs = getStaleDays(false) * 24 * 60 * 60 * 1000;
                 const staleISO = new Date(Date.now() - staleMs).toISOString();
-                const filteredData = data ? data.filter(row =>
-                    allowedTypes.includes(row.water_type) &&
-                    row.updated_at >= staleISO &&
-                    !internationalSpotIds.has(row.spot_id)   // domestic tabs never show international spots
-                ) : [];
+                const filteredData = (currentWaterFilter === 'international') ? [] :
+                    (data ? data.filter(row =>
+                        allowedTypes.includes(row.water_type) &&
+                        row.updated_at >= staleISO &&
+                        !internationalSpotIds.has(row.spot_id)
+                    ) : []);
 
-                console.log(`Trends filter [${currentWaterFilter}]:`, { count: filteredData.length, allowedTypes });
-
-                // Empty state check
-                if (filteredData.length === 0) {
+                // Empty state for domestic tabs only
+                if (currentWaterFilter !== 'international' && filteredData.length === 0) {
                     loadingEl.style.display = 'none';
                     gridEl.style.display = 'block';
                     gridEl.innerHTML = `
