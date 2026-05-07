@@ -398,8 +398,6 @@
             // Check for unimported Strava swims (non-blocking)
             if (typeof checkStravaBanner === 'function') checkStravaBanner();
 
-            // Show SiS partner discount banner (dismissible, once per user)
-            showSisBanner();
 
             // Prompt existing users who haven't set their home region yet
             if (!currentUserProfile?.home_domain) setTimeout(showHomeDomainPrompt, 800);
@@ -7554,40 +7552,6 @@
             } catch(err) { console.error('Badge expand error:', err); }
         }
 
-        // SiS partner discount banner — shown once per user, dismissible permanently
-        function showSisBanner() {
-            const banner = document.getElementById('sisBanner');
-            if (!banner || !currentUser) return;
-            const dismissKey = `sis_discount_dismissed_${currentUser.id}`;
-            if (localStorage.getItem(dismissKey)) return;
-            banner.style.display = 'block';
-            banner.innerHTML = `
-                <div style="background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.25);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:14px;">
-                    <div style="width:44px;height:44px;background:#fff;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;padding:4px;">
-                        <img src="icons/sis-logo-stacked.png" alt="SiS" style="height:36px;width:auto;display:block;">
-                    </div>
-                    <div style="flex:1;min-width:0;">
-                        <div style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:2px;">15% off Science in Sport</div>
-                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.45;">SwimLoading exclusive — use code <strong style="color:#22c55e;letter-spacing:1px;">SWM15</strong> at scienceinsport.co.za</div>
-                    </div>
-                    <div style="display:flex;gap:8px;flex-shrink:0;">
-                        <a href="https://www.scienceinsport.co.za/" target="_blank" rel="sponsored"
-                            style="background:#22c55e;color:#050c18;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;text-decoration:none;">
-                            Shop
-                        </a>
-                        <button onclick="dismissSisBanner()"
-                            style="background:transparent;color:var(--text-secondary);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 10px;font-size:13px;cursor:pointer;line-height:1;">
-                            &#x2715;
-                        </button>
-                    </div>
-                </div>`;
-        }
-
-        function dismissSisBanner() {
-            if (currentUser) localStorage.setItem(`sis_discount_dismissed_${currentUser.id}`, '1');
-            const banner = document.getElementById('sisBanner');
-            if (banner) banner.style.display = 'none';
-        }
 
         // Show incomplete profile banner at top of page
         function showIncompleteProfileBanner() {
