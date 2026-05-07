@@ -7563,8 +7563,8 @@
             banner.style.display = 'block';
             banner.innerHTML = `
                 <div style="background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.25);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:14px;">
-                    <div style="width:38px;height:38px;background:#fff;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;">
-                        <img src="icons/sis-logo.jpeg" alt="SiS" style="height:22px;width:auto;display:block;">
+                    <div style="width:44px;height:44px;background:#fff;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;padding:4px;">
+                        <img src="icons/sis-logo-stacked.png" alt="SiS" style="height:36px;width:auto;display:block;">
                     </div>
                     <div style="flex:1;min-width:0;">
                         <div style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:2px;">15% off Science in Sport</div>
