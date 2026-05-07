@@ -20,6 +20,15 @@
 
         let spotChartInstance = null;
 
+        // Dynamic staleness window — widens in SA winter (May–Aug) so colder months
+        // don't produce blank screens when logging activity naturally drops.
+        function getStaleDays(international = false) {
+            const month = new Date().getMonth(); // 0 = Jan
+            const isWinter = month >= 4 && month <= 7; // May–Aug (SA winter)
+            if (international) return isWinter ? 45 : 30; // intl spots logged less often
+            return isWinter ? 21 : 10;
+        }
+
         function formatDomain(d) {
             const found = domains.find(x => x.code === d);
             if (found) return found.display_name;
@@ -66,12 +75,14 @@
                     throw error;
                 }
 
-                // Filter by current water type, and drop anything older than 10 days
+                // Filter by current water type, drop stale rows.
+                // Window widens in SA winter (May–Aug) to avoid blank screens.
                 const allowedTypes = WATER_TYPE_GROUPS[currentWaterFilter] || [];
-                const tenDaysAgoISO = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+                const staleMs = getStaleDays(false) * 24 * 60 * 60 * 1000;
+                const staleISO = new Date(Date.now() - staleMs).toISOString();
                 const filteredData = data ? data.filter(row =>
                     allowedTypes.includes(row.water_type) &&
-                    row.updated_at >= tenDaysAgoISO &&
+                    row.updated_at >= staleISO &&
                     !internationalSpotIds.has(row.spot_id)   // domestic tabs never show international spots
                 ) : [];
 
@@ -91,10 +102,12 @@
 
                 // Render based on filter type
                 if (currentWaterFilter === 'international') {
-                    // Show all spots where countries.is_domestic = false, any water type
+                    // Show all spots where countries.is_domestic = false, any water type.
+                    // International spots use a wider staleness window.
+                    const intlStaleISO = new Date(Date.now() - getStaleDays(true) * 24 * 60 * 60 * 1000).toISOString();
                     const intlData = data ? data.filter(row =>
                         internationalSpotIds.has(row.spot_id) &&
-                        row.updated_at >= tenDaysAgoISO
+                        row.updated_at >= intlStaleISO
                     ) : [];
 
                     if (intlData.length === 0) {
@@ -272,13 +285,15 @@
                 return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
             });
 
-            const tenDaysAgo = Date.now() - 10 * 24 * 60 * 60 * 1000;
+            const isIntlGrid = currentWaterFilter === 'international';
+            const staleMs = getStaleDays(isIntlGrid) * 24 * 60 * 60 * 1000;
+            const staleThreshold = Date.now() - staleMs;
 
             activeRegions.forEach(domain => {
                 const data = trendsData[domain];
                 const hasData = data && data.spots && data.spots.length > 0;
                 if (!hasData) return; // Hide empty regions
-                if (new Date(data.lastUpdated).getTime() < tenDaysAgo) return; // Hide stale regions
+                if (new Date(data.lastUpdated).getTime() < staleThreshold) return; // Hide stale regions
 
                 let subtext = `${data.spots.length} spots`;
                 let warmestText = data.maxTemp !== null ? `Warmest: ${data.warmestSpotName} (${data.maxTemp}°C)` : '';

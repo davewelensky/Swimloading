@@ -86,13 +86,25 @@ All scripts are loaded sequentially in `index.html` **with global scope** (no ES
 ### Key Supabase Tables
 
 - **users** — auth, profile status (onboarding_completed_at), home_domain
-- **spots** — swim locations (name, code, domain, type, latitude, longitude)
+- **spots** — swim locations (name, code, domain, type, latitude, longitude, country_code)
 - **domains** — regions (code, display_name, is_coastal, sort_order)
+- **countries** — ISO countries (iso_code, name, is_domestic) — source of truth for international classification
 - **temp_logs** — temperature readings (spot_id, temperature, created_at, created_by)
 - **swim_events** — upcoming group swims (title, date, domain, participants)
 - **leaderboard** — April 2026 challenge scores (user_id, points, rank)
 - **strava_connections** — OAuth tokens per user (service role writes; RLS enforced)
 - **strava_imports** — cached Strava activities; `imported_to_log_id` set once imported
+
+### Countries & International Classification
+
+International spots are classified via `spots.country_code → countries.iso_code → countries.is_domestic`.
+
+- `is_domestic = true` → South African spots (shown in Ocean/Pool/Inland/Lagoon/Dam tabs)
+- `is_domestic = false` → International spots (shown in International tab; gold border treatment)
+
+At startup, `loadCountriesAndRebuildIntl()` is called after `loadSpots()` and builds the `internationalSpotIds` Set. **Never use the hardcoded `INTERNATIONAL_DOMAINS` Set as the primary check** — it exists only as a fallback.
+
+To add a new international country: INSERT into `countries` with `is_domestic = false` and ensure spots have the correct `country_code`.
 
 ### Key Global Variables
 
@@ -101,6 +113,8 @@ let supabaseClient  // Supabase client instance
 let currentUser     // Logged-in user object
 let currentUserProfile  // Full profile (onboarding_completed_at, home_domain, etc.)
 let domains = []    // All regions (loaded at startup)
+let spots = []      // All active spots (loaded at startup — includes country_code)
+let internationalSpotIds = new Set()  // spot IDs where countries.is_domestic = false — rebuilt after loadSpots()
 let conditionsCache // Temperature cache by spot
 let swimEventsCache // Upcoming swims cache
 ```
@@ -245,15 +259,30 @@ Vercel provides Lighthouse scores in deployment preview. Monitor:
 | Nav icons squeezed | CSS not applied to mobile | Check `@media (max-width: 520px)` rules |
 | Supabase error 401 | Auth token expired | Auto-refreshes on page reload |
 | Changes don't appear | Not pushed to git | Run `git push` before hard refresh |
-| Strava "Limit of connected athletes" | Sandbox = 1 athlete max | Revoke existing connection at strava.com → My Apps, reconnect |
+| Strava `redirect_uri: invalid` | `STRAVA_REDIRECT_URI` env var wrong/missing | Set to `https://www.swimloading.com/api/strava/callback` in Vercel env |
+| Strava `invalid_state` on callback | Service worker cached old OAuth URL (39h old) | sw.js skips all `/api/` routes; connect-url sends `Cache-Control: no-store` |
 | Strava save does nothing | Missing strava_imports row or stale form state | import-activity.js creates row inline; form state resets on open |
 | Toast hidden behind modal | z-index clash | Toast z-index must be 99999; stravaLogModal is 10004 |
 | Strava connect-url 500 | Missing env vars in Preview | SUPABASE_URL hardcoded fallback in all api/strava/*.js files |
+| International tab shows nothing | INTERNATIONAL_DOMAINS hardcoded set didn't match actual domain codes | Fixed: uses countries.is_domestic via internationalSpotIds Set |
+| Domestic tabs show intl spots | WATER_TYPE_GROUPS filter didn't exclude international spots | Fixed: filteredData now excludes internationalSpotIds |
 
 ## Strava Integration
 
 ### Principle
 "Strava tracks the swim. SwimLoading tracks the water." Users import a Strava activity and add water temperature, conditions, and hazards that Strava doesn't capture.
+
+### Status (May 2026)
+- **Production approved** — 999 athletes allowed (Strava Developer Program approved)
+- **Open to all users** — no beta gate; any logged-in user can connect Strava
+- Connect entry points: Dashboard banner (new users), Log Conditions page, Profile settings
+
+### OAuth Flow
+1. User taps "Connect Strava" → `GET /api/strava/connect-url` (requires valid Supabase JWT)
+2. Server returns signed OAuth URL: `userId|timestamp|hmac` base64url-encoded as `state`
+3. User authorises on Strava → redirect to `/api/strava/callback?code=...&state=...`
+4. Callback verifies HMAC state, exchanges code for tokens, upserts into `strava_connections`
+5. Redirect to `/app?strava=connected` → JS shows toast
 
 ### Required Vercel Env Vars
 - `STRAVA_CLIENT_ID` — 230706
@@ -261,8 +290,11 @@ Vercel provides Lighthouse scores in deployment preview. Monitor:
 - `STRAVA_REDIRECT_URI` — `https://www.swimloading.com/api/strava/callback`
 - `STRAVA_HMAC_SECRET` — signs OAuth state parameter
 
-### Sandbox Limit
-Currently 1 athlete allowed (sandbox). Production quota requires emailing `developers@strava.com` — 7-10 business day review. Include Client ID 230706 and read-only justification.
+### Key Lessons Learned
+- **Service Worker must NOT cache `/api/` routes** — stale OAuth URLs cause `invalid_state` error. `sw.js` has `if (url.pathname.startsWith('/api/')) return;` guard.
+- **`connect-url` response has `Cache-Control: no-store`** — prevents any edge/browser caching.
+- **`STRAVA_REDIRECT_URI` env var** — must be `https://www.swimloading.com/api/strava/callback`. If this is wrong (e.g. placeholder), Strava returns `redirect_uri: invalid`.
+- **`strava_connections` columns**: `updated_at` / `created_at` — there is no `connected_at` column.
 
 ### GPS Spot Matching
 Spots GPS columns: `latitude`/`longitude` (NOT `lat`/`lng`). Haversine radius: 1.5km.
