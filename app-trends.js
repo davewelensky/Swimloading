@@ -416,10 +416,11 @@
             const listEl = document.getElementById('regionSpotList');
             listEl.innerHTML = '';
 
-            // Filter out spots with no data in the last 10 days, then sort newest first
-            const tenDaysAgo = Date.now() - 10 * 24 * 60 * 60 * 1000;
+            // Filter using dynamic staleness window (wider for international and SA winter)
+            const isIntlDomain = spots.some(s => s.domain === domain && internationalSpotIds.has(s.id));
+            const detailStaleMs = getStaleDays(isIntlDomain) * 24 * 60 * 60 * 1000;
             const sortedSpots = (!data || !data.spots) ? [] : [...data.spots]
-                .filter(s => new Date(s.updated_at).getTime() >= tenDaysAgo)
+                .filter(s => new Date(s.updated_at).getTime() >= Date.now() - detailStaleMs)
                 .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
 
             if (sortedSpots.length === 0) {
