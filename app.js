@@ -398,8 +398,6 @@
             // Check for unimported Strava swims (non-blocking)
             if (typeof checkStravaBanner === 'function') checkStravaBanner();
 
-            // Show SiS partner discount banner (dismissible, once per user)
-            showSisBanner();
 
             // Prompt existing users who haven't set their home region yet
             if (!currentUserProfile?.home_domain) setTimeout(showHomeDomainPrompt, 800);
@@ -7554,37 +7552,6 @@
             } catch(err) { console.error('Badge expand error:', err); }
         }
 
-        // SiS partner discount banner — shown once per user, dismissible permanently
-        function showSisBanner() {
-            const banner = document.getElementById('sisBanner');
-            if (!banner || !currentUser) return;
-            const dismissKey = `sis_discount_dismissed_${currentUser.id}`;
-            if (localStorage.getItem(dismissKey)) return;
-            banner.style.display = 'block';
-            banner.innerHTML = `
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.18);border-radius:10px;padding:9px 12px;">
-                    <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-                        <img src="icons/sis-logo-stacked.png" alt="SiS" style="height:18px;width:auto;background:#fff;border-radius:3px;padding:2px 5px;flex-shrink:0;">
-                        <span style="font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Partner discount — use <strong style="color:#22c55e;letter-spacing:0.5px;">SWM15</strong> for 15% off</span>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-                        <a href="https://www.scienceinsport.co.za/" target="_blank" rel="sponsored"
-                            style="font-size:11px;font-weight:700;color:#22c55e;text-decoration:none;white-space:nowrap;">
-                            Shop →
-                        </a>
-                        <button onclick="dismissSisBanner()"
-                            style="background:transparent;color:var(--text-secondary);border:none;padding:2px 4px;font-size:14px;cursor:pointer;line-height:1;opacity:0.6;">
-                            &#x2715;
-                        </button>
-                    </div>
-                </div>`;
-        }
-
-        function dismissSisBanner() {
-            if (currentUser) localStorage.setItem(`sis_discount_dismissed_${currentUser.id}`, '1');
-            const banner = document.getElementById('sisBanner');
-            if (banner) banner.style.display = 'none';
-        }
 
         // Show incomplete profile banner at top of page
         function showIncompleteProfileBanner() {
