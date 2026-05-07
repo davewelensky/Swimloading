@@ -198,6 +198,79 @@
                     ? `<div style="text-align:center;color:var(--text-secondary);padding:16px;font-size:13px;">No logs yet this month — be the first!</div>`
                     : '';
 
+                // ── SiS draw: every 3 pool logs = 1 ticket ─────────────────────────
+                const sisEntrants = eligible
+                    .map(r => ({ ...r, tickets: Math.floor(r.log_count / 3) }))
+                    .filter(r => r.tickets > 0)
+                    .sort((a, b) => b.tickets - a.tickets);
+
+                const myTickets = Math.floor(myCount / 3);
+                const myLogsInProgress = myCount % 3;
+                const myProgressPct = (myLogsInProgress / 3) * 100;
+                const myLogsToNext = myLogsInProgress > 0 ? 3 - myLogsInProgress : 3;
+
+                const sisRows = sisEntrants.length > 0
+                    ? sisEntrants.map((r, i) => {
+                        const isMe = currentUser && r.user_id === currentUser.id;
+                        const dots = Array(Math.min(r.tickets, 8)).fill(
+                            `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#22c55e;margin-right:2px;flex-shrink:0;"></span>`
+                        ).join('') + (r.tickets > 8 ? `<span style="font-size:10px;color:#22c55e;margin-left:2px;">+${r.tickets-8}</span>` : '');
+                        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:${isMe?'rgba(34,197,94,0.08)':'transparent'};border:1px solid ${isMe?'rgba(34,197,94,0.25)':'transparent'};border-radius:8px;margin-bottom:4px;">
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <span style="font-size:11px;font-weight:700;color:var(--text-secondary);width:16px;flex-shrink:0;">${i+1}</span>
+                                <span style="font-size:13px;font-weight:${isMe?'700':'400'};color:${isMe?'#22c55e':'var(--text)'};">${r.display_name||'Anonymous'}${isMe?' <span style="font-size:11px;font-weight:600;">(you)</span>':''}</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+                                ${dots}
+                                <span style="font-size:12px;font-weight:700;color:#22c55e;margin-left:4px;">${r.tickets}</span>
+                            </div>
+                        </div>`;
+                    }).join('')
+                    : `<div style="text-align:center;color:var(--text-secondary);padding:12px;font-size:12px;">No entries yet — log 3 pool temps to earn your first ticket</div>`;
+
+                const sisMyStatus = currentUser
+                    ? myTickets > 0
+                        ? `<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:10px;padding:12px 14px;margin-bottom:12px;">
+                            <div style="font-size:13px;font-weight:700;color:#22c55e;">${myTickets} draw ticket${myTickets!==1?'s':''} · ${myCount} pool log${myCount!==1?'s':''}</div>
+                            <div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">${myLogsInProgress > 0 ? `${myLogsToNext} more log${myLogsToNext!==1?'s':''} to earn your next ticket` : 'Log 3 more to earn another ticket'}</div>
+                            <div style="background:rgba(255,255,255,0.07);border-radius:4px;height:4px;margin-top:8px;overflow:hidden;">
+                                <div style="background:#22c55e;height:4px;border-radius:4px;width:${myProgressPct}%;"></div>
+                            </div>
+                          </div>`
+                        : `<div style="background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.12);border-radius:10px;padding:12px 14px;margin-bottom:12px;">
+                            <div style="font-size:12px;font-weight:700;color:var(--text-secondary);">${myCount > 0 ? `${myCount} log${myCount!==1?'s':''} toward your first ticket` : 'No tickets yet'}</div>
+                            <div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">${myCount > 0 ? `${myLogsToNext} more log${myLogsToNext!==1?'s':''} to enter the draw` : 'Log 3 pool temps to earn your first draw ticket'}</div>
+                            ${myCount > 0 ? `<div style="background:rgba(255,255,255,0.07);border-radius:4px;height:4px;margin-top:8px;overflow:hidden;"><div style="background:#22c55e;height:4px;border-radius:4px;width:${myProgressPct}%;"></div></div>` : ''}
+                          </div>`
+                    : '';
+
+                const sisDrawHtml = `
+                <div style="background:linear-gradient(135deg,rgba(34,197,94,0.07),rgba(16,185,129,0.03));border:1px solid rgba(34,197,94,0.2);border-radius:14px;padding:20px;margin-top:12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div style="background:#fff;border-radius:6px;padding:4px 8px;display:inline-flex;align-items:center;">
+                                <img src="icons/sis-logo-stacked.png" alt="SiS" style="height:24px;width:auto;display:block;">
+                            </div>
+                            <div>
+                                <div style="font-size:11px;color:#22c55e;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:2px;">Prize Draw · May · June · July</div>
+                                <div style="font-weight:700;font-size:15px;color:var(--text);">Science in Sport</div>
+                            </div>
+                        </div>
+                        <div style="background:rgba(34,197,94,0.15);color:#22c55e;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;">3 winners</div>
+                    </div>
+                    <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;margin-bottom:14px;">
+                        Every 3 pool logs = 1 draw ticket. More logs, more chances. Three SiS prize packs drawn at end of month — ships anywhere in South Africa.
+                    </div>
+                    ${sisMyStatus}
+                    <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;display:flex;align-items:center;gap:5px;">
+                        <i data-lucide="ticket" style="width:12px;height:12px;color:#22c55e;"></i>Draw entries
+                    </div>
+                    <div style="background:rgba(15,23,42,0.5);border-radius:10px;padding:10px;">
+                        ${sisRows}
+                    </div>
+                    <div style="margin-top:12px;font-size:11px;color:var(--text-secondary);">Use code <strong style="color:#22c55e;">SWM15</strong> for 15% off at <a href="https://www.scienceinsport.co.za/" target="_blank" rel="sponsored" style="color:#22c55e;text-decoration:none;">scienceinsport.co.za</a></div>
+                </div>`;
+
                 // "Your position" callout — shown when user is in the top 20
                 let myPositionCard = '';
                 if (currentUser && myRank !== null && myPoints !== null) {
@@ -300,7 +373,8 @@
                     <div style="background:rgba(15,23,42,0.5);border-radius:10px;padding:12px;">
                         ${emptyState}${rows}${myRankLine}
                     </div>
-                </div>`;
+                </div>
+                ${sisDrawHtml}`;
                 initIcons();
             } catch (err) {
                 console.error('Monthly challenge error:', err);
@@ -550,6 +624,11 @@
                         <div style="margin-bottom:10px;">${top3html}</div>
                         <!-- CTA -->
                         ${ctaBlock}
+                        <!-- SiS draw nudge -->
+                        ${myCount > 0 ? `<div style="margin-top:8px;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.18);border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;">
+                            <div style="font-size:11px;color:#22c55e;font-weight:600;">SiS draw: ${Math.floor(myCount/3)} ticket${Math.floor(myCount/3)!==1?'s':''} · ${myCount%3>0?`${3-(myCount%3)} logs to next`:'log 3 more for another'}</div>
+                            <img src="icons/sis-logo-stacked.png" alt="SiS" style="height:16px;width:auto;background:#fff;border-radius:3px;padding:2px 4px;">
+                        </div>` : ''}
                         <!-- Footer link -->
                         <div style="margin-top:10px;font-size:11px;color:rgba(125,211,252,0.7);font-weight:600;display:flex;align-items:center;gap:3px;">Full leaderboard &amp; details <i data-lucide="chevron-right" style="width:11px;height:11px;"></i></div>
                     </div>
