@@ -398,6 +398,9 @@
             // Check for unimported Strava swims (non-blocking)
             if (typeof checkStravaBanner === 'function') checkStravaBanner();
 
+            // Load club memberships (non-blocking — shows/hides Club nav tab)
+            if (typeof loadUserClubs === 'function') loadUserClubs();
+
 
             // Prompt existing users who haven't set their home region yet
             if (!currentUserProfile?.home_domain) setTimeout(showHomeDomainPrompt, 800);
