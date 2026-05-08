@@ -228,6 +228,9 @@
       <button class="nav-item" onclick="showPage('members')" id="nav-members">
         <i data-lucide="users"></i> Members
       </button>
+      <button class="nav-item" onclick="showPage('roster')" id="nav-roster">
+        <i data-lucide="list"></i> Roster
+      </button>
       <button class="nav-item" onclick="showPage('events')" id="nav-events">
         <i data-lucide="calendar"></i> Events
       </button>
@@ -308,6 +311,51 @@
               </thead>
               <tbody id="membersTableBody">
                 <tr><td colspan="7"><div class="loading"><div class="spinner"></div></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ROSTER ── -->
+      <div id="page-roster" class="page">
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="page-title">Roster</div>
+            <div class="page-sub">Full club roster — link SwimLoading accounts and manage member numbers</div>
+          </div>
+          <div id="rosterStats" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="filter-row">
+              <input type="text" class="search-input" placeholder="Search name or number…" oninput="filterRoster(this.value)" id="rosterSearch">
+              <select class="filter-select" onchange="filterRosterByStatus(this.value)" id="rosterStatusFilter">
+                <option value="">All</option>
+                <option value="linked">Linked</option>
+                <option value="unlinked">Unlinked</option>
+              </select>
+              <select class="filter-select" onchange="filterRosterByCat(this.value)" id="rosterCatFilter">
+                <option value="">All categories</option>
+              </select>
+            </div>
+            <div class="card-actions">
+              <span id="rosterCount" style="font-size:12px;color:var(--text-sec);"></span>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Name</th>
+                  <th>Category</th>
+                  <th>SwimLoading Account</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="rosterTableBody">
+                <tr><td colspan="5"><div class="loading"><div class="spinner"></div></div></td></tr>
               </tbody>
             </table>
           </div>
@@ -479,6 +527,22 @@
   </div>
 </div>
 
+<!-- ROSTER LINK MODAL -->
+<div class="modal-overlay" id="rosterLinkModal">
+  <div class="modal">
+    <div class="modal-title">
+      Link SwimLoading Account
+      <button class="modal-close" onclick="closeRosterLinkModal()">&times;</button>
+    </div>
+    <div style="font-size:13px;color:var(--text-sec);margin-bottom:16px;" id="rosterLinkModalSub"></div>
+    <input type="text" class="form-input" id="rosterLinkSearch" placeholder="Search by display name…" oninput="rosterLinkSearchHandler()">
+    <div id="rosterLinkResults" style="margin-top:8px;max-height:200px;overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeRosterLinkModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -609,6 +673,7 @@ function showPage(name) {
   if (name === 'entries')       populateEntriesEventSelect();
   if (name === 'league')        renderLeague();
   if (name === 'tempchallenge') loadTempChallenge();
+  if (name === 'roster')        { if (!allRoster.length) loadRoster(); else renderRosterTable(); }
 }
 
 // ── DATA LOADERS ──────────────────────────────────────────────────
@@ -1249,6 +1314,210 @@ function showToast(msg, type = 'success') {
   t.className = 'show ' + type;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.className = '', 3000);
+}
+
+// ── ROSTER ────────────────────────────────────────────────────────
+let allRoster = [];
+let rosterFilter = { query: '', status: '', cat: '' };
+let rosterLinkTargetId = null;
+let rosterLinkSearchTimer = null;
+
+async function loadRoster() {
+  const { data: roster } = await sb
+    .from('club_roster')
+    .select('id, member_number, display_name, category, gender, user_id')
+    .eq('club_id', currentClub.id)
+    .order('member_number', { ascending: true, nullsFirst: false });
+
+  if (!roster) return;
+
+  // Fetch SW display names for linked members
+  const linkedIds = roster.filter(r => r.user_id).map(r => r.user_id);
+  let profileMap = {};
+  if (linkedIds.length) {
+    const { data: profs } = await sb
+      .from('profiles')
+      .select('id, display_name')
+      .in('id', linkedIds);
+    (profs || []).forEach(p => { profileMap[p.id] = p.display_name; });
+  }
+
+  allRoster = roster.map(r => ({ ...r, sw_name: r.user_id ? (profileMap[r.user_id] || 'Linked') : null }));
+
+  // Stats header
+  const total = allRoster.length;
+  const linked = allRoster.filter(r => r.user_id).length;
+  document.getElementById('rosterStats').innerHTML = `
+    <span style="font-size:12px;color:var(--text-sec);">${total} total</span>
+    <span style="font-size:12px;color:var(--green);font-weight:600;">${linked} linked</span>
+    <span style="font-size:12px;color:var(--text-sec);">${total - linked} unlinked</span>`;
+
+  // Populate category filter
+  const cats = [...new Set(allRoster.map(r => r.category).filter(Boolean))].sort();
+  const catSel = document.getElementById('rosterCatFilter');
+  cats.forEach(c => {
+    const o = document.createElement('option'); o.value = c; o.textContent = c;
+    catSel.appendChild(o);
+  });
+
+  renderRosterTable();
+}
+
+function filterRoster(q)           { rosterFilter.query  = q.toLowerCase(); renderRosterTable(); }
+function filterRosterByStatus(v)   { rosterFilter.status = v;               renderRosterTable(); }
+function filterRosterByCat(v)      { rosterFilter.cat    = v;               renderRosterTable(); }
+
+function renderRosterTable() {
+  const tbody = document.getElementById('rosterTableBody');
+  const { query, status, cat } = rosterFilter;
+
+  const rows = allRoster.filter(r => {
+    if (status === 'linked'   && !r.user_id) return false;
+    if (status === 'unlinked' &&  r.user_id) return false;
+    if (cat && r.category !== cat) return false;
+    if (query) {
+      const n = (r.display_name || '').toLowerCase();
+      const m = String(r.member_number || '').toLowerCase();
+      if (!n.includes(query) && !m.includes(query)) return false;
+    }
+    return true;
+  });
+
+  document.getElementById('rosterCount').textContent = `${rows.length} member${rows.length !== 1 ? 's' : ''}`;
+
+  tbody.innerHTML = rows.map(r => {
+    const numCell = `
+      <span id="rnum-display-${r.id}" style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;"
+        onclick="editRosterNum('${r.id}','${r.member_number || ''}')">
+        <span class="member-num">${r.member_number ?? '—'}</span>
+        <i data-lucide="pencil" style="width:11px;height:11px;color:var(--text-dim);flex-shrink:0;"></i>
+      </span>
+      <span id="rnum-edit-${r.id}" style="display:none;display:none;">
+        <input class="form-input" id="rnum-input-${r.id}" value="${r.member_number || ''}" maxlength="8"
+          style="width:80px;padding:4px 8px;display:inline-block;"
+          onkeydown="if(event.key==='Enter')saveRosterNum('${r.id}');if(event.key==='Escape')cancelRosterNum('${r.id}');">
+        <button class="btn-sm" style="padding:4px 10px;" onclick="saveRosterNum('${r.id}')">Save</button>
+        <button class="btn-sm" style="padding:4px 10px;" onclick="cancelRosterNum('${r.id}')">Cancel</button>
+      </span>`;
+
+    const swCell = r.user_id
+      ? `<span style="display:inline-flex;align-items:center;gap:5px;color:var(--green);font-size:13px;font-weight:600;">
+           <i data-lucide="check-circle" style="width:13px;height:13px;"></i>${r.sw_name}
+         </span>`
+      : `<span style="color:var(--text-dim);font-size:13px;">—</span>`;
+
+    const actionBtn = r.user_id
+      ? `<button class="btn-sm" style="color:var(--danger);border-color:rgba(239,68,68,0.2);"
+           onclick="unlinkRosterMember('${r.id}')">Unlink</button>`
+      : `<button class="btn-sm" onclick="openRosterLinkModal('${r.id}','${(r.display_name||'').replace(/'/g,"\\'")}')">Link account</button>`;
+
+    return `<tr data-roster-id="${r.id}">
+      <td>${numCell}</td>
+      <td class="member-name">${r.display_name || '—'}</td>
+      <td><span class="cat-badge ${catClass(r.category)}">${r.category || '—'}</span></td>
+      <td>${swCell}</td>
+      <td style="text-align:right;">${actionBtn}</td>
+    </tr>`;
+  }).join('');
+
+  lucide.createIcons();
+}
+
+function editRosterNum(id, current) {
+  document.getElementById('rnum-display-' + id).style.display = 'none';
+  const editSpan = document.getElementById('rnum-edit-' + id);
+  editSpan.style.display = '';
+  const inp = document.getElementById('rnum-input-' + id);
+  inp.focus(); inp.select();
+}
+
+function cancelRosterNum(id) {
+  document.getElementById('rnum-display-' + id).style.display = '';
+  document.getElementById('rnum-edit-' + id).style.display = 'none';
+}
+
+async function saveRosterNum(id) {
+  const inp = document.getElementById('rnum-input-' + id);
+  const newNum = inp.value.trim();
+  inp.disabled = true;
+
+  const { error } = await sb.from('club_roster').update({ member_number: newNum || null }).eq('id', id);
+  inp.disabled = false;
+
+  if (error) { showToast('Save failed: ' + error.message, 'error'); return; }
+
+  const row = allRoster.find(r => r.id === id);
+  if (row) row.member_number = newNum || null;
+
+  cancelRosterNum(id);
+  document.querySelector(`[data-roster-id="${id}"] .member-num`).textContent = newNum || '—';
+  showToast('Member number updated', 'success');
+}
+
+function openRosterLinkModal(rosterId, memberName) {
+  rosterLinkTargetId = rosterId;
+  document.getElementById('rosterLinkModalSub').textContent = `Linking: ${memberName}`;
+  document.getElementById('rosterLinkSearch').value = '';
+  document.getElementById('rosterLinkResults').innerHTML = '';
+  document.getElementById('rosterLinkModal').classList.add('open');
+  setTimeout(() => document.getElementById('rosterLinkSearch').focus(), 100);
+}
+
+function closeRosterLinkModal() {
+  document.getElementById('rosterLinkModal').classList.remove('open');
+  rosterLinkTargetId = null;
+}
+
+async function rosterLinkSearchHandler() {
+  clearTimeout(rosterLinkSearchTimer);
+  rosterLinkSearchTimer = setTimeout(async () => {
+    const q = document.getElementById('rosterLinkSearch').value.trim();
+    const el = document.getElementById('rosterLinkResults');
+    if (q.length < 2) { el.innerHTML = ''; return; }
+
+    const { data: profs } = await sb
+      .from('profiles')
+      .select('id, display_name')
+      .ilike('display_name', `%${q}%`)
+      .limit(10);
+
+    if (!profs || !profs.length) {
+      el.innerHTML = `<div style="padding:10px;font-size:13px;color:var(--text-sec);">No results</div>`;
+      return;
+    }
+
+    el.innerHTML = profs.map(p => `
+      <div onclick="confirmRosterLink('${p.id}','${(p.display_name||'').replace(/'/g,"\\'")}')"
+        style="padding:10px 12px;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;transition:background 0.1s;"
+        onmouseover="this.style.background='rgba(56,189,248,0.08)'" onmouseout="this.style.background=''">
+        <span style="font-weight:600;">${p.display_name || p.id}</span>
+        <span style="color:var(--cyan);font-size:12px;font-weight:600;">Select</span>
+      </div>`).join('');
+  }, 300);
+}
+
+async function confirmRosterLink(userId, userName) {
+  if (!rosterLinkTargetId) return;
+  const rosterId = rosterLinkTargetId;
+  closeRosterLinkModal();
+
+  const { error } = await sb.from('club_roster').update({ user_id: userId }).eq('id', rosterId);
+  if (error) { showToast('Link failed: ' + error.message, 'error'); return; }
+
+  const row = allRoster.find(r => r.id === rosterId);
+  if (row) { row.user_id = userId; row.sw_name = userName; }
+  renderRosterTable();
+  showToast(`Linked to ${userName}`, 'success');
+}
+
+async function unlinkRosterMember(rosterId) {
+  const { error } = await sb.from('club_roster').update({ user_id: null }).eq('id', rosterId);
+  if (error) { showToast('Unlink failed: ' + error.message, 'error'); return; }
+
+  const row = allRoster.find(r => r.id === rosterId);
+  if (row) { row.user_id = null; row.sw_name = null; }
+  renderRosterTable();
+  showToast('Account unlinked', 'success');
 }
 
 // ── BOOT ──────────────────────────────────────────────────────────
