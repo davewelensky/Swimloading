@@ -544,32 +544,39 @@
     // Update page title
     document.title = `${club.code} · ${club.name} · SwimLoading`;
 
-    // Step 1: fetch categories + home spot in parallel
-    const [catRes, spotRes] = await Promise.all([
-      sb.from('club_categories')
-        .select('*')
-        .eq('club_id', club.id)
-        .order('sort_order'),
-      club.home_spot_id
-        ? sb.from('spots').select('name, code, domain').eq('id', club.home_spot_id).single()
-        : Promise.resolve({ data: null }),
-    ]);
-
-    const categories = catRes.data || [];
-    const spotData   = spotRes.data;
-    let spotName     = spotData?.name || 'home water';
-    const spotDomain = spotData?.domain;
-
-    // Step 2: fetch domain spot IDs (for events), logs, members, league — all in parallel
+    // Step 1: categories + home spot + domain spots — all in parallel
+    // club.domain is on the club row, so no need to derive it from the spot
     const now        = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
 
-    const [dSpotRes, logsRes, membersRes, leagueRes] = await Promise.all([
+    const [catRes, spotRes, dSpotRes] = await Promise.all([
+      sb.from('club_categories').select('*').eq('club_id', club.id).order('sort_order'),
+      club.home_spot_id
+        ? sb.from('spots').select('name, code').eq('id', club.home_spot_id).single()
+        : Promise.resolve({ data: null }),
       // All spot IDs in the club's domain (for event filtering)
-      spotDomain
-        ? sb.from('spots').select('id').eq('domain', spotDomain)
+      club.domain
+        ? sb.from('spots').select('id').eq('domain', club.domain)
         : Promise.resolve({ data: club.home_spot_id ? [{ id: club.home_spot_id }] : [] }),
+    ]);
+
+    const categories = catRes.data || [];
+    const spotName   = spotRes.data?.name || 'home water';
+    const dSpotIds   = (dSpotRes.data || []).map(s => s.id);
+
+    // Step 2: events + logs + members + league + profiles all in parallel
+    const [evtRes, logsRes, membersRes, leagueRes] = await Promise.all([
+      // Upcoming swims at any spot in this club's domain
+      dSpotIds.length
+        ? sb.from('swim_events')
+            .select('id, title, start_at, location_name, distance_km, distances_km, status')
+            .in('spot_id', dSpotIds)
+            .in('status', ['active', 'planned'])
+            .gte('start_at', now.toISOString())
+            .order('start_at')
+            .limit(10)
+        : Promise.resolve({ data: [] }),
       // Recent temp logs at home spot (conditions card + chart)
       club.home_spot_id
         ? sb.from('temp_logs')
@@ -583,37 +590,24 @@
         .select('user_id, member_number, category_id, club_categories(name)')
         .eq('club_id', club.id)
         .eq('is_active', true),
-      // League results
+      // League results (for full standings if entered)
       sb.from('club_league_results')
         .select('*, club_members(member_number, user_id), club_categories(name)')
         .eq('club_id', club.id),
     ]);
 
-    const dSpotIds   = (dSpotRes.data || []).map(s => s.id);
-    const recentLogs = logsRes.data || [];
-    const members    = membersRes.data || [];
+    const events      = evtRes.data  || [];
+    const recentLogs  = logsRes.data || [];
+    const members     = membersRes.data || [];
     const leagueResults = leagueRes.data || [];
-
-    // Step 3: fetch events (from swim_events, domain-filtered) + member profiles + member logs — parallel
     const memberCount = members.length;
     const memberIds   = members.map(m => m.user_id);
 
-    const [evtRes, profsRes, mtlRes] = await Promise.all([
-      // Upcoming swims at any spot in this club's domain
-      dSpotIds.length
-        ? sb.from('swim_events')
-            .select('id, title, start_at, location_name, distance_km, distances_km, status')
-            .in('spot_id', dSpotIds)
-            .in('status', ['active', 'planned'])
-            .gte('start_at', now.toISOString())
-            .order('start_at')
-            .limit(10)
-        : Promise.resolve({ data: [] }),
-      // Display names for temp challenge
+    // Step 3: member profiles + member challenge logs in parallel
+    const [profsRes, mtlRes] = await Promise.all([
       memberIds.length
         ? sb.from('profiles').select('id, display_name').in('id', memberIds)
         : Promise.resolve({ data: [] }),
-      // This month's logs by members (temp challenge)
       memberIds.length
         ? sb.from('temp_logs')
             .select('user_id, spot_id, created_at, logged_at')
@@ -623,7 +617,6 @@
         : Promise.resolve({ data: [] }),
     ]);
 
-    const events         = evtRes.data || [];
     const memberTempLogs = mtlRes.data || [];
     let profileMap = {};
     (profsRes.data || []).forEach(p => { profileMap[p.id] = p.display_name; });
@@ -635,7 +628,7 @@
     renderChart(recentLogs);
     renderEvents(events);
     renderTempChallenge(members || [], memberTempLogs, categories, profileMap);
-    renderLeague(categories, leagueResults || []);
+    renderLeague(categories, leagueResults || [], club, events);
     renderLogs(recentLogs);
     renderJoinBanner(club);
 
@@ -980,39 +973,51 @@
   }
 
   // ── LEAGUE STANDINGS ─────────────────────────────────────────────
-  function renderLeague(categories, results) {
+  function renderLeague(categories, results, club, events) {
     const container = document.getElementById('leagueContainer');
 
     if (results.length === 0) {
-      // No results yet — show aspirational category grid
-      if (categories.length === 0) {
-        container.innerHTML = `
-          <div class="card">
-            <div class="empty-state">
-              <div class="empty-state-icon"><i data-lucide="trophy"></i></div>
-              <div class="empty-state-title">Season standings coming</div>
-              <div class="empty-state-sub">Results will appear here after each league swim.</div>
-            </div>
-          </div>
-        `;
-        return;
-      }
+      // Find the next league swim from events (title contains "League")
+      const nextLeague = (events || []).find(ev =>
+        ev.title.toLowerCase().includes('league') || ev.title.toLowerCase().includes('swim')
+      );
+      const nextLeagueStr = nextLeague
+        ? (() => {
+            const d = new Date(nextLeague.start_at);
+            return `Next: ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+          })()
+        : '';
 
-      const catCards = categories.map(cat => `
-        <div class="category-card">
-          <div class="category-name">${cat.name}</div>
-          <div class="category-age">${ageRange(cat)}</div>
-        </div>
-      `).join('');
+      // External website link (e.g. duc.co.za)
+      const websiteHtml = club?.website ? `
+        <a href="${club.website}" target="_blank" rel="noopener" class="btn-primary"
+          style="font-size:14px;padding:11px 22px;margin-top:4px;">
+          <i data-lucide="external-link" style="width:14px;height:14px;"></i>
+          View full standings
+        </a>` : '';
 
       container.innerHTML = `
-        <div class="card">
-          <div style="text-align:center;margin-bottom:20px;">
-            <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px;">2026 Season</div>
-            <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">Season standings will appear here after the first race</div>
-            <div style="font-size:13px;color:var(--text-sec);">Points are recorded after each league swim — results entered by the club organiser.</div>
+        <div style="
+          background: linear-gradient(135deg, rgba(56,189,248,0.06) 0%, rgba(56,189,248,0.02) 100%);
+          border: 1px solid var(--cyan-border); border-radius: 14px; padding: 24px;
+          display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
+          <div style="flex:1;min-width:200px;">
+            <div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.14em;margin-bottom:6px;">Season league</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:0.04em;color:var(--text);margin-bottom:6px;">
+              ${club?.name || 'Club'} League
+            </div>
+            <div style="font-size:13px;color:var(--text-sec);line-height:1.6;margin-bottom:${websiteHtml ? '16px' : '0'};">
+              Full results and standings are published on the club website.
+              ${nextLeagueStr ? `<br><strong style="color:var(--text);">${nextLeagueStr}</strong>` : ''}
+            </div>
+            ${websiteHtml}
           </div>
-          <div class="category-grid">${catCards}</div>
+          <div style="flex-shrink:0;text-align:right;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:64px;line-height:1;color:rgba(56,189,248,0.12);letter-spacing:0.02em;">
+              ${club?.founded_year ? club.founded_year : ''}
+            </div>
+            ${club?.founded_year ? `<div style="font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;">Founded</div>` : ''}
+          </div>
         </div>
       `;
       return;
