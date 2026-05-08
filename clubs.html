@@ -114,9 +114,26 @@
     .content { max-width: 860px; margin: 0 auto; padding: 32px 20px 60px; display: flex; flex-direction: column; gap: 28px; }
 
     /* ── SECTION TITLES ───────────────────────────────────────────── */
-    .section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
-    .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 0.05em; color: var(--text); }
-    .section-sub { font-size: 12px; color: var(--text-sec); }
+    .section-head { margin-bottom: 16px; }
+    .section-eyebrow { font-size: 10px; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 5px; }
+    .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 0.05em; color: var(--text); line-height: 1; }
+    .section-sub { font-size: 12px; color: var(--text-sec); margin-top: 3px; }
+    /* aliases used by renderTempChallenge */
+    .section-header { margin-bottom: 16px; }
+    .section-tag { font-size: 10px; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 5px; }
+    /* alias: empty-state-desc = empty-state-sub */
+    .empty-state-desc { font-size: 13px; color: var(--text-sec); }
+
+    /* ── TEMP CHALLENGE LEADERBOARD ───────────────────────────────── */
+    .tc-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); gap: 12px; }
+    .tc-row:last-child { border-bottom: none; }
+    .tc-rank { font-family: 'Bebas Neue', sans-serif; font-size: 20px; width: 24px; flex-shrink: 0; text-align: center; }
+    .tc-info { flex: 1; min-width: 0; }
+    .tc-name { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tc-meta { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
+    .tc-pts { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--cyan); flex-shrink: 0; text-align: right; line-height: 1; }
+    .tc-pts-zero { color: var(--text-sec); }
+    .tc-pts sub { font-family: 'DM Sans', sans-serif; font-size: 10px; font-weight: 600; color: var(--text-sec); vertical-align: baseline; margin-left: 2px; }
 
     /* ── CARD BASE ────────────────────────────────────────────────── */
     .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
@@ -447,6 +464,7 @@
     <!-- ABOUT -->
     <div id="sectionAbout" style="display:none;">
       <div class="section-head">
+        <div class="section-eyebrow">The club</div>
         <div class="section-title">About</div>
       </div>
       <div id="aboutContainer"></div>
@@ -455,8 +473,9 @@
     <!-- CURRENT CONDITIONS -->
     <div id="sectionConditions" style="display:none;">
       <div class="section-head">
+        <div class="section-eyebrow">Home water</div>
         <div class="section-title">Current Conditions</div>
-        <div class="section-sub" id="conditionsDate">—</div>
+        <div class="section-sub" id="conditionsDate"></div>
       </div>
       <div class="card" id="conditionsCard"></div>
     </div>
@@ -464,6 +483,7 @@
     <!-- NO CONDITIONS EMPTY STATE -->
     <div id="sectionConditionsEmpty" style="display:none;">
       <div class="section-head">
+        <div class="section-eyebrow">Home water</div>
         <div class="section-title">Current Conditions</div>
       </div>
       <div class="card">
@@ -478,14 +498,15 @@
     <!-- TEMPERATURE CHART -->
     <div id="sectionChart" style="display:none;">
       <div class="section-head">
-        <div class="section-title">Temperature History</div>
-        <div class="section-sub" id="chartDateRange">Last 30 days</div>
+        <div class="section-eyebrow">30-day history</div>
+        <div class="section-title">Temperature</div>
+        <div class="section-sub" id="chartDateRange"></div>
       </div>
       <div class="card">
         <div class="chart-wrap"><canvas id="tempChart"></canvas></div>
         <div class="chart-legend">
-          <div class="legend-item"><div class="legend-dot" style="background: rgba(56,189,248,0.8);"></div>Calm</div>
-          <div class="legend-item"><div class="legend-dot" style="background: rgba(245,158,11,0.8);"></div>Choppy</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(56,189,248,0.8);"></div>Calm</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(245,158,11,0.8);"></div>Choppy</div>
         </div>
       </div>
     </div>
@@ -493,7 +514,8 @@
     <!-- UPCOMING EVENTS -->
     <div id="sectionEvents">
       <div class="section-head">
-        <div class="section-title">Upcoming Club Swims</div>
+        <div class="section-eyebrow">On the calendar</div>
+        <div class="section-title">Upcoming Swims</div>
         <div class="section-sub" id="eventsCount"></div>
       </div>
       <div id="eventsContainer">
@@ -506,13 +528,14 @@
     </div>
 
     <!-- TEMP CHALLENGE -->
-    <div id="sectionTempChallenge" style="margin-bottom:40px;">
+    <div id="sectionTempChallenge">
       <div id="tempChallengeContainer"></div>
     </div>
 
     <!-- LEAGUE STANDINGS -->
     <div id="sectionLeague">
       <div class="section-head">
+        <div class="section-eyebrow">Season points</div>
         <div class="section-title">League Standings</div>
         <div class="section-sub" id="leagueSub">2026 Season</div>
       </div>
@@ -522,7 +545,8 @@
     <!-- RECENT LOGS -->
     <div id="sectionLogs">
       <div class="section-head">
-        <div class="section-title">Recent Condition Logs</div>
+        <div class="section-eyebrow">From the water</div>
+        <div class="section-title">Condition Logs</div>
         <div class="section-sub" id="logsCount"></div>
       </div>
       <div id="logsContainer">
@@ -537,10 +561,11 @@
   </div><!-- /content -->
 
   <!-- JOIN BANNER -->
-  <div style="max-width:860px;margin:0 auto;padding:0 20px 80px;" id="joinBannerWrap" style="display:none;">
-    <div style="background:linear-gradient(135deg,rgba(56,189,248,0.08),rgba(14,165,233,0.03));border:1px solid rgba(56,189,248,0.2);border-radius:24px;padding:44px 32px;text-align:center;position:relative;overflow:hidden;">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,5vw,42px);letter-spacing:.04em;color:var(--text);margin-bottom:10px;" id="joinBannerTitle">Join on SwimLoading</div>
-      <div style="font-size:14px;color:var(--text-sec);margin-bottom:28px;max-width:440px;margin-left:auto;margin-right:auto;line-height:1.6;" id="joinBannerDesc">Already on SwimLoading? Tap below to join — you'll be assigned a permanent race number instantly.</div>
+  <div id="joinBannerWrap" style="display:none; max-width:860px; margin:0 auto; padding:0 20px 80px;">
+    <div style="background:linear-gradient(135deg,rgba(56,189,248,0.08),rgba(14,165,233,0.03));border:1px solid rgba(56,189,248,0.2);border-radius:24px;padding:48px 32px;text-align:center;">
+      <div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.14em;margin-bottom:10px;">Get involved</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,5vw,42px);letter-spacing:.04em;color:var(--text);margin-bottom:12px;" id="joinBannerTitle">Join on SwimLoading</div>
+      <div style="font-size:14px;color:var(--text-sec);margin-bottom:28px;max-width:440px;margin-left:auto;margin-right:auto;line-height:1.65;" id="joinBannerDesc">Already on SwimLoading? Tap below to join — you'll be assigned a permanent race number instantly.</div>
       <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
         <a href="/app" class="btn-primary" id="joinBannerBtn"><i data-lucide="user-plus" style="width:15px;height:15px;"></i>Join now</a>
         <a href="/app" class="btn-ghost"><i data-lucide="waves" style="width:15px;height:15px;"></i>Open SwimLoading</a>
@@ -1004,48 +1029,46 @@
 
     if (!hasActivity) {
       container.innerHTML = `
-        <div class="section-header">
-          <div class="section-tag">Temp Challenge</div>
-          <div class="section-title">${monthName} — Logging Leaderboard</div>
+        <div class="section-head">
+          <div class="section-eyebrow">Monthly competition</div>
+          <div class="section-title">${monthName} — Temp Challenge</div>
         </div>
         <div class="card">
           <div class="empty-state">
             <div class="empty-state-icon"><i data-lucide="thermometer"></i></div>
             <div class="empty-state-title">Challenge starts when members log</div>
-            <div class="empty-state-desc">Members earn 10 pts per log + 10 pts bonus per unique spot per day. Log anywhere — ocean, pool, dam. Leaderboard updates in real time.</div>
+            <div class="empty-state-sub">10 pts per log · +10 per unique spot per day · log anywhere. Leaderboard updates in real time.</div>
           </div>
         </div>`;
       return;
     }
 
     const rows = standings.slice(0, 10).map((s, i) => {
-      const col = i < 3 ? MEDAL[i] : 'var(--text-sec)';
-      const catCol = CAT_COLORS[s.cat] || 'var(--cyan)';
+      const rankCol = i === 0 ? 'var(--gold)' : i === 1 ? 'var(--silver)' : i === 2 ? 'var(--bronze)' : 'var(--text-sec)';
+      const catCol  = CAT_COLORS[s.cat] || 'var(--cyan)';
       return `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:${i < 3 ? '12px 16px' : '9px 16px'};border-bottom:1px solid var(--border);">
-          <div style="display:flex;align-items:center;gap:12px;">
-            <span style="font-size:13px;font-weight:800;color:${col};width:20px;flex-shrink:0;">${i + 1}</span>
-            <div>
-              <div style="font-size:${i < 3 ? '14px' : '13px'};font-weight:${i < 3 ? '700' : '500'};color:var(--text);">${s.name}</div>
-              <div style="font-size:11px;color:var(--text-sec);margin-top:2px;">
-                <span style="color:${catCol};font-weight:600;">${s.cat}</span>
-                &nbsp;·&nbsp;${s.logCount} log${s.logCount !== 1 ? 's' : ''}
-                &nbsp;·&nbsp;${s.swimDays} day${s.swimDays !== 1 ? 's' : ''}
-              </div>
+        <div class="tc-row">
+          <div class="tc-rank" style="color:${rankCol};">${i + 1}</div>
+          <div class="tc-info">
+            <div class="tc-name">${s.name}</div>
+            <div class="tc-meta">
+              <span style="color:${catCol};font-weight:600;">${s.cat}</span>
+              &nbsp;·&nbsp;${s.logCount} log${s.logCount !== 1 ? 's' : ''}
+              &nbsp;·&nbsp;${s.swimDays} day${s.swimDays !== 1 ? 's' : ''}
             </div>
           </div>
-          <div style="font-size:${i < 3 ? '16px' : '14px'};font-weight:800;color:${s.points > 0 ? 'var(--cyan)' : 'var(--text-sec)'};">${s.points}<span style="font-size:10px;font-weight:600;color:var(--text-sec);margin-left:2px;">pts</span></div>
+          <div class="tc-pts ${s.points === 0 ? 'tc-pts-zero' : ''}">${s.points}<sub>pts</sub></div>
         </div>`;
     }).join('');
 
     container.innerHTML = `
-      <div class="section-header">
-        <div class="section-tag">Temp Challenge</div>
-        <div class="section-title">${monthName} — Logging Leaderboard</div>
+      <div class="section-head">
+        <div class="section-eyebrow">Monthly competition</div>
+        <div class="section-title">${monthName} — Temp Challenge</div>
       </div>
       <div class="card" style="padding:0;overflow:hidden;">
-        <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-          <div style="font-size:12px;color:var(--text-sec);">10 pts per log · +10 per unique spot per day · log anywhere</div>
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:12px;color:var(--text-sec);">10 pts per log · +10 per unique spot per day</div>
           <div style="font-size:12px;color:var(--text-sec);">${members.length} members</div>
         </div>
         ${rows}
@@ -1253,11 +1276,22 @@
   }
 
   // ── JOIN BANNER ──────────────────────────────────────────────────
-  function renderJoinBanner(club) {
+  async function renderJoinBanner(club) {
     const wrap = document.getElementById('joinBannerWrap');
-    document.getElementById('joinBannerTitle').textContent = `Join ${club.name} on SwimLoading`;
+    document.getElementById('joinBannerTitle').textContent = `Join ${club.name}`;
+
+    // Fetch the active join link so the button goes directly there
+    const { data: link } = await sb.from('club_join_links')
+      .select('code').eq('club_id', club.id).eq('is_active', true)
+      .order('created_at', { ascending: false }).limit(1).single();
+
+    const joinUrl = link
+      ? `https://www.swimloading.com/join/${link.code}`
+      : '/app';
+
     document.getElementById('joinBannerDesc').textContent =
-      `Already on SwimLoading? Open the app to join ${club.code} — you'll get a permanent race number instantly.`;
+      `Already on SwimLoading? Tap below — your permanent race number is assigned the moment you confirm.`;
+    document.getElementById('joinBannerBtn').href = joinUrl;
     wrap.style.display = '';
   }
 

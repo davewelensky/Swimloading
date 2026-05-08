@@ -308,6 +308,52 @@
             }
         }
 
+        async function loadClubCard() {
+            if (!currentUser) return;
+            const el = document.getElementById('dashClubCard');
+            if (!el) return;
+            try {
+                const { data: membership } = await supabaseClient
+                    .from('club_members')
+                    .select('member_number, role, club_categories(name), clubs(name, slug, code)')
+                    .eq('user_id', currentUser.id)
+                    .eq('is_active', true)
+                    .limit(1)
+                    .single();
+                if (!membership || !membership.clubs) return;
+
+                const club = membership.clubs;
+                const cat  = membership.club_categories?.name || '';
+                const num  = membership.member_number || '';
+                const catColors = { Guppies:'#34d399', Sailfish:'#38bdf8', Makos:'#f59e0b', Walrus:'#a78bfa', Coelacanths:'#fb923c' };
+                const catCol = catColors[cat] || '#38bdf8';
+
+                el.innerHTML = `
+                    <a href="/clubs/${club.slug}" style="display:block;text-decoration:none;
+                        background:linear-gradient(135deg,rgba(56,189,248,0.07),rgba(56,189,248,0.02));
+                        border:1px solid rgba(56,189,248,0.18); border-radius:16px; padding:16px 18px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                            <div>
+                                <div style="font-size:10px;font-weight:700;color:var(--ocean-light);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px;">
+                                    ${club.name}
+                                </div>
+                                <div style="display:flex;align-items:baseline;gap:10px;">
+                                    <div style="font-size:28px;font-weight:800;color:var(--ocean-light);line-height:1;font-family:'DM Sans',sans-serif;letter-spacing:-0.5px;">
+                                        ${num}
+                                    </div>
+                                    ${cat ? `<div style="font-size:12px;font-weight:700;color:${catCol};background:${catCol}1a;border:1px solid ${catCol}40;border-radius:20px;padding:2px 10px;">${cat}</div>` : ''}
+                                </div>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:6px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.18);border-radius:10px;padding:10px 14px;flex-shrink:0;">
+                                <i data-lucide="trophy" style="width:14px;height:14px;color:var(--ocean-light);"></i>
+                                <span style="font-size:12px;font-weight:700;color:var(--ocean-light);">Standings</span>
+                            </div>
+                        </div>
+                    </a>`;
+                lucide.createIcons();
+            } catch (e) { /* not a club member — card stays hidden */ }
+        }
+
         async function loadSpotlightBanner() {
             try {
                 const { data: spotRows } = await supabaseClient

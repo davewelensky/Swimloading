@@ -1074,6 +1074,7 @@
             loadMonthlyChallengeSummary(); // non-blocking
             loadSpotlightBanner();         // non-blocking
             loadNotifications();           // non-blocking
+            loadClubCard();                // non-blocking
 
             // Populate shared caches in background (used by Trends/Swims tabs and hazard checks)
             (async () => {
