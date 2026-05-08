@@ -243,6 +243,9 @@
       <button class="nav-item" onclick="showPage('tempchallenge')" id="nav-tempchallenge">
         <i data-lucide="thermometer"></i> Temp Challenge
       </button>
+      <button class="nav-item" onclick="showPage('team')" id="nav-team">
+        <i data-lucide="shield-check"></i> Team
+      </button>
       <div class="sidebar-divider"></div>
       <button class="nav-item" onclick="showPage('joinlink')" id="nav-joinlink">
         <i data-lucide="link"></i> Join Link
@@ -324,7 +327,12 @@
             <div class="page-title">Roster</div>
             <div class="page-sub">Full club roster — link SwimLoading accounts and manage member numbers</div>
           </div>
-          <div id="rosterStats" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <div id="rosterStats" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"></div>
+            <button class="btn-primary" style="width:auto;padding:10px 20px;border-radius:10px;font-size:13px;" onclick="openAddRosterModal()">
+              <i data-lucide="user-plus" style="width:14px;height:14px;"></i> Add member
+            </button>
+          </div>
         </div>
         <div class="card">
           <div class="card-header">
@@ -412,11 +420,50 @@
 
       <!-- ── LEAGUE ── -->
       <div id="page-league" class="page">
-        <div class="page-header">
-          <div class="page-title">League Standings</div>
-          <div class="page-sub">Points accumulate across all league races</div>
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="page-title">League Standings</div>
+            <div class="page-sub" id="leaguePageSub">2025 season</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <select class="filter-select" id="leagueYearSelect" onchange="renderLeague()" style="width:auto;"></select>
+            <button class="btn-primary" style="width:auto;padding:10px 20px;border-radius:10px;font-size:13px;" onclick="openResultsModal()">
+              <i data-lucide="plus" style="width:14px;height:14px;"></i> Enter results
+            </button>
+          </div>
         </div>
         <div id="leagueContent"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+
+      <!-- ── TEAM ── -->
+      <div id="page-team" class="page">
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="page-title">Team</div>
+            <div class="page-sub">Admin access and committee roles</div>
+          </div>
+          <button class="btn-primary" style="width:auto;padding:10px 20px;border-radius:10px;font-size:13px;" onclick="openAddAdminModal()">
+            <i data-lucide="plus" style="width:14px;height:14px;"></i> Add team member
+          </button>
+        </div>
+        <div class="card">
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Committee Title</th>
+                  <th>Access Level</th>
+                  <th>Member #</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="teamTableBody">
+                <tr><td colspan="5"><div class="loading"><div class="spinner"></div></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- ── JOIN LINK ── -->
@@ -446,10 +493,47 @@
       <div id="page-settings" class="page">
         <div class="page-header">
           <div class="page-title">Club Settings</div>
-          <div class="page-sub">Basic club details. Contact SwimLoading to change categories or domain.</div>
+          <div class="page-sub">Update your club's public profile</div>
         </div>
-        <div class="card" style="padding:20px;">
-          <div id="settingsContent"><div class="loading"><div class="spinner"></div></div></div>
+        <div class="card" style="padding:24px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:4px;">
+            <div><div class="form-label" style="margin-bottom:6px;">Club name</div><div style="font-weight:600;" id="settingClubName">—</div></div>
+            <div><div class="form-label" style="margin-bottom:6px;">Code</div><div style="font-family:monospace;color:var(--cyan);" id="settingClubCode">—</div></div>
+            <div><div class="form-label" style="margin-bottom:6px;">Public URL</div><div style="font-family:monospace;font-size:12px;color:var(--text-sec);" id="settingClubUrl">—</div></div>
+            <div><div class="form-label" style="margin-bottom:6px;">Founded</div><div id="settingFounded">—</div></div>
+          </div>
+          <div style="border-top:1px solid var(--border);margin:18px 0 18px;"></div>
+          <div class="form-group">
+            <div class="form-label">Tagline <span style="font-weight:400;color:var(--text-dim);">shown under club name on public page</span></div>
+            <input type="text" class="form-input" id="settingTagline" placeholder="e.g. Durban's open water home since 2020">
+          </div>
+          <div class="form-group">
+            <div class="form-label">About the club <span style="font-weight:400;color:var(--text-dim);">public description</span></div>
+            <textarea class="form-input" id="settingDescription" rows="4" style="resize:vertical;"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <div class="form-label">Website</div>
+              <input type="url" class="form-input" id="settingWebsite" placeholder="https://duc.co.za">
+            </div>
+            <div class="form-group">
+              <div class="form-label">Contact email</div>
+              <input type="email" class="form-input" id="settingEmail" placeholder="secretary@club.com">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <div class="form-label">City</div>
+              <input type="text" class="form-input" id="settingCity" placeholder="Durban">
+            </div>
+            <div class="form-group">
+              <div class="form-label">Member count <span style="font-weight:400;color:var(--text-dim);">shown on public page</span></div>
+              <input type="number" class="form-input" id="settingMemberCount" placeholder="550">
+            </div>
+          </div>
+          <div style="margin-top:8px;">
+            <button class="btn-primary" style="width:auto;padding:11px 28px;border-radius:10px;" onclick="saveSettings()">Save changes</button>
+          </div>
         </div>
       </div>
 
@@ -574,6 +658,129 @@
     <div id="rosterLinkResults" style="margin-top:8px;max-height:200px;overflow-y:auto;"></div>
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="closeRosterLinkModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD ADMIN MODAL -->
+<div class="modal-overlay" id="addAdminModal">
+  <div class="modal">
+    <div class="modal-title">
+      Add team member
+      <button class="modal-close" onclick="closeAddAdminModal()">&times;</button>
+    </div>
+    <div class="form-group">
+      <div class="form-label">Email address</div>
+      <input type="email" class="form-input" id="addAdminEmail" placeholder="member@swimloading.com">
+    </div>
+    <div class="form-group">
+      <div class="form-label">Access level</div>
+      <select class="form-input" id="addAdminRole">
+        <option value="moderator">Moderator — view and manage members</option>
+        <option value="admin">Admin — full access</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <div class="form-label">Committee title <span style="font-weight:400;color:var(--text-dim);">optional</span></div>
+      <input type="text" class="form-input" id="addAdminTitle" placeholder="e.g. Secretary, Race Officer, Captain">
+    </div>
+    <div style="background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.15);border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+      <div style="font-size:12px;color:var(--text-sec);line-height:1.5;">The person must already have a SwimLoading account. They'll get access immediately on next login.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeAddAdminModal()">Cancel</button>
+      <button class="btn-modal-primary" onclick="submitAddAdmin()">Add to team</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS ENTRY MODAL -->
+<div class="modal-overlay" id="resultsEntryModal">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-title">
+      Enter Race Results
+      <button class="modal-close" onclick="closeResultsModal()">&times;</button>
+    </div>
+    <div class="form-row" style="margin-bottom:14px;">
+      <div class="form-group">
+        <div class="form-label">League race</div>
+        <select class="form-input" id="resultsEventSelect" onchange="onResultsEventChange()">
+          <option value="">Select event…</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Course</div>
+        <select class="form-input" id="resultsCourse">
+          <option value="LC">Long Course (LC)</option>
+          <option value="SC">Short Course (SC)</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:2fr 60px 80px 80px 32px;gap:6px;padding:0 0 6px;margin-bottom:2px;">
+      <div style="font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Member</div>
+      <div style="font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Pos</div>
+      <div style="font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Points</div>
+      <div style="font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Time</div>
+      <div></div>
+    </div>
+    <div id="resultsRows" style="max-height:280px;overflow-y:auto;margin-bottom:10px;">
+      <div style="font-size:12px;color:var(--text-sec);padding:8px 0;">Select an event to enter results.</div>
+    </div>
+    <button class="btn-sm" onclick="addResultRow()" id="addResultRowBtn" style="display:none;margin-bottom:10px;">
+      <i data-lucide="plus" style="width:13px;height:13px;"></i> Add swimmer
+    </button>
+    <div style="font-size:11px;color:var(--text-sec);margin-bottom:14px;" id="resultsHint"></div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeResultsModal()">Cancel</button>
+      <button class="btn-modal-primary" onclick="submitResults()">Save results &amp; update standings</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD ROSTER MEMBER MODAL -->
+<div class="modal-overlay" id="addRosterModal">
+  <div class="modal">
+    <div class="modal-title">
+      Add Member to Roster
+      <button class="modal-close" onclick="closeAddRosterModal()">&times;</button>
+    </div>
+    <div class="form-group">
+      <div class="form-label">Full name</div>
+      <input type="text" class="form-input" id="newRosterName" placeholder="e.g. Jane Smith">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Member #</div>
+        <input type="text" class="form-input" id="newRosterNum" placeholder="e.g. DUC001">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Category</div>
+        <select class="form-input" id="newRosterCat">
+          <option value="">— select —</option>
+          <option value="Guppies">Guppies</option>
+          <option value="Sailfish">Sailfish</option>
+          <option value="Makos">Makos</option>
+          <option value="Walrus">Walrus</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Gender</div>
+        <select class="form-input" id="newRosterGender">
+          <option value="">—</option>
+          <option value="M">Male</option>
+          <option value="F">Female</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Phone <span style="font-weight:400;color:var(--text-dim);">optional</span></div>
+        <input type="text" class="form-input" id="newRosterPhone" placeholder="082 123 4567">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeAddRosterModal()">Cancel</button>
+      <button class="btn-modal-primary" onclick="submitAddRosterMember()">Add to roster</button>
     </div>
   </div>
 </div>
@@ -722,6 +929,7 @@ function showPage(name) {
   if (name === 'league')        renderLeague();
   if (name === 'tempchallenge') loadTempChallenge();
   if (name === 'roster')        { if (!allRoster.length) loadRoster(); else renderRosterTable(); }
+  if (name === 'team')          loadTeam();
 }
 
 // ── DATA LOADERS ──────────────────────────────────────────────────
@@ -1307,14 +1515,30 @@ async function loadTempChallenge() {
 }
 
 // ── LEAGUE ────────────────────────────────────────────────────────
+function initLeagueYearSelect() {
+  const sel = document.getElementById('leagueYearSelect');
+  if (sel.options.length > 0) return;
+  const current = new Date().getFullYear();
+  for (let y = current; y >= current - 3; y--) {
+    const opt = document.createElement('option');
+    opt.value = y;
+    opt.textContent = y + ' Season';
+    if (y === 2025) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
 async function renderLeague() {
+  initLeagueYearSelect();
   const el = document.getElementById('leagueContent');
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const year = parseInt(document.getElementById('leagueYearSelect').value) || new Date().getFullYear();
+  document.getElementById('leaguePageSub').textContent = year + ' season';
 
   const { data } = await sb.from('club_season_standings')
     .select('*, club_roster(display_name, category)')
     .eq('club_id', currentClub.id)
-    .eq('year', 2025)
+    .eq('year', year)
     .order('position', { ascending: true });
 
   if (!data || data.length === 0) {
@@ -1359,6 +1583,330 @@ async function renderLeague() {
   lucide.createIcons();
 }
 
+// ── RESULTS ENTRY ─────────────────────────────────────────────────
+let pendingResults = [];
+
+function openResultsModal() {
+  const sel = document.getElementById('resultsEventSelect');
+  sel.innerHTML = '<option value="">Select event…</option>';
+  const leagueEvents = allEvents.filter(e => e.is_league);
+  if (!leagueEvents.length) {
+    sel.innerHTML = '<option value="" disabled>No league events — create one first</option>';
+  } else {
+    leagueEvents.forEach(e => {
+      const opt = document.createElement('option');
+      opt.value = e.id;
+      opt.textContent = e.title + ' — ' + new Date(e.event_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
+      sel.appendChild(opt);
+    });
+  }
+  pendingResults = [];
+  document.getElementById('resultsRows').innerHTML = '<div style="font-size:12px;color:var(--text-sec);padding:8px 0;">Select an event to enter results.</div>';
+  document.getElementById('addResultRowBtn').style.display = 'none';
+  document.getElementById('resultsHint').textContent = '';
+  document.getElementById('resultsEntryModal').classList.add('open');
+  lucide.createIcons();
+}
+
+function closeResultsModal() {
+  document.getElementById('resultsEntryModal').classList.remove('open');
+  pendingResults = [];
+}
+
+function onResultsEventChange() {
+  const eventId = document.getElementById('resultsEventSelect').value;
+  if (!eventId) {
+    document.getElementById('resultsRows').innerHTML = '<div style="font-size:12px;color:var(--text-sec);padding:8px 0;">Select an event to enter results.</div>';
+    document.getElementById('addResultRowBtn').style.display = 'none';
+    document.getElementById('resultsHint').textContent = '';
+    return;
+  }
+  pendingResults = [];
+  document.getElementById('resultsRows').innerHTML = '<div style="font-size:12px;color:var(--text-sec);padding:8px 0;">Use "Add swimmer" to enter results.</div>';
+  document.getElementById('addResultRowBtn').style.display = '';
+  document.getElementById('resultsHint').textContent = 'Points auto-fill from position: 1st=50, 2nd=47, 3rd=45, then 44, 43… Override manually if needed.';
+  lucide.createIcons();
+}
+
+function addResultRow() {
+  pendingResults.push({ _id: Date.now(), roster_id: '', position: '', points: '', time: '' });
+  renderResultRows();
+}
+
+function renderResultRows() {
+  const el = document.getElementById('resultsRows');
+  if (!pendingResults.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-sec);padding:8px 0;">Use "Add swimmer" to enter results.</div>';
+    return;
+  }
+  const opts = allRoster.map(r =>
+    `<option value="${r.id}">${r.display_name || '?'} (${r.category || '?'}${r.member_number ? ' #' + r.member_number : ''})</option>`
+  ).join('');
+  el.innerHTML = pendingResults.map(row => `
+    <div style="display:grid;grid-template-columns:2fr 60px 80px 80px 32px;gap:6px;align-items:center;margin-bottom:6px;">
+      <select class="form-input" style="padding:7px 10px;font-size:12px;" onchange="updateResultRow(${row._id},'roster_id',this.value)">
+        <option value="">— member —</option>${opts}
+      </select>
+      <input type="number" class="form-input" placeholder="Pos" min="1"
+        style="padding:7px 8px;font-size:12px;text-align:center;" value="${row.position}"
+        oninput="updateResultRowAutoPoints(${row._id},'position',this.value)">
+      <input type="number" class="form-input" placeholder="Pts"
+        style="padding:7px 8px;font-size:12px;text-align:center;" value="${row.points}"
+        id="pts-${row._id}"
+        oninput="updateResultRow(${row._id},'points',this.value)">
+      <input type="text" class="form-input" placeholder="MM:SS"
+        style="padding:7px 8px;font-size:12px;text-align:center;" value="${row.time}"
+        oninput="updateResultRow(${row._id},'time',this.value)" title="HH:MM:SS or MM:SS">
+      <button onclick="removeResultRow(${row._id})"
+        style="background:transparent;border:1px solid rgba(239,68,68,0.2);border-radius:6px;color:var(--danger);font-size:15px;cursor:pointer;padding:4px 8px;line-height:1;">&times;</button>
+    </div>`).join('');
+}
+
+function updateResultRow(rowId, field, value) {
+  const row = pendingResults.find(r => r._id === rowId);
+  if (row) row[field] = value;
+}
+
+function updateResultRowAutoPoints(rowId, field, value) {
+  const row = pendingResults.find(r => r._id === rowId);
+  if (!row) return;
+  row[field] = value;
+  const pos = parseInt(value);
+  if (pos >= 1) {
+    let pts;
+    if      (pos === 1) pts = 50;
+    else if (pos === 2) pts = 47;
+    else if (pos === 3) pts = 45;
+    else                pts = Math.max(46 - pos, 1);
+    row.points = pts;
+    const el = document.getElementById('pts-' + rowId);
+    if (el) el.value = pts;
+  }
+}
+
+function removeResultRow(rowId) {
+  pendingResults = pendingResults.filter(r => r._id !== rowId);
+  renderResultRows();
+}
+
+async function submitResults() {
+  const eventId = document.getElementById('resultsEventSelect').value;
+  const course  = document.getElementById('resultsCourse').value;
+  if (!eventId) { showToast('Select an event first', 'error'); return; }
+
+  const valid = pendingResults.filter(r => r.roster_id && r.points);
+  if (!valid.length) { showToast('Add at least one result with a member and points', 'error'); return; }
+
+  const event     = allEvents.find(e => e.id === eventId);
+  const eventDate = event?.event_date ? new Date(event.event_date) : new Date();
+  const year      = eventDate.getFullYear();
+  const MONTHS    = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  const monthCol  = MONTHS[eventDate.getMonth()];
+
+  const rows = valid.map(r => {
+    let timeSecs = null;
+    if (r.time) {
+      const parts = r.time.split(':').map(Number);
+      if (parts.length === 3) timeSecs = parts[0]*3600 + parts[1]*60 + parts[2];
+      else if (parts.length === 2) timeSecs = parts[0]*60 + parts[1];
+    }
+    return {
+      club_id:      currentClub.id,
+      event_id:     eventId,
+      roster_id:    r.roster_id,
+      course,
+      position:     parseInt(r.position) || null,
+      time_seconds: timeSecs,
+      points:       parseInt(r.points),
+      year,
+      month_col:    monthCol,
+    };
+  });
+
+  const { error } = await sb.from('club_race_results').insert(rows);
+  if (error) { showToast('Save failed: ' + error.message, 'error'); return; }
+
+  showToast(rows.length + ' results saved — updating standings…', 'success');
+  closeResultsModal();
+  await recalculateStandings(year, course);
+  renderLeague();
+}
+
+async function recalculateStandings(year, course) {
+  const { data: allResults } = await sb.from('club_race_results')
+    .select('roster_id, points, month_col, course')
+    .eq('club_id', currentClub.id)
+    .eq('year', year)
+    .eq('course', course);
+  if (!allResults || !allResults.length) return;
+
+  const rosterIds = [...new Set(allResults.map(r => r.roster_id))];
+  const { data: rosterRows } = await sb.from('club_roster')
+    .select('id, category').in('id', rosterIds);
+  const catMap = {};
+  (rosterRows || []).forEach(r => { catMap[r.id] = r.category; });
+
+  const bySwimmer = {};
+  allResults.forEach(r => {
+    if (!bySwimmer[r.roster_id]) bySwimmer[r.roster_id] = { monthly: {}, allPts: [] };
+    const s = bySwimmer[r.roster_id];
+    s.monthly[r.month_col] = (s.monthly[r.month_col] || 0) + r.points;
+    s.allPts.push(r.points);
+  });
+
+  const upsertRows = Object.entries(bySwimmer).map(([rosterId, data]) => {
+    const sortedPts  = [...data.allPts].sort((a, b) => b - a);
+    const totalPts   = sortedPts.reduce((a, b) => a + b, 0);
+    const top10Pts   = sortedPts.slice(0, 10).reduce((a, b) => a + b, 0);
+    const swimsCount = data.allPts.length;
+    return { _rosterId: rosterId, totalPts, top10Pts, swimsCount, category: catMap[rosterId] || null };
+  });
+
+  // Rank within each category
+  const byCat = {};
+  upsertRows.forEach(r => {
+    const cat = r.category || 'General';
+    if (!byCat[cat]) byCat[cat] = [];
+    byCat[cat].push(r);
+  });
+  Object.values(byCat).forEach(rows => {
+    rows.sort((a, b) => b.top10Pts - a.top10Pts);
+    rows.forEach((r, i) => { r.position = i + 1; });
+  });
+
+  const dbRows = upsertRows.map(r => ({
+    club_id:      currentClub.id,
+    roster_id:    r._rosterId,
+    year,
+    course,
+    category:     r.category,
+    total_points: r.totalPts,
+    top10_points: r.top10Pts,
+    swims_count:  r.swimsCount,
+    position:     r.position,
+  }));
+
+  const { error } = await sb.from('club_season_standings').upsert(dbRows, {
+    onConflict: 'club_id,year,course,roster_id',
+  });
+  if (error) console.error('Standings recalculate failed:', error.message);
+  else showToast('Standings updated', 'success');
+}
+
+// ── TEAM ──────────────────────────────────────────────────────────
+let allTeam = [];
+
+async function loadTeam() {
+  const tbody = document.getElementById('teamTableBody');
+  tbody.innerHTML = '<tr><td colspan="5"><div class="loading"><div class="spinner"></div></div></td></tr>';
+
+  const { data, error } = await sb.from('club_admins')
+    .select('id, role, committee_title, user_id, created_at')
+    .eq('club_id', currentClub.id)
+    .order('created_at');
+
+  if (error) { showToast(error.message, 'error'); return; }
+
+  const userIds = (data || []).map(a => a.user_id).filter(Boolean);
+  let profileMap = {};
+  if (userIds.length) {
+    const { data: profs } = await sb.from('profiles')
+      .select('id, display_name, email').in('id', userIds);
+    (profs || []).forEach(p => { profileMap[p.id] = p; });
+  }
+
+  allTeam = (data || []).map(a => ({ ...a, profile: profileMap[a.user_id] || null }));
+  renderTeamTable();
+}
+
+function renderTeamTable() {
+  const tbody = document.getElementById('teamTableBody');
+  if (!allTeam.length) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty">
+      <div class="empty-title">No team members yet</div>
+      <div class="empty-desc">Add committee members and administrators.</div>
+    </div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = allTeam.map(a => {
+    const name  = a.profile?.display_name || a.user_id;
+    const email = a.profile?.email || '';
+    const isMe  = a.user_id === currentUser.id;
+    return `<tr>
+      <td>
+        <div class="member-name">${name}${isMe ? ' <span style="font-size:10px;color:var(--text-dim);">(you)</span>' : ''}</div>
+        <div class="member-email">${email}</div>
+      </td>
+      <td>
+        <input type="text" class="form-input" value="${a.committee_title || ''}"
+          placeholder="e.g. Chairman"
+          style="padding:6px 10px;font-size:12px;"
+          onchange="saveAdminTitle('${a.id}', this.value)">
+      </td>
+      <td><span class="role-badge role-${a.role}">${a.role}</span></td>
+      <td style="color:var(--text-sec);font-size:12px;">${new Date(a.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})}</td>
+      <td>${!isMe ? `<button class="action-btn" style="color:var(--danger);border-color:rgba(239,68,68,0.2);"
+        onclick="removeAdmin('${a.id}')">Remove</button>` : ''}</td>
+    </tr>`;
+  }).join('');
+}
+
+function openAddAdminModal() {
+  document.getElementById('addAdminEmail').value = '';
+  document.getElementById('addAdminRole').value  = 'moderator';
+  document.getElementById('addAdminTitle').value = '';
+  document.getElementById('addAdminModal').classList.add('open');
+  setTimeout(() => document.getElementById('addAdminEmail').focus(), 100);
+}
+function closeAddAdminModal() {
+  document.getElementById('addAdminModal').classList.remove('open');
+}
+
+async function submitAddAdmin() {
+  const email = document.getElementById('addAdminEmail').value.trim().toLowerCase();
+  const role  = document.getElementById('addAdminRole').value;
+  const title = document.getElementById('addAdminTitle').value.trim();
+  if (!email) { showToast('Email required', 'error'); return; }
+
+  const { data: profs } = await sb.from('profiles')
+    .select('id, display_name').ilike('email', email).limit(1);
+  if (!profs || !profs.length) {
+    showToast('No SwimLoading account found for that email', 'error'); return;
+  }
+  const userId = profs[0].id;
+
+  const { error } = await sb.from('club_admins').upsert({
+    club_id: currentClub.id,
+    user_id: userId,
+    role,
+    committee_title: title || null,
+  }, { onConflict: 'club_id,user_id' });
+
+  if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+  showToast((profs[0].display_name || email) + ' added to team', 'success');
+  closeAddAdminModal();
+  loadTeam();
+}
+
+async function saveAdminTitle(adminId, title) {
+  const { error } = await sb.from('club_admins')
+    .update({ committee_title: title || null }).eq('id', adminId);
+  if (error) { showToast('Save failed: ' + error.message, 'error'); return; }
+  const row = allTeam.find(a => a.id === adminId);
+  if (row) row.committee_title = title || null;
+  showToast('Title saved', 'success');
+}
+
+async function removeAdmin(adminId) {
+  const a = allTeam.find(x => x.id === adminId);
+  if (!confirm('Remove ' + (a?.profile?.display_name || 'this admin') + ' from the team?')) return;
+  const { error } = await sb.from('club_admins').delete().eq('id', adminId);
+  if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+  allTeam = allTeam.filter(x => x.id !== adminId);
+  renderTeamTable();
+  showToast('Removed from team', 'success');
+}
+
 // ── JOIN LINK ─────────────────────────────────────────────────────
 async function loadJoinLink() {
   const { data } = await sb.from('club_join_links')
@@ -1400,18 +1948,38 @@ function copyLink(url) {
 // ── SETTINGS ──────────────────────────────────────────────────────
 function loadSettings() {
   const c = currentClub;
-  document.getElementById('settingsContent').innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-      <div><div class="form-label" style="margin-bottom:6px;">Club name</div><div style="font-weight:600;">${c.name}</div></div>
-      <div><div class="form-label" style="margin-bottom:6px;">Code</div><div style="font-family:monospace;color:var(--cyan);">${c.code}</div></div>
-      <div><div class="form-label" style="margin-bottom:6px;">Slug</div><div style="font-family:monospace;color:var(--text-sec);">swimloading.com/clubs/${c.slug}</div></div>
-      <div><div class="form-label" style="margin-bottom:6px;">Country</div><div>${c.country}</div></div>
-      <div><div class="form-label" style="margin-bottom:6px;">City</div><div>${c.city || '—'}</div></div>
-      <div><div class="form-label" style="margin-bottom:6px;">Founded</div><div>${c.founded_year || '—'}</div></div>
-    </div>
-    <div style="font-size:12px;color:var(--text-sec);padding-top:14px;border-top:1px solid var(--border);">
-      To update club details or category age ranges, contact <a href="mailto:support@swimloading.com" style="color:var(--cyan);">support@swimloading.com</a>
-    </div>`;
+  document.getElementById('settingClubName').textContent  = c.name || '—';
+  document.getElementById('settingClubCode').textContent  = c.code || c.slug || '—';
+  document.getElementById('settingClubUrl').textContent   = 'swimloading.com/clubs/' + (c.slug || '');
+  document.getElementById('settingFounded').textContent   = c.founded_year || '—';
+  document.getElementById('settingTagline').value         = c.tagline || '';
+  document.getElementById('settingDescription').value     = c.description || '';
+  document.getElementById('settingWebsite').value         = c.website || '';
+  document.getElementById('settingEmail').value           = c.contact_email || '';
+  document.getElementById('settingCity').value            = c.city || '';
+  document.getElementById('settingMemberCount').value     = c.member_count || '';
+}
+
+async function saveSettings() {
+  const tagline     = document.getElementById('settingTagline').value.trim();
+  const description = document.getElementById('settingDescription').value.trim();
+  const website     = document.getElementById('settingWebsite').value.trim();
+  const email       = document.getElementById('settingEmail').value.trim();
+  const city        = document.getElementById('settingCity').value.trim();
+  const memberCount = parseInt(document.getElementById('settingMemberCount').value) || null;
+
+  const { error } = await sb.from('clubs').update({
+    tagline:       tagline       || null,
+    description:   description   || null,
+    website:       website       || null,
+    contact_email: email         || null,
+    city:          city          || null,
+    member_count:  memberCount,
+  }).eq('id', currentClub.id);
+
+  if (error) { showToast('Save failed: ' + error.message, 'error'); return; }
+  Object.assign(currentClub, { tagline, description, website, contact_email: email, city, member_count: memberCount });
+  showToast('Settings saved', 'success');
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────
@@ -1627,6 +2195,44 @@ async function unlinkRosterMember(rosterId) {
   if (row) { row.user_id = null; row.sw_name = null; }
   renderRosterTable();
   showToast('Account unlinked', 'success');
+}
+
+// ── ADD ROSTER MEMBER ─────────────────────────────────────────────
+function openAddRosterModal() {
+  ['newRosterName','newRosterNum','newRosterPhone'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('newRosterCat').value    = '';
+  document.getElementById('newRosterGender').value = '';
+  document.getElementById('addRosterModal').classList.add('open');
+  setTimeout(() => document.getElementById('newRosterName').focus(), 100);
+}
+
+function closeAddRosterModal() {
+  document.getElementById('addRosterModal').classList.remove('open');
+}
+
+async function submitAddRosterMember() {
+  const name   = document.getElementById('newRosterName').value.trim();
+  const num    = document.getElementById('newRosterNum').value.trim();
+  const cat    = document.getElementById('newRosterCat').value;
+  const gender = document.getElementById('newRosterGender').value;
+  const phone  = document.getElementById('newRosterPhone').value.trim();
+  if (!name) { showToast('Name is required', 'error'); return; }
+
+  const { error } = await sb.from('club_roster').insert({
+    club_id:      currentClub.id,
+    display_name: name,
+    member_number: num   || null,
+    category:      cat   || null,
+    gender:        gender || null,
+    phone:         phone  || null,
+  });
+  if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+  showToast(name + ' added to roster', 'success');
+  closeAddRosterModal();
+  allRoster = [];
+  loadRoster();
 }
 
 // ── BOOT ──────────────────────────────────────────────────────────
