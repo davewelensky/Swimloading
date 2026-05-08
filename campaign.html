@@ -654,13 +654,13 @@ async function startApp(session) {
 }
 
 async function init() {
-    const { data: { session } } = await sb.auth.getSession();
-    if (session) { startApp(session); return; }
-    sb.auth.onAuthStateChange((_, sess) => {
-        if (sess) startApp(sess);
-        else window.location.href = '/app';
+    sb.auth.onAuthStateChange((event, sess) => {
+        if (sess) {
+            startApp(sess);
+        } else if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT') {
+            window.location.href = '/app';
+        }
     });
-    setTimeout(() => { if (!appStarted) window.location.href = '/app'; }, 2000);
 }
 
 init();
