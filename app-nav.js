@@ -218,7 +218,7 @@
                 // Fallback for users outside top 20
                 const myRankLine = currentUser && myRank === null && myCount > 0
                     ? `<div style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:8px;">You have ${myCount} log${myCount!==1?'s':''} this month — keep going!</div>`
-                    : currentUser && myCount === 0
+                    : currentUser && myRank === null && myCount === 0
                     ? `<div style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:8px;">You haven't logged yet this month — every log counts!</div>`
                     : '';
 
