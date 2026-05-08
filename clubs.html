@@ -296,6 +296,70 @@
     }
     .category-name { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--text); letter-spacing: 0.04em; }
     .category-age { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
+
+    /* ── ADMIN PANEL ─────────────────────────────────────────────── */
+    #sectionAdmin { display: none; }
+    .admin-stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .admin-stat-pill {
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      border-radius: 50px; padding: 6px 16px; font-size: 13px; color: var(--text-sec);
+    }
+    .admin-stat-pill strong { color: var(--text); font-weight: 700; }
+    .admin-search-row { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+    .admin-search {
+      flex: 1; min-width: 200px; background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      border-radius: 8px; padding: 9px 14px; font-size: 13px; color: var(--text);
+      font-family: 'DM Sans', sans-serif; outline: none;
+    }
+    .admin-search:focus { border-color: rgba(56,189,248,0.4); }
+    .admin-filter-tabs { display: flex; gap: 6px; }
+    .admin-filter-btn {
+      padding: 7px 14px; border-radius: 50px; font-size: 12px; font-weight: 600;
+      cursor: pointer; border: 1px solid rgba(255,255,255,0.12); background: transparent;
+      color: var(--text-sec); font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+    }
+    .admin-filter-btn.active { background: rgba(56,189,248,0.12); border-color: rgba(56,189,248,0.3); color: var(--cyan); }
+    .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .admin-table th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 600; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--border); }
+    .admin-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+    .admin-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .admin-table tr.hidden-row { display: none; }
+    .linked-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--green); }
+    .unlinked-badge { font-size: 12px; color: var(--text-dim); }
+    .admin-action-btn {
+      padding: 5px 11px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.12); background: transparent; color: var(--text-sec);
+      font-family: 'DM Sans', sans-serif; transition: all 0.15s; white-space: nowrap;
+    }
+    .admin-action-btn:hover { border-color: rgba(56,189,248,0.3); color: var(--cyan); }
+    .admin-action-btn.danger:hover { border-color: rgba(239,68,68,0.3); color: var(--danger); }
+    .num-input {
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(56,189,248,0.4);
+      border-radius: 6px; padding: 4px 8px; font-size: 13px; color: var(--text);
+      font-family: 'DM Sans', sans-serif; width: 72px; outline: none;
+    }
+
+    /* ── LINK MODAL ──────────────────────────────────────────────── */
+    #adminLinkModal {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      z-index: 9000; align-items: center; justify-content: center; padding: 20px;
+    }
+    #adminLinkModal.open { display: flex; }
+    .admin-modal-box {
+      background: #0d1728; border: 1px solid rgba(56,189,248,0.2); border-radius: 16px;
+      padding: 28px; width: 100%; max-width: 460px;
+    }
+    .admin-modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 0.04em; color: var(--text); margin-bottom: 4px; }
+    .admin-modal-sub { font-size: 13px; color: var(--text-sec); margin-bottom: 20px; }
+    .admin-modal-results { margin-top: 10px; max-height: 200px; overflow-y: auto; }
+    .profile-result {
+      padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 13px;
+      color: var(--text); display: flex; align-items: center; justify-content: space-between;
+      transition: background 0.1s;
+    }
+    .profile-result:hover { background: rgba(56,189,248,0.08); }
+    .profile-result .profile-name { font-weight: 600; }
+    .profile-result .select-btn { font-size: 12px; color: var(--cyan); font-weight: 600; }
   </style>
 </head>
 <body>
@@ -460,6 +524,52 @@
     </div>
   </div>
 
+  <!-- CLUB ADMIN PANEL (visible only to club admins) -->
+  <div id="sectionAdmin" style="max-width:860px;margin:0 auto;padding:0 20px 48px;">
+    <div class="section-head" style="padding-top:0;">
+      <div class="section-eyebrow">Admin</div>
+      <div class="section-title">Club Management</div>
+    </div>
+    <div class="card" style="padding:24px;">
+      <div class="admin-stats" id="adminStats"></div>
+      <div class="admin-search-row">
+        <input class="admin-search" id="adminSearch" type="text" placeholder="Search members by name or number...">
+        <div class="admin-filter-tabs">
+          <button class="admin-filter-btn active" onclick="setAdminFilter('all')" id="filter-all">All</button>
+          <button class="admin-filter-btn" onclick="setAdminFilter('linked')" id="filter-linked">Linked</button>
+          <button class="admin-filter-btn" onclick="setAdminFilter('unlinked')" id="filter-unlinked">Unlinked</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="admin-table" id="adminRosterTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Category</th>
+              <th>SwimLoading</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="adminRosterBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- LINK ACCOUNT MODAL -->
+  <div id="adminLinkModal">
+    <div class="admin-modal-box">
+      <div class="admin-modal-title">Link SwimLoading Account</div>
+      <div class="admin-modal-sub" id="adminLinkModalSub">Linking member</div>
+      <input class="admin-search" id="adminLinkSearch" type="text" placeholder="Search by display name..." style="margin-bottom:0;">
+      <div class="admin-modal-results" id="adminLinkResults"></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:20px;">
+        <button class="admin-action-btn" onclick="closeAdminLinkModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- FOOTER -->
   <footer>
     <div class="footer-eyebrow">SwimLoading</div>
@@ -476,6 +586,7 @@
     'https://szgkzuswelntnevobnoh.supabase.co',
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA'
   );
+  let currentUser = null;
 
   // ── Mouse spotlight ───────────────────────────────────────────────
   document.addEventListener('mousemove', e => {
@@ -628,6 +739,18 @@
     let profileMap = {};
     (profsRes.data || []).forEach(p => { profileMap[p.id] = p.display_name; });
 
+    // Check admin status for the logged-in user
+    let isAdmin = false;
+    if (currentUser) {
+      const { data: adminRow } = await sb
+        .from('club_admins')
+        .select('role')
+        .eq('club_id', club.id)
+        .eq('user_id', currentUser.id)
+        .single();
+      isAdmin = !!adminRow;
+    }
+
     // ── Render ──────────────────────────────────────────────────────
     renderHero(club, spotName, recentLogs, memberCount);
     renderAbout(club);
@@ -638,6 +761,7 @@
     renderLeague(standingsData || [], club, events);
     renderLogs(recentLogs);
     renderJoinBanner(club);
+    if (isAdmin) renderAdminPanel(club);
 
     // Show page
     document.getElementById('pageLoading').style.display = 'none';
@@ -1228,8 +1352,239 @@
     wrap.style.display = '';
   }
 
+  // ── ADMIN PANEL ──────────────────────────────────────────────────
+  let adminRoster = [];      // full loaded roster
+  let adminFilter = 'all';   // 'all' | 'linked' | 'unlinked'
+  let adminLinkTargetId = null;  // club_roster row id being linked
+
+  async function renderAdminPanel(club) {
+    document.getElementById('sectionAdmin').style.display = '';
+
+    // Fetch full roster
+    const { data: roster } = await sb
+      .from('club_roster')
+      .select('id, member_number, display_name, category, gender, user_id')
+      .eq('club_id', club.id)
+      .order('member_number', { ascending: true, nullsFirst: false });
+
+    if (!roster) return;
+    adminRoster = roster;
+
+    // Fetch profiles for linked members
+    const linkedIds = roster.filter(r => r.user_id).map(r => r.user_id);
+    let profileMap = {};
+    if (linkedIds.length) {
+      const { data: profs } = await sb
+        .from('profiles')
+        .select('id, display_name')
+        .in('id', linkedIds);
+      (profs || []).forEach(p => { profileMap[p.id] = p.display_name; });
+    }
+    adminRoster = adminRoster.map(r => ({
+      ...r,
+      sw_name: r.user_id ? (profileMap[r.user_id] || 'Linked') : null,
+    }));
+
+    const total    = adminRoster.length;
+    const linked   = adminRoster.filter(r => r.user_id).length;
+    const unlinked = total - linked;
+
+    document.getElementById('adminStats').innerHTML = `
+      <div class="admin-stat-pill"><strong>${total}</strong> total</div>
+      <div class="admin-stat-pill" style="color:var(--green);"><strong>${linked}</strong> linked</div>
+      <div class="admin-stat-pill"><strong>${unlinked}</strong> unlinked</div>
+    `;
+
+    renderAdminRows();
+
+    document.getElementById('adminSearch').addEventListener('input', renderAdminRows);
+    document.getElementById('adminLinkSearch').addEventListener('input', adminLinkSearchHandler);
+  }
+
+  function renderAdminRows() {
+    const query  = (document.getElementById('adminSearch')?.value || '').toLowerCase();
+    const tbody  = document.getElementById('adminRosterBody');
+    if (!tbody) return;
+
+    const rows = adminRoster.filter(r => {
+      if (adminFilter === 'linked'   && !r.user_id) return false;
+      if (adminFilter === 'unlinked' &&  r.user_id) return false;
+      if (query) {
+        const num  = String(r.member_number || '').toLowerCase();
+        const name = (r.display_name || '').toLowerCase();
+        if (!num.includes(query) && !name.includes(query)) return false;
+      }
+      return true;
+    });
+
+    tbody.innerHTML = rows.map(r => {
+      const numCell = `
+        <span id="num-display-${r.id}" style="cursor:pointer;" onclick="editMemberNum('${r.id}','${r.member_number || ''}')"
+          title="Click to edit">
+          ${r.member_number ?? '—'}
+          <i data-lucide="pencil" style="width:11px;height:11px;margin-left:4px;color:var(--text-dim);vertical-align:middle;"></i>
+        </span>
+        <span id="num-edit-${r.id}" style="display:none;">
+          <input class="num-input" id="num-input-${r.id}" value="${r.member_number || ''}" maxlength="8"
+            onkeydown="if(event.key==='Enter')saveMemberNum('${r.id}');if(event.key==='Escape')cancelEditNum('${r.id}');">
+          <button class="admin-action-btn" style="margin-left:4px;" onclick="saveMemberNum('${r.id}')">Save</button>
+          <button class="admin-action-btn" onclick="cancelEditNum('${r.id}')">Cancel</button>
+        </span>`;
+
+      const swCell = r.user_id
+        ? `<span class="linked-badge">
+             <i data-lucide="check-circle" style="width:13px;height:13px;"></i>${r.sw_name}
+           </span>`
+        : `<span class="unlinked-badge">—</span>`;
+
+      const actions = r.user_id
+        ? `<button class="admin-action-btn danger" onclick="unlinkRosterMember('${r.id}')">Unlink</button>`
+        : `<button class="admin-action-btn" onclick="openAdminLinkModal('${r.id}','${(r.display_name||'').replace(/'/g,"\\'")}')">Link account</button>`;
+
+      return `
+        <tr data-roster-id="${r.id}">
+          <td>${numCell}</td>
+          <td style="font-weight:600;">${r.display_name || '—'}</td>
+          <td style="color:var(--text-sec);font-size:12px;">${r.category || '—'}</td>
+          <td>${swCell}</td>
+          <td style="text-align:right;">${actions}</td>
+        </tr>`;
+    }).join('');
+
+    lucide.createIcons();
+  }
+
+  function setAdminFilter(filter) {
+    adminFilter = filter;
+    document.querySelectorAll('.admin-filter-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('filter-' + filter)?.classList.add('active');
+    renderAdminRows();
+  }
+
+  function editMemberNum(id, current) {
+    document.getElementById('num-display-' + id).style.display = 'none';
+    const editSpan = document.getElementById('num-edit-' + id);
+    editSpan.style.display = '';
+    const inp = document.getElementById('num-input-' + id);
+    inp.focus();
+    inp.select();
+  }
+
+  function cancelEditNum(id) {
+    document.getElementById('num-display-' + id).style.display = '';
+    document.getElementById('num-edit-' + id).style.display = 'none';
+  }
+
+  async function saveMemberNum(id) {
+    const inp = document.getElementById('num-input-' + id);
+    const newNum = inp.value.trim();
+    inp.disabled = true;
+
+    const { error } = await sb
+      .from('club_roster')
+      .update({ member_number: newNum || null })
+      .eq('id', id);
+
+    inp.disabled = false;
+    if (error) {
+      inp.style.borderColor = 'var(--danger)';
+      setTimeout(() => { inp.style.borderColor = ''; }, 2000);
+      return;
+    }
+
+    // Update local data
+    const row = adminRoster.find(r => r.id === id);
+    if (row) row.member_number = newNum || null;
+
+    // Update display
+    const display = document.getElementById('num-display-' + id);
+    display.innerHTML = `
+      ${newNum || '—'}
+      <i data-lucide="pencil" style="width:11px;height:11px;margin-left:4px;color:var(--text-dim);vertical-align:middle;"></i>`;
+    display.style.display = '';
+    document.getElementById('num-edit-' + id).style.display = 'none';
+    lucide.createIcons();
+  }
+
+  function openAdminLinkModal(rosterId, memberName) {
+    adminLinkTargetId = rosterId;
+    document.getElementById('adminLinkModalSub').textContent = `Linking: ${memberName}`;
+    document.getElementById('adminLinkSearch').value = '';
+    document.getElementById('adminLinkResults').innerHTML = '';
+    document.getElementById('adminLinkModal').classList.add('open');
+    setTimeout(() => document.getElementById('adminLinkSearch').focus(), 100);
+  }
+
+  function closeAdminLinkModal() {
+    document.getElementById('adminLinkModal').classList.remove('open');
+    adminLinkTargetId = null;
+  }
+
+  let adminLinkSearchTimer = null;
+  async function adminLinkSearchHandler() {
+    clearTimeout(adminLinkSearchTimer);
+    adminLinkSearchTimer = setTimeout(async () => {
+      const q = document.getElementById('adminLinkSearch').value.trim();
+      const resultsEl = document.getElementById('adminLinkResults');
+      if (q.length < 2) { resultsEl.innerHTML = ''; return; }
+
+      const { data: profs } = await sb
+        .from('profiles')
+        .select('id, display_name')
+        .ilike('display_name', `%${q}%`)
+        .limit(10);
+
+      if (!profs || !profs.length) {
+        resultsEl.innerHTML = `<div style="padding:12px;font-size:13px;color:var(--text-sec);">No results</div>`;
+        return;
+      }
+
+      resultsEl.innerHTML = profs.map(p => `
+        <div class="profile-result" onclick="confirmLinkMember('${p.id}','${(p.display_name||'').replace(/'/g,"\\'")}')">
+          <span class="profile-name">${p.display_name || p.id}</span>
+          <span class="select-btn">Select</span>
+        </div>`).join('');
+    }, 300);
+  }
+
+  async function confirmLinkMember(userId, userName) {
+    if (!adminLinkTargetId) return;
+    const rosterId = adminLinkTargetId;
+    closeAdminLinkModal();
+
+    const { error } = await sb
+      .from('club_roster')
+      .update({ user_id: userId })
+      .eq('id', rosterId);
+
+    if (error) return;
+
+    // Update local data and re-render row
+    const row = adminRoster.find(r => r.id === rosterId);
+    if (row) { row.user_id = userId; row.sw_name = userName; }
+    renderAdminRows();
+  }
+
+  async function unlinkRosterMember(rosterId) {
+    const { error } = await sb
+      .from('club_roster')
+      .update({ user_id: null })
+      .eq('id', rosterId);
+
+    if (error) return;
+
+    const row = adminRoster.find(r => r.id === rosterId);
+    if (row) { row.user_id = null; row.sw_name = null; }
+    renderAdminRows();
+  }
+
   // ── Boot ─────────────────────────────────────────────────────────
-  loadClub();
+  async function init() {
+    const { data: { session } } = await sb.auth.getSession();
+    currentUser = session?.user || null;
+    loadClub();
+  }
+  init();
 </script>
 </body>
 </html>
