@@ -424,7 +424,7 @@
       <div class="section-head">
         <div class="section-eyebrow">Season points</div>
         <div class="section-title">League Standings</div>
-        <div class="section-sub" id="leagueSub">2026 Season</div>
+        <div class="section-sub" id="leagueSub">2025 Season</div>
       </div>
       <div id="leagueContainer"></div>
     </div>
@@ -599,9 +599,16 @@
     const events      = evtRes.data  || [];
     const recentLogs  = logsRes.data || [];
     const members     = membersRes.data || [];
-    const leagueResults = leagueRes.data || [];
     const memberCount = members.length;
     const memberIds   = members.map(m => m.user_id);
+
+    // Fetch 2025 season standings from club_season_standings + club_roster
+    const { data: standingsData } = await sb
+      .from('club_season_standings')
+      .select('*, club_roster(display_name, category, gender, member_number)')
+      .eq('club_id', club.id)
+      .eq('year', 2025)
+      .order('position', { ascending: true });
 
     // Step 3: member profiles + member challenge logs in parallel
     const [profsRes, mtlRes] = await Promise.all([
@@ -628,7 +635,7 @@
     renderChart(recentLogs);
     renderEvents(events);
     renderTempChallenge(members || [], memberTempLogs, categories, profileMap);
-    renderLeague(categories, leagueResults || [], club, events);
+    renderLeague(standingsData || [], club, events);
     renderLogs(recentLogs);
     renderJoinBanner(club);
 
@@ -973,11 +980,10 @@
   }
 
   // ── LEAGUE STANDINGS ─────────────────────────────────────────────
-  function renderLeague(categories, results, club, events) {
+  function renderLeague(standings, club, events) {
     const container = document.getElementById('leagueContainer');
 
-    if (results.length === 0) {
-      // Find the next league swim from events (title contains "League")
+    if (!standings || standings.length === 0) {
       const nextLeague = (events || []).find(ev =>
         ev.title.toLowerCase().includes('league') || ev.title.toLowerCase().includes('swim')
       );
@@ -987,15 +993,12 @@
             return `Next: ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
           })()
         : '';
-
-      // External website link (e.g. duc.co.za)
       const websiteHtml = club?.website ? `
         <a href="${club.website}" target="_blank" rel="noopener" class="btn-primary"
           style="font-size:14px;padding:11px 22px;margin-top:4px;">
           <i data-lucide="external-link" style="width:14px;height:14px;"></i>
           View full standings
         </a>` : '';
-
       container.innerHTML = `
         <div style="
           background: linear-gradient(135deg, rgba(56,189,248,0.06) 0%, rgba(56,189,248,0.02) 100%);
@@ -1023,124 +1026,146 @@
       return;
     }
 
-    // Build standings from results
-    // Group results by category
-    const byCat = {};
-    results.forEach(r => {
-      const catName = r.club_categories?.name || 'General';
-      if (!byCat[catName]) byCat[catName] = [];
-      byCat[catName].push(r);
-    });
+    const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const MONTH_KEYS   = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+    const CAT_ORDER    = ['Guppies','Sailfish','Makos','Walrus'];
+    const MIN_QUALIFY  = 7;
 
-    // Sort categories by club_categories sort_order
-    const catOrder = categories.map(c => c.name);
-    const sortedCats = Object.keys(byCat).sort((a, b) => {
-      const ai = catOrder.indexOf(a);
-      const bi = catOrder.indexOf(b);
-      if (ai === -1 && bi === -1) return 0;
-      if (ai === -1) return 1;
-      if (bi === -1) return -1;
-      return ai - bi;
-    });
+    function buildCoursePanel(course) {
+      const courseRows = standings.filter(s => s.course === course);
 
-    // Count swims per member (group by member across events)
-    const memberSwims = {};
-    const memberPoints = {};
-    results.forEach(r => {
-      const mid = r.club_member_id;
-      if (!memberSwims[mid]) memberSwims[mid] = 0;
-      if (!memberPoints[mid]) memberPoints[mid] = 0;
-      if (!r.dnf && !r.dns) memberSwims[mid]++;
-      memberPoints[mid] += r.points || 0;
-    });
-
-    // Build tabs HTML
-    const tabsHtml = sortedCats.map((catName, i) => {
-      const cat = categories.find(c => c.name === catName);
-      const ageStr = cat ? ageRange(cat) : '';
-      return `
-        <button class="league-tab ${i === 0 ? 'active' : ''}"
-          onclick="switchTab('cat${i}')" role="tab">
-          ${catName}
-          ${ageStr ? `<span class="league-tab-sub">${ageStr}</span>` : ''}
-        </button>
-      `;
-    }).join('');
-
-    const panelsHtml = sortedCats.map((catName, i) => {
-      const catResults = byCat[catName];
-      // Aggregate by member
-      const memberMap = {};
-      catResults.forEach(r => {
-        const mid = r.club_member_id;
-        if (!memberMap[mid]) {
-          memberMap[mid] = {
-            member_number: r.club_members?.member_number || '—',
-            name: (() => {
-              const p = r.club_members?.profiles;
-              if (!p) return 'Member';
-              return p.display_name || [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Member';
-            })(),
-            swims: 0,
-            points: 0,
-          };
-        }
-        if (!r.dnf && !r.dns) memberMap[mid].swims++;
-        memberMap[mid].points += r.points || 0;
+      const byCat = {};
+      courseRows.forEach(s => {
+        const cat = s.club_roster?.category || 'General';
+        if (!byCat[cat]) byCat[cat] = [];
+        byCat[cat].push(s);
       });
 
-      const members = Object.values(memberMap).sort((a, b) => b.points - a.points);
+      const sortedCats = CAT_ORDER.filter(c => byCat[c])
+        .concat(Object.keys(byCat).filter(c => !CAT_ORDER.includes(c)));
 
-      const rows = members.map((m, idx) => {
-        const pos = idx + 1;
-        const posClass = pos === 1 ? 'st-pos-1' : pos === 2 ? 'st-pos-2' : pos === 3 ? 'st-pos-3' : '';
+      if (sortedCats.length === 0) return `
+        <div style="padding:24px;text-align:center;color:var(--text-sec);font-size:13px;">
+          No ${course} standings available.
+        </div>`;
+
+      const tabsHtml = sortedCats.map((cat, i) => `
+        <button class="league-tab cat-tab-${course} ${i === 0 ? 'active' : ''}"
+          onclick="switchLeagueCat('${course}',${i})" role="tab">
+          ${cat}
+          <span class="league-tab-sub">${byCat[cat].length} swimmers</span>
+        </button>
+      `).join('');
+
+      const panelsHtml = sortedCats.map((cat, i) => {
+        const rows = byCat[cat].map(s => {
+          const pos = s.position || '—';
+          const posNum = typeof pos === 'number' ? pos : parseInt(pos, 10);
+          const posClass = posNum === 1 ? 'st-pos-1' : posNum === 2 ? 'st-pos-2' : posNum === 3 ? 'st-pos-3' : '';
+          const name = s.club_roster?.display_name || 'Unknown';
+          const swims = s.swims_count || 0;
+          const pts = s.top10_points || s.total_points || 0;
+          const qualified = swims >= MIN_QUALIFY;
+          const qualCell = qualified
+            ? `<span style="color:var(--green);font-size:12px;font-weight:700;">Q</span>`
+            : `<span style="color:var(--text-dim);font-size:12px;">—</span>`;
+
+          const monthCells = MONTH_KEYS.map(m => {
+            const v = s[m];
+            return `<td class="center hide-mobile" style="font-size:12px;padding:11px 6px;color:${v != null ? 'var(--text)' : 'var(--text-dim)'};">${v != null ? v : '—'}</td>`;
+          }).join('');
+
+          return `
+            <tr>
+              <td><div class="st-pos ${posClass}">${pos}</div></td>
+              <td><div class="st-name">${name}</div></td>
+              ${monthCells}
+              <td class="center"><strong>${pts}</strong></td>
+              <td class="center hide-mobile" style="font-size:13px;">${swims}</td>
+              <td class="center">${qualCell}</td>
+            </tr>`;
+        }).join('');
+
+        const monthHeaders = MONTH_LABELS.map(m =>
+          `<th class="center hide-mobile" style="font-size:11px;padding:10px 6px;">${m}</th>`
+        ).join('');
+
         return `
-          <tr>
-            <td><div class="st-pos ${posClass}">${pos}</div></td>
-            <td><div class="st-name">${m.name}</div></td>
-            <td class="center"><div class="st-swims">${m.swims}</div></td>
-            <td class="center hide-mobile"><div class="st-pts">${m.points}</div></td>
-            <td class="st-status"></td>
-          </tr>
-        `;
+          <div id="panel-${course}-cat-${i}" class="tab-panel ${i === 0 ? 'active' : ''}">
+            <div style="overflow-x:auto;">
+              <table class="standings-table">
+                <thead>
+                  <tr>
+                    <th>Pos</th>
+                    <th>Name</th>
+                    ${monthHeaders}
+                    <th class="center">Pts</th>
+                    <th class="center hide-mobile">Swims</th>
+                    <th class="center">Q</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+            <div style="padding:8px 14px 14px;font-size:11px;color:var(--text-dim);">
+              Pts = best 10 of all swims counted &nbsp;·&nbsp; Q = qualified (min ${MIN_QUALIFY} swims)
+            </div>
+          </div>`;
       }).join('');
 
       return `
-        <div id="tab-cat${i}" class="tab-panel ${i === 0 ? 'active' : ''}">
-          <div style="overflow-x:auto;">
-            <table class="standings-table">
-              <thead>
-                <tr>
-                  <th>Pos</th><th>Name</th>
-                  <th class="center">Swims</th>
-                  <th class="center hide-mobile">Pts</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>${rows}</tbody>
-            </table>
-          </div>
-        </div>
-      `;
-    }).join('');
+        <div class="league-tabs-wrap">
+          <div class="league-tabs" role="tablist">${tabsHtml}</div>
+          ${panelsHtml}
+        </div>`;
+    }
+
+    const lcCount = standings.filter(s => s.course === 'LC').length;
+    const scCount = standings.filter(s => s.course === 'SC').length;
 
     container.innerHTML = `
-      <div class="league-tabs-wrap">
-        <div class="league-tabs" role="tablist">${tabsHtml}</div>
-        ${panelsHtml}
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button id="course-btn-LC" onclick="switchLeagueCourse('LC')"
+          style="padding:8px 20px;border-radius:50px;font-size:13px;font-weight:700;cursor:pointer;
+                 background:var(--cyan);color:#080f1a;border:none;">
+          Long Course <span style="font-size:11px;font-weight:400;opacity:0.7;">${lcCount}</span>
+        </button>
+        <button id="course-btn-SC" onclick="switchLeagueCourse('SC')"
+          style="padding:8px 20px;border-radius:50px;font-size:13px;font-weight:700;cursor:pointer;
+                 background:transparent;border:1px solid rgba(255,255,255,0.15);color:var(--text-sec);">
+          Short Course <span style="font-size:11px;font-weight:400;opacity:0.7;">${scCount}</span>
+        </button>
       </div>
+      <div id="course-panel-LC">${buildCoursePanel('LC')}</div>
+      <div id="course-panel-SC" style="display:none;">${buildCoursePanel('SC')}</div>
     `;
   }
 
-  function switchTab(id) {
-    document.querySelectorAll('.league-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    const panel = document.getElementById('tab-' + id);
-    if (panel) panel.classList.add('active');
-    // Match button by onclick attribute
-    document.querySelectorAll('.league-tab').forEach(t => {
-      if (t.getAttribute('onclick') === `switchTab('${id}')`) t.classList.add('active');
+  function switchLeagueCourse(course) {
+    ['LC','SC'].forEach(c => {
+      const btn   = document.getElementById('course-btn-' + c);
+      const panel = document.getElementById('course-panel-' + c);
+      const active = c === course;
+      if (btn) {
+        btn.style.background  = active ? 'var(--cyan)' : 'transparent';
+        btn.style.color       = active ? '#080f1a'     : 'var(--text-sec)';
+        btn.style.border      = active ? 'none'        : '1px solid rgba(255,255,255,0.15)';
+      }
+      if (panel) panel.style.display = active ? '' : 'none';
     });
+  }
+
+  function switchLeagueCat(course, idx) {
+    document.querySelectorAll(`.cat-tab-${course}`).forEach(t => t.classList.remove('active'));
+    const coursePanel = document.getElementById('course-panel-' + course);
+    if (coursePanel) coursePanel.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    const btn = document.querySelector(`.cat-tab-${course}:nth-of-type(${idx + 1})`);
+    // Use onclick-match fallback for button activation
+    document.querySelectorAll(`.cat-tab-${course}`).forEach(t => {
+      if (t.getAttribute('onclick') === `switchLeagueCat('${course}',${idx})`) t.classList.add('active');
+    });
+    const panel = document.getElementById(`panel-${course}-cat-${idx}`);
+    if (panel) panel.classList.add('active');
   }
 
   // ── LOGS FEED ────────────────────────────────────────────────────
