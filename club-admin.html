@@ -739,26 +739,74 @@ async function loadCategories() {
 }
 
 async function loadMembers() {
-  const { data } = await sb.from('club_members')
-    .select('*, club_categories(name), user:user_id(id, email, raw_user_meta_data)')
-    .eq('club_id', currentClub.id)
-    .eq('is_active', true)
-    .order('member_number');
-  allMembers = data || [];
+  const since = new Date(); since.setDate(1); since.setHours(0,0,0,0);
 
-  // Load temp log counts for this month
-  const since = new Date();
-  since.setDate(1); since.setHours(0,0,0,0);
-  const userIds = allMembers.map(m => m.user_id);
+  const [membersRes, rosterRes] = await Promise.all([
+    sb.from('club_members')
+      .select('*, club_categories(name), user:user_id(id, email, raw_user_meta_data)')
+      .eq('club_id', currentClub.id)
+      .eq('is_active', true)
+      .order('member_number'),
+    sb.from('club_roster')
+      .select('id, member_number, display_name, category, phone, user_id')
+      .eq('club_id', currentClub.id)
+      .not('user_id', 'is', null),
+  ]);
+
+  const clubMembers  = membersRes.data || [];
+  const rosterLinked = rosterRes.data  || [];
+
+  // Fetch profiles for roster-linked users not already in club_members
+  const clubMemberUserIds = new Set(clubMembers.map(m => m.user_id));
+  const rosterOnlyIds = rosterLinked.filter(r => !clubMemberUserIds.has(r.user_id)).map(r => r.user_id);
+  let rosterProfileMap = {};
+  if (rosterOnlyIds.length) {
+    const { data: profs } = await sb.from('profiles').select('id, display_name, email, phone').in('id', rosterOnlyIds);
+    (profs || []).forEach(p => { rosterProfileMap[p.id] = p; });
+  }
+
+  // Normalise roster-only linked members to the same shape
+  const rosterAsMembers = rosterLinked
+    .filter(r => !clubMemberUserIds.has(r.user_id))
+    .map(r => {
+      const prof = rosterProfileMap[r.user_id] || {};
+      return {
+        id: r.id,
+        _source: 'roster',
+        member_number: String(r.member_number ?? ''),
+        user_id: r.user_id,
+        category: r.category,
+        category_id: null,
+        role: 'member',
+        joined_at: null,
+        notes: null,
+        phone: r.phone || prof.phone || null,
+        _display_name: r.display_name || prof.display_name || '',
+        _email: prof.email || '',
+      };
+    });
+
+  allMembers = [
+    ...clubMembers.map(m => ({ ...m, _source: 'club_members',
+      _display_name: m.user?.raw_user_meta_data?.full_name || m.user?.email || '—',
+      _email: m.user?.email || '',
+      category: m.club_categories?.name || '',
+    })),
+    ...rosterAsMembers,
+  ].sort((a, b) => {
+    const na = parseInt(a.member_number) || 9999;
+    const nb = parseInt(b.member_number) || 9999;
+    return na - nb;
+  });
+
+  // Temp log counts this month
+  const userIds = allMembers.map(m => m.user_id).filter(Boolean);
   if (userIds.length) {
     const { data: logs } = await sb.from('temp_logs')
-      .select('user_id')
-      .in('user_id', userIds)
-      .gte('created_at', since.toISOString());
-    (logs || []).forEach(l => {
-      memberLogs[l.user_id] = (memberLogs[l.user_id] || 0) + 1;
-    });
+      .select('user_id').in('user_id', userIds).gte('created_at', since.toISOString());
+    (logs || []).forEach(l => { memberLogs[l.user_id] = (memberLogs[l.user_id] || 0) + 1; });
   }
+
   renderMembersTable(allMembers);
 }
 
@@ -850,13 +898,15 @@ function renderMembersTable(members) {
     return;
   }
   tbody.innerHTML = members.map(m => {
-    const name  = m.user?.raw_user_meta_data?.full_name || m.user?.email || '—';
-    const email = m.user?.email || '';
-    const cat   = m.club_categories?.name || 'Unassigned';
-    const logs  = memberLogs[m.user_id] || 0;
-    const joined = new Date(m.joined_at).toLocaleDateString('en-ZA', {day:'numeric',month:'short',year:'numeric'});
+    const name   = m._display_name || '—';
+    const email  = m._email || '';
+    const cat    = m.category || 'Unassigned';
+    const logs   = memberLogs[m.user_id] || 0;
+    const joined = m.joined_at
+      ? new Date(m.joined_at).toLocaleDateString('en-ZA', {day:'numeric',month:'short',year:'numeric'})
+      : '<span style="color:var(--text-dim);font-size:11px;">via roster</span>';
     return `<tr>
-      <td><span class="member-num">${m.member_number}</span></td>
+      <td><span class="member-num">${m.member_number || '—'}</span></td>
       <td><div class="member-name">${name}</div><div class="member-email">${email}</div></td>
       <td><span class="cat-badge ${catClass(cat)}">${cat}</span></td>
       <td><span class="role-badge role-${m.role}">${m.role}</span></td>
@@ -878,8 +928,8 @@ function filterMembersByCategory(cat) {
 }
 function applyMemberFilters(q, catId) {
   const filtered = allMembers.filter(m => {
-    const name  = (m.user?.raw_user_meta_data?.full_name || m.user?.email || '').toLowerCase();
-    const num   = m.member_number.toLowerCase();
+    const name = (m._display_name || '').toLowerCase();
+    const num  = String(m.member_number || '').toLowerCase();
     const matchQ   = !q || name.includes(q.toLowerCase()) || num.includes(q.toLowerCase());
     const matchCat = !catId || m.category_id === catId;
     return matchQ && matchCat;
