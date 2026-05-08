@@ -753,9 +753,8 @@
       loggerName = p.display_name || [p.first_name, p.last_name].filter(Boolean).join(' ') || 'A member';
     }
 
-    const hazardBadges = latest.hazards
-      ? latest.hazards.split(',').map(h => `<span class="badge badge-hazard"><i data-lucide="alert-triangle" style="width:10px;height:10px;"></i>${h.trim()}</span>`).join('')
-      : '';
+    const hazardList = Array.isArray(latest.hazards) ? latest.hazards : (latest.hazards || '').split(',').filter(Boolean);
+    const hazardBadges = hazardList.map(h => `<span class="badge badge-hazard"><i data-lucide="alert-triangle" style="width:10px;height:10px;"></i>${h.trim()}</span>`).join('');
 
     document.getElementById('conditionsCard').innerHTML = `
       <div class="conditions-grid">
@@ -1161,7 +1160,7 @@
         loggerName = p.display_name || [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Member';
       }
       const hazardBadges = log.hazards
-        ? log.hazards.split(',').map(h => `<span class="badge badge-hazard">${h.trim()}</span>`).join('')
+        ? (Array.isArray(log.hazards) ? log.hazards : log.hazards.split(',')).map(h => `<span class="badge badge-hazard">${h.trim()}</span>`).join('')
         : '';
       return `
         <div class="log-card">
