@@ -527,6 +527,41 @@
   </div>
 </div>
 
+<!-- ROSTER EDIT MODAL -->
+<div class="modal-overlay" id="rosterEditModal">
+  <div class="modal">
+    <div class="modal-title">
+      Edit Member
+      <button class="modal-close" onclick="closeRosterEditModal()">&times;</button>
+    </div>
+    <div id="rosterEditName" style="font-weight:700;font-size:15px;margin-bottom:18px;color:var(--text);"></div>
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Member #</div>
+        <input type="text" class="form-input" id="rosterEditNum" maxlength="8">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Category</div>
+        <select class="form-input" id="rosterEditCat">
+          <option value="">— select —</option>
+          <option value="Guppies">Guppies</option>
+          <option value="Sailfish">Sailfish</option>
+          <option value="Makos">Makos</option>
+          <option value="Walrus">Walrus</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="form-label">Phone</div>
+      <input type="text" class="form-input" id="rosterEditPhone" placeholder="e.g. 082 123 4567">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeRosterEditModal()">Cancel</button>
+      <button class="btn-modal-primary" onclick="saveRosterEdit()">Save changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- ROSTER LINK MODAL -->
 <div class="modal-overlay" id="rosterLinkModal">
   <div class="modal">
@@ -1338,7 +1373,7 @@ let rosterLinkSearchTimer = null;
 async function loadRoster() {
   const { data: roster } = await sb
     .from('club_roster')
-    .select('id, member_number, display_name, category, gender, user_id')
+    .select('id, member_number, display_name, category, gender, user_id, phone')
     .eq('club_id', currentClub.id)
     .order('member_number', { ascending: true, nullsFirst: false });
 
@@ -1399,72 +1434,73 @@ function renderRosterTable() {
   document.getElementById('rosterCount').textContent = `${rows.length} member${rows.length !== 1 ? 's' : ''}`;
 
   tbody.innerHTML = rows.map(r => {
-    const numCell = `
-      <span id="rnum-display-${r.id}" style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;"
-        onclick="editRosterNum('${r.id}','${r.member_number || ''}')">
-        <span class="member-num">${r.member_number ?? '—'}</span>
-        <i data-lucide="pencil" style="width:11px;height:11px;color:var(--text-dim);flex-shrink:0;"></i>
-      </span>
-      <span id="rnum-edit-${r.id}" style="display:none;display:none;">
-        <input class="form-input" id="rnum-input-${r.id}" value="${r.member_number || ''}" maxlength="8"
-          style="width:80px;padding:4px 8px;display:inline-block;"
-          onkeydown="if(event.key==='Enter')saveRosterNum('${r.id}');if(event.key==='Escape')cancelRosterNum('${r.id}');">
-        <button class="btn-sm" style="padding:4px 10px;" onclick="saveRosterNum('${r.id}')">Save</button>
-        <button class="btn-sm" style="padding:4px 10px;" onclick="cancelRosterNum('${r.id}')">Cancel</button>
-      </span>`;
-
     const swCell = r.user_id
       ? `<span style="display:inline-flex;align-items:center;gap:5px;color:var(--green);font-size:13px;font-weight:600;">
            <i data-lucide="check-circle" style="width:13px;height:13px;"></i>${r.sw_name}
          </span>`
       : `<span style="color:var(--text-dim);font-size:13px;">—</span>`;
 
-    const actionBtn = r.user_id
+    const linkBtn = r.user_id
       ? `<button class="btn-sm" style="color:var(--danger);border-color:rgba(239,68,68,0.2);"
            onclick="unlinkRosterMember('${r.id}')">Unlink</button>`
-      : `<button class="btn-sm" onclick="openRosterLinkModal('${r.id}','${(r.display_name||'').replace(/'/g,"\\'")}')">Link account</button>`;
+      : `<button class="btn-sm" onclick="openRosterLinkModal('${r.id}','${(r.display_name||'').replace(/'/g,"\\'")}')">Link</button>`;
 
     return `<tr data-roster-id="${r.id}">
-      <td>${numCell}</td>
+      <td><span class="member-num">${r.member_number ?? '—'}</span></td>
       <td class="member-name">${r.display_name || '—'}</td>
       <td><span class="cat-badge ${catClass(r.category)}">${r.category || '—'}</span></td>
       <td>${swCell}</td>
-      <td style="text-align:right;">${actionBtn}</td>
+      <td style="text-align:right;display:flex;gap:6px;justify-content:flex-end;">
+        <button class="btn-sm" onclick="openRosterEditModal('${r.id}')">Edit</button>
+        ${linkBtn}
+      </td>
     </tr>`;
   }).join('');
 
   lucide.createIcons();
 }
 
-function editRosterNum(id, current) {
-  document.getElementById('rnum-display-' + id).style.display = 'none';
-  const editSpan = document.getElementById('rnum-edit-' + id);
-  editSpan.style.display = '';
-  const inp = document.getElementById('rnum-input-' + id);
-  inp.focus(); inp.select();
+let rosterEditTargetId = null;
+
+function openRosterEditModal(id) {
+  const r = allRoster.find(r => r.id === id);
+  if (!r) return;
+  rosterEditTargetId = id;
+  document.getElementById('rosterEditName').textContent = r.display_name || '—';
+  document.getElementById('rosterEditNum').value   = r.member_number ?? '';
+  document.getElementById('rosterEditPhone').value = r.phone ?? '';
+  const catSel = document.getElementById('rosterEditCat');
+  catSel.value = r.category || '';
+  document.getElementById('rosterEditModal').classList.add('open');
+  document.getElementById('rosterEditNum').focus();
 }
 
-function cancelRosterNum(id) {
-  document.getElementById('rnum-display-' + id).style.display = '';
-  document.getElementById('rnum-edit-' + id).style.display = 'none';
+function closeRosterEditModal() {
+  document.getElementById('rosterEditModal').classList.remove('open');
+  rosterEditTargetId = null;
 }
 
-async function saveRosterNum(id) {
-  const inp = document.getElementById('rnum-input-' + id);
-  const newNum = inp.value.trim();
-  inp.disabled = true;
+async function saveRosterEdit() {
+  if (!rosterEditTargetId) return;
+  const id      = rosterEditTargetId;
+  const num     = document.getElementById('rosterEditNum').value.trim();
+  const cat     = document.getElementById('rosterEditCat').value;
+  const phone   = document.getElementById('rosterEditPhone').value.trim();
 
-  const { error } = await sb.from('club_roster').update({ member_number: newNum || null }).eq('id', id);
-  inp.disabled = false;
+  const { error } = await sb.from('club_roster').update({
+    member_number: num   || null,
+    category:      cat   || null,
+    phone:         phone || null,
+  }).eq('id', id);
 
   if (error) { showToast('Save failed: ' + error.message, 'error'); return; }
 
   const row = allRoster.find(r => r.id === id);
-  if (row) row.member_number = newNum || null;
+  if (row) { row.member_number = num || null; row.category = cat || null; row.phone = phone || null; }
 
-  cancelRosterNum(id);
-  document.querySelector(`[data-roster-id="${id}"] .member-num`).textContent = newNum || '—';
-  showToast('Member number updated', 'success');
+  closeRosterEditModal();
+  renderRosterTable();
+  showToast('Member updated', 'success');
 }
 
 function openRosterLinkModal(rosterId, memberName) {
