@@ -50,6 +50,8 @@
                 if (typeof checkStravaLogEntry === 'function') checkStravaLogEntry();
                 // Reset form to open-water mode; pool mode applies when a spot is selected
                 if (typeof applyPoolFormMode === 'function') applyPoolFormMode(null);
+            } else if (page === 'club') {
+                if (typeof renderClubPage === 'function') renderClubPage();
             }
 
             // Initialize icons after page switch
