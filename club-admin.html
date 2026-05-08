@@ -276,7 +276,7 @@
         <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
           <div>
             <div class="page-title">Members</div>
-            <div class="page-sub">All registered club members</div>
+            <div class="page-sub">Members who have joined on SwimLoading</div>
           </div>
           <div style="display:flex;gap:8px;">
             <button class="btn-sm" onclick="showPage('joinlink')">
@@ -1310,43 +1310,53 @@ async function loadTempChallenge() {
 async function renderLeague() {
   const el = document.getElementById('leagueContent');
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-  const { data } = await sb.from('club_league_results')
-    .select('*, club_members(member_number, user:user_id(raw_user_meta_data)), club_categories(name), club_events(title, event_date)')
-    .eq('club_members.club_id', currentClub.id)
-    .order('points', { ascending: false });
+
+  const { data } = await sb.from('club_season_standings')
+    .select('*, club_roster(display_name, category)')
+    .eq('club_id', currentClub.id)
+    .eq('year', 2025)
+    .order('position', { ascending: true });
 
   if (!data || data.length === 0) {
     el.innerHTML = `<div class="empty">
-      <div class="empty-title">No results yet</div>
-      <div class="empty-desc">Results are entered after each league race. Contact SwimLoading to enter results for your first race.</div>
+      <div class="empty-title">No standings yet</div>
+      <div class="empty-desc">2025 season standings will appear here once results are entered.</div>
     </div>`; return;
   }
 
-  // Aggregate points per member
-  const standings = {};
-  data.forEach(r => {
-    const uid = r.club_members?.user?.raw_user_meta_data?.full_name || r.club_members?.member_number || '?';
-    if (!standings[uid]) standings[uid] = { name: uid, cat: r.club_categories?.name, points: 0, swims: 0 };
-    standings[uid].points += r.points;
-    standings[uid].swims  += 1;
-  });
+  const CAT_ORDER = ['Guppies','Sailfish','Makos','Walrus'];
+  const byCourse = { LC: [], SC: [] };
+  data.forEach(r => { if (byCourse[r.course]) byCourse[r.course].push(r); });
 
-  const sorted = Object.values(standings).sort((a,b) => b.points - a.points);
-  el.innerHTML = `<div class="card">
-    <div class="card-header"><div class="card-title">Overall Standings</div></div>
-    <table>
-      <thead><tr><th>Rank</th><th>Member</th><th>Category</th><th>Swims</th><th>Points</th></tr></thead>
-      <tbody>
-        ${sorted.map((s, i) => `<tr>
-          <td style="font-weight:800;color:${i===0?'var(--gold)':i===1?'var(--silver)':i===2?'var(--bronze)':'var(--text-sec)'};">${i+1}</td>
-          <td class="member-name">${s.name}</td>
-          <td><span class="cat-badge ${catClass(s.cat)}">${s.cat}</span></td>
-          <td style="color:var(--text-sec);">${s.swims}</td>
-          <td style="font-weight:700;color:var(--cyan);">${s.points}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-  </div>`;
+  const renderCourse = (rows, label) => {
+    if (!rows.length) return '';
+    const byCat = {};
+    rows.forEach(r => {
+      const cat = r.club_roster?.category || 'General';
+      if (!byCat[cat]) byCat[cat] = [];
+      byCat[cat].push(r);
+    });
+    const cats = CAT_ORDER.filter(c => byCat[c]).concat(Object.keys(byCat).filter(c => !CAT_ORDER.includes(c)));
+    return `
+      <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin:20px 0 10px;">${label}</div>
+      ${cats.map(cat => `
+        <div class="card" style="margin-bottom:14px;">
+          <div class="card-header"><div class="card-title">${cat} <span style="font-weight:400;color:var(--text-sec);font-size:12px;">${byCat[cat].length} swimmers</span></div></div>
+          <table>
+            <thead><tr><th>Pos</th><th>Name</th><th>Swims</th><th>Points</th><th>Q</th></tr></thead>
+            <tbody>${byCat[cat].map(r => `<tr>
+              <td style="font-weight:800;color:${r.position===1?'var(--gold)':r.position===2?'var(--silver)':r.position===3?'var(--bronze)':'var(--text-sec)'};">${r.position}</td>
+              <td class="member-name">${r.club_roster?.display_name || '—'}</td>
+              <td style="color:var(--text-sec);">${r.swims_count || 0}</td>
+              <td style="font-weight:700;color:var(--cyan);">${r.top10_points || r.total_points || 0}</td>
+              <td>${(r.swims_count || 0) >= 7 ? '<span style="color:var(--green);font-weight:700;">Q</span>' : '—'}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>`).join('')}`;
+  };
+
+  el.innerHTML = renderCourse(byCourse.LC, 'Long Course') + renderCourse(byCourse.SC, 'Short Course');
+  lucide.createIcons();
 }
 
 // ── JOIN LINK ─────────────────────────────────────────────────────

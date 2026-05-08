@@ -566,8 +566,8 @@
     const dSpotIds   = (dSpotRes.data || []).map(s => s.id);
 
     // Step 2: events + logs + members + league + profiles all in parallel
-    const [evtRes, logsRes, membersRes, leagueRes] = await Promise.all([
-      // Upcoming swims at any spot in this club's domain
+    const [evtRes, clubEvtRes, logsRes, membersRes] = await Promise.all([
+      // Upcoming swims at any spot in this club's domain (general events feed)
       dSpotIds.length
         ? sb.from('swim_events')
             .select('id, title, start_at, location_name, distance_km, distances_km, status')
@@ -577,7 +577,15 @@
             .order('start_at')
             .limit(10)
         : Promise.resolve({ data: [] }),
-      // Recent temp logs at home spot (conditions card + chart)
+      // Club-admin-created events
+      sb.from('club_events')
+        .select('id, title, event_date, start_time, is_league, description')
+        .eq('club_id', club.id)
+        .eq('is_active', true)
+        .gte('event_date', now.toISOString().slice(0, 10))
+        .order('event_date')
+        .limit(10),
+      // Recent temp logs at home spot
       club.home_spot_id
         ? sb.from('temp_logs')
             .select('temp_c, conditions, hazards, notes, created_at, user_id')
@@ -590,13 +598,25 @@
         .select('user_id, member_number, category_id, club_categories(name)')
         .eq('club_id', club.id)
         .eq('is_active', true),
-      // League results (for full standings if entered)
-      sb.from('club_league_results')
-        .select('*, club_members(member_number, user_id), club_categories(name)')
-        .eq('club_id', club.id),
     ]);
 
-    const events      = evtRes.data  || [];
+    // Normalise club_events to the same shape as swim_events for renderEvents
+    const clubEventsNorm = (clubEvtRes.data || []).map(e => ({
+      id: e.id,
+      title: e.title,
+      start_at: e.event_date + (e.start_time ? 'T' + e.start_time : 'T06:00:00'),
+      location_name: null,
+      distance_km: null,
+      distances_km: null,
+      status: 'active',
+      is_league: e.is_league,
+    }));
+
+    // Merge and dedupe by id, sorted by start_at
+    const swimEventsById = new Map((evtRes.data || []).map(e => [e.id, e]));
+    clubEventsNorm.forEach(e => { if (!swimEventsById.has(e.id)) swimEventsById.set(e.id, e); });
+    const events = [...swimEventsById.values()].sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
+
     const recentLogs  = logsRes.data || [];
     const members     = membersRes.data || [];
     const memberCount = members.length;
