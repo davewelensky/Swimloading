@@ -684,8 +684,10 @@
     // Club logo — inject before code name if available
     const logoSlot = document.getElementById('heroLogoSlot');
     if (logoSlot && club.logo_url) {
-      logoSlot.innerHTML = `<img src="${club.logo_url}" alt="${club.name} logo"
-        style="height:64px;width:auto;max-width:180px;object-fit:contain;margin-bottom:14px;filter:drop-shadow(0 2px 12px rgba(0,0,0,0.4));">`;
+      logoSlot.innerHTML = `<div style="display:inline-block;background:rgba(255,255,255,0.92);border-radius:12px;padding:10px 16px;margin-bottom:14px;">
+        <img src="${club.logo_url}" alt="${club.name} logo"
+          style="height:48px;width:auto;max-width:160px;object-fit:contain;display:block;">
+      </div>`;
     }
 
     // Location eyebrow
@@ -1249,7 +1251,12 @@
   }
 
   // ── Boot ─────────────────────────────────────────────────────────
-  loadClub();
+  loadClub().catch(err => {
+    console.error('Club load failed:', err);
+    document.getElementById('pageLoading').style.display = 'none';
+    document.getElementById('pageNotFound').style.display = 'flex';
+    lucide.createIcons();
+  });
 </script>
 </body>
 </html>
