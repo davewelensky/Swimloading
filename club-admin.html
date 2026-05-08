@@ -571,27 +571,40 @@ async function loadClubContext() {
   // Slug from URL: /club-admin/duc → pick that club. /club-admin → auto-pick or show picker.
   const urlSlug = location.pathname.replace(/^\/club-admin\/?/, '').replace(/\/$/, '') || null;
 
-  // Fetch ALL clubs this user admins
-  const { data: memberships } = await sb
-    .from('club_members')
-    .select('*, clubs(*), club_categories(name)')
-    .eq('user_id', currentUser.id)
-    .in('role', ['admin','organiser'])
-    .eq('is_active', true);
+  // Fetch ALL clubs this user admins (check club_admins table first, fall back to club_members.role)
+  const [adminRes, memberRes] = await Promise.all([
+    sb.from('club_admins')
+      .select('role, clubs(*)')
+      .eq('user_id', currentUser.id),
+    sb.from('club_members')
+      .select('*, clubs(*), club_categories(name)')
+      .eq('user_id', currentUser.id)
+      .in('role', ['admin','organiser'])
+      .eq('is_active', true),
+  ]);
 
-  if (!memberships || memberships.length === 0) {
+  // Normalise both sources into a single list of { clubs, role } objects
+  const fromAdmins  = (adminRes.data  || []).map(r => ({ clubs: r.clubs,  role: r.role,  _source: 'club_admins'  }));
+  const fromMembers = (memberRes.data || []).map(r => ({ ...r,             role: r.role,  _source: 'club_members' }));
+
+  // Merge, preferring club_admins entries; dedupe by club id
+  const seen = new Set();
+  const memberships = [...fromAdmins, ...fromMembers].filter(m => {
+    if (!m.clubs?.id || seen.has(m.clubs.id)) return false;
+    seen.add(m.clubs.id); return true;
+  });
+
+  if (memberships.length === 0) {
     show('notAdminGate'); lucide.createIcons(); return;
   }
 
   let membership;
   if (urlSlug) {
-    // URL specifies a club slug — use that one if the user is an admin of it
     membership = memberships.find(m => m.clubs?.slug === urlSlug);
     if (!membership) { show('notAdminGate'); lucide.createIcons(); return; }
   } else if (memberships.length === 1) {
     membership = memberships[0];
   } else {
-    // Multiple clubs — show picker
     showClubPicker(memberships); return;
   }
 
