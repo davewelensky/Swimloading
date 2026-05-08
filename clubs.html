@@ -544,80 +544,89 @@
     // Update page title
     document.title = `${club.code} · ${club.name} · SwimLoading`;
 
-    // Fetch categories, events, and spot in parallel
-    const [catRes, evtRes] = await Promise.all([
+    // Step 1: fetch categories + home spot in parallel
+    const [catRes, spotRes] = await Promise.all([
       sb.from('club_categories')
         .select('*')
         .eq('club_id', club.id)
         .order('sort_order'),
-      sb.from('club_events')
-        .select('*')
-        .eq('club_id', club.id)
-        .eq('is_active', true)
-        .gte('event_date', new Date().toISOString().split('T')[0])
-        .order('event_date')
-        .limit(10),
+      club.home_spot_id
+        ? sb.from('spots').select('name, code, domain').eq('id', club.home_spot_id).single()
+        : Promise.resolve({ data: null }),
     ]);
 
     const categories = catRes.data || [];
-    const events = evtRes.data || [];
+    const spotData   = spotRes.data;
+    let spotName     = spotData?.name || 'home water';
+    const spotDomain = spotData?.domain;
 
-    // Fetch temp logs for home spot
-    let recentLogs = [];
-    let spotName = 'home water';
-    if (club.home_spot_id) {
-      const [spotRes, logsRes] = await Promise.all([
-        sb.from('spots').select('name, code').eq('id', club.home_spot_id).single(),
-        sb.from('temp_logs')
-          .select('temp_c, conditions, hazards, notes, created_at, profiles!temp_logs_created_by_fkey(display_name, first_name, last_name)')
-          .eq('spot_id', club.home_spot_id)
-          .order('created_at', { ascending: false })
-          .limit(20),
-      ]);
-      if (spotRes.data) spotName = spotRes.data.name;
-      recentLogs = logsRes.data || [];
-    }
-
-    // Fetch league results (for standings)
-    const { data: leagueResults } = await sb
-      .from('club_league_results')
-      .select('*, club_members(member_number, user_id), club_categories(name)')
-      .eq('club_id', club.id);
-
-    // Fetch members for temp challenge (no profiles join — separate query)
-    const { data: members } = await sb
-      .from('club_members')
-      .select('user_id, member_number, category_id, club_categories(name)')
-      .eq('club_id', club.id)
-      .eq('is_active', true);
-
-    const memberCount = members?.length || 0;
-    const memberIds   = (members || []).map(m => m.user_id);
-
-    // Fetch display names separately
-    let profileMap = {};
-    if (memberIds.length) {
-      const { data: profs } = await sb
-        .from('profiles')
-        .select('id, display_name')
-        .in('id', memberIds);
-      (profs || []).forEach(p => { profileMap[p.id] = p.display_name; });
-    }
-
-    // Fetch this month's temp logs by members
-    const now = new Date();
+    // Step 2: fetch domain spot IDs (for events), logs, members, league — all in parallel
+    const now        = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
-    let memberTempLogs = [];
-    if (memberIds.length) {
-      const { data: mtl } = await sb
-        .from('temp_logs')
-        .select('user_id, spot_id, created_at, logged_at')
-        .in('user_id', memberIds)
-        .gte('created_at', monthStart)
-        .lt('created_at', monthEnd);
-      memberTempLogs = mtl || [];
-    }
+
+    const [dSpotRes, logsRes, membersRes, leagueRes] = await Promise.all([
+      // All spot IDs in the club's domain (for event filtering)
+      spotDomain
+        ? sb.from('spots').select('id').eq('domain', spotDomain)
+        : Promise.resolve({ data: club.home_spot_id ? [{ id: club.home_spot_id }] : [] }),
+      // Recent temp logs at home spot (conditions card + chart)
+      club.home_spot_id
+        ? sb.from('temp_logs')
+            .select('temp_c, conditions, hazards, notes, created_at, user_id')
+            .eq('spot_id', club.home_spot_id)
+            .order('created_at', { ascending: false })
+            .limit(20)
+        : Promise.resolve({ data: [] }),
+      // Active club members
+      sb.from('club_members')
+        .select('user_id, member_number, category_id, club_categories(name)')
+        .eq('club_id', club.id)
+        .eq('is_active', true),
+      // League results
+      sb.from('club_league_results')
+        .select('*, club_members(member_number, user_id), club_categories(name)')
+        .eq('club_id', club.id),
+    ]);
+
+    const dSpotIds   = (dSpotRes.data || []).map(s => s.id);
+    const recentLogs = logsRes.data || [];
+    const members    = membersRes.data || [];
+    const leagueResults = leagueRes.data || [];
+
+    // Step 3: fetch events (from swim_events, domain-filtered) + member profiles + member logs — parallel
+    const memberCount = members.length;
+    const memberIds   = members.map(m => m.user_id);
+
+    const [evtRes, profsRes, mtlRes] = await Promise.all([
+      // Upcoming swims at any spot in this club's domain
+      dSpotIds.length
+        ? sb.from('swim_events')
+            .select('id, title, start_at, location_name, distance_km, distances_km, status')
+            .in('spot_id', dSpotIds)
+            .in('status', ['active', 'planned'])
+            .gte('start_at', now.toISOString())
+            .order('start_at')
+            .limit(10)
+        : Promise.resolve({ data: [] }),
+      // Display names for temp challenge
+      memberIds.length
+        ? sb.from('profiles').select('id, display_name').in('id', memberIds)
+        : Promise.resolve({ data: [] }),
+      // This month's logs by members (temp challenge)
+      memberIds.length
+        ? sb.from('temp_logs')
+            .select('user_id, spot_id, created_at, logged_at')
+            .in('user_id', memberIds)
+            .gte('created_at', monthStart)
+            .lt('created_at', monthEnd)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const events         = evtRes.data || [];
+    const memberTempLogs = mtlRes.data || [];
+    let profileMap = {};
+    (profsRes.data || []).forEach(p => { profileMap[p.id] = p.display_name; });
 
     // ── Render ──────────────────────────────────────────────────────
     renderHero(club, spotName, recentLogs, memberCount);
@@ -848,12 +857,15 @@
     if (events.length === 0) return; // keep empty state
 
     const html = events.map(ev => {
-      const d = new Date(ev.event_date);
+      const d   = new Date(ev.start_at);
       const day = d.getDate();
       const mon = MONTHS[d.getMonth()];
-      const timeStr = ev.start_time ? ev.start_time.substring(0, 5) : '';
-      const leagueBadge = ev.is_league ? `<span class="badge badge-league">League</span>` : '';
-      const entryInfo = ev.entry_cap ? `${ev.entry_cap} cap` : 'Open entry';
+      // Format local time from timestamp
+      const timeStr = d.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false });
+      // Distance label: prefer distances_km array, fall back to distance_km scalar
+      const dists = ev.distances_km?.length
+        ? ev.distances_km.map(k => k + 'km').join(' / ')
+        : ev.distance_km ? `${ev.distance_km}km` : '';
       return `
         <div class="swim-card">
           <div class="swim-date-block">
@@ -861,10 +873,11 @@
             <div class="swim-date-mon">${mon}</div>
           </div>
           <div class="swim-info">
-            <div class="swim-title">${ev.title} ${leagueBadge}</div>
+            <div class="swim-title">${ev.title}</div>
             <div class="swim-meta">
-              ${timeStr ? `<div class="swim-meta-item"><i data-lucide="clock"></i>${timeStr}</div>` : ''}
-              <div class="swim-meta-item"><i data-lucide="users"></i>${entryInfo}</div>
+              <div class="swim-meta-item"><i data-lucide="clock"></i>${timeStr}</div>
+              ${dists ? `<div class="swim-meta-item"><i data-lucide="ruler"></i>${dists}</div>` : ''}
+              ${ev.location_name ? `<div class="swim-meta-item"><i data-lucide="map-pin"></i>${ev.location_name}</div>` : ''}
             </div>
           </div>
           <div class="swim-action">
@@ -886,19 +899,23 @@
     const monthName = now.toLocaleString('en-ZA', { month: 'long', year: 'numeric' });
 
     // Calculate points per member
+    // Scoring: 10 pts per log + 10 pts per unique additional spot in the same day
+    // e.g. 2 logs at 2 different spots same day = 10 + 10 (base) + 10 (new spot) = 30 pts
     const byUser = {};
     logs.forEach(l => {
-      if (!byUser[l.user_id]) byUser[l.user_id] = { days: {} };
+      if (!byUser[l.user_id]) byUser[l.user_id] = { totalLogs: 0, days: {} };
       const day = (l.logged_at || l.created_at).slice(0, 10);
       if (!byUser[l.user_id].days[day]) byUser[l.user_id].days[day] = new Set();
       byUser[l.user_id].days[day].add(l.spot_id);
+      byUser[l.user_id].totalLogs++;
     });
 
     const standings = members.map(m => {
-      const ud = byUser[m.user_id] || { days: {} };
-      const logCount = Object.values(ud.days).reduce((s, spots) => s + spots.size, 0);
+      const ud = byUser[m.user_id] || { totalLogs: 0, days: {} };
+      const logCount   = ud.totalLogs;
       const basePoints = logCount * 10;
-      const bonusPoints = Object.values(ud.days).reduce((s, spots) => s + spots.size * 10, 0);
+      // bonus: each unique spot beyond the first per day earns +10
+      const bonusPoints = Object.values(ud.days).reduce((s, spots) => s + Math.max(0, spots.size - 1) * 10, 0);
       return {
         userId: m.user_id,
         name: profileMap[m.user_id] || 'Member',
