@@ -351,7 +351,7 @@ function renderStravaLogForm(a) {
         <!-- Spot -->
         <div class="form-group">
             <div class="form-label">Location <span style="color:var(--danger);">*</span></div>
-            <select id="stravaSpotId">
+            <select id="stravaSpotId" onchange="stravaApplyPoolMode(this.value)">
                 <option value="">Select location…</option>
                 ${spotOptions}
             </select>
@@ -365,7 +365,7 @@ function renderStravaLogForm(a) {
         </div>
 
         <!-- Conditions -->
-        <div class="form-group">
+        <div class="form-group" id="stravaConditionsGroup">
             <div class="form-label">Conditions <span style="color:var(--danger);">*</span></div>
             <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;">
                 ${CONDITIONS.map(c => `
@@ -379,7 +379,7 @@ function renderStravaLogForm(a) {
         </div>
 
         <!-- Hazards -->
-        <div class="form-group">
+        <div class="form-group" id="stravaHazardsGroup">
             <div class="form-label">Hazards <span style="color:var(--text-secondary);font-weight:400;">(optional)</span></div>
             <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;">
                 ${HAZARDS.map(h => `
@@ -401,10 +401,32 @@ function renderStravaLogForm(a) {
             style="width:100%;background:linear-gradient(135deg,#0284c7,#0ea5e9);color:white;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;">
             Save SwimLoading Log
         </button>`;
+
+    // Apply pool mode if the matched spot is a pool
+    if (a.matched_spot_id) stravaApplyPoolMode(a.matched_spot_id);
 }
 
 let _selectedCondition = null;
 const _selectedHazards = new Set();
+
+function stravaApplyPoolMode(spotId) {
+    const spot = (spots || []).find(s => String(s.id) === String(spotId));
+    const isPool = spot && (spot.water_type === 'POOL' || spot.water_type === 'TIDAL_POOL');
+    const condGroup  = document.getElementById('stravaConditionsGroup');
+    const hazGroup   = document.getElementById('stravaHazardsGroup');
+    const condInput  = document.getElementById('stravaConditions');
+    if (!condGroup) return;
+    if (isPool) {
+        condGroup.style.display = 'none';
+        hazGroup && (hazGroup.style.display = 'none');
+        // Auto-set Calm silently
+        _selectedCondition = 'Calm';
+        if (condInput) condInput.value = 'Calm';
+    } else {
+        condGroup.style.display = '';
+        hazGroup && (hazGroup.style.display = '');
+    }
+}
 
 function stravaToggleCondition(btn, condition) {
     // Single-select conditions
@@ -445,7 +467,9 @@ async function submitStravaLog() {
 
     if (!spotId)     { showToast('Please select a location.', 'error'); return; }
     if (!temp)       { showToast('Water temperature is required.', 'error'); return; }
-    if (!conditions) { showToast('Please select conditions.', 'error'); return; }
+    const selectedSpot = (spots || []).find(s => String(s.id) === String(spotId));
+    const isPool = selectedSpot && (selectedSpot.water_type === 'POOL' || selectedSpot.water_type === 'TIDAL_POOL');
+    if (!conditions && !isPool) { showToast('Please select conditions.', 'error'); return; }
 
     const btn = document.querySelector('#stravaLogForm button[onclick="submitStravaLog()"]');
     if (btn) { btn.textContent = 'Saving…'; btn.disabled = true; }
