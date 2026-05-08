@@ -1,0 +1,205 @@
+/* SwimLoading — Shared Club Page Styles
+   Used by: clubs.html, blog/duc-demo.html, join.html, club-admin.html
+   Load this BEFORE any page-specific <style> block so pages can override. */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:           #080f1a;
+  --bg-card:      #0d1728;
+  --bg-card2:     #101e30;
+  --cyan:         #38bdf8;
+  --cyan-dim:     rgba(56,189,248,0.12);
+  --cyan-border:  rgba(56,189,248,0.18);
+  --amber:        #f59e0b;
+  --amber-dim:    rgba(245,158,11,0.12);
+  --amber-border: rgba(245,158,11,0.25);
+  --gold:         #fbbf24;
+  --silver:       #94a3b8;
+  --bronze:       #c47b2b;
+  --green:        #10b981;
+  --green-dim:    rgba(16,185,129,0.12);
+  --text:         #f1f5f9;
+  --text-sec:     #64748b;
+  --text-dim:     #334155;
+  --border:       rgba(255,255,255,0.06);
+  --danger:       #ef4444;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── MOUSE SPOTLIGHT ─────────────────────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background:
+    radial-gradient(18px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+      rgba(56, 189, 248, 0.55), transparent 100%),
+    radial-gradient(500px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+      rgba(56, 189, 248, 0.07), transparent 70%);
+}
+
+/* ── NAV ─────────────────────────────────────────────────────────── */
+.nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(8,15,26,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px; height: 52px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.nav-brand {
+  display: flex; align-items: center; gap: 8px;
+  text-decoration: none;
+  font-size: 20px; font-weight: 800;
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 50%, #0284c7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.nav-brand img { height: 22px; width: auto; display: block; }
+.nav-badge {
+  font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 3px 10px; border-radius: 20px;
+  background: var(--cyan-dim); border: 1px solid var(--cyan-border); color: var(--cyan);
+}
+
+/* ── HERO ────────────────────────────────────────────────────────── */
+.hero {
+  position: relative; overflow: hidden;
+  padding: 60px 24px 52px;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(56,189,248,0.09) 0%, transparent 70%),
+    linear-gradient(180deg, #0a1525 0%, var(--bg) 100%);
+  border-bottom: 1px solid var(--border);
+}
+.hero-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(56,189,248,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56,189,248,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: linear-gradient(to bottom, transparent, rgba(0,0,0,0.3) 30%, rgba(0,0,0,0.1) 100%);
+}
+.hero-inner { position: relative; max-width: 860px; margin: 0 auto; }
+.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+/* ── BUTTONS ─────────────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--cyan); color: #080f1a;
+  font-size: 15px; font-weight: 700;
+  padding: 13px 26px; border-radius: 50px;
+  border: none; cursor: pointer; text-decoration: none;
+  transition: opacity 0.15s, transform 0.15s;
+  font-family: 'DM Sans', sans-serif;
+}
+.btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.btn-ghost {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: transparent; color: var(--text-sec);
+  font-size: 15px; font-weight: 500;
+  padding: 13px 24px; border-radius: 50px;
+  border: 1px solid rgba(255,255,255,0.15);
+  cursor: pointer; text-decoration: none;
+  transition: border-color 0.15s, color 0.15s;
+  font-family: 'DM Sans', sans-serif;
+}
+.btn-ghost:hover { border-color: var(--cyan-border); color: var(--cyan); }
+
+/* ── SECTION HEADINGS ────────────────────────────────────────────── */
+.section-head, .section-header { margin-bottom: 16px; }
+.section-eyebrow, .section-tag {
+  font-size: 10px; font-weight: 700; color: var(--cyan);
+  text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 5px;
+}
+.section-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 24px; letter-spacing: 0.05em; color: var(--text); line-height: 1;
+}
+.section-sub { font-size: 12px; color: var(--text-sec); margin-top: 3px; }
+
+/* ── CARD ────────────────────────────────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+/* ── BADGES ──────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 700;
+  padding: 3px 9px; border-radius: 20px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.badge-calm     { background: var(--cyan-dim);  color: var(--cyan);  border: 1px solid var(--cyan-border); }
+.badge-choppy   { background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber-border); }
+.badge-hazard   { background: rgba(239,68,68,0.1);  color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+.badge-league   { background: rgba(251,191,36,0.12); color: var(--gold); border: 1px solid rgba(251,191,36,0.3); }
+.badge-qualifies { background: var(--green-dim); color: #34d399; border: 1px solid rgba(16,185,129,0.25); font-size: 10px; white-space: nowrap; }
+.badge-needs    { background: rgba(100,116,139,0.12); color: var(--text-sec); border: 1px solid rgba(100,116,139,0.2); font-size: 10px; white-space: nowrap; }
+.badge-live {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.35);
+  color: #34d399; font-size: 9px; font-weight: 800;
+  letter-spacing: 0.12em; padding: 2px 8px; border-radius: 20px;
+  text-transform: uppercase; vertical-align: middle; margin-left: 6px;
+}
+.badge-live::before {
+  content: ''; width: 5px; height: 5px; border-radius: 50%;
+  background: #34d399; box-shadow: 0 0 4px rgba(52,211,153,0.8);
+}
+
+/* ── EMPTY STATE ─────────────────────────────────────────────────── */
+.empty-state { text-align: center; padding: 40px 20px; color: var(--text-sec); font-size: 14px; }
+.empty-state-icon { margin-bottom: 12px; opacity: 0.3; }
+.empty-state-icon i { width: 32px; height: 32px; }
+.empty-state-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.empty-state-sub, .empty-state-desc { font-size: 13px; color: var(--text-sec); }
+
+/* ── LOADING SPINNER ─────────────────────────────────────────────── */
+.loading-spinner {
+  width: 36px; height: 36px;
+  border: 2px solid rgba(56,189,248,0.2);
+  border-top-color: var(--cyan);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── TEMP CHALLENGE LEADERBOARD ROWS ─────────────────────────────── */
+.tc-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); gap: 12px; }
+.tc-row:last-child { border-bottom: none; }
+.tc-rank { font-family: 'Bebas Neue', sans-serif; font-size: 20px; width: 24px; flex-shrink: 0; text-align: center; }
+.tc-info { flex: 1; min-width: 0; }
+.tc-name { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tc-meta { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
+.tc-pts { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--cyan); flex-shrink: 0; text-align: right; line-height: 1; }
+.tc-pts-zero { color: var(--text-sec); }
+.tc-pts sub { font-family: 'DM Sans', sans-serif; font-size: 10px; font-weight: 600; color: var(--text-sec); vertical-align: baseline; margin-left: 2px; }
+
+/* ── CATEGORY PILLS (join page) ──────────────────────────────────── */
+.cat-pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; border: 1px solid; }
+.cat-guppies     { color: #34d399;    border-color: rgba(52,211,153,0.3);  background: rgba(52,211,153,0.08); }
+.cat-sailfish    { color: var(--cyan); border-color: var(--cyan-border);    background: var(--cyan-dim); }
+.cat-makos       { color: var(--amber); border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.08); }
+.cat-walrus      { color: #a78bfa;    border-color: rgba(167,139,250,0.3);  background: rgba(167,139,250,0.08); }
+.cat-coelacanths { color: #fb923c;    border-color: rgba(251,146,60,0.3);   background: rgba(251,146,60,0.08); }
