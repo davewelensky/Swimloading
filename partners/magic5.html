@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>THEMAGIC5 × SwimLoading — Custom-Fit Goggles</title>
+  <meta name="description" content="THEMAGIC5 build custom-fit goggles from a 3D face scan — zero leaks, zero pressure, built for open water. Coming soon to SwimLoading.">
+  <link rel="icon" href="../icons/icon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #080f1a;
+      --bg-card:   #0d1728;
+      --bg-deep:   #050d1a;
+      --cyan:      #38bdf8;
+      --gold:      #d4a843;
+      --gold-dim:  rgba(212,168,67,0.15);
+      --gold-border: rgba(212,168,67,0.25);
+      --text:      #f1f5f9;
+      --text-sec:  #64748b;
+      --border:    rgba(255,255,255,0.06);
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+    }
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 9999;
+      background:
+        radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px), rgba(56,189,248,0.55), transparent 100%),
+        radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px), rgba(56,189,248,0.07), transparent 70%);
+    }
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(8,15,26,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 7px;
+      text-decoration: none; font-size: 15px; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #38bdf8; color: #080f1a;
+      font-size: 13px; font-weight: 700;
+      padding: 9px 20px; border-radius: 50px;
+      text-decoration: none; white-space: nowrap;
+    }
+    .btn-gold {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--gold); color: #080f1a;
+      font-size: 13px; font-weight: 700;
+      padding: 9px 20px; border-radius: 50px;
+      text-decoration: none; white-space: nowrap;
+    }
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: transparent; color: var(--text);
+      border: 1px solid rgba(255,255,255,0.15);
+      font-size: 13px; font-weight: 600;
+      padding: 9px 20px; border-radius: 50px;
+      text-decoration: none; white-space: nowrap;
+    }
+    main { max-width: 800px; margin: 0 auto; padding: 0 20px 80px; }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 64px 0 52px;
+      display: flex; flex-direction: column; align-items: center; text-align: center; gap: 22px;
+    }
+    .upcoming-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3);
+      border-radius: 50px; padding: 5px 14px;
+      font-family: 'DM Mono', monospace;
+      font-size: 10px; font-weight: 500; color: var(--cyan);
+      text-transform: uppercase; letter-spacing: 0.12em;
+    }
+    .hero-logo-wrap {
+      background: #0b1628;
+      border: 1px solid rgba(212,168,67,0.2);
+      border-radius: 16px; padding: 20px 36px;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .hero-wordmark {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 38px; letter-spacing: 4px;
+      background: linear-gradient(135deg, #d4a843 0%, #f5c842 50%, #b8860b 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .hero h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(38px,8vw,68px);
+      letter-spacing: 0.03em; line-height: 1.0;
+      color: var(--text);
+    }
+    .hero-sub {
+      font-size: 17px; color: var(--text-sec);
+      max-width: 560px; line-height: 1.75;
+    }
+    .hero-sub strong { color: var(--text); font-weight: 600; }
+
+    /* ── Sections ── */
+    .section-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px; font-weight: 500; color: var(--cyan);
+      text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 8px;
+    }
+    .section-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(26px,4vw,38px); letter-spacing: 0.04em; margin-bottom: 8px;
+    }
+    .section-desc {
+      font-size: 14px; color: var(--text-sec); line-height: 1.75; margin-bottom: 28px;
+    }
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 24px;
+    }
+
+    /* ── How it works ── */
+    .steps {
+      display: grid; grid-template-columns: repeat(3,1fr);
+      gap: 12px; margin-bottom: 36px;
+    }
+    .step {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .step-num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 36px; letter-spacing: 0.05em;
+      background: linear-gradient(135deg, #d4a843, #f5c842);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      line-height: 1;
+    }
+    .step-title { font-size: 13px; font-weight: 700; }
+    .step-desc  { font-size: 12px; color: var(--text-sec); line-height: 1.6; }
+
+    /* ── Features ── */
+    .features-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 12px; margin-bottom: 36px;
+    }
+    .feature-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px;
+    }
+    .feature-card:hover { border-color: rgba(212,168,67,0.2); }
+    .feature-icon {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: var(--gold-dim); border: 1px solid var(--gold-border);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 12px;
+    }
+    .feature-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+    .feature-desc  { font-size: 12px; color: var(--text-sec); line-height: 1.65; }
+
+    /* ── Goggle models ── */
+    .models-grid {
+      display: grid; grid-template-columns: repeat(auto-fill,minmax(220px,1fr));
+      gap: 12px; margin-bottom: 36px;
+    }
+    .model-card {
+      background: rgba(13,23,40,0.8); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px;
+      transition: border-color 0.2s;
+    }
+    .model-card:hover { border-color: var(--gold-border); }
+    .model-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 6px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 10px;
+    }
+    .model-name  { font-size: 15px; font-weight: 800; margin-bottom: 6px; }
+    .model-price { font-size: 19px; font-weight: 700; color: var(--gold); }
+    .model-desc  { font-size: 12px; color: var(--text-sec); line-height: 1.6; margin-top: 6px; }
+
+    /* ── Discount box ── */
+    .discount-box {
+      background: linear-gradient(135deg, rgba(212,168,67,0.06), rgba(56,189,248,0.04));
+      border: 1px solid var(--gold-border);
+      border-radius: 16px; padding: 32px;
+      text-align: center; margin-bottom: 36px;
+    }
+
+    /* ── CTA ── */
+    .cta-strip {
+      text-align: center; padding: 40px 0;
+      border-top: 1px solid var(--border);
+    }
+    .cta-strip p { font-size: 14px; color: var(--text-sec); margin-bottom: 20px; }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 24px; text-align: center;
+      font-size: 12px; color: var(--text-sec);
+    }
+    footer a { color: var(--text-sec); text-decoration: none; }
+
+    @media (max-width: 560px) {
+      .hero { padding: 40px 0 36px; }
+      .steps { grid-template-columns: 1fr; }
+      .features-grid { grid-template-columns: 1fr; }
+      .models-grid { grid-template-columns: 1fr 1fr; }
+      .hero-wordmark { font-size: 30px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="https://swimloading.com" class="nav-brand">
+    <img src="../icons/logo-wave.png" alt="" style="height:22px;width:auto;">SwimLoading
+  </a>
+  <a href="https://themagic5.com" target="_blank" rel="noopener" class="btn-gold">
+    <i data-lucide="arrow-up-right" style="width:14px;height:14px;"></i>themagic5.com
+  </a>
+</nav>
+
+<main>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="upcoming-badge">
+      <i data-lucide="clock" style="width:11px;height:11px;"></i>
+      Upcoming SwimLoading Partner
+    </div>
+    <div class="hero-logo-wrap">
+      <span class="hero-wordmark">THEMAGIC5</span>
+    </div>
+    <h1>Custom-Fit.<br>Zero Leaks.<br>Built For Your Face.</h1>
+    <p class="hero-sub">
+      Every face is different. Most goggles aren't. THEMAGIC5 scan your face with your phone, build a goggle moulded to your exact facial geometry, and ship it to you with a <strong>100% fit guarantee</strong>. For open water swimmers, where a failed seal ends a race — this changes everything.
+    </p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+      <a href="https://themagic5.com" target="_blank" rel="noopener" class="btn-gold" style="font-size:14px;padding:12px 28px;">
+        <i data-lucide="scan-face" style="width:15px;height:15px;"></i>Get your custom fit
+      </a>
+      <a href="https://swimloading.com/app" class="btn-ghost" style="font-size:14px;padding:12px 28px;">
+        <i data-lucide="waves" style="width:15px;height:15px;"></i>Open SwimLoading
+      </a>
+    </div>
+  </div>
+
+  <!-- How it works -->
+  <div style="margin-bottom:40px;">
+    <div class="section-label">The process</div>
+    <div class="section-title">Three steps to a goggle that actually fits</div>
+    <p class="section-desc">No foam gaskets. No nose-bridge adjustments. No leaking at the turn wall after 2km. Just a goggle built from the exact geometry of your face — in three steps that take less time than your warm-up.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <div class="step-title">Scan your face</div>
+        <div class="step-desc">Open the THEMAGIC5 app. A 30-second 3D scan maps your unique facial structure — orbital shape, nose bridge, cheekbones.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <div class="step-num" style="display:none;"></div>
+        <div class="step-title">We build your goggle</div>
+        <div class="step-desc">AI translates your scan into a custom mould. Robot-cut precision manufacturing in New York. Each pair unique to your face.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <div class="step-title">Swim. Guaranteed.</div>
+        <div class="step-desc">100% fit guarantee — if your custom goggle leaks or doesn't fit, THEMAGIC5 replace them. No questions. Full refund option.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Features -->
+  <div style="margin-bottom:40px;">
+    <div class="section-label">Why it matters in open water</div>
+    <div class="section-title">Built for conditions that don't forgive a bad seal</div>
+    <p class="section-desc">Pool swimming is forgiving. Open water isn't. Chop, head-up sighting, waves breaking across your face — a standard goggle relies on you tightening the strap until it hurts. THEMAGIC5 seals from the shape, not the tension.</p>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon"><i data-lucide="scan-face" style="width:17px;height:17px;color:var(--gold);"></i></div>
+        <div class="feature-title">OFT custom fit technology</div>
+        <div class="feature-desc">Orbital Fit Technology maps your facial contours with AI precision. The seal conforms to your face — not a generic average of everyone else's.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i data-lucide="shield-check" style="width:17px;height:17px;color:var(--gold);"></i></div>
+        <div class="feature-title">Zero leaks in open water</div>
+        <div class="feature-desc">Custom gasket geometry eliminates the pressure points and gap zones that cause standard goggles to flood when the water gets rough.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i data-lucide="eye" style="width:17px;height:17px;color:var(--gold);"></i></div>
+        <div class="feature-title">Zero distortion lenses</div>
+        <div class="feature-desc">THEMAGIC5's Zero Distortion Protocol keeps your sightline clean and undistorted across the full field of view — critical for open water navigation.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i data-lucide="gauge" style="width:17px;height:17px;color:var(--gold);"></i></div>
+        <div class="feature-title">No strap tension required</div>
+        <div class="feature-desc">Standard goggles need to be overtightened to compensate for a poor fit. THEMAGIC5 seal on shape — so you race with the strap barely snug.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i data-lucide="trophy" style="width:17px;height:17px;color:var(--gold);"></i></div>
+        <div class="feature-title">Trusted by Olympic athletes</div>
+        <div class="feature-desc">Jan Frodeno, multiple Ironman world champions, and elite open water swimmers train and race in THEMAGIC5. The same goggle, custom-built for you.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i data-lucide="refresh-cw" style="width:17px;height:17px;color:var(--gold);"></i></div>
+        <div class="feature-title">100% fit guarantee</div>
+        <div class="feature-desc">If your custom goggle doesn't fit perfectly — full replacement or full refund. No ambiguity. Built this way because they're confident the scan works.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Models -->
+  <div style="margin-bottom:40px;">
+    <div class="section-label">The range</div>
+    <div class="section-title">Every model. Same custom fit.</div>
+    <p class="section-desc">Available in adult and youth fits, with a choice of lens tints optimised for different light conditions — including open water mirror lenses for bright Southern African conditions.</p>
+
+    <div class="models-grid">
+      <div class="model-card">
+        <div class="model-badge" style="background:var(--gold-dim);color:var(--gold);border:1px solid var(--gold-border);">Open Water</div>
+        <div class="model-name">Vector Goggle</div>
+        <div class="model-price">from $90</div>
+        <div class="model-desc">The flagship model. Custom-fit seal, hydrodynamic frame, available in mirror and clear lenses. Triathlon and open water rated.</div>
+      </div>
+      <div class="model-card">
+        <div class="model-badge" style="background:rgba(56,189,248,0.1);color:var(--cyan);border:1px solid rgba(56,189,248,0.25);">Mirror</div>
+        <div class="model-name">Blue Magic Mirror Gold</div>
+        <div class="model-price">from $90</div>
+        <div class="model-desc">Mirror gold lens cuts glare in bright conditions — ideal for Cape Town and Durban open water where early morning sun reflects hard.</div>
+      </div>
+      <div class="model-card">
+        <div class="model-badge" style="background:rgba(148,163,184,0.08);color:var(--text-sec);border:1px solid rgba(148,163,184,0.2);">Youth</div>
+        <div class="model-name">Youth Fit (ages 10–18)</div>
+        <div class="model-price">from $90</div>
+        <div class="model-desc">Same custom-fit technology scaled for younger faces. Club swimmers and junior open water racers — same seal quality, same guarantee.</div>
+      </div>
+      <div class="model-card">
+        <div class="model-badge" style="background:rgba(212,168,67,0.08);color:var(--gold);border:1px solid var(--gold-border);">Clear</div>
+        <div class="model-name">Clear Magic</div>
+        <div class="model-price">from $90</div>
+        <div class="model-desc">Clear lens for overcast conditions, early mornings, and low-light ocean swims. Maximum visibility when the light is flat.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Discount / coming soon -->
+  <div class="discount-box">
+    <div style="width:52px;height:52px;border-radius:14px;background:var(--gold-dim);border:1px solid var(--gold-border);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+      <i data-lucide="tag" style="width:22px;height:22px;color:var(--gold);"></i>
+    </div>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:500;color:var(--cyan);text-transform:uppercase;letter-spacing:0.14em;margin-bottom:8px;">SwimLoading Community Discount</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:0.04em;margin-bottom:12px;">Coming Soon</div>
+    <p style="font-size:14px;color:var(--text-sec);max-width:460px;margin:0 auto 20px;line-height:1.75;">
+      THEMAGIC5 and SwimLoading are working on an exclusive discount for the community. SwimLoading members will be the first to receive the code — log your swims and watch this space.
+    </p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+      <a href="https://themagic5.com" target="_blank" rel="noopener" class="btn-gold">
+        <i data-lucide="scan-face" style="width:14px;height:14px;"></i>Get your fit now
+      </a>
+      <a href="https://swimloading.com/app" class="btn-ghost">
+        <i data-lucide="waves" style="width:14px;height:14px;"></i>Open SwimLoading
+      </a>
+    </div>
+  </div>
+
+  <!-- Why goggles matter for open water -->
+  <div style="margin-bottom:40px;">
+    <div class="section-label">The open water case</div>
+    <div class="section-title">A goggle leak doesn't cost you a lap — it costs you the swim</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="card">
+        <div style="font-size:13px;font-weight:700;margin-bottom:5px;color:var(--gold);">Robben Island / Dassen / Cape Point</div>
+        <div style="font-size:12px;color:var(--text-sec);line-height:1.65;">Cold, choppy, no restart. A leaking goggle mid-crossing means navigating blind or stopping. THEMAGIC5 don't leak.</div>
+      </div>
+      <div class="card">
+        <div style="font-size:13px;font-weight:700;margin-bottom:5px;color:var(--cyan);">Head-up sighting</div>
+        <div style="font-size:12px;color:var(--text-sec);line-height:1.65;">Every sight stroke breaks the seal on a loose goggle. Custom fit means the gasket stays seated regardless of head position or splash impact.</div>
+      </div>
+      <div class="card">
+        <div style="font-size:13px;font-weight:700;margin-bottom:5px;color:var(--gold);">Wave impact</div>
+        <div style="font-size:12px;color:var(--text-sec);line-height:1.65;">A shore break entry or rough Atlantic swell hits the goggle frame at angles standard designs weren't built for. Custom geometry holds.</div>
+      </div>
+      <div class="card">
+        <div style="font-size:13px;font-weight:700;margin-bottom:5px;color:var(--cyan);">No headache finish</div>
+        <div style="font-size:12px;color:var(--text-sec);line-height:1.65;">Overtightened straps cause post-swim headaches. THEMAGIC5 seal on fit, not tension — your strap barely needs to be snug.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-strip">
+    <p>Custom goggles. Your face. Every swim.</p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+      <a href="https://themagic5.com" target="_blank" rel="noopener" class="btn-gold" style="font-size:15px;padding:13px 28px;">
+        <i data-lucide="scan-face" style="width:16px;height:16px;"></i>Visit themagic5.com
+      </a>
+      <a href="https://swimloading.com" class="btn-ghost" style="font-size:15px;padding:13px 28px;">
+        <i data-lucide="arrow-left" style="width:16px;height:16px;"></i>Back to SwimLoading
+      </a>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <a href="https://swimloading.com">swimloading.com</a> &nbsp;&middot;&nbsp; &copy; 2026 SwimLoading &nbsp;&middot;&nbsp; Partnership enquiries: <a href="mailto:support@swimloading.com">support@swimloading.com</a>
+</footer>
+
+<script>
+  document.addEventListener('mousemove', e => {
+    document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+    document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+  });
+  lucide.createIcons();
+</script>
+</body>
+</html>
