@@ -65,11 +65,11 @@ Every partner must have all of the following before going live:
 
 | Field | Value |
 |-------|-------|
-| **Status** | Active partner |
+| **Status** | Active partner — prizes shipped, discount code pending |
 | **Hero page** | `/partners/sis` |
 | **Welcome card** | Yes |
-| **Geography** | SA (scienceinsport.co.za) — brand is global but our arrangement is SA |
-| **Contact** | `[UNCONFIRMED — no contact name on file]` |
+| **Geography** | SA — operates locally as FUELME.co.za. Brand is global but our arrangement is SA-specific. |
+| **Contact** | Hailey (WhatsApp) + Chris (her manager, phone) — details in local memory |
 | **Partner URL** | https://www.scienceinsport.co.za |
 
 **What SwimLoading offers them:**
@@ -78,8 +78,8 @@ Every partner must have all of the following before going live:
 - Discount code promotion to members
 
 **What they offer members:**
-- 15% discount code: **SWM15** — `[confirm code is still active before promoting]`
-- Valid at scienceinsport.co.za
+- **Tiered competition prizes confirmed** — 3x prize products (1st/2nd/3rd place) + box of gels for giveaways. Shipped May 2026 with best-before dates marked.
+- **Discount code: `[AWAITING]`** — Chris (Hailey's manager) is creating the code. SWM15 on the hero page is `[UNVERIFIED — do not rely on it until confirmed]`. Update the page the moment the code arrives.
 
 **Confirmed product range** (from their site):
 - GO Isotonic Energy Gels
@@ -87,10 +87,15 @@ Every partner must have all of the following before going live:
 - Energy Bakes (oat-based bars)
 - Protein products
 
+**Outstanding actions:**
+- [ ] Receive confirmed discount code from Chris via Hailey — update hero page immediately
+- [ ] Remove or caveat SWM15 on hero page until code is confirmed
+- [ ] Confirm whether scienceinsport.co.za or fuelme.co.za is the correct shop URL for members
+
 **Notes:**
-- Verify the SWM15 code is still active periodically — discount codes expire or get deactivated
-- International expansion: SiS has UK/global presence but our code is SA-specific. Confirm before promoting to UK users.
-- No contact name on file — `[needed]`
+- SiS SA local operation is FUELME.co.za — verify which URL to link members to for shopping
+- International expansion: SiS is a global brand but our arrangement is SA. Confirm with Chris before promoting to UK users.
+- Do not publish the discount code on the hero page until it is received and tested
 
 ---
 
@@ -102,30 +107,41 @@ Every partner must have all of the following before going live:
 
 | Field | Value |
 |-------|-------|
-| **Status** | Coming soon — partnership not yet signed |
+| **Status** | Partnership confirmed — terms being agreed (email May 8 2026) |
 | **Hero page** | `/partners/blu-smooth` |
-| **Welcome card** | Yes (coming soon badge) |
-| **Geography** | SA only — manufactured and ships within South Africa |
-| **Contact** | `[UNCONFIRMED — no contact name on file]` |
-| **Partner URL** | https://blusmooth.co.za |
+| **Welcome card** | Yes (coming soon badge — update once deal is finalised) |
+| **Geography** | SA (primary) + UK/Europe expansion in progress — Kevin is UK-based, interested in UK partnership too |
+| **Contact** | Kevin Richards, founder (contact stored in local memory — not in public repo) |
+| **Partner URL** | `[NEEDS CLARIFICATION]` — email shows blusmooth.com, hero page links to blusmooth.co.za. Confirm correct URL with Kevin. |
 
-**What SwimLoading will offer them:**
-- Partner card + hero page
-- Exclusive member discount or prize (TBD — not yet agreed)
+**What SwimLoading offers them:**
+- Partner card + hero page at /partners/blu-smooth
+- Winter competition feature (SA) — prize = MK2 wetsuit (Kevin's proposal)
+- Future UK partnership opportunity (Kevin noted UK subscribers, flagged interest)
 
-**What they will offer members:**
-- Exclusive deals and/or prizes — `[TBD, not confirmed]`
+**What they offer members:**
+- **SA winter competition prize: MK2 wetsuit** — confirmed intent, details TBD
+- MK2 is a new model launching SA in July 2026 — timing aligns with a winter competition
 
-**Product range on hero page** (taken from blusmooth.co.za — verify before any price changes):
-- MK3 Elite 532: R8,320 (was R8,999) `[PRICE — verify still current]`
-- MK3 Elite Open Water: R3,200 (was R4,299) `[PRICE — verify still current]`
-- MK1 Racer: R3,899 `[PRICE — verify still current]`
-- Neoprene Tops: from R1,299 `[PRICE — verify still current]`
+**Product range on hero page** (sourced from their website, NOT confirmed by Kevin):
+- MK3 Elite 532: R8,320 `[PRICE UNCONFIRMED — verify with SA team]`
+- MK3 Elite Open Water: R3,200 `[PRICE UNCONFIRMED — verify with SA team]`
+- MK1 Racer: R3,899 `[PRICE UNCONFIRMED — verify with SA team]`
+- Neoprene Tops: from R1,299 `[PRICE UNCONFIRMED — verify with SA team]`
+- **MK2** — new model, launching SA July 2026. `[DO NOT ADD TO PAGE — no specs or price confirmed yet]`
+
+**Outstanding actions:**
+- [ ] Confirm correct website URL — blusmooth.com or blusmooth.co.za? Update hero page link.
+- [ ] Agree winter competition format and dates
+- [ ] Get MK2 specs and price from Kevin/SA team for hero page (after July launch)
+- [ ] Verify existing product prices with SA team before keeping them live
+- [ ] Discuss UK partnership scope for future
+- [ ] Kevin to introduce SA team contact once agreement is reached
 
 **Notes:**
-- Partnership not formalised — page is awareness/hero only until deal is agreed
-- Prices were sourced from their site on a specific date — they can change without notice. Consider removing prices if the partnership is not confirmed soon.
-- SA-only brand — do not surface to UK/AUS/Switzerland users
+- Kevin is UK-based, actively expanding into UK and Europe — this opens a non-SA partnership angle, relevant to SwimLoading's UK expansion
+- Do not add MK2 to the hero page until specs and price are confirmed by Kevin or SA team
+- Do not update prices on existing models without confirmation
 
 ---
 
