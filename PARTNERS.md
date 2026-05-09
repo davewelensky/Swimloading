@@ -87,7 +87,7 @@ Every partner must have all of the following before going live:
 
 **What they offer members:**
 - **Tiered competition prizes confirmed** — 3x prize products (1st/2nd/3rd place) + box of gels for giveaways. Shipped May 2026 with best-before dates marked.
-- **Discount code: `[AWAITING]`** — Chris (Hailey's manager) is creating the code. SWM15 on the hero page is `[UNVERIFIED — do not rely on it until confirmed]`. Update the page the moment the code arrives.
+- **Discount code: SWM15 — confirmed** (email from info@scienceinsport.co.za, May 2026). 15% off at scienceinsport.co.za.
 
 **Confirmed product range** (from their site):
 - GO Isotonic Energy Gels
@@ -96,9 +96,8 @@ Every partner must have all of the following before going live:
 - Protein products
 
 **Outstanding actions:**
-- [ ] Receive confirmed discount code from Chris via Hailey — update hero page immediately
-- [ ] Remove or caveat SWM15 on hero page until code is confirmed
 - [ ] Confirm whether scienceinsport.co.za or fuelme.co.za is the correct shop URL for members
+- [ ] Check if logo attachment from SiS email is higher quality than current icons/sis-logo-stacked.png — replace if so
 
 **Notes:**
 - SiS SA local operation is FUELME.co.za — verify which URL to link members to for shopping
