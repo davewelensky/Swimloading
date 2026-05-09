@@ -133,19 +133,25 @@ Every partner must have all of the following before going live:
 
 | Field | Value |
 |-------|-------|
-| **Status** | Coming soon — partnership not yet signed |
+| **Status** | Partnership confirmed — portal and discount code being set up |
 | **Hero page** | `/partners/magic5` |
-| **Welcome card** | Yes (coming soon badge) |
+| **Welcome card** | Yes (coming soon badge — update once portal/code is live) |
 | **Geography** | International — ships globally from Denmark. Relevant to UK, AUS, Switzerland expansion. |
-| **Contact** | `[UNCONFIRMED — no contact name on file]` |
+| **Contact** | Jake Morden (contact email stored in local memory — not in public repo) |
 | **Partner URL** | https://themagic5.com |
 
-**What SwimLoading will offer them:**
-- Partner card + hero page
-- Exclusive community discount code (TBD — not yet agreed)
+**What SwimLoading offers them:**
+- Partner card + hero page at /partners/magic5
+- Logo on newsletter and social posts (confirmed ask from Jake)
+- 3–4 newsletter/group chat mentions per year using their provided messaging (confirmed ask)
+- Monthly prize feature (Jake asked for clarification on what this means — **follow up needed**)
 
-**What they will offer members:**
-- Exclusive discount code — `[TBD, not confirmed]`
+**What they offer members:**
+- Dedicated SwimLoading member portal with **30% discount** year-round
+- Discount bumps to **45–50% during promotions** (e.g. Memorial Day — May 2026)
+- Access to limited edition products
+- Product giveaways for competitions (dependent on partner activity level)
+- Discount code/portal URL: `[TBD — Jake to build a portal unique to SwimLoading members]`
 
 **Product range on hero page** (confirmed from themagic5.com by user review):
 - All models are "Vector with OFT" (Orbital Fit Technology)
@@ -159,10 +165,17 @@ Every partner must have all of the following before going live:
 
 **Prices:** Not published — direct users to themagic5.com. Prices change (sales run regularly).
 
+**Outstanding actions:**
+- [ ] Reply to Jake clarifying what the monthly leaderboard prize means
+- [ ] Receive portal URL / discount code from Jake once built
+- [ ] Update hero page and welcome card once code is confirmed
+- [ ] Discuss logo placement on newsletter and social posts
+- [ ] Agree on first newsletter mention (3–4/year obligation)
+
 **Notes:**
 - Brand colours are cyan/blue — NOT gold/yellow. Do not use gold anywhere on their page.
-- Do not fabricate or assume product names, specs, or prices — this caused errors previously. Always verify from themagic5.com directly.
-- International partner — relevant for UK, AUS, Switzerland rollout. Worth prioritising for formalisation.
+- Do not fabricate or assume product names, specs, or prices — always verify from themagic5.com directly.
+- International partner — surface to UK, AUS, Switzerland users once portal is live.
 
 ---
 
