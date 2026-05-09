@@ -30,20 +30,23 @@ Every partner must have all of the following before going live:
 
 | Field | Value |
 |-------|-------|
-| **Status** | Active partner |
+| **Status** | Active partner — 9-month commitment confirmed |
 | **Hero page** | `/partners/maurten` |
 | **Welcome card** | Yes |
 | **Geography** | SA only (Art of Endurance ships nationwide within SA) |
-| **Contact** | Charl (Art of Endurance) — confirmed via WhatsApp/email |
-| **Partner URL** | https://www.artofendurance.co.za |
+| **Contact** | Charl (Art of Endurance) — WhatsApp, number in local memory |
+| **Partner URL** | https://artofendurance.co.za (no www — confirmed by Dave) |
+| **Instagram** | @artofendurance (handle = website address, confirmed by Charl) |
 
 **What SwimLoading offers them:**
 - Partner card on welcome.html
 - Hero page at /partners/maurten
-- Monthly leaderboard prize feature
+- Monthly challenge prize feature
+- Tag/mention @artofendurance on social posts
 
 **What they offer members:**
-- Monthly prize: box of Maurten Gel 100s for leaderboard winner — **confirmed by arrangement with Charl**
+- **Monthly prize: Maurten gels + merchandise (caps/t-shirts)** — Charl ships prize packs to Dave for distribution. First batch = 4 equal giveaway boxes. `[Clarify: is it 1 winner/month or multiple? Update hero page copy once confirmed.]`
+- 9-month commitment from Art of Endurance
 - Supplied by Art of Endurance (SA Maurten distributor)
 
 **Confirmed product range** (from artofendurance.co.za):
@@ -54,10 +57,15 @@ Every partner must have all of the following before going live:
 - Drink Mix 320
 - Solid 160
 
+**Outstanding actions:**
+- [ ] Clarify prize structure: 1 monthly leaderboard winner, or multiple giveaway entries? Update hero page copy to match.
+- [ ] Tag @artofendurance on social posts (Dave confirmed he'll do this)
+- [ ] Hero page links use www.artofendurance.co.za — update to artofendurance.co.za
+
 **Notes:**
 - Do not say "exclusively" supplied by Art of Endurance — Charl asked us to remove this
 - Do not publish Maurten retail prices — link to artofendurance.co.za
-- International expansion: Maurten is a global brand but our arrangement is SA-specific via Art of Endurance. Do not imply UK/AUS users can claim this prize.
+- International expansion: SA-specific arrangement via Art of Endurance. Do not imply UK/AUS users can claim prizes.
 
 ---
 
