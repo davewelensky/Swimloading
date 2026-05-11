@@ -103,15 +103,12 @@ async function renderSwimClub(container, club, roster, membership) {
 
   const today = new Date().toISOString().slice(0,10);
 
-  const [resultsRes, upcomingRes, pbRes] = await Promise.all([
-    // My gala results — fetch with event info
+  const [resultsRes, upcomingRes] = await Promise.all([
     supabaseClient
       .from('club_gala_results')
       .select('id, stroke, distance, course, time_seconds, time_text, is_pb, club_events(id, title, event_date)')
       .eq('roster_id', roster.id)
-      .order('time_seconds'),
-
-    // Upcoming galas
+      .order('club_events(event_date)', { ascending: true }),
     supabaseClient
       .from('club_events')
       .select('id, title, event_date, description')
@@ -119,23 +116,18 @@ async function renderSwimClub(container, club, roster, membership) {
       .gte('event_date', today)
       .order('event_date')
       .limit(8),
-
-    // My PBs
-    supabaseClient
-      .from('club_swimmer_times')
-      .select('stroke, distance, course, time_seconds, time_text')
-      .eq('roster_id', roster.id)
-      .eq('is_pb', true),
   ]);
 
-  const allResults  = resultsRes.data  || [];
-  const upcoming    = upcomingRes.data || [];
-  const pbs         = pbRes.data       || [];
+  const allResults = resultsRes.data || [];
+  const upcoming   = upcomingRes.data || [];
+
+  const totalGalas = new Set(allResults.map(r => r.club_events?.id).filter(Boolean)).size;
+  const totalPBs   = allResults.filter(r => r.is_pb).length;
 
   container.innerHTML =
     renderClubHero(club, roster, membership) +
-    renderMyPBs(pbs) +
-    renderMyGalas(allResults) +
+    (allResults.length ? renderSwimStats(totalGalas, totalPBs) : '') +
+    renderEventGraphs(allResults) +
     renderUpcomingGalas(upcoming);
 
   lucide.createIcons();
@@ -143,82 +135,121 @@ async function renderSwimClub(container, club, roster, membership) {
 
 // ─── Swim Club Section Renderers ───────────────────────────────────────────────
 
-function renderMyPBs(pbs) {
-  if (!pbs.length) return '';
-
-  const order = ['Free','Back','Breast','Fly','IM'];
-  const sorted = [...pbs].sort((a, b) => {
-    const si = order.indexOf(a.stroke) - order.indexOf(b.stroke);
-    return si !== 0 ? si : a.distance - b.distance;
-  });
-
-  const rows = sorted.map(p => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-color);">
-      <span style="font-size:13px;color:var(--text-secondary);">${p.distance}m ${p.stroke} <span style="font-size:10px;opacity:0.6;">${p.course}</span></span>
-      <span style="font-size:15px;font-weight:800;color:var(--text);font-family:'Bebas Neue',sans-serif;letter-spacing:0.05em;">${p.time_text}</span>
-    </div>`).join('');
-
+function renderSwimStats(galas, pbs) {
   return `
-  <div class="card" style="margin-bottom:12px;">
-    <div style="font-size:15px;font-weight:700;margin-bottom:12px;">My Best Times</div>
-    ${rows}
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+    <div class="card" style="text-align:center;padding:14px 8px;">
+      <div style="font-size:28px;font-weight:900;color:var(--cyan);font-family:'Bebas Neue',sans-serif;line-height:1;">${galas}</div>
+      <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em;margin-top:2px;">Galas</div>
+    </div>
+    <div class="card" style="text-align:center;padding:14px 8px;">
+      <div style="font-size:28px;font-weight:900;color:var(--green);font-family:'Bebas Neue',sans-serif;line-height:1;">${pbs}</div>
+      <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em;margin-top:2px;">PBs this season</div>
+    </div>
   </div>`;
 }
 
-function renderMyGalas(allResults) {
+function renderEventGraphs(allResults) {
   if (!allResults.length) return `
-  <div class="card" style="margin-bottom:12px;">
-    <div style="font-size:15px;font-weight:700;margin-bottom:6px;">My Galas</div>
-    <div style="font-size:13px;color:var(--text-secondary);">No results yet — they'll appear here after your first gala.</div>
+  <div class="card" style="margin-bottom:12px;text-align:center;padding:28px 16px;">
+    <div style="font-size:14px;font-weight:700;margin-bottom:6px;">No results yet</div>
+    <div style="font-size:12px;color:var(--text-secondary);">Your times will appear here after your coach enters your first gala results.</div>
   </div>`;
 
-  // Group by event
+  // Group by stroke+distance+course
   const byEvent = {};
   allResults.forEach(r => {
-    const ev = r.club_events;
-    if (!ev) return;
-    if (!byEvent[ev.id]) byEvent[ev.id] = { event: ev, results: [] };
-    byEvent[ev.id].results.push(r);
+    if (!r.club_events) return;
+    const key = `${r.distance}m ${r.stroke} ${r.course}`;
+    if (!byEvent[key]) byEvent[key] = { key, stroke: r.stroke, distance: r.distance, course: r.course, results: [] };
+    byEvent[key].results.push({
+      date:         r.club_events.event_date,
+      label:        r.club_events.title,
+      time_seconds: r.time_seconds,
+      time_text:    r.time_text,
+      is_pb:        r.is_pb,
+    });
   });
 
-  // Sort events newest first
-  const events = Object.values(byEvent).sort((a, b) =>
-    b.event.event_date.localeCompare(a.event.event_date));
+  const strokeOrder = ['Free','Back','Breast','Fly','IM'];
+  const groups = Object.values(byEvent).sort((a, b) => {
+    const si = strokeOrder.indexOf(a.stroke) - strokeOrder.indexOf(b.stroke);
+    return si !== 0 ? si : a.distance - b.distance;
+  });
 
-  const cards = events.map(({ event, results }) => {
-    const d    = new Date(event.event_date + 'T12:00:00');
-    const date = d.toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' });
-    const pbCount = results.filter(r => r.is_pb).length;
-
-    const rows = results
-      .sort((a, b) => a.distance - b.distance || a.stroke.localeCompare(b.stroke))
-      .map(r => `
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
-          <span style="font-size:12px;color:var(--text-secondary);">${r.distance}m ${r.stroke} <span style="font-size:10px;opacity:0.6;">${r.course}</span></span>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span style="font-size:14px;font-weight:800;color:var(--text);font-family:'Bebas Neue',sans-serif;letter-spacing:0.05em;">${r.time_text}</span>
-            ${r.is_pb ? `<span style="font-size:10px;font-weight:800;color:var(--green);background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:1px 7px;">PB</span>` : ''}
-          </div>
-        </div>`).join('');
+  const cards = groups.map(g => {
+    const pts   = [...g.results].sort((a, b) => a.date.localeCompare(b.date));
+    const pb    = pts.reduce((best, p) => p.time_seconds < best.time_seconds ? p : best, pts[0]);
+    const first = pts[0];
+    const improvement = first && pb && first !== pb
+      ? ((first.time_seconds - pb.time_seconds)).toFixed(1)
+      : null;
 
     return `
-    <div style="margin-bottom:14px;background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:12px;overflow:hidden;">
-      <div style="padding:12px 14px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between;">
+    <div class="card" style="margin-bottom:10px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;">
         <div>
-          <div style="font-size:14px;font-weight:700;color:var(--text);">${event.title}</div>
-          <div style="font-size:11px;color:var(--text-secondary);margin-top:1px;">${date}</div>
+          <div style="font-size:14px;font-weight:800;color:var(--text);">${g.distance}m ${g.stroke}</div>
+          <div style="font-size:11px;color:var(--text-secondary);">${g.course} · ${pts.length} swim${pts.length > 1 ? 's' : ''}</div>
         </div>
-        ${pbCount > 0 ? `<span style="font-size:11px;font-weight:800;color:var(--green);background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:20px;padding:3px 10px;">${pbCount} PB${pbCount > 1 ? 's' : ''}</span>` : ''}
+        <div style="text-align:right;">
+          <div style="font-size:22px;font-weight:900;color:var(--green);font-family:'Bebas Neue',sans-serif;line-height:1;">${pb.time_text}</div>
+          <div style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.08em;">PB</div>
+          ${improvement ? `<div style="font-size:10px;color:var(--text-secondary);margin-top:1px;">↓ ${improvement}s faster than first swim</div>` : ''}
+        </div>
       </div>
-      <div style="padding:4px 14px 8px;">${rows}</div>
+      ${pts.length > 1 ? renderSparkline(pts) : ''}
+      <div style="margin-top:10px;">
+        ${pts.slice().reverse().map(p => {
+          const d = new Date(p.date + 'T12:00:00');
+          const dateStr = d.toLocaleDateString('en-ZA', { day:'numeric', month:'short' });
+          return `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+            <span style="font-size:11px;color:var(--text-secondary);">${dateStr} · ${p.label}</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:13px;font-weight:800;color:var(--text);font-family:'Bebas Neue',sans-serif;">${p.time_text}</span>
+              ${p.is_pb ? `<span style="font-size:9px;font-weight:800;color:var(--green);background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:1px 6px;">PB</span>` : ''}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
     </div>`;
   }).join('');
 
   return `
-  <div class="card" style="margin-bottom:12px;">
-    <div style="font-size:15px;font-weight:700;margin-bottom:14px;">My Galas</div>
+  <div style="margin-bottom:12px;">
+    <div style="font-size:15px;font-weight:700;margin-bottom:10px;">My Times</div>
     ${cards}
   </div>`;
+}
+
+function renderSparkline(pts) {
+  // pts = [{date, time_seconds, is_pb}] sorted oldest→newest
+  const W = 300, H = 56, PAD = 8;
+  const times = pts.map(p => p.time_seconds);
+  const minT  = Math.min(...times);
+  const maxT  = Math.max(...times);
+  const range = maxT - minT || 1;
+
+  // x: evenly spaced; y: inverted (lower time = higher on chart)
+  const coords = pts.map((p, i) => ({
+    x: PAD + (i / (pts.length - 1)) * (W - PAD * 2),
+    y: PAD + ((p.time_seconds - minT) / range) * (H - PAD * 2),
+    is_pb: p.is_pb,
+    time_text: p.time_text,
+  }));
+
+  const line = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`).join(' ');
+
+  const dots = coords.map(c => c.is_pb
+    ? `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="4" fill="#10b981" stroke="#0d1728" stroke-width="1.5"/>`
+    : `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3" fill="#38bdf8" opacity="0.7"/>`
+  ).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:52px;display:block;overflow:visible;">
+    <path d="${line}" fill="none" stroke="rgba(56,189,248,0.35)" stroke-width="1.5" stroke-linejoin="round"/>
+    ${dots}
+  </svg>`;
 }
 
 function renderUpcomingGalas(events) {
