@@ -1838,14 +1838,14 @@ async function loadSquadTracker() {
   const el = document.getElementById('trackerContent');
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
-  // Fetch roster + times + gala attendance in parallel
+  // Fetch roster + gala results + attendance in parallel
   const clubId = currentClub.id;
   const [rosterRes, timesRes, attendRes] = await Promise.all([
     sb.from('club_roster').select('id, display_name, member_number, category, date_of_birth, gender')
       .eq('club_id', clubId).order('display_name'),
-    sb.from('club_swimmer_times').select('*')
-      .eq('club_id', clubId).order('meet_date', { ascending: true }),
-    sb.from('club_attendance').select('roster_id, session_id, club_sessions(date)')
+    sb.from('club_gala_results').select('roster_id, stroke, distance, course, time_seconds, time_text, is_pb, created_at')
+      .eq('club_id', clubId).order('created_at', { ascending: true }),
+    sb.from('club_attendance').select('roster_id, session_id')
       .eq('club_id', clubId).eq('present', true),
   ]);
 
@@ -1853,11 +1853,12 @@ async function loadSquadTracker() {
   const times   = timesRes.data   || [];
   const attend  = attendRes.data  || [];
 
-  // Build per-roster lookup
+  // Build per-roster lookup — normalise event key from stroke+distance+course
   const timesByRoster = {};
   times.forEach(t => {
+    const key = `${t.distance} ${t.stroke} ${t.course || ''}`.trim();
     if (!timesByRoster[t.roster_id]) timesByRoster[t.roster_id] = [];
-    timesByRoster[t.roster_id].push(t);
+    timesByRoster[t.roster_id].push({ ...t, _eventKey: key });
   });
 
   const galasByRoster = {};
@@ -1900,7 +1901,7 @@ function renderTrackerGrid(swimmers) {
     // Group times by event key, find first and PB
     const byEvent = {};
     times.forEach(t => {
-      const key = `${t.event} ${t.course || ''}`.trim();
+      const key = t._eventKey;
       if (!byEvent[key]) byEvent[key] = { name: key, first: t.time_seconds, pb: t.time_seconds, pbText: t.time_text };
       else {
         if (t.time_seconds < byEvent[key].pb) { byEvent[key].pb = t.time_seconds; byEvent[key].pbText = t.time_text; }
