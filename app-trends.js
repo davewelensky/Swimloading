@@ -84,7 +84,8 @@
                     (data ? data.filter(row =>
                         allowedTypes.includes(row.water_type) &&
                         row.updated_at >= staleISO &&
-                        !internationalSpotIds.has(row.spot_id)
+                        !internationalSpotIds.has(row.spot_id) &&
+                        !INTERNATIONAL_DOMAINS.has(row.domain)
                     ) : []);
 
                 // Empty state for domestic tabs only
@@ -105,7 +106,7 @@
                     // International spots use a wider staleness window.
                     const intlStaleISO = new Date(Date.now() - getStaleDays(true) * 24 * 60 * 60 * 1000).toISOString();
                     const intlData = data ? data.filter(row =>
-                        internationalSpotIds.has(row.spot_id) &&
+                        (internationalSpotIds.has(row.spot_id) || INTERNATIONAL_DOMAINS.has(row.domain)) &&
                         row.updated_at >= intlStaleISO
                     ) : [];
 
@@ -320,7 +321,7 @@
                     else                      { trendArrow = '→'; trendColor = 'var(--text-secondary)'; }
                 }
 
-                const isIntl = spots.some(s => s.domain === domain && internationalSpotIds.has(s.id));
+                const isIntl = INTERNATIONAL_DOMAINS.has(domain) || spots.some(s => s.domain === domain && internationalSpotIds.has(s.id));
                 const card = document.createElement('div');
                 card.className = 'region-card';
                 if (isIntl) card.style.cssText += 'border-color:#fbbf24;border-width:1.5px;';

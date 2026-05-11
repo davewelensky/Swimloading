@@ -1215,8 +1215,10 @@
                         window._spotShareData[log.spot_id] = { name: s.name, temp: log.temp_c, cond, noteUser, noteText, logCount };
 
                         // International spot detection — gold accent treatment
+                        // Domain-code fallback ensures treatment applies even before
+                        // loadCountriesAndRebuildIntl() resolves (async timing).
                         const spotInfo2 = spots.find(sp => sp.id === log.spot_id);
-                        const isIntl = internationalSpotIds.has(log.spot_id);
+                        const isIntl = internationalSpotIds.has(log.spot_id) || INTERNATIONAL_DOMAINS.has(spotInfo2?.domain);
                         const countryCode = spotInfo2?.country_code || '';
                         const countryLabel = isIntl && countryCode && COUNTRY_NAMES[countryCode]
                             ? ` <span style="font-size:12px;font-weight:500;color:#d97706;">(${COUNTRY_NAMES[countryCode]})</span>` : '';
