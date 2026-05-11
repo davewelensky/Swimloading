@@ -420,6 +420,14 @@
     </div>
 
     <!-- LEAGUE STANDINGS -->
+    <div id="sectionCoaches" style="display:none;">
+      <div class="section-head">
+        <div class="section-eyebrow">Meet the team</div>
+        <div class="section-title">Coaching Staff</div>
+      </div>
+      <div id="coachesContainer"></div>
+    </div>
+
     <div id="sectionLeague">
       <div class="section-head">
         <div class="section-eyebrow">Season points</div>
@@ -532,9 +540,10 @@
     // Fetch club
     const { data: club, error: clubErr } = await sb
       .from('clubs')
-      .select('*')
+      .select('*, club_type')
       .eq('slug', slug)
       .single();
+    const isSwimClub = club?.club_type === 'swim_club';
 
     if (clubErr || !club) {
       showNotFound();
@@ -651,12 +660,19 @@
     // ── Render ──────────────────────────────────────────────────────
     renderHero(club, spotName, recentLogs, memberCount);
     renderAbout(club);
-    renderConditions(recentLogs, spotName);
-    renderChart(recentLogs);
+    if (!isSwimClub) renderConditions(recentLogs, spotName);
+    if (!isSwimClub) renderChart(recentLogs);
     renderEvents(events);
-    renderTempChallenge(members || [], memberTempLogs, categories, profileMap);
-    renderLeague(standingsData || [], club, events);
-    renderLogs(recentLogs);
+    if (!isSwimClub) renderTempChallenge(members || [], memberTempLogs, categories, profileMap);
+    if (!isSwimClub) renderLeague(standingsData || [], club, events);
+    if (!isSwimClub) renderLogs(recentLogs);
+    if (isSwimClub) {
+      const { data: coaches } = await sb.from('club_coaches')
+        .select('name, title, email, phone')
+        .eq('club_id', club.id).eq('is_active', true)
+        .order('title').order('name');
+      renderCoaches(coaches || []);
+    }
     renderJoinBanner(club);
 
     // Show page
@@ -714,13 +730,15 @@
     meta.innerHTML = statsHtml.join('');
 
     // Actions
-    document.getElementById('heroActions').innerHTML = `
-      <a href="/app" class="btn-primary">
-        <i data-lucide="user-plus" style="width:15px;height:15px;"></i>Join on SwimLoading
-      </a>
-      <a href="/app" class="btn-ghost">
-        <i data-lucide="thermometer" style="width:15px;height:15px;"></i>Log conditions
-      </a>
+    const contactBtn = club.contact_email
+      ? `<a href="mailto:${club.contact_email}" class="btn-ghost"><i data-lucide="mail" style="width:15px;height:15px;"></i>Contact us</a>`
+      : '';
+    document.getElementById('heroActions').innerHTML = isSwimClub ? `
+      <a href="/join/${club.slug}" class="btn-primary"><i data-lucide="user-plus" style="width:15px;height:15px;"></i>Join the club</a>
+      ${contactBtn}
+    ` : `
+      <a href="/app" class="btn-primary"><i data-lucide="user-plus" style="width:15px;height:15px;"></i>Join on SwimLoading</a>
+      <a href="/app" class="btn-ghost"><i data-lucide="thermometer" style="width:15px;height:15px;"></i>Log conditions</a>
     `;
   }
 
@@ -1231,6 +1249,25 @@
   }
 
   // ── JOIN BANNER ──────────────────────────────────────────────────
+  function renderCoaches(coaches) {
+    const el = document.getElementById('sectionCoaches');
+    if (!coaches.length) return;
+    document.getElementById('coachesContainer').innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;">
+        ${coaches.map(c => `
+          <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:16px 18px;">
+            <div style="width:40px;height:40px;border-radius:50%;background:var(--cyan-dim);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:var(--cyan);margin-bottom:10px;">
+              ${c.name.split(' ').map(w=>w[0]).slice(0,2).join('')}
+            </div>
+            <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px;">${c.name}</div>
+            <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">${c.title || 'Coach'}</div>
+            ${c.phone ? `<a href="tel:${c.phone}" style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-sec);text-decoration:none;margin-bottom:4px;"><i data-lucide="phone" style="width:12px;height:12px;"></i>${c.phone}</a>` : ''}
+            ${c.email ? `<a href="mailto:${c.email}" style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-sec);text-decoration:none;"><i data-lucide="mail" style="width:12px;height:12px;"></i>${c.email}</a>` : ''}
+          </div>`).join('')}
+      </div>`;
+    el.style.display = '';
+  }
+
   async function renderJoinBanner(club) {
     const wrap = document.getElementById('joinBannerWrap');
     document.getElementById('joinBannerTitle').textContent = `Join ${club.name}`;
