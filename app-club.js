@@ -115,11 +115,11 @@ async function renderSwimClub(container, club, roster, membership) {
 
     supabaseClient
       .from('club_events')
-      .select('id, title, event_date, description, is_league')
+      .select('id, title, event_date, description, is_league, venue, warmup_time, event_start, logistics, entry_open, entry_deadline')
       .eq('club_id', club.id)
       .gte('event_date', today)
       .order('event_date')
-      .limit(10),
+      .limit(20),
 
     supabaseClient
       .from('club_member_profile')
@@ -150,6 +150,7 @@ async function renderSwimClub(container, club, roster, membership) {
 
   const allResults    = resultsRes.data       || [];
   const upcoming      = upcomingRes.data      || [];
+  window._upcomingGalas = upcoming;
   const profile       = profileRes.data       || null;
   const timeTrial     = trialsRes.data        || [];
   const announcements = announcementsRes.data || [];
@@ -564,11 +565,17 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
     const galaToday = new Date(); galaToday.setHours(0,0,0,0);
     const daysAway = Math.round((galaDate - galaToday) / 86400000);
     const uc = daysAway <= 7 ? 'var(--amber)' : 'var(--cyan)';
+    const hasDetail = nextGala.venue || nextGala.warmup_time || nextGala.event_start || nextGala.logistics;
+    const detailBtn = hasDetail
+      ? `<button onclick="openGalaDetail('${nextGala.id}')" style="margin-top:5px;padding:4px 12px;border-radius:20px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:var(--cyan);font-size:11px;font-weight:700;cursor:pointer;">Info &amp; details</button>`
+      : '';
     galaHtml = `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.07);margin-bottom:12px;">
       <div>
         <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em;">Next Gala</div>
         <div style="font-size:15px;font-weight:800;color:var(--text);margin-top:2px;">${nextGala.title}</div>
+        ${nextGala.venue ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:1px;">${nextGala.venue}</div>` : ''}
+        ${detailBtn}
       </div>
       <div style="text-align:right;flex-shrink:0;margin-left:14px;">
         <div style="font-size:38px;font-weight:900;color:${uc};font-family:'Bebas Neue',sans-serif;line-height:1;">${daysAway}</div>
@@ -585,8 +592,30 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
       const isPast    = ws.dateStr < todayStr;
       const isToday   = ws.dateStr === todayStr;
 
-      // Accent colour: masters = amber, squad = cyan
-      const accent = isMasters ? '#f59e0b' : '#38bdf8';
+      const isDryland = ws.session.type === 'dryland';
+      // Accent colour: masters = amber, dryland = purple, squad = cyan
+      const accent = isMasters ? '#f59e0b' : isDryland ? '#a78bfa' : '#38bdf8';
+
+      // Dryland rows: no attendance toggle, just informational
+      if (isDryland) {
+        const todayBadge = isToday ? `<span style="font-size:9px;font-weight:800;color:#a78bfa;background:rgba(167,139,250,0.12);border-radius:6px;padding:1px 5px;margin-left:5px;">TODAY</span>` : '';
+        return `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);opacity:${isPast ? 0.4 : 1};">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="text-align:center;min-width:32px;">
+              <div style="font-size:9px;font-weight:700;color:var(--text-secondary);">${ws.dayName}</div>
+              <div style="font-size:18px;font-weight:900;color:${isToday ? '#a78bfa' : 'var(--text)'};font-family:'Bebas Neue',sans-serif;line-height:1.1;">${ws.date.getDate()}</div>
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--text);">${ws.session.start}${ws.session.end ? ` – ${ws.session.end}` : ''}${todayBadge}<span style="font-size:9px;font-weight:800;color:#a78bfa;background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.25);border-radius:6px;padding:1px 6px;margin-left:5px;">Dryland</span></div>
+              <div style="font-size:11px;color:var(--text-secondary);">${ws.session.note || 'Compulsory'}</div>
+            </div>
+          </div>
+          <div style="flex-shrink:0;width:36px;height:36px;border-radius:50%;background:rgba(167,139,250,0.08);border:1.5px solid rgba(167,139,250,0.2);display:flex;align-items:center;justify-content:center;">
+            <i data-lucide="dumbbell" style="width:14px;height:14px;color:#a78bfa;"></i>
+          </div>
+        </div>`;
+      }
 
       let statusIcon, statusBg, statusBorder, statusColor;
       if (ws.status === 'attending') {
@@ -607,6 +636,9 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
       const mastersBadge = isMasters
         ? `<span style="font-size:9px;font-weight:800;color:#f59e0b;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:6px;padding:1px 6px;margin-left:5px;">Masters</span>`
         : '';
+      const arriveNote = ws.session.arrive_by
+        ? `<span style="font-size:10px;color:var(--text-secondary);"> · arrive ${ws.session.arrive_by}</span>`
+        : '';
       const safeStatus = ws.status || '';
       const safeStart  = ws.session.start;
 
@@ -619,7 +651,7 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
           </div>
           <div>
             <div style="font-size:13px;font-weight:700;color:var(--text);">${safeStart}${ws.session.end ? ` – ${ws.session.end}` : ''}${todayBadge}${mastersBadge}</div>
-            <div style="font-size:11px;color:var(--text-secondary);">${ws.session.label || (isMasters ? 'Masters' : 'Squad')}</div>
+            <div style="font-size:11px;color:var(--text-secondary);">${ws.session.label || (isMasters ? 'Masters' : 'Squad')}${arriveNote}</div>
           </div>
         </div>
         <button onclick="toggleAttendance('${ws.dateStr}','${safeStart}','${rosterId}','${clubId}','${safeStatus}')"
@@ -629,8 +661,8 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
       </div>`;
     }).join('');
 
-    // Stats line: squad sessions + masters indicator
-    const squadTotal = weekSessions.filter(ws => ws.session.type !== 'masters' && ws.dateStr <= todayStr).length;
+    // Stats line: squad sessions only (exclude dryland from count)
+    const squadTotal = weekSessions.filter(ws => ws.session.type === 'squad' && hasStarted(ws)).length;
     let statsLine = '';
     if (squadTotal > 0 || mastersDone > 0) {
       const mastersNote = mastersThisWeek >= 1
@@ -661,6 +693,57 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
     ${galaHtml}
     ${sessionsHtml}
   </div>`;
+}
+
+// ─── Gala Detail Modal ────────────────────────────────────────────────────────
+
+function openGalaDetail(eventId) {
+  // Find event from the last loaded upcoming list — stored on window for re-use
+  const ev = (window._upcomingGalas || []).find(e => e.id === eventId);
+  if (!ev) return;
+
+  const d       = new Date(ev.event_date + 'T12:00:00');
+  const dateStr = d.toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  const daysAway = Math.round((d - new Date().setHours(0,0,0,0)) / 86400000);
+  const urgentColor = daysAway <= 14 ? 'var(--amber)' : 'var(--cyan)';
+
+  const rows = [
+    ev.venue        && { icon:'map-pin',   label:'Venue',       val: ev.venue },
+    ev.warmup_time  && { icon:'clock',     label:'Warm-up',     val: ev.warmup_time },
+    ev.event_start  && { icon:'flag',      label:'Events start',val: ev.event_start },
+    ev.entry_deadline && { icon:'calendar', label:'Entry deadline', val: new Date(ev.entry_deadline + 'T12:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}) },
+  ].filter(Boolean);
+
+  const infoRows = rows.map(r => `
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+      <i data-lucide="${r.icon}" style="width:14px;height:14px;color:var(--cyan);flex-shrink:0;margin-top:2px;"></i>
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.07em;">${r.label}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-top:2px;">${r.val}</div>
+      </div>
+    </div>`).join('');
+
+  const logisticsHtml = ev.logistics ? `
+    <div style="margin-top:16px;">
+      <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Coach notes</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;white-space:pre-wrap;">${ev.logistics}</div>
+    </div>` : '';
+
+  const el = document.getElementById('galaDetailModal');
+  if (!el) return;
+  document.getElementById('galaDetailTitle').textContent    = ev.title;
+  document.getElementById('galaDetailDate').textContent     = dateStr;
+  document.getElementById('galaDetailDays').textContent     = daysAway;
+  document.getElementById('galaDetailDays').style.color     = urgentColor;
+  document.getElementById('galaDetailRows').innerHTML       = infoRows || '<div style="font-size:12px;color:var(--text-secondary);padding:8px 0;">No details added yet — check back closer to the gala.</div>';
+  document.getElementById('galaDetailLogistics').innerHTML  = logisticsHtml;
+  el.style.display = 'flex';
+  lucide.createIcons();
+}
+
+function closeGalaDetail() {
+  const el = document.getElementById('galaDetailModal');
+  if (el) el.style.display = 'none';
 }
 
 async function toggleAttendance(sessionDate, sessionStart, rosterId, clubId, currentStatus) {
