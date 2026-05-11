@@ -3464,15 +3464,25 @@ async function submitAddRosterMember() {
 let allSessions       = [];
 let activeSessionId   = null;   // session being marked
 let attendanceMarks   = {};     // rosterId → status for active session
+let sessionIntents    = {};     // rosterId → intent status for active mark modal
+let allIntents        = [];     // all club_session_attendance rows for stats
 
 async function loadAttendance() {
-  const { data } = await sb.from('club_sessions')
-    .select('*, club_attendance(id, roster_id, status)')
-    .eq('club_id', currentClub.id)
-    .order('session_date', { ascending: false })
-    .order('start_time',   { ascending: false })
-    .limit(60);
-  allSessions = data || [];
+  const eightWeeksAgo = new Date(Date.now() - 56 * 86400000).toISOString().slice(0,10);
+  const [sessionsRes, intentsRes] = await Promise.all([
+    sb.from('club_sessions')
+      .select('*, club_attendance(id, roster_id, status)')
+      .eq('club_id', currentClub.id)
+      .order('session_date', { ascending: false })
+      .order('start_time',   { ascending: false })
+      .limit(60),
+    sb.from('club_session_attendance')
+      .select('roster_id, session_date, session_start, status')
+      .eq('club_id', currentClub.id)
+      .gte('session_date', eightWeeksAgo),
+  ]);
+  allSessions = sessionsRes.data || [];
+  allIntents  = intentsRes.data  || [];
   renderAttendancePage();
 }
 
@@ -3647,39 +3657,67 @@ function renderAttendanceStats() {
     });
   });
 
+  // Build intent stats per roster member from allIntents
+  const intentByRoster = {};    // roster_id → { said: N, attended: N }
+  allIntents.forEach(i => {
+    if (!intentByRoster[i.roster_id]) intentByRoster[i.roster_id] = { said: 0, attendedWhenSaid: 0 };
+    if (i.status === 'attending') intentByRoster[i.roster_id].said++;
+  });
+  // Cross-reference: when they said attending, did coach mark present?
+  allSessions.forEach(s => {
+    const intentsThatDay = allIntents.filter(i => i.session_date === s.session_date);
+    intentsThatDay.forEach(i => {
+      if (i.status !== 'attending') return;
+      const coachMark = (s.club_attendance || []).find(a => a.roster_id === i.roster_id);
+      if (coachMark && (coachMark.status === 'present' || coachMark.status === 'late')) {
+        if (intentByRoster[i.roster_id]) intentByRoster[i.roster_id].attendedWhenSaid++;
+      }
+    });
+  });
+
   // Build rows sorted by recent attendance desc
-  const rows = allRosterFull.map(r => ({
-    r,
-    total:  attendedByRoster[r.id] || 0,
-    recent: recentByRoster[r.id]   || 0,
-    pct:    totalSessions ? Math.round((attendedByRoster[r.id] || 0) / totalSessions * 100) : 0,
-  })).sort((a,b) => b.pct - a.pct || a.r.member_number - b.r.member_number);
+  const rows = allRosterFull.map(r => {
+    const intent = intentByRoster[r.id] || { said: 0, attendedWhenSaid: 0 };
+    const reliability = intent.said > 0 ? Math.round(intent.attendedWhenSaid / intent.said * 100) : null;
+    const recent = recentByRoster[r.id] || 0;
+    const pct    = totalSessions ? Math.round((attendedByRoster[r.id] || 0) / totalSessions * 100) : 0;
+    const flags  = [];
+    if (pct < 50 && totalSessions >= 4)       flags.push({ label: 'Low attendance', color: 'var(--danger)' });
+    if (intent.said === 0 && totalSessions >= 3) flags.push({ label: 'Never responded', color: 'var(--amber)' });
+    if (reliability !== null && reliability < 60 && intent.said >= 3) flags.push({ label: 'Often no-shows', color: 'var(--amber)' });
+    return { r, total: attendedByRoster[r.id] || 0, recent, pct, reliability, flags };
+  }).sort((a,b) => b.pct - a.pct || (a.r.member_number||0) - (b.r.member_number||0));
 
   const pctColour = p => p >= 80 ? 'var(--green)' : p >= 60 ? 'var(--amber)' : 'var(--danger)';
+
+  const flaggedCount = rows.filter(r => r.flags.length > 0).length;
 
   el.innerHTML = `
     <div class="card" style="margin-bottom:16px;padding:14px 18px;">
       <div style="display:flex;gap:24px;flex-wrap:wrap;">
-        <div><div style="font-size:22px;font-weight:800;color:var(--cyan);">${totalSessions}</div><div style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Total sessions</div></div>
+        <div><div style="font-size:22px;font-weight:800;color:var(--cyan);">${totalSessions}</div><div style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Sessions recorded</div></div>
         <div><div style="font-size:22px;font-weight:800;color:var(--cyan);">${recentSessions.length}</div><div style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Last 30 days</div></div>
         <div><div style="font-size:22px;font-weight:800;color:var(--cyan);">${allRosterFull.length}</div><div style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Squad size</div></div>
+        ${flaggedCount ? `<div><div style="font-size:22px;font-weight:800;color:var(--danger);">${flaggedCount}</div><div style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Need attention</div></div>` : ''}
       </div>
     </div>
     <div class="card">
-      <div class="card-header"><div class="card-title">Attendance by Swimmer</div><div style="font-size:11px;color:var(--text-sec);">All time · ${totalSessions} sessions</div></div>
+      <div class="card-header"><div class="card-title">Attendance by Swimmer</div><div style="font-size:11px;color:var(--text-sec);">All time · click a name for full history</div></div>
       <table>
-        <thead><tr><th>#</th><th>Swimmer</th><th>Level</th><th>Sessions</th><th>Last 30d</th><th>Rate</th></tr></thead>
+        <thead><tr><th>#</th><th>Swimmer</th><th>Level</th><th>Last 30d</th><th>Rate</th><th>Reliability</th><th></th></tr></thead>
         <tbody>
-          ${rows.map(({r, total, recent, pct}) => `<tr>
-            <td style="color:var(--text-sec);font-size:12px;">${r.member_number}</td>
-            <td class="member-name">${r.display_name}</td>
+          ${rows.map(({r, total, recent, pct, reliability, flags}) => `<tr style="cursor:pointer;" onclick="openSwimmerDetail('${r.id}')">
+            <td style="color:var(--text-sec);font-size:12px;">${r.member_number || '—'}</td>
+            <td class="member-name" style="color:var(--cyan);">${r.display_name}</td>
             <td><span class="cat-badge ${catClass(r.category)}">${r.category || '—'}</span></td>
-            <td style="color:var(--text-sec);">${total}</td>
-            <td style="color:var(--text-sec);">${recent}</td>
+            <td style="color:var(--text-sec);">${recent} / ${recentSessions.length}</td>
             <td><span style="font-weight:800;color:${pctColour(pct)};">${totalSessions ? pct + '%' : '—'}</span></td>
+            <td><span style="font-weight:700;color:${reliability === null ? 'var(--text-sec)' : reliability >= 80 ? 'var(--green)' : reliability >= 60 ? 'var(--amber)' : 'var(--danger)'};">${reliability !== null ? reliability + '%' : '—'}</span></td>
+            <td>${flags.map(f => `<span style="font-size:9px;font-weight:800;color:${f.color};background:rgba(255,255,255,0.04);border-radius:6px;padding:1px 6px;white-space:nowrap;">${f.label}</span>`).join(' ')}</td>
           </tr>`).join('')}
         </tbody>
       </table>
+      <div style="font-size:11px;color:var(--text-sec);margin-top:12px;">Reliability = when they said they were coming, did they show up?</div>
     </div>`;
   lucide.createIcons();
 }
@@ -3721,7 +3759,22 @@ async function openMarkSession(sessionId) {
   const session = allSessions.find(s => s.id === sessionId);
   if (!session) return;
 
-  // Pre-fill marks from existing attendance
+  // Load swimmer self-reported intents for this date
+  const { data: intents } = await sb.from('club_session_attendance')
+    .select('roster_id, session_start, status')
+    .eq('club_id', currentClub.id)
+    .eq('session_date', session.session_date);
+
+  sessionIntents = {};
+  (intents || []).forEach(i => {
+    const sessionStartShort = (session.start_time || '').slice(0,5);
+    // Prefer exact time match; fall back to any intent for the day
+    if (!sessionIntents[i.roster_id] || i.session_start === sessionStartShort) {
+      sessionIntents[i.roster_id] = i.status;
+    }
+  });
+
+  // Pre-fill marks from existing coach attendance
   attendanceMarks = {};
   (session.club_attendance || []).forEach(a => { attendanceMarks[a.roster_id] = a.status; });
 
@@ -3754,25 +3807,44 @@ function renderMarkModal(session) {
     byCat[cat].push(r);
   });
 
-  const attended = Object.values(attendanceMarks).filter(s => s === 'present' || s === 'late').length;
+  const attended   = Object.values(attendanceMarks).filter(s => s === 'present' || s === 'late').length;
+  const saidComing = roster.filter(r => sessionIntents[r.id] === 'attending').length;
+  const saidAbsent = roster.filter(r => sessionIntents[r.id] === 'absent').length;
+  const noResponse = roster.length - saidComing - saidAbsent;
   const sessionLabel = squad ? `${squad.name}` : `${session.session_type} Session`;
 
   el.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
       <div>
         <div style="font-size:15px;font-weight:700;color:var(--text);">${sessionLabel} — ${dateLabel}</div>
         <div style="font-size:12px;color:var(--text-sec);margin-top:3px;" id="markCount">${attended} of ${roster.length} present</div>
       </div>
       <button onclick="markAll('present')" style="font-size:12px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:20px;padding:6px 14px;cursor:pointer;">Mark all present</button>
     </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;padding:10px 12px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;flex-wrap:wrap;">
+      <span style="font-size:11px;font-weight:700;color:#10b981;">${saidComing} said coming</span>
+      <span style="font-size:11px;color:var(--text-sec);">·</span>
+      <span style="font-size:11px;font-weight:700;color:#ef4444;">${saidAbsent} said absent</span>
+      <span style="font-size:11px;color:var(--text-sec);">·</span>
+      <span style="font-size:11px;color:var(--text-sec);">${noResponse} no response</span>
+    </div>
     ${!roster.length ? `<div style="text-align:center;padding:24px;color:var(--text-sec);font-size:13px;">No swimmers assigned to this squad yet.<br><a href="#" onclick="showPage('roster')" style="color:var(--cyan);">Assign in Roster</a></div>` : ''}
     ${Object.entries(byCat).map(([cat, swimmers]) => `
       <div style="font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin:14px 0 8px;">${cat}</div>
       ${swimmers.map(r => {
         const status = attendanceMarks[r.id] || '';
-        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);" id="row-${r.id}">
-          <div style="font-size:14px;font-weight:600;color:var(--text);">${r.display_name}</div>
-          <div style="display:flex;gap:6px;">
+        const intent = sessionIntents[r.id] || '';
+        const intentBadge = intent === 'attending'
+          ? `<span style="font-size:9px;font-weight:800;color:#10b981;background:rgba(16,185,129,0.1);border-radius:6px;padding:1px 6px;margin-left:6px;white-space:nowrap;">Said coming</span>`
+          : intent === 'absent'
+          ? `<span style="font-size:9px;font-weight:800;color:#ef4444;background:rgba(239,68,68,0.08);border-radius:6px;padding:1px 6px;margin-left:6px;white-space:nowrap;">Said absent</span>`
+          : `<span style="font-size:9px;color:var(--text-sec);margin-left:6px;opacity:0.5;">no response</span>`;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);gap:8px;" id="row-${r.id}">
+          <div style="display:flex;align-items:center;min-width:0;">
+            <span style="font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;">${r.display_name}</span>
+            ${intentBadge}
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0;">
             ${['present','late','absent','excused'].map(s => `
               <button onclick="setMark('${r.id}','${s}')"
                 style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;transition:all 0.1s;
@@ -3862,6 +3934,82 @@ async function saveAttendance() {
   btn.textContent = 'Save'; btn.disabled = false;
 }
 
+// ── PER-SWIMMER DETAIL ────────────────────────────────────────────
+function openSwimmerDetail(rosterId) {
+  const r = allRosterFull.find(r => r.id === rosterId);
+  if (!r) return;
+
+  // Build session history: merge coach sessions + swimmer intents
+  const history = allSessions.map(s => {
+    const coachMark = (s.club_attendance || []).find(a => a.roster_id === rosterId);
+    // Match intent by date (prefer exact time match)
+    const startShort = (s.start_time || '').slice(0,5);
+    const dayIntents = allIntents.filter(i => i.roster_id === rosterId && i.session_date === s.session_date);
+    const intent = dayIntents.find(i => i.session_start === startShort) || dayIntents[0];
+    return {
+      date:       s.session_date,
+      type:       s.session_type || 'Training',
+      coachMark:  coachMark?.status || null,
+      intent:     intent?.status   || null,
+    };
+  }).filter(h => h.coachMark || h.intent); // only show sessions with any data
+
+  // Stats
+  const totalSessions = allSessions.length;
+  const attended = history.filter(h => h.coachMark === 'present' || h.coachMark === 'late').length;
+  const rate     = totalSessions > 0 ? Math.round(attended / totalSessions * 100) : null;
+  const saidComing = history.filter(h => h.intent === 'attending').length;
+  const showedWhenSaid = history.filter(h => h.intent === 'attending' && (h.coachMark === 'present' || h.coachMark === 'late')).length;
+  const reliability = saidComing > 0 ? Math.round(showedWhenSaid / saidComing * 100) : null;
+  const responseRate = totalSessions > 0 ? Math.round(allIntents.filter(i => i.roster_id === rosterId).length / totalSessions * 100) : null;
+
+  const pctColour = p => p == null ? 'var(--text-sec)' : p >= 80 ? 'var(--green)' : p >= 60 ? 'var(--amber)' : 'var(--danger)';
+
+  const markLabel = { present:'Present', late:'Late', absent:'Absent', excused:'Excused' };
+  const markColour = { present:'#10b981', late:'#38bdf8', absent:'#ef4444', excused:'#f59e0b' };
+  const intentLabel  = { attending:'Said coming', absent:'Said absent' };
+  const intentColour = { attending:'#10b981', absent:'#ef4444' };
+
+  const rows = history.slice(0, 40).map(h => {
+    const d = new Date(h.date + 'T12:00:00');
+    const dateStr = d.toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'short' });
+    const coachCell = h.coachMark
+      ? `<span style="font-size:11px;font-weight:800;color:${markColour[h.coachMark] || 'var(--text-sec)'};">${markLabel[h.coachMark] || h.coachMark}</span>`
+      : `<span style="font-size:11px;color:var(--text-sec);opacity:0.5;">—</span>`;
+    const intentCell = h.intent
+      ? `<span style="font-size:11px;font-weight:700;color:${intentColour[h.intent] || 'var(--text-sec)'};">${intentLabel[h.intent] || h.intent}</span>`
+      : `<span style="font-size:11px;color:var(--text-sec);opacity:0.5;">No response</span>`;
+    // Flag mismatch: said coming but absent
+    const mismatch = h.intent === 'attending' && h.coachMark === 'absent';
+    return `<tr style="${mismatch ? 'background:rgba(239,68,68,0.04);' : ''}">
+      <td style="color:var(--text-sec);font-size:12px;white-space:nowrap;">${dateStr}</td>
+      <td style="color:var(--text-sec);font-size:12px;">${h.type}</td>
+      <td>${intentCell}</td>
+      <td>${coachCell}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('swimmerDetailName').textContent = r.display_name;
+  document.getElementById('swimmerDetailSub').textContent  = `${r.category || ''}${r.member_number ? ' · #' + r.member_number : ''}`;
+  document.getElementById('swimmerDetailStats').innerHTML = `
+    <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px;">
+      <div><div style="font-size:22px;font-weight:900;color:${pctColour(rate)};font-family:'Bebas Neue',sans-serif;">${rate != null ? rate + '%' : '—'}</div><div style="font-size:10px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Attendance rate</div></div>
+      <div><div style="font-size:22px;font-weight:900;color:${pctColour(reliability)};font-family:'Bebas Neue',sans-serif;">${reliability != null ? reliability + '%' : '—'}</div><div style="font-size:10px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Reliability</div></div>
+      <div><div style="font-size:22px;font-weight:900;color:${pctColour(responseRate)};font-family:'Bebas Neue',sans-serif;">${responseRate != null ? responseRate + '%' : '—'}</div><div style="font-size:10px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Response rate</div></div>
+      <div><div style="font-size:22px;font-weight:900;color:var(--cyan);font-family:'Bebas Neue',sans-serif;">${attended}</div><div style="font-size:10px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Sessions attended</div></div>
+    </div>`;
+  document.getElementById('swimmerDetailBody').innerHTML = rows.length
+    ? `<table><thead><tr><th>Date</th><th>Type</th><th>Intent</th><th>Actual</th></tr></thead><tbody>${rows}</tbody></table>`
+    : `<div style="text-align:center;padding:24px;color:var(--text-sec);font-size:13px;">No session data yet for this swimmer.</div>`;
+
+  lucide.createIcons();
+  document.getElementById('swimmerDetailModal').classList.add('open');
+}
+
+function closeSwimmerDetail() {
+  document.getElementById('swimmerDetailModal').classList.remove('open');
+}
+
 // ── BOOT ──────────────────────────────────────────────────────────
 init();
 </script>
@@ -3930,6 +4078,26 @@ init();
       Tap <strong style="color:var(--text);">+ Add time</strong> next to each swimmer who raced. PBs are detected automatically against their season bests.
     </div>
     <div id="galaResultsBody"></div>
+  </div>
+</div>
+
+<!-- SWIMMER DETAIL MODAL -->
+<div class="modal-overlay" id="swimmerDetailModal" style="align-items:flex-start;padding:20px;">
+  <div class="modal" style="max-height:90vh;overflow-y:auto;width:100%;max-width:640px;">
+    <div style="position:sticky;top:0;background:var(--bg-card);z-index:2;margin:-20px -20px 16px;padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px;">Swimmer Profile</div>
+        <div style="font-size:18px;font-weight:800;color:var(--text);" id="swimmerDetailName">—</div>
+        <div style="font-size:12px;color:var(--text-sec);margin-top:2px;" id="swimmerDetailSub"></div>
+      </div>
+      <button class="modal-close" onclick="closeSwimmerDetail()">&times;</button>
+    </div>
+    <div id="swimmerDetailStats"></div>
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">Session History</div>
+    <div id="swimmerDetailBody"></div>
+    <div style="position:sticky;bottom:0;background:var(--bg-card);margin:16px -20px -20px;padding:14px 20px;border-top:1px solid var(--border);text-align:right;">
+      <button class="btn-modal-cancel" onclick="closeSwimmerDetail()">Close</button>
+    </div>
   </div>
 </div>
 
