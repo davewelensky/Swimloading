@@ -12,7 +12,7 @@ async function loadUserClubs() {
   const { data } = await supabaseClient
     .from('club_members')
     .select(`
-      id, role, is_active, joined_at,
+      id, role, is_active, joined_at, category_id,
       roster_id,
       clubs ( id, name, code, slug, city, tagline, logo_url ),
       club_roster ( id, member_number, display_name, category, gender )
@@ -229,13 +229,13 @@ async function openPreEntry(eventId, eventTitle, clubId) {
   // Check if already entered
   const { data: existing } = await supabaseClient
     .from('club_race_entries')
-    .select('id, status')
-    .eq('event_id', eventId)
-    .eq('roster_id', membership.club_roster?.id)
+    .select('id')
+    .eq('club_event_id', eventId)
+    .eq('user_id', currentUser.id)
     .single();
 
   if (existing) {
-    showToast(existing.status === 'entered' ? 'Already entered for this race' : `Entry status: ${existing.status}`);
+    showToast('Already entered for this race');
     return;
   }
 
@@ -244,11 +244,10 @@ async function openPreEntry(eventId, eventTitle, clubId) {
   const { error } = await supabaseClient
     .from('club_race_entries')
     .insert({
-      event_id:  eventId,
-      club_id:   clubId,
-      roster_id: membership.club_roster?.id,
-      user_id:   currentUser.id,
-      status:    'entered',
+      club_event_id: eventId,
+      user_id:       currentUser.id,
+      club_member_id: membership.id,
+      category_id:   membership.category_id || null,
     });
 
   if (error) { showToast('Could not enter: ' + error.message); return; }
