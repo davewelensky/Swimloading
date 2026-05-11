@@ -243,9 +243,6 @@
       <button class="nav-item" onclick="showPage('attendance')" id="nav-attendance">
         <i data-lucide="clipboard-check"></i> Attendance
       </button>
-      <button class="nav-item" onclick="showPage('coaches')" id="nav-coaches">
-        <i data-lucide="whistle"></i> Coaches
-      </button>
       <button class="nav-item" onclick="showPage('tempchallenge')" id="nav-tempchallenge">
         <i data-lucide="thermometer"></i> Temp Challenge
       </button>
@@ -445,19 +442,6 @@
       </div>
 
       <!-- ── COACHES ── -->
-      <div id="page-coaches" class="page">
-        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-          <div>
-            <div class="page-title">Coaches</div>
-            <div class="page-sub">Manage coaching staff — active and former.</div>
-          </div>
-          <button class="btn-primary" style="width:auto;padding:10px 20px;border-radius:10px;font-size:13px;" onclick="openAddCoachModal()">
-            <i data-lucide="user-plus" style="width:14px;height:14px;"></i> Add coach
-          </button>
-        </div>
-        <div id="coachesContent"><div class="loading"><div class="spinner"></div></div></div>
-      </div>
-
       <!-- ── LEAGUE ── -->
       <div id="page-league" class="page">
         <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
@@ -477,16 +461,19 @@
 
       <!-- ── TEAM ── -->
       <div id="page-team" class="page">
-        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-          <div>
-            <div class="page-title">Team</div>
-            <div class="page-sub">Admin access and committee roles</div>
-          </div>
-          <button class="btn-primary" style="width:auto;padding:10px 20px;border-radius:10px;font-size:13px;" onclick="openAddAdminModal()">
-            <i data-lucide="plus" style="width:14px;height:14px;"></i> Add team member
-          </button>
+        <div class="page-header">
+          <div class="page-title">Team</div>
+          <div class="page-sub">Committee roles, admin access and coaching staff</div>
         </div>
-        <div class="card">
+
+        <!-- Committee & Admin -->
+        <div class="card" style="margin-bottom:14px;">
+          <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
+            <div class="card-title">Committee &amp; Admins</div>
+            <button class="btn-sm" onclick="openAddAdminModal()">
+              <i data-lucide="plus" style="width:13px;height:13px;"></i> Add
+            </button>
+          </div>
           <div style="overflow-x:auto;">
             <table>
               <thead>
@@ -494,15 +481,25 @@
                   <th>Name</th>
                   <th>Committee Title</th>
                   <th>Access Level</th>
-                  <th>Member #</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody id="teamTableBody">
-                <tr><td colspan="5"><div class="loading"><div class="spinner"></div></div></td></tr>
+                <tr><td colspan="4"><div class="loading"><div class="spinner"></div></div></td></tr>
               </tbody>
             </table>
           </div>
+        </div>
+
+        <!-- Coaching Staff -->
+        <div class="card">
+          <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
+            <div class="card-title">Coaching Staff</div>
+            <button class="btn-sm" onclick="openAddCoachModal()">
+              <i data-lucide="plus" style="width:13px;height:13px;"></i> Add
+            </button>
+          </div>
+          <div id="coachesContent"><div class="loading"><div class="spinner"></div></div></div>
         </div>
       </div>
 
@@ -1222,7 +1219,6 @@ function showPage(name) {
   if (name === 'league')        renderLeague();
   if (name === 'tempchallenge') loadTempChallenge();
   if (name === 'attendance')    loadAttendance();
-  if (name === 'coaches')       loadCoaches();
   if (name === 'roster')        { if (!allRoster.length) loadRoster(); else renderRosterTable(); }
   if (name === 'team')          loadTeam();
 }
@@ -2106,16 +2102,24 @@ let allTeam = [];
 
 async function loadTeam() {
   const tbody = document.getElementById('teamTableBody');
-  tbody.innerHTML = '<tr><td colspan="5"><div class="loading"><div class="spinner"></div></div></td></tr>';
+  tbody.innerHTML = '<tr><td colspan="4"><div class="loading"><div class="spinner"></div></div></td></tr>';
 
-  const { data, error } = await sb.from('club_admins')
-    .select('id, role, committee_title, user_id, created_at')
-    .eq('club_id', currentClub.id)
-    .order('created_at');
+  const [adminsRes, coachesRes] = await Promise.all([
+    sb.from('club_admins')
+      .select('id, role, committee_title, user_id, created_at')
+      .eq('club_id', currentClub.id)
+      .order('created_at'),
+    sb.from('club_coaches')
+      .select('*')
+      .eq('club_id', currentClub.id)
+      .order('is_active', { ascending: false })
+      .order('title')
+      .order('name'),
+  ]);
 
-  if (error) { showToast(error.message, 'error'); return; }
+  if (adminsRes.error) { showToast(adminsRes.error.message, 'error'); return; }
 
-  const userIds = (data || []).map(a => a.user_id).filter(Boolean);
+  const userIds = (adminsRes.data || []).map(a => a.user_id).filter(Boolean);
   let profileMap = {};
   if (userIds.length) {
     const { data: profs } = await sb.from('profiles')
@@ -2123,14 +2127,16 @@ async function loadTeam() {
     (profs || []).forEach(p => { profileMap[p.id] = p; });
   }
 
-  allTeam = (data || []).map(a => ({ ...a, profile: profileMap[a.user_id] || null }));
+  allTeam    = (adminsRes.data || []).map(a => ({ ...a, profile: profileMap[a.user_id] || null }));
+  allCoaches = coachesRes.data || [];
   renderTeamTable();
+  renderCoaches();
 }
 
 function renderTeamTable() {
   const tbody = document.getElementById('teamTableBody');
   if (!allTeam.length) {
-    tbody.innerHTML = `<tr><td colspan="5"><div class="empty">
+    tbody.innerHTML = `<tr><td colspan="4"><div class="empty">
       <div class="empty-title">No team members yet</div>
       <div class="empty-desc">Add committee members and administrators.</div>
     </div></td></tr>`;
@@ -2152,7 +2158,6 @@ function renderTeamTable() {
           onchange="saveAdminTitle('${a.id}', this.value)">
       </td>
       <td><span class="role-badge role-${a.role}">${a.role}</span></td>
-      <td style="color:var(--text-sec);font-size:12px;">${new Date(a.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})}</td>
       <td>${!isMe ? `<button class="action-btn" style="color:var(--danger);border-color:rgba(239,68,68,0.2);"
         onclick="removeAdmin('${a.id}')">Remove</button>` : ''}</td>
     </tr>`;
