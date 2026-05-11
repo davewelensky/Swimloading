@@ -103,7 +103,11 @@ async function renderSwimClub(container, club, roster, membership) {
 
   const today = new Date().toISOString().slice(0,10);
 
-  const [resultsRes, upcomingRes, profileRes, trialsRes, announcementsRes] = await Promise.all([
+  // Fetch 28 days of attendance for weekly view
+  const fourWeeksAgo = new Date(); fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+  const fourWeeksFwd = new Date(); fourWeeksFwd.setDate(fourWeeksFwd.getDate() + 28);
+
+  const [resultsRes, upcomingRes, profileRes, trialsRes, announcementsRes, attendanceRes] = await Promise.all([
     supabaseClient
       .from('club_gala_results')
       .select('id, stroke, distance, course, time_seconds, time_text, is_pb, club_events(id, title, event_date)')
@@ -135,6 +139,13 @@ async function renderSwimClub(container, club, roster, membership) {
       .order('is_pinned', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(5),
+
+    supabaseClient
+      .from('club_session_attendance')
+      .select('session_date, status')
+      .eq('roster_id', roster.id)
+      .gte('session_date', fourWeeksAgo.toISOString().slice(0,10))
+      .lte('session_date', fourWeeksFwd.toISOString().slice(0,10)),
   ]);
 
   const allResults    = resultsRes.data       || [];
@@ -142,18 +153,16 @@ async function renderSwimClub(container, club, roster, membership) {
   const profile       = profileRes.data       || null;
   const timeTrial     = trialsRes.data        || [];
   const announcements = announcementsRes.data || [];
+  const attendance    = attendanceRes.data    || [];
   const qtsByEvent    = getAgeGroupQTs(profile?.date_of_birth, profile?.gender);
   const rosterCat     = roster?.category || '';
 
   container.innerHTML =
-    renderClubHero(club, roster, membership) +
-    renderTrainingToday(club, rosterCat) +
-    renderNextGala(upcoming) +
+    renderSwimmerHero(club, roster, allResults, timeTrial, qtsByEvent) +
+    renderPlanningCard(club, rosterCat, attendance, upcoming, roster.id, club.id) +
     renderAnnouncements(announcements) +
-    renderSwimStats(allResults, timeTrial) +
-    renderQTGoals(allResults, timeTrial, qtsByEvent) +
-    renderEventGraphs(allResults, timeTrial, qtsByEvent, roster.id, club.id) +
-    renderUpcomingGalas(upcoming);
+    renderQTProgressBars(allResults, timeTrial, qtsByEvent) +
+    renderEventGraphs(allResults, timeTrial, qtsByEvent, roster.id, club.id);
 
   lucide.createIcons();
 }
@@ -234,18 +243,73 @@ function swimTimeToGroupKey(event, course) {
   return `${m[1]}_${m[2]}_${course}`;
 }
 
-function renderSwimStats(allResults, timeTrial) {
-  const galas = new Set(allResults.map(r => r.club_events?.id).filter(Boolean)).size;
-  const pbs   = allResults.filter(r => r.is_pb).length + (timeTrial || []).filter(r => r.is_pb).length;
+// ─── Swimmer Hero ──────────────────────────────────────────────────────────────
+
+function renderSwimmerHero(club, roster, allResults, timeTrial, qtsByEvent) {
+  const galas   = new Set(allResults.map(r => r.club_events?.id).filter(Boolean)).size;
+  const pbs     = allResults.filter(r => r.is_pb).length + (timeTrial || []).filter(r => r.is_pb).length;
+  const cat     = roster?.category || '';
+
+  // Find best QT achievement to feature in hero
+  const bestByKey = {};
+  allResults.forEach(r => {
+    const key = `${r.distance}_${r.stroke}_${r.course}`;
+    const t = parseFloat(r.time_seconds);
+    if (!bestByKey[key] || t < bestByKey[key].t) bestByKey[key] = { t, text: r.time_text, stroke: r.stroke, distance: r.distance, course: r.course };
+  });
+
+  // Find showcase event: prefer L3/SANJ achieved, else L2, else fastest event
+  let showcase = null;
+  let showcaseTier = '';
+  Object.entries(bestByKey).forEach(([key, b]) => {
+    const qt = qtsByEvent[key];
+    if (!qt) return;
+    const tiers = [['SANJ', qt.SANJ], ['L3', qt.L3], ['L2', qt.L2]].filter(([,v]) => v != null);
+    const achieved = tiers.filter(([,t]) => b.t <= t);
+    if (!achieved.length) return;
+    const tier = achieved[0][0]; // hardest achieved
+    if (!showcase || ['SANJ','L3','L2'].indexOf(tier) < ['SANJ','L3','L2'].indexOf(showcaseTier)) {
+      showcase = b; showcaseTier = tier;
+    }
+  });
+  // Fallback: just pick lowest time
+  if (!showcase && Object.keys(bestByKey).length) {
+    showcase = Object.values(bestByKey).sort((a,b) => a.t - b.t)[0];
+  }
+
+  const catColor = catColorMap(cat);
+
   return `
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
-    <div class="card" style="text-align:center;padding:16px 12px;">
-      <div style="font-size:32px;font-weight:900;color:var(--cyan);font-family:'Bebas Neue',sans-serif;line-height:1;">${galas}</div>
-      <div style="font-size:11px;font-weight:700;color:var(--text-secondary);margin-top:2px;text-transform:uppercase;letter-spacing:0.08em;">Galas</div>
+  <div style="margin-bottom:12px;background:linear-gradient(135deg,#0a1e3a 0%,#051225 100%);border:1px solid rgba(56,189,248,0.2);border-radius:16px;overflow:hidden;">
+    <div style="padding:16px 16px 0;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        ${club.logo_url ? `<img src="${club.logo_url}" alt="" style="height:28px;width:auto;object-fit:contain;display:block;margin-bottom:8px;">` : `<div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;">${club.name}</div>`}
+        <div style="font-size:22px;font-weight:900;color:var(--text);line-height:1.1;">${roster?.display_name || 'Swimmer'}</div>
+        <div style="margin-top:6px;">
+          ${cat ? `<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;${catColor}">${cat}</span>` : ''}
+        </div>
+      </div>
+      ${showcase ? `
+      <div style="text-align:right;flex-shrink:0;margin-left:12px;">
+        <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px;">Season best</div>
+        <div style="font-size:36px;font-weight:900;color:var(--text);font-family:'Bebas Neue',sans-serif;line-height:1;">${showcase.text}</div>
+        <div style="font-size:11px;color:var(--text-secondary);">${showcase.distance}m ${showcase.stroke} ${showcase.course}</div>
+        ${showcaseTier ? `<span style="font-size:10px;font-weight:800;color:var(--green);background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:2px 8px;display:inline-block;margin-top:4px;">QT ${showcaseTier}</span>` : ''}
+      </div>` : ''}
     </div>
-    <div class="card" style="text-align:center;padding:16px 12px;">
-      <div style="font-size:32px;font-weight:900;color:var(--green);font-family:'Bebas Neue',sans-serif;line-height:1;">${pbs}</div>
-      <div style="font-size:11px;font-weight:700;color:var(--text-secondary);margin-top:2px;text-transform:uppercase;letter-spacing:0.08em;">Personal Bests</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;margin-top:14px;border-top:1px solid rgba(255,255,255,0.06);">
+      <div style="text-align:center;padding:12px 8px;">
+        <div style="font-size:28px;font-weight:900;color:var(--cyan);font-family:'Bebas Neue',sans-serif;line-height:1;">${galas}</div>
+        <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-top:1px;">Galas</div>
+      </div>
+      <div style="text-align:center;padding:12px 8px;border-left:1px solid rgba(255,255,255,0.06);border-right:1px solid rgba(255,255,255,0.06);">
+        <div style="font-size:28px;font-weight:900;color:#10b981;font-family:'Bebas Neue',sans-serif;line-height:1;">${pbs}</div>
+        <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-top:1px;">PBs</div>
+      </div>
+      <div style="text-align:center;padding:12px 8px;">
+        <div style="font-size:28px;font-weight:900;color:var(--amber);font-family:'Bebas Neue',sans-serif;line-height:1;">${Object.entries(qtsByEvent).filter(([k,qt]) => { const b = bestByKey[k]; return b && [['SANJ',qt.SANJ],['L3',qt.L3],['L2',qt.L2]].some(([,t]) => t && b.t <= t); }).length}</div>
+        <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-top:1px;">QTs</div>
+      </div>
     </div>
   </div>`;
 }
@@ -434,6 +498,276 @@ function toggleAnnouncement(id) {
   if (preview) preview.style.display = isOpen ? 'block' : 'none';
   if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
   lucide.createIcons();
+}
+
+// ─── Planning Card (this week's sessions + next gala) ─────────────────────────
+
+function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clubId) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = today.toISOString().slice(0,10);
+
+  // Build Mon–Sun of current week
+  const dow = today.getDay();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+
+  const SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const schedule = club.training_schedule || [];
+
+  // Build ordered list of this week's sessions for rosterCat
+  const weekSessions = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const dayNum = d.getDay();
+    const dateStr = d.toISOString().slice(0,10);
+    schedule.forEach(s => {
+      if (s.day !== dayNum) return;
+      if (rosterCat && s.squads?.length) {
+        const match = s.squads.some(sq =>
+          rosterCat.toLowerCase().includes(sq.toLowerCase()) ||
+          sq.toLowerCase().includes(rosterCat.toLowerCase())
+        );
+        if (!match) return;
+      }
+      const att = attendance.find(a => a.session_date === dateStr);
+      weekSessions.push({ date: d, dateStr, dayName: SHORT[dayNum], session: s, status: att?.status || null });
+    });
+  }
+
+  // This week: how many past/today sessions attended
+  const pastOrToday = weekSessions.filter(s => s.dateStr <= todayStr);
+  const attendedCount = pastOrToday.filter(s => s.status === 'attending').length;
+  const totalPast = pastOrToday.length;
+
+  // Next gala block
+  const nextGala = upcoming[0];
+  let galaHtml = '';
+  if (nextGala) {
+    const galaDate = new Date(nextGala.event_date + 'T12:00:00');
+    const galaToday = new Date(); galaToday.setHours(0,0,0,0);
+    const daysAway = Math.round((galaDate - galaToday) / 86400000);
+    const uc = daysAway <= 7 ? 'var(--amber)' : 'var(--cyan)';
+    galaHtml = `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.07);margin-bottom:12px;">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em;">Next Gala</div>
+        <div style="font-size:15px;font-weight:800;color:var(--text);margin-top:2px;">${nextGala.title}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;margin-left:14px;">
+        <div style="font-size:38px;font-weight:900;color:${uc};font-family:'Bebas Neue',sans-serif;line-height:1;">${daysAway}</div>
+        <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;">day${daysAway!==1?'s':''}</div>
+      </div>
+    </div>`;
+  }
+
+  // Session rows
+  let sessionsHtml = '';
+  if (weekSessions.length) {
+    const rows = weekSessions.map(ws => {
+      const isPast  = ws.dateStr < todayStr;
+      const isToday = ws.dateStr === todayStr;
+
+      let statusIcon, statusBg, statusBorder, statusColor;
+      if (ws.status === 'attending') {
+        statusIcon = 'check';       statusColor = '#10b981';
+        statusBg   = 'rgba(16,185,129,0.15)'; statusBorder = 'rgba(16,185,129,0.4)';
+      } else if (ws.status === 'absent') {
+        statusIcon = 'x';           statusColor = '#f59e0b';
+        statusBg   = 'rgba(245,158,11,0.1)';  statusBorder = 'rgba(245,158,11,0.3)';
+      } else {
+        statusIcon = 'help-circle'; statusColor = 'var(--text-secondary)';
+        statusBg   = 'rgba(255,255,255,0.06)'; statusBorder = 'rgba(255,255,255,0.12)';
+      }
+
+      const todayBadge = isToday
+        ? `<span style="font-size:9px;font-weight:800;color:var(--cyan);background:rgba(56,189,248,0.12);border-radius:6px;padding:1px 5px;margin-left:5px;">TODAY</span>`
+        : '';
+      const safeStatus = ws.status || '';
+
+      return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);opacity:${isPast ? 0.55 : 1};">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="text-align:center;min-width:32px;">
+            <div style="font-size:9px;font-weight:700;color:var(--text-secondary);">${ws.dayName}</div>
+            <div style="font-size:18px;font-weight:900;color:${isToday ? 'var(--cyan)' : 'var(--text)'};font-family:'Bebas Neue',sans-serif;line-height:1.1;">${ws.date.getDate()}</div>
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text);">${ws.session.start}${ws.session.end ? ` – ${ws.session.end}` : ''}${todayBadge}</div>
+            ${ws.session.venue ? `<div style="font-size:11px;color:var(--text-secondary);">${ws.session.venue}</div>` : ''}
+          </div>
+        </div>
+        <button onclick="toggleAttendance('${ws.dateStr}','${rosterId}','${clubId}','${safeStatus}')"
+          style="flex-shrink:0;width:36px;height:36px;border-radius:50%;background:${statusBg};border:1.5px solid ${statusBorder};display:flex;align-items:center;justify-content:center;cursor:pointer;">
+          <i data-lucide="${statusIcon}" style="width:16px;height:16px;color:${statusColor};pointer-events:none;"></i>
+        </button>
+      </div>`;
+    }).join('');
+
+    const statsLine = totalPast > 0
+      ? `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">${attendedCount} of ${totalPast} session${totalPast!==1?'s':''} attended this week</div>`
+      : `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">Tap a session to mark attendance</div>`;
+
+    sessionsHtml = `
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">This week</div>
+    ${statsLine}
+    ${rows}`;
+  } else if (!schedule.length) {
+    sessionsHtml = `<div style="font-size:12px;color:var(--text-secondary);">No training schedule set yet.</div>`;
+  } else {
+    sessionsHtml = `<div style="font-size:12px;color:var(--text-secondary);">No sessions this week.</div>`;
+  }
+
+  return `
+  <div class="card" style="margin-bottom:12px;">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px;">
+      <i data-lucide="calendar" style="width:15px;height:15px;color:var(--cyan);"></i>
+      <span style="font-size:15px;font-weight:700;">My Week</span>
+    </div>
+    ${galaHtml}
+    ${sessionsHtml}
+  </div>`;
+}
+
+async function toggleAttendance(sessionDate, rosterId, clubId, currentStatus) {
+  // Cycle: (none) → attending → absent → (none)
+  const next = !currentStatus ? 'attending' : currentStatus === 'attending' ? 'absent' : null;
+
+  if (!next) {
+    await supabaseClient
+      .from('club_session_attendance')
+      .delete()
+      .eq('roster_id', rosterId)
+      .eq('session_date', sessionDate);
+  } else {
+    await supabaseClient
+      .from('club_session_attendance')
+      .upsert({ roster_id: rosterId, club_id: clubId, session_date: sessionDate, status: next },
+               { onConflict: 'roster_id,session_date' });
+  }
+  await renderActiveClub();
+}
+
+// ─── QT Progress Bars ──────────────────────────────────────────────────────────
+
+function renderQTProgressBars(allResults, timeTrial, qtsByEvent) {
+  if (!Object.keys(qtsByEvent).length) return '';
+
+  // Best and first times per event key
+  const bestByKey  = {};
+  const firstByKey = {};
+
+  allResults.forEach(r => {
+    const key = `${r.distance}_${r.stroke}_${r.course}`;
+    const t   = parseFloat(r.time_seconds);
+    if (!bestByKey[key]  || t < bestByKey[key].t)  bestByKey[key]  = { t, text: r.time_text };
+    const date = r.club_events?.event_date || '9999';
+    if (!firstByKey[key] || date < firstByKey[key].date) firstByKey[key] = { t, date };
+  });
+  (timeTrial || []).forEach(r => {
+    const key = swimTimeToGroupKey(r.event, r.course);
+    if (!key) return;
+    const t = parseFloat(r.time_seconds);
+    if (!bestByKey[key]  || t < bestByKey[key].t)  bestByKey[key]  = { t, text: r.time_text };
+    const date = r.meet_date || '9999';
+    if (!firstByKey[key] || date < firstByKey[key].date) firstByKey[key] = { t, date };
+  });
+
+  const items = [];
+  Object.entries(qtsByEvent).forEach(([key, qt]) => {
+    const best = bestByKey[key];
+    if (!best) return;
+    const parts    = key.split('_');
+    const course   = parts[parts.length - 1];
+    const distance = parseInt(parts[0]);
+    const stroke   = parts.slice(1, -1).join(' ');
+
+    // tiers sorted fastest→slowest: SANJ, L3, L2
+    const tiers = [['SANJ', qt.SANJ], ['L3', qt.L3], ['L2', qt.L2]].filter(([, v]) => v != null);
+    if (!tiers.length) return;
+
+    const achieved    = tiers.filter(([, t]) => best.t <= t);
+    const notAchieved = tiers.filter(([, t]) => best.t > t);
+    const bestAchieved = achieved.length    > 0 ? achieved[0][0]                      : null;
+    const nextTgt      = notAchieved.length > 0 ? notAchieved[notAchieved.length - 1] : null;
+
+    const firstTime   = firstByKey[key]?.t || best.t;
+    const hardTarget  = tiers[0][1]; // SANJ or hardest available
+
+    // bar range: from slightly slower than first time to hardest target
+    const barStart = Math.max(firstTime, best.t) * 1.025;
+    const barEnd   = hardTarget;
+    const barRange = barStart - barEnd;
+
+    items.push({ key, stroke, distance, course, best, bestAchieved, nextTgt, tiers, barStart, barEnd, barRange });
+  });
+
+  if (!items.length) return '';
+
+  // Sort: closest gap first, then all-achieved
+  items.sort((a, b) => {
+    const gA = a.nextTgt ? a.best.t - a.nextTgt[1] : null;
+    const gB = b.nextTgt ? b.best.t - b.nextTgt[1] : null;
+    if (gA !== null && gB !== null) return gA - gB;
+    if (gA !== null) return -1;
+    if (gB !== null) return 1;
+    return 0;
+  });
+
+  const tierColors = { SANJ: '#f59e0b', L3: '#a78bfa', L2: '#64748b' };
+
+  const bars = items.map(item => {
+    const { best, tiers, bestAchieved, nextTgt, barStart, barEnd, barRange } = item;
+    const pos = t => barRange > 0 ? Math.min(100, Math.max(0, ((barStart - t) / barRange) * 100)) : 0;
+
+    const fillPct    = pos(best.t);
+    const currentPos = pos(best.t);
+
+    const tierTicks = tiers.map(([tier, tierTime]) => {
+      const p = pos(tierTime);
+      const c = tierColors[tier] || '#64748b';
+      const ach = best.t <= tierTime;
+      return `
+      <div style="position:absolute;left:${p.toFixed(1)}%;top:-18px;transform:translateX(-50%);z-index:3;">
+        <div style="font-size:8px;font-weight:800;color:${ach ? c : 'rgba(255,255,255,0.25)'};white-space:nowrap;">${tier}</div>
+      </div>
+      <div style="position:absolute;left:${p.toFixed(1)}%;top:0;bottom:0;width:1.5px;background:${ach ? c : 'rgba(255,255,255,0.12)'};z-index:2;"></div>`;
+    }).join('');
+
+    const achievedBadge = bestAchieved
+      ? `<span style="font-size:10px;font-weight:800;color:var(--green);background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:2px 7px;">QT ${bestAchieved}</span>`
+      : '';
+
+    const gapText = nextTgt
+      ? `<span style="font-size:11px;font-weight:700;color:var(--amber);">−${(best.t - nextTgt[1]).toFixed(2)}s to ${nextTgt[0]} (${secondsToTimeText(nextTgt[1])})</span>`
+      : `<span style="font-size:11px;font-weight:700;color:var(--green);">All targets achieved!</span>`;
+
+    return `
+    <div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-size:13px;font-weight:700;color:var(--text);">${item.distance}m ${item.stroke} <span style="font-size:11px;font-weight:500;color:var(--text-secondary);">${item.course}</span></span>
+        <span style="font-size:15px;font-weight:900;color:var(--text);font-family:'Bebas Neue',sans-serif;">${best.text}</span>
+      </div>
+      <div style="position:relative;height:7px;background:rgba(255,255,255,0.07);border-radius:4px;margin:22px 0 8px;">
+        ${tierTicks}
+        <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(56,189,248,0.4),rgba(56,189,248,0.85));border-radius:4px;width:${fillPct.toFixed(1)}%;"></div>
+        <div style="position:absolute;left:${currentPos.toFixed(1)}%;top:50%;transform:translate(-50%,-50%);z-index:4;width:12px;height:12px;border-radius:50%;background:var(--cyan);border:2px solid #080f1a;box-shadow:0 0 6px rgba(56,189,248,0.7);"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${achievedBadge}${gapText}</div>
+    </div>`;
+  }).join('');
+
+  const inProgressCount = items.filter(i => i.nextTgt).length;
+
+  return `
+  <div class="card" style="margin-bottom:12px;">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+      <i data-lucide="target" style="width:15px;height:15px;color:var(--cyan);"></i>
+      <span style="font-size:15px;font-weight:700;">QT Progress</span>
+    </div>
+    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:16px;">SSA Age Group 2025/2026 · ${inProgressCount} event${inProgressCount!==1?'s':''} in progress</div>
+    ${bars}
+  </div>`;
 }
 
 function renderQTGoals(allResults, timeTrial, qtsByEvent) {
