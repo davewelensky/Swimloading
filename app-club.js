@@ -14,7 +14,7 @@ async function loadUserClubs() {
     .select(`
       id, role, is_active, joined_at, category_id,
       roster_id,
-      clubs ( id, name, code, slug, city, tagline, logo_url, club_type, contact_email ),
+      clubs ( id, name, code, slug, city, tagline, logo_url, club_type, contact_email, training_schedule ),
       club_roster ( id, member_number, display_name, category, gender )
     `)
     .eq('user_id', currentUser.id)
