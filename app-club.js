@@ -14,7 +14,7 @@ async function loadUserClubs() {
     .select(`
       id, role, is_active, joined_at, category_id,
       roster_id,
-      clubs (*),
+      clubs ( id, name, code, slug, city, tagline, logo_url, club_type, contact_email ),
       club_roster ( id, member_number, display_name, category, gender )
     `)
     .eq('user_id', currentUser.id)
@@ -103,12 +103,12 @@ async function renderSwimClub(container, club, roster, membership) {
 
   const today = new Date().toISOString().slice(0,10);
 
-  const [resultsRes, upcomingRes] = await Promise.all([
+  const [resultsRes, upcomingRes, profileRes] = await Promise.all([
     supabaseClient
       .from('club_gala_results')
       .select('id, stroke, distance, course, time_seconds, time_text, is_pb, club_events(id, title, event_date)')
-      .eq('roster_id', roster.id)
-      .order('club_events(event_date)', { ascending: true }),
+      .eq('roster_id', roster.id),
+
     supabaseClient
       .from('club_events')
       .select('id, title, event_date, description')
@@ -116,18 +116,23 @@ async function renderSwimClub(container, club, roster, membership) {
       .gte('event_date', today)
       .order('event_date')
       .limit(8),
+
+    supabaseClient
+      .from('club_member_profile')
+      .select('date_of_birth, gender')
+      .eq('roster_id', roster.id)
+      .maybeSingle(),
   ]);
 
-  const allResults = resultsRes.data || [];
+  const allResults = resultsRes.data  || [];
   const upcoming   = upcomingRes.data || [];
-
-  const totalGalas = new Set(allResults.map(r => r.club_events?.id).filter(Boolean)).size;
-  const totalPBs   = allResults.filter(r => r.is_pb).length;
+  const profile    = profileRes.data  || null;
+  const qtsByEvent = getAgeGroupQTs(profile?.date_of_birth, profile?.gender);
 
   container.innerHTML =
     renderClubHero(club, roster, membership) +
-    (allResults.length ? renderSwimStats(totalGalas, totalPBs) : '') +
-    renderEventGraphs(allResults) +
+    renderSwimStats(allResults) +
+    renderEventGraphs(allResults, qtsByEvent) +
     renderUpcomingGalas(upcoming);
 
   lucide.createIcons();
@@ -135,119 +140,170 @@ async function renderSwimClub(container, club, roster, membership) {
 
 // ─── Swim Club Section Renderers ───────────────────────────────────────────────
 
-function renderSwimStats(galas, pbs) {
+// SSA 2025/2026 qualifying times — keyed by gender → age group → event key
+// Source: SSA Age Group Qualifying Times 2025/2026 PDF
+// Tiers: SANJ (fastest) > L3 > L2 (entry level)
+const SSA_QTS = {
+  W: {
+    15: {
+      '50_Free_SC':  { L2: 32.83 },
+      '50_Fly_SC':   { L2: 38.61 },
+      '200_Free_LC': { L3: 149.27 },
+      '400_Free_LC': { L3: 324.96 },
+    },
+  },
+  M: {},
+};
+
+function getAgeGroupQTs(dob, gender) {
+  if (!dob || !gender) return {};
+  const birthYear = parseInt(dob.split('-')[0]);
+  const age = new Date().getFullYear() - birthYear;
+  const g = gender.toUpperCase() === 'F' ? 'W' : 'M';
+  return SSA_QTS[g]?.[age] || {};
+}
+
+function renderSwimStats(allResults) {
+  const galas = new Set(allResults.map(r => r.club_events?.id).filter(Boolean)).size;
+  const pbs   = allResults.filter(r => r.is_pb).length;
   return `
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-    <div class="card" style="text-align:center;padding:14px 8px;">
-      <div style="font-size:28px;font-weight:900;color:var(--cyan);font-family:'Bebas Neue',sans-serif;line-height:1;">${galas}</div>
-      <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em;margin-top:2px;">Galas</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+    <div class="card" style="text-align:center;padding:16px 12px;">
+      <div style="font-size:32px;font-weight:900;color:var(--cyan);font-family:'Bebas Neue',sans-serif;line-height:1;">${galas}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--text-secondary);margin-top:2px;text-transform:uppercase;letter-spacing:0.08em;">Galas</div>
     </div>
-    <div class="card" style="text-align:center;padding:14px 8px;">
-      <div style="font-size:28px;font-weight:900;color:var(--green);font-family:'Bebas Neue',sans-serif;line-height:1;">${pbs}</div>
-      <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em;margin-top:2px;">PBs this season</div>
+    <div class="card" style="text-align:center;padding:16px 12px;">
+      <div style="font-size:32px;font-weight:900;color:var(--green);font-family:'Bebas Neue',sans-serif;line-height:1;">${pbs}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--text-secondary);margin-top:2px;text-transform:uppercase;letter-spacing:0.08em;">Personal Bests</div>
     </div>
   </div>`;
 }
 
-function renderEventGraphs(allResults) {
+function renderEventGraphs(allResults, qtsByEvent) {
   if (!allResults.length) return `
-  <div class="card" style="margin-bottom:12px;text-align:center;padding:28px 16px;">
-    <div style="font-size:14px;font-weight:700;margin-bottom:6px;">No results yet</div>
-    <div style="font-size:12px;color:var(--text-secondary);">Your times will appear here after your coach enters your first gala results.</div>
+  <div class="card" style="margin-bottom:12px;">
+    <div style="font-size:15px;font-weight:700;margin-bottom:6px;">My Events</div>
+    <div style="font-size:13px;color:var(--text-secondary);">No results yet — they'll appear here after your first gala.</div>
   </div>`;
 
-  // Group by stroke+distance+course
-  const byEvent = {};
+  // Group by stroke_distance_course
+  const groups = {};
   allResults.forEach(r => {
-    if (!r.club_events) return;
-    const key = `${r.distance}m ${r.stroke} ${r.course}`;
-    if (!byEvent[key]) byEvent[key] = { key, stroke: r.stroke, distance: r.distance, course: r.course, results: [] };
-    byEvent[key].results.push({
-      date:         r.club_events.event_date,
-      label:        r.club_events.title,
-      time_seconds: r.time_seconds,
+    const ev = r.club_events;
+    if (!ev) return;
+    const key = `${r.stroke}_${r.distance}_${r.course}`;
+    if (!groups[key]) groups[key] = { stroke: r.stroke, distance: r.distance, course: r.course, pts: [] };
+    groups[key].pts.push({
+      date:         ev.event_date,
+      time_seconds: parseFloat(r.time_seconds),
       time_text:    r.time_text,
       is_pb:        r.is_pb,
+      gala:         ev.title,
     });
   });
 
+  Object.values(groups).forEach(g => g.pts.sort((a, b) => a.date.localeCompare(b.date)));
+
   const strokeOrder = ['Free','Back','Breast','Fly','IM'];
-  const groups = Object.values(byEvent).sort((a, b) => {
+  const sorted = Object.values(groups).sort((a, b) => {
     const si = strokeOrder.indexOf(a.stroke) - strokeOrder.indexOf(b.stroke);
     return si !== 0 ? si : a.distance - b.distance;
   });
 
-  const cards = groups.map(g => {
-    const pts   = [...g.results].sort((a, b) => a.date.localeCompare(b.date));
-    const pb    = pts.reduce((best, p) => p.time_seconds < best.time_seconds ? p : best, pts[0]);
-    const first = pts[0];
-    const improvement = first && pb && first !== pb
-      ? ((first.time_seconds - pb.time_seconds)).toFixed(1)
-      : null;
+  const cards = sorted.map(g => {
+    const key  = `${g.stroke}_${g.distance}_${g.course}`;
+    const qt   = qtsByEvent[key] || null;
+    const times = g.pts.map(p => p.time_seconds);
+    const bestTime  = Math.min(...times);
+    const firstTime = g.pts[0].time_seconds;
+    const bestPt    = g.pts.find(p => p.time_seconds === bestTime);
+    const improvement = firstTime - bestTime;
+
+    // QT badge / next target
+    let qtHtml = '';
+    if (qt) {
+      const tiers = [['SANJ', qt.SANJ], ['L3', qt.L3], ['L2', qt.L2]].filter(([, v]) => v != null);
+      const achieved = tiers.filter(([, t]) => bestTime <= t);
+      const nextTarget = tiers.find(([, t]) => bestTime > t);
+      if (achieved.length) {
+        qtHtml += `<span style="font-size:10px;font-weight:800;color:var(--green);background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:2px 8px;display:inline-block;margin-top:3px;">QT ${achieved[achieved.length-1][0]}</span>`;
+      }
+      if (nextTarget) {
+        const gap = (bestTime - nextTarget[1]).toFixed(2);
+        qtHtml += `<div style="font-size:10px;font-weight:700;color:var(--amber);margin-top:2px;">−${gap}s to ${nextTarget[0]}</div>`;
+      }
+    }
+
+    const resultRows = [...g.pts].reverse().map(p => {
+      const d       = new Date(p.date + 'T12:00:00');
+      const dateStr = d.toLocaleDateString('en-ZA', { day:'numeric', month:'short' });
+      return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+        <span style="font-size:11px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;">${p.gala} <span style="opacity:0.5;">${dateStr}</span></span>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+          <span style="font-size:13px;font-weight:800;color:var(--text);font-family:'Bebas Neue',sans-serif;letter-spacing:0.05em;">${p.time_text}</span>
+          ${p.is_pb ? `<span style="font-size:9px;font-weight:800;color:var(--green);background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:1px 5px;">PB</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
 
     return `
-    <div class="card" style="margin-bottom:10px;">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;">
-        <div>
-          <div style="font-size:14px;font-weight:800;color:var(--text);">${g.distance}m ${g.stroke}</div>
-          <div style="font-size:11px;color:var(--text-secondary);">${g.course} · ${pts.length} swim${pts.length > 1 ? 's' : ''}</div>
+    <div style="margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--border-color);">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:14px;font-weight:800;color:var(--text);">${g.distance}m ${g.stroke} <span style="font-size:11px;font-weight:600;color:var(--text-secondary);">${g.course}</span></div>
+          ${improvement > 0.01 ? `<div style="font-size:11px;color:var(--green);margin-top:2px;">↓ ${improvement.toFixed(2)}s faster</div>` : ''}
         </div>
-        <div style="text-align:right;">
-          <div style="font-size:22px;font-weight:900;color:var(--green);font-family:'Bebas Neue',sans-serif;line-height:1;">${pb.time_text}</div>
-          <div style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.08em;">PB</div>
-          ${improvement ? `<div style="font-size:10px;color:var(--text-secondary);margin-top:1px;">↓ ${improvement}s faster than first swim</div>` : ''}
+        <div style="text-align:right;flex-shrink:0;margin-left:12px;">
+          <div style="font-size:26px;font-weight:900;color:var(--text);font-family:'Bebas Neue',sans-serif;line-height:1;">${bestPt?.time_text || ''}</div>
+          ${qtHtml}
         </div>
       </div>
-      ${pts.length > 1 ? renderSparkline(pts) : ''}
-      <div style="margin-top:10px;">
-        ${pts.slice().reverse().map(p => {
-          const d = new Date(p.date + 'T12:00:00');
-          const dateStr = d.toLocaleDateString('en-ZA', { day:'numeric', month:'short' });
-          return `
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
-            <span style="font-size:11px;color:var(--text-secondary);">${dateStr} · ${p.label}</span>
-            <div style="display:flex;align-items:center;gap:6px;">
-              <span style="font-size:13px;font-weight:800;color:var(--text);font-family:'Bebas Neue',sans-serif;">${p.time_text}</span>
-              ${p.is_pb ? `<span style="font-size:9px;font-weight:800;color:var(--green);background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:1px 6px;">PB</span>` : ''}
-            </div>
-          </div>`;
-        }).join('')}
-      </div>
+      ${g.pts.length > 1 ? renderSparkline(g.pts, qt) : ''}
+      <div>${resultRows}</div>
     </div>`;
   }).join('');
 
   return `
-  <div style="margin-bottom:12px;">
-    <div style="font-size:15px;font-weight:700;margin-bottom:10px;">My Times</div>
+  <div class="card" style="margin-bottom:12px;">
+    <div style="font-size:15px;font-weight:700;margin-bottom:16px;">My Events</div>
     ${cards}
   </div>`;
 }
 
-function renderSparkline(pts) {
-  // pts = [{date, time_seconds, is_pb}] sorted oldest→newest
-  const W = 300, H = 56, PAD = 8;
+function renderSparkline(pts, qt) {
+  const W = 300, H = 52, PAD = 6;
+  if (pts.length < 2) return '';
+
   const times = pts.map(p => p.time_seconds);
-  const minT  = Math.min(...times);
-  const maxT  = Math.max(...times);
+  const qtTimes = qt ? Object.values(qt).filter(Boolean) : [];
+  const allT = [...times, ...qtTimes];
+  const minT = Math.min(...allT);
+  const maxT = Math.max(...allT);
   const range = maxT - minT || 1;
 
-  // x: evenly spaced; y: inverted (lower time = higher on chart)
-  const coords = pts.map((p, i) => ({
-    x: PAD + (i / (pts.length - 1)) * (W - PAD * 2),
-    y: PAD + ((p.time_seconds - minT) / range) * (H - PAD * 2),
-    is_pb: p.is_pb,
-    time_text: p.time_text,
-  }));
+  const xs = pts.map((_, i) => PAD + (i / (pts.length - 1)) * (W - 2 * PAD));
+  const ys = times.map(t => H - PAD - ((maxT - t) / range) * (H - 2 * PAD));
 
-  const line = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`).join(' ');
+  const pathD = xs.map((x, i) => `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${ys[i].toFixed(1)}`).join(' ');
 
-  const dots = coords.map(c => c.is_pb
-    ? `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="4" fill="#10b981" stroke="#0d1728" stroke-width="1.5"/>`
-    : `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3" fill="#38bdf8" opacity="0.7"/>`
-  ).join('');
+  let qtLines = '';
+  if (qt) {
+    const tierColors = { SANJ: '#f59e0b', L3: '#a78bfa', L2: '#64748b' };
+    Object.entries(qt).forEach(([tier, t]) => {
+      if (!t) return;
+      const qy = (H - PAD - ((maxT - t) / range) * (H - 2 * PAD)).toFixed(1);
+      const c  = tierColors[tier] || '#64748b';
+      qtLines += `<line x1="${PAD}" y1="${qy}" x2="${W - PAD - 18}" y2="${qy}" stroke="${c}" stroke-width="1" stroke-dasharray="3,3" opacity="0.65"/>
+        <text x="${W - PAD - 15}" y="${(parseFloat(qy) + 3.5).toFixed(1)}" font-size="8" fill="${c}" opacity="0.8">${tier}</text>`;
+    });
+  }
 
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:52px;display:block;overflow:visible;">
-    <path d="${line}" fill="none" stroke="rgba(56,189,248,0.35)" stroke-width="1.5" stroke-linejoin="round"/>
+  const dots = pts.map((p, i) => `<circle cx="${xs[i].toFixed(1)}" cy="${ys[i].toFixed(1)}" r="${p.is_pb ? 4 : 3}" fill="${p.is_pb ? '#10b981' : '#38bdf8'}" opacity="${p.is_pb ? 1 : 0.65}"/>`).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;overflow:visible;margin:6px 0 4px;" preserveAspectRatio="none">
+    <path d="${pathD}" fill="none" stroke="#38bdf8" stroke-width="1.5" opacity="0.45"/>
+    ${qtLines}
     ${dots}
   </svg>`;
 }
@@ -418,10 +474,9 @@ function renderUpcomingEvents(events, club) {
 function renderFullLeaderboardLink(club) {
   return `
   <div class="card" style="margin-bottom:12px;text-align:center;">
-    <a href="/clubs/${club.slug || club.id}" target="_blank" rel="noopener" style="color:var(--cyan);font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+    <a href="/clubs/${club.slug || club.id}" style="color:var(--cyan);font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
       <i data-lucide="bar-chart-2" style="width:14px;height:14px;"></i>
       Full league standings
-      <i data-lucide="external-link" style="width:11px;height:11px;opacity:0.6;"></i>
     </a>
   </div>`;
 }
