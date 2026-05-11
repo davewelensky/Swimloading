@@ -243,6 +243,9 @@
       <button class="nav-item" onclick="showPage('attendance')" id="nav-attendance">
         <i data-lucide="clipboard-check"></i> Attendance
       </button>
+      <button class="nav-item" onclick="showPage('coaches')" id="nav-coaches">
+        <i data-lucide="whistle"></i> Coaches
+      </button>
       <button class="nav-item" onclick="showPage('tempchallenge')" id="nav-tempchallenge">
         <i data-lucide="thermometer"></i> Temp Challenge
       </button>
@@ -439,6 +442,20 @@
           </div>
         </div>
         <div id="attendanceContent"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+
+      <!-- ── COACHES ── -->
+      <div id="page-coaches" class="page">
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="page-title">Coaches</div>
+            <div class="page-sub">Manage coaching staff — active and former.</div>
+          </div>
+          <button class="btn-primary" style="width:auto;padding:10px 20px;border-radius:10px;font-size:13px;" onclick="openAddCoachModal()">
+            <i data-lucide="user-plus" style="width:14px;height:14px;"></i> Add coach
+          </button>
+        </div>
+        <div id="coachesContent"><div class="loading"><div class="spinner"></div></div></div>
       </div>
 
       <!-- ── LEAGUE ── -->
@@ -1004,6 +1021,54 @@
 
 <div id="toast"></div>
 
+<!-- ADD COACH MODAL -->
+<div class="modal-overlay" id="addCoachModal">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-title">
+      <span id="addCoachModalTitle">Add Coach</span>
+      <button class="modal-close" onclick="closeAddCoachModal()">&times;</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2;">
+        <div class="form-label">Full name <span style="color:var(--danger);">*</span></div>
+        <input type="text" class="form-input" id="coachName" placeholder="e.g. Sarah Naidoo">
+      </div>
+      <div class="form-group" style="flex:1.5;">
+        <div class="form-label">Title</div>
+        <select class="form-input" id="coachTitle">
+          <option value="Head Coach">Head Coach</option>
+          <option value="Assistant Coach" selected>Assistant Coach</option>
+          <option value="Coach">Coach</option>
+          <option value="Junior Coach">Junior Coach</option>
+          <option value="Volunteer Coach">Volunteer Coach</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Mobile</div>
+        <input type="tel" class="form-input" id="coachPhone" placeholder="082 123 4567">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Email</div>
+        <input type="email" class="form-input" id="coachEmail" placeholder="coach@email.com">
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="form-label">Start date</div>
+      <input type="date" class="form-input" id="coachStartDate">
+    </div>
+    <div class="form-group">
+      <div class="form-label">Notes <span style="font-weight:400;color:var(--text-dim);">optional</span></div>
+      <input type="text" class="form-input" id="coachNotes" placeholder="e.g. Specialises in backstroke, Tue/Thu only">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeAddCoachModal()">Cancel</button>
+      <button class="btn-modal-primary" id="addCoachBtn" onclick="submitCoach()">Add coach</button>
+    </div>
+  </div>
+</div>
+
 <!-- MEMBER PROFILE MODAL -->
 <div class="modal-overlay" id="memberProfileModal">
   <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto;">
@@ -1157,6 +1222,7 @@ function showPage(name) {
   if (name === 'league')        renderLeague();
   if (name === 'tempchallenge') loadTempChallenge();
   if (name === 'attendance')    loadAttendance();
+  if (name === 'coaches')       loadCoaches();
   if (name === 'roster')        { if (!allRoster.length) loadRoster(); else renderRosterTable(); }
   if (name === 'team')          loadTeam();
 }
@@ -2232,6 +2298,168 @@ function showToast(msg, type = 'success') {
   t.className = 'show ' + type;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.className = '', 3000);
+}
+
+// ── COACHES ───────────────────────────────────────────────────────
+
+let allCoaches = [];
+let editCoachId = null;
+
+async function loadCoaches() {
+  const { data } = await sb.from('club_coaches')
+    .select('*')
+    .eq('club_id', currentClub.id)
+    .order('is_active', { ascending: false })
+    .order('title')
+    .order('name');
+  allCoaches = data || [];
+  renderCoaches();
+}
+
+function renderCoaches() {
+  const el = document.getElementById('coachesContent');
+  if (!el) return;
+
+  const active   = allCoaches.filter(c => c.is_active);
+  const inactive = allCoaches.filter(c => !c.is_active);
+
+  function coachCard(c) {
+    const initials = c.name.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
+    const isHead   = c.title === 'Head Coach';
+    const details  = [c.phone, c.email].filter(Boolean).join(' · ');
+    const since    = c.start_date ? `Since ${new Date(c.start_date + 'T12:00:00').toLocaleDateString('en-ZA',{month:'short',year:'numeric'})}` : '';
+    const until    = c.end_date   ? ` · Left ${new Date(c.end_date + 'T12:00:00').toLocaleDateString('en-ZA',{month:'short',year:'numeric'})}` : '';
+
+    return `
+    <div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--border);">
+      <div style="width:42px;height:42px;border-radius:50%;background:${isHead ? 'rgba(56,189,248,0.15)' : 'rgba(255,255,255,0.06)'};
+        display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;
+        color:${isHead ? 'var(--cyan)' : 'var(--text-sec)'};flex-shrink:0;">
+        ${initials}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:14px;font-weight:700;color:var(--text);">${c.name}</span>
+          <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;
+            ${isHead ? 'background:rgba(56,189,248,0.12);color:var(--cyan);border:1px solid rgba(56,189,248,0.25);'
+                     : 'background:rgba(255,255,255,0.05);color:var(--text-sec);border:1px solid var(--border);'}">
+            ${c.title}
+          </span>
+        </div>
+        ${details ? `<div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${details}</div>` : ''}
+        ${(since || c.notes) ? `<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${since}${until}${c.notes ? (since ? ' · ' : '') + c.notes : ''}</div>` : ''}
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="btn-sm" onclick="openEditCoachModal('${c.id}')">Edit</button>
+        ${c.is_active
+          ? `<button class="btn-sm" style="color:var(--danger);border-color:rgba(239,68,68,0.2);" onclick="deactivateCoach('${c.id}','${c.name.replace(/'/g,"\\'")}')">Deactivate</button>`
+          : `<button class="btn-sm" style="color:var(--green);border-color:rgba(16,185,129,0.2);" onclick="reactivateCoach('${c.id}')">Reactivate</button>`}
+      </div>
+    </div>`;
+  }
+
+  let html = `<div class="card" style="margin-bottom:14px;">
+    <div style="font-size:12px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">
+      Active — ${active.length}
+    </div>
+    ${active.length ? active.map(coachCard).join('') : '<div style="padding:14px 0;font-size:13px;color:var(--text-sec);">No active coaches.</div>'}
+  </div>`;
+
+  if (inactive.length) {
+    html += `<div class="card">
+      <div style="font-size:12px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">
+        Former — ${inactive.length}
+      </div>
+      ${inactive.map(coachCard).join('')}
+    </div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+function openAddCoachModal() {
+  editCoachId = null;
+  document.getElementById('addCoachModalTitle').textContent = 'Add Coach';
+  document.getElementById('addCoachBtn').textContent = 'Add coach';
+  ['coachName','coachPhone','coachEmail','coachNotes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('coachTitle').value = 'Assistant Coach';
+  document.getElementById('coachStartDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('addCoachModal').classList.add('open');
+  setTimeout(() => document.getElementById('coachName').focus(), 100);
+}
+
+function openEditCoachModal(id) {
+  const c = allCoaches.find(c => c.id === id);
+  if (!c) return;
+  editCoachId = id;
+  document.getElementById('addCoachModalTitle').textContent = 'Edit Coach';
+  document.getElementById('addCoachBtn').textContent = 'Save changes';
+  document.getElementById('coachName').value       = c.name  || '';
+  document.getElementById('coachTitle').value      = c.title || 'Assistant Coach';
+  document.getElementById('coachPhone').value      = c.phone || '';
+  document.getElementById('coachEmail').value      = c.email || '';
+  document.getElementById('coachStartDate').value  = c.start_date || '';
+  document.getElementById('coachNotes').value      = c.notes || '';
+  document.getElementById('addCoachModal').classList.add('open');
+  setTimeout(() => document.getElementById('coachName').focus(), 100);
+}
+
+function closeAddCoachModal() {
+  document.getElementById('addCoachModal').classList.remove('open');
+  editCoachId = null;
+}
+
+async function submitCoach() {
+  const name  = document.getElementById('coachName').value.trim();
+  if (!name) { showToast('Name is required', 'error'); return; }
+
+  const payload = {
+    club_id:    currentClub.id,
+    name,
+    title:      document.getElementById('coachTitle').value,
+    phone:      document.getElementById('coachPhone').value.trim() || null,
+    email:      document.getElementById('coachEmail').value.trim() || null,
+    start_date: document.getElementById('coachStartDate').value    || null,
+    notes:      document.getElementById('coachNotes').value.trim() || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  let error;
+  if (editCoachId) {
+    ({ error } = await sb.from('club_coaches').update(payload).eq('id', editCoachId));
+  } else {
+    ({ error } = await sb.from('club_coaches').insert(payload));
+  }
+
+  if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+  showToast(editCoachId ? 'Coach updated' : name + ' added', 'success');
+  closeAddCoachModal();
+  loadCoaches();
+}
+
+async function deactivateCoach(id, name) {
+  if (!confirm(`Mark ${name} as no longer active?`)) return;
+  const { error } = await sb.from('club_coaches').update({
+    is_active:  false,
+    end_date:   new Date().toISOString().slice(0,10),
+    updated_at: new Date().toISOString(),
+  }).eq('id', id);
+  if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+  showToast(name + ' deactivated', 'success');
+  loadCoaches();
+}
+
+async function reactivateCoach(id) {
+  const { error } = await sb.from('club_coaches').update({
+    is_active:  true,
+    end_date:   null,
+    updated_at: new Date().toISOString(),
+  }).eq('id', id);
+  if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+  showToast('Coach reactivated', 'success');
+  loadCoaches();
 }
 
 // ── ROSTER ────────────────────────────────────────────────────────
