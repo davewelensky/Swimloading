@@ -1178,10 +1178,10 @@ async function loadClubContext() {
   // Fetch ALL clubs this user admins (check club_admins table first, fall back to club_members.role)
   const [adminRes, memberRes] = await Promise.all([
     sb.from('club_admins')
-      .select('role, clubs(id, name, code, slug, city, tagline, logo_url, description, website, contact_email, founded_year, member_count, club_type)')
+      .select('role, clubs(*)')
       .eq('user_id', currentUser.id),
     sb.from('club_members')
-      .select('*, clubs(id, name, code, slug, city, tagline, logo_url, description, website, contact_email, founded_year, member_count, club_type), club_categories(name)')
+      .select('*, clubs(*), club_categories(name)')
       .eq('user_id', currentUser.id)
       .in('role', ['admin','organiser'])
       .eq('is_active', true),
