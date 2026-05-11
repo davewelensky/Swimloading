@@ -1179,7 +1179,10 @@
                 const recentLogsWrap = document.getElementById('dashRecentLogsWrap');
 
                 // Only show international spots here — SA spots are already in the scored section above
-                const intlSpots = topSpots.filter(s => internationalSpotIds.has(s.latestLog.spot_id));
+                const intlSpots = topSpots.filter(s => {
+                    const spotInfo = spots.find(sp => sp.id === s.latestLog.spot_id);
+                    return internationalSpotIds.has(s.latestLog.spot_id) || INTERNATIONAL_DOMAINS.has(spotInfo?.domain);
+                });
 
                 if (intlSpots.length === 0) {
                     if (recentLogsWrap) recentLogsWrap.style.display = 'none';
@@ -1530,7 +1533,9 @@
             // Score every spot — ocean/coastal only for "Best Spots" recommendations
             const OCEAN_TYPES = ['OCEAN', 'TIDAL_POOL', 'LAGOON'];
             const scored = latestTemps
-                .filter(spot => OCEAN_TYPES.includes(spot.water_type))
+                .filter(spot => OCEAN_TYPES.includes(spot.water_type) &&
+                    !internationalSpotIds.has(spot.spot_id) &&
+                    !INTERNATIONAL_DOMAINS.has(spot.domain))
                 .map(spot => {
                     const recentLogs = condBySpot[spot.spot_id] || [];
                     const swimScore = calculateSwimScore(spot, recentLogs, upcomingSwims, todayForecast);
