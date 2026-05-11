@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DUC Admin Guide · SwimLoading</title>
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080f1a;
+      --bg-card:  #0d1728;
+      --cyan:     #38bdf8;
+      --text:     #f1f5f9;
+      --text-sec: #64748b;
+      --border:   rgba(255,255,255,0.06);
+      --green:    #10b981;
+      --amber:    #f59e0b;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      background:
+        radial-gradient(18px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+          rgba(56,189,248,0.55), transparent 100%),
+        radial-gradient(500px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+          rgba(56,189,248,0.07), transparent 70%);
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8,15,26,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .nav-brand img { height: 22px; width: auto; }
+
+    .nav-badge {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--cyan);
+      background: rgba(56,189,248,0.1);
+      border: 1px solid rgba(56,189,248,0.2);
+      border-radius: 20px;
+      padding: 3px 10px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 56px 24px 40px;
+      text-align: center;
+    }
+
+    .hero-eyebrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .hero-eyebrow-line { width: 28px; height: 2px; background: var(--cyan); border-radius: 2px; }
+    .hero-eyebrow span { font-size: 11px; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.15em; }
+
+    .hero h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(44px, 10vw, 72px);
+      line-height: 0.95;
+      letter-spacing: 0.02em;
+      margin-bottom: 16px;
+    }
+
+    .hero h1 span { color: var(--cyan); }
+
+    .hero-sub {
+      font-size: 16px;
+      color: rgba(241,245,249,0.65);
+      max-width: 480px;
+      margin: 0 auto 32px;
+      line-height: 1.7;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--cyan);
+      color: #080f1a;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 13px 26px;
+      border-radius: 50px;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:hover { opacity: 0.88; }
+
+    /* ── CONTENT ── */
+    .content {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    /* ── STEP CARDS ── */
+    .step {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 32px;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(56,189,248,0.12);
+      border: 1px solid rgba(56,189,248,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      color: var(--cyan);
+      margin-top: 2px;
+    }
+
+    .step-body { flex: 1; }
+
+    .step-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .step-desc {
+      font-size: 14px;
+      color: rgba(241,245,249,0.65);
+      line-height: 1.7;
+    }
+
+    .step-desc strong { color: var(--text); font-weight: 600; }
+
+    /* ── CARDS ── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sec);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 14px;
+    }
+
+    /* ── POINTS BREAKDOWN ── */
+    .points-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .points-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+    .points-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(56,189,248,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .points-icon i { color: var(--cyan); width: 15px; height: 15px; }
+
+    .points-label { flex: 1; font-size: 14px; color: var(--text); }
+    .points-label span { display: block; font-size: 12px; color: var(--text-sec); margin-top: 1px; }
+
+    .points-val {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--cyan);
+    }
+
+    /* ── CATEGORY BADGES ── */
+    .cats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .cat-badge {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+    .cat-guppies    { background: rgba(52,211,153,0.1);  color: #34d399; border: 1px solid rgba(52,211,153,0.25); }
+    .cat-sailfish   { background: rgba(56,189,248,0.1);  color: #38bdf8; border: 1px solid rgba(56,189,248,0.25); }
+    .cat-makos      { background: rgba(245,158,11,0.1);  color: #f59e0b; border: 1px solid rgba(245,158,11,0.25); }
+    .cat-walrus     { background: rgba(167,139,250,0.1); color: #a78bfa; border: 1px solid rgba(167,139,250,0.25); }
+    .cat-coelacanths{ background: rgba(251,146,60,0.1);  color: #fb923c; border: 1px solid rgba(251,146,60,0.25); }
+
+    /* ── WHAT MEMBERS SEE ── */
+    .member-screen {
+      background: linear-gradient(135deg, rgba(56,189,248,0.06) 0%, transparent 60%);
+      border: 1px solid rgba(56,189,248,0.15);
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin-bottom: 12px;
+    }
+
+    .member-screen-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--cyan);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .member-screen-title i { width: 15px; height: 15px; }
+
+    .member-screen-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .member-screen-list li {
+      font-size: 13px;
+      color: rgba(241,245,249,0.65);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .member-screen-list li::before {
+      content: '';
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--cyan);
+      margin-top: 7px;
+      flex-shrink: 0;
+    }
+
+    /* ── DIVIDER ── */
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sec);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin: 40px 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── URL CHIP ── */
+    .url-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(56,189,248,0.08);
+      border: 1px solid rgba(56,189,248,0.2);
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--cyan);
+      text-decoration: none;
+      margin-top: 10px;
+      word-break: break-all;
+    }
+    .url-chip i { width: 14px; height: 14px; flex-shrink: 0; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 28px 24px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-sec);
+    }
+
+    @media (max-width: 520px) {
+      .hero { padding: 40px 20px 32px; }
+      .content { padding: 0 20px 60px; }
+      .step { gap: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="https://swimloading.com" class="nav-brand">
+      <img src="/icons/logo-wave.png" alt="">SwimLoading
+    </a>
+    <span class="nav-badge">DUC Admin</span>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-eyebrow">
+      <div class="hero-eyebrow-line"></div>
+      <span>Durban Underwater Club</span>
+      <div class="hero-eyebrow-line"></div>
+    </div>
+    <h1>Your club<br>admin <span>guide</span></h1>
+    <p class="hero-sub">Everything you need to get your members logging, run the temp challenge, and manage league results — in one place.</p>
+    <a href="https://www.swimloading.com/club-admin/duc" class="btn-primary" target="_blank">
+      <i data-lucide="layout-dashboard" style="width:16px;height:16px;"></i>
+      Open DUC Admin
+    </a>
+  </div>
+
+  <div class="content">
+
+    <div class="section-label">Getting started</div>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Log into your admin panel</div>
+        <div class="step-desc">
+          Go to <strong>swimloading.com/club-admin/duc</strong> and sign in with your SwimLoading account (the same one you use to log temperatures). You'll land straight on the DUC dashboard.
+        </div>
+        <a href="https://www.swimloading.com/club-admin/duc" class="url-chip" target="_blank">
+          <i data-lucide="external-link"></i>
+          swimloading.com/club-admin/duc
+        </a>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Get your members on the platform</div>
+        <div class="step-desc">
+          Go to the <strong>Join Link</strong> tab. Copy the link and send it to your members via WhatsApp or email. When they tap it and log in with their SwimLoading account, they're automatically added to DUC — race number assigned from the existing membership list. No manual admin needed.
+        </div>
+        <div class="card" style="margin-top: 14px;">
+          <div class="card-title">What the join link does</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="user-check"></i></div>
+            <div class="points-label">Links their SwimLoading account to DUC <span>Matches by existing membership roster</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="hash"></i></div>
+            <div class="points-label">Assigns their race number automatically <span>From the imported member list</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="star"></i></div>
+            <div class="points-label">Unlocks their Club tab in the app <span>They see standings, events, and their category</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Running the temp challenge</div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">The challenge runs itself</div>
+        <div class="step-desc">
+          Go to the <strong>Temp Challenge</strong> tab. It automatically tracks every DUC member who logs water temperatures — no setup required. Use the month picker to view any of the last 4 months. The leaderboard updates in real time as members log.
+        </div>
+        <div class="card" style="margin-top: 14px;">
+          <div class="card-title">How points work</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="thermometer"></i></div>
+            <div class="points-label">Every log <span>Any swim, any spot, any time</span></div>
+            <div class="points-val">10 pts</div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="map-pin"></i></div>
+            <div class="points-label">Unique spot bonus <span>Per different spot logged per day</span></div>
+            <div class="points-val">+10 pts</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Breakdown by category</div>
+          <div class="step-desc" style="margin-bottom: 10px;">The leaderboard shows both an overall ranking and a separate standings table for each category.</div>
+          <div class="cats">
+            <span class="cat-badge cat-guppies">Guppies</span>
+            <span class="cat-badge cat-sailfish">Sailfish</span>
+            <span class="cat-badge cat-makos">Makos</span>
+            <span class="cat-badge cat-walrus">Walrus</span>
+            <span class="cat-badge cat-coelacanths">Coelacanths</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Pick your winner at month end</div>
+        <div class="step-desc">
+          On the last day of the month, open the Temp Challenge tab and check who's at the top. The platform shows you exactly who logged the most and how many points they earned. Announce the winner and award the prize — that part's on you. Nothing to configure or close off in the system.
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">League races</div>
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">Enter race results after each race</div>
+        <div class="step-desc">
+          Go to the <strong>League</strong> tab. Click <strong>Enter results</strong> to record finishing positions for a race. Season standings update automatically across all categories. Members can see their own standing and points in the app.
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <div class="step-title">Members pre-enter races from the app</div>
+        <div class="step-desc">
+          Once members have joined via the link, they'll see upcoming league races in their Club tab with an <strong>Enter</strong> button. Pre-entries show up in your admin under the relevant event — useful for planning.
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">What your members see</div>
+
+    <div class="member-screen">
+      <div class="member-screen-title">
+        <i data-lucide="smartphone"></i>
+        Club tab in the SwimLoading app
+      </div>
+      <ul class="member-screen-list">
+        <li>Their DUC membership card — club name, city, race number, category badge</li>
+        <li>Personal season standings — position, points, qualification status</li>
+        <li>Upcoming league races with a one-tap Enter button</li>
+        <li>Link to view the full DUC league standings</li>
+      </ul>
+    </div>
+
+    <div class="section-label">Members tab</div>
+
+    <div class="step">
+      <div class="step-num">7</div>
+      <div class="step-body">
+        <div class="step-title">Manage the team from one place</div>
+        <div class="step-desc">
+          The <strong>Members</strong> tab shows everyone who's joined via the link. From here you can reassign categories, update race numbers, and change roles (member / organiser / admin). If someone's in the wrong category, you can fix it here — no impact on historical results.
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 48px; text-align: center;">
+      <a href="https://www.swimloading.com/club-admin/duc" class="btn-primary" target="_blank">
+        <i data-lucide="layout-dashboard" style="width:16px;height:16px;"></i>
+        Open DUC Admin
+      </a>
+    </div>
+
+  </div>
+
+  <footer>
+    Questions? Contact Dave on SwimLoading — swimloading.com
+  </footer>
+
+  <script>
+    document.addEventListener('mousemove', e => {
+      document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+      document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+    });
+    lucide.createIcons();
+  </script>
+</body>
+</html>
