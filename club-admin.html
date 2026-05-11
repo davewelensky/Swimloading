@@ -1847,8 +1847,8 @@ async function loadSquadTracker() {
       .eq('club_id', clubId).order('meet_date', { ascending: true }),
     sb.from('club_gala_results').select('roster_id, stroke, distance, course, time_seconds, time_text, is_pb, created_at')
       .eq('club_id', clubId).order('created_at', { ascending: true }),
-    sb.from('club_attendance').select('roster_id, session_id')
-      .eq('club_id', clubId).eq('present', true),
+    sb.from('club_session_attendance').select('roster_id, session_date, session_start')
+      .eq('status', 'attending'),
   ]);
 
   const roster     = rosterRes.data     || [];
@@ -1865,16 +1865,16 @@ async function loadSquadTracker() {
   swimTimes.forEach(t => addTime(t.roster_id, `${t.event} ${t.course || ''}`.trim(), t.time_seconds, t.time_text));
   galaTimes.forEach(t => addTime(t.roster_id, `${t.distance} ${t.stroke} ${t.course || ''}`.trim(), t.time_seconds, t.time_text));
 
-  const galasByRoster = {};
+  const sessionsByRoster = {};
   attend.forEach(a => {
-    if (!galasByRoster[a.roster_id]) galasByRoster[a.roster_id] = new Set();
-    galasByRoster[a.roster_id].add(a.session_id);
+    if (!sessionsByRoster[a.roster_id]) sessionsByRoster[a.roster_id] = new Set();
+    sessionsByRoster[a.roster_id].add(`${a.session_date}_${a.session_start}`);
   });
 
   trackerData = roster.map(r => ({
     ...r,
     times: timesByRoster[r.id] || [],
-    sessions: galasByRoster[r.id]?.size || 0,
+    sessions: sessionsByRoster[r.id]?.size || 0,
   }));
 
   // Populate category filter
