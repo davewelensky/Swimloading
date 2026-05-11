@@ -201,6 +201,33 @@
     .delta-improve { background:rgba(16,185,129,0.12); color:var(--green); }
     .delta-same { background:rgba(100,116,139,0.1); color:var(--text-sec); }
     .no-times { font-size:12px; color:var(--text-dim); text-align:center; padding:12px 0; }
+
+    /* ── SWIMMER DETAIL MODAL ── */
+    #swimmerDetailModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:2000; overflow-y:auto; padding:20px; }
+    #swimmerDetailModal.open { display:block; }
+    .swimmer-detail-inner { max-width:720px; margin:0 auto; background:var(--bg-card); border:1px solid var(--border); border-radius:20px; overflow:hidden; }
+    .swimmer-detail-header { padding:20px 24px 16px; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; justify-content:space-between; }
+    .swimmer-detail-name { font-size:20px; font-weight:800; margin-bottom:4px; }
+    .swimmer-detail-meta { font-size:13px; color:var(--text-sec); }
+    .swimmer-detail-stats { display:flex; gap:0; border-bottom:1px solid var(--border); }
+    .swimmer-detail-stat { flex:1; padding:14px 20px; text-align:center; border-right:1px solid var(--border); }
+    .swimmer-detail-stat:last-child { border-right:none; }
+    .swimmer-detail-stat-val { font-size:22px; font-weight:800; color:var(--cyan); }
+    .swimmer-detail-stat-lbl { font-size:10px; font-weight:700; color:var(--text-sec); text-transform:uppercase; letter-spacing:0.08em; margin-top:2px; }
+    .event-section { border-bottom:1px solid var(--border); padding:16px 24px; }
+    .event-section:last-child { border-bottom:none; }
+    .event-section-title { font-size:13px; font-weight:800; color:var(--text); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+    .course-tag { font-size:10px; font-weight:700; padding:2px 7px; border-radius:4px; }
+    .course-sc { background:rgba(56,189,248,0.12); color:var(--cyan); }
+    .course-lc { background:rgba(245,158,11,0.1); color:var(--amber); }
+    .result-row { display:flex; align-items:center; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.03); font-size:13px; }
+    .result-row:last-child { border-bottom:none; }
+    .result-meet { color:var(--text-sec); font-size:12px; flex:1; }
+    .result-time { font-weight:700; color:var(--text); min-width:70px; text-align:right; }
+    .result-pb { font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; background:rgba(16,185,129,0.12); color:var(--green); margin-left:8px; }
+    .result-delta { font-size:11px; font-weight:700; margin-left:6px; }
+    .tracker-card { cursor:pointer; transition:border-color 0.15s; }
+    .tracker-card:hover { border-color:var(--cyan-border); }
   </style>
 </head>
 <body>
@@ -1940,7 +1967,7 @@ function renderTrackerGrid(swimmers) {
       </div>`;
     }).join('') : `<div class="no-times">No times recorded yet</div>`;
 
-    return `<div class="tracker-card">
+    return `<div class="tracker-card" onclick="openTrackerDetail('${s.id}')">
       <div class="tracker-card-header">
         <div>
           <div class="tracker-name">${s.display_name || '—'}</div>
@@ -4438,6 +4465,160 @@ function closeSwimmerDetail() {
   document.getElementById('swimmerDetailModal').classList.remove('open');
 }
 
+// ── TRACKER DETAIL ────────────────────────────────────────────────
+function closeTrackerDetail() {
+  document.getElementById('trackerDetailModal').classList.remove('open');
+}
+
+async function openTrackerDetail(rosterId) {
+  const modal = document.getElementById('trackerDetailModal');
+  modal.classList.add('open');
+
+  const r = trackerData.find(x => x.id === rosterId);
+  if (!r) return;
+
+  const age = r.date_of_birth
+    ? Math.floor((Date.now() - new Date(r.date_of_birth)) / 31557600000)
+    : null;
+
+  document.getElementById('tdName').textContent = r.display_name || '—';
+  document.getElementById('tdMeta').textContent =
+    [r.category, age ? `Age ${age}` : null, r.gender === 'F' ? 'Female' : r.gender === 'M' ? 'Male' : null]
+    .filter(Boolean).join(' · ');
+  document.getElementById('tdStats').innerHTML  = '<div style="padding:20px;color:var(--text-sec);font-size:13px;">Loading…</div>';
+  document.getElementById('tdEvents').innerHTML = '';
+
+  // Fetch both time sources with event details
+  const [galaRes, swimRes] = await Promise.all([
+    sb.from('club_gala_results')
+      .select('stroke, distance, course, time_seconds, time_text, is_pb, club_event_id, club_events(title, event_date)')
+      .eq('roster_id', rosterId)
+      .order('club_events(event_date)', { ascending: true }),
+    sb.from('club_swimmer_times')
+      .select('event, course, time_seconds, time_text, is_pb, meet_name, meet_date')
+      .eq('roster_id', rosterId)
+      .order('meet_date', { ascending: true }),
+  ]);
+
+  // Normalise both into a unified shape
+  const allPoints = [
+    ...(galaRes.data || []).map(g => ({
+      eventKey: `${g.distance} ${g.stroke}`,
+      course:   g.course || 'SC',
+      time_s:   parseFloat(g.time_seconds),
+      time_txt: g.time_text,
+      is_pb:    g.is_pb,
+      date:     g.club_events?.event_date || null,
+      meet:     g.club_events?.title || 'Gala',
+    })),
+    ...(swimRes.data || []).map(t => ({
+      eventKey: t.event,
+      course:   t.course || 'SC',
+      time_s:   parseFloat(t.time_seconds),
+      time_txt: t.time_text,
+      is_pb:    t.is_pb,
+      date:     t.meet_date || null,
+      meet:     t.meet_name || 'Time trial',
+    })),
+  ].filter(p => p.time_s > 0)
+   .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+  // Group by eventKey + course
+  const groups = {};
+  allPoints.forEach(p => {
+    const k = `${p.eventKey}|${p.course}`;
+    if (!groups[k]) groups[k] = { eventKey: p.eventKey, course: p.course, points: [] };
+    groups[k].points.push(p);
+  });
+
+  const groupList = Object.values(groups)
+    .sort((a, b) => a.eventKey.localeCompare(b.eventKey));
+
+  const totalResults  = allPoints.length;
+  const pbCount       = allPoints.filter(p => p.is_pb).length;
+  const eventsCount   = groupList.length;
+
+  document.getElementById('tdStats').innerHTML = `
+    <div class="swimmer-detail-stat"><div class="swimmer-detail-stat-val">${totalResults}</div><div class="swimmer-detail-stat-lbl">Results</div></div>
+    <div class="swimmer-detail-stat"><div class="swimmer-detail-stat-val">${eventsCount}</div><div class="swimmer-detail-stat-lbl">Events</div></div>
+    <div class="swimmer-detail-stat"><div class="swimmer-detail-stat-val" style="color:var(--green);">${pbCount}</div><div class="swimmer-detail-stat-lbl">PBs</div></div>
+    <div class="swimmer-detail-stat"><div class="swimmer-detail-stat-val">${r.sessions}</div><div class="swimmer-detail-stat-lbl">Sessions</div></div>`;
+
+  document.getElementById('tdEvents').innerHTML = groupList.map(g => {
+    const pts = g.points;
+    const first = pts[0].time_s;
+    const pb    = Math.min(...pts.map(p => p.time_s));
+    const delta = first - pb;
+
+    const chartSvg = pts.length >= 2 ? drawTimeChart(pts) : '';
+
+    const rows = pts.map((p, i) => {
+      const prev  = i === 0 ? null : pts[i - 1].time_s;
+      const diff  = prev != null ? (prev - p.time_s) : null;
+      const deltaHtml = diff != null && Math.abs(diff) > 0.05
+        ? `<span class="result-delta" style="color:${diff > 0 ? 'var(--green)' : 'var(--danger)'};">${diff > 0 ? '▼' : '▲'}${Math.abs(diff).toFixed(2)}s</span>`
+        : '';
+      const dateStr = p.date
+        ? new Date(p.date).toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'2-digit' })
+        : '—';
+      return `<div class="result-row">
+        <div class="result-meet">${p.meet}<span style="margin-left:8px;color:var(--text-dim);font-size:11px;">${dateStr}</span></div>
+        <div style="display:flex;align-items:center;">
+          <span class="result-time">${p.time_txt}</span>
+          ${p.is_pb ? '<span class="result-pb">PB</span>' : ''}
+          ${deltaHtml}
+        </div>
+      </div>`;
+    }).join('');
+
+    const improvement = delta > 0.05
+      ? `<span style="font-size:11px;font-weight:700;color:var(--green);margin-left:8px;">▼${delta.toFixed(2)}s total</span>` : '';
+
+    return `<div class="event-section">
+      <div class="event-section-title">
+        ${g.eventKey}
+        <span class="course-tag ${g.course === 'LC' ? 'course-lc' : 'course-sc'}">${g.course}</span>
+        ${improvement}
+      </div>
+      ${chartSvg}
+      ${rows}
+    </div>`;
+  }).join('') || '<div style="padding:24px;text-align:center;color:var(--text-sec);font-size:13px;">No results recorded yet.</div>';
+}
+
+function drawTimeChart(pts) {
+  if (pts.length < 2) return '';
+  const W = 620, H = 90, padL = 8, padR = 8, padT = 12, padB = 12;
+  const times = pts.map(p => p.time_s);
+  const minT  = Math.min(...times);
+  const maxT  = Math.max(...times);
+  const range = maxT - minT || 1;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+
+  const cx = (i) => padL + (i / (pts.length - 1)) * innerW;
+  const cy = (t) => padT + (1 - (t - minT) / range) * innerH; // lower time = higher on chart
+
+  const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${cx(i).toFixed(1)},${cy(p.time_s).toFixed(1)}`).join(' ');
+
+  const dots = pts.map((p, i) => {
+    const fill = p.is_pb ? '#10b981' : '#38bdf8';
+    const x = cx(i).toFixed(1), y = cy(p.time_s).toFixed(1);
+    return `<circle cx="${x}" cy="${y}" r="5" fill="${fill}" stroke="var(--bg-card)" stroke-width="2">
+      <title>${p.time_txt} — ${p.meet}</title>
+    </circle>`;
+  }).join('');
+
+  // Label first and last
+  const labelFirst = `<text x="${cx(0).toFixed(1)}" y="${(cy(pts[0].time_s) - 9).toFixed(1)}" fill="#64748b" font-size="9" text-anchor="middle">${pts[0].time_txt}</text>`;
+  const labelLast  = `<text x="${cx(pts.length-1).toFixed(1)}" y="${(cy(pts[pts.length-1].time_s) - 9).toFixed(1)}" fill="#38bdf8" font-size="9" text-anchor="middle">${pts[pts.length-1].time_txt}</text>`;
+
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="margin-bottom:8px;display:block;">
+    <path d="${pathD}" stroke="rgba(56,189,248,0.35)" stroke-width="2" fill="none" stroke-linejoin="round"/>
+    ${dots}${labelFirst}${labelLast}
+  </svg>`;
+}
+
 // ── BOOT ──────────────────────────────────────────────────────────
 init();
 </script>
@@ -4580,6 +4761,21 @@ init();
     <div style="position:sticky;bottom:0;background:var(--bg-card);margin:16px -20px -20px;padding:14px 20px;border-top:1px solid var(--border);text-align:right;">
       <button class="btn-modal-cancel" onclick="closeSwimmerDetail()">Close</button>
     </div>
+  </div>
+</div>
+
+<!-- TRACKER TIMES DETAIL MODAL -->
+<div id="trackerDetailModal">
+  <div class="swimmer-detail-inner">
+    <div class="swimmer-detail-header">
+      <div>
+        <div class="swimmer-detail-name" id="tdName">—</div>
+        <div class="swimmer-detail-meta" id="tdMeta"></div>
+      </div>
+      <button class="modal-close" onclick="closeTrackerDetail()" style="font-size:26px;">&times;</button>
+    </div>
+    <div class="swimmer-detail-stats" id="tdStats"></div>
+    <div id="tdEvents"></div>
   </div>
 </div>
 
