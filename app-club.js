@@ -103,7 +103,7 @@ async function renderSwimClub(container, club, roster, membership) {
 
   const today = new Date().toISOString().slice(0,10);
 
-  const [resultsRes, upcomingRes, profileRes, trialsRes] = await Promise.all([
+  const [resultsRes, upcomingRes, profileRes, trialsRes, announcementsRes] = await Promise.all([
     supabaseClient
       .from('club_gala_results')
       .select('id, stroke, distance, course, time_seconds, time_text, is_pb, club_events(id, title, event_date)')
@@ -111,11 +111,11 @@ async function renderSwimClub(container, club, roster, membership) {
 
     supabaseClient
       .from('club_events')
-      .select('id, title, event_date, description')
+      .select('id, title, event_date, description, is_league')
       .eq('club_id', club.id)
       .gte('event_date', today)
       .order('event_date')
-      .limit(8),
+      .limit(10),
 
     supabaseClient
       .from('club_member_profile')
@@ -127,16 +127,29 @@ async function renderSwimClub(container, club, roster, membership) {
       .from('club_swimmer_times')
       .select('event, course, time_seconds, time_text, meet_date, is_pb')
       .eq('roster_id', roster.id),
+
+    supabaseClient
+      .from('club_announcements')
+      .select('id, title, body, is_pinned, created_at')
+      .eq('club_id', club.id)
+      .order('is_pinned', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(5),
   ]);
 
-  const allResults = resultsRes.data  || [];
-  const upcoming   = upcomingRes.data || [];
-  const profile    = profileRes.data  || null;
-  const timeTrial  = trialsRes.data   || [];
-  const qtsByEvent = getAgeGroupQTs(profile?.date_of_birth, profile?.gender);
+  const allResults    = resultsRes.data       || [];
+  const upcoming      = upcomingRes.data      || [];
+  const profile       = profileRes.data       || null;
+  const timeTrial     = trialsRes.data        || [];
+  const announcements = announcementsRes.data || [];
+  const qtsByEvent    = getAgeGroupQTs(profile?.date_of_birth, profile?.gender);
+  const rosterCat     = roster?.category || '';
 
   container.innerHTML =
     renderClubHero(club, roster, membership) +
+    renderTrainingToday(club, rosterCat) +
+    renderNextGala(upcoming) +
+    renderAnnouncements(announcements) +
     renderSwimStats(allResults, timeTrial) +
     renderQTGoals(allResults, timeTrial, qtsByEvent) +
     renderEventGraphs(allResults, timeTrial, qtsByEvent, roster.id, club.id) +
@@ -235,6 +248,192 @@ function renderSwimStats(allResults, timeTrial) {
       <div style="font-size:11px;font-weight:700;color:var(--text-secondary);margin-top:2px;text-transform:uppercase;letter-spacing:0.08em;">Personal Bests</div>
     </div>
   </div>`;
+}
+
+// ─── Today / Next Session ──────────────────────────────────────────────────────
+
+function renderTrainingToday(club, rosterCategory) {
+  const schedule = club.training_schedule;
+  if (!schedule?.length) return '';
+
+  const now     = new Date();
+  const todayDay = now.getDay();   // 0=Sun … 6=Sat
+  const hhmm     = now.getHours() * 60 + now.getMinutes();
+
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  // Find today's session (check if cat is in squads, or show all if no cat)
+  const todaySession = schedule.find(s => {
+    if (s.day !== todayDay) return false;
+    if (rosterCategory && s.squads?.length) {
+      return s.squads.some(sq => rosterCategory.toLowerCase().includes(sq.toLowerCase()) || sq.toLowerCase().includes(rosterCategory.toLowerCase()));
+    }
+    return true;
+  });
+
+  // Find next upcoming session after today
+  const nextSession = (() => {
+    for (let d = 1; d <= 7; d++) {
+      const checkDay = (todayDay + d) % 7;
+      const s = schedule.find(s2 => {
+        if (s2.day !== checkDay) return false;
+        if (rosterCategory && s2.squads?.length) {
+          return s2.squads.some(sq => rosterCategory.toLowerCase().includes(sq.toLowerCase()) || sq.toLowerCase().includes(rosterCategory.toLowerCase()));
+        }
+        return true;
+      });
+      if (s) {
+        const nextDate = new Date(now);
+        nextDate.setDate(now.getDate() + d);
+        return { ...s, daysAway: d, dayName: DAYS[checkDay], shortDay: SHORT[checkDay], date: nextDate.getDate(), mon: nextDate.toLocaleDateString('en-ZA', { month: 'short' }) };
+      }
+    }
+    return null;
+  })();
+
+  // Parse "16:30" to minutes
+  const toMins = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+
+  if (todaySession) {
+    const endMins   = toMins(todaySession.end);
+    const startMins = toMins(todaySession.start);
+    const isPast    = hhmm > endMins;
+    const isNow     = hhmm >= startMins && hhmm <= endMins;
+
+    if (!isPast) {
+      const squadStr = todaySession.squads?.join(' & ') || '';
+      const statusLabel = isNow
+        ? `<span style="font-size:10px;font-weight:800;color:#10b981;background:rgba(16,185,129,0.15);border-radius:8px;padding:2px 8px;margin-left:8px;">IN SESSION</span>`
+        : `<span style="font-size:10px;font-weight:800;color:var(--cyan);background:rgba(56,189,248,0.12);border-radius:8px;padding:2px 8px;margin-left:8px;">TODAY</span>`;
+
+      return `
+      <div class="card" style="margin-bottom:12px;background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(56,189,248,0.06));border:1px solid rgba(16,185,129,0.2);">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="display:flex;align-items:center;margin-bottom:4px;">
+              <i data-lucide="waves" style="width:14px;height:14px;color:#10b981;margin-right:6px;flex-shrink:0;"></i>
+              <span style="font-size:12px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:0.08em;">Training${statusLabel}</span>
+            </div>
+            <div style="font-size:22px;font-weight:900;color:var(--text);font-family:'Bebas Neue',sans-serif;letter-spacing:0.02em;">${todaySession.start} → ${todaySession.end}</div>
+            ${squadStr ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">${squadStr}</div>` : ''}
+            ${todaySession.venue ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:1px;opacity:0.7;">${todaySession.venue}</div>` : ''}
+          </div>
+          <i data-lucide="calendar-check" style="width:32px;height:32px;color:#10b981;opacity:0.3;flex-shrink:0;"></i>
+        </div>
+      </div>`;
+    }
+  }
+
+  // Show next session
+  if (nextSession) {
+    const squadStr = nextSession.squads?.join(' & ') || '';
+    const daysLabel = nextSession.daysAway === 1 ? 'Tomorrow' : nextSession.dayName;
+    return `
+    <div class="card" style="margin-bottom:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Next session</div>
+          <div style="font-size:18px;font-weight:900;color:var(--text);font-family:'Bebas Neue',sans-serif;">${daysLabel} · ${nextSession.start}</div>
+          ${squadStr ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">${squadStr}</div>` : ''}
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-size:28px;font-weight:900;color:var(--cyan);font-family:'Bebas Neue',sans-serif;line-height:1;">${nextSession.daysAway}</div>
+          <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;">day${nextSession.daysAway > 1 ? 's' : ''}</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  return '';
+}
+
+// ─── Next Gala Countdown ───────────────────────────────────────────────────────
+
+function renderNextGala(upcoming) {
+  const next = upcoming[0];
+  if (!next) return '';
+
+  const eventDate = new Date(next.event_date + 'T12:00:00');
+  const today     = new Date(); today.setHours(0,0,0,0);
+  const daysAway  = Math.round((eventDate - today) / 86400000);
+  const dateStr   = eventDate.toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' });
+  const urgency   = daysAway <= 7 ? 'var(--amber)' : 'var(--cyan)';
+
+  return `
+  <div class="card" style="margin-bottom:12px;background:linear-gradient(135deg,rgba(56,189,248,0.07),rgba(2,132,199,0.04));border:1px solid rgba(56,189,248,0.15);">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Next gala</div>
+        <div style="font-size:16px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${next.title}</div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${dateStr}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;margin-left:14px;">
+        <div style="font-size:38px;font-weight:900;color:${urgency};font-family:'Bebas Neue',sans-serif;line-height:1;">${daysAway}</div>
+        <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;">day${daysAway !== 1 ? 's' : ''}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ─── Announcements ─────────────────────────────────────────────────────────────
+
+function renderAnnouncements(announcements) {
+  if (!announcements.length) return '';
+
+  let expanded = null; // track open item index
+
+  const items = announcements.map((a, i) => {
+    const d   = new Date(a.created_at);
+    const ago = (() => {
+      const diff = (Date.now() - d) / 1000;
+      if (diff < 3600)  return `${Math.round(diff / 60)}m ago`;
+      if (diff < 86400) return `${Math.round(diff / 3600)}h ago`;
+      return `${Math.round(diff / 86400)}d ago`;
+    })();
+
+    const bodyPreview = (a.body || '').split('\n')[0].slice(0, 80);
+    const hasMore     = (a.body || '').length > bodyPreview.length || (a.body || '').includes('\n');
+
+    return `
+    <div style="padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;cursor:pointer;" onclick="toggleAnnouncement('ann_${i}')">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+            ${a.is_pinned ? `<i data-lucide="pin" style="width:11px;height:11px;color:var(--amber);flex-shrink:0;"></i>` : ''}
+            <span style="font-size:13px;font-weight:700;color:var(--text);">${a.title}</span>
+          </div>
+          <div id="ann_${i}_preview" style="font-size:12px;color:var(--text-secondary);line-height:1.4;">${bodyPreview}${hasMore ? '…' : ''}</div>
+          <div id="ann_${i}_full" style="display:none;font-size:12px;color:var(--text-secondary);line-height:1.6;margin-top:6px;white-space:pre-wrap;">${a.body || ''}</div>
+        </div>
+        <div style="flex-shrink:0;text-align:right;">
+          <div style="font-size:10px;color:var(--text-secondary);">${ago}</div>
+          ${hasMore ? `<i id="ann_${i}_chevron" data-lucide="chevron-down" style="width:14px;height:14px;color:var(--text-secondary);margin-top:4px;display:block;margin-left:auto;"></i>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+  <div class="card" style="margin-bottom:12px;">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">
+      <i data-lucide="megaphone" style="width:15px;height:15px;color:var(--cyan);"></i>
+      <span style="font-size:15px;font-weight:700;">From the coach</span>
+    </div>
+    ${items}
+  </div>`;
+}
+
+function toggleAnnouncement(id) {
+  const preview  = document.getElementById(id + '_preview');
+  const full     = document.getElementById(id + '_full');
+  const chevron  = document.getElementById(id + '_chevron');
+  if (!full) return;
+  const isOpen = full.style.display !== 'none';
+  full.style.display    = isOpen ? 'none' : 'block';
+  if (preview) preview.style.display = isOpen ? 'block' : 'none';
+  if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+  lucide.createIcons();
 }
 
 function renderQTGoals(allResults, timeTrial, qtsByEvent) {
