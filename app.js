@@ -1163,13 +1163,27 @@
                     }
                 });
 
-                // Sort by most recent, take top 4
+                // SA scored section uses top 4 domestic spots only
                 const topSpots = Object.values(spotMap)
                     .sort((a,b) => new Date(b.latestLog.created_at) - new Date(a.latestLog.created_at))
                     .slice(0, 4);
 
-                // Fetch names for latest loggers
-                const spotUserIds = [...new Set(topSpots.flatMap(s => [s.latestLog.user_id, s.latestWithNote?.user_id].filter(Boolean)))];
+                // International spots get their own cut — independent of SA top-4 so they
+                // always appear regardless of how many SA spots logged recently.
+                // Wider staleness window (30 days) since international loggers are fewer.
+                const intlStale30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+                const intlSpots = Object.values(spotMap)
+                    .filter(s => {
+                        const spotInfo = spots.find(sp => sp.id === s.latestLog.spot_id);
+                        const isIntl = internationalSpotIds.has(s.latestLog.spot_id) || INTERNATIONAL_DOMAINS.has(spotInfo?.domain);
+                        return isIntl && new Date(s.latestLog.created_at) >= intlStale30d;
+                    })
+                    .sort((a,b) => new Date(b.latestLog.created_at) - new Date(a.latestLog.created_at))
+                    .slice(0, 5);
+
+                // Fetch names for latest loggers (SA + international combined)
+                const allDisplaySpots = [...topSpots, ...intlSpots];
+                const spotUserIds = [...new Set(allDisplaySpots.flatMap(s => [s.latestLog.user_id, s.latestWithNote?.user_id].filter(Boolean)))];
                 const { data: spotProfiles } = spotUserIds.length
                     ? await supabaseClient.from('profiles').select('id, display_name').in('id', spotUserIds)
                     : { data: [] };
@@ -1177,12 +1191,6 @@
 
                 const recentLogsEl = document.getElementById('dashRecentLogs');
                 const recentLogsWrap = document.getElementById('dashRecentLogsWrap');
-
-                // Only show international spots here — SA spots are already in the scored section above
-                const intlSpots = topSpots.filter(s => {
-                    const spotInfo = spots.find(sp => sp.id === s.latestLog.spot_id);
-                    return internationalSpotIds.has(s.latestLog.spot_id) || INTERNATIONAL_DOMAINS.has(spotInfo?.domain);
-                });
 
                 if (intlSpots.length === 0) {
                     if (recentLogsWrap) recentLogsWrap.style.display = 'none';
