@@ -244,10 +244,11 @@ async function openPreEntry(eventId, eventTitle, clubId) {
   const { error } = await supabaseClient
     .from('club_race_entries')
     .insert({
-      club_event_id: eventId,
-      user_id:       currentUser.id,
+      club_event_id:  eventId,
+      user_id:        currentUser.id,
       club_member_id: membership.id,
-      category_id:   membership.category_id || null,
+      category_id:    membership.category_id || null,
+      race_number:    String(membership.club_roster?.member_number || membership.member_number || ''),
     });
 
   if (error) { showToast('Could not enter: ' + error.message); return; }
