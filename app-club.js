@@ -103,7 +103,7 @@ async function renderSwimClub(container, club, roster, membership) {
 
   const today = new Date().toISOString().slice(0,10);
 
-  const [resultsRes, upcomingRes, profileRes] = await Promise.all([
+  const [resultsRes, upcomingRes, profileRes, trialsRes] = await Promise.all([
     supabaseClient
       .from('club_gala_results')
       .select('id, stroke, distance, course, time_seconds, time_text, is_pb, club_events(id, title, event_date)')
@@ -122,17 +122,24 @@ async function renderSwimClub(container, club, roster, membership) {
       .select('date_of_birth, gender')
       .eq('roster_id', roster.id)
       .maybeSingle(),
+
+    supabaseClient
+      .from('club_swimmer_times')
+      .select('event, course, time_seconds, time_text, meet_date, is_pb')
+      .eq('roster_id', roster.id),
   ]);
 
   const allResults = resultsRes.data  || [];
   const upcoming   = upcomingRes.data || [];
   const profile    = profileRes.data  || null;
+  const timeTrial  = trialsRes.data   || [];
   const qtsByEvent = getAgeGroupQTs(profile?.date_of_birth, profile?.gender);
 
   container.innerHTML =
     renderClubHero(club, roster, membership) +
-    renderSwimStats(allResults) +
-    renderEventGraphs(allResults, qtsByEvent) +
+    renderSwimStats(allResults, timeTrial) +
+    renderQTGoals(allResults, timeTrial, qtsByEvent) +
+    renderEventGraphs(allResults, timeTrial, qtsByEvent, roster.id, club.id) +
     renderUpcomingGalas(upcoming);
 
   lucide.createIcons();
@@ -140,16 +147,42 @@ async function renderSwimClub(container, club, roster, membership) {
 
 // ─── Swim Club Section Renderers ───────────────────────────────────────────────
 
-// SSA 2025/2026 qualifying times — keyed by gender → age group → event key
-// Source: SSA Age Group Qualifying Times 2025/2026 PDF
-// Tiers: SANJ (fastest) > L3 > L2 (entry level)
+// SSA 2025/2026 qualifying times — keyed by gender → age group → distance_stroke_course
+// Source: SSA Age Group Qualifying Times 2025/2026 PDF (June 2025)
+// Tiers: SANJ (fastest) > L3 > L2 (entry level). Times in seconds.
 const SSA_QTS = {
   W: {
     15: {
-      '50_Free_SC':  { L2: 32.83 },
-      '50_Fly_SC':   { L2: 38.61 },
-      '200_Free_LC': { L3: 149.27 },
-      '400_Free_LC': { L3: 324.96 },
+      // SHORT COURSE
+      '50_Free_SC':    { L2: 32.83 },
+      '100_Free_SC':   { SANJ: 61.70, L3: 66.13, L2: 73.61 },
+      '200_Free_SC':   { SANJ: 135.92, L3: 146.07, L2: 167.14 },
+      '400_Free_SC':   { SANJ: 288.59, L3: 318.56 },
+      '50_Back_SC':    { L2: 40.41 },
+      '100_Back_SC':   { SANJ: 70.68, L3: 78.02, L2: 87.52 },
+      '200_Back_SC':   { SANJ: 153.47, L3: 170.22, L2: 198.87 },
+      '50_Breast_SC':  { L2: 45.35 },
+      '100_Breast_SC': { SANJ: 80.25, L3: 88.14, L2: 100.91 },
+      '200_Breast_SC': { SANJ: 174.96, L3: 191.18, L2: 226.68 },
+      '50_Fly_SC':     { L2: 38.61 },
+      '100_Fly_SC':    { SANJ: 70.82, L3: 76.16, L2: 96.33 },
+      '200_IM_SC':     { SANJ: 154.65, L3: 170.16, L2: 188.90 },
+      '400_IM_SC':     { SANJ: 333.63 },
+      // LONG COURSE
+      '50_Free_LC':    { L2: 33.63 },
+      '100_Free_LC':   { SANJ: 63.30, L3: 67.73, L2: 75.21 },
+      '200_Free_LC':   { SANJ: 139.12, L3: 149.27, L2: 170.34 },
+      '400_Free_LC':   { SANJ: 294.99, L3: 324.96 },
+      '50_Back_LC':    { L2: 41.01 },
+      '100_Back_LC':   { SANJ: 71.88, L3: 79.22, L2: 88.72 },
+      '200_Back_LC':   { SANJ: 155.87, L3: 172.62, L2: 201.27 },
+      '50_Breast_LC':  { L2: 46.35 },
+      '100_Breast_LC': { SANJ: 82.25, L3: 90.14, L2: 102.91 },
+      '200_Breast_LC': { SANJ: 178.96, L3: 195.18, L2: 230.68 },
+      '50_Fly_LC':     { L2: 39.31 },
+      '100_Fly_LC':    { SANJ: 72.22, L3: 77.56, L2: 97.73 },
+      '200_IM_LC':     { SANJ: 157.85, L3: 173.36, L2: 192.10 },
+      '400_IM_LC':     { SANJ: 340.03 },
     },
   },
   M: {},
@@ -163,9 +196,34 @@ function getAgeGroupQTs(dob, gender) {
   return SSA_QTS[g]?.[age] || {};
 }
 
-function renderSwimStats(allResults) {
+// "1:09.78" or "69.78" → seconds
+function parseTimeInput(val) {
+  val = String(val).trim().replace(',', '.');
+  const mmss = val.match(/^(\d+):(\d{1,2}(?:\.\d+)?)$/);
+  if (mmss) return { seconds: parseInt(mmss[1]) * 60 + parseFloat(mmss[2]), text: val };
+  const ss = val.match(/^(\d+(?:\.\d+)?)$/);
+  if (ss) return { seconds: parseFloat(ss[1]), text: val };
+  return null;
+}
+
+// 69.78 → "1:09.78"
+function secondsToTimeText(s) {
+  if (s < 60) return s.toFixed(2);
+  const m = Math.floor(s / 60);
+  const sec = (s % 60).toFixed(2).padStart(5, '0');
+  return `${m}:${sec}`;
+}
+
+// "50 Free" + "SC" → "50_Free_SC"  (matches SSA_QTS key format)
+function swimTimeToGroupKey(event, course) {
+  const m = event.match(/^(\d+)\s+(.+)$/);
+  if (!m) return null;
+  return `${m[1]}_${m[2]}_${course}`;
+}
+
+function renderSwimStats(allResults, timeTrial) {
   const galas = new Set(allResults.map(r => r.club_events?.id).filter(Boolean)).size;
-  const pbs   = allResults.filter(r => r.is_pb).length;
+  const pbs   = allResults.filter(r => r.is_pb).length + (timeTrial || []).filter(r => r.is_pb).length;
   return `
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
     <div class="card" style="text-align:center;padding:16px 12px;">
@@ -179,26 +237,128 @@ function renderSwimStats(allResults) {
   </div>`;
 }
 
-function renderEventGraphs(allResults, qtsByEvent) {
-  if (!allResults.length) return `
+function renderQTGoals(allResults, timeTrial, qtsByEvent) {
+  if (!Object.keys(qtsByEvent).length) return '';
+
+  // Current best per event key from both gala results and time trials
+  const bestByKey = {};
+  allResults.forEach(r => {
+    const key = `${r.distance}_${r.stroke}_${r.course}`;
+    const t = parseFloat(r.time_seconds);
+    if (!bestByKey[key] || t < bestByKey[key].t) bestByKey[key] = { t, text: r.time_text };
+  });
+  (timeTrial || []).forEach(r => {
+    const key = swimTimeToGroupKey(r.event, r.course);
+    if (!key) return;
+    const t = parseFloat(r.time_seconds);
+    if (!bestByKey[key] || t < bestByKey[key].t) bestByKey[key] = { t, text: r.time_text };
+  });
+
+  // Build one goal item per event key that has BOTH a recorded time AND a QT
+  const items = [];
+  Object.entries(qtsByEvent).forEach(([key, qt]) => {
+    const best = bestByKey[key];
+    if (!best) return;
+    const parts   = key.split('_');
+    const course   = parts[parts.length - 1];
+    const distance = parseInt(parts[0]);
+    const stroke   = parts.slice(1, -1).join(' ');
+
+    // tiers sorted fastest → slowest: SANJ, L3, L2
+    const tiers = [['SANJ', qt.SANJ], ['L3', qt.L3], ['L2', qt.L2]].filter(([, v]) => v != null);
+    const achieved    = tiers.filter(([, t]) => best.t <= t);          // swimmer IS faster than QT
+    const notAchieved = tiers.filter(([, t]) => best.t > t);           // swimmer is slower
+    const bestAchieved  = achieved.length    > 0 ? achieved[0][0]                         : null;
+    const nextTarget    = notAchieved.length > 0 ? notAchieved[notAchieved.length - 1]    : null;
+    const gap = nextTarget ? best.t - nextTarget[1] : null;
+
+    items.push({ key, stroke, distance, course, best, bestAchieved, nextTarget: nextTarget?.[0], targetTime: nextTarget?.[1], gap });
+  });
+
+  if (!items.length) return '';
+
+  // Sort: events with gap (closest first) → fully achieved (no gap)
+  items.sort((a, b) => {
+    if (a.gap !== null && b.gap !== null) return a.gap - b.gap;
+    if (a.gap !== null) return -1;
+    if (b.gap !== null) return 1;
+    return 0;
+  });
+
+  const rows = items.map(item => {
+    const label = `${item.distance}m ${item.stroke}`;
+    const course = `<span style="font-size:10px;color:var(--text-secondary);margin-left:4px;">${item.course}</span>`;
+    const achievedBadge = item.bestAchieved
+      ? `<span style="font-size:9px;font-weight:800;color:var(--green);background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:1px 5px;margin-left:4px;">${item.bestAchieved}</span>`
+      : '';
+
+    if (!item.nextTarget) {
+      return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+        <div style="font-size:13px;font-weight:600;color:var(--text);">${label}${course}${achievedBadge}</div>
+        <span style="font-size:13px;font-weight:800;font-family:'Bebas Neue',sans-serif;color:var(--green);">${item.best.text}</span>
+      </div>`;
+    }
+
+    const isClose   = item.gap < 3;
+    const gapStr    = item.gap.toFixed(2);
+    const targetTxt = secondsToTimeText(item.targetTime);
+    const gapColor  = isClose ? '#f59e0b' : 'var(--text-secondary)';
+
+    return `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+      <div>
+        <span style="font-size:13px;font-weight:600;color:var(--text);">${label}${course}</span>
+        ${achievedBadge}
+        <div style="font-size:10px;color:${gapColor};margin-top:1px;">−${gapStr}s → ${item.nextTarget} (${targetTxt})</div>
+      </div>
+      <span style="font-size:13px;font-weight:800;font-family:'Bebas Neue',sans-serif;color:var(--text);flex-shrink:0;margin-left:10px;">${item.best.text}</span>
+    </div>`;
+  }).join('');
+
+  const gapCount = items.filter(i => i.gap !== null).length;
+
+  return `
+  <div class="card" style="margin-bottom:12px;">
+    <div style="font-size:15px;font-weight:700;margin-bottom:2px;">Qualifying Targets</div>
+    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:14px;">SSA Age Group 2025/2026 · ${gapCount} events in progress</div>
+    ${rows}
+  </div>`;
+}
+
+function renderEventGraphs(allResults, timeTrial, qtsByEvent, rosterId, clubId) {
+  if (!allResults.length && !(timeTrial || []).length) return `
   <div class="card" style="margin-bottom:12px;">
     <div style="font-size:15px;font-weight:700;margin-bottom:6px;">My Events</div>
     <div style="font-size:13px;color:var(--text-secondary);">No results yet — they'll appear here after your first gala.</div>
   </div>`;
 
-  // Group by stroke_distance_course
+  // Group by distance_stroke_course (matches SSA_QTS key format)
   const groups = {};
+  const addPt = (key, stroke, distance, course, pt) => {
+    if (!groups[key]) groups[key] = { stroke, distance, course, pts: [] };
+    groups[key].pts.push(pt);
+  };
+
   allResults.forEach(r => {
     const ev = r.club_events;
     if (!ev) return;
-    const key = `${r.stroke}_${r.distance}_${r.course}`;
-    if (!groups[key]) groups[key] = { stroke: r.stroke, distance: r.distance, course: r.course, pts: [] };
-    groups[key].pts.push({
-      date:         ev.event_date,
-      time_seconds: parseFloat(r.time_seconds),
-      time_text:    r.time_text,
-      is_pb:        r.is_pb,
-      gala:         ev.title,
+    addPt(`${r.distance}_${r.stroke}_${r.course}`, r.stroke, r.distance, r.course, {
+      date: ev.event_date, time_seconds: parseFloat(r.time_seconds),
+      time_text: r.time_text, is_pb: r.is_pb, gala: ev.title, isTT: false,
+    });
+  });
+
+  (timeTrial || []).forEach(r => {
+    const key = swimTimeToGroupKey(r.event, r.course);
+    if (!key) return;
+    const parts = key.split('_');
+    const course = parts[parts.length - 1];
+    const distance = parseInt(parts[0]);
+    const stroke = parts.slice(1, -1).join(' ');
+    addPt(key, stroke, distance, course, {
+      date: r.meet_date, time_seconds: parseFloat(r.time_seconds),
+      time_text: r.time_text, is_pb: r.is_pb, gala: 'Time Trial', isTT: true,
     });
   });
 
@@ -211,7 +371,7 @@ function renderEventGraphs(allResults, qtsByEvent) {
   });
 
   const cards = sorted.map(g => {
-    const key  = `${g.stroke}_${g.distance}_${g.course}`;
+    const key  = `${g.distance}_${g.stroke}_${g.course}`;
     const qt   = qtsByEvent[key] || null;
     const times = g.pts.map(p => p.time_seconds);
     const bestTime  = Math.min(...times);
@@ -219,39 +379,47 @@ function renderEventGraphs(allResults, qtsByEvent) {
     const bestPt    = g.pts.find(p => p.time_seconds === bestTime);
     const improvement = firstTime - bestTime;
 
-    // QT badge / next target
+    // QT badge / next target (fixed: next = easiest unachieved tier)
     let qtHtml = '';
     if (qt) {
-      const tiers = [['SANJ', qt.SANJ], ['L3', qt.L3], ['L2', qt.L2]].filter(([, v]) => v != null);
-      const achieved = tiers.filter(([, t]) => bestTime <= t);
-      const nextTarget = tiers.find(([, t]) => bestTime > t);
-      if (achieved.length) {
-        qtHtml += `<span style="font-size:10px;font-weight:800;color:var(--green);background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:2px 8px;display:inline-block;margin-top:3px;">QT ${achieved[achieved.length-1][0]}</span>`;
-      }
-      if (nextTarget) {
-        const gap = (bestTime - nextTarget[1]).toFixed(2);
-        qtHtml += `<div style="font-size:10px;font-weight:700;color:var(--amber);margin-top:2px;">−${gap}s to ${nextTarget[0]}</div>`;
+      const tiers       = [['SANJ', qt.SANJ], ['L3', qt.L3], ['L2', qt.L2]].filter(([, v]) => v != null);
+      const achieved    = tiers.filter(([, t]) => bestTime <= t);
+      const notAchieved = tiers.filter(([, t]) => bestTime > t);
+      const bestAch     = achieved.length    > 0 ? achieved[0][0]                       : null;
+      const nextTgt     = notAchieved.length > 0 ? notAchieved[notAchieved.length - 1]  : null;
+      if (bestAch) qtHtml += `<span style="font-size:10px;font-weight:800;color:var(--green);background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:2px 8px;display:inline-block;margin-top:3px;">QT ${bestAch}</span>`;
+      if (nextTgt) {
+        const gap = (bestTime - nextTgt[1]).toFixed(2);
+        qtHtml += `<div style="font-size:10px;font-weight:700;color:var(--amber);margin-top:2px;">−${gap}s to ${nextTgt[0]}</div>`;
       }
     }
 
     const resultRows = [...g.pts].reverse().map(p => {
       const d       = new Date(p.date + 'T12:00:00');
       const dateStr = d.toLocaleDateString('en-ZA', { day:'numeric', month:'short' });
+      const ttBadge = p.isTT ? `<span style="font-size:9px;color:var(--text-secondary);background:rgba(255,255,255,0.06);border-radius:6px;padding:1px 5px;">TT</span>` : '';
       return `
       <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
         <span style="font-size:11px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;">${p.gala} <span style="opacity:0.5;">${dateStr}</span></span>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+          ${ttBadge}
           <span style="font-size:13px;font-weight:800;color:var(--text);font-family:'Bebas Neue',sans-serif;letter-spacing:0.05em;">${p.time_text}</span>
           ${p.is_pb ? `<span style="font-size:9px;font-weight:800;color:var(--green);background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:1px 5px;">PB</span>` : ''}
         </div>
       </div>`;
     }).join('');
 
+    const logBtn = rosterId ? `<button onclick="openTimeTrialModal(${g.distance},'${g.stroke}','${g.course}','${rosterId}','${clubId}')"
+      style="flex-shrink:0;padding:4px 10px;border-radius:20px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:var(--cyan);font-size:11px;font-weight:700;cursor:pointer;">+ Log time</button>` : '';
+
     return `
     <div style="margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--border-color);">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px;">
         <div style="flex:1;min-width:0;">
-          <div style="font-size:14px;font-weight:800;color:var(--text);">${g.distance}m ${g.stroke} <span style="font-size:11px;font-weight:600;color:var(--text-secondary);">${g.course}</span></div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:14px;font-weight:800;color:var(--text);">${g.distance}m ${g.stroke} <span style="font-size:11px;font-weight:600;color:var(--text-secondary);">${g.course}</span></span>
+            ${logBtn}
+          </div>
           ${improvement > 0.01 ? `<div style="font-size:11px;color:var(--green);margin-top:2px;">↓ ${improvement.toFixed(2)}s faster</div>` : ''}
         </div>
         <div style="text-align:right;flex-shrink:0;margin-left:12px;">
@@ -336,6 +504,88 @@ function renderUpcomingGalas(events) {
     <div style="font-size:11px;color:var(--text-secondary);margin-bottom:12px;">Upcoming galas — 2026/27 season</div>
     ${items}
   </div>`;
+}
+
+// ─── Time Trial Logging ────────────────────────────────────────────────────────
+
+function openTimeTrialModal(distance, stroke, course, rosterId, clubId) {
+  const existing = document.getElementById('timeTrialModal');
+  if (existing) existing.remove();
+
+  const today = new Date().toISOString().slice(0, 10);
+  document.body.insertAdjacentHTML('beforeend', `
+  <div id="timeTrialModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:10010;display:flex;align-items:flex-end;justify-content:center;">
+    <div style="background:#0d1728;border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:24px;border-top:1px solid rgba(255,255,255,0.1);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div style="font-size:17px;font-weight:800;">${distance}m ${stroke} ${course} — Log time</div>
+        <button onclick="document.getElementById('timeTrialModal').remove()" style="background:none;border:none;color:var(--text-secondary);font-size:24px;cursor:pointer;padding:0;line-height:1;">×</button>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:6px;">Date</label>
+        <input type="date" id="ttDate" value="${today}" style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:var(--text);font-size:15px;box-sizing:border-box;">
+      </div>
+      <div style="margin-bottom:24px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:6px;">Time (1:09.50 or 32.45)</label>
+        <input type="text" id="ttTime" placeholder="e.g. 32.45" inputmode="decimal"
+          style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:var(--text);font-size:26px;font-family:'Bebas Neue',sans-serif;letter-spacing:0.05em;box-sizing:border-box;">
+        <div id="ttTimeErr" style="font-size:11px;color:var(--danger);margin-top:5px;display:none;">Invalid format — use 1:09.50 or 32.45</div>
+      </div>
+      <button onclick="saveTimeTrial(${distance},'${stroke}','${course}','${rosterId}','${clubId}')"
+        style="width:100%;padding:14px;background:var(--cyan);color:#080f1a;font-size:15px;font-weight:800;border:none;border-radius:50px;cursor:pointer;">
+        Save time trial
+      </button>
+    </div>
+  </div>`);
+  setTimeout(() => document.getElementById('ttTime')?.focus(), 80);
+}
+
+async function saveTimeTrial(distance, stroke, course, rosterId, clubId) {
+  const timeVal = document.getElementById('ttTime')?.value || '';
+  const dateVal = document.getElementById('ttDate')?.value || '';
+  const parsed  = parseTimeInput(timeVal);
+
+  if (!parsed) {
+    const errEl = document.getElementById('ttTimeErr');
+    if (errEl) errEl.style.display = 'block';
+    return;
+  }
+
+  const timeText = secondsToTimeText(parsed.seconds);
+  const eventStr = `${distance} ${stroke}`;
+
+  // Is this a PB for this event?
+  const { data: existing } = await supabaseClient
+    .from('club_swimmer_times')
+    .select('time_seconds')
+    .eq('roster_id', rosterId)
+    .eq('event', eventStr)
+    .eq('course', course)
+    .order('time_seconds')
+    .limit(1);
+
+  const isPb = !existing?.length || parsed.seconds < parseFloat(existing[0].time_seconds);
+
+  const { error } = await supabaseClient
+    .from('club_swimmer_times')
+    .insert({
+      club_id:      clubId,
+      roster_id:    rosterId,
+      event:        eventStr,
+      course,
+      time_text:    timeText,
+      time_seconds: parsed.seconds,
+      meet_name:    'Time Trial',
+      meet_date:    dateVal,
+      season:       '2025/2026',
+      is_pb:        isPb,
+      source:       'manual',
+    });
+
+  if (error) { showToast('Could not save: ' + error.message); return; }
+
+  document.getElementById('timeTrialModal')?.remove();
+  showToast(isPb ? `PB! ${timeText} saved.` : `Time trial ${timeText} saved.`);
+  await renderActiveClub();
 }
 
 // ─── Open Water Club View (DUC etc.) ──────────────────────────────────────────
