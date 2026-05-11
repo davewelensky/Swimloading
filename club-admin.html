@@ -206,8 +206,8 @@
   <nav class="nav">
     <div style="display:flex;align-items:center;gap:16px;">
       <a class="nav-brand" href="/app">
-        <img src="icons/logo-wave.png" alt="">
-        <span>SwimLoading</span>
+        <img id="navLogo" src="icons/logo-wave.png" alt="" style="height:28px;width:auto;object-fit:contain;border-radius:4px;">
+        <span id="navLogoText">SwimLoading</span>
       </a>
       <div class="nav-club" id="navClubName">—</div>
     </div>
@@ -237,13 +237,13 @@
       <button class="nav-item" onclick="showPage('entries')" id="nav-entries">
         <i data-lucide="ticket"></i> Race Entries
       </button>
-      <button class="nav-item" onclick="showPage('league')" id="nav-league">
+      <button class="nav-item" onclick="showPage('league')" id="nav-league" style="display:none;">
         <i data-lucide="trophy"></i> League
       </button>
       <button class="nav-item" onclick="showPage('attendance')" id="nav-attendance">
         <i data-lucide="clipboard-check"></i> Attendance
       </button>
-      <button class="nav-item" onclick="showPage('tempchallenge')" id="nav-tempchallenge">
+      <button class="nav-item" onclick="showPage('tempchallenge')" id="nav-tempchallenge" style="display:none;">
         <i data-lucide="thermometer"></i> Temp Challenge
       </button>
       <button class="nav-item" onclick="showPage('team')" id="nav-team">
@@ -467,7 +467,7 @@
         </div>
 
         <!-- Committee & Admin -->
-        <div class="card" style="margin-bottom:14px;">
+        <div class="card" id="committeeCard" style="margin-bottom:14px;display:none;">
           <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
             <div class="card-title">Committee &amp; Admins</div>
             <button class="btn-sm" onclick="openAddAdminModal()">
@@ -1227,6 +1227,22 @@ async function loadClubContext() {
   document.getElementById('navAdminName').textContent =
     currentUser.user_metadata?.full_name || currentUser.email;
   document.getElementById('overviewTitle').textContent = currentClub.name + ' — Overview';
+
+  // Club logo
+  if (currentClub.logo_url) {
+    const logo = document.getElementById('navLogo');
+    logo.src = currentClub.logo_url;
+    logo.style.height = '32px';
+    document.getElementById('navLogoText').style.display = 'none';
+  }
+
+  // Feature visibility — open_water clubs get League + Temp Challenge + Committee
+  const isOpenWater = currentClub.club_type === 'open_water';
+  document.getElementById('nav-league').style.display      = isOpenWater ? '' : 'none';
+  document.getElementById('nav-tempchallenge').style.display = isOpenWater ? '' : 'none';
+  document.getElementById('committeeCard').style.display   = isOpenWater ? '' : 'none';
+  const teamSub = document.querySelector('#page-team .page-sub');
+  if (teamSub) teamSub.textContent = isOpenWater ? 'Committee roles, admin access and coaching staff' : 'Coaching staff';
 
   lucide.createIcons();
   await Promise.all([loadCategories(), loadMembers(), loadEvents(), loadSquads()]);
