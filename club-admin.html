@@ -240,6 +240,9 @@
       <button class="nav-item" onclick="showPage('league')" id="nav-league">
         <i data-lucide="trophy"></i> League
       </button>
+      <button class="nav-item" onclick="showPage('attendance')" id="nav-attendance">
+        <i data-lucide="clipboard-check"></i> Attendance
+      </button>
       <button class="nav-item" onclick="showPage('tempchallenge')" id="nav-tempchallenge">
         <i data-lucide="thermometer"></i> Temp Challenge
       </button>
@@ -416,6 +419,26 @@
           </div>
         </div>
         <div id="tempChallengeContent"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+
+      <!-- ── ATTENDANCE ── -->
+      <div id="page-attendance" class="page">
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="page-title">Attendance</div>
+            <div class="page-sub" id="attendancePageSub">Track training sessions and monitor squad attendance.</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <select class="filter-select" id="attendanceView" onchange="renderAttendancePage()" style="width:auto;">
+              <option value="sessions">Sessions</option>
+              <option value="stats">Stats</option>
+            </select>
+            <button class="btn-primary" style="width:auto;padding:10px 20px;border-radius:10px;font-size:13px;" onclick="openNewSession()">
+              <i data-lucide="plus" style="width:14px;height:14px;"></i> New session
+            </button>
+          </div>
+        </div>
+        <div id="attendanceContent"><div class="loading"><div class="spinner"></div></div></div>
       </div>
 
       <!-- ── LEAGUE ── -->
@@ -928,6 +951,7 @@ function showPage(name) {
   if (name === 'entries')       populateEntriesEventSelect();
   if (name === 'league')        renderLeague();
   if (name === 'tempchallenge') loadTempChallenge();
+  if (name === 'attendance')    loadAttendance();
   if (name === 'roster')        { if (!allRoster.length) loadRoster(); else renderRosterTable(); }
   if (name === 'team')          loadTeam();
 }
@@ -2249,8 +2273,371 @@ async function submitAddRosterMember() {
   loadRoster();
 }
 
+// ── ATTENDANCE ────────────────────────────────────────────────────
+
+let allSessions       = [];
+let activeSessionId   = null;   // session being marked
+let attendanceMarks   = {};     // rosterId → status for active session
+
+async function loadAttendance() {
+  const { data } = await sb.from('club_sessions')
+    .select('*, club_attendance(id, roster_id, status)')
+    .eq('club_id', currentClub.id)
+    .order('session_date', { ascending: false })
+    .order('start_time',   { ascending: false })
+    .limit(60);
+  allSessions = data || [];
+  renderAttendancePage();
+}
+
+function renderAttendancePage() {
+  const view = document.getElementById('attendanceView')?.value || 'sessions';
+  if (view === 'stats') renderAttendanceStats();
+  else renderSessionsList();
+}
+
+// ── SESSIONS LIST ─────────────────────────────────────────────────
+function renderSessionsList() {
+  const el = document.getElementById('attendanceContent');
+  if (!allSessions.length) {
+    el.innerHTML = `<div class="empty">
+      <i data-lucide="clipboard-check" style="width:36px;height:36px;color:var(--text-sec);margin-bottom:12px;display:block;"></i>
+      <div class="empty-title">No sessions yet</div>
+      <div class="empty-desc">Tap "New session" to record your first training session.</div>
+    </div>`;
+    lucide.createIcons(); return;
+  }
+
+  // Group by date
+  const byDate = {};
+  allSessions.forEach(s => {
+    const d = s.session_date;
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(s);
+  });
+
+  const rosterTotal = allRosterFull.length || 1;
+
+  el.innerHTML = Object.entries(byDate).map(([date, sessions]) => {
+    const d = new Date(date + 'T12:00:00');
+    const dateLabel = d.toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long' });
+    return `
+    <div style="margin-bottom:24px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">${dateLabel}</div>
+      ${sessions.map(s => {
+        const attended = (s.club_attendance || []).filter(a => a.status === 'present' || a.status === 'late').length;
+        const total    = s.club_attendance?.length || 0;
+        const pct      = rosterTotal ? Math.round(attended / rosterTotal * 100) : 0;
+        const typeColour = { AM:'#38bdf8', PM:'#10b981', Dryland:'#f59e0b', Drills:'#a78bfa', Race:'#ef4444' }[s.session_type] || '#64748b';
+        return `
+        <div class="card" style="margin-bottom:10px;cursor:pointer;" onclick="openMarkSession('${s.id}')">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div style="width:44px;height:44px;border-radius:10px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.15);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;">
+                <div style="font-size:9px;font-weight:700;color:${typeColour};text-transform:uppercase;letter-spacing:0.06em;">${s.session_type}</div>
+                ${s.start_time ? `<div style="font-size:10px;color:var(--text-sec);">${s.start_time.slice(0,5)}</div>` : ''}
+              </div>
+              <div>
+                <div style="font-size:14px;font-weight:700;color:var(--text);">${s.session_type} Session${s.notes ? ` — ${s.notes}` : ''}</div>
+                <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${attended} of ${rosterTotal} present · ${pct}% attendance</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+              ${total === 0 ? `<span style="font-size:11px;font-weight:700;color:var(--amber);background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);border-radius:20px;padding:3px 10px;">Not marked</span>` : `<span style="font-size:11px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:20px;padding:3px 10px;">Marked</span>`}
+              <i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--text-sec);"></i>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+  lucide.createIcons();
+}
+
+// ── STATS VIEW ────────────────────────────────────────────────────
+function renderAttendanceStats() {
+  const el = document.getElementById('attendanceContent');
+  if (!allSessions.length || !allRosterFull.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-title">No data yet</div><div class="empty-desc">Mark attendance for sessions to see stats.</div></div>`;
+    return;
+  }
+
+  // Count attended sessions per roster member (present + late)
+  const totalSessions = allSessions.length;
+  const attendedByRoster = {};
+  allSessions.forEach(s => {
+    (s.club_attendance || []).forEach(a => {
+      if (a.status === 'present' || a.status === 'late') {
+        attendedByRoster[a.roster_id] = (attendedByRoster[a.roster_id] || 0) + 1;
+      }
+    });
+  });
+
+  // Last 30 days for recent trend
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0,10);
+  const recentSessions = allSessions.filter(s => s.session_date >= cutoff);
+  const recentByRoster = {};
+  recentSessions.forEach(s => {
+    (s.club_attendance || []).forEach(a => {
+      if (a.status === 'present' || a.status === 'late') {
+        recentByRoster[a.roster_id] = (recentByRoster[a.roster_id] || 0) + 1;
+      }
+    });
+  });
+
+  // Build rows sorted by recent attendance desc
+  const rows = allRosterFull.map(r => ({
+    r,
+    total:  attendedByRoster[r.id] || 0,
+    recent: recentByRoster[r.id]   || 0,
+    pct:    totalSessions ? Math.round((attendedByRoster[r.id] || 0) / totalSessions * 100) : 0,
+  })).sort((a,b) => b.pct - a.pct || a.r.member_number - b.r.member_number);
+
+  const pctColour = p => p >= 80 ? 'var(--green)' : p >= 60 ? 'var(--amber)' : 'var(--danger)';
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;padding:14px 18px;">
+      <div style="display:flex;gap:24px;flex-wrap:wrap;">
+        <div><div style="font-size:22px;font-weight:800;color:var(--cyan);">${totalSessions}</div><div style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Total sessions</div></div>
+        <div><div style="font-size:22px;font-weight:800;color:var(--cyan);">${recentSessions.length}</div><div style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Last 30 days</div></div>
+        <div><div style="font-size:22px;font-weight:800;color:var(--cyan);">${allRosterFull.length}</div><div style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Squad size</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Attendance by Swimmer</div><div style="font-size:11px;color:var(--text-sec);">All time · ${totalSessions} sessions</div></div>
+      <table>
+        <thead><tr><th>#</th><th>Swimmer</th><th>Level</th><th>Sessions</th><th>Last 30d</th><th>Rate</th></tr></thead>
+        <tbody>
+          ${rows.map(({r, total, recent, pct}) => `<tr>
+            <td style="color:var(--text-sec);font-size:12px;">${r.member_number}</td>
+            <td class="member-name">${r.display_name}</td>
+            <td><span class="cat-badge ${catClass(r.category)}">${r.category || '—'}</span></td>
+            <td style="color:var(--text-sec);">${total}</td>
+            <td style="color:var(--text-sec);">${recent}</td>
+            <td><span style="font-weight:800;color:${pctColour(pct)};">${totalSessions ? pct + '%' : '—'}</span></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  lucide.createIcons();
+}
+
+// ── NEW SESSION MODAL ─────────────────────────────────────────────
+function openNewSession() {
+  const today = new Date().toISOString().slice(0,10);
+  const hour  = new Date().getHours();
+  const defaultType = hour < 10 ? 'AM' : hour < 15 ? 'PM' : hour < 17 ? 'Dryland' : 'PM';
+  document.getElementById('nsDate').value = today;
+  document.getElementById('nsType').value = defaultType;
+  document.getElementById('nsTime').value = '';
+  document.getElementById('nsNotes').value = '';
+  document.getElementById('newSessionModal').classList.add('open');
+}
+function closeNewSession() { document.getElementById('newSessionModal').classList.remove('open'); }
+
+async function submitNewSession() {
+  const date  = document.getElementById('nsDate').value;
+  const type  = document.getElementById('nsType').value;
+  const time  = document.getElementById('nsTime').value || null;
+  const notes = document.getElementById('nsNotes').value.trim() || null;
+  if (!date) { showToast('Please pick a date'); return; }
+
+  const { data, error } = await sb.from('club_sessions').insert({
+    club_id: currentClub.id, session_date: date, session_type: type,
+    start_time: time, notes, created_by: currentUser.id,
+  }).select('*, club_attendance(id, roster_id, status)').single();
+
+  if (error) { showToast('Error: ' + error.message); return; }
+  allSessions.unshift(data);
+  closeNewSession();
+  openMarkSession(data.id);
+}
+
+// ── MARK ATTENDANCE ───────────────────────────────────────────────
+async function openMarkSession(sessionId) {
+  activeSessionId = sessionId;
+  const session = allSessions.find(s => s.id === sessionId);
+  if (!session) return;
+
+  // Pre-fill marks from existing attendance
+  attendanceMarks = {};
+  (session.club_attendance || []).forEach(a => { attendanceMarks[a.roster_id] = a.status; });
+
+  renderMarkModal(session);
+  document.getElementById('markSessionModal').classList.add('open');
+}
+
+function closeMarkSession() {
+  document.getElementById('markSessionModal').classList.remove('open');
+  activeSessionId = null;
+  attendanceMarks = {};
+}
+
+function renderMarkModal(session) {
+  const d = new Date(session.session_date + 'T12:00:00');
+  const dateLabel = d.toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  const el = document.getElementById('markSessionContent');
+
+  // Group roster by category
+  const byCat = {};
+  allRosterFull.forEach(r => {
+    const cat = r.category || 'Unassigned';
+    if (!byCat[cat]) byCat[cat] = [];
+    byCat[cat].push(r);
+  });
+
+  const attended = Object.values(attendanceMarks).filter(s => s === 'present' || s === 'late').length;
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-size:15px;font-weight:700;color:var(--text);">${session.session_type} Session — ${dateLabel}</div>
+        <div style="font-size:12px;color:var(--text-sec);margin-top:3px;" id="markCount">${attended} of ${allRosterFull.length} present</div>
+      </div>
+      <button onclick="markAll('present')" style="font-size:12px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:20px;padding:6px 14px;cursor:pointer;">Mark all present</button>
+    </div>
+    ${Object.entries(byCat).map(([cat, swimmers]) => `
+      <div style="font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin:14px 0 8px;">${cat}</div>
+      ${swimmers.map(r => {
+        const status = attendanceMarks[r.id] || '';
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);" id="row-${r.id}">
+          <div style="font-size:14px;font-weight:600;color:var(--text);">${r.display_name}</div>
+          <div style="display:flex;gap:6px;">
+            ${['present','late','absent','excused'].map(s => `
+              <button onclick="setMark('${r.id}','${s}')"
+                style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;transition:all 0.1s;
+                  ${status===s ? markActiveStyle(s) : 'background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text-sec);'}">
+                ${s.charAt(0).toUpperCase()+s.slice(1)}
+              </button>`).join('')}
+          </div>
+        </div>`;
+      }).join('')}
+    `).join('')}`;
+  lucide.createIcons();
+  updateMarkCount();
+}
+
+function markActiveStyle(status) {
+  const styles = {
+    present: 'background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.4);color:#10b981;',
+    late:    'background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.4);color:#38bdf8;',
+    absent:  'background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;',
+    excused: 'background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);color:#f59e0b;',
+  };
+  return styles[status] || '';
+}
+
+function setMark(rosterId, status) {
+  attendanceMarks[rosterId] = status;
+  // Re-render just that row's buttons
+  const session = allSessions.find(s => s.id === activeSessionId);
+  if (!session) return;
+  const r = allRosterFull.find(r => r.id === rosterId);
+  const row = document.getElementById('row-' + rosterId);
+  if (row) {
+    row.querySelector('div:last-child').innerHTML = ['present','late','absent','excused'].map(s => `
+      <button onclick="setMark('${rosterId}','${s}')"
+        style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;transition:all 0.1s;
+          ${attendanceMarks[rosterId]===s ? markActiveStyle(s) : 'background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text-sec);'}">
+        ${s.charAt(0).toUpperCase()+s.slice(1)}
+      </button>`).join('');
+  }
+  updateMarkCount();
+}
+
+function markAll(status) {
+  allRosterFull.forEach(r => { attendanceMarks[r.id] = status; });
+  const session = allSessions.find(s => s.id === activeSessionId);
+  if (session) renderMarkModal(session);
+}
+
+function updateMarkCount() {
+  const attended = Object.values(attendanceMarks).filter(s => s === 'present' || s === 'late').length;
+  const el = document.getElementById('markCount');
+  if (el) el.textContent = `${attended} of ${allRosterFull.length} present`;
+}
+
+async function saveAttendance() {
+  if (!activeSessionId) return;
+  const btn = document.getElementById('saveAttendanceBtn');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+
+  const upserts = Object.entries(attendanceMarks).map(([roster_id, status]) => ({
+    session_id: activeSessionId, roster_id, status, marked_by: currentUser.id,
+  }));
+
+  if (!upserts.length) { showToast('Mark at least one swimmer'); btn.textContent = 'Save'; btn.disabled = false; return; }
+
+  const { error } = await sb.from('club_attendance')
+    .upsert(upserts, { onConflict: 'session_id,roster_id' });
+
+  if (error) { showToast('Error saving: ' + error.message); btn.textContent = 'Save'; btn.disabled = false; return; }
+
+  // Update local session cache
+  const session = allSessions.find(s => s.id === activeSessionId);
+  if (session) {
+    session.club_attendance = upserts.map(u => ({ ...u, id: u.roster_id }));
+  }
+
+  showToast('Attendance saved');
+  closeMarkSession();
+  renderSessionsList();
+  btn.textContent = 'Save'; btn.disabled = false;
+}
+
 // ── BOOT ──────────────────────────────────────────────────────────
 init();
 </script>
+
+<!-- NEW SESSION MODAL -->
+<div class="modal-overlay" id="newSessionModal">
+  <div class="modal">
+    <div class="modal-title">New Training Session <button class="modal-close" onclick="closeNewSession()">&times;</button></div>
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Date</div>
+        <input type="date" class="form-input" id="nsDate">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Session type</div>
+        <select class="form-input" id="nsType">
+          <option value="AM">AM — Morning</option>
+          <option value="PM" selected>PM — Afternoon</option>
+          <option value="Dryland">Dryland</option>
+          <option value="Drills">Drills</option>
+          <option value="Race">Race / Gala</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="form-label">Start time (optional)</div>
+      <input type="time" class="form-input" id="nsTime">
+    </div>
+    <div class="form-group">
+      <div class="form-label">Notes (optional)</div>
+      <input type="text" class="form-input" id="nsNotes" placeholder="e.g. Focus: turns and starts">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeNewSession()">Cancel</button>
+      <button class="btn-modal-primary" onclick="submitNewSession()">Create &amp; mark attendance</button>
+    </div>
+  </div>
+</div>
+
+<!-- MARK ATTENDANCE MODAL -->
+<div class="modal-overlay" id="markSessionModal" style="align-items:flex-start;padding:20px;">
+  <div class="modal" style="max-height:90vh;overflow-y:auto;width:100%;max-width:680px;">
+    <div class="modal-title" style="position:sticky;top:0;background:var(--bg-card);z-index:2;margin:-20px -20px 16px;padding:20px;border-bottom:1px solid var(--border);">
+      Mark Attendance
+      <button class="modal-close" onclick="closeMarkSession()">&times;</button>
+    </div>
+    <div id="markSessionContent"></div>
+    <div style="position:sticky;bottom:0;background:var(--bg-card);margin:16px -20px -20px;padding:16px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn-modal-cancel" onclick="closeMarkSession()">Cancel</button>
+      <button class="btn-modal-primary" id="saveAttendanceBtn" onclick="saveAttendance()">Save attendance</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
