@@ -1625,7 +1625,10 @@ function renderEvents() {
             ${e.pre_entry_cutoff ? `<span>Cutoff: ${new Date(e.pre_entry_cutoff).toLocaleDateString('en-ZA',{day:'numeric',month:'short'})}</span>` : ''}
           </div>
         </div>
-        <button class="action-btn" onclick="viewEntries('${e.id}')">Entries</button>
+        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+          <button class="action-btn" onclick="viewEntries('${e.id}')">Entries</button>
+          <button class="action-btn" onclick="openGalaResults('${e.id}','${e.title.replace(/'/g,"\\'")}')" style="background:rgba(56,189,248,0.1);color:var(--cyan);border-color:rgba(56,189,248,0.3);">Results</button>
+        </div>
       </div>`;
     }).join('')}` : '';
 
@@ -1904,6 +1907,248 @@ async function loadTempChallenge() {
     ${catCards}`}`;
 
   lucide.createIcons();
+}
+
+// ── GALA RESULTS ──────────────────────────────────────────────────
+let activeGalaEventId   = null;
+let activeGalaTitle     = '';
+let galaPbCache         = {};   // rosterId → { 'Free_50_SC': seconds, … }
+let galaResultsCache    = {};   // rosterId → [result, …]
+
+const STROKES    = ['Free','Back','Breast','Fly','IM'];
+const DISTANCES  = [25, 50, 100, 200, 400, 800, 1500];
+const VALID_COMBOS = new Set([
+  '25_Free','25_Back','25_Breast','25_Fly',
+  '50_Free','50_Back','50_Breast','50_Fly',
+  '100_Free','100_Back','100_Breast','100_Fly','100_IM',
+  '200_Free','200_Back','200_Breast','200_Fly','200_IM',
+  '400_Free','400_IM','800_Free','1500_Free',
+]);
+
+function parseTimeToSeconds(t) {
+  if (!t) return null;
+  t = t.trim().replace(',', '.');
+  const parts = t.split(':');
+  if (parts.length === 2) return parseFloat(parts[0]) * 60 + parseFloat(parts[1]);
+  return parseFloat(parts[0]);
+}
+
+function formatSeconds(s) {
+  if (!s) return '—';
+  if (s >= 60) {
+    const m = Math.floor(s / 60);
+    const sec = (s % 60).toFixed(2).padStart(5, '0');
+    return `${m}:${sec}`;
+  }
+  return parseFloat(s).toFixed(2);
+}
+
+async function openGalaResults(eventId, eventTitle) {
+  activeGalaEventId = eventId;
+  activeGalaTitle   = eventTitle;
+  galaResultsCache  = {};
+  galaPbCache       = {};
+
+  document.getElementById('galaResultsTitle').textContent  = eventTitle;
+  document.getElementById('galaResultsBody').innerHTML =
+    '<div class="loading"><div class="spinner"></div></div>';
+  document.getElementById('galaResultsModal').classList.add('open');
+
+  // Load existing results + PBs in parallel
+  const [resRes, pbRes] = await Promise.all([
+    sb.from('club_gala_results')
+      .select('*')
+      .eq('club_event_id', eventId),
+    sb.from('club_swimmer_times')
+      .select('roster_id, stroke, distance, course, time_seconds')
+      .eq('club_id', currentClub.id)
+      .eq('is_pb', true),
+  ]);
+
+  // Build PB lookup
+  (pbRes.data || []).forEach(r => {
+    if (!galaPbCache[r.roster_id]) galaPbCache[r.roster_id] = {};
+    galaPbCache[r.roster_id][`${r.stroke}_${r.distance}_${r.course}`] = r.time_seconds;
+  });
+
+  // Group results by roster
+  (resRes.data || []).forEach(r => {
+    if (!galaResultsCache[r.roster_id]) galaResultsCache[r.roster_id] = [];
+    galaResultsCache[r.roster_id].push(r);
+  });
+
+  renderGalaResultsBody();
+}
+
+function renderGalaResultsBody() {
+  const el = document.getElementById('galaResultsBody');
+  const swimmers = [...allRosterFull].sort((a, b) =>
+    (a.display_name || '').localeCompare(b.display_name || ''));
+
+  el.innerHTML = swimmers.map(r => {
+    const results  = galaResultsCache[r.id] || [];
+    const initials = (r.display_name || '?').split(' ').map(w => w[0]).slice(0,2).join('');
+    const resultRows = results.map(res => {
+      const pbSecs = galaPbCache[r.id]?.[`${res.stroke}_${res.distance}_${res.course}`];
+      const isPb   = pbSecs ? res.time_seconds <= pbSecs : res.is_pb;
+      const diff   = pbSecs && !isPb ? `+${(res.time_seconds - pbSecs).toFixed(2)}s` : '';
+      return `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:rgba(255,255,255,0.02);border-radius:8px;margin-bottom:4px;">
+          <span style="font-size:12px;color:var(--text-sec);">${res.distance}m ${res.stroke} ${res.course}</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:13px;font-weight:700;color:var(--text);font-family:'Bebas Neue',sans-serif;letter-spacing:0.05em;">${res.time_text}</span>
+            ${isPb ? `<span style="font-size:10px;font-weight:800;color:var(--green);background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:1px 7px;">PB</span>` : diff ? `<span style="font-size:10px;color:var(--amber);">${diff}</span>` : ''}
+            <button onclick="deleteGalaResult('${res.id}','${r.id}')" style="font-size:10px;color:var(--danger);background:none;border:none;cursor:pointer;padding:2px 4px;">✕</button>
+          </div>
+        </div>`;
+    }).join('');
+
+    return `
+    <div style="border-bottom:1px solid var(--border);padding:14px 0;" id="swimmer-row-${r.id}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${results.length ? '10px' : '0'};">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:34px;height:34px;border-radius:50%;background:var(--cyan-dim);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--cyan);">${initials}</div>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text);">${r.display_name}</div>
+            <div style="font-size:11px;color:var(--text-sec);">${r.category || ''}</div>
+          </div>
+        </div>
+        <button onclick="toggleAddResult('${r.id}')"
+          style="font-size:11px;font-weight:700;padding:6px 14px;border-radius:20px;border:1px solid rgba(56,189,248,0.3);background:rgba(56,189,248,0.08);color:var(--cyan);cursor:pointer;">
+          + Add time
+        </button>
+      </div>
+      ${resultRows}
+      <div id="add-form-${r.id}" style="display:none;margin-top:10px;">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">
+          <div>
+            <div style="font-size:10px;font-weight:700;color:var(--text-sec);margin-bottom:3px;">DISTANCE</div>
+            <select id="dist-${r.id}" class="form-input" style="padding:7px 10px;font-size:12px;width:80px;" onchange="filterStrokeOptions('${r.id}')">
+              ${DISTANCES.map(d => `<option value="${d}">${d}m</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:var(--text-sec);margin-bottom:3px;">STROKE</div>
+            <select id="stroke-${r.id}" class="form-input" style="padding:7px 10px;font-size:12px;width:90px;">
+              ${STROKES.map(s => `<option value="${s}">${s}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:var(--text-sec);margin-bottom:3px;">COURSE</div>
+            <select id="course-${r.id}" class="form-input" style="padding:7px 10px;font-size:12px;width:65px;">
+              <option value="SC">SC</option>
+              <option value="LC">LC</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:var(--text-sec);margin-bottom:3px;">TIME</div>
+            <input id="time-${r.id}" type="text" class="form-input" placeholder="1:09.78" style="padding:7px 10px;font-size:12px;width:90px;">
+          </div>
+          <button onclick="saveGalaResult('${r.id}')"
+            style="padding:7px 16px;border-radius:8px;background:var(--cyan);color:#080f1a;font-size:12px;font-weight:800;border:none;cursor:pointer;height:36px;">
+            Save
+          </button>
+          <button onclick="toggleAddResult('${r.id}')"
+            style="padding:7px 12px;border-radius:8px;background:transparent;color:var(--text-sec);font-size:12px;border:1px solid var(--border);cursor:pointer;height:36px;">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  lucide.createIcons();
+}
+
+function toggleAddResult(rosterId) {
+  const el = document.getElementById(`add-form-${rosterId}`);
+  if (!el) return;
+  const isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    // Reset defaults
+    const dist = document.getElementById(`dist-${rosterId}`);
+    if (dist) dist.value = '50';
+    filterStrokeOptions(rosterId);
+    const timeEl = document.getElementById(`time-${rosterId}`);
+    if (timeEl) { timeEl.value = ''; timeEl.focus(); }
+  }
+}
+
+function filterStrokeOptions(rosterId) {
+  const dist   = parseInt(document.getElementById(`dist-${rosterId}`)?.value || 50);
+  const sel    = document.getElementById(`stroke-${rosterId}`);
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = STROKES
+    .filter(s => VALID_COMBOS.has(`${dist}_${s}`))
+    .map(s => `<option value="${s}" ${s===current?'selected':''}>${s}</option>`)
+    .join('');
+}
+
+async function saveGalaResult(rosterId) {
+  const dist   = parseInt(document.getElementById(`dist-${rosterId}`)?.value);
+  const stroke = document.getElementById(`stroke-${rosterId}`)?.value;
+  const course = document.getElementById(`course-${rosterId}`)?.value || 'SC';
+  const timeRaw = document.getElementById(`time-${rosterId}`)?.value.trim();
+  if (!timeRaw) { showToast('Enter a time', 'error'); return; }
+  const secs = parseTimeToSeconds(timeRaw);
+  if (!secs || secs <= 0) { showToast('Invalid time format — use 1:09.78 or 32.02', 'error'); return; }
+  const timeText = formatSeconds(secs);
+
+  // PB detection vs existing PBs
+  const pbKey  = `${stroke}_${dist}_${course}`;
+  const pbSecs = galaPbCache[rosterId]?.[pbKey];
+  const isPb   = !pbSecs || secs <= pbSecs;
+
+  const { data, error } = await sb.from('club_gala_results')
+    .upsert({
+      club_id: currentClub.id, club_event_id: activeGalaEventId,
+      roster_id: rosterId, stroke, distance: dist, course,
+      time_seconds: secs, time_text: timeText, is_pb: isPb,
+      created_by: currentUser.id,
+    }, { onConflict: 'club_event_id,roster_id,stroke,distance,course' })
+    .select().single();
+
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+
+  // Update local cache
+  if (!galaResultsCache[rosterId]) galaResultsCache[rosterId] = [];
+  const idx = galaResultsCache[rosterId].findIndex(
+    r => r.stroke === stroke && r.distance === dist && r.course === course);
+  if (idx >= 0) galaResultsCache[rosterId][idx] = data;
+  else galaResultsCache[rosterId].push(data);
+
+  // If new PB, update PB cache and club_swimmer_times
+  if (isPb) {
+    if (!galaPbCache[rosterId]) galaPbCache[rosterId] = {};
+    galaPbCache[rosterId][pbKey] = secs;
+    await sb.from('club_swimmer_times').upsert({
+      club_id: currentClub.id, roster_id: rosterId,
+      stroke, distance: dist, course, time_seconds: secs,
+      time_text: timeText, is_pb: true,
+      season: new Date().getFullYear(),
+      source: 'gala', gala_event_id: activeGalaEventId,
+    }, { onConflict: 'club_id,roster_id,stroke,distance,course,season' });
+  }
+
+  toggleAddResult(rosterId);
+  renderGalaResultsBody();
+  showToast(isPb ? `PB! ${timeText}` : `Saved ${timeText}`, 'success');
+}
+
+async function deleteGalaResult(resultId, rosterId) {
+  if (!confirm('Remove this result?')) return;
+  await sb.from('club_gala_results').delete().eq('id', resultId);
+  if (galaResultsCache[rosterId]) {
+    galaResultsCache[rosterId] = galaResultsCache[rosterId].filter(r => r.id !== resultId);
+  }
+  renderGalaResultsBody();
+}
+
+function closeGalaResults() {
+  document.getElementById('galaResultsModal').classList.remove('open');
+  activeGalaEventId = null;
 }
 
 // ── LEAGUE ────────────────────────────────────────────────────────
@@ -3519,6 +3764,23 @@ init();
       <button class="btn-modal-cancel" onclick="closeMarkSession()">Cancel</button>
       <button class="btn-modal-primary" id="saveAttendanceBtn" onclick="saveAttendance()">Save attendance</button>
     </div>
+  </div>
+</div>
+
+<!-- GALA RESULTS MODAL -->
+<div class="modal-overlay" id="galaResultsModal" style="align-items:flex-start;padding:20px;">
+  <div class="modal" style="max-height:92vh;overflow-y:auto;width:100%;max-width:720px;">
+    <div style="position:sticky;top:0;background:var(--bg-card);z-index:2;margin:-20px -20px 16px;padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px;">Gala Results</div>
+        <div style="font-size:16px;font-weight:800;color:var(--text);" id="galaResultsTitle">—</div>
+      </div>
+      <button class="modal-close" onclick="closeGalaResults()">&times;</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-sec);margin-bottom:16px;padding:10px 14px;background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.15);border-radius:8px;">
+      Tap <strong style="color:var(--text);">+ Add time</strong> next to each swimmer who raced. PBs are detected automatically against their season bests.
+    </div>
+    <div id="galaResultsBody"></div>
   </div>
 </div>
 
