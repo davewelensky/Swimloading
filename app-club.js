@@ -542,8 +542,14 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
     });
   }
 
+  // Only count sessions as "started" if their start time has passed today
+  const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
+  const toMins  = t => { const [h, m] = (t || '00:00').split(':').map(Number); return h * 60 + m; };
+  const hasStarted = ws =>
+    ws.dateStr < todayStr || (ws.dateStr === todayStr && toMins(ws.session.start) <= nowMins);
+
   // Separate squad vs masters for stats
-  const pastOrToday = weekSessions.filter(ws => ws.dateStr <= todayStr);
+  const pastOrToday = weekSessions.filter(hasStarted);
   const squadPast   = pastOrToday.filter(ws => ws.session.type !== 'masters');
   const mastersPast = pastOrToday.filter(ws => ws.session.type === 'masters');
   const squadDone   = squadPast.filter(ws => ws.status === 'attending').length;
