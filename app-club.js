@@ -14,7 +14,7 @@ async function loadUserClubs() {
     .select(`
       id, role, is_active, joined_at, category_id,
       roster_id,
-      clubs ( id, name, code, slug, city, tagline, logo_url, club_type, contact_email ),
+      clubs (*),
       club_roster ( id, member_number, display_name, category, gender )
     `)
     .eq('user_id', currentUser.id)
@@ -387,9 +387,10 @@ function renderUpcomingEvents(events, club) {
 function renderFullLeaderboardLink(club) {
   return `
   <div class="card" style="margin-bottom:12px;text-align:center;">
-    <a href="/clubs/${club.slug || club.id}" style="color:var(--cyan);font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+    <a href="/clubs/${club.slug || club.id}" target="_blank" rel="noopener" style="color:var(--cyan);font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
       <i data-lucide="bar-chart-2" style="width:14px;height:14px;"></i>
       Full league standings
+      <i data-lucide="external-link" style="width:11px;height:11px;opacity:0.6;"></i>
     </a>
   </div>`;
 }
