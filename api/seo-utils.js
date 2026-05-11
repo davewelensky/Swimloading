@@ -52,8 +52,11 @@ export const DOMAIN_MAP = {
   INLAND:       { display: null,                 region: 'inland' },
   GAUTENG:      { display: 'Gauteng',            region: 'gauteng' },
   FREE_STATE:   { display: 'Free State',         region: 'free-state' },
-  NAMIBIA:      { display: 'Namibia',            region: 'namibia' },
-  NON_COASTAL:  { display: null,                 region: 'inland' },
+  NAMIBIA:           { display: 'Namibia',            region: 'namibia' },
+  NON_COASTAL:       { display: null,                 region: 'inland' },
+  UK:                { display: 'United Kingdom',     region: 'united-kingdom' },
+  EUROPE:            { display: 'Europe',             region: 'europe' },
+  WESTERN_AUSTRALIA: { display: 'Western Australia',  region: 'western-australia' },
 };
 
 export const AREA_MAP = {
@@ -85,7 +88,10 @@ export const REGION_DOMAINS = {
   'inland':        ['INLAND', 'NON_COASTAL'],
   'gauteng':       ['GAUTENG'],
   'free-state':    ['FREE_STATE'],
-  'namibia':       ['NAMIBIA'],
+  'namibia':           ['NAMIBIA'],
+  'united-kingdom':    ['UK'],
+  'europe':            ['EUROPE'],
+  'western-australia': ['WESTERN_AUSTRALIA'],
 };
 
 export const REGION_NAMES = {
@@ -99,7 +105,10 @@ export const REGION_NAMES = {
   'inland':        'Inland & Pools',
   'gauteng':       'Gauteng',
   'free-state':    'Free State',
-  'namibia':       'Namibia',
+  'namibia':           'Namibia',
+  'united-kingdom':    'United Kingdom',
+  'europe':            'Europe',
+  'western-australia': 'Western Australia',
 };
 
 export const REGION_INTROS = {
@@ -125,6 +134,12 @@ export const REGION_INTROS = {
     "SwimLoading tracks pool temperatures in Bloemfontein and the Free State, helping inland swimmers plan training sessions year-round.",
   'namibia':
     "SwimLoading is expanding into Namibia, tracking ocean temperatures at coastal spots including Swakopmund and Walvis Bay.",
+  'united-kingdom':
+    "SwimLoading is tracking open water temperatures across the United Kingdom — from the lakes and reservoirs of England to the wild coastlines of Scotland and Wales. Cold, clear, and growing fast.",
+  'europe':
+    "SwimLoading is expanding across Europe, tracking open water temperatures at lakes, rivers, and coastal spots. Find your local swim and see what the water is doing before you get in.",
+  'western-australia':
+    "Western Australia offers world-class open water swimming along its Indian Ocean coastline, from Perth's metropolitan beaches to remote coastal stretches. SwimLoading tracks water temperatures across WA's growing swim community.",
 };
 
 export function getLocationLabel(domain, area) {
