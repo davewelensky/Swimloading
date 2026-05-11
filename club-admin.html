@@ -1923,7 +1923,8 @@ function renderTrackerGrid(swimmers) {
     });
 
     const events = Object.values(byEvent).slice(0, 4);
-    const totalImprovement = events.reduce((sum, e) => sum + Math.max(0, e.first - e.pb), 0);
+    const allEvents = Object.values(byEvent);
+    const improvedCount = allEvents.filter(e => e.first - e.pb > 0.5).length;
 
     const eventsHtml = events.length ? events.map(e => {
       const delta = e.first - e.pb;
@@ -1956,8 +1957,8 @@ function renderTrackerGrid(swimmers) {
           <div class="tracker-stat-lbl">Times</div>
         </div>
         <div class="tracker-stat">
-          <div class="tracker-stat-val" style="color:${totalImprovement > 0 ? 'var(--green)' : 'var(--text-sec)'};">${totalImprovement > 0 ? '-' + totalImprovement.toFixed(1) + 's' : '—'}</div>
-          <div class="tracker-stat-lbl">Improved</div>
+          <div class="tracker-stat-val" style="color:${improvedCount > 0 ? 'var(--green)' : 'var(--text-sec)'};">${improvedCount > 0 ? improvedCount + '/' + allEvents.length : '—'}</div>
+          <div class="tracker-stat-lbl">PBs</div>
         </div>
       </div>
       ${eventsHtml}
