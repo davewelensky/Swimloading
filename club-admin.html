@@ -1346,10 +1346,10 @@ async function loadMembers() {
 
   const [membersRes, rosterRes, rosterFullRes] = await Promise.all([
     sb.from('club_members')
-      .select('*, club_categories(name), user:user_id(id, email, raw_user_meta_data)')
+      .select('*, club_categories(name), club_roster(id, display_name, member_number, category, gender)')
       .eq('club_id', currentClub.id)
       .eq('is_active', true)
-      .order('member_number'),
+      .order('joined_at', { ascending: false }),
     sb.from('club_roster')
       .select('id, member_number, display_name, category, phone, user_id')
       .eq('club_id', currentClub.id)
@@ -1396,9 +1396,10 @@ async function loadMembers() {
 
   allMembers = [
     ...clubMembers.map(m => ({ ...m, _source: 'club_members',
-      _display_name: m.user?.raw_user_meta_data?.full_name || m.user?.email || '—',
-      _email: m.user?.email || '',
-      category: m.club_categories?.name || '',
+      _display_name: m.club_roster?.display_name || '—',
+      _email: '',
+      category: m.club_categories?.name || m.club_roster?.category || '',
+      member_number: m.member_number || m.club_roster?.member_number || '',
     })),
     ...rosterAsMembers,
   ].sort((a, b) => {
@@ -1557,7 +1558,7 @@ function applyMemberFilters(q, catId) {
 function openMemberModal(memberId) {
   const m = allMembers.find(x => x.id === memberId);
   if (!m) return;
-  const name  = m.user?.raw_user_meta_data?.full_name || m.user?.email || '—';
+  const name  = m._display_name || m.club_roster?.display_name || '—';
   document.getElementById('memberModalTitle').textContent = name;
   document.getElementById('memberModalContent').innerHTML = `
     <div class="form-group">
@@ -1894,7 +1895,7 @@ async function loadTempChallenge() {
       logCount,
       swimDays: Object.keys(ud.days).length,
       points: basePoints + bonusPoints,
-      name: m.user?.raw_user_meta_data?.full_name || m.user?.email || '—',
+      name: m._display_name || m.club_roster?.display_name || '—',
       cat: m.club_categories?.name || 'Unassigned',
       catId: m.category_id,
       memberNum: m.member_number,
