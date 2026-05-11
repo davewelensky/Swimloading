@@ -778,6 +778,20 @@
         </select>
       </div>
     </div>
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Date of birth</div>
+        <input type="date" class="form-input" id="rosterEditDob">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Gender</div>
+        <select class="form-input" id="rosterEditGender">
+          <option value="">—</option>
+          <option value="M">Male</option>
+          <option value="F">Female</option>
+        </select>
+      </div>
+    </div>
     <div class="form-group">
       <div class="form-label">Phone</div>
       <input type="text" class="form-input" id="rosterEditPhone" placeholder="e.g. 082 123 4567">
@@ -1827,7 +1841,7 @@ async function loadSquadTracker() {
   // Fetch roster + times + gala attendance in parallel
   const clubId = currentClub.id;
   const [rosterRes, timesRes, attendRes] = await Promise.all([
-    sb.from('club_roster').select('id, display_name, member_number, category')
+    sb.from('club_roster').select('id, display_name, member_number, category, date_of_birth, gender')
       .eq('club_id', clubId).order('display_name'),
     sb.from('club_swimmer_times').select('*')
       .eq('club_id', clubId).order('meet_date', { ascending: true }),
@@ -1914,7 +1928,7 @@ function renderTrackerGrid(swimmers) {
       <div class="tracker-card-header">
         <div>
           <div class="tracker-name">${s.display_name || '—'}</div>
-          <div class="tracker-meta">#${s.member_number || '—'} · ${s.category || 'Unassigned'}</div>
+          <div class="tracker-meta">#${s.member_number || '—'} · ${s.category || 'Unassigned'}${s.date_of_birth ? ' · age ' + Math.floor((Date.now() - new Date(s.date_of_birth)) / 31557600000) : ''}</div>
         </div>
       </div>
       <div class="tracker-stat-row">
@@ -3255,7 +3269,7 @@ let rosterLinkSearchTimer = null;
 async function loadRoster() {
   const { data: roster } = await sb
     .from('club_roster')
-    .select('id, member_number, display_name, category, gender, user_id, phone, squad_id')
+    .select('id, member_number, display_name, category, gender, user_id, phone, squad_id, date_of_birth')
     .eq('club_id', currentClub.id)
     .order('member_number', { ascending: true, nullsFirst: false });
 
@@ -3331,9 +3345,15 @@ function renderRosterTable() {
     const squadBadge = squadName
       ? `<div style="font-size:11px;color:var(--text-sec);margin-top:2px;">${squadName}</div>` : '';
 
+    const ageTxt = r.date_of_birth ? (() => {
+      const dob = new Date(r.date_of_birth);
+      const age = Math.floor((Date.now() - dob) / 31557600000);
+      return `<span style="font-size:11px;color:var(--text-sec);margin-left:6px;">${age}y</span>`;
+    })() : '';
+
     return `<tr data-roster-id="${r.id}">
       <td><span class="member-num">${r.member_number ?? '—'}</span></td>
-      <td class="member-name">${r.display_name || '—'}${squadBadge}</td>
+      <td class="member-name">${r.display_name || '—'}${ageTxt}${squadBadge}</td>
       <td><span class="cat-badge ${catClass(r.category)}">${r.category || '—'}</span></td>
       <td>${swCell}</td>
       <td style="text-align:right;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;">
@@ -3353,11 +3373,12 @@ function openRosterEditModal(id) {
   const r = allRoster.find(r => r.id === id);
   if (!r) return;
   rosterEditTargetId = id;
-  document.getElementById('rosterEditName').textContent = r.display_name || '—';
-  document.getElementById('rosterEditNum').value   = r.member_number ?? '';
-  document.getElementById('rosterEditPhone').value = r.phone ?? '';
-  const catSel = document.getElementById('rosterEditCat');
-  catSel.value = r.category || '';
+  document.getElementById('rosterEditName').textContent  = r.display_name || '—';
+  document.getElementById('rosterEditNum').value         = r.member_number ?? '';
+  document.getElementById('rosterEditPhone').value       = r.phone ?? '';
+  document.getElementById('rosterEditDob').value         = r.date_of_birth ?? '';
+  document.getElementById('rosterEditGender').value      = r.gender ?? '';
+  document.getElementById('rosterEditCat').value         = r.category || '';
   document.getElementById('rosterEditModal').classList.add('open');
   document.getElementById('rosterEditNum').focus();
 }
@@ -3370,20 +3391,27 @@ function closeRosterEditModal() {
 async function saveRosterEdit() {
   if (!rosterEditTargetId) return;
   const id      = rosterEditTargetId;
-  const num     = document.getElementById('rosterEditNum').value.trim();
-  const cat     = document.getElementById('rosterEditCat').value;
-  const phone   = document.getElementById('rosterEditPhone').value.trim();
+  const num    = document.getElementById('rosterEditNum').value.trim();
+  const cat    = document.getElementById('rosterEditCat').value;
+  const phone  = document.getElementById('rosterEditPhone').value.trim();
+  const dob    = document.getElementById('rosterEditDob').value || null;
+  const gender = document.getElementById('rosterEditGender').value || null;
 
   const { error } = await sb.from('club_roster').update({
-    member_number: num   || null,
-    category:      cat   || null,
-    phone:         phone || null,
+    member_number:  num    || null,
+    category:       cat    || null,
+    phone:          phone  || null,
+    date_of_birth:  dob,
+    gender:         gender,
   }).eq('id', id);
 
   if (error) { showToast('Save failed: ' + error.message, 'error'); return; }
 
   const row = allRoster.find(r => r.id === id);
-  if (row) { row.member_number = num || null; row.category = cat || null; row.phone = phone || null; }
+  if (row) {
+    row.member_number = num || null; row.category = cat || null;
+    row.phone = phone || null; row.date_of_birth = dob; row.gender = gender;
+  }
 
   closeRosterEditModal();
   renderRosterTable();
@@ -3780,12 +3808,13 @@ async function submitAddRosterMember() {
 
   // 1. Insert roster entry
   const { data: roster, error: rErr } = await sb.from('club_roster').insert({
-    club_id:       currentClub.id,
-    display_name:  name,
-    member_number: num    || null,
-    category:      cat    || null,
-    gender:        gender || null,
-    squad_id:      squadId,
+    club_id:        currentClub.id,
+    display_name:   name,
+    member_number:  num    || null,
+    category:       cat    || null,
+    gender:         gender || null,
+    squad_id:       squadId,
+    date_of_birth:  dob    || null,
   }).select('id').single();
 
   if (rErr) { showToast('Failed: ' + rErr.message, 'error'); return; }
