@@ -680,90 +680,91 @@
     lucide.createIcons();
   }
 
-  // ── SWIM CLUB PAGE (pool clubs: galas + contact only) ─────────────
+  // ── SWIM CLUB PAGE ────────────────────────────────────────────────
   function renderSwimClubPage(club, galas) {
-    // Hero: logo, name, location, contact
-    const logoHtml = club.logo_url
-      ? `<div style="margin-bottom:20px;"><img src="${club.logo_url}" alt="${club.name}" style="height:64px;width:auto;object-fit:contain;filter:brightness(1.05);"></div>`
-      : '';
-    document.querySelector('.hero').innerHTML = `
-      <div style="max-width:860px;margin:0 auto;padding:48px 20px 40px;">
-        ${logoHtml}
-        <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.14em;margin-bottom:10px;">${club.city || 'Swim Club'}</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(44px,9vw,80px);line-height:0.95;letter-spacing:0.02em;color:var(--text);margin-bottom:10px;">${club.name}</div>
-        ${club.tagline ? `<div style="font-size:16px;color:rgba(241,245,249,0.65);font-style:italic;margin-bottom:24px;">${club.tagline}</div>` : ''}
-        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;">
-          ${club.contact_email ? `<a href="mailto:${club.contact_email}" style="display:inline-flex;align-items:center;gap:7px;padding:11px 22px;border-radius:50px;background:var(--cyan);color:#080f1a;font-size:13px;font-weight:800;text-decoration:none;"><i data-lucide="mail" style="width:14px;height:14px;"></i>Contact the club</a>` : ''}
-          ${club.website ? `<a href="${club.website}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;padding:11px 22px;border-radius:50px;border:1px solid rgba(255,255,255,0.15);color:var(--text);font-size:13px;font-weight:700;text-decoration:none;"><i data-lucide="external-link" style="width:14px;height:14px;"></i>Website</a>` : ''}
-        </div>
-      </div>`;
-
-    // Gala calendar
-    if (!galas.length) return;
     const now = new Date().toISOString().slice(0, 10);
-    const upcoming = galas
+    const upcoming = (galas || [])
       .filter(e => e.event_date >= now)
       .sort((a, b) => a.event_date.localeCompare(b.event_date));
-    const past = galas
-      .filter(e => e.event_date < now)
-      .sort((a, b) => b.event_date.localeCompare(a.event_date))
-      .slice(0, 3);
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-    // Group upcoming by month
+    // Group by month
     const byMonth = {};
     upcoming.forEach(e => {
-      const key = e.event_date.slice(0, 7); // YYYY-MM
+      const key = e.event_date.slice(0, 7);
       if (!byMonth[key]) byMonth[key] = [];
       byMonth[key].push(e);
     });
 
-    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const calendarHtml = Object.entries(byMonth).map(([ym, evts]) => {
+    const calendarRows = Object.entries(byMonth).map(([ym, evts]) => {
       const [y, m] = ym.split('-');
       return `
-        <div style="margin-bottom:24px;">
-          <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">${monthNames[parseInt(m)-1]} ${y}</div>
+        <div style="margin-bottom:20px;">
+          <div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(56,189,248,0.15);">${monthNames[parseInt(m)-1]} ${y}</div>
           ${evts.map(e => {
             const d = new Date(e.event_date + 'T12:00:00');
-            const day = d.getDate();
-            const dow = d.toLocaleDateString('en-ZA', { weekday: 'short' });
-            return `
-            <div style="display:flex;align-items:flex-start;gap:14px;padding:12px 0;border-bottom:1px solid var(--border);">
-              <div style="text-align:center;min-width:40px;flex-shrink:0;">
-                <div style="font-size:9px;font-weight:700;color:var(--text-sec);text-transform:uppercase;">${dow}</div>
-                <div style="font-size:22px;font-weight:900;color:var(--cyan);font-family:'Bebas Neue',sans-serif;line-height:1.1;">${day}</div>
-              </div>
+            return `<div style="display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid var(--border);">
+              <div style="min-width:32px;text-align:center;font-size:18px;font-weight:900;color:var(--text);font-family:'Bebas Neue',sans-serif;line-height:1;">${d.getDate()}</div>
               <div>
-                <div style="font-size:14px;font-weight:700;color:var(--text);">${e.title}</div>
-                ${e.description ? `<div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${e.description}</div>` : ''}
+                <div style="font-size:13px;font-weight:700;color:var(--text);">${e.title}</div>
+                ${e.description ? `<div style="font-size:11px;color:var(--text-sec);margin-top:1px;">${e.description.split('.')[0]}</div>` : ''}
               </div>
             </div>`;
           }).join('')}
         </div>`;
     }).join('');
 
-    const contentEl = document.getElementById('clubPage');
-    contentEl.innerHTML += `
-      <div style="max-width:860px;margin:0 auto;padding:0 20px 60px;">
-        <div style="margin-bottom:32px;">
-          <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;">Season Calendar</div>
-          <div style="font-size:28px;font-weight:800;color:var(--text);">Upcoming Galas</div>
+    document.getElementById('clubPage').innerHTML = `
+      <!-- HERO -->
+      <div style="border-bottom:1px solid var(--border);padding:40px 20px 36px;">
+        <div style="max-width:760px;margin:0 auto;">
+          ${club.logo_url ? `<img src="${club.logo_url}" alt="" style="height:52px;width:auto;object-fit:contain;margin-bottom:16px;display:block;">` : ''}
+          <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.14em;margin-bottom:8px;">${club.city || ''}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(40px,8vw,72px);line-height:0.95;color:var(--text);margin-bottom:${club.tagline ? '8px' : '20px'};">${club.name}</div>
+          ${club.tagline ? `<div style="font-size:15px;color:rgba(241,245,249,0.6);font-style:italic;margin-bottom:20px;">${club.tagline}</div>` : ''}
+          <div style="display:flex;flex-wrap:wrap;gap:10px;">
+            <a href="/app" style="display:inline-flex;align-items:center;gap:7px;padding:12px 24px;border-radius:50px;background:var(--cyan);color:#080f1a;font-size:13px;font-weight:800;text-decoration:none;"><i data-lucide="smartphone" style="width:14px;height:14px;"></i>Open the app</a>
+            ${club.contact_email ? `<a href="mailto:${club.contact_email}" style="display:inline-flex;align-items:center;gap:7px;padding:12px 24px;border-radius:50px;border:1px solid rgba(255,255,255,0.15);color:var(--text);font-size:13px;font-weight:700;text-decoration:none;"><i data-lucide="mail" style="width:14px;height:14px;"></i>Contact us</a>` : ''}
+          </div>
         </div>
-        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:20px 24px;">
-          ${calendarHtml || '<div style="color:var(--text-sec);font-size:13px;">No upcoming galas scheduled.</div>'}
+      </div>
+
+      <!-- WHY THE APP -->
+      <div style="padding:36px 20px;border-bottom:1px solid var(--border);">
+        <div style="max-width:760px;margin:0 auto;">
+          <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px;">For swimmers & parents</div>
+          <div style="font-size:22px;font-weight:800;color:var(--text);margin-bottom:20px;">Why use the SwimLoading app?</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
+            ${[
+              ['trending-up',  'Track personal bests',    'See your swimmer\'s PBs update automatically after every gala'],
+              ['calendar',     'Season calendar',         'All ${club.name} galas in one place — no more hunting through emails'],
+              ['target',       'Qualifying time targets', 'See exactly how far each swimmer is from the next qualifying standard'],
+              ['clipboard-check', 'Attendance record',   'Coaches mark sessions live — swimmers can see their consistency'],
+            ].map(([icon, title, desc]) => `
+              <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:16px;">
+                <i data-lucide="${icon}" style="width:18px;height:18px;color:var(--cyan);margin-bottom:10px;display:block;"></i>
+                <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">${title}</div>
+                <div style="font-size:12px;color:var(--text-sec);line-height:1.5;">${desc.replace('${club.name}', club.name)}</div>
+              </div>`).join('')}
+          </div>
+          <div style="margin-top:20px;padding:16px 20px;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.2);border-radius:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div style="font-size:13px;color:var(--text-sec);">Already an Aqua Sharks member? Sign in to see your swimmer's times and progress.</div>
+            <a href="/app" style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:50px;background:var(--cyan);color:#080f1a;font-size:13px;font-weight:800;text-decoration:none;white-space:nowrap;"><i data-lucide="log-in" style="width:13px;height:13px;"></i>Sign in</a>
+          </div>
         </div>
-        ${past.length ? `
-        <div style="margin-top:32px;">
-          <div style="font-size:12px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px;">Recent</div>
-          ${past.map(e => {
-            const d = new Date(e.event_date + 'T12:00:00');
-            return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);opacity:0.6;">
-              <div style="font-size:13px;font-weight:600;color:var(--text);">${e.title}</div>
-              <div style="font-size:12px;color:var(--text-sec);">${d.toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})}</div>
-            </div>`;
-          }).join('')}
-        </div>` : ''}
-      </div>`;
+      </div>
+
+      <!-- GALA CALENDAR -->
+      ${upcoming.length ? `
+      <div style="padding:36px 20px 60px;">
+        <div style="max-width:760px;margin:0 auto;">
+          <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px;">2026–2027 Season</div>
+          <div style="font-size:22px;font-weight:800;color:var(--text);margin-bottom:20px;">Gala Calendar</div>
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:20px 24px;">
+            ${calendarRows}
+          </div>
+        </div>
+      </div>` : ''}`;
   }
 
   function showNotFound() {
