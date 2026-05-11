@@ -1149,6 +1149,21 @@
   </div>
 </div>
 
+<!-- EDIT PROFILE MODAL -->
+<div class="modal-overlay" id="editProfileModal">
+  <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto;">
+    <div class="modal-title" style="position:sticky;top:0;background:var(--bg-card);z-index:2;padding-bottom:12px;">
+      <span id="editProfileTitle">Edit Profile</span>
+      <button class="modal-close" onclick="document.getElementById('editProfileModal').classList.remove('open')">&times;</button>
+    </div>
+    <div id="editProfileForm" style="padding-top:4px;"></div>
+    <div style="display:flex;gap:10px;margin-top:20px;position:sticky;bottom:0;background:var(--bg-card);padding:12px 0 4px;">
+      <button class="btn-modal-primary" onclick="saveEditProfile()" style="flex:1;">Save profile</button>
+      <button class="btn-modal-secondary" onclick="document.getElementById('editProfileModal').classList.remove('open')" style="flex:0 0 auto;">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL     = 'https://szgkzuswelntnevobnoh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
@@ -3077,12 +3092,145 @@ async function openMemberProfile(rosterId) {
       html += `<div style="font-size:13px;color:var(--text);padding:8px 0;">${p.notes}</div>`;
     }
   } else {
-    html += `<div style="margin-top:16px;padding:14px;background:rgba(255,255,255,0.03);border-radius:8px;font-size:13px;color:var(--text-sec);">
-      No profile on file yet. Use <strong style="color:var(--text);">Add Member</strong> to capture full details next time.
+    html += `<div style="margin-top:16px;padding:14px 16px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text-sec);">
+      No detailed profile on file yet for this swimmer. Use the button below to add DOB, SASA number, guardians, medical and consent details.
     </div>`;
   }
 
+  html += `<div style="margin-top:20px;">
+    <button class="btn-modal-primary" onclick="openEditProfile('${rosterId}')">
+      <i data-lucide="edit-2" style="width:14px;height:14px;"></i>
+      ${p ? 'Edit profile' : 'Add profile details'}
+    </button>
+  </div>`;
+
   document.getElementById('memberProfileContent').innerHTML = html;
+  lucide.createIcons();
+}
+
+let editProfileRosterId = null;
+
+async function openEditProfile(rosterId) {
+  editProfileRosterId = rosterId;
+  const r = allRoster.find(r => r.id === rosterId);
+
+  // Close profile modal, open edit modal
+  document.getElementById('memberProfileModal').classList.remove('open');
+  document.getElementById('editProfileModal').classList.add('open');
+  document.getElementById('editProfileTitle').textContent = r?.display_name || 'Edit Profile';
+  document.getElementById('editProfileForm').innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-sec);">Loading…</div>`;
+
+  const { data: p } = await sb.from('club_member_profile')
+    .select('*').eq('roster_id', rosterId).maybeSingle();
+
+  const v = p || {};
+  const inp = (name, label, val, type='text') =>
+    `<div style="margin-bottom:12px;">
+      <label style="display:block;font-size:11px;font-weight:600;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;">${label}</label>
+      <input name="${name}" type="${type}" value="${val||''}" style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;color:var(--text);outline:none;">
+    </div>`;
+  const sel = (name, label, val, opts) =>
+    `<div style="margin-bottom:12px;">
+      <label style="display:block;font-size:11px;font-weight:600;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;">${label}</label>
+      <select name="${name}" style="width:100%;box-sizing:border-box;background:#0d1728;border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;color:var(--text);outline:none;">
+        ${opts.map(([v,l]) => `<option value="${v}" ${val===v?'selected':''}>${l}</option>`).join('')}
+      </select>
+    </div>`;
+  const chk = (name, label, val) =>
+    `<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-bottom:10px;cursor:pointer;">
+      <input name="${name}" type="checkbox" ${val?'checked':''} style="width:15px;height:15px;accent-color:var(--cyan);"> ${label}
+    </label>`;
+  const sec = (title) =>
+    `<div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin:20px 0 10px;padding-top:16px;border-top:1px solid var(--border);">${title}</div>`;
+
+  document.getElementById('editProfileForm').innerHTML = `
+    ${sec('Swimmer Details')}
+    ${inp('date_of_birth','Date of birth', v.date_of_birth, 'date')}
+    ${sel('gender','Gender', v.gender, [['','— Select —'],['M','Male'],['F','Female']])}
+    ${inp('school','School', v.school)}
+    ${inp('sasa_number','SASA number', v.sasa_number)}
+    ${inp('join_date','Join date', v.join_date, 'date')}
+
+    ${sec('Primary Guardian')}
+    ${inp('guardian1_name','Name', v.guardian1_name)}
+    ${inp('guardian1_relation','Relation (e.g. Mother)', v.guardian1_relation)}
+    ${inp('guardian1_mobile','Mobile', v.guardian1_mobile, 'tel')}
+    ${inp('guardian1_email','Email', v.guardian1_email, 'email')}
+
+    ${sec('Second Guardian')}
+    ${inp('guardian2_name','Name', v.guardian2_name)}
+    ${inp('guardian2_relation','Relation', v.guardian2_relation)}
+    ${inp('guardian2_mobile','Mobile', v.guardian2_mobile, 'tel')}
+    ${inp('guardian2_email','Email', v.guardian2_email, 'email')}
+
+    ${sec('Medical')}
+    ${inp('allergies','Allergies', v.allergies)}
+    ${inp('medical_conditions','Medical conditions', v.medical_conditions)}
+    ${inp('emergency_meds','Emergency medication', v.emergency_meds)}
+    ${inp('medical_aid_fund','Medical aid fund', v.medical_aid_fund)}
+    ${inp('medical_aid_number','Medical aid number', v.medical_aid_number)}
+    ${inp('medical_aid_main_member','Main member name', v.medical_aid_main_member)}
+
+    ${sec('Consents')}
+    ${chk('photo_consent','Photo consent granted', v.photo_consent)}
+    ${chk('social_media_consent','Social media consent granted', v.social_media_consent)}
+    ${chk('medical_auth_consent','Medical treatment authorisation', v.medical_auth_consent)}
+    ${inp('indemnity_signed_date','Indemnity signed date', v.indemnity_signed_date, 'date')}
+
+    ${sec('Billing')}
+    ${inp('fee_tier','Fee tier', v.fee_tier)}
+    ${inp('invoice_email','Invoice email', v.invoice_email, 'email')}
+    ${inp('fee_notes','Billing notes', v.fee_notes)}
+
+    ${sec('Notes')}
+    <textarea name="notes" rows="3" style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;color:var(--text);outline:none;resize:vertical;">${v.notes||''}</textarea>
+  `;
+}
+
+async function saveEditProfile() {
+  if (!editProfileRosterId) return;
+  const form = document.getElementById('editProfileForm');
+  const get = n => form.querySelector(`[name="${n}"]`)?.value?.trim() || null;
+  const getChk = n => form.querySelector(`[name="${n}"]`)?.checked || false;
+
+  const payload = {
+    roster_id:              editProfileRosterId,
+    club_id:                currentClub.id,
+    date_of_birth:          get('date_of_birth'),
+    gender:                 get('gender') || null,
+    school:                 get('school'),
+    sasa_number:            get('sasa_number'),
+    join_date:              get('join_date'),
+    guardian1_name:         get('guardian1_name'),
+    guardian1_relation:     get('guardian1_relation'),
+    guardian1_mobile:       get('guardian1_mobile'),
+    guardian1_email:        get('guardian1_email'),
+    guardian2_name:         get('guardian2_name'),
+    guardian2_relation:     get('guardian2_relation'),
+    guardian2_mobile:       get('guardian2_mobile'),
+    guardian2_email:        get('guardian2_email'),
+    allergies:              get('allergies'),
+    medical_conditions:     get('medical_conditions'),
+    emergency_meds:         get('emergency_meds'),
+    medical_aid_fund:       get('medical_aid_fund'),
+    medical_aid_number:     get('medical_aid_number'),
+    medical_aid_main_member:get('medical_aid_main_member'),
+    photo_consent:          getChk('photo_consent'),
+    social_media_consent:   getChk('social_media_consent'),
+    medical_auth_consent:   getChk('medical_auth_consent'),
+    indemnity_signed_date:  get('indemnity_signed_date'),
+    fee_tier:               get('fee_tier'),
+    invoice_email:          get('invoice_email'),
+    fee_notes:              get('fee_notes'),
+    notes:                  form.querySelector('[name="notes"]')?.value?.trim() || null,
+  };
+
+  const { error } = await sb.from('club_member_profile').upsert(payload, { onConflict: 'roster_id' });
+  if (error) { showToast('Save failed: ' + error.message, 'error'); return; }
+
+  showToast('Profile saved');
+  document.getElementById('editProfileModal').classList.remove('open');
+  openMemberProfile(editProfileRosterId);
 }
 
 function openRosterLinkModal(rosterId, memberName) {
