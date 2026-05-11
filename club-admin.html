@@ -949,7 +949,7 @@ async function loadCategories() {
 async function loadMembers() {
   const since = new Date(); since.setDate(1); since.setHours(0,0,0,0);
 
-  const [membersRes, rosterRes] = await Promise.all([
+  const [membersRes, rosterRes, rosterFullRes] = await Promise.all([
     sb.from('club_members')
       .select('*, club_categories(name), user:user_id(id, email, raw_user_meta_data)')
       .eq('club_id', currentClub.id)
@@ -959,7 +959,12 @@ async function loadMembers() {
       .select('id, member_number, display_name, category, phone, user_id')
       .eq('club_id', currentClub.id)
       .not('user_id', 'is', null),
+    sb.from('club_roster')
+      .select('id, member_number, display_name, category, user_id')
+      .eq('club_id', currentClub.id)
+      .order('member_number'),
   ]);
+  allRosterFull = rosterFullRes.data || [];
 
   const clubMembers  = membersRes.data || [];
   const rosterLinked = rosterRes.data  || [];
@@ -1030,25 +1035,30 @@ async function loadEvents() {
 
 // ── OVERVIEW ──────────────────────────────────────────────────────
 function renderOverview() {
-  document.getElementById('statMembers').textContent = allMembers.length;
+  const rosterCount = allRosterFull.length || allMembers.length;
+  document.getElementById('statMembers').textContent = rosterCount;
   const now = new Date();
-  const in30 = new Date(Date.now() + 30*24*60*60*1000);
-  const upcomingEvents = allEvents.filter(e => new Date(e.event_date) >= now && new Date(e.event_date) <= in30);
+  const upcomingEvents = allEvents.filter(e => new Date(e.event_date) >= now);
   document.getElementById('statEvents').textContent = upcomingEvents.length;
   const totalLogs = Object.values(memberLogs).reduce((a,b) => a+b, 0);
   document.getElementById('statLogs').textContent = totalLogs;
-  document.getElementById('statEntries').textContent = '—'; // loaded async if needed
+  document.getElementById('statEntries').textContent = '—';
 
-  // Category breakdown
+  // Category breakdown — use full roster so it shows before anyone joins
+  const source = allRosterFull.length ? allRosterFull : allMembers;
   const catCounts = {};
-  allMembers.forEach(m => {
-    const cat = m.club_categories?.name || 'Unassigned';
+  source.forEach(m => {
+    const cat = m.category || m.club_categories?.name || 'Unassigned';
     catCounts[cat] = (catCounts[cat] || 0) + 1;
   });
+  const linkedCount = allRosterFull.filter(r => r.user_id).length || allMembers.filter(m => m._source === 'club_members').length;
   const catEl = document.getElementById('overviewCategories');
   catEl.innerHTML = `
     <div class="card" style="margin-bottom:20px;">
-      <div class="card-header"><div class="card-title">Members by Category</div></div>
+      <div class="card-header">
+        <div class="card-title">Squad Breakdown</div>
+        <div style="font-size:12px;color:var(--text-sec);">${linkedCount} of ${rosterCount} on SwimLoading</div>
+      </div>
       <div style="display:flex;flex-wrap:wrap;gap:12px;padding:16px;">
         ${Object.entries(catCounts).map(([cat, count]) => `
           <div style="text-align:center;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:12px 20px;">
@@ -1059,32 +1069,35 @@ function renderOverview() {
       </div>
     </div>`;
 
-  // Upcoming swims
+  // Upcoming events — all future, no 30-day cap
   const upEl = document.getElementById('overviewUpcoming');
   if (upcomingEvents.length === 0) {
-    upEl.innerHTML = '<div class="empty"><div class="empty-title">No upcoming events</div><div class="empty-desc">Create an event from the Events tab.</div></div>';
+    upEl.innerHTML = '<div class="empty"><div class="empty-title">No upcoming events</div><div class="empty-desc">Add events from the Events tab.</div></div>';
     return;
   }
   upEl.innerHTML = `
     <div class="card">
       <div class="card-header"><div class="card-title">Upcoming Events</div></div>
       <div style="padding:12px;">
-        ${upcomingEvents.slice(0,3).map(e => {
-          const d = new Date(e.event_date);
+        ${upcomingEvents.slice(0, 5).map(e => {
+          const d = new Date(e.event_date + 'T12:00:00');
+          const daysAway = Math.ceil((d - now) / (1000 * 60 * 60 * 24));
+          const soon = daysAway <= 14;
           return `<div class="event-card">
             <div class="event-date-block">
               <div class="event-date-day">${d.getDate()}</div>
               <div class="event-date-mon">${d.toLocaleString('default',{month:'short'})}</div>
             </div>
             <div class="event-info">
-              <div class="event-title">${e.title}${e.is_league ? '<span class="league-tag">League</span>' : ''}</div>
+              <div class="event-title">${e.title}${e.is_league ? '<span class="league-tag">Champs</span>' : ''}</div>
               <div class="event-meta">
-                ${e.start_time ? `<span>${e.start_time.slice(0,5)}</span>` : ''}
-                ${e.entry_cap  ? `<span>Cap: ${e.entry_cap}</span>` : ''}
+                <span style="color:${soon ? 'var(--amber)' : 'var(--text-sec)'};">${daysAway === 0 ? 'Today' : daysAway === 1 ? 'Tomorrow' : `${daysAway} days`}</span>
+                ${e.description ? `<span>${e.description.split('.')[0]}</span>` : ''}
               </div>
             </div>
           </div>`;
         }).join('')}
+        ${upcomingEvents.length > 5 ? `<div style="text-align:center;padding:10px 0 4px;font-size:12px;color:var(--text-sec);">+${upcomingEvents.length - 5} more — see Events tab</div>` : ''}
       </div>
     </div>`;
 }
@@ -1994,6 +2007,7 @@ function showToast(msg, type = 'success') {
 
 // ── ROSTER ────────────────────────────────────────────────────────
 let allRoster = [];
+let allRosterFull = [];   // all roster entries including unlinked, for overview stats
 let rosterFilter = { query: '', status: '', cat: '' };
 let rosterLinkTargetId = null;
 let rosterLinkSearchTimer = null;
