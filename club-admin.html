@@ -762,53 +762,258 @@
 
 <!-- ADD ROSTER MEMBER MODAL -->
 <div class="modal-overlay" id="addRosterModal">
-  <div class="modal">
-    <div class="modal-title">
-      Add Member to Roster
+  <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto;">
+    <div class="modal-title" style="position:sticky;top:0;background:var(--bg-card);z-index:2;padding-bottom:12px;">
+      Add Member
       <button class="modal-close" onclick="closeAddRosterModal()">&times;</button>
     </div>
-    <div class="form-group">
-      <div class="form-label">Full name</div>
-      <input type="text" class="form-input" id="newRosterName" placeholder="e.g. Jane Smith">
-    </div>
+
+    <!-- SWIMMER -->
+    <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin:4px 0 12px;">Swimmer</div>
     <div class="form-row">
-      <div class="form-group">
+      <div class="form-group" style="flex:2;">
+        <div class="form-label">Full name <span style="color:var(--danger);">*</span></div>
+        <input type="text" class="form-input" id="newRosterName" placeholder="e.g. Jane Smith">
+      </div>
+      <div class="form-group" style="flex:1;">
         <div class="form-label">Member #</div>
-        <input type="text" class="form-input" id="newRosterNum" placeholder="e.g. DUC001">
-      </div>
-      <div class="form-group">
-        <div class="form-label">Category</div>
-        <select class="form-input" id="newRosterCat">
-          <option value="">— select —</option>
-          <option value="Guppies">Guppies</option>
-          <option value="Sailfish">Sailfish</option>
-          <option value="Makos">Makos</option>
-          <option value="Walrus">Walrus</option>
-        </select>
+        <input type="text" class="form-input" id="newRosterNum" placeholder="e.g. 17">
       </div>
     </div>
     <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Date of birth</div>
+        <input type="date" class="form-input" id="newRosterDob">
+      </div>
       <div class="form-group">
         <div class="form-label">Gender</div>
         <select class="form-input" id="newRosterGender">
           <option value="">—</option>
           <option value="M">Male</option>
           <option value="F">Female</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Squad</div>
+        <select class="form-input" id="newRosterSquad" onchange="onSquadChange(this.value)">
+          <option value="">— select —</option>
         </select>
       </div>
       <div class="form-group">
-        <div class="form-label">Phone <span style="font-weight:400;color:var(--text-dim);">optional</span></div>
-        <input type="text" class="form-input" id="newRosterPhone" placeholder="082 123 4567">
+        <div class="form-label">Category <span style="font-weight:400;color:var(--text-dim);">gala level</span></div>
+        <input type="text" class="form-input" id="newRosterCat" placeholder="e.g. Level 2, SANJ">
       </div>
     </div>
-    <div class="modal-actions">
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">School</div>
+        <input type="text" class="form-input" id="newRosterSchool" placeholder="e.g. Camps Bay Primary">
+      </div>
+      <div class="form-group">
+        <div class="form-label">SASA number <span style="font-weight:400;color:var(--text-dim);">optional</span></div>
+        <input type="text" class="form-input" id="newRosterSasa" placeholder="e.g. WP12345">
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="form-label">Join date</div>
+      <input type="date" class="form-input" id="newRosterJoinDate">
+    </div>
+
+    <!-- GUARDIAN 1 -->
+    <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin:20px 0 12px;border-top:1px solid var(--border);padding-top:16px;" id="guardianSection">
+      Primary Guardian / Parent
+    </div>
+    <div class="form-row" id="guardianG1Row">
+      <div class="form-group" style="flex:2;">
+        <div class="form-label">Name <span style="color:var(--danger);">*</span></div>
+        <input type="text" class="form-input" id="newG1Name" placeholder="e.g. Sarah Smith">
+      </div>
+      <div class="form-group" style="flex:1;">
+        <div class="form-label">Relationship</div>
+        <select class="form-input" id="newG1Relation">
+          <option value="Mother">Mother</option>
+          <option value="Father">Father</option>
+          <option value="Guardian">Guardian</option>
+          <option value="Grandmother">Grandmother</option>
+          <option value="Grandfather">Grandfather</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Mobile</div>
+        <input type="tel" class="form-input" id="newG1Mobile" placeholder="082 123 4567">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Email</div>
+        <input type="email" class="form-input" id="newG1Email" placeholder="parent@email.com">
+      </div>
+    </div>
+
+    <!-- GUARDIAN 2 -->
+    <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin:20px 0 12px;border-top:1px solid var(--border);padding-top:16px;" id="guardian2Header">
+      Second Guardian / Parent <span style="font-weight:400;text-transform:none;font-size:11px;color:var(--text-dim);">optional</span>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2;">
+        <div class="form-label">Name</div>
+        <input type="text" class="form-input" id="newG2Name" placeholder="e.g. John Smith">
+      </div>
+      <div class="form-group" style="flex:1;">
+        <div class="form-label">Relationship</div>
+        <select class="form-input" id="newG2Relation">
+          <option value="">—</option>
+          <option value="Mother">Mother</option>
+          <option value="Father">Father</option>
+          <option value="Guardian">Guardian</option>
+          <option value="Grandmother">Grandmother</option>
+          <option value="Grandfather">Grandfather</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Mobile</div>
+        <input type="tel" class="form-input" id="newG2Mobile" placeholder="082 123 4567">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Email</div>
+        <input type="email" class="form-input" id="newG2Email" placeholder="">
+      </div>
+    </div>
+
+    <!-- COLLECTION -->
+    <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin:20px 0 12px;border-top:1px solid var(--border);padding-top:16px;" id="collectionHeader">
+      Collection Contacts <span style="font-weight:400;text-transform:none;font-size:11px;color:var(--text-dim);">au-pair, family, etc.</span>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2;">
+        <div class="form-label">Name</div>
+        <input type="text" class="form-input" id="newColl1Name" placeholder="e.g. Nandi Dlamini">
+      </div>
+      <div class="form-group" style="flex:1;">
+        <div class="form-label">Mobile</div>
+        <input type="tel" class="form-input" id="newColl1Mobile" placeholder="082 …">
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="form-label">Relationship</div>
+      <input type="text" class="form-input" id="newColl1Relation" placeholder="e.g. Au-pair, Grandmother, Uncle">
+    </div>
+
+    <!-- MEDICAL -->
+    <div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:0.1em;margin:20px 0 12px;border-top:1px solid var(--border);padding-top:16px;">
+      Medical
+    </div>
+    <div class="form-group">
+      <div class="form-label">Allergies</div>
+      <input type="text" class="form-input" id="newMedAllergies" placeholder="e.g. Bee stings (EpiPen), Penicillin">
+    </div>
+    <div class="form-group">
+      <div class="form-label">Chronic conditions</div>
+      <input type="text" class="form-input" id="newMedConditions" placeholder="e.g. Asthma, Epilepsy, Type 1 Diabetes">
+    </div>
+    <div class="form-group">
+      <div class="form-label">Emergency meds on premises</div>
+      <input type="text" class="form-input" id="newMedEmergency" placeholder="e.g. Ventolin inhaler in blue kit bag">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Medical aid fund</div>
+        <input type="text" class="form-input" id="newMedFund" placeholder="e.g. Discovery Health">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Medical aid number</div>
+        <input type="text" class="form-input" id="newMedNumber" placeholder="">
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="form-label">Main member name</div>
+      <input type="text" class="form-input" id="newMedMainMember" placeholder="e.g. John Smith">
+    </div>
+
+    <!-- CONSENTS -->
+    <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin:20px 0 12px;border-top:1px solid var(--border);padding-top:16px;">
+      Consents
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Indemnity signed date</div>
+        <input type="date" class="form-input" id="newConsentIndemnity">
+      </div>
+      <div class="form-group" style="justify-content:flex-end;padding-top:20px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text);">
+          <input type="checkbox" id="newConsentPhoto" style="width:16px;height:16px;accent-color:var(--cyan);"> Photo consent
+        </label>
+      </div>
+    </div>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text);">
+        <input type="checkbox" id="newConsentSocial" style="width:16px;height:16px;accent-color:var(--cyan);"> Social media consent
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text);">
+        <input type="checkbox" id="newConsentMedical" style="width:16px;height:16px;accent-color:var(--cyan);"> Medical treatment auth
+      </label>
+    </div>
+
+    <!-- BILLING -->
+    <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin:20px 0 12px;border-top:1px solid var(--border);padding-top:16px;">
+      Billing <span style="font-weight:400;text-transform:none;font-size:11px;color:var(--text-dim);">optional</span>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Fee tier</div>
+        <select class="form-input" id="newFeeTier">
+          <option value="">— select —</option>
+          <option value="LTS">Learn to Swim</option>
+          <option value="Bronze">Bronze</option>
+          <option value="Silver">Silver</option>
+          <option value="Gold">Gold</option>
+          <option value="Junior">Junior</option>
+          <option value="Senior">Senior</option>
+          <option value="Masters">Masters</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Invoice email</div>
+        <input type="email" class="form-input" id="newInvoiceEmail" placeholder="billing@email.com">
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="form-label">Billing notes</div>
+      <input type="text" class="form-input" id="newFeeNotes" placeholder="e.g. Sibling discount, half-term start">
+    </div>
+
+    <!-- NOTES -->
+    <div class="form-group" style="margin-top:8px;border-top:1px solid var(--border);padding-top:16px;">
+      <div class="form-label">Admin notes</div>
+      <textarea class="form-input" id="newMemberNotes" rows="2" placeholder="Any other notes for coach/admin…" style="resize:vertical;"></textarea>
+    </div>
+
+    <div class="modal-actions" style="position:sticky;bottom:0;background:var(--bg-card);padding-top:12px;margin-top:8px;">
       <button class="btn-modal-cancel" onclick="closeAddRosterModal()">Cancel</button>
-      <button class="btn-modal-primary" onclick="submitAddRosterMember()">Add to roster</button>
+      <button class="btn-modal-primary" onclick="submitAddRosterMember()">Add member</button>
     </div>
   </div>
 </div>
 
 <div id="toast"></div>
+
+<!-- MEMBER PROFILE MODAL -->
+<div class="modal-overlay" id="memberProfileModal">
+  <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto;">
+    <div class="modal-title" style="position:sticky;top:0;background:var(--bg-card);z-index:2;padding-bottom:12px;">
+      <span id="memberProfileTitle">Member Profile</span>
+      <button class="modal-close" onclick="document.getElementById('memberProfileModal').classList.remove('open')">&times;</button>
+    </div>
+    <div id="memberProfileContent" style="padding-top:4px;"></div>
+  </div>
+</div>
 
 <script>
 const SUPABASE_URL     = 'https://szgkzuswelntnevobnoh.supabase.co';
@@ -890,7 +1095,7 @@ async function loadClubContext() {
   document.getElementById('overviewTitle').textContent = currentClub.name + ' — Overview';
 
   lucide.createIcons();
-  await Promise.all([loadCategories(), loadMembers(), loadEvents()]);
+  await Promise.all([loadCategories(), loadMembers(), loadEvents(), loadSquads()]);
   renderOverview();
   loadJoinLink();
   loadSettings();
@@ -2032,6 +2237,7 @@ function showToast(msg, type = 'success') {
 // ── ROSTER ────────────────────────────────────────────────────────
 let allRoster = [];
 let allRosterFull = [];   // all roster entries including unlinked, for overview stats
+let allSquads = [];       // club_squads for this club
 let rosterFilter = { query: '', status: '', cat: '' };
 let rosterLinkTargetId = null;
 let rosterLinkSearchTimer = null;
@@ -2039,7 +2245,7 @@ let rosterLinkSearchTimer = null;
 async function loadRoster() {
   const { data: roster } = await sb
     .from('club_roster')
-    .select('id, member_number, display_name, category, gender, user_id, phone')
+    .select('id, member_number, display_name, category, gender, user_id, phone, squad_id')
     .eq('club_id', currentClub.id)
     .order('member_number', { ascending: true, nullsFirst: false });
 
@@ -2111,12 +2317,17 @@ function renderRosterTable() {
            onclick="unlinkRosterMember('${r.id}')">Unlink</button>`
       : `<button class="btn-sm" onclick="openRosterLinkModal('${r.id}','${(r.display_name||'').replace(/'/g,"\\'")}')">Link</button>`;
 
+    const squadName = allSquads.find(s => s.id === r.squad_id)?.name || '';
+    const squadBadge = squadName
+      ? `<div style="font-size:11px;color:var(--text-sec);margin-top:2px;">${squadName}</div>` : '';
+
     return `<tr data-roster-id="${r.id}">
       <td><span class="member-num">${r.member_number ?? '—'}</span></td>
-      <td class="member-name">${r.display_name || '—'}</td>
+      <td class="member-name">${r.display_name || '—'}${squadBadge}</td>
       <td><span class="cat-badge ${catClass(r.category)}">${r.category || '—'}</span></td>
       <td>${swCell}</td>
-      <td style="text-align:right;display:flex;gap:6px;justify-content:flex-end;">
+      <td style="text-align:right;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;">
+        <button class="btn-sm" onclick="openMemberProfile('${r.id}')">Profile</button>
         <button class="btn-sm" onclick="openRosterEditModal('${r.id}')">Edit</button>
         ${linkBtn}
       </td>
@@ -2167,6 +2378,100 @@ async function saveRosterEdit() {
   closeRosterEditModal();
   renderRosterTable();
   showToast('Member updated', 'success');
+}
+
+async function openMemberProfile(rosterId) {
+  const r = allRoster.find(r => r.id === rosterId);
+  if (!r) return;
+
+  document.getElementById('memberProfileTitle').textContent = r.display_name || 'Member Profile';
+  document.getElementById('memberProfileContent').innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-sec);font-size:13px;">Loading…</div>`;
+  document.getElementById('memberProfileModal').classList.add('open');
+
+  const { data: p } = await sb.from('club_member_profile')
+    .select('*').eq('roster_id', rosterId).maybeSingle();
+
+  const squadName = allSquads.find(s => s.id === r.squad_id)?.name || '—';
+
+  function row(label, val) {
+    if (!val) return '';
+    return `<div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);">
+      <div style="font-size:12px;color:var(--text-sec);min-width:140px;flex-shrink:0;">${label}</div>
+      <div style="font-size:13px;color:var(--text);flex:1;">${val}</div>
+    </div>`;
+  }
+  function section(title, color) {
+    return `<div style="font-size:11px;font-weight:700;color:${color||'var(--cyan)'};text-transform:uppercase;letter-spacing:0.1em;margin:18px 0 8px;">${title}</div>`;
+  }
+  function yesno(val) { return val ? '<span style="color:var(--green);">Yes</span>' : '<span style="color:var(--text-dim);">No</span>'; }
+
+  let html = section('Swimmer');
+  html += row('Member #',   r.member_number ?? '');
+  html += row('Squad',      squadName);
+  html += row('Category',   r.category || '');
+
+  if (p) {
+    html += row('Date of birth', p.date_of_birth || '');
+    html += row('Gender',        p.gender === 'M' ? 'Male' : p.gender === 'F' ? 'Female' : p.gender || '');
+    html += row('School',        p.school || '');
+    html += row('SASA number',   p.sasa_number || '');
+    html += row('Join date',     p.join_date || '');
+
+    const hasG1 = p.guardian1_name;
+    if (hasG1) {
+      html += section('Primary Guardian');
+      html += row('Name',         `${p.guardian1_name} (${p.guardian1_relation || ''})`);
+      html += row('Mobile',       p.guardian1_mobile || '');
+      html += row('Email',        p.guardian1_email  || '');
+    }
+    const hasG2 = p.guardian2_name;
+    if (hasG2) {
+      html += section('Second Guardian', 'var(--text-sec)');
+      html += row('Name',   `${p.guardian2_name} (${p.guardian2_relation || ''})`);
+      html += row('Mobile', p.guardian2_mobile || '');
+      html += row('Email',  p.guardian2_email  || '');
+    }
+    const colls = p.collection_contacts || [];
+    if (colls.length) {
+      html += section('Collection Contacts', 'var(--text-sec)');
+      colls.forEach(c => {
+        html += row(c.relation || 'Contact', `${c.name} — ${c.mobile}`);
+      });
+    }
+
+    const hasMed = p.allergies || p.medical_conditions || p.emergency_meds || p.medical_aid_fund;
+    if (hasMed) {
+      html += section('Medical', 'var(--amber)');
+      html += row('Allergies',         p.allergies          || '');
+      html += row('Conditions',        p.medical_conditions  || '');
+      html += row('Emergency meds',    p.emergency_meds      || '');
+      html += row('Medical aid',       [p.medical_aid_fund, p.medical_aid_number].filter(Boolean).join(' · ') || '');
+      html += row('Main member',       p.medical_aid_main_member || '');
+    }
+
+    html += section('Consents', 'var(--text-sec)');
+    html += row('Indemnity signed', p.indemnity_signed_date || '');
+    html += row('Photo consent',    yesno(p.photo_consent));
+    html += row('Social media',     yesno(p.social_media_consent));
+    html += row('Medical auth',     yesno(p.medical_auth_consent));
+
+    if (p.fee_tier || p.invoice_email) {
+      html += section('Billing', 'var(--text-sec)');
+      html += row('Fee tier',      p.fee_tier      || '');
+      html += row('Invoice email', p.invoice_email || '');
+      html += row('Notes',         p.fee_notes     || '');
+    }
+    if (p.notes) {
+      html += section('Notes', 'var(--text-sec)');
+      html += `<div style="font-size:13px;color:var(--text);padding:8px 0;">${p.notes}</div>`;
+    }
+  } else {
+    html += `<div style="margin-top:16px;padding:14px;background:rgba(255,255,255,0.03);border-radius:8px;font-size:13px;color:var(--text-sec);">
+      No profile on file yet. Use <strong style="color:var(--text);">Add Member</strong> to capture full details next time.
+    </div>`;
+  }
+
+  document.getElementById('memberProfileContent').innerHTML = html;
 }
 
 function openRosterLinkModal(rosterId, memberName) {
@@ -2236,12 +2541,73 @@ async function unlinkRosterMember(rosterId) {
 }
 
 // ── ADD ROSTER MEMBER ─────────────────────────────────────────────
-function openAddRosterModal() {
-  ['newRosterName','newRosterNum','newRosterPhone'].forEach(id => {
-    document.getElementById(id).value = '';
+async function loadSquads() {
+  const { data } = await sb.from('club_squads')
+    .select('id, name, type, sort_order')
+    .eq('club_id', currentClub.id)
+    .eq('is_active', true)
+    .order('sort_order');
+  allSquads = data || [];
+}
+
+function onSquadChange(squadId) {
+  const squad = allSquads.find(s => s.id === squadId);
+  if (!squad) return;
+  // Auto-fill fee tier to match squad name
+  const tierMap = { 'lts':'LTS', 'development':'Bronze', 'competitive':'Silver', 'masters':'Masters' };
+  const tierEl = document.getElementById('newFeeTier');
+  if (tierEl && !tierEl.value) {
+    const name = squad.name.toLowerCase();
+    if (name.includes('bronze'))       tierEl.value = 'Bronze';
+    else if (name.includes('silver'))  tierEl.value = 'Silver';
+    else if (name.includes('gold'))    tierEl.value = 'Gold';
+    else if (name.includes('junior'))  tierEl.value = 'Junior';
+    else if (name.includes('senior'))  tierEl.value = 'Senior';
+    else if (name.includes('master') || name.includes('triathlete')) tierEl.value = 'Masters';
+    else if (name.includes('learn'))   tierEl.value = 'LTS';
+  }
+  // Masters squad: hide guardian sections (adults)
+  const isMasters = squad.type === 'masters';
+  ['guardianSection','guardian2Header','collectionHeader'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isMasters ? 'none' : '';
   });
-  document.getElementById('newRosterCat').value    = '';
-  document.getElementById('newRosterGender').value = '';
+  document.querySelectorAll('#newG1Name,#newG1Relation,#newG1Mobile,#newG1Email,#newG2Name,#newG2Relation,#newG2Mobile,#newG2Email,#newColl1Name,#newColl1Mobile,#newColl1Relation').forEach(el => {
+    if (el) el.closest('.form-group,.form-row') && (el.closest('.form-row') || el.closest('.form-group')).closest('[id]');
+  });
+  const guardianRows = document.querySelectorAll('#addRosterModal .form-row, #addRosterModal .form-group');
+  // simpler: just hide the section headers; fields remain but aren't required
+}
+
+function openAddRosterModal() {
+  // Reset all fields
+  ['newRosterName','newRosterNum','newRosterDob','newRosterSchool','newRosterSasa',
+   'newRosterCat','newRosterJoinDate','newG1Name','newG1Mobile','newG1Email',
+   'newG2Name','newG2Mobile','newG2Email','newColl1Name','newColl1Mobile','newColl1Relation',
+   'newMedAllergies','newMedConditions','newMedEmergency','newMedFund','newMedNumber',
+   'newMedMainMember','newConsentIndemnity','newInvoiceEmail','newFeeNotes','newMemberNotes'
+  ].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['newRosterGender','newG1Relation','newG2Relation','newG2Relation','newFeeTier'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  ['newConsentPhoto','newConsentSocial','newConsentMedical'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.checked = false;
+  });
+  document.getElementById('newG1Relation').value = 'Mother';
+
+  // Populate squad dropdown
+  const sel = document.getElementById('newRosterSquad');
+  sel.innerHTML = '<option value="">— select squad —</option>' +
+    allSquads.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+
+  // Set today as join date default
+  document.getElementById('newRosterJoinDate').value = new Date().toISOString().slice(0,10);
+
+  // Show guardian sections by default
+  ['guardianSection','guardian2Header','collectionHeader'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = '';
+  });
+
   document.getElementById('addRosterModal').classList.add('open');
   setTimeout(() => document.getElementById('newRosterName').focus(), 100);
 }
@@ -2253,21 +2619,72 @@ function closeAddRosterModal() {
 async function submitAddRosterMember() {
   const name   = document.getElementById('newRosterName').value.trim();
   const num    = document.getElementById('newRosterNum').value.trim();
-  const cat    = document.getElementById('newRosterCat').value;
+  const cat    = document.getElementById('newRosterCat').value.trim();
   const gender = document.getElementById('newRosterGender').value;
-  const phone  = document.getElementById('newRosterPhone').value.trim();
+  const dob    = document.getElementById('newRosterDob').value || null;
+  const squadId = document.getElementById('newRosterSquad').value || null;
+
   if (!name) { showToast('Name is required', 'error'); return; }
 
-  const { error } = await sb.from('club_roster').insert({
-    club_id:      currentClub.id,
-    display_name: name,
-    member_number: num   || null,
-    category:      cat   || null,
+  // 1. Insert roster entry
+  const { data: roster, error: rErr } = await sb.from('club_roster').insert({
+    club_id:       currentClub.id,
+    display_name:  name,
+    member_number: num    || null,
+    category:      cat    || null,
     gender:        gender || null,
-    phone:         phone  || null,
-  });
-  if (error) { showToast('Failed: ' + error.message, 'error'); return; }
-  showToast(name + ' added to roster', 'success');
+    squad_id:      squadId,
+  }).select('id').single();
+
+  if (rErr) { showToast('Failed: ' + rErr.message, 'error'); return; }
+
+  // 2. Build collection contacts
+  const coll1Name = document.getElementById('newColl1Name').value.trim();
+  const collContacts = coll1Name ? [{
+    name:     coll1Name,
+    mobile:   document.getElementById('newColl1Mobile').value.trim(),
+    relation: document.getElementById('newColl1Relation').value.trim(),
+  }] : [];
+
+  // 3. Insert member profile
+  const profile = {
+    club_id:               currentClub.id,
+    roster_id:             roster.id,
+    date_of_birth:         dob,
+    gender:                gender || null,
+    school:                document.getElementById('newRosterSchool').value.trim() || null,
+    sasa_number:           document.getElementById('newRosterSasa').value.trim()   || null,
+    guardian1_name:        document.getElementById('newG1Name').value.trim()       || null,
+    guardian1_relation:    document.getElementById('newG1Relation').value          || null,
+    guardian1_mobile:      document.getElementById('newG1Mobile').value.trim()     || null,
+    guardian1_email:       document.getElementById('newG1Email').value.trim()      || null,
+    guardian1_is_billing:  true,
+    guardian2_name:        document.getElementById('newG2Name').value.trim()       || null,
+    guardian2_relation:    document.getElementById('newG2Relation').value          || null,
+    guardian2_mobile:      document.getElementById('newG2Mobile').value.trim()     || null,
+    guardian2_email:       document.getElementById('newG2Email').value.trim()      || null,
+    collection_contacts:   collContacts,
+    allergies:             document.getElementById('newMedAllergies').value.trim()   || null,
+    medical_conditions:    document.getElementById('newMedConditions').value.trim()  || null,
+    emergency_meds:        document.getElementById('newMedEmergency').value.trim()   || null,
+    medical_aid_fund:      document.getElementById('newMedFund').value.trim()        || null,
+    medical_aid_number:    document.getElementById('newMedNumber').value.trim()      || null,
+    medical_aid_main_member: document.getElementById('newMedMainMember').value.trim() || null,
+    indemnity_signed_date: document.getElementById('newConsentIndemnity').value      || null,
+    photo_consent:         document.getElementById('newConsentPhoto').checked,
+    social_media_consent:  document.getElementById('newConsentSocial').checked,
+    medical_auth_consent:  document.getElementById('newConsentMedical').checked,
+    fee_tier:              document.getElementById('newFeeTier').value               || null,
+    invoice_email:         document.getElementById('newInvoiceEmail').value.trim()   || null,
+    fee_notes:             document.getElementById('newFeeNotes').value.trim()        || null,
+    join_date:             document.getElementById('newRosterJoinDate').value         || null,
+    notes:                 document.getElementById('newMemberNotes').value.trim()     || null,
+  };
+
+  const { error: pErr } = await sb.from('club_member_profile').insert(profile);
+  if (pErr) { showToast('Member added but profile failed: ' + pErr.message, 'error'); }
+
+  showToast(name + ' added', 'success');
   closeAddRosterModal();
   allRoster = [];
   loadRoster();
