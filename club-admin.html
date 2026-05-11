@@ -1871,11 +1871,21 @@ async function loadSquadTracker() {
     sessionsByRoster[a.roster_id].add(`${a.session_date}_${a.session_start}`);
   });
 
-  trackerData = roster.map(r => ({
-    ...r,
-    times: timesByRoster[r.id] || [],
-    sessions: sessionsByRoster[r.id]?.size || 0,
-  }));
+  // Exclude roster entries belonging to admin/organiser club_members
+  const adminRosterIds = new Set(
+    allMembers
+      .filter(m => m.role === 'admin' || m.role === 'organiser')
+      .map(m => m.club_roster?.id)
+      .filter(Boolean)
+  );
+
+  trackerData = roster
+    .filter(r => !adminRosterIds.has(r.id))
+    .map(r => ({
+      ...r,
+      times: timesByRoster[r.id] || [],
+      sessions: sessionsByRoster[r.id]?.size || 0,
+    }));
 
   // Populate category filter
   const cats = [...new Set(roster.map(r => r.category).filter(Boolean))].sort();
