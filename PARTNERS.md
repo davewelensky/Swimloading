@@ -95,9 +95,9 @@ Every partner must have all of the following before going live:
 - Energy Bakes (oat-based bars)
 - Protein products
 
-**Outstanding actions:**
-- [ ] Confirm whether scienceinsport.co.za or fuelme.co.za is the correct shop URL for members
-- [ ] Check if logo attachment from SiS email is higher quality than current icons/sis-logo-stacked.png — replace if so
+**Notes on setup:**
+- Shop URL: scienceinsport.co.za — confirmed correct, leave as-is
+- Logo: SiS provided a PDF logo — not usable as web image, current icons/sis-logo-stacked.png stays
 
 **Notes:**
 - SiS SA local operation is FUELME.co.za — verify which URL to link members to for shopping
