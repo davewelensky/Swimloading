@@ -1562,6 +1562,10 @@ function openMemberModal(memberId) {
   document.getElementById('memberModalTitle').textContent = name;
   document.getElementById('memberModalContent').innerHTML = `
     <div class="form-group">
+      <div class="form-label">Display name</div>
+      <input type="text" class="form-input" id="editMemberName" value="${m._display_name !== '—' ? m._display_name : ''}">
+    </div>
+    <div class="form-group">
       <div class="form-label">Member number</div>
       <input type="text" class="form-input" id="editMemberNum" value="${m.member_number}">
     </div>
@@ -1595,14 +1599,19 @@ function closeMemberModal() {
 }
 
 async function saveMember(memberId) {
+  const displayName = document.getElementById('editMemberName').value.trim();
   const num   = document.getElementById('editMemberNum').value.trim();
   const catId = document.getElementById('editMemberCat').value;
   const role  = document.getElementById('editMemberRole').value;
   const notes = document.getElementById('editMemberNotes').value.trim();
   const { error } = await sb.from('club_members')
-    .update({ member_number: num, category_id: catId, role, notes, })
+    .update({ member_number: num, category_id: catId, role, notes })
     .eq('id', memberId);
   if (error) { showToast('Save failed: ' + error.message, 'error'); return; }
+  const m = allMembers.find(x => x.id === memberId);
+  if (m?.club_roster?.id && displayName) {
+    await sb.from('club_roster').update({ display_name: displayName }).eq('id', m.club_roster.id);
+  }
   showToast('Member updated', 'success');
   closeMemberModal();
   await loadMembers();
