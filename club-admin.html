@@ -2603,6 +2603,7 @@ async function reactivateCoach(id) {
 let allRoster = [];
 let allRosterFull = [];   // all roster entries including unlinked, for overview stats
 let allSquads = [];       // club_squads for this club
+let allSquadSessions = []; // club_squad_sessions (recurring schedule)
 let rosterFilter = { query: '', status: '', cat: '' };
 let rosterLinkTargetId = null;
 let rosterLinkSearchTimer = null;
@@ -2907,12 +2908,21 @@ async function unlinkRosterMember(rosterId) {
 
 // ── ADD ROSTER MEMBER ─────────────────────────────────────────────
 async function loadSquads() {
-  const { data } = await sb.from('club_squads')
-    .select('id, name, type, sort_order')
-    .eq('club_id', currentClub.id)
-    .eq('is_active', true)
-    .order('sort_order');
-  allSquads = data || [];
+  const todayDow = new Date().getDay(); // 0=Sun…6=Sat
+  const [squadsRes, schedRes] = await Promise.all([
+    sb.from('club_squads')
+      .select('id, name, type, sort_order')
+      .eq('club_id', currentClub.id)
+      .eq('is_active', true)
+      .order('sort_order'),
+    sb.from('club_squad_sessions')
+      .select('id, squad_id, day_of_week, start_time, end_time, session_type, notes')
+      .eq('club_id', currentClub.id)
+      .eq('day_of_week', todayDow)
+      .order('start_time'),
+  ]);
+  allSquads = squadsRes.data || [];
+  allSquadSessions = schedRes.data || [];
 }
 
 function onSquadChange(squadId) {
@@ -3078,10 +3088,83 @@ function renderAttendancePage() {
   else renderSessionsList();
 }
 
+// ── TODAY'S SCHEDULE BANNER ───────────────────────────────────────
+function renderTodayBanner() {
+  if (!allSquadSessions.length) return '';
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const todayStr = now.toISOString().slice(0, 10);
+
+  const cards = allSquadSessions.map(ss => {
+    const squad = allSquads.find(s => s.id === ss.squad_id);
+    const [h, m] = (ss.start_time || '00:00').split(':').map(Number);
+    const sessionMins = h * 60 + m;
+    const minsUntil = sessionMins - nowMins;
+    const isNow = minsUntil <= 30 && minsUntil > -120;
+    const timeLabel = ss.start_time ? ss.start_time.slice(0, 5) : '';
+
+    // Check if already logged today for this squad
+    const alreadyLogged = allSessions.find(s =>
+      s.session_date === todayStr && s.squad_id === ss.squad_id
+    );
+
+    let statusBadge = '';
+    if (alreadyLogged) {
+      const marked = (alreadyLogged.club_attendance || []).filter(a => a.status === 'present' || a.status === 'late').length;
+      statusBadge = `<span style="font-size:11px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:20px;padding:3px 10px;">${marked} marked</span>`;
+    } else if (isNow) {
+      statusBadge = `<span style="font-size:11px;font-weight:700;color:var(--cyan);background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);border-radius:20px;padding:3px 10px;">${minsUntil > 0 ? 'In ' + minsUntil + ' min' : 'Now'}</span>`;
+    }
+
+    return `
+    <div style="background:${isNow && !alreadyLogged ? 'rgba(56,189,248,0.06)' : 'rgba(255,255,255,0.02)'};border:1px solid ${isNow && !alreadyLogged ? 'rgba(56,189,248,0.25)' : 'var(--border)'};border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div>
+        <div style="font-size:14px;font-weight:700;color:var(--text);">${squad?.name || ss.session_type || 'Session'}</div>
+        <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${timeLabel}${ss.end_time ? ' – ' + ss.end_time.slice(0,5) : ''} · ${ss.session_type || 'Training'}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        ${statusBadge}
+        <button onclick="checkInSession('${ss.squad_id}','${ss.start_time || ''}','${ss.session_type || 'PM'}')"
+          style="padding:8px 16px;border-radius:20px;font-size:12px;font-weight:800;border:none;cursor:pointer;
+          background:${alreadyLogged ? 'rgba(255,255,255,0.06)' : 'var(--cyan)'};
+          color:${alreadyLogged ? 'var(--text-sec)' : '#080f1a'};">
+          ${alreadyLogged ? 'Edit' : 'Check In'}
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+  <div style="margin-bottom:20px;">
+    <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">Today's Schedule</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">${cards}</div>
+  </div>`;
+}
+
+async function checkInSession(squadId, startTime, sessionType) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  // Find or create today's session for this squad
+  let session = allSessions.find(s => s.session_date === todayStr && s.squad_id === squadId);
+  if (!session) {
+    const { data, error } = await sb.from('club_sessions').insert({
+      club_id: currentClub.id,
+      session_date: todayStr,
+      session_type: sessionType,
+      start_time: startTime || null,
+      squad_id: squadId,
+      created_by: currentUser.id,
+    }).select('*, club_attendance(id, roster_id, status)').single();
+    if (error) { showToast('Error: ' + error.message); return; }
+    allSessions.unshift(data);
+    session = data;
+  }
+  openMarkSession(session.id);
+}
+
 // ── SESSIONS LIST ─────────────────────────────────────────────────
 function renderSessionsList() {
   const el = document.getElementById('attendanceContent');
-  if (!allSessions.length) {
+  if (!allSessions.length && !allSquadSessions.length) {
     el.innerHTML = `<div class="empty">
       <i data-lucide="clipboard-check" style="width:36px;height:36px;color:var(--text-sec);margin-bottom:12px;display:block;"></i>
       <div class="empty-title">No sessions yet</div>
@@ -3100,7 +3183,7 @@ function renderSessionsList() {
 
   const rosterTotal = allRosterFull.length || 1;
 
-  el.innerHTML = Object.entries(byDate).map(([date, sessions]) => {
+  el.innerHTML = renderTodayBanner() + Object.entries(byDate).map(([date, sessions]) => {
     const d = new Date(date + 'T12:00:00');
     const dateLabel = d.toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long' });
     return `
@@ -3111,6 +3194,9 @@ function renderSessionsList() {
         const total    = s.club_attendance?.length || 0;
         const pct      = rosterTotal ? Math.round(attended / rosterTotal * 100) : 0;
         const typeColour = { AM:'#38bdf8', PM:'#10b981', Dryland:'#f59e0b', Drills:'#a78bfa', Race:'#ef4444' }[s.session_type] || '#64748b';
+        const squadName = s.squad_id ? (allSquads.find(sq => sq.id === s.squad_id)?.name || '') : '';
+        const squadRosterSize = s.squad_id ? allRosterFull.filter(r => r.squad_id === s.squad_id).length : rosterTotal;
+        const sessionPct = squadRosterSize ? Math.round(attended / squadRosterSize * 100) : 0;
         return `
         <div class="card" style="margin-bottom:10px;cursor:pointer;" onclick="openMarkSession('${s.id}')">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
@@ -3120,8 +3206,8 @@ function renderSessionsList() {
                 ${s.start_time ? `<div style="font-size:10px;color:var(--text-sec);">${s.start_time.slice(0,5)}</div>` : ''}
               </div>
               <div>
-                <div style="font-size:14px;font-weight:700;color:var(--text);">${s.session_type} Session${s.notes ? ` — ${s.notes}` : ''}</div>
-                <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${attended} of ${rosterTotal} present · ${pct}% attendance</div>
+                <div style="font-size:14px;font-weight:700;color:var(--text);">${squadName || s.session_type + ' Session'}${s.notes ? ` — ${s.notes}` : ''}</div>
+                <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${attended} of ${squadRosterSize} present · ${sessionPct}% attendance</div>
               </div>
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
@@ -3260,24 +3346,32 @@ function renderMarkModal(session) {
   const dateLabel = d.toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   const el = document.getElementById('markSessionContent');
 
-  // Group roster by category
+  // Filter roster to this squad if session has one; fall back to full roster
+  const squad = session.squad_id ? allSquads.find(s => s.id === session.squad_id) : null;
+  const roster = session.squad_id
+    ? allRosterFull.filter(r => r.squad_id === session.squad_id)
+    : allRosterFull;
+
+  // Group by category
   const byCat = {};
-  allRosterFull.forEach(r => {
+  roster.forEach(r => {
     const cat = r.category || 'Unassigned';
     if (!byCat[cat]) byCat[cat] = [];
     byCat[cat].push(r);
   });
 
   const attended = Object.values(attendanceMarks).filter(s => s === 'present' || s === 'late').length;
+  const sessionLabel = squad ? `${squad.name}` : `${session.session_type} Session`;
 
   el.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
       <div>
-        <div style="font-size:15px;font-weight:700;color:var(--text);">${session.session_type} Session — ${dateLabel}</div>
-        <div style="font-size:12px;color:var(--text-sec);margin-top:3px;" id="markCount">${attended} of ${allRosterFull.length} present</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text);">${sessionLabel} — ${dateLabel}</div>
+        <div style="font-size:12px;color:var(--text-sec);margin-top:3px;" id="markCount">${attended} of ${roster.length} present</div>
       </div>
       <button onclick="markAll('present')" style="font-size:12px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:20px;padding:6px 14px;cursor:pointer;">Mark all present</button>
     </div>
+    ${!roster.length ? `<div style="text-align:center;padding:24px;color:var(--text-sec);font-size:13px;">No swimmers assigned to this squad yet.<br><a href="#" onclick="showPage('roster')" style="color:var(--cyan);">Assign in Roster</a></div>` : ''}
     ${Object.entries(byCat).map(([cat, swimmers]) => `
       <div style="font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin:14px 0 8px;">${cat}</div>
       ${swimmers.map(r => {
@@ -3328,15 +3422,22 @@ function setMark(rosterId, status) {
 }
 
 function markAll(status) {
-  allRosterFull.forEach(r => { attendanceMarks[r.id] = status; });
   const session = allSessions.find(s => s.id === activeSessionId);
+  const roster = session?.squad_id
+    ? allRosterFull.filter(r => r.squad_id === session.squad_id)
+    : allRosterFull;
+  roster.forEach(r => { attendanceMarks[r.id] = status; });
   if (session) renderMarkModal(session);
 }
 
 function updateMarkCount() {
+  const session = allSessions.find(s => s.id === activeSessionId);
+  const roster = session?.squad_id
+    ? allRosterFull.filter(r => r.squad_id === session.squad_id)
+    : allRosterFull;
   const attended = Object.values(attendanceMarks).filter(s => s === 'present' || s === 'late').length;
   const el = document.getElementById('markCount');
-  if (el) el.textContent = `${attended} of ${allRosterFull.length} present`;
+  if (el) el.textContent = `${attended} of ${roster.length} present`;
 }
 
 async function saveAttendance() {
