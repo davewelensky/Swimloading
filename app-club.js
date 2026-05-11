@@ -142,7 +142,7 @@ async function renderSwimClub(container, club, roster, membership) {
 
     supabaseClient
       .from('club_session_attendance')
-      .select('session_date, status')
+      .select('session_date, session_start, status')
       .eq('roster_id', roster.id)
       .gte('session_date', fourWeeksAgo.toISOString().slice(0,10))
       .lte('session_date', fourWeeksFwd.toISOString().slice(0,10)),
@@ -514,31 +514,41 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
   const SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const schedule = club.training_schedule || [];
 
-  // Build ordered list of this week's sessions for rosterCat
+  // Build ordered list of this week's sessions — sorted by day then start time
   const weekSessions = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
     const dayNum = d.getDay();
     const dateStr = d.toISOString().slice(0,10);
-    schedule.forEach(s => {
-      if (s.day !== dayNum) return;
+    // Collect all matching sessions for this day, sort by start time
+    const daySessions = schedule.filter(s => {
+      if (s.day !== dayNum) return false;
       if (rosterCat && s.squads?.length) {
-        const match = s.squads.some(sq =>
+        return s.squads.some(sq =>
           rosterCat.toLowerCase().includes(sq.toLowerCase()) ||
           sq.toLowerCase().includes(rosterCat.toLowerCase())
         );
-        if (!match) return;
       }
-      const att = attendance.find(a => a.session_date === dateStr);
-      weekSessions.push({ date: d, dateStr, dayName: SHORT[dayNum], session: s, status: att?.status || null });
+      return true;
+    }).sort((a, b) => a.start.localeCompare(b.start));
+
+    // Each session needs its own attendance lookup — key by dateStr + start time
+    daySessions.forEach(s => {
+      const attKey = `${dateStr}_${s.start}`;
+      const att = attendance.find(a => a.session_date === dateStr && a.session_start === s.start)
+               || attendance.find(a => a.session_date === dateStr && !a.session_start && s.type !== 'masters'); // legacy fallback
+      weekSessions.push({ date: d, dateStr, dayName: SHORT[dayNum], session: s, status: att?.status || null, attKey });
     });
   }
 
-  // This week: how many past/today sessions attended
-  const pastOrToday = weekSessions.filter(s => s.dateStr <= todayStr);
-  const attendedCount = pastOrToday.filter(s => s.status === 'attending').length;
-  const totalPast = pastOrToday.length;
+  // Separate squad vs masters for stats
+  const pastOrToday = weekSessions.filter(ws => ws.dateStr <= todayStr);
+  const squadPast   = pastOrToday.filter(ws => ws.session.type !== 'masters');
+  const mastersPast = pastOrToday.filter(ws => ws.session.type === 'masters');
+  const squadDone   = squadPast.filter(ws => ws.status === 'attending').length;
+  const mastersDone = mastersPast.filter(ws => ws.status === 'attending').length;
+  const mastersThisWeek = weekSessions.filter(ws => ws.session.type === 'masters' && ws.status === 'attending').length;
 
   // Next gala block
   const nextGala = upcoming[0];
@@ -565,53 +575,71 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
   let sessionsHtml = '';
   if (weekSessions.length) {
     const rows = weekSessions.map(ws => {
-      const isPast  = ws.dateStr < todayStr;
-      const isToday = ws.dateStr === todayStr;
+      const isMasters = ws.session.type === 'masters';
+      const isPast    = ws.dateStr < todayStr;
+      const isToday   = ws.dateStr === todayStr;
+
+      // Accent colour: masters = amber, squad = cyan
+      const accent = isMasters ? '#f59e0b' : '#38bdf8';
 
       let statusIcon, statusBg, statusBorder, statusColor;
       if (ws.status === 'attending') {
-        statusIcon = 'check';       statusColor = '#10b981';
+        statusIcon = 'check';     statusColor = '#10b981';
         statusBg   = 'rgba(16,185,129,0.15)'; statusBorder = 'rgba(16,185,129,0.4)';
       } else if (ws.status === 'absent') {
-        statusIcon = 'x';           statusColor = '#f59e0b';
-        statusBg   = 'rgba(245,158,11,0.1)';  statusBorder = 'rgba(245,158,11,0.3)';
+        statusIcon = 'x';         statusColor = isMasters ? '#f59e0b' : '#ef4444';
+        statusBg   = isMasters ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.08)';
+        statusBorder = isMasters ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.25)';
       } else {
         statusIcon = 'help-circle'; statusColor = 'var(--text-secondary)';
         statusBg   = 'rgba(255,255,255,0.06)'; statusBorder = 'rgba(255,255,255,0.12)';
       }
 
       const todayBadge = isToday
-        ? `<span style="font-size:9px;font-weight:800;color:var(--cyan);background:rgba(56,189,248,0.12);border-radius:6px;padding:1px 5px;margin-left:5px;">TODAY</span>`
+        ? `<span style="font-size:9px;font-weight:800;color:${accent};background:rgba(56,189,248,0.12);border-radius:6px;padding:1px 5px;margin-left:5px;">TODAY</span>`
+        : '';
+      const mastersBadge = isMasters
+        ? `<span style="font-size:9px;font-weight:800;color:#f59e0b;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:6px;padding:1px 6px;margin-left:5px;">Masters</span>`
         : '';
       const safeStatus = ws.status || '';
+      const safeStart  = ws.session.start;
 
       return `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);opacity:${isPast ? 0.55 : 1};">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);opacity:${isPast ? 0.5 : 1};">
         <div style="display:flex;align-items:center;gap:10px;">
           <div style="text-align:center;min-width:32px;">
             <div style="font-size:9px;font-weight:700;color:var(--text-secondary);">${ws.dayName}</div>
-            <div style="font-size:18px;font-weight:900;color:${isToday ? 'var(--cyan)' : 'var(--text)'};font-family:'Bebas Neue',sans-serif;line-height:1.1;">${ws.date.getDate()}</div>
+            <div style="font-size:18px;font-weight:900;color:${isToday ? accent : 'var(--text)'};font-family:'Bebas Neue',sans-serif;line-height:1.1;">${ws.date.getDate()}</div>
           </div>
           <div>
-            <div style="font-size:13px;font-weight:700;color:var(--text);">${ws.session.start}${ws.session.end ? ` – ${ws.session.end}` : ''}${todayBadge}</div>
-            ${ws.session.venue ? `<div style="font-size:11px;color:var(--text-secondary);">${ws.session.venue}</div>` : ''}
+            <div style="font-size:13px;font-weight:700;color:var(--text);">${safeStart}${ws.session.end ? ` – ${ws.session.end}` : ''}${todayBadge}${mastersBadge}</div>
+            <div style="font-size:11px;color:var(--text-secondary);">${ws.session.label || (isMasters ? 'Masters' : 'Squad')}</div>
           </div>
         </div>
-        <button onclick="toggleAttendance('${ws.dateStr}','${rosterId}','${clubId}','${safeStatus}')"
+        <button onclick="toggleAttendance('${ws.dateStr}','${safeStart}','${rosterId}','${clubId}','${safeStatus}')"
           style="flex-shrink:0;width:36px;height:36px;border-radius:50%;background:${statusBg};border:1.5px solid ${statusBorder};display:flex;align-items:center;justify-content:center;cursor:pointer;">
           <i data-lucide="${statusIcon}" style="width:16px;height:16px;color:${statusColor};pointer-events:none;"></i>
         </button>
       </div>`;
     }).join('');
 
-    const statsLine = totalPast > 0
-      ? `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">${attendedCount} of ${totalPast} session${totalPast!==1?'s':''} attended this week</div>`
-      : `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">Tap a session to mark attendance</div>`;
+    // Stats line: squad sessions + masters indicator
+    const squadTotal = weekSessions.filter(ws => ws.session.type !== 'masters' && ws.dateStr <= todayStr).length;
+    let statsLine = '';
+    if (squadTotal > 0 || mastersDone > 0) {
+      const mastersNote = mastersThisWeek >= 1
+        ? `<span style="color:#f59e0b;"> · ${mastersThisWeek} masters</span>`
+        : `<span style="color:rgba(245,158,11,0.5);"> · 0 masters (1 recommended)</span>`;
+      statsLine = `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">${squadDone} of ${squadTotal} squad sessions${mastersNote}</div>`;
+    } else {
+      statsLine = `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">Tap a session to mark attendance</div>`;
+    }
 
     sessionsHtml = `
     <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">This week</div>
     ${statsLine}
-    ${rows}`;
+    ${rows}
+    <div style="font-size:11px;color:rgba(245,158,11,0.6);margin-top:8px;">Masters sessions are optional — Britt recommends at least 1 per week.</div>`;
   } else if (!schedule.length) {
     sessionsHtml = `<div style="font-size:12px;color:var(--text-secondary);">No training schedule set yet.</div>`;
   } else {
@@ -629,7 +657,7 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
   </div>`;
 }
 
-async function toggleAttendance(sessionDate, rosterId, clubId, currentStatus) {
+async function toggleAttendance(sessionDate, sessionStart, rosterId, clubId, currentStatus) {
   // Cycle: (none) → attending → absent → (none)
   const next = !currentStatus ? 'attending' : currentStatus === 'attending' ? 'absent' : null;
 
@@ -638,12 +666,15 @@ async function toggleAttendance(sessionDate, rosterId, clubId, currentStatus) {
       .from('club_session_attendance')
       .delete()
       .eq('roster_id', rosterId)
-      .eq('session_date', sessionDate);
+      .eq('session_date', sessionDate)
+      .eq('session_start', sessionStart);
   } else {
     await supabaseClient
       .from('club_session_attendance')
-      .upsert({ roster_id: rosterId, club_id: clubId, session_date: sessionDate, status: next },
-               { onConflict: 'roster_id,session_date' });
+      .upsert(
+        { roster_id: rosterId, club_id: clubId, session_date: sessionDate, session_start: sessionStart, status: next },
+        { onConflict: 'roster_id,session_date,session_start' }
+      );
   }
   await renderActiveClub();
 }
