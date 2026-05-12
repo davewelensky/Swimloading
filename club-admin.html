@@ -865,7 +865,7 @@
 <!-- ADD SQUAD MODAL -->
 <div class="modal-overlay" id="addSquadModal">
   <div class="modal" style="max-width:420px;">
-    <div class="modal-title">Add Squad<button class="modal-close" onclick="closeAddSquadModal()">&times;</button></div>
+    <div class="modal-title" id="squadModalTitle">Add Squad<button class="modal-close" onclick="closeAddSquadModal()">&times;</button></div>
     <div class="form-group">
       <div class="form-label">Squad name <span style="color:var(--danger);">*</span></div>
       <input type="text" class="form-input" id="squadName" placeholder="e.g. Gold, Bronze, Juniors, Masters">
@@ -891,7 +891,7 @@
     </div>
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="closeAddSquadModal()">Cancel</button>
-      <button class="btn-modal-primary" onclick="submitAddSquad()">Add squad</button>
+      <button class="btn-modal-primary" id="squadSubmitBtn" onclick="submitAddSquad()">Add squad</button>
     </div>
   </div>
 </div>
@@ -899,7 +899,7 @@
 <!-- ADD TIMETABLE SESSION MODAL -->
 <div class="modal-overlay" id="addTimetableModal">
   <div class="modal" style="max-width:440px;">
-    <div class="modal-title">Add Recurring Session<button class="modal-close" onclick="closeAddTimetableModal()">&times;</button></div>
+    <div class="modal-title" id="ttModalTitle">Add Recurring Session<button class="modal-close" onclick="closeAddTimetableModal()">&times;</button></div>
     <div class="form-group">
       <div class="form-label">Squad <span style="color:var(--danger);">*</span></div>
       <select class="form-input" id="ttSquad">
@@ -946,7 +946,7 @@
     </div>
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="closeAddTimetableModal()">Cancel</button>
-      <button class="btn-modal-primary" onclick="submitAddTimetable()">Add session</button>
+      <button class="btn-modal-primary" id="ttSubmitBtn" onclick="submitAddTimetable()">Add session</button>
     </div>
   </div>
 </div>
@@ -2386,6 +2386,9 @@ async function deleteAnnouncement(id) {
 // ── SQUAD TRACKER ──────────────────────────────────────────────────
 let trackerData = [];
 let pendingTrackerSquadId = null;
+let allTimetableSessions = [];
+let ttEditId = null;
+let squadEditId = null;
 
 async function loadSquadTracker() {
   const el = document.getElementById('trackerContent');
@@ -2440,13 +2443,16 @@ async function loadSquadTracker() {
       sessions: sessionsByRoster[r.id]?.size || 0,
     }));
 
-  // Populate squad filter — only squads that have members in this roster
-  const squadIdsInRoster = new Set(roster.map(r => r.squad_id).filter(Boolean));
+  // Populate squad filter — all squads, show member count
+  const countBySquad = {};
+  trackerData.forEach(r => { if (r.squad_id) countBySquad[r.squad_id] = (countBySquad[r.squad_id]||0)+1; });
   const sel = document.getElementById('trackerCatFilter');
   sel.innerHTML = '<option value="">All squads</option>' +
-    allSquads.filter(s => squadIdsInRoster.has(s.id))
-      .map(s => `<option value="${s.id}">${s.name}</option>`).join('') +
-    (roster.some(r => !r.squad_id) ? '<option value="__unassigned__">Unassigned</option>' : '');
+    allSquads.map(s => {
+      const n = countBySquad[s.id] || 0;
+      return `<option value="${s.id}">${s.name}${n === 0 ? ' (0 members)' : ''}</option>`;
+    }).join('') +
+    (trackerData.some(r => !r.squad_id) ? '<option value="__unassigned__">Unassigned</option>' : '');
 
   renderSquadCapacityStrip(trackerData);
 
@@ -2473,7 +2479,12 @@ function applyTrackerFilter() {
 function renderTrackerGrid(swimmers) {
   const el = document.getElementById('trackerContent');
   if (!swimmers.length) {
-    el.innerHTML = `<div class="empty"><div class="empty-title">No swimmers found</div></div>`;
+    const squadId = document.getElementById('trackerCatFilter')?.value;
+    const squad = squadId && squadId !== '__unassigned__' ? allSquads.find(s => s.id === squadId) : null;
+    const msg = squad
+      ? `<div class="empty-title">No members in ${squad.name} yet</div><div class="empty-desc">Assign swimmers to this squad in the Roster — open each member's Edit and select their squad.</div>`
+      : `<div class="empty-title">No swimmers found</div>`;
+    el.innerHTML = `<div class="empty">${msg}</div>`;
     return;
   }
 
@@ -3837,7 +3848,7 @@ async function loadSettingsPage() {
 
   // Load all squads for this club
   const { data: squads } = await sb.from('club_squads')
-    .select('id, name, type, sort_order, is_active')
+    .select('id, name, type, sort_order, max_members, is_active')
     .eq('club_id', currentClub.id)
     .order('sort_order');
   allSquads = (squads || []).filter(s => s.is_active !== false);
@@ -3850,8 +3861,10 @@ async function loadSettingsPage() {
       .in('squad_id', allSquads.map(s => s.id))
       .order('day_of_week')
       .order('start_time');
-    renderSettingsTimetable(sessions || []);
+    allTimetableSessions = sessions || [];
+    renderSettingsTimetable(allTimetableSessions);
   } else {
+    allTimetableSessions = [];
     renderSettingsTimetable([]);
   }
 }
@@ -3867,10 +3880,13 @@ function renderSettingsSquads(squads) {
       <div style="display:flex;align-items:center;gap:12px;">
         <div style="font-weight:600;color:var(--text);font-size:14px;">${s.name}</div>
         <div style="font-size:11px;color:var(--text-sec);background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:4px;">${s.type || 'competitive'}</div>
-        ${s.max_members ? `<div style="font-size:11px;color:var(--text-sec);">max ${s.max_members}</div>` : ''}
+        ${s.max_members ? `<div style="font-size:11px;color:var(--cyan);background:rgba(56,189,248,0.08);padding:2px 8px;border-radius:4px;">max ${s.max_members}</div>` : `<div style="font-size:11px;color:var(--text-sec);opacity:0.5;">no limit</div>`}
         ${!s.is_active ? `<div style="font-size:11px;color:var(--amber);">inactive</div>` : ''}
       </div>
-      <button onclick="deleteSquad('${s.id}')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:4px 8px;border-radius:6px;opacity:0.6;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">Remove</button>
+      <div style="display:flex;gap:6px;">
+        <button onclick="editSquad('${s.id}')" style="background:none;border:1px solid var(--border);color:var(--text-sec);cursor:pointer;font-size:12px;padding:4px 10px;border-radius:6px;" onmouseover="this.style.borderColor='var(--cyan-border)';this.style.color='var(--cyan)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-sec)'">Edit</button>
+        <button onclick="deleteSquad('${s.id}')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:4px 8px;border-radius:6px;opacity:0.6;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">Remove</button>
+      </div>
     </div>
   `).join('');
 }
@@ -3897,11 +3913,14 @@ function renderSettingsTimetable(sessions) {
             <div style="font-size:13px;">
               <span style="font-weight:600;color:var(--text);">${squad?.name || '—'}</span>
               <span style="color:var(--text-sec);margin-left:10px;">${start}${end ? '–'+end : ''}</span>
-              ${s.coach_name   ? `<span style="color:var(--text-sec);margin-left:8px;">· ${s.coach_name}</span>`  : ''}
-              ${s.max_capacity ? `<span style="color:var(--text-sec);margin-left:8px;">· max ${s.max_capacity}</span>` : ''}
+              ${s.coach_name   ? `<span style="color:var(--text-sec);margin-left:8px;">· ${s.coach_name}</span>`  : `<span style="color:var(--amber);margin-left:8px;font-size:11px;">· no coach</span>`}
+              ${s.max_capacity ? `<span style="color:var(--cyan);margin-left:8px;">· max ${s.max_capacity}</span>` : ''}
               ${s.notes        ? `<span style="color:var(--text-sec);margin-left:8px;">· ${s.notes}</span>`       : ''}
             </div>
-            <button onclick="deleteTimetableSession('${s.id}')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:4px 8px;border-radius:6px;opacity:0.6;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">Remove</button>
+            <div style="display:flex;gap:6px;flex-shrink:0;">
+              <button onclick="editTimetableSession('${s.id}')" style="background:none;border:1px solid var(--border);color:var(--text-sec);cursor:pointer;font-size:12px;padding:4px 10px;border-radius:6px;" onmouseover="this.style.borderColor='var(--cyan-border)';this.style.color='var(--cyan)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-sec)'">Edit</button>
+              <button onclick="deleteTimetableSession('${s.id}')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:4px 8px;border-radius:6px;opacity:0.6;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">Remove</button>
+            </div>
           </div>`;
       }).join('')}
     </div>
@@ -3911,6 +3930,9 @@ function renderSettingsTimetable(sessions) {
 // ── SQUAD CRUD ─────────────────────────────────────────────────────
 
 function openAddSquadModal() {
+  squadEditId = null;
+  document.getElementById('squadModalTitle').childNodes[0].textContent = 'Add Squad';
+  document.getElementById('squadSubmitBtn').textContent = 'Add squad';
   document.getElementById('squadName').value = '';
   document.getElementById('squadType').value = 'competitive';
   document.getElementById('squadSort').value = (allSquads.length + 1) * 10;
@@ -3918,22 +3940,44 @@ function openAddSquadModal() {
   document.getElementById('addSquadModal').classList.add('open');
   document.getElementById('squadName').focus();
 }
+
+function editSquad(id) {
+  const s = allSquads.find(x => x.id === id);
+  if (!s) return;
+  squadEditId = id;
+  document.getElementById('squadModalTitle').childNodes[0].textContent = 'Edit Squad';
+  document.getElementById('squadSubmitBtn').textContent = 'Save changes';
+  document.getElementById('squadName').value = s.name || '';
+  document.getElementById('squadType').value = s.type || 'competitive';
+  document.getElementById('squadSort').value = s.sort_order || 10;
+  document.getElementById('squadMaxMembers').value = s.max_members || '';
+  document.getElementById('addSquadModal').classList.add('open');
+  document.getElementById('squadName').focus();
+}
+
 function closeAddSquadModal() { document.getElementById('addSquadModal').classList.remove('open'); }
 
 async function submitAddSquad() {
   const name = document.getElementById('squadName').value.trim();
   if (!name) { showToast('Squad name is required', 'error'); return; }
   const maxMem = parseInt(document.getElementById('squadMaxMembers').value) || null;
-  const { error } = await sb.from('club_squads').insert({
-    club_id:     currentClub.id,
+  const payload = {
     name,
     type:        document.getElementById('squadType').value,
     sort_order:  parseInt(document.getElementById('squadSort').value) || 10,
     max_members: maxMem,
-    is_active:   true,
-  });
-  if (error) { showToast('Failed: ' + error.message, 'error'); return; }
-  showToast(name + ' squad added', 'success');
+  };
+
+  if (squadEditId) {
+    const { error } = await sb.from('club_squads').update(payload).eq('id', squadEditId);
+    if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+    showToast(name + ' updated', 'success');
+  } else {
+    const { error } = await sb.from('club_squads').insert({ ...payload, club_id: currentClub.id, is_active: true });
+    if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+    showToast(name + ' squad added', 'success');
+  }
+  squadEditId = null;
   closeAddSquadModal();
   loadSettingsPage();
 }
@@ -3950,7 +3994,9 @@ async function deleteSquad(id) {
 // ── TIMETABLE CRUD ─────────────────────────────────────────────────
 
 function openAddTimetableModal() {
-  // Populate squad dropdown from allSquads
+  ttEditId = null;
+  document.getElementById('ttModalTitle').childNodes[0].textContent = 'Add Recurring Session';
+  document.getElementById('ttSubmitBtn').textContent = 'Add session';
   const sel = document.getElementById('ttSquad');
   sel.innerHTML = '<option value="">— select squad —</option>';
   allSquads.forEach(s => {
@@ -3966,6 +4012,30 @@ function openAddTimetableModal() {
   document.getElementById('ttNotes').value = '';
   document.getElementById('addTimetableModal').classList.add('open');
 }
+
+function editTimetableSession(id) {
+  const s = allTimetableSessions.find(x => x.id === id);
+  if (!s) return;
+  ttEditId = id;
+  document.getElementById('ttModalTitle').childNodes[0].textContent = 'Edit Session';
+  document.getElementById('ttSubmitBtn').textContent = 'Save changes';
+  const sel = document.getElementById('ttSquad');
+  sel.innerHTML = '<option value="">— select squad —</option>';
+  allSquads.forEach(sq => {
+    const o = document.createElement('option');
+    o.value = sq.id; o.textContent = sq.name;
+    sel.appendChild(o);
+  });
+  sel.value = s.squad_id || '';
+  document.getElementById('ttDay').value   = s.day_of_week ?? '1';
+  document.getElementById('ttStart').value = s.start_time?.slice(0,5) || '';
+  document.getElementById('ttEnd').value   = s.end_time?.slice(0,5)   || '';
+  document.getElementById('ttCoach').value = s.coach_name  || '';
+  document.getElementById('ttCap').value   = s.max_capacity || '';
+  document.getElementById('ttNotes').value = s.notes       || '';
+  document.getElementById('addTimetableModal').classList.add('open');
+}
+
 function closeAddTimetableModal() { document.getElementById('addTimetableModal').classList.remove('open'); }
 
 async function submitAddTimetable() {
@@ -3974,18 +4044,26 @@ async function submitAddTimetable() {
   if (!squad_id) { showToast('Select a squad', 'error'); return; }
   if (!start)    { showToast('Start time is required', 'error'); return; }
 
-  const { error } = await sb.from('club_squad_sessions').insert({
+  const payload = {
     squad_id,
     day_of_week:  parseInt(document.getElementById('ttDay').value),
     start_time:   start,
-    end_time:     document.getElementById('ttEnd').value   || null,
+    end_time:     document.getElementById('ttEnd').value.trim()   || null,
     coach_name:   document.getElementById('ttCoach').value.trim() || null,
     max_capacity: parseInt(document.getElementById('ttCap').value)   || null,
     notes:        document.getElementById('ttNotes').value.trim()    || null,
-    is_active:    true,
-  });
-  if (error) { showToast('Failed: ' + error.message, 'error'); return; }
-  showToast('Session added', 'success');
+  };
+
+  if (ttEditId) {
+    const { error } = await sb.from('club_squad_sessions').update(payload).eq('id', ttEditId);
+    if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+    showToast('Session updated', 'success');
+  } else {
+    const { error } = await sb.from('club_squad_sessions').insert({ ...payload, is_active: true });
+    if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+    showToast('Session added', 'success');
+  }
+  ttEditId = null;
   closeAddTimetableModal();
   loadSettingsPage();
 }
