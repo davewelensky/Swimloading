@@ -2016,7 +2016,7 @@ async function renderOverview() {
         </div>
       </div>`;
 
-  // ── Today's schedule + Squad health (2-col) ──────────────────────
+  // ── Visual dashboard + session list ─────────────────────────────
   const fmtTime = t => {
     if (!t) return '';
     const [h, m] = t.split(':');
@@ -2024,9 +2024,9 @@ async function renderOverview() {
     return (hr > 12 ? hr - 12 : hr || 12) + ':' + m + (hr >= 12 ? 'pm' : 'am');
   };
 
-  // Today's schedule
   const nowMins = now.getHours() * 60 + now.getMinutes();
   const toMins = t => { if (!t) return 0; const [h,m] = t.split(':'); return parseInt(h)*60+parseInt(m); };
+  renderDayDashboard(dashDay);
 
   let todayHtml;
   if (allSquadSessions.length > 0) {
@@ -2034,23 +2034,20 @@ async function renderOverview() {
     const rows = sorted.map(s => {
       const sq = allSquads.find(q => q.id === s.squad_id);
       const assignedIds = allSessionAssignments[s.id] || [];
-      const enrolled = roster.filter(r => r.squad_id === s.squad_id).length;
       const assigned = assignedIds.length;
+      const capacity = s.max_capacity || null;
       const endMins = toMins(s.end_time || s.start_time);
       const isPast = s.end_time ? endMins < nowMins : toMins(s.start_time) + 60 < nowMins;
       const isNow  = !isPast && toMins(s.start_time) <= nowMins;
 
-      // Fill bar
-      const total = assigned || enrolled;
-      const fillPct = total > 0 ? Math.round((assigned / total) * 100) : 0;
-      const barColor = assigned === 0 ? 'var(--text-sec)' : fillPct >= 80 ? 'var(--green)' : 'var(--cyan)';
+      // Fill bar — only compare against max_capacity if explicitly set
+      const fillPct = capacity > 0 ? Math.round((assigned / capacity) * 100) : 0;
+      const barColor = fillPct >= 90 ? 'var(--amber)' : fillPct >= 60 ? 'var(--green)' : 'var(--cyan)';
       const fillBar = assigned > 0 ? `
         <div style="display:flex;align-items:center;gap:8px;margin-top:5px;">
-          <div style="flex:1;height:4px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden;">
-            <div style="width:${fillPct}%;height:100%;background:${barColor};border-radius:2px;transition:width 0.3s;"></div>
-          </div>
-          <span style="font-size:11px;font-weight:700;color:${barColor};white-space:nowrap;">${assigned}${enrolled ? ' / '+enrolled : ''}</span>
-        </div>` : `<div style="margin-top:4px;font-size:11px;color:var(--text-sec);">${enrolled} enrolled — <span onclick="event.stopPropagation();showPage('settings')" style="color:var(--cyan);cursor:pointer;">assign swimmers</span></div>`;
+          ${capacity ? `<div style="flex:1;height:4px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden;"><div style="width:${Math.min(fillPct,100)}%;height:100%;background:${barColor};border-radius:2px;"></div></div>` : ''}
+          <span style="font-size:11px;font-weight:700;color:var(--cyan);white-space:nowrap;">${assigned}${capacity ? ' / '+capacity : ''} assigned</span>
+        </div>` : `<div style="margin-top:4px;font-size:11px;color:var(--text-sec);">No assignments — <span onclick="event.stopPropagation();showPage('settings')" style="color:var(--cyan);cursor:pointer;">assign swimmers</span></div>`;
 
       const wrapStyle = isPast
         ? `opacity:0.35;pointer-events:none;`
@@ -2075,32 +2072,7 @@ async function renderOverview() {
       <div style="padding:20px 16px;text-align:center;color:var(--text-sec);font-size:13px;">No sessions scheduled</div>`;
   }
 
-  const squadHealthRows = allSquads.map(sq => {
-    const count      = roster.filter(r => r.squad_id === sq.id).length;
-    const perSession = sq.max_members; // set via Settings → Squads → Edit → Max per session
-    const subTxt = perSession
-      ? `${count} enrolled · <span style="color:var(--cyan);">${perSession}/session</span>`
-      : `${count} enrolled`;
-    return `<div class="squad-health-row" onclick="pendingTrackerSquadId='${sq.id}';showPage('tracker');" style="cursor:pointer;">
-      <div style="flex:1;">
-        <div class="squad-health-name">${sq.name}</div>
-        <div style="font-size:11px;color:var(--text-sec);margin-top:2px;">${subTxt}</div>
-      </div>
-      <div class="squad-health-count" style="color:var(--cyan);font-size:20px;">${count}</div>
-    </div>`;
-  });
-  if (unassigned.length > 0) {
-    squadHealthRows.push(`<div class="squad-health-row" onclick="showPage('roster')" style="cursor:pointer;">
-      <div class="squad-health-name" style="color:var(--amber);">Unassigned</div>
-      <div class="squad-health-bar-wrap"><div class="squad-health-bar" style="width:100%;background:rgba(245,158,11,0.3);"></div></div>
-      <div class="squad-health-count" style="color:var(--amber);">${unassigned.length}</div>
-      <div class="squad-health-status" style="color:var(--amber);">No squad</div>
-    </div>`);
-  }
-  const squadHealthHtml = `<div class="card-header"><div class="card-title">Squad Health</div><div style="font-size:11px;color:var(--text-sec);">click to view</div></div>${squadHealthRows.join('')}`;
-
-  document.getElementById('overviewTodaySquads').innerHTML =
-    `<div class="card">${todayHtml}</div><div class="card">${squadHealthHtml}</div>`;
+  document.getElementById('overviewTodaySquads').innerHTML = '';
 
   // ── Attendance pulse (async) ─────────────────────────────────────
   const attEl = document.getElementById('overviewAttendance');
@@ -2267,6 +2239,164 @@ async function renderOverview() {
           <i data-lucide="users" style="width:12px;height:12px;"></i> Open Roster
         </button>
       </div>
+    </div>`;
+
+  lucide.createIcons();
+}
+
+// ── DAY DASHBOARD ─────────────────────────────────────────────────
+function setDashDay(dow) {
+  dashDay = dow;
+  renderDayDashboard(dow);
+}
+
+function renderDayDashboard(dow) {
+  const el = document.getElementById('overviewTodaySquads');
+  if (!el) return;
+
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dayFull  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const todayDow = new Date().getDay();
+  const roster   = allRosterFull;
+  const fmtT     = t => { if (!t) return ''; const [h,m]=t.split(':'); const hr=parseInt(h); return (hr>12?hr-12:hr||12)+':'+m+(hr>=12?'pm':'am'); };
+  const toM      = t => { if (!t) return 0; const [h,m]=t.split(':'); return parseInt(h)*60+parseInt(m); };
+  const nowMins  = new Date().getHours()*60+new Date().getMinutes();
+
+  // Sessions for selected day
+  const daySessions = allWeekSessions.filter(s => s.day_of_week === dow)
+    .sort((a,b) => toM(a.start_time)-toM(b.start_time));
+
+  // Totals for speedometer
+  let totalAssigned = 0, totalCapacity = 0;
+  daySessions.forEach(s => {
+    const asgn = (allWeekAssignments[s.id] || []).length;
+    totalAssigned += asgn;
+    if (s.max_capacity) totalCapacity += s.max_capacity;
+  });
+  const gaugeVal = totalCapacity > 0 ? Math.min(totalAssigned / totalCapacity, 1) : 0;
+  const gaugePct = Math.round(gaugeVal * 100);
+
+  // Speedometer SVG (half-circle)
+  const arcLen = Math.PI * 80; // radius 80
+  const arcFill = arcLen * (1 - gaugeVal);
+  const gaugeColor = gaugePct >= 90 ? '#f59e0b' : gaugePct >= 65 ? '#10b981' : '#38bdf8';
+  // Needle angle: 180deg at 0%, 0deg at 100%
+  const needleAngle = 180 - gaugeVal * 180;
+  const needleRad = needleAngle * Math.PI / 180;
+  const nx = Math.round(100 + 62 * Math.cos(needleRad));
+  const ny = Math.round(105 - 62 * Math.sin(needleRad));
+
+  const speedoSvg = `
+    <svg viewBox="0 0 200 115" style="width:100%;max-width:240px;display:block;margin:0 auto;">
+      <path d="M 20,105 A 80,80 0 0 1 180,105" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="14" stroke-linecap="round"/>
+      <path d="M 20,105 A 80,80 0 0 1 180,105" fill="none" stroke="${gaugeColor}" stroke-width="14" stroke-linecap="round"
+        stroke-dasharray="${arcLen.toFixed(1)}" stroke-dashoffset="${arcFill.toFixed(1)}" style="transition:stroke-dashoffset 0.6s ease,stroke 0.4s;"/>
+      <line x1="100" y1="105" x2="${nx}" y2="${ny}" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+      <circle cx="100" cy="105" r="5" fill="white" opacity="0.9"/>
+      <text x="100" y="90" text-anchor="middle" fill="white" font-size="26" font-weight="700" font-family="Bebas Neue,sans-serif">${totalCapacity ? gaugePct+'%' : totalAssigned}</text>
+      <text x="100" y="108" text-anchor="middle" fill="rgba(255,255,255,0.45)" font-size="10" font-family="DM Sans,sans-serif">${totalCapacity ? totalAssigned+' / '+totalCapacity+' cap' : totalAssigned+' assigned'}</text>
+    </svg>`;
+
+  // Squad rings
+  const squadRings = allSquads.map(sq => {
+    const sqSessions = daySessions.filter(s => s.squad_id === sq.id);
+    if (!sqSessions.length) return `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;opacity:0.3;" title="${sq.name} — no session">
+        <svg viewBox="0 0 80 80" style="width:64px;height:64px;">
+          <circle cx="40" cy="40" r="28" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="7"/>
+        </svg>
+        <div style="font-size:10px;color:var(--text-sec);text-align:center;max-width:72px;line-height:1.2;">${sq.name.replace(' Squad','').replace(' Swim','')}</div>
+      </div>`;
+
+    const asgn = sqSessions.reduce((n,s) => n+(allWeekAssignments[s.id]||[]).length, 0);
+    const cap  = sqSessions.reduce((n,s) => n+(s.max_capacity||0), 0);
+    const pct  = cap > 0 ? Math.min(asgn/cap, 1) : 0;
+    const circ = 2 * Math.PI * 28; // r=28
+    const offset = circ * (1 - pct);
+    const noCoach = sqSessions.some(s => !s.coach_name);
+    const ringColor = noCoach ? '#f59e0b' : pct >= 0.9 ? '#f59e0b' : pct >= 0.6 ? '#10b981' : '#38bdf8';
+    const label = cap ? `${asgn}/${cap}` : `${asgn}`;
+
+    return `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;" onclick="pendingTrackerSquadId='${sq.id}';showPage('tracker');" title="${sq.name}">
+        <div style="position:relative;width:64px;height:64px;">
+          <svg viewBox="0 0 80 80" style="width:64px;height:64px;transform:rotate(-90deg);">
+            <circle cx="40" cy="40" r="28" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="7"/>
+            <circle cx="40" cy="40" r="28" fill="none" stroke="${ringColor}" stroke-width="7" stroke-linecap="round"
+              stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${cap?offset.toFixed(1):circ.toFixed(1)}"
+              style="transition:stroke-dashoffset 0.5s ease;"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;">
+            <span style="font-size:${label.length>4?'9':'11'}px;font-weight:700;color:${ringColor};line-height:1;">${asgn}</span>
+            ${noCoach?'<i data-lucide="alert-triangle" style="width:9px;height:9px;color:var(--amber);margin-top:1px;"></i>':''}
+          </div>
+        </div>
+        <div style="font-size:9px;color:var(--text-sec);text-align:center;max-width:72px;line-height:1.3;">${sq.name.replace(' Squad','').replace(' Swim Fit','').replace(' Swim &','LTS &')}</div>
+      </div>`;
+  }).join('');
+
+  // Day pills
+  const workdays = [1,2,3,4,5,6];
+  const dayPills = workdays.map(d => {
+    const isToday = d === todayDow;
+    const isSel   = d === dow;
+    const sessCount = allWeekSessions.filter(s => s.day_of_week === d).length;
+    return `<button onclick="setDashDay(${d})" style="padding:5px 14px;border-radius:20px;border:1px solid ${isSel?'var(--cyan)':'var(--border)'};background:${isSel?'rgba(56,189,248,0.12)':'transparent'};color:${isSel?'var(--cyan)':isToday?'var(--text)':'var(--text-sec)'};font-size:12px;font-weight:${isToday?'700':'500'};cursor:pointer;font-family:DM Sans,sans-serif;position:relative;">
+      ${dayNames[d]}${isToday?'<span style="font-size:8px;vertical-align:super;margin-left:2px;color:var(--green);">●</span>':''}
+      ${sessCount?`<span style="font-size:9px;color:${isSel?'var(--cyan)':'var(--text-sec)'};margin-left:3px;">${sessCount}</span>`:''}
+    </button>`;
+  }).join('');
+
+  // Session rows for selected day
+  const sessionRows = daySessions.length ? daySessions.map(s => {
+    const sq = allSquads.find(q => q.id === s.squad_id);
+    const asgn = (allWeekAssignments[s.id]||[]).length;
+    const cap  = s.max_capacity;
+    const endM = toM(s.end_time||s.start_time);
+    const isPast = dow===todayDow && (s.end_time ? endM<nowMins : toM(s.start_time)+60<nowMins);
+    const isNow  = dow===todayDow && !isPast && toM(s.start_time)<=nowMins;
+    const pct    = cap>0 ? Math.round(asgn/cap*100) : 0;
+    const bColor = pct>=90?'var(--amber)':pct>=60?'var(--green)':'var(--cyan)';
+    const liveBadge = isNow?`<span style="font-size:9px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.15);padding:1px 6px;border-radius:10px;margin-left:6px;">LIVE</span>`:'';
+    return `<div onclick="${isPast?'':''}" style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);opacity:${isPast?'0.3':'1'};${isPast?'':'cursor:pointer;'}${isNow?'background:rgba(56,189,248,0.04);':''}" ${!isPast?`onclick="openMarkSession('${s.id}')" onmouseover="this.style.background='rgba(56,189,248,0.06)'" onmouseout="this.style.background='${isNow?'rgba(56,189,248,0.04)':'transparent'}'"`:''}>
+      <div style="min-width:96px;font-size:12px;font-weight:700;color:${isPast?'var(--text-sec)':'var(--cyan)'};">${fmtT(s.start_time)}${s.end_time?'–'+fmtT(s.end_time):''}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;">${sq?.name||'Squad'}${liveBadge}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+          ${cap?`<div style="width:100px;height:3px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden;"><div style="width:${Math.min(pct,100)}%;height:100%;background:${bColor};border-radius:2px;"></div></div>`:''}
+          <span style="font-size:11px;font-weight:600;color:${asgn?'var(--cyan)':'var(--text-sec)'};">${asgn}${cap?' / '+cap:''} assigned</span>
+        </div>
+      </div>
+      ${s.coach_name
+        ?`<div style="font-size:11px;color:var(--text-sec);display:flex;align-items:center;gap:4px;flex-shrink:0;"><i data-lucide="user" style="width:11px;height:11px;"></i>${s.coach_name}</div>`
+        :`<div style="font-size:11px;color:var(--amber);font-weight:700;flex-shrink:0;">No coach</div>`}
+    </div>`;
+  }).join('') : `<div style="padding:24px;text-align:center;color:var(--text-sec);font-size:13px;">No sessions on ${dayFull[dow]}</div>`;
+
+  const isToday = dow === todayDow;
+  const headLabel = isToday ? `Today — ${dayFull[dow]}` : dayFull[dow];
+
+  el.innerHTML = `
+    <!-- Day selector -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">${dayPills}</div>
+
+    <!-- Gauge row -->
+    <div style="display:grid;grid-template-columns:220px 1fr;gap:14px;margin-bottom:14px;align-items:stretch;">
+      <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 12px 12px;">
+        ${speedoSvg}
+        <div style="font-size:11px;color:var(--text-sec);text-align:center;margin-top:6px;">${headLabel}</div>
+        ${totalCapacity?`<div style="font-size:10px;color:var(--text-sec);margin-top:2px;">${daySessions.length} session${daySessions.length!==1?'s':''}</div>`:''}
+      </div>
+      <div class="card" style="padding:16px 12px;">
+        <div style="font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;">Squad assignment</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:14px 8px;">${squadRings}</div>
+      </div>
+    </div>
+
+    <!-- Session list -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">${headLabel}</div></div>
+      ${sessionRows}
     </div>`;
 
   lucide.createIcons();
@@ -2492,6 +2622,9 @@ let ttEditId = null;
 let squadEditId = null;
 let allSessionAssignments = {};   // session_id → roster_id[]
 let sessionAssignmentCounts = {}; // session_id → count (settings timetable)
+let allWeekSessions = [];         // all sessions across all days
+let allWeekAssignments = {};      // session_id → roster_id[] for all week
+let dashDay = new Date().getDay(); // currently selected day on the dashboard (0=Sun)
 
 async function loadSquadTracker() {
   const el = document.getElementById('trackerContent');
@@ -5291,33 +5424,33 @@ async function loadSquads() {
   if (allSquads.length) {
     const todayDow = new Date().getDay();
     const squadIds = allSquads.map(s => s.id);
-    const [todayRes, allRes] = await Promise.all([
-      sb.from('club_squad_sessions')
-        .select('id, squad_id, day_of_week, start_time, end_time, coach_name, max_capacity, notes, is_active')
-        .in('squad_id', squadIds).eq('day_of_week', todayDow).eq('is_active', true).order('start_time'),
-      sb.from('club_squad_sessions')
-        .select('squad_id, max_capacity')
-        .in('squad_id', squadIds).eq('is_active', true),
-    ]);
-    allSquadSessions   = todayRes.data || [];
-    allTimetableSessions = allRes.data || [];
+    const { data: weekData } = await sb.from('club_squad_sessions')
+      .select('id, squad_id, day_of_week, start_time, end_time, coach_name, max_capacity, notes, is_active')
+      .in('squad_id', squadIds).eq('is_active', true).order('day_of_week').order('start_time');
+    allWeekSessions      = weekData || [];
+    allTimetableSessions = allWeekSessions;
+    allSquadSessions     = allWeekSessions.filter(s => s.day_of_week === todayDow);
 
-    // Load session assignments for today's sessions
+    // Load all assignments for the whole week in one query
+    allWeekAssignments = {};
     allSessionAssignments = {};
-    if (allSquadSessions.length) {
-      const todaySessionIds = allSquadSessions.map(s => s.id);
+    if (allWeekSessions.length) {
+      const allIds = allWeekSessions.map(s => s.id);
       const { data: assignData } = await sb.from('club_session_assignments')
         .select('session_id, roster_id')
         .eq('club_id', currentClub.id)
-        .in('session_id', todaySessionIds);
+        .in('session_id', allIds);
       (assignData || []).forEach(a => {
-        if (!allSessionAssignments[a.session_id]) allSessionAssignments[a.session_id] = [];
-        allSessionAssignments[a.session_id].push(a.roster_id);
+        if (!allWeekAssignments[a.session_id]) allWeekAssignments[a.session_id] = [];
+        allWeekAssignments[a.session_id].push(a.roster_id);
       });
+      allSquadSessions.forEach(s => { allSessionAssignments[s.id] = allWeekAssignments[s.id] || []; });
     }
   } else {
+    allWeekSessions = [];
     allSquadSessions = [];
     allTimetableSessions = [];
+    allWeekAssignments = {};
     allSessionAssignments = {};
   }
 }
