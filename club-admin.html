@@ -6402,28 +6402,28 @@ async function executeCsvImport() {
       return null;
     };
 
-    const rosterPayload = {
-      club_id:       currentClub.id,
-      display_name:  m.display_name,
-      member_number: m.member_number || null,
-      squad_id:      squadId,
-      gender:        m.gender        || null,
-      date_of_birth: parseDate(m.date_of_birth),
-      phone:         m.phone         || null,
-      category:      m.category      || null,
-    };
-    if (m.is_trial !== undefined && m.is_trial !== '') rosterPayload.is_trial = parseBool(m.is_trial);
-    if (m.fee_paid !== undefined && m.fee_paid !== '') rosterPayload.fee_paid = parseBool(m.fee_paid);
+    // Build payload — only include fields that were actually mapped in the CSV
+    // so we don't null-out member_number/gender/etc. for existing members
+    const mappedCsvFields = new Set(Object.values(csvMapping).filter(Boolean));
+    const rosterPayload = { club_id: currentClub.id, display_name: m.display_name, squad_id: squadId };
+    if (mappedCsvFields.has('member_number')) rosterPayload.member_number = m.member_number || null;
+    if (mappedCsvFields.has('gender'))        rosterPayload.gender        = m.gender        || null;
+    if (mappedCsvFields.has('date_of_birth')) rosterPayload.date_of_birth = parseDate(m.date_of_birth);
+    if (mappedCsvFields.has('phone'))         rosterPayload.phone         = m.phone         || null;
+    if (mappedCsvFields.has('category'))      rosterPayload.category      = m.category      || null;
+    if (mappedCsvFields.has('is_trial') && m.is_trial !== undefined && m.is_trial !== '') rosterPayload.is_trial = parseBool(m.is_trial);
+    if (mappedCsvFields.has('fee_paid') && m.fee_paid !== undefined && m.fee_paid !== '') rosterPayload.fee_paid = parseBool(m.fee_paid);
 
     let rosterId = item.existing?.id;
+    let firstError = null;
 
     if (item.existing) {
       const { error } = await sb.from('club_roster').update(rosterPayload).eq('id', rosterId);
-      if (error) { errors++; continue; }
+      if (error) { if (!firstError) firstError = error.message; errors++; continue; }
       updated++;
     } else {
       const { data, error } = await sb.from('club_roster').insert(rosterPayload).select('id').single();
-      if (error) { errors++; continue; }
+      if (error) { if (!firstError) firstError = error.message; errors++; continue; }
       rosterId = data.id;
       added++;
     }
@@ -6446,7 +6446,7 @@ async function executeCsvImport() {
   document.getElementById('csvImportBtnLabel').textContent = 'Import all rows';
 
   if (errors > 0) {
-    document.getElementById('csvImportError').textContent = `${errors} row(s) failed to import.`;
+    document.getElementById('csvImportError').textContent = `${errors} row(s) failed.${firstError ? ' Error: ' + firstError : ''}`;
     document.getElementById('csvImportError').style.display = 'block';
   }
 
