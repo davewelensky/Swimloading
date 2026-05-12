@@ -1747,10 +1747,12 @@ async function loadClubContext() {
   }
 
   // Feature visibility — open_water clubs get League + Temp Challenge + Committee
+  // Squad clubs (Aqua Sharks etc) get Squad Tracker + Settings squad/timetable tools
   const isOpenWater = currentClub.club_type === 'open_water';
   document.getElementById('nav-league').style.display      = isOpenWater ? '' : 'none';
   document.getElementById('nav-tempchallenge').style.display = isOpenWater ? '' : 'none';
   document.getElementById('committeeCard').style.display   = isOpenWater ? '' : 'none';
+  document.getElementById('nav-tracker').style.display     = isOpenWater ? 'none' : '';
   const teamSub = document.querySelector('#page-team .page-sub');
   if (teamSub) teamSub.textContent = isOpenWater ? 'Committee roles, admin access and coaching staff' : 'Coaching staff';
 
@@ -1935,6 +1937,7 @@ async function renderOverview() {
   const days      = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const months    = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const roster    = allRosterFull.length ? allRosterFull : [];
+  const isSquadClub = currentClub?.club_type !== 'open_water';
 
   // ── Greeting + date ──────────────────────────────────────────────
   const hr = now.getHours();
@@ -1958,6 +1961,9 @@ async function renderOverview() {
   document.getElementById('statTrials').style.color   = trialsEnding.length > 0 ? 'var(--amber)' : 'var(--text)';
   document.getElementById('statFees').textContent     = feesOverdue.length;
   document.getElementById('statFees').style.color     = feesOverdue.length > 0 ? 'var(--danger)' : 'var(--text)';
+  // Hide squad-specific stat card for open water clubs
+  const sessCard = document.getElementById('statSessions')?.closest('.stat-card');
+  if (sessCard) sessCard.style.display = isSquadClub ? '' : 'none';
 
   // ── Action items ─────────────────────────────────────────────────
   const unassigned    = roster.filter(r => !r.squad_id);
@@ -1981,10 +1987,10 @@ async function renderOverview() {
   if (trialsNoEnd.length > 0) {
     actions.push({ dot:'amber', text:`${trialsNoEnd.length} trial${trialsNoEnd.length>1?'s':''} have no end date set`, names:trialsNoEnd.slice(0,3).map(r=>r.display_name).join(', ')+(trialsNoEnd.length>3?` +${trialsNoEnd.length-3} more`:''), label:'Roster →', action:`showPage('roster')` });
   }
-  if (unassigned.length > 0) {
+  if (isSquadClub && unassigned.length > 0) {
     actions.push({ dot:'amber', text:`${unassigned.length} member${unassigned.length>1?'s':''} not assigned to a squad`, names:'Assign in Roster → Edit', label:'Roster →', action:`showPage('roster')` });
   }
-  if (noCoachToday.length > 0) {
+  if (isSquadClub && noCoachToday.length > 0) {
     const names = noCoachToday.map(s => {
       const sq = allSquads.find(q => q.id === s.squad_id);
       return (sq?.name || 'Session') + ' ' + (s.start_time?.slice(0,5) || '');
@@ -2026,7 +2032,11 @@ async function renderOverview() {
 
   const nowMins = now.getHours() * 60 + now.getMinutes();
   const toMins = t => { if (!t) return 0; const [h,m] = t.split(':'); return parseInt(h)*60+parseInt(m); };
-  renderDayDashboard(dashDay);
+  if (isSquadClub) {
+    renderDayDashboard(dashDay);
+  } else {
+    document.getElementById('overviewTodaySquads').innerHTML = '';
+  }
 
   let todayHtml;
   if (allSquadSessions.length > 0) {
