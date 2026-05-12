@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Club · SwimLoading</title>
-  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
@@ -661,7 +663,7 @@
 
     // ── Render ──────────────────────────────────────────────────────
     if (isSwimClub) {
-      renderSwimClubPage(club, clubEvtRes.data || []);
+      renderSwimClubPage(club, clubEvtRes.data || [], memberCount);
     } else {
       renderHero(club, spotName, recentLogs, memberCount);
       renderAbout(club);
@@ -681,14 +683,16 @@
   }
 
   // ── SWIM CLUB PAGE ────────────────────────────────────────────────
-  function renderSwimClubPage(club, galas) {
+  function renderSwimClubPage(club, galas, memberCount) {
     const now = new Date().toISOString().slice(0, 10);
     const upcoming = (galas || [])
       .filter(e => e.event_date >= now)
       .sort((a, b) => a.event_date.localeCompare(b.event_date));
+    const past = (galas || [])
+      .filter(e => e.event_date < now)
+      .sort((a, b) => b.event_date.localeCompare(a.event_date));
     const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-    // Group by month
     const byMonth = {};
     upcoming.forEach(e => {
       const key = e.event_date.slice(0, 7);
@@ -697,101 +701,303 @@
     });
 
     const calendarRows = Object.entries(byMonth).map(([ym, evts]) => {
-      const [y, m] = ym.split('-');
+      const [, m] = ym.split('-');
       return `
         <div style="margin-bottom:20px;">
-          <div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(56,189,248,0.15);">${monthNames[parseInt(m)-1]} ${y}</div>
+          <div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(56,189,248,0.15);">${monthNames[parseInt(m)-1]}</div>
           ${evts.map(e => {
             const d = new Date(e.event_date + 'T12:00:00');
-            return `<div style="display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid var(--border);">
-              <div style="min-width:32px;text-align:center;font-size:18px;font-weight:900;color:var(--text);font-family:'Bebas Neue',sans-serif;line-height:1;">${d.getDate()}</div>
-              <div>
+            const isPast = e.event_date < now;
+            return `<div style="display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid var(--border);opacity:${isPast ? 0.45 : 1};">
+              <div style="min-width:38px;text-align:center;flex-shrink:0;">
+                <div style="font-size:9px;font-weight:700;color:var(--text-sec);text-transform:uppercase;">${d.toLocaleDateString('en-ZA',{weekday:'short'})}</div>
+                <div style="font-size:22px;font-weight:900;color:var(--cyan);font-family:'Bebas Neue',sans-serif;line-height:1;">${d.getDate()}</div>
+              </div>
+              <div style="flex:1;">
                 <div style="font-size:13px;font-weight:700;color:var(--text);">${e.title}</div>
                 ${e.description ? `<div style="font-size:11px;color:var(--text-sec);margin-top:1px;">${e.description.split('.')[0]}</div>` : ''}
               </div>
+              ${e.is_league ? `<span style="font-size:9px;font-weight:800;color:var(--amber);background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:2px 7px;white-space:nowrap;flex-shrink:0;">LEAGUE</span>` : ''}
             </div>`;
           }).join('')}
         </div>`;
     }).join('');
 
+    // QT progress bar mockup — visual preview for parents/swimmers
+    const qtMockup = `
+      <div style="padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-size:13px;font-weight:700;color:#f1f5f9;">100m Freestyle <span style="font-size:11px;font-weight:500;color:#64748b;">SC</span></span>
+          <span style="font-size:15px;font-weight:900;color:#f1f5f9;font-family:'Bebas Neue',sans-serif;">1:09.45</span>
+        </div>
+        <div style="position:relative;height:7px;background:rgba(255,255,255,0.07);border-radius:4px;margin:22px 0 8px;">
+          <div style="position:absolute;left:28%;top:-18px;transform:translateX(-50%);">
+            <div style="font-size:8px;font-weight:800;color:#64748b;white-space:nowrap;">L2</div>
+          </div>
+          <div style="position:absolute;left:28%;top:0;bottom:0;width:1.5px;background:rgba(255,255,255,0.12);"></div>
+          <div style="position:absolute;left:58%;top:-18px;transform:translateX(-50%);">
+            <div style="font-size:8px;font-weight:800;color:#a78bfa;">L3</div>
+          </div>
+          <div style="position:absolute;left:58%;top:0;bottom:0;width:1.5px;background:rgba(167,139,250,0.5);"></div>
+          <div style="position:absolute;left:82%;top:-18px;transform:translateX(-50%);">
+            <div style="font-size:8px;font-weight:800;color:#f59e0b;">SANJ</div>
+          </div>
+          <div style="position:absolute;left:82%;top:0;bottom:0;width:1.5px;background:rgba(245,158,11,0.4);"></div>
+          <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(56,189,248,0.4),rgba(56,189,248,0.85));border-radius:4px;width:62%;"></div>
+          <div style="position:absolute;left:62%;top:50%;transform:translate(-50%,-50%);width:12px;height:12px;border-radius:50%;background:#38bdf8;border:2px solid #080f1a;box-shadow:0 0 6px rgba(56,189,248,0.7);"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:10px;font-weight:800;color:#10b981;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:2px 7px;">QT L2</span>
+          <span style="font-size:11px;font-weight:700;color:#f59e0b;">−2.18s to L3 (1:07.27)</span>
+        </div>
+      </div>
+      <div style="padding:14px 0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-size:13px;font-weight:700;color:#f1f5f9;">200m Backstroke <span style="font-size:11px;font-weight:500;color:#64748b;">SC</span></span>
+          <span style="font-size:15px;font-weight:900;color:#f1f5f9;font-family:'Bebas Neue',sans-serif;">2:42.31</span>
+        </div>
+        <div style="position:relative;height:7px;background:rgba(255,255,255,0.07);border-radius:4px;margin:22px 0 8px;">
+          <div style="position:absolute;left:35%;top:-18px;transform:translateX(-50%);">
+            <div style="font-size:8px;font-weight:800;color:#64748b;">L2</div>
+          </div>
+          <div style="position:absolute;left:35%;top:0;bottom:0;width:1.5px;background:rgba(255,255,255,0.12);"></div>
+          <div style="position:absolute;left:65%;top:-18px;transform:translateX(-50%);">
+            <div style="font-size:8px;font-weight:800;color:#a78bfa;white-space:nowrap;">L3</div>
+          </div>
+          <div style="position:absolute;left:65%;top:0;bottom:0;width:1.5px;background:rgba(167,139,250,0.5);"></div>
+          <div style="position:absolute;left:85%;top:-18px;transform:translateX(-50%);">
+            <div style="font-size:8px;font-weight:800;color:#f59e0b;white-space:nowrap;">SANJ</div>
+          </div>
+          <div style="position:absolute;left:85%;top:0;bottom:0;width:1.5px;background:rgba(245,158,11,0.4);"></div>
+          <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(56,189,248,0.4),rgba(56,189,248,0.85));border-radius:4px;width:38%;"></div>
+          <div style="position:absolute;left:38%;top:50%;transform:translate(-50%,-50%);width:12px;height:12px;border-radius:50%;background:#38bdf8;border:2px solid #080f1a;box-shadow:0 0 6px rgba(56,189,248,0.7);"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:11px;font-weight:700;color:#f59e0b;">−14.53s to L2 (2:27.78)</span>
+        </div>
+      </div>`;
+
+    // Time chart sparkline mockup
+    const chartMockup = `
+      <svg viewBox="0 0 320 80" width="100%" style="display:block;overflow:visible;">
+        <defs>
+          <linearGradient id="mockFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.15"/>
+            <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <line x1="0" y1="18" x2="320" y2="18" stroke="rgba(167,139,250,0.35)" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="316" y="22" font-size="8" fill="#a78bfa" text-anchor="end" font-weight="800">L3</text>
+        <path d="M20,62 L80,55 L140,48 L200,44 L260,36 L300,28 L300,72 L20,72 Z" fill="url(#mockFill)"/>
+        <path d="M20,62 L80,55 L140,48 L200,44 L260,36 L300,28" stroke="#38bdf8" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="20" cy="62" r="4" fill="#94a3b8" stroke="#0d1728" stroke-width="2"/>
+        <text x="20" y="53" font-size="9" fill="#94a3b8" text-anchor="middle">2:56</text>
+        <circle cx="80" cy="55" r="4" fill="#94a3b8" stroke="#0d1728" stroke-width="2"/>
+        <text x="80" y="46" font-size="9" fill="#94a3b8" text-anchor="middle">2:52</text>
+        <circle cx="140" cy="48" r="4" fill="#94a3b8" stroke="#0d1728" stroke-width="2"/>
+        <text x="140" y="39" font-size="9" fill="#94a3b8" text-anchor="middle">2:49</text>
+        <circle cx="200" cy="44" r="4" fill="#94a3b8" stroke="#0d1728" stroke-width="2"/>
+        <text x="200" y="35" font-size="9" fill="#94a3b8" text-anchor="middle">2:47</text>
+        <circle cx="260" cy="36" r="4" fill="#94a3b8" stroke="#0d1728" stroke-width="2"/>
+        <text x="260" y="27" font-size="9" fill="#94a3b8" text-anchor="middle">2:44</text>
+        <circle cx="300" cy="28" r="6" fill="#10b981" stroke="#0d1728" stroke-width="2"/>
+        <circle cx="300" cy="28" r="10" fill="none" stroke="#10b981" stroke-width="1.5" opacity="0.4"/>
+        <text x="300" y="19" font-size="9" fill="#10b981" text-anchor="middle" font-weight="700">2:42 PB</text>
+        <text x="20" y="78" font-size="8" fill="#475569" text-anchor="middle">Sep</text>
+        <text x="80" y="78" font-size="8" fill="#475569" text-anchor="middle">Oct</text>
+        <text x="140" y="78" font-size="8" fill="#475569" text-anchor="middle">Nov</text>
+        <text x="200" y="78" font-size="8" fill="#475569" text-anchor="middle">Jan</text>
+        <text x="260" y="78" font-size="8" fill="#475569" text-anchor="middle">Mar</text>
+        <text x="300" y="78" font-size="8" fill="#475569" text-anchor="middle">May</text>
+      </svg>`;
+
+    const memberLine = memberCount > 0
+      ? `<div style="font-size:13px;color:rgba(241,245,249,0.5);margin-top:10px;">${memberCount} swimmer${memberCount!==1?'s':''} already on the platform</div>`
+      : '';
+
     document.getElementById('clubPage').innerHTML = `
+
       <!-- HERO -->
-      <div style="border-bottom:1px solid var(--border);padding:40px 20px 36px;">
-        <div style="max-width:760px;margin:0 auto;">
-          ${club.logo_url ? `<img src="${club.logo_url}" alt="" style="height:52px;width:auto;object-fit:contain;margin-bottom:16px;display:block;">` : ''}
-          <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.14em;margin-bottom:8px;">${club.city || ''}</div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(40px,8vw,72px);line-height:0.95;color:var(--text);margin-bottom:${club.tagline ? '8px' : '20px'};">${club.name}</div>
-          ${club.tagline ? `<div style="font-size:15px;color:rgba(241,245,249,0.6);font-style:italic;margin-bottom:20px;">${club.tagline}</div>` : ''}
-          <div style="display:flex;flex-wrap:wrap;gap:10px;">
-            <a href="/app" style="display:inline-flex;align-items:center;gap:7px;padding:12px 24px;border-radius:50px;background:var(--cyan);color:#080f1a;font-size:13px;font-weight:800;text-decoration:none;"><i data-lucide="smartphone" style="width:14px;height:14px;"></i>Open the app</a>
-            ${club.contact_email ? `<a href="mailto:${club.contact_email}" style="display:inline-flex;align-items:center;gap:7px;padding:12px 24px;border-radius:50px;border:1px solid rgba(255,255,255,0.15);color:var(--text);font-size:13px;font-weight:700;text-decoration:none;"><i data-lucide="mail" style="width:14px;height:14px;"></i>Contact us</a>` : ''}
+      <div style="border-bottom:1px solid var(--border);padding:52px 20px 44px;background:linear-gradient(180deg,rgba(56,189,248,0.04) 0%,transparent 100%);">
+        <div style="max-width:720px;margin:0 auto;">
+          ${club.logo_url ? `<img src="${club.logo_url}" alt="" style="height:48px;width:auto;object-fit:contain;margin-bottom:20px;display:block;">` : ''}
+          <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.14em;margin-bottom:10px;">${club.city || 'Cape Town'} · Competitive Swimming</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(42px,9vw,76px);line-height:0.92;color:var(--text);margin-bottom:14px;">${club.name}</div>
+          <div style="font-size:17px;color:rgba(241,245,249,0.65);max-width:480px;line-height:1.65;margin-bottom:28px;">
+            Your swimmer's gala results, PBs, and qualifying time progress — all in one place. Updated by the coach the moment results are in.
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <a href="/join/${club.slug}" style="display:inline-flex;align-items:center;gap:8px;padding:14px 28px;border-radius:50px;background:var(--cyan);color:#080f1a;font-size:14px;font-weight:800;text-decoration:none;">
+              <i data-lucide="user-plus" style="width:15px;height:15px;"></i>Get started — it's free
+            </a>
+            ${club.contact_email ? `<a href="mailto:${club.contact_email}" style="display:inline-flex;align-items:center;gap:7px;padding:14px 24px;border-radius:50px;border:1px solid rgba(255,255,255,0.15);color:var(--text);font-size:14px;font-weight:600;text-decoration:none;"><i data-lucide="mail" style="width:14px;height:14px;"></i>Contact us</a>` : ''}
+          </div>
+          <div style="font-size:13px;color:var(--text-sec);">Already joined? <a href="/app" style="color:var(--cyan);text-decoration:none;font-weight:600;">Sign in →</a></div>
+          ${memberLine}
+        </div>
+      </div>
+
+      <!-- STATS STRIP -->
+      <div style="border-bottom:1px solid var(--border);padding:0 20px;">
+        <div style="max-width:720px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);text-align:center;">
+          <div style="padding:22px 10px;border-right:1px solid var(--border);">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--cyan);line-height:1;">${memberCount > 0 ? memberCount : '30+'}</div>
+            <div style="font-size:11px;color:var(--text-sec);margin-top:3px;line-height:1.4;">swimmers on the platform</div>
+          </div>
+          <div style="padding:22px 10px;border-right:1px solid var(--border);">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--cyan);line-height:1;">Minutes</div>
+            <div style="font-size:11px;color:var(--text-sec);margin-top:3px;line-height:1.4;">from gala finish to app update</div>
+          </div>
+          <div style="padding:22px 10px;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--cyan);line-height:1;">Free</div>
+            <div style="font-size:11px;color:var(--text-sec);margin-top:3px;line-height:1.4;">for every swimmer</div>
           </div>
         </div>
       </div>
 
-      <!-- WHY THE APP -->
-      <div style="padding:36px 20px;border-bottom:1px solid var(--border);">
-        <div style="max-width:760px;margin:0 auto;">
-          <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px;">For swimmers & parents</div>
-          <div style="font-size:22px;font-weight:800;color:var(--text);margin-bottom:20px;">Why use the SwimLoading app?</div>
+      <!-- QT PROGRESS PREVIEW -->
+      <div style="padding:44px 20px;border-bottom:1px solid var(--border);">
+        <div style="max-width:720px;margin:0 auto;">
+          <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;">Live in the app</div>
+          <div style="font-size:24px;font-weight:800;color:var(--text);margin-bottom:6px;">Qualifying time progress</div>
+          <div style="font-size:14px;color:rgba(241,245,249,0.55);margin-bottom:24px;">Every SSA qualifying tier shown on a single bar — your swimmer can see exactly how far they are from L2, L3, and SANJ.</div>
+          <div style="background:#0d1728;border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:20px 22px;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:0;right:0;background:rgba(56,189,248,0.07);border-bottom-left-radius:12px;padding:5px 12px;font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;">Preview</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+              <i data-lucide="target" style="width:15px;height:15px;color:var(--cyan);"></i>
+              <span style="font-size:14px;font-weight:700;">QT Progress</span>
+              <span style="font-size:11px;color:var(--text-sec);">SSA Age Group 2025/2026</span>
+            </div>
+            ${qtMockup}
+          </div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:16px;">
+            ${[['#64748b','L2','Entry-level age group qualifying time'],['#a78bfa','L3','Intermediate standard'],['#f59e0b','SANJ','SA National Junior standard']].map(([c,t,d])=>`
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:8px;height:8px;border-radius:50%;background:${c};flex-shrink:0;"></div>
+              <span style="font-size:12px;font-weight:700;color:${c};">${t}</span>
+              <span style="font-size:12px;color:var(--text-sec);">${d}</span>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- TIME HISTORY CHART PREVIEW -->
+      <div style="padding:44px 20px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.01);">
+        <div id="chartGrid" style="max-width:720px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;">Every result, every gala</div>
+            <div style="font-size:24px;font-weight:800;color:var(--text);line-height:1.2;margin-bottom:14px;">See the journey, not just the last race</div>
+            <div style="font-size:14px;color:rgba(241,245,249,0.55);line-height:1.7;margin-bottom:20px;">
+              Every time your swimmer competes, a new point is added to their chart. Up means faster. Green dots are personal bests. The L3 line shows exactly what they're chasing.
+            </div>
+            <div style="font-size:13px;color:rgba(241,245,249,0.45);font-style:italic;">200m Backstroke — season progress</div>
+          </div>
+          <div style="background:#0d1728;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px 14px 8px;position:relative;">
+            <div style="position:absolute;top:0;right:0;background:rgba(56,189,248,0.07);border-bottom-left-radius:10px;padding:4px 10px;font-size:9px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;">Preview</div>
+            <div style="font-size:11px;color:var(--text-sec);margin-bottom:8px;">Faster ↑</div>
+            ${chartMockup}
+          </div>
+        </div>
+        <style>@media(max-width:560px){#chartGrid{grid-template-columns:1fr!important;}}</style>
+      </div>
+
+      <!-- HOW TO GET ACCESS -->
+      <div style="padding:44px 20px;border-bottom:1px solid var(--border);">
+        <div style="max-width:720px;margin:0 auto;">
+          <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;">Getting started</div>
+          <div style="font-size:24px;font-weight:800;color:var(--text);margin-bottom:24px;">How to see your swimmer's results</div>
+          <div style="display:flex;flex-direction:column;gap:20px;">
+            ${[
+              ['1','message-circle','Ask your coach for the join link','Britt will share a link via WhatsApp or email. It takes 30 seconds to set up.'],
+              ['2','user-plus','Create a free SwimLoading account','Sign up at swimloading.com/app — just an email and password. Completely free.'],
+              ['3','trending-up','Your swimmer\'s history appears immediately','All gala results, PB history, and QT progress are loaded and waiting.'],
+            ].map(([n,icon,title,desc])=>`
+            <div style="display:flex;gap:16px;align-items:flex-start;">
+              <div style="flex-shrink:0;width:40px;height:40px;border-radius:50%;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--cyan);margin-top:2px;">${n}</div>
+              <div style="flex:1;padding-top:4px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                  <i data-lucide="${icon}" style="width:15px;height:15px;color:var(--cyan);flex-shrink:0;"></i>
+                  <span style="font-size:15px;font-weight:700;color:var(--text);">${title}</span>
+                </div>
+                <div style="font-size:13px;color:rgba(241,245,249,0.55);line-height:1.6;">${desc}</div>
+              </div>
+            </div>`).join('')}
+          </div>
+          <div style="margin-top:28px;padding:18px 20px;background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.15);border-radius:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text);">Already have an account?</div>
+              <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">Sign in and tap the Club tab to see your swimmer's results.</div>
+            </div>
+            <a href="/app" style="display:inline-flex;align-items:center;gap:6px;padding:11px 22px;border-radius:50px;background:var(--cyan);color:#080f1a;font-size:13px;font-weight:800;text-decoration:none;white-space:nowrap;">
+              <i data-lucide="log-in" style="width:13px;height:13px;"></i>Sign in
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- FEATURES GRID -->
+      <div style="padding:44px 20px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.01);">
+        <div style="max-width:720px;margin:0 auto;">
+          <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;">What you get</div>
+          <div style="font-size:24px;font-weight:800;color:var(--text);margin-bottom:24px;">Everything in one place</div>
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
             ${[
-              ['trophy',       'Gala results',            'After each gala your coach logs the results — you see your swimmer\'s times instantly'],
-              ['calendar',     'Season calendar',         'All CLUBNAME galas in one place — dates, venues, no more hunting through emails'],
-              ['bar-chart-2',  'Personal bests',          'Every time you post a faster time it\'s flagged as a PB — track improvement across the season'],
-              ['clipboard-check', 'Attendance',           'Coaches mark sessions live — see which squads your swimmer has been in'],
+              ['target','QT Progress bars','L2, L3, and SANJ markers on every event. See exactly what your swimmer is chasing.'],
+              ['trending-up','Full time history','Every gala result charted. Up means faster. PBs highlighted in green.'],
+              ['calendar','Gala calendar','Upcoming galas in one list — no more missed entries or last-minute searches.'],
+              ['zap','Instant results','Coach enters the time → it appears in the app. No waiting for meet reports.'],
+              ['bar-chart-2','Season comparison','Compare this season vs last. Watch the improvement month by month.'],
+              ['smartphone','Works like an app','Add to your home screen. No app store needed — works on iPhone and Android.'],
             ].map(([icon, title, desc]) => `
-              <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:16px;">
-                <i data-lucide="${icon}" style="width:18px;height:18px;color:var(--cyan);margin-bottom:10px;display:block;"></i>
-                <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">${title}</div>
-                <div style="font-size:12px;color:var(--text-sec);line-height:1.5;">${desc.replace('CLUBNAME', club.name)}</div>
-              </div>`).join('')}
-          </div>
-          <div style="margin-top:20px;padding:16px 20px;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.2);border-radius:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-            <div style="font-size:13px;color:var(--text-sec);">Already an Aqua Sharks member? Sign in to see your swimmer's times and progress.</div>
-            <a href="/app" style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:50px;background:var(--cyan);color:#080f1a;font-size:13px;font-weight:800;text-decoration:none;white-space:nowrap;"><i data-lucide="log-in" style="width:13px;height:13px;"></i>Sign in</a>
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:18px 16px;">
+              <div style="width:34px;height:34px;border-radius:8px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+                <i data-lucide="${icon}" style="width:16px;height:16px;color:var(--cyan);"></i>
+              </div>
+              <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:5px;">${title}</div>
+              <div style="font-size:12px;color:var(--text-sec);line-height:1.55;">${desc}</div>
+            </div>`).join('')}
           </div>
         </div>
       </div>
 
       <!-- TRAINING SCHEDULE -->
-      <div style="padding:36px 20px;border-bottom:1px solid var(--border);">
-        <div style="max-width:760px;margin:0 auto;">
-          <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px;">Senior Competitive Squads</div>
-          <div style="font-size:22px;font-weight:800;color:var(--text);margin-bottom:20px;">Training Schedule</div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:16px;">
+      <div style="padding:44px 20px;border-bottom:1px solid var(--border);">
+        <div style="max-width:720px;margin:0 auto;">
+          <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;">Senior competitive squads</div>
+          <div style="font-size:24px;font-weight:800;color:var(--text);margin-bottom:20px;">Training Schedule</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:16px;">
             ${[
-              ['Mon / Tue / Thu', 'Arrive 17:10 for dryland warm-up', 'Pool: 17:30'],
-              ['Wednesday',       'Dryland & mental prep — compulsory', '16:30 sharp'],
-              ['Friday',          'Arrive 15:40 for warm-up', 'Pool: 16:00'],
-              ['Mon / Wed / Fri mornings', 'Masters & senior squad top-up', '06:00 · 07:00 · 08:00'],
-            ].map(([day, note, time]) => `
-              <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:14px 16px;">
-                <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">${day}</div>
-                <div style="font-size:18px;font-weight:900;color:var(--text);font-family:'Bebas Neue',sans-serif;letter-spacing:0.02em;margin-bottom:4px;">${time}</div>
-                <div style="font-size:11px;color:var(--text-sec);line-height:1.4;">${note}</div>
+              ['Mon / Tue / Thu', 'Pool: 17:30', 'Arrive 17:10 — dryland warm-up'],
+              ['Wednesday',       '16:30 sharp', 'Dryland & mental prep · compulsory'],
+              ['Friday',          'Pool: 16:00', 'Arrive 15:40 — dryland warm-up'],
+              ['Mon / Wed / Fri', '06:00–09:00', 'Masters & senior squad top-up sessions'],
+            ].map(([day, time, note]) => `
+              <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:12px;padding:14px 16px;">
+                <div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:5px;">${day}</div>
+                <div style="font-size:20px;font-weight:900;color:var(--text);font-family:'Bebas Neue',sans-serif;letter-spacing:0.02em;margin-bottom:4px;">${time}</div>
+                <div style="font-size:11px;color:var(--text-sec);line-height:1.5;">${note}</div>
               </div>`).join('')}
           </div>
-          <div style="padding:14px 18px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:10px;font-size:12px;color:rgba(241,245,249,0.75);line-height:1.5;">
-            <strong style="color:#f59e0b;">From 1 August</strong> — Level 2+ swimmers are expected to attend a minimum of <strong style="color:var(--text);">5 sessions per week</strong>. Late arrivals will not be permitted to join the session.
+          <div style="padding:14px 18px;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);border-radius:10px;font-size:12px;color:rgba(241,245,249,0.7);line-height:1.6;">
+            <strong style="color:#f59e0b;">From 1 August</strong> — Level 2+ swimmers must attend a minimum of <strong style="color:var(--text);">5 sessions per week</strong>. Late arrivals will not be permitted to join the session.
           </div>
         </div>
       </div>
 
       <!-- EQUIPMENT -->
-      <div style="padding:36px 20px;border-bottom:1px solid var(--border);">
-        <div style="max-width:760px;margin:0 auto;">
-          <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px;">Required from 1 June</div>
-          <div style="font-size:22px;font-weight:800;color:var(--text);margin-bottom:20px;">Swim Equipment</div>
+      <div style="padding:44px 20px;border-bottom:1px solid var(--border);">
+        <div style="max-width:720px;margin:0 auto;">
+          <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;">Required from 1 June</div>
+          <div style="font-size:24px;font-weight:800;color:var(--text);margin-bottom:20px;">Swim Equipment</div>
           <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:20px 24px;">
             <div style="font-size:12px;color:var(--text-sec);margin-bottom:16px;">All senior competitive swimmers must have their own wet bag containing:</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
               ${['Short fin flippers','Pull buoy','Snorkel','Small paddles','Water bottle with energy drink','Swimmer logbook (A5/A4)'].map(item => `
                 <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);">
-                  <i data-lucide="check-circle" style="width:14px;height:14px;color:var(--cyan);flex-shrink:0;"></i>${item}
+                  <i data-lucide="check-circle" style="width:14px;height:14px;color:var(--green);flex-shrink:0;"></i>${item}
                 </div>`).join('')}
             </div>
-            <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--text-sec);">
+            <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--text-sec);line-height:1.6;">
               Equipment available through the club online shop — discount codes shared separately. Logbooks should include goal setting, season times, nutrition and training notes.
             </div>
           </div>
@@ -799,16 +1005,49 @@
       </div>
 
       <!-- GALA CALENDAR -->
-      ${upcoming.length ? `
-      <div style="padding:36px 20px 60px;">
-        <div style="max-width:760px;margin:0 auto;">
-          <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px;">2026–2027 Season</div>
-          <div style="font-size:22px;font-weight:800;color:var(--text);margin-bottom:20px;">Gala Calendar</div>
+      <div style="padding:44px 20px;border-bottom:1px solid var(--border);">
+        <div style="max-width:720px;margin:0 auto;">
+          <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;">2026–2027 Season</div>
+          <div style="font-size:24px;font-weight:800;color:var(--text);margin-bottom:6px;">Gala Calendar</div>
+          <div style="font-size:14px;color:rgba(241,245,249,0.45);margin-bottom:20px;">Results appear in the app within minutes of your coach entering them.</div>
+          ${upcoming.length ? `
           <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:20px 24px;">
             ${calendarRows}
+          </div>` : `
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:28px 24px;text-align:center;color:var(--text-sec);font-size:13px;">
+            No upcoming galas scheduled yet — check back soon.
+          </div>`}
+          ${past.length ? `
+          <div style="margin-top:16px;font-size:12px;color:var(--text-sec);text-align:right;">
+            ${past.length} past gala${past.length !== 1 ? 's' : ''} this season — results visible in the app
+          </div>` : ''}
+        </div>
+      </div>
+
+      <!-- BOTTOM CTA -->
+      <div style="padding:64px 20px 80px;text-align:center;background:linear-gradient(180deg,transparent 0%,rgba(56,189,248,0.04) 100%);">
+        <div style="max-width:520px;margin:0 auto;">
+          <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.14em;margin-bottom:12px;">Join ${club.name}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(36px,8vw,60px);line-height:0.95;color:var(--text);margin-bottom:16px;">See your swimmer's progress</div>
+          <div style="font-size:15px;color:rgba(241,245,249,0.55);line-height:1.65;margin-bottom:32px;">
+            Free to join. No app store. Works on any phone.<br>Ask ${club.contact_email ? `<a href="mailto:${club.contact_email}" style="color:var(--cyan);text-decoration:none;">your coach</a>` : 'your coach'} for the join link.
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">
+            <a href="/join/${club.slug}" style="display:inline-flex;align-items:center;gap:8px;padding:16px 32px;border-radius:50px;background:var(--cyan);color:#080f1a;font-size:15px;font-weight:800;text-decoration:none;">
+              <i data-lucide="user-plus" style="width:16px;height:16px;"></i>Get started — it's free
+            </a>
+            <a href="/app" style="display:inline-flex;align-items:center;gap:8px;padding:16px 24px;border-radius:50px;border:1px solid rgba(255,255,255,0.15);color:var(--text);font-size:15px;font-weight:600;text-decoration:none;">
+              Already joined? Sign in
+            </a>
+          </div>
+          <div style="margin-top:28px;display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;">
+            ${[['shield-check','No credit card'],['smartphone','iPhone &amp; Android'],['users','Free for swimmers']].map(([icon,label])=>`
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-sec);">
+              <i data-lucide="${icon}" style="width:13px;height:13px;color:var(--text-sec);flex-shrink:0;"></i>${label}
+            </div>`).join('')}
           </div>
         </div>
-      </div>` : ''}`;
+      </div>`;
   }
 
   function showNotFound() {
