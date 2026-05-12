@@ -309,7 +309,7 @@
         <i data-lucide="calendar"></i> Events
       </button>
       <button class="nav-item" onclick="showPage('entries')" id="nav-entries">
-        <i data-lucide="ticket"></i> Race Entries
+        <i data-lucide="ticket"></i> Gala Entries
       </button>
       <button class="nav-item" onclick="showPage('league')" id="nav-league" style="display:none;">
         <i data-lucide="trophy"></i> League
@@ -470,23 +470,50 @@
         <div id="eventsList"><div class="loading"><div class="spinner"></div></div></div>
       </div>
 
-      <!-- ── RACE ENTRIES ── -->
+      <!-- ── GALA ENTRIES ── -->
       <div id="page-entries" class="page">
-        <div class="page-header">
-          <div class="page-title">Race Entries</div>
-          <div class="page-sub">Pre-entries and day-of registrations</div>
-        </div>
-        <div class="card" style="margin-bottom:14px;">
-          <div class="card-header">
-            <div class="card-title">Select an event</div>
-          </div>
-          <div style="padding:14px 16px;">
-            <select class="filter-select" style="width:100%;" onchange="loadEntries(this.value)" id="entriesEventSelect">
-              <option value="">Choose event…</option>
-            </select>
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="page-title">Gala Entries</div>
+            <div class="page-sub">Add swimmers to upcoming galas — entry times auto-fill from PBs</div>
           </div>
         </div>
-        <div id="entriesContent"></div>
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+          <select class="filter-select" id="galaSelect" onchange="onGalaSelect()" style="flex:1;min-width:180px;">
+            <option value="">Select a gala…</option>
+          </select>
+          <select class="filter-select" id="galaSquadFilter" onchange="renderGalaSwimmers()" style="width:auto;">
+            <option value="competitive">Competitive squads</option>
+            <option value="">All squads</option>
+            <option value="a1000001-0000-0000-0000-000000000005">Gold Swim Fit</option>
+            <option value="a1000001-0000-0000-0000-000000000006">Junior</option>
+            <option value="a1000001-0000-0000-0000-000000000004">Silver</option>
+            <option value="a1000001-0000-0000-0000-000000000003">Bronze</option>
+          </select>
+        </div>
+        <div id="galaEntriesContent">
+          <div class="empty">
+            <div class="empty-title">Select a gala above</div>
+            <div class="empty-desc">Swimmer cards will appear with their personal bests pre-filled.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Entry Modal -->
+      <div id="entryModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeEntryModal()">
+        <div class="modal-content" style="max-width:480px;max-height:80vh;overflow-y:auto;">
+          <div class="modal-header">
+            <div class="modal-title" id="entryModalTitle">Enter swimmer</div>
+            <button class="modal-close" onclick="closeEntryModal()"><i data-lucide="x"></i></button>
+          </div>
+          <div class="modal-body">
+            <div id="entryModalBody"></div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeEntryModal()">Cancel</button>
+            <button class="btn-primary" onclick="saveGalaEntries()">Save entries</button>
+          </div>
+        </div>
       </div>
 
       <!-- ── TEMP CHALLENGE ── -->
@@ -1475,7 +1502,7 @@ function showPage(name) {
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + name)?.classList.add('active');
   document.getElementById('nav-' + name)?.classList.add('active');
-  if (name === 'entries')       populateEntriesEventSelect();
+  if (name === 'entries')       loadGalaPage();
   if (name === 'league')        renderLeague();
   if (name === 'tempchallenge') loadTempChallenge();
   if (name === 'attendance')    loadAttendance();
@@ -2038,7 +2065,7 @@ function renderEvents() {
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
           <button class="action-btn" onclick="openEventDetail('${e.id}')" style="background:rgba(56,189,248,0.1);color:var(--cyan);border-color:rgba(56,189,248,0.3);">Details</button>
-          <button class="action-btn" onclick="viewEntries('${e.id}')">Entries</button>
+          <button class="action-btn" onclick="viewGalaEntries('${e.id}')">Entries</button>
           <button class="action-btn" onclick="openGalaResults('${e.id}','${e.title.replace(/'/g,"\\'")}')" style="background:rgba(16,185,129,0.08);color:#10b981;border-color:rgba(16,185,129,0.25);">Results</button>
         </div>
       </div>`;
@@ -2128,105 +2155,345 @@ async function saveEventDetail() {
   renderEvents();
 }
 
-// ── ENTRIES ───────────────────────────────────────────────────────
-function populateEntriesEventSelect() {
-  const sel = document.getElementById('entriesEventSelect');
-  sel.innerHTML = '<option value="">Choose event…</option>';
-  allEvents.forEach(e => {
-    const opt = document.createElement('option');
-    opt.value = e.id;
-    opt.textContent = e.title + ' — ' + new Date(e.event_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short'});
-    sel.appendChild(opt);
-  });
+// ── GALA ENTRIES ──────────────────────────────────────────────────
+let galaEntriesData  = [];
+let galaSwimmerTimes = {};
+let currentGalaId    = null;
+
+const GALA_EVENT_ORDER = [
+  '50 Free','100 Free','200 Free','400 Free','800 Free','1500 Free',
+  '50 Back','100 Back','200 Back',
+  '50 Breast','100 Breast','200 Breast',
+  '50 Fly','100 Fly','200 Fly',
+  '100 IM','200 IM','400 IM'
+];
+
+function loadGalaPage() {
+  const sel = document.getElementById('galaSelect');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Select a gala…</option>';
+  (allEvents || [])
+    .filter(e => e.is_active !== false)
+    .sort((a, b) => new Date(a.event_date) - new Date(b.event_date))
+    .forEach(e => {
+      const opt = document.createElement('option');
+      opt.value = e.id;
+      let label = e.title + ' — ' + new Date(e.event_date).toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' });
+      if (e.entry_deadline) label += ' (deadline ' + new Date(e.entry_deadline).toLocaleDateString('en-ZA', { day:'numeric', month:'short' }) + ')';
+      opt.textContent = label;
+      sel.appendChild(opt);
+    });
+  if (currentGalaId && sel.querySelector(`option[value="${currentGalaId}"]`)) {
+    sel.value = currentGalaId;
+    onGalaSelect();
+  }
 }
 
-function viewEntries(eventId) {
-  showPage('entries');
-  setTimeout(() => {
-    document.getElementById('entriesEventSelect').value = eventId;
-    loadEntries(eventId);
-  }, 50);
-}
+async function onGalaSelect() {
+  const galaId = document.getElementById('galaSelect').value;
+  currentGalaId = galaId;
+  if (!galaId) {
+    document.getElementById('galaEntriesContent').innerHTML =
+      `<div class="empty"><div class="empty-title">Select a gala above</div><div class="empty-desc">Swimmer cards will appear with their personal bests pre-filled.</div></div>`;
+    return;
+  }
+  document.getElementById('galaEntriesContent').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
-async function loadEntries(eventId) {
-  if (!eventId) { document.getElementById('entriesContent').innerHTML = ''; return; }
-  document.getElementById('entriesContent').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-  const { data, error } = await sb.from('club_race_entries')
-    .select('*, club_members(member_number, club_categories(name)), club_categories(name)')
-    .eq('club_event_id', eventId)
-    .order('race_number');
-  if (error) { showToast(error.message, 'error'); return; }
-  const entries = data || [];
-  const event   = allEvents.find(e => e.id === eventId);
+  // Ensure roster is loaded (may not have been if entries page opened first)
+  if (!allRoster.length) await loadRoster();
 
-  // Group by category
-  const byCat = {};
-  entries.forEach(e => {
-    const cat = e.club_categories?.name || e.club_members?.club_categories?.name || 'Guest';
-    if (!byCat[cat]) byCat[cat] = [];
-    byCat[cat].push(e);
+  const [entriesRes, timesRes] = await Promise.all([
+    sb.from('club_gala_entries').select('*').eq('club_id', currentClub.id).eq('event_id', galaId),
+    sb.from('club_swimmer_times').select('*').eq('club_id', currentClub.id).eq('is_pb', true)
+  ]);
+
+  galaEntriesData = entriesRes.data || [];
+  galaSwimmerTimes = {};
+  (timesRes.data || []).forEach(t => {
+    if (!galaSwimmerTimes[t.roster_id]) galaSwimmerTimes[t.roster_id] = [];
+    galaSwimmerTimes[t.roster_id].push(t);
   });
 
-  const html = `
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title">${event?.title || 'Event'}</div>
-          <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${entries.length} entries</div>
+  renderGalaSwimmers();
+}
+
+function renderGalaSwimmers() {
+  if (!currentGalaId) return;
+  const squadFilter = document.getElementById('galaSquadFilter').value;
+  const GOLD   = 'a1000001-0000-0000-0000-000000000005';
+  const JUNIOR = 'a1000001-0000-0000-0000-000000000006';
+
+  let swimmers = allRoster.filter(r => {
+    if (squadFilter === 'competitive') return r.squad_id === GOLD || r.squad_id === JUNIOR;
+    if (squadFilter === '') return true;
+    return r.squad_id === squadFilter;
+  }).sort((a, b) => a.display_name.localeCompare(b.display_name));
+
+  const enteredIds = new Set(galaEntriesData.filter(e => e.status !== 'scratched').map(e => e.roster_id));
+  const entered    = swimmers.filter(s => enteredIds.has(s.id));
+  const notEntered = swimmers.filter(s => !enteredIds.has(s.id));
+
+  const squadName  = s => allSquads.find(sq => sq.id === s.squad_id)?.name || '';
+  const genderBadge = g => g === 'M'
+    ? `<span style="color:#60a5fa;font-size:11px;font-weight:700;">M</span>`
+    : `<span style="color:#f472b6;font-size:11px;font-weight:700;">F</span>`;
+
+  const swimmerCard = swimmer => {
+    const pbs       = galaSwimmerTimes[swimmer.id] || [];
+    const myEntries = galaEntriesData.filter(e => e.roster_id === swimmer.id && e.status !== 'scratched');
+    const hasEntries = myEntries.length > 0;
+
+    const pbPreview = pbs.slice(0, 4).map(t =>
+      `<span style="font-size:11px;color:var(--text-sec);background:rgba(255,255,255,0.04);padding:2px 6px;border-radius:4px;">${t.event} ${t.time_text}</span>`
+    ).join('');
+
+    const entryBadges = myEntries.map(e =>
+      `<span style="font-size:11px;color:var(--cyan);background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);padding:2px 7px;border-radius:4px;">${e.event_name}${e.entry_time_text ? ' ' + e.entry_time_text : ''}</span>`
+    ).join('');
+
+    return `<div style="display:flex;align-items:flex-start;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);gap:12px;">
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
+          ${swimmer.gender ? genderBadge(swimmer.gender) : ''}
+          <span style="font-size:14px;font-weight:600;color:var(--text);">${swimmer.display_name}</span>
+          <span style="font-size:11px;color:var(--text-sec);background:rgba(255,255,255,0.05);padding:2px 7px;border-radius:4px;">${squadName(swimmer)}</span>
+          ${swimmer.member_number ? `<span style="font-size:11px;color:var(--text-sec);">#${swimmer.member_number}</span>` : ''}
         </div>
-        <div class="card-actions">
-          <button class="btn-sm" onclick="exportStartList('${eventId}')">
-            <i data-lucide="download" style="width:13px;height:13px;"></i> Export start list
-          </button>
+        ${hasEntries
+          ? `<div style="display:flex;flex-wrap:wrap;gap:4px;">${entryBadges}</div>`
+          : pbs.length
+            ? `<div style="display:flex;flex-wrap:wrap;gap:4px;">${pbPreview}${pbs.length > 4 ? `<span style="font-size:11px;color:var(--text-sec);">+${pbs.length - 4} more PBs</span>` : ''}</div>`
+            : `<span style="font-size:12px;color:var(--text-sec);">No PBs on file — enter times manually</span>`
+        }
+      </div>
+      <button class="btn-sm" onclick="openEntryModal('${swimmer.id}')"
+        style="${hasEntries ? 'border-color:rgba(56,189,248,0.3);color:var(--cyan);' : ''}">
+        ${hasEntries ? 'Edit' : 'Enter'}
+      </button>
+    </div>`;
+  };
+
+  const event = allEvents.find(e => e.id === currentGalaId);
+  const totalEvents = galaEntriesData.filter(e => e.status !== 'scratched').length;
+
+  let html = `<div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">${event?.title || 'Gala'}</div>
+        <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">
+          ${event?.event_date ? new Date(event.event_date).toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) : ''}
+          ${event?.venue ? ' · ' + event.venue : ''}
         </div>
       </div>
-      ${Object.keys(byCat).length === 0
-        ? `<div class="empty"><div class="empty-title">No entries yet</div></div>`
-        : Object.entries(byCat).map(([cat, catEntries]) => `
-        <div style="padding:0 0 4px;">
-          <div style="font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;padding:12px 16px 6px;">${cat} — ${catEntries.length}</div>
-          <table>
-            <thead><tr><th>#</th><th>Name</th><th>Type</th><th>Arrived</th><th></th></tr></thead>
-            <tbody>
-              ${catEntries.map(e => `<tr>
-                <td><span class="member-num">${e.race_number}</span></td>
-                <td><div class="member-name">${e.guest_name || '—'}</div></td>
-                <td><span style="font-size:11px;color:var(--text-sec);">${e.entry_type === 'pre_entry' ? 'Pre-entry' : 'Day of'}</span></td>
-                <td>
-                  <input type="checkbox" ${e.arrived ? 'checked' : ''} onchange="markArrived('${e.id}', this.checked)"
-                    style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;">
-                </td>
-                <td></td>
-              </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>`).join('')
-      }
+      <div class="card-actions">
+        <span style="font-size:12px;color:var(--text-sec);">${totalEvents} event${totalEvents !== 1 ? 's' : ''} entered</span>
+        <button class="btn-sm" onclick="exportGalaEntries()">
+          <i data-lucide="download" style="width:13px;height:13px;"></i> Export CSV
+        </button>
+      </div>
     </div>`;
-  document.getElementById('entriesContent').innerHTML = html;
+
+  if (entered.length > 0) {
+    html += `<div style="padding:8px 16px 2px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;">Entered (${entered.length})</div>`;
+    html += entered.map(swimmerCard).join('');
+  }
+  if (notEntered.length > 0) {
+    html += `<div style="padding:8px 16px 2px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;">Not yet entered (${notEntered.length})</div>`;
+    html += notEntered.map(swimmerCard).join('');
+  }
+  if (swimmers.length === 0) {
+    html += `<div class="empty"><div class="empty-title">No swimmers in this filter</div></div>`;
+  }
+
+  html += `</div>`;
+  document.getElementById('galaEntriesContent').innerHTML = html;
   lucide.createIcons();
 }
 
-async function markArrived(entryId, arrived) {
-  const { error } = await sb.from('club_race_entries')
-    .update({ arrived, arrived_at: arrived ? new Date().toISOString() : null })
-    .eq('id', entryId);
-  if (error) showToast('Failed to update', 'error');
+let _entryModalRosterId = null;
+
+function openEntryModal(rosterId) {
+  _entryModalRosterId = rosterId;
+  const swimmer = allRoster.find(r => r.id === rosterId);
+  if (!swimmer) return;
+
+  const pbs      = galaSwimmerTimes[rosterId] || [];
+  const existing = galaEntriesData.filter(e => e.roster_id === rosterId && e.status !== 'scratched');
+  const existMap = {};
+  existing.forEach(e => { existMap[e.event_name] = e; });
+
+  document.getElementById('entryModalTitle').textContent = swimmer.display_name + ' — Gala Entry';
+
+  const pbEvents    = pbs.map(t => t.event);
+  const entryEvents = existing.map(e => e.event_name);
+  const allEvtNames = [...new Set([...pbEvents, ...entryEvents])];
+  allEvtNames.sort((a, b) => {
+    const ai = GALA_EVENT_ORDER.indexOf(a), bi = GALA_EVENT_ORDER.indexOf(b);
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+  });
+
+  let body = '';
+
+  if (allEvtNames.length > 0) {
+    body += `<div style="display:flex;flex-direction:column;gap:0;margin-bottom:16px;" id="entryEventsList">`;
+    allEvtNames.forEach(evtName => {
+      const pb      = pbs.find(t => t.event === evtName);
+      const ent     = existMap[evtName];
+      const checked = !!ent;
+      const timeVal = ent?.entry_time_text || pb?.time_text || '';
+      body += `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
+        <input type="checkbox" id="evt_${evtName.replace(/ /g,'_')}" value="${evtName}" ${checked ? 'checked' : ''}
+          style="width:16px;height:16px;accent-color:var(--cyan);cursor:pointer;flex-shrink:0;"
+          onchange="onEntryEventToggle(this)">
+        <label for="evt_${evtName.replace(/ /g,'_')}" style="flex:1;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;">${evtName}</label>
+        ${pb ? `<span style="font-size:11px;color:var(--text-sec);">PB ${pb.time_text}</span>` : ''}
+        <input type="text" placeholder="e.g. 1:12.05" value="${timeVal}"
+          id="time_${evtName.replace(/ /g,'_')}"
+          style="width:100px;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);${!checked ? 'opacity:0.4;' : ''}">
+      </div>`;
+    });
+    body += `</div>`;
+  } else {
+    body += `<div style="padding:12px 0 16px;color:var(--text-sec);font-size:13px;">No PBs on file — use the selector below to add events manually.</div>`;
+  }
+
+  const remaining = GALA_EVENT_ORDER.filter(e => !allEvtNames.includes(e));
+  body += `<div style="display:flex;gap:8px;align-items:center;">
+    <select id="addEventSelect" class="filter-select" style="flex:1;">
+      <option value="">Add another event…</option>
+      ${remaining.map(e => `<option value="${e}">${e}</option>`).join('')}
+    </select>
+    <button class="btn-sm" onclick="addManualEntryEvent()">Add</button>
+  </div>`;
+
+  if (existing.length > 0) {
+    body += `<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
+      <button class="btn-sm" style="color:var(--danger);border-color:rgba(239,68,68,0.35);" onclick="scratchAllEntries('${rosterId}')">
+        <i data-lucide="x-circle" style="width:13px;height:13px;"></i> Scratch all events
+      </button>
+    </div>`;
+  }
+
+  document.getElementById('entryModalBody').innerHTML = body;
+  document.getElementById('entryModal').style.display = 'flex';
+  lucide.createIcons();
 }
 
-async function exportStartList(eventId) {
-  const { data } = await sb.from('club_race_entries')
-    .select('race_number, guest_name, entry_type, club_categories(name)')
-    .eq('club_event_id', eventId)
-    .order('race_number');
-  const rows = ['Race #,Name,Category,Entry type'];
-  (data || []).forEach(e => {
-    rows.push(`${e.race_number},"${e.guest_name || ''}","${e.club_categories?.name || ''}","${e.entry_type}"`);
+function onEntryEventToggle(cb) {
+  const inp = document.getElementById('time_' + cb.value.replace(/ /g,'_'));
+  if (inp) inp.style.opacity = cb.checked ? '1' : '0.4';
+}
+
+function addManualEntryEvent() {
+  const sel     = document.getElementById('addEventSelect');
+  const evtName = sel.value;
+  if (!evtName) return;
+  const list = document.getElementById('entryEventsList');
+  const newRow = `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
+    <input type="checkbox" id="evt_${evtName.replace(/ /g,'_')}" value="${evtName}" checked
+      style="width:16px;height:16px;accent-color:var(--cyan);cursor:pointer;flex-shrink:0;"
+      onchange="onEntryEventToggle(this)">
+    <label for="evt_${evtName.replace(/ /g,'_')}" style="flex:1;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;">${evtName}</label>
+    <input type="text" placeholder="e.g. 1:12.05" id="time_${evtName.replace(/ /g,'_')}"
+      style="width:100px;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);">
+  </div>`;
+  if (list) {
+    list.insertAdjacentHTML('beforeend', newRow);
+  } else {
+    document.getElementById('entryModalBody').insertAdjacentHTML('afterbegin',
+      `<div style="display:flex;flex-direction:column;gap:0;margin-bottom:16px;" id="entryEventsList">${newRow}</div>`);
+  }
+  sel.querySelector(`option[value="${evtName}"]`)?.remove();
+  sel.value = '';
+}
+
+function closeEntryModal() {
+  document.getElementById('entryModal').style.display = 'none';
+  _entryModalRosterId = null;
+}
+
+async function saveGalaEntries() {
+  const rosterId = _entryModalRosterId;
+  if (!rosterId || !currentGalaId) return;
+  const swimmer = allRoster.find(r => r.id === rosterId);
+  const pbs     = galaSwimmerTimes[rosterId] || [];
+
+  const selected = [];
+  document.querySelectorAll('#entryModalBody input[type="checkbox"]:checked').forEach(cb => {
+    const evtName  = cb.value;
+    const timeText = document.getElementById('time_' + evtName.replace(/ /g,'_'))?.value?.trim() || '';
+    const pb       = pbs.find(t => t.event === evtName);
+    selected.push({ evtName, timeText, pbSeconds: pb?.time_seconds ?? null });
+  });
+
+  await sb.from('club_gala_entries').delete()
+    .eq('club_id', currentClub.id).eq('event_id', currentGalaId).eq('roster_id', rosterId);
+
+  if (selected.length === 0) {
+    showToast(swimmer.display_name + ' — all events removed');
+    closeEntryModal();
+    await onGalaSelect();
+    return;
+  }
+
+  const rows = selected.map(s => ({
+    club_id:            currentClub.id,
+    event_id:           currentGalaId,
+    roster_id:          rosterId,
+    event_name:         s.evtName,
+    course:             'LC',
+    entry_time_text:    s.timeText || null,
+    entry_time_seconds: parseEntryTime(s.timeText),
+    pb_time_seconds:    s.pbSeconds,
+    status:             'entered'
+  }));
+
+  const { error } = await sb.from('club_gala_entries').insert(rows);
+  if (error) { showToast('Save failed: ' + error.message, 'error'); return; }
+
+  showToast(swimmer.display_name + ' — ' + selected.length + ' event' + (selected.length !== 1 ? 's' : '') + ' entered');
+  closeEntryModal();
+  await onGalaSelect();
+}
+
+function parseEntryTime(str) {
+  if (!str) return null;
+  str = str.replace(',', '.');
+  const parts = str.split(':');
+  if (parts.length === 2) return parseFloat(parts[0]) * 60 + parseFloat(parts[1]);
+  return parseFloat(str) || null;
+}
+
+async function scratchAllEntries(rosterId) {
+  if (!confirm('Remove all events for this swimmer from this gala?')) return;
+  await sb.from('club_gala_entries').delete()
+    .eq('club_id', currentClub.id).eq('event_id', currentGalaId).eq('roster_id', rosterId);
+  showToast('All events removed');
+  closeEntryModal();
+  await onGalaSelect();
+}
+
+function viewGalaEntries(eventId) {
+  showPage('entries');
+  setTimeout(() => {
+    const sel = document.getElementById('galaSelect');
+    if (sel) { sel.value = eventId; onGalaSelect(); }
+  }, 50);
+}
+
+async function exportGalaEntries() {
+  if (!currentGalaId) return;
+  const event = allEvents.find(e => e.id === currentGalaId);
+  const rows  = ['Swimmer,Squad,Gender,Event,Course,Entry Time,PB Seconds,Status'];
+  galaEntriesData.forEach(e => {
+    const swimmer = allRoster.find(r => r.id === e.roster_id);
+    const squad   = allSquads.find(s => s.id === swimmer?.squad_id);
+    rows.push(`"${swimmer?.display_name || ''}","${squad?.name || ''}","${swimmer?.gender || ''}","${e.event_name}","${e.course}","${e.entry_time_text || ''}","${e.pb_time_seconds || ''}","${e.status}"`);
   });
   const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
   const a    = document.createElement('a');
   a.href     = URL.createObjectURL(blob);
-  a.download = 'start-list.csv';
+  a.download = (event?.title || 'gala').replace(/\s+/g, '-').toLowerCase() + '-entries.csv';
   a.click();
 }
 
