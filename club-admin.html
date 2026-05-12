@@ -2035,7 +2035,8 @@ async function renderOverview() {
       const sq = allSquads.find(q => q.id === s.squad_id);
       const assignedIds = allSessionAssignments[s.id] || [];
       const assigned = assignedIds.length;
-      const capacity = s.max_capacity || null;
+      const sqData = allSquads.find(q => q.id === s.squad_id);
+      const capacity = sqData?.max_members || null;
       const endMins = toMins(s.end_time || s.start_time);
       const isPast = s.end_time ? endMins < nowMins : toMins(s.start_time) + 60 < nowMins;
       const isNow  = !isPast && toMins(s.start_time) <= nowMins;
@@ -2264,12 +2265,17 @@ function renderDayDashboard(dow) {
   const daySessions = allWeekSessions.filter(s => s.day_of_week === dow)
     .sort((a,b) => toM(a.start_time)-toM(b.start_time));
 
-  // Totals for speedometer
+  // Totals for speedometer — use squad max_members as capacity
   let totalAssigned = 0, totalCapacity = 0;
+  const seenSquads = new Set();
   daySessions.forEach(s => {
     const asgn = (allWeekAssignments[s.id] || []).length;
     totalAssigned += asgn;
-    if (s.max_capacity) totalCapacity += s.max_capacity;
+    if (!seenSquads.has(s.squad_id)) {
+      seenSquads.add(s.squad_id);
+      const sq = allSquads.find(q => q.id === s.squad_id);
+      if (sq?.max_members) totalCapacity += sq.max_members;
+    }
   });
   const gaugeVal = totalCapacity > 0 ? Math.min(totalAssigned / totalCapacity, 1) : 0;
   const gaugePct = Math.round(gaugeVal * 100);
@@ -2307,7 +2313,7 @@ function renderDayDashboard(dow) {
       </div>`;
 
     const asgn = sqSessions.reduce((n,s) => n+(allWeekAssignments[s.id]||[]).length, 0);
-    const cap  = sqSessions.reduce((n,s) => n+(s.max_capacity||0), 0);
+    const cap  = sq.max_members || 0;
     const pct  = cap > 0 ? Math.min(asgn/cap, 1) : 0;
     const circ = 2 * Math.PI * 28; // r=28
     const offset = circ * (1 - pct);
@@ -2349,7 +2355,7 @@ function renderDayDashboard(dow) {
   const sessionRows = daySessions.length ? daySessions.map(s => {
     const sq = allSquads.find(q => q.id === s.squad_id);
     const asgn = (allWeekAssignments[s.id]||[]).length;
-    const cap  = s.max_capacity;
+    const cap  = sq?.max_members || null;
     const endM = toM(s.end_time||s.start_time);
     const isPast = dow===todayDow && (s.end_time ? endM<nowMins : toM(s.start_time)+60<nowMins);
     const isNow  = dow===todayDow && !isPast && toM(s.start_time)<=nowMins;
