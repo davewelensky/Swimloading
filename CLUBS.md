@@ -77,17 +77,53 @@ Never build past this boundary. Never market past this boundary.
 
 ## Data Model (Supabase)
 
+### Core tables (both clubs)
+
+| Table | Purpose | RLS |
+|-------|---------|-----|
+| `clubs` | One row per club — code, slug, name, country, city, home_spot_id, domain | public read |
+| `club_categories` | Age divisions per club | public read |
+| `club_members` | User linked to club — member_number, category_id, role (member/organiser/admin) | member read own club |
+| `club_admins` | Non-swimming staff (committee, officials) — separate from club_members | admin full + self-read |
+| `club_coaches` | Coach records — certs, first aid, emergency contact | admin only |
+| `club_join_links` | Invite links — code, expires_at, max_uses, use_count | public read, admin write |
+| `club_roster` | Master swimmer list — may or may not link to a SwimLoading user | public read (join flow) |
+| `club_member_profile` | Extended profile — DOB, guardian, **medical info**, consents | admin full + member reads own DOB/gender |
+| `club_events` | Upcoming races/sessions | member read, admin write |
+| `club_race_entries` | Who entered — member or guest, race_number, entry_type, arrived | member read own, admin all |
+| `club_squads` | Squad definitions (Bronze/Silver/Gold/Juniors/Seniors) | admin full + member read |
+| `club_squad_sessions` | Recurring weekly timetable — coach, days, times | admin full + member read |
+| `club_sessions` | Actual logged training sessions | admin |
+| `club_attendance` | Coach-marked attendance per session (7 status codes) | admin |
+| `club_session_attendance` | Swimmer self-reported intent for a session ("I'm coming") | member write own |
+| `club_announcements` | Coach posts to squad | member read, admin write |
+
+### Pool club tables (Aqua Sharks)
+
 | Table | Purpose |
 |-------|---------|
-| `clubs` | One row per club — code, slug, name, country, city, home_spot_id, domain |
-| `club_categories` | Age divisions per club (DUC: Guppies / Sailfish / Makos / Walrus / Coelacanths) |
-| `club_members` | User linked to club — member_number, category_id, role (member / organiser / admin) |
-| `club_join_links` | Invite links — code, expires_at, max_uses, use_count |
-| `club_events` | Upcoming races/sessions — title, date, time, spot, is_league, allows_day_entries |
-| `club_race_entries` | Who entered — member or guest, race_number, entry_type (pre_entry / day_of), arrived boolean |
-| `club_league_results` | Post-race results entered by admin — finish_position, points, dnf, dns |
+| `club_gala_results` | Per-swimmer gala results — stroke, distance, time, is_pb |
+| `club_swimmer_times` | PB cache per event — feeds QT progress bars |
 
-Full migration: `sql/applied/create_clubs_schema.sql`
+### Open water league tables (DUC)
+
+| Table | Purpose |
+|-------|---------|
+| `club_race_results` | League results — position, points, year, month_col |
+| `club_season_standings` | Denormalised standings built from race_results |
+
+### Dropped
+
+| Table | Reason |
+|-------|--------|
+| ~~`club_league_results`~~ | Original league design (event-linked). Superseded by `club_race_results` + `club_season_standings`. Zero JS references. Dropped May 2026. |
+
+### Key decisions on naming
+
+- `club_session_attendance` = swimmer **intent** ("I'm coming tomorrow") — confusingly named, rename to `club_attendance_intents` in a future migration
+- `club_attendance` = **coach mark** ("she showed up, marked as nc") — correctly named
+
+Migrations: `sql/applied/create_clubs_schema.sql` (foundation) · `add_attendance_upgrade.sql` (7 codes + trial/fee) · `fix_club_rls_and_schema.sql` (RLS + drop dead table)
 
 ---
 
