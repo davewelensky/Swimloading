@@ -2055,7 +2055,7 @@ async function renderOverview() {
       const liveBadge = isNow ? `<span style="font-size:9px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.15);padding:1px 6px;border-radius:10px;letter-spacing:0.05em;margin-left:6px;">LIVE</span>` : '';
       const pastLabel = isPast ? `<span style="font-size:9px;color:var(--text-sec);margin-left:6px;">done</span>` : '';
 
-      return `<div onclick="${isPast ? '' : `openMarkSession('${s.id}')`}" style="display:flex;align-items:flex-start;gap:12px;padding:11px 16px;border-bottom:1px solid var(--border);${wrapStyle}${isPast ? '' : 'cursor:pointer;'}transition:background 0.15s;" ${isPast ? '' : `onmouseover="this.style.background='rgba(56,189,248,0.06)'" onmouseout="this.style.background='${isNow ? 'rgba(56,189,248,0.04)' : 'transparent'}'"`}>
+      return `<div onclick="${isPast ? '' : `openMarkFromSchedule('${s.id}')`}" style="display:flex;align-items:flex-start;gap:12px;padding:11px 16px;border-bottom:1px solid var(--border);${wrapStyle}${isPast ? '' : 'cursor:pointer;'}transition:background 0.15s;" ${isPast ? '' : `onmouseover="this.style.background='rgba(56,189,248,0.06)'" onmouseout="this.style.background='${isNow ? 'rgba(56,189,248,0.04)' : 'transparent'}'"`}>
         <div style="min-width:90px;font-size:12px;font-weight:700;color:${isPast ? 'var(--text-sec)' : 'var(--cyan)'};padding-top:2px;">${fmtTime(s.start_time)}${s.end_time ? '–'+fmtTime(s.end_time) : ''}</div>
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:600;">${sq?.name || 'Squad'}${liveBadge}${pastLabel}</div>
@@ -2358,7 +2358,7 @@ function renderDayDashboard(dow) {
     const pct    = cap>0 ? Math.round(asgn/cap*100) : 0;
     const bColor = pct>=90?'var(--amber)':pct>=60?'var(--green)':'var(--cyan)';
     const liveBadge = isNow?`<span style="font-size:9px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.15);padding:1px 6px;border-radius:10px;margin-left:6px;">LIVE</span>`:'';
-    return `<div onclick="${isPast?'':''}" style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);opacity:${isPast?'0.3':'1'};${isPast?'':'cursor:pointer;'}${isNow?'background:rgba(56,189,248,0.04);':''}" ${!isPast?`onclick="openMarkSession('${s.id}')" onmouseover="this.style.background='rgba(56,189,248,0.06)'" onmouseout="this.style.background='${isNow?'rgba(56,189,248,0.04)':'transparent'}'"`:''}>
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);opacity:${isPast?'0.3':'1'};${isPast?'':'cursor:pointer;'}${isNow?'background:rgba(56,189,248,0.04);':''}" ${!isPast?`onclick="openMarkFromSchedule('${s.id}')" onmouseover="this.style.background='rgba(56,189,248,0.06)'" onmouseout="this.style.background='${isNow?'rgba(56,189,248,0.04)':'transparent'}'"`:''}>
       <div style="min-width:96px;font-size:12px;font-weight:700;color:${isPast?'var(--text-sec)':'var(--cyan)'};">${fmtT(s.start_time)}${s.end_time?'–'+fmtT(s.end_time):''}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:600;">${sq?.name||'Squad'}${liveBadge}</div>
@@ -6122,6 +6122,45 @@ async function submitNewSession() {
 }
 
 // ── MARK ATTENDANCE ───────────────────────────────────────────────
+
+// Called from Overview — finds or creates a club_sessions instance from a recurring squad session
+async function openMarkFromSchedule(squadSessionId) {
+  const tpl = allWeekSessions.find(s => s.id === squadSessionId);
+  if (!tpl) return;
+  const today = new Date().toISOString().slice(0, 10);
+  const sq = allSquads.find(q => q.id === tpl.squad_id);
+
+  // Check if a club_sessions record already exists for this squad + date + time
+  const { data: existing } = await sb.from('club_sessions')
+    .select('*, club_attendance(id, roster_id, status)')
+    .eq('club_id', currentClub.id)
+    .eq('session_date', today)
+    .eq('squad_id', tpl.squad_id)
+    .eq('start_time', tpl.start_time)
+    .maybeSingle();
+
+  if (existing) {
+    if (!allSessions.find(s => s.id === existing.id)) allSessions.unshift(existing);
+    openMarkSession(existing.id);
+    return;
+  }
+
+  // Create a new club_sessions instance from the recurring template
+  const { data: created, error } = await sb.from('club_sessions').insert({
+    club_id:      currentClub.id,
+    session_date: today,
+    squad_id:     tpl.squad_id,
+    session_type: sq?.name || 'Squad',
+    start_time:   tpl.start_time,
+    coach_name:   tpl.coach_name || null,
+    created_by:   currentUser.id,
+  }).select('*, club_attendance(id, roster_id, status)').single();
+
+  if (error) { showToast('Could not open session: ' + error.message, 'error'); return; }
+  allSessions.unshift(created);
+  openMarkSession(created.id);
+}
+
 async function openMarkSession(sessionId) {
   activeSessionId = sessionId;
   const session = allSessions.find(s => s.id === sessionId);
