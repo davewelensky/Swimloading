@@ -1970,29 +1970,33 @@ async function renderOverview() {
       <div style="padding:20px 16px;text-align:center;color:var(--text-sec);font-size:13px;">No sessions scheduled</div>`;
   }
 
-  // Squad health
-  const squadHealthRows = allSquads.map(sq => {
-    const count = roster.filter(r => r.squad_id === sq.id).length;
-    const max   = sq.max_members;
-    const pct   = max ? Math.min(100, Math.round(count / max * 100)) : null;
-    let barColor = 'var(--cyan)', statusTxt = '', statusColor = 'var(--text-sec)';
-    if (max) {
-      const spots = max - count;
-      if (spots <= 0)      { barColor='var(--danger)'; statusTxt=`Full`;              statusColor='var(--danger)'; }
-      else if (spots <= 2) { barColor='var(--amber)';  statusTxt=`${spots} left`;     statusColor='var(--amber)'; }
-      else                 { barColor='var(--green)';  statusTxt=`${spots} open`;     statusColor='var(--green)'; }
-    } else {
-      statusTxt = `${count} members`; statusColor = 'var(--text-sec)';
+  // Squad health — build per-squad session capacity from allTimetableSessions
+  const squadSessionCaps = {};
+  (allTimetableSessions || []).forEach(s => {
+    if (s.max_capacity) {
+      if (!squadSessionCaps[s.squad_id]) squadSessionCaps[s.squad_id] = { min: s.max_capacity, max: s.max_capacity };
+      else {
+        squadSessionCaps[s.squad_id].min = Math.min(squadSessionCaps[s.squad_id].min, s.max_capacity);
+        squadSessionCaps[s.squad_id].max = Math.max(squadSessionCaps[s.squad_id].max, s.max_capacity);
+      }
     }
-    const barHtml = max
-      ? `<div class="squad-health-bar-wrap"><div class="squad-health-bar" style="width:${pct}%;background:${barColor};"></div></div>`
-      : `<div class="squad-health-bar-wrap"><div class="squad-health-bar" style="width:100%;background:rgba(255,255,255,0.08);"></div></div>`;
-    const countDisplay = max ? `${count}/${max}` : `${count}`;
+  });
+
+  const squadHealthRows = allSquads.map(sq => {
+    const count   = roster.filter(r => r.squad_id === sq.id).length;
+    const capRange = squadSessionCaps[sq.id];
+    const capTxt  = capRange
+      ? (capRange.min === capRange.max ? `${capRange.min}/session` : `${capRange.min}–${capRange.max}/session`)
+      : null;
+    const subTxt = capTxt
+      ? `${count} enrolled · <span style="color:var(--cyan);">${capTxt}</span>`
+      : `${count} enrolled`;
     return `<div class="squad-health-row" onclick="pendingTrackerSquadId='${sq.id}';showPage('tracker');" style="cursor:pointer;">
-      <div class="squad-health-name">${sq.name}</div>
-      ${barHtml}
-      <div class="squad-health-count" style="color:${barColor};">${countDisplay}</div>
-      <div class="squad-health-status" style="color:${statusColor};">${statusTxt}</div>
+      <div style="flex:1;">
+        <div class="squad-health-name">${sq.name}</div>
+        <div style="font-size:11px;color:var(--text-sec);margin-top:2px;">${subTxt}</div>
+      </div>
+      <div class="squad-health-count" style="color:var(--cyan);font-size:20px;">${count}</div>
     </div>`;
   });
   if (unassigned.length > 0) {
@@ -4872,15 +4876,20 @@ async function loadSquads() {
   // club_squad_sessions has no club_id — filter via squad_id IN (...)
   if (allSquads.length) {
     const todayDow = new Date().getDay();
-    const { data: schedData } = await sb.from('club_squad_sessions')
-      .select('id, squad_id, day_of_week, start_time, end_time, coach_name, max_capacity, notes, is_active')
-      .in('squad_id', allSquads.map(s => s.id))
-      .eq('day_of_week', todayDow)
-      .eq('is_active', true)
-      .order('start_time');
-    allSquadSessions = schedData || [];
+    const squadIds = allSquads.map(s => s.id);
+    const [todayRes, allRes] = await Promise.all([
+      sb.from('club_squad_sessions')
+        .select('id, squad_id, day_of_week, start_time, end_time, coach_name, max_capacity, notes, is_active')
+        .in('squad_id', squadIds).eq('day_of_week', todayDow).eq('is_active', true).order('start_time'),
+      sb.from('club_squad_sessions')
+        .select('squad_id, max_capacity')
+        .in('squad_id', squadIds).eq('is_active', true),
+    ]);
+    allSquadSessions   = todayRes.data || [];
+    allTimetableSessions = allRes.data || [];
   } else {
     allSquadSessions = [];
+    allTimetableSessions = [];
   }
 }
 
