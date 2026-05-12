@@ -885,8 +885,8 @@
         <input type="number" class="form-input" id="squadSort" value="10" min="1" max="99">
       </div>
       <div class="form-group">
-        <div class="form-label">Max members <span style="font-weight:400;color:var(--text-dim);">optional</span></div>
-        <input type="number" class="form-input" id="squadMaxMembers" placeholder="e.g. 20" min="1">
+        <div class="form-label">Max per session <span style="font-weight:400;color:var(--text-dim);">optional — leave blank for no limit</span></div>
+        <input type="number" class="form-input" id="squadMaxMembers" placeholder="e.g. 13" min="1">
       </div>
     </div>
     <div class="modal-actions">
@@ -1970,26 +1970,11 @@ async function renderOverview() {
       <div style="padding:20px 16px;text-align:center;color:var(--text-sec);font-size:13px;">No sessions scheduled</div>`;
   }
 
-  // Squad health — build per-squad session capacity from allTimetableSessions
-  const squadSessionCaps = {};
-  (allTimetableSessions || []).forEach(s => {
-    if (s.max_capacity) {
-      if (!squadSessionCaps[s.squad_id]) squadSessionCaps[s.squad_id] = { min: s.max_capacity, max: s.max_capacity };
-      else {
-        squadSessionCaps[s.squad_id].min = Math.min(squadSessionCaps[s.squad_id].min, s.max_capacity);
-        squadSessionCaps[s.squad_id].max = Math.max(squadSessionCaps[s.squad_id].max, s.max_capacity);
-      }
-    }
-  });
-
   const squadHealthRows = allSquads.map(sq => {
-    const count   = roster.filter(r => r.squad_id === sq.id).length;
-    const capRange = squadSessionCaps[sq.id];
-    const capTxt  = capRange
-      ? (capRange.min === capRange.max ? `${capRange.min}/session` : `${capRange.min}–${capRange.max}/session`)
-      : null;
-    const subTxt = capTxt
-      ? `${count} enrolled · <span style="color:var(--cyan);">${capTxt}</span>`
+    const count      = roster.filter(r => r.squad_id === sq.id).length;
+    const perSession = sq.max_members; // set via Settings → Squads → Edit → Max per session
+    const subTxt = perSession
+      ? `${count} enrolled · <span style="color:var(--cyan);">${perSession}/session</span>`
       : `${count} enrolled`;
     return `<div class="squad-health-row" onclick="pendingTrackerSquadId='${sq.id}';showPage('tracker');" style="cursor:pointer;">
       <div style="flex:1;">
