@@ -1505,7 +1505,7 @@ async function loadMembers() {
       .eq('club_id', currentClub.id)
       .not('user_id', 'is', null),
     sb.from('club_roster')
-      .select('id, member_number, display_name, category, user_id')
+      .select('id, member_number, display_name, category, user_id, squad_id, is_trial, fee_paid')
       .eq('club_id', currentClub.id)
       .order('member_number'),
   ]);
@@ -1870,7 +1870,7 @@ async function loadSquadTracker() {
   // Fetch roster + both time tables + attendance in parallel
   const clubId = currentClub.id;
   const [rosterRes, swimTimesRes, galaTimesRes, attendRes] = await Promise.all([
-    sb.from('club_roster').select('id, display_name, member_number, category, date_of_birth, gender')
+    sb.from('club_roster').select('id, display_name, member_number, category, date_of_birth, gender, is_trial, fee_paid')
       .eq('club_id', clubId).order('display_name'),
     sb.from('club_swimmer_times').select('roster_id, event, course, time_seconds, time_text, is_pb, meet_date')
       .eq('club_id', clubId).order('meet_date', { ascending: true }),
@@ -3313,7 +3313,7 @@ let rosterLinkSearchTimer = null;
 async function loadRoster() {
   const { data: roster } = await sb
     .from('club_roster')
-    .select('id, member_number, display_name, category, gender, user_id, phone, squad_id, date_of_birth')
+    .select('id, member_number, display_name, category, gender, user_id, phone, squad_id, date_of_birth, is_trial, fee_paid, trial_start_date, trial_end_date')
     .eq('club_id', currentClub.id)
     .order('member_number', { ascending: true, nullsFirst: false });
 
@@ -3765,7 +3765,7 @@ async function loadSquads() {
       .eq('is_active', true)
       .order('sort_order'),
     sb.from('club_squad_sessions')
-      .select('id, squad_id, day_of_week, start_time, end_time, session_type, notes')
+      .select('id, squad_id, day_of_week, start_time, end_time, session_type, coach_name, max_capacity, notes')
       .eq('club_id', currentClub.id)
       .eq('day_of_week', todayDow)
       .order('start_time'),
@@ -3917,6 +3917,18 @@ async function submitAddRosterMember() {
 
 // ── ATTENDANCE ────────────────────────────────────────────────────
 
+// Status codes matching Britt's spreadsheet: X=present, nc=no_contact,
+// Notice=notice, NS=no_show, Away=away, DNP=dnp, C/U=catch_up
+const ATTENDANCE_STATUSES = [
+  { key: 'present',    label: '✓',      title: 'Present'      },
+  { key: 'no_contact', label: 'nc',     title: 'No Contact'   },
+  { key: 'notice',     label: 'Notice', title: 'Notice Given' },
+  { key: 'no_show',    label: 'NS',     title: 'No Show'      },
+  { key: 'away',       label: 'Away',   title: 'Away'         },
+  { key: 'dnp',        label: 'DNP',    title: 'Did Not Pay'  },
+  { key: 'catch_up',   label: 'C/U',   title: 'Catch-up'     },
+];
+
 let allSessions       = [];
 let activeSessionId   = null;   // session being marked
 let attendanceMarks   = {};     // rosterId → status for active session
@@ -3980,7 +3992,7 @@ function renderTodayBanner() {
     <div style="background:${isNow && !alreadyLogged ? 'rgba(56,189,248,0.06)' : 'rgba(255,255,255,0.02)'};border:1px solid ${isNow && !alreadyLogged ? 'rgba(56,189,248,0.25)' : 'var(--border)'};border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
       <div>
         <div style="font-size:14px;font-weight:700;color:var(--text);">${squad?.name || ss.session_type || 'Session'}</div>
-        <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${timeLabel}${ss.end_time ? ' – ' + ss.end_time.slice(0,5) : ''} · ${ss.session_type || 'Training'}</div>
+        <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${timeLabel}${ss.end_time ? ' – ' + ss.end_time.slice(0,5) : ''}${ss.coach_name ? ' · ' + ss.coach_name : ''} · ${ss.session_type || 'Training'}${ss.max_capacity ? ' · ' + ss.max_capacity + ' max' : ''}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
         ${statusBadge}
@@ -4067,7 +4079,7 @@ function renderSessionsList() {
               </div>
               <div>
                 <div style="font-size:14px;font-weight:700;color:var(--text);">${squadName || s.session_type + ' Session'}${s.notes ? ` — ${s.notes}` : ''}</div>
-                <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${attended} of ${squadRosterSize} present · ${sessionPct}% attendance</div>
+                <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${s.coach_name ? s.coach_name + ' · ' : ''}${attended} of ${squadRosterSize} present · ${sessionPct}%</div>
               </div>
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
@@ -4186,21 +4198,23 @@ function openNewSession() {
   document.getElementById('nsDate').value = today;
   document.getElementById('nsType').value = defaultType;
   document.getElementById('nsTime').value = '';
+  document.getElementById('nsCoach').value = '';
   document.getElementById('nsNotes').value = '';
   document.getElementById('newSessionModal').classList.add('open');
 }
 function closeNewSession() { document.getElementById('newSessionModal').classList.remove('open'); }
 
 async function submitNewSession() {
-  const date  = document.getElementById('nsDate').value;
-  const type  = document.getElementById('nsType').value;
-  const time  = document.getElementById('nsTime').value || null;
-  const notes = document.getElementById('nsNotes').value.trim() || null;
+  const date       = document.getElementById('nsDate').value;
+  const type       = document.getElementById('nsType').value;
+  const time       = document.getElementById('nsTime').value || null;
+  const coach_name = document.getElementById('nsCoach').value.trim() || null;
+  const notes      = document.getElementById('nsNotes').value.trim() || null;
   if (!date) { showToast('Please pick a date'); return; }
 
   const { data, error } = await sb.from('club_sessions').insert({
     club_id: currentClub.id, session_date: date, session_type: type,
-    start_time: time, notes, created_by: currentUser.id,
+    start_time: time, coach_name, notes, created_by: currentUser.id,
   }).select('*, club_attendance(id, roster_id, status)').single();
 
   if (error) { showToast('Error: ' + error.message); return; }
@@ -4295,17 +4309,23 @@ function renderMarkModal(session) {
           : intent === 'absent'
           ? `<span style="font-size:9px;font-weight:800;color:#ef4444;background:rgba(239,68,68,0.08);border-radius:6px;padding:1px 6px;margin-left:6px;white-space:nowrap;">Said absent</span>`
           : `<span style="font-size:9px;color:var(--text-sec);margin-left:6px;opacity:0.5;">no response</span>`;
+        const trialBadge = r.is_trial
+          ? `<span style="font-size:9px;font-weight:800;color:#ef4444;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:6px;padding:1px 6px;margin-left:5px;white-space:nowrap;">TRIAL</span>`
+          : '';
+        const feeBadge = r.fee_paid === false
+          ? `<span style="font-size:9px;font-weight:800;color:#f59e0b;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:6px;padding:1px 6px;margin-left:5px;white-space:nowrap;">UNPAID</span>`
+          : '';
         return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);gap:8px;" id="row-${r.id}">
-          <div style="display:flex;align-items:center;min-width:0;">
-            <span style="font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;">${r.display_name}</span>
-            ${intentBadge}
+          <div style="display:flex;align-items:center;min-width:0;flex-wrap:wrap;gap:2px;">
+            <span style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;">${r.display_name}</span>
+            ${trialBadge}${feeBadge}${intentBadge}
           </div>
-          <div style="display:flex;gap:6px;flex-shrink:0;">
-            ${['present','late','absent','excused'].map(s => `
-              <button onclick="setMark('${r.id}','${s}')"
-                style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;transition:all 0.1s;
-                  ${status===s ? markActiveStyle(s) : 'background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text-sec);'}">
-                ${s.charAt(0).toUpperCase()+s.slice(1)}
+          <div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
+            ${ATTENDANCE_STATUSES.map(s => `
+              <button onclick="setMark('${r.id}','${s.key}')" title="${s.title}"
+                style="font-size:10px;font-weight:700;padding:4px 7px;border-radius:7px;cursor:pointer;transition:all 0.1s;
+                  ${status===s.key ? markActiveStyle(s.key) : 'background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text-sec);'}">
+                ${s.label}
               </button>`).join('')}
           </div>
         </div>`;
@@ -4317,27 +4337,29 @@ function renderMarkModal(session) {
 
 function markActiveStyle(status) {
   const styles = {
-    present: 'background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.4);color:#10b981;',
-    late:    'background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.4);color:#38bdf8;',
-    absent:  'background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;',
-    excused: 'background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);color:#f59e0b;',
+    present:    'background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.4);color:#10b981;',
+    catch_up:   'background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.3);color:#10b981;',
+    no_contact: 'background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#ef4444;',
+    notice:     'background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);color:#f59e0b;',
+    no_show:    'background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;',
+    away:       'background:rgba(100,116,139,0.15);border:1px solid rgba(100,116,139,0.4);color:#94a3b8;',
+    dnp:        'background:rgba(249,115,22,0.15);border:1px solid rgba(249,115,22,0.4);color:#f97316;',
+    late:       'background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.4);color:#38bdf8;',
+    absent:     'background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;',
+    excused:    'background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);color:#f59e0b;',
   };
   return styles[status] || '';
 }
 
 function setMark(rosterId, status) {
   attendanceMarks[rosterId] = status;
-  // Re-render just that row's buttons
-  const session = allSessions.find(s => s.id === activeSessionId);
-  if (!session) return;
-  const r = allRosterFull.find(r => r.id === rosterId);
   const row = document.getElementById('row-' + rosterId);
   if (row) {
-    row.querySelector('div:last-child').innerHTML = ['present','late','absent','excused'].map(s => `
-      <button onclick="setMark('${rosterId}','${s}')"
-        style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;transition:all 0.1s;
-          ${attendanceMarks[rosterId]===s ? markActiveStyle(s) : 'background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text-sec);'}">
-        ${s.charAt(0).toUpperCase()+s.slice(1)}
+    row.querySelector('div:last-child').innerHTML = ATTENDANCE_STATUSES.map(s => `
+      <button onclick="setMark('${rosterId}','${s.key}')" title="${s.title}"
+        style="font-size:10px;font-weight:700;padding:4px 7px;border-radius:7px;cursor:pointer;transition:all 0.1s;
+          ${attendanceMarks[rosterId]===s.key ? markActiveStyle(s.key) : 'background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text-sec);'}">
+        ${s.label}
       </button>`).join('');
   }
   updateMarkCount();
@@ -4357,7 +4379,7 @@ function updateMarkCount() {
   const roster = session?.squad_id
     ? allRosterFull.filter(r => r.squad_id === session.squad_id)
     : allRosterFull;
-  const attended = Object.values(attendanceMarks).filter(s => s === 'present' || s === 'late').length;
+  const attended = Object.values(attendanceMarks).filter(s => s === 'present' || s === 'late' || s === 'catch_up').length;
   const el = document.getElementById('markCount');
   if (el) el.textContent = `${attended} of ${roster.length} present`;
 }
@@ -4421,8 +4443,16 @@ function openSwimmerDetail(rosterId) {
 
   const pctColour = p => p == null ? 'var(--text-sec)' : p >= 80 ? 'var(--green)' : p >= 60 ? 'var(--amber)' : 'var(--danger)';
 
-  const markLabel = { present:'Present', late:'Late', absent:'Absent', excused:'Excused' };
-  const markColour = { present:'#10b981', late:'#38bdf8', absent:'#ef4444', excused:'#f59e0b' };
+  const markLabel = {
+    present:'Present', catch_up:'Catch-up', late:'Late',
+    no_contact:'No Contact', notice:'Notice', no_show:'No Show',
+    away:'Away', dnp:'DNP', absent:'Absent', excused:'Excused',
+  };
+  const markColour = {
+    present:'#10b981', catch_up:'#10b981', late:'#38bdf8',
+    no_contact:'#ef4444', notice:'#f59e0b', no_show:'#ef4444',
+    away:'#94a3b8', dnp:'#f97316', absent:'#ef4444', excused:'#f59e0b',
+  };
   const intentLabel  = { attending:'Said coming', absent:'Said absent' };
   const intentColour = { attending:'#10b981', absent:'#ef4444' };
 
@@ -4714,6 +4744,10 @@ init();
     <div class="form-group">
       <div class="form-label">Start time (optional)</div>
       <input type="time" class="form-input" id="nsTime">
+    </div>
+    <div class="form-group">
+      <div class="form-label">Coach</div>
+      <input type="text" class="form-input" id="nsCoach" placeholder="e.g. Tarryn, Britt, Kaisea">
     </div>
     <div class="form-group">
       <div class="form-label">Notes (optional)</div>
