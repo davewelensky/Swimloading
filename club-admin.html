@@ -6352,18 +6352,37 @@ async function executeCsvImport() {
   document.getElementById('csvImportBtnLabel').textContent = 'Importing…';
 
   // Resolve squad names → ids once
+  // Build two maps: exact name and first-keyword (handles "SENIORS" → "Senior Squad")
   const squadByName = {};
-  (allSquads || []).forEach(s => { squadByName[s.name.toLowerCase()] = s.id; });
+  const squadByKeyword = {};
+  (allSquads || []).forEach(s => {
+    squadByName[s.name.toLowerCase()] = s.id;
+    const keyword = s.name.toLowerCase().split(/[\s,\(]/)[0];
+    squadByKeyword[keyword] = s.id;
+  });
+  const resolveSquad = raw => {
+    if (!raw) return null;
+    const key = raw.trim().toLowerCase();
+    if (squadByName[key]) return squadByName[key];           // exact: "senior squad"
+    if (squadByKeyword[key]) return squadByKeyword[key];     // keyword: "senior"
+    const singular = key.replace(/s$/, '');                  // strip plural: "seniors" → "senior"
+    if (squadByKeyword[singular]) return squadByKeyword[singular];
+    const firstWord = key.split(/[\s,\(]/)[0];               // first word of CSV value
+    if (squadByKeyword[firstWord]) return squadByKeyword[firstWord];
+    const firstSingular = firstWord.replace(/s$/, '');
+    if (squadByKeyword[firstSingular]) return squadByKeyword[firstSingular];
+    return null;
+  };
 
   let added = 0, updated = 0, errors = 0;
 
   for (const item of csvPreviewData) {
     const m = item.mapped;
 
-    // Resolve squad
+    // Resolve squad — always apply if CSV has a squad column (even for updates)
     let squadId = item.existing?.squad_id || null;
     if (m.squad) {
-      const resolved = squadByName[m.squad.toLowerCase()];
+      const resolved = resolveSquad(m.squad);
       if (resolved) squadId = resolved;
     }
 
