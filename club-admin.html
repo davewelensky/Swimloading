@@ -798,6 +798,10 @@
         <input type="number" class="form-input" id="squadModalOrder" placeholder="1" min="1" max="99">
       </div>
     </div>
+    <div class="form-group">
+      <div class="form-label">Max members <span style="font-weight:400;color:var(--text-sec);">(capacity — leave blank for no limit)</span></div>
+      <input type="number" class="form-input" id="squadModalMaxMembers" placeholder="e.g. 20" min="1" max="999">
+    </div>
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="closeSquadModal()">Cancel</button>
       <button class="btn-modal-primary" onclick="saveSquad()">Save</button>
@@ -1845,32 +1849,65 @@ function renderOverview() {
     </div>`;
   }
 
-  // ── Squad breakdown ───────────────────────────────────────────
-  const squadCounts = {};
-  roster.forEach(r => {
-    const sq = allSquads.find(s => s.id === r.squad_id);
-    const name = sq?.name || 'Unassigned';
-    squadCounts[name] = (squadCounts[name] || 0) + 1;
-  });
-  // Sort by squad sort_order then alphabetical
-  const sortedSquads = Object.entries(squadCounts).sort(([a], [b]) => {
-    const ao = allSquads.find(s => s.name === a)?.sort_order ?? 99;
-    const bo = allSquads.find(s => s.name === b)?.sort_order ?? 99;
-    return ao !== bo ? ao - bo : a.localeCompare(b);
-  });
+  // ── Squad capacity ────────────────────────────────────────────
+  const squadMemberCount = {};
+  roster.forEach(r => { if (r.squad_id) squadMemberCount[r.squad_id] = (squadMemberCount[r.squad_id] || 0) + 1; });
+  const unassignedCount = roster.filter(r => !r.squad_id).length;
+
+  const capacitySquads = [...allSquads].sort((a, b) => (a.sort_order ?? 99) - (b.sort_order ?? 99) || a.name.localeCompare(b.name));
+  const totalEnrolled  = roster.length;
+  const totalCapacity  = capacitySquads.reduce((s, sq) => s + (sq.max_members || 0), 0);
+
+  const squadRows = capacitySquads.map(sq => {
+    const count  = squadMemberCount[sq.id] || 0;
+    const max    = sq.max_members;
+    const pct    = max ? Math.min(100, Math.round(count / max * 100)) : null;
+    const spotsLeft = max ? max - count : null;
+    const isFull    = max && count >= max;
+    const isNear    = max && !isFull && spotsLeft <= 2;
+    const barColor  = isFull ? 'var(--danger)' : isNear ? 'var(--amber)' : 'var(--green)';
+    const badge     = isFull
+      ? `<span style="font-size:10px;font-weight:700;background:rgba(239,68,68,0.15);color:var(--danger);border:1px solid rgba(239,68,68,0.3);padding:2px 8px;border-radius:20px;white-space:nowrap;">FULL</span>`
+      : isNear
+      ? `<span style="font-size:10px;font-weight:700;background:rgba(245,158,11,0.12);color:var(--amber);border:1px solid rgba(245,158,11,0.3);padding:2px 8px;border-radius:20px;white-space:nowrap;">${spotsLeft} left</span>`
+      : max
+      ? `<span style="font-size:10px;font-weight:700;background:rgba(16,185,129,0.1);color:var(--green);border:1px solid rgba(16,185,129,0.25);padding:2px 8px;border-radius:20px;white-space:nowrap;">${spotsLeft} open</span>`
+      : `<span style="font-size:10px;font-weight:600;color:var(--text-sec);padding:2px 8px;">no limit set</span>`;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer;" onclick="pendingTrackerSquadId='${sq.id}';showPage('tracker');">
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+          <span style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${sq.name}</span>
+          ${badge}
+        </div>
+        ${max ? `<div style="height:5px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width 0.4s;"></div>
+        </div>` : ''}
+      </div>
+      <div style="text-align:right;min-width:54px;">
+        <span style="font-size:17px;font-weight:800;color:${isFull ? 'var(--danger)' : isNear ? 'var(--amber)' : 'var(--cyan)'};">${count}</span>
+        ${max ? `<span style="font-size:12px;color:var(--text-sec);">/${max}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  const unassignedRow = unassignedCount > 0
+    ? `<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer;opacity:0.6;" onclick="showPage('tracker')">
+        <div style="flex:1;font-size:13px;color:var(--text-sec);font-style:italic;">Unassigned (no squad)</div>
+        <div style="font-size:17px;font-weight:800;color:var(--text-sec);">${unassignedCount}</div>
+      </div>` : '';
+
+  const capSummary = totalCapacity > 0
+    ? `<div style="font-size:12px;color:var(--text-sec);">${totalEnrolled} enrolled · ${totalCapacity - totalEnrolled > 0 ? (totalCapacity - totalEnrolled) + ' places available' : 'All squads at capacity'}</div>`
+    : `<div style="font-size:12px;color:var(--text-sec);">${linkedCount} of ${rosterCount} on SwimLoading</div>`;
+
   document.getElementById('overviewCategories').innerHTML = `
     <div class="card" style="margin-bottom:16px;">
       <div class="card-header">
-        <div class="card-title">Squad Breakdown</div>
-        <div style="font-size:12px;color:var(--text-sec);">${linkedCount} of ${rosterCount} on SwimLoading</div>
+        <div class="card-title">Squad Capacity</div>
+        ${capSummary}
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:12px;padding:16px;">
-        ${sortedSquads.map(([name, count]) => `
-          <div style="text-align:center;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:12px 20px;cursor:pointer;" onclick="showPage('roster')">
-            <div style="font-size:22px;font-weight:800;color:var(--cyan);">${count}</div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;">${name}</div>
-          </div>`).join('')}
-      </div>
+      ${squadRows}
+      ${unassignedRow}
     </div>`;
 
   // ── Upcoming events ───────────────────────────────────────────
@@ -3618,9 +3655,10 @@ function openSquadModal(id) {
   _squadModalId = id || null;
   const s = id ? allSquads.find(sq => sq.id === id) : null;
   document.getElementById('squadModalTitle').textContent = s ? 'Edit Squad' : 'Add Squad';
-  document.getElementById('squadModalName').value  = s?.name  || '';
-  document.getElementById('squadModalType').value  = s?.type  || 'competitive';
-  document.getElementById('squadModalOrder').value = s?.sort_order ?? '';
+  document.getElementById('squadModalName').value       = s?.name        || '';
+  document.getElementById('squadModalType').value       = s?.type        || 'competitive';
+  document.getElementById('squadModalOrder').value      = s?.sort_order  ?? '';
+  document.getElementById('squadModalMaxMembers').value = s?.max_members ?? '';
   document.getElementById('squadModal').classList.add('open');
   setTimeout(() => document.getElementById('squadModalName').focus(), 100);
 }
@@ -3631,21 +3669,22 @@ function closeSquadModal() {
 }
 
 async function saveSquad() {
-  const name  = document.getElementById('squadModalName').value.trim();
-  const type  = document.getElementById('squadModalType').value;
-  const order = parseInt(document.getElementById('squadModalOrder').value) || null;
+  const name       = document.getElementById('squadModalName').value.trim();
+  const type       = document.getElementById('squadModalType').value;
+  const order      = parseInt(document.getElementById('squadModalOrder').value) || null;
+  const maxMembers = parseInt(document.getElementById('squadModalMaxMembers').value) || null;
   if (!name) { showToast('Squad name is required', 'error'); return; }
 
   if (_squadModalId) {
     const { error } = await sb.from('club_squads')
-      .update({ name, type, sort_order: order }).eq('id', _squadModalId);
+      .update({ name, type, sort_order: order, max_members: maxMembers }).eq('id', _squadModalId);
     if (error) { showToast('Save failed: ' + error.message, 'error'); return; }
     const s = allSquads.find(s => s.id === _squadModalId);
-    if (s) Object.assign(s, { name, type, sort_order: order });
+    if (s) Object.assign(s, { name, type, sort_order: order, max_members: maxMembers });
     showToast('Squad updated');
   } else {
     const { data, error } = await sb.from('club_squads')
-      .insert({ club_id: currentClub.id, name, type, sort_order: order, is_active: true })
+      .insert({ club_id: currentClub.id, name, type, sort_order: order, max_members: maxMembers, is_active: true })
       .select().single();
     if (error) { showToast('Save failed: ' + error.message, 'error'); return; }
     allSquads.push(data);
@@ -4500,7 +4539,7 @@ async function loadSquads() {
   const todayDow = new Date().getDay(); // 0=Sun…6=Sat
   const [squadsRes, schedRes] = await Promise.all([
     sb.from('club_squads')
-      .select('id, name, type, sort_order')
+      .select('id, name, type, sort_order, max_members')
       .eq('club_id', currentClub.id)
       .eq('is_active', true)
       .order('sort_order'),
