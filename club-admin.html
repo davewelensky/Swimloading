@@ -2083,8 +2083,11 @@ async function renderOverview() {
       <div style="padding:20px 16px;text-align:center;color:var(--text-sec);font-size:13px;">No sessions scheduled</div>`;
   }
 
-  // ── Attendance pulse (async) ─────────────────────────────────────
+  // ── Attendance pulse (async) — squad clubs only ──────────────────
   const attEl = document.getElementById('overviewAttendance');
+  if (!isSquadClub) {
+    attEl.innerHTML = '';
+  } else {
   attEl.innerHTML = `<div class="card" style="margin-bottom:16px;">
     <div class="card-header"><div class="card-title">Attendance Pulse <span style="font-size:11px;font-weight:400;color:var(--text-sec);">last 30 days</span></div></div>
     <div style="padding:20px;text-align:center;color:var(--text-sec);font-size:13px;"><div class="spinner" style="margin:0 auto;"></div></div>
@@ -2193,8 +2196,9 @@ async function renderOverview() {
     ${squadAttRows ? `<div style="padding:8px 0;">${squadAttRows}</div>` : ''}
     ${atRiskHtml}
   </div>`;
+  } // end isSquadClub attendance pulse
 
-  // ── Upcoming galas + Parent pipeline (2-col) ─────────────────────
+  // ── Upcoming events + Member pipeline (2-col) ────────────────────
   const upcomingEvents = (allEvents||[])
     .filter(e => new Date(e.event_date + 'T12:00:00') >= now)
     .sort((a,b) => new Date(a.event_date) - new Date(b.event_date))
@@ -2218,27 +2222,35 @@ async function renderOverview() {
           </div>
         </div>`;
       }).join('')
-    : `<div style="padding:20px 16px;text-align:center;color:var(--text-sec);font-size:13px;">No upcoming galas — add one in Events</div>`;
+    : `<div style="padding:20px 16px;text-align:center;color:var(--text-sec);font-size:13px;">No upcoming events — add one in Events</div>`;
 
-  // Parent pipeline
   const linkedCount = roster.filter(r => r.user_id).length;
   const trialCount  = roster.filter(r => r.is_trial).length;
   const trialConversionReady = roster.filter(r => r.is_trial && r.trial_end_date && r.trial_end_date < todayStr).length;
-  const pipelineRows = [
-    { label: 'Linked to SwimLoading',  val: `${linkedCount} / ${roster.length}`, color: linkedCount === roster.length ? 'var(--green)' : 'var(--text)' },
-    { label: 'Still to join app',      val: unlinked.length, color: unlinked.length > 0 ? 'var(--amber)' : 'var(--green)' },
-    { label: 'Active trials',          val: trialCount, color: trialCount > 0 ? 'var(--cyan)' : 'var(--text-sec)' },
-    { label: 'Trials ready to convert',val: trialConversionReady, color: trialConversionReady > 0 ? 'var(--amber)' : 'var(--text-sec)' },
-    { label: 'Members unassigned',     val: unassigned.length, color: unassigned.length > 0 ? 'var(--amber)' : 'var(--green)' },
-  ];
+
+  const pipelineRows = isSquadClub
+    ? [
+        { label: 'Linked to SwimLoading',   val: `${linkedCount} / ${roster.length}`, color: linkedCount === roster.length ? 'var(--green)' : 'var(--text)' },
+        { label: 'Still to join app',        val: unlinked.length, color: unlinked.length > 0 ? 'var(--amber)' : 'var(--green)' },
+        { label: 'Active trials',            val: trialCount, color: trialCount > 0 ? 'var(--cyan)' : 'var(--text-sec)' },
+        { label: 'Trials ready to convert',  val: trialConversionReady, color: trialConversionReady > 0 ? 'var(--amber)' : 'var(--text-sec)' },
+        { label: 'Not in a squad',           val: unassigned.length, color: unassigned.length > 0 ? 'var(--amber)' : 'var(--green)' },
+      ]
+    : [
+        { label: 'On SwimLoading',           val: `${linkedCount} / ${roster.length}`, color: linkedCount === roster.length ? 'var(--green)' : 'var(--text)' },
+        { label: 'Still to join app',        val: unlinked.length, color: unlinked.length > 0 ? 'var(--amber)' : 'var(--green)' },
+        { label: 'Active trials',            val: trialCount, color: trialCount > 0 ? 'var(--cyan)' : 'var(--text-sec)' },
+      ];
+
+  const pipelineTitle = isSquadClub ? 'Parent &amp; Member Pipeline' : 'Member Onboarding';
 
   document.getElementById('overviewBottom').innerHTML = `
     <div class="card">
-      <div class="card-header"><div class="card-title">Upcoming Galas</div><button class="btn-sm" onclick="showPage('events')" style="font-size:11px;padding:4px 10px;">View all</button></div>
+      <div class="card-header"><div class="card-title">Upcoming Events</div><button class="btn-sm" onclick="showPage('events')" style="font-size:11px;padding:4px 10px;">View all</button></div>
       ${eventsHtml}
     </div>
     <div class="card">
-      <div class="card-header"><div class="card-title">Parent &amp; Member Pipeline</div></div>
+      <div class="card-header"><div class="card-title">${pipelineTitle}</div></div>
       ${pipelineRows.map(r => `<div class="pipeline-row">
         <div style="font-size:13px;">${r.label}</div>
         <div class="pipeline-val" style="color:${r.color};">${r.val}</div>
