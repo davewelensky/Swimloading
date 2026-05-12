@@ -6055,32 +6055,17 @@ function renderSquadCapacityStrip(rosterData) {
   const unassigned = rosterData.filter(r => !r.squad_id).length;
 
   const cards = allSquads.map(sq => {
-    const count = countBySquad[sq.id] || 0;
-    const max   = sq.max_members;
-    const pct   = max ? Math.min(100, Math.round(count / max * 100)) : null;
+    const count      = countBySquad[sq.id] || 0;
+    const perSession = sq.max_members;
+    const sessionTxt = perSession
+      ? `<span class="squad-cap-status" style="color:var(--cyan);">${perSession}/session</span>`
+      : `<span class="squad-cap-status" style="color:var(--text-sec);">no limit set</span>`;
 
-    let capClass = '', barColor = 'var(--cyan)', statusHtml = '';
-    if (max) {
-      const spots = max - count;
-      if (spots <= 0)       { capClass = 'cap-full'; barColor = 'var(--danger)'; statusHtml = `<span class="squad-cap-status" style="color:var(--danger);">Full</span>`; }
-      else if (spots <= 2)  { capClass = 'cap-near'; barColor = 'var(--amber)';  statusHtml = `<span class="squad-cap-status" style="color:var(--amber);">${spots} spot${spots===1?'':'s'} left</span>`; }
-      else                  { capClass = 'cap-open'; barColor = 'var(--green)';  statusHtml = `<span class="squad-cap-status" style="color:var(--green);">${spots} open</span>`; }
-    } else {
-      statusHtml = `<span class="squad-cap-status" style="color:var(--text-sec);">No limit set</span>`;
-    }
-
-    const barHtml = max
-      ? `<div class="squad-cap-bar-wrap"><div class="squad-cap-bar" style="width:${pct}%;background:${barColor};"></div></div>`
-      : '';
-    const countHtml = max
-      ? `<span class="squad-cap-count" style="color:${barColor};">${count}</span><span style="font-size:13px;color:var(--text-sec);font-weight:600;"> / ${max}</span>`
-      : `<span class="squad-cap-count" style="color:var(--text);">${count}</span><span style="font-size:13px;color:var(--text-sec);"> members</span>`;
-
-    return `<div class="squad-cap-card ${capClass}" onclick="document.getElementById('trackerCatFilter').value='${sq.id}';applyTrackerFilter();" style="cursor:pointer;">
+    return `<div class="squad-cap-card" onclick="document.getElementById('trackerCatFilter').value='${sq.id}';applyTrackerFilter();" style="cursor:pointer;">
       <div class="squad-cap-name">${sq.name}</div>
-      <div>${countHtml}</div>
-      ${barHtml}
-      ${statusHtml}
+      <div><span class="squad-cap-count" style="color:var(--cyan);">${count}</span><span style="font-size:13px;color:var(--text-sec);"> enrolled</span></div>
+      <div style="height:4px;margin:8px 0 6px;"></div>
+      ${sessionTxt}
     </div>`;
   });
 
