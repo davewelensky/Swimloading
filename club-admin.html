@@ -4148,9 +4148,17 @@ async function openSessionAssignModal(sessionId) {
     .select('roster_id').eq('session_id', sessionId).eq('club_id', currentClub.id);
   const assignedIds = new Set((existing || []).map(a => a.roster_id));
 
-  const squadMembers = allRosterFull
-    .filter(r => r.squad_id === session.squad_id)
-    .sort((a, b) => (a.display_name || '').localeCompare(b.display_name || ''));
+  // allRosterFull may be empty if Settings was opened before Overview loaded
+  let rosterSource = allRosterFull.filter(r => r.squad_id === session.squad_id);
+  if (!rosterSource.length) {
+    const { data: fetched } = await sb.from('club_roster')
+      .select('id, member_number, display_name, squad_id')
+      .eq('club_id', currentClub.id)
+      .eq('squad_id', session.squad_id)
+      .order('display_name');
+    rosterSource = fetched || [];
+  }
+  const squadMembers = [...rosterSource].sort((a, b) => (a.display_name || '').localeCompare(b.display_name || ''));
 
   const list = document.getElementById('assignSwimmerList');
   list.innerHTML = squadMembers.length
