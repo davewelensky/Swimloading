@@ -277,6 +277,39 @@
     .csv-step-label.active { color:var(--text); font-weight:600; }
     .csv-step-sep { flex:1; height:1px; background:var(--border); }
     .csv-field-required { color:var(--danger); font-size:10px; margin-left:4px; }
+    /* ── OVERVIEW DASHBOARD ── */
+    .overview-2col { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+    @media(max-width:700px) { .overview-2col { grid-template-columns:1fr; } }
+    .action-list { list-style:none; margin:0; padding:0; }
+    .action-item { display:flex; align-items:center; gap:12px; padding:11px 16px; border-bottom:1px solid var(--border); cursor:pointer; transition:background 0.15s; }
+    .action-item:last-child { border-bottom:none; }
+    .action-item:hover { background:rgba(255,255,255,0.03); }
+    .action-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+    .action-dot.red    { background:var(--danger); box-shadow:0 0 6px rgba(239,68,68,0.5); }
+    .action-dot.amber  { background:var(--amber);  box-shadow:0 0 6px rgba(245,158,11,0.4); }
+    .action-dot.blue   { background:var(--cyan);   box-shadow:0 0 6px rgba(56,189,248,0.4); }
+    .action-dot.green  { background:var(--green);  }
+    .action-text { flex:1; font-size:13px; color:var(--text); }
+    .action-names { font-size:11px; color:var(--text-sec); margin-top:2px; }
+    .action-arrow { font-size:11px; color:var(--text-sec); flex-shrink:0; }
+    .squad-health-row { display:flex; align-items:center; gap:10px; padding:9px 16px; border-bottom:1px solid var(--border); }
+    .squad-health-row:last-child { border-bottom:none; }
+    .squad-health-name { font-size:13px; font-weight:600; width:80px; flex-shrink:0; }
+    .squad-health-bar-wrap { flex:1; height:6px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; }
+    .squad-health-bar { height:6px; border-radius:3px; }
+    .squad-health-count { font-size:12px; font-weight:600; width:60px; text-align:right; flex-shrink:0; }
+    .squad-health-status { font-size:10px; font-weight:700; text-transform:uppercase; width:56px; text-align:right; flex-shrink:0; }
+    .att-squad-row { display:flex; align-items:center; gap:10px; padding:7px 16px; border-bottom:1px solid var(--border); }
+    .att-squad-row:last-child { border-bottom:none; }
+    .att-squad-name { font-size:13px; font-weight:600; width:80px; flex-shrink:0; }
+    .att-bar-wrap { flex:1; height:5px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; }
+    .att-bar { height:5px; border-radius:3px; }
+    .att-pct { font-size:12px; font-weight:700; width:40px; text-align:right; flex-shrink:0; }
+    .at-risk-row { display:flex; align-items:center; gap:10px; padding:8px 16px; border-bottom:1px solid var(--border); }
+    .at-risk-row:last-child { border-bottom:none; }
+    .pipeline-row { display:flex; align-items:center; justify-content:space-between; padding:9px 16px; border-bottom:1px solid var(--border); font-size:13px; }
+    .pipeline-row:last-child { border-bottom:none; }
+    .pipeline-val { font-weight:700; }
   </style>
 </head>
 <body>
@@ -390,20 +423,23 @@
 
       <!-- ── OVERVIEW ── -->
       <div id="page-overview" class="page active">
-        <div class="page-header">
-          <div class="page-title" id="overviewTitle">Club Dashboard</div>
-          <div class="page-sub">Welcome back. Here's what's happening.</div>
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div class="page-title" id="overviewTitle">Club Dashboard</div>
+            <div class="page-sub" id="overviewGreeting">Welcome back — here's what needs your attention.</div>
+          </div>
+          <div id="overviewDateBadge" style="font-size:12px;color:var(--text-sec);padding-top:4px;"></div>
         </div>
         <div class="stat-row" id="overviewStats">
-          <div class="stat-card"><div class="stat-label">Members</div><div class="stat-val" id="statMembers">—</div><div class="stat-note">on roster</div></div>
-          <div class="stat-card"><div class="stat-label">Sessions today</div><div class="stat-val" id="statSessions">—</div><div class="stat-note">scheduled</div></div>
-          <div class="stat-card"><div class="stat-label">Trials ending</div><div class="stat-val" id="statTrials" style="color:var(--amber);">—</div><div class="stat-note">within 7 days</div></div>
-          <div class="stat-card"><div class="stat-label">Fees overdue</div><div class="stat-val" id="statFees" style="color:var(--danger);">—</div><div class="stat-note">unpaid past due</div></div>
+          <div class="stat-card" style="cursor:pointer;" onclick="showPage('roster')"><div class="stat-label">Members</div><div class="stat-val" id="statMembers">—</div><div class="stat-note">on roster</div></div>
+          <div class="stat-card"><div class="stat-label">Sessions today</div><div class="stat-val" id="statSessions">—</div><div class="stat-note" id="statSessionsNote">scheduled</div></div>
+          <div class="stat-card" style="cursor:pointer;" onclick="showPage('roster')" id="statTrialCard"><div class="stat-label">Trials ending</div><div class="stat-val" id="statTrials" style="color:var(--amber);">—</div><div class="stat-note">within 7 days</div></div>
+          <div class="stat-card" style="cursor:pointer;" onclick="showPage('roster')" id="statFeeCard"><div class="stat-label">Fees overdue</div><div class="stat-val" id="statFees" style="color:var(--danger);">—</div><div class="stat-note">unpaid past due</div></div>
         </div>
-        <div id="overviewAlerts"></div>
-        <div id="overviewSchedule"></div>
-        <div id="overviewCategories"></div>
-        <div id="overviewUpcoming"></div>
+        <div id="overviewActions"></div>
+        <div class="overview-2col" id="overviewTodaySquads"></div>
+        <div id="overviewAttendance"></div>
+        <div class="overview-2col" id="overviewBottom"></div>
       </div>
 
       <!-- ── MEMBERS ── -->
@@ -1815,162 +1851,323 @@ async function loadEvents() {
 }
 
 // ── OVERVIEW ──────────────────────────────────────────────────────
-function renderOverview() {
-  const now          = new Date();
-  const todayStr     = now.toISOString().slice(0, 10);
-  const in7days      = new Date(now.getTime() + 7 * 86400000).toISOString().slice(0, 10);
-  const roster       = allRosterFull.length ? allRosterFull : allMembers;
-  const rosterCount  = roster.length;
-  const linkedCount  = allRosterFull.filter(r => r.user_id).length;
+async function renderOverview() {
+  const now       = new Date();
+  const todayStr  = now.toISOString().slice(0, 10);
+  const in7days   = new Date(now.getTime() + 7 * 86400000).toISOString().slice(0, 10);
+  const days      = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months    = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const roster    = allRosterFull.length ? allRosterFull : [];
 
-  // ── Stat cards ────────────────────────────────────────────────
-  document.getElementById('statMembers').textContent  = rosterCount;
-  document.getElementById('statSessions').textContent = allSquadSessions.length || '0';
+  // ── Greeting + date ──────────────────────────────────────────────
+  const hr = now.getHours();
+  const greeting = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+  const adminName = currentUser?.user_metadata?.full_name?.split(' ')[0] || '';
+  document.getElementById('overviewGreeting').textContent =
+    `${greeting}${adminName ? ', ' + adminName : ''} — here's what needs your attention.`;
+  document.getElementById('overviewDateBadge').textContent =
+    `${days[now.getDay()]} ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
 
+  // ── Stat cards ───────────────────────────────────────────────────
   const trialsEnding = roster.filter(r =>
     r.is_trial && r.trial_end_date && r.trial_end_date >= todayStr && r.trial_end_date <= in7days
   );
   const feesOverdue = roster.filter(r =>
     r.fee_paid === false && r.fee_due_date && r.fee_due_date < todayStr
   );
+  document.getElementById('statMembers').textContent  = roster.length;
+  document.getElementById('statSessions').textContent = allSquadSessions.length || '0';
+  document.getElementById('statTrials').textContent   = trialsEnding.length;
+  document.getElementById('statTrials').style.color   = trialsEnding.length > 0 ? 'var(--amber)' : 'var(--text)';
+  document.getElementById('statFees').textContent     = feesOverdue.length;
+  document.getElementById('statFees').style.color     = feesOverdue.length > 0 ? 'var(--danger)' : 'var(--text)';
 
-  document.getElementById('statTrials').textContent = trialsEnding.length;
-  document.getElementById('statTrials').style.color  = trialsEnding.length > 0 ? 'var(--amber)' : 'var(--text)';
-  document.getElementById('statFees').textContent   = feesOverdue.length;
-  document.getElementById('statFees').style.color    = feesOverdue.length > 0 ? 'var(--danger)' : 'var(--text)';
+  // ── Action items ─────────────────────────────────────────────────
+  const unassigned    = roster.filter(r => !r.squad_id);
+  const unlinked      = roster.filter(r => !r.user_id);
+  const trialsNoEnd   = roster.filter(r => r.is_trial && !r.trial_end_date);
+  const noCoachToday  = allSquadSessions.filter(s => !s.coach_name);
+  const actions = [];
 
-  // ── Alert strip ───────────────────────────────────────────────
-  const alertEl = document.getElementById('overviewAlerts');
-  const alerts  = [];
-  if (trialsEnding.length > 0) {
-    const names = trialsEnding.map(r => {
-      const daysLeft = Math.ceil((new Date(r.trial_end_date) - now) / 86400000);
-      return `<span onclick="showPage('roster')" style="cursor:pointer;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);color:var(--amber);font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;white-space:nowrap;">
-        ${r.display_name} — ${daysLeft === 0 ? 'today' : daysLeft + 'd'}
-      </span>`;
-    }).join('');
-    alerts.push(`<div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);">
-      <i data-lucide="clock" style="width:15px;height:15px;color:var(--amber);flex-shrink:0;margin-top:2px;"></i>
-      <div>
-        <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:6px;">Trial ending within 7 days</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;">${names}</div>
-      </div>
-    </div>`);
-  }
   if (feesOverdue.length > 0) {
-    const names = feesOverdue.slice(0, 5).map(r =>
-      `<span onclick="showPage('roster')" style="cursor:pointer;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:var(--danger);font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;white-space:nowrap;">${r.display_name}</span>`
-    ).join('');
-    const more = feesOverdue.length > 5 ? `<span style="font-size:12px;color:var(--text-sec);">+${feesOverdue.length - 5} more</span>` : '';
-    alerts.push(`<div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;">
-      <i data-lucide="alert-circle" style="width:15px;height:15px;color:var(--danger);flex-shrink:0;margin-top:2px;"></i>
-      <div>
-        <div style="font-size:12px;font-weight:700;color:var(--danger);margin-bottom:6px;">Fee overdue</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;">${names}${more}</div>
-      </div>
-    </div>`);
+    const preview = feesOverdue.slice(0,3).map(r => r.display_name).join(', ')
+      + (feesOverdue.length > 3 ? ` +${feesOverdue.length - 3} more` : '');
+    actions.push({ dot:'red', text:`${feesOverdue.length} fee${feesOverdue.length>1?'s':''} overdue`, names:preview, label:'Roster →', action:`showPage('roster')` });
   }
-  alertEl.innerHTML = alerts.length
-    ? `<div class="card" style="margin-bottom:16px;">${alerts.join('')}</div>`
-    : '';
+  if (trialsEnding.length > 0) {
+    const preview = trialsEnding.map(r => {
+      const d = Math.ceil((new Date(r.trial_end_date) - now) / 86400000);
+      return r.display_name + (d === 0 ? ' (today)' : ` (${d}d)`);
+    }).join(', ');
+    actions.push({ dot:'amber', text:`${trialsEnding.length} trial${trialsEnding.length>1?'s':''} expiring this week`, names:preview, label:'Roster →', action:`showPage('roster')` });
+  }
+  if (trialsNoEnd.length > 0) {
+    actions.push({ dot:'amber', text:`${trialsNoEnd.length} trial${trialsNoEnd.length>1?'s':''} have no end date set`, names:trialsNoEnd.slice(0,3).map(r=>r.display_name).join(', ')+(trialsNoEnd.length>3?` +${trialsNoEnd.length-3} more`:''), label:'Roster →', action:`showPage('roster')` });
+  }
+  if (unassigned.length > 0) {
+    actions.push({ dot:'amber', text:`${unassigned.length} member${unassigned.length>1?'s':''} not assigned to a squad`, names:'Assign in Roster → Edit', label:'Roster →', action:`showPage('roster')` });
+  }
+  if (noCoachToday.length > 0) {
+    const names = noCoachToday.map(s => {
+      const sq = allSquads.find(q => q.id === s.squad_id);
+      return (sq?.name || 'Session') + ' ' + (s.start_time?.slice(0,5) || '');
+    }).join(', ');
+    actions.push({ dot:'amber', text:`${noCoachToday.length} session${noCoachToday.length>1?'s':''} today have no coach`, names, label:'Settings →', action:`showPage('settings')` });
+  }
+  if (unlinked.length > 0) {
+    actions.push({ dot:'blue', text:`${unlinked.length} member${unlinked.length>1?'s':''} haven't linked a SwimLoading account`, names:'Parents haven\'t joined the app yet', label:'Roster →', action:`showPage('roster')` });
+  }
 
-  // ── Today's schedule ──────────────────────────────────────────
-  const schedEl = document.getElementById('overviewSchedule');
+  const actionsEl = document.getElementById('overviewActions');
+  actionsEl.innerHTML = actions.length
+    ? `<div class="card" style="margin-bottom:16px;">
+        <div class="card-header"><div class="card-title" style="display:flex;align-items:center;gap:8px;"><i data-lucide="zap" style="width:14px;height:14px;color:var(--cyan);"></i> Needs attention</div></div>
+        <ul class="action-list">${actions.map(a => `
+          <li class="action-item" onclick="${a.action}">
+            <div class="action-dot ${a.dot}"></div>
+            <div class="action-text">
+              <div style="font-weight:600;">${a.text}</div>
+              ${a.names ? `<div class="action-names">${a.names}</div>` : ''}
+            </div>
+            <div class="action-arrow">${a.label}</div>
+          </li>`).join('')}
+        </ul>
+      </div>`
+    : `<div class="card" style="margin-bottom:16px;padding:14px 20px;">
+        <div style="display:flex;align-items:center;gap:10px;color:var(--green);font-size:13px;font-weight:600;">
+          <i data-lucide="check-circle" style="width:16px;height:16px;"></i> All clear — nothing urgent needs your attention right now
+        </div>
+      </div>`;
+
+  // ── Today's schedule + Squad health (2-col) ──────────────────────
+  const fmtTime = t => {
+    if (!t) return '';
+    const [h, m] = t.split(':');
+    const hr = parseInt(h);
+    return (hr > 12 ? hr - 12 : hr || 12) + ':' + m + (hr >= 12 ? 'pm' : 'am');
+  };
+
+  // Today's schedule
+  let todayHtml;
   if (allSquadSessions.length > 0) {
-    const fmtTime = t => {
-      if (!t) return '';
-      const [h, m] = t.split(':');
-      const hr = parseInt(h), ampm = hr >= 12 ? 'pm' : 'am';
-      return (hr > 12 ? hr - 12 : hr || 12) + ':' + m + ampm;
-    };
     const rows = allSquadSessions.map(s => {
-      const squad = allSquads.find(sq => sq.id === s.squad_id);
+      const sq = allSquads.find(q => q.id === s.squad_id);
+      const sqCount = roster.filter(r => r.squad_id === s.squad_id).length;
       return `<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);">
-        <div style="min-width:80px;font-size:13px;font-weight:600;color:var(--cyan);">${fmtTime(s.start_time)}${s.end_time ? ' – ' + fmtTime(s.end_time) : ''}</div>
+        <div style="min-width:90px;font-size:12px;font-weight:700;color:var(--cyan);">${fmtTime(s.start_time)}${s.end_time ? '–'+fmtTime(s.end_time) : ''}</div>
         <div style="flex:1;">
-          <div style="font-size:13px;font-weight:600;color:var(--text);">${squad?.name || 'Squad'}</div>
-          ${s.session_type ? `<div style="font-size:11px;color:var(--text-sec);text-transform:capitalize;">${s.session_type.replace(/_/g,' ')}</div>` : ''}
+          <div style="font-size:13px;font-weight:600;">${sq?.name || 'Squad'}</div>
+          <div style="font-size:11px;color:var(--text-sec);">${sqCount} members${s.session_type ? ' · ' + s.session_type.replace(/_/g,' ') : ''}</div>
         </div>
         ${s.coach_name
-          ? `<div style="font-size:12px;color:var(--text-sec);display:flex;align-items:center;gap:5px;"><i data-lucide="user" style="width:12px;height:12px;"></i> ${s.coach_name}</div>`
-          : `<div style="font-size:12px;color:var(--text-sec);opacity:0.5;">No coach assigned</div>`
-        }
+          ? `<div style="font-size:11px;color:var(--text-sec);display:flex;align-items:center;gap:4px;"><i data-lucide="user" style="width:11px;height:11px;"></i> ${s.coach_name}</div>`
+          : `<div style="font-size:11px;color:var(--amber);font-weight:600;">No coach</div>`}
       </div>`;
     }).join('');
-    schedEl.innerHTML = `<div class="card" style="margin-bottom:16px;">
-      <div class="card-header"><div class="card-title">Today's Schedule</div></div>
-      ${rows}
-    </div>`;
+    todayHtml = `<div class="card-header"><div class="card-title">Today — ${days[now.getDay()]}</div></div>${rows}`;
   } else {
-    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    schedEl.innerHTML = `<div class="card" style="margin-bottom:16px;">
-      <div class="card-header"><div class="card-title">Today's Schedule</div></div>
-      <div class="empty" style="padding:20px;"><div class="empty-title">No sessions on ${days[now.getDay()]}</div></div>
-    </div>`;
+    todayHtml = `<div class="card-header"><div class="card-title">Today — ${days[now.getDay()]}</div></div>
+      <div style="padding:20px 16px;text-align:center;color:var(--text-sec);font-size:13px;">No sessions scheduled</div>`;
   }
 
-  // ── Squad breakdown ───────────────────────────────────────────
-  const squadCounts = {};
-  roster.forEach(r => {
-    const sq = allSquads.find(s => s.id === r.squad_id);
-    const name = sq?.name || 'Unassigned';
-    squadCounts[name] = (squadCounts[name] || 0) + 1;
-  });
-  // Sort by squad sort_order then alphabetical
-  const sortedSquads = Object.entries(squadCounts).sort(([a], [b]) => {
-    const ao = allSquads.find(s => s.name === a)?.sort_order ?? 99;
-    const bo = allSquads.find(s => s.name === b)?.sort_order ?? 99;
-    return ao !== bo ? ao - bo : a.localeCompare(b);
-  });
-  document.getElementById('overviewCategories').innerHTML = `
-    <div class="card" style="margin-bottom:16px;">
-      <div class="card-header">
-        <div class="card-title">Squad Breakdown</div>
-        <div style="font-size:12px;color:var(--text-sec);">${linkedCount} of ${rosterCount} on SwimLoading</div>
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:12px;padding:16px;">
-        ${sortedSquads.map(([name, count]) => `
-          <div style="text-align:center;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:12px 20px;cursor:pointer;" onclick="showPage('roster')">
-            <div style="font-size:22px;font-weight:800;color:var(--cyan);">${count}</div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;">${name}</div>
-          </div>`).join('')}
-      </div>
+  // Squad health
+  const squadHealthRows = allSquads.map(sq => {
+    const count = roster.filter(r => r.squad_id === sq.id).length;
+    const max   = sq.max_members;
+    const pct   = max ? Math.min(100, Math.round(count / max * 100)) : null;
+    let barColor = 'var(--cyan)', statusTxt = '', statusColor = 'var(--text-sec)';
+    if (max) {
+      const spots = max - count;
+      if (spots <= 0)      { barColor='var(--danger)'; statusTxt=`Full`;              statusColor='var(--danger)'; }
+      else if (spots <= 2) { barColor='var(--amber)';  statusTxt=`${spots} left`;     statusColor='var(--amber)'; }
+      else                 { barColor='var(--green)';  statusTxt=`${spots} open`;     statusColor='var(--green)'; }
+    } else {
+      statusTxt = `${count} members`; statusColor = 'var(--text-sec)';
+    }
+    const barHtml = max
+      ? `<div class="squad-health-bar-wrap"><div class="squad-health-bar" style="width:${pct}%;background:${barColor};"></div></div>`
+      : `<div class="squad-health-bar-wrap"><div class="squad-health-bar" style="width:100%;background:rgba(255,255,255,0.08);"></div></div>`;
+    const countDisplay = max ? `${count}/${max}` : `${count}`;
+    return `<div class="squad-health-row" onclick="document.getElementById('trackerCatFilter').value='${sq.id}';showPage('tracker');applyTrackerFilter();" style="cursor:pointer;">
+      <div class="squad-health-name">${sq.name}</div>
+      ${barHtml}
+      <div class="squad-health-count" style="color:${barColor};">${countDisplay}</div>
+      <div class="squad-health-status" style="color:${statusColor};">${statusTxt}</div>
     </div>`;
-
-  // ── Upcoming events ───────────────────────────────────────────
-  const upcomingEvents = allEvents.filter(e => new Date(e.event_date + 'T12:00:00') >= now)
-    .sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
-  const upEl = document.getElementById('overviewUpcoming');
-  if (upcomingEvents.length === 0) {
-    upEl.innerHTML = '';
-    return;
+  });
+  if (unassigned.length > 0) {
+    squadHealthRows.push(`<div class="squad-health-row" onclick="showPage('roster')" style="cursor:pointer;">
+      <div class="squad-health-name" style="color:var(--amber);">Unassigned</div>
+      <div class="squad-health-bar-wrap"><div class="squad-health-bar" style="width:100%;background:rgba(245,158,11,0.3);"></div></div>
+      <div class="squad-health-count" style="color:var(--amber);">${unassigned.length}</div>
+      <div class="squad-health-status" style="color:var(--amber);">No squad</div>
+    </div>`);
   }
-  upEl.innerHTML = `
-    <div class="card">
-      <div class="card-header"><div class="card-title">Upcoming Galas</div></div>
-      <div style="padding:12px;">
-        ${upcomingEvents.slice(0, 4).map(e => {
-          const d        = new Date(e.event_date + 'T12:00:00');
-          const daysAway = Math.ceil((d - now) / 86400000);
-          const soon     = daysAway <= 14;
-          return `<div class="event-card" onclick="viewGalaEntries('${e.id}')" style="cursor:pointer;">
-            <div class="event-date-block">
-              <div class="event-date-day">${d.getDate()}</div>
-              <div class="event-date-mon">${d.toLocaleString('default',{month:'short'})}</div>
+  const squadHealthHtml = `<div class="card-header"><div class="card-title">Squad Health</div><div style="font-size:11px;color:var(--text-sec);">click to view</div></div>${squadHealthRows.join('')}`;
+
+  document.getElementById('overviewTodaySquads').innerHTML =
+    `<div class="card">${todayHtml}</div><div class="card">${squadHealthHtml}</div>`;
+
+  // ── Attendance pulse (async) ─────────────────────────────────────
+  const attEl = document.getElementById('overviewAttendance');
+  attEl.innerHTML = `<div class="card" style="margin-bottom:16px;">
+    <div class="card-header"><div class="card-title">Attendance Pulse <span style="font-size:11px;font-weight:400;color:var(--text-sec);">last 30 days</span></div></div>
+    <div style="padding:20px;text-align:center;color:var(--text-sec);font-size:13px;"><div class="spinner" style="margin:0 auto;"></div></div>
+  </div>`;
+
+  const thirtyDaysAgo   = new Date(now.getTime() - 30 * 86400000).toISOString().slice(0,10);
+  const twentyOneDaysAgo = new Date(now.getTime() - 21 * 86400000).toISOString().slice(0,10);
+  const ninetyDaysAgo   = new Date(now.getTime() - 90 * 86400000).toISOString().slice(0,10);
+
+  const { data: attData } = await sb.from('club_session_attendance')
+    .select('roster_id, session_date, status')
+    .eq('club_id', currentClub.id)
+    .gte('session_date', ninetyDaysAgo)
+    .in('status', ['present', 'catch_up']);
+
+  const attended = attData || [];
+
+  // Latest attendance date per swimmer
+  const lastSeenMap = {};
+  attended.forEach(a => {
+    if (!lastSeenMap[a.roster_id] || a.session_date > lastSeenMap[a.roster_id])
+      lastSeenMap[a.roster_id] = a.session_date;
+  });
+
+  // Who attended in last 30 days
+  const attendedLast30 = new Set(
+    attended.filter(a => a.session_date >= thirtyDaysAgo).map(a => a.roster_id)
+  );
+
+  // At-risk: has ever attended, but not in last 21 days (and is in roster)
+  const rosterIds = new Set(roster.map(r => r.id));
+  const everAttended = new Set(Object.keys(lastSeenMap).filter(id => rosterIds.has(id)));
+  const atRisk = roster.filter(r =>
+    everAttended.has(r.id) && (!lastSeenMap[r.id] || lastSeenMap[r.id] < twentyOneDaysAgo)
+  ).map(r => ({ ...r, lastSeen: lastSeenMap[r.id] || null }))
+   .sort((a,b) => (a.lastSeen||'') < (b.lastSeen||'') ? -1 : 1)
+   .slice(0, 8);
+
+  // Per-squad engagement rate (% who attended at least once in last 30 days)
+  const squadStats = allSquads.map(sq => {
+    const members = roster.filter(r => r.squad_id === sq.id);
+    if (!members.length) return null;
+    const attended30 = members.filter(r => attendedLast30.has(r.id)).length;
+    const pct = Math.round(attended30 / members.length * 100);
+    return { sq, members: members.length, attended30, pct };
+  }).filter(Boolean);
+
+  const clubPct = roster.length
+    ? Math.round(roster.filter(r => attendedLast30.has(r.id)).length / roster.length * 100)
+    : 0;
+
+  const attBarColor = pct => pct >= 70 ? 'var(--green)' : pct >= 45 ? 'var(--amber)' : 'var(--danger)';
+
+  const squadAttRows = squadStats.map(({sq, members, attended30, pct}) => `
+    <div class="att-squad-row">
+      <div class="att-squad-name">${sq.name}</div>
+      <div class="att-bar-wrap"><div class="att-bar" style="width:${pct}%;background:${attBarColor(pct)};"></div></div>
+      <div class="att-pct" style="color:${attBarColor(pct)};">${pct}%</div>
+      <div style="font-size:11px;color:var(--text-sec);width:80px;text-align:right;flex-shrink:0;">${attended30}/${members} active</div>
+    </div>`).join('');
+
+  let atRiskHtml = '';
+  if (atRisk.length > 0) {
+    atRiskHtml = `
+      <div style="border-top:1px solid var(--border);padding:12px 16px 4px;">
+        <div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">
+          Not seen in 3+ weeks (${atRisk.length})
+        </div>
+        ${atRisk.map(r => {
+          const sq = allSquads.find(q => q.id === r.squad_id);
+          const lastDate = r.lastSeen
+            ? new Date(r.lastSeen).toLocaleDateString('en-ZA',{day:'numeric',month:'short'})
+            : 'never';
+          const weeksAgo = r.lastSeen
+            ? Math.floor((now - new Date(r.lastSeen)) / (7*86400000))
+            : null;
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">
+            <div>
+              <span style="font-size:13px;font-weight:600;">${r.display_name}</span>
+              <span style="font-size:11px;color:var(--text-sec);margin-left:8px;">${sq?.name || 'No squad'}</span>
             </div>
-            <div class="event-info">
-              <div class="event-title">${e.title}</div>
-              <div class="event-meta">
-                <span style="color:${soon ? 'var(--amber)' : 'var(--text-sec)'};">${daysAway === 0 ? 'Today' : daysAway === 1 ? 'Tomorrow' : daysAway + ' days'}</span>
-                ${e.venue ? `<span>${e.venue}</span>` : ''}
-                ${e.entry_deadline && e.entry_deadline >= todayStr ? `<span style="color:var(--amber);">entries close ${new Date(e.entry_deadline + 'T12:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short'})}</span>` : ''}
-              </div>
+            <div style="font-size:11px;color:var(--amber);">
+              Last: ${lastDate}${weeksAgo ? ` (${weeksAgo}w ago)` : ''}
             </div>
           </div>`;
         }).join('')}
-        ${upcomingEvents.length > 4 ? `<div style="text-align:center;padding:8px 0 2px;font-size:12px;color:var(--text-sec);">+${upcomingEvents.length - 4} more — see Events tab</div>` : ''}
+      </div>`;
+  } else if (everAttended.size > 0) {
+    atRiskHtml = `<div style="border-top:1px solid var(--border);padding:12px 16px;font-size:13px;color:var(--green);display:flex;align-items:center;gap:8px;">
+      <i data-lucide="check-circle" style="width:14px;height:14px;"></i> No at-risk swimmers — everyone seen in the last 3 weeks
+    </div>`;
+  }
+
+  attEl.innerHTML = `<div class="card" style="margin-bottom:16px;">
+    <div class="card-header">
+      <div class="card-title">Attendance Pulse <span style="font-size:11px;font-weight:400;color:var(--text-sec);">last 30 days</span></div>
+      <div style="font-size:18px;font-weight:800;color:${attBarColor(clubPct)};">${clubPct}% <span style="font-size:12px;font-weight:400;color:var(--text-sec);">club avg</span></div>
+    </div>
+    ${squadAttRows ? `<div style="padding:8px 0;">${squadAttRows}</div>` : ''}
+    ${atRiskHtml}
+  </div>`;
+
+  // ── Upcoming galas + Parent pipeline (2-col) ─────────────────────
+  const upcomingEvents = (allEvents||[])
+    .filter(e => new Date(e.event_date + 'T12:00:00') >= now)
+    .sort((a,b) => new Date(a.event_date) - new Date(b.event_date))
+    .slice(0, 4);
+
+  const eventsHtml = upcomingEvents.length
+    ? upcomingEvents.map(e => {
+        const d = new Date(e.event_date + 'T12:00:00');
+        const daysAway = Math.ceil((d - now) / 86400000);
+        const soon = daysAway <= 14;
+        return `<div class="pipeline-row" onclick="viewGalaEntries('${e.id}')" style="cursor:pointer;">
+          <div>
+            <div style="font-size:13px;font-weight:600;">${e.title}</div>
+            <div style="font-size:11px;color:var(--text-sec);margin-top:2px;">${d.getDate()} ${months[d.getMonth()]}${e.venue ? ' · ' + e.venue : ''}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:12px;font-weight:700;color:${soon?'var(--amber)':'var(--text-sec)'};">${daysAway===0?'Today':daysAway===1?'Tomorrow':daysAway+'d'}</div>
+            ${e.entry_deadline && e.entry_deadline >= todayStr
+              ? `<div style="font-size:10px;color:var(--amber);">entries close ${new Date(e.entry_deadline+'T12:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short'})}</div>`
+              : ''}
+          </div>
+        </div>`;
+      }).join('')
+    : `<div style="padding:20px 16px;text-align:center;color:var(--text-sec);font-size:13px;">No upcoming galas — add one in Events</div>`;
+
+  // Parent pipeline
+  const linkedCount = roster.filter(r => r.user_id).length;
+  const trialCount  = roster.filter(r => r.is_trial).length;
+  const trialConversionReady = roster.filter(r => r.is_trial && r.trial_end_date && r.trial_end_date < todayStr).length;
+  const pipelineRows = [
+    { label: 'Linked to SwimLoading',  val: `${linkedCount} / ${roster.length}`, color: linkedCount === roster.length ? 'var(--green)' : 'var(--text)' },
+    { label: 'Still to join app',      val: unlinked.length, color: unlinked.length > 0 ? 'var(--amber)' : 'var(--green)' },
+    { label: 'Active trials',          val: trialCount, color: trialCount > 0 ? 'var(--cyan)' : 'var(--text-sec)' },
+    { label: 'Trials ready to convert',val: trialConversionReady, color: trialConversionReady > 0 ? 'var(--amber)' : 'var(--text-sec)' },
+    { label: 'Members unassigned',     val: unassigned.length, color: unassigned.length > 0 ? 'var(--amber)' : 'var(--green)' },
+  ];
+
+  document.getElementById('overviewBottom').innerHTML = `
+    <div class="card">
+      <div class="card-header"><div class="card-title">Upcoming Galas</div><button class="btn-sm" onclick="showPage('events')" style="font-size:11px;padding:4px 10px;">View all</button></div>
+      ${eventsHtml}
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Parent &amp; Member Pipeline</div></div>
+      ${pipelineRows.map(r => `<div class="pipeline-row">
+        <div style="font-size:13px;">${r.label}</div>
+        <div class="pipeline-val" style="color:${r.color};">${r.val}</div>
+      </div>`).join('')}
+      <div style="padding:10px 16px;border-top:1px solid var(--border);">
+        <button class="btn-sm" style="width:100%;justify-content:center;font-size:12px;" onclick="showPage('roster')">
+          <i data-lucide="users" style="width:12px;height:12px;"></i> Open Roster
+        </button>
       </div>
     </div>`;
+
   lucide.createIcons();
 }
 
