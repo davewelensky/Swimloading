@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aqua Sharks Admin Guide · SwimLoading</title>
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080f1a;
+      --bg-card:  #0d1728;
+      --cyan:     #38bdf8;
+      --text:     #f1f5f9;
+      --text-sec: #64748b;
+      --border:   rgba(255,255,255,0.06);
+      --green:    #10b981;
+      --amber:    #f59e0b;
+      --purple:   #a78bfa;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      background:
+        radial-gradient(18px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+          rgba(56,189,248,0.55), transparent 100%),
+        radial-gradient(500px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+          rgba(56,189,248,0.07), transparent 70%);
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8,15,26,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .nav-brand img { height: 22px; width: auto; }
+
+    .nav-badge {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--cyan);
+      background: rgba(56,189,248,0.1);
+      border: 1px solid rgba(56,189,248,0.2);
+      border-radius: 20px;
+      padding: 3px 10px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .hero {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 56px 24px 40px;
+      text-align: center;
+    }
+
+    .hero-eyebrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .hero-eyebrow-line { width: 28px; height: 2px; background: var(--cyan); border-radius: 2px; }
+    .hero-eyebrow span { font-size: 11px; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.15em; }
+
+    .hero h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(44px, 10vw, 72px);
+      line-height: 0.95;
+      letter-spacing: 0.02em;
+      margin-bottom: 16px;
+    }
+    .hero h1 span { color: var(--cyan); }
+
+    .hero-sub {
+      font-size: 16px;
+      color: rgba(241,245,249,0.65);
+      max-width: 480px;
+      margin: 0 auto 32px;
+      line-height: 1.7;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--cyan);
+      color: #080f1a;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 13px 26px;
+      border-radius: 50px;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:hover { opacity: 0.88; }
+
+    .content {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    .step {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 32px;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(56,189,248,0.12);
+      border: 1px solid rgba(56,189,248,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      color: var(--cyan);
+      margin-top: 2px;
+    }
+
+    .step-body { flex: 1; }
+
+    .step-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .step-desc {
+      font-size: 14px;
+      color: rgba(241,245,249,0.65);
+      line-height: 1.7;
+    }
+    .step-desc strong { color: var(--text); font-weight: 600; }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sec);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 14px;
+    }
+
+    .points-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .points-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+    .points-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(56,189,248,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .points-icon i { color: var(--cyan); width: 15px; height: 15px; }
+    .points-icon.green { background: rgba(16,185,129,0.1); }
+    .points-icon.green i { color: var(--green); }
+    .points-icon.amber { background: rgba(245,158,11,0.1); }
+    .points-icon.amber i { color: var(--amber); }
+    .points-icon.purple { background: rgba(167,139,250,0.1); }
+    .points-icon.purple i { color: var(--purple); }
+
+    .points-label { flex: 1; font-size: 14px; color: var(--text); }
+    .points-label span { display: block; font-size: 12px; color: var(--text-sec); margin-top: 1px; }
+
+    .points-val {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--cyan);
+    }
+
+    .qt-tiers {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .tier-badge {
+      font-size: 12px;
+      font-weight: 800;
+      padding: 4px 14px;
+      border-radius: 20px;
+    }
+    .tier-l2   { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.3); }
+    .tier-l3   { background: rgba(167,139,250,0.12); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
+    .tier-sanj { background: rgba(245,158,11,0.12);  color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+
+    .member-screen {
+      background: linear-gradient(135deg, rgba(56,189,248,0.06) 0%, transparent 60%);
+      border: 1px solid rgba(56,189,248,0.15);
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin-bottom: 12px;
+    }
+
+    .member-screen-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--cyan);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .member-screen-title i { width: 15px; height: 15px; }
+
+    .member-screen-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .member-screen-list li {
+      font-size: 13px;
+      color: rgba(241,245,249,0.65);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .member-screen-list li::before {
+      content: '';
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--cyan);
+      margin-top: 7px;
+      flex-shrink: 0;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sec);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin: 40px 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .url-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(56,189,248,0.08);
+      border: 1px solid rgba(56,189,248,0.2);
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--cyan);
+      text-decoration: none;
+      margin-top: 10px;
+      word-break: break-all;
+    }
+    .url-chip i { width: 14px; height: 14px; flex-shrink: 0; }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 28px 24px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-sec);
+    }
+
+    @media (max-width: 520px) {
+      .hero { padding: 40px 20px 32px; }
+      .content { padding: 0 20px 60px; }
+      .step { gap: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="https://swimloading.com" class="nav-brand">
+      <img src="/icons/logo-wave.png" alt="">SwimLoading
+    </a>
+    <span class="nav-badge">Aqua Sharks Admin</span>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-eyebrow">
+      <div class="hero-eyebrow-line"></div>
+      <span>Aqua Sharks Academy Atlantic</span>
+      <div class="hero-eyebrow-line"></div>
+    </div>
+    <h1>Your coach<br>admin <span>guide</span></h1>
+    <p class="hero-sub">How to record gala results, track QT progress, post announcements, and give your squad and their parents a window into every swimmer's journey.</p>
+    <a href="https://www.swimloading.com/club-admin/aqua-sharks-atlantic" class="btn-primary" target="_blank">
+      <i data-lucide="layout-dashboard" style="width:16px;height:16px;"></i>
+      Open Aqua Sharks Admin
+    </a>
+  </div>
+
+  <div class="content">
+
+    <div class="section-label">Getting started</div>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Log into your admin panel</div>
+        <div class="step-desc">
+          Go to <strong>swimloading.com/club-admin/aqua-sharks-atlantic</strong> and sign in with your SwimLoading account. You'll land on the Aqua Sharks dashboard — Members, Roster, Squad Tracker, Galas, and Announcements are all in the left sidebar.
+        </div>
+        <a href="https://www.swimloading.com/club-admin/aqua-sharks-atlantic" class="url-chip" target="_blank">
+          <i data-lucide="external-link"></i>
+          swimloading.com/club-admin/aqua-sharks-atlantic
+        </a>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Get swimmers onto the platform</div>
+        <div class="step-desc">
+          Go to the <strong>Join Link</strong> tab and copy the link. Send it to swimmers and parents via WhatsApp or email. When they sign up and tap the link, they're matched to their spot on the roster — their member number and gala history are waiting for them. No manual linking needed.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">What joining does for a swimmer</div>
+          <div class="points-row">
+            <div class="points-icon green"><i data-lucide="user-check"></i></div>
+            <div class="points-label">Links their account to the squad roster <span>Their full gala history appears immediately</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="target"></i></div>
+            <div class="points-label">Unlocks QT progress bars <span>Shows how close they are to L2, L3, and SANJ</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon amber"><i data-lucide="trending-up"></i></div>
+            <div class="points-label">Shows their time-history charts <span>Every result plotted — up means faster</span></div>
+          </div>
+        </div>
+        <div class="step-desc" style="margin-top:12px;">
+          Send this same link to parents. When a parent signs up using the join link, they can see their child's results after you link the accounts — useful for Carina to see Italia's progress without sharing Italia's login.
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">After each gala</div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Enter gala results</div>
+        <div class="step-desc">
+          Go to the <strong>Galas</strong> tab and select the event (or create it if it doesn't exist yet). For each swimmer who competed, enter their stroke, distance, course (SC/LC), and time. SwimLoading automatically checks if it's a PB and shows the new QT status.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">What gets updated automatically</div>
+          <div class="points-row">
+            <div class="points-icon green"><i data-lucide="zap"></i></div>
+            <div class="points-label">PB detection <span>Compares to all previous results for that event</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="target"></i></div>
+            <div class="points-label">QT tier update <span>L2, L3, or SANJ badge on the progress bar</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon amber"><i data-lucide="trending-up"></i></div>
+            <div class="points-label">Time-history chart <span>New point added to each swimmer's graph</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Log time trials between galas</div>
+        <div class="step-desc">
+          In Squad Tracker, click into any swimmer and use the <strong>+ Log time</strong> button on any event. This adds a time trial point to their chart — useful to track training progress between competitions. Swimmers can also log their own times directly from their Club tab in the app.
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Tracking squad progress</div>
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">Use Squad Tracker for an overview</div>
+        <div class="step-desc">
+          The <strong>Squad Tracker</strong> tab shows every swimmer — sessions attended, results recorded, and events swum. Click any swimmer card to see their full time history: every result across all events, plotted on a chart with QT lines and PBs highlighted.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">What you see per swimmer</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="calendar"></i></div>
+            <div class="points-label">Sessions <span>How many training sessions they've attended</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon green"><i data-lucide="clock"></i></div>
+            <div class="points-label">Results <span>Total recorded times (galas + time trials)</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon amber"><i data-lucide="flag"></i></div>
+            <div class="points-label">Events <span>Number of gala events competed in</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Qualifying times</div>
+
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <div class="step-title">SSA Age Group qualifying times — built in</div>
+        <div class="step-desc">
+          SwimLoading uses the <strong>SSA Age Group 2025/2026</strong> qualifying time tables. Once a swimmer's date of birth is on the roster, the app calculates their age group and shows progress bars for every event they've swum — showing how close they are to each tier.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">The three tiers</div>
+          <div class="qt-tiers">
+            <span class="tier-badge tier-l2">L2</span>
+            <span class="tier-badge tier-l3">L3</span>
+            <span class="tier-badge tier-sanj">SANJ</span>
+          </div>
+          <div class="step-desc" style="margin-top:12px;">
+            <strong>L2</strong> is the entry-level age group qualifying time. <strong>L3</strong> is the next step up. <strong>SANJ</strong> is the South African National Junior qualifying standard — the top tier. The progress bar shows the swimmer's current time as a dot on the scale, with each tier marked. Green dot = PB.
+          </div>
+        </div>
+        <div class="step-desc" style="margin-top:10px;">
+          Make sure every swimmer's <strong>date of birth</strong> is entered in the Roster tab — without it, the QT bars won't appear. You can add or edit it anytime.
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Keeping the squad informed</div>
+
+    <div class="step">
+      <div class="step-num">7</div>
+      <div class="step-body">
+        <div class="step-title">Post announcements</div>
+        <div class="step-desc">
+          Go to the <strong>Announcements</strong> tab. Write a title and message — anything from gala entries closing, equipment lists, session changes, or training reminders. Pin important notices to keep them at the top. Announcements appear immediately in every squad member's Club tab in the app.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">Good announcement examples</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="megaphone"></i></div>
+            <div class="points-label">Gala entry deadline reminder <span>Western Province Champs entries close Friday</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="package"></i></div>
+            <div class="points-label">Equipment list <span>What to bring to Saturday's gala</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="calendar-x"></i></div>
+            <div class="points-label">Session changes <span>No Thursday session this week — public holiday</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">What your swimmers and parents see</div>
+
+    <div class="member-screen">
+      <div class="member-screen-title">
+        <i data-lucide="smartphone"></i>
+        Swimmer view — Club tab in the SwimLoading app
+      </div>
+      <ul class="member-screen-list">
+        <li>Their training schedule — next session at a glance</li>
+        <li>Announcements from you — pinned posts stay visible at the top</li>
+        <li>QT progress bars — every event they've swum, showing distance to L2/L3/SANJ with their current time as a live dot on the scale</li>
+        <li>Time-history charts — one chart per event, all results plotted, PBs highlighted green, QT tier lines overlaid — up means faster</li>
+        <li>Upcoming galas with dates and detail</li>
+        <li>A log button to add their own time trial results between galas</li>
+      </ul>
+    </div>
+
+    <div class="member-screen" style="background:linear-gradient(135deg,rgba(16,185,129,0.06) 0%,transparent 60%);border-color:rgba(16,185,129,0.15);">
+      <div class="member-screen-title" style="color:var(--green);">
+        <i data-lucide="users"></i>
+        Parent view (coming soon)
+      </div>
+      <ul class="member-screen-list">
+        <li>Log in with their own account — no sharing passwords with their swimmer</li>
+        <li>See their child's full results and QT progress</li>
+        <li>Receive the same announcements as the squad</li>
+      </ul>
+    </div>
+
+    <div class="section-label">Roster management</div>
+
+    <div class="step">
+      <div class="step-num">8</div>
+      <div class="step-body">
+        <div class="step-title">Keep the roster up to date</div>
+        <div class="step-desc">
+          The <strong>Roster</strong> tab is your source of truth for the squad. Each swimmer has a member number, date of birth (needed for QTs), gender, category (squad / masters), and SASA number. Click any name to edit their details. You can also add new swimmers here before they've joined via the app.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">Critical fields per swimmer</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="cake"></i></div>
+            <div class="points-label">Date of birth <span>Required for QT age group calculation</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="user"></i></div>
+            <div class="points-label">Gender <span>Required for SSA qualifying times (M/F)</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="hash"></i></div>
+            <div class="points-label">Member number <span>Permanent identifier across all galas</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">9</div>
+      <div class="step-body">
+        <div class="step-title">Mark swimmers active or inactive</div>
+        <div class="step-desc">
+          In the <strong>Members</strong> tab you'll see everyone who has joined via the link. Use the Active / Inactive toggle to manage swimmers who have left the squad or taken a break — they stay in the system (and their results are preserved) but don't appear in the active squad view. Tick <strong>Show inactive</strong> to see them anytime.
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 48px; text-align: center;">
+      <a href="https://www.swimloading.com/club-admin/aqua-sharks-atlantic" class="btn-primary" target="_blank">
+        <i data-lucide="layout-dashboard" style="width:16px;height:16px;"></i>
+        Open Aqua Sharks Admin
+      </a>
+    </div>
+
+  </div>
+
+  <footer>
+    Questions? Contact Dave — swimloading.com &nbsp;·&nbsp; dave.welensky@gmail.com
+  </footer>
+
+  <script>
+    document.addEventListener('mousemove', e => {
+      document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+      document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+    });
+    lucide.createIcons();
+  </script>
+</body>
+</html>
