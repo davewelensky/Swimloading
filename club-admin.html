@@ -3679,8 +3679,6 @@ function renderRosterTable() {
       : `<button class="btn-sm" onclick="openRosterLinkModal('${r.id}','${(r.display_name||'').replace(/'/g,"\\'")}')">Link</button>`;
 
     const squadName = allSquads.find(s => s.id === r.squad_id)?.name || '';
-    const squadBadge = squadName
-      ? `<div style="font-size:11px;color:var(--text-sec);margin-top:2px;">${squadName}</div>` : '';
 
     const ageTxt = r.date_of_birth ? (() => {
       const dob = new Date(r.date_of_birth);
@@ -3688,9 +3686,25 @@ function renderRosterTable() {
       return `<span style="font-size:11px;color:var(--text-sec);margin-left:6px;">${age}y</span>`;
     })() : '';
 
+    const trialPill = r.is_trial
+      ? `<span onclick="toggleRosterTrial('${r.id}',true)" title="Remove trial status" style="cursor:pointer;font-size:10px;font-weight:700;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#ef4444;padding:1px 7px;border-radius:4px;">TRIAL ×</span>`
+      : `<span onclick="toggleRosterTrial('${r.id}',false)" title="Mark as trial" style="cursor:pointer;font-size:10px;color:var(--text-dim);padding:1px 7px;border-radius:4px;border:1px solid var(--border);">+ trial</span>`;
+
+    const feePill = !r.fee_paid
+      ? `<span onclick="toggleRosterFeePaid('${r.id}',false)" title="Mark fee as paid" style="cursor:pointer;font-size:10px;font-weight:700;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.35);color:#f59e0b;padding:1px 7px;border-radius:4px;">UNPAID ×</span>`
+      : `<span onclick="toggleRosterFeePaid('${r.id}',true)" title="Mark fee as unpaid" style="cursor:pointer;font-size:10px;color:var(--text-dim);padding:1px 7px;border-radius:4px;border:1px solid var(--border);">+ unpaid</span>`;
+
+    const subLine = [squadName, trialPill, feePill].filter(Boolean);
+
     return `<tr data-roster-id="${r.id}">
       <td><span class="member-num">${r.member_number ?? '—'}</span></td>
-      <td class="member-name">${r.display_name || '—'}${ageTxt}${squadBadge}</td>
+      <td class="member-name">
+        <div>${r.display_name || '—'}${ageTxt}</div>
+        <div style="display:flex;align-items:center;gap:5px;margin-top:3px;flex-wrap:wrap;">
+          ${squadName ? `<span style="font-size:11px;color:var(--text-sec);">${squadName}</span>` : ''}
+          ${trialPill}${feePill}
+        </div>
+      </td>
       <td><span class="cat-badge ${catClass(r.category)}">${r.category || '—'}</span></td>
       <td>${swCell}</td>
       <td style="text-align:right;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;">
@@ -3770,6 +3784,26 @@ async function saveRosterEdit() {
   closeRosterEditModal();
   renderRosterTable();
   showToast('Member updated', 'success');
+}
+
+async function toggleRosterTrial(id, current) {
+  const newVal = !current;
+  const { error } = await sb.from('club_roster').update({ is_trial: newVal }).eq('id', id);
+  if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+  const row = allRoster.find(r => r.id === id);
+  if (row) row.is_trial = newVal;
+  renderRosterTable();
+  showToast(newVal ? 'Marked as trial' : 'Trial removed', 'success');
+}
+
+async function toggleRosterFeePaid(id, current) {
+  const newVal = !current;
+  const { error } = await sb.from('club_roster').update({ fee_paid: newVal }).eq('id', id);
+  if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+  const row = allRoster.find(r => r.id === id);
+  if (row) row.fee_paid = newVal;
+  renderRosterTable();
+  showToast(newVal ? 'Fee marked paid' : 'Marked as unpaid', 'success');
 }
 
 async function openMemberProfile(rosterId) {
