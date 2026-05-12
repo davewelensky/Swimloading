@@ -512,11 +512,19 @@
             <div class="page-sub" id="attendancePageSub">Track training sessions and monitor squad attendance.</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <select class="filter-select" id="attendanceView" onchange="renderAttendancePage()" style="width:auto;">
+            <select class="filter-select" id="attendanceView" onchange="onAttendanceViewChange()" style="width:auto;">
               <option value="sessions">Sessions</option>
               <option value="stats">Stats</option>
+              <option value="report">Monthly Report</option>
             </select>
-            <button class="btn-primary" style="width:auto;padding:10px 20px;border-radius:10px;font-size:13px;" onclick="openNewSession()">
+            <select class="filter-select" id="reportMonth" onchange="renderAttendancePage()" style="width:auto;display:none;"></select>
+            <select class="filter-select" id="reportSquad" onchange="renderAttendancePage()" style="width:auto;display:none;">
+              <option value="">All squads</option>
+            </select>
+            <button id="exportReportBtn" class="btn-sm" onclick="exportAttendanceCSV()" style="display:none;padding:10px 16px;border-radius:10px;font-size:13px;">
+              <i data-lucide="download" style="width:14px;height:14px;"></i> Export CSV
+            </button>
+            <button id="newSessionBtn" class="btn-primary" style="width:auto;padding:10px 20px;border-radius:10px;font-size:13px;" onclick="openNewSession()">
               <i data-lucide="plus" style="width:14px;height:14px;"></i> New session
             </button>
           </div>
@@ -3951,12 +3959,24 @@ async function loadAttendance() {
   ]);
   allSessions = sessionsRes.data || [];
   allIntents  = intentsRes.data  || [];
+  populateReportFilters();
+  renderAttendancePage();
+}
+
+function onAttendanceViewChange() {
+  const view = document.getElementById('attendanceView').value;
+  const isReport = view === 'report';
+  document.getElementById('reportMonth').style.display     = isReport ? '' : 'none';
+  document.getElementById('reportSquad').style.display     = isReport ? '' : 'none';
+  document.getElementById('exportReportBtn').style.display = isReport ? '' : 'none';
+  document.getElementById('newSessionBtn').style.display   = isReport ? 'none' : '';
   renderAttendancePage();
 }
 
 function renderAttendancePage() {
   const view = document.getElementById('attendanceView')?.value || 'sessions';
-  if (view === 'stats') renderAttendanceStats();
+  if (view === 'stats')  renderAttendanceStats();
+  else if (view === 'report') renderAttendanceReport();
   else renderSessionsList();
 }
 
@@ -4188,6 +4208,210 @@ function renderAttendanceStats() {
       <div style="font-size:11px;color:var(--text-sec);margin-top:12px;">Reliability = when they said they were coming, did they show up?</div>
     </div>`;
   lucide.createIcons();
+}
+
+// ── REPORT FILTERS SETUP ─────────────────────────────────────────
+function populateReportFilters() {
+  // Month picker: current month + last 5
+  const monthEl = document.getElementById('reportMonth');
+  if (!monthEl) return;
+  const now = new Date();
+  const months = [];
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = d.toISOString().slice(0, 7);
+    const label = d.toLocaleDateString('en-ZA', { month: 'long', year: 'numeric' });
+    months.push(`<option value="${val}">${label}</option>`);
+  }
+  monthEl.innerHTML = months.join('');
+
+  // Squad picker
+  const squadEl = document.getElementById('reportSquad');
+  if (!squadEl) return;
+  squadEl.innerHTML = '<option value="">All squads</option>' +
+    allSquads.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+}
+
+// ── MONTHLY REPORT GRID ───────────────────────────────────────────
+async function renderAttendanceReport() {
+  const el = document.getElementById('attendanceContent');
+  el.innerHTML = `<div class="loading"><div class="spinner"></div></div>`;
+
+  const monthVal = document.getElementById('reportMonth')?.value || new Date().toISOString().slice(0, 7);
+  const squadVal = document.getElementById('reportSquad')?.value || '';
+  const [y, m]   = monthVal.split('-').map(Number);
+  const monthStart = `${monthVal}-01`;
+  const monthEnd   = new Date(y, m, 0).toISOString().slice(0, 10);
+
+  let q = sb.from('club_sessions')
+    .select('id, session_date, start_time, session_type, squad_id, coach_name, club_attendance(roster_id, status)')
+    .eq('club_id', currentClub.id)
+    .gte('session_date', monthStart)
+    .lte('session_date', monthEnd)
+    .order('session_date').order('start_time');
+  if (squadVal) q = q.eq('squad_id', squadVal);
+
+  const { data: sessions, error } = await q;
+  if (error) { el.innerHTML = `<div class="empty">Error: ${error.message}</div>`; return; }
+  if (!sessions?.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-title">No sessions this month</div><div class="empty-desc">Record sessions or pick a different month.</div></div>`;
+    return;
+  }
+
+  const roster = (squadVal ? allRosterFull.filter(r => r.squad_id === squadVal) : allRosterFull)
+    .slice().sort((a, b) => (a.member_number || 9999) - (b.member_number || 9999) || a.display_name.localeCompare(b.display_name));
+
+  // Build status lookup: rosterId → sessionId → status
+  const statusMap = {};
+  sessions.forEach(s => {
+    (s.club_attendance || []).forEach(a => {
+      if (!statusMap[a.roster_id]) statusMap[a.roster_id] = {};
+      statusMap[a.roster_id][s.id] = a.status;
+    });
+  });
+
+  const statusDisplay = {
+    present:    { abbr: 'P',   color: '#10b981' },
+    catch_up:   { abbr: 'CU',  color: '#38bdf8' },
+    no_contact: { abbr: 'NC',  color: '#ef4444' },
+    no_show:    { abbr: 'NS',  color: '#ef4444' },
+    notice:     { abbr: 'N',   color: '#f59e0b' },
+    away:       { abbr: 'A',   color: '#64748b' },
+    dnp:        { abbr: 'DNP', color: '#a78bfa' },
+  };
+
+  const pctColour = p => p === null ? 'var(--text-sec)' : p >= 80 ? 'var(--green)' : p >= 60 ? 'var(--amber)' : 'var(--danger)';
+
+  const summary = roster.map(r => {
+    const statuses    = sessions.map(s => statusMap[r.id]?.[s.id] || '');
+    const presentCount = statuses.filter(s => s === 'present' || s === 'catch_up').length;
+    const dnpCount     = statuses.filter(s => s === 'dnp').length;
+    const pct          = sessions.length ? Math.round(presentCount / sessions.length * 100) : null;
+    return { r, statuses, presentCount, dnpCount, pct };
+  });
+
+  const minW = 180 + sessions.length * 48 + 120;
+
+  el.innerHTML = `
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:${minW}px;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border);">
+            <th style="text-align:left;padding:8px 10px;font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.06em;position:sticky;left:0;background:var(--bg-card);z-index:2;min-width:160px;">Swimmer</th>
+            ${sessions.map(s => {
+              const d     = new Date(s.session_date + 'T12:00:00');
+              const day   = d.toLocaleDateString('en-ZA', { weekday: 'short' });
+              const date  = d.getDate();
+              const squad = allSquads.find(sq => sq.id === s.squad_id);
+              return `<th style="text-align:center;padding:6px 3px;min-width:44px;" title="${squad?.name || s.session_type} · ${s.session_date}${s.coach_name ? ' · ' + s.coach_name : ''}">
+                <div style="font-size:12px;font-weight:800;color:var(--text);">${date}</div>
+                <div style="font-size:9px;font-weight:600;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.05em;">${day}</div>
+              </th>`;
+            }).join('')}
+            <th style="text-align:center;padding:6px 8px;font-size:10px;font-weight:700;color:var(--text-sec);min-width:52px;">Present</th>
+            <th style="text-align:center;padding:6px 8px;font-size:10px;font-weight:700;color:var(--text-sec);min-width:44px;">DNP</th>
+            <th style="text-align:center;padding:6px 8px;font-size:10px;font-weight:700;color:var(--text-sec);min-width:44px;">Rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${summary.map(({ r, statuses, presentCount, dnpCount, pct }) => `
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.03);" onmouseenter="this.style.background='rgba(255,255,255,0.025)'" onmouseleave="this.style.background=''">
+              <td style="padding:6px 10px;white-space:nowrap;position:sticky;left:0;background:var(--bg-card);">
+                <div style="font-size:13px;font-weight:600;color:var(--text);">${r.display_name}</div>
+                ${r.is_trial ? '<span style="font-size:9px;font-weight:800;color:var(--danger);background:rgba(239,68,68,0.1);border-radius:4px;padding:1px 5px;margin-left:4px;">TRIAL</span>' : ''}
+              </td>
+              ${statuses.map(status => {
+                const d = statusDisplay[status];
+                return `<td style="text-align:center;padding:5px 2px;">${
+                  d ? `<span style="font-size:10px;font-weight:800;color:${d.color};">${d.abbr}</span>`
+                    : `<span style="color:rgba(255,255,255,0.1);font-size:12px;">·</span>`
+                }</td>`;
+              }).join('')}
+              <td style="text-align:center;padding:5px 8px;font-size:13px;font-weight:800;color:var(--green);">${presentCount}</td>
+              <td style="text-align:center;padding:5px 8px;font-size:12px;font-weight:700;color:${dnpCount > 0 ? '#a78bfa' : 'var(--text-sec)'};">${dnpCount || '—'}</td>
+              <td style="text-align:center;padding:5px 8px;font-size:13px;font-weight:800;color:${pctColour(pct)};">${pct !== null ? pct + '%' : '—'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+        <tfoot>
+          <tr style="border-top:2px solid var(--border);">
+            <td style="padding:8px 10px;font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.05em;position:sticky;left:0;background:var(--bg-card);">Total present</td>
+            ${sessions.map(s => {
+              const present   = (s.club_attendance || []).filter(a => a.status === 'present' || a.status === 'catch_up').length;
+              const squadSize = s.squad_id ? allRosterFull.filter(r => r.squad_id === s.squad_id).length : roster.length;
+              const pct       = squadSize ? Math.round(present / squadSize * 100) : 0;
+              return `<td style="text-align:center;padding:6px 2px;font-size:11px;font-weight:800;color:${pct >= 80 ? 'var(--green)' : pct >= 60 ? 'var(--amber)' : present > 0 ? 'var(--danger)' : 'var(--text-sec)'};">${present || '—'}</td>`;
+            }).join('')}
+            <td colspan="3"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--text-sec);">
+      <span><b style="color:#10b981;">P</b> Present</span>
+      <span><b style="color:#38bdf8;">CU</b> Catch-up</span>
+      <span><b style="color:#f59e0b;">N</b> Notice</span>
+      <span><b style="color:#ef4444;">NC</b> No contact</span>
+      <span><b style="color:#ef4444;">NS</b> No show</span>
+      <span><b style="color:#64748b;">A</b> Away</span>
+      <span><b style="color:#a78bfa;">DNP</b> Did not participate</span>
+    </div>`;
+}
+
+// ── CSV EXPORT ────────────────────────────────────────────────────
+async function exportAttendanceCSV() {
+  const monthVal = document.getElementById('reportMonth')?.value || new Date().toISOString().slice(0, 7);
+  const squadVal = document.getElementById('reportSquad')?.value || '';
+  const [y, m]   = monthVal.split('-').map(Number);
+  const monthStart = `${monthVal}-01`;
+  const monthEnd   = new Date(y, m, 0).toISOString().slice(0, 10);
+
+  let q = sb.from('club_sessions')
+    .select('id, session_date, start_time, session_type, squad_id, club_attendance(roster_id, status)')
+    .eq('club_id', currentClub.id)
+    .gte('session_date', monthStart)
+    .lte('session_date', monthEnd)
+    .order('session_date').order('start_time');
+  if (squadVal) q = q.eq('squad_id', squadVal);
+
+  const { data: sessions } = await q;
+  if (!sessions?.length) { showToast('No data to export'); return; }
+
+  const roster = (squadVal ? allRosterFull.filter(r => r.squad_id === squadVal) : allRosterFull)
+    .slice().sort((a, b) => (a.member_number || 9999) - (b.member_number || 9999));
+
+  const abbr = { present: 'P', catch_up: 'CU', no_contact: 'NC', no_show: 'NS', notice: 'N', away: 'A', dnp: 'DNP' };
+
+  const statusMap = {};
+  sessions.forEach(s => {
+    (s.club_attendance || []).forEach(a => {
+      if (!statusMap[a.roster_id]) statusMap[a.roster_id] = {};
+      statusMap[a.roster_id][s.id] = a.status;
+    });
+  });
+
+  const colHeaders = sessions.map(s => {
+    const squad = allSquads.find(sq => sq.id === s.squad_id);
+    return `"${s.session_date} ${(s.start_time || '').slice(0, 5)} ${squad?.name || s.session_type}"`;
+  });
+
+  const header = ['Member#', 'Name', 'Trial', ...colHeaders, 'Present', 'DNP', 'Rate%'].join(',');
+
+  const rows = roster.map(r => {
+    const statuses     = sessions.map(s => abbr[statusMap[r.id]?.[s.id]] || '');
+    const presentCount = statuses.filter(s => s === 'P' || s === 'CU').length;
+    const dnpCount     = statuses.filter(s => s === 'DNP').length;
+    const pct          = sessions.length ? Math.round(presentCount / sessions.length * 100) : '';
+    return [r.member_number || '', `"${r.display_name}"`, r.is_trial ? 'Trial' : '', ...statuses, presentCount, dnpCount, pct].join(',');
+  });
+
+  const csv  = [header, ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `attendance-${monthVal}.csv`; a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV downloaded');
 }
 
 // ── NEW SESSION MODAL ─────────────────────────────────────────────
