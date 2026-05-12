@@ -6452,11 +6452,19 @@ async function executeCsvImport() {
 
   const msg = [added && `${added} added`, updated && `${updated} updated`, errors && `${errors} failed`]
     .filter(Boolean).join(', ');
-  showToast('Import complete: ' + msg, errors ? 'error' : 'success');
 
-  closeCsvImportModal();
-  allRoster = [];
-  loadRoster();
+  if (errors === 0) {
+    btn.textContent = '✓ Import complete — ' + msg;
+    btn.style.background = 'var(--green)';
+    btn.style.color = '#fff';
+    setTimeout(() => { closeCsvImportModal(); allRoster = []; loadRoster(); }, 2000);
+  } else {
+    btn.disabled = false;
+    btn.textContent = 'Import all rows';
+    showToast('Import finished: ' + msg, 'error');
+    allRoster = [];
+    loadRoster();
+  }
 }
 
 function escHtml(s) {
