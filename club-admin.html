@@ -348,11 +348,13 @@
           <div class="page-sub">Welcome back. Here's what's happening.</div>
         </div>
         <div class="stat-row" id="overviewStats">
-          <div class="stat-card"><div class="stat-label">Members</div><div class="stat-val" id="statMembers">—</div><div class="stat-note">active members</div></div>
-          <div class="stat-card"><div class="stat-label">Upcoming events</div><div class="stat-val" id="statEvents">—</div><div class="stat-note">next 30 days</div></div>
-          <div class="stat-card"><div class="stat-label">Temp logs</div><div class="stat-val" id="statLogs">—</div><div class="stat-note">by members this month</div></div>
-          <div class="stat-card"><div class="stat-label">Open entries</div><div class="stat-val" id="statEntries">—</div><div class="stat-note">pre-entered, next race</div></div>
+          <div class="stat-card"><div class="stat-label">Members</div><div class="stat-val" id="statMembers">—</div><div class="stat-note">on roster</div></div>
+          <div class="stat-card"><div class="stat-label">Sessions today</div><div class="stat-val" id="statSessions">—</div><div class="stat-note">scheduled</div></div>
+          <div class="stat-card"><div class="stat-label">Trials ending</div><div class="stat-val" id="statTrials" style="color:var(--amber);">—</div><div class="stat-note">within 7 days</div></div>
+          <div class="stat-card"><div class="stat-label">Fees overdue</div><div class="stat-val" id="statFees" style="color:var(--danger);">—</div><div class="stat-note">unpaid past due</div></div>
         </div>
+        <div id="overviewAlerts"></div>
+        <div id="overviewSchedule"></div>
         <div id="overviewCategories"></div>
         <div id="overviewUpcoming"></div>
       </div>
@@ -1540,7 +1542,7 @@ async function loadMembers() {
       .eq('club_id', currentClub.id)
       .not('user_id', 'is', null),
     sb.from('club_roster')
-      .select('id, member_number, display_name, category, user_id, squad_id, is_trial, fee_paid')
+      .select('id, member_number, display_name, category, user_id, squad_id, is_trial, fee_paid, trial_end_date, fee_due_date')
       .eq('club_id', currentClub.id)
       .order('member_number'),
   ]);
@@ -1616,71 +1618,162 @@ async function loadEvents() {
 
 // ── OVERVIEW ──────────────────────────────────────────────────────
 function renderOverview() {
-  const rosterCount = allRosterFull.length || allMembers.length;
-  document.getElementById('statMembers').textContent = rosterCount;
-  const now = new Date();
-  const upcomingEvents = allEvents.filter(e => new Date(e.event_date) >= now);
-  document.getElementById('statEvents').textContent = upcomingEvents.length;
-  const totalLogs = Object.values(memberLogs).reduce((a,b) => a+b, 0);
-  document.getElementById('statLogs').textContent = totalLogs;
-  document.getElementById('statEntries').textContent = '—';
+  const now          = new Date();
+  const todayStr     = now.toISOString().slice(0, 10);
+  const in7days      = new Date(now.getTime() + 7 * 86400000).toISOString().slice(0, 10);
+  const roster       = allRosterFull.length ? allRosterFull : allMembers;
+  const rosterCount  = roster.length;
+  const linkedCount  = allRosterFull.filter(r => r.user_id).length;
 
-  // Category breakdown — use full roster so it shows before anyone joins
-  const source = allRosterFull.length ? allRosterFull : allMembers;
-  const catCounts = {};
-  source.forEach(m => {
-    const cat = m.category || m.club_categories?.name || 'Unassigned';
-    catCounts[cat] = (catCounts[cat] || 0) + 1;
+  // ── Stat cards ────────────────────────────────────────────────
+  document.getElementById('statMembers').textContent  = rosterCount;
+  document.getElementById('statSessions').textContent = allSquadSessions.length || '0';
+
+  const trialsEnding = roster.filter(r =>
+    r.is_trial && r.trial_end_date && r.trial_end_date >= todayStr && r.trial_end_date <= in7days
+  );
+  const feesOverdue = roster.filter(r =>
+    r.fee_paid === false && r.fee_due_date && r.fee_due_date < todayStr
+  );
+
+  document.getElementById('statTrials').textContent = trialsEnding.length;
+  document.getElementById('statTrials').style.color  = trialsEnding.length > 0 ? 'var(--amber)' : 'var(--text)';
+  document.getElementById('statFees').textContent   = feesOverdue.length;
+  document.getElementById('statFees').style.color    = feesOverdue.length > 0 ? 'var(--danger)' : 'var(--text)';
+
+  // ── Alert strip ───────────────────────────────────────────────
+  const alertEl = document.getElementById('overviewAlerts');
+  const alerts  = [];
+  if (trialsEnding.length > 0) {
+    const names = trialsEnding.map(r => {
+      const daysLeft = Math.ceil((new Date(r.trial_end_date) - now) / 86400000);
+      return `<span onclick="showPage('roster')" style="cursor:pointer;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);color:var(--amber);font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;white-space:nowrap;">
+        ${r.display_name} — ${daysLeft === 0 ? 'today' : daysLeft + 'd'}
+      </span>`;
+    }).join('');
+    alerts.push(`<div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);">
+      <i data-lucide="clock" style="width:15px;height:15px;color:var(--amber);flex-shrink:0;margin-top:2px;"></i>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:6px;">Trial ending within 7 days</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">${names}</div>
+      </div>
+    </div>`);
+  }
+  if (feesOverdue.length > 0) {
+    const names = feesOverdue.slice(0, 5).map(r =>
+      `<span onclick="showPage('roster')" style="cursor:pointer;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:var(--danger);font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;white-space:nowrap;">${r.display_name}</span>`
+    ).join('');
+    const more = feesOverdue.length > 5 ? `<span style="font-size:12px;color:var(--text-sec);">+${feesOverdue.length - 5} more</span>` : '';
+    alerts.push(`<div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;">
+      <i data-lucide="alert-circle" style="width:15px;height:15px;color:var(--danger);flex-shrink:0;margin-top:2px;"></i>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--danger);margin-bottom:6px;">Fee overdue</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">${names}${more}</div>
+      </div>
+    </div>`);
+  }
+  alertEl.innerHTML = alerts.length
+    ? `<div class="card" style="margin-bottom:16px;">${alerts.join('')}</div>`
+    : '';
+
+  // ── Today's schedule ──────────────────────────────────────────
+  const schedEl = document.getElementById('overviewSchedule');
+  if (allSquadSessions.length > 0) {
+    const fmtTime = t => {
+      if (!t) return '';
+      const [h, m] = t.split(':');
+      const hr = parseInt(h), ampm = hr >= 12 ? 'pm' : 'am';
+      return (hr > 12 ? hr - 12 : hr || 12) + ':' + m + ampm;
+    };
+    const rows = allSquadSessions.map(s => {
+      const squad = allSquads.find(sq => sq.id === s.squad_id);
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);">
+        <div style="min-width:80px;font-size:13px;font-weight:600;color:var(--cyan);">${fmtTime(s.start_time)}${s.end_time ? ' – ' + fmtTime(s.end_time) : ''}</div>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:600;color:var(--text);">${squad?.name || 'Squad'}</div>
+          ${s.session_type ? `<div style="font-size:11px;color:var(--text-sec);text-transform:capitalize;">${s.session_type.replace(/_/g,' ')}</div>` : ''}
+        </div>
+        ${s.coach_name
+          ? `<div style="font-size:12px;color:var(--text-sec);display:flex;align-items:center;gap:5px;"><i data-lucide="user" style="width:12px;height:12px;"></i> ${s.coach_name}</div>`
+          : `<div style="font-size:12px;color:var(--text-sec);opacity:0.5;">No coach assigned</div>`
+        }
+      </div>`;
+    }).join('');
+    schedEl.innerHTML = `<div class="card" style="margin-bottom:16px;">
+      <div class="card-header"><div class="card-title">Today's Schedule</div></div>
+      ${rows}
+    </div>`;
+  } else {
+    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    schedEl.innerHTML = `<div class="card" style="margin-bottom:16px;">
+      <div class="card-header"><div class="card-title">Today's Schedule</div></div>
+      <div class="empty" style="padding:20px;"><div class="empty-title">No sessions on ${days[now.getDay()]}</div></div>
+    </div>`;
+  }
+
+  // ── Squad breakdown ───────────────────────────────────────────
+  const squadCounts = {};
+  roster.forEach(r => {
+    const sq = allSquads.find(s => s.id === r.squad_id);
+    const name = sq?.name || 'Unassigned';
+    squadCounts[name] = (squadCounts[name] || 0) + 1;
   });
-  const linkedCount = allRosterFull.filter(r => r.user_id).length || allMembers.filter(m => m._source === 'club_members').length;
-  const catEl = document.getElementById('overviewCategories');
-  catEl.innerHTML = `
-    <div class="card" style="margin-bottom:20px;">
+  // Sort by squad sort_order then alphabetical
+  const sortedSquads = Object.entries(squadCounts).sort(([a], [b]) => {
+    const ao = allSquads.find(s => s.name === a)?.sort_order ?? 99;
+    const bo = allSquads.find(s => s.name === b)?.sort_order ?? 99;
+    return ao !== bo ? ao - bo : a.localeCompare(b);
+  });
+  document.getElementById('overviewCategories').innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
       <div class="card-header">
         <div class="card-title">Squad Breakdown</div>
         <div style="font-size:12px;color:var(--text-sec);">${linkedCount} of ${rosterCount} on SwimLoading</div>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:12px;padding:16px;">
-        ${Object.entries(catCounts).map(([cat, count]) => `
-          <div style="text-align:center;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:12px 20px;">
+        ${sortedSquads.map(([name, count]) => `
+          <div style="text-align:center;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:12px 20px;cursor:pointer;" onclick="showPage('roster')">
             <div style="font-size:22px;font-weight:800;color:var(--cyan);">${count}</div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;">${cat}</div>
-          </div>
-        `).join('')}
+            <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;">${name}</div>
+          </div>`).join('')}
       </div>
     </div>`;
 
-  // Upcoming events — all future, no 30-day cap
+  // ── Upcoming events ───────────────────────────────────────────
+  const upcomingEvents = allEvents.filter(e => new Date(e.event_date + 'T12:00:00') >= now)
+    .sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
   const upEl = document.getElementById('overviewUpcoming');
   if (upcomingEvents.length === 0) {
-    upEl.innerHTML = '<div class="empty"><div class="empty-title">No upcoming events</div><div class="empty-desc">Add events from the Events tab.</div></div>';
+    upEl.innerHTML = '';
     return;
   }
   upEl.innerHTML = `
     <div class="card">
-      <div class="card-header"><div class="card-title">Upcoming Events</div></div>
+      <div class="card-header"><div class="card-title">Upcoming Galas</div></div>
       <div style="padding:12px;">
-        ${upcomingEvents.slice(0, 5).map(e => {
-          const d = new Date(e.event_date + 'T12:00:00');
-          const daysAway = Math.ceil((d - now) / (1000 * 60 * 60 * 24));
-          const soon = daysAway <= 14;
-          return `<div class="event-card">
+        ${upcomingEvents.slice(0, 4).map(e => {
+          const d        = new Date(e.event_date + 'T12:00:00');
+          const daysAway = Math.ceil((d - now) / 86400000);
+          const soon     = daysAway <= 14;
+          return `<div class="event-card" onclick="viewGalaEntries('${e.id}')" style="cursor:pointer;">
             <div class="event-date-block">
               <div class="event-date-day">${d.getDate()}</div>
               <div class="event-date-mon">${d.toLocaleString('default',{month:'short'})}</div>
             </div>
             <div class="event-info">
-              <div class="event-title">${e.title}${e.is_league ? '<span class="league-tag">Champs</span>' : ''}</div>
+              <div class="event-title">${e.title}</div>
               <div class="event-meta">
-                <span style="color:${soon ? 'var(--amber)' : 'var(--text-sec)'};">${daysAway === 0 ? 'Today' : daysAway === 1 ? 'Tomorrow' : `${daysAway} days`}</span>
-                ${e.description ? `<span>${e.description.split('.')[0]}</span>` : ''}
+                <span style="color:${soon ? 'var(--amber)' : 'var(--text-sec)'};">${daysAway === 0 ? 'Today' : daysAway === 1 ? 'Tomorrow' : daysAway + ' days'}</span>
+                ${e.venue ? `<span>${e.venue}</span>` : ''}
+                ${e.entry_deadline && e.entry_deadline >= todayStr ? `<span style="color:var(--amber);">entries close ${new Date(e.entry_deadline + 'T12:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short'})}</span>` : ''}
               </div>
             </div>
           </div>`;
         }).join('')}
-        ${upcomingEvents.length > 5 ? `<div style="text-align:center;padding:10px 0 4px;font-size:12px;color:var(--text-sec);">+${upcomingEvents.length - 5} more — see Events tab</div>` : ''}
+        ${upcomingEvents.length > 4 ? `<div style="text-align:center;padding:8px 0 2px;font-size:12px;color:var(--text-sec);">+${upcomingEvents.length - 4} more — see Events tab</div>` : ''}
       </div>
     </div>`;
+  lucide.createIcons();
 }
 
 // ── MEMBERS TABLE ─────────────────────────────────────────────────
