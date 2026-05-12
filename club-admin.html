@@ -1988,7 +1988,7 @@ async function renderOverview() {
       ? `<div class="squad-health-bar-wrap"><div class="squad-health-bar" style="width:${pct}%;background:${barColor};"></div></div>`
       : `<div class="squad-health-bar-wrap"><div class="squad-health-bar" style="width:100%;background:rgba(255,255,255,0.08);"></div></div>`;
     const countDisplay = max ? `${count}/${max}` : `${count}`;
-    return `<div class="squad-health-row" onclick="document.getElementById('trackerCatFilter').value='${sq.id}';showPage('tracker');applyTrackerFilter();" style="cursor:pointer;">
+    return `<div class="squad-health-row" onclick="pendingTrackerSquadId='${sq.id}';showPage('tracker');" style="cursor:pointer;">
       <div class="squad-health-name">${sq.name}</div>
       ${barHtml}
       <div class="squad-health-count" style="color:${barColor};">${countDisplay}</div>
@@ -2385,6 +2385,7 @@ async function deleteAnnouncement(id) {
 
 // ── SQUAD TRACKER ──────────────────────────────────────────────────
 let trackerData = [];
+let pendingTrackerSquadId = null;
 
 async function loadSquadTracker() {
   const el = document.getElementById('trackerContent');
@@ -2448,7 +2449,16 @@ async function loadSquadTracker() {
     (roster.some(r => !r.squad_id) ? '<option value="__unassigned__">Unassigned</option>' : '');
 
   renderSquadCapacityStrip(trackerData);
-  renderTrackerGrid(trackerData);
+
+  // Apply pre-selected filter (e.g. from Overview squad health click)
+  if (pendingTrackerSquadId) {
+    const sel = document.getElementById('trackerCatFilter');
+    if (sel) sel.value = pendingTrackerSquadId;
+    pendingTrackerSquadId = null;
+    applyTrackerFilter();
+  } else {
+    renderTrackerGrid(trackerData);
+  }
 }
 
 function applyTrackerFilter() {
@@ -5987,7 +5997,7 @@ function renderSquadCapacityStrip(rosterData) {
       ? `<span class="squad-cap-count" style="color:${barColor};">${count}</span><span style="font-size:13px;color:var(--text-sec);font-weight:600;"> / ${max}</span>`
       : `<span class="squad-cap-count" style="color:var(--text);">${count}</span><span style="font-size:13px;color:var(--text-sec);"> members</span>`;
 
-    return `<div class="squad-cap-card ${capClass}" onclick="document.getElementById('trackerCatFilter').value='${sq.id}';applyTrackerFilter();">
+    return `<div class="squad-cap-card ${capClass}" onclick="document.getElementById('trackerCatFilter').value='${sq.id}';applyTrackerFilter();" style="cursor:pointer;">
       <div class="squad-cap-name">${sq.name}</div>
       <div>${countHtml}</div>
       ${barHtml}
