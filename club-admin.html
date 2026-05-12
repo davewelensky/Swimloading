@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="/club-styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     /* admin-specific body overrides */
     body { font-size: 14px; min-height: 100vh; }
@@ -859,7 +860,10 @@
               <div style="font-weight:700;font-size:15px;color:var(--text);">Weekly Timetable</div>
               <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">Recurring sessions — drives Today's Schedule and attendance sheets</div>
             </div>
-            <button class="btn-primary" style="width:auto;padding:8px 16px;border-radius:8px;font-size:13px;" onclick="openAddTimetableModal()">Add session</button>
+            <div style="display:flex;gap:8px;">
+              <button style="background:none;border:1px solid var(--border);color:var(--text-sec);cursor:pointer;font-size:13px;padding:8px 14px;border-radius:8px;" onclick="openScheduleImport()" onmouseover="this.style.borderColor='var(--cyan)';this.style.color='var(--cyan)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-sec)'">Import schedule</button>
+              <button class="btn-primary" style="width:auto;padding:8px 16px;border-radius:8px;font-size:13px;" onclick="openAddTimetableModal()">Add session</button>
+            </div>
           </div>
           <div id="settingsTimetableList"><div style="color:var(--text-sec);font-size:13px;">Loading…</div></div>
         </div>
@@ -960,6 +964,49 @@
 </div>
 
 <!-- SESSION ASSIGNMENT MODAL -->
+<div class="modal-overlay" id="scheduleImportModal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title">Import schedule from Excel
+      <button class="modal-close" onclick="closeScheduleImport()">&times;</button>
+    </div>
+
+    <!-- Step 1: upload -->
+    <div id="schedImportStep1">
+      <div style="font-size:13px;color:var(--text-sec);margin-bottom:16px;">
+        Upload your weekly schedule spreadsheet (.xlsx). Each sheet should have day columns (Mon, Tue, Wed…) with swimmer names listed underneath. Swimmer names are matched to your roster automatically.
+      </div>
+      <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;border:2px dashed rgba(56,189,248,0.3);border-radius:12px;padding:32px;cursor:pointer;background:rgba(56,189,248,0.03);" id="schedImportDropZone">
+        <i data-lucide="upload-cloud" style="width:32px;height:32px;color:var(--cyan);opacity:0.7;"></i>
+        <span style="font-size:13px;color:var(--text-sec);">Click to choose file or drag &amp; drop</span>
+        <span style="font-size:11px;color:var(--text-sec);opacity:0.6;">.xlsx files only</span>
+        <input type="file" id="schedImportFile" accept=".xlsx,.xls" style="display:none;" onchange="handleScheduleFile(this.files[0])">
+      </label>
+      <div id="schedImportError" style="display:none;margin-top:10px;font-size:13px;color:var(--danger);"></div>
+    </div>
+
+    <!-- Step 2: preview -->
+    <div id="schedImportStep2" style="display:none;">
+      <div id="schedImportSummary" style="font-size:13px;margin-bottom:12px;"></div>
+      <div id="schedImportPreview" style="max-height:320px;overflow-y:auto;font-size:12px;"></div>
+      <div id="schedImportUnmatched" style="margin-top:10px;"></div>
+      <div class="modal-actions" style="margin-top:16px;">
+        <button class="btn-modal-cancel" onclick="schedImportBack()">Back</button>
+        <button class="btn-modal-primary" id="schedImportConfirmBtn" onclick="confirmScheduleImport()">Import assignments</button>
+      </div>
+    </div>
+
+    <!-- Step 3: done -->
+    <div id="schedImportStep3" style="display:none;text-align:center;padding:24px 0;">
+      <i data-lucide="check-circle" style="width:40px;height:40px;color:var(--green);margin-bottom:12px;"></i>
+      <div id="schedImportDoneMsg" style="font-size:15px;font-weight:600;color:var(--green);"></div>
+      <div style="font-size:12px;color:var(--text-sec);margin-top:6px;">Overview will now show assigned swimmers for each session.</div>
+      <div class="modal-actions" style="margin-top:20px;justify-content:center;">
+        <button class="btn-modal-primary" onclick="closeScheduleImport()">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="sessionAssignModal">
   <div class="modal" style="max-width:460px;">
     <div class="modal-title" id="sessionAssignTitle">Manage swimmers
@@ -4219,6 +4266,223 @@ async function saveSessionAssignments() {
   showToast(`${checked.length} swimmers assigned`);
   closeSessionAssignModal();
   renderSettingsTimetable(allTimetableSessions);
+}
+
+// ── SCHEDULE IMPORT ────────────────────────────────────────────────
+
+let schedImportParsed = [];
+let schedImportRawUnmatched = [];
+
+const SCHED_DAY_MAP = {
+  sun:0,sunday:0,mon:1,monday:1,tue:2,tuesday:2,wed:3,wednesday:3,
+  thu:4,thursday:4,fri:5,friday:5,sat:6,saturday:6
+};
+
+function detectDayFromCell(cell) {
+  if (!cell) return null;
+  const s = String(cell).trim().toLowerCase().replace(/[^a-z]/g, '');
+  if (SCHED_DAY_MAP[s] !== undefined) return SCHED_DAY_MAP[s];
+  for (const [key, val] of Object.entries(SCHED_DAY_MAP)) {
+    if (s.startsWith(key)) return val;
+  }
+  return null;
+}
+
+function openScheduleImport() {
+  document.getElementById('schedImportStep1').style.display = '';
+  document.getElementById('schedImportStep2').style.display = 'none';
+  document.getElementById('schedImportStep3').style.display = 'none';
+  document.getElementById('schedImportError').style.display = 'none';
+  document.getElementById('schedImportFile').value = '';
+  schedImportParsed = [];
+  schedImportRawUnmatched = [];
+  document.getElementById('scheduleImportModal').classList.add('open');
+  lucide.createIcons();
+  // click-on-dropzone opens file picker
+  document.getElementById('schedImportDropZone').onclick = () => document.getElementById('schedImportFile').click();
+}
+
+function closeScheduleImport() {
+  document.getElementById('scheduleImportModal').classList.remove('open');
+}
+
+function schedImportBack() {
+  document.getElementById('schedImportStep1').style.display = '';
+  document.getElementById('schedImportStep2').style.display = 'none';
+  document.getElementById('schedImportFile').value = '';
+}
+
+async function handleScheduleFile(file) {
+  if (!file) return;
+  const errEl = document.getElementById('schedImportError');
+  errEl.style.display = 'none';
+
+  // Ensure roster loaded
+  let roster = allRosterFull.length ? allRosterFull : [];
+  if (!roster.length) {
+    const { data } = await sb.from('club_roster')
+      .select('id, display_name, squad_id, member_number')
+      .eq('club_id', currentClub.id);
+    roster = data || [];
+  }
+
+  // Ensure timetable sessions loaded
+  let sessions = allTimetableSessions.length ? allTimetableSessions : [];
+  if (!sessions.length) {
+    const { data: sq } = await sb.from('club_squads').select('id').eq('club_id', currentClub.id).eq('is_active', true);
+    if (sq && sq.length) {
+      const { data: sess } = await sb.from('club_squad_sessions')
+        .select('id, squad_id, day_of_week').in('squad_id', sq.map(s => s.id)).eq('is_active', true);
+      sessions = sess || [];
+      allTimetableSessions = sessions;
+    }
+  }
+
+  // Build lookup maps
+  const rosterByName = {};
+  roster.forEach(r => {
+    const key = (r.display_name || '').trim().toLowerCase();
+    rosterByName[key] = r;
+    // Also try reversed (Last First → First Last)
+    const parts = key.split(/\s+/);
+    if (parts.length >= 2) rosterByName[parts[parts.length-1] + ' ' + parts.slice(0,-1).join(' ')] = r;
+  });
+
+  const sessionBySquadDay = {};
+  sessions.forEach(s => { sessionBySquadDay[`${s.squad_id}_${s.day_of_week}`] = s.id; });
+
+  // Parse Excel with SheetJS
+  let wb;
+  try {
+    const buf = await file.arrayBuffer();
+    wb = XLSX.read(buf, { type: 'array' });
+  } catch(e) {
+    errEl.textContent = 'Could not read file: ' + e.message;
+    errEl.style.display = '';
+    return;
+  }
+
+  // name_normalized → { raw, days: Set<day_of_week> }
+  const nameTodays = {};
+
+  for (const sheetName of wb.SheetNames) {
+    const ws = wb.Sheets[sheetName];
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    if (!aoa.length) continue;
+
+    // Find header row: first row with ≥ 3 day-name hits
+    let headerRowIdx = -1, dayColMap = {};
+    for (let r = 0; r < Math.min(15, aoa.length); r++) {
+      const hits = {};
+      aoa[r].forEach((cell, c) => { const d = detectDayFromCell(cell); if (d !== null) hits[c] = d; });
+      if (Object.keys(hits).length >= 3) { headerRowIdx = r; dayColMap = hits; break; }
+    }
+    if (headerRowIdx === -1) continue;
+
+    // Collect names below header in day columns
+    for (let r = headerRowIdx + 1; r < aoa.length; r++) {
+      const row = aoa[r];
+      for (const [colStr, dow] of Object.entries(dayColMap)) {
+        const cell = String(row[parseInt(colStr)] || '').trim();
+        if (!cell || cell.length < 2 || cell.length > 60) continue;
+        // Skip obvious non-names
+        if (/^[\d\/\-\.]+$/.test(cell)) continue;
+        if (/^(present|absent|away|dnp|nc|no[_ ]?show|squad|group|total|coach|session)$/i.test(cell)) continue;
+        const key = cell.toLowerCase();
+        if (!nameTodays[key]) nameTodays[key] = { raw: cell, days: new Set() };
+        nameTodays[key].days.add(dow);
+      }
+    }
+  }
+
+  if (!Object.keys(nameTodays).length) {
+    errEl.textContent = 'No names detected. The file needs day columns (Mon, Tue, Wed…) with swimmer names below.';
+    errEl.style.display = '';
+    return;
+  }
+
+  // Match names → roster → sessions
+  const assignments = [];
+  const matchedNames = new Set();
+  const unmatched = [];
+
+  for (const [nameKey, { raw, days }] of Object.entries(nameTodays)) {
+    let rEntry = rosterByName[nameKey];
+    // Fallback: first + last word only
+    if (!rEntry) {
+      const parts = nameKey.split(/\s+/);
+      if (parts.length > 2) rEntry = rosterByName[parts[0] + ' ' + parts[parts.length-1]];
+    }
+    if (!rEntry) { unmatched.push(raw); continue; }
+    matchedNames.add(raw);
+    for (const dow of days) {
+      const sessId = sessionBySquadDay[`${rEntry.squad_id}_${dow}`];
+      if (sessId) assignments.push({ roster_id: rEntry.id, session_id: sessId, name: raw, day: dow });
+    }
+  }
+
+  schedImportParsed = assignments;
+  schedImportRawUnmatched = unmatched;
+
+  // Render preview
+  const DNAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const byName = {};
+  assignments.forEach(a => { (byName[a.name] = byName[a.name] || []).push(DNAMES[a.day]); });
+
+  document.getElementById('schedImportSummary').innerHTML =
+    `<span style="color:var(--green);font-weight:600;">${matchedNames.size} swimmers matched</span> · ` +
+    `<span style="color:var(--cyan);font-weight:600;">${assignments.length} session assignments</span>` +
+    (unmatched.length ? ` · <span style="color:var(--amber);">${unmatched.length} not found in roster</span>` : '');
+
+  document.getElementById('schedImportPreview').innerHTML = `
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr style="border-bottom:1px solid var(--border);">
+        <th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--text-sec);font-weight:600;">Swimmer</th>
+        <th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--text-sec);font-weight:600;">Assigned days</th>
+      </tr></thead>
+      <tbody>${Object.entries(byName).sort((a,b)=>a[0].localeCompare(b[0])).map(([name, days]) =>
+        `<tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+          <td style="padding:5px 8px;">${name}</td>
+          <td style="padding:5px 8px;color:var(--cyan);">${days.join(', ')}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+
+  document.getElementById('schedImportUnmatched').innerHTML = unmatched.length
+    ? `<div style="font-size:12px;color:var(--amber);padding:8px 10px;background:rgba(245,158,11,0.08);border-radius:6px;margin-top:8px;"><strong>Not matched (${unmatched.length}):</strong> ${unmatched.join(', ')}</div>`
+    : '';
+
+  document.getElementById('schedImportStep1').style.display = 'none';
+  document.getElementById('schedImportStep2').style.display = '';
+}
+
+async function confirmScheduleImport() {
+  if (!schedImportParsed.length) return;
+  const btn = document.getElementById('schedImportConfirmBtn');
+  btn.textContent = 'Importing…'; btn.disabled = true;
+
+  const rows = schedImportParsed.map(a => ({
+    club_id: currentClub.id, roster_id: a.roster_id, session_id: a.session_id
+  }));
+
+  const { error } = await sb.from('club_session_assignments')
+    .upsert(rows, { onConflict: 'roster_id,session_id' });
+
+  if (error) {
+    showToast('Import failed: ' + error.message, 'error');
+    btn.textContent = 'Import assignments'; btn.disabled = false;
+    return;
+  }
+
+  document.getElementById('schedImportStep2').style.display = 'none';
+  document.getElementById('schedImportDoneMsg').textContent =
+    `${rows.length} assignments imported for ${new Set(rows.map(r=>r.roster_id)).size} swimmers`;
+  document.getElementById('schedImportStep3').style.display = '';
+  lucide.createIcons();
+
+  await loadSquads();
+  renderOverview();
+  loadSettingsPage();
 }
 
 function loadSettings() {
