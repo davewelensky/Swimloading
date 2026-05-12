@@ -967,7 +967,9 @@
     </div>
     <div id="sessionAssignSubtitle" style="font-size:12px;color:var(--text-sec);margin-bottom:12px;"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-      <span style="font-size:12px;color:var(--text-sec);">Select swimmers for this recurring session</span>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-sec);cursor:pointer;">
+        <input type="checkbox" id="assignSelectAll" style="width:14px;height:14px;accent-color:var(--cyan);" onchange="toggleAssignAll(this.checked)"> Select all
+      </label>
       <span class="assign-selected-count" id="assignSelectedCount">0 selected</span>
     </div>
     <div class="assign-swimmer-list" id="assignSwimmerList"></div>
@@ -1764,6 +1766,7 @@ function showPage(name) {
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + name)?.classList.add('active');
   document.getElementById('nav-' + name)?.classList.add('active');
+  if (name === 'overview')      loadSquads().then(() => renderOverview());
   if (name === 'entries')       loadGalaPage();
   if (name === 'league')        renderLeague();
   if (name === 'tempchallenge') loadTempChallenge();
@@ -4177,8 +4180,16 @@ async function openSessionAssignModal(sessionId) {
 }
 
 function updateAssignCount() {
-  const n = document.querySelectorAll('#assignSwimmerList input:checked').length;
-  document.getElementById('assignSelectedCount').textContent = `${n} selected`;
+  const all = document.querySelectorAll('#assignSwimmerList input');
+  const checked = document.querySelectorAll('#assignSwimmerList input:checked');
+  document.getElementById('assignSelectedCount').textContent = `${checked.length} selected`;
+  const allBox = document.getElementById('assignSelectAll');
+  if (allBox) allBox.checked = all.length > 0 && checked.length === all.length;
+}
+
+function toggleAssignAll(checked) {
+  document.querySelectorAll('#assignSwimmerList input').forEach(i => i.checked = checked);
+  updateAssignCount();
 }
 
 function closeSessionAssignModal() {
