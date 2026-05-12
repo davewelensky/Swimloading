@@ -230,6 +230,19 @@
     .result-delta { font-size:11px; font-weight:700; margin-left:6px; }
     .tracker-card { cursor:pointer; transition:border-color 0.15s; }
     .tracker-card:hover { border-color:var(--cyan-border); }
+    /* ── SQUAD CAPACITY STRIP ── */
+    .squad-capacity-strip { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; }
+    .squad-cap-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; cursor:pointer; transition:border-color 0.15s; }
+    .squad-cap-card:hover { border-color:rgba(56,189,248,0.3); }
+    .squad-cap-card.cap-full  { border-color:rgba(239,68,68,0.4);  background:rgba(239,68,68,0.04); }
+    .squad-cap-card.cap-near  { border-color:rgba(245,158,11,0.4); background:rgba(245,158,11,0.04); }
+    .squad-cap-card.cap-open  { border-color:rgba(16,185,129,0.3); }
+    .squad-cap-name { font-size:13px; font-weight:700; margin-bottom:6px; }
+    .squad-cap-count { font-size:22px; font-weight:800; line-height:1; }
+    .squad-cap-bar-wrap { height:4px; background:rgba(255,255,255,0.08); border-radius:2px; margin:8px 0 6px; overflow:hidden; }
+    .squad-cap-bar { height:4px; border-radius:2px; transition:width 0.3s; }
+    .squad-cap-status { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; }
+
     /* ── CSV IMPORT MODAL ── */
     .csv-step { display:none; }
     .csv-step.active { display:block; }
@@ -724,14 +737,15 @@
         <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
           <div>
             <div class="page-title">Squad Tracker</div>
-            <div class="page-sub">Swimmer progress at a glance — galas attended, PBs and improvements</div>
+            <div class="page-sub">Swimmer progress — galas attended, PBs and squad capacity</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;">
             <select class="filter-select" id="trackerCatFilter" onchange="applyTrackerFilter()">
-              <option value="">All categories</option>
+              <option value="">All squads</option>
             </select>
           </div>
         </div>
+        <div id="squadCapacityStrip" style="display:none;margin-bottom:16px;"></div>
         <div id="trackerContent"><div class="loading"><div class="spinner"></div></div></div>
       </div>
 
@@ -829,9 +843,15 @@
         <option value="masters">Masters / Adults</option>
       </select>
     </div>
-    <div class="form-group">
-      <div class="form-label">Sort order <span style="font-weight:400;color:var(--text-dim);">lowest first</span></div>
-      <input type="number" class="form-input" id="squadSort" value="10" min="1" max="99">
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Sort order <span style="font-weight:400;color:var(--text-dim);">lowest first</span></div>
+        <input type="number" class="form-input" id="squadSort" value="10" min="1" max="99">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Max members <span style="font-weight:400;color:var(--text-dim);">optional</span></div>
+        <input type="number" class="form-input" id="squadMaxMembers" placeholder="e.g. 20" min="1">
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="closeAddSquadModal()">Cancel</button>
@@ -2176,7 +2196,7 @@ async function loadSquadTracker() {
   // Fetch roster + both time tables + attendance in parallel
   const clubId = currentClub.id;
   const [rosterRes, swimTimesRes, galaTimesRes, attendRes] = await Promise.all([
-    sb.from('club_roster').select('id, display_name, member_number, category, date_of_birth, gender, is_trial, fee_paid')
+    sb.from('club_roster').select('id, display_name, member_number, category, squad_id, date_of_birth, gender, is_trial, fee_paid')
       .eq('club_id', clubId).order('display_name'),
     sb.from('club_swimmer_times').select('roster_id, event, course, time_seconds, time_text, is_pb, meet_date')
       .eq('club_id', clubId).order('meet_date', { ascending: true }),
@@ -2222,18 +2242,24 @@ async function loadSquadTracker() {
       sessions: sessionsByRoster[r.id]?.size || 0,
     }));
 
-  // Populate category filter
-  const cats = [...new Set(roster.map(r => r.category).filter(Boolean))].sort();
-  const sel  = document.getElementById('trackerCatFilter');
-  sel.innerHTML = '<option value="">All categories</option>' +
-    cats.map(c => `<option value="${c}">${c}</option>`).join('');
+  // Populate squad filter — only squads that have members in this roster
+  const squadIdsInRoster = new Set(roster.map(r => r.squad_id).filter(Boolean));
+  const sel = document.getElementById('trackerCatFilter');
+  sel.innerHTML = '<option value="">All squads</option>' +
+    allSquads.filter(s => squadIdsInRoster.has(s.id))
+      .map(s => `<option value="${s.id}">${s.name}</option>`).join('') +
+    (roster.some(r => !r.squad_id) ? '<option value="__unassigned__">Unassigned</option>' : '');
 
+  renderSquadCapacityStrip(trackerData);
   renderTrackerGrid(trackerData);
 }
 
 function applyTrackerFilter() {
-  const cat = document.getElementById('trackerCatFilter').value;
-  const filtered = cat ? trackerData.filter(r => r.category === cat) : trackerData;
+  const val = document.getElementById('trackerCatFilter').value;
+  let filtered;
+  if (!val) filtered = trackerData;
+  else if (val === '__unassigned__') filtered = trackerData.filter(r => !r.squad_id);
+  else filtered = trackerData.filter(r => r.squad_id === val);
   renderTrackerGrid(filtered);
 }
 
@@ -2278,7 +2304,7 @@ function renderTrackerGrid(swimmers) {
       <div class="tracker-card-header">
         <div>
           <div class="tracker-name">${s.display_name || '—'}</div>
-          <div class="tracker-meta">#${s.member_number || '—'} · ${s.category || 'Unassigned'}${s.date_of_birth ? ' · age ' + Math.floor((Date.now() - new Date(s.date_of_birth)) / 31557600000) : ''}</div>
+          <div class="tracker-meta">#${s.member_number || '—'} · ${allSquads.find(q => q.id === s.squad_id)?.name || '<span style="color:var(--amber);font-size:11px;">No squad</span>'}${s.date_of_birth ? ' · age ' + Math.floor((Date.now() - new Date(s.date_of_birth)) / 31557600000) : ''}</div>
         </div>
       </div>
       <div class="tracker-stat-row">
@@ -3634,6 +3660,7 @@ function renderSettingsSquads(squads) {
       <div style="display:flex;align-items:center;gap:12px;">
         <div style="font-weight:600;color:var(--text);font-size:14px;">${s.name}</div>
         <div style="font-size:11px;color:var(--text-sec);background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:4px;">${s.type || 'competitive'}</div>
+        ${s.max_members ? `<div style="font-size:11px;color:var(--text-sec);">max ${s.max_members}</div>` : ''}
         ${!s.is_active ? `<div style="font-size:11px;color:var(--amber);">inactive</div>` : ''}
       </div>
       <button onclick="deleteSquad('${s.id}')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:4px 8px;border-radius:6px;opacity:0.6;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">Remove</button>
@@ -3680,6 +3707,7 @@ function openAddSquadModal() {
   document.getElementById('squadName').value = '';
   document.getElementById('squadType').value = 'competitive';
   document.getElementById('squadSort').value = (allSquads.length + 1) * 10;
+  document.getElementById('squadMaxMembers').value = '';
   document.getElementById('addSquadModal').classList.add('open');
   document.getElementById('squadName').focus();
 }
@@ -3688,12 +3716,14 @@ function closeAddSquadModal() { document.getElementById('addSquadModal').classLi
 async function submitAddSquad() {
   const name = document.getElementById('squadName').value.trim();
   if (!name) { showToast('Squad name is required', 'error'); return; }
+  const maxMem = parseInt(document.getElementById('squadMaxMembers').value) || null;
   const { error } = await sb.from('club_squads').insert({
-    club_id:    currentClub.id,
+    club_id:     currentClub.id,
     name,
-    type:       document.getElementById('squadType').value,
-    sort_order: parseInt(document.getElementById('squadSort').value) || 10,
-    is_active:  true,
+    type:        document.getElementById('squadType').value,
+    sort_order:  parseInt(document.getElementById('squadSort').value) || 10,
+    max_members: maxMem,
+    is_active:   true,
   });
   if (error) { showToast('Failed: ' + error.message, 'error'); return; }
   showToast(name + ' squad added', 'success');
@@ -4541,7 +4571,7 @@ async function unlinkRosterMember(rosterId) {
 // ── ADD ROSTER MEMBER ─────────────────────────────────────────────
 async function loadSquads() {
   const { data: squadsData } = await sb.from('club_squads')
-    .select('id, name, type, sort_order')
+    .select('id, name, type, sort_order, max_members')
     .eq('club_id', currentClub.id)
     .eq('is_active', true)
     .order('sort_order');
@@ -5724,6 +5754,62 @@ function formatTime(secs) {
 
 // ── BOOT ──────────────────────────────────────────────────────────
 init();
+
+// ── SQUAD CAPACITY STRIP ──────────────────────────────────────────
+
+function renderSquadCapacityStrip(rosterData) {
+  const strip = document.getElementById('squadCapacityStrip');
+  if (!strip || !allSquads.length) return;
+
+  // Count members per squad from the live tracker roster
+  const countBySquad = {};
+  rosterData.forEach(r => {
+    if (r.squad_id) countBySquad[r.squad_id] = (countBySquad[r.squad_id] || 0) + 1;
+  });
+  const unassigned = rosterData.filter(r => !r.squad_id).length;
+
+  const cards = allSquads.map(sq => {
+    const count = countBySquad[sq.id] || 0;
+    const max   = sq.max_members;
+    const pct   = max ? Math.min(100, Math.round(count / max * 100)) : null;
+
+    let capClass = '', barColor = 'var(--cyan)', statusHtml = '';
+    if (max) {
+      const spots = max - count;
+      if (spots <= 0)       { capClass = 'cap-full'; barColor = 'var(--danger)'; statusHtml = `<span class="squad-cap-status" style="color:var(--danger);">Full</span>`; }
+      else if (spots <= 2)  { capClass = 'cap-near'; barColor = 'var(--amber)';  statusHtml = `<span class="squad-cap-status" style="color:var(--amber);">${spots} spot${spots===1?'':'s'} left</span>`; }
+      else                  { capClass = 'cap-open'; barColor = 'var(--green)';  statusHtml = `<span class="squad-cap-status" style="color:var(--green);">${spots} open</span>`; }
+    } else {
+      statusHtml = `<span class="squad-cap-status" style="color:var(--text-sec);">No limit set</span>`;
+    }
+
+    const barHtml = max
+      ? `<div class="squad-cap-bar-wrap"><div class="squad-cap-bar" style="width:${pct}%;background:${barColor};"></div></div>`
+      : '';
+    const countHtml = max
+      ? `<span class="squad-cap-count" style="color:${barColor};">${count}</span><span style="font-size:13px;color:var(--text-sec);font-weight:600;"> / ${max}</span>`
+      : `<span class="squad-cap-count" style="color:var(--text);">${count}</span><span style="font-size:13px;color:var(--text-sec);"> members</span>`;
+
+    return `<div class="squad-cap-card ${capClass}" onclick="document.getElementById('trackerCatFilter').value='${sq.id}';applyTrackerFilter();">
+      <div class="squad-cap-name">${sq.name}</div>
+      <div>${countHtml}</div>
+      ${barHtml}
+      ${statusHtml}
+    </div>`;
+  });
+
+  if (unassigned > 0) {
+    cards.push(`<div class="squad-cap-card" style="border-color:rgba(245,158,11,0.3);background:rgba(245,158,11,0.03);" onclick="document.getElementById('trackerCatFilter').value='__unassigned__';applyTrackerFilter();">
+      <div class="squad-cap-name" style="color:var(--amber);">Unassigned</div>
+      <div><span class="squad-cap-count" style="color:var(--amber);">${unassigned}</span><span style="font-size:13px;color:var(--text-sec);"> members</span></div>
+      <div style="height:4px;margin:8px 0 6px;"></div>
+      <span class="squad-cap-status" style="color:var(--amber);">Need a squad</span>
+    </div>`);
+  }
+
+  strip.innerHTML = `<div class="squad-capacity-strip">${cards.join('')}</div>`;
+  strip.style.display = 'block';
+}
 
 // ── CSV BULK IMPORT ───────────────────────────────────────────────
 
