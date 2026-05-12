@@ -706,8 +706,8 @@
           </div>
         </div>
 
-        <!-- Coaching Staff -->
-        <div class="card">
+        <!-- Coaching Staff (squad clubs only) -->
+        <div class="card" id="team-coaching-card">
           <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
             <div class="card-title">Coaching Staff</div>
             <button class="btn-sm" onclick="openAddCoachModal()">
@@ -841,8 +841,8 @@
           </div>
         </div>
 
-        <!-- SQUAD MANAGEMENT -->
-        <div class="card" style="padding:24px;margin-top:16px;">
+        <!-- SQUAD MANAGEMENT (squad clubs only) -->
+        <div class="card" id="settings-squads-card" style="padding:24px;margin-top:16px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
             <div>
               <div style="font-weight:700;font-size:15px;color:var(--text);">Squads</div>
@@ -853,8 +853,8 @@
           <div id="settingsSquadList"><div style="color:var(--text-sec);font-size:13px;">Loading…</div></div>
         </div>
 
-        <!-- TIMETABLE BUILDER -->
-        <div class="card" style="padding:24px;margin-top:16px;">
+        <!-- TIMETABLE BUILDER (squad clubs only) -->
+        <div class="card" id="settings-timetable-card" style="padding:24px;margin-top:16px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
             <div>
               <div style="font-weight:700;font-size:15px;color:var(--text);">Weekly Timetable</div>
@@ -1755,6 +1755,9 @@ async function loadClubContext() {
   document.getElementById('nav-tracker').style.display     = isOpenWater ? 'none' : '';
   document.getElementById('nav-entries').style.display     = isOpenWater ? 'none' : '';
   document.getElementById('nav-attendance').style.display  = isOpenWater ? 'none' : '';
+  document.getElementById('settings-squads-card').style.display   = isOpenWater ? 'none' : '';
+  document.getElementById('settings-timetable-card').style.display = isOpenWater ? 'none' : '';
+  document.getElementById('team-coaching-card').style.display      = isOpenWater ? 'none' : '';
   const teamSub = document.querySelector('#page-team .page-sub');
   if (teamSub) teamSub.textContent = isOpenWater ? 'Committee roles, admin access and coaching staff' : 'Coaching staff';
 
@@ -1848,7 +1851,7 @@ async function loadMembers() {
 
   const [membersRes, rosterRes, rosterFullRes] = await Promise.all([
     sb.from('club_members')
-      .select('*, club_categories(name), club_roster(id, display_name, member_number, category, gender)')
+      .select('*, club_categories(name), club_roster(id, display_name, member_number, category, gender), profiles(display_name, email)')
       .eq('club_id', currentClub.id)
       .eq('is_active', true)
       .order('joined_at', { ascending: false }),
@@ -1898,10 +1901,10 @@ async function loadMembers() {
 
   allMembers = [
     ...clubMembers.map(m => ({ ...m, _source: 'club_members',
-      _display_name: m.club_roster?.display_name || '—',
-      _email: '',
+      _display_name: m.club_roster?.display_name || m.profiles?.display_name || '—',
+      _email: m.profiles?.email || '',
       category: m.club_categories?.name || m.club_roster?.category || '',
-      member_number: m.member_number || m.club_roster?.member_number || '',
+      member_number: (m.member_number || m.club_roster?.member_number || '').toString().replace(/^#/, ''),
     })),
     ...rosterAsMembers,
   ].sort((a, b) => {
