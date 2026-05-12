@@ -2019,13 +2019,20 @@ async function renderOverview() {
   const twentyOneDaysAgo = new Date(now.getTime() - 21 * 86400000).toISOString().slice(0,10);
   const ninetyDaysAgo   = new Date(now.getTime() - 90 * 86400000).toISOString().slice(0,10);
 
-  const { data: attData } = await sb.from('club_session_attendance')
-    .select('roster_id, session_date, status')
+  // club_attendance is the real marked-attendance table, joined through club_sessions
+  const { data: sessionsWithAtt } = await sb.from('club_sessions')
+    .select('id, session_date, squad_id, club_attendance(roster_id, status)')
     .eq('club_id', currentClub.id)
-    .gte('session_date', ninetyDaysAgo)
-    .in('status', ['present', 'catch_up']);
+    .gte('session_date', ninetyDaysAgo);
 
-  const attended = attData || [];
+  // Flatten to [{roster_id, session_date, status}] filtering to present/catch_up
+  const attended = [];
+  (sessionsWithAtt || []).forEach(s => {
+    (s.club_attendance || []).forEach(a => {
+      if (a.status === 'present' || a.status === 'catch_up')
+        attended.push({ roster_id: a.roster_id, session_date: s.session_date });
+    });
+  });
 
   // Latest attendance date per swimmer
   const lastSeenMap = {};
