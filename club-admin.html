@@ -4096,6 +4096,7 @@ async function loadSettingsPage() {
       .order('day_of_week')
       .order('start_time');
     allTimetableSessions = sessions || [];
+    allWeekSessions = allTimetableSessions; // keep dashboard in sync
     // Load assignment counts for each session
     sessionAssignmentCounts = {};
     if (allTimetableSessions.length) {
@@ -4303,8 +4304,9 @@ async function submitAddTimetable() {
   };
 
   if (ttEditId) {
-    const { error } = await sb.from('club_squad_sessions').update(payload).eq('id', ttEditId);
+    const { data: updated, error } = await sb.from('club_squad_sessions').update(payload).eq('id', ttEditId).select().single();
     if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+    if (!updated) { showToast('Save blocked — permission error', 'error'); return; }
     showToast('Session updated', 'success');
   } else {
     const { error } = await sb.from('club_squad_sessions').insert({ ...payload, is_active: true });
