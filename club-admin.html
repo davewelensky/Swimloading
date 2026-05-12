@@ -2129,7 +2129,7 @@ async function renderOverview() {
     return { sq, members: members.length, attended30, pct };
   }).filter(Boolean);
 
-  const clubPct = roster.length
+  clubAttendancePct = roster.length
     ? Math.round(roster.filter(r => attendedLast30.has(r.id)).length / roster.length * 100)
     : 0;
 
@@ -2253,13 +2253,161 @@ function renderDayDashboard(dow) {
   const el = document.getElementById('overviewTodaySquads');
   if (!el) return;
 
-  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const dayFull  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const todayDow = new Date().getDay();
-  const roster   = allRosterFull;
-  const fmtT     = t => { if (!t) return ''; const [h,m]=t.split(':'); const hr=parseInt(h); return (hr>12?hr-12:hr||12)+':'+m+(hr>=12?'pm':'am'); };
-  const toM      = t => { if (!t) return 0; const [h,m]=t.split(':'); return parseInt(h)*60+parseInt(m); };
-  const nowMins  = new Date().getHours()*60+new Date().getMinutes();
+  const dayNames  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dayFull   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const todayDow  = new Date().getDay();
+  const fmtT      = t => { if (!t) return ''; const [h,m]=t.split(':'); const hr=parseInt(h); return (hr>12?hr-12:hr||12)+':'+m+(hr>=12?'pm':'am'); };
+  const toM       = t => { if (!t) return 0; const [h,m]=t.split(':'); return parseInt(h)*60+parseInt(m); };
+  const nowMins   = new Date().getHours()*60+new Date().getMinutes();
+  const sqCap     = sq => allSquads.find(q => q.id === sq)?.max_members || 0;
+
+  // ── KPI calculations ────────────────────────────────────────────
+
+  // Today's fill
+  const todaySessions = allWeekSessions.filter(s => s.day_of_week === todayDow);
+  let todayAssigned = 0, todayCapacity = 0;
+  const seenToday = new Set();
+  todaySessions.forEach(s => {
+    todayAssigned += (allWeekAssignments[s.id]||[]).length;
+    if (!seenToday.has(s.squad_id)) { seenToday.add(s.squad_id); todayCapacity += sqCap(s.squad_id); }
+  });
+  const fillPct = todayCapacity > 0 ? Math.round(todayAssigned / todayCapacity * 100) : 0;
+  const fillColor = fillPct >= 90 ? 'var(--amber)' : fillPct >= 65 ? 'var(--green)' : 'var(--cyan)';
+
+  // Coach coverage today
+  const coachCovered = todaySessions.filter(s => s.coach_name).length;
+  const coachTotal   = todaySessions.length;
+  const coachColor   = coachCovered < coachTotal ? 'var(--danger)' : 'var(--green)';
+
+  // Open spots this week (all days)
+  let weekAssigned = 0, weekCapacity = 0;
+  const seenWeek = {};
+  allWeekSessions.forEach(s => {
+    weekAssigned += (allWeekAssignments[s.id]||[]).length;
+    const key = `${s.day_of_week}_${s.squad_id}`;
+    if (!seenWeek[key]) { seenWeek[key] = true; weekCapacity += sqCap(s.squad_id); }
+  });
+  const openSpots = Math.max(0, weekCapacity - weekAssigned);
+
+  // Attendance rate from club_attendance (last 30 days — computed from attendancePulse data if available)
+  const attPct = typeof clubAttendancePct !== 'undefined' ? clubAttendancePct : null;
+
+  // ── Week bar chart ───────────────────────────────────────────────
+  const workdays = [1,2,3,4,5,6];
+  const weekBars = workdays.map(d => {
+    const dSess = allWeekSessions.filter(s => s.day_of_week === d);
+    let dAsgn = 0, dCap = 0;
+    const seen = new Set();
+    dSess.forEach(s => {
+      dAsgn += (allWeekAssignments[s.id]||[]).length;
+      if (!seen.has(s.squad_id)) { seen.add(s.squad_id); dCap += sqCap(s.squad_id); }
+    });
+    const pct      = dCap > 0 ? Math.round(dAsgn / dCap * 100) : 0;
+    const noCoach  = dSess.some(s => !s.coach_name);
+    const isToday  = d === todayDow;
+    const isSel    = d === dow;
+    const barColor = noCoach ? '#f59e0b' : pct >= 90 ? '#f59e0b' : pct >= 65 ? '#10b981' : '#38bdf8';
+
+    return `<div onclick="setDashDay(${d})" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;padding:12px 6px 10px;border-radius:10px;border:1px solid ${isSel?'var(--cyan)':'transparent'};background:${isSel?'rgba(56,189,248,0.06)':'transparent'};transition:all 0.15s;" onmouseover="if(${!isSel})this.style.background='rgba(255,255,255,0.03)'" onmouseout="if(${!isSel})this.style.background='transparent'">
+      <div style="font-size:10px;font-weight:${isToday?'700':'500'};color:${isSel?'var(--cyan)':isToday?'var(--text)':'var(--text-sec)'};">${dayNames[d]}${isToday?'<span style="color:var(--green);margin-left:2px;">•</span>':''}</div>
+      <div style="width:28px;height:60px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;display:flex;align-items:flex-end;">
+        <div style="width:100%;height:${dCap?pct:0}%;background:${barColor};border-radius:4px;transition:height 0.4s ease;"></div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:${barColor};">${dCap?pct+'%':'—'}</div>
+      ${noCoach?`<div style="font-size:9px;color:var(--amber);font-weight:700;">!</div>`:dSess.length?`<div style="font-size:9px;color:var(--text-sec);">${dSess.length}s</div>`:''}
+    </div>`;
+  }).join('');
+
+  // ── Session rows for selected day ────────────────────────────────
+  const daySessions = allWeekSessions.filter(s => s.day_of_week === dow)
+    .sort((a,b) => toM(a.start_time)-toM(b.start_time));
+
+  const sessionRows = daySessions.length ? daySessions.map(s => {
+    const sq   = allSquads.find(q => q.id === s.squad_id);
+    const asgn = (allWeekAssignments[s.id]||[]).length;
+    const cap  = sq?.max_members || 0;
+    const pct  = cap > 0 ? Math.round(asgn/cap*100) : 0;
+    const endM = toM(s.end_time || s.start_time);
+    const isPast = dow===todayDow && (s.end_time ? endM<nowMins : toM(s.start_time)+60<nowMins);
+    const isNow  = dow===todayDow && !isPast && toM(s.start_time)<=nowMins;
+    const bColor = pct>=90?'var(--amber)':pct>=65?'var(--green)':'var(--cyan)';
+
+    return `<div style="display:flex;align-items:center;gap:0;padding:0;border-bottom:1px solid var(--border);opacity:${isPast?'0.35':'1'};${isNow?'background:rgba(56,189,248,0.04);':''}" ${!isPast?`onclick="openMarkFromSchedule('${s.id}')" onmouseover="this.style.background='rgba(56,189,248,0.07)'" onmouseout="this.style.background='${isNow?'rgba(56,189,248,0.04)':'transparent'}'" style="cursor:pointer;"`:''}>
+      <div style="width:3px;min-height:52px;background:${isPast?'transparent':isNow?'var(--green)':s.coach_name?'rgba(56,189,248,0.3)':'var(--amber)'};flex-shrink:0;"></div>
+      <div style="flex:1;display:flex;align-items:center;gap:12px;padding:11px 14px;">
+        <div style="min-width:88px;font-size:12px;font-weight:700;color:${isPast?'var(--text-sec)':'var(--cyan)'};">${fmtT(s.start_time)}${s.end_time?'–'+fmtT(s.end_time):''}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;">
+            ${sq?.name||'Squad'}
+            ${isNow?`<span style="font-size:9px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.15);padding:1px 7px;border-radius:10px;">LIVE</span>`:''}
+            ${isPast?`<span style="font-size:9px;color:var(--text-sec);">done</span>`:''}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:5px;">
+            <div style="width:80px;height:3px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden;">
+              <div style="width:${cap?Math.min(pct,100):0}%;height:100%;background:${bColor};border-radius:2px;"></div>
+            </div>
+            <span style="font-size:11px;color:${bColor};font-weight:600;">${asgn}${cap?' / '+cap:''}</span>
+            ${cap&&openSpots>0&&!isPast?`<span style="font-size:10px;color:var(--text-sec);">${cap-asgn} open</span>`:''}
+          </div>
+        </div>
+        <div style="flex-shrink:0;text-align:right;">
+          ${s.coach_name
+            ?`<div style="font-size:12px;color:var(--text-sec);">${s.coach_name}</div>`
+            :`<div style="font-size:11px;font-weight:700;color:var(--danger);">NO COACH</div>`}
+          ${!isPast?`<div style="font-size:10px;color:var(--cyan);margin-top:2px;">Mark →</div>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('') : `<div style="padding:28px;text-align:center;color:var(--text-sec);font-size:13px;">No sessions on ${dayFull[dow]}</div>`;
+
+  const isToday  = dow === todayDow;
+  const dayLabel = isToday ? `Today — ${dayFull[dow]}` : dayFull[dow];
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:0;">
+
+      <!-- KPI row -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--border);">
+        <div style="padding:16px;border-right:1px solid var(--border);">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-sec);margin-bottom:6px;">Today's fill</div>
+          <div style="font-size:28px;font-weight:800;color:${fillColor};font-family:Bebas Neue,sans-serif;line-height:1;">${todayCapacity?fillPct+'%':'—'}</div>
+          <div style="font-size:11px;color:var(--text-sec);margin-top:3px;">${todayAssigned} / ${todayCapacity} slots</div>
+        </div>
+        <div style="padding:16px;border-right:1px solid var(--border);">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-sec);margin-bottom:6px;">Coach cover</div>
+          <div style="font-size:28px;font-weight:800;color:${coachColor};font-family:Bebas Neue,sans-serif;line-height:1;">${coachCovered}/${coachTotal}</div>
+          <div style="font-size:11px;color:${coachCovered<coachTotal?'var(--danger)':'var(--text-sec)'};margin-top:3px;">${coachCovered<coachTotal?coachTotal-coachCovered+' session'+(coachTotal-coachCovered>1?'s':'')+' uncovered':'All covered'}</div>
+        </div>
+        <div style="padding:16px;border-right:1px solid var(--border);">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-sec);margin-bottom:6px;">Attendance rate</div>
+          <div style="font-size:28px;font-weight:800;color:${attPct!=null?(attPct>=70?'var(--green)':attPct>=50?'var(--amber)':'var(--danger)'):'var(--text-sec)'};font-family:Bebas Neue,sans-serif;line-height:1;">${attPct!=null?attPct+'%':'—'}</div>
+          <div style="font-size:11px;color:var(--text-sec);margin-top:3px;">last 30 days</div>
+        </div>
+        <div style="padding:16px;">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-sec);margin-bottom:6px;">Open this week</div>
+          <div style="font-size:28px;font-weight:800;color:${openSpots>0?'var(--cyan)':'var(--amber)'};font-family:Bebas Neue,sans-serif;line-height:1;">${openSpots}</div>
+          <div style="font-size:11px;color:var(--text-sec);margin-top:3px;">spots available</div>
+        </div>
+      </div>
+
+      <!-- Week bar chart -->
+      <div style="padding:14px 16px 8px;border-bottom:1px solid var(--border);">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-sec);margin-bottom:10px;">This week</div>
+        <div style="display:flex;gap:4px;">${weekBars}</div>
+      </div>
+
+      <!-- Session list -->
+      <div>
+        <div style="padding:12px 16px 8px;display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.06em;">${dayLabel}</div>
+          <div style="font-size:11px;color:var(--text-sec);">tap session to mark attendance</div>
+        </div>
+        ${sessionRows}
+      </div>
+    </div>`;
+
+  lucide.createIcons();
+}
 
   // Sessions for selected day
   const daySessions = allWeekSessions.filter(s => s.day_of_week === dow)
@@ -2629,6 +2777,7 @@ let sessionAssignmentCounts = {}; // session_id → count (settings timetable)
 let allWeekSessions = [];         // all sessions across all days
 let allWeekAssignments = {};      // session_id → roster_id[] for all week
 let dashDay = new Date().getDay(); // currently selected day on the dashboard (0=Sun)
+let clubAttendancePct = null;     // set by attendance pulse, read by dashboard
 
 async function loadSquadTracker() {
   const el = document.getElementById('trackerContent');
