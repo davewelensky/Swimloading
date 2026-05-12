@@ -1,19 +1,4 @@
 -- ================================================================
--- SwimLoading — Migration Template
--- ================================================================
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM _project_identity
-    WHERE key = 'project_name' AND value = 'swimloading'
-  ) THEN
-    RAISE EXCEPTION E'\n\nWRONG PROJECT — MIGRATION ABORTED\nThis migration is for: SwimLoading\nExpected project ref: szgkzuswelntnevobnoh'
-    USING HINT = 'Check the project ref in your Supabase dashboard URL';
-  END IF;
-  RAISE NOTICE '✅ Project identity confirmed: swimloading';
-END $$;
-
--- ================================================================
 -- Migration: fix_club_rls_and_schema.sql
 --
 -- Fixes UNRESTRICTED RLS on 4 tables. Both clubs must keep working:
@@ -91,6 +76,26 @@ RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE AS $$
     SELECT 1 FROM club_roster
     WHERE id      = p_roster_id
       AND user_id = auth.uid()
+  )
+$$;
+
+-- club_squad_sessions has no club_id column — it links via squad_id → club_squads.
+-- These two functions resolve the club through that join.
+CREATE OR REPLACE FUNCTION is_admin_for_squad(p_squad_id uuid)
+RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM club_squads s
+    WHERE s.id = p_squad_id
+      AND is_club_admin_or_organiser(s.club_id)
+  )
+$$;
+
+CREATE OR REPLACE FUNCTION is_active_member_for_squad(p_squad_id uuid)
+RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM club_squads s
+    WHERE s.id = p_squad_id
+      AND is_club_active_member(s.club_id)
   )
 $$;
 
@@ -179,14 +184,15 @@ CREATE POLICY "squads_member_read" ON club_squads
 
 ALTER TABLE club_squad_sessions ENABLE ROW LEVEL SECURITY;
 
+-- club_squad_sessions has no club_id — route through squad_id → club_squads
 CREATE POLICY "squad_sessions_admin_all" ON club_squad_sessions
   FOR ALL
-  USING     (is_club_admin_or_organiser(club_id))
-  WITH CHECK(is_club_admin_or_organiser(club_id));
+  USING     (is_admin_for_squad(squad_id))
+  WITH CHECK(is_admin_for_squad(squad_id));
 
 CREATE POLICY "squad_sessions_member_read" ON club_squad_sessions
   FOR SELECT
-  USING (is_club_active_member(club_id));
+  USING (is_active_member_for_squad(squad_id));
 
 
 -- ── 5. CLUB_ADMINS (patch + secure) ──────────────────────────────
