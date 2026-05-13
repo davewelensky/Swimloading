@@ -105,14 +105,19 @@ async function renderSpotPage(slug) {
   };
   const description = descMap[spot.water_type] || descMap.OCEAN;
 
+  // Country label — only append if it adds info (intl spots need country context)
+  const SA_DOMAINS = new Set(['WEST_COAST','ATLANTIC','FALSE_BAY','KZN','EASTERN_CAPE','GARDEN_ROUTE','SOUTH_COAST','INLAND','NON_COASTAL','GAUTENG','FREE_STATE']);
+  const countryLabel = SA_DOMAINS.has(spot.domain) ? 'South Africa' : null;
+  const fullLocation = countryLabel ? `${locationLabel}, ${countryLabel}` : locationLabel;
+
   const jsonLdDataset = {
     '@context': 'https://schema.org',
     '@type': 'Dataset',
     name: `${spot.name} Water Temperature Data`,
-    description: `Community-logged water temperatures at ${spot.name}, ${locationLabel}, South Africa. Updated daily by open water swimmers on SwimLoading.`,
+    description: `Community-logged water temperatures at ${spot.name}, ${fullLocation}. Updated daily by open water swimmers on SwimLoading.`,
     url: `https://www.swimloading.com/spots/${slug}`,
     creator: { '@type': 'Organization', name: 'SwimLoading', url: 'https://www.swimloading.com' },
-    spatialCoverage: { '@type': 'Place', name: `${spot.name}, ${locationLabel}, South Africa` },
+    spatialCoverage: { '@type': 'Place', name: `${spot.name}, ${fullLocation}` },
     measurementTechnique: 'Community logging by open water swimmers',
     variableMeasured: 'Water temperature in degrees Celsius',
     temporalCoverage: '2024/..',
@@ -149,7 +154,7 @@ async function renderSpotPage(slug) {
       ${renderMapEmbed(spot)}
 
       <section class="seo-copy">
-        ${renderSeoCopy(spot, locationLabel, stats)}
+        ${renderSeoCopy(spot, fullLocation, stats)}
         ${getSpotSponsorHtml(spot)}
       </section>
 
@@ -291,22 +296,27 @@ function renderSeoCopy(spot, locationLabel, stats) {
 
   if (spot.water_type === 'POOL') {
     return `
-      <p>${name} is a swimming pool in ${loc}, South Africa. Pool temperatures are logged by SwimLoading members so you always know the water temperature before you arrive.</p>
-      <p>During South Africa's winter months, many open water swimmers transition to heated pools for training. SwimLoading tracks pool temperatures across South Africa alongside ocean and lagoon spots so swimmers can plan year-round.</p>`;
+      <p>${name} is a swimming pool in ${loc}. Pool temperatures are logged by SwimLoading members so you always know the water temperature before you arrive.</p>
+      <p>SwimLoading tracks pool temperatures globally — from heated gym pools in Johannesburg to lidos in London — alongside ocean and lake spots, so swimmers everywhere can plan year-round.</p>`;
+  }
+  if (spot.water_type === 'LAKE') {
+    return `
+      <p>${name} is an open water lake swimming spot in ${loc}. Water temperatures are logged by the SwimLoading community so swimmers can track conditions throughout the year. ${range}</p>
+      <p>SwimLoading is a free peer-to-peer platform built by open water swimmers. Swimmers log water temperatures, conditions, and hazards so the whole community swims smarter.</p>`;
   }
   if (spot.water_type === 'LAGOON') {
     return `
-      <p>${name} is a popular swimming lagoon in ${loc}, South Africa. Lagoon water temperatures are typically warmer than the nearby ocean and are logged by the SwimLoading community. ${range}</p>
+      <p>${name} is a popular swimming lagoon in ${loc}. Lagoon water temperatures are typically warmer than the nearby ocean and are logged by the SwimLoading community. ${range}</p>
       <p>SwimLoading is a free peer-to-peer ocean intelligence platform built by open water swimmers. Swimmers log water temperatures, conditions, and hazards so the whole community swims smarter.</p>`;
   }
   if (spot.water_type === 'DAM') {
     return `
-      <p>${name} is a dam swimming spot in ${loc}, South Africa. Water temperatures are logged by the SwimLoading community so swimmers can track conditions throughout the year. ${range}</p>
+      <p>${name} is a dam swimming spot in ${loc}. Water temperatures are logged by the SwimLoading community so swimmers can track conditions throughout the year. ${range}</p>
       <p>SwimLoading is a free peer-to-peer platform built by open water swimmers. Log water temperatures, conditions, and hazards so the whole community swims smarter.</p>`;
   }
   // OCEAN (default)
   return `
-    <p>${name} is an open water swimming spot on ${loc}, South Africa. Water temperatures are logged daily by the SwimLoading community of open water swimmers. ${range}</p>
+    <p>${name} is an open water swimming spot in ${loc}. Water temperatures are logged daily by the SwimLoading community of open water swimmers. ${range}</p>
     <p>SwimLoading is a free peer-to-peer ocean intelligence platform built by open water swimmers. Swimmers log water temperatures, conditions, and hazards so the whole community swims smarter. Check current conditions at ${name} before every swim.</p>`;
 }
 
@@ -330,7 +340,9 @@ async function renderRegionalPage(regionSlug) {
   const title = allPools
     ? `Swimming Pool Temperatures in ${regionName} | SwimLoading`
     : `Open Water Swimming Spots in ${regionName} | SwimLoading`;
-  const description = `Water temperatures and swimming conditions across ${regionName}, South Africa. Community-logged daily by open water swimmers on SwimLoading. Free to use.`;
+  const SA_REGIONS = new Set(['west-coast','atlantic','false-bay','kwazulu-natal','eastern-cape','garden-route','south-coast','inland','gauteng','free-state']);
+  const regionCountry = SA_REGIONS.has(regionSlug) ? ', South Africa' : '';
+  const description = `Water temperatures and swimming conditions across ${regionName}${regionCountry}. Community-logged daily by open water swimmers on SwimLoading. Free to use.`;
 
   const jsonLdItemList = {
     '@context': 'https://schema.org',

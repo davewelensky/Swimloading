@@ -91,7 +91,9 @@ export const REGION_DOMAINS = {
   'namibia':           ['NAMIBIA'],
   'united-kingdom':    ['UK'],
   'europe':            ['EUROPE'],
+  'switzerland':       ['EUROPE'],           // CH spots live in EUROPE domain
   'western-australia': ['WESTERN_AUSTRALIA'],
+  'australia':         ['WESTERN_AUSTRALIA'], // friendly alias
 };
 
 export const REGION_NAMES = {
@@ -108,7 +110,9 @@ export const REGION_NAMES = {
   'namibia':           'Namibia',
   'united-kingdom':    'United Kingdom',
   'europe':            'Europe',
+  'switzerland':       'Switzerland',
   'western-australia': 'Western Australia',
+  'australia':         'Australia',
 };
 
 export const REGION_INTROS = {
@@ -140,6 +144,10 @@ export const REGION_INTROS = {
     "SwimLoading is expanding across Europe, tracking open water temperatures at lakes, rivers, and coastal spots. Find your local swim and see what the water is doing before you get in.",
   'western-australia':
     "Western Australia offers world-class open water swimming along its Indian Ocean coastline, from Perth's metropolitan beaches to remote coastal stretches. SwimLoading tracks water temperatures across WA's growing swim community.",
+  'australia':
+    "SwimLoading is live in Australia, tracking ocean and open water temperatures from Cottesloe Beach in Perth to the wider Australian swim community. International spots are shown with a gold border in the app.",
+  'switzerland':
+    "SwimLoading tracks lake swimming temperatures across Switzerland — including Lake Geneva spots like Gland Plage and Promenthoux. Swiss lake temperatures vary dramatically by season, from icy spring melt to warm summer swims.",
 };
 
 export function getLocationLabel(domain, area) {
