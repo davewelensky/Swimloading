@@ -1110,13 +1110,19 @@ async function addNewTrial() {
   btn.disabled    = true;
   btn.innerHTML   = '<div class="spinner" style="width:18px;height:18px;margin:0 auto;"></div>';
 
-  // Generate a temporary member number — Britt can edit it later in Roster
-  const tmpNumber = 'W' + Date.now().toString().slice(-5);
+  // member_number is INTEGER NOT NULL — find max for this club and add 1
+  const { data: maxRow } = await sb.from('club_roster')
+    .select('member_number')
+    .eq('club_id', currentClub.id)
+    .order('member_number', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextNumber = (maxRow?.member_number || 0) + 1;
 
   const { data: newMember, error } = await sb.from('club_roster').insert({
     club_id:       currentClub.id,
     display_name:  name,
-    member_number: tmpNumber,
+    member_number: nextNumber,
     squad_id:      activeSqSession?.squad_id || null,
     is_trial:      true,
     fee_paid:      false,
