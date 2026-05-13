@@ -9,21 +9,24 @@ let activeClubIndex  = 0;
 async function loadUserClubs() {
   if (!currentUser) return;
 
-  const { data } = await supabaseClient
-    .from('club_members')
-    .select(`
-      id, role, is_active, joined_at, category_id,
-      roster_id,
-      clubs ( id, name, code, slug, city, tagline, logo_url, club_type, contact_email, training_schedule ),
-      club_roster ( id, member_number, display_name, category, gender )
-    `)
-    .eq('user_id', currentUser.id)
-    .eq('is_active', true);
+  const [membersRes] = await Promise.all([
+    supabaseClient
+      .from('club_members')
+      .select(`
+        id, role, is_active, joined_at, category_id,
+        roster_id,
+        clubs ( id, name, code, slug, city, tagline, logo_url, club_type, contact_email, training_schedule ),
+        club_roster ( id, member_number, display_name, category, gender )
+      `)
+      .eq('user_id', currentUser.id)
+      .eq('is_active', true),
+    loadParentLinks(),
+  ]);
 
-  currentUserClubs = data || [];
+  currentUserClubs = membersRes.data || [];
 
   const btn = document.getElementById('clubNavBtn');
-  if (btn) btn.style.display = currentUserClubs.length ? 'flex' : 'none';
+  if (btn) btn.style.display = (currentUserClubs.length || parentLinks.length) ? 'flex' : 'none';
 }
 
 // ─── Render Club Tab ───────────────────────────────────────────────────────────
@@ -32,7 +35,27 @@ async function renderClubPage() {
   const container = document.getElementById('clubPageContent');
   if (!container) return;
 
-  if (!currentUserClubs.length) {
+  // Parent with no swimmer membership → parent view
+  if (!currentUserClubs.length && parentLinks.length) {
+    await renderParentClubPage();
+    return;
+  }
+
+  // Parent with pending requests but nothing approved yet
+  if (!currentUserClubs.length && !parentLinks.length) {
+    // Check for pending parent requests before showing generic "no club" message
+    const { data: pending } = await supabaseClient
+      .from('parent_roster_links')
+      .select('id')
+      .eq('parent_user_id', currentUser.id)
+      .eq('status', 'pending')
+      .limit(1);
+
+    if (pending?.length) {
+      await renderParentClubPage();
+      return;
+    }
+
     container.innerHTML = `
       <div class="card" style="text-align:center;padding:40px 24px;">
         <i data-lucide="users" style="width:40px;height:40px;color:var(--text-secondary);margin-bottom:16px;display:block;margin-left:auto;margin-right:auto;"></i>
@@ -1431,4 +1454,160 @@ function catColorMap(cat) {
     Senior:      'color:#38bdf8;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);',
   };
   return m[cat] || 'color:var(--text-secondary);background:rgba(255,255,255,0.04);border:1px solid var(--border-color);';
+}
+
+// ─── Parent View ───────────────────────────────────────────────────────────────
+// Shown when user has approved parent_roster_links but no club_members row.
+// Reuses the same swim-club data pipeline — same data, parent's perspective.
+
+let parentLinks        = [];   // approved parent_roster_links
+let activeParentIndex  = 0;
+
+async function loadParentLinks() {
+  if (!currentUser) return;
+  const { data } = await supabaseClient
+    .from('parent_roster_links')
+    .select(`
+      id, relationship, status,
+      clubs ( id, name, slug, club_type ),
+      club_roster ( id, member_number, display_name, category, gender )
+    `)
+    .eq('parent_user_id', currentUser.id)
+    .eq('status', 'approved');
+
+  parentLinks = data || [];
+
+  // Show Club nav tab if parent has approved links (even with no membership)
+  if (parentLinks.length && !currentUserClubs.length) {
+    const btn = document.getElementById('clubNavBtn');
+    if (btn) btn.style.display = 'flex';
+  }
+}
+
+async function renderParentClubPage() {
+  const container = document.getElementById('clubPageContent');
+  if (!container) return;
+
+  // Check for any pending requests too — show helpful message
+  const { data: pending } = await supabaseClient
+    .from('parent_roster_links')
+    .select('id, club_roster(display_name), clubs(name)')
+    .eq('parent_user_id', currentUser.id)
+    .eq('status', 'pending');
+
+  if (!parentLinks.length) {
+    container.innerHTML = `
+      <div class="card" style="text-align:center;padding:40px 24px;">
+        <i data-lucide="clock" style="width:40px;height:40px;color:var(--text-secondary);margin-bottom:16px;display:block;margin-left:auto;margin-right:auto;"></i>
+        <div style="font-size:17px;font-weight:700;margin-bottom:8px;">Access pending</div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.65;">
+          ${pending?.length
+            ? `Your request to follow <strong style="color:var(--text-primary);">${pending.map(p => p.club_roster?.display_name || '—').join(', ')}</strong> is waiting for the club admin to approve.`
+            : 'Your parent access request is waiting for the club admin to approve.'}
+          <br>You\'ll be able to see their results once confirmed.
+        </div>
+      </div>`;
+    lucide.createIcons();
+    return;
+  }
+
+  renderParentSwitcher();
+  await renderActiveParentSwimmer();
+}
+
+function renderParentSwitcher() {
+  const el = document.getElementById('clubSwitcher');
+  if (!el) return;
+  if (parentLinks.length <= 1) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.innerHTML = `<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;">
+    ${parentLinks.map((l, i) => `
+      <button onclick="switchParentSwimmer(${i})" style="
+        flex-shrink:0;padding:7px 16px;border-radius:20px;font-size:13px;font-weight:700;
+        border:1px solid ${i===activeParentIndex ? 'rgba(167,139,250,0.5)' : 'rgba(255,255,255,0.1)'};
+        background:${i===activeParentIndex ? 'rgba(167,139,250,0.12)' : 'transparent'};
+        color:${i===activeParentIndex ? '#a78bfa' : 'var(--text-secondary)'};cursor:pointer;">
+        ${l.club_roster?.display_name?.split(' ')[0] || 'Swimmer'}
+      </button>`).join('')}
+  </div>`;
+}
+
+async function switchParentSwimmer(idx) {
+  activeParentIndex = idx;
+  renderParentSwitcher();
+  await renderActiveParentSwimmer();
+}
+
+async function renderActiveParentSwimmer() {
+  const container = document.getElementById('clubPageContent');
+  if (!container) return;
+  container.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-secondary);font-size:13px;">Loading…</div>`;
+
+  const link   = parentLinks[activeParentIndex];
+  if (!link) return;
+  const club   = link.clubs;
+  const roster = link.club_roster;
+
+  if (!roster?.id) {
+    container.innerHTML = `<div class="card" style="text-align:center;padding:28px;"><div style="font-size:14px;color:var(--text-secondary);">Swimmer profile not found. Contact the club admin.</div></div>`;
+    lucide.createIcons();
+    return;
+  }
+
+  // Reuse the exact same data fetch as renderSwimClub
+  const today       = new Date().toISOString().slice(0,10);
+  const fourWeeksAgo = new Date(); fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+  const fourWeeksFwd = new Date(); fourWeeksFwd.setDate(fourWeeksFwd.getDate() + 28);
+
+  const [resultsRes, upcomingRes, profileRes, trialsRes, announcementsRes, attendanceRes] = await Promise.all([
+    supabaseClient.from('club_gala_results')
+      .select('id, stroke, distance, course, time_seconds, time_text, is_pb, club_events(id, title, event_date)')
+      .eq('roster_id', roster.id),
+    supabaseClient.from('club_events')
+      .select('id, title, event_date, description, is_league, venue, warmup_time, event_start, logistics, entry_open, entry_deadline')
+      .eq('club_id', club.id).gte('event_date', today).order('event_date').limit(20),
+    supabaseClient.from('club_member_profile')
+      .select('date_of_birth, gender').eq('roster_id', roster.id).maybeSingle(),
+    supabaseClient.from('club_swimmer_times')
+      .select('event, course, time_seconds, time_text, meet_date, is_pb').eq('roster_id', roster.id),
+    supabaseClient.from('club_announcements')
+      .select('id, title, body, pinned, created_at').eq('club_id', club.id)
+      .order('pinned', { ascending: false }).order('created_at', { ascending: false }).limit(5),
+    supabaseClient.from('club_session_attendance')
+      .select('session_date, session_start, status').eq('roster_id', roster.id)
+      .gte('session_date', fourWeeksAgo.toISOString().slice(0,10))
+      .lte('session_date', fourWeeksFwd.toISOString().slice(0,10)),
+  ]);
+
+  const allResults    = resultsRes.data    || [];
+  const upcoming      = upcomingRes.data   || [];
+  const profile       = profileRes.data    || null;
+  const timeTrial     = trialsRes.data     || [];
+  const announcements = announcementsRes.data || [];
+  const attendance    = attendanceRes.data || [];
+  const qtsByEvent    = getAgeGroupQTs(profile?.date_of_birth, profile?.gender);
+  const rosterCat     = roster?.category || '';
+
+  // Parent context banner
+  const parentBanner = `
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;
+      background:rgba(167,139,250,0.07);border:1px solid rgba(167,139,250,0.2);
+      border-radius:12px;margin-bottom:12px;">
+      <i data-lucide="heart-handshake" style="width:16px;height:16px;color:#a78bfa;flex-shrink:0;"></i>
+      <div style="font-size:13px;color:rgba(241,245,249,0.7);">
+        Viewing <strong style="color:var(--text-primary);">${roster.display_name}</strong>'s profile
+        <span style="color:#a78bfa;"> · ${link.relationship || 'Parent'}</span>
+        <span style="color:var(--text-secondary);font-size:11px;"> · read only</span>
+      </div>
+    </div>`;
+
+  container.innerHTML =
+    parentBanner +
+    renderSwimmerHero(club, roster, allResults, timeTrial, qtsByEvent) +
+    renderPlanningCard(club, rosterCat, attendance, upcoming, roster.id, club.id) +
+    renderAnnouncements(announcements) +
+    renderQTProgressBars(allResults, timeTrial, qtsByEvent) +
+    renderEventGraphs(allResults, timeTrial, qtsByEvent, roster.id, club.id);
+
+  lucide.createIcons();
 }
