@@ -307,12 +307,15 @@
         .ticker-section {
             position: relative; z-index: 1;
             padding: 20px 0 60px; overflow: hidden;
+        }
+        .ticker-inner {
             display: flex;
+            animation: ticker-scroll 60s linear infinite;
+            will-change: transform;
         }
         .ticker-track {
             display: flex; gap: 16px; flex-shrink: 0;
-            min-width: 100%;
-            animation: ticker-scroll 55s linear infinite;
+            padding-right: 16px; /* close the gap at loop point */
         }
         .ticker-item {
             flex-shrink: 0; display: flex; align-items: center; gap: 10px;
@@ -322,6 +325,11 @@
         }
         .ticker-item .spot-name { font-size: 13px; font-weight: 700; }
         .ticker-item .temp { font-size: 15px; font-weight: 800; }
+        .ticker-item .ticker-flag {
+            font-size: 11px; color: var(--text-secondary); font-weight: 600;
+            background: rgba(56,189,248,0.12); border-radius: 4px;
+            padding: 1px 5px; margin-left: -4px;
+        }
         .ticker-item .ticker-by {
             font-size: 11px; color: var(--text-secondary);
             border-left: 1px solid rgba(255,255,255,0.1);
@@ -329,7 +337,7 @@
         }
         @keyframes ticker-scroll {
             0% { transform: translateX(0); }
-            100% { transform: translateX(-100%); }
+            100% { transform: translateX(-50%); }
         }
 
         /* ═══════════════════════════════════════
@@ -819,34 +827,42 @@
 
     <!-- ═══════════════ LIVE TICKER ═══════════════ -->
     <div class="ticker-section" id="tickerSection">
-        <!-- Two identical tracks — second is seamless continuation of first -->
-        <div class="ticker-track" id="tickerTrack1">
-            <div class="ticker-item"><span class="spot-name">Big Bay</span><span class="temp" style="color:#38bdf8">14°C</span><span class="ticker-by">by Sarah M. · 12m ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Umhlanga Rocks</span><span class="temp" style="color:#10b981">25°C</span><span class="ticker-by">by Trevor L. · 1h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Clifton 4th</span><span class="temp" style="color:#38bdf8">13°C</span><span class="ticker-by">by Mike R. · 2h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Knysna Heads</span><span class="temp" style="color:#22d3ee">19°C</span><span class="ticker-by">by Jenny S. · 3h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Muizenberg</span><span class="temp" style="color:#22d3ee">18°C</span><span class="ticker-by">by Andrew T. · 4h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Salt Rock</span><span class="temp" style="color:#10b981">24°C</span><span class="ticker-by">by Ryan N. · 5h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Llandudno</span><span class="temp" style="color:#38bdf8">12°C</span><span class="ticker-by">by Chris P. · 6h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Fish Hoek</span><span class="temp" style="color:#22d3ee">20°C</span><span class="ticker-by">by Dave W. · 7h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Plettenberg Bay</span><span class="temp" style="color:#22d3ee">20°C</span><span class="ticker-by">by Caro H. · 8h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Ballito</span><span class="temp" style="color:#10b981">25°C</span><span class="ticker-by">by Steve E. · 9h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Camps Bay</span><span class="temp" style="color:#38bdf8">14°C</span><span class="ticker-by">by Nadia F. · 10h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Glencairn</span><span class="temp" style="color:#22d3ee">18°C</span><span class="ticker-by">by Mark B. · 11h ago</span></div>
-        </div>
-        <div class="ticker-track" id="tickerTrack2" aria-hidden="true">
-            <div class="ticker-item"><span class="spot-name">Big Bay</span><span class="temp" style="color:#38bdf8">14°C</span><span class="ticker-by">by Sarah M. · 12m ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Umhlanga Rocks</span><span class="temp" style="color:#10b981">25°C</span><span class="ticker-by">by Trevor L. · 1h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Clifton 4th</span><span class="temp" style="color:#38bdf8">13°C</span><span class="ticker-by">by Mike R. · 2h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Knysna Heads</span><span class="temp" style="color:#22d3ee">19°C</span><span class="ticker-by">by Jenny S. · 3h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Muizenberg</span><span class="temp" style="color:#22d3ee">18°C</span><span class="ticker-by">by Andrew T. · 4h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Salt Rock</span><span class="temp" style="color:#10b981">24°C</span><span class="ticker-by">by Ryan N. · 5h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Llandudno</span><span class="temp" style="color:#38bdf8">12°C</span><span class="ticker-by">by Chris P. · 6h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Fish Hoek</span><span class="temp" style="color:#22d3ee">20°C</span><span class="ticker-by">by Dave W. · 7h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Plettenberg Bay</span><span class="temp" style="color:#22d3ee">20°C</span><span class="ticker-by">by Caro H. · 8h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Ballito</span><span class="temp" style="color:#10b981">25°C</span><span class="ticker-by">by Steve E. · 9h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Camps Bay</span><span class="temp" style="color:#38bdf8">14°C</span><span class="ticker-by">by Nadia F. · 10h ago</span></div>
-            <div class="ticker-item"><span class="spot-name">Glencairn</span><span class="temp" style="color:#22d3ee">18°C</span><span class="ticker-by">by Mark B. · 11h ago</span></div>
+        <!-- ticker-inner scrolls as one unit; -50% = exactly one track width → seamless loop -->
+        <div class="ticker-inner" id="tickerInner">
+            <div class="ticker-track" id="tickerTrack1">
+                <div class="ticker-item"><span class="spot-name">Big Bay</span><span class="temp" style="color:#38bdf8">14°C</span><span class="ticker-by">12m ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Umhlanga Rocks</span><span class="temp" style="color:#10b981">25°C</span><span class="ticker-by">1h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Brighton Beach</span><span class="ticker-flag">UK</span><span class="temp" style="color:#38bdf8">12°C</span><span class="ticker-by">2h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Clifton 4th</span><span class="temp" style="color:#38bdf8">13°C</span><span class="ticker-by">2h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Bondi Beach</span><span class="ticker-flag">AU</span><span class="temp" style="color:#10b981">22°C</span><span class="ticker-by">3h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Knysna Heads</span><span class="temp" style="color:#22d3ee">19°C</span><span class="ticker-by">3h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Muizenberg</span><span class="temp" style="color:#22d3ee">18°C</span><span class="ticker-by">4h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Lake Geneva</span><span class="ticker-flag">CH</span><span class="temp" style="color:#22d3ee">16°C</span><span class="ticker-by">5h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Salt Rock</span><span class="temp" style="color:#10b981">24°C</span><span class="ticker-by">5h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Llandudno</span><span class="temp" style="color:#38bdf8">12°C</span><span class="ticker-by">6h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Fish Hoek</span><span class="temp" style="color:#22d3ee">20°C</span><span class="ticker-by">7h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Plettenberg Bay</span><span class="temp" style="color:#22d3ee">20°C</span><span class="ticker-by">8h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Ballito</span><span class="temp" style="color:#10b981">25°C</span><span class="ticker-by">9h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Camps Bay</span><span class="temp" style="color:#38bdf8">14°C</span><span class="ticker-by">10h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Glencairn</span><span class="temp" style="color:#22d3ee">18°C</span><span class="ticker-by">11h ago</span></div>
+            </div>
+            <div class="ticker-track" id="tickerTrack2" aria-hidden="true">
+                <div class="ticker-item"><span class="spot-name">Big Bay</span><span class="temp" style="color:#38bdf8">14°C</span><span class="ticker-by">12m ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Umhlanga Rocks</span><span class="temp" style="color:#10b981">25°C</span><span class="ticker-by">1h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Brighton Beach</span><span class="ticker-flag">UK</span><span class="temp" style="color:#38bdf8">12°C</span><span class="ticker-by">2h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Clifton 4th</span><span class="temp" style="color:#38bdf8">13°C</span><span class="ticker-by">2h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Bondi Beach</span><span class="ticker-flag">AU</span><span class="temp" style="color:#10b981">22°C</span><span class="ticker-by">3h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Knysna Heads</span><span class="temp" style="color:#22d3ee">19°C</span><span class="ticker-by">3h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Muizenberg</span><span class="temp" style="color:#22d3ee">18°C</span><span class="ticker-by">4h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Lake Geneva</span><span class="ticker-flag">CH</span><span class="temp" style="color:#22d3ee">16°C</span><span class="ticker-by">5h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Salt Rock</span><span class="temp" style="color:#10b981">24°C</span><span class="ticker-by">5h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Llandudno</span><span class="temp" style="color:#38bdf8">12°C</span><span class="ticker-by">6h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Fish Hoek</span><span class="temp" style="color:#22d3ee">20°C</span><span class="ticker-by">7h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Plettenberg Bay</span><span class="temp" style="color:#22d3ee">20°C</span><span class="ticker-by">8h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Ballito</span><span class="temp" style="color:#10b981">25°C</span><span class="ticker-by">9h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Camps Bay</span><span class="temp" style="color:#38bdf8">14°C</span><span class="ticker-by">10h ago</span></div>
+                <div class="ticker-item"><span class="spot-name">Glencairn</span><span class="temp" style="color:#22d3ee">18°C</span><span class="ticker-by">11h ago</span></div>
+            </div>
         </div>
     </div>
     <script>
@@ -868,17 +884,13 @@
             return Math.round(hrs / 24) + 'd ago';
         }
 
-        function firstName(name) {
-            if (!name) return null;
-            const parts = name.trim().split(' ');
-            // "Dave Welensky" → "Dave W."
-            return parts[0] + (parts[1] ? ' ' + parts[1][0] + '.' : '');
-        }
+        // Country code → short label for international spots
+        const COUNTRY_FLAGS = { GB: 'UK', AU: 'AU', CH: 'CH', NZ: 'NZ', US: 'US', FR: 'FR', DE: 'DE', IT: 'IT' };
 
         async function loadTicker() {
             try {
                 const res = await fetch(
-                    SB_URL + '/rest/v1/temp_logs?select=temperature,created_at,spots!temp_logs_spot_id_fkey(name)&order=created_at.desc&limit=80',
+                    SB_URL + '/rest/v1/temp_logs?select=temperature,created_at,spots!temp_logs_spot_id_fkey(name,country_code)&order=created_at.desc&limit=120',
                     { headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY } }
                 );
                 if (!res.ok) {
@@ -898,22 +910,28 @@
 
                 if (unique.length < 6) return; // keep static fallback
 
-                const html = unique.map(l => {
+                const makeHtml = (l) => {
                     const t = Math.round(l.temperature);
-                    const by = timeAgo(l.created_at);
+                    const ago = timeAgo(l.created_at);
+                    const cc = l.spots.country_code;
+                    const flag = (cc && COUNTRY_FLAGS[cc]) ? '<span class="ticker-flag">' + COUNTRY_FLAGS[cc] + '</span>' : '';
                     return '<div class="ticker-item">' +
                         '<span class="spot-name">' + l.spots.name + '</span>' +
+                        flag +
                         '<span class="temp" style="color:' + tempColor(t) + '">' + t + '&deg;C</span>' +
-                        '<span class="ticker-by">' + by + '</span>' +
+                        '<span class="ticker-by">' + ago + '</span>' +
                     '</div>';
-                }).join('');
+                };
 
-                // Populate both tracks identically for seamless loop
+                const html = unique.map(makeHtml).join('');
+
+                // Populate both tracks identically — ticker-inner animates as one unit
                 const t1 = document.getElementById('tickerTrack1');
                 const t2 = document.getElementById('tickerTrack2');
                 if (t1) t1.innerHTML = html;
                 if (t2) t2.innerHTML = html;
             } catch (e) {
+                console.warn('Ticker error:', e);
                 // static fallback stays in place
             }
         }
