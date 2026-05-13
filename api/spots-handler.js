@@ -174,6 +174,7 @@ function renderSpotHero(spot, latestData, recentLogs) {
   const who = latest?._displayName || 'SwimLoading member';
   const when = latest?.created_at ? timeAgo(latest.created_at) : '';
   const notes = latest?.notes ? `<div class="hero-notes">"${escapeHtml(latest.notes)}"</div>` : '';
+  const isIntl = !SA_DOMAINS_SET.has(spot.domain);
 
   const tempBlock = hasTemp ? `
     <div class="hero-temp">${latestData.temp_c}°C</div>
@@ -184,12 +185,18 @@ function renderSpotHero(spot, latestData, recentLogs) {
     <div class="hero-no-data">No recent logs — be the first to log this spot today.</div>
   `;
 
+  const badgeStyle = isIntl
+    ? 'background:rgba(217,119,6,0.1);border-color:rgba(217,119,6,0.35);color:#d97706;'
+    : '';
+  const dotStyle = isIntl ? 'background:#d97706;' : '';
+  const badgeLabel = isIntl ? 'International \xB7 Live' : 'Live conditions';
+
   return `
   <div class="spot-hero">
     <div class="container spot-hero-inner">
       <div class="spot-hero-text">
-        <div class="live-badge">
-          <span class="live-dot"></span> Live conditions
+        <div class="live-badge" style="${badgeStyle}">
+          <span class="live-dot" style="${dotStyle}"></span> ${badgeLabel}
         </div>
         <h1>${escapeHtml(spot.name)} Water Temperature</h1>
         ${tempBlock}
@@ -388,6 +395,8 @@ async function renderRegionalPage(regionSlug) {
 
       ${showWinter ? renderWinterSection(poolSpots, regionName) : ''}
 
+      ${allPools ? renderIntlPoolsSection() : ''}
+
       <section class="cta-box">
         <p>Logging temperatures in ${escapeHtml(regionName)}? Add your reading and help the community.</p>
         <a href="/app" class="btn-cta">Log a Temperature →</a>
@@ -400,6 +409,8 @@ async function renderRegionalPage(regionSlug) {
   return pageShell({ title, description, canonical: `https://www.swimloading.com/spots/${regionSlug}`, jsonLd: [jsonLdItemList], body });
 }
 
+const SA_DOMAINS_SET = new Set(['WEST_COAST','ATLANTIC','FALSE_BAY','KZN','EASTERN_CAPE','GARDEN_ROUTE','SOUTH_COAST','INLAND','NON_COASTAL','GAUTENG','FREE_STATE']);
+
 function renderSpotCards(spots) {
   if (!spots.length) return `<p class="no-logs">No spots found for this region yet.</p>`;
   const TYPE_LABEL = { OCEAN: 'Ocean', LAGOON: 'Lagoon', POOL: 'Pool', DAM: 'Dam', LAKE: 'Lake' };
@@ -409,17 +420,43 @@ function renderSpotCards(spots) {
     const typeLabel = TYPE_LABEL[s.water_type] || s.water_type;
     const typeColor = TYPE_COLOR[s.water_type] || '#94a3b8';
     const lastLogged = s.last_logged ? timeAgo(s.last_logged) : null;
+    const isIntl = !SA_DOMAINS_SET.has(s.domain);
+    const intlStyle = isIntl
+      ? 'border-color:rgba(217,119,6,0.5);background:rgba(217,119,6,0.04);'
+      : '';
+    const intlBadge = isIntl
+      ? `<div class="spot-card-intl"><span style="width:6px;height:6px;border-radius:50%;background:#d97706;display:inline-block;flex-shrink:0;"></span>International</div>`
+      : '';
     return `
-      <a href="/spots/${slug}" class="spot-card">
+      <a href="/spots/${slug}" class="spot-card" style="${intlStyle}">
         <div class="spot-card-top">
           <span class="spot-card-name">${escapeHtml(s.name)}</span>
           <span class="spot-card-type" style="color:${typeColor}">${typeLabel}</span>
         </div>
         ${s.avg_temp != null ? `<div class="spot-card-temp">${s.avg_temp}°C <span>avg</span></div>` : `<div class="spot-card-temp spot-card-temp-none">No data yet</div>`}
         ${lastLogged ? `<div class="spot-card-meta">Last logged ${escapeHtml(lastLogged)}</div>` : `<div class="spot-card-meta">Never logged</div>`}
+        ${intlBadge}
       </a>`;
   }).join('');
   return `<div class="spot-cards">${cards}</div>`;
+}
+
+function renderIntlPoolsSection() {
+  return `
+    <section style="background:rgba(217,119,6,0.06);border:1px solid rgba(217,119,6,0.2);border-radius:14px;padding:20px 24px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="width:7px;height:7px;border-radius:50%;background:#d97706;display:inline-block;"></span>
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#d97706;">International</span>
+      </div>
+      <h2 style="margin-bottom:8px;">Swimming outside South Africa?</h2>
+      <p style="margin-bottom:14px;">SwimLoading tracks pools and lidos internationally. UK lidos, Swiss lakes, and more — all community-logged and free to use.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        <a href="/spots/united-kingdom" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;border:1px solid rgba(217,119,6,0.3);background:rgba(217,119,6,0.07);color:#d97706;font-size:13px;font-weight:600;text-decoration:none;">UK Lidos &amp; Open Water</a>
+        <a href="/spots/switzerland" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;border:1px solid rgba(217,119,6,0.3);background:rgba(217,119,6,0.07);color:#d97706;font-size:13px;font-weight:600;text-decoration:none;">Swiss Lakes</a>
+        <a href="/spots/portugal" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;border:1px solid rgba(217,119,6,0.3);background:rgba(217,119,6,0.07);color:#d97706;font-size:13px;font-weight:600;text-decoration:none;">Portugal</a>
+        <a href="/spots/australia" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;border:1px solid rgba(217,119,6,0.3);background:rgba(217,119,6,0.07);color:#d97706;font-size:13px;font-weight:600;text-decoration:none;">Australia</a>
+      </div>
+    </section>`;
 }
 
 function renderWinterSection(poolSpots, regionName) {
@@ -453,10 +490,13 @@ function pageShell({ title, description, canonical, jsonLd, body }) {
   <header>
     <div class="container header-inner">
       <a href="/" class="logo">
-        <div class="logo-icon"><img src="/icons/logo-wave.png" alt="SwimLoading"></div>
+        <img src="/icons/logo-wave.png" alt="" class="logo-icon">
         <span class="logo-text">SwimLoading</span>
       </a>
-      <a href="/app" class="btn-app">Get the App</a>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <a href="javascript:history.back()" class="btn-back">&#8592; Back</a>
+        <a href="/app" class="btn-app">Get the App</a>
+      </div>
     </div>
   </header>
   ${body}
@@ -488,10 +528,11 @@ a{color:var(--ocean-lt);text-decoration:none}a:hover{text-decoration:underline}
 /* ── Header ── */
 header{background:rgba(10,22,40,0.95);border-bottom:1px solid var(--border);padding:13px 0;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px)}
 .header-inner{display:flex;align-items:center;justify-content:space-between}
-.logo{display:flex;align-items:center;gap:10px;text-decoration:none}
-.logo-icon{width:42px;height:42px;border-radius:12px;overflow:hidden;flex-shrink:0}
-.logo-icon img{width:100%;height:100%;object-fit:contain}
-.logo-text{font-size:20px;font-weight:800;background:linear-gradient(135deg,var(--ocean-lt),var(--ocean-lt));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-0.5px}
+.logo{display:flex;align-items:center;gap:7px;text-decoration:none}
+.logo-icon{height:22px;width:auto;flex-shrink:0}
+.logo-text{font-size:18px;font-weight:800;background:linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.5px}
+.btn-back{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:500;color:var(--subtle);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:5px 12px;text-decoration:none;transition:all .2s}
+.btn-back:hover{color:var(--ocean-lt);border-color:rgba(56,189,248,0.25);text-decoration:none}
 .btn-app{background:var(--ocean);color:#fff!important;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none!important}
 .btn-app:hover{background:#0369a1}
 /* ── Breadcrumb ── */
@@ -558,6 +599,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:rgba(56,189,248,0.04)
 .spot-card-temp span{font-size:13px;font-weight:400;color:var(--subtle)}
 .spot-card-temp-none{font-size:14px;color:var(--subtle)}
 .spot-card-meta{font-size:12px;color:var(--subtle)}
+.spot-card-intl{display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-size:11px;font-weight:600;color:#d97706;text-transform:uppercase;letter-spacing:.05em}
 /* ── CTA box ── */
 .cta-box{background:rgba(2,132,199,0.1);border:1px solid rgba(2,132,199,0.3);border-radius:var(--r);padding:22px 24px}
 .cta-box p{color:var(--text);margin-bottom:0}
@@ -596,6 +638,8 @@ tr:last-child td{border-bottom:none}tr:hover td{background:rgba(56,189,248,0.04)
   .spot-cards{grid-template-columns:repeat(2,1fr)}
   .app-teaser{flex-direction:column;padding:24px 20px}
   .app-teaser-phones{display:none}
+  .f-grid{grid-template-columns:1fr!important}
+  .btn-back{display:none}
 }
 @media(max-width:440px){
   .spot-cards{grid-template-columns:1fr}
@@ -605,34 +649,48 @@ tr:last-child td{border-bottom:none}tr:hover td{background:rgba(56,189,248,0.04)
 `.trim();
 
 const FOOTER_HTML = `
-<div class="f-label">Explore by region</div>
-<div class="f-links">
-  <a href="/spots/west-coast">West Coast</a>
-  <a href="/spots/atlantic">Atlantic Seaboard</a>
-  <a href="/spots/false-bay">False Bay</a>
-  <a href="/spots/kwazulu-natal">KwaZulu-Natal</a>
-  <a href="/spots/garden-route">Garden Route</a>
-  <a href="/spots/eastern-cape">Eastern Cape</a>
-  <a href="/spots/south-coast">South Coast</a>
-  <a href="/spots/inland">Inland &amp; Pools</a>
-  <a href="/spots/gauteng">Gauteng</a>
-  <a href="/spots/free-state">Free State</a>
-  <a href="/spots/namibia">Namibia</a>
+<div class="f-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:32px 24px;margin-bottom:28px;">
+  <div>
+    <div class="f-label">South Africa</div>
+    <div class="f-links">
+      <a href="/spots/atlantic">Atlantic Seaboard</a>
+      <a href="/spots/false-bay">False Bay</a>
+      <a href="/spots/west-coast">West Coast</a>
+      <a href="/spots/kwazulu-natal">KwaZulu-Natal</a>
+      <a href="/spots/garden-route">Garden Route</a>
+      <a href="/spots/eastern-cape">Eastern Cape</a>
+      <a href="/spots/south-coast">South Coast</a>
+      <a href="/spots/inland">Inland &amp; Pools</a>
+      <a href="/spots/gauteng">Gauteng</a>
+      <a href="/spots/free-state">Free State</a>
+    </div>
+  </div>
+  <div>
+    <div class="f-label">International</div>
+    <div class="f-links">
+      <a href="/spots/namibia">Namibia</a>
+      <a href="/spots/united-kingdom">United Kingdom</a>
+      <a href="/spots/australia">Australia</a>
+      <a href="/spots/switzerland">Switzerland</a>
+      <a href="/spots/portugal">Portugal</a>
+    </div>
+  </div>
 </div>
 <div class="f-label">Popular spots</div>
 <div class="f-links">
   <a href="/spots/big-bay">Big Bay</a>
   <a href="/spots/clifton-4th-beach">Clifton 4th Beach</a>
   <a href="/spots/robben-island">Robben Island</a>
-  <a href="/spots/simons-town">Simons Town</a>
-  <a href="/spots/duc">DUC</a>
-  <a href="/spots/gordons-bay">Gordons Bay</a>
-  <a href="/spots/simons-town-long-beach">Simon's Town Long Beach</a>
   <a href="/spots/glencairn">Glencairn</a>
+  <a href="/spots/gordons-bay">Gordons Bay</a>
+  <a href="/spots/tooting-bec-lido">Tooting Bec Lido</a>
+  <a href="/spots/cottesloe-beach">Cottesloe Beach</a>
+  <a href="/spots/cascais">Cascais</a>
 </div>
-<div class="f-copy">
-  <a href="/">SwimLoading</a> — Community water temperature tracking across South Africa.
-  <a href="/app">Open the app</a>
+<div class="f-copy" style="border-top:1px solid rgba(255,255,255,0.06);padding-top:20px;margin-top:4px;">
+  <a href="/">SwimLoading</a> — Community water temperature tracking across South Africa, UK, Australia, Portugal and beyond.
+  &nbsp;·&nbsp; <a href="/app">Open the app</a>
+  &nbsp;·&nbsp; <a href="mailto:support@swimloading.com">support@swimloading.com</a>
 </div>
 `.trim();
 
