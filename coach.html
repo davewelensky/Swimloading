@@ -1110,12 +1110,16 @@ async function addNewTrial() {
   btn.disabled    = true;
   btn.innerHTML   = '<div class="spinner" style="width:18px;height:18px;margin:0 auto;"></div>';
 
+  // Generate a temporary member number — Britt can edit it later in Roster
+  const tmpNumber = 'W' + Date.now().toString().slice(-5);
+
   const { data: newMember, error } = await sb.from('club_roster').insert({
-    club_id:      currentClub.id,
-    display_name: name,
-    squad_id:     activeSqSession?.squad_id || null,
-    is_trial:     true,
-    fee_paid:     false,
+    club_id:       currentClub.id,
+    display_name:  name,
+    member_number: tmpNumber,
+    squad_id:      activeSqSession?.squad_id || null,
+    is_trial:      true,
+    fee_paid:      false,
   }).select('id, display_name, member_number, squad_id, is_trial, fee_paid').single();
 
   btn.disabled = false;
