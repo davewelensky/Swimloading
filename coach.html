@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Coach Attendance · SwimLoading</title>
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #080f1a;
+      --bg-card:   #0d1728;
+      --bg-lift:   #111e35;
+      --cyan:      #38bdf8;
+      --text:      #f1f5f9;
+      --text-sec:  #64748b;
+      --text-dim:  #334155;
+      --border:    rgba(255,255,255,0.07);
+      --green:     #10b981;
+      --amber:     #f59e0b;
+      --danger:    #ef4444;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100dvh;
+      overscroll-behavior: none;
+    }
+
+    /* ── Screens ── */
+    .screen { display: none; min-height: 100dvh; flex-direction: column; }
+    .screen.active { display: flex; }
+
+    /* ── Nav bar ── */
+    .coach-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px; background: rgba(8,15,26,0.95);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .coach-nav-brand {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 15px; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      text-decoration: none;
+    }
+    .coach-nav-brand img { height: 20px; width: auto; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden;
+    }
+    .card-p { padding: 16px; }
+
+    /* ── Session tiles (home screen) ── */
+    .session-tile {
+      display: flex; align-items: stretch; gap: 0;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden;
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      margin-bottom: 10px; min-height: 80px;
+    }
+    .session-tile:active { background: var(--bg-lift); border-color: rgba(56,189,248,0.3); }
+    .session-tile .tile-accent {
+      width: 4px; flex-shrink: 0;
+    }
+    .session-tile .tile-body {
+      flex: 1; padding: 14px 16px; display: flex; flex-direction: column; justify-content: center; gap: 5px;
+    }
+    .session-tile .tile-meta {
+      flex-shrink: 0; padding: 14px 16px; display: flex; flex-direction: column;
+      align-items: flex-end; justify-content: center; gap: 4px;
+    }
+    .session-tile .tile-squad {
+      font-size: 15px; font-weight: 700; color: var(--text);
+    }
+    .session-tile .tile-time {
+      font-size: 12px; color: var(--cyan); font-weight: 600;
+    }
+    .session-tile .tile-coach {
+      font-size: 11px; color: var(--text-sec);
+    }
+    .tile-mine .tile-accent { background: var(--cyan); }
+    .tile-cover .tile-accent { background: var(--border); }
+    .tile-live .tile-accent { background: var(--green); }
+
+    .badge-mine {
+      font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
+      background: rgba(56,189,248,0.15); color: var(--cyan);
+      padding: 2px 8px; border-radius: 8px;
+    }
+    .badge-live {
+      font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
+      background: rgba(16,185,129,0.15); color: var(--green);
+      padding: 2px 8px; border-radius: 8px;
+    }
+    .badge-cover {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.04em;
+      background: rgba(255,255,255,0.06); color: var(--text-sec);
+      padding: 2px 8px; border-radius: 8px;
+    }
+
+    /* ── Confirm screen ── */
+    .confirm-hero {
+      text-align: center; padding: 40px 24px 28px;
+    }
+    .confirm-hero .squad-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 42px; line-height: 1; color: var(--cyan); margin-bottom: 8px;
+    }
+    .confirm-hero .session-time {
+      font-size: 18px; font-weight: 700; margin-bottom: 4px;
+    }
+    .confirm-hero .session-date {
+      font-size: 13px; color: var(--text-sec);
+    }
+    .confirm-fill-bar {
+      height: 6px; background: rgba(255,255,255,0.07);
+      border-radius: 3px; overflow: hidden; margin: 16px 0 6px;
+    }
+    .confirm-fill-bar div { height: 100%; border-radius: 3px; transition: width 0.4s; }
+
+    /* ── Mark screen ── */
+    .mark-progress {
+      background: var(--bg-card); border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+    }
+    .mark-progress-bar {
+      height: 4px; background: rgba(255,255,255,0.07);
+      border-radius: 2px; overflow: hidden; margin-top: 8px;
+    }
+    .mark-progress-bar div { height: 100%; background: var(--green); border-radius: 2px; transition: width 0.3s; }
+
+    .swimmer-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 13px 20px; border-bottom: 1px solid var(--border);
+      min-height: 64px; transition: background 0.1s;
+    }
+    .swimmer-row.marked-present { background: rgba(16,185,129,0.04); }
+    .swimmer-row.marked-no_contact { background: rgba(239,68,68,0.04); }
+    .swimmer-row.marked-notice { background: rgba(245,158,11,0.04); }
+    .swimmer-row.marked-away { background: rgba(100,116,139,0.04); }
+
+    .swimmer-name {
+      flex: 1; min-width: 0;
+    }
+    .swimmer-name .name {
+      font-size: 15px; font-weight: 600; line-height: 1.2;
+    }
+    .swimmer-name .badges {
+      display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px;
+    }
+
+    .badge-trial {
+      font-size: 9px; font-weight: 800;
+      background: rgba(239,68,68,0.12); color: var(--danger);
+      border: 1px solid rgba(239,68,68,0.25); border-radius: 6px; padding: 1px 6px;
+    }
+    .badge-fee {
+      font-size: 9px; font-weight: 800;
+      background: rgba(245,158,11,0.12); color: var(--amber);
+      border: 1px solid rgba(245,158,11,0.25); border-radius: 6px; padding: 1px 6px;
+    }
+    .badge-intent-coming {
+      font-size: 9px; font-weight: 700; color: var(--green); background: rgba(16,185,129,0.08);
+      border-radius: 6px; padding: 1px 6px;
+    }
+    .badge-intent-absent {
+      font-size: 9px; font-weight: 700; color: var(--danger); background: rgba(239,68,68,0.06);
+      border-radius: 6px; padding: 1px 6px;
+    }
+
+    /* Status buttons — mobile optimized */
+    .status-btns {
+      display: flex; gap: 6px; flex-shrink: 0;
+    }
+    .status-btn {
+      width: 44px; height: 44px; border-radius: 10px;
+      border: 1px solid var(--border); background: rgba(255,255,255,0.04);
+      color: var(--text-sec); font-size: 11px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all 0.12s; -webkit-tap-highlight-color: transparent;
+      flex-direction: column; gap: 2px; flex-shrink: 0;
+    }
+    .status-btn:active { transform: scale(0.93); }
+    .status-btn.active-present {
+      background: rgba(16,185,129,0.18); border-color: rgba(16,185,129,0.5); color: #10b981;
+    }
+    .status-btn.active-no_contact {
+      background: rgba(239,68,68,0.18); border-color: rgba(239,68,68,0.5); color: #ef4444;
+    }
+    .status-btn.active-notice {
+      background: rgba(245,158,11,0.18); border-color: rgba(245,158,11,0.5); color: #f59e0b;
+    }
+    .status-btn.active-away {
+      background: rgba(100,116,139,0.15); border-color: rgba(100,116,139,0.4); color: #94a3b8;
+    }
+
+    /* ── Utility ── */
+    .btn-primary {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 16px; border-radius: 12px;
+      background: var(--cyan); color: #080f1a;
+      border: none; font-family: 'DM Sans', sans-serif;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:active { opacity: 0.85; }
+    .btn-primary:disabled { opacity: 0.5; }
+
+    .btn-ghost {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 13px; border-radius: 12px;
+      background: transparent; color: var(--text-sec);
+      border: 1px solid var(--border);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-ghost:active { background: rgba(255,255,255,0.04); }
+
+    .back-btn {
+      display: flex; align-items: center; gap: 6px;
+      color: var(--text-sec); font-size: 13px; font-weight: 600;
+      cursor: pointer; padding: 4px 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .back-btn i { width: 16px; height: 16px; }
+
+    .section-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--text-sec); padding: 18px 20px 8px;
+    }
+
+    .spinner {
+      width: 24px; height: 24px; border: 2px solid rgba(255,255,255,0.1);
+      border-top-color: var(--cyan); border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .center-spinner {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 12px;
+    }
+
+    .empty-state {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 10px; padding: 40px 24px; text-align: center;
+    }
+    .empty-state i { width: 40px; height: 40px; color: var(--text-dim); }
+    .empty-state .title { font-size: 16px; font-weight: 700; }
+    .empty-state .sub { font-size: 13px; color: var(--text-sec); }
+
+    .input-field {
+      width: 100%; padding: 13px 16px;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-size: 15px;
+      outline: none; transition: border-color 0.15s;
+    }
+    .input-field:focus { border-color: rgba(56,189,248,0.5); }
+    .input-field::placeholder { color: var(--text-dim); }
+
+    /* Walk-in search results */
+    .walkin-result {
+      display: flex; align-items: center; padding: 12px 16px;
+      border-bottom: 1px solid var(--border); cursor: pointer;
+      transition: background 0.1s;
+    }
+    .walkin-result:active { background: rgba(255,255,255,0.04); }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: env(safe-area-inset-bottom, 16px);
+      left: 16px; right: 16px; max-width: 400px; margin: 0 auto;
+      background: var(--bg-lift); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px; font-size: 13px; font-weight: 600;
+      z-index: 9999; transform: translateY(100px); opacity: 0;
+      transition: all 0.25s; pointer-events: none;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-color: rgba(16,185,129,0.4); color: var(--green); }
+    .toast.error   { border-color: rgba(239,68,68,0.4);  color: var(--danger); }
+
+    /* Safe area bottom padding */
+    .safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); }
+
+    @media (min-width: 600px) {
+      .screen-inner { max-width: 520px; margin: 0 auto; width: 100%; }
+    }
+
+    /* Done screen */
+    .done-hero {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 40px 24px; text-align: center; gap: 16px;
+    }
+    .done-hero .checkmark {
+      width: 72px; height: 72px; background: rgba(16,185,129,0.15);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      margin-bottom: 8px;
+    }
+    .done-hero .checkmark i { width: 36px; height: 36px; color: var(--green); }
+    .done-hero h2 { font-size: 26px; font-weight: 800; }
+    .done-hero p { font-size: 14px; color: var(--text-sec); }
+  </style>
+</head>
+<body>
+
+<!-- ── LOADING SCREEN ─────────────────────────────────────────────── -->
+<div class="screen active" id="screen-loading">
+  <div class="center-spinner">
+    <div class="spinner"></div>
+    <div style="font-size:13px;color:var(--text-sec);">Loading…</div>
+  </div>
+</div>
+
+<!-- ── AUTH GATE ──────────────────────────────────────────────────── -->
+<div class="screen" id="screen-auth">
+  <nav class="coach-nav">
+    <a href="https://swimloading.com" class="coach-nav-brand">
+      <img src="/icons/logo-wave.png" alt="">SwimLoading
+    </a>
+  </nav>
+  <div class="empty-state">
+    <i data-lucide="lock"></i>
+    <div class="title" id="authTitle">Sign in required</div>
+    <div class="sub" id="authSub">You need a SwimLoading account with coach access to mark attendance.</div>
+    <a href="/app" style="margin-top:16px;display:inline-block;background:var(--cyan);color:#080f1a;font-weight:700;font-size:14px;padding:13px 28px;border-radius:10px;text-decoration:none;">Sign in</a>
+  </div>
+</div>
+
+<!-- ── HOME SCREEN ────────────────────────────────────────────────── -->
+<div class="screen" id="screen-home">
+  <nav class="coach-nav">
+    <a href="https://swimloading.com" class="coach-nav-brand">
+      <img src="/icons/logo-wave.png" alt="">SwimLoading
+    </a>
+    <div style="font-size:12px;color:var(--text-sec);font-weight:600;" id="homeClubName"></div>
+  </nav>
+
+  <div style="flex:1;overflow-y:auto;" class="screen-inner">
+    <!-- Greeting -->
+    <div style="padding:20px 20px 4px;">
+      <div style="font-size:20px;font-weight:700;" id="homeGreeting">Good morning</div>
+      <div style="font-size:13px;color:var(--text-sec);margin-top:3px;" id="homeDate"></div>
+    </div>
+
+    <!-- My sessions today -->
+    <div class="section-label" id="mySessionsLabel">MY SESSIONS TODAY</div>
+    <div style="padding:0 16px;" id="mySessionsList">
+      <div style="padding:20px;text-align:center;"><div class="spinner" style="margin:0 auto;"></div></div>
+    </div>
+
+    <!-- Other sessions to cover -->
+    <div id="coverSection" style="display:none;">
+      <div class="section-label">COVER A SESSION</div>
+      <div style="padding:0 16px;" id="coverSessionsList"></div>
+    </div>
+
+    <!-- Next up this week -->
+    <div id="nextUpSection" style="display:none;">
+      <div class="section-label">NEXT UP THIS WEEK</div>
+      <div style="padding:0 16px;" id="nextUpList"></div>
+    </div>
+
+    <div class="safe-bottom" style="padding-left:0;padding-right:0;height:24px;"></div>
+  </div>
+</div>
+
+<!-- ── CONFIRM SCREEN ─────────────────────────────────────────────── -->
+<div class="screen" id="screen-confirm">
+  <nav class="coach-nav">
+    <span class="back-btn" onclick="showScreen('home')">
+      <i data-lucide="chevron-left"></i> Back
+    </span>
+  </nav>
+
+  <div style="flex:1;overflow-y:auto;" class="screen-inner">
+    <div class="confirm-hero">
+      <div class="squad-name" id="confirmSquad"></div>
+      <div class="session-time" id="confirmTime"></div>
+      <div class="session-date" id="confirmDate"></div>
+    </div>
+
+    <div style="padding:0 20px;">
+      <!-- Fill bar -->
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-sec);margin-bottom:4px;">
+        <span>Expected swimmers</span>
+        <span id="confirmFill" style="font-weight:700;"></span>
+      </div>
+      <div class="confirm-fill-bar"><div id="confirmFillBar" style="background:var(--green);"></div></div>
+
+      <!-- Coach name -->
+      <div style="margin-top:24px;margin-bottom:8px;font-size:13px;font-weight:600;color:var(--text-sec);">Your name on this session</div>
+      <input class="input-field" id="confirmCoachName" type="text" placeholder="Your name">
+
+      <!-- Cover notice -->
+      <div id="confirmCoverNote" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:10px;font-size:12px;color:var(--amber);">
+        <strong>Covering for:</strong> <span id="confirmOriginalCoach"></span>
+      </div>
+
+      <div style="margin-top:24px;">
+        <button class="btn-primary" id="confirmStartBtn" onclick="startSession()">
+          <i data-lucide="play-circle" style="width:18px;height:18px;"></i>
+          Start marking attendance
+        </button>
+        <button class="btn-ghost" onclick="showScreen('home')" style="width:100%;margin-top:10px;">
+          Cancel
+        </button>
+      </div>
+    </div>
+    <div class="safe-bottom" style="height:24px;"></div>
+  </div>
+</div>
+
+<!-- ── MARK SCREEN ────────────────────────────────────────────────── -->
+<div class="screen" id="screen-mark">
+  <nav class="coach-nav">
+    <span class="back-btn" onclick="confirmLeave()">
+      <i data-lucide="chevron-left"></i> Sessions
+    </span>
+    <div style="font-size:12px;font-weight:700;" id="markNavLabel"></div>
+  </nav>
+
+  <!-- Progress -->
+  <div class="mark-progress">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:13px;font-weight:600;" id="markCount">0 of 0 marked present</div>
+      <button onclick="markAllPresent()" style="font-size:11px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:20px;padding:5px 12px;cursor:pointer;">All here</button>
+    </div>
+    <div class="mark-progress-bar"><div id="markProgressFill" style="width:0%;"></div></div>
+  </div>
+
+  <!-- Legend -->
+  <div style="display:flex;gap:14px;padding:8px 20px;background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border);">
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--green);font-weight:600;">
+      <div style="width:8px;height:8px;background:var(--green);border-radius:2px;"></div>Here
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--danger);font-weight:600;">
+      <div style="width:8px;height:8px;background:var(--danger);border-radius:2px;"></div>NC
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--amber);font-weight:600;">
+      <div style="width:8px;height:8px;background:var(--amber);border-radius:2px;"></div>Excuse
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-sec);font-weight:600;">
+      <div style="width:8px;height:8px;background:var(--text-sec);border-radius:2px;opacity:0.5;"></div>Away
+    </div>
+  </div>
+
+  <!-- Swimmer list -->
+  <div style="flex:1;overflow-y:auto;" id="swimmerList"></div>
+
+  <!-- Walk-in / save bar -->
+  <div style="background:var(--bg-card);border-top:1px solid var(--border);padding:12px 16px;display:flex;gap:10px;" class="safe-bottom">
+    <button class="btn-ghost" onclick="openWalkin()" style="flex:1;padding:12px;">
+      <i data-lucide="user-plus" style="width:15px;height:15px;"></i>
+      Walk-in
+    </button>
+    <button class="btn-primary" id="saveBtn" onclick="saveAttendance()" style="flex:2;padding:12px;">
+      <i data-lucide="check-circle" style="width:16px;height:16px;"></i>
+      <span id="saveBtnLabel">Save attendance</span>
+    </button>
+  </div>
+</div>
+
+<!-- ── WALK-IN PANEL ───────────────────────────────────────────────── -->
+<div class="screen" id="screen-walkin">
+  <nav class="coach-nav">
+    <span class="back-btn" onclick="showScreen('mark')">
+      <i data-lucide="chevron-left"></i> Back to register
+    </span>
+    <div style="font-size:13px;font-weight:700;">Add swimmer</div>
+  </nav>
+
+  <div style="flex:1;overflow-y:auto;">
+    <div style="padding:16px 16px 8px;">
+      <input class="input-field" id="walkinSearch" type="text" placeholder="Search name or number…"
+        oninput="searchWalkin(this.value)" autocomplete="off" autocorrect="off">
+    </div>
+    <div id="walkinResults">
+      <div style="padding:20px;text-align:center;font-size:13px;color:var(--text-sec);">Type a name to search your roster</div>
+    </div>
+    <div id="walkinNewSection" style="display:none;padding:16px;">
+      <button class="btn-ghost" style="width:100%;" id="walkinNewBtn" onclick="addNewTrial()">
+        <i data-lucide="plus-circle" style="width:16px;height:16px;"></i>
+        <span id="walkinNewLabel">Add as new trial swimmer</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DONE SCREEN ────────────────────────────────────────────────── -->
+<div class="screen" id="screen-done">
+  <nav class="coach-nav">
+    <a href="https://swimloading.com" class="coach-nav-brand">
+      <img src="/icons/logo-wave.png" alt="">SwimLoading
+    </a>
+  </nav>
+  <div class="done-hero screen-inner">
+    <div class="checkmark"><i data-lucide="check"></i></div>
+    <h2>Attendance saved</h2>
+    <p id="doneSummary">Saved for the register.</p>
+    <div style="margin-top:24px;display:flex;flex-direction:column;gap:10px;width:100%;">
+      <button class="btn-primary" onclick="showScreen('home')">
+        <i data-lucide="calendar" style="width:16px;height:16px;"></i>
+        Back to sessions
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOAST ──────────────────────────────────────────────────────── -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG ─────────────────────────────────────────────────────────
+const SUPABASE_URL     = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── STATE ──────────────────────────────────────────────────────────
+let currentUser   = null;
+let currentClub   = null;
+let coachName     = '';    // display name for the session
+
+let allSquads      = [];
+let allWeekSessions= [];   // all club_squad_sessions for this club
+let allRoster      = [];   // club_roster rows for this club
+let allWeekAssign  = {};   // session_id → [roster_id, ...]
+
+let activeSqSession = null; // the club_squad_sessions template being opened
+let activeSession   = null; // the club_sessions instance (created/found)
+let attendanceMarks = {};   // roster_id → status
+let walkinQuery     = '';
+
+// Simple statuses for mobile. Saved to the same status codes as admin.
+const MOBILE_STATUSES = [
+  { key: 'present',    label: 'HERE',   cls: 'active-present'    },
+  { key: 'no_contact', label: 'NC',     cls: 'active-no_contact' },
+  { key: 'notice',     label: 'EXCUSE', cls: 'active-notice'     },
+  { key: 'away',       label: 'AWAY',   cls: 'active-away'       },
+];
+
+// ── UTILS ──────────────────────────────────────────────────────────
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  lucide.createIcons();
+}
+
+function toast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type !== 'info' ? ' ' + type : '');
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+function fmtTime(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':');
+  const hr = parseInt(h);
+  return (hr > 12 ? hr - 12 : hr || 12) + ':' + m + (hr >= 12 ? 'pm' : 'am');
+}
+
+function toMins(t) {
+  if (!t) return 0;
+  const [h, m] = t.split(':');
+  return parseInt(h) * 60 + parseInt(m);
+}
+
+function greeting() {
+  const h = new Date().getHours();
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+}
+
+// ── INIT ───────────────────────────────────────────────────────────
+async function init() {
+  showScreen('loading');
+
+  // Auth
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { showScreen('auth'); return; }
+  currentUser = session.user;
+
+  // Club slug from URL: /coach/aqua-sharks-atlantic
+  const slug = location.pathname.replace(/^\/coach\/?/, '').replace(/\/$/, '') || null;
+  if (!slug) {
+    document.getElementById('authTitle').textContent = 'No club specified';
+    document.getElementById('authSub').textContent   = 'Use the link your club admin sent you.';
+    showScreen('auth'); return;
+  }
+
+  // Verify access
+  const { data: adminRows } = await sb.from('club_admins')
+    .select('role, clubs(*)')
+    .eq('user_id', currentUser.id);
+
+  const membership = (adminRows || []).find(r => r.clubs?.slug === slug);
+  if (!membership) {
+    document.getElementById('authTitle').textContent = 'No coach access';
+    document.getElementById('authSub').textContent   = 'Ask your club admin (Britt) to add you to the team.';
+    showScreen('auth'); return;
+  }
+
+  currentClub = membership.clubs;
+
+  // Coach name from profile
+  const { data: profile } = await sb.from('profiles')
+    .select('display_name').eq('id', currentUser.id).maybeSingle();
+  coachName = profile?.display_name || currentUser.email?.split('@')[0] || 'Coach';
+
+  await loadClubData();
+  renderHome();
+  showScreen('home');
+}
+
+// ── LOAD DATA ──────────────────────────────────────────────────────
+async function loadClubData() {
+  // Squads
+  const { data: squadsData } = await sb.from('club_squads')
+    .select('id, name, max_members')
+    .eq('club_id', currentClub.id)
+    .eq('is_active', true)
+    .order('sort_order');
+  allSquads = squadsData || [];
+
+  const squadIds = allSquads.map(s => s.id);
+  if (!squadIds.length) return;
+
+  // All this week's sessions
+  const { data: sessData } = await sb.from('club_squad_sessions')
+    .select('id, squad_id, day_of_week, start_time, end_time, coach_name, max_capacity, is_active')
+    .in('squad_id', squadIds).eq('is_active', true)
+    .order('day_of_week').order('start_time');
+  allWeekSessions = sessData || [];
+
+  // Assignments
+  if (allWeekSessions.length) {
+    const sessIds = allWeekSessions.map(s => s.id);
+    const { data: asgn } = await sb.from('club_session_assignments')
+      .select('session_id, roster_id').eq('club_id', currentClub.id).in('session_id', sessIds);
+    allWeekAssign = {};
+    (asgn || []).forEach(a => {
+      if (!allWeekAssign[a.session_id]) allWeekAssign[a.session_id] = [];
+      allWeekAssign[a.session_id].push(a.roster_id);
+    });
+  }
+
+  // Roster (for marking + walk-in search)
+  const { data: rosterData } = await sb.from('club_roster')
+    .select('id, display_name, member_number, squad_id, is_trial, fee_paid')
+    .eq('club_id', currentClub.id)
+    .order('display_name');
+  allRoster = rosterData || [];
+}
+
+// ── HOME SCREEN ────────────────────────────────────────────────────
+function renderHome() {
+  document.getElementById('homeClubName').textContent = currentClub.name || '';
+  document.getElementById('homeGreeting').textContent = greeting() + ', ' + coachName.split(' ')[0];
+  const now = new Date();
+  document.getElementById('homeDate').textContent = now.toLocaleDateString('en-ZA', {
+    weekday: 'long', day: 'numeric', month: 'long'
+  });
+
+  const todayDow  = now.getDay();
+  const nowMins   = now.getHours() * 60 + now.getMinutes();
+
+  const todaySessions = allWeekSessions
+    .filter(s => s.day_of_week === todayDow)
+    .sort((a, b) => toMins(a.start_time) - toMins(b.start_time));
+
+  // Classify sessions: mine vs cover
+  const mySessions    = todaySessions.filter(s => isMySession(s));
+  const coverSessions = todaySessions.filter(s => !isMySession(s));
+
+  // Render my sessions
+  const myEl = document.getElementById('mySessionsList');
+  if (mySessions.length) {
+    myEl.innerHTML = mySessions.map(s => sessionTileHTML(s, nowMins, 'mine')).join('');
+    document.getElementById('mySessionsLabel').textContent = 'MY SESSIONS TODAY';
+  } else {
+    myEl.innerHTML = `<div style="padding:16px;text-align:center;font-size:13px;color:var(--text-sec);">No sessions assigned to you today. See cover sessions below.</div>`;
+    document.getElementById('mySessionsLabel').textContent = 'TODAY\'S SESSIONS';
+    // If no mine sessions, show all today sessions directly
+    myEl.innerHTML = todaySessions.length
+      ? todaySessions.map(s => sessionTileHTML(s, nowMins, 'cover')).join('')
+      : `<div style="padding:20px;text-align:center;font-size:13px;color:var(--text-sec);">No sessions today.</div>`;
+  }
+
+  // Cover section (only if coach has own sessions too)
+  const coverEl = document.getElementById('coverSection');
+  const coverList = document.getElementById('coverSessionsList');
+  if (mySessions.length && coverSessions.length) {
+    coverList.innerHTML = coverSessions.map(s => sessionTileHTML(s, nowMins, 'cover')).join('');
+    coverEl.style.display = '';
+  } else {
+    coverEl.style.display = 'none';
+  }
+
+  // Next up this week (next 2 days with sessions after today)
+  const nextSessions = allWeekSessions
+    .filter(s => s.day_of_week > todayDow)
+    .sort((a, b) => a.day_of_week - b.day_of_week || toMins(a.start_time) - toMins(b.start_time))
+    .slice(0, 6); // max 6 upcoming
+
+  const nextEl = document.getElementById('nextUpSection');
+  const nextList = document.getElementById('nextUpList');
+  if (nextSessions.length) {
+    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    nextList.innerHTML = nextSessions.map(s => {
+      const sq = allSquads.find(q => q.id === s.squad_id);
+      const asgn = (allWeekAssign[s.id] || []).length;
+      const cap  = s.max_capacity || sq?.max_members || 0;
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--bg-card);border-radius:0;${nextSessions.indexOf(s)===0?'border-radius:12px 12px 0 0;':''}${nextSessions.indexOf(s)===nextSessions.length-1?'border-radius:0 0 12px 12px;border-bottom:none;':''}">
+        <div style="font-size:12px;font-weight:700;color:var(--text-sec);min-width:32px;">${dayNames[s.day_of_week]}</div>
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:600;">${sq?.name || 'Squad'}</div>
+          <div style="font-size:11px;color:var(--cyan);">${fmtTime(s.start_time)}${s.end_time ? '–' + fmtTime(s.end_time) : ''}</div>
+        </div>
+        <div style="font-size:12px;color:var(--text-sec);">${asgn}${cap ? ' / ' + cap : ''} <span style="font-size:10px;">expected</span></div>
+        ${isMySession(s) ? `<span style="font-size:9px;font-weight:700;color:var(--cyan);background:rgba(56,189,248,0.1);padding:2px 8px;border-radius:8px;">MINE</span>` : ''}
+      </div>`;
+    }).join('');
+    nextEl.style.display = '';
+  } else {
+    nextEl.style.display = 'none';
+  }
+
+  lucide.createIcons();
+}
+
+function isMySession(s) {
+  if (!s.coach_name) return false;
+  const sCoach = s.coach_name.toLowerCase();
+  const myName = coachName.toLowerCase();
+  return sCoach.includes(myName.split(' ')[0]) || myName.includes(sCoach.split(' ')[0]);
+}
+
+function sessionTileHTML(s, nowMins, type) {
+  const sq   = allSquads.find(q => q.id === s.squad_id);
+  const asgn = (allWeekAssign[s.id] || []).length;
+  const cap  = s.max_capacity || sq?.max_members || 0;
+  const endM = toMins(s.end_time || s.start_time);
+  const isPast = s.end_time ? endM + 5 < nowMins : toMins(s.start_time) + 65 < nowMins;
+  const isLive = !isPast && toMins(s.start_time) <= nowMins + 15;
+  const tileClass = isPast ? 'tile-cover' : isLive ? 'tile-live' : type === 'mine' ? 'tile-mine' : 'tile-cover';
+  const badge = isPast
+    ? `<span style="font-size:9px;font-weight:700;color:var(--text-sec);">done</span>`
+    : isLive ? `<span class="badge-live">LIVE</span>`
+    : type === 'mine' ? `<span class="badge-mine">MY SESSION</span>`
+    : `<span class="badge-cover">COVER</span>`;
+
+  return `<div class="session-tile ${tileClass}" onclick="openConfirm('${s.id}')" style="${isPast?'opacity:0.45;':''}">
+    <div class="tile-accent"></div>
+    <div class="tile-body">
+      <div class="tile-squad">${sq?.name || 'Squad'}</div>
+      <div class="tile-time">${fmtTime(s.start_time)}${s.end_time ? '–' + fmtTime(s.end_time) : ''}</div>
+      ${s.coach_name && type === 'cover' ? `<div class="tile-coach">${s.coach_name}</div>` : ''}
+    </div>
+    <div class="tile-meta">
+      ${badge}
+      <div style="font-size:12px;color:var(--text-sec);margin-top:4px;">${asgn}${cap ? ' / ' + cap : ''}</div>
+    </div>
+  </div>`;
+}
+
+// ── CONFIRM SCREEN ─────────────────────────────────────────────────
+function openConfirm(sqSessionId) {
+  const s = allWeekSessions.find(x => x.id === sqSessionId);
+  if (!s) return;
+  activeSqSession = s;
+
+  const sq  = allSquads.find(q => q.id === s.squad_id);
+  const now = new Date();
+  const dayFull = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  document.getElementById('confirmSquad').textContent = sq?.name || 'Squad';
+  document.getElementById('confirmTime').textContent  = fmtTime(s.start_time) + (s.end_time ? ' – ' + fmtTime(s.end_time) : '');
+  document.getElementById('confirmDate').textContent  = dayFull[s.day_of_week] + ', ' + now.toLocaleDateString('en-ZA', {day:'numeric',month:'long',year:'numeric'});
+
+  const asgn = (allWeekAssign[s.id] || []).length;
+  const cap  = s.max_capacity || sq?.max_members || 0;
+  document.getElementById('confirmFill').textContent = asgn + (cap ? ' / ' + cap + ' expected' : ' assigned');
+  const pct = cap > 0 ? Math.min(asgn / cap * 100, 100) : 0;
+  document.getElementById('confirmFillBar').style.width = pct + '%';
+  document.getElementById('confirmFillBar').style.background = pct >= 90 ? 'var(--danger)' : pct >= 70 ? 'var(--amber)' : 'var(--green)';
+
+  // Coach name: pre-fill with my name or the assigned coach name
+  document.getElementById('confirmCoachName').value = coachName;
+
+  // Cover note
+  const isCover = !isMySession(s) && s.coach_name;
+  const coverNote = document.getElementById('confirmCoverNote');
+  if (isCover) {
+    document.getElementById('confirmOriginalCoach').textContent = s.coach_name;
+    coverNote.style.display = '';
+  } else {
+    coverNote.style.display = 'none';
+  }
+
+  showScreen('confirm');
+}
+
+// ── START SESSION ──────────────────────────────────────────────────
+async function startSession() {
+  const btn = document.getElementById('confirmStartBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;margin:0 auto;"></div>';
+
+  const s       = activeSqSession;
+  const today   = new Date().toISOString().slice(0, 10);
+  const nameVal = document.getElementById('confirmCoachName').value.trim() || coachName;
+  const sq      = allSquads.find(q => q.id === s.squad_id);
+
+  // Find or create club_sessions record for today
+  const { data: existing } = await sb.from('club_sessions')
+    .select('*, club_attendance(id, roster_id, status)')
+    .eq('club_id', currentClub.id)
+    .eq('session_date', today)
+    .eq('squad_id', s.squad_id)
+    .eq('start_time', s.start_time)
+    .maybeSingle();
+
+  let session = existing;
+  if (!session) {
+    const { data: created, error } = await sb.from('club_sessions').insert({
+      club_id:      currentClub.id,
+      session_date: today,
+      squad_id:     s.squad_id,
+      session_type: sq?.name || 'Squad',
+      start_time:   s.start_time,
+      coach_name:   nameVal,
+      created_by:   currentUser.id,
+    }).select('*, club_attendance(id, roster_id, status)').single();
+
+    if (error) {
+      toast('Could not open session: ' + error.message, 'error');
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="play-circle" style="width:18px;height:18px;"></i> Start marking attendance';
+      lucide.createIcons();
+      return;
+    }
+    session = created;
+  } else if (nameVal !== session.coach_name) {
+    // Update coach name if covering
+    await sb.from('club_sessions').update({ coach_name: nameVal }).eq('id', session.id);
+    session.coach_name = nameVal;
+  }
+
+  activeSession = session;
+
+  // Pre-fill marks from any existing attendance
+  attendanceMarks = {};
+  (session.club_attendance || []).forEach(a => { attendanceMarks[a.roster_id] = a.status; });
+
+  btn.disabled = false;
+  btn.innerHTML = '<i data-lucide="play-circle" style="width:18px;height:18px;"></i> Start marking attendance';
+  lucide.createIcons();
+
+  renderMarkScreen();
+  showScreen('mark');
+}
+
+// ── MARK SCREEN ────────────────────────────────────────────────────
+function getSessionRoster() {
+  const s = activeSqSession;
+  return s ? allRoster.filter(r => r.squad_id === s.squad_id) : [];
+}
+
+function renderMarkScreen() {
+  const s   = activeSqSession;
+  const sq  = allSquads.find(q => q.id === s?.squad_id);
+  const now = new Date();
+  document.getElementById('markNavLabel').textContent = sq?.name || 'Session';
+
+  const roster = getSessionRoster();
+  updateProgress(roster);
+
+  const swimmerList = document.getElementById('swimmerList');
+  if (!roster.length) {
+    swimmerList.innerHTML = `<div style="padding:40px 20px;text-align:center;color:var(--text-sec);font-size:13px;">
+      No swimmers assigned to this squad yet.
+    </div>`;
+    return;
+  }
+
+  swimmerList.innerHTML = roster.map(r => swimmerRowHTML(r)).join('');
+  lucide.createIcons();
+}
+
+function swimmerRowHTML(r) {
+  const status = attendanceMarks[r.id] || '';
+  const statusClass = status ? 'marked-' + status : '';
+
+  const badges = [
+    r.is_trial     ? '<span class="badge-trial">TRIAL</span>' : '',
+    r.fee_paid === false ? '<span class="badge-fee">UNPAID</span>' : '',
+  ].filter(Boolean).join('');
+
+  const btns = MOBILE_STATUSES.map(ms => {
+    const isActive = status === ms.key;
+    return `<button class="status-btn ${isActive ? ms.cls : ''}"
+              onclick="setMark('${r.id}','${ms.key}',${isActive})"
+              data-roster="${r.id}" data-status="${ms.key}">
+              ${ms.label}
+            </button>`;
+  }).join('');
+
+  return `<div class="swimmer-row ${statusClass}" id="row-${r.id}">
+    <div class="swimmer-name">
+      <div class="name">${r.display_name || '—'}</div>
+      ${badges ? `<div class="badges">${badges}</div>` : ''}
+    </div>
+    <div class="status-btns">${btns}</div>
+  </div>`;
+}
+
+function setMark(rosterId, status, wasActive) {
+  // Toggle off if same status tapped again
+  attendanceMarks[rosterId] = wasActive ? '' : status;
+  const finalStatus = attendanceMarks[rosterId];
+
+  // Update the row class
+  const row = document.getElementById('row-' + rosterId);
+  if (row) {
+    row.className = 'swimmer-row' + (finalStatus ? ' marked-' + finalStatus : '');
+    // Update all 4 buttons in this row
+    row.querySelectorAll('.status-btn').forEach(btn => {
+      const btnStatus = btn.getAttribute('data-status');
+      const active = finalStatus === btnStatus;
+      const ms = MOBILE_STATUSES.find(m => m.key === btnStatus);
+      btn.className = 'status-btn' + (active && ms ? ' ' + ms.cls : '');
+      btn.setAttribute('onclick', `setMark('${rosterId}','${btnStatus}',${active})`);
+    });
+  }
+
+  updateProgress(getSessionRoster());
+}
+
+function updateProgress(roster) {
+  const presentCount = Object.values(attendanceMarks).filter(s => s === 'present').length;
+  const total = roster.length;
+  const pct   = total > 0 ? Math.round(presentCount / total * 100) : 0;
+  document.getElementById('markCount').textContent = `${presentCount} of ${total} marked present`;
+  document.getElementById('markProgressFill').style.width = pct + '%';
+}
+
+function markAllPresent() {
+  const roster = getSessionRoster();
+  roster.forEach(r => { attendanceMarks[r.id] = 'present'; });
+  renderMarkScreen();
+}
+
+function confirmLeave() {
+  const hasAny = Object.values(attendanceMarks).some(Boolean);
+  if (!hasAny) { showScreen('home'); return; }
+  if (confirm('Go back? Your marks will be lost unless you save first.')) showScreen('home');
+}
+
+// ── SAVE ATTENDANCE ────────────────────────────────────────────────
+async function saveAttendance() {
+  if (!activeSession) return;
+  const btn   = document.getElementById('saveBtn');
+  const label = document.getElementById('saveBtnLabel');
+  btn.disabled = true; label.textContent = 'Saving…';
+
+  const upserts = Object.entries(attendanceMarks)
+    .filter(([, status]) => status)
+    .map(([roster_id, status]) => ({
+      session_id: activeSession.id,
+      roster_id,
+      status,
+      marked_by: currentUser.id,
+    }));
+
+  if (!upserts.length) {
+    toast('Mark at least one swimmer before saving.', 'error');
+    btn.disabled = false; label.textContent = 'Save attendance';
+    return;
+  }
+
+  const { error } = await sb.from('club_attendance')
+    .upsert(upserts, { onConflict: 'session_id,roster_id' });
+
+  btn.disabled = false; label.textContent = 'Save attendance';
+
+  if (error) { toast('Error saving: ' + error.message, 'error'); return; }
+
+  const presentCount = upserts.filter(u => u.status === 'present').length;
+  document.getElementById('doneSummary').textContent =
+    `${presentCount} present, ${upserts.length - presentCount} absent — register saved for ${currentClub.name}.`;
+
+  showScreen('done');
+}
+
+// ── WALK-IN ────────────────────────────────────────────────────────
+function openWalkin() {
+  document.getElementById('walkinSearch').value = '';
+  document.getElementById('walkinResults').innerHTML =
+    `<div style="padding:20px;text-align:center;font-size:13px;color:var(--text-sec);">Type a name to search your roster</div>`;
+  document.getElementById('walkinNewSection').style.display = 'none';
+  walkinQuery = '';
+  showScreen('walkin');
+  setTimeout(() => document.getElementById('walkinSearch').focus(), 300);
+}
+
+function searchWalkin(q) {
+  walkinQuery = q.trim();
+  const lower = walkinQuery.toLowerCase();
+
+  const results = lower.length < 2 ? [] : allRoster.filter(r => {
+    const n = (r.display_name || '').toLowerCase();
+    const m = String(r.member_number || '').toLowerCase();
+    return n.includes(lower) || m.includes(lower);
+  }).slice(0, 10);
+
+  const alreadyInSession = new Set(getSessionRoster().map(r => r.id));
+
+  const resultsEl = document.getElementById('walkinResults');
+  if (lower.length < 2) {
+    resultsEl.innerHTML = `<div style="padding:20px;text-align:center;font-size:13px;color:var(--text-sec);">Type a name to search your roster</div>`;
+    document.getElementById('walkinNewSection').style.display = 'none';
+    return;
+  }
+
+  if (!results.length) {
+    resultsEl.innerHTML = `<div style="padding:20px;text-align:center;font-size:13px;color:var(--text-sec);">No match found — add as new trial swimmer below</div>`;
+  } else {
+    const sq = allSquads.find(q => q.id === activeSqSession?.squad_id);
+    resultsEl.innerHTML = results.map(r => {
+      const inThisSession = alreadyInSession.has(r.id);
+      const theirSquad = allSquads.find(s => s.id === r.squad_id)?.name || 'Unassigned';
+      return `<div class="walkin-result" onclick="${inThisSession ? 'markWalkinPresent' : 'addFromRoster'}('${r.id}')">
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:600;">${r.display_name}</div>
+          <div style="font-size:11px;color:var(--text-sec);">${theirSquad}${r.member_number ? ' · #' + r.member_number : ''}</div>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:${inThisSession ? 'var(--green)' : 'var(--cyan)'};">
+          ${inThisSession ? 'Mark present' : 'Add'}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Show "add as new" button
+  const newSection = document.getElementById('walkinNewSection');
+  document.getElementById('walkinNewLabel').textContent = `Add "${walkinQuery}" as new trial swimmer`;
+  newSection.style.display = walkinQuery.length >= 2 ? '' : 'none';
+}
+
+function markWalkinPresent(rosterId) {
+  attendanceMarks[rosterId] = 'present';
+  toast('Marked present', 'success');
+  showScreen('mark');
+  renderMarkScreen();
+}
+
+function addFromRoster(rosterId) {
+  // Add this swimmer to the session's roster in our local data + mark them present
+  const r = allRoster.find(x => x.id === rosterId);
+  if (!r || !activeSqSession) return;
+
+  // Temporarily add to current session roster by setting their squad to the session's squad
+  // We don't persist the squad change — just add attendance mark + show in list
+  if (!allWeekAssign[activeSqSession.id]) allWeekAssign[activeSqSession.id] = [];
+  if (!allWeekAssign[activeSqSession.id].includes(rosterId)) {
+    allWeekAssign[activeSqSession.id].push(rosterId);
+  }
+
+  // Also add them to allRoster under this squad temporarily for this marking session
+  const existing = allRoster.find(x => x.id === rosterId);
+  if (existing && existing.squad_id !== activeSqSession.squad_id) {
+    // Keep original squad but add them as a walk-in: mark attendance
+    // They won't show in the main list (wrong squad) — we add them as a walk-in row
+    const squad = allSquads.find(s => s.id === activeSqSession.squad_id);
+    allRoster = allRoster.map(x => x.id === rosterId ? { ...x, _walkin: true, squad_id: activeSqSession.squad_id } : x);
+  }
+
+  attendanceMarks[rosterId] = 'present';
+  toast(`${r.display_name} added and marked present`, 'success');
+  showScreen('mark');
+  renderMarkScreen();
+}
+
+async function addNewTrial() {
+  const name = walkinQuery.trim();
+  if (!name) return;
+
+  const btn = document.getElementById('walkinNewBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;margin:0 auto;"></div>';
+
+  const squad = allSquads.find(s => s.id === activeSqSession?.squad_id);
+
+  const { data: newMember, error } = await sb.from('club_roster').insert({
+    club_id:      currentClub.id,
+    display_name: name,
+    squad_id:     activeSqSession?.squad_id || null,
+    is_trial:     true,
+    fee_paid:     false,
+    created_by:   currentUser.id,
+  }).select('id, display_name, member_number, squad_id, is_trial, fee_paid').single();
+
+  btn.disabled = false;
+  btn.innerHTML = `<i data-lucide="plus-circle" style="width:16px;height:16px;"></i><span>${document.getElementById('walkinNewLabel').textContent}</span>`;
+  lucide.createIcons();
+
+  if (error) { toast('Could not add: ' + error.message, 'error'); return; }
+
+  allRoster.push(newMember);
+  if (!allWeekAssign[activeSqSession.id]) allWeekAssign[activeSqSession.id] = [];
+  allWeekAssign[activeSqSession.id].push(newMember.id);
+  attendanceMarks[newMember.id] = 'present';
+
+  toast(`${name} added as trial swimmer`, 'success');
+  showScreen('mark');
+  renderMarkScreen();
+}
+
+// ── START ──────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
