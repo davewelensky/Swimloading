@@ -2027,181 +2027,185 @@ async function renderOverview() {
         </div>
       </div>`;
 
-  // ── Visual dashboard + session list ─────────────────────────────
+  // ── Today's Sessions (squad clubs) / clear for open water ───────
   const fmtTime = t => {
     if (!t) return '';
     const [h, m] = t.split(':');
     const hr = parseInt(h);
     return (hr > 12 ? hr - 12 : hr || 12) + ':' + m + (hr >= 12 ? 'pm' : 'am');
   };
-
   const nowMins = now.getHours() * 60 + now.getMinutes();
   const toMins = t => { if (!t) return 0; const [h,m] = t.split(':'); return parseInt(h)*60+parseInt(m); };
+
+  const todaySessionsEl = document.getElementById('overviewTodaySquads');
+  todaySessionsEl.className = ''; // remove 2-col grid — sessions are full-width
   if (isSquadClub) {
-    renderDayDashboard(dashDay);
-  } else {
-    document.getElementById('overviewTodaySquads').innerHTML = '';
-  }
-
-  let todayHtml;
-  if (allSquadSessions.length > 0) {
-    const sorted = [...allSquadSessions].sort((a,b) => toMins(a.start_time) - toMins(b.start_time));
-    const rows = sorted.map(s => {
-      const sq = allSquads.find(q => q.id === s.squad_id);
-      const assignedIds = allSessionAssignments[s.id] || [];
-      const assigned = assignedIds.length;
-      const sqData = allSquads.find(q => q.id === s.squad_id);
-      const capacity = sqData?.max_members || null;
-      const endMins = toMins(s.end_time || s.start_time);
-      const isPast = s.end_time ? endMins < nowMins : toMins(s.start_time) + 60 < nowMins;
-      const isNow  = !isPast && toMins(s.start_time) <= nowMins;
-
-      // Fill bar — only compare against max_capacity if explicitly set
-      const fillPct = capacity > 0 ? Math.round((assigned / capacity) * 100) : 0;
-      const barColor = fillPct >= 90 ? 'var(--amber)' : fillPct >= 60 ? 'var(--green)' : 'var(--cyan)';
-      const fillBar = assigned > 0 ? `
-        <div style="display:flex;align-items:center;gap:8px;margin-top:5px;">
-          ${capacity ? `<div style="flex:1;height:4px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden;"><div style="width:${Math.min(fillPct,100)}%;height:100%;background:${barColor};border-radius:2px;"></div></div>` : ''}
-          <span style="font-size:11px;font-weight:700;color:var(--cyan);white-space:nowrap;">${assigned}${capacity ? ' / '+capacity : ''} assigned</span>
-        </div>` : `<div style="margin-top:4px;font-size:11px;color:var(--text-sec);">No assignments — <span onclick="event.stopPropagation();showPage('settings')" style="color:var(--cyan);cursor:pointer;">assign swimmers</span></div>`;
-
-      const wrapStyle = isPast
-        ? `opacity:0.35;pointer-events:none;`
-        : isNow ? `background:rgba(56,189,248,0.04);` : ``;
-      const liveBadge = isNow ? `<span style="font-size:9px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.15);padding:1px 6px;border-radius:10px;letter-spacing:0.05em;margin-left:6px;">LIVE</span>` : '';
-      const pastLabel = isPast ? `<span style="font-size:9px;color:var(--text-sec);margin-left:6px;">done</span>` : '';
-
-      return `<div onclick="${isPast ? '' : `openMarkFromSchedule('${s.id}')`}" style="display:flex;align-items:flex-start;gap:12px;padding:11px 16px;border-bottom:1px solid var(--border);${wrapStyle}${isPast ? '' : 'cursor:pointer;'}transition:background 0.15s;" ${isPast ? '' : `onmouseover="this.style.background='rgba(56,189,248,0.06)'" onmouseout="this.style.background='${isNow ? 'rgba(56,189,248,0.04)' : 'transparent'}'"`}>
-        <div style="min-width:90px;font-size:12px;font-weight:700;color:${isPast ? 'var(--text-sec)' : 'var(--cyan)'};padding-top:2px;">${fmtTime(s.start_time)}${s.end_time ? '–'+fmtTime(s.end_time) : ''}</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:600;">${sq?.name || 'Squad'}${liveBadge}${pastLabel}</div>
-          ${fillBar}
+    const sorted = [...allSquadSessions].sort((a,b) => toMins(a.start_time)-toMins(b.start_time));
+    const sessionCards = sorted.length ? sorted.map(s => {
+      const sq       = allSquads.find(q => q.id === s.squad_id);
+      const assigned = (allSessionAssignments[s.id] || []).length;
+      const cap      = s.max_capacity || sq?.max_members || null;
+      const fillPct  = cap > 0 ? Math.round(assigned / cap * 100) : null;
+      const fillColor = fillPct >= 90 ? 'var(--danger)' : fillPct >= 75 ? 'var(--amber)' : 'var(--green)';
+      const isPast   = s.end_time ? toMins(s.end_time) < nowMins : toMins(s.start_time) + 60 < nowMins;
+      const isNow    = !isPast && toMins(s.start_time) <= nowMins;
+      const trials   = (allSessionAssignments[s.id] || []).filter(rid => allRosterFull.find(r => r.id === rid)?.is_trial).length;
+      return `<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);${isPast ? 'opacity:0.38;' : ''}">
+        <div style="min-width:105px;">
+          <div style="font-size:13px;font-weight:700;color:${isPast ? 'var(--text-sec)' : 'var(--cyan)'};">${fmtTime(s.start_time)}${s.end_time ? '–' + fmtTime(s.end_time) : ''}</div>
+          ${isNow ? `<div style="font-size:9px;color:var(--green);font-weight:700;letter-spacing:0.06em;margin-top:2px;">● LIVE</div>` : ''}
         </div>
-        ${s.coach_name
-          ? `<div style="font-size:11px;color:var(--text-sec);display:flex;align-items:center;gap:4px;flex-shrink:0;padding-top:2px;"><i data-lucide="user" style="width:11px;height:11px;"></i> ${s.coach_name}</div>`
-          : `<div style="font-size:11px;color:var(--amber);font-weight:700;flex-shrink:0;padding-top:2px;">No coach</div>`}
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;">
+            <span style="font-size:13px;font-weight:700;">${sq?.name || 'Squad'}</span>
+            ${trials > 0 ? `<span style="font-size:9px;font-weight:700;background:rgba(239,68,68,0.15);color:var(--danger);padding:1px 7px;border-radius:8px;">${trials} TRIAL</span>` : ''}
+          </div>
+          ${cap ? `<div style="display:flex;align-items:center;gap:8px;">
+            <div style="flex:1;height:6px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden;"><div style="width:${Math.min(fillPct,100)}%;height:100%;background:${fillColor};border-radius:3px;transition:width 0.4s;"></div></div>
+            <span style="font-size:11px;font-weight:700;color:${fillColor};white-space:nowrap;">${assigned} / ${cap}</span>
+          </div>` : `<div style="font-size:11px;color:var(--text-sec);">${assigned} assigned</div>`}
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+          ${s.coach_name
+            ? `<div style="font-size:11px;color:var(--text-sec);">${s.coach_name}</div>`
+            : `<div style="font-size:11px;color:var(--amber);font-weight:700;">No coach</div>`}
+          ${!isPast ? `<button class="btn-sm" onclick="openMarkFromSchedule('${s.id}')" style="padding:6px 14px;font-size:12px;white-space:nowrap;">Mark</button>` : ''}
+        </div>
       </div>`;
-    }).join('');
-    todayHtml = `<div class="card-header"><div class="card-title">Today — ${days[now.getDay()]}</div></div>${rows}`;
+    }).join('') : `<div style="padding:24px 16px;text-align:center;color:var(--text-sec);font-size:13px;">No sessions today — <span onclick="showPage('settings')" style="color:var(--cyan);cursor:pointer;">check timetable</span></div>`;
+
+    todaySessionsEl.innerHTML = `<div class="card" style="margin-bottom:16px;">
+      <div class="card-header">
+        <div class="card-title">Today — ${days[now.getDay()]}</div>
+        <div style="font-size:12px;color:var(--text-sec);">${sorted.length} session${sorted.length !== 1 ? 's' : ''}</div>
+      </div>
+      ${sessionCards}
+    </div>`;
   } else {
-    todayHtml = `<div class="card-header"><div class="card-title">Today — ${days[now.getDay()]}</div></div>
-      <div style="padding:20px 16px;text-align:center;color:var(--text-sec);font-size:13px;">No sessions scheduled</div>`;
+    todaySessionsEl.innerHTML = '';
   }
 
-  // ── Attendance pulse (async) — squad clubs only ──────────────────
+  // ── Squad Health (async, squad clubs only) ────────────────────────
   const attEl = document.getElementById('overviewAttendance');
   if (!isSquadClub) {
     attEl.innerHTML = '';
   } else {
-  attEl.innerHTML = `<div class="card" style="margin-bottom:16px;">
-    <div class="card-header"><div class="card-title">Attendance Pulse <span style="font-size:11px;font-weight:400;color:var(--text-sec);">last 30 days</span></div></div>
-    <div style="padding:20px;text-align:center;color:var(--text-sec);font-size:13px;"><div class="spinner" style="margin:0 auto;"></div></div>
-  </div>`;
+    attEl.innerHTML = `<div class="card" style="margin-bottom:16px;"><div style="padding:20px;text-align:center;"><div class="spinner" style="margin:0 auto;"></div></div></div>`;
 
-  const thirtyDaysAgo   = new Date(now.getTime() - 30 * 86400000).toISOString().slice(0,10);
-  const twentyOneDaysAgo = new Date(now.getTime() - 21 * 86400000).toISOString().slice(0,10);
-  const ninetyDaysAgo   = new Date(now.getTime() - 90 * 86400000).toISOString().slice(0,10);
+    const thirtyDaysAgo  = new Date(now.getTime() - 30 * 86400000).toISOString().slice(0,10);
+    const sixtyDaysAgo   = new Date(now.getTime() - 60 * 86400000).toISOString().slice(0,10);
+    const twentyOneDaysAgo = new Date(now.getTime() - 21 * 86400000).toISOString().slice(0,10);
 
-  // club_attendance is the real marked-attendance table, joined through club_sessions
-  const { data: sessionsWithAtt } = await sb.from('club_sessions')
-    .select('id, session_date, squad_id, club_attendance(roster_id, status)')
-    .eq('club_id', currentClub.id)
-    .gte('session_date', ninetyDaysAgo);
+    const { data: sessionsWithAtt } = await sb.from('club_sessions')
+      .select('id, session_date, squad_id, club_attendance(roster_id, status)')
+      .eq('club_id', currentClub.id)
+      .gte('session_date', sixtyDaysAgo);
 
-  // Flatten to [{roster_id, session_date, status}] filtering to present/catch_up
-  const attended = [];
-  (sessionsWithAtt || []).forEach(s => {
-    (s.club_attendance || []).forEach(a => {
-      if (a.status === 'present' || a.status === 'catch_up')
-        attended.push({ roster_id: a.roster_id, session_date: s.session_date });
+    const attended = [];
+    (sessionsWithAtt || []).forEach(s => {
+      (s.club_attendance || []).forEach(a => {
+        if (a.status === 'present' || a.status === 'catch_up')
+          attended.push({ roster_id: a.roster_id, session_date: s.session_date, squad_id: s.squad_id });
+      });
     });
-  });
 
-  // Latest attendance date per swimmer
-  const lastSeenMap = {};
-  attended.forEach(a => {
-    if (!lastSeenMap[a.roster_id] || a.session_date > lastSeenMap[a.roster_id])
-      lastSeenMap[a.roster_id] = a.session_date;
-  });
+    const lastSeenMap = {};
+    attended.forEach(a => {
+      if (!lastSeenMap[a.roster_id] || a.session_date > lastSeenMap[a.roster_id])
+        lastSeenMap[a.roster_id] = a.session_date;
+    });
 
-  // Who attended in last 30 days
-  const attendedLast30 = new Set(
-    attended.filter(a => a.session_date >= thirtyDaysAgo).map(a => a.roster_id)
-  );
+    const attendedLast30 = new Set(attended.filter(a => a.session_date >= thirtyDaysAgo).map(a => a.roster_id));
+    const attendedPrev30 = new Set(attended.filter(a => a.session_date >= sixtyDaysAgo && a.session_date < thirtyDaysAgo).map(a => a.roster_id));
 
-  // At-risk: has ever attended, but not in last 21 days (and is in roster)
-  const rosterIds = new Set(roster.map(r => r.id));
-  const everAttended = new Set(Object.keys(lastSeenMap).filter(id => rosterIds.has(id)));
-  const atRisk = roster.filter(r =>
-    everAttended.has(r.id) && (!lastSeenMap[r.id] || lastSeenMap[r.id] < twentyOneDaysAgo)
-  ).map(r => ({ ...r, lastSeen: lastSeenMap[r.id] || null }))
-   .sort((a,b) => (a.lastSeen||'') < (b.lastSeen||'') ? -1 : 1)
-   .slice(0, 8);
+    const rosterIds = new Set(roster.map(r => r.id));
+    const everAttended = new Set(Object.keys(lastSeenMap).filter(id => rosterIds.has(id)));
 
-  // Per-squad engagement rate (% who attended at least once in last 30 days)
-  const squadStats = allSquads.map(sq => {
-    const members = roster.filter(r => r.squad_id === sq.id);
-    if (!members.length) return null;
-    const attended30 = members.filter(r => attendedLast30.has(r.id)).length;
-    const pct = Math.round(attended30 / members.length * 100);
-    return { sq, members: members.length, attended30, pct };
-  }).filter(Boolean);
+    // At-risk: attended before but not in last 21 days
+    const atRisk = roster.filter(r =>
+      everAttended.has(r.id) && (!lastSeenMap[r.id] || lastSeenMap[r.id] < twentyOneDaysAgo)
+    ).map(r => ({ ...r, lastSeen: lastSeenMap[r.id] || null }))
+     .sort((a,b) => (a.lastSeen||'') < (b.lastSeen||'') ? -1 : 1)
+     .slice(0, 5);
 
-  clubAttendancePct = roster.length
-    ? Math.round(roster.filter(r => attendedLast30.has(r.id)).length / roster.length * 100)
-    : 0;
+    // If at-risk swimmers exist, inject alert into Needs Attention
+    if (atRisk.length > 0) {
+      const actionsEl = document.getElementById('overviewActions');
+      const existingCard = actionsEl.querySelector('.card');
+      if (existingCard) {
+        const ul = existingCard.querySelector('.action-list');
+        if (ul) {
+          const names = atRisk.map(r => {
+            const w = r.lastSeen ? Math.floor((now-new Date(r.lastSeen))/(7*86400000)) : null;
+            return r.display_name + (w ? ` (${w}w)` : '');
+          }).join(', ');
+          ul.insertAdjacentHTML('afterbegin', `<li class="action-item" onclick="showPage('tracker')">
+            <div class="action-dot amber"></div>
+            <div class="action-text">
+              <div style="font-weight:600;">${atRisk.length} swimmer${atRisk.length>1?'s':''} not seen in 3+ weeks</div>
+              <div class="action-names">${names}</div>
+            </div>
+            <div class="action-arrow">Tracker →</div>
+          </li>`);
+          lucide.createIcons();
+        }
+      }
+    }
 
-  const attBarColor = pct => pct >= 70 ? 'var(--green)' : pct >= 45 ? 'var(--amber)' : 'var(--danger)';
+    // Per-squad health with trend
+    const attBarColor = pct => pct >= 70 ? 'var(--green)' : pct >= 45 ? 'var(--amber)' : 'var(--danger)';
+    const squadStats = allSquads.map(sq => {
+      const members = roster.filter(r => r.squad_id === sq.id);
+      if (!members.length) return null;
+      const curr = members.filter(r => attendedLast30.has(r.id)).length;
+      const prev = members.filter(r => attendedPrev30.has(r.id)).length;
+      const pct  = Math.round(curr / members.length * 100);
+      const prevPct = Math.round(prev / members.length * 100);
+      const trials = members.filter(r => r.is_trial).length;
+      return { sq, members: members.length, curr, pct, prevPct, trials };
+    }).filter(Boolean);
 
-  const squadAttRows = squadStats.map(({sq, members, attended30, pct}) => `
-    <div class="att-squad-row">
-      <div class="att-squad-name">${sq.name}</div>
-      <div class="att-bar-wrap"><div class="att-bar" style="width:${pct}%;background:${attBarColor(pct)};"></div></div>
-      <div class="att-pct" style="color:${attBarColor(pct)};">${pct}%</div>
-      <div style="font-size:11px;color:var(--text-sec);width:80px;text-align:right;flex-shrink:0;">${attended30}/${members} active</div>
-    </div>`).join('');
+    clubAttendancePct = roster.length
+      ? Math.round(roster.filter(r => attendedLast30.has(r.id)).length / roster.length * 100)
+      : 0;
 
-  let atRiskHtml = '';
-  if (atRisk.length > 0) {
-    atRiskHtml = `
-      <div style="border-top:1px solid var(--border);padding:12px 16px 4px;">
-        <div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">
-          Not seen in 3+ weeks (${atRisk.length})
+    const squadRows = squadStats.map(({ sq, members, curr, pct, prevPct, trials }) => {
+      const diff = pct - prevPct;
+      const trend = diff > 2 ? `<span style="color:var(--green);font-weight:700;">▲ ${diff}%</span>`
+                  : diff < -2 ? `<span style="color:var(--danger);font-weight:700;">▼ ${Math.abs(diff)}%</span>`
+                  : `<span style="color:var(--text-sec);">→</span>`;
+      const col = attBarColor(pct);
+      return `<div style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--border);">
+        <div style="min-width:90px;font-size:13px;font-weight:600;">${sq.name}</div>
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="flex:1;height:6px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden;">
+              <div style="width:${pct}%;height:100%;background:${col};border-radius:3px;transition:width 0.4s;"></div>
+            </div>
+            <span style="font-size:12px;font-weight:800;color:${col};min-width:34px;">${pct}%</span>
+            <span style="font-size:11px;min-width:48px;">${trend}</span>
+          </div>
         </div>
-        ${atRisk.map(r => {
-          const sq = allSquads.find(q => q.id === r.squad_id);
-          const lastDate = r.lastSeen
-            ? new Date(r.lastSeen).toLocaleDateString('en-ZA',{day:'numeric',month:'short'})
-            : 'never';
-          const weeksAgo = r.lastSeen
-            ? Math.floor((now - new Date(r.lastSeen)) / (7*86400000))
-            : null;
-          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">
-            <div>
-              <span style="font-size:13px;font-weight:600;">${r.display_name}</span>
-              <span style="font-size:11px;color:var(--text-sec);margin-left:8px;">${sq?.name || 'No squad'}</span>
-            </div>
-            <div style="font-size:11px;color:var(--amber);">
-              Last: ${lastDate}${weeksAgo ? ` (${weeksAgo}w ago)` : ''}
-            </div>
-          </div>`;
-        }).join('')}
+        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+          ${trials > 0 ? `<span style="font-size:10px;color:var(--danger);background:rgba(239,68,68,0.12);padding:2px 7px;border-radius:8px;font-weight:700;">${trials} trial${trials>1?'s':''}</span>` : ''}
+          <span style="font-size:11px;color:var(--text-sec);">${curr}/${members}</span>
+        </div>
       </div>`;
-  } else if (everAttended.size > 0) {
-    atRiskHtml = `<div style="border-top:1px solid var(--border);padding:12px 16px;font-size:13px;color:var(--green);display:flex;align-items:center;gap:8px;">
-      <i data-lucide="check-circle" style="width:14px;height:14px;"></i> No at-risk swimmers — everyone seen in the last 3 weeks
-    </div>`;
-  }
+    }).join('');
 
-  attEl.innerHTML = `<div class="card" style="margin-bottom:16px;">
-    <div class="card-header">
-      <div class="card-title">Attendance Pulse <span style="font-size:11px;font-weight:400;color:var(--text-sec);">last 30 days</span></div>
-      <div style="font-size:18px;font-weight:800;color:${attBarColor(clubAttendancePct)};">${clubAttendancePct}% <span style="font-size:12px;font-weight:400;color:var(--text-sec);">club avg</span></div>
-    </div>
-    ${squadAttRows ? `<div style="padding:8px 0;">${squadAttRows}</div>` : ''}
-    ${atRiskHtml}
-  </div>`;
-  } // end isSquadClub attendance pulse
+    const noDataHtml = !squadStats.length
+      ? `<div style="padding:20px 16px;text-align:center;color:var(--text-sec);font-size:13px;">No attendance data yet — mark your first session to see trends</div>`
+      : '';
+
+    attEl.innerHTML = `<div class="card" style="margin-bottom:16px;">
+      <div class="card-header">
+        <div class="card-title">Squad Health <span style="font-size:11px;font-weight:400;color:var(--text-sec);">last 30 days · trend vs prior 30</span></div>
+        <div style="font-size:16px;font-weight:800;color:${attBarColor(clubAttendancePct)};">${clubAttendancePct}%<span style="font-size:11px;font-weight:400;color:var(--text-sec);margin-left:4px;">club avg</span></div>
+      </div>
+      ${squadRows || noDataHtml}
+    </div>`;
+    lucide.createIcons();
+  } // end isSquadClub squad health
 
   // ── Upcoming events + Member pipeline (2-col) ────────────────────
   const upcomingEvents = (allEvents||[])
