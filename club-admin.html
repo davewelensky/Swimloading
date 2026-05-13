@@ -2045,60 +2045,12 @@ async function renderOverview() {
         </div>
       </div>`;
 
-  // ── Today's Sessions (squad clubs) / clear for open water ───────
-  const fmtTime = t => {
-    if (!t) return '';
-    const [h, m] = t.split(':');
-    const hr = parseInt(h);
-    return (hr > 12 ? hr - 12 : hr || 12) + ':' + m + (hr >= 12 ? 'pm' : 'am');
-  };
-  const nowMins = now.getHours() * 60 + now.getMinutes();
-  const toMins = t => { if (!t) return 0; const [h,m] = t.split(':'); return parseInt(h)*60+parseInt(m); };
-
+  // ── Week Dashboard (squad clubs) / clear for open water ─────────
   const todaySessionsEl = document.getElementById('overviewTodaySquads');
-  todaySessionsEl.className = ''; // remove 2-col grid — sessions are full-width
+  todaySessionsEl.className = '';
   if (isSquadClub) {
-    const sorted = [...allSquadSessions].sort((a,b) => toMins(a.start_time)-toMins(b.start_time));
-    const sessionCards = sorted.length ? sorted.map(s => {
-      const sq       = allSquads.find(q => q.id === s.squad_id);
-      const assigned = (allSessionAssignments[s.id] || []).length;
-      const cap      = s.max_capacity || sq?.max_members || null;
-      const fillPct  = cap > 0 ? Math.round(assigned / cap * 100) : null;
-      const fillColor = fillPct >= 90 ? 'var(--danger)' : fillPct >= 75 ? 'var(--amber)' : 'var(--green)';
-      const isPast   = s.end_time ? toMins(s.end_time) < nowMins : toMins(s.start_time) + 60 < nowMins;
-      const isNow    = !isPast && toMins(s.start_time) <= nowMins;
-      const trials   = (allSessionAssignments[s.id] || []).filter(rid => allRosterFull.find(r => r.id === rid)?.is_trial).length;
-      return `<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);${isPast ? 'opacity:0.38;' : ''}">
-        <div style="min-width:105px;">
-          <div style="font-size:13px;font-weight:700;color:${isPast ? 'var(--text-sec)' : 'var(--cyan)'};">${fmtTime(s.start_time)}${s.end_time ? '–' + fmtTime(s.end_time) : ''}</div>
-          ${isNow ? `<div style="font-size:9px;color:var(--green);font-weight:700;letter-spacing:0.06em;margin-top:2px;">● LIVE</div>` : ''}
-        </div>
-        <div style="flex:1;min-width:0;">
-          <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;">
-            <span style="font-size:13px;font-weight:700;">${sq?.name || 'Squad'}</span>
-            ${trials > 0 ? `<span style="font-size:9px;font-weight:700;background:rgba(239,68,68,0.15);color:var(--danger);padding:1px 7px;border-radius:8px;">${trials} TRIAL</span>` : ''}
-          </div>
-          ${cap ? `<div style="display:flex;align-items:center;gap:8px;">
-            <div style="flex:1;height:6px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden;"><div style="width:${Math.min(fillPct,100)}%;height:100%;background:${fillColor};border-radius:3px;transition:width 0.4s;"></div></div>
-            <span style="font-size:11px;font-weight:700;color:${fillColor};white-space:nowrap;">${assigned} / ${cap}</span>
-          </div>` : `<div style="font-size:11px;color:var(--text-sec);">${assigned} assigned</div>`}
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-          ${s.coach_name
-            ? `<div style="font-size:11px;color:var(--text-sec);">${s.coach_name}</div>`
-            : `<div style="font-size:11px;color:var(--amber);font-weight:700;">No coach</div>`}
-          ${!isPast ? `<button class="btn-sm" onclick="openMarkFromSchedule('${s.id}')" style="padding:6px 14px;font-size:12px;white-space:nowrap;">Mark</button>` : ''}
-        </div>
-      </div>`;
-    }).join('') : `<div style="padding:24px 16px;text-align:center;color:var(--text-sec);font-size:13px;">No sessions today — <span onclick="showPage('settings')" style="color:var(--cyan);cursor:pointer;">check timetable</span></div>`;
-
-    todaySessionsEl.innerHTML = `<div class="card" style="margin-bottom:16px;">
-      <div class="card-header">
-        <div class="card-title">Today — ${days[now.getDay()]}</div>
-        <div style="font-size:12px;color:var(--text-sec);">${sorted.length} session${sorted.length !== 1 ? 's' : ''}</div>
-      </div>
-      ${sessionCards}
-    </div>`;
+    dashDay = new Date().getDay(); // reset to today on each overview load
+    renderDayDashboard(dashDay);
   } else {
     todaySessionsEl.innerHTML = '';
   }
@@ -2381,7 +2333,7 @@ function renderDayDashboard(dow) {
     const isNow  = dow===todayDow && !isPast && toM(s.start_time)<=nowMins;
     const bColor = pct>=90?'var(--amber)':pct>=65?'var(--green)':'var(--cyan)';
 
-    return `<div style="display:flex;align-items:center;gap:0;padding:0;border-bottom:1px solid var(--border);opacity:${isPast?'0.35':'1'};${isNow?'background:rgba(56,189,248,0.04);':''}" ${!isPast?`onclick="openMarkFromSchedule('${s.id}')" onmouseover="this.style.background='rgba(56,189,248,0.07)'" onmouseout="this.style.background='${isNow?'rgba(56,189,248,0.04)':'transparent'}'" style="cursor:pointer;"`:''}>
+    return `<div style="display:flex;align-items:center;gap:0;padding:0;border-bottom:1px solid var(--border);opacity:${isPast?'0.35':'1'};${isNow?'background:rgba(56,189,248,0.04);':''};cursor:pointer;" onclick="openSessionDetail('${s.id}')" onmouseover="this.style.background='rgba(56,189,248,0.07)'" onmouseout="this.style.background='${isNow?'rgba(56,189,248,0.04)':'transparent'}'">
       <div style="width:3px;min-height:52px;background:${isPast?'transparent':isNow?'var(--green)':s.coach_name?'rgba(56,189,248,0.3)':'var(--amber)'};flex-shrink:0;"></div>
       <div style="flex:1;display:flex;align-items:center;gap:12px;padding:11px 14px;">
         <div style="min-width:88px;font-size:12px;font-weight:700;color:${isPast?'var(--text-sec)':'var(--cyan)'};">${fmtT(s.start_time)}${s.end_time?'–'+fmtT(s.end_time):''}</div>
@@ -2403,7 +2355,7 @@ function renderDayDashboard(dow) {
           ${s.coach_name
             ?`<div style="font-size:12px;color:var(--text-sec);">${s.coach_name}</div>`
             :`<div style="font-size:11px;font-weight:700;color:var(--danger);">NO COACH</div>`}
-          ${!isPast?`<div style="font-size:10px;color:var(--cyan);margin-top:2px;">Mark →</div>`:''}
+          <div style="font-size:10px;color:var(--cyan);margin-top:2px;">View →</div>
         </div>
       </div>
     </div>`;
@@ -6178,6 +6130,108 @@ async function submitNewSession() {
   allSessions.unshift(data);
   closeNewSession();
   openMarkSession(data.id);
+}
+
+// ── SESSION DETAIL PANEL ──────────────────────────────────────────
+// Clicking a session on the dashboard opens this first — shows who's attending + Mark button
+function openSessionDetail(squadSessionId) {
+  const s   = allWeekSessions.find(x => x.id === squadSessionId);
+  if (!s) return;
+  const sq  = allSquads.find(q => q.id === s.squad_id);
+  const fmtT = t => { if (!t) return ''; const [h,m]=t.split(':'); const hr=parseInt(h); return (hr>12?hr-12:hr||12)+':'+m+(hr>=12?'pm':'am'); };
+  const toM  = t => { if (!t) return 0; const [h,m]=t.split(':'); return parseInt(h)*60+parseInt(m); };
+  const now  = new Date();
+  const nowM = now.getHours()*60+now.getMinutes();
+  const todayDow = now.getDay();
+  const endM = toM(s.end_time || s.start_time);
+  const isPast = s.day_of_week === todayDow && (s.end_time ? endM < nowM : toM(s.start_time)+60 < nowM);
+  const isToday = s.day_of_week === todayDow;
+
+  // roster assigned to this session
+  const assignedIds = allWeekAssignments[s.id] || [];
+  const asgn  = assignedIds.length;
+  const cap   = sq?.max_members || 0;
+  const pct   = cap > 0 ? Math.round(asgn/cap*100) : 0;
+  const bColor = pct>=90?'var(--danger)':pct>=75?'var(--amber)':'var(--green)';
+
+  const swimmers = assignedIds.map(rid => allRosterFull.find(r => r.id === rid)).filter(Boolean)
+    .sort((a,b) => (a.display_name||'').localeCompare(b.display_name||''));
+
+  const swimRows = swimmers.length
+    ? swimmers.map(r => `
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 20px;border-bottom:1px solid var(--border);">
+          <div style="flex:1;font-size:13px;font-weight:500;">${r.display_name || r.id}</div>
+          ${r.is_trial
+            ? `<span style="font-size:9px;font-weight:700;background:rgba(239,68,68,0.15);color:var(--danger);padding:1px 8px;border-radius:8px;letter-spacing:0.04em;">TRIAL</span>`
+            : ''}
+          ${!r.fee_paid
+            ? `<span style="font-size:9px;font-weight:700;background:rgba(245,158,11,0.15);color:var(--amber);padding:1px 8px;border-radius:8px;letter-spacing:0.04em;">FEE DUE</span>`
+            : ''}
+        </div>`).join('')
+    : `<div style="padding:24px 20px;text-align:center;color:var(--text-sec);font-size:13px;">No swimmers assigned to this session.<br><span onclick="showPage('settings')" style="color:var(--cyan);cursor:pointer;">Set up squad assignments →</span></div>`;
+
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const sessionLabel = isToday ? 'Today' : dayNames[s.day_of_week];
+
+  let modal = document.getElementById('sessionDetailModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'sessionDetailModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10100;display:flex;align-items:flex-end;justify-content:center;';
+    modal.innerHTML = `<div id="sessionDetailPanel" style="background:var(--bg-card,#0d1728);border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:88vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,0);">
+      <div id="sessionDetailContent"></div>
+    </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal) closeSessionDetail(); });
+    document.body.appendChild(modal);
+  }
+
+  document.getElementById('sessionDetailContent').innerHTML = `
+    <!-- drag handle -->
+    <div style="display:flex;justify-content:center;padding:10px 0 4px;"><div style="width:36px;height:4px;background:rgba(255,255,255,0.15);border-radius:2px;"></div></div>
+
+    <!-- header -->
+    <div style="padding:14px 20px 12px;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-sec);margin-bottom:4px;">${sessionLabel}</div>
+          <div style="font-size:18px;font-weight:700;">${sq?.name || 'Squad'}</div>
+          <div style="font-size:13px;color:var(--cyan);margin-top:2px;">${fmtT(s.start_time)}${s.end_time?'–'+fmtT(s.end_time):''}</div>
+        </div>
+        <button onclick="closeSessionDetail()" style="background:rgba(255,255,255,0.07);border:none;color:var(--text-sec);border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">&times;</button>
+      </div>
+
+      <!-- coach + fill -->
+      <div style="display:flex;align-items:center;gap:16px;margin-top:12px;">
+        ${s.coach_name
+          ? `<div style="font-size:12px;color:var(--text-sec);">Coach: <span style="color:var(--text);font-weight:600;">${s.coach_name}</span></div>`
+          : `<div style="font-size:12px;font-weight:700;color:var(--danger);">No coach assigned</div>`}
+        ${cap ? `<div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
+          <div style="width:80px;height:4px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden;">
+            <div style="width:${Math.min(pct,100)}%;height:100%;background:${bColor};border-radius:2px;"></div>
+          </div>
+          <span style="font-size:12px;font-weight:700;color:${bColor};">${asgn} / ${cap}</span>
+        </div>` : `<div style="margin-left:auto;font-size:12px;color:var(--text-sec);">${asgn} assigned</div>`}
+      </div>
+    </div>
+
+    <!-- swimmer list -->
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-sec);padding:10px 20px 4px;">${asgn} Swimmer${asgn!==1?'s':''}</div>
+    ${swimRows}
+
+    <!-- footer action -->
+    ${isToday && !isPast ? `<div style="padding:16px 20px;border-top:1px solid var(--border);margin-top:4px;">
+      <button onclick="closeSessionDetail();openMarkFromSchedule('${s.id}')" style="width:100%;padding:13px;background:var(--cyan,#38bdf8);color:#080f1a;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">Mark Attendance →</button>
+    </div>` : isPast ? `<div style="padding:14px 20px;text-align:center;color:var(--text-sec);font-size:12px;">Session complete — view in Attendance tab</div>`
+    : `<div style="padding:14px 20px;text-align:center;color:var(--text-sec);font-size:12px;">Attendance can only be marked on the session day</div>`}
+  `;
+
+  modal.style.display = 'flex';
+  lucide.createIcons();
+}
+
+function closeSessionDetail() {
+  const modal = document.getElementById('sessionDetailModal');
+  if (modal) modal.style.display = 'none';
 }
 
 // ── MARK ATTENDANCE ───────────────────────────────────────────────
