@@ -59,6 +59,22 @@ export const DOMAIN_MAP = {
   WESTERN_AUSTRALIA: { display: 'Western Australia',  region: 'western-australia' },
 };
 
+// For EUROPE domain spots, resolve a specific country label from the ISO code
+export const EUROPE_COUNTRY_MAP = {
+  CH: 'Switzerland',
+  PT: 'Portugal',
+  FR: 'France',
+  DE: 'Germany',
+  IT: 'Italy',
+  ES: 'Spain',
+  NL: 'Netherlands',
+  BE: 'Belgium',
+  AT: 'Austria',
+  NO: 'Norway',
+  SE: 'Sweden',
+  DK: 'Denmark',
+};
+
 export const AREA_MAP = {
   CAPE_TOWN:       'Cape Town',
   JOHANNESBURG:    'Johannesburg',
@@ -92,6 +108,7 @@ export const REGION_DOMAINS = {
   'united-kingdom':    ['UK'],
   'europe':            ['EUROPE'],
   'switzerland':       ['EUROPE'],           // CH spots live in EUROPE domain
+  'portugal':          ['EUROPE'],           // PT spots live in EUROPE domain
   'western-australia': ['WESTERN_AUSTRALIA'],
   'australia':         ['WESTERN_AUSTRALIA'], // friendly alias
 };
@@ -111,6 +128,7 @@ export const REGION_NAMES = {
   'united-kingdom':    'United Kingdom',
   'europe':            'Europe',
   'switzerland':       'Switzerland',
+  'portugal':          'Portugal',
   'western-australia': 'Western Australia',
   'australia':         'Australia',
 };
@@ -148,11 +166,17 @@ export const REGION_INTROS = {
     "SwimLoading is live in Australia, tracking ocean and open water temperatures from Cottesloe Beach in Perth to the wider Australian swim community. International spots are shown with a gold border in the app.",
   'switzerland':
     "SwimLoading tracks lake swimming temperatures across Switzerland — including Lake Geneva spots like Gland Plage and Promenthoux. Swiss lake temperatures vary dramatically by season, from icy spring melt to warm summer swims.",
+  'portugal':
+    "SwimLoading is live in Portugal, tracking ocean temperatures along the Atlantic coast. Cascais — just west of Lisbon — is one of the most popular open water swimming destinations in Europe, with Atlantic water that swims warm in summer and cold and wild in winter.",
 };
 
-export function getLocationLabel(domain, area) {
+export function getLocationLabel(domain, area, countryCode) {
   const info = DOMAIN_MAP[domain];
   if (!info) return 'South Africa';
+  // EUROPE domain: resolve to specific country if country_code is known
+  if (domain === 'EUROPE' && countryCode && EUROPE_COUNTRY_MAP[countryCode]) {
+    return EUROPE_COUNTRY_MAP[countryCode];
+  }
   if (info.display) return info.display;
   return (area && AREA_MAP[area]) || 'South Africa';
 }

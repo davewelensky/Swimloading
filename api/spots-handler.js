@@ -43,14 +43,14 @@ export default async function handler(req, res) {
 
 async function renderSpotPage(slug) {
   const allSpots = await dbGet(
-    'spots?active=eq.true&select=id,name,domain,area,water_type,latitude,longitude,brand,code&order=name.asc'
+    'spots?active=eq.true&select=id,name,domain,area,water_type,latitude,longitude,brand,code,country_code&order=name.asc'
   );
   if (!allSpots) return null;
 
   const spot = allSpots.find(s => generateSlug(s.name) === slug);
   if (!spot) return null;
 
-  const locationLabel = getLocationLabel(spot.domain, spot.area);
+  const locationLabel = getLocationLabel(spot.domain, spot.area, spot.country_code);
   const regionSlug = getRegionSlug(spot.domain);
   const regionName = REGION_NAMES[regionSlug] || locationLabel;
   spot._locationLabel = locationLabel;
