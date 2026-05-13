@@ -102,6 +102,7 @@ async function renderSpotPage(slug) {
     LAGOON: `Current water temperature at ${spot.name}, ${locationLabel}. Community-logged by swimmers on SwimLoading.`,
     POOL:   `Current pool temperature at ${spot.name}, ${locationLabel}. Logged by the SwimLoading swimming community. Check before your session.`,
     DAM:    `Current water temperature at ${spot.name}, ${locationLabel}. Community-logged by swimmers on SwimLoading.`,
+    LAKE:   `Current lake temperature at ${spot.name}, ${locationLabel}. Community-logged by open water swimmers on SwimLoading. Plan your lake swim with live data.`,
   };
   const description = descMap[spot.water_type] || descMap.OCEAN;
 
@@ -348,7 +349,7 @@ async function renderRegionalPage(regionSlug) {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
     name: `Open Water Swimming Spots in ${regionName}`,
-    description: `Community-logged water temperature spots in ${regionName}, South Africa`,
+    description: `Community-logged water temperature spots in ${regionName}${regionCountry}`,
     url: `https://www.swimloading.com/spots/${regionSlug}`,
     itemListElement: spots.map((s, i) => ({
       '@type': 'ListItem', position: i + 1,
@@ -400,8 +401,8 @@ async function renderRegionalPage(regionSlug) {
 
 function renderSpotCards(spots) {
   if (!spots.length) return `<p class="no-logs">No spots found for this region yet.</p>`;
-  const TYPE_LABEL = { OCEAN: 'Ocean', LAGOON: 'Lagoon', POOL: 'Pool', DAM: 'Dam' };
-  const TYPE_COLOR = { OCEAN: '#38bdf8', LAGOON: '#34d399', POOL: '#a78bfa', DAM: '#fb923c' };
+  const TYPE_LABEL = { OCEAN: 'Ocean', LAGOON: 'Lagoon', POOL: 'Pool', DAM: 'Dam', LAKE: 'Lake' };
+  const TYPE_COLOR = { OCEAN: '#38bdf8', LAGOON: '#34d399', POOL: '#a78bfa', DAM: '#fb923c', LAKE: '#34d399' };
   const cards = spots.map(s => {
     const slug = generateSlug(s.name);
     const typeLabel = TYPE_LABEL[s.water_type] || s.water_type;
