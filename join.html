@@ -174,6 +174,53 @@
     </a>
   </div>
 
+  <!-- PARENT: FIND SWIMMER -->
+  <div id="screen-parent-search" class="screen">
+    <div id="clubHeaderParentSearch"></div>
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Find your swimmer</div>
+    <div style="font-size:13px;color:var(--text-sec);margin-bottom:16px;">Type your child's name to find them on the roster. The club admin will confirm your link before you get access.</div>
+    <input id="parentNameSearch" type="text" placeholder="Type swimmer's name…" oninput="onParentNameSearch()" style="margin-bottom:8px;">
+    <div id="parentRosterResults" style="margin-bottom:12px;max-height:240px;overflow-y:auto;"></div>
+    <div class="error-msg" id="parentSearchError"></div>
+  </div>
+
+  <!-- PARENT: CONFIRM REQUEST -->
+  <div id="screen-parent-confirm" class="screen">
+    <div id="clubHeaderParentConfirm"></div>
+    <div id="parentConfirmPreview"></div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;display:block;margin-bottom:8px;">Your relationship to this swimmer</label>
+      <input id="relationshipInput" type="text" placeholder="e.g. Mother, Father, Guardian, Stepparent…" style="margin-bottom:0;" maxlength="40">
+    </div>
+    <div style="font-size:12px;color:var(--text-sec);margin-bottom:20px;line-height:1.6;">
+      Your request will be sent to the club admin to approve. You'll see your swimmer's profile once confirmed.
+    </div>
+    <button class="btn-primary" id="parentConfirmBtn" onclick="confirmParentRequest()">
+      <i data-lucide="send" style="width:15px;height:15px;"></i> Send access request
+    </button>
+    <button class="btn-ghost" onclick="showScreen('parent-search')">
+      <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Back
+    </button>
+    <div class="error-msg" id="parentConfirmError"></div>
+  </div>
+
+  <!-- PARENT: REQUEST SENT -->
+  <div id="screen-parent-success" class="screen" style="text-align:center;">
+    <div class="success-icon"><i data-lucide="clock" style="width:28px;height:28px;color:var(--cyan);"></i></div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:0.04em;margin-bottom:8px;">Request sent</div>
+    <div id="parentSuccessClubName" style="font-size:14px;color:var(--cyan);font-weight:700;margin-bottom:16px;"></div>
+    <div style="font-size:13px;color:var(--text-sec);margin-bottom:8px;line-height:1.65;">
+      The club admin will approve your request. Once confirmed you'll be able to view <strong id="parentSuccessSwimmerName" style="color:var(--text);"></strong>'s profile in the SwimLoading app.
+    </div>
+    <div id="parentSuccessLinked" style="font-size:12px;color:var(--text-sec);margin-bottom:20px;"></div>
+    <button class="btn-ghost" id="parentAddAnotherBtn" onclick="addAnotherSwimmer()" style="margin-bottom:12px;">
+      <i data-lucide="plus" style="width:14px;height:14px;"></i> Link another swimmer
+    </button>
+    <a href="/app" class="btn-primary">
+      <i data-lucide="waves" style="width:15px;height:15px;"></i> Open SwimLoading
+    </a>
+  </div>
+
   <!-- SUCCESS -->
   <div id="screen-success" class="screen" style="text-align:center;">
     <div class="success-icon"><i data-lucide="check" style="width:28px;height:28px;color:var(--green);"></i></div>
@@ -195,12 +242,14 @@ const SUPABASE_URL      = 'https://szgkzuswelntnevobnoh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-let linkData      = null;
-let clubData      = null;
-let currentUser   = null;
+let linkData       = null;
+let clubData       = null;
+let currentUser    = null;
 let selectedRoster = null;   // club_roster row the user picked
-let isNewMember   = false;   // true if user chose "I'm new"
-let searchTimeout = null;
+let isNewMember    = false;  // true if user chose "I'm new"
+let searchTimeout  = null;
+let isParentFlow   = false;  // true when ?role=parent in URL
+let parentLinkedCount = 0;   // how many swimmers linked this session
 
 document.addEventListener('mousemove', e => {
   document.body.style.setProperty('--mouse-x', e.clientX + 'px');
@@ -215,8 +264,11 @@ async function init() {
   const code = location.pathname.replace(/^\/join\//, '').replace(/\/$/, '');
   if (!code) { showScreen('invalid'); lucide.createIcons(); return; }
 
+  const params = new URLSearchParams(location.search);
+  isParentFlow = params.get('role') === 'parent';
+
   // Allow pre-fill of member number via query param ?m=527
-  const prefilledNum = new URLSearchParams(location.search).get('m');
+  const prefilledNum = params.get('m');
 
   const { data: link } = await sb.from('club_join_links')
     .select('*, clubs(*)')
@@ -262,6 +314,11 @@ async function doSignIn() {
 // ─── Post-auth flow ────────────────────────────────────────────────────────────
 
 async function continueWithUser() {
+  if (isParentFlow) {
+    await continueAsParent();
+    return;
+  }
+
   // Already a member?
   const { data: existing } = await sb.from('club_members')
     .select('id')
@@ -281,6 +338,53 @@ async function continueWithUser() {
   const preNum = document.getElementById('memberNumInput')?.value;
   if (preNum) await lookupByNumber();
   else showMatchScreen();
+}
+
+async function continueAsParent() {
+  // Check if they already have approved/pending links for this club
+  const { data: existing } = await sb.from('parent_roster_links')
+    .select('id, status, club_roster(display_name)')
+    .eq('club_id', clubData.id)
+    .eq('parent_user_id', currentUser.id)
+    .in('status', ['approved', 'pending']);
+
+  if (existing?.length) {
+    const names = existing.map(l => l.club_roster?.display_name || 'a swimmer').join(', ');
+    const statuses = existing.map(l => l.status);
+    const allApproved = statuses.every(s => s === 'approved');
+    renderClubHeader('alreadyClubHeader');
+    document.getElementById('screen-already').innerHTML = `
+      <div id="alreadyClubHeader"></div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:8px;">You're already linked</div>
+      <div style="font-size:13px;color:var(--text-sec);margin-bottom:8px;line-height:1.65;">
+        You have ${allApproved ? 'approved' : 'pending or approved'} access for: <strong style="color:var(--text);">${names}</strong>
+      </div>
+      <div style="font-size:13px;color:var(--text-sec);margin-bottom:24px;">
+        ${allApproved ? 'Open the app to view your swimmer\'s profile.' : 'The club admin will confirm any pending requests.'}
+      </div>
+      <button class="btn-ghost" onclick="addAnotherSwimmer()" style="margin-bottom:10px;">
+        <i data-lucide="plus" style="width:14px;height:14px;"></i> Link another swimmer
+      </button>
+      <a href="/app" class="btn-primary">
+        <i data-lucide="arrow-right" style="width:15px;height:15px;"></i> Open SwimLoading
+      </a>`;
+    renderClubHeader('alreadyClubHeader');
+    showScreen('already');
+    lucide.createIcons();
+    return;
+  }
+
+  showParentSearchScreen();
+}
+
+function showParentSearchScreen() {
+  renderClubHeader('clubHeaderParentSearch');
+  document.getElementById('parentNameSearch').value = '';
+  document.getElementById('parentRosterResults').innerHTML = '';
+  document.getElementById('parentSearchError').style.display = 'none';
+  showScreen('parent-search');
+  lucide.createIcons();
+  document.getElementById('parentNameSearch').focus();
 }
 
 function showMatchScreen() {
@@ -489,13 +593,146 @@ async function confirmJoin() {
   lucide.createIcons();
 }
 
+// ─── Parent flow ───────────────────────────────────────────────────────────────
+
+let parentNameDebounce = null;
+function onParentNameSearch() {
+  clearTimeout(parentNameDebounce);
+  parentNameDebounce = setTimeout(doParentNameSearch, 300);
+}
+
+async function doParentNameSearch() {
+  const q = document.getElementById('parentNameSearch').value.trim();
+  const resultsEl = document.getElementById('parentRosterResults');
+  if (q.length < 2) { resultsEl.innerHTML = ''; return; }
+
+  const { data } = await sb.from('club_roster')
+    .select('id, display_name, category, squad_id')
+    .eq('club_id', clubData.id)
+    .ilike('display_name', `%${q}%`)
+    .order('display_name')
+    .limit(10);
+
+  if (!data?.length) {
+    resultsEl.innerHTML = `<div style="font-size:13px;color:var(--text-sec);text-align:center;padding:12px;">No match — check the spelling or ask your club admin.</div>`;
+    return;
+  }
+
+  resultsEl.innerHTML = data.map(r => `
+    <div class="roster-result" onclick="selectParentRosterEntry('${r.id}','${escapeAttr(r.display_name)}','${r.category||''}')">
+      <div>
+        <div class="roster-result-name">${r.display_name}</div>
+        <div class="roster-result-meta">
+          ${r.category ? `<span class="cat-pill cat-${r.category}">${r.category}</span>` : ''}
+        </div>
+      </div>
+      <i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--text-sec);flex-shrink:0;"></i>
+    </div>`).join('');
+  lucide.createIcons();
+}
+
+function escapeAttr(s) { return (s||'').replace(/'/g,'&#39;'); }
+
+async function selectParentRosterEntry(rosterId, name, category) {
+  // Check they don't already have a link to this swimmer
+  const { data: dupe } = await sb.from('parent_roster_links')
+    .select('id, status')
+    .eq('parent_user_id', currentUser.id)
+    .eq('roster_id', rosterId)
+    .single();
+
+  const err = document.getElementById('parentSearchError');
+  if (dupe) {
+    err.textContent = dupe.status === 'approved'
+      ? `You already have approved access for ${name}.`
+      : `You already have a pending request for ${name}. The admin will approve it shortly.`;
+    err.style.display = 'block';
+    return;
+  }
+
+  selectedRoster = { id: rosterId, display_name: name, category };
+  showParentConfirmScreen();
+}
+
+function showParentConfirmScreen() {
+  renderClubHeader('clubHeaderParentConfirm');
+  const r = selectedRoster;
+  document.getElementById('parentConfirmPreview').innerHTML = `
+    <div class="preview-card">
+      <div class="preview-row">
+        <span class="preview-label">Swimmer</span>
+        <span class="preview-val">${r.display_name}</span>
+      </div>
+      ${r.category ? `<div class="preview-row">
+        <span class="preview-label">Squad</span>
+        <span class="cat-pill cat-${r.category}">${r.category}</span>
+      </div>` : ''}
+      <div class="preview-row">
+        <span class="preview-label">Club</span>
+        <span class="preview-val">${clubData.name}</span>
+      </div>
+    </div>`;
+  document.getElementById('relationshipInput').value = '';
+  document.getElementById('parentConfirmError').style.display = 'none';
+  showScreen('parent-confirm');
+  lucide.createIcons();
+  document.getElementById('relationshipInput').focus();
+}
+
+async function confirmParentRequest() {
+  const btn = document.getElementById('parentConfirmBtn');
+  const err = document.getElementById('parentConfirmError');
+  const relationship = document.getElementById('relationshipInput').value.trim();
+
+  if (!relationship) {
+    err.textContent = 'Please enter your relationship to this swimmer (e.g. Mother, Father, Guardian).';
+    err.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span style="width:16px;height:16px;border:2px solid #080f1a;border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin 0.6s linear infinite;"></span>&nbsp;Sending…';
+  err.style.display = 'none';
+
+  const { error } = await sb.from('parent_roster_links').insert({
+    parent_user_id: currentUser.id,
+    roster_id:      selectedRoster.id,
+    club_id:        clubData.id,
+    relationship,
+    status:         'pending',
+  });
+
+  if (error) {
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="send" style="width:15px;height:15px;"></i> Send access request';
+    lucide.createIcons();
+    err.textContent = error.message;
+    err.style.display = 'block';
+    return;
+  }
+
+  parentLinkedCount++;
+  document.getElementById('parentSuccessClubName').textContent = clubData.name;
+  document.getElementById('parentSuccessSwimmerName').textContent = selectedRoster.display_name;
+  document.getElementById('parentSuccessLinked').textContent =
+    parentLinkedCount > 1 ? `${parentLinkedCount} swimmers linked this session.` : '';
+  showScreen('parent-success');
+  lucide.createIcons();
+}
+
+function addAnotherSwimmer() {
+  selectedRoster = null;
+  showParentSearchScreen();
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-function renderClubHeader(containerId) {
+function renderClubHeader(containerId, badgeOverride) {
   const el = document.getElementById(containerId);
   if (!el || !clubData) return;
+  const badge = badgeOverride || (isParentFlow ? 'Parent access' : "You're invited to join");
   el.innerHTML = `
-    <div class="club-badge">You're invited to join</div>
+    <div class="club-badge">${badge}</div>
     <div class="club-name">${clubData.name}</div>
     <div class="club-tagline">${clubData.tagline || clubData.city || ''}</div>
     <div class="divider"></div>`;

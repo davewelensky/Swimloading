@@ -418,6 +418,9 @@
       <button class="nav-item" onclick="showPage('team')" id="nav-team">
         <i data-lucide="shield-check"></i> Team
       </button>
+      <button class="nav-item" onclick="showPage('parents')" id="nav-parents">
+        <i data-lucide="heart-handshake"></i> Parents
+      </button>
       <div class="sidebar-divider"></div>
       <button class="nav-item" onclick="showPage('joinlink')" id="nav-joinlink">
         <i data-lucide="link"></i> Join Link
@@ -739,6 +742,82 @@
             <button class="btn-sm" onclick="generateNewLink()">
               <i data-lucide="refresh-cw" style="width:13px;height:13px;"></i> Generate new link
             </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PARENTS ── -->
+      <div id="page-parents" class="page">
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="page-title">Parents &amp; Guardians</div>
+            <div class="page-sub">Manage parent access to swimmer profiles. Parents see times, QTs, galas and announcements — read only.</div>
+          </div>
+          <button class="btn-primary" style="width:auto;padding:10px 20px;border-radius:10px;font-size:13px;" onclick="openInviteParentModal()">
+            <i data-lucide="user-plus" style="width:14px;height:14px;"></i> Invite parent
+          </button>
+        </div>
+
+        <!-- Parent join link -->
+        <div class="card" style="padding:18px 20px;margin-bottom:20px;background:rgba(56,189,248,0.04);border-color:rgba(56,189,248,0.15);">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <i data-lucide="link" style="width:14px;height:14px;color:var(--cyan);"></i>
+            <span style="font-size:12px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.08em;">Parent join link</span>
+          </div>
+          <div style="font-size:13px;color:var(--text-sec);margin-bottom:12px;">Share this link with parents. They create a SwimLoading account, find their swimmer, and request access — you approve it here.</div>
+          <div id="parentJoinLinkBox" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;font-family:monospace;color:var(--text-sec);word-break:break-all;margin-bottom:10px;">Loading…</div>
+          <button class="btn-sm" onclick="copyParentJoinLink()">
+            <i data-lucide="copy" style="width:13px;height:13px;"></i> Copy link
+          </button>
+        </div>
+
+        <!-- Pending requests -->
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--amber);margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+          <i data-lucide="clock" style="width:13px;height:13px;"></i> Pending requests
+          <span id="parentPendingCount" style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);border-radius:20px;padding:1px 8px;font-size:11px;"></span>
+        </div>
+        <div id="parentPendingList" style="margin-bottom:24px;"><div class="loading"><div class="spinner"></div></div></div>
+
+        <!-- Approved parents -->
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-sec);margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+          <i data-lucide="check-circle" style="width:13px;height:13px;"></i> Approved access
+        </div>
+        <div id="parentApprovedList"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+
+      <!-- ── INVITE PARENT MODAL ── -->
+      <div id="inviteParentModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10010;align-items:center;justify-content:center;padding:16px;">
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px;max-width:460px;width:100%;max-height:90vh;overflow-y:auto;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <div style="font-size:16px;font-weight:800;">Invite a parent</div>
+            <button onclick="closeInviteParentModal()" style="background:none;border:none;color:var(--text-sec);cursor:pointer;padding:4px;"><i data-lucide="x" style="width:18px;height:18px;"></i></button>
+          </div>
+          <div style="font-size:13px;color:var(--text-sec);margin-bottom:20px;line-height:1.6;">
+            Enter the parent's email and find their swimmer. If they don't have a SwimLoading account yet, they'll receive the parent join link to sign up.
+          </div>
+          <div class="form-group">
+            <div class="form-label">Parent email</div>
+            <input type="email" class="form-input" id="inviteParentEmail" placeholder="parent@email.com">
+          </div>
+          <div class="form-group">
+            <div class="form-label">Find swimmer</div>
+            <input type="text" class="form-input" id="inviteRosterSearch" placeholder="Type swimmer name…" oninput="onInviteRosterSearch()">
+            <div id="inviteRosterResults" style="margin-top:6px;max-height:180px;overflow-y:auto;"></div>
+          </div>
+          <div id="inviteSelectedSwimmer" style="display:none;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.2);border-radius:10px;padding:12px;margin-bottom:14px;">
+            <div style="font-size:11px;color:var(--text-sec);margin-bottom:4px;">Selected swimmer</div>
+            <div id="inviteSelectedName" style="font-size:14px;font-weight:700;"></div>
+          </div>
+          <div class="form-group">
+            <div class="form-label">Relationship</div>
+            <input type="text" class="form-input" id="inviteRelationship" placeholder="e.g. Mother, Father, Guardian, Stepparent…" maxlength="40">
+          </div>
+          <div class="error-msg" id="inviteParentError" style="display:none;color:var(--danger);font-size:13px;margin-bottom:12px;"></div>
+          <div style="display:flex;gap:10px;">
+            <button class="btn-modal-primary" id="inviteParentBtn" onclick="submitInviteParent()" style="flex:1;">
+              <i data-lucide="send" style="width:14px;height:14px;"></i> Send invite
+            </button>
+            <button onclick="closeInviteParentModal()" style="padding:10px 18px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--text-sec);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;">Cancel</button>
           </div>
         </div>
       </div>
@@ -1847,6 +1926,7 @@ function showPage(name) {
   if (name === 'team')          loadTeam();
   if (name === 'announcements') loadAnnouncements();
   if (name === 'tracker')       loadSquadTracker();
+  if (name === 'parents')       loadParentsPage();
 }
 
 // ── DATA LOADERS ──────────────────────────────────────────────────
@@ -4045,6 +4125,244 @@ async function removeAdmin(adminId) {
   allTeam = allTeam.filter(x => x.id !== adminId);
   renderTeamTable();
   showToast('Removed from team', 'success');
+}
+
+// ── PARENTS ───────────────────────────────────────────────────────
+async function loadParentsPage() {
+  renderParentJoinLink();
+  const { data: links } = await sb.from('parent_roster_links')
+    .select('id, status, relationship, created_at, approved_at, notes, parent_user_id, profiles!parent_roster_links_parent_user_id_fkey(display_name, email), club_roster(display_name, category, member_number)')
+    .eq('club_id', currentClub.id)
+    .order('created_at', { ascending: false });
+
+  const pending  = (links || []).filter(l => l.status === 'pending');
+  const approved = (links || []).filter(l => l.status === 'approved');
+
+  const countEl = document.getElementById('parentPendingCount');
+  if (countEl) countEl.textContent = pending.length || '';
+
+  renderParentPendingList(pending);
+  renderParentApprovedList(approved);
+  lucide.createIcons();
+}
+
+function renderParentJoinLink() {
+  const slug = currentClub?.slug;
+  if (!slug) return;
+  const baseLink = `https://swimloading.com/join/${slug}?role=parent`;
+  const el = document.getElementById('parentJoinLinkBox');
+  if (el) el.textContent = baseLink;
+}
+
+function copyParentJoinLink() {
+  const el = document.getElementById('parentJoinLinkBox');
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent.trim()).then(() => {
+    const btn = event.currentTarget;
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<i data-lucide="check" style="width:13px;height:13px;"></i> Copied';
+    lucide.createIcons();
+    setTimeout(() => { btn.innerHTML = orig; lucide.createIcons(); }, 2000);
+  });
+}
+
+function renderParentPendingList(pending) {
+  const el = document.getElementById('parentPendingList');
+  if (!el) return;
+  if (!pending.length) {
+    el.innerHTML = `<div style="font-size:13px;color:var(--text-sec);padding:14px 0;">No pending requests.</div>`;
+    return;
+  }
+  el.innerHTML = pending.map(l => {
+    const parentName = l.profiles?.display_name || l.profiles?.email || 'Unknown';
+    const swimmerName = l.club_roster?.display_name || '—';
+    const cat = l.club_roster?.category || '';
+    const since = l.created_at ? timeAgo(l.created_at) : '';
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.2);border-radius:12px;margin-bottom:8px;flex-wrap:wrap;">
+        <div style="min-width:0;">
+          <div style="font-size:14px;font-weight:700;margin-bottom:3px;">${parentName}</div>
+          <div style="font-size:12px;color:var(--text-sec);">
+            ${l.relationship || 'Guardian'} of <strong style="color:var(--text);">${swimmerName}</strong>
+            ${cat ? `<span style="margin-left:6px;font-size:11px;font-weight:700;color:var(--cyan);background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:20px;padding:1px 7px;">${cat}</span>` : ''}
+          </div>
+          <div style="font-size:11px;color:var(--text-sec);margin-top:2px;">Requested ${since}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;">
+          <button class="btn-sm" style="background:rgba(16,185,129,0.12);border-color:rgba(16,185,129,0.3);color:#10b981;" onclick="approveParentLink('${l.id}')">
+            <i data-lucide="check" style="width:12px;height:12px;"></i> Approve
+          </button>
+          <button class="btn-sm" style="background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.2);color:#ef4444;" onclick="declineParentLink('${l.id}')">
+            <i data-lucide="x" style="width:12px;height:12px;"></i> Decline
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+  lucide.createIcons();
+}
+
+function renderParentApprovedList(approved) {
+  const el = document.getElementById('parentApprovedList');
+  if (!el) return;
+  if (!approved.length) {
+    el.innerHTML = `<div style="font-size:13px;color:var(--text-sec);padding:14px 0;">No approved parents yet.</div>`;
+    return;
+  }
+
+  // Group by parent_user_id so parents with multiple swimmers appear as one row
+  const byParent = {};
+  approved.forEach(l => {
+    const pid = l.parent_user_id;
+    if (!byParent[pid]) byParent[pid] = { profile: l.profiles, links: [] };
+    byParent[pid].links.push(l);
+  });
+
+  el.innerHTML = Object.entries(byParent).map(([pid, { profile, links }]) => {
+    const parentName = profile?.display_name || profile?.email || 'Unknown';
+    const swimmers = links.map(l => {
+      const cat = l.club_roster?.category || '';
+      return `<span>${l.club_roster?.display_name || '—'}${cat ? ` <span style="font-size:10px;color:var(--cyan);">${cat}</span>` : ''} <span style="color:var(--text-sec);font-size:11px;">(${l.relationship || 'Guardian'})</span>
+        <button onclick="revokeParentLink('${l.id}')" title="Revoke access" style="background:none;border:none;color:var(--text-sec);cursor:pointer;padding:0 2px;vertical-align:middle;"><i data-lucide="x-circle" style="width:12px;height:12px;"></i></button></span>`;
+    }).join(', ');
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;flex-wrap:wrap;">
+        <div style="min-width:0;">
+          <div style="font-size:14px;font-weight:700;margin-bottom:4px;">${parentName}</div>
+          <div style="font-size:12px;color:var(--text-sec);line-height:1.6;">Linked to: ${swimmers}</div>
+        </div>
+      </div>`;
+  }).join('');
+  lucide.createIcons();
+}
+
+async function approveParentLink(id) {
+  await sb.from('parent_roster_links').update({
+    status: 'approved',
+    approved_by: currentUser.id,
+    approved_at: new Date().toISOString(),
+  }).eq('id', id);
+  loadParentsPage();
+}
+
+async function declineParentLink(id) {
+  if (!confirm('Decline this request? The parent will need to re-apply.')) return;
+  await sb.from('parent_roster_links').delete().eq('id', id);
+  loadParentsPage();
+}
+
+async function revokeParentLink(id) {
+  if (!confirm('Revoke this parent\'s access? They will lose visibility of the swimmer profile.')) return;
+  await sb.from('parent_roster_links').update({ status: 'revoked' }).eq('id', id);
+  loadParentsPage();
+}
+
+// ── INVITE PARENT MODAL ───────────────────────────────────────────
+let inviteSelectedRoster = null;
+let inviteRosterDebounce = null;
+
+function openInviteParentModal() {
+  inviteSelectedRoster = null;
+  document.getElementById('inviteParentEmail').value = '';
+  document.getElementById('inviteRosterSearch').value = '';
+  document.getElementById('inviteRosterResults').innerHTML = '';
+  document.getElementById('inviteSelectedSwimmer').style.display = 'none';
+  document.getElementById('inviteRelationship').value = '';
+  document.getElementById('inviteParentError').style.display = 'none';
+  document.getElementById('inviteParentModal').style.display = 'flex';
+  lucide.createIcons();
+}
+
+function closeInviteParentModal() {
+  document.getElementById('inviteParentModal').style.display = 'none';
+}
+
+function onInviteRosterSearch() {
+  clearTimeout(inviteRosterDebounce);
+  inviteRosterDebounce = setTimeout(doInviteRosterSearch, 280);
+}
+
+async function doInviteRosterSearch() {
+  const q = document.getElementById('inviteRosterSearch').value.trim();
+  const el = document.getElementById('inviteRosterResults');
+  if (q.length < 2) { el.innerHTML = ''; return; }
+  const { data } = await sb.from('club_roster')
+    .select('id, display_name, category')
+    .eq('club_id', currentClub.id)
+    .ilike('display_name', `%${q}%`)
+    .order('display_name').limit(8);
+  if (!data?.length) { el.innerHTML = `<div style="font-size:12px;color:var(--text-sec);padding:8px 0;">No match found.</div>`; return; }
+  el.innerHTML = data.map(r => `
+    <div onclick="selectInviteRoster('${r.id}','${(r.display_name||'').replace(/'/g,"&#39;")}','${r.category||''}')"
+      style="padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;cursor:pointer;font-size:13px;font-weight:600;transition:background 0.15s;"
+      onmouseover="this.style.background='rgba(56,189,248,0.07)'" onmouseout="this.style.background=''">
+      ${r.display_name} ${r.category ? `<span style="font-size:11px;color:var(--cyan);margin-left:6px;">${r.category}</span>` : ''}
+    </div>`).join('');
+}
+
+function selectInviteRoster(id, name, cat) {
+  inviteSelectedRoster = { id, display_name: name, category: cat };
+  document.getElementById('inviteSelectedName').textContent = name + (cat ? ` — ${cat}` : '');
+  document.getElementById('inviteSelectedSwimmer').style.display = 'block';
+  document.getElementById('inviteRosterResults').innerHTML = '';
+  document.getElementById('inviteRosterSearch').value = '';
+}
+
+async function submitInviteParent() {
+  const btn = document.getElementById('inviteParentBtn');
+  const err = document.getElementById('inviteParentError');
+  const email = document.getElementById('inviteParentEmail').value.trim();
+  const relationship = document.getElementById('inviteRelationship').value.trim();
+  err.style.display = 'none';
+
+  if (!email) { err.textContent = 'Enter the parent\'s email address.'; err.style.display = 'block'; return; }
+  if (!inviteSelectedRoster) { err.textContent = 'Select the swimmer this parent is linked to.'; err.style.display = 'block'; return; }
+  if (!relationship) { err.textContent = 'Enter the relationship (e.g. Mother, Father, Guardian).'; err.style.display = 'block'; return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span style="width:14px;height:14px;border:2px solid #080f1a;border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin 0.6s linear infinite;"></span> Sending…';
+
+  // Look up user by email via profiles table
+  const { data: profile } = await sb.from('profiles').select('id').eq('email', email).single();
+
+  if (profile) {
+    // User exists — create approved link immediately
+    const { error } = await sb.from('parent_roster_links').upsert({
+      parent_user_id: profile.id,
+      roster_id:      inviteSelectedRoster.id,
+      club_id:        currentClub.id,
+      relationship,
+      status:         'approved',
+      approved_by:    currentUser.id,
+      approved_at:    new Date().toISOString(),
+      invited_by:     currentUser.id,
+    }, { onConflict: 'parent_user_id,roster_id' });
+    if (error) { err.textContent = error.message; err.style.display = 'block'; btn.disabled = false; btn.innerHTML = '<i data-lucide="send" style="width:14px;height:14px;"></i> Send invite'; lucide.createIcons(); return; }
+    closeInviteParentModal();
+    loadParentsPage();
+  } else {
+    // User doesn't exist yet — copy parent join link to clipboard and show instructions
+    const joinLink = `https://swimloading.com/join/${currentClub.slug}?role=parent`;
+    try { await navigator.clipboard.writeText(joinLink); } catch(_) {}
+    closeInviteParentModal();
+    alert(`${email} doesn't have a SwimLoading account yet.\n\nThe parent join link has been copied to your clipboard:\n${joinLink}\n\nSend it to them — once they sign up and request access for ${inviteSelectedRoster.display_name}, their request will appear here for approval.`);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i data-lucide="send" style="width:14px;height:14px;"></i> Send invite';
+  lucide.createIcons();
+}
+
+function timeAgo(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 2) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString('en-ZA', { day:'numeric', month:'short' });
 }
 
 // ── JOIN LINK ─────────────────────────────────────────────────────
