@@ -878,7 +878,7 @@
         async function loadTicker() {
             try {
                 const res = await fetch(
-                    SB_URL + '/rest/v1/temp_logs?select=temperature,created_at,spots!temp_logs_spot_id_fkey(name),profiles(display_name)&order=created_at.desc&limit=80',
+                    SB_URL + '/rest/v1/temp_logs?select=temperature,created_at,spots!temp_logs_spot_id_fkey(name)&order=created_at.desc&limit=80',
                     { headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY } }
                 );
                 if (!res.ok) {
@@ -900,10 +900,7 @@
 
                 const html = unique.map(l => {
                     const t = Math.round(l.temperature);
-                    const logger = firstName(l.profiles && l.profiles.display_name);
-                    const by = logger
-                        ? 'by ' + logger + ' · ' + timeAgo(l.created_at)
-                        : timeAgo(l.created_at);
+                    const by = timeAgo(l.created_at);
                     return '<div class="ticker-item">' +
                         '<span class="spot-name">' + l.spots.name + '</span>' +
                         '<span class="temp" style="color:' + tempColor(t) + '">' + t + '&deg;C</span>' +
