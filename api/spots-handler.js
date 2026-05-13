@@ -436,9 +436,10 @@ function renderSpotCards(spots) {
         ${s.avg_temp != null ? `<div class="spot-card-temp">${s.avg_temp}°C <span>avg</span></div>` : `<div class="spot-card-temp spot-card-temp-none">No data yet</div>`}
         ${lastLogged ? `<div class="spot-card-meta">Last logged ${escapeHtml(lastLogged)}</div>` : `<div class="spot-card-meta">Never logged</div>`}
         ${intlBadge}
+        <div class="spot-card-cta">View spot ›</div>
       </a>`;
   }).join('');
-  return `<div class="spot-cards">${cards}</div>`;
+  return `<p class="spot-cards-hint">Tap any spot for map, conditions &amp; directions</p><div class="spot-cards">${cards}</div>`;
 }
 
 function renderIntlPoolsSection() {
@@ -600,6 +601,9 @@ tr:last-child td{border-bottom:none}tr:hover td{background:rgba(56,189,248,0.04)
 .spot-card-temp-none{font-size:14px;color:var(--subtle)}
 .spot-card-meta{font-size:12px;color:var(--subtle)}
 .spot-card-intl{display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-size:11px;font-weight:600;color:#d97706;text-transform:uppercase;letter-spacing:.05em}
+.spot-card-cta{margin-top:12px;font-size:12px;font-weight:600;color:var(--ocean-lt);text-align:right;opacity:.7;transition:opacity .2s}
+.spot-card:hover .spot-card-cta{opacity:1}
+.spot-cards-hint{font-size:12px;color:var(--subtle);margin-bottom:10px;text-align:right;letter-spacing:.01em}
 /* ── CTA box ── */
 .cta-box{background:rgba(2,132,199,0.1);border:1px solid rgba(2,132,199,0.3);border-radius:var(--r);padding:22px 24px}
 .cta-box p{color:var(--text);margin-bottom:0}
