@@ -549,6 +549,8 @@ let activeSqSession = null; // the club_squad_sessions template being opened
 let activeSession   = null; // the club_sessions instance (created/found)
 let attendanceMarks = {};   // roster_id → status
 let walkinQuery     = '';
+let walkinNewIds    = new Set(); // roster IDs created fresh this session (can be DB-deleted on remove)
+let walkinAddedIds  = new Set(); // roster IDs added from another squad this session (local remove only)
 
 // Simple statuses for mobile. Saved to the same status codes as admin.
 const MOBILE_STATUSES = [
@@ -867,8 +869,10 @@ async function startSession() {
 
   activeSession = session;
 
-  // Pre-fill marks from any existing attendance
+  // Reset session state
   attendanceMarks = {};
+  walkinNewIds   = new Set();
+  walkinAddedIds = new Set();
   (session.club_attendance || []).forEach(a => { attendanceMarks[a.roster_id] = a.status; });
 
   btn.disabled = false;
@@ -924,12 +928,20 @@ function swimmerRowHTML(r) {
             </button>`;
   }).join('');
 
+  const isWalkin = walkinNewIds.has(r.id) || walkinAddedIds.has(r.id);
+  const removeBtn = isWalkin
+    ? `<button onclick="removeSwimmer('${r.id}')" title="Remove from session"
+         style="width:32px;height:32px;border-radius:8px;border:1px solid rgba(239,68,68,0.25);
+                background:rgba(239,68,68,0.08);color:var(--danger);font-size:14px;cursor:pointer;
+                display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>`
+    : '';
+
   return `<div class="swimmer-row ${statusClass}" id="row-${r.id}">
     <div class="swimmer-name">
       <div class="name">${r.display_name || '—'}</div>
       ${badges ? `<div class="badges">${badges}</div>` : ''}
     </div>
-    <div class="status-btns">${btns}</div>
+    <div class="status-btns">${btns}${removeBtn}</div>
   </div>`;
 }
 
@@ -1075,26 +1087,18 @@ function markWalkinPresent(rosterId) {
 }
 
 function addFromRoster(rosterId) {
-  // Add this swimmer to the session's roster in our local data + mark them present
   const r = allRoster.find(x => x.id === rosterId);
   if (!r || !activeSqSession) return;
 
-  // Temporarily add to current session roster by setting their squad to the session's squad
-  // We don't persist the squad change — just add attendance mark + show in list
   if (!allWeekAssign[activeSqSession.id]) allWeekAssign[activeSqSession.id] = [];
   if (!allWeekAssign[activeSqSession.id].includes(rosterId)) {
     allWeekAssign[activeSqSession.id].push(rosterId);
   }
 
-  // Also add them to allRoster under this squad temporarily for this marking session
-  const existing = allRoster.find(x => x.id === rosterId);
-  if (existing && existing.squad_id !== activeSqSession.squad_id) {
-    // Keep original squad but add them as a walk-in: mark attendance
-    // They won't show in the main list (wrong squad) — we add them as a walk-in row
-    const squad = allSquads.find(s => s.id === activeSqSession.squad_id);
-    allRoster = allRoster.map(x => x.id === rosterId ? { ...x, _walkin: true, squad_id: activeSqSession.squad_id } : x);
-  }
+  // Move them into this squad temporarily so getSessionRoster() picks them up
+  allRoster = allRoster.map(x => x.id === rosterId ? { ...x, squad_id: activeSqSession.squad_id } : x);
 
+  walkinAddedIds.add(rosterId); // track so we can remove if needed
   attendanceMarks[rosterId] = 'present';
   toast(`${r.display_name} added and marked present`, 'success');
   showScreen('mark');
@@ -1138,11 +1142,36 @@ async function addNewTrial() {
   allRoster.push(newMember);
   if (!allWeekAssign[activeSqSession.id]) allWeekAssign[activeSqSession.id] = [];
   allWeekAssign[activeSqSession.id].push(newMember.id);
+  walkinNewIds.add(newMember.id); // track so we can delete from DB on remove
   attendanceMarks[newMember.id] = 'present';
 
   toast(`${name} added as trial swimmer`, 'success');
   showScreen('mark');
   renderMarkScreen();
+}
+
+// ── REMOVE SWIMMER ─────────────────────────────────────────────────
+async function removeSwimmer(rosterId) {
+  const r    = allRoster.find(x => x.id === rosterId);
+  const name = r?.display_name || 'Swimmer';
+  const isNew = walkinNewIds.has(rosterId); // check before clearing
+
+  // Remove from local state
+  delete attendanceMarks[rosterId];
+  if (activeSqSession && allWeekAssign[activeSqSession.id]) {
+    allWeekAssign[activeSqSession.id] = allWeekAssign[activeSqSession.id].filter(id => id !== rosterId);
+  }
+  allRoster = allRoster.filter(x => x.id !== rosterId);
+  walkinNewIds.delete(rosterId);
+  walkinAddedIds.delete(rosterId);
+
+  // If we created this roster record fresh this session, delete it from DB
+  if (isNew) {
+    await sb.from('club_roster').delete().eq('id', rosterId);
+  }
+
+  renderMarkScreen();
+  toast(`${name} removed`, 'success');
 }
 
 // ── START ──────────────────────────────────────────────────────────
