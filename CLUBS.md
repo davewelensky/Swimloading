@@ -1,278 +1,311 @@
-# SwimLoading — Club Management Feature
+# SwimLoading — Club Management: Architecture, Rules & Roadmap
 
-> **Status:** In active build (May 2026).
-> This is the canonical reference. Update it every time a feature ships or a decision is made.
-
----
-
-## The Problem We're Solving
-
-Swim clubs currently manage everything via spreadsheets, WhatsApp, and paper:
-- **Attendance** — coaches mark a spreadsheet after every session (Britt's May 2026.xlsx)
-- **Members** — no central record of trial swimmers, unpaid fees, squad assignments
-- **Schedule** — shared via WhatsApp, no single source of truth
-- **Results** — galas logged manually, no QT progress tracking
-- **Communication** — admins juggling WhatsApp, email, and SMS individually
-
-SwimLoading replaces the spreadsheet with a proper digital system while connecting club admin to the swimmer-facing app.
+> **This document is the contract.** Every club feature decision, every data change, every UI gate lives here.
+> Update it every time something ships or a decision is made.
+> When in doubt — read this first. Do not proceed from memory or assumption.
 
 ---
 
-## Club Types We Support
+## How We Work — Non-Negotiable Rules
 
-We initially targeted open water only. Aqua Sharks (pool club) proved the model works for any water sport club. Current targets:
+### Data Safety
+1. **Never DELETE or UPDATE production data without explicit user confirmation** — state exactly what will be deleted, wait for "yes, do it."
+2. **Never assume a DB record is wrong or duplicate** — query first, show the user, ask before acting.
+3. **Always check FK constraints before any delete** — a failed delete is safer than a successful one that shouldn't have happened.
+4. **Never bulk-delete based on a mismatch assumption** — e.g. "these look like wrong-club data" is not grounds to delete. Verify with the user.
+5. **Before any SQL that modifies data** — show the exact query and the rows it will affect. Wait for approval.
 
-- Pool swimming clubs (Aqua Sharks Atlantic — live)
-- Open water swimming clubs (DUC — in onboarding)
-- Triathlon clubs (swim leg focus)
-- Surf lifesaving clubs
-- Freediving clubs
-- Wild swimming / outdoor swimming societies
+### Code Safety
+1. **Never add features for Club A that touch Club B's rendering** — every change to `club-admin.html` is club-type-aware by design.
+2. **Always check `currentClub.club_type` before rendering** — the gate is `isSquadClub` / `isOpenWater`. Use it everywhere.
+3. **No feature is "for all clubs" by default** — every UI section must be explicitly assigned to a club type or marked universal.
+4. **Before touching `club-admin.html`** — read the section being changed, confirm brace balance after edits, test both club types mentally.
+5. **Never leave orphaned code** — if a function is replaced, remove the old one in the same commit. Floating code causes SyntaxErrors.
 
-**Not targeting:** gym chains, generic multi-sport clubs, land sports.
-
----
-
-## Build Status — Complete Task List
-
-### ✅ Infrastructure
-- [x] `clubs` table — one row per club, slug-based routing
-- [x] Multi-club support — /club-admin/:slug, club picker for multi-club admins
-- [x] RLS on all club tables — scoped by club_id, SECURITY DEFINER helper functions
-- [x] Public club page — swimloading.com/clubs/:slug
-- [x] Member join flow — /join/:code (self-serve, admin shares link)
-- [x] Club admin auth — club_admins table + club_members role check
-- [x] Vercel routing — /clubs/(.*), /club-admin/(.*), /join/(.*)
-
-### ✅ Member Management (Roster)
-- [x] Add member — full form: name, squad, DOB, gender, member #, school, SASA #, join date
-- [x] Guardian 1 + Guardian 2 — name, relation, mobile, email
-- [x] Collection contacts — au-pair, family, etc.
-- [x] Medical — allergies, chronic conditions, emergency meds, medical aid
-- [x] Consents — indemnity date, photo consent, social media, medical auth
-- [x] Billing — fee tier, invoice email, billing notes
-- [x] Admin notes per swimmer
-- [x] Edit member — squad, category, DOB, gender, phone, trial, fee status
-- [x] Trial swimmer flag (`is_trial`) — red TRIAL badge in attendance mark modal
-- [x] Fee paid flag (`fee_paid`) — amber UNPAID badge in attendance mark modal
-- [x] Trial dates — `trial_start_date`, `trial_end_date` on club_roster
-- [x] Fee due date — `fee_due_date` on club_roster
-- [x] Link roster entry to SwimLoading user account
-- [x] Unlink member from SwimLoading account
-- [x] Filter roster by status, category, name search
-- [x] Roster table shows trial/unpaid status
-
-### ✅ Squad Management
-- [x] Create squads — name, type (Competitive/Development/LTS/Masters), sort order
-- [x] Remove squads (soft delete — `is_active = false`)
-- [x] Squad types: competitive, development, lts, masters
-- [x] Squad picker in Add Member and Edit Member modals
-- [x] Squad auto-fills fee tier suggestion when selected
-- [x] Masters squad hides guardian section (swimmers are adults)
-
-### ✅ Weekly Timetable
-- [x] Add recurring session — squad, day of week, start/end time, coach, max capacity, notes
-- [x] Remove recurring session (soft delete)
-- [x] Timetable displayed grouped by day (Mon → Sun)
-- [x] Drives Today's Schedule banner on dashboard
-- [x] `coach_name` and `max_capacity` columns on `club_squad_sessions`
-- [x] Bug fix: loadSquads() was filtering club_squad_sessions by club_id (column doesn't exist) — Today's Schedule was always empty. Fixed to filter by squad_id IN (...).
-
-### ✅ Attendance
-- [x] 7 status codes matching Britt's spreadsheet:
-  - `present` = ✓ (attended)
-  - `no_contact` = nc (absent, no message from parent)
-  - `notice` = Notice (advance notice given)
-  - `no_show` = NS (said coming, didn't show)
-  - `away` = Away (holiday)
-  - `dnp` = DNP (did not pay)
-  - `catch_up` = C/U (make-up session)
-- [x] Old status constraint (present/late/absent/excused) dropped from DB
-- [x] `is_catch_up` flag + `catch_up_for_date` on club_attendance
-- [x] Attendance count: present + catch_up + late = attended
-- [x] Trial (red) and Unpaid (amber) badges in mark modal
-- [x] Coach can create sessions and mark attendance per swimmer
-- [x] Session list shows coach name, attended/total count and %
-- [x] Today's Schedule banner shows sessions from timetable
-- [x] `coach_name` on `club_sessions` (actual logged sessions)
-
-### ✅ Results & Performance (Pool — Aqua Sharks)
-- [x] Gala results — stroke, distance, time, is_pb per swimmer per gala
-- [x] PB cache — `club_swimmer_times` for fast QT progress bar rendering
-- [x] QT progress bars in member-facing app (app-club.js)
-- [x] Age-group QT calculation using DOB from club_member_profile
-
-### ✅ Results & Performance (Open Water — DUC)
-- [x] Race results — position, points, year, month per swimmer per event
-- [x] Season standings — denormalised, rebuilt from race_results
-- [x] League standings visible on public club page
-
-### ✅ Events
-- [x] Create event — title, date, time, description, entry cap, cutoff, is_league, public flag
-- [x] Member RSVP ("I'm Swimming")
-- [x] Day-of entry (guests)
-- [x] Pre-entry system with permanent race numbers
-
-### ✅ Communication
-- [x] Announcements — coach posts to squad, members read in app
-
-### ✅ Security
-- [x] `club_coaches` — admin/organiser only (private: certs, emergency contacts)
-- [x] `club_member_profile` — admin full + member reads own DOB/gender only
-- [x] `club_squads` — admin full + active member read
-- [x] `club_squad_sessions` — admin full + active member read (via squad_id join)
-- [x] `club_admins` — admin full + self-read (needed for auth flow)
-- [x] SECURITY DEFINER helper functions prevent RLS recursion
+### Process
+1. **Always audit before fixing** — when something is broken, identify root cause before writing a single line of code.
+2. **State what you're going to change** — before editing, say what file, what lines, what the change is.
+3. **One problem at a time** — list each change before making it.
+4. **If you don't know who a record belongs to — ask.** Do not delete unknown records.
+5. **Moving forward only** — every session ends with all clubs in a better state than it started.
 
 ---
 
-## 🔧 Next to Build — Prioritised
+## Club Types
 
-### Priority 1 — Britt can replace the spreadsheet completely
+We support two club types, served by a single `club-admin.html` differentiated by `currentClub.club_type`.
 
-- [ ] **CSV / bulk import** — upload the May spreadsheet, map columns to roster fields, import all swimmers at once. Single biggest blocker to onboarding Aqua Sharks properly.
-- [ ] **Monthly attendance report** — for each squad, show a grid: swimmers × sessions, status codes, attendance %, DNP count. Mirrors what Britt's spreadsheet shows. Export to PDF or CSV.
-- [ ] **Trial expiry alerts** — badge on roster when `trial_end_date` is within 7 days. Admin action: convert to full member or remove.
-- [ ] **Fee overdue alerts** — badge/filter on roster for `fee_paid = false` + `fee_due_date` past. Admin can bulk-email or WhatsApp.
-- [ ] **Roster trial/fee toggles from roster table** — currently only editable in the Edit modal; add inline toggle so Britt can flip without opening modal.
+### `swim_club` — Pool/squad swimming club
+**Example:** Aqua Sharks Atlantic
+Members are children/teens. Parents are the primary contact. Squads are training groups with assigned coaches. Sessions run on a weekly timetable. Attendance is marked per session by the coach.
 
-### Priority 2 — Replace WhatsApp for session management
-
-- [ ] **Session cancellation** — admin marks a session as cancelled; all swimmers who have intent get push/email notification.
-- [ ] **Swimmer intent** — swimmer taps "I'm coming tomorrow" in the app; coach sees count before session.
-- [ ] **Email notifications to parents** — attendance marked → parent gets summary email (especially `no_contact`, `dnp`, `no_show`).
-- [ ] **Coach session notes** — free-text notes on a session (what was trained, distances, key focus). Visible to squad members.
-- [ ] **Session template** — save a session's structure as a template, reuse next week.
-
-### Priority 3 — Performance and progress tracking
-
-- [ ] **Swimmer progress dashboard** — attendance % (last 30 days), PB count, QT progress in one view per swimmer.
-- [ ] **Attendance trend chart** — per swimmer, show attendance rate over time. Useful for tracking disengaging members.
-- [ ] **Squad comparison** — which squad has the best attendance rate this month?
-- [ ] **Birthday reminders** — weekly email to admin: "3 swimmers have birthdays this week: …"
-- [ ] **QT deadline tracker** — for Aqua Sharks: show days until QT qualifying closes, who has and hasn't hit it.
-
-### Priority 4 — Comms and engagement
-
-- [ ] **Direct message to parent** — admin clicks swimmer → compose message → sends via email (or WhatsApp link).
-- [ ] **Bulk announcement** — send to all members of a squad or entire club (currently posts to in-app feed only).
-- [ ] **WhatsApp deep link** — "Message parent" opens WhatsApp with pre-filled text.
-- [ ] **Push notifications** — session added, cancelled, or changed; attendance marked with problematic code.
-
-### Priority 5 — Club growth and sales
-
-- [ ] **Gala entry management** — admin posts upcoming galas, swimmers submit entries (events, categories), admin exports entry sheet.
-- [ ] **Waitlist for squads** — squad is full → swimmer goes on waitlist, gets notified when spot opens.
-- [ ] **Public results page** — public-facing page for gala/meet results per club.
-- [ ] **DUC onboarding** — wire Steve Evans as admin, generate first join link, share with club.
+### `open_water` — Open water / underwater / freediving club
+**Example:** Durban Underwater Club (DUC)
+Members are adults. No parent/guardian concept. No squads or weekly timetable. Events are races (league rounds). Temp logging is a core feature. Committee structure, not coaching staff.
 
 ---
 
-## What Competitors Do That We Don't (Yet)
+## UI Gate — What Each Club Type Sees
 
-| Feature | TeamUnify | SwimCloud | Spond | Us |
-|---------|-----------|-----------|-------|----|
-| Roster management | ✅ | ✅ | ✅ | ✅ |
-| Squad/group management | ✅ | ✅ | ✅ | ✅ |
-| Attendance tracking | ✅ | ✅ | ✅ | ✅ |
-| 7-code attendance (match coach workflow) | ❌ | ❌ | ❌ | ✅ |
-| Timetable builder | ✅ | ✅ | ✅ | ✅ |
-| Medical/guardian records | ✅ | ❌ | ❌ | ✅ |
-| QT progress bars | ❌ | ✅ | ❌ | ✅ |
-| Real water conditions | ❌ | ❌ | ❌ | ✅ |
-| CSV import | ✅ | ✅ | ✅ | ❌ need |
-| Attendance reports/export | ✅ | ✅ | ✅ | ❌ need |
-| Email notifications to parents | ✅ | ✅ | ✅ | ❌ need |
-| Direct messaging | ✅ | ✅ | ✅ | ❌ need |
-| Gala entry management | ✅ | ✅ | ❌ | ❌ need |
-| Mobile-first coach UI | ❌ | ❌ | ✅ | partial |
-| Trial swimmer tracking | ❌ | ❌ | ❌ | ✅ |
-| Fee overdue tracking | ✅ | ❌ | ❌ | ✅ |
-| Self-serve join flow | ❌ | ❌ | ✅ | ✅ |
-| Public club page | ❌ | ✅ | ❌ | ✅ |
+The gate lives in `loadClubContext()` and `renderOverview()` in `club-admin.html`.
 
-**Our edge:** water conditions, QT progress, trial/fee tracking, 7-code attendance matching real coach workflows, self-serve onboarding.
-**Their edge:** CSV import, reporting, email comms, gala entries.
+```javascript
+const isOpenWater = currentClub.club_type === 'open_water';
+const isSquadClub = currentClub?.club_type !== 'open_water';
+```
+
+### Navigation
+
+| Nav Item | swim_club | open_water | Element ID |
+|----------|-----------|------------|------------|
+| Overview | ✅ | ✅ | Universal |
+| Members | ✅ | ✅ | Universal |
+| Roster | ✅ | ✅ | Universal |
+| Events | ✅ | ✅ | Universal |
+| Gala Entries | ✅ | ❌ | `nav-entries` |
+| League | ❌ | ✅ | `nav-league` |
+| Attendance | ✅ | ❌ | `nav-attendance` |
+| Squad Tracker | ✅ | ❌ | `nav-tracker` |
+| Temp Challenge | ❌ | ✅ | `nav-tempchallenge` |
+| Announcements | ✅ | ✅ | Universal |
+| Team | ✅ | ✅ | Universal |
+| Join Link | ✅ | ✅ | Universal |
+| Settings | ✅ | ✅ | Universal |
+
+### Overview sections
+
+| Section | swim_club | open_water | Notes |
+|---------|-----------|------------|-------|
+| Stat cards: Members, Trials, Fees | ✅ | ✅ | Universal |
+| Stat card: Sessions | ✅ | ❌ | `statSessions` |
+| Needs Attention | ✅ | ✅ | Different language |
+| Unlinked members text | "Parents haven't joined" | "Members haven't joined" | `isSquadClub` ternary |
+| Squad KPI dashboard (Today's Fill, Coach Cover, week bar chart) | ✅ | ❌ | `renderDayDashboard()` gated |
+| Attendance Pulse (last 30 days) | ✅ | ❌ | gated |
+| Upcoming Events | ✅ | ✅ | Universal |
+| Pipeline title | "Parent & Member Pipeline" | "Member Onboarding" | |
+| Pipeline rows | linked/stillToJoin/trials/trialsReady/notInSquad | onSwimLoading/stillToJoin/activeTrials | |
+
+### Settings sections
+
+| Section | swim_club | open_water | Element ID |
+|---------|-----------|------------|------------|
+| Club info | ✅ | ✅ | Universal |
+| Squads | ✅ | ❌ | `settings-squads-card` |
+| Weekly Timetable | ✅ | ❌ | `settings-timetable-card` |
+
+### Team sections
+
+| Section | swim_club | open_water | Element ID |
+|---------|-----------|------------|------------|
+| Committee & Admins | ✅ | ✅ | Universal |
+| Coaching Staff | ✅ | ❌ | `team-coaching-card` |
 
 ---
 
-## Data Model (Supabase)
+## Live Clubs
 
-### Core tables (both club types)
+### Aqua Sharks Atlantic (`swim_club`)
 
-| Table | Key columns added | RLS |
-|-------|------------------|-----|
-| `clubs` | slug, name, code, city, home_spot_id | public read |
-| `club_categories` | age divisions per club | public read |
-| `club_members` | member_number, category_id, role, is_active | member read own club |
-| `club_admins` | club_id, user_id, role, committee_title | admin full + self-read |
-| `club_coaches` | name, title, certs, first_aid, emergency_contact | admin only |
-| `club_join_links` | code, expires_at, max_uses, use_count | public read, admin write |
-| `club_roster` | display_name, squad_id, **is_trial**, **fee_paid**, **trial_start/end_date**, **fee_due_date** | admin full |
-| `club_member_profile` | DOB, gender, guardian 1+2, collection contacts, medical, consents, billing | admin full + member reads own DOB/gender |
-| `club_squads` | name, type, sort_order, is_active | admin full + member read |
-| `club_squad_sessions` | squad_id, day_of_week, start_time, end_time, **coach_name**, **max_capacity**, is_active | admin full + member read |
-| `club_sessions` | squad_id, session_date, **coach_name**, notes | admin |
-| `club_attendance` | session_id, roster_id, status (7 codes), **is_catch_up**, **catch_up_for_date** | admin |
-| `club_session_attendance` | swimmer intent ("I'm coming") — rename to `club_attendance_intents` in next migration | member write own |
-| `club_announcements` | coach posts to squad | member read, admin write |
-| `club_events` | title, date, is_league, is_public, entry_cap | member read, admin write |
-| `club_race_entries` | member/guest, race_number, entry_type, arrived | member read own, admin all |
+| Field | Value |
+|-------|-------|
+| Slug | `aqua-sharks-atlantic` |
+| Admin | Britt |
+| Roster | 209 members |
+| Squads | 7 |
+| Events | 22 |
+| Founded in app | May 2026 |
 
-**Bold** = added in May 2026 migrations.
+**Primary use case being replaced:** Britt's Excel spreadsheet (May 2026.xlsx)
+**Status:** Active — attendance workflow in use. CSV import and monthly report still needed.
 
-### Pool club tables (Aqua Sharks)
+---
+
+### Durban Underwater Club — DUC (`open_water`)
+
+| Field | Value |
+|-------|-------|
+| Slug | `duc` |
+| Club ID | `f72cf810-0019-40f8-a57f-476bea8a8f55` |
+| Primary admin | Steve Evans — evans.s@mweb.co.za |
+| App support admin | Dave Welensky — dave.welensky@gmail.com |
+| Roster rows | 637 (bulk imported 8 May 2026) |
+| Public member count | **550** (set in Settings — this is the displayed figure) |
+| Categories | 5: Makos, Sailfish, Walrus, Guppies, Coelacanths |
+| Events | 4 (League Race 5–7 + one more) |
+| Season standings | 833 rows (historical league data) |
+| Race results | 0 (races upcoming) |
+| Founded | 1954 |
+| Home spot | Vetch's Beach, Durban |
+
+**637 vs 550:** The 637 roster rows include historical/inactive members from the bulk import. 550 is the active member count shown publicly. This is correct — no cleanup needed unless DUC requests it.
+
+**Members with SwimLoading accounts:**
+
+| Name | Email | Role | Temp logs (total) |
+|------|-------|------|-------------------|
+| Steve Evans | evans.s@mweb.co.za | Admin | 33 (8 May, 20 Apr, 5 Mar) |
+| Dave Welensky | dave.welensky@gmail.com | Admin (App Support) | 10 (May) |
+| Trevor Lauf | trevorlauf@gmail.com | Member | 12 |
+| Andrew Taylor | andrewtaylor00099@gmail.com | Member | 10 |
+| Jenny Sutton | jennyandmikesutton@yahoo.com | Member | 2 |
+| Ryan Nortje | ryan.nortje@gmail.com | Member | 1 |
+
+**Known open data issue:**
+- `steven@secmansol.co.za` — ghost `club_members` record deleted 12 May 2026. Was not in `club_admins`. Identity unknown. If this person needs access, they rejoin via the join link.
+
+---
+
+## What Broke 12 May 2026 — Root Causes
+
+Documented so it never happens again.
+
+### 1. Orphaned code → SyntaxError → blank screen for both clubs
+A new `renderDayDashboard()` KPI function was inserted but the old speedometer function body (145 lines) was left floating outside any function. The stray `}` at the end broke JavaScript parsing. Both clubs showed blank screens.
+
+**Fix:** Deleted orphaned block (lines 2412–2555 of original file).
+**Rule:** When replacing a function, delete the old one in the same edit. Verify brace balance.
+
+### 2. No club type gate in `renderOverview()` → DUC showed squad UI
+Squad KPI dashboard, attendance pulse, squad action items, "Parents haven't joined" text — all rendered unconditionally. DUC (open water, adults, no squads) showed all of it.
+
+**Fix:** Added `isSquadClub` gate to every squad-specific section.
+**Rule:** Every new section in `renderOverview()` must be assigned to a club type in the UI Gate table before it ships.
+
+### 3. Attempted data deletion based on assumption
+Tried to DELETE DUC roster records assuming they were contaminated Aqua Sharks data. They were 637 real DUC members imported 8 May. Blocked by FK constraint — no data lost.
+
+**Rule:** Never delete without showing affected rows and getting explicit "yes, do it" from the user.
+
+### 4. Settings and Team not gated by club type
+Squads, Weekly Timetable, and Coaching Staff showed for DUC.
+
+**Fix:** Added element IDs to the three cards, hid them for `open_water` in `loadClubContext()`.
+**Rule:** UI Gate table above is the complete reference. New sections must be added to it.
+
+### 5. Deleted unknown `club_members` record without identification
+`steven@secmansol.co.za` was deleted from `club_members` without knowing who the person was. Was not in `club_admins` and had no roster link or profile name, but identity was never confirmed.
+
+**Rule:** If you don't know who a record belongs to — ask. Do not delete unknown records.
+
+---
+
+## Database — Club Tables Reference
+
+### Core (both types)
+
+| Table | Notes |
+|-------|-------|
+| `clubs` | slug, name, club_type, city, member_count |
+| `club_admins` | club_id, user_id, role, committee_title |
+| `club_members` | club_id, user_id, member_number (TEXT, no # prefix), role, category_id, is_active |
+| `club_roster` | club_id, display_name, member_number, user_id, squad_id, is_trial, fee_paid, trial/fee dates |
+| `club_categories` | club_id, name, min_age, max_age, sort_order |
+| `club_join_links` | club_id, code, expires_at, max_uses |
+| `club_events` | club_id, title, event_date, is_league, is_public |
+| `club_announcements` | club_id |
+| `club_member_profile` | Guardian, medical, consents, billing per member |
+
+### swim_club only
 
 | Table | Purpose |
 |-------|---------|
-| `club_gala_results` | Per-swimmer gala results — stroke, distance, time, is_pb |
-| `club_swimmer_times` | PB cache per event — feeds QT progress bars |
+| `club_squads` | Training groups |
+| `club_squad_sessions` | Weekly timetable — **NO `club_id` column**, filter via `squad_id IN (...)` |
+| `club_sessions` | Actual logged sessions |
+| `club_attendance` | Per-session marks (7 status codes) |
+| `club_session_assignments` | Roster member → session |
+| `club_coaches` | Coaching staff — admin only |
+| `club_gala_entries` | Gala entries per swimmer |
+| `club_gala_results` | Gala results per swimmer |
+| `club_swimmer_times` | PB cache per event |
 
-### Open water league tables (DUC)
+### open_water only
 
 | Table | Purpose |
 |-------|---------|
-| `club_race_results` | League results — position, points, year, month_col |
-| `club_season_standings` | Denormalised standings built from race_results |
+| `club_race_results` | League race results (has `club_id` directly) |
+| `club_season_standings` | Denormalised standings (has `club_id` directly) |
+| `club_race_entries` | Race pre-entries via `club_event_id` |
 
-### Dropped
-
-| Table | Reason |
-|-------|--------|
-| ~~`club_league_results`~~ | Original design. Superseded by `club_race_results` + `club_season_standings`. Dropped May 2026. |
-
-### Naming note
-
-- `club_session_attendance` = swimmer **intent** ("I'm coming tomorrow") — rename to `club_attendance_intents` in a future migration
-- `club_attendance` = **coach mark** ("she showed up, marked nc") — correctly named
-
-### Migrations applied
-
-| File | What it does |
-|------|-------------|
-| `sql/applied/create_clubs_schema.sql` | Full schema foundation |
-| `sql/applied/add_attendance_upgrade.sql` | 7 status codes, coach_name on sessions, is_trial/fee_paid/dates on roster, is_catch_up on attendance |
-| `sql/applied/fix_club_rls_and_schema.sql` | RLS policies on 5 tables, SECURITY DEFINER helpers, drop club_league_results |
+### Critical schema facts
+- `club_squad_sessions` has **no `club_id`** — always join via `club_squads`
+- `club_members.member_number` is TEXT — never store with a `#` prefix
+- `club_race_results` and `club_season_standings` both have `club_id` — safe to filter directly
 
 ---
 
-## Key Decisions
+## Dashboard Rebuild — Aqua Sharks (Priority for 13 May 2026)
 
-1. **No payment processing.** We surface billing triggers (fee due dates) but never handle money. Payment is external (EFT, SnapScan).
+Research complete. Sources: TeamUnify, SwimClub Manager (UK), Spond, Commit Swimming, GymDesk, iClassPro.
 
-2. **Temp logs stay universal.** Club members' logs appear in the main SwimLoading Trends view. Public club page filters by member user_ids.
+### Why the current dashboard is weak
+- KPI tiles (Today's Fill %, Coach Cover) show numbers with no context or action attached
+- Week bar chart is decorative — coach cannot act on it
+- No hierarchy — "most important thing right now" is not clear
+- Not mobile-optimised for poolside use
+- Vanity metrics: numbers that never change what you do
 
-3. **Join flow is self-serve.** Admin generates a link, drops in WhatsApp, members join themselves.
+### The pool deck test
+The Aqua Sharks coach must be able to open the dashboard on a phone while standing at the pool and get the answer to "who is coming and what do I need to know?" in under 30 seconds. Large tap targets, no scrolling past the fold, trials and headcount immediately visible.
 
-4. **Category assigned by DOB.** Age calculated from profile DOB, matched to club_categories min_age/max_age. Default to middle category if no DOB.
+**Every metric needs a threshold and an action.** "Fill: 67%" is useless. "Fill: 67% — 6 spots open" with a share button is useful.
 
-5. **Race numbers are permanent.** Member #14 is always Steve's number. Day-of guests get D01, D02 per event (not permanent).
+### Dashboard structure — Aqua Sharks (swim_club)
 
-6. **Multi-club support.** /club-admin picks club by slug. Admin of multiple clubs sees a picker. URL updates to /club-admin/:slug.
+**Strip 1 — Today's Sessions** *(always at the top)*
+- One card per session today: squad, time, coach assigned, `enrolled / capacity` fill bar
+- Colour: green (space), amber (≥80% full), red (full/over)
+- "Mark attendance" button on each card — no navigation required
+- If no sessions today → show next scheduled session date
+- Trial swimmers in today's session flagged with TRIAL badge
 
-7. **Soft deletes on squads and timetable sessions.** `is_active = false` rather than hard delete — preserves historical attendance data.
+**Strip 2 — Needs Attention** *(each item has one direct action button)*
+- 🔴 Trials expiring within 7 days → "Review trials"
+- 🔴 Fees overdue (fee_paid = false + fee_due_date past) → "View unpaid"
+- 🟠 Swimmers not attended in 14+ days → "View roster"
+- 🟡 Trial swimmers at 3+ sessions with no membership decision → "Convert or remove"
+- 🟡 Sessions this week without a coach assigned → "Assign coach"
+- 🟡 Members not yet on SwimLoading → "Share join link"
+- If no alerts exist → section is hidden entirely
 
-8. **club_squad_sessions has no club_id.** It links via squad_id → club_squads. All queries and RLS policies must join through club_squads to get club_id.
+**Strip 3 — Squad Health** *(weekly glance)*
+- One card per squad: attendance % last 30 days + trend vs previous 30 (▲▼, not a chart)
+- Number of active trials in that squad
+- Tap → Squad Tracker filtered to that squad
+
+**Strip 4 — This Week**
+- Mon–Sun mini grid: sessions per day with fill %
+- Attendance rate this week vs last week — one number with direction
+
+### What to remove from current dashboard
+- Week bar chart (decorative)
+- Standalone KPI tiles (Today's Fill %, Coach Cover as numbers with no context)
+- Attendance Pulse as a separate widget → fold into Squad Health cards
+- Anything that requires mental arithmetic
+
+### Dashboard structure — DUC (open_water)
+
+**Strip 1 — Upcoming Events**
+- Next 3 events: name, date, days until entry closes, entries confirmed
+- Alert if entry deadline within 7 days
+
+**Strip 2 — Needs Attention**
+- Members not yet on SwimLoading → "Share join link"
+- Members with no activity in 30 days
+
+**Strip 3 — Temp Logging Leaderboard**
+- Top 5 loggers this month: name, log count, points
+- Community/gamification — this IS the DUC dashboard's primary engagement metric
+
+**Strip 4 — Upcoming Events full list** *(keep existing)*
+
+### Visual principles (both club types)
+- Amber/red draws attention to problems — green ticks are background noise
+- Every alert has one direct action button, linking to the exact fix
+- Mobile first — large tap targets, minimal scroll
+- No decorative charts — visuals only when they answer a specific question
+- Progress indicators beat raw numbers: "78% ▼ from 84% last month" beats "78%"
 
 ---
 
@@ -284,62 +317,33 @@ We initially targeted open water only. Aqua Sharks (pool club) proved the model 
 | United Kingdom | £49/mo | £39/mo |
 | Australia | A$79/mo | A$59/mo |
 
-- 30-day free trial, cancel anytime
-- No per-head billing regardless of club size
-
----
-
-## Race Day Reality (Open Water) — What We Own and What We Don't
-
-NSRI owns in-water safety. SwimLoading is admin-only.
-
-> "Admin has a start list. They can see who registered and who checked in at the table. That's it. NSRI and race officials own the water."
-
-**Never build or claim:** real-time swimmer tracking, GPS in-water tracking, anything NSRI would rely on.
+- 30-day free trial, no credit card required
+- No per-head fee regardless of club size
+- Fully self-serve onboarding
 
 ---
 
 ## Files
 
-| File | Route | Notes |
-|------|-------|-------|
+| File | Route | Purpose |
+|------|-------|---------|
+| `club-admin.html` | /club-admin/:slug | Admin dashboard — all tabs, both club types |
 | `clubs.html` | /clubs/:slug | Public club page |
-| `club-admin.html` | /club-admin/:slug | Admin dashboard (13 tabs) |
-| `app-club.js` | — | Member-facing club tab (QT bars, results, announcements) |
-| `join.html` | /join/:code | Self-serve member join flow |
-| `blog/duc-demo.html` | (direct link) | DUC sales demo — static data |
+| `app-club.js` | — | Member-facing club tab |
+| `join.html` | /join/:code | Self-serve join flow |
+| `blog/duc-demo.html` | direct link | DUC sales demo |
 | `sql/applied/` | — | All applied migrations |
 
 ---
 
-## Club Setup
+## What We Never Build
 
-### Aqua Sharks Atlantic (live)
-- Pool club, Cape Town
-- Britt runs day-to-day admin
-- Squads: Bronze, Silver, Gold, Juniors, Seniors (+ LTS/Masters)
-- Timetable: daily squad sessions
-- Attendance via Britt's spreadsheet → replacing with club-admin
-
-### DUC — Durban Underwater Club (in onboarding)
-| Field | Value |
-|-------|-------|
-| Club ID | f72cf810-0019-40f8-a57f-476bea8a8f55 |
-| Home spot | Vetch's Beach |
-| First admin | Steve Evans — evans.s@mweb.co.za |
-| Events seeded | League Race 5 (31 May), Race 6 (28 Jun), Race 7 (26 Jul) |
-
----
-
-## What to Never Build
-
-- Real-time swimmer tracking in water
+- Real-time in-water swimmer tracking
 - GPS tracking of any kind
-- Anything claiming to know where a swimmer is after entering the water
-- Payment processing (Stripe, PayFast, etc.)
-- Any safety system NSRI or race officials would rely on
+- Safety systems NSRI or race officials would rely on
+- Payment processing
+- Anything claiming to know where a swimmer is after entering water
 
 ---
 
-**Last Updated:** 12 May 2026
-**Maintained by:** Dave Welensky and Claude
+*Last updated: 12 May 2026 — Dave Welensky & Claude*
