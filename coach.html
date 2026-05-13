@@ -338,9 +338,16 @@
   </nav>
   <div class="empty-state">
     <i data-lucide="lock"></i>
-    <div class="title" id="authTitle">Sign in required</div>
-    <div class="sub" id="authSub">You need a SwimLoading account with coach access to mark attendance.</div>
-    <a href="/app" style="margin-top:16px;display:inline-block;background:var(--cyan);color:#080f1a;font-weight:700;font-size:14px;padding:13px 28px;border-radius:10px;text-decoration:none;">Sign in</a>
+    <div class="title" id="authTitle">Sign in to continue</div>
+    <div class="sub" id="authSub">Enter your SwimLoading email — we'll send a link that brings you straight back here.</div>
+    <div id="authForm" style="width:100%;max-width:320px;margin-top:20px;display:flex;flex-direction:column;gap:10px;">
+      <input class="input-field" id="authEmail" type="email" placeholder="your@email.com" autocomplete="email" inputmode="email">
+      <button class="btn-primary" id="authSendBtn" onclick="sendMagicLink()">
+        <i data-lucide="send" style="width:15px;height:15px;"></i>
+        Send sign-in link
+      </button>
+    </div>
+    <div id="authMsg" style="margin-top:14px;font-size:13px;display:none;text-align:center;max-width:280px;line-height:1.5;"></div>
   </div>
 </div>
 
@@ -598,20 +605,67 @@ function greeting() {
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
 
+// ── MAGIC LINK AUTH ────────────────────────────────────────────────
+async function sendMagicLink() {
+  const email  = (document.getElementById('authEmail').value || '').trim();
+  const btn    = document.getElementById('authSendBtn');
+  const msgEl  = document.getElementById('authMsg');
+  if (!email) { document.getElementById('authEmail').focus(); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;"></div> Sending…';
+  lucide.createIcons();
+
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: {
+      // Brings coach straight back to this exact page after clicking the email link
+      emailRedirectTo: window.location.href,
+    },
+  });
+
+  if (error) {
+    msgEl.textContent   = 'Could not send: ' + error.message;
+    msgEl.style.color   = 'var(--danger)';
+    msgEl.style.display = '';
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="send" style="width:15px;height:15px;"></i> Send sign-in link';
+    lucide.createIcons();
+  } else {
+    document.getElementById('authForm').style.display = 'none';
+    msgEl.textContent   = 'Link sent! Check your email and tap it to open this page.';
+    msgEl.style.color   = 'var(--green)';
+    msgEl.style.display = '';
+  }
+}
+
 // ── INIT ───────────────────────────────────────────────────────────
 async function init() {
   showScreen('loading');
 
-  // Auth
+  // Handle magic-link returns: Supabase fires SIGNED_IN when the hash tokens are processed
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session && !currentUser) {
+      currentUser = session.user;
+      await continueInit();
+    }
+  });
+
+  // Check for an existing session (already logged in)
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { showScreen('auth'); return; }
-  currentUser = session.user;
 
+  currentUser = session.user;
+  await continueInit();
+}
+
+async function continueInit() {
   // Club slug from URL: /coach/aqua-sharks-atlantic
   const slug = location.pathname.replace(/^\/coach\/?/, '').replace(/\/$/, '') || null;
   if (!slug) {
     document.getElementById('authTitle').textContent = 'No club specified';
     document.getElementById('authSub').textContent   = 'Use the link your club admin sent you.';
+    document.getElementById('authForm').style.display = 'none';
     showScreen('auth'); return;
   }
 
@@ -624,6 +678,7 @@ async function init() {
   if (!membership) {
     document.getElementById('authTitle').textContent = 'No coach access';
     document.getElementById('authSub').textContent   = 'Ask your club admin (Britt) to add you to the team.';
+    document.getElementById('authForm').style.display = 'none';
     showScreen('auth'); return;
   }
 
