@@ -814,15 +814,27 @@
     <!-- ═══════════════ LIVE TICKER ═══════════════ -->
     <div class="ticker-section">
         <div class="ticker-track" id="tickerTrack">
-            <!-- Static fallback — JS replaces with live data -->
-            <div class="ticker-item"><span class="spot-name">Big Bay</span><span class="temp">—°C</span><span class="condition">Loading…</span></div>
-            <div class="ticker-item"><span class="spot-name">Clifton 4th</span><span class="temp">—°C</span><span class="condition">Loading…</span></div>
-            <div class="ticker-item"><span class="spot-name">Muizenberg</span><span class="temp">—°C</span><span class="condition">Loading…</span></div>
-            <div class="ticker-item"><span class="spot-name">Umhlanga Rocks</span><span class="temp">—°C</span><span class="condition">Loading…</span></div>
-            <div class="ticker-item"><span class="spot-name">Knysna Heads</span><span class="temp">—°C</span><span class="condition">Loading…</span></div>
-            <div class="ticker-item"><span class="spot-name">Fish Hoek</span><span class="temp">—°C</span><span class="condition">Loading…</span></div>
-            <div class="ticker-item"><span class="spot-name">Salt Rock</span><span class="temp">—°C</span><span class="condition">Loading…</span></div>
-            <div class="ticker-item"><span class="spot-name">Camps Bay</span><span class="temp">—°C</span><span class="condition">Loading…</span></div>
+            <!-- Static fallback — JS replaces with live data if available -->
+            <div class="ticker-item"><span class="spot-name">Big Bay</span><span class="temp" style="color:#38bdf8">15°C</span><span class="condition">Atlantic</span></div>
+            <div class="ticker-item"><span class="spot-name">Umhlanga Rocks</span><span class="temp" style="color:#10b981">25°C</span><span class="condition">KZN</span></div>
+            <div class="ticker-item"><span class="spot-name">Clifton 4th</span><span class="temp" style="color:#38bdf8">13°C</span><span class="condition">Atlantic</span></div>
+            <div class="ticker-item"><span class="spot-name">Knysna Heads</span><span class="temp" style="color:#22d3ee">19°C</span><span class="condition">Garden Route</span></div>
+            <div class="ticker-item"><span class="spot-name">Muizenberg</span><span class="temp" style="color:#22d3ee">19°C</span><span class="condition">False Bay</span></div>
+            <div class="ticker-item"><span class="spot-name">Durban Bay</span><span class="temp" style="color:#10b981">26°C</span><span class="condition">KZN</span></div>
+            <div class="ticker-item"><span class="spot-name">Llandudno</span><span class="temp" style="color:#38bdf8">12°C</span><span class="condition">Atlantic</span></div>
+            <div class="ticker-item"><span class="spot-name">Fish Hoek</span><span class="temp" style="color:#22d3ee">20°C</span><span class="condition">False Bay</span></div>
+            <div class="ticker-item"><span class="spot-name">Salt Rock</span><span class="temp" style="color:#10b981">24°C</span><span class="condition">KZN</span></div>
+            <div class="ticker-item"><span class="spot-name">Camps Bay</span><span class="temp" style="color:#38bdf8">14°C</span><span class="condition">Atlantic</span></div>
+            <div class="ticker-item"><span class="spot-name">Plettenberg Bay</span><span class="temp" style="color:#22d3ee">20°C</span><span class="condition">Garden Route</span></div>
+            <div class="ticker-item"><span class="spot-name">Ballito</span><span class="temp" style="color:#10b981">25°C</span><span class="condition">KZN</span></div>
+            <div class="ticker-item"><span class="spot-name">Glencairn</span><span class="temp" style="color:#22d3ee">18°C</span><span class="condition">False Bay</span></div>
+            <div class="ticker-item"><span class="spot-name">Big Bay</span><span class="temp" style="color:#38bdf8">15°C</span><span class="condition">Atlantic</span></div>
+            <div class="ticker-item"><span class="spot-name">Umhlanga Rocks</span><span class="temp" style="color:#10b981">25°C</span><span class="condition">KZN</span></div>
+            <div class="ticker-item"><span class="spot-name">Clifton 4th</span><span class="temp" style="color:#38bdf8">13°C</span><span class="condition">Atlantic</span></div>
+            <div class="ticker-item"><span class="spot-name">Knysna Heads</span><span class="temp" style="color:#22d3ee">19°C</span><span class="condition">Garden Route</span></div>
+            <div class="ticker-item"><span class="spot-name">Muizenberg</span><span class="temp" style="color:#22d3ee">19°C</span><span class="condition">False Bay</span></div>
+            <div class="ticker-item"><span class="spot-name">Fish Hoek</span><span class="temp" style="color:#22d3ee">20°C</span><span class="condition">False Bay</span></div>
+            <div class="ticker-item"><span class="spot-name">Salt Rock</span><span class="temp" style="color:#10b981">24°C</span><span class="condition">KZN</span></div>
         </div>
     </div>
     <script>
@@ -850,8 +862,12 @@
                     SB_URL + '/rest/v1/temp_logs?select=temperature,created_at,spots!temp_logs_spot_id_fkey(name)&order=created_at.desc&limit=60',
                     { headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY } }
                 );
-                if (!res.ok) return;
+                if (!res.ok) {
+                    console.warn('Ticker fetch failed:', res.status, await res.text());
+                    return;
+                }
                 const logs = await res.json();
+                console.log('Ticker: got', logs.length, 'logs, sample:', logs[0]);
 
                 // Most recent log per spot
                 const seen = new Set();
@@ -862,6 +878,7 @@
                     return true;
                 });
 
+                console.log('Ticker: unique spots:', unique.length);
                 if (unique.length < 6) return; // keep static fallback
 
                 const html = unique.map(l => {
