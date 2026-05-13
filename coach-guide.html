@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coach Guide · SwimLoading</title>
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080f1a;
+      --bg-card:  #0d1728;
+      --cyan:     #38bdf8;
+      --text:     #f1f5f9;
+      --text-sec: #64748b;
+      --border:   rgba(255,255,255,0.06);
+      --green:    #10b981;
+      --amber:    #f59e0b;
+      --red:      #ef4444;
+      --gray:     #64748b;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      background:
+        radial-gradient(18px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+          rgba(56,189,248,0.55), transparent 100%),
+        radial-gradient(500px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+          rgba(56,189,248,0.07), transparent 70%);
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8,15,26,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .nav-brand img { height: 22px; width: auto; }
+
+    .nav-badge {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--cyan);
+      background: rgba(56,189,248,0.1);
+      border: 1px solid rgba(56,189,248,0.2);
+      border-radius: 20px;
+      padding: 3px 10px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .hero {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 56px 24px 40px;
+      text-align: center;
+    }
+
+    .hero-eyebrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .hero-eyebrow-line { width: 28px; height: 2px; background: var(--cyan); border-radius: 2px; }
+    .hero-eyebrow span { font-size: 11px; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.15em; }
+
+    .hero h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(44px, 10vw, 72px);
+      line-height: 0.95;
+      letter-spacing: 0.02em;
+      margin-bottom: 16px;
+    }
+    .hero h1 span { color: var(--cyan); }
+
+    .hero-sub {
+      font-size: 16px;
+      color: rgba(241,245,249,0.65);
+      max-width: 480px;
+      margin: 0 auto 32px;
+      line-height: 1.7;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--cyan);
+      color: #080f1a;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 13px 26px;
+      border-radius: 50px;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:hover { opacity: 0.88; }
+
+    .content {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sec);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin: 40px 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .step {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 28px;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(56,189,248,0.12);
+      border: 1px solid rgba(56,189,248,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      color: var(--cyan);
+      margin-top: 2px;
+    }
+
+    .step-body { flex: 1; }
+
+    .step-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .step-desc {
+      font-size: 14px;
+      color: rgba(241,245,249,0.65);
+      line-height: 1.7;
+    }
+    .step-desc strong { color: var(--text); font-weight: 600; }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin-top: 14px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sec);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 14px;
+    }
+
+    .points-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .points-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+    .points-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(56,189,248,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .points-icon i { color: var(--cyan); width: 15px; height: 15px; }
+    .points-icon.green { background: rgba(16,185,129,0.1); }
+    .points-icon.green i { color: var(--green); }
+    .points-icon.amber { background: rgba(245,158,11,0.1); }
+    .points-icon.amber i { color: var(--amber); }
+    .points-icon.red { background: rgba(239,68,68,0.1); }
+    .points-icon.red i { color: var(--red); }
+    .points-icon.gray { background: rgba(100,116,139,0.1); }
+    .points-icon.gray i { color: var(--gray); }
+
+    .points-label { flex: 1; font-size: 14px; color: var(--text); }
+    .points-label span { display: block; font-size: 12px; color: var(--text-sec); margin-top: 1px; }
+
+    .status-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 6px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .status-here  { background: rgba(16,185,129,0.15);  color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+    .status-nc    { background: rgba(239,68,68,0.15);   color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+    .status-excuse{ background: rgba(245,158,11,0.15);  color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+    .status-away  { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.3); }
+
+    .note-card {
+      background: rgba(56,189,248,0.06);
+      border: 1px solid rgba(56,189,248,0.15);
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-top: 14px;
+      font-size: 13px;
+      color: rgba(241,245,249,0.7);
+      line-height: 1.65;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .note-card i { color: var(--cyan); width: 15px; height: 15px; flex-shrink: 0; margin-top: 2px; }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 28px 24px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-sec);
+    }
+
+    @media (max-width: 520px) {
+      .hero { padding: 40px 20px 32px; }
+      .content { padding: 0 20px 60px; }
+      .step { gap: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="https://swimloading.com" class="nav-brand">
+      <img src="/icons/logo-wave.png" alt="">SwimLoading
+    </a>
+    <span class="nav-badge">Coach Guide</span>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-eyebrow">
+      <div class="hero-eyebrow-line"></div>
+      <span>Aqua Sharks Atlantic</span>
+      <div class="hero-eyebrow-line"></div>
+    </div>
+    <h1>Your coaching<br><span>guide</span></h1>
+    <p class="hero-sub">How to mark attendance, cover sessions, and add walk-ins — right from the pool deck.</p>
+    <a href="https://www.swimloading.com/coach/aqua-sharks-atlantic" class="btn-primary" target="_blank">
+      <i data-lucide="clipboard-check" style="width:16px;height:16px;"></i>
+      Open Coach Attendance
+    </a>
+  </div>
+
+  <div class="content">
+
+    <div class="section-label">Before your first session</div>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Create your SwimLoading account</div>
+        <div class="step-desc">Sign up free at <a href="https://swimloading.com/app" style="color:var(--cyan);">swimloading.com/app</a> — the same app your swimmers use.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Ask Britt to add you to the team</div>
+        <div class="step-desc">She adds your email in <strong>Team</strong> → <strong>Coaching Staff</strong> → <strong>Add coach</strong> — that's all she needs to do.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Bookmark the coach page on your phone</div>
+        <div class="step-desc">Open <strong>swimloading.com/coach/aqua-sharks-atlantic</strong> in Safari or Chrome, then add it to your home screen so you can open it in one tap poolside.</div>
+      </div>
+    </div>
+
+    <div class="section-label">Marking attendance</div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Open the coach page during warm-up</div>
+        <div class="step-desc">The home screen shows today's sessions. Your sessions appear under <strong>My sessions</strong> — matched by the name Britt assigned to you in the timetable. Each tile shows the expected swimmer count and a trial count badge if you have trial swimmers in that session.</div>
+        <div class="note-card">
+          <i data-lucide="users"></i>
+          <span><strong>My Squad</strong> at the bottom of the home screen lists any trial swimmers by name and flags overdue fees — so you know what to look out for before you even tap Start.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">Tap your session and hit Start</div>
+        <div class="step-desc">Check the squad name and time on the confirm screen, edit your name if it's wrong, then tap <strong>Start</strong> to open the register.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <div class="step-title">Mark each swimmer with one tap</div>
+        <div class="step-desc">Four status buttons — tap the right one for each name.</div>
+        <div class="card">
+          <div class="card-title">Status codes</div>
+          <div class="points-row">
+            <div class="points-icon green"><i data-lucide="check"></i></div>
+            <div class="points-label"><span class="status-badge status-here">HERE</span> <span>Swimmer showed up and swam</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon red"><i data-lucide="phone-off"></i></div>
+            <div class="points-label"><span class="status-badge status-nc">NC</span> <span>No contact — absent with no notice given</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon amber"><i data-lucide="bell"></i></div>
+            <div class="points-label"><span class="status-badge status-excuse">EXCUSE</span> <span>Let you know in advance they'd miss the session</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon gray"><i data-lucide="plane"></i></div>
+            <div class="points-label"><span class="status-badge status-away">AWAY</span> <span>Pre-arranged absence — holiday, travel, injury</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">7</div>
+      <div class="step-body">
+        <div class="step-title">Save when done</div>
+        <div class="step-desc">Tap <strong>Save</strong> — Britt's admin updates immediately and the done screen shows a summary of who was marked.</div>
+      </div>
+    </div>
+
+    <div class="section-label">Walk-ins and trials</div>
+
+    <div class="step">
+      <div class="step-num">8</div>
+      <div class="step-body">
+        <div class="step-title">Tap Walk-in in the bottom bar</div>
+        <div class="step-desc">A search panel opens — type the swimmer's name to look them up.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">9</div>
+      <div class="step-body">
+        <div class="step-title">Add a roster swimmer from another squad</div>
+        <div class="step-desc">If they're already on the roster (just a different squad), tap <strong>Add</strong> next to their name — they appear in your register for this session.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">10</div>
+      <div class="step-body">
+        <div class="step-title">Add a brand-new trial swimmer</div>
+        <div class="step-desc">If they're not on the roster at all, type their full name and tap <strong>Add as new trial swimmer</strong> — they're added to the register immediately with a TRIAL badge.</div>
+        <div class="note-card">
+          <i data-lucide="info"></i>
+          <span>Walk-in trial swimmers appear in Britt's roster after you save. She'll assign a squad and set their trial dates.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">11</div>
+      <div class="step-body">
+        <div class="step-title">Made a mistake? Remove them</div>
+        <div class="step-desc">Walk-in swimmers show a <strong>×</strong> button next to their name — tap it to remove them before you save.</div>
+      </div>
+    </div>
+
+    <div class="section-label">Covering a session</div>
+
+    <div class="step">
+      <div class="step-num">12</div>
+      <div class="step-body">
+        <div class="step-title">Cover sessions show on your home screen</div>
+        <div class="step-desc">Sessions not assigned to you appear under <strong>Cover a session</strong> — tap any one to take it on.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">13</div>
+      <div class="step-body">
+        <div class="step-title">Enter your name on the confirm screen</div>
+        <div class="step-desc">The confirm screen shows whose session it normally is — update the coach name to yours, then tap <strong>Start</strong>.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">14</div>
+      <div class="step-body">
+        <div class="step-title">Mark and save as normal</div>
+        <div class="step-desc">The register saves under your name for this session — Britt can see who covered it in her attendance view.</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 48px; text-align: center;">
+      <a href="https://www.swimloading.com/coach/aqua-sharks-atlantic" class="btn-primary" target="_blank">
+        <i data-lucide="clipboard-check" style="width:16px;height:16px;"></i>
+        Open Coach Attendance
+      </a>
+    </div>
+
+  </div>
+
+  <footer>
+    Questions? Contact Britt or Dave — swimloading.com
+  </footer>
+
+  <script>
+    document.addEventListener('mousemove', e => {
+      document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+      document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+    });
+    lucide.createIcons();
+  </script>
+</body>
+</html>

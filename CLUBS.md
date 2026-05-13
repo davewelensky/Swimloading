@@ -323,12 +323,48 @@ The Aqua Sharks coach must be able to open the dashboard on a phone while standi
 
 ---
 
+## Coach Page (`coach.html`)
+
+Route: `/coach/:slug` → `coach.html`
+
+A separate mobile-first attendance page for coaches. Coaches must be in `club_admins` for the club (any role). Their name is matched to `club_squad_sessions.coach_name` by first-name substring.
+
+### Home screen sections
+
+| Section | What it shows |
+|---------|--------------|
+| My sessions today | Session tiles for sessions where `coach_name` matches this coach. Each tile shows squad, time, expected count, and trial count badge. |
+| Cover a session | Other sessions today (only visible if coach also has own sessions) |
+| Next up this week | Upcoming sessions this week — expected count + trial count per session |
+| My Squad | For each squad the coach is assigned to: total members, trial swimmers (by name), fee overdue count. Pulls from allRoster — no extra DB query. |
+
+### What coaches see from Britt's data
+- **Trial swimmers by name** — so coaches know who to monitor and give extra attention
+- **Fee overdue count** — coaches can mention it to parents at the pool (just the count, not names)
+- **Expected swimmer count** per session tile — from `club_session_assignments`
+- They do NOT see: attendance history, financial details, full admin controls
+
+### Walk-in tracking
+- `walkinNewIds` — roster records created fresh this session; deleted from DB on remove
+- `walkinAddedIds` — existing roster members pulled from another squad; local remove only
+- `member_number` is `INTEGER NOT NULL` on `club_roster` — generate via `MAX(member_number) + 1`
+- Walk-in trial swimmers appear in Britt's roster immediately; she assigns squads and sets trial dates
+
+### Guides
+- `/coach-guide` → `coach-guide.html` — mobile-first guide for coaches
+- Route registered in `vercel.json` before the `/coach(/.*)?` catch-all
+
+---
+
 ## Files
 
 | File | Route | Purpose |
 |------|-------|---------|
 | `club-admin.html` | /club-admin/:slug | Admin dashboard — all tabs, both club types |
 | `clubs.html` | /clubs/:slug | Public club page |
+| `coach.html` | /coach/:slug | Mobile-first coach attendance page |
+| `coach-guide.html` | /coach-guide | Coach guide (how to use the coach page) |
+| `aquasharks-guide.html` | /aquasharks-guide | Admin guide for Britt (Aqua Sharks) |
 | `app-club.js` | — | Member-facing club tab |
 | `join.html` | /join/:code | Self-serve join flow |
 | `blog/duc-demo.html` | direct link | DUC sales demo |
@@ -346,4 +382,4 @@ The Aqua Sharks coach must be able to open the dashboard on a phone while standi
 
 ---
 
-*Last updated: 12 May 2026 — Dave Welensky & Claude*
+*Last updated: 13 May 2026 — Dave Welensky & Claude*

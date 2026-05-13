@@ -378,6 +378,12 @@
       <div style="padding:0 16px;" id="nextUpList"></div>
     </div>
 
+    <!-- My Squad summary -->
+    <div id="mySquadSection" style="display:none;">
+      <div class="section-label">MY SQUAD</div>
+      <div style="padding:0 16px;" id="mySquadContent"></div>
+    </div>
+
     <div class="safe-bottom" style="padding-left:0;padding-right:0;height:24px;"></div>
   </div>
 </div>
@@ -727,23 +733,81 @@ function renderHome() {
   const nextList = document.getElementById('nextUpList');
   if (nextSessions.length) {
     const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    nextList.innerHTML = nextSessions.map(s => {
+    nextList.innerHTML = nextSessions.map((s, idx) => {
       const sq = allSquads.find(q => q.id === s.squad_id);
-      const asgn = (allWeekAssign[s.id] || []).length;
+      const asgnIds = allWeekAssign[s.id] || [];
+      const asgn = asgnIds.length;
       const cap  = s.max_capacity || sq?.max_members || 0;
-      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--bg-card);border-radius:0;${nextSessions.indexOf(s)===0?'border-radius:12px 12px 0 0;':''}${nextSessions.indexOf(s)===nextSessions.length-1?'border-radius:0 0 12px 12px;border-bottom:none;':''}">
+      const trials = asgnIds.filter(id => allRoster.find(r => r.id === id)?.is_trial).length;
+      const isFirst = idx === 0, isLast = idx === nextSessions.length - 1;
+      const radius = isFirst && isLast ? '12px' : isFirst ? '12px 12px 0 0' : isLast ? '0 0 12px 12px' : '0';
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:${isLast?'none':'1px solid var(--border)'};background:var(--bg-card);border-radius:${radius};">
         <div style="font-size:12px;font-weight:700;color:var(--text-sec);min-width:32px;">${dayNames[s.day_of_week]}</div>
         <div style="flex:1;">
           <div style="font-size:14px;font-weight:600;">${sq?.name || 'Squad'}</div>
           <div style="font-size:11px;color:var(--cyan);">${fmtTime(s.start_time)}${s.end_time ? '–' + fmtTime(s.end_time) : ''}</div>
         </div>
-        <div style="font-size:12px;color:var(--text-sec);">${asgn}${cap ? ' / ' + cap : ''} <span style="font-size:10px;">expected</span></div>
-        ${isMySession(s) ? `<span style="font-size:9px;font-weight:700;color:var(--cyan);background:rgba(56,189,248,0.1);padding:2px 8px;border-radius:8px;">MINE</span>` : ''}
+        <div style="text-align:right;">
+          <div style="font-size:12px;color:var(--text-sec);">${asgn}${cap ? ' / ' + cap : ''} <span style="font-size:10px;">expected</span></div>
+          ${trials ? `<div style="font-size:10px;font-weight:700;color:var(--danger);">${trials} trial${trials>1?'s':''}</div>` : ''}
+        </div>
+        ${isMySession(s) ? `<span style="font-size:9px;font-weight:700;color:var(--cyan);background:rgba(56,189,248,0.1);padding:2px 8px;border-radius:8px;flex-shrink:0;">MINE</span>` : ''}
       </div>`;
     }).join('');
     nextEl.style.display = '';
   } else {
     nextEl.style.display = 'none';
+  }
+
+  // My Squad summary — trials and fee alerts for the coach's own squads
+  const mySquadSection = document.getElementById('mySquadSection');
+  const mySquadContent = document.getElementById('mySquadContent');
+  const mySquadIds = [...new Set(mySessions.map(s => s.squad_id))];
+  if (mySquadIds.length) {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const squadHtml = mySquadIds.map(sqId => {
+      const sq = allSquads.find(q => q.id === sqId);
+      if (!sq) return '';
+      const squadRoster = allRoster.filter(r => r.squad_id === sqId);
+      const trials = squadRoster.filter(r => r.is_trial);
+      const feeOverdue = squadRoster.filter(r => r.fee_paid === false && !r.is_trial && r.fee_due_date && r.fee_due_date < todayStr);
+
+      const trialsHtml = trials.length
+        ? `<div style="padding:10px 12px;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.18);border-radius:9px;margin-bottom:8px;">
+            <div style="font-size:11px;font-weight:800;color:var(--danger);letter-spacing:0.06em;margin-bottom:6px;">
+              ${trials.length} TRIAL SWIMMER${trials.length > 1 ? 'S' : ''}
+            </div>
+            ${trials.map(t => `<div style="font-size:13px;color:var(--text);padding:2px 0;">${t.display_name}</div>`).join('')}
+          </div>`
+        : '';
+
+      const feesHtml = feeOverdue.length
+        ? `<div style="padding:10px 12px;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.18);border-radius:9px;margin-bottom:8px;">
+            <div style="font-size:11px;font-weight:800;color:var(--amber);letter-spacing:0.06em;">
+              ${feeOverdue.length} FEE${feeOverdue.length > 1 ? 'S' : ''} OVERDUE
+            </div>
+            <div style="font-size:12px;color:var(--text-sec);margin-top:3px;">Let the parent know if they're at the pool today.</div>
+          </div>`
+        : '';
+
+      const allClear = !trials.length && !feeOverdue.length
+        ? `<div style="font-size:13px;color:var(--text-sec);">No trials or overdue fees — all clear.</div>`
+        : '';
+
+      return `<div class="card" style="margin-bottom:12px;">
+        <div class="card-p">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${(trialsHtml||feesHtml||allClear)?'10px':'0'};">
+            <div style="font-size:16px;font-weight:700;">${sq.name}</div>
+            <div style="font-size:12px;color:var(--text-sec);">${squadRoster.length} swimmers</div>
+          </div>
+          ${trialsHtml}${feesHtml}${allClear}
+        </div>
+      </div>`;
+    }).join('');
+    mySquadContent.innerHTML = squadHtml;
+    mySquadSection.style.display = '';
+  } else {
+    mySquadSection.style.display = 'none';
   }
 
   lucide.createIcons();
@@ -758,7 +822,8 @@ function isMySession(s) {
 
 function sessionTileHTML(s, nowMins, type) {
   const sq   = allSquads.find(q => q.id === s.squad_id);
-  const asgn = (allWeekAssign[s.id] || []).length;
+  const asgnIds = allWeekAssign[s.id] || [];
+  const asgn = asgnIds.length;
   const cap  = s.max_capacity || sq?.max_members || 0;
   const endM = toMins(s.end_time || s.start_time);
   const isPast = s.end_time ? endM + 5 < nowMins : toMins(s.start_time) + 65 < nowMins;
@@ -770,6 +835,12 @@ function sessionTileHTML(s, nowMins, type) {
     : type === 'mine' ? `<span class="badge-mine">MY SESSION</span>`
     : `<span class="badge-cover">COVER</span>`;
 
+  // Trial count for this session
+  const trialCount = asgnIds.filter(id => allRoster.find(r => r.id === id)?.is_trial).length;
+  const trialBadge = trialCount > 0
+    ? `<div style="font-size:10px;font-weight:700;color:var(--danger);margin-top:3px;">${trialCount} trial${trialCount > 1 ? 's' : ''}</div>`
+    : '';
+
   return `<div class="session-tile ${tileClass}" onclick="openConfirm('${s.id}')" style="${isPast?'opacity:0.45;':''}">
     <div class="tile-accent"></div>
     <div class="tile-body">
@@ -780,6 +851,7 @@ function sessionTileHTML(s, nowMins, type) {
     <div class="tile-meta">
       ${badge}
       <div style="font-size:12px;color:var(--text-sec);margin-top:4px;">${asgn}${cap ? ' / ' + cap : ''}</div>
+      ${trialBadge}
     </div>
   </div>`;
 }
