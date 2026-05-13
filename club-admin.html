@@ -442,8 +442,8 @@
         <div class="stat-row" id="overviewStats">
           <div class="stat-card" style="cursor:pointer;" onclick="showPage('roster')"><div class="stat-label">Members</div><div class="stat-val" id="statMembers">—</div><div class="stat-note">on roster</div></div>
           <div class="stat-card"><div class="stat-label">Sessions today</div><div class="stat-val" id="statSessions">—</div><div class="stat-note" id="statSessionsNote">scheduled</div></div>
-          <div class="stat-card" style="cursor:pointer;" onclick="showPage('roster')" id="statTrialCard"><div class="stat-label">Trials ending</div><div class="stat-val" id="statTrials" style="color:var(--amber);">—</div><div class="stat-note">within 7 days</div></div>
-          <div class="stat-card" style="cursor:pointer;" onclick="showPage('roster')" id="statFeeCard"><div class="stat-label">Fees overdue</div><div class="stat-val" id="statFees" style="color:var(--danger);">—</div><div class="stat-note">unpaid past due</div></div>
+          <div class="stat-card" style="cursor:pointer;" onclick="showRosterFiltered('trial')" id="statTrialCard"><div class="stat-label">Trials ending</div><div class="stat-val" id="statTrials" style="color:var(--amber);">—</div><div class="stat-note">within 7 days</div></div>
+          <div class="stat-card" style="cursor:pointer;" onclick="showRosterFiltered('fee-overdue')" id="statFeeCard"><div class="stat-label">Fees overdue</div><div class="stat-val" id="statFees" style="color:var(--danger);">—</div><div class="stat-note">unpaid past due</div></div>
         </div>
         <div id="overviewActions"></div>
         <div class="overview-2col" id="overviewTodaySquads"></div>
@@ -525,6 +525,8 @@
                 <option value="">All</option>
                 <option value="linked">Linked</option>
                 <option value="unlinked">Unlinked</option>
+                <option value="trial">Trials</option>
+                <option value="fee-overdue">Fee overdue</option>
               </select>
               <select class="filter-select" onchange="filterRosterByCat(this.value)" id="rosterCatFilter">
                 <option value="">All squads</option>
@@ -1998,17 +2000,17 @@ async function renderOverview() {
   if (feesOverdue.length > 0) {
     const preview = feesOverdue.slice(0,3).map(r => r.display_name).join(', ')
       + (feesOverdue.length > 3 ? ` +${feesOverdue.length - 3} more` : '');
-    actions.push({ dot:'red', text:`${feesOverdue.length} fee${feesOverdue.length>1?'s':''} overdue`, names:preview, label:'Roster →', action:`showPage('roster')` });
+    actions.push({ dot:'red', text:`${feesOverdue.length} fee${feesOverdue.length>1?'s':''} overdue`, names:preview, label:'Roster →', action:`showRosterFiltered('fee-overdue')` });
   }
   if (trialsEnding.length > 0) {
     const preview = trialsEnding.map(r => {
       const d = Math.ceil((new Date(r.trial_end_date) - now) / 86400000);
       return r.display_name + (d === 0 ? ' (today)' : ` (${d}d)`);
     }).join(', ');
-    actions.push({ dot:'amber', text:`${trialsEnding.length} trial${trialsEnding.length>1?'s':''} expiring this week`, names:preview, label:'Roster →', action:`showPage('roster')` });
+    actions.push({ dot:'amber', text:`${trialsEnding.length} trial${trialsEnding.length>1?'s':''} expiring this week`, names:preview, label:'Roster →', action:`showRosterFiltered('trial')` });
   }
   if (trialsNoEnd.length > 0) {
-    actions.push({ dot:'amber', text:`${trialsNoEnd.length} trial${trialsNoEnd.length>1?'s':''} have no end date set`, names:trialsNoEnd.slice(0,3).map(r=>r.display_name).join(', ')+(trialsNoEnd.length>3?` +${trialsNoEnd.length-3} more`:''), label:'Roster →', action:`showPage('roster')` });
+    actions.push({ dot:'amber', text:`${trialsNoEnd.length} trial${trialsNoEnd.length>1?'s':''} have no end date set`, names:trialsNoEnd.slice(0,3).map(r=>r.display_name).join(', ')+(trialsNoEnd.length>3?` +${trialsNoEnd.length-3} more`:''), label:'Roster →', action:`showRosterFiltered('trial')` });
   }
   if (isSquadClub && unassigned.length > 0) {
     actions.push({ dot:'amber', text:`${unassigned.length} member${unassigned.length>1?'s':''} not assigned to a squad`, names:'Assign in Roster → Edit', label:'Roster →', action:`showPage('roster')` });
@@ -4951,13 +4953,25 @@ function filterRoster(q)           { rosterFilter.query  = q.toLowerCase(); rend
 function filterRosterByStatus(v)   { rosterFilter.status = v;               renderRosterTable(); }
 function filterRosterByCat(v)      { rosterFilter.cat    = v;               renderRosterTable(); }
 
+// Navigate to Roster tab with a pre-applied status filter
+function showRosterFiltered(status) {
+  showPage('roster');
+  rosterFilter.status = status;
+  const sel = document.getElementById('rosterStatusFilter');
+  if (sel) sel.value = status;
+  renderRosterTable();
+}
+
 function renderRosterTable() {
   const tbody = document.getElementById('rosterTableBody');
   const { query, status, cat } = rosterFilter;
 
+  const todayStr = new Date().toISOString().slice(0, 10);
   const rows = allRoster.filter(r => {
-    if (status === 'linked'   && !r.user_id) return false;
-    if (status === 'unlinked' &&  r.user_id) return false;
+    if (status === 'linked'      && !r.user_id) return false;
+    if (status === 'unlinked'    &&  r.user_id) return false;
+    if (status === 'trial'       && !r.is_trial) return false;
+    if (status === 'fee-overdue' && !(r.fee_paid === false && r.fee_due_date && r.fee_due_date < todayStr)) return false;
     if (cat && r.squad_id !== cat) return false;
     if (query) {
       const n = (r.display_name || '').toLowerCase();
