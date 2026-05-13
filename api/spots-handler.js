@@ -4,7 +4,7 @@
 import {
   dbGet, dbRpc,
   generateSlug,
-  REGION_DOMAINS, REGION_NAMES, REGION_INTROS,
+  REGION_DOMAINS, REGION_NAMES, REGION_INTROS, REGION_COUNTRY_FILTER,
   getLocationLabel, getRegionSlug,
   haversineKm, timeAgo, escapeHtml, formatDate,
 } from './seo-utils.js';
@@ -333,7 +333,8 @@ async function renderRegionalPage(regionSlug) {
   const regionName = REGION_NAMES[regionSlug];
   const domains = REGION_DOMAINS[regionSlug];
 
-  const spots = await dbRpc('seo_regional_spots', { p_domains: domains }) || [];
+  const countryFilter = REGION_COUNTRY_FILTER[regionSlug] || null;
+  const spots = await dbRpc('seo_regional_spots', { p_domains: domains, p_country_code: countryFilter }) || [];
   const poolSpots = spots.filter(s => s.water_type === 'POOL');
   const showWinter = ['west-coast', 'atlantic', 'false-bay', 'eastern-cape', 'garden-route'].includes(regionSlug) && poolSpots.length > 0;
   const allPools = spots.length > 0 && spots.every(s => s.water_type === 'POOL');

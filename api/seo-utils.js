@@ -59,6 +59,14 @@ export const DOMAIN_MAP = {
   WESTERN_AUSTRALIA: { display: 'Western Australia',  region: 'western-australia' },
 };
 
+// Country-code filter for region slugs that are sub-regions of a shared domain (e.g. EUROPE)
+// If a slug appears here, the regional page only shows spots with that country_code
+export const REGION_COUNTRY_FILTER = {
+  'switzerland': 'CH',
+  'portugal':    'PT',
+  'australia':   'AU',  // WESTERN_AUSTRALIA only has AU spots currently, but future-proof
+};
+
 // For EUROPE domain spots, resolve a specific country label from the ISO code
 export const EUROPE_COUNTRY_MAP = {
   CH: 'Switzerland',
@@ -107,8 +115,8 @@ export const REGION_DOMAINS = {
   'namibia':           ['NAMIBIA'],
   'united-kingdom':    ['UK'],
   'europe':            ['EUROPE'],
-  'switzerland':       ['EUROPE'],           // CH spots live in EUROPE domain
-  'portugal':          ['EUROPE'],           // PT spots live in EUROPE domain
+  'switzerland':       ['EUROPE'],           // CH spots — filtered by country_code
+  'portugal':          ['EUROPE'],           // PT spots — filtered by country_code
   'western-australia': ['WESTERN_AUSTRALIA'],
   'australia':         ['WESTERN_AUSTRALIA'], // friendly alias
 };
