@@ -1102,11 +1102,10 @@ async function addNewTrial() {
   const name = walkinQuery.trim();
   if (!name) return;
 
-  const btn = document.getElementById('walkinNewBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;margin:0 auto;"></div>';
-
-  const squad = allSquads.find(s => s.id === activeSqSession?.squad_id);
+  const btn       = document.getElementById('walkinNewBtn');
+  const labelText = `Add "${name}" as new trial swimmer`; // capture before innerHTML wipes the span
+  btn.disabled    = true;
+  btn.innerHTML   = '<div class="spinner" style="width:18px;height:18px;margin:0 auto;"></div>';
 
   const { data: newMember, error } = await sb.from('club_roster').insert({
     club_id:      currentClub.id,
@@ -1114,11 +1113,10 @@ async function addNewTrial() {
     squad_id:     activeSqSession?.squad_id || null,
     is_trial:     true,
     fee_paid:     false,
-    created_by:   currentUser.id,
   }).select('id, display_name, member_number, squad_id, is_trial, fee_paid').single();
 
-  btn.disabled = false;
-  btn.innerHTML = `<i data-lucide="plus-circle" style="width:16px;height:16px;"></i><span>${document.getElementById('walkinNewLabel').textContent}</span>`;
+  btn.disabled  = false;
+  btn.innerHTML = `<i data-lucide="plus-circle" style="width:16px;height:16px;"></i><span id="walkinNewLabel">${labelText}</span>`;
   lucide.createIcons();
 
   if (error) { toast('Could not add: ' + error.message, 'error'); return; }
