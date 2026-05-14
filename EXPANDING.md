@@ -9,7 +9,7 @@
 
 SwimLoading is a 6-tab PWA. Regions and spots are stored in Supabase (`domains` and `spots` tables). Most of the app is **DB-driven** — add a row and it appears everywhere. The exceptions are: international domains (need code changes), the Safety tab (regional content is hardcoded per safety group), and SEO pages (need seo-utils.js entries). Everything else is automatic.
 
-**7 countries live** (South Africa, Namibia, United Kingdom, Australia, Switzerland, Portugal, USA). welcome.html country sections are now data-driven from the `INTL_COUNTRIES` array — add one object there and it propagates to hero pills, stats counter, origin story, and country grid automatically.
+**8 countries live** (South Africa, Namibia, United Kingdom, Australia, Switzerland, Portugal, USA, Seychelles). welcome.html has a data-driven `INTL_COUNTRIES` array for pills and grid cards, but also has **8 hardcoded country count strings** that must be updated manually every time a country is added.
 
 ---
 
@@ -17,9 +17,9 @@ SwimLoading is a 6-tab PWA. Regions and spots are stored in Supabase (`domains` 
 
 This is now the fast path. Do these steps in order:
 
-### Step 1 — welcome.html: `INTL_COUNTRIES` array (ONE place)
+### Step 1 — welcome.html: `INTL_COUNTRIES` array + hardcoded counts
 
-In the last `<script>` block of `welcome.html`, add one entry to `INTL_COUNTRIES`:
+**Part A — `INTL_COUNTRIES` array** (last `<script>` block of `welcome.html`):
 
 ```javascript
 {
@@ -36,7 +36,27 @@ In the last `<script>` block of `welcome.html`, add one entry to `INTL_COUNTRIES
 },
 ```
 
-This one addition updates all four surfaces: hero pills, stats counter (auto-increments), origin story sentence, and country grid cards. No other welcome.html edits needed.
+**Part B — Hardcoded country counts** (must be updated manually — these do NOT auto-update):
+
+Search welcome.html for the current number (e.g. `8`) and update ALL occurrences to the new count. There are currently **8 hardcoded strings** — grep for them:
+
+```bash
+grep -n "countries\|Seven\|Eight\|Nine\|[0-9] countries" welcome.html
+```
+
+The locations are:
+1. `<span id="stat-countries">8</span>` — stats bar counter
+2. `spots across 8 countries —` — dashboard feature description
+3. `<h2 ...>Eight countries.<br>See the data.</h2>` — Trends feature heading
+4. `Regional overviews across South Africa, Namibia, UK, Australia, Switzerland, Portugal, USA, and the Seychelles.` — Trends text (add the new country name here too)
+5. `8 countries and growing` — carousel slide description
+6. `live across eight countries` — Going Global section paragraph
+7. `100+ swim spots across 8 countries` — map pin callout
+8. `Swim spots across 8 countries` — SEO section heading
+
+Also add the new country's pill to the "International — live now" pills block in the Going Global section.
+
+**⚠️ The INTL_COUNTRIES array does NOT drive these hardcoded strings. Both must be updated.**
 
 ### Step 2 — api/seo-utils.js: Five entries
 
@@ -84,9 +104,37 @@ const INTERNATIONAL_DOMAINS = new Set(['EUROPE', 'NAMIBIA', 'UK', 'WESTERN_AUSTR
 
 This triggers: gold borders on region cards, intl pill in spot picker, "International" filter in Trends, dynamic hazard types, swapped emergency contacts in Safety.
 
-### Step 5 — app.js: Safety content (5 objects)
+### Step 5 — app.js: Safety content (5 objects — ALL required)
 
-See the "Adding a New International Domain" section below for the full safety object templates.
+In `renderSafetyRegionalContent()`, add one entry to **each** of these 5 objects. Missing any one = blank or broken Safety tab for that country.
+
+```javascript
+// 1. ALERT_TIPS — regional hazard card (color: '#ef4444' red or '#f59e0b' amber)
+france: {
+    color: '#f59e0b', icon: 'alert-triangle', title: 'France Open Water Hazards',
+    body: 'Check local Fédération Française de Natation advisories. Jellyfish (Méduses) are common in the Mediterranean May–Sep. Strong currents in the Brittany/Normandy channels.',
+},
+
+// 2. SHARK_NOTES — null if no sharks; string if sharks present
+france: null,
+
+// 3. COLD_NOTES — water temperature context for the region
+france: `<strong>France temps:</strong> Mediterranean 20–26°C in summer. Atlantic coast 14–20°C. Cold shock risk low in summer but real on the Atlantic coast in spring/autumn.`,
+
+// 4. REGIONAL_CONTACTS — array of contact card tuples
+france: [
+    ['tel:15','phone','SAMU (Medical Emergency)','Ambulance · Medical · Water rescue','15'],
+    ['tel:196','anchor','CROSS (Maritime Rescue)','Sea rescue coordination · French coast','196'],
+],
+
+// 5. REGIONAL_REPORTING — object with title and contacts array
+france: { title: 'Reporting (France)', contacts: [
+    ['tel:196','anchor','CROSS Maritime Rescue','Sea rescue · Marine incident reporting','196'],
+    ['tel:3939','droplets','Water Quality Hotline','Pollution · Beach closure · Water quality','39 39'],
+]},
+```
+
+**After adding all 5:** switch Safety → select the new country → verify each section renders correctly.
 
 ### Step 6 — vercel.json: No change needed
 
@@ -98,16 +146,34 @@ The `/countries/*` route already routes to `spots-handler.js`, which reads `COUN
 <script src="app.js?v=22"></script>  <!-- increment by 1 -->
 ```
 
-### Step 8 — Verify
+### Step 8 — Verify (every item, every time)
 
-- [ ] welcome.html hero: new country pill appears
-- [ ] welcome.html stats: country count incremented
-- [ ] welcome.html origin story: country name appears in sentence
-- [ ] welcome.html grid: country card appears
-- [ ] `/spots/france` returns a 200 with region content
-- [ ] `/countries/france` returns a 200 (same content)
-- [ ] App: Trends → International shows new country card
-- [ ] App: Safety → select new country shows correct emergency contacts
+**welcome.html**
+- [ ] Hero: new country pill appears in the scrolling pill strip
+- [ ] Stats bar: country count is correct (e.g. 9 not 8)
+- [ ] Trends feature heading: "Nine countries. See the data."
+- [ ] Trends feature text: new country name in the list
+- [ ] Carousel: "9 countries and growing"
+- [ ] Going Global paragraph: "nine countries"
+- [ ] Going Global pills: new country pill in the International section
+- [ ] Map pin callout: "100+ swim spots across 9 countries"
+- [ ] SEO heading: "Swim spots across 9 countries"
+- [ ] Country grid card appears
+
+**SEO**
+- [ ] `/spots/[region-slug]` returns 200 with region content
+- [ ] `/countries/[country-slug]` returns 200
+
+**App — Safety tab** (switch Safety region to the new country and check each section)
+- [ ] ALERT_TIPS card renders with correct title and body
+- [ ] SHARK_NOTES section: shows shark note or is hidden (not blank/broken)
+- [ ] COLD_NOTES section: shows temperature context
+- [ ] Emergency contacts: correct national numbers (not SA numbers like NSRI/10177)
+- [ ] Regional reporting section: renders with correct contacts
+
+**App — other tabs**
+- [ ] Trends → International filter shows new country card
+- [ ] Spot picker → International tab shows new country's spots
 
 ---
 
@@ -468,15 +534,31 @@ These are non-negotiable. Every broken deploy traced back to one of these.
 ### Deployment order for a new international country
 
 ```
-1. Run SQL migration in Supabase (domains INSERT + spots INSERTs)
-2. Edit welcome.html — add entry to INTL_COUNTRIES array
-3. Edit app.js (INTERNATIONAL_DOMAINS + 5 safety objects)
-4. Edit api/seo-utils.js (DOMAIN_MAP + REGION_DOMAINS + REGION_NAMES + REGION_INTROS + COUNTRY_SLUGS)
+1. Run SQL migration in Supabase (countries INSERT + domains INSERT + spots INSERTs)
+2. Edit welcome.html:
+   a. Add entry to INTL_COUNTRIES array (hero pill + grid card)
+   b. Update ALL 8 hardcoded country count strings (grep for current number)
+   c. Add country pill to the Going Global "International" pills block
+3. Edit app.js:
+   a. Add to INTERNATIONAL_DOMAINS Set
+   b. Add to SAFETY_GROUP
+   c. Add to isIntlGroup (if no sharks / needs intl emergency swap)
+   d. Add to ALERT_TIPS
+   e. Add to SHARK_NOTES (null if no sharks)
+   f. Add to COLD_NOTES
+   g. Add to REGIONAL_CONTACTS
+   h. Add to REGIONAL_REPORTING
+4. Edit api/seo-utils.js:
+   a. DOMAIN_MAP entry
+   b. REGION_DOMAINS entry
+   c. REGION_NAMES entry
+   d. REGION_INTROS entry
+   e. COUNTRY_SLUGS entry
 5. Bump app.js version in index.html
 6. git add → git commit → git push
 7. Vercel auto-deploys (~30s)
 8. Hard refresh: Cmd+Shift+R
-9. Run consistency checklist above
+9. Run full verify checklist above — every item
 ```
 
 ---

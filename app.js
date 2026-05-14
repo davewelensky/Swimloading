@@ -5357,6 +5357,10 @@
                         color: '#f59e0b', icon: 'alert-triangle', title: 'San Francisco Bay — Know Before You Go',
                         body: '<strong>Aquatic Park</strong> is sheltered and generally safe year-round. <strong>Ocean Beach</strong> is a different story — extremely strong rip currents, cold Pacific surf, and no lifeguards year-round. Great White Sharks are active near the Farallon Islands (25 miles offshore) and occasionally enter the Bay. Water is cold (12–16°C) — acclimatise gradually.',
                     },
+                    seychelles: {
+                        color: '#f59e0b', icon: 'alert-triangle', title: 'Seychelles Open Water Hazards',
+                        body: 'Seychelles waters are warm and generally calm, but <strong>stone fish</strong> and <strong>sea urchins</strong> are present — wear reef shoes in shallow water. Box jellyfish are occasionally reported. Currents can be strong during the northwest monsoon (Nov–Mar). Swim at beaches with lifeguard cover where possible.',
+                    },
                 };
                 const tip = ALERT_TIPS[group];
                 if (tip) {
@@ -5385,6 +5389,7 @@
                 europe:            null,
                 western_australia: `<strong>Western Australia:</strong> Great White Sharks are active along the WA coast year-round. No shark nets at Cottesloe — swim at patrolled beaches between the flags. Download the <strong>SharkSmart WA app</strong> for real-time tagged shark alerts.`,
                 usa:               `<strong>San Francisco Bay Area:</strong> Great White Sharks patrol the waters near the Farallon Islands (25 miles offshore) and are occasionally tracked entering the Bay. Attacks inside Aquatic Park are extremely rare — the cove has a 50+ year safety record. Check the <strong>Shark Net app</strong> for tagged shark activity off the California coast.`,
+                seychelles:        `<strong>Seychelles:</strong> Shark attacks are very rare but have occurred historically at a small number of spots. Bull sharks are present in some deeper channels. Swim at beaches recommended by local operators and avoid areas with fishing activity or murky runoff water.`,
             };
             const sharksNote = document.getElementById('sharksRegionalNote');
             if (sharksNote) {
@@ -5405,6 +5410,7 @@
                 europe:            `<strong>European open water:</strong> Temperatures vary widely by region and season. Nordic/Alpine lakes can be 5–15°C even in summer. Check local conditions before swimming and always have a warm change ready.`,
                 western_australia: `<strong>WA (Indian Ocean) temps:</strong> Perth's Indian Ocean runs 17–22°C in summer and 15–18°C in winter — comfortable year-round. Cold shock is a low risk, but be aware of strong afternoon sea breezes (Fremantle Doctor) creating chop and currents at exposed beaches.`,
                 usa:               `<strong>San Francisco Bay temps:</strong> Aquatic Park runs 12–16°C year-round — cold even in summer, thanks to Pacific upwelling. The Pacific at Ocean Beach is typically 11–14°C. Cold shock on entry is a real risk. The local Dolphin Club and South End Rowing Club swim here daily without wetsuits — acclimatise gradually.`,
+                seychelles:        `<strong>Seychelles temps:</strong> Indian Ocean water sits at 27–30°C year-round — no cold shock risk. Hypothermia is not a concern, but stay hydrated and use sun protection. Water is warmest and calmest during the southeast trade wind season (May–Oct).`,
             };
             const coldNote = document.getElementById('coldWaterRegionalNote');
             if (coldNote) {
@@ -5450,6 +5456,10 @@
                 usa: [
                     ['tel:911','phone','Emergency Services','Police · Ambulance · Fire · Coast Guard','911'],
                     ['tel:14153995555','anchor','USCG Sector San Francisco','US Coast Guard · Marine emergency','415-399-3547'],
+                ],
+                seychelles: [
+                    ['tel:999','phone','Emergency Services','Police · Ambulance · Fire · Coast Guard','999'],
+                    ['tel:+248 4 297 000','anchor','Seychelles Coast Guard','Maritime emergency · Search & rescue','+248 4 297 000'],
                 ],
             };
             const contactsEl = document.getElementById('safetyRegionalContacts');
@@ -5498,6 +5508,11 @@
                     ['tel:911','phone','Emergency Services','Police · Ambulance · Fire · Coast Guard','911'],
                     ['tel:14153995555','anchor','USCG Sector San Francisco','Marine emergency · Search & rescue','415-399-3547'],
                     ['tel:14157050100','droplets','SF Bay Regional Water Quality','Pollution · Sewage · Water quality incidents','415-705-0100'],
+                ]},
+                seychelles: { title: 'Reporting (Seychelles)', contacts: [
+                    ['tel:999','phone','Emergency Services','Police · Ambulance · Fire · Coast Guard','999'],
+                    ['tel:+248 4 297 000','anchor','Seychelles Coast Guard','Maritime emergency · Marine incidents','+248 4 297 000'],
+                    ['tel:+248 4 322 000','droplets','Seychelles Tourism Authority','Tourist assistance · Local advice','+248 4 322 000'],
                 ]},
             };
             const reportingEl = document.getElementById('safetyRegionalReporting');
