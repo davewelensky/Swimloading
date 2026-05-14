@@ -6507,7 +6507,7 @@
             if (pickerCategory === 'POOL') {
                 const bs = document.getElementById('spBrandStrip');
                 if (bs) bs.classList.add('sp-visible');
-            } else {
+            } else if (pickerCategory !== 'INTL') {
                 renderRegionStrip(pickerCategory);
             }
 
@@ -6603,7 +6603,13 @@
             document.getElementById('spSearchClear').style.display = 'none';
 
             const brandStrip = document.getElementById('spBrandStrip');
-            if (cat === 'POOL') {
+            if (cat === 'INTL') {
+                // International: hide both strips, list handled by renderSpotPickerList
+                if (brandStrip) brandStrip.classList.remove('sp-visible');
+                const regionStrip = document.getElementById('spRegionStrip');
+                if (regionStrip) { regionStrip.classList.remove('sp-visible'); regionStrip.innerHTML = ''; }
+                pickerBrand = null;
+            } else if (cat === 'POOL') {
                 // Show brand strip, hide region strip
                 if (brandStrip) brandStrip.classList.add('sp-visible');
                 const regionStrip = document.getElementById('spRegionStrip');
@@ -6659,19 +6665,14 @@
             const localDomains = activeDomains.filter(c => !spots.some(s => s.domain === c && internationalSpotIds.has(s.id)));
             const intlInCat    = activeDomains.filter(c =>  spots.some(s => s.domain === c && internationalSpotIds.has(s.id)));
 
-            // Build pills — "All" first, then local domains, then a single "International" pill
-            let html = `<div class="sp-brand-pill sp-region-pill active" onclick="setPickerDomain(null,this)">All</div>`;
+            // Build pills — "All" first, then local domains
+            let pills = `<div class="sp-brand-pill sp-region-pill active" onclick="setPickerDomain(null,this)">All</div>`;
             localDomains.forEach(code => {
                 const name = spAreaName(code);
-                html += `<div class="sp-brand-pill sp-region-pill" onclick="setPickerDomain('${code}',this)">${name}</div>`;
+                pills += `<div class="sp-brand-pill sp-region-pill" onclick="setPickerDomain('${code}',this)">${name}</div>`;
             });
 
-            // Always show International pill if any intl spots exist anywhere
-            if (hasIntlSpots) {
-                html += `<div class="sp-brand-pill sp-region-pill" style="border-color:#d97706;color:#d97706;" onclick="setPickerIntl(this)"><i data-lucide="globe" style="width:11px;height:11px;display:inline-block;vertical-align:middle;margin-right:3px;"></i>International</div>`;
-            }
-
-            strip.innerHTML = html;
+            strip.innerHTML = `<div class="sp-region-label">Area</div><div class="sp-region-pills">${pills}</div>`;
             strip.classList.add('sp-visible');
             initIcons();
         }
@@ -6797,8 +6798,42 @@
             const q          = pickerSearch.trim().toLowerCase();
             const currentVal = document.getElementById('logTempSpotSelect')?.value || '';
 
+            // INTL tab — show all international spots, filtered by search if active
+            if (pickerCategory === 'INTL') {
+                let filtered = spots.filter(s => s.active !== false && internationalSpotIds.has(s.id));
+                if (q) {
+                    filtered = filtered.filter(s =>
+                        s.name.toLowerCase().includes(q) ||
+                        spAreaName(s.domain).toLowerCase().includes(q) ||
+                        (s.domain || '').toLowerCase().includes(q)
+                    );
+                }
+                if (filtered.length === 0) {
+                    container.innerHTML = `<div class="sp-empty"><div class="sp-empty-icon"><i data-lucide="globe" style="width:32px;height:32px;"></i></div><div class="sp-empty-text">${q ? `No international spots found for "${pickerSearch}"` : 'No international spots yet'}</div></div>${spAddRowHTML()}`;
+                    initIcons();
+                    return;
+                }
+                const spotsWithDist = filtered.map(s => ({
+                    ...s,
+                    _dist: (pickerGpsCoords && s.latitude && s.longitude)
+                        ? getDistanceKm(pickerGpsCoords.lat, pickerGpsCoords.lng, s.latitude, s.longitude)
+                        : null
+                })).sort((a, b) => {
+                    if (a._dist !== null && b._dist !== null) return a._dist - b._dist;
+                    if (a._dist !== null) return -1;
+                    if (b._dist !== null) return 1;
+                    return a.name.localeCompare(b.name);
+                });
+                let html = '';
+                spotsWithDist.forEach((s, i) => { html += _spRowHTML(s, currentVal, Math.min(i * 18, 300)); });
+                html += spAddRowHTML();
+                container.innerHTML = html;
+                initIcons();
+                return;
+            }
+
             if (q === '__intl__') {
-                // International pill — show all spots where countries.is_domestic = false
+                // Legacy path — show all spots where countries.is_domestic = false
                 const filtered = spots.filter(s => s.active !== false && internationalSpotIds.has(s.id));
                 if (filtered.length === 0) {
                     container.innerHTML = `<div class="sp-empty"><div class="sp-empty-icon"><i data-lucide="globe" style="width:32px;height:32px;"></i></div><div class="sp-empty-text">No international spots found</div></div>${spAddRowHTML()}`;
