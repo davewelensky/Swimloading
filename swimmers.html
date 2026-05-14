@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>World-Class Swimmers — SwimLoading</title>
+  <meta name="description" content="The open water swimmers who use SwimLoading — from world record holders to everyday cold water devotees. Real swimmers, real data.">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080f1a;
+      --bg-card:  #0d1728;
+      --cyan:     #38bdf8;
+      --text:     #f1f5f9;
+      --text-sec: #64748b;
+      --border:   rgba(255,255,255,0.06);
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* Mouse spotlight */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      background:
+        radial-gradient(18px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+          rgba(56,189,248,0.55), transparent 100%),
+        radial-gradient(500px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+          rgba(56,189,248,0.07), transparent 70%);
+    }
+
+    /* Nav */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8,15,26,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      text-decoration: none;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .nav-cta {
+      background: var(--cyan);
+      color: #080f1a;
+      border: none;
+      border-radius: 50px;
+      padding: 9px 20px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    /* Hero */
+    .hero {
+      text-align: center;
+      padding: 96px 24px 72px;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .hero-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--cyan);
+      background: rgba(56,189,248,0.1);
+      border: 1px solid rgba(56,189,248,0.2);
+      border-radius: 100px;
+      padding: 5px 14px;
+      margin-bottom: 24px;
+    }
+    .hero h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(48px, 8vw, 80px);
+      line-height: 1;
+      letter-spacing: 1px;
+      margin-bottom: 20px;
+    }
+    .hero h1 span {
+      background: linear-gradient(135deg,#38bdf8,#0ea5e9);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: 17px;
+      color: var(--text-sec);
+      max-width: 520px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+
+    /* Swimmer grid */
+    .swimmer-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px 96px;
+    }
+
+    .swimmer-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .swimmer-card:hover {
+      border-color: rgba(56,189,248,0.2);
+      transform: translateY(-2px);
+    }
+    .swimmer-card.featured {
+      grid-column: 1 / -1;
+      flex-direction: row;
+      gap: 32px;
+      align-items: flex-start;
+    }
+
+    .swimmer-avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 26px;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .swimmer-card.featured .swimmer-avatar {
+      width: 96px;
+      height: 96px;
+      font-size: 34px;
+    }
+
+    .swimmer-name {
+      font-weight: 700;
+      font-size: 20px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .swimmer-card.featured .swimmer-name {
+      font-size: 24px;
+    }
+
+    .swimmer-tagline {
+      font-size: 13px;
+      color: var(--text-sec);
+      line-height: 1.6;
+    }
+
+    .swimmer-records {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .record-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .record-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: rgba(56,189,248,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .record-icon svg { color: var(--cyan); }
+    .record-text {
+      font-size: 13px;
+      color: var(--text-sec);
+      line-height: 1.5;
+    }
+    .record-text strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .swimmer-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      margin-top: auto;
+    }
+    .location-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      border-radius: 100px;
+      padding: 4px 12px;
+    }
+    .last-logged {
+      font-size: 11px;
+      color: var(--text-sec);
+    }
+    .last-logged strong {
+      color: var(--cyan);
+    }
+
+    /* CTA */
+    .page-cta {
+      text-align: center;
+      padding: 0 24px 96px;
+    }
+    .page-cta h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 40px;
+      margin-bottom: 12px;
+    }
+    .page-cta p {
+      color: var(--text-sec);
+      font-size: 15px;
+      margin-bottom: 28px;
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--cyan);
+      color: #080f1a;
+      border-radius: 50px;
+      padding: 14px 28px;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.15);
+      color: var(--text);
+      border-radius: 50px;
+      padding: 14px 28px;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      margin-left: 12px;
+    }
+
+    footer {
+      text-align: center;
+      padding: 32px 24px;
+      font-size: 12px;
+      color: var(--text-sec);
+      border-top: 1px solid var(--border);
+    }
+
+    @media (max-width: 640px) {
+      .swimmer-card.featured {
+        flex-direction: column;
+        grid-column: auto;
+      }
+      .swimmer-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="/" class="nav-brand">
+      <img src="/icons/logo-wave.png" alt="" style="height:22px;width:auto;">
+      SwimLoading
+    </a>
+    <a href="/app" class="nav-cta">Open app</a>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-label">
+      <i data-lucide="users" style="width:13px;height:13px;"></i>
+      Who swims with us
+    </div>
+    <h1>World records.<br><span>Same app.</span></h1>
+    <p>The open water swimmers who use SwimLoading — from record-breaking channel crossings to daily cold water routines. Real swimmers, real data.</p>
+  </div>
+
+  <div class="swimmer-grid">
+
+    <!-- Cameron Bellamy — featured -->
+    <div class="swimmer-card featured">
+      <div class="swimmer-avatar" style="background:linear-gradient(135deg,#60a5fa,#3b82f6);">CB</div>
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+          <div class="swimmer-name">Cameron Bellamy</div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#60a5fa;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2);border-radius:100px;padding:3px 10px;">New</div>
+        </div>
+        <div class="swimmer-tagline" style="margin-bottom:16px;">South African open water swimmer based in San Francisco. One of the most decorated endurance athletes in the world — ocean crossings, polar rowing, and pursuit of records that redefine what's humanly possible in water.</div>
+        <div class="swimmer-records">
+          <div class="record-row">
+            <div class="record-icon"><i data-lucide="trophy" style="width:14px;height:14px;"></i></div>
+            <div class="record-text"><strong>World record — longest ocean channel swim</strong> · 151.7 km, Barbados to St Lucia in 56 hours 36 minutes (September 2019). Previous record: 124.4 km.</div>
+          </div>
+          <div class="record-row">
+            <div class="record-icon"><i data-lucide="anchor" style="width:14px;height:14px;"></i></div>
+            <div class="record-text"><strong>Drake Passage row</strong> · 665 mi across the world's most dangerous stretch of water with five others (December 2019). Documented by Discovery Channel in <em>The Impossible Row</em>.</div>
+          </div>
+          <div class="record-row">
+            <div class="record-icon"><i data-lucide="map-pin" style="width:14px;height:14px;"></i></div>
+            <div class="record-text"><strong>Home water</strong> · Aquatic Park, San Francisco Bay — logging temps with the community.</div>
+          </div>
+        </div>
+        <div class="swimmer-footer" style="margin-top:20px;">
+          <div class="location-badge" style="color:#60a5fa;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.15);">
+            <i data-lucide="map-pin" style="width:11px;height:11px;"></i>
+            San Francisco, USA
+          </div>
+          <div class="last-logged" id="last-cameron">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Carina Brüwer -->
+    <div class="swimmer-card">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div class="swimmer-avatar" style="background:linear-gradient(135deg,#f472b6,#ec4899);">CB</div>
+        <div>
+          <div class="swimmer-name">Carina Brüwer</div>
+          <div class="swimmer-tagline">One of Africa's most accomplished open water swimmers</div>
+        </div>
+      </div>
+      <div class="swimmer-records">
+        <div class="record-row">
+          <div class="record-icon"><i data-lucide="trophy" style="width:14px;height:14px;"></i></div>
+          <div class="record-text"><strong>False Bay Crossing</strong> · 33 km west to east in 9 hours 48 minutes — one of the most demanding open water swims in South Africa.</div>
+        </div>
+        <div class="record-row">
+          <div class="record-icon"><i data-lucide="repeat" style="width:14px;height:14px;"></i></div>
+          <div class="record-text"><strong>12 Robben Island crossings</strong> · including the first in 12 years when she revived the route. Multiple race wins in Cape open water events.</div>
+        </div>
+        <div class="record-row">
+          <div class="record-icon"><i data-lucide="link" style="width:14px;height:14px;"></i></div>
+          <div class="record-text"><a href="https://www.carina.co.za" target="_blank" style="color:var(--cyan);">carina.co.za</a></div>
+        </div>
+      </div>
+      <div class="swimmer-footer">
+        <div class="location-badge" style="color:#22d3ee;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.15);">
+          <i data-lucide="map-pin" style="width:11px;height:11px;"></i>
+          South Africa
+        </div>
+        <div class="last-logged" id="last-carina">—</div>
+      </div>
+    </div>
+
+    <!-- Ryan Stramrood -->
+    <div class="swimmer-card">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div class="swimmer-avatar" style="background:linear-gradient(135deg,#34d399,#10b981);">RS</div>
+        <div>
+          <div class="swimmer-name">Ryan Stramrood</div>
+          <div class="swimmer-tagline">Multiple world records · ocean ultra-marathon swimmer</div>
+        </div>
+      </div>
+      <div class="swimmer-records">
+        <div class="record-row">
+          <div class="record-icon"><i data-lucide="trophy" style="width:14px;height:14px;"></i></div>
+          <div class="record-text"><strong>World record — St Helena circumnavigation</strong> · 48 km solo unassisted in 16 hrs 50 min (March 2026). Also holds the record for fastest False Bay crossing (33 km).</div>
+        </div>
+        <div class="record-row">
+          <div class="record-icon"><i data-lucide="flag" style="width:14px;height:14px;"></i></div>
+          <div class="record-text"><strong>First around Cape Horn</strong> open water (2013) · first Bering Strait relay (2021) · 146 Robben Island crossings · first skins swimmer to complete the Cape Town Triple Crown — 58.5 km (2025).</div>
+        </div>
+        <div class="record-row">
+          <div class="record-icon"><i data-lucide="link" style="width:14px;height:14px;"></i></div>
+          <div class="record-text"><a href="https://ryanstramrood.com" target="_blank" style="color:var(--cyan);">ryanstramrood.com</a></div>
+        </div>
+      </div>
+      <div class="swimmer-footer">
+        <div class="location-badge" style="color:#22d3ee;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.15);">
+          <i data-lucide="map-pin" style="width:11px;height:11px;"></i>
+          South Africa
+        </div>
+        <div class="last-logged" id="last-ryan">—</div>
+      </div>
+    </div>
+
+    <!-- Sarah Ferguson -->
+    <div class="swimmer-card">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div class="swimmer-avatar" style="background:linear-gradient(135deg,#fbbf24,#f59e0b);">SF</div>
+        <div>
+          <div class="swimmer-name">Sarah Ferguson</div>
+          <div class="swimmer-tagline">Ocean conservationist · world-first channel swimmer</div>
+        </div>
+      </div>
+      <div class="swimmer-records">
+        <div class="record-row">
+          <div class="record-icon"><i data-lucide="trophy" style="width:14px;height:14px;"></i></div>
+          <div class="record-text"><strong>First African woman to swim the Ka'iwi Channel</strong> · 58.9 km, Hawaii (2017). First person ever to swim around Easter Island · 63.5 km (2019).</div>
+        </div>
+        <div class="record-row">
+          <div class="record-icon"><i data-lucide="leaf" style="width:14px;height:14px;"></i></div>
+          <div class="record-text"><strong>Founder of Breathe Conservation</strong> · ocean conservationist and activist against plastic pollution — using swimming as a platform for environmental change.</div>
+        </div>
+      </div>
+      <div class="swimmer-footer">
+        <div class="location-badge" style="color:#22d3ee;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.15);">
+          <i data-lucide="map-pin" style="width:11px;height:11px;"></i>
+          South Africa
+        </div>
+        <div class="last-logged" id="last-sarah">—</div>
+      </div>
+    </div>
+
+    <!-- Andy Donaldson -->
+    <div class="swimmer-card">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div class="swimmer-avatar" style="background:linear-gradient(135deg,#a78bfa,#7c3aed);">AD</div>
+        <div>
+          <div class="swimmer-name">Andy Donaldson</div>
+          <div class="swimmer-tagline">First person to complete Oceans Seven in one calendar year</div>
+        </div>
+      </div>
+      <div class="swimmer-records">
+        <div class="record-row">
+          <div class="record-icon"><i data-lucide="trophy" style="width:14px;height:14px;"></i></div>
+          <div class="record-text"><strong>Calendar Year Oceans Seven</strong> · all 7 channels in 355 days, cumulative swim time 63 hrs 2 min (2022–2023). 22nd person ever to complete the Oceans Seven. Cook Strait record — 4 hrs 33 min.</div>
+        </div>
+        <div class="record-row">
+          <div class="record-icon"><i data-lucide="award" style="width:14px;height:14px;"></i></div>
+          <div class="record-text"><strong>IMSF Honour Swimmer 2026</strong> · inducted into the International Marathon Swimming Hall of Fame. From Scotland · now based in Perth, Western Australia.</div>
+        </div>
+      </div>
+      <div class="swimmer-footer">
+        <div class="location-badge" style="color:#34d399;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.15);">
+          <i data-lucide="map-pin" style="width:11px;height:11px;"></i>
+          Perth, Australia
+        </div>
+        <div class="last-logged" id="last-andy">—</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="page-cta">
+    <h2>Log your water too</h2>
+    <p>Every SwimLoading user contributes to the same live database — whether you're chasing world records or your morning swim.</p>
+    <a href="/app" class="btn-primary">
+      <i data-lucide="thermometer" style="width:16px;height:16px;"></i>
+      Start logging
+    </a>
+    <a href="/" class="btn-ghost">Learn more</a>
+  </div>
+
+  <footer>
+    SwimLoading &nbsp;·&nbsp; <a href="/" style="color:var(--text-sec);text-decoration:none;">swimloading.com</a>
+  </footer>
+
+  <script>
+    lucide.createIcons();
+
+    document.addEventListener('mousemove', e => {
+      document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+      document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+    });
+
+    // Pull last-logged entry per swimmer by display_name
+    const SUPABASE_URL = 'https://dwetwxpkqfjwbgkbxgat.supabase.co';
+    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3ZXR3eHBrcWZqd2Jna2J4Z2F0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2ODM3MjM0NDcsImV4cCI6MTk5OTI5OTQ0N30.S08bkJVdFhrRXxTPUjOwzP4tz8fmVdcIjw9c0ByIxKY';
+
+    const swimmers = [
+      { id: 'last-cameron', name: 'Cameron Bellamy' },
+      { id: 'last-carina',  name: 'Carina Brüwer' },
+      { id: 'last-ryan',    name: 'Ryan Stramrood' },
+      { id: 'last-sarah',   name: 'Sarah Ferguson' },
+      { id: 'last-andy',    name: 'Andy Donaldson' },
+    ];
+
+    function timeAgo(dateStr) {
+      const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
+      if (diff < 3600)  return Math.floor(diff / 60) + 'm ago';
+      if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+      return Math.floor(diff / 86400) + 'd ago';
+    }
+
+    swimmers.forEach(async ({ id, name }) => {
+      try {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/rpc/get_swimmer_last_log`,
+          {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_ANON,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ swimmer_name: name }),
+          }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.temperature) {
+          const el = document.getElementById(id);
+          if (el) el.innerHTML = `Last logged <strong>${data.temperature}°C</strong> · ${timeAgo(data.created_at)}`;
+        }
+      } catch {}
+    });
+  </script>
+
+</body>
+</html>

@@ -5247,10 +5247,11 @@
                 UK:                'uk',
                 EUROPE:            'europe',
                 WESTERN_AUSTRALIA: 'western_australia',
+                USA:               'usa',
             };
             const group = SAFETY_GROUP[domain] || '';
 
-            const isIntlGroup = group === 'uk' || group === 'europe' || group === 'western_australia';
+            const isIntlGroup = group === 'uk' || group === 'europe' || group === 'western_australia' || group === 'usa';
 
             // ── Show/hide sharks section — no sharks for UK/Europe (WA has sharks) ─
             const sharksSection = document.getElementById('sharksSection');
@@ -5271,6 +5272,10 @@
                         ? `<a href="tel:000" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
                             <div><div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="phone-call" style="width:14px;height:14px;flex-shrink:0;"></i> Emergency Services</div><div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">Police · Ambulance · Fire · Sea Rescue</div></div>
                             <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">000</span></a>`
+                        : group === 'usa'
+                        ? `<a href="tel:911" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
+                            <div><div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="phone-call" style="width:14px;height:14px;flex-shrink:0;"></i> Emergency Services</div><div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">Police · Ambulance · Fire · Coast Guard</div></div>
+                            <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">911</span></a>`
                         : `<a href="tel:112" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
                             <div><div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="phone-call" style="width:14px;height:14px;flex-shrink:0;"></i> Emergency Services</div><div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">Police · Ambulance · Fire · Rescue</div></div>
                             <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">112</span></a>`;
@@ -5338,6 +5343,10 @@
                         color: '#ef4444', icon: 'alert-triangle', title: 'WA Shark Alert',
                         body: 'Western Australia has one of the highest rates of shark encounters globally. Download the <strong>SharkSmart WA app</strong> for real-time alerts. Always swim between the flags at patrolled beaches and check Surf Life Saving WA advisories before entering the water.',
                     },
+                    usa: {
+                        color: '#f59e0b', icon: 'alert-triangle', title: 'San Francisco Bay — Know Before You Go',
+                        body: '<strong>Aquatic Park</strong> is sheltered and generally safe year-round. <strong>Ocean Beach</strong> is a different story — extremely strong rip currents, cold Pacific surf, and no lifeguards year-round. Great White Sharks are active near the Farallon Islands (25 miles offshore) and occasionally enter the Bay. Water is cold (12–16°C) — acclimatise gradually.',
+                    },
                 };
                 const tip = ALERT_TIPS[group];
                 if (tip) {
@@ -5365,6 +5374,7 @@
                 uk:                null,
                 europe:            null,
                 western_australia: `<strong>Western Australia:</strong> Great White Sharks are active along the WA coast year-round. No shark nets at Cottesloe — swim at patrolled beaches between the flags. Download the <strong>SharkSmart WA app</strong> for real-time tagged shark alerts.`,
+                usa:               `<strong>San Francisco Bay Area:</strong> Great White Sharks patrol the waters near the Farallon Islands (25 miles offshore) and are occasionally tracked entering the Bay. Attacks inside Aquatic Park are extremely rare — the cove has a 50+ year safety record. Check the <strong>Shark Net app</strong> for tagged shark activity off the California coast.`,
             };
             const sharksNote = document.getElementById('sharksRegionalNote');
             if (sharksNote) {
@@ -5384,6 +5394,7 @@
                 uk:                `<strong>UK temps:</strong> Rivers, lakes and lidos range from 3–8°C in winter to 16–20°C in summer. Cold shock on entry is a serious risk in cooler months — acclimatise gradually, never swim alone, and have warm layers ready immediately after.`,
                 europe:            `<strong>European open water:</strong> Temperatures vary widely by region and season. Nordic/Alpine lakes can be 5–15°C even in summer. Check local conditions before swimming and always have a warm change ready.`,
                 western_australia: `<strong>WA (Indian Ocean) temps:</strong> Perth's Indian Ocean runs 17–22°C in summer and 15–18°C in winter — comfortable year-round. Cold shock is a low risk, but be aware of strong afternoon sea breezes (Fremantle Doctor) creating chop and currents at exposed beaches.`,
+                usa:               `<strong>San Francisco Bay temps:</strong> Aquatic Park runs 12–16°C year-round — cold even in summer, thanks to Pacific upwelling. The Pacific at Ocean Beach is typically 11–14°C. Cold shock on entry is a real risk. The local Dolphin Club and South End Rowing Club swim here daily without wetsuits — acclimatise gradually.`,
             };
             const coldNote = document.getElementById('coldWaterRegionalNote');
             if (coldNote) {
@@ -5425,6 +5436,10 @@
                 western_australia: [
                     ['tel:000','phone','Emergency Services','Police · Ambulance · Fire','000'],
                     ['tel:1800075111','anchor','Volunteer Sea Rescue','VMRWA — Marine emergency · WA coastline','1800 075 111'],
+                ],
+                usa: [
+                    ['tel:911','phone','Emergency Services','Police · Ambulance · Fire · Coast Guard','911'],
+                    ['tel:14153995555','anchor','USCG Sector San Francisco','US Coast Guard · Marine emergency','415-399-3547'],
                 ],
             };
             const contactsEl = document.getElementById('safetyRegionalContacts');
@@ -5468,6 +5483,11 @@
                     ['tel:000','phone','Emergency Services','Police · Ambulance · Fire','000'],
                     ['https://www.sharksmart.com.au/','shield-alert','SharkSmart WA','Report shark sightings · Real-time alerts','sharksmart.com.au'],
                     ['tel:0897226300','droplets','WA Dept of Water & Environmental Reg.','Water quality · Pollution incidents','08 9722 6300'],
+                ]},
+                usa: { title: 'Reporting (San Francisco)', contacts: [
+                    ['tel:911','phone','Emergency Services','Police · Ambulance · Fire · Coast Guard','911'],
+                    ['tel:14153995555','anchor','USCG Sector San Francisco','Marine emergency · Search & rescue','415-399-3547'],
+                    ['tel:14157050100','droplets','SF Bay Regional Water Quality','Pollution · Sewage · Water quality incidents','415-705-0100'],
                 ]},
             };
             const reportingEl = document.getElementById('safetyRegionalReporting');
@@ -6422,7 +6442,7 @@
 
         const SP_TYPE_LABELS = { OCEAN: 'Ocean', POOL: 'Pool', LAGOON: 'Lagoon', DAM: 'Inland', LAKE: 'Lake' };
         const SP_TYPE_ICONS  = { OCEAN: 'waves', POOL: 'droplets', LAGOON: 'anchor', DAM: 'mountain-snow', LAKE: 'waves' };
-        const INTERNATIONAL_DOMAINS = new Set(['EUROPE', 'NAMIBIA', 'UK', 'WESTERN_AUSTRALIA']);
+        const INTERNATIONAL_DOMAINS = new Set(['EUROPE', 'NAMIBIA', 'UK', 'WESTERN_AUSTRALIA', 'USA']);
         const COUNTRY_NAMES = { ZA: 'South Africa', NA: 'Namibia', CH: 'Switzerland', AU: 'Australia', GB: 'United Kingdom', FR: 'France', DE: 'Germany', IT: 'Italy' };
         const AREA_DISPLAY = {
             ATLANTIC: 'Atlantic Seaboard',

@@ -57,6 +57,7 @@ export const DOMAIN_MAP = {
   UK:                { display: 'United Kingdom',     region: 'united-kingdom' },
   EUROPE:            { display: 'Europe',             region: 'europe' },
   WESTERN_AUSTRALIA: { display: 'Western Australia',  region: 'western-australia' },
+  USA:               { display: 'United States',       region: 'san-francisco' },
 };
 
 // Country-code filter for region slugs that are sub-regions of a shared domain (e.g. EUROPE)
@@ -119,6 +120,8 @@ export const REGION_DOMAINS = {
   'portugal':          ['EUROPE'],           // PT spots — filtered by country_code
   'western-australia': ['WESTERN_AUSTRALIA'],
   'australia':         ['WESTERN_AUSTRALIA'], // friendly alias
+  'san-francisco':     ['USA'],
+  'usa':               ['USA'],
 };
 
 export const REGION_NAMES = {
@@ -139,6 +142,8 @@ export const REGION_NAMES = {
   'portugal':          'Portugal',
   'western-australia': 'Western Australia',
   'australia':         'Australia',
+  'san-francisco':     'San Francisco',
+  'usa':               'United States',
 };
 
 export const REGION_INTROS = {
@@ -176,6 +181,10 @@ export const REGION_INTROS = {
     "SwimLoading tracks lake swimming temperatures across Switzerland — including Lake Geneva spots like Gland Plage and Promenthoux. Swiss lake temperatures vary dramatically by season, from icy spring melt to warm summer swims.",
   'portugal':
     "SwimLoading is live in Portugal, tracking ocean temperatures along the Atlantic coast. Cascais — just west of Lisbon — is one of the most popular open water swimming destinations in Europe, with Atlantic water that swims warm in summer and cold and wild in winter.",
+  'san-francisco':
+    "San Francisco Bay is one of the world's great open water swimming venues. Aquatic Park — home of the legendary South End Rowing Club and Dolphin Club — offers year-round bay swimming in water that hovers between 12–16°C. The Pacific at Ocean Beach is wilder, colder, and not for the faint-hearted.",
+  'usa':
+    "SwimLoading is tracking open water temperatures across the United States, starting with San Francisco Bay. Aquatic Park's sheltered cove has a 50+ year tradition of year-round cold water swimming — one of the most dedicated open water communities anywhere in the world.",
 };
 
 export function getLocationLabel(domain, area, countryCode) {
