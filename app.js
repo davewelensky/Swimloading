@@ -1118,7 +1118,7 @@
                 ]);
 
                 document.getElementById('dashStats').innerHTML = `
-                    <div style="font-size:11px; color:var(--text-secondary); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">This week</div>
+                    <div class="dash-label"><i data-lucide="activity" style="width:13px;height:13px;color:var(--text-secondary);"></i>This week</div>
                     <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
                         <div style="text-align:center; background:rgba(56,189,248,0.08); border-radius:10px; padding:10px 6px; border:1px solid rgba(56,189,248,0.12);">
                             <div style="font-size:22px; font-weight:800; color:var(--ocean-light); line-height:1;">${newMembersRes.count || 0}</div>
@@ -1573,7 +1573,6 @@
             // Use profile map built during temp-card fetch (shared via window._dashProfileMap)
             const bestSpotsProfileMap = window._dashProfileMap || {};
 
-            const ranks = ['#1', '#2', '#3'];
             el.innerHTML = top3.map((spot, i) => {
                 const { score, label, emoji, color } = spot.swimScore;
                 const spotInfo = spots.find(s => s.id === spot.spot_id);
@@ -1585,42 +1584,36 @@
                 const spotNameSafe = (spot.spot_name || '').replace(/'/g, "\\'");
                 const spotHazards = activeHazardsBySpot[spot.spot_id] || [];
                 const hazardBanner = spotHazards.length > 0
-                    ? `<div style="margin-top:6px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;color:#ef4444;">${spotHazards[0].title}</div>`
+                    ? `<div style="margin-top:8px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;color:#ef4444;">${spotHazards[0].title}</div>`
                     : '';
 
-                // Temperature trend arrow — compare most recent 2 logs with temp_c
                 const logs = condBySpot[spot.spot_id] || [];
-
-                // Hazard triangle — only for genuinely dangerous hazards (shark/sewage)
                 const recentLogHazards = logs[0]?.hazards || [];
-                const hasLogHazard     = recentLogHazards.some(h => ['shark', 'sewage'].includes(h));
-                const t0 = logs[0]?.temp_c != null ? parseFloat(logs[0].temp_c) : null;
-                const t1 = logs[1]?.temp_c != null ? parseFloat(logs[1].temp_c) : null;
+                const hasLogHazard = recentLogHazards.some(h => ['shark', 'sewage'].includes(h));
 
-                // "by [name]" — look up who logged the most recent temp at this spot
                 const latestLog = logs[0];
                 const loggerProfile = latestLog?.user_id ? bestSpotsProfileMap[latestLog.user_id] : null;
                 const loggerName = loggerProfile?.display_name || null;
                 const byLine = loggerName
-                    ? `<span style="font-size:10px;color:var(--text-secondary);"> · by ${loggerName}</span>`
+                    ? `<span> · by ${loggerName}</span>`
                     : '';
+
+                const borderColor = spotHazards.length > 0 ? '#ef4444' : color;
 
                 return `
                     <div onclick="goToSpotTrend('${spot.spot_id}', '${spotNameSafe}', '${spotCode}')"
-                         style="display:flex;flex-direction:column;cursor:pointer;
-                                background:rgba(15,23,42,0.6);border-radius:12px;padding:12px;
-                                margin-bottom:8px;border:1px solid ${spotHazards.length > 0 ? 'rgba(239,68,68,0.35)' : color + '30'};
-                                transition:all 0.2s ease;">
+                         class="bs-card" style="border-left-color:${borderColor};">
                         <div style="display:flex;align-items:center;gap:12px;">
-                            <div style="font-size:15px;font-weight:800;color:var(--text-secondary);min-width:24px;text-align:center;">${ranks[i]}</div>
-                            <div style="flex:1;">
-                                <div style="font-weight:700;color:var(--text-primary);font-size:15px;">${spot.spot_name}</div>
+                            <div style="flex:1;min-width:0;">
+                                <div style="font-weight:700;color:var(--text-primary);font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${spot.spot_name}</div>
                                 ${windLine}
-                                <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;display:flex;align-items:center;gap:3px;"><i data-lucide="clock" style="width:10px;height:10px;flex-shrink:0;"></i>${ageText}${byLine}</div>
+                                <div style="font-size:11px;color:var(--text-secondary);margin-top:3px;display:flex;align-items:center;gap:3px;">
+                                    <i data-lucide="clock" style="width:10px;height:10px;flex-shrink:0;"></i>${ageText}${byLine}
+                                </div>
                             </div>
-                            <div style="text-align:right;">
-                                <div style="font-size:20px;font-weight:800;color:${getDisplayTempColor(spot.temp_c, spot.water_type)};">${spot.temp_c}°C${hasLogHazard ? ' <i data-lucide="alert-triangle" style="width:13px;height:13px;color:#ef4444;vertical-align:middle;" title="' + recentLogHazards.join(', ') + '"></i>' : ''}</div>
-                                <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:2px;">
+                            <div style="text-align:right;flex-shrink:0;">
+                                <div class="bs-temp" style="color:${getDisplayTempColor(spot.temp_c, spot.water_type)};">${spot.temp_c}°C${hasLogHazard ? ' <i data-lucide="alert-triangle" style="width:12px;height:12px;color:#ef4444;vertical-align:middle;" title="' + recentLogHazards.join(', ') + '"></i>' : ''}</div>
+                                <div style="display:flex;align-items:center;justify-content:flex-end;gap:3px;margin-top:3px;">
                                     ${emoji}
                                     <span style="font-size:11px;font-weight:700;color:${color};">${label}</span>
                                 </div>
