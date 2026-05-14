@@ -5,6 +5,7 @@ import {
   dbGet, dbRpc,
   generateSlug,
   REGION_DOMAINS, REGION_NAMES, REGION_INTROS, REGION_COUNTRY_FILTER,
+  COUNTRY_SLUGS,
   getLocationLabel, getRegionSlug,
   haversineKm, timeAgo, escapeHtml, formatDate,
 } from './seo-utils.js';
@@ -15,6 +16,24 @@ const REGION_SLUGS = new Set(Object.keys(REGION_DOMAINS));
 export default async function handler(req, res) {
   const path = (req.url || '').split('?')[0];
   const parts = path.split('/').filter(Boolean);
+
+  // /countries/[slug] — render the matching regional page
+  if (parts[0] === 'countries') {
+    const countrySlug = parts[1] || '';
+    const regionSlug = COUNTRY_SLUGS[countrySlug];
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+    if (!regionSlug) return res.status(404).send(render404(countrySlug));
+    try {
+      const html = await renderRegionalPage(regionSlug);
+      return res.status(200).send(html);
+    } catch (err) {
+      console.error('[spots-handler /countries]', err);
+      return res.status(500).send(renderError());
+    }
+  }
+
+  // /spots/[slug] — existing behaviour
   const slug = parts[1] || '';
 
   if (!slug) {

@@ -187,6 +187,18 @@ export const REGION_INTROS = {
     "SwimLoading is tracking open water temperatures across the United States, starting with San Francisco Bay. Aquatic Park's sheltered cove has a 50+ year tradition of year-round cold water swimming — one of the most dedicated open water communities anywhere in the world.",
 };
 
+// Maps /countries/[slug] → the region slug that spots-handler should render.
+// Adding a new country: add one entry here and the /countries/[slug] SEO page is live.
+export const COUNTRY_SLUGS = {
+  'south-africa':   'atlantic',           // redirect to SA's main region
+  'namibia':        'namibia',
+  'united-kingdom': 'united-kingdom',
+  'australia':      'western-australia',
+  'switzerland':    'switzerland',
+  'portugal':       'portugal',
+  'united-states':  'san-francisco',
+};
+
 export function getLocationLabel(domain, area, countryCode) {
   const info = DOMAIN_MAP[domain];
   if (!info) return 'South Africa';
