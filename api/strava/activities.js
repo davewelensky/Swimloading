@@ -103,6 +103,9 @@ export default async function handler(req, res) {
             end_latlng:            a.end_latlng   ? JSON.stringify(a.end_latlng)   : null,
             map_summary_polyline:  a.map?.summary_polyline || null,
             matched_spot_id:       matchedSpot?.id || null,
+            average_temp:          a.average_temp ?? null,
+            device_name:           a.device_name ?? null,
+            average_heartrate:     a.average_heartrate ?? null,
             raw_payload:           JSON.stringify(a),
         });
 
@@ -119,6 +122,10 @@ export default async function handler(req, res) {
             matched_spot_name:   matchedSpot?.name || null,
             already_imported:    alreadyImported,
             imported_to_log_id:  importedMap.get(a.id) || null,
+            average_temp:        a.average_temp ?? null,
+            device_name:         a.device_name ?? null,
+            average_heartrate:   a.average_heartrate ?? null,
+            is_open_water:       (a.sport_type || a.type) === 'OpenWaterSwim',
         });
     }
 
