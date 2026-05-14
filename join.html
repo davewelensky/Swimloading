@@ -221,6 +221,32 @@
     </a>
   </div>
 
+  <!-- PROFILE COMPLETION (shown if DOB missing after joining) -->
+  <div id="screen-profile" class="screen">
+    <div style="text-align:center;margin-bottom:20px;">
+      <div class="success-icon" style="margin:0 auto 14px;"><i data-lucide="user" style="width:28px;height:28px;color:var(--cyan);"></i></div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:0.04em;margin-bottom:4px;">One last thing</div>
+      <div style="font-size:13px;color:var(--text-sec);line-height:1.6;">Your coach needs a few details for race entries and age groups.</div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;display:block;margin-bottom:6px;">Full name</label>
+      <input id="profFullName" type="text" placeholder="First and last name" autocomplete="name">
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;display:block;margin-bottom:6px;">Date of birth</label>
+      <input id="profDob" type="date" placeholder="Date of birth">
+    </div>
+    <div style="margin-bottom:20px;">
+      <label style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;display:block;margin-bottom:6px;">Phone <span style="font-weight:400;text-transform:none;">(optional)</span></label>
+      <input id="profPhone" type="tel" placeholder="+27 82 000 0000" autocomplete="tel">
+    </div>
+    <button class="btn-primary" id="profSaveBtn" onclick="saveProfile()">
+      <i data-lucide="check" style="width:15px;height:15px;"></i> Save and continue
+    </button>
+    <button class="btn-ghost" onclick="skipProfile()">Skip for now</button>
+    <div class="error-msg" id="profError"></div>
+  </div>
+
   <!-- SUCCESS -->
   <div id="screen-success" class="screen" style="text-align:center;">
     <div class="success-icon"><i data-lucide="check" style="width:28px;height:28px;color:var(--green);"></i></div>
@@ -578,7 +604,64 @@ async function confirmJoin() {
     .update({ use_count: (linkData.use_count || 0) + 1 })
     .eq('id', linkData.id);
 
-  // Show success
+  // Check if profile needs completing (DOB missing)
+  const { data: profile } = await sb.from('profiles')
+    .select('full_name, date_of_birth, phone')
+    .eq('id', currentUser.id)
+    .single();
+
+  if (!profile?.date_of_birth) {
+    // Pre-fill name if we have it
+    if (profile?.full_name) document.getElementById('profFullName').value = profile.full_name;
+    if (profile?.phone)     document.getElementById('profPhone').value     = profile.phone;
+    showScreen('profile');
+    lucide.createIcons();
+    return;
+  }
+
+  showSuccessScreen();
+}
+
+async function saveProfile() {
+  const btn = document.getElementById('profSaveBtn');
+  const err = document.getElementById('profError');
+  const fullName = document.getElementById('profFullName').value.trim();
+  const dob      = document.getElementById('profDob').value;
+  const phone    = document.getElementById('profPhone').value.trim();
+
+  if (!dob) {
+    err.textContent = 'Date of birth is required for age group entries.';
+    err.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span style="width:15px;height:15px;border:2px solid #080f1a;border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin 0.6s linear infinite;"></span>&nbsp;Saving…';
+  err.style.display = 'none';
+
+  const updates = { date_of_birth: dob };
+  if (fullName) { updates.full_name = fullName; updates.display_name = fullName; }
+  if (phone)    updates.phone = phone;
+
+  const { error } = await sb.from('profiles').update(updates).eq('id', currentUser.id);
+
+  if (error) {
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="check" style="width:15px;height:15px;"></i> Save and continue';
+    lucide.createIcons();
+    err.textContent = error.message;
+    err.style.display = 'block';
+    return;
+  }
+
+  showSuccessScreen();
+}
+
+function skipProfile() {
+  showSuccessScreen();
+}
+
+function showSuccessScreen() {
   document.getElementById('successClubName').textContent = clubData.name;
   if (selectedRoster) {
     document.getElementById('successNumber').textContent = '#' + selectedRoster.member_number;
