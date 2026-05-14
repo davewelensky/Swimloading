@@ -60,13 +60,19 @@ FRANCE: { display: 'France', region: 'france' },
 ### Step 3 — Database
 
 ```sql
--- New domain (region)
-INSERT INTO domains (code, display_name, is_coastal, sort_order, active)
-VALUES ('FRANCE', 'France', true, 12, true);
+-- New country (continent is NOT NULL; is_domestic = false for international)
+INSERT INTO countries (iso_code, name, continent, is_domestic)
+VALUES ('FR', 'France', 'Europe', false)
+ON CONFLICT (iso_code) DO NOTHING;
+
+-- New domain (no 'active' column; country_code required)
+INSERT INTO domains (code, display_name, is_coastal, sort_order, country_code)
+VALUES ('FRANCE', 'France', true, 12, 'FR')
+ON CONFLICT (code) DO NOTHING;
 
 -- Insert spots (one per swim location)
-INSERT INTO spots (name, code, domain, water_type, latitude, longitude, area, active)
-VALUES ('Nice Plage', 'NICE_PLAGE', 'FRANCE', 'OCEAN', 43.6956, 7.2744, 'NICE', true);
+INSERT INTO spots (name, code, domain, water_type, latitude, longitude, area, active, country_code)
+VALUES ('Nice Plage', 'NICE_PLAGE', 'FRANCE', 'OCEAN', 43.6956, 7.2744, 'NICE', true, 'FR');
 ```
 
 ### Step 4 — app.js: Mark as international
