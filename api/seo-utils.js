@@ -58,6 +58,7 @@ export const DOMAIN_MAP = {
   EUROPE:            { display: 'Europe',             region: 'europe' },
   WESTERN_AUSTRALIA: { display: 'Western Australia',  region: 'western-australia' },
   USA:               { display: 'United States',       region: 'san-francisco' },
+  SEYCHELLES:        { display: 'Seychelles',          region: 'seychelles' },
 };
 
 // Country-code filter for region slugs that are sub-regions of a shared domain (e.g. EUROPE)
@@ -122,6 +123,7 @@ export const REGION_DOMAINS = {
   'australia':         ['WESTERN_AUSTRALIA'], // friendly alias
   'san-francisco':     ['USA'],
   'usa':               ['USA'],
+  'seychelles':        ['SEYCHELLES'],
 };
 
 export const REGION_NAMES = {
@@ -144,6 +146,7 @@ export const REGION_NAMES = {
   'australia':         'Australia',
   'san-francisco':     'San Francisco',
   'usa':               'United States',
+  'seychelles':        'Seychelles',
 };
 
 export const REGION_INTROS = {
@@ -185,6 +188,8 @@ export const REGION_INTROS = {
     "San Francisco Bay is one of the world's great open water swimming venues. Aquatic Park — home of the legendary South End Rowing Club and Dolphin Club — offers year-round bay swimming in water that hovers between 12–16°C. The Pacific at Ocean Beach is wilder, colder, and not for the faint-hearted.",
   'usa':
     "SwimLoading is tracking open water temperatures across the United States, starting with San Francisco Bay. Aquatic Park's sheltered cove has a 50+ year tradition of year-round cold water swimming — one of the most dedicated open water communities anywhere in the world.",
+  'seychelles':
+    "SwimLoading is live in the Seychelles, tracking open water temperatures in the warm Indian Ocean. Beau Vallon on Mahé is the island's most popular swim beach — sheltered, warm, and stunning year-round.",
 };
 
 // Maps /countries/[slug] → the region slug that spots-handler should render.
@@ -197,6 +202,7 @@ export const COUNTRY_SLUGS = {
   'switzerland':    'switzerland',
   'portugal':       'portugal',
   'united-states':  'san-francisco',
+  'seychelles':     'seychelles',
 };
 
 export function getLocationLabel(domain, area, countryCode) {
