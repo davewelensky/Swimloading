@@ -225,81 +225,33 @@
                     : '';
 
                 el.innerHTML = `
-                <div style="background:linear-gradient(135deg,rgba(14,116,144,0.1),rgba(125,211,252,0.06));border:1px solid rgba(125,211,252,0.3);border-radius:14px;padding:20px;margin-bottom:4px;">
+                <div style="background:linear-gradient(135deg,rgba(14,116,144,0.1),rgba(125,211,252,0.06));border:1px solid rgba(125,211,252,0.3);border-radius:14px;padding:18px;margin-bottom:4px;">
                     <!-- Header -->
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
-                        <div style="display:flex;align-items:center;gap:10px;">
-                            <i data-lucide="waves" style="width:24px;height:24px;color:#7dd3fc;"></i>
-                            <div>
-                                <div style="font-size:11px;color:#7dd3fc;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:2px;">May Winter Challenge</div>
-                                <div style="font-weight:700;font-size:18px;color:var(--text);">Log a pool temp. Win Maurten.</div>
-                            </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                        <div>
+                            <div style="font-size:10px;color:#7dd3fc;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:3px;">May Winter Challenge</div>
+                            <div style="font-weight:800;font-size:17px;color:var(--text);line-height:1.2;">Log a pool temp. Win Maurten.</div>
                         </div>
-                        <div style="background:rgba(125,211,252,0.15);color:#7dd3fc;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;">${daysLeft}d left</div>
+                        <div style="background:rgba(125,211,252,0.15);color:#7dd3fc;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;">${daysLeft}d left</div>
                     </div>
 
-                    <!-- Prize -->
-                    <div style="background:rgba(0,0,0,0.25);border-radius:12px;padding:16px;margin-bottom:14px;">
-                        <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:14px;">
-                            It's winter. The ocean is cold. The pools are heated. Log a pool temperature — indoor (Virgin Active, gym pools) or outdoor — and you stand a chance to win a <strong style="color:var(--text);">Maurten prize pack</strong>. Every log is an entry.
+                    <!-- Prize strip -->
+                    <div style="background:rgba(125,211,252,0.07);border:1px solid rgba(125,211,252,0.18);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                        <div>
+                            <div style="font-size:13px;font-weight:800;color:#7dd3fc;">Maurten Prize Pack</div>
+                            <div style="font-size:11px;color:var(--text-secondary);margin-top:1px;">Any pool · indoor or outdoor · ships nationally</div>
                         </div>
-                        <div style="background:rgba(125,211,252,0.08);border:1px solid rgba(125,211,252,0.2);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;">
-                            <div>
-                                <div style="font-size:10px;color:#7dd3fc;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:3px;">Prize</div>
-                                <div style="font-size:14px;font-weight:800;color:#7dd3fc;">Maurten Prize Pack</div>
-                                <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Ships anywhere in South Africa</div>
-                            </div>
-                            <div style="text-align:right;">
-                                <i data-lucide="waves" style="width:22px;height:22px;color:#7dd3fc;"></i>
-                                <div style="font-size:10px;color:var(--text-secondary);margin-top:4px;">Any pool counts</div>
-                            </div>
-                        </div>
+                        <div style="font-size:12px;font-weight:700;color:var(--text-secondary);">10 pts/log</div>
                     </div>
 
-                    <!-- How points work -->
-                    <div style="margin-bottom:16px;">
-                        <div style="font-size:10px;font-weight:700;color:#7dd3fc;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">How it works</div>
-                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;margin-bottom:10px;">Log any pool temperature — every log earns points and enters you into the draw.</div>
-                        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
-                            <div style="background:rgba(125,211,252,0.06);border-radius:8px;padding:10px 12px;display:flex;gap:12px;align-items:center;">
-                                <div style="background:rgba(125,211,252,0.15);border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#7dd3fc;flex-shrink:0;">10</div>
-                                <div><div style="font-size:12px;font-weight:700;color:var(--text);">10 points for every pool temp log</div><div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Log the water temp at any pool — heated indoor or outdoor — and earn 10 points per log.</div></div>
-                            </div>
-                            <div style="background:rgba(125,211,252,0.06);border-radius:8px;padding:10px 12px;display:flex;gap:12px;align-items:center;">
-                                <div style="background:rgba(125,211,252,0.15);border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#7dd3fc;flex-shrink:0;">+10</div>
-                                <div><div style="font-size:12px;font-weight:700;color:var(--text);">+10 bonus for the first log at each spot each day</div><div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Log the same pool daily? You get the +10 bonus once per day. Log <em>two different pools</em> in one day — you earn it twice.</div></div>
-                            </div>
-                            <div style="background:rgba(125,211,252,0.06);border:1px solid rgba(125,211,252,0.15);border-radius:8px;padding:10px 12px;display:flex;gap:12px;align-items:center;">
-                                <div style="background:rgba(125,211,252,0.15);border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i data-lucide="waves" style="width:16px;height:16px;color:#7dd3fc;"></i></div>
-                                <div><div style="font-size:12px;font-weight:700;color:var(--text);">Any pool counts — indoor or outdoor</div><div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Virgin Active, gym pool, public pool, outdoor heated pool. If it's a pool and you're in it, log it.</div></div>
-                            </div>
-                        </div>
-
-                        <!-- Quick example -->
-                        <div style="background:rgba(15,23,42,0.6);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
-                            <div style="font-size:10px;color:#7dd3fc;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">Quick Example</div>
-                            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
-                                <div style="font-size:12px;color:var(--text);">Log your gym pool on Monday + Wednesday + Friday</div>
-                                <div style="font-size:13px;font-weight:800;color:#10b981;">60 pts</div>
-                            </div>
-                            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">(3 logs × 10 pts) + (3 first-of-day bonuses × 10 pts) = 60 pts</div>
-                            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
-                                <div style="font-size:12px;color:var(--text);">Log the same pool twice in one day</div>
-                                <div style="font-size:13px;font-weight:800;color:var(--text-secondary);">20 pts</div>
-                            </div>
-                            <div style="font-size:11px;color:var(--text-secondary);">(2 logs × 10 pts) + (only 1 first-of-day bonus) = 20 pts</div>
-                        </div>
-                    </div>
-
-                    <!-- Your position callout (only shown when user is in top 20) -->
+                    <!-- Your position callout -->
                     ${myPositionCard}
 
                     <!-- Leaderboard -->
-                    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
-                        <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;"><i data-lucide="trophy" style="width:13px;height:13px;color:#7dd3fc;"></i>May Pool Leaderboard</div>
-                        <div style="font-size:10px;color:var(--text-secondary);opacity:0.7;">10 pts/log · +10 per pool/day</div>
+                    <div style="display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:8px;">
+                        <i data-lucide="trophy" style="width:12px;height:12px;color:#7dd3fc;"></i>Leaderboard
                     </div>
-                    <div style="background:rgba(15,23,42,0.5);border-radius:10px;padding:12px;">
+                    <div style="background:rgba(15,23,42,0.5);border-radius:10px;padding:10px;">
                         ${emptyState}${rows}${myRankLine}
                     </div>
                 </div>`;
