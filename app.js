@@ -1598,22 +1598,20 @@
                     ? `<span> · by ${loggerName}</span>`
                     : '';
 
-                const borderColor = spotHazards.length > 0 ? '#ef4444' : color;
+                const borderColor = spotHazards.length > 0 ? 'rgba(239,68,68,0.35)' : color + '30';
 
                 return `
                     <div onclick="goToSpotTrend('${spot.spot_id}', '${spotNameSafe}', '${spotCode}')"
-                         class="bs-card" style="border-left-color:${borderColor};">
+                         style="display:flex;flex-direction:column;cursor:pointer;background:rgba(15,23,42,0.6);border-radius:12px;padding:12px;margin-bottom:8px;border:1px solid ${borderColor};transition:all 0.2s ease;">
                         <div style="display:flex;align-items:center;gap:12px;">
                             <div style="flex:1;min-width:0;">
                                 <div style="font-weight:700;color:var(--text-primary);font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${spot.spot_name}</div>
                                 ${windLine}
-                                <div style="font-size:11px;color:var(--text-secondary);margin-top:3px;display:flex;align-items:center;gap:3px;">
-                                    <i data-lucide="clock" style="width:10px;height:10px;flex-shrink:0;"></i>${ageText}${byLine}
-                                </div>
+                                <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;display:flex;align-items:center;gap:3px;"><i data-lucide="clock" style="width:10px;height:10px;flex-shrink:0;"></i>${ageText}${byLine}</div>
                             </div>
                             <div style="text-align:right;flex-shrink:0;">
                                 <div class="bs-temp" style="color:${getDisplayTempColor(spot.temp_c, spot.water_type)};">${spot.temp_c}°C${hasLogHazard ? ' <i data-lucide="alert-triangle" style="width:12px;height:12px;color:#ef4444;vertical-align:middle;" title="' + recentLogHazards.join(', ') + '"></i>' : ''}</div>
-                                <div style="display:flex;align-items:center;justify-content:flex-end;gap:3px;margin-top:3px;">
+                                <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:2px;">
                                     ${emoji}
                                     <span style="font-size:11px;font-weight:700;color:${color};">${label}</span>
                                 </div>
@@ -2535,24 +2533,38 @@
                     console.warn('Could not load hazards for events tab:', hazErr);
                 }
 
-                // Query swim_events + public club_events in parallel
+                // Query swim_events + user's club memberships in parallel
                 const nowIso = new Date().toISOString();
-                const [{ data: events, error }, { data: clubEventsRaw }] = await Promise.all([
+                const [{ data: events, error }, { data: myMemberships }] = await Promise.all([
                     supabaseClient
                         .from('swim_events')
                         .select('*')
                         .gte('start_at', nowIso)
                         .order('start_at', { ascending: true })
                         .limit(50),
-                    supabaseClient
+                    currentUser
+                        ? supabaseClient
+                            .from('club_members')
+                            .select('club_id')
+                            .eq('user_id', currentUser.id)
+                            .eq('is_active', true)
+                        : Promise.resolve({ data: [] }),
+                ]);
+
+                // Only fetch club events if user is a member of at least one club
+                const myClubIds = new Set((myMemberships || []).map(m => m.club_id).filter(Boolean));
+                let clubEventsRaw = [];
+                if (myClubIds.size > 0) {
+                    const { data: ce } = await supabaseClient
                         .from('club_events')
                         .select('*, clubs(id, name, code, slug, logo_url, domain)')
-                        .eq('is_public', true)
+                        .in('club_id', [...myClubIds])
                         .eq('is_active', true)
                         .gte('event_date', nowIso.slice(0, 10))
                         .order('event_date', { ascending: true })
-                        .limit(30),
-                ]);
+                        .limit(30);
+                    clubEventsRaw = ce || [];
+                }
 
                 // Normalise public club events to match swim_events shape
                 const clubEventsNormalised = (clubEventsRaw || []).map(ce => ({
