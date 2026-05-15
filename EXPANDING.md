@@ -54,7 +54,7 @@ The locations are:
 7. `100+ swim spots across 8 countries` — map pin callout
 8. `Swim spots across 8 countries` — SEO section heading
 
-Also add the new country's pill to the "International — live now" pills block in the Going Global section.
+Also add the new country's pill to the "International — live now" pills block in the Going Global section, **and** add a row to the International country list in the SEO footer section (~line 2092) — same file, different location.
 
 **⚠️ The INTL_COUNTRIES array does NOT drive these hardcoded strings. Both must be updated.**
 
