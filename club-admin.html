@@ -945,6 +945,11 @@
               <option value="SC">SC only</option>
               <option value="LC">LC only</option>
             </select>
+            <select class="filter-select" id="champsYearFilter" onchange="setChampsYear()" style="display:none;" title="Championship year for QT age groups">
+              <option value="2026">2026 Champs</option>
+              <option value="2027" selected>2027 Champs</option>
+              <option value="2028">2028 Champs</option>
+            </select>
           </div>
         </div>
         <div id="squadCapacityStrip" style="display:none;margin-bottom:16px;"></div>
@@ -2784,14 +2789,23 @@ async function deleteAnnouncement(id) {
 let trackerData = [];
 let trackerQtMap = {};   // key: gender|age_group|course|level|event → row
 let trackerViewMode = 'cards';
+let trackerChampsYear = 2027;
 let pendingTrackerSquadId = null;
 
-function _ssaAgeGroup(dob) {
+function _ssaAgeGroup(dob, refYear) {
   if (!dob) return null;
-  const age = new Date().getFullYear() - parseInt(dob.slice(0, 4), 10);
+  const y = refYear || new Date().getFullYear();
+  const age = y - parseInt(dob.slice(0, 4), 10);
   if (age <= 10) return '10U';
   if (age <= 16) return String(age);
   return null;
+}
+// True if swimmer will be in a different (harder) SSA age group at trackerChampsYear champs vs today
+function _ageUpWarning(dob) {
+  if (!dob) return false;
+  const today = _ssaAgeGroup(dob, new Date().getFullYear());
+  const champs = _ssaAgeGroup(dob, trackerChampsYear);
+  return today !== champs;
 }
 function _ssaGender(g) { return g === 'F' ? 'W' : 'M'; }
 function _parseTrackerEventKey(key) {
@@ -2864,23 +2878,15 @@ async function loadSquadTracker() {
       sessions: sessionsByRoster[r.id]?.size || 0,
     }));
 
-  // Fetch SSA qualifying times for all age/gender combos in this roster
+  // Fetch SSA qualifying times — load all age groups for relevant genders so champs year
+  // changes only need a re-render, not a new fetch
   trackerQtMap = {};
-  const qtCombos = new Set();
-  trackerData.forEach(r => {
-    if (r.gender && r.date_of_birth) {
-      const ag = _ssaAgeGroup(r.date_of_birth);
-      if (ag) qtCombos.add(`${_ssaGender(r.gender)}|${ag}`);
-    }
-  });
-  if (qtCombos.size) {
-    const comboParts = [...qtCombos];
-    const genders   = [...new Set(comboParts.map(c => c.split('|')[0]))];
-    const ageGroups = [...new Set(comboParts.map(c => c.split('|')[1]))];
+  const rosterGenders = [...new Set(trackerData.filter(r => r.gender).map(r => _ssaGender(r.gender)))];
+  if (rosterGenders.length) {
     const { data: qtRows } = await sb.from('ssa_qualifying_times')
       .select('gender, age_group, course, level, event, time_text, time_seconds')
-      .in('gender', genders)
-      .in('age_group', ageGroups)
+      .in('gender', rosterGenders)
+      .in('age_group', ['10U','11','12','13','14','15','16'])
       .in('level', ['L2', 'L3', 'SANJ'])
       .eq('season', '2025-2026');
     (qtRows || []).forEach(row => {
@@ -2919,6 +2925,13 @@ function setTrackerView(mode) {
   document.getElementById('trackerViewPipeline').classList.toggle('active', mode === 'pipeline');
   document.getElementById('squadCapacityStrip').style.display = mode === 'cards' ? '' : 'none';
   document.getElementById('matrixCourseFilter').style.display = mode === 'matrix' ? '' : 'none';
+  const showChampsYear = mode === 'matrix' || mode === 'pipeline';
+  document.getElementById('champsYearFilter').style.display = showChampsYear ? '' : 'none';
+  applyTrackerFilter();
+}
+
+function setChampsYear() {
+  trackerChampsYear = parseInt(document.getElementById('champsYearFilter').value, 10);
   applyTrackerFilter();
 }
 
@@ -2960,10 +2973,11 @@ function renderTrackerGrid(swimmers) {
 
     const allEvents = Object.values(byEvent);
 
-    // QT lookup for this swimmer
+    // QT lookup for this swimmer — cards use today's age group
     const ssaAg = _ssaAgeGroup(s.date_of_birth);
     const ssaG  = s.gender ? _ssaGender(s.gender) : null;
     const hasQt = !!(ssaAg && ssaG);
+    const ageUp = _ageUpWarning(s.date_of_birth);
 
     // Sort by best QT level achieved so the card surface shows the most notable events
     if (hasQt) {
@@ -3051,7 +3065,7 @@ function renderTrackerGrid(swimmers) {
       <div class="tracker-card-header">
         <div>
           <div class="tracker-name">${s.display_name || '—'}</div>
-          <div class="tracker-meta">#${s.member_number || '—'} · ${allSquads.find(q => q.id === s.squad_id)?.name || '<span style="color:var(--amber);font-size:11px;">No squad</span>'}${s.date_of_birth ? ' · age ' + Math.floor((Date.now() - new Date(s.date_of_birth)) / 31557600000) : ''}</div>
+          <div class="tracker-meta">#${s.member_number || '—'} · ${allSquads.find(q => q.id === s.squad_id)?.name || '<span style="color:var(--amber);font-size:11px;">No squad</span>'}${s.date_of_birth ? ' · age ' + Math.floor((Date.now() - new Date(s.date_of_birth)) / 31557600000) : ''}${ageUp ? ` <span style="font-size:10px;font-weight:700;color:#f59e0b;padding:1px 5px;border-radius:4px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);margin-left:2px;" title="Ages up to ${_ssaAgeGroup(s.date_of_birth, trackerChampsYear)} at ${trackerChampsYear} champs — harder QT applies">age-up ${trackerChampsYear}</span>` : ''}</div>
         </div>
       </div>
       <div class="tracker-stat-row">
@@ -3152,9 +3166,10 @@ function renderTrackerMatrix(swimmers) {
 
   // Build rows — sort swimmers: qualified at higher levels first, then by most events
   const rowData = swimmers.map(s => {
-    const ag = _ssaAgeGroup(s.date_of_birth);
+    const ag = _ssaAgeGroup(s.date_of_birth, trackerChampsYear);
     const g  = s.gender ? _ssaGender(s.gender) : null;
     const age = s.date_of_birth ? Math.floor((Date.now() - new Date(s.date_of_birth)) / 31557600000) : null;
+    const ageUp = _ageUpWarning(s.date_of_birth);
 
     // Build PB map keyed by "event||course"
     const pbMap = {};
@@ -3235,8 +3250,11 @@ function renderTrackerMatrix(swimmers) {
     b.sanCount - a.sanCount || b.l3Count - a.l3Count || b.l2Count - a.l2Count || b.closeCount - a.closeCount
   );
 
-  const tbody = rowData.map(({ s, age, sanCount, l3Count, l2Count, closeCount, cells, ag }) => {
+  const tbody = rowData.map(({ s, age, sanCount, l3Count, l2Count, closeCount, cells, ag, ageUp }) => {
     const squadName = allSquads.find(q => q.id === s.squad_id)?.name || '';
+    const ageUpBadge = ageUp
+      ? `<span style="font-size:9px;font-weight:700;color:#f59e0b;padding:1px 4px;border-radius:3px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);margin-left:3px;" title="Will compete as age ${ag} at ${trackerChampsYear} champs">↑${ag}</span>`
+      : '';
     const qtSummary = ag
       ? [sanCount && `<span class="qt-mc qt-mc-sanj" style="font-size:9px;padding:1px 4px;">${sanCount} SANJ</span>`,
          l3Count  && `<span class="qt-mc qt-mc-l3"   style="font-size:9px;padding:1px 4px;">${l3Count} L3</span>`,
@@ -3246,8 +3264,8 @@ function renderTrackerMatrix(swimmers) {
       : '<span style="font-size:10px;color:var(--text-dim);">Senior</span>';
     return `<tr>
       <td class="swimmer-cell">
-        <div style="font-weight:700;font-size:12px;margin-bottom:2px;">${s.display_name || '—'}</div>
-        <div style="font-size:10px;color:var(--text-sec);margin-bottom:3px;">${age ? `Age ${age}` : ''}${squadName ? ` · ${squadName}` : ''}</div>
+        <div style="font-weight:700;font-size:12px;margin-bottom:2px;">${s.display_name || '—'}${ageUpBadge}</div>
+        <div style="font-size:10px;color:var(--text-sec);margin-bottom:3px;">${age ? `Age ${age}` : ''}${squadName ? ` · ${squadName}` : ''}${ag ? ` · ${trackerChampsYear} age ${ag}` : ''}</div>
         <div>${qtSummary}</div>
       </td>
       ${cells}
@@ -3286,12 +3304,13 @@ function renderTrackerPipeline(swimmers) {
   const rows = [];
 
   swimmers.forEach(s => {
-    const ag = _ssaAgeGroup(s.date_of_birth);
+    const ag = _ssaAgeGroup(s.date_of_birth, trackerChampsYear);
     const g  = s.gender ? _ssaGender(s.gender) : null;
     if (!ag || !g) return; // seniors have no SSA age group
 
     const age = Math.floor((Date.now() - new Date(s.date_of_birth)) / 31557600000);
     const squad = allSquads.find(q => q.id === s.squad_id)?.name || '';
+    const ageUp = _ageUpWarning(s.date_of_birth);
 
     // Build PB map with first/best times for improvement calc
     const pbMap = {};
@@ -3338,7 +3357,7 @@ function renderTrackerPipeline(swimmers) {
       const sortScore = tier === 'sanj' ? -1 :
         nextQtSec ? (data.pb - nextQtSec) / nextQtSec : 99;
 
-      rows.push({ s, age, squad, evName, course, tier, sortScore,
+      rows.push({ s, age, squad, evName, course, tier, sortScore, ageUp, ag,
         pb: data.pb, pbTxt: data.pbTxt, firstTxt: data.firstTxt, improvement,
         gapToNext, gapToL2, gapToL3, gapToSanj, nextLabel, nextQtSec,
         qtL2, qtL3, qtS });
@@ -3453,10 +3472,13 @@ function renderTrackerPipeline(swimmers) {
       const improveLine = r.improvement > 0.1
         ? `<div class="pipeline-improvement">▼${r.improvement.toFixed(2)}s from first result</div>` : '';
 
+      const ageUpTag = r.ageUp
+        ? `<span style="font-size:9px;font-weight:700;color:#f59e0b;padding:1px 5px;border-radius:3px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);margin-left:4px;" title="Will compete as age ${r.ag} at ${trackerChampsYear} champs — these QTs are for that age group">age-up</span>`
+        : '';
       html += `<div class="pipeline-row tier-${r.tier}" onclick="openTrackerDetail('${r.s.id}')">
         <div>
-          <div class="pipeline-swimmer">${r.s.display_name}</div>
-          <div class="pipeline-swimmer-meta">Age ${r.age} · ${r.squad}</div>
+          <div class="pipeline-swimmer">${r.s.display_name}${ageUpTag}</div>
+          <div class="pipeline-swimmer-meta">Age ${r.age} now · ${trackerChampsYear} age ${r.ag} · ${r.squad}</div>
           ${otherBadges ? `<div style="margin-top:5px;display:flex;gap:3px;flex-wrap:wrap;">${otherBadges}</div>` : ''}
         </div>
         <div>
