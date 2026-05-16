@@ -314,6 +314,9 @@
     .ms-section-title { font-size:10px; font-weight:700; color:rgba(167,139,250,0.7); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
     .ms-pb-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.04); gap:8px; }
     .ms-pb-row:last-child { border-bottom:none; }
+    .ms-qt-badge { font-size:10px; font-weight:700; padding:2px 5px; border-radius:4px; white-space:nowrap; }
+    .ms-qt-met { background:rgba(16,185,129,0.2); color:#10b981; }
+    .ms-qt-gap { background:rgba(100,116,139,0.2); color:#94a3b8; }
     .ms-pb-event { font-size:13px; font-weight:600; color:var(--text); }
     .ms-pb-course { font-size:10px; color:var(--text-dim); margin-left:4px; font-weight:400; }
     .ms-pb-time { font-family:'Bebas Neue',sans-serif; font-size:17px; color:var(--cyan); letter-spacing:0.04em; flex-shrink:0; }
@@ -1916,7 +1919,7 @@
       if (!session) return;
 
       const { data: links } = await sb.from('parent_roster_links')
-        .select('roster_id, relationship, club_roster(id, display_name, member_number, category)')
+        .select('roster_id, relationship, club_roster(id, display_name, member_number, category, gender, date_of_birth)')
         .eq('parent_user_id', session.user.id)
         .eq('club_id', club.id)
         .eq('status', 'approved');
@@ -1931,7 +1934,7 @@
 
       const [pbsRes, entriesRes, sessionsRes, annsRes] = await Promise.all([
         sb.from('club_swimmer_times')
-          .select('roster_id, event, course, time_text')
+          .select('roster_id, event, course, time_text, time_seconds')
           .in('roster_id', rosterIds)
           .eq('is_pb', true)
           .order('event'),
@@ -1957,11 +1960,59 @@
       const sessions   = sessionsRes.data || [];
       _mySwimmerAnns   = annsRes.data     || [];
 
+      // Derive age group for each swimmer (SSA: age at 1 Jan of current year)
+      const refYear = new Date().getFullYear();
+      function ageGroup(dob) {
+        if (!dob) return null;
+        const age = refYear - parseInt(dob.slice(0, 4), 10);
+        if (age <= 10) return '10U';
+        if (age <= 16) return String(age);
+        return null; // seniors — no QTs
+      }
+      function qtGender(g) { return g === 'F' ? 'W' : 'M'; }
+
+      // Collect distinct gender+ageGroup combos to fetch QTs for
+      const qtCombos = new Set();
+      links.forEach(l => {
+        const r = l.club_roster;
+        if (r?.gender && r?.date_of_birth) {
+          const ag = ageGroup(r.date_of_birth);
+          if (ag) qtCombos.add(`${qtGender(r.gender)}|${ag}`);
+        }
+      });
+
+      // Fetch L3 QTs (and SANJ where available) for all combos
+      let qtMap = {}; // key: `${gender}|${age_group}|${course}|${event}` → row
+      if (qtCombos.size) {
+        const comboParts = [...qtCombos];
+        const genders    = [...new Set(comboParts.map(c => c.split('|')[0]))];
+        const ageGroups  = [...new Set(comboParts.map(c => c.split('|')[1]))];
+        const { data: qtRows } = await sb.from('ssa_qualifying_times')
+          .select('gender, age_group, course, level, event, time_text, time_seconds')
+          .in('gender', genders)
+          .in('age_group', ageGroups)
+          .in('level', ['SANJ', 'L3'])
+          .eq('season', '2025-2026');
+        (qtRows || []).forEach(row => {
+          const key = `${row.gender}|${row.age_group}|${row.course}|${row.event}`;
+          // Prefer SANJ over L3 if both exist
+          if (!qtMap[key] || row.level === 'SANJ') qtMap[key] = row;
+        });
+      }
+
       _mySwimmerData = links.map(link => {
         const roster = link.club_roster;
         const rid    = roster?.id;
 
         const pbs = allPbs.filter(t => t.roster_id === rid);
+
+        // Attach QT to each PB
+        const ag  = ageGroup(roster?.date_of_birth);
+        const qtG = qtGender(roster?.gender);
+        const pbsWithQt = pbs.map(t => {
+          const qt = ag ? qtMap[`${qtG}|${ag}|${t.course}|${t.event}`] : null;
+          return { ...t, qt };
+        });
 
         const entries = allEntries
           .filter(e => e.roster_id === rid && (e.club_events?.event_date || '') >= todayStr)
@@ -1973,7 +2024,7 @@
           if (att) { total++; if (att.status === 'present' || att.status === 'late') attended++; }
         });
 
-        return { roster, pbs, entries, attended, total, relationship: link.relationship };
+        return { roster, pbs: pbsWithQt, entries, attended, total, relationship: link.relationship };
       });
 
       _mySwimmerIdx = 0;
@@ -1994,13 +2045,33 @@
           `<button class="my-swimmer-tab ${i === _mySwimmerIdx ? 'active' : ''}" onclick="switchMySwimmer(${i})">${(s.roster?.display_name || '—').split(' ')[0]}</button>`
         ).join('')}</div>` : '';
 
-    // PBs
+    // PBs with QT comparison
     const pbsHtml = swimmer.pbs.length
-      ? swimmer.pbs.map(t =>
-          `<div class="ms-pb-row">
+      ? swimmer.pbs.map(t => {
+          let qtBadge = '';
+          if (t.qt) {
+            const pbSecs = parseFloat(t.time_seconds) || 0;
+            const qtSecs = parseFloat(t.qt.time_seconds) || 0;
+            if (pbSecs > 0 && qtSecs > 0) {
+              if (pbSecs <= qtSecs) {
+                qtBadge = `<span class="ms-qt-badge ms-qt-met" title="Qualifies for ${t.qt.level}">QT</span>`;
+              } else {
+                const diff = pbSecs - qtSecs;
+                const mins = Math.floor(diff / 60);
+                const secs = (diff % 60).toFixed(2).padStart(5, '0');
+                const diffStr = mins > 0 ? `${mins}:${secs}` : `${(diff).toFixed(2)}s`;
+                qtBadge = `<span class="ms-qt-badge ms-qt-gap" title="${t.qt.level}: ${t.qt.time_text}">-${diffStr}</span>`;
+              }
+            }
+          }
+          return `<div class="ms-pb-row">
             <span class="ms-pb-event">${t.event}<span class="ms-pb-course">${t.course || ''}</span></span>
-            <span class="ms-pb-time">${t.time_text || '—'}</span>
-          </div>`).join('')
+            <span style="display:flex;align-items:center;gap:6px;">
+              ${qtBadge}
+              <span class="ms-pb-time">${t.time_text || '—'}</span>
+            </span>
+          </div>`;
+        }).join('')
       : `<div class="ms-empty">No times on file yet</div>`;
 
     // Gala entries
