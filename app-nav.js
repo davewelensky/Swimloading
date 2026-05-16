@@ -316,38 +316,68 @@
                     .in('status', ['approved', 'pending'])
                     .order('status'); // approved first
 
-                if (!parentLinks?.length) return;
+                if (parentLinks?.length) {
+                    const approved = parentLinks.filter(l => l.status === 'approved');
+                    const pending  = parentLinks.filter(l => l.status === 'pending');
+                    const club     = (approved[0] || pending[0])?.clubs;
+                    if (club) {
+                        const swimmerList = approved.length
+                            ? approved.map(l => `<span style="font-weight:700;color:var(--text);">${l.club_roster?.display_name || '—'}</span>`).join(', ')
+                            : `<span style="color:var(--amber);">Pending approval</span>`;
+                        el.innerHTML = `
+                            <a href="/clubs/${club.slug}" style="display:block;text-decoration:none;
+                                background:linear-gradient(135deg,rgba(167,139,250,0.07),rgba(167,139,250,0.02));
+                                border:1px solid rgba(167,139,250,0.2); border-radius:16px; padding:16px 18px;">
+                                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <div style="min-width:0;">
+                                        <div style="font-size:10px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:5px;">
+                                            ${club.name}
+                                        </div>
+                                        <div style="font-size:11px;color:var(--text-sec);margin-bottom:4px;">Following</div>
+                                        <div style="font-size:14px;line-height:1.4;">${swimmerList}</div>
+                                        ${pending.length && !approved.length ? `<div style="font-size:11px;color:var(--amber);margin-top:4px;">Access pending admin approval</div>` : ''}
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:6px;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.2);border-radius:10px;padding:10px 14px;flex-shrink:0;">
+                                        <i data-lucide="users" style="width:14px;height:14px;color:#a78bfa;"></i>
+                                        <span style="font-size:12px;font-weight:700;color:#a78bfa;">Club</span>
+                                    </div>
+                                </div>
+                            </a>`;
+                        lucide.createIcons();
+                        return;
+                    }
+                }
 
-                const approved = parentLinks.filter(l => l.status === 'approved');
-                const pending  = parentLinks.filter(l => l.status === 'pending');
-                const club     = (approved[0] || pending[0])?.clubs;
-                if (!club) return;
+                // Check club admin access — show all clubs this user administers
+                const { data: adminClubs } = await supabaseClient
+                    .from('club_admins')
+                    .select('role, clubs(name, slug, code)')
+                    .eq('user_id', currentUser.id);
 
-                const swimmerList = approved.length
-                    ? approved.map(l => `<span style="font-weight:700;color:var(--text);">${l.club_roster?.display_name || '—'}</span>`).join(', ')
-                    : `<span style="color:var(--amber);">Pending approval</span>`;
+                if (!adminClubs?.length) return;
+
+                const clubs = adminClubs.map(a => a.clubs).filter(Boolean);
+                if (!clubs.length) return;
 
                 el.innerHTML = `
-                    <a href="/clubs/${club.slug}" style="display:block;text-decoration:none;
-                        background:linear-gradient(135deg,rgba(167,139,250,0.07),rgba(167,139,250,0.02));
-                        border:1px solid rgba(167,139,250,0.2); border-radius:16px; padding:16px 18px;">
-                        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                            <div style="min-width:0;">
-                                <div style="font-size:10px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:5px;">
-                                    ${club.name}
-                                </div>
-                                <div style="font-size:11px;color:var(--text-sec);margin-bottom:4px;">Following</div>
-                                <div style="font-size:14px;line-height:1.4;">${swimmerList}</div>
-                                ${pending.length && !approved.length ? `<div style="font-size:11px;color:var(--amber);margin-top:4px;">Access pending admin approval</div>` : ''}
-                            </div>
-                            <div style="display:flex;align-items:center;gap:6px;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.2);border-radius:10px;padding:10px 14px;flex-shrink:0;">
-                                <i data-lucide="users" style="width:14px;height:14px;color:#a78bfa;"></i>
-                                <span style="font-size:12px;font-weight:700;color:#a78bfa;">Club</span>
-                            </div>
+                    <div style="background:linear-gradient(135deg,rgba(56,189,248,0.07),rgba(56,189,248,0.02));
+                        border:1px solid rgba(56,189,248,0.18); border-radius:16px; padding:16px 18px;">
+                        <div style="font-size:10px;font-weight:700;color:var(--ocean-light);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:10px;">
+                            Club Admin
                         </div>
-                    </a>`;
+                        <div style="display:flex;flex-direction:column;gap:8px;">
+                            ${clubs.map(c => `
+                                <a href="/clubs/${c.slug}" style="display:flex;align-items:center;justify-content:space-between;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);border-radius:10px;padding:10px 14px;text-decoration:none;">
+                                    <div>
+                                        <div style="font-size:13px;font-weight:700;color:var(--text);">${c.name}</div>
+                                        <div style="font-size:11px;color:var(--text-sec);margin-top:1px;">${c.code}</div>
+                                    </div>
+                                    <i data-lucide="arrow-right" style="width:14px;height:14px;color:var(--ocean-light);flex-shrink:0;"></i>
+                                </a>`).join('')}
+                        </div>
+                    </div>`;
                 lucide.createIcons();
-            } catch (e) { /* not a member or parent — card stays hidden */ }
+            } catch (e) { /* not a member, parent, or admin — card stays hidden */ }
         }
 
         async function loadSpotlightBanner() {
