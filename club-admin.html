@@ -2922,13 +2922,31 @@ function renderTrackerGrid(swimmers) {
       }
     });
 
-    const events = Object.values(byEvent).slice(0, 4);
     const allEvents = Object.values(byEvent);
 
     // QT lookup for this swimmer
     const ssaAg = _ssaAgeGroup(s.date_of_birth);
     const ssaG  = s.gender ? _ssaGender(s.gender) : null;
     const hasQt = !!(ssaAg && ssaG);
+
+    // Sort by best QT level achieved so the card surface shows the most notable events
+    if (hasQt) {
+      const qtScore = e => {
+        const { event: evName, course: evCourse } = _parseTrackerEventKey(e.name);
+        const pfx = `${ssaG}|${ssaAg}|${evCourse}`;
+        const qtS  = trackerQtMap[`${pfx}|SANJ|${evName}`];
+        const qtL3 = trackerQtMap[`${pfx}|L3|${evName}`];
+        const qtL2 = trackerQtMap[`${pfx}|L2|${evName}`];
+        if (qtS  && e.pb <= qtS.time_seconds)  return 0;
+        if (qtL3 && e.pb <= qtL3.time_seconds) return 1;
+        if (qtL2 && e.pb <= qtL2.time_seconds) return 2;
+        if (qtL2) return 3 + (e.pb - qtL2.time_seconds) / qtL2.time_seconds;
+        return 99;
+      };
+      allEvents.sort((a, b) => qtScore(a) - qtScore(b));
+    }
+
+    const events = allEvents.slice(0, 4);
 
     const eventsHtml = events.length ? events.map(e => {
       const delta = e.first - e.pb;
