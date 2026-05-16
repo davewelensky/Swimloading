@@ -204,6 +204,25 @@
     .delta-improve { background:rgba(16,185,129,0.12); color:var(--green); }
     .delta-same { background:rgba(100,116,139,0.1); color:var(--text-sec); }
     .no-times { font-size:12px; color:var(--text-dim); text-align:center; padding:12px 0; }
+    /* ── QT MATRIX ── */
+    .qt-matrix-wrap { overflow-x:auto; }
+    .qt-matrix { border-collapse:collapse; font-size:12px; width:100%; }
+    .qt-matrix th { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-sec); padding:8px 6px; white-space:nowrap; border-bottom:2px solid var(--border); text-align:center; background:var(--bg); position:sticky; top:0; z-index:1; }
+    .qt-matrix th.col-swimmer { text-align:left; min-width:150px; padding-left:0; }
+    .qt-matrix td { padding:5px 5px; border-bottom:1px solid rgba(255,255,255,0.03); text-align:center; vertical-align:middle; }
+    .qt-matrix td.swimmer-cell { text-align:left; padding-left:0; }
+    .qt-matrix tr:hover td { background:rgba(255,255,255,0.025); }
+    .qt-matrix .stroke-divider { border-left:2px solid rgba(255,255,255,0.07); }
+    .qt-mc { display:inline-block; border-radius:6px; padding:3px 5px; font-size:10px; font-weight:800; line-height:1.3; text-align:center; cursor:default; min-width:42px; }
+    .qt-mc-sanj { background:rgba(245,158,11,0.2); color:#f59e0b; }
+    .qt-mc-l3   { background:rgba(16,185,129,0.15); color:#10b981; }
+    .qt-mc-l2   { background:rgba(99,102,241,0.15); color:#818cf8; }
+    .qt-mc-close { background:rgba(245,158,11,0.06); color:#f59e0b; border:1px solid rgba(245,158,11,0.2); }
+    .qt-mc-far  { background:rgba(255,255,255,0.03); color:var(--text-sec); }
+    .qt-mc-pb   { background:transparent; color:var(--text-dim); font-size:10px; }
+    .matrix-toggle { display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+    .matrix-toggle-btn { background:transparent; border:none; padding:7px 14px; font-size:12px; font-weight:600; color:var(--text-sec); cursor:pointer; transition:all 0.15s; }
+    .matrix-toggle-btn.active { background:rgba(56,189,248,0.12); color:var(--cyan); }
     /* ── QT STATUS ── */
     .qt-strip { display:flex; align-items:center; gap:5px; flex-wrap:wrap; margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.05); }
     .qt-strip-label { font-size:10px; font-weight:700; color:var(--text-sec); text-transform:uppercase; letter-spacing:0.07em; margin-right:2px; }
@@ -880,9 +899,17 @@
         <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
           <div>
             <div class="page-title">Squad Tracker</div>
-            <div class="page-sub">Swimmer progress — galas attended, PBs and squad capacity</div>
+            <div class="page-sub">Swimmer progress — galas attended, PBs and qualifying time matrix</div>
           </div>
-          <div style="display:flex;gap:8px;align-items:center;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <div class="matrix-toggle">
+              <button class="matrix-toggle-btn active" id="trackerViewCards" onclick="setTrackerView('cards')">
+                <i data-lucide="layout-grid" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:4px;"></i>Cards
+              </button>
+              <button class="matrix-toggle-btn" id="trackerViewMatrix" onclick="setTrackerView('matrix')">
+                <i data-lucide="table-2" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:4px;"></i>QT Matrix
+              </button>
+            </div>
             <select class="filter-select" id="trackerCatFilter" onchange="applyTrackerFilter()">
               <option value="">All squads</option>
             </select>
@@ -2724,6 +2751,7 @@ async function deleteAnnouncement(id) {
 // ── SQUAD TRACKER ──────────────────────────────────────────────────
 let trackerData = [];
 let trackerQtMap = {};   // key: gender|age_group|course|level|event → row
+let trackerViewMode = 'cards';
 let pendingTrackerSquadId = null;
 
 function _ssaAgeGroup(dob) {
@@ -2852,13 +2880,21 @@ async function loadSquadTracker() {
   }
 }
 
+function setTrackerView(mode) {
+  trackerViewMode = mode;
+  document.getElementById('trackerViewCards').classList.toggle('active', mode === 'cards');
+  document.getElementById('trackerViewMatrix').classList.toggle('active', mode === 'matrix');
+  applyTrackerFilter();
+}
+
 function applyTrackerFilter() {
   const val = document.getElementById('trackerCatFilter').value;
   let filtered;
   if (!val) filtered = trackerData;
   else if (val === '__unassigned__') filtered = trackerData.filter(r => !r.squad_id);
   else filtered = trackerData.filter(r => r.squad_id === val);
-  renderTrackerGrid(filtered);
+  if (trackerViewMode === 'matrix') renderTrackerMatrix(filtered);
+  else renderTrackerGrid(filtered);
 }
 
 function renderTrackerGrid(swimmers) {
@@ -2977,6 +3013,209 @@ function renderTrackerGrid(swimmers) {
       ${qtStripHtml}
     </div>`;
   }).join('')}</div>`;
+}
+
+function renderTrackerMatrix(swimmers) {
+  const el = document.getElementById('trackerContent');
+  if (!swimmers.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-title">No swimmers found</div></div>';
+    return;
+  }
+
+  const STROKE_ORDER = ['Free','Back','Breast','Fly','IM'];
+
+  // Collect all event+course combos where at least one swimmer has a PB AND a QT exists
+  const eventSet = new Set();
+  swimmers.forEach(s => {
+    const ag = _ssaAgeGroup(s.date_of_birth);
+    const g  = s.gender ? _ssaGender(s.gender) : null;
+    if (!ag || !g) return;
+    s.times.forEach(t => {
+      const { event, course } = _parseTrackerEventKey(t._eventKey);
+      if (trackerQtMap[`${g}|${ag}|${course}|L2|${event}`]) eventSet.add(`${event}||${course}`);
+    });
+  });
+
+  // Sort: SC before LC, then by stroke order, then by distance
+  const sortedCols = [...eventSet].sort((a, b) => {
+    const [evA, , cA] = a.split('||');
+    const [evB, , cB] = b.split('||');
+    if (cA !== cB) return cA === 'SC' ? -1 : 1;
+    const [dA, ...sA] = evA.split(' ');
+    const [dB, ...sB] = evB.split(' ');
+    const siA = STROKE_ORDER.indexOf(sA.join(' '));
+    const siB = STROKE_ORDER.indexOf(sB.join(' '));
+    if (siA !== siB) return (siA < 0 ? 99 : siA) - (siB < 0 ? 99 : siB);
+    return parseInt(dA) - parseInt(dB);
+  });
+
+  if (!sortedCols.length) {
+    el.innerHTML = `<div class="card" style="padding:32px;text-align:center;">
+      <div style="color:var(--text-sec);font-size:14px;margin-bottom:8px;">No QT-comparable times found for this squad.</div>
+      <div style="color:var(--text-dim);font-size:12px;">Add swimmer times via Gala Results or the CSV importer, then select a squad with swimmers aged 10–16.</div>
+    </div>`;
+    return;
+  }
+
+  // Detect stroke group boundaries for visual dividers
+  let lastStroke = null;
+  const isDivider = sortedCols.map(ec => {
+    const [ev] = ec.split('||');
+    const stroke = ev.split(' ').slice(1).join(' ');
+    const div = stroke !== lastStroke;
+    lastStroke = stroke;
+    return div;
+  });
+
+  // Header row
+  const headerCols = sortedCols.map((ec, i) => {
+    const [ev, , course] = ec.split('||');
+    const parts = ev.split(' ');
+    const dist = parts[0];
+    const stroke = parts.slice(1).join(' ');
+    const divClass = isDivider[i] ? ' stroke-divider' : '';
+    return `<th class="${divClass}" title="${ev} ${course}">
+      <div style="font-size:10px;">${dist}</div>
+      <div style="font-size:9px;color:var(--text-dim);font-weight:600;">${stroke.slice(0,4)}</div>
+      <span class="course-tag ${course === 'LC' ? 'course-lc' : 'course-sc'}" style="font-size:8px;padding:1px 4px;">${course}</span>
+    </th>`;
+  }).join('');
+
+  // Helper: race pace target split string
+  function racePaceSplit(qtSeconds, eventName) {
+    const dist = parseInt(eventName.split(' ')[0]);
+    if (dist < 100) return '';
+    const splitDist = dist <= 200 ? 50 : 100;
+    const splitSec = qtSeconds / (dist / splitDist);
+    const m = Math.floor(splitSec / 60);
+    const s = (splitSec % 60).toFixed(2).padStart(5, '0');
+    return m > 0 ? `${m}:${s}` : `${parseFloat(s).toFixed(2)}`;
+  }
+
+  // Build rows — sort swimmers: qualified at higher levels first, then by most events
+  const rowData = swimmers.map(s => {
+    const ag = _ssaAgeGroup(s.date_of_birth);
+    const g  = s.gender ? _ssaGender(s.gender) : null;
+    const age = s.date_of_birth ? Math.floor((Date.now() - new Date(s.date_of_birth)) / 31557600000) : null;
+
+    // Build PB map keyed by "event||course"
+    const pbMap = {};
+    s.times.forEach(t => {
+      const { event, course } = _parseTrackerEventKey(t._eventKey);
+      const k = `${event}||${course}`;
+      if (!pbMap[k] || t.time_seconds < pbMap[k].sec) pbMap[k] = { sec: t.time_seconds, txt: t.time_text };
+    });
+
+    let sanCount = 0, l3Count = 0, l2Count = 0, closeCount = 0;
+
+    const cells = sortedCols.map((ec, i) => {
+      const [evName, , course] = ec.split('||');
+      const pb = pbMap[`${evName}||${course}`];
+      const divClass = isDivider[i] ? ' stroke-divider' : '';
+
+      if (!pb) return `<td class="${divClass}"><span style="color:var(--border);font-size:11px;">—</span></td>`;
+
+      if (!ag || !g) {
+        // Senior — show PB, no QT comparison
+        return `<td class="${divClass}"><span class="qt-mc qt-mc-pb">${pb.txt}</span></td>`;
+      }
+
+      const pfx  = `${g}|${ag}|${course}`;
+      const qtS  = trackerQtMap[`${pfx}|SANJ|${evName}`];
+      const qtL3 = trackerQtMap[`${pfx}|L3|${evName}`];
+      const qtL2 = trackerQtMap[`${pfx}|L2|${evName}`];
+
+      if (!qtL2 && !qtL3 && !qtS) {
+        return `<td class="${divClass}"><span class="qt-mc qt-mc-pb">${pb.txt}</span></td>`;
+      }
+
+      // Determine next target for race pace hint
+      const nextQt = pb.sec > (qtS?.time_seconds || Infinity) ? null :
+                     pb.sec > (qtL3?.time_seconds || Infinity) ? qtS :
+                     pb.sec > (qtL2?.time_seconds || Infinity) ? qtL3 : null;
+      // Actually: lowest unmet standard
+      const nextTarget = (qtS  && pb.sec > qtS.time_seconds)  ? qtS  :
+                         (qtL3 && pb.sec > qtL3.time_seconds) ? qtL3 :
+                         (qtL2 && pb.sec > qtL2.time_seconds) ? qtL2 : null;
+
+      let cls, top, sub, tip;
+
+      if (qtS && pb.sec <= qtS.time_seconds) {
+        sanCount++; cls = 'qt-mc-sanj'; top = 'SANJ'; sub = pb.txt;
+        tip = `SANJ: ${qtS.time_text} ✓`;
+      } else if (qtL3 && pb.sec <= qtL3.time_seconds) {
+        l3Count++; cls = 'qt-mc-l3'; top = 'L3'; sub = pb.txt;
+        tip = `L3: ${qtL3.time_text} ✓  |  SANJ: ${qtS?.time_text || '—'} (+${qtS ? (pb.sec - qtS.time_seconds).toFixed(2) + 's' : '—'})`;
+      } else if (qtL2 && pb.sec <= qtL2.time_seconds) {
+        l2Count++; cls = 'qt-mc-l2'; top = 'L2'; sub = pb.txt;
+        const nextTxt = nextTarget ? `→ ${nextTarget === qtL3 ? 'L3' : 'SANJ'}: ${nextTarget.time_text} (+${(pb.sec - nextTarget.time_seconds).toFixed(2)}s)` : '';
+        const pace = nextTarget ? racePaceSplit(nextTarget.time_seconds, evName) : '';
+        tip = `L2: ${qtL2.time_text} ✓${nextTxt ? '  |  ' + nextTxt : ''}${pace ? '  |  Target split: ' + pace : ''}`;
+      } else {
+        const gap = pb.sec - (qtL2?.time_seconds || 0);
+        const pct = qtL2 ? gap / qtL2.time_seconds : 1;
+        if (pct <= 0.05) { closeCount++; cls = 'qt-mc-close'; }
+        else cls = 'qt-mc-far';
+        top = `+${gap.toFixed(1)}s`;
+        sub = pb.txt;
+        const pace = qtL2 ? racePaceSplit(qtL2.time_seconds, evName) : '';
+        tip = `PB: ${pb.txt}  |  L2: ${qtL2?.time_text || '—'} (+${gap.toFixed(2)}s)${pace ? '  |  Target split: ' + pace : ''}`;
+      }
+
+      return `<td class="${divClass}">
+        <span class="qt-mc ${cls}" title="${tip}">${top}<br><small style="font-size:9px;opacity:0.85;">${sub}</small></span>
+      </td>`;
+    }).join('');
+
+    return { s, age, sanCount, l3Count, l2Count, closeCount, cells, ag };
+  });
+
+  // Sort: SANJ leaders first, then L3, then L2, then by close count
+  rowData.sort((a, b) =>
+    b.sanCount - a.sanCount || b.l3Count - a.l3Count || b.l2Count - a.l2Count || b.closeCount - a.closeCount
+  );
+
+  const tbody = rowData.map(({ s, age, sanCount, l3Count, l2Count, closeCount, cells, ag }) => {
+    const squadName = allSquads.find(q => q.id === s.squad_id)?.name || '';
+    const qtSummary = ag
+      ? [sanCount && `<span class="qt-mc qt-mc-sanj" style="font-size:9px;padding:1px 4px;">${sanCount} SANJ</span>`,
+         l3Count  && `<span class="qt-mc qt-mc-l3"   style="font-size:9px;padding:1px 4px;">${l3Count} L3</span>`,
+         l2Count  && `<span class="qt-mc qt-mc-l2"   style="font-size:9px;padding:1px 4px;">${l2Count} L2</span>`,
+         closeCount && `<span class="qt-mc qt-mc-close" style="font-size:9px;padding:1px 4px;">${closeCount} close</span>`]
+        .filter(Boolean).join(' ')
+      : '<span style="font-size:10px;color:var(--text-dim);">Senior</span>';
+    return `<tr>
+      <td class="swimmer-cell">
+        <div style="font-weight:700;font-size:12px;margin-bottom:2px;">${s.display_name || '—'}</div>
+        <div style="font-size:10px;color:var(--text-sec);margin-bottom:3px;">${age ? `Age ${age}` : ''}${squadName ? ` · ${squadName}` : ''}</div>
+        <div>${qtSummary}</div>
+      </td>
+      ${cells}
+    </tr>`;
+  }).join('');
+
+  const legend = `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">
+    <span style="font-size:11px;font-weight:700;color:var(--text-sec);margin-right:4px;">Legend</span>
+    <span class="qt-mc qt-mc-sanj" style="font-size:10px;">SANJ</span>
+    <span class="qt-mc qt-mc-l3"   style="font-size:10px;">L3</span>
+    <span class="qt-mc qt-mc-l2"   style="font-size:10px;">L2</span>
+    <span class="qt-mc qt-mc-close" style="font-size:10px;">+Xs close</span>
+    <span class="qt-mc qt-mc-far"   style="font-size:10px;">+Xs to L2</span>
+    <span style="font-size:11px;color:var(--text-dim);margin-left:8px;">Hover any cell for gap + target split</span>
+  </div>`;
+
+  el.innerHTML = `<div class="card" style="padding:20px;">
+    ${legend}
+    <div class="qt-matrix-wrap">
+      <table class="qt-matrix">
+        <thead><tr>
+          <th class="col-swimmer">Swimmer</th>
+          ${headerCols}
+        </tr></thead>
+        <tbody>${tbody}</tbody>
+      </table>
+    </div>
+  </div>`;
 }
 
 // ── EVENTS ────────────────────────────────────────────────────────
