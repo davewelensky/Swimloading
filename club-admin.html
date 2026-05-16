@@ -223,6 +223,30 @@
     .matrix-toggle { display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
     .matrix-toggle-btn { background:transparent; border:none; padding:7px 14px; font-size:12px; font-weight:600; color:var(--text-sec); cursor:pointer; transition:all 0.15s; }
     .matrix-toggle-btn.active { background:rgba(56,189,248,0.12); color:var(--cyan); }
+    /* ── PIPELINE ── */
+    .pipeline-section-title { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-sec); margin:20px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+    .pipeline-section-title span { font-size:18px; font-weight:800; }
+    .pipeline-row { display:grid; grid-template-columns:200px 1fr auto; gap:16px; align-items:center; padding:12px 16px; background:var(--bg-card); border:1px solid var(--border); border-radius:12px; margin-bottom:8px; transition:border-color 0.15s; cursor:pointer; }
+    .pipeline-row:hover { border-color:rgba(56,189,248,0.25); }
+    .pipeline-row.tier-sanj { border-left:3px solid #f59e0b; }
+    .pipeline-row.tier-l3   { border-left:3px solid #10b981; }
+    .pipeline-row.tier-l2   { border-left:3px solid #818cf8; }
+    .pipeline-row.tier-close { border-left:3px solid rgba(245,158,11,0.4); }
+    .pipeline-row.tier-dev  { border-left:3px solid var(--border); }
+    .pipeline-swimmer { font-size:13px; font-weight:700; }
+    .pipeline-swimmer-meta { font-size:11px; color:var(--text-sec); margin-top:2px; }
+    .pipeline-bar-wrap { flex:1; }
+    .pipeline-event-label { font-size:11px; font-weight:700; color:var(--text); margin-bottom:5px; display:flex; align-items:center; gap:8px; }
+    .pipeline-bar-track { height:6px; background:rgba(255,255,255,0.06); border-radius:3px; position:relative; overflow:visible; }
+    .pipeline-bar-fill { height:6px; border-radius:3px; transition:width 0.4s; }
+    .pipeline-markers { position:relative; height:14px; margin-top:3px; font-size:9px; font-weight:700; }
+    .pipeline-marker { position:absolute; transform:translateX(-50%); color:var(--text-dim); white-space:nowrap; }
+    .pipeline-stats { text-align:right; min-width:110px; }
+    .pipeline-pb { font-size:15px; font-weight:800; color:var(--text); }
+    .pipeline-gap { font-size:11px; margin-top:2px; }
+    .pipeline-improvement { font-size:10px; color:var(--green); margin-top:3px; font-weight:600; }
+    .pipeline-split-hint { font-size:10px; color:var(--text-sec); margin-top:2px; }
+    .pipeline-empty { text-align:center; padding:40px; color:var(--text-sec); font-size:13px; }
     /* ── QT STATUS ── */
     .qt-strip { display:flex; align-items:center; gap:5px; flex-wrap:wrap; margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.05); }
     .qt-strip-label { font-size:10px; font-weight:700; color:var(--text-sec); text-transform:uppercase; letter-spacing:0.07em; margin-right:2px; }
@@ -907,7 +931,10 @@
                 <i data-lucide="layout-grid" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:4px;"></i>Cards
               </button>
               <button class="matrix-toggle-btn" id="trackerViewMatrix" onclick="setTrackerView('matrix')">
-                <i data-lucide="table-2" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:4px;"></i>QT Matrix
+                <i data-lucide="table-2" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:4px;"></i>Matrix
+              </button>
+              <button class="matrix-toggle-btn" id="trackerViewPipeline" onclick="setTrackerView('pipeline')">
+                <i data-lucide="trending-up" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:4px;"></i>Pipeline
               </button>
             </div>
             <select class="filter-select" id="trackerCatFilter" onchange="applyTrackerFilter()">
@@ -2884,6 +2911,9 @@ function setTrackerView(mode) {
   trackerViewMode = mode;
   document.getElementById('trackerViewCards').classList.toggle('active', mode === 'cards');
   document.getElementById('trackerViewMatrix').classList.toggle('active', mode === 'matrix');
+  document.getElementById('trackerViewPipeline').classList.toggle('active', mode === 'pipeline');
+  // Capacity strip only makes sense in card view
+  document.getElementById('squadCapacityStrip').style.display = mode === 'cards' ? '' : 'none';
   applyTrackerFilter();
 }
 
@@ -2893,7 +2923,8 @@ function applyTrackerFilter() {
   if (!val) filtered = trackerData;
   else if (val === '__unassigned__') filtered = trackerData.filter(r => !r.squad_id);
   else filtered = trackerData.filter(r => r.squad_id === val);
-  if (trackerViewMode === 'matrix') renderTrackerMatrix(filtered);
+  if (trackerViewMode === 'matrix')   renderTrackerMatrix(filtered);
+  else if (trackerViewMode === 'pipeline') renderTrackerPipeline(filtered);
   else renderTrackerGrid(filtered);
 }
 
@@ -3234,6 +3265,205 @@ function renderTrackerMatrix(swimmers) {
       </table>
     </div>
   </div>`;
+}
+
+function renderTrackerPipeline(swimmers) {
+  const el = document.getElementById('trackerContent');
+
+  // For each swimmer × each event they have a PB for, find their best QT status
+  // and score against SANJ. Build a flat list of (swimmer, event, pb, gap_to_sanj, gap_to_next).
+  const rows = [];
+
+  swimmers.forEach(s => {
+    const ag = _ssaAgeGroup(s.date_of_birth);
+    const g  = s.gender ? _ssaGender(s.gender) : null;
+    if (!ag || !g) return; // seniors have no SSA age group
+
+    const age = Math.floor((Date.now() - new Date(s.date_of_birth)) / 31557600000);
+    const squad = allSquads.find(q => q.id === s.squad_id)?.name || '';
+
+    // Build PB map with first/best times for improvement calc
+    const pbMap = {};
+    s.times.forEach(t => {
+      const k = t._eventKey;
+      if (!pbMap[k]) pbMap[k] = { first: t.time_seconds, firstTxt: t.time_text, pb: t.time_seconds, pbTxt: t.time_text };
+      else {
+        if (t.time_seconds < pbMap[k].pb) { pbMap[k].pb = t.time_seconds; pbMap[k].pbTxt = t.time_text; }
+      }
+    });
+
+    Object.entries(pbMap).forEach(([key, data]) => {
+      const { event: evName, course } = _parseTrackerEventKey(key);
+      const pfx  = `${g}|${ag}|${course}`;
+      const qtS  = trackerQtMap[`${pfx}|SANJ|${evName}`];
+      const qtL3 = trackerQtMap[`${pfx}|L3|${evName}`];
+      const qtL2 = trackerQtMap[`${pfx}|L2|${evName}`];
+      if (!qtL2) return; // no QT for this event/age
+
+      const gapToSanj = qtS ? data.pb - qtS.time_seconds : null;
+      const gapToL3   = qtL3 ? data.pb - qtL3.time_seconds : null;
+      const gapToL2   = qtL2 ? data.pb - qtL2.time_seconds : null;
+      const improvement = data.first - data.pb; // seconds improved since first result
+
+      // Tier: what's the best level achieved?
+      let tier, gapToNext, nextLabel, nextQtSec;
+      if (qtS && data.pb <= qtS.time_seconds) {
+        tier = 'sanj'; gapToNext = 0; nextLabel = 'SANJ'; nextQtSec = qtS.time_seconds;
+      } else if (qtL3 && data.pb <= qtL3.time_seconds) {
+        tier = 'l3';
+        gapToNext = gapToSanj; nextLabel = 'SANJ'; nextQtSec = qtS?.time_seconds;
+      } else if (qtL2 && data.pb <= qtL2.time_seconds) {
+        tier = 'l2';
+        gapToNext = gapToL3 ?? gapToSanj; nextLabel = qtL3 ? 'L3' : 'SANJ'; nextQtSec = qtL3?.time_seconds ?? qtS?.time_seconds;
+      } else {
+        const pct = gapToL2 / qtL2.time_seconds;
+        tier = pct <= 0.05 ? 'close' : 'dev';
+        gapToNext = gapToL2; nextLabel = 'L2'; nextQtSec = qtL2.time_seconds;
+      }
+
+      // Sort score: SANJ=0 (already there), then by gap to next level as % of that standard
+      const sortScore = tier === 'sanj' ? -1 :
+        nextQtSec ? (data.pb - nextQtSec) / nextQtSec : 99;
+
+      rows.push({ s, age, squad, evName, course, tier, sortScore,
+        pb: data.pb, pbTxt: data.pbTxt, firstTxt: data.firstTxt, improvement,
+        gapToNext, gapToL2, gapToL3, gapToSanj, nextLabel, nextQtSec,
+        qtL2, qtL3, qtS });
+    });
+  });
+
+  if (!rows.length) {
+    el.innerHTML = `<div class="pipeline-empty">No qualifying time data found for this squad.<br><span style="font-size:12px;color:var(--text-dim);">Swimmers need times recorded and must be aged 10–16.</span></div>`;
+    return;
+  }
+
+  // Sort: best tier first, then closest to next level
+  rows.sort((a, b) => {
+    const tierOrder = { sanj: 0, l3: 1, l2: 2, close: 3, dev: 4 };
+    if (tierOrder[a.tier] !== tierOrder[b.tier]) return tierOrder[a.tier] - tierOrder[b.tier];
+    return a.sortScore - b.sortScore;
+  });
+
+  // Keep only best event per swimmer (one row per swimmer to avoid noise)
+  // Actually show top event per swimmer — dedupe by swimmer id
+  const seenSwimmer = new Set();
+  const topPerSwimmer = [];
+  // First pass: each swimmer's absolute best
+  rows.forEach(r => {
+    if (!seenSwimmer.has(r.s.id)) { seenSwimmer.add(r.s.id); topPerSwimmer.push(r); }
+  });
+
+  // Also collect ALL qualified events per swimmer for secondary display
+  const allBySwimmer = {};
+  rows.forEach(r => {
+    if (!allBySwimmer[r.s.id]) allBySwimmer[r.s.id] = [];
+    allBySwimmer[r.s.id].push(r);
+  });
+
+  // Race pace helper
+  function splitTarget(qtSec, evName) {
+    const dist = parseInt(evName);
+    if (!dist || dist < 100) return '';
+    const splitDist = dist <= 200 ? 50 : 100;
+    const s = qtSec / (dist / splitDist);
+    const m = Math.floor(s / 60);
+    const sec = (s % 60).toFixed(2).padStart(5, '0');
+    return m > 0 ? `${m}:${sec}` : parseFloat(sec).toFixed(2);
+  }
+
+  // Build sections
+  const sections = [
+    { key: 'sanj', label: 'National (SANJ)', icon: '★', color: '#f59e0b' },
+    { key: 'l3',   label: 'L3 Qualified — pushing for SANJ', icon: '▲', color: '#10b981' },
+    { key: 'l2',   label: 'L2 Qualified — pushing for L3', icon: '▲', color: '#818cf8' },
+    { key: 'close', label: 'Close to L2 (within 5%)', icon: '◎', color: '#f59e0b' },
+    { key: 'dev',  label: 'Development', icon: '·', color: '#475569' },
+  ];
+
+  let html = '';
+  sections.forEach(sec => {
+    const secRows = topPerSwimmer.filter(r => r.tier === sec.key);
+    if (!secRows.length) return;
+
+    html += `<div class="pipeline-section-title" style="color:${sec.color};">
+      <span>${sec.icon}</span> ${sec.label}
+      <span style="font-size:11px;font-weight:600;color:var(--text-dim);margin-left:4px;">${secRows.length} swimmer${secRows.length !== 1 ? 's' : ''}</span>
+    </div>`;
+
+    secRows.forEach(r => {
+      const others = allBySwimmer[r.s.id].filter(x => x !== r);
+      const otherBadges = others.slice(0, 4).map(x => {
+        const tierColor = { sanj:'#f59e0b', l3:'#10b981', l2:'#818cf8', close:'#f59e0b', dev:'#475569' }[x.tier];
+        const tierLabel = { sanj:'SANJ', l3:'L3', l2:'L2', close:'~L2', dev:'' }[x.tier];
+        if (!tierLabel) return '';
+        return `<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:${tierColor}22;color:${tierColor};border:1px solid ${tierColor}44;">${x.evName.split(' ')[0]} ${x.course} ${tierLabel}</span>`;
+      }).filter(Boolean).join(' ');
+
+      // Progress bar: show position between L2 baseline and SANJ
+      const baseline = r.qtS ? r.qtS.time_seconds * 1.25 : (r.qtL2 ? r.qtL2.time_seconds * 1.2 : r.pb * 1.1);
+      const best     = r.qtS ? r.qtS.time_seconds * 0.98 : (r.qtS?.time_seconds || r.pb * 0.9);
+      const range    = baseline - (r.qtS?.time_seconds || r.pb * 0.9);
+
+      // Simpler: bar shows % through L2→SANJ corridor
+      const l2Sec   = r.qtL2?.time_seconds;
+      const sanjSec = r.qtS?.time_seconds;
+      const l3Sec   = r.qtL3?.time_seconds;
+
+      let barHtml = '';
+      if (l2Sec && sanjSec) {
+        const corridor = l2Sec - sanjSec; // total range L2→SANJ
+        const progress = Math.min(1, Math.max(0, (l2Sec - r.pb) / corridor));
+        const barColor = r.tier === 'sanj' ? '#f59e0b' : r.tier === 'l3' ? '#10b981' : r.tier === 'l2' ? '#818cf8' : '#f59e0b44';
+
+        // Marker positions
+        const l3Pos = l3Sec ? Math.min(100, Math.max(0, (l2Sec - l3Sec) / corridor * 100)) : null;
+        const sanjPos = 100;
+
+        barHtml = `<div class="pipeline-bar-track">
+          <div class="pipeline-bar-fill" style="width:${(progress*100).toFixed(1)}%;background:${barColor};"></div>
+          ${l3Sec ? `<div style="position:absolute;top:-1px;left:${l3Pos.toFixed(1)}%;width:2px;height:8px;background:rgba(16,185,129,0.6);border-radius:1px;"></div>` : ''}
+          <div style="position:absolute;top:-1px;right:0;width:2px;height:8px;background:rgba(245,158,11,0.6);border-radius:1px;"></div>
+        </div>
+        <div class="pipeline-markers">
+          ${l3Sec && l3Pos !== null ? `<div class="pipeline-marker" style="left:${l3Pos.toFixed(1)}%;color:#10b981;">L3</div>` : ''}
+          <div class="pipeline-marker" style="left:100%;color:#f59e0b;">SANJ</div>
+        </div>`;
+      }
+
+      const gapLabel = r.tier === 'sanj'
+        ? `<span style="color:#f59e0b;font-weight:700;">National qualified</span>`
+        : r.gapToNext != null
+          ? `<span style="color:${r.tier==='l3'?'#f59e0b':r.tier==='l2'?'#10b981':'#818cf8'};">+${r.gapToNext.toFixed(2)}s to ${r.nextLabel}</span>`
+          : '';
+
+      const splitHint = r.nextQtSec ? splitTarget(r.nextQtSec, r.evName) : '';
+      const improveLine = r.improvement > 0.1
+        ? `<div class="pipeline-improvement">▼${r.improvement.toFixed(2)}s from first result</div>` : '';
+
+      html += `<div class="pipeline-row tier-${r.tier}" onclick="openTrackerDetail('${r.s.id}')">
+        <div>
+          <div class="pipeline-swimmer">${r.s.display_name}</div>
+          <div class="pipeline-swimmer-meta">Age ${r.age} · ${r.squad}</div>
+          ${otherBadges ? `<div style="margin-top:5px;display:flex;gap:3px;flex-wrap:wrap;">${otherBadges}</div>` : ''}
+        </div>
+        <div>
+          <div class="pipeline-event-label">
+            ${r.evName}
+            <span class="course-tag ${r.course === 'LC' ? 'course-lc' : 'course-sc'}" style="font-size:9px;">${r.course}</span>
+          </div>
+          ${barHtml}
+        </div>
+        <div class="pipeline-stats">
+          <div class="pipeline-pb">${r.pbTxt}</div>
+          <div class="pipeline-gap">${gapLabel}</div>
+          ${splitHint ? `<div class="pipeline-split-hint">Target split: ${splitHint}</div>` : ''}
+          ${improveLine}
+        </div>
+      </div>`;
+    });
+  });
+
+  el.innerHTML = `<div style="max-width:900px;">${html}</div>`;
 }
 
 // ── EVENTS ────────────────────────────────────────────────────────
