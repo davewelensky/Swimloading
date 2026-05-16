@@ -2971,7 +2971,8 @@ function renderTrackerGrid(swimmers) {
         if (qtS  && e.pb <= qtS.time_seconds)  return 0;
         if (qtL3 && e.pb <= qtL3.time_seconds) return 1;
         if (qtL2 && e.pb <= qtL2.time_seconds) return 2;
-        if (qtL2) return 3 + (e.pb - qtL2.time_seconds) / qtL2.time_seconds;
+        const lowestQt = qtL2 || qtL3 || qtS;
+        if (lowestQt) return 3 + (e.pb - lowestQt.time_seconds) / lowestQt.time_seconds;
         return 99;
       };
       allEvents.sort((a, b) => qtScore(a) - qtScore(b));
@@ -2995,9 +2996,12 @@ function renderTrackerGrid(swimmers) {
         if (qtS  && e.pb <= qtS.time_seconds)  qtBadge = '<span class="qt-badge qt-badge-sanj">SANJ</span>';
         else if (qtL3 && e.pb <= qtL3.time_seconds) qtBadge = '<span class="qt-badge qt-badge-l3">L3</span>';
         else if (qtL2 && e.pb <= qtL2.time_seconds) qtBadge = '<span class="qt-badge qt-badge-l2">L2</span>';
-        else if (qtL2) {
-          const gap = e.pb - qtL2.time_seconds;
-          qtBadge = `<span class="qt-badge qt-badge-gap">+${gap.toFixed(1)}s</span>`;
+        else {
+          const lowestQt = qtL2 || qtL3 || qtS;
+          if (lowestQt) {
+            const gap = e.pb - lowestQt.time_seconds;
+            qtBadge = `<span class="qt-badge qt-badge-gap">+${gap.toFixed(1)}s</span>`;
+          }
         }
       }
 
@@ -3018,7 +3022,8 @@ function renderTrackerGrid(swimmers) {
       allEvents.forEach(e => {
         const { event: evName, course: evCourse } = _parseTrackerEventKey(e.name);
         const pfx = `${ssaG}|${ssaAg}|${evCourse}`;
-        if (trackerQtMap[`${pfx}|L2|${evName}`]) {
+        const hasAnyQt = trackerQtMap[`${pfx}|L2|${evName}`] || trackerQtMap[`${pfx}|L3|${evName}`] || trackerQtMap[`${pfx}|SANJ|${evName}`];
+        if (hasAnyQt) {
           tracked++;
           if (trackerQtMap[`${pfx}|SANJ|${evName}`] && e.pb <= trackerQtMap[`${pfx}|SANJ|${evName}`].time_seconds) sanj++;
           else if (trackerQtMap[`${pfx}|L3|${evName}`] && e.pb <= trackerQtMap[`${pfx}|L3|${evName}`].time_seconds) l3++;
@@ -3081,7 +3086,9 @@ function renderTrackerMatrix(swimmers) {
     if (!ag || !g) return;
     s.times.forEach(t => {
       const { event, course } = _parseTrackerEventKey(t._eventKey);
-      if (trackerQtMap[`${g}|${ag}|${course}|L2|${event}`]) eventSet.add(`${event}||${course}`);
+      if (trackerQtMap[`${g}|${ag}|${course}|L2|${event}`] ||
+          trackerQtMap[`${g}|${ag}|${course}|L3|${event}`] ||
+          trackerQtMap[`${g}|${ag}|${course}|SANJ|${event}`]) eventSet.add(`${event}||${course}`);
     });
   });
 
@@ -3298,12 +3305,13 @@ function renderTrackerPipeline(swimmers) {
       const qtS  = trackerQtMap[`${pfx}|SANJ|${evName}`];
       const qtL3 = trackerQtMap[`${pfx}|L3|${evName}`];
       const qtL2 = trackerQtMap[`${pfx}|L2|${evName}`];
-      if (!qtL2) return; // no QT for this event/age
+      if (!qtL2 && !qtL3 && !qtS) return; // no QT at any level for this event/age
 
-      const gapToSanj = qtS ? data.pb - qtS.time_seconds : null;
+      const lowestQt = qtL2 || qtL3 || qtS; // entry-level standard for this event
+      const gapToSanj = qtS  ? data.pb - qtS.time_seconds  : null;
       const gapToL3   = qtL3 ? data.pb - qtL3.time_seconds : null;
       const gapToL2   = qtL2 ? data.pb - qtL2.time_seconds : null;
-      const improvement = data.first - data.pb; // seconds improved since first result
+      const improvement = data.first - data.pb;
 
       // Tier: what's the best level achieved?
       let tier, gapToNext, nextLabel, nextQtSec;
@@ -3316,9 +3324,10 @@ function renderTrackerPipeline(swimmers) {
         tier = 'l2';
         gapToNext = gapToL3 ?? gapToSanj; nextLabel = qtL3 ? 'L3' : 'SANJ'; nextQtSec = qtL3?.time_seconds ?? qtS?.time_seconds;
       } else {
-        const pct = gapToL2 / qtL2.time_seconds;
+        const gap = data.pb - lowestQt.time_seconds;
+        const pct = gap / lowestQt.time_seconds;
         tier = pct <= 0.05 ? 'close' : 'dev';
-        gapToNext = gapToL2; nextLabel = 'L2'; nextQtSec = qtL2.time_seconds;
+        gapToNext = gap; nextLabel = qtL2 ? 'L2' : qtL3 ? 'L3' : 'SANJ'; nextQtSec = lowestQt.time_seconds;
       }
 
       // Sort score: SANJ=0 (already there), then by gap to next level as % of that standard
