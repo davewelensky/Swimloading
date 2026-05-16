@@ -940,6 +940,11 @@
             <select class="filter-select" id="trackerCatFilter" onchange="applyTrackerFilter()">
               <option value="">All squads</option>
             </select>
+            <select class="filter-select" id="matrixCourseFilter" onchange="applyTrackerFilter()" style="display:none;">
+              <option value="">SC + LC</option>
+              <option value="SC">SC only</option>
+              <option value="LC">LC only</option>
+            </select>
           </div>
         </div>
         <div id="squadCapacityStrip" style="display:none;margin-bottom:16px;"></div>
@@ -2912,8 +2917,8 @@ function setTrackerView(mode) {
   document.getElementById('trackerViewCards').classList.toggle('active', mode === 'cards');
   document.getElementById('trackerViewMatrix').classList.toggle('active', mode === 'matrix');
   document.getElementById('trackerViewPipeline').classList.toggle('active', mode === 'pipeline');
-  // Capacity strip only makes sense in card view
   document.getElementById('squadCapacityStrip').style.display = mode === 'cards' ? '' : 'none';
+  document.getElementById('matrixCourseFilter').style.display = mode === 'matrix' ? '' : 'none';
   applyTrackerFilter();
 }
 
@@ -3078,19 +3083,21 @@ function renderTrackerMatrix(swimmers) {
 
   const STROKE_ORDER = ['Free','Back','Breast','Fly','IM'];
 
+  const courseFilter = document.getElementById('matrixCourseFilter')?.value || '';
+
   // Collect all event+course combos any swimmer in the squad has a time for
   const eventSet = new Set();
   swimmers.forEach(s => {
     s.times.forEach(t => {
       const { event, course } = _parseTrackerEventKey(t._eventKey);
-      if (event) eventSet.add(`${event}||${course}`);
+      if (event && (!courseFilter || course === courseFilter)) eventSet.add(`${event}||${course}`);
     });
   });
 
   // Sort: SC before LC, then by stroke order, then by distance
   const sortedCols = [...eventSet].sort((a, b) => {
-    const [evA, , cA] = a.split('||');
-    const [evB, , cB] = b.split('||');
+    const [evA, cA] = a.split('||');
+    const [evB, cB] = b.split('||');
     if (cA !== cB) return cA === 'SC' ? -1 : 1;
     const [dA, ...sA] = evA.split(' ');
     const [dB, ...sB] = evB.split(' ');
@@ -3120,7 +3127,7 @@ function renderTrackerMatrix(swimmers) {
 
   // Header row
   const headerCols = sortedCols.map((ec, i) => {
-    const [ev, , course] = ec.split('||');
+    const [ev, course] = ec.split('||');
     const parts = ev.split(' ');
     const dist = parts[0];
     const stroke = parts.slice(1).join(' ');
@@ -3160,7 +3167,7 @@ function renderTrackerMatrix(swimmers) {
     let sanCount = 0, l3Count = 0, l2Count = 0, closeCount = 0;
 
     const cells = sortedCols.map((ec, i) => {
-      const [evName, , course] = ec.split('||');
+      const [evName, course] = ec.split('||');
       const pb = pbMap[`${evName}||${course}`];
       const divClass = isDivider[i] ? ' stroke-divider' : '';
 
