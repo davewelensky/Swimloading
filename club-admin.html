@@ -204,6 +204,23 @@
     .delta-improve { background:rgba(16,185,129,0.12); color:var(--green); }
     .delta-same { background:rgba(100,116,139,0.1); color:var(--text-sec); }
     .no-times { font-size:12px; color:var(--text-dim); text-align:center; padding:12px 0; }
+    /* ── QT STATUS ── */
+    .qt-strip { display:flex; align-items:center; gap:5px; flex-wrap:wrap; margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.05); }
+    .qt-strip-label { font-size:10px; font-weight:700; color:var(--text-sec); text-transform:uppercase; letter-spacing:0.07em; margin-right:2px; }
+    .qt-pill { font-size:10px; font-weight:800; padding:2px 7px; border-radius:20px; white-space:nowrap; }
+    .qt-pill-l2   { background:rgba(99,102,241,0.15); color:#818cf8; border:1px solid rgba(99,102,241,0.3); }
+    .qt-pill-l3   { background:rgba(16,185,129,0.12); color:#10b981; border:1px solid rgba(16,185,129,0.3); }
+    .qt-pill-sanj { background:rgba(245,158,11,0.12); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); }
+    .qt-pill-zero { background:rgba(255,255,255,0.04); color:var(--text-dim); border:1px solid var(--border); }
+    .qt-badge { font-size:9px; font-weight:800; padding:1px 5px; border-radius:4px; margin-left:4px; vertical-align:middle; }
+    .qt-badge-sanj { background:rgba(245,158,11,0.2); color:#f59e0b; }
+    .qt-badge-l3   { background:rgba(16,185,129,0.15); color:#10b981; }
+    .qt-badge-l2   { background:rgba(99,102,241,0.15); color:#818cf8; }
+    .qt-badge-gap  { background:rgba(100,116,139,0.12); color:var(--text-sec); }
+    .qt-event-row { display:flex; align-items:center; justify-content:space-between; padding:5px 8px; border-radius:6px; background:rgba(255,255,255,0.02); margin-top:3px; font-size:11px; }
+    .qt-event-name { color:var(--text-sec); font-weight:600; flex:1; }
+    .qt-event-pb   { font-weight:700; color:var(--text); margin:0 8px; }
+    .qt-levels     { display:flex; gap:3px; align-items:center; }
 
     /* ── SWIMMER DETAIL MODAL ── */
     #trackerDetailModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:2000; overflow-y:auto; padding:20px; }
@@ -2706,7 +2723,24 @@ async function deleteAnnouncement(id) {
 
 // ── SQUAD TRACKER ──────────────────────────────────────────────────
 let trackerData = [];
+let trackerQtMap = {};   // key: gender|age_group|course|level|event → row
 let pendingTrackerSquadId = null;
+
+function _ssaAgeGroup(dob) {
+  if (!dob) return null;
+  const age = new Date().getFullYear() - parseInt(dob.slice(0, 4), 10);
+  if (age <= 10) return '10U';
+  if (age <= 16) return String(age);
+  return null;
+}
+function _ssaGender(g) { return g === 'F' ? 'W' : 'M'; }
+function _parseTrackerEventKey(key) {
+  // key = "100 Free SC" — last token is course if SC/LC
+  const parts = key.trim().split(' ');
+  const last = parts[parts.length - 1];
+  if (last === 'SC' || last === 'LC') return { event: parts.slice(0, -1).join(' '), course: last };
+  return { event: key, course: 'SC' };
+}
 let allTimetableSessions = [];
 let ttEditId = null;
 let squadEditId = null;
@@ -2770,6 +2804,30 @@ async function loadSquadTracker() {
       sessions: sessionsByRoster[r.id]?.size || 0,
     }));
 
+  // Fetch SSA qualifying times for all age/gender combos in this roster
+  trackerQtMap = {};
+  const qtCombos = new Set();
+  trackerData.forEach(r => {
+    if (r.gender && r.date_of_birth) {
+      const ag = _ssaAgeGroup(r.date_of_birth);
+      if (ag) qtCombos.add(`${_ssaGender(r.gender)}|${ag}`);
+    }
+  });
+  if (qtCombos.size) {
+    const comboParts = [...qtCombos];
+    const genders   = [...new Set(comboParts.map(c => c.split('|')[0]))];
+    const ageGroups = [...new Set(comboParts.map(c => c.split('|')[1]))];
+    const { data: qtRows } = await sb.from('ssa_qualifying_times')
+      .select('gender, age_group, course, level, event, time_text, time_seconds')
+      .in('gender', genders)
+      .in('age_group', ageGroups)
+      .in('level', ['L2', 'L3', 'SANJ'])
+      .eq('season', '2025-2026');
+    (qtRows || []).forEach(row => {
+      trackerQtMap[`${row.gender}|${row.age_group}|${row.course}|${row.level}|${row.event}`] = row;
+    });
+  }
+
   // Populate squad filter — all squads, show member count
   const countBySquad = {};
   trackerData.forEach(r => { if (r.squad_id) countBySquad[r.squad_id] = (countBySquad[r.squad_id]||0)+1; });
@@ -2831,19 +2889,68 @@ function renderTrackerGrid(swimmers) {
     const events = Object.values(byEvent).slice(0, 4);
     const allEvents = Object.values(byEvent);
 
+    // QT lookup for this swimmer
+    const ssaAg = _ssaAgeGroup(s.date_of_birth);
+    const ssaG  = s.gender ? _ssaGender(s.gender) : null;
+    const hasQt = !!(ssaAg && ssaG);
+
     const eventsHtml = events.length ? events.map(e => {
       const delta = e.first - e.pb;
       const deltaHtml = delta > 0.5
         ? `<span class="tracker-event-delta delta-improve">-${delta.toFixed(1)}s</span>`
         : `<span class="tracker-event-delta delta-same">—</span>`;
+
+      let qtBadge = '';
+      if (hasQt) {
+        const { event: evName, course: evCourse } = _parseTrackerEventKey(e.name);
+        const pfx  = `${ssaG}|${ssaAg}|${evCourse}`;
+        const qtS  = trackerQtMap[`${pfx}|SANJ|${evName}`];
+        const qtL3 = trackerQtMap[`${pfx}|L3|${evName}`];
+        const qtL2 = trackerQtMap[`${pfx}|L2|${evName}`];
+        if (qtS  && e.pb <= qtS.time_seconds)  qtBadge = '<span class="qt-badge qt-badge-sanj">SANJ</span>';
+        else if (qtL3 && e.pb <= qtL3.time_seconds) qtBadge = '<span class="qt-badge qt-badge-l3">L3</span>';
+        else if (qtL2 && e.pb <= qtL2.time_seconds) qtBadge = '<span class="qt-badge qt-badge-l2">L2</span>';
+        else if (qtL2) {
+          const gap = e.pb - qtL2.time_seconds;
+          qtBadge = `<span class="qt-badge qt-badge-gap">+${gap.toFixed(1)}s</span>`;
+        }
+      }
+
       return `<div class="tracker-event">
         <span class="tracker-event-name">${e.name}</span>
-        <div style="display:flex;align-items:center;gap:8px;">
+        <div style="display:flex;align-items:center;gap:6px;">
           <span class="tracker-event-pb">${e.pbText || '—'}</span>
+          ${qtBadge}
           ${deltaHtml}
         </div>
       </div>`;
     }).join('') : `<div class="no-times">No times recorded yet</div>`;
+
+    // QT summary strip — count events qualifying at each level
+    let qtStripHtml = '';
+    if (hasQt && allEvents.length) {
+      let l2 = 0, l3 = 0, sanj = 0, tracked = 0;
+      allEvents.forEach(e => {
+        const { event: evName, course: evCourse } = _parseTrackerEventKey(e.name);
+        const pfx = `${ssaG}|${ssaAg}|${evCourse}`;
+        if (trackerQtMap[`${pfx}|L2|${evName}`]) {
+          tracked++;
+          if (trackerQtMap[`${pfx}|SANJ|${evName}`] && e.pb <= trackerQtMap[`${pfx}|SANJ|${evName}`].time_seconds) sanj++;
+          else if (trackerQtMap[`${pfx}|L3|${evName}`] && e.pb <= trackerQtMap[`${pfx}|L3|${evName}`].time_seconds) l3++;
+          else if (trackerQtMap[`${pfx}|L2|${evName}`] && e.pb <= trackerQtMap[`${pfx}|L2|${evName}`].time_seconds) l2++;
+        }
+      });
+      if (tracked > 0) {
+        const total = l2 + l3 + sanj;
+        qtStripHtml = `<div class="qt-strip">
+          <span class="qt-strip-label">QTs</span>
+          <span class="qt-pill ${sanj > 0 ? 'qt-pill-sanj' : 'qt-pill-zero'}">SANJ ${sanj}</span>
+          <span class="qt-pill ${l3   > 0 ? 'qt-pill-l3'   : 'qt-pill-zero'}">L3 ${l3}</span>
+          <span class="qt-pill ${l2   > 0 ? 'qt-pill-l2'   : 'qt-pill-zero'}">L2 ${l2}</span>
+          <span style="font-size:10px;color:var(--text-dim);margin-left:2px;">${total}/${tracked} events</span>
+        </div>`;
+      }
+    }
 
     return `<div class="tracker-card" onclick="openTrackerDetail('${s.id}')">
       <div class="tracker-card-header">
@@ -2867,6 +2974,7 @@ function renderTrackerGrid(swimmers) {
         </div>
       </div>
       ${eventsHtml}
+      ${qtStripHtml}
     </div>`;
   }).join('')}</div>`;
 }
@@ -6960,6 +7068,10 @@ async function openTrackerDetail(rosterId) {
     <div class="swimmer-detail-stat"><div class="swimmer-detail-stat-val" style="color:var(--green);">${pbCount}</div><div class="swimmer-detail-stat-lbl">PBs</div></div>
     <div class="swimmer-detail-stat"><div class="swimmer-detail-stat-val">${r.sessions}</div><div class="swimmer-detail-stat-lbl">Sessions</div></div>`;
 
+  const ssaAgDetail = _ssaAgeGroup(r.date_of_birth);
+  const ssaGDetail  = r.gender ? _ssaGender(r.gender) : null;
+  const hasQtDetail = !!(ssaAgDetail && ssaGDetail);
+
   document.getElementById('tdEvents').innerHTML = groupList.map(g => {
     const pts = g.points;
     const first = pts[0].time_s;
@@ -7011,12 +7123,38 @@ async function openTrackerDetail(rosterId) {
     const improvement = delta > 0.05
       ? `<span style="font-size:11px;font-weight:700;color:var(--green);margin-left:8px;">▼${delta.toFixed(2)}s total</span>` : '';
 
+    // QT comparison row for detail modal
+    let qtDetailHtml = '';
+    if (hasQtDetail) {
+      const pfx = `${ssaGDetail}|${ssaAgDetail}|${g.course}`;
+      const qtL2   = trackerQtMap[`${pfx}|L2|${g.eventKey}`];
+      const qtL3   = trackerQtMap[`${pfx}|L3|${g.eventKey}`];
+      const qtSANJ = trackerQtMap[`${pfx}|SANJ|${g.eventKey}`];
+      if (qtL2 || qtL3 || qtSANJ) {
+        const mkCell = (qt, cls, label) => {
+          if (!qt) return `<span style="font-size:11px;color:var(--text-dim);">—</span>`;
+          const met = pb <= qt.time_seconds;
+          const gap = pb - qt.time_seconds;
+          return met
+            ? `<span class="qt-pill ${cls}" style="font-size:11px;">${label} ✓ ${qt.time_text}</span>`
+            : `<span class="qt-pill qt-pill-zero" style="font-size:11px;">${label} +${gap.toFixed(2)}s (${qt.time_text})</span>`;
+        };
+        qtDetailHtml = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;padding:8px 10px;background:rgba(255,255,255,0.02);border-radius:8px;border:1px solid var(--border);">
+          <span style="font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.07em;margin-right:4px;">SSA QT</span>
+          ${mkCell(qtL2,   'qt-pill-l2',   'L2')}
+          ${mkCell(qtL3,   'qt-pill-l3',   'L3')}
+          ${mkCell(qtSANJ, 'qt-pill-sanj', 'SANJ')}
+        </div>`;
+      }
+    }
+
     return `<div class="event-section">
       <div class="event-section-title">
         ${g.eventKey}
         <span class="course-tag ${g.course === 'LC' ? 'course-lc' : 'course-sc'}">${g.course}</span>
         ${improvement}
       </div>
+      ${qtDetailHtml}
       ${summaryBar}
       ${pts.length >= 2 ? drawTimeChart(pts) : ''}
       ${rows}
