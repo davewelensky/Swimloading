@@ -298,6 +298,38 @@
     }
     .category-name { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--text); letter-spacing: 0.04em; }
     .category-age { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
+
+    /* ── MY SWIMMER PANEL ─────────────────────────────────────────── */
+    .my-swimmer-panel { background:linear-gradient(135deg,rgba(167,139,250,0.07),rgba(167,139,250,0.02)); border:1px solid rgba(167,139,250,0.2); border-radius:18px; overflow:hidden; }
+    .my-swimmer-header { padding:16px 20px 14px; border-bottom:1px solid rgba(167,139,250,0.12); }
+    .my-swimmer-eyebrow { font-size:10px; font-weight:700; color:#a78bfa; text-transform:uppercase; letter-spacing:0.12em; display:flex; align-items:center; gap:6px; }
+    .my-swimmer-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+    .my-swimmer-tab { padding:5px 14px; border-radius:20px; font-size:12px; font-weight:700; cursor:pointer; border:1px solid rgba(167,139,250,0.2); background:transparent; color:#a78bfa; transition:all 0.15s; font-family:'DM Sans',sans-serif; }
+    .my-swimmer-tab.active { background:rgba(167,139,250,0.15); border-color:rgba(167,139,250,0.4); color:#c4b5fd; }
+    .my-swimmer-body { padding:20px; }
+    .my-swimmer-name { font-size:20px; font-weight:800; color:var(--text); margin-bottom:2px; }
+    .my-swimmer-meta { font-size:12px; color:var(--text-sec); margin-bottom:20px; }
+    .ms-section { margin-bottom:20px; }
+    .ms-section:last-child { margin-bottom:0; }
+    .ms-section-title { font-size:10px; font-weight:700; color:rgba(167,139,250,0.7); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+    .ms-pb-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.04); gap:8px; }
+    .ms-pb-row:last-child { border-bottom:none; }
+    .ms-pb-event { font-size:13px; font-weight:600; color:var(--text); }
+    .ms-pb-course { font-size:10px; color:var(--text-dim); margin-left:4px; font-weight:400; }
+    .ms-pb-time { font-family:'Bebas Neue',sans-serif; font-size:17px; color:var(--cyan); letter-spacing:0.04em; flex-shrink:0; }
+    .ms-gala-row { display:flex; align-items:flex-start; gap:12px; padding:9px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+    .ms-gala-row:last-child { border-bottom:none; }
+    .ms-gala-date { min-width:34px; text-align:center; flex-shrink:0; }
+    .ms-gala-day { font-family:'Bebas Neue',sans-serif; font-size:22px; color:#a78bfa; line-height:1; }
+    .ms-gala-mon { font-size:9px; font-weight:700; color:var(--text-sec); text-transform:uppercase; }
+    .ms-att-bar { height:7px; background:rgba(255,255,255,0.06); border-radius:4px; overflow:hidden; margin:8px 0 5px; }
+    .ms-att-fill { height:100%; border-radius:4px; background:linear-gradient(90deg,rgba(167,139,250,0.5),rgba(167,139,250,0.9)); transition:width 0.4s ease; }
+    .ms-ann-item { padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+    .ms-ann-item:last-child { border-bottom:none; }
+    .ms-ann-title { font-size:13px; font-weight:700; color:var(--text); margin-bottom:2px; }
+    .ms-ann-body { font-size:12px; color:var(--text-sec); line-height:1.5; }
+    .ms-ann-date { font-size:10px; color:var(--text-dim); margin-top:3px; }
+    .ms-empty { font-size:12px; color:var(--text-dim); padding:6px 0; }
   </style>
 </head>
 <body>
@@ -349,6 +381,9 @@
 
   <!-- CONTENT -->
   <div class="content">
+
+    <!-- MY SWIMMER (shown to logged-in parents with approved access) -->
+    <div id="sectionMySwimmer" style="display:none;"></div>
 
     <!-- CLUB-SPECIFIC ANNOUNCEMENT (hidden until club loads) -->
     <div id="sectionAnnouncement" style="display:none;"></div>
@@ -686,6 +721,9 @@
     document.getElementById('pageLoading').style.display = 'none';
     document.getElementById('clubPage').style.display = 'block';
     lucide.createIcons();
+
+    // Private parent panel — runs after page shows, fails silently
+    loadMySwimmerPanel(club);
   }
 
   function renderAnnouncement(club) {
@@ -1866,6 +1904,187 @@
   }
 
   // ── Boot ─────────────────────────────────────────────────────────
+  // ── MY SWIMMER PANEL ──────────────────────────────────────────────
+  let _mySwimmerData      = [];
+  let _mySwimmerIdx       = 0;
+  let _mySwimmerAnns      = [];
+  const PANEL_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  async function loadMySwimmerPanel(club) {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) return;
+
+      const { data: links } = await sb.from('parent_roster_links')
+        .select('roster_id, relationship, club_roster(id, display_name, member_number, category)')
+        .eq('parent_user_id', session.user.id)
+        .eq('club_id', club.id)
+        .eq('status', 'approved');
+
+      if (!links?.length) return;
+
+      const rosterIds = links.map(l => l.club_roster?.id).filter(Boolean);
+      if (!rosterIds.length) return;
+
+      const todayStr  = new Date().toISOString().slice(0, 10);
+      const thirtyAgo = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
+
+      const [pbsRes, entriesRes, sessionsRes, annsRes] = await Promise.all([
+        sb.from('club_swimmer_times')
+          .select('roster_id, event, course, time_text')
+          .in('roster_id', rosterIds)
+          .eq('is_pb', true)
+          .order('event'),
+        sb.from('club_gala_entries')
+          .select('roster_id, event_name, course, entry_time_text, club_events(id, title, event_date)')
+          .in('roster_id', rosterIds)
+          .eq('club_id', club.id),
+        sb.from('club_sessions')
+          .select('id, session_date, club_attendance(roster_id, status)')
+          .eq('club_id', club.id)
+          .gte('session_date', thirtyAgo)
+          .lte('session_date', todayStr)
+          .limit(60),
+        sb.from('club_announcements')
+          .select('id, title, body, category, created_at')
+          .eq('club_id', club.id)
+          .order('created_at', { ascending: false })
+          .limit(3),
+      ]);
+
+      const allPbs     = pbsRes.data     || [];
+      const allEntries = entriesRes.data  || [];
+      const sessions   = sessionsRes.data || [];
+      _mySwimmerAnns   = annsRes.data     || [];
+
+      _mySwimmerData = links.map(link => {
+        const roster = link.club_roster;
+        const rid    = roster?.id;
+
+        const pbs = allPbs.filter(t => t.roster_id === rid);
+
+        const entries = allEntries
+          .filter(e => e.roster_id === rid && (e.club_events?.event_date || '') >= todayStr)
+          .sort((a, b) => (a.club_events?.event_date || '').localeCompare(b.club_events?.event_date || ''));
+
+        let attended = 0, total = 0;
+        sessions.forEach(s => {
+          const att = (s.club_attendance || []).find(a => a.roster_id === rid);
+          if (att) { total++; if (att.status === 'present' || att.status === 'late') attended++; }
+        });
+
+        return { roster, pbs, entries, attended, total, relationship: link.relationship };
+      });
+
+      _mySwimmerIdx = 0;
+      document.getElementById('sectionMySwimmer').style.display = 'block';
+      renderMySwimmerPanel();
+    } catch (_) { /* panel is supplementary — fail silently */ }
+  }
+
+  function renderMySwimmerPanel() {
+    const el = document.getElementById('sectionMySwimmer');
+    if (!el || !_mySwimmerData.length) return;
+
+    const swimmer = _mySwimmerData[_mySwimmerIdx];
+    const roster  = swimmer.roster;
+
+    const tabs = _mySwimmerData.length > 1
+      ? `<div class="my-swimmer-tabs">${_mySwimmerData.map((s, i) =>
+          `<button class="my-swimmer-tab ${i === _mySwimmerIdx ? 'active' : ''}" onclick="switchMySwimmer(${i})">${(s.roster?.display_name || '—').split(' ')[0]}</button>`
+        ).join('')}</div>` : '';
+
+    // PBs
+    const pbsHtml = swimmer.pbs.length
+      ? swimmer.pbs.map(t =>
+          `<div class="ms-pb-row">
+            <span class="ms-pb-event">${t.event}<span class="ms-pb-course">${t.course || ''}</span></span>
+            <span class="ms-pb-time">${t.time_text || '—'}</span>
+          </div>`).join('')
+      : `<div class="ms-empty">No times on file yet</div>`;
+
+    // Gala entries
+    const galasHtml = swimmer.entries.length
+      ? swimmer.entries.slice(0, 6).map(e => {
+          const d = new Date((e.club_events?.event_date || '') + 'T12:00:00');
+          return `<div class="ms-gala-row">
+            <div class="ms-gala-date">
+              <div class="ms-gala-day">${d.getDate()}</div>
+              <div class="ms-gala-mon">${PANEL_MONTHS[d.getMonth()]}</div>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">${e.club_events?.title || '—'}</div>
+              <div style="font-size:11px;color:var(--text-sec);margin-top:1px;">${e.event_name || ''}${e.course ? ' · ' + e.course : ''}${e.entry_time_text ? ' — ' + e.entry_time_text : ''}</div>
+            </div>
+          </div>`;
+        }).join('')
+      : `<div class="ms-empty">No upcoming gala entries</div>`;
+
+    // Attendance
+    const attPct    = swimmer.total > 0 ? Math.round(swimmer.attended / swimmer.total * 100) : null;
+    const attColour = attPct === null ? '#64748b' : attPct >= 80 ? '#10b981' : attPct >= 60 ? '#f59e0b' : '#ef4444';
+    const attHtml   = swimmer.total > 0
+      ? `<div class="ms-att-bar"><div class="ms-att-fill" style="width:${attPct}%;"></div></div>
+         <div style="display:flex;justify-content:space-between;font-size:12px;">
+           <span style="color:var(--text-sec);">${swimmer.attended} of ${swimmer.total} sessions (last 30 days)</span>
+           <span style="font-weight:700;color:${attColour};">${attPct}%</span>
+         </div>`
+      : `<div class="ms-empty">No sessions recorded yet</div>`;
+
+    // Announcements
+    const annsHtml = _mySwimmerAnns.length
+      ? _mySwimmerAnns.map(a => {
+          const d       = new Date(a.created_at);
+          const preview = (a.body || '').replace(/<[^>]+>/g, '').slice(0, 120);
+          return `<div class="ms-ann-item">
+            <div class="ms-ann-title">${a.title}</div>
+            ${preview ? `<div class="ms-ann-body">${preview}${(a.body || '').length > 120 ? '…' : ''}</div>` : ''}
+            <div class="ms-ann-date">${d.getDate()} ${PANEL_MONTHS[d.getMonth()]} ${d.getFullYear()}</div>
+          </div>`;
+        }).join('')
+      : `<div class="ms-empty">No announcements yet</div>`;
+
+    el.innerHTML = `
+      <div class="my-swimmer-panel">
+        <div class="my-swimmer-header">
+          <div class="my-swimmer-eyebrow">
+            <i data-lucide="user" style="width:12px;height:12px;"></i> My Swimmer
+          </div>
+          ${tabs}
+        </div>
+        <div class="my-swimmer-body">
+          <div class="my-swimmer-name">${roster?.display_name || '—'}</div>
+          <div class="my-swimmer-meta">${[roster?.category, roster?.member_number ? '#' + roster.member_number : null, swimmer.relationship].filter(Boolean).join(' · ')}</div>
+
+          <div class="ms-section">
+            <div class="ms-section-title"><i data-lucide="timer" style="width:12px;height:12px;"></i> Personal Bests</div>
+            ${pbsHtml}
+          </div>
+
+          <div class="ms-section">
+            <div class="ms-section-title"><i data-lucide="calendar" style="width:12px;height:12px;"></i> Gala Entries</div>
+            ${galasHtml}
+          </div>
+
+          <div class="ms-section">
+            <div class="ms-section-title"><i data-lucide="activity" style="width:12px;height:12px;"></i> Attendance — last 30 days</div>
+            ${attHtml}
+          </div>
+
+          <div class="ms-section">
+            <div class="ms-section-title"><i data-lucide="megaphone" style="width:12px;height:12px;"></i> Latest Announcements</div>
+            ${annsHtml}
+          </div>
+        </div>
+      </div>`;
+    lucide.createIcons();
+  }
+
+  function switchMySwimmer(idx) {
+    _mySwimmerIdx = idx;
+    renderMySwimmerPanel();
+  }
+
   loadClub().catch(err => {
     console.error('Club load failed:', err);
     document.getElementById('pageLoading').style.display = 'none';
