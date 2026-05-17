@@ -2855,6 +2855,16 @@ async function loadSquadTracker() {
   };
   swimTimes.forEach(t => addTime(t.roster_id, `${t.event} ${t.course || ''}`.trim(), t.time_seconds, t.time_text));
   galaTimes.forEach(t => addTime(t.roster_id, `${t.distance} ${t.stroke} ${t.course || ''}`.trim(), t.time_seconds, t.time_text));
+  // Deduplicate: same event key + same time = same swim appearing in both tables
+  Object.keys(timesByRoster).forEach(id => {
+    const seen = new Set();
+    timesByRoster[id] = timesByRoster[id].filter(t => {
+      const dk = `${t._eventKey}|${t.time_seconds}`;
+      if (seen.has(dk)) return false;
+      seen.add(dk);
+      return true;
+    });
+  });
 
   const sessionsByRoster = {};
   attend.forEach(a => {
@@ -7567,7 +7577,11 @@ async function openTrackerDetail(rosterId) {
       meet:     t.meet_name || 'Time trial',
     })),
   ].filter(p => p.time_s > 0)
-   .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+   .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+   .filter((p, i, arr) => {
+     // Deduplicate: same event+course+time = same swim in both tables; keep first occurrence
+     return arr.findIndex(x => x.eventKey === p.eventKey && x.course === p.course && x.time_s === p.time_s) === i;
+   });
 
   // Group by eventKey + course
   const groups = {};
