@@ -109,8 +109,21 @@ async function renderSpotPage(slug) {
       .map(s => ({ ...s, dist: haversineKm(spot.latitude, spot.longitude, s.latitude, s.longitude) }))
       .filter(s => s.dist <= 50)
       .sort((a, b) => a.dist - b.dist)
-      .slice(0, 3);
+      .slice(0, 6);
   }
+
+  // Active hazards for this spot (resolved_at must be null; active_until in future or null)
+  const hazardsRaw = await dbGet(
+    `hazard_reports?spot_id=eq.${spot.id}&resolved_at=is.null&select=hazard_type,severity,title,description,created_at,active_until&order=created_at.desc&limit=5`
+  ) || [];
+  const now = new Date();
+  const hazards = hazardsRaw.filter(h => !h.active_until || new Date(h.active_until) > now);
+
+  // 7-day trend from recent logs
+  const trend = computeTrend(recentLogs);
+
+  // FAQPage JSON-LD
+  const jsonLdFaq = buildFaqJsonLd(spot, latestData, hazards);
 
   const isPool = spot.water_type === 'POOL';
   const titleType = isPool ? 'Pool Temperature' : 'Water Temperature';
@@ -162,9 +175,11 @@ async function renderSpotPage(slug) {
       </div>
     </nav>
 
-    ${renderSpotHero(spot, latestData, recentLogs)}
+    ${renderSpotHero(spot, latestData, recentLogs, trend)}
 
     <main class="container page-body">
+      ${renderHazards(hazards)}
+
       <section>
         <h2>Recent Logs <small>(last 7 days)</small></h2>
         ${renderRecentLogsTable(recentLogs)}
@@ -178,15 +193,16 @@ async function renderSpotPage(slug) {
         ${getSpotSponsorHtml(spot)}
       </section>
 
-      ${renderNearbySpots(nearbySpots)}
+      ${renderNearbySpots(nearbySpots, regionSlug, regionName)}
+      ${renderFaq(spot, locationLabel, latestData, hazards)}
       ${renderAppTeaser(spot)}
     </main>
   `;
 
-  return pageShell({ title, description, canonical: `https://www.swimloading.com/spots/${slug}`, jsonLd: [jsonLdDataset, jsonLdBreadcrumb], body });
+  return pageShell({ title, description, canonical: `https://www.swimloading.com/spots/${slug}`, jsonLd: [jsonLdDataset, jsonLdBreadcrumb, jsonLdFaq], body });
 }
 
-function renderSpotHero(spot, latestData, recentLogs) {
+function renderSpotHero(spot, latestData, recentLogs, trend) {
   const latest = recentLogs[0] || null;
   const hasTemp = latestData?.temp_c != null;
   const cond = latest?.conditions ? escapeHtml(capitalise(latest.conditions)) : '';
@@ -195,8 +211,12 @@ function renderSpotHero(spot, latestData, recentLogs) {
   const notes = latest?.notes ? `<div class="hero-notes">"${escapeHtml(latest.notes)}"</div>` : '';
   const isIntl = !SA_DOMAINS_SET.has(spot.domain);
 
+  const TREND_LABEL = { warming: '↑ Warming', cooling: '↓ Cooling', stable: '→ Stable' };
+  const TREND_COLOR = { warming: '#f59e0b', cooling: '#38bdf8', stable: '#94a3b8' };
+  const trendBadge = trend ? `<span style="font-size:12px;font-weight:700;color:${TREND_COLOR[trend]};background:${TREND_COLOR[trend]}18;border:1px solid ${TREND_COLOR[trend]}44;border-radius:20px;padding:3px 10px;margin-left:10px;">${TREND_LABEL[trend]}</span>` : '';
+
   const tempBlock = hasTemp ? `
-    <div class="hero-temp">${latestData.temp_c}°C</div>
+    <div class="hero-temp">${latestData.temp_c}°C${trendBadge}</div>
     ${cond ? `<div class="hero-cond">${cond}</div>` : ''}
     <div class="hero-meta">Logged by ${escapeHtml(who)}${when ? ` · ${escapeHtml(when)}` : ''}</div>
     ${notes}
@@ -347,10 +367,19 @@ function renderSeoCopy(spot, locationLabel, stats) {
     <p>SwimLoading is a free peer-to-peer ocean intelligence platform built by open water swimmers. Swimmers log water temperatures, conditions, and hazards so the whole community swims smarter. Check current conditions at ${name} before every swim.</p>`;
 }
 
-function renderNearbySpots(nearby) {
-  if (nearby.length < 2) return '';
-  const links = nearby.map(s => `<a href="/spots/${generateSlug(s.name)}">${escapeHtml(s.name)}</a>`).join(' · ');
-  return `<section class="nearby"><p>Nearby spots: ${links}</p></section>`;
+function renderNearbySpots(nearby, regionSlug, regionName) {
+  if (!nearby.length) return '';
+  const links = nearby.map(s => {
+    const d = s.dist ? ` <span style="font-size:11px;color:var(--subtle);">${s.dist.toFixed(1)} km</span>` : '';
+    return `<a href="/spots/${generateSlug(s.name)}" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid var(--border);border-radius:8px;text-decoration:none;color:var(--text);font-size:14px;font-weight:600;transition:border-color .2s;" onmouseover="this.style.borderColor='rgba(56,189,248,0.4)'" onmouseout="this.style.borderColor='rgba(56,189,248,0.15)'">${escapeHtml(s.name)}${d}</a>`;
+  }).join('');
+  const regionLink = regionSlug ? `<p style="margin-top:14px;font-size:13px;color:var(--subtle);">All spots in <a href="/spots/${regionSlug}">${escapeHtml(regionName || regionSlug)}</a></p>` : '';
+  return `
+  <section>
+    <h2>Nearby Spots</h2>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">${links}</div>
+    ${regionLink}
+  </section>`;
 }
 
 // ─── REGIONAL PAGE ────────────────────────────────────────────────────────────
@@ -492,8 +521,9 @@ function renderWinterSection(poolSpots, regionName) {
 
 // ─── SHARED HTML SHELL ────────────────────────────────────────────────────────
 
-function pageShell({ title, description, canonical, jsonLd, body }) {
+function pageShell({ title, description, canonical, jsonLd, body, ogImage }) {
   const ldTags = jsonLd.map(d => `<script type="application/ld+json">${JSON.stringify(d)}</script>`).join('\n  ');
+  const image = ogImage || 'https://www.swimloading.com/screenshots/dashboard.jpg';
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -503,6 +533,16 @@ function pageShell({ title, description, canonical, jsonLd, body }) {
   <meta name="description" content="${escapeHtml(description)}">
   <link rel="canonical" href="${canonical}">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="${escapeHtml(title)}">
+  <meta property="og:description" content="${escapeHtml(description)}">
+  <meta property="og:url" content="${canonical}">
+  <meta property="og:image" content="${image}">
+  <meta property="og:site_name" content="SwimLoading">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${escapeHtml(title)}">
+  <meta name="twitter:description" content="${escapeHtml(description)}">
+  <meta name="twitter:image" content="${image}">
   ${ldTags}
   <style>${INLINE_CSS}</style>
 </head>
@@ -716,6 +756,121 @@ const FOOTER_HTML = `
   &nbsp;·&nbsp; <a href="mailto:support@swimloading.com">support@swimloading.com</a>
 </div>
 `.trim();
+
+// ─── SPOT PAGE HELPERS ────────────────────────────────────────────────────────
+
+function computeTrend(logs) {
+  const temps = logs.map(l => l.temp_c).filter(t => t != null);
+  if (temps.length < 3) return null;
+  // logs are newest-first; split into recent half vs older half
+  const half = Math.ceil(temps.length / 2);
+  const avgRecent = temps.slice(0, half).reduce((a, b) => a + b, 0) / half;
+  const avgOlder  = temps.slice(half).reduce((a, b) => a + b, 0) / (temps.length - half);
+  const diff = avgRecent - avgOlder;
+  if (diff > 0.5) return 'warming';
+  if (diff < -0.5) return 'cooling';
+  return 'stable';
+}
+
+function renderHazards(hazards) {
+  if (!hazards.length) {
+    return `
+  <section>
+    <h2>Hazards</h2>
+    <p class="no-logs">No active hazards reported by the SwimLoading community.</p>
+  </section>`;
+  }
+
+  const SEV_COLOR = { high: '#ef4444', medium: '#f59e0b', low: '#64748b', info: '#38bdf8' };
+  const SEV_LABEL = { high: 'High', medium: 'Medium', low: 'Low', info: 'Info' };
+  const rows = hazards.map(h => {
+    const c = SEV_COLOR[h.severity] || '#64748b';
+    const l = SEV_LABEL[h.severity] || h.severity;
+    return `
+    <div style="border:1px solid ${c}33;border-left:3px solid ${c};border-radius:10px;padding:14px 16px;margin-bottom:10px;background:${c}08;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;">
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${c};background:${c}22;padding:2px 8px;border-radius:20px;">${escapeHtml(l)}</span>
+        <span style="font-size:12px;color:var(--subtle);">${escapeHtml(capitalise(h.hazard_type))}</span>
+        <span style="font-size:12px;color:var(--subtle);margin-left:auto;">${h.created_at ? formatDate(h.created_at) : ''}</span>
+      </div>
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">${escapeHtml(h.title)}</div>
+      ${h.description ? `<div style="font-size:13px;color:var(--muted);">${escapeHtml(h.description)}</div>` : ''}
+    </div>`;
+  }).join('');
+  return `
+  <section>
+    <h2>Active Hazards</h2>
+    ${rows}
+  </section>`;
+}
+
+function renderFaq(spot, locationLabel, latestData, hazards) {
+  const name = escapeHtml(spot.name);
+  const isPool = spot.water_type === 'POOL';
+  const typeLabel = isPool ? 'pool' : 'open water';
+
+  const tempAnswer = latestData?.temp_c != null
+    ? `The latest community-logged water temperature at ${name} is <strong>${latestData.temp_c}°C</strong>. Check the top of this page for the exact timestamp.`
+    : `There is no recent community log for ${name} yet. SwimLoading relies on swimmers to log temperatures — be the first to log it and help the whole community.`;
+
+  const goodAnswer = isPool
+    ? `${name} is a swimming pool in ${escapeHtml(locationLabel)}. It is suitable for lap swimming and training. Check the current pool temperature above before your session.`
+    : `${name} is an open water ${typeLabel} spot in ${escapeHtml(locationLabel)}. Conditions vary by weather, swell, and current water temperature. Always check the latest logs before swimming and assess conditions on the day. SwimLoading community data is logged by swimmers, not certified safety officers.`;
+
+  const hazardAnswer = hazards.length
+    ? `There ${hazards.length === 1 ? 'is 1 active hazard' : `are ${hazards.length} active hazards`} currently reported at ${name} by the SwimLoading community. See the hazards section above for details.`
+    : `No active hazards have been reported at ${name}. This does not guarantee conditions are safe — always assess on the day.`;
+
+  const updateAnswer = `SwimLoading is a community platform. Temperatures at ${name} are updated whenever a SwimLoading member logs a reading. Active spots are typically updated multiple times per week during peak swimming seasons.`;
+
+  const logAnswer = `Yes. SwimLoading is free. Sign up at swimloading.com or download the app, and log a temperature for ${name}. Your reading helps the whole community plan their swims.`;
+
+  const faqs = [
+    [`What is the water temperature at ${name} today?`, tempAnswer],
+    [`Is ${name} good for ${typeLabel} swimming?`, goodAnswer],
+    [`Are there any hazards at ${name}?`, hazardAnswer],
+    [`How often is ${name} updated on SwimLoading?`, updateAnswer],
+    [`Can I log a temperature for ${name}?`, logAnswer],
+  ];
+
+  const items = faqs.map(([q, a]) => `
+  <details style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:8px;">
+    <summary style="padding:14px 16px;font-size:15px;font-weight:600;color:var(--text);cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      ${escapeHtml(q)}<span style="font-size:20px;color:var(--ocean-lt);flex-shrink:0;font-weight:400;">+</span>
+    </summary>
+    <div style="padding:0 16px 14px;font-size:14px;line-height:1.7;color:var(--muted);">${a}</div>
+  </details>`).join('');
+
+  return `
+  <section>
+    <h2>Frequently Asked Questions</h2>
+    ${items}
+  </section>`;
+}
+
+function buildFaqJsonLd(spot, latestData, hazards) {
+  const name = spot.name;
+  const tempText = latestData?.temp_c != null
+    ? `The latest community-logged water temperature at ${name} is ${latestData.temp_c}°C. Check the SwimLoading page for the most recent timestamp.`
+    : `There is no recent community log for ${name} yet. Sign up free at swimloading.com and be the first to log it.`;
+  const hazardText = hazards.length
+    ? `There ${hazards.length === 1 ? 'is 1 active hazard' : `are ${hazards.length} active hazards`} currently reported at ${name}. See the SwimLoading spot page for details.`
+    : `No active hazards have been reported at ${name} by the SwimLoading community. Always assess conditions on the day.`;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: [
+      { '@type': 'Question', name: `What is the water temperature at ${name} today?`,
+        acceptedAnswer: { '@type': 'Answer', text: tempText } },
+      { '@type': 'Question', name: `Are there any hazards at ${name}?`,
+        acceptedAnswer: { '@type': 'Answer', text: hazardText } },
+      { '@type': 'Question', name: `How often is ${name} updated on SwimLoading?`,
+        acceptedAnswer: { '@type': 'Answer', text: `SwimLoading is a community platform — temperatures at ${name} are updated by members. Active spots are typically logged multiple times per week during peak seasons.` } },
+      { '@type': 'Question', name: `Can I log a temperature for ${name}?`,
+        acceptedAnswer: { '@type': 'Answer', text: `Yes. SwimLoading is free to use. Visit swimloading.com or download the app, sign up free, and log a temperature for ${name}.` } },
+    ],
+  };
+}
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
