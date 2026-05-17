@@ -182,6 +182,8 @@ async function renderSpotPage(slug) {
 
       <section>
         <h2>Recent Logs <small>(last 7 days)</small></h2>
+        ${renderFreshnessBar(recentLogs, latestData)}
+        ${renderTrendSummary(spot, recentLogs, trend)}
         ${renderRecentLogsTable(recentLogs)}
       </section>
 
@@ -415,7 +417,11 @@ async function renderRegionalPage(regionSlug) {
   };
 
   const intro = REGION_INTROS[regionSlug] || '';
+  const introHtml = intro
+    ? intro.split('\n\n').map(p => `<p class="intro-text">${escapeHtml(p.trim())}</p>`).join('')
+    : '';
   const sponsorHtml = getRegionSponsorHtml(regionSlug);
+  const jsonLdRegionFaq = buildRegionFaqJsonLd(regionName, spots);
 
   const body = `
     <div class="region-hero">
@@ -425,7 +431,7 @@ async function renderRegionalPage(regionSlug) {
             <a href="/">SwimLoading</a> › ${escapeHtml(regionName)}
           </nav>
           <h1>Swimming in ${escapeHtml(regionName)}</h1>
-          ${intro ? `<p class="intro-text">${escapeHtml(intro)}</p>` : ''}
+          ${introHtml}
           <a href="/app" class="btn-hero">Track conditions free →</a>
         </div>
         <div class="region-hero-phones">
@@ -441,6 +447,8 @@ async function renderRegionalPage(regionSlug) {
         ${renderSpotCards(spots)}
       </section>
 
+      ${renderRegionDiscovery(spots)}
+
       ${showWinter ? renderWinterSection(poolSpots, regionName) : ''}
 
       ${allPools ? renderIntlPoolsSection() : ''}
@@ -450,11 +458,13 @@ async function renderRegionalPage(regionSlug) {
         <a href="/app" class="btn-cta">Log a Temperature →</a>
       </section>
 
+      ${renderRegionFaq(regionName, regionSlug, spots)}
+
       ${sponsorHtml ? `<section class="sponsor-section">${sponsorHtml}</section>` : ''}
     </main>
   `;
 
-  return pageShell({ title, description, canonical: `https://www.swimloading.com/spots/${regionSlug}`, jsonLd: [jsonLdItemList], body });
+  return pageShell({ title, description, canonical: `https://www.swimloading.com/spots/${regionSlug}`, jsonLd: [jsonLdItemList, jsonLdRegionFaq], body });
 }
 
 const SA_DOMAINS_SET = new Set(['WEST_COAST','ATLANTIC','FALSE_BAY','KZN','EASTERN_CAPE','GARDEN_ROUTE','SOUTH_COAST','INLAND','NON_COASTAL','GAUTENG','FREE_STATE']);
@@ -868,6 +878,140 @@ function buildFaqJsonLd(spot, latestData, hazards) {
         acceptedAnswer: { '@type': 'Answer', text: `SwimLoading is a community platform — temperatures at ${name} are updated by members. Active spots are typically logged multiple times per week during peak seasons.` } },
       { '@type': 'Question', name: `Can I log a temperature for ${name}?`,
         acceptedAnswer: { '@type': 'Answer', text: `Yes. SwimLoading is free to use. Visit swimloading.com or download the app, sign up free, and log a temperature for ${name}.` } },
+    ],
+  };
+}
+
+function renderFreshnessBar(recentLogs, latestData) {
+  const count = recentLogs.length;
+  if (!count && !latestData?.updated_at) return '';
+  const lastTime = latestData?.updated_at || recentLogs[0]?.created_at;
+  const lastStr = lastTime ? timeAgo(lastTime) : null;
+  const parts = [];
+  if (count > 0) parts.push(`${count} log${count !== 1 ? 's' : ''} this week`);
+  if (lastStr) parts.push(`Updated ${lastStr}`);
+  return `<p style="font-size:13px;color:var(--subtle);margin-bottom:10px;">${parts.join(' · ')}</p>`;
+}
+
+function renderTrendSummary(spot, recentLogs, trend) {
+  if (!trend || recentLogs.length < 3) return '';
+  const temps = recentLogs.map(l => l.temp_c).filter(t => t != null);
+  if (temps.length < 3) return '';
+  const half = Math.ceil(temps.length / 2);
+  const avgRecent = temps.slice(0, half).reduce((a, b) => a + b, 0) / half;
+  const avgOlder  = temps.slice(half).reduce((a, b) => a + b, 0) / (temps.length - half);
+  const delta = Math.abs(avgRecent - avgOlder).toFixed(1);
+  const name = escapeHtml(spot.name);
+  const sentences = {
+    warming: `Water temperatures at ${name} have risen ${delta}°C over the last 7 days.`,
+    cooling: `Water temperatures at ${name} have dropped ${delta}°C over the last 7 days.`,
+    stable:  `Water temperatures at ${name} have been stable over the last 7 days.`,
+  };
+  return `<p style="font-size:14px;color:var(--muted);margin-bottom:12px;">${sentences[trend]}</p>`;
+}
+
+function renderRegionDiscovery(spots) {
+  const withLogged = spots.filter(s => s.last_logged != null);
+  const withTemp   = spots.filter(s => s.avg_temp != null);
+  if (!withLogged.length && !withTemp.length) return '';
+
+  const cardLink = (name, slug, right) =>
+    `<a href="/spots/${slug}" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid var(--border);border-radius:8px;text-decoration:none;color:var(--text);font-size:14px;font-weight:600;transition:border-color .2s;" onmouseover="this.style.borderColor='rgba(56,189,248,0.4)'" onmouseout="this.style.borderColor='rgba(56,189,248,0.15)'">${escapeHtml(name)}${right}</a>`;
+
+  let html = '';
+
+  if (withLogged.length >= 2) {
+    const recent = [...withLogged].sort((a, b) => new Date(b.last_logged) - new Date(a.last_logged)).slice(0, 4);
+    const items = recent.map(s => cardLink(s.name, generateSlug(s.name),
+      `<span style="font-size:12px;color:var(--subtle);font-weight:400;">${escapeHtml(timeAgo(s.last_logged))}</span>`
+    )).join('');
+    html += `<section><h2>Recently Logged</h2><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">${items}</div></section>`;
+  }
+
+  if (withTemp.length >= 2) {
+    const warmest = [...withTemp].sort((a, b) => b.avg_temp - a.avg_temp).slice(0, 4);
+    const items = warmest.map(s => cardLink(s.name, generateSlug(s.name),
+      `<span style="font-size:14px;font-weight:800;color:var(--ocean-lt);">${s.avg_temp}°C</span>`
+    )).join('');
+    html += `<section><h2>Warmest Spots</h2><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">${items}</div></section>`;
+  }
+
+  return html;
+}
+
+function renderRegionFaq(regionName, regionSlug, spots) {
+  const withTemp = spots.filter(s => s.avg_temp != null);
+  const temps = withTemp.map(s => s.avg_temp);
+  const minT = temps.length ? Math.min(...temps).toFixed(1) : null;
+  const maxT = temps.length ? Math.max(...temps).toFixed(1) : null;
+  const topSpots = spots.slice(0, 3).map(s => s.name).join(', ');
+  const rn = escapeHtml(regionName);
+
+  const faqs = [
+    [
+      `What water temperature can I expect swimming in ${rn}?`,
+      temps.length >= 2
+        ? `Community-logged temperatures across ${rn} range from <strong>${minT}°C</strong> to <strong>${maxT}°C</strong> depending on the spot and season. Check individual spot pages for the latest logged reading.`
+        : `Temperatures in ${rn} vary by spot and season. Check individual spot pages for the latest reading.`,
+    ],
+    [
+      `What are the best swimming spots in ${rn}?`,
+      topSpots
+        ? `SwimLoading tracks ${spots.length} swimming spot${spots.length !== 1 ? 's' : ''} in ${rn}, including ${escapeHtml(topSpots)}. Browse all spots on this page — tap any card for the latest conditions.`
+        : `SwimLoading is building its coverage of ${rn} swimming spots. Check back soon or sign up free to log a spot in this region.`,
+    ],
+    [
+      `Is open water swimming in ${rn} safe?`,
+      `Open water conditions vary with weather, swell, and temperature. SwimLoading data is community-logged — it gives you real water temperatures and conditions from other swimmers, but is not a substitute for your own on-the-day assessment. Always swim within your ability and be aware of local hazards.`,
+    ],
+    [
+      `How does SwimLoading track temperatures in ${rn}?`,
+      `SwimLoading is a peer-to-peer platform. Temperatures across ${rn} are logged by the open water swimming community after their sessions, so data reflects actual conditions from real swims. Sign up free to contribute your own logs.`,
+    ],
+  ];
+
+  const items = faqs.map(([q, a]) => `
+  <details style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:8px;">
+    <summary style="padding:14px 16px;font-size:15px;font-weight:600;color:var(--text);cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      ${q}<span style="font-size:20px;color:var(--ocean-lt);flex-shrink:0;font-weight:400;">+</span>
+    </summary>
+    <div style="padding:0 16px 14px;font-size:14px;line-height:1.7;color:var(--muted);">${a}</div>
+  </details>`).join('');
+
+  return `
+  <section>
+    <h2>Frequently Asked Questions</h2>
+    ${items}
+  </section>`;
+}
+
+function buildRegionFaqJsonLd(regionName, spots) {
+  const withTemp = spots.filter(s => s.avg_temp != null);
+  const temps = withTemp.map(s => s.avg_temp);
+  const minT = temps.length ? Math.min(...temps).toFixed(1) : null;
+  const maxT = temps.length ? Math.max(...temps).toFixed(1) : null;
+  const topSpots = spots.slice(0, 3).map(s => s.name).join(', ');
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: [
+      { '@type': 'Question',
+        name: `What water temperature can I expect swimming in ${regionName}?`,
+        acceptedAnswer: { '@type': 'Answer', text: temps.length >= 2
+          ? `Community-logged temperatures across ${regionName} range from ${minT}°C to ${maxT}°C depending on the spot and season.`
+          : `Temperatures in ${regionName} vary by spot and season. Check individual spot pages on SwimLoading for the latest reading.` } },
+      { '@type': 'Question',
+        name: `What are the best swimming spots in ${regionName}?`,
+        acceptedAnswer: { '@type': 'Answer', text: topSpots
+          ? `SwimLoading tracks ${spots.length} swimming spot${spots.length !== 1 ? 's' : ''} in ${regionName}, including ${topSpots}.`
+          : `SwimLoading is building its coverage of ${regionName} swimming spots.` } },
+      { '@type': 'Question',
+        name: `Is open water swimming in ${regionName} safe?`,
+        acceptedAnswer: { '@type': 'Answer', text: `Open water conditions vary with weather, swell, and temperature. SwimLoading data is community-logged and not a substitute for your own on-the-day assessment. Always swim within your ability.` } },
+      { '@type': 'Question',
+        name: `How does SwimLoading track temperatures in ${regionName}?`,
+        acceptedAnswer: { '@type': 'Answer', text: `SwimLoading is a peer-to-peer platform. Temperatures across ${regionName} are logged by the open water swimming community after their sessions. Sign up free at swimloading.com to contribute.` } },
     ],
   };
 }
