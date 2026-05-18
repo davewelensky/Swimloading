@@ -686,6 +686,7 @@ let focusFilter  = 'all';
 let selectedSetId= null;
 let assignCtx    = null; // { squadId, date, slot }
 let editingId    = null; // null = new set
+let pendingShare = null; // { content, setName, squadName, dateLabel, coach }
 
 // ══ UTILS ════════════════════════════════════════════════════════════
 const h = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1237,13 +1238,14 @@ async function saveAssignment() {
 function openViewFromLib(setId) {
   const s = sets.find(x => x.id === setId);
   if (!s) return;
+  pendingShare = { content: s.set_content || '', setName: s.name };
   document.getElementById('viewName').textContent    = s.name;
   document.getElementById('viewMeta').textContent    = [fmtDist(s.total_distance), s.focus, s.pool_type].filter(Boolean).join(' · ');
   document.getElementById('viewAssignBar').style.display = 'none';
   document.getElementById('viewContent').textContent = s.set_content || '';
   document.getElementById('viewActions').innerHTML =
-    `<button class="btn-ghost" onclick="editSet('${s.id}');closeView()"><i data-lucide="edit-2"></i>Edit</button>
-     <button class="btn-wa"    onclick="shareSet(${JSON.stringify(s.set_content||'')},${JSON.stringify(s.name)})"><i data-lucide="share-2"></i>WhatsApp</button>
+    `<button class="btn-ghost"  onclick="editSet('${s.id}');closeView()"><i data-lucide="edit-2"></i>Edit</button>
+     <button class="btn-wa"     onclick="shareCurrentSet()"><i data-lucide="share-2"></i>WhatsApp</button>
      <button class="btn-danger" onclick="deleteSet('${s.id}');closeView()"><i data-lucide="trash-2"></i>Delete</button>`;
   document.getElementById('viewOverlay').classList.add('open');
   lucide.createIcons();
@@ -1252,21 +1254,25 @@ function openViewFromLib(setId) {
 function openView(assignmentId) {
   const asgn = Object.values(assignments).find(a => a.id === assignmentId);
   if (!asgn?.club_swim_sets) return;
-  const s  = asgn.club_swim_sets;
-  const sq = squads.find(x => x.id === asgn.squad_id);
+  const s       = asgn.club_swim_sets;
+  const sq      = squads.find(x => x.id === asgn.squad_id);
+  const full    = sets.find(x => x.id === s.id);
+  const content = full?.set_content || s.set_content || '';
+  pendingShare  = {
+    content,
+    setName:   s.name,
+    squadName: sq?.name || 'Squad',
+    dateLabel: fmtLong(asgn.session_date),
+    coach:     asgn.delivering_coach ? `Coach: ${asgn.delivering_coach}` : '',
+  };
   document.getElementById('viewName').textContent = s.name;
   document.getElementById('viewMeta').textContent = [fmtDist(s.total_distance), s.focus, s.pool_type].filter(Boolean).join(' · ');
   const bar = document.getElementById('viewAssignBar');
   bar.style.display = '';
   bar.innerHTML = `<strong>${h(sq?.name || 'Squad')}</strong> · ${fmtLong(asgn.session_date)}${asgn.delivering_coach ? ` · Coach: <strong>${h(asgn.delivering_coach)}</strong>` : ''}`;
-  const full = sets.find(x => x.id === s.id);
-  const content = full?.set_content || s.set_content || '';
   document.getElementById('viewContent').textContent = content;
-  const squadName = sq?.name || 'Squad';
-  const dateStr2  = fmtLong(asgn.session_date);
-  const coach     = asgn.delivering_coach ? `Coach: ${asgn.delivering_coach}` : '';
   document.getElementById('viewActions').innerHTML =
-    `<button class="btn-wa" onclick="shareSet(${JSON.stringify(content)},${JSON.stringify(s.name)},${JSON.stringify(squadName)},${JSON.stringify(dateStr2)},${JSON.stringify(coach)})"><i data-lucide="share-2"></i>WhatsApp</button>
+    `<button class="btn-wa"     onclick="shareCurrentSet()"><i data-lucide="share-2"></i>WhatsApp</button>
      <button class="btn-danger" onclick="removeAssignment('${assignmentId}')"><i data-lucide="calendar-x"></i>Remove</button>
      <button class="btn-ghost"  onclick="closeView()">Close</button>`;
   document.getElementById('viewOverlay').classList.add('open');
@@ -1274,6 +1280,11 @@ function openView(assignmentId) {
 }
 
 // ══ WHATSAPP SHARE ═══════════════════════════════════════════════════
+function shareCurrentSet() {
+  if (!pendingShare) return;
+  shareSet(pendingShare.content, pendingShare.setName, pendingShare.squadName, pendingShare.dateLabel, pendingShare.coach);
+}
+
 function shareSet(content, setName, squadName, dateLabel, coachLine) {
   const lines = [
     `*${currentClub?.name || 'SwimLoading'}*`,
