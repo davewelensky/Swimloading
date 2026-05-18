@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { club_id, gala_squad_ids } = req.body || {};
+  const { club_id, gala_squad_ids, training_goal } = req.body || {};
   if (!club_id) return res.status(400).json({ error: 'club_id required' });
 
   const SUPABASE_URL  = process.env.SUPABASE_URL  || 'https://szgkzuswelntnevobnoh.supabase.co';
@@ -137,6 +137,9 @@ export default async function handler(req, res) {
 
   const context = `Today: ${today}
 
+TRAINING GOAL FOR THIS ANALYSIS:
+${training_goal || 'General weekly training review — no specific event'}
+
 SQUAD TRAINING HISTORY — last 4 weeks (focus breakdown):
 ${squadLines.join('\n') || 'No squads found'}
 
@@ -158,7 +161,7 @@ ${nearQualifiers.slice(0, 30).map(n =>
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
       max_tokens: 2000,
-      system: `You are an expert competitive swimming coach analyst. Analyse squad training data and return ONLY valid JSON — no markdown, no extra text.
+      system: `You are an expert swimming coach analyst covering all disciplines — competitive pool, open water, triathlon, and learn-to-swim. Adapt your recommendations to the stated training goal: a gala needs tapering and race-pace work; open water needs endurance and sighting; a weekly review needs balance; learn-to-swim needs skill progression. Return ONLY valid JSON — no markdown, no extra text.
 
 Return this exact structure:
 {

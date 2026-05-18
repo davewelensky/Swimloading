@@ -619,10 +619,17 @@
 
   <div id="insightsBody" style="padding:0 24px 40px;">
 
-    <!-- Gala squad selector -->
-    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:20px;">
-      <div style="font-size:12px;font-weight:600;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">Squads attending next gala</div>
-      <div id="galaSquadChips" style="display:flex;flex-wrap:wrap;gap:7px;"></div>
+    <!-- Analysis context -->
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Training goal</div>
+        <input class="input-field" id="insightsGoal" type="text" style="width:100%;max-width:520px;"
+          placeholder="e.g. QM1 gala in 4 weeks · Robben Island crossing · Weekly review · Stroke development">
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Squads to analyse</div>
+        <div id="galaSquadChips" style="display:flex;flex-wrap:wrap;gap:7px;"></div>
+      </div>
     </div>
 
     <div id="insightsEmpty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:260px;gap:12px;color:var(--text-sec);">
@@ -903,7 +910,11 @@ async function loadInsights() {
   try {
     const res  = await fetch('/api/sets/insights', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ club_id: currentClub.id, gala_squad_ids: galaSquadIds.size ? [...galaSquadIds] : null }),
+      body: JSON.stringify({
+        club_id: currentClub.id,
+        gala_squad_ids: galaSquadIds.size ? [...galaSquadIds] : null,
+        training_goal: document.getElementById('insightsGoal').value.trim() || null,
+      }),
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
