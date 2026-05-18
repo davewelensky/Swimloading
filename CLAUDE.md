@@ -455,6 +455,20 @@ Complete inventory of every public page. Brand checklist: spotlight = mouse curs
 
 **SEO config lives in:** `api/seo-utils.js` (DOMAIN_MAP, REGION_DOMAINS, REGION_NAMES, REGION_INTROS)
 
+### Club Admin (authenticated — club_admins only)
+
+| Route | File | Purpose | Brand Required |
+|-------|------|---------|---------------|
+| `/club-admin/:slug` | `club-admin.html` | Full club admin panel — roster, squads, attendance, galas, squad tracker, announcements | Minimal |
+| `/sets/:slug` | `sets.html` | Sets Planner — weekly calendar, set library, AI generator, AI insights, WhatsApp sharing | Minimal |
+| `/coach/:slug` | `coach.html` | Coach session view — attendance, walk-ins | Minimal |
+
+**Sets Planner architecture (`sets.html` + `api/sets/`):**
+- Auth: `getSession()` only — do NOT use `onAuthStateChange` to trigger boot (causes Supabase v2 deadlock)
+- `api/sets/generate.js` — POST, calls Anthropic API, respects `duration_mins` hard constraint
+- `api/sets/insights.js` — POST `{ club_id }`, uses `SUPABASE_SERVICE_KEY`, fetches 4-week set history + upcoming galas + swimmer PBs vs `ssa_qualifying_times`, returns Claude JSON recommendations
+- Tables: `club_swim_sets`, `club_set_assignments` — both gated by `club_admins` RLS
+
 ### Internal / Admin
 
 | Route | File | Purpose | Brand Required |
@@ -493,5 +507,5 @@ If code size becomes an issue again:
 
 ---
 
-**Last Updated:** May 1, 2026  
+**Last Updated:** May 18, 2026  
 **Maintained by:** Dave Welensky & Claude
