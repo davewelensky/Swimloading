@@ -672,11 +672,21 @@ async function boot() {
   const slug = location.pathname.replace(/^\/sets\/?/,'').replace(/\/$/,'');
   if (!slug) { showAuthWall('No club specified', 'Use the link your admin sent you.'); return; }
 
-  const { data: rows } = await sb.from('club_admins').select('role, clubs(*)').eq('user_id', currentUser.id);
-  const match = (rows || []).find(r => r.clubs?.slug === slug);
-  if (!match) { showAuthWall('No coach access', 'Ask Britt to add you to the coaching team.'); return; }
+  try {
+    // Two separate queries avoids cross-table RLS join issues
+    const { data: club, error: clubErr } = await sb.from('clubs').select('*').eq('slug', slug).single();
+    if (clubErr || !club) { showAuthWall('Club not found', `No club with slug "${slug}".`); return; }
 
-  currentClub = match.clubs;
+    const { data: admin, error: adminErr } = await sb.from('club_admins')
+      .select('role').eq('club_id', club.id).eq('user_id', currentUser.id).maybeSingle();
+    if (adminErr || !admin) { showAuthWall('No coach access', 'Ask Britt to add you to the coaching team.'); return; }
+
+    currentClub = club;
+  } catch (e) {
+    console.error('boot error', e);
+    showAuthWall('Error loading club', 'Please refresh and try again.');
+    return;
+  }
   document.getElementById('navClubName').textContent = currentClub.name || '';
   document.getElementById('adminLink').href = `/club-admin/${slug}`;
   document.getElementById('screenLoading').style.display = 'none';
