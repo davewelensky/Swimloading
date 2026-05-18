@@ -649,15 +649,19 @@ function showAuthWall(title, sub) {
 // ══ INIT ════════════════════════════════════════════════════════════
 async function init() {
   weekStart = mondayOf(new Date());
+  console.log('[sets] init start');
 
   sb.auth.onAuthStateChange(async (event, session) => {
+    console.log('[sets] authStateChange', event);
     if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session && !currentUser) {
       currentUser = session.user;
       await boot();
     }
   });
 
+  console.log('[sets] calling getSession');
   const { data: { session } } = await sb.auth.getSession();
+  console.log('[sets] getSession done, session=', !!session);
   if (!session) {
     document.getElementById('screenLoading').style.display = 'none';
     document.getElementById('screenAuth').style.display = '';
@@ -670,23 +674,28 @@ async function init() {
 
 async function boot() {
   const slug = location.pathname.replace(/^\/sets\/?/,'').replace(/\/$/,'');
+  console.log('[sets] boot slug=', slug);
   if (!slug) { showAuthWall('No club specified', 'Use the link your admin sent you.'); return; }
 
   try {
-    // Two separate queries avoids cross-table RLS join issues
+    console.log('[sets] querying clubs...');
     const { data: club, error: clubErr } = await sb.from('clubs').select('*').eq('slug', slug).single();
+    console.log('[sets] clubs result', { club: club?.id, err: clubErr?.message });
     if (clubErr || !club) { showAuthWall('Club not found', `No club with slug "${slug}".`); return; }
 
+    console.log('[sets] querying club_admins...');
     const { data: admin, error: adminErr } = await sb.from('club_admins')
       .select('role').eq('club_id', club.id).eq('user_id', currentUser.id).maybeSingle();
+    console.log('[sets] club_admins result', { admin, err: adminErr?.message });
     if (adminErr || !admin) { showAuthWall('No coach access', 'Ask Britt to add you to the coaching team.'); return; }
 
     currentClub = club;
   } catch (e) {
-    console.error('boot error', e);
+    console.error('[sets] boot error', e);
     showAuthWall('Error loading club', 'Please refresh and try again.');
     return;
   }
+  console.log('[sets] auth OK, loading UI');
   document.getElementById('navClubName').textContent = currentClub.name || '';
   document.getElementById('adminLink').href = `/club-admin/${slug}`;
   document.getElementById('screenLoading').style.display = 'none';
