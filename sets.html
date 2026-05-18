@@ -258,6 +258,7 @@
     }
     .ai-panel-title i { width: 15px; height: 15px; }
     .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 12px; }
+    .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-top: 12px; }
     .field-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-sec); margin-bottom: 6px; }
 
     .set-body-textarea {
@@ -331,7 +332,7 @@
     .empty-state h3 { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
 
     @media (max-width: 640px) {
-      .grid-3, .meta-row { grid-template-columns: 1fr; }
+      .grid-3, .grid-4, .meta-row { grid-template-columns: 1fr; }
       .sets-grid { grid-template-columns: 1fr; }
       .planner-scroll { padding: 0 12px 24px; }
       .builder-body { padding: 16px; }
@@ -446,7 +447,16 @@
       <div class="field-label">Describe the session</div>
       <textarea class="input-field" id="aiDesc" rows="3"
         placeholder="e.g. Masters Monday morning, 3km, mix of 50s descending and 100s aerobic, some backstroke thrown in, pacing focus…"></textarea>
-      <div class="grid-3">
+      <div class="grid-4">
+        <div>
+          <div class="field-label">Session time</div>
+          <select class="input-field" id="aiDuration" onchange="onDurationChange(this.value)">
+            <option value="45">45 mins</option>
+            <option value="60" selected>60 mins</option>
+            <option value="75">75 mins</option>
+            <option value="90">90 mins</option>
+          </select>
+        </div>
         <div>
           <div class="field-label">Target distance</div>
           <select class="input-field" id="aiDist">
@@ -885,6 +895,11 @@ function editSet(id) {
   switchTab('builder');
 }
 
+function onDurationChange(mins) {
+  const suggested = { '45': '2000', '60': '3000', '75': '3500', '90': '4000' };
+  if (suggested[mins]) document.getElementById('aiDist').value = suggested[mins];
+}
+
 async function generateSet() {
   const desc = document.getElementById('aiDesc').value.trim();
   if (!desc) { toast('Add a description first', 'error'); return; }
@@ -893,16 +908,17 @@ async function generateSet() {
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;"></div> Generating…';
 
-  const focus = document.getElementById('aiFocus').value;
-  const pool  = document.getElementById('aiPool').value;
-  const dist  = document.getElementById('aiDist').value;
+  const focus    = document.getElementById('aiFocus').value;
+  const pool     = document.getElementById('aiPool').value;
+  const dist     = document.getElementById('aiDist').value;
+  const duration = document.getElementById('aiDuration').value;
   document.getElementById('setFocus').value = focus;
   document.getElementById('setPool').value  = pool;
 
   try {
     const res  = await fetch('/api/sets/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ description: desc, total_distance: dist, focus, pool_type: pool, squad_level: 'Masters' }),
+      body: JSON.stringify({ description: desc, total_distance: dist, focus, pool_type: pool, squad_level: 'Masters', duration_mins: duration }),
     });
     const data = await res.json();
     if (data.set_content) {

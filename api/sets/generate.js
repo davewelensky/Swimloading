@@ -1,11 +1,14 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { description, total_distance, focus, pool_type, squad_level } = req.body || {};
+  const { description, total_distance, focus, pool_type, squad_level, duration_mins } = req.body || {};
   if (!description) return res.status(400).json({ error: 'Description required' });
 
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
   if (!ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured in Vercel env vars' });
+
+  const dur = parseInt(duration_mins) || 60;
+  const dist = parseInt(total_distance) || 3000;
 
   const system = `You are an expert swim coach with 20+ years experience writing squad training sets.
 Write sets in clean plain-text notation — no markdown, no asterisks, no emojis.
@@ -16,19 +19,21 @@ Format rules:
 - Single swim: "400m WARMUP — easy choice, focus on feel"
 - Stroke codes: FR=freestyle BK=backstroke BR=breaststroke FLY=butterfly IM=individual medley
 - Drill codes: DR=drill SW=swim KICK=kick PULL=pull UW=underwater
-- Interval: use @  (e.g. @1:45 means send every 1:45)
+- Interval: use @ (e.g. @1:45 means send every 1:45)
 - Always have a labelled WARMUP block, MAIN SET block(s), and COOLDOWN
 - End the set with exactly this line format: "Total: Xm | ~Ymins"
-- Keep efforts realistic and achievable for the squad level`;
+- Keep efforts realistic and achievable for the squad level
+- HARD RULE: The total session time in the final line MUST be ${dur} minutes or less. Do not exceed this. Adjust rest intervals and distances to fit.`;
 
   const prompt = `Write a swim training set with these parameters:
 Description: ${description}
-Target total distance: ~${total_distance || 3000}m
+Session duration: EXACTLY ${dur} minutes — this is a hard limit, the set must fit within this time
+Target total distance: ~${dist}m (adjust if needed to stay within ${dur} mins)
 Pool: ${pool_type === 'LCM' ? '50m long course (LCM)' : '25m short course (SCM)'}
 Training focus: ${focus || 'mixed'}
 Squad level: ${squad_level || 'Masters'}
 
-Generate the complete set now.`;
+Generate the complete set now. The final "Total:" line must show ${dur} mins or less.`;
 
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
