@@ -890,7 +890,8 @@ function switchTab(name) {
 }
 
 // ══ INSIGHTS ════════════════════════════════════════════════════════
-let galaSquadIds = new Set(); // squads selected for gala — empty = all
+let galaSquadIds   = new Set();
+let insightSquads  = []; // cached so onclick can reference by index without quoting issues
 
 function renderGalaSquadChips() {
   const el = document.getElementById('galaSquadChips');
@@ -958,8 +959,9 @@ function renderInsights(data) {
     </div>`;
 
   // Squad cards
+  insightSquads = data.squads || [];
   const grid = document.getElementById('insightsSquadGrid');
-  grid.innerHTML = (data.squads || []).map(sq => {
+  grid.innerHTML = insightSquads.map((sq, i) => {
     const focusColours = { aerobic:'#38bdf8', speed:'#f87171', drills:'#a78bfa', kick:'#fb923c', endurance:'#34d399', mixed:'#94a3b8' };
     const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${focusColours[sq.priority_focus]||'#94a3b8'};margin-right:5px;"></span>`;
     return `<div class="insight-card urgency-${sq.urgency || 'low'}">
@@ -972,7 +974,7 @@ function renderInsights(data) {
         ${dot}Next focus: <span style="color:${focusColours[sq.priority_focus]||'#94a3b8'}">${sq.priority_focus || 'mixed'}</span>
       </div>
       <div class="insight-rec">${h(sq.recommendation || '')}</div>
-      ${sq.suggested_prompt ? `<button class="insight-prompt-btn" onclick="useInsightPrompt(${JSON.stringify(sq.suggested_prompt)},${JSON.stringify(sq.priority_focus||'mixed')})">
+      ${sq.suggested_prompt ? `<button class="insight-prompt-btn" onclick="useInsightPrompt(${i})">
         <i data-lucide="sparkles"></i>Generate this set
       </button>` : ''}
     </div>`;
@@ -1008,7 +1010,11 @@ function renderInsights(data) {
   lucide.createIcons();
 }
 
-function useInsightPrompt(prompt, focus) {
+function useInsightPrompt(idx) {
+  const sq = insightSquads[idx];
+  if (!sq) return;
+  const prompt = sq.suggested_prompt;
+  const focus  = sq.priority_focus || 'mixed';
   switchTab('builder');
   resetBuilder();
   document.getElementById('aiDesc').value   = prompt;
@@ -1019,7 +1025,6 @@ function useInsightPrompt(prompt, focus) {
   genBtn.innerHTML = '<i data-lucide="sparkles"></i> Generate set';
   lucide.createIcons();
   genBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  // Auto-fire the generation after the tab transition settles
   setTimeout(() => generateSet(), 400);
 }
 
