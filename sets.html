@@ -1011,19 +1011,16 @@ function renderInsights(data) {
 function useInsightPrompt(prompt, focus) {
   switchTab('builder');
   resetBuilder();
-  document.getElementById('aiDesc').value    = prompt;
-  document.getElementById('aiFocus').value   = focus;
-  document.getElementById('setFocus').value  = focus;
-  // Scroll AI panel into view and pulse the generate button
+  document.getElementById('aiDesc').value   = prompt;
+  document.getElementById('aiFocus').value  = focus;
+  document.getElementById('setFocus').value = focus;
   const genBtn = document.getElementById('genBtn');
   genBtn.disabled = false;
   genBtn.innerHTML = '<i data-lucide="sparkles"></i> Generate set';
   lucide.createIcons();
   genBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  genBtn.style.transition = 'box-shadow 0.2s';
-  genBtn.style.boxShadow  = '0 0 0 4px rgba(56,189,248,0.45)';
-  setTimeout(() => { genBtn.style.boxShadow = ''; }, 1200);
-  toast('Prompt loaded — hit Generate set to create it', 'success');
+  // Auto-fire the generation after the tab transition settles
+  setTimeout(() => generateSet(), 400);
 }
 
 // ══ PLANNER ═════════════════════════════════════════════════════════
