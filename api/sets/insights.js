@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { club_id } = req.body || {};
+  const { club_id, gala_squad_ids } = req.body || {};
   if (!club_id) return res.status(400).json({ error: 'club_id required' });
 
   const SUPABASE_URL  = process.env.SUPABASE_URL  || 'https://szgkzuswelntnevobnoh.supabase.co';
@@ -110,6 +110,11 @@ export default async function handler(req, res) {
     });
   });
 
+  // Resolve which squad names are attending the gala
+  const galaSquadNames = gala_squad_ids?.length
+    ? squads.filter(s => gala_squad_ids.includes(s.id)).map(s => s.name)
+    : squads.map(s => s.name);
+
   // Build gala summary
   const galaLines = (galas || []).map(g => {
     const weeks = Math.round((new Date(g.event_date) - new Date()) / (7 * 24 * 60 * 60 * 1000));
@@ -133,6 +138,9 @@ ${squadLines.join('\n') || 'No squads found'}
 
 UPCOMING GALAS — next 8 weeks:
 ${galaLines.join('\n') || 'None scheduled'}
+
+SQUADS ATTENDING NEXT GALA (apply tapering advice only to these):
+${galaSquadNames.join(', ') || 'All squads'}
 
 SWIMMERS WITHIN 5 SECONDS OF NEXT QUALIFYING LEVEL:
 ${nearQualifiers.slice(0, 30).map(n =>
