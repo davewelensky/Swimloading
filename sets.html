@@ -622,9 +622,17 @@
     <!-- Analysis context -->
     <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;flex-direction:column;gap:14px;">
       <div>
-        <div style="font-size:12px;font-weight:600;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Training goal</div>
+        <div style="font-size:12px;font-weight:600;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Training phase</div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px;">
+          <button class="filter-chip" onclick="setInsightsPhase('General pre-season — building base fitness, no tapering required',this)">Pre-season</button>
+          <button class="filter-chip" onclick="setInsightsPhase('Race preparation — shifting to speed and race-pace work',this)">Race prep</button>
+          <button class="filter-chip" onclick="setInsightsPhase('Taper week — reduce volume, maintain intensity, sharpen for competition',this)">Tapering</button>
+          <button class="filter-chip" onclick="setInsightsPhase('Open water / endurance event preparation',this)">Open water</button>
+          <button class="filter-chip" onclick="setInsightsPhase('Weekly training review — no specific event',this)">Weekly review</button>
+          <button class="filter-chip" onclick="setInsightsPhase('Skill development — technique and stroke improvement focus',this)">Skill development</button>
+        </div>
         <input class="input-field" id="insightsGoal" type="text" style="width:100%;max-width:520px;"
-          placeholder="e.g. QM1 gala in 4 weeks · Robben Island crossing · Weekly review · Stroke development">
+          placeholder="Or type your own: e.g. Robben Island crossing in 6 weeks, Masters OW prep">
       </div>
       <div>
         <div style="font-size:12px;font-weight:600;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Squads to analyse</div>
@@ -893,6 +901,12 @@ function renderGalaSquadChips() {
     const on = galaSquadIds.has(s.id);
     return `<button class="filter-chip${on ? ' active' : ''}" onclick="toggleGalaSquad('${s.id}',this)">${h(s.name)}</button>`;
   }).join('');
+}
+
+function setInsightsPhase(text, btn) {
+  document.getElementById('insightsGoal').value = text;
+  btn.closest('div').querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
 }
 
 function toggleGalaSquad(id, btn) {
