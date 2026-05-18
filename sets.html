@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sets Planner · SwimLoading</title>
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #080f1a;
+      --bg-card:   #0d1728;
+      --bg-lift:   #111e35;
+      --cyan:      #38bdf8;
+      --text:      #f1f5f9;
+      --text-sec:  #64748b;
+      --text-dim:  #334155;
+      --border:    rgba(255,255,255,0.07);
+      --green:     #10b981;
+      --amber:     #f59e0b;
+      --danger:    #ef4444;
+    }
+    html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+    /* ── Nav ── */
+    .top-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px; height: 58px;
+      background: rgba(8,15,26,0.96); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200;
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 8px; text-decoration: none;
+      font-size: 15px; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg,#38bdf8,#0ea5e9,#0284c7);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .nav-brand img { height: 20px; }
+    .nav-tabs { display: flex; gap: 3px; background: rgba(255,255,255,0.04); border-radius: 10px; padding: 3px; }
+    .nav-tab {
+      display: flex; align-items: center; gap: 6px;
+      padding: 7px 15px; border-radius: 8px; border: none; cursor: pointer;
+      font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+      color: var(--text-sec); background: transparent; transition: all 0.15s; white-space: nowrap;
+    }
+    .nav-tab i { width: 13px; height: 13px; }
+    .nav-tab.active { background: var(--bg-card); color: var(--text); }
+    .nav-right { display: flex; align-items: center; gap: 12px; }
+    .nav-club { font-size: 12px; font-weight: 700; color: var(--text-sec); }
+    .btn-back {
+      display: flex; align-items: center; gap: 5px; text-decoration: none;
+      font-size: 12px; font-weight: 600; color: var(--text-sec); padding: 6px 10px;
+      border-radius: 8px; border: 1px solid var(--border); transition: all 0.15s;
+    }
+    .btn-back:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
+    .btn-back i { width: 13px; height: 13px; }
+
+    /* ── Loading / Auth ── */
+    .center-fill { display: flex; align-items: center; justify-content: center; height: calc(100vh - 58px); flex-direction: column; gap: 14px; }
+    .spinner { width: 24px; height: 24px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .auth-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 32px; max-width: 360px; width: 100%; text-align: center;
+    }
+    .auth-card h2 { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+    .auth-card p { font-size: 14px; color: var(--text-sec); margin-bottom: 24px; line-height: 1.5; }
+
+    /* ── Screens ── */
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* ── Inputs ── */
+    .input-field {
+      width: 100%; padding: 10px 14px;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      border-radius: 9px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px;
+      outline: none; transition: border-color 0.15s;
+    }
+    .input-field:focus { border-color: rgba(56,189,248,0.4); }
+    .input-field::placeholder { color: var(--text-dim); }
+    select.input-field { cursor: pointer; appearance: none; }
+    textarea.input-field { resize: vertical; line-height: 1.6; }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      padding: 11px 22px; border-radius: 9px; border: none; cursor: pointer;
+      background: var(--cyan); color: #080f1a;
+      font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700;
+      transition: opacity 0.15s; white-space: nowrap;
+    }
+    .btn-primary:disabled { opacity: 0.5; cursor: default; }
+    .btn-primary i { width: 14px; height: 14px; }
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 10px 18px; border-radius: 9px;
+      border: 1px solid var(--border); background: transparent; color: var(--text-sec);
+      font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-ghost:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
+    .btn-ghost i { width: 13px; height: 13px; }
+    .btn-danger {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px; border-radius: 8px; border: none; cursor: pointer;
+      background: rgba(239,68,68,0.1); color: var(--danger);
+      font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 700; transition: opacity 0.15s;
+    }
+    .btn-danger i { width: 13px; height: 13px; }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--text-sec); margin-bottom: 8px;
+    }
+
+    /* ══════════════════════════════════════════
+       PLANNER
+    ══════════════════════════════════════════ */
+    .planner-toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 24px; gap: 16px; flex-wrap: wrap;
+    }
+    .week-nav { display: flex; align-items: center; gap: 10px; }
+    .week-btn {
+      width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border);
+      background: transparent; color: var(--text-sec); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+    }
+    .week-btn:hover { background: var(--bg-lift); color: var(--text); }
+    .week-btn i { width: 15px; height: 15px; }
+    .week-label { font-size: 14px; font-weight: 700; min-width: 170px; text-align: center; }
+    .today-btn {
+      font-size: 11px; font-weight: 700; color: var(--cyan);
+      background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.2);
+      border-radius: 7px; padding: 5px 11px; cursor: pointer; transition: opacity 0.15s;
+    }
+
+    .planner-scroll { overflow-x: auto; padding: 0 24px 32px; }
+    .planner-table { border-collapse: collapse; min-width: 760px; width: 100%; }
+    .planner-table th {
+      padding: 10px 6px; text-align: center; font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-sec);
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    .planner-table th.col-today { color: var(--cyan); }
+    .planner-table th:first-child { text-align: left; padding-left: 0; min-width: 130px; }
+    .planner-table td {
+      padding: 4px; vertical-align: top; border-bottom: 1px solid var(--border);
+    }
+    .planner-table td:first-child {
+      padding: 10px 8px 10px 0; font-size: 13px; font-weight: 600;
+      border-right: 1px solid var(--border); white-space: nowrap;
+    }
+    .planner-table tr:last-child td { border-bottom: none; }
+
+    .cell-empty {
+      min-height: 66px; border-radius: 8px;
+      border: 1px dashed rgba(255,255,255,0.07); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .cell-empty:hover { border-color: rgba(56,189,248,0.3); background: rgba(56,189,248,0.04); }
+    .cell-empty:hover i { color: var(--cyan); }
+    .cell-empty i { width: 14px; height: 14px; color: var(--text-dim); }
+    .cell-rest {
+      min-height: 66px; border-radius: 8px; opacity: 0.25;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cell-rest span { font-size: 11px; color: var(--text-dim); }
+
+    .set-chip {
+      min-height: 66px; border-radius: 8px; padding: 8px 10px;
+      cursor: pointer; transition: opacity 0.15s;
+      display: flex; flex-direction: column; gap: 3px;
+    }
+    .set-chip:hover { opacity: 0.82; }
+    .chip-name { font-size: 11px; font-weight: 700; line-height: 1.3; }
+    .chip-meta { font-size: 10px; opacity: 0.75; }
+    .chip-coach { font-size: 10px; opacity: 0.6; margin-top: auto; }
+
+    .focus-aerobic   { background: rgba(56,189,248,0.14); color: #38bdf8; }
+    .focus-speed     { background: rgba(239,68,68,0.14);  color: #f87171; }
+    .focus-drills    { background: rgba(167,139,250,0.14);color: #a78bfa; }
+    .focus-kick      { background: rgba(251,146,60,0.14); color: #fb923c; }
+    .focus-endurance { background: rgba(16,185,129,0.14); color: #34d399; }
+    .focus-mixed     { background: rgba(100,116,139,0.12);color: #94a3b8; }
+
+    /* ══════════════════════════════════════════
+       LIBRARY
+    ══════════════════════════════════════════ */
+    .lib-toolbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 20px 24px 12px; flex-wrap: wrap;
+    }
+    .lib-toolbar h2 { font-size: 20px; font-weight: 800; }
+    .search-box { position: relative; }
+    .search-box i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-dim); pointer-events: none; }
+    .search-box input { padding-left: 32px; width: 220px; }
+    .filter-row { padding: 0 24px 14px; display: flex; gap: 7px; flex-wrap: wrap; }
+    .filter-chip {
+      padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border);
+      background: transparent; color: var(--text-sec); font-size: 12px; font-weight: 600;
+      cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+    }
+    .filter-chip.active { background: var(--cyan); border-color: var(--cyan); color: #080f1a; }
+    .filter-chip:hover:not(.active) { border-color: rgba(255,255,255,0.2); color: var(--text); }
+
+    .sets-grid {
+      padding: 0 24px 32px;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;
+    }
+    .set-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 16px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .set-card-top { display: flex; align-items: flex-start; gap: 10px; }
+    .set-card-name { font-size: 14px; font-weight: 700; line-height: 1.3; flex: 1; }
+    .badge {
+      font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 5px;
+      letter-spacing: 0.04em; text-transform: uppercase; flex-shrink: 0;
+    }
+    .badge-dist { background: rgba(255,255,255,0.07); color: var(--text-sec); }
+    .badge-pool { background: rgba(255,255,255,0.04); color: var(--text-dim); }
+    .badge-ai   { background: rgba(56,189,248,0.1);  color: var(--cyan); }
+    .set-card-preview {
+      font-size: 11px; color: var(--text-sec); line-height: 1.55;
+      white-space: pre-wrap; max-height: 58px; overflow: hidden;
+      background: rgba(255,255,255,0.02); border-radius: 6px; padding: 8px;
+      font-family: 'Courier New', monospace;
+    }
+    .set-card-actions { display: flex; gap: 7px; margin-top: 2px; }
+    .btn-xs {
+      padding: 6px 13px; border-radius: 7px; border: none; cursor: pointer;
+      font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 700; transition: opacity 0.15s;
+    }
+    .btn-xs-primary { background: var(--cyan); color: #080f1a; }
+    .btn-xs-ghost   { background: rgba(255,255,255,0.06); color: var(--text-sec); }
+    .btn-xs-danger  { background: rgba(239,68,68,0.1); color: var(--danger); }
+
+    /* ══════════════════════════════════════════
+       BUILDER
+    ══════════════════════════════════════════ */
+    .builder-body { max-width: 820px; margin: 0 auto; padding: 24px; }
+    .builder-body h2 { font-size: 22px; font-weight: 800; margin-bottom: 24px; }
+
+    .ai-panel {
+      background: rgba(56,189,248,0.04); border: 1px solid rgba(56,189,248,0.14);
+      border-radius: 12px; padding: 20px; margin-bottom: 24px;
+    }
+    .ai-panel-title {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 14px; font-weight: 700; color: var(--cyan); margin-bottom: 14px;
+    }
+    .ai-panel-title i { width: 15px; height: 15px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 12px; }
+    .field-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-sec); margin-bottom: 6px; }
+
+    .set-body-textarea {
+      width: 100%; min-height: 240px; padding: 14px;
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+      border-radius: 9px; color: var(--text);
+      font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.7;
+      outline: none; resize: vertical; transition: border-color 0.15s;
+    }
+    .set-body-textarea:focus { border-color: rgba(56,189,248,0.35); }
+    .set-body-textarea::placeholder { color: var(--text-dim); font-family: 'DM Sans', sans-serif; }
+
+    .meta-row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin: 16px 0 20px; }
+
+    /* ══════════════════════════════════════════
+       MODALS
+    ══════════════════════════════════════════ */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.72);
+      display: none; align-items: center; justify-content: center;
+      z-index: 500; padding: 20px;
+    }
+    .overlay.open { display: flex; }
+    .modal {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+      width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto; padding: 24px;
+    }
+    .modal-wide { max-width: 660px; }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .modal-head h3 { font-size: 18px; font-weight: 800; }
+    .modal-close-btn {
+      width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border);
+      background: transparent; color: var(--text-sec); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+    }
+    .modal-close-btn:hover { background: var(--bg-lift); color: var(--text); }
+    .modal-close-btn i { width: 14px; height: 14px; }
+
+    /* Pick list inside assign modal */
+    .pick-list {
+      border: 1px solid var(--border); border-radius: 9px; overflow: hidden;
+      max-height: 260px; overflow-y: auto;
+    }
+    .pick-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
+    }
+    .pick-row:last-child { border-bottom: none; }
+    .pick-row:hover { background: var(--bg-lift); }
+    .pick-row.selected { background: rgba(56,189,248,0.08); }
+    .pick-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+    .pick-name { flex: 1; font-size: 13px; font-weight: 600; }
+    .pick-meta { font-size: 11px; color: var(--text-sec); }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(60px);
+      background: var(--bg-lift); border: 1px solid var(--border); border-radius: 10px;
+      padding: 11px 20px; font-size: 13px; font-weight: 600; z-index: 9999;
+      transition: transform 0.25s; pointer-events: none; white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { border-color: rgba(16,185,129,0.4); color: var(--green); }
+    .toast.error   { border-color: rgba(239,68,68,0.4);  color: var(--danger); }
+
+    .empty-state {
+      padding: 48px 24px; text-align: center; color: var(--text-sec);
+      grid-column: 1 / -1;
+    }
+    .empty-state h3 { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+
+    @media (max-width: 640px) {
+      .grid-3, .meta-row { grid-template-columns: 1fr; }
+      .sets-grid { grid-template-columns: 1fr; }
+      .planner-scroll { padding: 0 12px 24px; }
+      .builder-body { padding: 16px; }
+      .nav-tabs .nav-tab span { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ NAV ══════════════════════════════════════════════════════════ -->
+<nav class="top-nav" id="mainNav" style="display:none;">
+  <a href="https://swimloading.com" class="nav-brand">
+    <img src="/icons/logo-wave.png" alt="">SwimLoading
+  </a>
+  <div class="nav-tabs">
+    <button class="nav-tab active" id="tab-planner" onclick="switchTab('planner')">
+      <i data-lucide="calendar-days"></i><span>Planner</span>
+    </button>
+    <button class="nav-tab" id="tab-library" onclick="switchTab('library')">
+      <i data-lucide="layers"></i><span>Library</span>
+    </button>
+    <button class="nav-tab" id="tab-builder" onclick="switchTab('builder')">
+      <i data-lucide="plus-circle"></i><span>New Set</span>
+    </button>
+  </div>
+  <div class="nav-right">
+    <div class="nav-club" id="navClubName"></div>
+    <a class="btn-back" id="adminLink" href="#">
+      <i data-lucide="arrow-left"></i>Admin
+    </a>
+  </div>
+</nav>
+
+<!-- ══ LOADING ═══════════════════════════════════════════════════════ -->
+<div class="center-fill" id="screenLoading">
+  <div class="spinner"></div>
+  <div style="font-size:13px;color:var(--text-sec);">Loading…</div>
+</div>
+
+<!-- ══ AUTH ══════════════════════════════════════════════════════════ -->
+<div id="screenAuth" style="display:none;">
+  <div class="center-fill">
+    <div class="auth-card">
+      <i data-lucide="layers" style="width:38px;height:38px;color:var(--cyan);margin-bottom:14px;"></i>
+      <h2 id="authTitle">Sign in</h2>
+      <p id="authSub">Enter your email and we'll send a sign-in link straight to this page.</p>
+      <div id="authForm" style="display:flex;flex-direction:column;gap:10px;">
+        <input class="input-field" id="authEmail" type="email" placeholder="your@email.com" autocomplete="email" inputmode="email">
+        <button class="btn-primary" style="width:100%;" onclick="sendMagicLink()">
+          <i data-lucide="send"></i>
+          Send sign-in link
+        </button>
+      </div>
+      <div id="authMsg" style="margin-top:14px;font-size:13px;display:none;line-height:1.5;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PLANNER ════════════════════════════════════════════════════════ -->
+<div class="screen active" id="screenPlanner">
+  <div class="planner-toolbar">
+    <div class="week-nav">
+      <button class="week-btn" onclick="shiftWeek(-1)"><i data-lucide="chevron-left"></i></button>
+      <div class="week-label" id="weekLabel">—</div>
+      <button class="week-btn" onclick="shiftWeek(1)"><i data-lucide="chevron-right"></i></button>
+      <button class="today-btn" onclick="goToday()">Today</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-sec);">Click any cell to assign a set · click a chip to view</div>
+  </div>
+  <div class="planner-scroll">
+    <table class="planner-table">
+      <thead><tr id="plannerHead"></tr></thead>
+      <tbody id="plannerBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══ LIBRARY ════════════════════════════════════════════════════════ -->
+<div class="screen" id="screenLibrary">
+  <div class="lib-toolbar">
+    <h2>Set Library</h2>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div class="search-box">
+        <i data-lucide="search"></i>
+        <input class="input-field" id="libSearch" type="text" placeholder="Search sets…" oninput="renderLibrary()">
+      </div>
+      <button class="btn-primary" onclick="switchTab('builder');resetBuilder()">
+        <i data-lucide="plus"></i>New set
+      </button>
+    </div>
+  </div>
+  <div class="filter-row" id="filterRow">
+    <button class="filter-chip active" data-f="all"       onclick="setFocusFilter('all',this)">All</button>
+    <button class="filter-chip"        data-f="aerobic"   onclick="setFocusFilter('aerobic',this)">Aerobic</button>
+    <button class="filter-chip"        data-f="endurance" onclick="setFocusFilter('endurance',this)">Endurance</button>
+    <button class="filter-chip"        data-f="speed"     onclick="setFocusFilter('speed',this)">Speed</button>
+    <button class="filter-chip"        data-f="drills"    onclick="setFocusFilter('drills',this)">Drills</button>
+    <button class="filter-chip"        data-f="kick"      onclick="setFocusFilter('kick',this)">Kick</button>
+    <button class="filter-chip"        data-f="mixed"     onclick="setFocusFilter('mixed',this)">Mixed</button>
+  </div>
+  <div class="sets-grid" id="setsGrid"></div>
+</div>
+
+<!-- ══ BUILDER ════════════════════════════════════════════════════════ -->
+<div class="screen" id="screenBuilder">
+  <div class="builder-body">
+    <h2 id="builderHeading">Create New Set</h2>
+
+    <!-- AI generator panel -->
+    <div class="ai-panel">
+      <div class="ai-panel-title"><i data-lucide="sparkles"></i>Generate with AI</div>
+      <div class="field-label">Describe the session</div>
+      <textarea class="input-field" id="aiDesc" rows="3"
+        placeholder="e.g. Masters Monday morning, 3km, mix of 50s descending and 100s aerobic, some backstroke thrown in, pacing focus…"></textarea>
+      <div class="grid-3">
+        <div>
+          <div class="field-label">Target distance</div>
+          <select class="input-field" id="aiDist">
+            <option value="2000">2,000m</option>
+            <option value="2500">2,500m</option>
+            <option value="3000" selected>3,000m</option>
+            <option value="3500">3,500m</option>
+            <option value="4000">4,000m</option>
+          </select>
+        </div>
+        <div>
+          <div class="field-label">Focus</div>
+          <select class="input-field" id="aiFocus">
+            <option value="mixed">Mixed</option>
+            <option value="aerobic">Aerobic</option>
+            <option value="endurance">Endurance</option>
+            <option value="speed">Speed</option>
+            <option value="drills">Drills / Technique</option>
+            <option value="kick">Kick</option>
+          </select>
+        </div>
+        <div>
+          <div class="field-label">Pool</div>
+          <select class="input-field" id="aiPool">
+            <option value="SCM" selected>SCM (25m)</option>
+            <option value="LCM">LCM (50m)</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn-primary" id="genBtn" onclick="generateSet()" style="margin-top:14px;">
+        <i data-lucide="sparkles"></i>Generate set
+      </button>
+    </div>
+
+    <!-- Set content -->
+    <div style="margin-bottom:8px;">
+      <div class="field-label">Set content <span style="font-weight:400;text-transform:none;color:var(--text-dim);">— edit after generating, or write from scratch</span></div>
+    </div>
+    <textarea class="set-body-textarea" id="setContent"
+      placeholder="WARMUP&#10;400m FR — easy, focus on feel&#10;&#10;MAIN SET&#10;8x50m FR @0:55 — descend 1-4, 5-8&#10;4x100m FR @1:45 — aerobic pace&#10;&#10;COOLDOWN&#10;200m — easy choice&#10;&#10;Total: 3,000m | ~60mins"></textarea>
+
+    <!-- Metadata -->
+    <div class="meta-row">
+      <div>
+        <div class="field-label">Set name</div>
+        <input class="input-field" id="setName" type="text" placeholder="e.g. Masters Monday Sprint">
+      </div>
+      <div>
+        <div class="field-label">Focus</div>
+        <select class="input-field" id="setFocus">
+          <option value="mixed">Mixed</option>
+          <option value="aerobic">Aerobic</option>
+          <option value="endurance">Endurance</option>
+          <option value="speed">Speed</option>
+          <option value="drills">Drills</option>
+          <option value="kick">Kick</option>
+        </select>
+      </div>
+      <div>
+        <div class="field-label">Pool</div>
+        <select class="input-field" id="setPool">
+          <option value="SCM">SCM (25m)</option>
+          <option value="LCM">LCM (50m)</option>
+          <option value="either">Either</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <button class="btn-primary" id="saveBtnBuilder" onclick="saveSet()">
+        <i data-lucide="save"></i>Save to library
+      </button>
+      <button class="btn-ghost" onclick="resetBuilder();switchTab('library')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ASSIGN MODAL ═══════════════════════════════════════════════════ -->
+<div class="overlay" id="assignOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="assignHeading">Assign a set</h3>
+      <button class="modal-close-btn" onclick="closeAssign()"><i data-lucide="x"></i></button>
+    </div>
+    <div style="font-size:13px;color:var(--text-sec);margin-bottom:16px;" id="assignContext"></div>
+
+    <div style="margin-bottom:14px;">
+      <div class="field-label">Delivering coach <span style="font-weight:400;text-transform:none;">(optional — leave blank for Britt)</span></div>
+      <input class="input-field" id="assignCoach" type="text" placeholder="e.g. Teagan">
+    </div>
+
+    <div class="field-label">Choose a set</div>
+    <div class="search-box" style="max-width:100%;margin-bottom:8px;">
+      <i data-lucide="search"></i>
+      <input class="input-field" id="pickSearch" type="text" placeholder="Search library…"
+        oninput="renderPickList()" style="padding-left:32px;">
+    </div>
+    <div class="pick-list" id="pickList"></div>
+
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button class="btn-primary" id="assignSave" onclick="saveAssignment()" disabled style="flex:1;">
+        <i data-lucide="check"></i>Assign set
+      </button>
+      <button class="btn-ghost" onclick="closeAssign()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ VIEW SET MODAL ════════════════════════════════════════════════ -->
+<div class="overlay" id="viewOverlay">
+  <div class="modal modal-wide">
+    <div class="modal-head">
+      <div>
+        <h3 id="viewName"></h3>
+        <div style="font-size:12px;color:var(--text-sec);margin-top:3px;" id="viewMeta"></div>
+      </div>
+      <button class="modal-close-btn" onclick="closeView()"><i data-lucide="x"></i></button>
+    </div>
+    <div id="viewAssignBar" style="display:none;padding:10px 14px;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);border-radius:9px;font-size:13px;color:var(--text-sec);margin-bottom:14px;"></div>
+    <pre id="viewContent" style="white-space:pre-wrap;font-family:'Courier New',monospace;font-size:13px;line-height:1.7;color:var(--text-sec);background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:9px;padding:16px;overflow-x:auto;max-height:50vh;overflow-y:auto;"></pre>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;" id="viewActions"></div>
+  </div>
+</div>
+
+<!-- ══ TOAST ══════════════════════════════════════════════════════════ -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══ CONFIG ══════════════════════════════════════════════════════════
+const SUPABASE_URL      = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ══ STATE ════════════════════════════════════════════════════════════
+let currentUser  = null;
+let currentClub  = null;
+let squads       = [];
+let squadSessions= [];   // club_squad_sessions — know which days each squad trains
+let sets         = [];   // club_swim_sets
+let assignments  = {};   // key: `${squad_id}|${date}|${slot}` → assignment row (with nested set)
+let weekStart    = null;
+let focusFilter  = 'all';
+let selectedSetId= null;
+let assignCtx    = null; // { squadId, date, slot }
+let editingId    = null; // null = new set
+
+// ══ UTILS ════════════════════════════════════════════════════════════
+const h = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+function focusClass(f) { return 'focus-' + (f || 'mixed'); }
+function focusColour(f) {
+  return { aerobic:'#38bdf8', speed:'#f87171', drills:'#a78bfa', kick:'#fb923c', endurance:'#34d399', mixed:'#94a3b8' }[f] || '#94a3b8';
+}
+function fmtDist(d) {
+  if (!d) return '';
+  return d >= 1000 ? (d/1000).toFixed(1).replace(/\.0$/,'') + 'km' : d + 'm';
+}
+function mondayOf(d) {
+  const r = new Date(d); r.setHours(0,0,0,0);
+  const dow = r.getDay(); r.setDate(r.getDate() + (dow === 0 ? -6 : 1 - dow)); return r;
+}
+function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+function dateStr(d)    { return d.toISOString().slice(0,10); }
+function fmtShort(d)   { return d.toLocaleDateString('en-ZA', { day:'numeric', month:'short' }); }
+function fmtDow(d)     { return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]; }
+function fmtLong(ds)   {
+  const d = new Date(ds + 'T00:00:00');
+  return d.toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long' });
+}
+
+// ══ AUTH ════════════════════════════════════════════════════════════
+async function sendMagicLink() {
+  const email = (document.getElementById('authEmail').value || '').trim();
+  if (!email) return;
+  const btn = document.querySelector('#screenAuth .btn-primary');
+  btn.disabled = true;
+  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.href } });
+  btn.disabled = false;
+  const msg = document.getElementById('authMsg');
+  msg.style.display = '';
+  if (error) { msg.style.color = 'var(--danger)'; msg.textContent = error.message; }
+  else { msg.style.color = 'var(--green)'; msg.textContent = 'Link sent! Tap it in your email to continue.'; document.getElementById('authForm').style.display = 'none'; }
+}
+
+function showAuthWall(title, sub) {
+  document.getElementById('screenLoading').style.display = 'none';
+  document.getElementById('screenAuth').style.display = '';
+  document.getElementById('authTitle').textContent = title;
+  document.getElementById('authSub').textContent   = sub;
+  document.getElementById('authForm').style.display = 'none';
+  lucide.createIcons();
+}
+
+// ══ INIT ════════════════════════════════════════════════════════════
+async function init() {
+  weekStart = mondayOf(new Date());
+
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session && !currentUser) {
+      currentUser = session.user;
+      await boot();
+    }
+  });
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) {
+    document.getElementById('screenLoading').style.display = 'none';
+    document.getElementById('screenAuth').style.display = '';
+    lucide.createIcons();
+    return;
+  }
+  currentUser = session.user;
+  await boot();
+}
+
+async function boot() {
+  const slug = location.pathname.replace(/^\/sets\/?/,'').replace(/\/$/,'');
+  if (!slug) { showAuthWall('No club specified', 'Use the link your admin sent you.'); return; }
+
+  const { data: rows } = await sb.from('club_admins').select('role, clubs(*)').eq('user_id', currentUser.id);
+  const match = (rows || []).find(r => r.clubs?.slug === slug);
+  if (!match) { showAuthWall('No coach access', 'Ask Britt to add you to the coaching team.'); return; }
+
+  currentClub = match.clubs;
+  document.getElementById('navClubName').textContent = currentClub.name || '';
+  document.getElementById('adminLink').href = `/club-admin/${slug}`;
+  document.getElementById('screenLoading').style.display = 'none';
+  document.getElementById('mainNav').style.display = '';
+
+  lucide.createIcons();
+  await loadAll();
+  renderPlanner();
+  renderLibrary();
+}
+
+// ══ DATA ════════════════════════════════════════════════════════════
+async function loadAll() {
+  await Promise.all([loadSquads(), loadSets()]);
+  await loadWeekAssignments();
+}
+
+async function loadSquads() {
+  const { data: sq } = await sb.from('club_squads')
+    .select('id, name, max_members, sort_order')
+    .eq('club_id', currentClub.id).eq('is_active', true).order('sort_order');
+  squads = sq || [];
+
+  if (squads.length) {
+    const { data: ss } = await sb.from('club_squad_sessions')
+      .select('squad_id, day_of_week, start_time, coach_name')
+      .in('squad_id', squads.map(s => s.id)).eq('is_active', true);
+    squadSessions = ss || [];
+  }
+}
+
+async function loadSets() {
+  const { data } = await sb.from('club_swim_sets')
+    .select('*').eq('club_id', currentClub.id).order('created_at', { ascending: false });
+  sets = data || [];
+}
+
+async function loadWeekAssignments() {
+  if (!squads.length) return;
+  const from = dateStr(weekStart);
+  const to   = dateStr(addDays(weekStart, 6));
+  const { data } = await sb.from('club_set_assignments')
+    .select('*, club_swim_sets(id, name, total_distance, focus, pool_type, set_content)')
+    .eq('club_id', currentClub.id)
+    .in('squad_id', squads.map(s => s.id))
+    .gte('session_date', from).lte('session_date', to);
+  assignments = {};
+  (data || []).forEach(a => { assignments[`${a.squad_id}|${a.session_date}|${a.session_slot}`] = a; });
+}
+
+// ══ TAB SWITCH ══════════════════════════════════════════════════════
+function switchTab(name) {
+  ['planner','library','builder'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('active', t === name);
+    document.getElementById('screen' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === name);
+  });
+  if (name === 'library') renderLibrary();
+}
+
+// ══ PLANNER ═════════════════════════════════════════════════════════
+function shiftWeek(dir) {
+  weekStart = addDays(weekStart, dir * 7);
+  loadWeekAssignments().then(renderPlanner);
+}
+function goToday() {
+  weekStart = mondayOf(new Date());
+  loadWeekAssignments().then(renderPlanner);
+}
+
+function renderPlanner() {
+  const today = dateStr(new Date());
+  const days  = Array.from({ length: 6 }, (_, i) => addDays(weekStart, i)); // Mon–Sat
+
+  // Header
+  document.getElementById('weekLabel').textContent = `${fmtShort(days[0])} – ${fmtShort(days[5])}`;
+  document.getElementById('plannerHead').innerHTML =
+    '<th>Squad</th>' +
+    days.map(d => {
+      const ds = dateStr(d);
+      const cls = ds === today ? 'col-today' : '';
+      return `<th class="${cls}">${fmtDow(d)}<br><span style="font-size:10px;font-weight:400;">${fmtShort(d)}</span></th>`;
+    }).join('');
+
+  if (!squads.length) {
+    document.getElementById('plannerBody').innerHTML =
+      `<tr><td colspan="7"><div class="empty-state"><h3>No squads</h3><p>Set up squads in the club admin first.</p></div></td></tr>`;
+    lucide.createIcons();
+    return;
+  }
+
+  // Training days per squad (from timetable)
+  const trainingDays = {};
+  squads.forEach(sq => {
+    trainingDays[sq.id] = new Set(
+      squadSessions.filter(s => s.squad_id === sq.id).map(s => s.day_of_week)
+    );
+  });
+
+  document.getElementById('plannerBody').innerHTML = squads.map(sq => {
+    const cells = days.map(d => {
+      const dow = d.getDay();
+      const ds  = dateStr(d);
+      const asgn = assignments[`${sq.id}|${ds}|AM`];
+      const trains = trainingDays[sq.id].has(dow);
+
+      if (asgn?.club_swim_sets) {
+        const s = asgn.club_swim_sets;
+        return `<td><div class="set-chip ${focusClass(s.focus)}" onclick="openView('${asgn.id}')">
+          <div class="chip-name">${h(s.name)}</div>
+          <div class="chip-meta">${fmtDist(s.total_distance)}${s.pool_type ? ' · ' + s.pool_type : ''}</div>
+          ${asgn.delivering_coach ? `<div class="chip-coach">${h(asgn.delivering_coach)}</div>` : ''}
+        </div></td>`;
+      }
+      if (!trains) {
+        return `<td><div class="cell-rest"><span>—</span></div></td>`;
+      }
+      return `<td><div class="cell-empty" onclick="openAssign('${sq.id}','${ds}','AM')" title="Assign set">
+        <i data-lucide="plus"></i>
+      </div></td>`;
+    }).join('');
+
+    return `<tr><td>${h(sq.name)}</td>${cells}</tr>`;
+  }).join('');
+
+  lucide.createIcons();
+}
+
+// ══ LIBRARY ═════════════════════════════════════════════════════════
+function setFocusFilter(f, btn) {
+  focusFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderLibrary();
+}
+
+function renderLibrary() {
+  const q = (document.getElementById('libSearch')?.value || '').toLowerCase();
+  const filtered = sets.filter(s => {
+    if (focusFilter !== 'all' && s.focus !== focusFilter) return false;
+    if (q && !s.name.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const grid = document.getElementById('setsGrid');
+  if (!filtered.length) {
+    grid.innerHTML = `<div class="empty-state"><h3>${sets.length ? 'No matching sets' : 'No sets yet'}</h3><p>${sets.length ? 'Try a different filter.' : 'Create your first set with the "New Set" tab.'}</p></div>`;
+    return;
+  }
+  grid.innerHTML = filtered.map(s => {
+    const preview = (s.set_content || '').split('\n').slice(0, 4).join('\n');
+    return `<div class="set-card">
+      <div class="set-card-top">
+        <div class="set-card-name">${h(s.name)}</div>
+        <span class="badge ${focusClass(s.focus)}" style="font-size:9px;">${s.focus || 'mixed'}</span>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;">
+        ${s.total_distance ? `<span class="badge badge-dist">${fmtDist(s.total_distance)}</span>` : ''}
+        <span class="badge badge-pool">${s.pool_type || 'SCM'}</span>
+        ${s.ai_generated ? '<span class="badge badge-ai">AI</span>' : ''}
+      </div>
+      <pre class="set-card-preview">${h(preview)}</pre>
+      <div class="set-card-actions">
+        <button class="btn-xs btn-xs-primary" onclick="openViewFromLib('${s.id}')">View</button>
+        <button class="btn-xs btn-xs-ghost"   onclick="editSet('${s.id}')">Edit</button>
+        <button class="btn-xs btn-xs-danger"  onclick="deleteSet('${s.id}')">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══ BUILDER ═════════════════════════════════════════════════════════
+function resetBuilder() {
+  editingId = null;
+  document.getElementById('builderHeading').textContent = 'Create New Set';
+  document.getElementById('aiDesc').value    = '';
+  document.getElementById('setContent').value = '';
+  document.getElementById('setName').value   = '';
+  document.getElementById('setFocus').value  = 'mixed';
+  document.getElementById('setPool').value   = 'SCM';
+}
+
+function editSet(id) {
+  const s = sets.find(x => x.id === id);
+  if (!s) return;
+  editingId = id;
+  document.getElementById('builderHeading').textContent = 'Edit Set';
+  document.getElementById('setContent').value = s.set_content || '';
+  document.getElementById('setName').value    = s.name || '';
+  document.getElementById('setFocus').value   = s.focus || 'mixed';
+  document.getElementById('setPool').value    = s.pool_type || 'SCM';
+  switchTab('builder');
+}
+
+async function generateSet() {
+  const desc = document.getElementById('aiDesc').value.trim();
+  if (!desc) { toast('Add a description first', 'error'); return; }
+
+  const btn = document.getElementById('genBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;"></div> Generating…';
+
+  const focus = document.getElementById('aiFocus').value;
+  const pool  = document.getElementById('aiPool').value;
+  const dist  = document.getElementById('aiDist').value;
+  document.getElementById('setFocus').value = focus;
+  document.getElementById('setPool').value  = pool;
+
+  try {
+    const res  = await fetch('/api/sets/generate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description: desc, total_distance: dist, focus, pool_type: pool, squad_level: 'Masters' }),
+    });
+    const data = await res.json();
+    if (data.set_content) {
+      document.getElementById('setContent').value = data.set_content;
+      toast('Set generated — review and save it.', 'success');
+    } else {
+      toast(data.error || 'Generation failed', 'error');
+    }
+  } catch { toast('Network error', 'error'); }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i data-lucide="sparkles"></i> Generate set';
+  lucide.createIcons();
+}
+
+async function saveSet() {
+  const name    = document.getElementById('setName').value.trim();
+  const content = document.getElementById('setContent').value.trim();
+  if (!name)    { toast('Give the set a name', 'error'); return; }
+  if (!content) { toast('Set content is empty', 'error'); return; }
+
+  const btn = document.getElementById('saveBtnBuilder');
+  btn.disabled = true;
+
+  const m = content.match(/Total:\s*([\d,]+)\s*m/i);
+  const total_distance = m ? parseInt(m[1].replace(/,/g,'')) : null;
+  const payload = {
+    club_id: currentClub.id,
+    name,
+    focus:          document.getElementById('setFocus').value,
+    pool_type:      document.getElementById('setPool').value,
+    set_content:    content,
+    total_distance,
+    ai_generated:   !!document.getElementById('aiDesc').value.trim(),
+    created_by:     currentUser.id,
+  };
+
+  const { error } = editingId
+    ? await sb.from('club_swim_sets').update(payload).eq('id', editingId)
+    : await sb.from('club_swim_sets').insert(payload);
+
+  btn.disabled = false;
+  if (error) { toast('Save failed: ' + error.message, 'error'); return; }
+
+  toast(editingId ? 'Set updated!' : 'Set saved to library!', 'success');
+  await loadSets();
+  resetBuilder();
+  switchTab('library');
+}
+
+async function deleteSet(id) {
+  if (!confirm('Delete this set? Assigned uses will be unlinked.')) return;
+  const { error } = await sb.from('club_swim_sets').delete().eq('id', id);
+  if (error) { toast('Delete failed: ' + error.message, 'error'); return; }
+  toast('Deleted', 'success');
+  await loadSets();
+  renderLibrary();
+  await loadWeekAssignments();
+  renderPlanner();
+}
+
+// ══ ASSIGN MODAL ════════════════════════════════════════════════════
+function openAssign(squadId, date, slot) {
+  assignCtx = { squadId, date, slot };
+  selectedSetId = null;
+  const sq = squads.find(s => s.id === squadId);
+  document.getElementById('assignHeading').textContent = `Assign set — ${sq?.name || 'Squad'}`;
+  document.getElementById('assignContext').textContent  = `${fmtLong(date)} · ${slot} session`;
+  document.getElementById('assignCoach').value  = '';
+  document.getElementById('pickSearch').value   = '';
+  document.getElementById('assignSave').disabled = true;
+  renderPickList();
+  document.getElementById('assignOverlay').classList.add('open');
+  lucide.createIcons();
+}
+function closeAssign() { document.getElementById('assignOverlay').classList.remove('open'); }
+
+function renderPickList() {
+  const q = (document.getElementById('pickSearch')?.value || '').toLowerCase();
+  const list = sets.filter(s => !q || s.name.toLowerCase().includes(q));
+  const el = document.getElementById('pickList');
+  if (!list.length) {
+    el.innerHTML = `<div style="padding:20px;text-align:center;font-size:13px;color:var(--text-sec);">${sets.length ? 'No match' : 'No sets in library — create one first'}</div>`;
+    return;
+  }
+  el.innerHTML = list.map(s =>
+    `<div class="pick-row ${selectedSetId === s.id ? 'selected' : ''}" onclick="selectSet('${s.id}')">
+      <div class="pick-dot" style="background:${focusColour(s.focus)};"></div>
+      <div class="pick-name">${h(s.name)}</div>
+      <div class="pick-meta">${fmtDist(s.total_distance)} · ${s.pool_type || 'SCM'}</div>
+    </div>`
+  ).join('');
+}
+
+function selectSet(id) {
+  selectedSetId = id;
+  document.getElementById('assignSave').disabled = false;
+  renderPickList();
+}
+
+async function saveAssignment() {
+  if (!assignCtx || !selectedSetId) return;
+  const btn = document.getElementById('assignSave');
+  btn.disabled = true;
+  const coach = document.getElementById('assignCoach').value.trim() || null;
+  const { error } = await sb.from('club_set_assignments').upsert({
+    club_id:         currentClub.id,
+    set_id:          selectedSetId,
+    squad_id:        assignCtx.squadId,
+    session_date:    assignCtx.date,
+    session_slot:    assignCtx.slot,
+    delivering_coach: coach,
+    created_by:      currentUser.id,
+  }, { onConflict: 'squad_id,session_date,session_slot' });
+  btn.disabled = false;
+  if (error) { toast('Save failed: ' + error.message, 'error'); return; }
+  toast('Set assigned!', 'success');
+  closeAssign();
+  await loadWeekAssignments();
+  renderPlanner();
+}
+
+// ══ VIEW MODAL ══════════════════════════════════════════════════════
+function openViewFromLib(setId) {
+  const s = sets.find(x => x.id === setId);
+  if (!s) return;
+  document.getElementById('viewName').textContent    = s.name;
+  document.getElementById('viewMeta').textContent    = [fmtDist(s.total_distance), s.focus, s.pool_type].filter(Boolean).join(' · ');
+  document.getElementById('viewAssignBar').style.display = 'none';
+  document.getElementById('viewContent').textContent = s.set_content || '';
+  document.getElementById('viewActions').innerHTML =
+    `<button class="btn-ghost" onclick="editSet('${s.id}');closeView()"><i data-lucide="edit-2"></i>Edit</button>
+     <button class="btn-danger" onclick="deleteSet('${s.id}');closeView()"><i data-lucide="trash-2"></i>Delete</button>`;
+  document.getElementById('viewOverlay').classList.add('open');
+  lucide.createIcons();
+}
+
+function openView(assignmentId) {
+  const asgn = Object.values(assignments).find(a => a.id === assignmentId);
+  if (!asgn?.club_swim_sets) return;
+  const s  = asgn.club_swim_sets;
+  const sq = squads.find(x => x.id === asgn.squad_id);
+  document.getElementById('viewName').textContent = s.name;
+  document.getElementById('viewMeta').textContent = [fmtDist(s.total_distance), s.focus, s.pool_type].filter(Boolean).join(' · ');
+  const bar = document.getElementById('viewAssignBar');
+  bar.style.display = '';
+  bar.innerHTML = `<strong>${h(sq?.name || 'Squad')}</strong> · ${fmtLong(asgn.session_date)}${asgn.delivering_coach ? ` · Coach: <strong>${h(asgn.delivering_coach)}</strong>` : ''}`;
+  // Full content may be in `sets` array (assignments only carry a subset of columns)
+  const full = sets.find(x => x.id === s.id);
+  document.getElementById('viewContent').textContent = full?.set_content || s.set_content || '(not available)';
+  document.getElementById('viewActions').innerHTML =
+    `<button class="btn-danger" onclick="removeAssignment('${assignmentId}')"><i data-lucide="calendar-x"></i>Remove from schedule</button>
+     <button class="btn-ghost"  onclick="closeView()">Close</button>`;
+  document.getElementById('viewOverlay').classList.add('open');
+  lucide.createIcons();
+}
+
+function closeView() { document.getElementById('viewOverlay').classList.remove('open'); }
+
+async function removeAssignment(assignmentId) {
+  if (!confirm('Remove this set from the schedule?')) return;
+  const { error } = await sb.from('club_set_assignments').delete().eq('id', assignmentId);
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+  toast('Removed from schedule', 'success');
+  closeView();
+  await loadWeekAssignments();
+  renderPlanner();
+}
+
+// ══ START ════════════════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
