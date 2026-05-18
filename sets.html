@@ -207,6 +207,8 @@
     .focus-kick      { background: rgba(251,146,60,0.14); color: #fb923c; }
     .focus-endurance { background: rgba(16,185,129,0.14); color: #34d399; }
     .focus-mixed     { background: rgba(100,116,139,0.12);color: #94a3b8; }
+    .badge-age-juniors { background: rgba(251,191,36,0.14); color: #fbbf24; }
+    .badge-age-seniors { background: rgba(129,140,248,0.14); color: #818cf8; }
 
     /* ══════════════════════════════════════════
        LIBRARY
@@ -488,6 +490,11 @@
     <button class="filter-chip"        data-f="kick"      onclick="setFocusFilter('kick',this)">Kick</button>
     <button class="filter-chip"        data-f="mixed"     onclick="setFocusFilter('mixed',this)">Mixed</button>
   </div>
+  <div class="filter-row" id="ageFilterRow">
+    <button class="filter-chip active" data-a="all"     onclick="setAgeFilter('all',this)">All groups</button>
+    <button class="filter-chip"        data-a="juniors" onclick="setAgeFilter('juniors',this)">Juniors</button>
+    <button class="filter-chip"        data-a="seniors" onclick="setAgeFilter('seniors',this)">Seniors</button>
+  </div>
   <div class="sets-grid" id="setsGrid"></div>
 </div>
 
@@ -540,6 +547,14 @@
             <option value="LCM">LCM (50m)</option>
           </select>
         </div>
+        <div>
+          <div class="field-label">Age group</div>
+          <select class="input-field" id="aiAgeGroup">
+            <option value="all">All groups</option>
+            <option value="juniors">Juniors</option>
+            <option value="seniors">Seniors</option>
+          </select>
+        </div>
       </div>
       <button class="btn-primary" id="genBtn" onclick="generateSet()" style="margin-top:14px;">
         <i data-lucide="sparkles"></i>Generate set
@@ -576,6 +591,14 @@
           <option value="SCM">SCM (25m)</option>
           <option value="LCM">LCM (50m)</option>
           <option value="either">Either</option>
+        </select>
+      </div>
+      <div>
+        <div class="field-label">Age group</div>
+        <select class="input-field" id="setAgeGroup">
+          <option value="all">All groups</option>
+          <option value="juniors">Juniors</option>
+          <option value="seniors">Seniors</option>
         </select>
       </div>
     </div>
@@ -683,6 +706,7 @@ let sets         = [];   // club_swim_sets
 let assignments  = {};   // key: `${squad_id}|${date}|${slot}` → assignment row (with nested set)
 let weekStart    = null;
 let focusFilter  = 'all';
+let ageFilter    = 'all';
 let selectedSetId= null;
 let assignCtx    = null; // { squadId, date, slot }
 let editingId    = null; // null = new set
@@ -1025,7 +1049,14 @@ function renderPlanner() {
 // ══ LIBRARY ═════════════════════════════════════════════════════════
 function setFocusFilter(f, btn) {
   focusFilter = f;
-  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('#filterRow .filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderLibrary();
+}
+
+function setAgeFilter(a, btn) {
+  ageFilter = a;
+  document.querySelectorAll('#ageFilterRow .filter-chip').forEach(c => c.classList.remove('active'));
   btn.classList.add('active');
   renderLibrary();
 }
@@ -1034,6 +1065,7 @@ function renderLibrary() {
   const q = (document.getElementById('libSearch')?.value || '').toLowerCase();
   const filtered = sets.filter(s => {
     if (focusFilter !== 'all' && s.focus !== focusFilter) return false;
+    if (ageFilter !== 'all' && s.age_group !== ageFilter) return false;
     if (q && !s.name.toLowerCase().includes(q)) return false;
     return true;
   });
@@ -1052,6 +1084,7 @@ function renderLibrary() {
       <div style="display:flex;gap:5px;flex-wrap:wrap;">
         ${s.total_distance ? `<span class="badge badge-dist">${fmtDist(s.total_distance)}</span>` : ''}
         <span class="badge badge-pool">${s.pool_type || 'SCM'}</span>
+        ${s.age_group && s.age_group !== 'all' ? `<span class="badge badge-age-${s.age_group}">${s.age_group === 'juniors' ? 'Juniors' : 'Seniors'}</span>` : ''}
         ${s.ai_generated ? '<span class="badge badge-ai">AI</span>' : ''}
       </div>
       <pre class="set-card-preview">${h(preview)}</pre>
@@ -1071,8 +1104,9 @@ function resetBuilder() {
   document.getElementById('aiDesc').value    = '';
   document.getElementById('setContent').value = '';
   document.getElementById('setName').value   = '';
-  document.getElementById('setFocus').value  = 'mixed';
-  document.getElementById('setPool').value   = 'SCM';
+  document.getElementById('setFocus').value    = 'mixed';
+  document.getElementById('setPool').value     = 'SCM';
+  document.getElementById('setAgeGroup').value = 'all';
 }
 
 function editSet(id) {
@@ -1082,8 +1116,9 @@ function editSet(id) {
   document.getElementById('builderHeading').textContent = 'Edit Set';
   document.getElementById('setContent').value = s.set_content || '';
   document.getElementById('setName').value    = s.name || '';
-  document.getElementById('setFocus').value   = s.focus || 'mixed';
-  document.getElementById('setPool').value    = s.pool_type || 'SCM';
+  document.getElementById('setFocus').value    = s.focus || 'mixed';
+  document.getElementById('setPool').value     = s.pool_type || 'SCM';
+  document.getElementById('setAgeGroup').value = s.age_group || 'all';
   switchTab('builder');
 }
 
@@ -1104,13 +1139,15 @@ async function generateSet() {
   const pool     = document.getElementById('aiPool').value;
   const dist     = document.getElementById('aiDist').value;
   const duration = document.getElementById('aiDuration').value;
-  document.getElementById('setFocus').value = focus;
-  document.getElementById('setPool').value  = pool;
+  const ageGroup = document.getElementById('aiAgeGroup').value;
+  document.getElementById('setFocus').value    = focus;
+  document.getElementById('setPool').value     = pool;
+  document.getElementById('setAgeGroup').value = ageGroup;
 
   try {
     const res  = await fetch('/api/sets/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ description: desc, total_distance: dist, focus, pool_type: pool, squad_level: 'Masters', duration_mins: duration }),
+      body: JSON.stringify({ description: desc, total_distance: dist, focus, pool_type: pool, age_group: ageGroup, squad_level: 'Masters', duration_mins: duration }),
     });
     const data = await res.json();
     if (data.set_content) {
@@ -1143,6 +1180,7 @@ async function saveSet() {
     name,
     focus:          document.getElementById('setFocus').value,
     pool_type:      document.getElementById('setPool').value,
+    age_group:      document.getElementById('setAgeGroup').value,
     set_content:    content,
     total_distance,
     ai_generated:   !!document.getElementById('aiDesc').value.trim(),

@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { description, total_distance, focus, pool_type, squad_level, duration_mins } = req.body || {};
+  const { description, total_distance, focus, pool_type, age_group, squad_level, duration_mins } = req.body || {};
   if (!description) return res.status(400).json({ error: 'Description required' });
 
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
@@ -31,6 +31,7 @@ Session duration: EXACTLY ${dur} minutes — this is a hard limit, the set must 
 Target total distance: ~${dist}m (adjust if needed to stay within ${dur} mins)
 Pool: ${pool_type === 'LCM' ? '50m long course (LCM)' : '25m short course (SCM)'}
 Training focus: ${focus || 'mixed'}
+Age group: ${age_group === 'juniors' ? 'Juniors (youth swimmers — shorter intervals, more technique work, appropriate pacing)' : age_group === 'seniors' ? 'Seniors / Masters (adult competitive swimmers)' : 'Mixed / all ages'}
 Squad level: ${squad_level || 'Masters'}
 
 Generate the complete set now. The final "Total:" line must show ${dur} mins or less.`;
