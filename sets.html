@@ -649,19 +649,11 @@ function showAuthWall(title, sub) {
 // ══ INIT ════════════════════════════════════════════════════════════
 async function init() {
   weekStart = mondayOf(new Date());
-  console.log('[sets] init start');
 
-  sb.auth.onAuthStateChange(async (event, session) => {
-    console.log('[sets] authStateChange', event);
-    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session && !currentUser) {
-      currentUser = session.user;
-      await boot();
-    }
-  });
-
-  console.log('[sets] calling getSession');
+  // Wait for getSession() to resolve BEFORE making any DB calls.
+  // Calling Supabase DB queries inside onAuthStateChange (before getSession resolves)
+  // deadlocks the auth queue in Supabase JS v2.
   const { data: { session } } = await sb.auth.getSession();
-  console.log('[sets] getSession done, session=', !!session);
   if (!session) {
     document.getElementById('screenLoading').style.display = 'none';
     document.getElementById('screenAuth').style.display = '';
@@ -670,6 +662,11 @@ async function init() {
   }
   currentUser = session.user;
   await boot();
+
+  // Handle future token refreshes / sign-outs only
+  sb.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT') window.location.reload();
+  });
 }
 
 async function boot() {
