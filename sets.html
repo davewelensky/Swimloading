@@ -259,6 +259,39 @@
     .ai-panel-title i { width: 15px; height: 15px; }
     .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 12px; }
     .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-top: 12px; }
+
+    /* ── Insights ── */
+    .insight-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+      padding: 18px; display: flex; flex-direction: column; gap: 12px;
+    }
+    .insight-card.urgency-high  { border-color: rgba(239,68,68,0.3); }
+    .insight-card.urgency-medium{ border-color: rgba(245,158,11,0.3); }
+    .insight-card.urgency-low   { border-color: rgba(16,185,129,0.2); }
+    .insight-squad-name { font-size: 15px; font-weight: 700; }
+    .insight-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+    }
+    .insight-badge.high   { background: rgba(239,68,68,0.15);  color: #f87171; }
+    .insight-badge.medium { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .insight-badge.low    { background: rgba(16,185,129,0.15); color: #34d399; }
+    .insight-balance { font-size: 12px; color: var(--text-sec); line-height: 1.5; }
+    .insight-rec { font-size: 13px; color: var(--text); line-height: 1.5; }
+    .insight-prompt-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 13px; border-radius: 8px; border: 1px solid rgba(56,189,248,0.3);
+      background: rgba(56,189,248,0.07); color: var(--cyan);
+      font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'DM Sans',sans-serif;
+      transition: all 0.15s;
+    }
+    .insight-prompt-btn:hover { background: rgba(56,189,248,0.14); }
+    .insight-prompt-btn i { width: 12px; height: 12px; }
+    .qualifier-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .qualifier-table th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-sec); border-bottom: 1px solid var(--border); }
+    .qualifier-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .qualifier-table tr:last-child td { border-bottom: none; }
+    .gap-pill { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; background: rgba(245,158,11,0.15); color: #fbbf24; }
     .field-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-sec); margin-bottom: 6px; }
 
     .set-body-textarea {
@@ -334,6 +367,7 @@
     @media (max-width: 640px) {
       .grid-3, .grid-4, .meta-row { grid-template-columns: 1fr; }
       .sets-grid { grid-template-columns: 1fr; }
+      #insightsSquadGrid { grid-template-columns: 1fr; }
       .planner-scroll { padding: 0 12px 24px; }
       .builder-body { padding: 16px; }
       .nav-tabs .nav-tab span { display: none; }
@@ -356,6 +390,9 @@
     </button>
     <button class="nav-tab" id="tab-builder" onclick="switchTab('builder')">
       <i data-lucide="plus-circle"></i><span>New Set</span>
+    </button>
+    <button class="nav-tab" id="tab-insights" onclick="switchTab('insights')">
+      <i data-lucide="brain"></i><span>AI Insights</span>
     </button>
   </div>
   <div class="nav-right">
@@ -530,6 +567,35 @@
         <i data-lucide="save"></i>Save to library
       </button>
       <button class="btn-ghost" onclick="resetBuilder();switchTab('library')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ INSIGHTS ════════════════════════════════════════════════════════ -->
+<div class="screen" id="screenInsights">
+  <div class="lib-toolbar" style="justify-content:space-between;">
+    <div>
+      <h2>AI Coaching Insights</h2>
+      <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">Training balance, qualifying targets &amp; recommendations for next week</div>
+    </div>
+    <button class="btn-primary" id="insightsBtn" onclick="loadInsights()">
+      <i data-lucide="brain"></i>Analyse now
+    </button>
+  </div>
+
+  <div id="insightsBody" style="padding:0 24px 40px;">
+    <div id="insightsEmpty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;gap:12px;color:var(--text-sec);">
+      <i data-lucide="brain" style="width:40px;height:40px;opacity:0.3;"></i>
+      <p style="font-size:14px;">Click "Analyse now" to get AI coaching recommendations based on your squad history, upcoming galas, and qualifying targets.</p>
+    </div>
+    <div id="insightsLoading" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:300px;gap:12px;">
+      <div class="spinner" style="width:28px;height:28px;"></div>
+      <p style="font-size:13px;color:var(--text-sec);">Analysing training history, swimmer times &amp; upcoming galas…</p>
+    </div>
+    <div id="insightsResult" style="display:none;">
+      <div id="insightsSummaryBar" style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:20px;"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;" id="insightsSquadGrid"></div>
+      <div id="insightsQualifiers" style="margin-top:20px;"></div>
     </div>
   </div>
 </div>
@@ -755,11 +821,111 @@ async function loadWeekAssignments() {
 
 // ══ TAB SWITCH ══════════════════════════════════════════════════════
 function switchTab(name) {
-  ['planner','library','builder'].forEach(t => {
+  ['planner','library','builder','insights'].forEach(t => {
     document.getElementById('tab-' + t).classList.toggle('active', t === name);
     document.getElementById('screen' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === name);
   });
   if (name === 'library') renderLibrary();
+}
+
+// ══ INSIGHTS ════════════════════════════════════════════════════════
+async function loadInsights() {
+  document.getElementById('insightsEmpty').style.display   = 'none';
+  document.getElementById('insightsResult').style.display  = 'none';
+  document.getElementById('insightsLoading').style.display = 'flex';
+  const btn = document.getElementById('insightsBtn');
+  btn.disabled = true;
+
+  try {
+    const res  = await fetch('/api/sets/insights', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ club_id: currentClub.id }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    renderInsights(data);
+  } catch (e) {
+    toast('Insights failed: ' + e.message, 'error');
+    document.getElementById('insightsEmpty').style.display = 'flex';
+  } finally {
+    document.getElementById('insightsLoading').style.display = 'none';
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="refresh-cw"></i>Refresh';
+    lucide.createIcons();
+  }
+}
+
+function renderInsights(data) {
+  // Summary bar
+  const meta = data._meta || {};
+  document.getElementById('insightsSummaryBar').innerHTML =
+    `<div style="display:flex;align-items:flex-start;gap:12px;">
+      <i data-lucide="brain" style="width:18px;height:18px;color:var(--cyan);flex-shrink:0;margin-top:2px;"></i>
+      <div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:4px;">${h(data.weekly_summary || 'Analysis complete')}</div>
+        ${data.gala_notes ? `<div style="font-size:12px;color:var(--amber);margin-top:4px;"><i data-lucide="flag" style="width:11px;height:11px;display:inline;"></i> ${h(data.gala_notes)}</div>` : ''}
+        <div style="font-size:11px;color:var(--text-sec);margin-top:6px;">${meta.squadsAnalysed || 0} squads · ${meta.nearQualifiers || 0} swimmers near qualifier · ${meta.galas || 0} upcoming galas</div>
+      </div>
+    </div>`;
+
+  // Squad cards
+  const grid = document.getElementById('insightsSquadGrid');
+  grid.innerHTML = (data.squads || []).map(sq => {
+    const focusColours = { aerobic:'#38bdf8', speed:'#f87171', drills:'#a78bfa', kick:'#fb923c', endurance:'#34d399', mixed:'#94a3b8' };
+    const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${focusColours[sq.priority_focus]||'#94a3b8'};margin-right:5px;"></span>`;
+    return `<div class="insight-card urgency-${sq.urgency || 'low'}">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <div class="insight-squad-name">${h(sq.name)}</div>
+        <span class="insight-badge ${sq.urgency || 'low'}">${sq.urgency === 'high' ? 'Urgent' : sq.urgency === 'medium' ? 'This week' : 'On track'}</span>
+      </div>
+      <div class="insight-balance">${h(sq.balance_note || '')}</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;">
+        ${dot}Next focus: <span style="color:${focusColours[sq.priority_focus]||'#94a3b8'}">${sq.priority_focus || 'mixed'}</span>
+      </div>
+      <div class="insight-rec">${h(sq.recommendation || '')}</div>
+      ${sq.suggested_prompt ? `<button class="insight-prompt-btn" onclick="useInsightPrompt(${JSON.stringify(sq.suggested_prompt)},${JSON.stringify(sq.priority_focus||'mixed')})">
+        <i data-lucide="sparkles"></i>Generate this set
+      </button>` : ''}
+    </div>`;
+  }).join('');
+
+  // Near-qualifiers table
+  const qSection = document.getElementById('insightsQualifiers');
+  if ((data.near_qualifiers || []).length) {
+    qSection.innerHTML = `
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:7px;">
+        <i data-lucide="target" style="width:15px;height:15px;color:var(--amber);"></i>
+        Swimmers close to next qualifier
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+        <table class="qualifier-table">
+          <thead><tr>
+            <th>Swimmer</th><th>Squad</th><th>Event</th><th>Gap</th><th>Training tip</th>
+          </tr></thead>
+          <tbody>${(data.near_qualifiers || []).map(n => `<tr>
+            <td style="font-weight:600;">${h(n.swimmer)}</td>
+            <td style="color:var(--text-sec);">${h(n.squad)}</td>
+            <td>${h(n.event)}</td>
+            <td><span class="gap-pill">${h(n.gap)}</span></td>
+            <td style="color:var(--text-sec);font-size:12px;">${h(n.training_tip)}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>`;
+  } else {
+    qSection.innerHTML = `<div style="font-size:13px;color:var(--text-sec);padding:8px 0;">No swimmers currently within 5 seconds of their next qualifying level.</div>`;
+  }
+
+  document.getElementById('insightsResult').style.display = 'block';
+  lucide.createIcons();
+}
+
+function useInsightPrompt(prompt, focus) {
+  switchTab('builder');
+  resetBuilder();
+  document.getElementById('aiDesc').value    = prompt;
+  document.getElementById('aiFocus').value   = focus;
+  document.getElementById('setFocus').value  = focus;
+  toast('Prompt loaded — adjust duration and hit Generate', 'success');
 }
 
 // ══ PLANNER ═════════════════════════════════════════════════════════
