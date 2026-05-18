@@ -1281,21 +1281,39 @@ function openView(assignmentId) {
 
 // ══ WHATSAPP SHARE ═══════════════════════════════════════════════════
 function shareCurrentSet() {
-  if (!pendingShare) return;
-  shareSet(pendingShare.content, pendingShare.setName, pendingShare.squadName, pendingShare.dateLabel, pendingShare.coach);
+  if (!pendingShare) { toast('Nothing to share', 'error'); return; }
+  const { content, setName, squadName, dateLabel, coach } = pendingShare;
+  const lines = [
+    `*${currentClub?.name || 'SwimLoading'}*`,
+    squadName ? `*${squadName}${dateLabel ? ' · ' + dateLabel : ''}*` : null,
+    coach     ? `_${coach}_` : null,
+    `*${setName}*`,
+    '',
+    content,
+  ].filter(Boolean);
+  openWA(lines.join('\n').trim());
 }
 
 function shareSet(content, setName, squadName, dateLabel, coachLine) {
   const lines = [
     `*${currentClub?.name || 'SwimLoading'}*`,
-    squadName ? `*${squadName}${dateLabel ? ' · ' + dateLabel : ''}*` : '',
-    coachLine  ? `_${coachLine}_` : '',
+    squadName ? `*${squadName}${dateLabel ? ' · ' + dateLabel : ''}*` : null,
+    coachLine ? `_${coachLine}_` : null,
     `*${setName}*`,
     '',
     content,
-  ].filter(l => l !== undefined && l !== null);
-  const text = lines.join('\n').trim();
-  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+  ].filter(Boolean);
+  openWA(lines.join('\n').trim());
+}
+
+function openWA(text) {
+  const a = document.createElement('a');
+  a.href = 'https://wa.me/?text=' + encodeURIComponent(text);
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 function shareWeek(squadId) {
