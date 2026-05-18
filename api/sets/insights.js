@@ -11,12 +11,16 @@ export default async function handler(req, res) {
   if (!ANTHROPIC_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
 
   async function sb(path) {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-      headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, Accept: 'application/json' },
-    });
-    if (!r.ok) throw new Error(`Supabase ${path}: ${r.status}`);
-    return r.json();
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+        headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, Accept: 'application/json' },
+      });
+      if (!r.ok) { console.error(`Supabase ${path}: ${r.status} ${await r.text()}`); return []; }
+      return r.json();
+    } catch (e) { console.error(`Supabase fetch error ${path}:`, e.message); return []; }
   }
+
+  try {
 
   const today        = new Date().toISOString().slice(0, 10);
   const fourWeeksAgo = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -190,4 +194,9 @@ Return this exact structure:
 
   res.setHeader('Cache-Control', 'no-store');
   return res.status(200).json({ ...result, _meta: { squadsAnalysed: squads?.length || 0, nearQualifiers: nearQualifiers.length, galas: galas?.length || 0 } });
+
+  } catch (err) {
+    console.error('Insights error:', err);
+    return res.status(500).json({ error: err.message || 'Internal server error' });
+  }
 }
