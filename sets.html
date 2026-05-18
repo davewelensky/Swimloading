@@ -976,6 +976,13 @@ function goToday() {
   loadWeekAssignments().then(renderPlanner);
 }
 
+function squadDefaultSlot(squadId, dow) {
+  const sess = squadSessions.find(s => s.squad_id === squadId && s.day_of_week === dow);
+  if (!sess) return 'AM';
+  const hour = parseInt((sess.start_time || '09:00').split(':')[0]);
+  return hour >= 12 ? 'PM' : 'AM';
+}
+
 function renderPlanner() {
   const today = dateStr(new Date());
   const days  = Array.from({ length: 6 }, (_, i) => addDays(weekStart, i)); // Mon–Sat
@@ -1008,8 +1015,9 @@ function renderPlanner() {
   document.getElementById('plannerBody').innerHTML = squads.map(sq => {
     const cells = days.map(d => {
       const dow = d.getDay();
-      const ds  = dateStr(d);
-      const asgn = assignments[`${sq.id}|${ds}|AM`];
+      const ds    = dateStr(d);
+      const slot  = squadDefaultSlot(sq.id, dow);
+      const asgn  = ['AM','PM','PM2','PM3'].map(sl => assignments[`${sq.id}|${ds}|${sl}`]).find(Boolean);
       const trains = trainingDays[sq.id].has(dow);
 
       if (asgn?.club_swim_sets) {
@@ -1023,7 +1031,7 @@ function renderPlanner() {
       if (!trains) {
         return `<td><div class="cell-rest"><span>—</span></div></td>`;
       }
-      return `<td><div class="cell-empty" onclick="openAssign('${sq.id}','${ds}','AM')" title="Assign set">
+      return `<td><div class="cell-empty" onclick="openAssign('${sq.id}','${ds}','${slot}')" title="Assign set">
         <i data-lucide="plus"></i>
       </div></td>`;
     }).join('');
@@ -1373,7 +1381,7 @@ function shareWeek(squadId) {
   const days = Array.from({ length: 6 }, (_, i) => addDays(weekStart, i));
   const sessions = days.map(d => {
     const ds   = dateStr(d);
-    const asgn = assignments[`${squadId}|${ds}|AM`];
+    const asgn = ['AM','PM','PM2','PM3'].map(sl => assignments[`${squadId}|${ds}|${sl}`]).find(Boolean);
     if (!asgn?.club_swim_sets) return null;
     const full = sets.find(x => x.id === asgn.club_swim_sets.id);
     const content = full?.set_content || asgn.club_swim_sets.set_content || '';
