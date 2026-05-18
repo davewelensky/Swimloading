@@ -219,7 +219,7 @@ def generate_sql(sessions, squad_id, squad_label, slot, pool):
         dist  = s['total_dist'] or None
         d_str = s['date'].strftime('%Y-%m-%d')
         d_fmt = s['date'].strftime('%-d %b')
-        name  = f"{squad_label} — {d_fmt}: {focus_text or 'Training set'}"
+        name  = focus_text or f"{d_fmt} Training set"
         content = format_content(s)
         set_id = str(uuid.uuid4())
 
