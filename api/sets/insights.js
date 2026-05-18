@@ -48,9 +48,14 @@ export default async function handler(req, res) {
     return String(age);
   }
 
+  // Filter to selected gala squads when provided
+  const activeSquads = gala_squad_ids?.length
+    ? (squads || []).filter(s => gala_squad_ids.includes(s.id))
+    : (squads || []);
+
   // Build per-squad focus breakdown
   const squadMap = {};
-  (squads || []).forEach(s => { squadMap[s.id] = { name: s.name, sets: [] }; });
+  activeSquads.forEach(s => { squadMap[s.id] = { name: s.name, sets: [] }; });
   (assignments || []).forEach(a => {
     if (squadMap[a.squad_id] && a.club_swim_sets?.focus) {
       squadMap[a.squad_id].sets.push({ focus: a.club_swim_sets.focus, name: a.club_swim_sets.name, date: a.session_date });
@@ -76,7 +81,11 @@ export default async function handler(req, res) {
   const levelOrder = ['L3', 'L2', 'L1', 'SANJ'];
   const nearQualifiers = [];
 
-  (roster || []).forEach(swimmer => {
+  const activeRoster = gala_squad_ids?.length
+    ? (roster || []).filter(r => gala_squad_ids.includes(r.squad_id))
+    : (roster || []);
+
+  activeRoster.forEach(swimmer => {
     const ageGroup = champAge(swimmer.date_of_birth);
     if (!ageGroup) return;
     const swimmerPBs = Object.values(allPBs).filter(p => p.roster_id === swimmer.id);
@@ -110,11 +119,6 @@ export default async function handler(req, res) {
     });
   });
 
-  // Resolve which squad names are attending the gala
-  const galaSquadNames = gala_squad_ids?.length
-    ? squads.filter(s => gala_squad_ids.includes(s.id)).map(s => s.name)
-    : squads.map(s => s.name);
-
   // Build gala summary
   const galaLines = (galas || []).map(g => {
     const weeks = Math.round((new Date(g.event_date) - new Date()) / (7 * 24 * 60 * 60 * 1000));
@@ -139,8 +143,8 @@ ${squadLines.join('\n') || 'No squads found'}
 UPCOMING GALAS — next 8 weeks:
 ${galaLines.join('\n') || 'None scheduled'}
 
-SQUADS ATTENDING NEXT GALA (apply tapering advice only to these):
-${galaSquadNames.join(', ') || 'All squads'}
+SQUADS SELECTED FOR ANALYSIS:
+${activeSquads.map(s => s.name).join(', ') || 'All squads'}
 
 SWIMMERS WITHIN 5 SECONDS OF NEXT QUALIFYING LEVEL:
 ${nearQualifiers.slice(0, 30).map(n =>
