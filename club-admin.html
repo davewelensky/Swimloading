@@ -6015,103 +6015,136 @@ async function loadRoster() {
 }
 
 // ── SUGGESTED MATCHES ─────────────────────────────────────────────
-// Fetch recent SwimLoading signups (last 14 days) and fuzzy-match
-// against unlinked roster entries so Britt can confirm in one click.
+// Fetch recent SwimLoading signups (last 14 days), classify as
+// swimmer (same first name) or likely parent (shared surname only).
 
-function _nameScore(a, b) {
-  // Returns 0–1 similarity. Score ≥ 0.5 considered a match.
-  const wa = (a || '').toLowerCase().replace(/[^a-z ]/g, '').split(/\s+/).filter(Boolean);
-  const wb = (b || '').toLowerCase().replace(/[^a-z ]/g, '').split(/\s+/).filter(Boolean);
-  if (!wa.length || !wb.length) return 0;
-  const shared = wa.filter(w => wb.includes(w)).length;
-  return shared / Math.max(wa.length, wb.length);
+function _analyzeMatch(profileName, rosterName) {
+  const norm = s => (s || '').toLowerCase().replace(/[^a-z ]/g, '').trim();
+  const wa = norm(profileName).split(/\s+/).filter(Boolean);
+  const wb = norm(rosterName).split(/\s+/).filter(Boolean);
+  if (!wa.length || !wb.length) return { score: 0, type: null };
+
+  const shared = wa.filter(w => wb.includes(w));
+  const score  = shared.length / Math.max(wa.length, wb.length);
+  if (score < 0.4) return { score, type: null };
+
+  // Same first name → likely the swimmer themselves
+  // Different first name but shared surname → likely a parent
+  const firstMatch = wa[0] === wb[0];
+  return { score, type: firstMatch ? 'swimmer' : 'parent' };
 }
 
 async function loadSuggestedMatches() {
   const banner = document.getElementById('suggestedMatchesBanner');
   if (!banner) return;
 
-  // Dismissed pairs stored as "rosterId|userId"
   const dismissed = new Set(JSON.parse(localStorage.getItem('_dismissedMatches') || '[]'));
-
-  const unlinked = allRoster.filter(r => !r.user_id);
+  const unlinked  = allRoster.filter(r => !r.user_id);
   if (!unlinked.length) { banner.innerHTML = ''; return; }
 
-  // Recent profiles — last 14 days, not already in club_members for this club
   const since = new Date(Date.now() - 14 * 86400000).toISOString();
-  const { data: recentProfiles } = await sb.from('profiles')
-    .select('id, display_name, email, created_at')
-    .gte('created_at', since)
-    .not('display_name', 'is', null)
-    .order('created_at', { ascending: false })
-    .limit(100);
+  const [profilesRes, membersRes, parentLinksRes] = await Promise.all([
+    sb.from('profiles').select('id, display_name, email, created_at')
+      .gte('created_at', since).not('display_name', 'is', null)
+      .order('created_at', { ascending: false }).limit(100),
+    sb.from('club_members').select('user_id').eq('club_id', currentClub.id),
+    sb.from('parent_roster_links').select('parent_user_id').eq('club_id', currentClub.id),
+  ]);
 
-  if (!recentProfiles?.length) { banner.innerHTML = ''; return; }
+  if (!profilesRes.data?.length) { banner.innerHTML = ''; return; }
 
-  // Exclude profiles already linked to this club
-  const { data: existingMembers } = await sb.from('club_members')
-    .select('user_id').eq('club_id', currentClub.id);
-  const alreadyLinked = new Set((existingMembers || []).map(m => m.user_id));
+  const alreadyMember = new Set((membersRes.data || []).map(m => m.user_id));
+  const alreadyParent = new Set((parentLinksRes.data || []).map(l => l.parent_user_id));
 
-  const candidates = recentProfiles.filter(p => !alreadyLinked.has(p.id));
+  const candidates = profilesRes.data.filter(p =>
+    !alreadyMember.has(p.id) && !alreadyParent.has(p.id)
+  );
   if (!candidates.length) { banner.innerHTML = ''; return; }
 
-  // Find best match for each candidate
-  const suggestions = [];
+  const swimmers = [], parents = [];
+
   for (const prof of candidates) {
-    let best = null, bestScore = 0;
+    let best = null, bestScore = 0, bestType = null;
     for (const r of unlinked) {
-      const score = _nameScore(prof.display_name, r.display_name);
-      if (score > bestScore) { bestScore = score; best = r; }
+      const { score, type } = _analyzeMatch(prof.display_name, r.display_name);
+      if (score > bestScore) { bestScore = score; best = r; bestType = type; }
     }
-    if (best && bestScore >= 0.5) {
+    if (best && bestType) {
       const key = `${best.id}|${prof.id}`;
       if (!dismissed.has(key)) {
-        suggestions.push({ roster: best, profile: prof, score: bestScore, key });
+        const s = { roster: best, profile: prof, score: bestScore, type: bestType, key };
+        if (bestType === 'swimmer') swimmers.push(s);
+        else                        parents.push(s);
       }
     }
   }
 
-  if (!suggestions.length) { banner.innerHTML = ''; return; }
+  if (!swimmers.length && !parents.length) { banner.innerHTML = ''; return; }
 
+  function rowHtml(s) {
+    const isParent   = s.type === 'parent';
+    const accentCol  = isParent ? 'var(--amber)' : 'var(--cyan)';
+    const bgCol      = isParent ? 'rgba(245,158,11,0.08)' : 'rgba(56,189,248,0.08)';
+    const dateStr    = new Date(s.profile.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short'});
+    const rosterLbl  = `#${s.roster.member_number || '—'} ${s.roster.display_name}`;
+    const subLabel   = isParent
+      ? `Joined SwimLoading ${dateStr} · Possible parent of ${rosterLbl}`
+      : `Joined SwimLoading ${dateStr} · Matches roster ${rosterLbl}`;
+
+    const actionBtn = isParent
+      ? `<button class="btn-primary" style="width:auto;padding:7px 16px;border-radius:8px;font-size:12px;background:var(--amber);color:#080f1a;"
+           onclick="confirmSuggestedParent('${s.roster.id}','${s.profile.id}','${(s.roster.display_name||'').replace(/'/g,"\\'")}','${(s.profile.display_name||'').replace(/'/g,"\\'")}','${s.key}')">
+           <i data-lucide="users" style="width:12px;height:12px;"></i> Set up as parent
+         </button>`
+      : `<button class="btn-primary" style="width:auto;padding:7px 16px;border-radius:8px;font-size:12px;"
+           onclick="confirmSuggestedLink('${s.roster.id}','${s.profile.id}','${(s.roster.display_name||'').replace(/'/g,"\\'")}','${(s.profile.display_name||'').replace(/'/g,"\\'")}','${s.key}')">
+           <i data-lucide="link" style="width:12px;height:12px;"></i> Confirm link
+         </button>`;
+
+    return `
+      <div id="smrow-${s.key.replace('|','-')}" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
+          <div style="width:36px;height:36px;border-radius:50%;background:${bgCol};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:${accentCol};flex-shrink:0;">
+            ${(s.profile.display_name||'?')[0].toUpperCase()}
+          </div>
+          <div style="min-width:0;">
+            <div style="font-size:14px;font-weight:700;">${s.profile.display_name}</div>
+            <div style="font-size:11px;color:var(--text-sec);">${subLabel}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;">
+          ${actionBtn}
+          <button class="btn-sm" style="border-color:rgba(255,255,255,0.1);color:var(--text-sec);"
+            onclick="dismissSuggestedMatch('${s.key}')">Not them</button>
+        </div>
+      </div>`;
+  }
+
+  const swimSection = swimmers.length ? `
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--cyan);margin-bottom:8px;">
+      <i data-lucide="waves" style="width:12px;height:12px;"></i> Swimmers — ${swimmers.length}
+    </div>
+    ${swimmers.map(rowHtml).join('')}` : '';
+
+  const parentSection = parents.length ? `
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--amber);margin-top:${swimmers.length?'14px':'0'};margin-bottom:8px;">
+      <i data-lucide="user" style="width:12px;height:12px;"></i> Likely parents — ${parents.length}
+    </div>
+    ${parents.map(rowHtml).join('')}` : '';
+
+  const total = swimmers.length + parents.length;
   banner.innerHTML = `
-    <div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.25);border-radius:16px;padding:18px 20px;">
+    <div style="background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.2);border-radius:16px;padding:18px 20px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
         <i data-lucide="zap" style="width:15px;height:15px;color:var(--amber);"></i>
         <span style="font-size:13px;font-weight:800;color:var(--amber);">
-          ${suggestions.length} suggested link${suggestions.length !== 1 ? 's' : ''} — new SwimLoading signups
+          ${total} new SwimLoading signup${total !== 1 ? 's' : ''} to review
         </span>
       </div>
       <div style="font-size:12px;color:var(--text-sec);margin-bottom:14px;">
-        These swimmers joined SwimLoading recently. Confirm to link them to their roster entry.
+        Swimmers: confirm their roster link. Likely parents: set them up with parent access to their swimmer.
       </div>
-      <div id="suggestedMatchList">
-        ${suggestions.map(s => `
-          <div id="smrow-${s.key.replace('|','-')}" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;">
-            <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
-              <div style="width:36px;height:36px;border-radius:50%;background:rgba(56,189,248,0.12);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--cyan);flex-shrink:0;">
-                ${(s.profile.display_name||'?')[0].toUpperCase()}
-              </div>
-              <div style="min-width:0;">
-                <div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.profile.display_name}</div>
-                <div style="font-size:11px;color:var(--text-sec);">
-                  Joined SwimLoading ${new Date(s.profile.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short'})}
-                  &nbsp;·&nbsp; Roster #${s.roster.member_number || '—'} ${s.roster.display_name}
-                </div>
-              </div>
-            </div>
-            <div style="display:flex;gap:8px;flex-shrink:0;">
-              <button class="btn-primary" style="width:auto;padding:7px 16px;border-radius:8px;font-size:12px;"
-                onclick="confirmSuggestedLink('${s.roster.id}','${s.profile.id}','${(s.roster.display_name||'').replace(/'/g,"\\'")}','${(s.profile.display_name||'').replace(/'/g,"\\'")}','${s.key}')">
-                <i data-lucide="link" style="width:12px;height:12px;"></i> Confirm link
-              </button>
-              <button class="btn-sm" style="border-color:rgba(255,255,255,0.1);color:var(--text-sec);"
-                onclick="dismissSuggestedMatch('${s.key}')">
-                Not them
-              </button>
-            </div>
-          </div>`).join('')}
-      </div>
+      <div id="suggestedMatchList">${swimSection}${parentSection}</div>
     </div>`;
   lucide.createIcons();
 }
@@ -6143,6 +6176,33 @@ async function confirmSuggestedLink(rosterId, userId, rosterName, swName, key) {
 
   renderRosterTable();
   showToast(`${rosterName} linked to ${swName}`, 'success');
+}
+
+async function confirmSuggestedParent(rosterId, userId, swimmerName, parentName, key) {
+  const btn = document.querySelector(`#smrow-${key.replace('|','-')} .btn-primary`);
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span style="width:12px;height:12px;border:2px solid #080f1a;border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin 0.6s linear infinite;"></span>'; }
+
+  const { error } = await sb.from('parent_roster_links').upsert({
+    parent_user_id: userId,
+    roster_id:      rosterId,
+    club_id:        currentClub.id,
+    relationship:   'Parent',
+    status:         'approved',
+    approved_by:    currentUser.id,
+    approved_at:    new Date().toISOString(),
+  }, { onConflict: 'parent_user_id,roster_id', ignoreDuplicates: true });
+
+  if (error) {
+    showToast('Failed: ' + error.message, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="users" style="width:12px;height:12px;"></i> Set up as parent'; lucide.createIcons(); }
+    return;
+  }
+
+  document.getElementById(`smrow-${key.replace('|','-')}`)?.remove();
+  if (!document.getElementById('suggestedMatchList')?.children.length) {
+    document.getElementById('suggestedMatchesBanner').innerHTML = '';
+  }
+  showToast(`${parentName} set up as parent of ${swimmerName}`, 'success');
 }
 
 function dismissSuggestedMatch(key) {
