@@ -2034,7 +2034,7 @@ async function loadMembers() {
 
   const [membersRes, rosterRes, rosterFullRes] = await Promise.all([
     sb.from('club_members')
-      .select('*, club_categories(name), club_roster(id, display_name, member_number, category, gender), profiles(display_name, email)')
+      .select('*, club_categories(name), club_roster(id, display_name, member_number, category, gender)')
       .eq('club_id', currentClub.id)
       .eq('is_active', true)
       .order('joined_at', { ascending: false }),
@@ -2052,20 +2052,23 @@ async function loadMembers() {
   const clubMembers  = membersRes.data || [];
   const rosterLinked = rosterRes.data  || [];
 
-  // Fetch profiles for roster-linked users not already in club_members
-  const clubMemberUserIds = new Set(clubMembers.map(m => m.user_id));
-  const rosterOnlyIds = rosterLinked.filter(r => !clubMemberUserIds.has(r.user_id)).map(r => r.user_id);
-  let rosterProfileMap = {};
-  if (rosterOnlyIds.length) {
-    const { data: profs } = await sb.from('profiles').select('id, display_name, email, phone').in('id', rosterOnlyIds);
-    (profs || []).forEach(p => { rosterProfileMap[p.id] = p; });
+  // Fetch profiles separately (club_members.user_id → auth.users, no FK to profiles)
+  const allUserIds = [...new Set([
+    ...clubMembers.map(m => m.user_id),
+    ...rosterLinked.map(r => r.user_id),
+  ].filter(Boolean))];
+  let memberProfileMap = {};
+  if (allUserIds.length) {
+    const { data: profs } = await sb.from('profiles').select('id, display_name, email, phone').in('id', allUserIds);
+    (profs || []).forEach(p => { memberProfileMap[p.id] = p; });
   }
 
   // Normalise roster-only linked members to the same shape
+  const clubMemberUserIds = new Set(clubMembers.map(m => m.user_id));
   const rosterAsMembers = rosterLinked
     .filter(r => !clubMemberUserIds.has(r.user_id))
     .map(r => {
-      const prof = rosterProfileMap[r.user_id] || {};
+      const prof = memberProfileMap[r.user_id] || {};
       return {
         id: r.id,
         _source: 'roster',
@@ -2083,12 +2086,15 @@ async function loadMembers() {
     });
 
   allMembers = [
-    ...clubMembers.map(m => ({ ...m, _source: 'club_members',
-      _display_name: m.club_roster?.display_name || m.profiles?.display_name || '—',
-      _email: m.profiles?.email || '',
-      category: m.club_categories?.name || m.club_roster?.category || '',
-      member_number: (m.member_number || m.club_roster?.member_number || '').toString().replace(/^#/, ''),
-    })),
+    ...clubMembers.map(m => {
+      const prof = memberProfileMap[m.user_id] || {};
+      return { ...m, _source: 'club_members',
+        _display_name: m.club_roster?.display_name || prof.display_name || '—',
+        _email: prof.email || '',
+        category: m.club_categories?.name || m.club_roster?.category || '',
+        member_number: (m.member_number || m.club_roster?.member_number || '').toString().replace(/^#/, ''),
+      };
+    }),
     ...rosterAsMembers,
   ].sort((a, b) => {
     const na = parseInt(a.member_number) || 9999;
