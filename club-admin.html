@@ -2053,7 +2053,7 @@ async function loadCategories() {
 async function loadMembers() {
   const since = new Date(); since.setDate(1); since.setHours(0,0,0,0);
 
-  const [membersRes, rosterRes, rosterFullRes] = await Promise.all([
+  const [membersRes, rosterRes, rosterFullRes, coachesRes] = await Promise.all([
     sb.from('club_members')
       .select('*, club_categories(name), club_roster(id, display_name, member_number, category, gender)')
       .eq('club_id', currentClub.id)
@@ -2067,11 +2067,22 @@ async function loadMembers() {
       .select('id, member_number, display_name, category, user_id, squad_id, is_trial, fee_paid, trial_end_date, fee_due_date')
       .eq('club_id', currentClub.id)
       .order('member_number'),
+    sb.from('club_coaches')
+      .select('email, title')
+      .eq('club_id', currentClub.id)
+      .eq('is_active', true)
+      .not('email', 'is', null),
   ]);
   allRosterFull = rosterFullRes.data || [];
 
   const clubMembers  = membersRes.data || [];
   const rosterLinked = rosterRes.data  || [];
+
+  // Build email → coach title map for role display consistency with Team page
+  const coachTitleMap = {};
+  (coachesRes.data || []).forEach(c => {
+    if (c.email) coachTitleMap[c.email.toLowerCase()] = c.title || 'Coach';
+  });
 
   // Fetch profiles separately (club_members.user_id → auth.users, no FK to profiles)
   const allUserIds = [...new Set([
@@ -2109,9 +2120,12 @@ async function loadMembers() {
   allMembers = [
     ...clubMembers.map(m => {
       const prof = memberProfileMap[m.user_id] || {};
+      const email = prof.email || '';
+      const coachTitle = coachTitleMap[email.toLowerCase()] || null;
       return { ...m, _source: 'club_members',
         _display_name: m.club_roster?.display_name || prof.display_name || '—',
-        _email: prof.email || '',
+        _email: email,
+        _coachTitle: coachTitle,
         category: m.club_categories?.name || m.club_roster?.category || '',
         member_number: (m.member_number || m.club_roster?.member_number || '').toString().replace(/^#/, ''),
       };
@@ -2634,7 +2648,7 @@ function renderMembersTable(members) {
       <td><span class="member-num">${m.member_number || '—'}</span></td>
       <td><div class="member-name">${name}${inactive ? '<span class="inactive-badge">Inactive</span>' : ''}</div><div class="member-email">${email}</div></td>
       <td><span class="cat-badge ${catClass(cat)}">${cat}</span></td>
-      <td><span class="role-badge role-${m.role}">${m.role}</span></td>
+      <td><span class="role-badge role-${m._coachTitle ? 'coach' : m.role}">${m._coachTitle || m.role}</span></td>
       <td style="font-size:12px;color:var(--text-sec);">${joined}</td>
       <td style="font-size:13px;font-weight:600;color:${logs > 0 ? 'var(--cyan)' : 'var(--text-sec)'};">${logs}</td>
       <td><button class="action-btn" onclick="openMemberModal('${m.id}')">Edit</button></td>
