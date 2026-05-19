@@ -1074,11 +1074,12 @@
 
         // Load dashboard
         async function loadDashboard() {
-            loadMonthlyChallengeSummary(); // non-blocking
-            loadSpotlightBanner();         // non-blocking
-            loadClubAdminBanner();         // non-blocking
-            loadNotifications();           // non-blocking
-            loadClubCard();                // non-blocking
+            loadMonthlyChallengeSummary();     // non-blocking
+            loadSpotlightBanner();             // non-blocking
+            loadClubAdminBanner();             // non-blocking
+            loadNotifications();               // non-blocking
+            loadClubCard();                    // non-blocking
+            renderDashboardHealthBanner();     // non-blocking
 
             // Populate shared caches in background (used by Trends/Swims tabs and hazard checks)
             (async () => {
@@ -5722,6 +5723,9 @@
 
                 // Render club membership card (if member of any club)
                 if (typeof loadClubMembership === 'function') loadClubMembership();
+
+                // Render health events in profile
+                renderProfileHealth();
             } catch (err) {
                 console.error('Error loading profile:', err);
             } finally {
@@ -5779,6 +5783,140 @@
 
         function hideProfileSettings() {
             document.getElementById('profileModal').style.display = 'none';
+        }
+
+        // ── HEALTH LOG ────────────────────────────────────────────────────
+
+        let _healthType     = '';
+        let _healthSeverity = '';
+
+        async function renderProfileHealth() {
+            if (!currentUser) return;
+            const el = document.getElementById('profileHealthSection');
+            if (!el) return;
+
+            const { data } = await supabaseClient
+                .from('swimmer_health_events')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .is('resolved_at', null)
+                .order('event_date', { ascending: false })
+                .limit(5);
+
+            const sevColor = s => s === 'significant' ? '#ef4444' : s === 'moderate' ? '#f59e0b' : '#10b981';
+            const sevBg    = s => s === 'significant' ? 'rgba(239,68,68,0.1)' : s === 'moderate' ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)';
+
+            if (!data || !data.length) {
+                el.innerHTML = `<div style="font-size:13px;color:#64748b;padding:8px 0 4px;">No active health notes.</div>`;
+                return;
+            }
+
+            el.innerHTML = data.map(e => {
+                const label = [e.body_part, e.side ? `(${e.side})` : ''].filter(Boolean).join(' ') || e.type;
+                const date  = new Date(e.event_date + 'T12:00:00').toLocaleDateString('en-ZA', { day:'numeric', month:'short' });
+                return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;margin-bottom:8px;">
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:13px;font-weight:600;color:#f1f5f9;text-transform:capitalize;">${label}</div>
+                        ${e.notes ? `<div style="font-size:12px;color:#64748b;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${e.notes}</div>` : ''}
+                        <div style="font-size:11px;color:#475569;margin-top:3px;">${date}</div>
+                    </div>
+                    <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:${sevBg(e.severity)};color:${sevColor(e.severity)};text-transform:uppercase;flex-shrink:0;">${e.severity}</span>
+                    <button onclick="resolveHealthEvent('${e.id}')" title="Mark resolved"
+                        style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:6px;padding:5px 8px;font-size:11px;font-weight:700;color:#10b981;cursor:pointer;flex-shrink:0;">
+                        Resolved
+                    </button>
+                </div>`;
+            }).join('');
+        }
+
+        function openHealthLog() {
+            _healthType     = '';
+            _healthSeverity = '';
+            document.querySelectorAll('.health-type-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.health-sev-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('healthBodyPart').value = '';
+            document.getElementById('healthSide').value     = '';
+            document.getElementById('healthNotes').value    = '';
+            document.getElementById('healthBodyRow').style.display = 'none';
+            document.getElementById('healthLogModal').style.display = 'block';
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function closeHealthLog() {
+            document.getElementById('healthLogModal').style.display = 'none';
+        }
+
+        function selectHealthType(type) {
+            _healthType = type;
+            document.querySelectorAll('.health-type-btn').forEach(b =>
+                b.classList.toggle('active', b.dataset.htype === type));
+            const showBody = type === 'injury' || type === 'soreness';
+            document.getElementById('healthBodyRow').style.display = showBody ? '' : 'none';
+        }
+
+        function selectHealthSeverity(sev) {
+            _healthSeverity = sev;
+            document.querySelectorAll('.health-sev-btn').forEach(b =>
+                b.classList.toggle('active', b.dataset.hsev === sev));
+        }
+
+        async function saveHealthEvent() {
+            if (!_healthType)     { alert('Please select a type (Injury, Soreness, Illness, or Other).'); return; }
+            if (!_healthSeverity) { alert('Please select how bad it is.'); return; }
+
+            const bodyPart = document.getElementById('healthBodyPart').value || null;
+            const side     = document.getElementById('healthSide').value     || null;
+            const notes    = document.getElementById('healthNotes').value.trim() || null;
+
+            const { error } = await supabaseClient.from('swimmer_health_events').insert({
+                user_id:   currentUser.id,
+                type:      _healthType,
+                body_part: bodyPart,
+                side,
+                severity:  _healthSeverity,
+                notes,
+                event_date: new Date().toISOString().slice(0, 10),
+            });
+
+            if (error) { alert('Could not save: ' + error.message); return; }
+
+            closeHealthLog();
+            renderProfileHealth();
+            renderDashboardHealthBanner();
+        }
+
+        async function resolveHealthEvent(id) {
+            await supabaseClient.from('swimmer_health_events')
+                .update({ resolved_at: new Date().toISOString().slice(0, 10) })
+                .eq('id', id);
+            renderProfileHealth();
+            renderDashboardHealthBanner();
+        }
+
+        async function renderDashboardHealthBanner() {
+            const el = document.getElementById('dashHealthBanner');
+            if (!el || !currentUser) return;
+            const { data } = await supabaseClient
+                .from('swimmer_health_events')
+                .select('id, type, body_part, side, severity')
+                .eq('user_id', currentUser.id)
+                .is('resolved_at', null)
+                .limit(3);
+            if (!data || !data.length) { el.style.display = 'none'; return; }
+            const labels = data.map(e => {
+                const part = e.body_part ? e.body_part + (e.side ? ` (${e.side})` : '') : e.type;
+                return part.toLowerCase();
+            });
+            el.innerHTML = `<div onclick="showProfileSettings()" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:12px;cursor:pointer;margin-bottom:12px;">
+                <i data-lucide="activity" style="width:16px;height:16px;color:#f59e0b;flex-shrink:0;"></i>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:600;color:#f59e0b;">Active health note${data.length > 1 ? 's' : ''}</div>
+                    <div style="font-size:12px;color:#94a3b8;margin-top:1px;">${labels.join(' · ')}</div>
+                </div>
+                <i data-lucide="chevron-right" style="width:14px;height:14px;color:#64748b;flex-shrink:0;"></i>
+            </div>`;
+            el.style.display = '';
+            if (window.lucide) lucide.createIcons();
         }
 
         async function saveProfile() {
