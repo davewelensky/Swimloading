@@ -393,6 +393,12 @@
       <div style="padding:0 16px;" id="mySquadContent"></div>
     </div>
 
+    <!-- All squads — direct tap-to-mark access -->
+    <div id="allSquadsSection" style="display:none;">
+      <div class="section-label">ALL SQUADS</div>
+      <div style="padding:0 16px;" id="allSquadsList"></div>
+    </div>
+
     <div class="safe-bottom" style="padding-left:0;padding-right:0;height:24px;"></div>
   </div>
 </div>
@@ -893,6 +899,35 @@ function renderHome() {
     mySquadSection.style.display = 'none';
   }
 
+  // All squads — direct access tiles
+  const allSquadsSection = document.getElementById('allSquadsSection');
+  const allSquadsList    = document.getElementById('allSquadsList');
+  if (allSquads.length) {
+    allSquadsList.innerHTML = allSquads.map(sq => {
+      const count = allRoster.filter(r => r.squad_id === sq.id).length;
+      const todaySess = allWeekSessions
+        .filter(s => s.squad_id === sq.id && s.day_of_week === selDow)
+        .sort((a, b) => toMins(a.start_time) - toMins(b.start_time))[0];
+      const sessLabel = todaySess
+        ? `<div style="font-size:11px;color:var(--cyan);font-weight:600;">${fmtTime(todaySess.start_time)}${todaySess.end_time ? '–' + fmtTime(todaySess.end_time) : ''} scheduled</div>`
+        : `<div style="font-size:11px;color:var(--text-sec);">No session scheduled</div>`;
+      return `<div onclick="openSquadDirect('${sq.id}')" style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;cursor:pointer;margin-bottom:8px;-webkit-tap-highlight-color:transparent;transition:border-color 0.15s;" ontouchstart="this.style.borderColor='rgba(56,189,248,0.3)'" ontouchend="this.style.borderColor=''">
+        <div style="flex:1;">
+          <div style="font-size:15px;font-weight:700;">${sq.name}</div>
+          ${sessLabel}
+        </div>
+        <div style="text-align:right;flex-shrink:0;margin-right:4px;">
+          <div style="font-size:16px;font-weight:800;color:var(--text);">${count}</div>
+          <div style="font-size:10px;color:var(--text-sec);">swimmers</div>
+        </div>
+        <i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--text-sec);flex-shrink:0;"></i>
+      </div>`;
+    }).join('');
+    allSquadsSection.style.display = '';
+  } else {
+    allSquadsSection.style.display = 'none';
+  }
+
   lucide.createIcons();
 }
 
@@ -901,6 +936,43 @@ function isMySession(s) {
   const sCoach = s.coach_name.toLowerCase();
   const myName = coachName.toLowerCase();
   return sCoach.includes(myName.split(' ')[0]) || myName.includes(sCoach.split(' ')[0]);
+}
+
+function openSquadDirect(squadId) {
+  const sq     = allSquads.find(q => q.id === squadId);
+  const selDow = new Date(selectedDate + 'T00:00:00').getDay();
+
+  // Prefer today's scheduled session if one exists
+  const todaySess = allWeekSessions
+    .filter(s => s.squad_id === squadId && s.day_of_week === selDow)
+    .sort((a, b) => toMins(a.start_time) - toMins(b.start_time))[0];
+
+  if (todaySess) { openConfirm(todaySess.id); return; }
+
+  // No scheduled session — set up an ad-hoc session for this squad
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  activeSqSession = {
+    id:           '_direct_' + squadId,
+    squad_id:     squadId,
+    start_time:   `${pad(now.getHours())}:${pad(now.getMinutes())}:00`,
+    end_time:     null,
+    day_of_week:  now.getDay(),
+    coach_name:   null,
+    max_capacity: sq?.max_members || 0,
+  };
+
+  const dayFull = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const selD    = new Date(selectedDate + 'T00:00:00');
+  document.getElementById('confirmSquad').textContent = sq?.name || 'Squad';
+  document.getElementById('confirmTime').textContent  = 'Ad-hoc session';
+  document.getElementById('confirmDate').textContent  = dayFull[selD.getDay()] + ', ' + selD.toLocaleDateString('en-ZA', {day:'numeric',month:'long',year:'numeric'});
+  const count = allRoster.filter(r => r.squad_id === squadId).length;
+  document.getElementById('confirmFill').textContent = count + ' in squad';
+  document.getElementById('confirmFillBar').style.width = '0%';
+  document.getElementById('confirmCoachName').value   = coachName;
+  document.getElementById('confirmCoverNote').style.display = 'none';
+  showScreen('confirm');
 }
 
 function sessionTileHTML(s, nowMins, type) {
