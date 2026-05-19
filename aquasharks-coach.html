@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aqua Sharks Coach Guide · SwimLoading</title>
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080f1a;
+      --bg-card:  #0d1728;
+      --cyan:     #38bdf8;
+      --text:     #f1f5f9;
+      --text-sec: #64748b;
+      --border:   rgba(255,255,255,0.06);
+      --green:    #10b981;
+      --amber:    #f59e0b;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      background:
+        radial-gradient(18px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+          rgba(56,189,248,0.55), transparent 100%),
+        radial-gradient(500px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+          rgba(56,189,248,0.07), transparent 70%);
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8,15,26,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .nav-brand img { height: 22px; width: auto; }
+
+    .nav-badge {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--green);
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.2);
+      border-radius: 20px;
+      padding: 3px 10px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .hero {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 56px 24px 40px;
+      text-align: center;
+    }
+
+    .hero-eyebrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .hero-eyebrow-line { width: 28px; height: 2px; background: var(--cyan); border-radius: 2px; }
+    .hero-eyebrow span { font-size: 11px; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.15em; }
+
+    .hero h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(44px, 10vw, 68px);
+      line-height: 0.95;
+      letter-spacing: 0.02em;
+      margin-bottom: 16px;
+    }
+    .hero h1 span { color: var(--cyan); }
+
+    .hero-sub {
+      font-size: 16px;
+      color: rgba(241,245,249,0.65);
+      max-width: 440px;
+      margin: 0 auto 32px;
+      line-height: 1.7;
+    }
+
+    .cta-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--cyan);
+      color: #080f1a;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 14px 28px;
+      border-radius: 50px;
+      text-decoration: none;
+      transition: opacity 0.15s;
+    }
+    .cta-link:hover { opacity: 0.88; }
+
+    .content {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sec);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin: 44px 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .step {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 28px;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(56,189,248,0.12);
+      border: 1px solid rgba(56,189,248,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      color: var(--cyan);
+      margin-top: 2px;
+    }
+
+    .step-body { flex: 1; }
+
+    .step-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .step-desc {
+      font-size: 14px;
+      color: rgba(241,245,249,0.65);
+      line-height: 1.7;
+    }
+    .step-desc strong { color: var(--text); font-weight: 600; }
+    .step-desc a { color: var(--cyan); }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-top: 14px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sec);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 12px;
+    }
+
+    .points-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .points-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+    .points-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(56,189,248,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .points-icon i { color: var(--cyan); width: 15px; height: 15px; }
+    .points-icon.green { background: rgba(16,185,129,0.1); }
+    .points-icon.green i { color: var(--green); }
+    .points-icon.amber { background: rgba(245,158,11,0.1); }
+    .points-icon.amber i { color: var(--amber); }
+
+    .points-label { flex: 1; font-size: 14px; color: var(--text); }
+    .points-label span { display: block; font-size: 12px; color: var(--text-sec); margin-top: 1px; }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .status-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 13px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .highlight-box {
+      background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(16,185,129,0.03));
+      border: 1px solid rgba(16,185,129,0.2);
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-top: 14px;
+    }
+
+    .highlight-box-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--green);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .highlight-box-desc {
+      font-size: 13px;
+      color: rgba(241,245,249,0.65);
+      line-height: 1.6;
+    }
+
+    .url-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: rgba(56,189,248,0.06);
+      border: 1px solid rgba(56,189,248,0.2);
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .url-box-text {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--cyan);
+      font-family: monospace;
+      letter-spacing: -0.3px;
+    }
+
+    .url-box-sub {
+      font-size: 12px;
+      color: var(--text-sec);
+      margin-top: 2px;
+    }
+
+    footer {
+      text-align: center;
+      padding: 40px 24px;
+      font-size: 13px;
+      color: var(--text-sec);
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="https://swimloading.com" class="nav-brand">
+    <img src="/icons/logo-wave.png" alt="">SwimLoading
+  </a>
+  <span class="nav-badge">Coach Guide</span>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">
+    <div class="hero-eyebrow-line"></div>
+    <span>Aqua Sharks Atlantic</span>
+    <div class="hero-eyebrow-line"></div>
+  </div>
+  <h1>Your coach<br><span>register</span> guide</h1>
+  <p class="hero-sub">How to open your session, mark attendance, and add walk-ins — three steps, done in under a minute.</p>
+  <a href="https://swimloading.com/coach/aqua-sharks-atlantic" class="cta-link">
+    <i data-lucide="clipboard-list" style="width:18px;height:18px;"></i>
+    Open my register
+  </a>
+</div>
+
+<div class="content">
+
+  <!-- STEP 1 -->
+  <div class="section-label">Getting started</div>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <div class="step-title">Open the coach register link</div>
+      <div class="step-desc">
+        Tap the link below — or bookmark it now so you always have it handy.
+        <div class="url-box">
+          <div>
+            <div class="url-box-text">swimloading.com/coach/aqua-sharks-atlantic</div>
+            <div class="url-box-sub">Open this on your phone before every session</div>
+          </div>
+          <a href="https://swimloading.com/coach/aqua-sharks-atlantic" class="cta-link" style="font-size:13px;padding:10px 18px;">Open</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <div class="step-title">Sign in the first time</div>
+      <div class="step-desc">
+        You'll be asked to sign in with your email address. Enter it and you'll receive a magic link — tap it, and you're in. No password needed.
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">First-time setup — do this once</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="mail"></i></div>
+            <div class="points-label">Enter your email address <span>You'll get a sign-in link — check spam if it doesn't arrive in 30 seconds</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon green"><i data-lucide="link"></i></div>
+            <div class="points-label">Tap the link in your email <span>Brings you straight back to the coach page, signed in</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon amber"><i data-lucide="smartphone"></i></div>
+            <div class="points-label">Add to your home screen <span>On iPhone: tap Share → Add to Home Screen. Opens like an app, stays signed in.</span></div>
+          </div>
+        </div>
+        <div class="highlight-box">
+          <div class="highlight-box-title"><i data-lucide="info" style="width:14px;height:14px;"></i> After the first time</div>
+          <div class="highlight-box-desc">You'll stay signed in automatically. Just tap your home screen icon before each session — no login needed.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: Mark attendance -->
+  <div class="section-label">Marking the register</div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <div class="step-title">Tap your session</div>
+      <div class="step-desc">
+        Your sessions appear on the home screen. Tap the one you're about to run — confirm your name — then tap <strong>Start marking attendance</strong>.
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">You'll see your session automatically</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="calendar"></i></div>
+            <div class="points-label">Sessions assigned to you <span>Shown at the top — tap to open</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon green"><i data-lucide="users"></i></div>
+            <div class="points-label">Cover sessions <span>Other squads' sessions — visible if you need to cover</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon amber"><i data-lucide="chevron-left"></i></div>
+            <div class="points-label">Previous days <span>Use the ‹ arrow to go back and mark yesterday's register if you missed it</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <div class="step-title">Mark each swimmer</div>
+      <div class="step-desc">
+        Every enrolled swimmer is listed. Tap the button next to their name to mark their status. Tap <strong>Save attendance</strong> when done.
+        <div class="status-grid">
+          <div class="status-chip">
+            <div class="status-dot" style="background:#10b981;"></div>
+            <div><strong>HERE</strong><br><span style="font-size:11px;color:var(--text-sec);">Present</span></div>
+          </div>
+          <div class="status-chip">
+            <div class="status-dot" style="background:#64748b;"></div>
+            <div><strong>AWAY</strong><br><span style="font-size:11px;color:var(--text-sec);">Absent, no contact</span></div>
+          </div>
+          <div class="status-chip">
+            <div class="status-dot" style="background:#38bdf8;"></div>
+            <div><strong>EXCUSE</strong><br><span style="font-size:11px;color:var(--text-sec);">Notified absence</span></div>
+          </div>
+          <div class="status-chip">
+            <div class="status-dot" style="background:#f59e0b;"></div>
+            <div><strong>NC</strong><br><span style="font-size:11px;color:var(--text-sec);">No contact</span></div>
+          </div>
+        </div>
+        <div class="highlight-box" style="margin-top:14px;">
+          <div class="highlight-box-title"><i data-lucide="check-circle" style="width:14px;height:14px;"></i> Tip</div>
+          <div class="highlight-box-desc">You can save mid-session and come back — attendance is saved as you go. Tap Save when you're done and it's locked in.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3: Walk-ins -->
+  <div class="section-label">Walk-ins & extras</div>
+
+  <div class="step">
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <div class="step-title">Adding a walk-in swimmer</div>
+      <div class="step-desc">
+        If a swimmer pitches up who isn't on the list — a trial swimmer, a catch-up from another squad, or a new face — tap <strong>Walk-in</strong> at the bottom of the attendance screen.
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">Walk-in options</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="user-search"></i></div>
+            <div class="points-label">Search existing roster <span>If they're already in the system — tap their name to add them to this session</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon green"><i data-lucide="user-plus"></i></div>
+            <div class="points-label">Add a new trial swimmer <span>Enter their name — they get the next member number and a TRIAL badge. Britt will see them in Roster.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAQ -->
+  <div class="section-label">Common questions</div>
+
+  <div class="step">
+    <div class="step-num" style="font-size:16px;">?</div>
+    <div class="step-body">
+      <div class="step-title">I don't see my session</div>
+      <div class="step-desc">
+        Your sessions are matched by your first name in the timetable. If your session isn't showing, check with Britt that your name is set correctly in the timetable — or tap <strong>Cover a session</strong> to access all sessions for today.
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num" style="font-size:16px;">?</div>
+    <div class="step-body">
+      <div class="step-title">I forgot to mark yesterday</div>
+      <div class="step-desc">
+        No problem — tap the <strong>‹</strong> arrow next to the date on the home screen to go back to any previous day. Open the session and mark as normal.
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num" style="font-size:16px;">?</div>
+    <div class="step-body">
+      <div class="step-title">I got signed out</div>
+      <div class="step-desc">
+        Just go back to <a href="https://swimloading.com/coach/aqua-sharks-atlantic">swimloading.com/coach/aqua-sharks-atlantic</a>, enter your email, and tap the link in your email. You'll be straight back in.
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom CTA -->
+  <div style="margin-top:48px;text-align:center;background:linear-gradient(135deg,rgba(56,189,248,0.08),rgba(56,189,248,0.02));border:1px solid rgba(56,189,248,0.15);border-radius:20px;padding:32px 24px;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:0.05em;margin-bottom:8px;">Ready to mark the register?</div>
+    <div style="font-size:14px;color:var(--text-sec);margin-bottom:20px;">Bookmark this link — open it before every session.</div>
+    <a href="https://swimloading.com/coach/aqua-sharks-atlantic" class="cta-link">
+      <i data-lucide="clipboard-list" style="width:17px;height:17px;"></i>
+      Open coach register
+    </a>
+  </div>
+
+</div>
+
+<footer>
+  <div style="margin-bottom:8px;">
+    <a href="https://swimloading.com" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
+      <img src="/icons/logo-wave.png" alt="" style="height:18px;">
+      <span style="font-size:13px;font-weight:700;background:linear-gradient(135deg,#38bdf8,#0284c7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">SwimLoading</span>
+    </a>
+  </div>
+  <div>Aqua Sharks Academy Atlantic · Coach register guide</div>
+</footer>
+
+<script>
+  lucide.createIcons();
+  document.addEventListener('mousemove', e => {
+    document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+    document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+  });
+</script>
+</body>
+</html>
