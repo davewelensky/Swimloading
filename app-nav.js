@@ -380,6 +380,41 @@
             } catch (e) { /* not a member, parent, or admin — card stays hidden */ }
         }
 
+        async function loadClubAdminBanner() {
+            try {
+                const banner = document.getElementById('clubAdminBanner');
+                if (!banner || !currentUser) return;
+                const { data: adminClubs } = await supabaseClient
+                    .from('club_admins')
+                    .select('role, clubs(name, slug)')
+                    .eq('user_id', currentUser.id);
+                if (!adminClubs?.length) return;
+                const clubs = adminClubs.map(a => a.clubs).filter(Boolean);
+                if (!clubs.length) return;
+
+                banner.style.display = 'block';
+                banner.innerHTML = clubs.map(c => `
+                    <a href="/club-admin/${c.slug}"
+                       style="display:flex;align-items:center;justify-content:space-between;gap:12px;
+                              background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(245,158,11,0.04));
+                              border:1px solid rgba(245,158,11,0.25);border-radius:14px;
+                              padding:13px 16px;text-decoration:none;margin-bottom:8px;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div style="width:36px;height:36px;border-radius:10px;background:rgba(245,158,11,0.15);
+                                        display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <i data-lucide="shield" style="width:18px;height:18px;color:#f59e0b;"></i>
+                            </div>
+                            <div>
+                                <div style="font-size:13px;font-weight:700;color:var(--text-primary);">${c.name}</div>
+                                <div style="font-size:11px;color:#f59e0b;margin-top:1px;font-weight:600;">Club Admin Dashboard</div>
+                            </div>
+                        </div>
+                        <i data-lucide="arrow-right" style="width:16px;height:16px;color:#f59e0b;flex-shrink:0;"></i>
+                    </a>`).join('');
+                initIcons();
+            } catch (e) { /* not a club admin */ }
+        }
+
         async function loadSpotlightBanner() {
             try {
                 const { data: spotRows } = await supabaseClient

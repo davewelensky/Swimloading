@@ -1076,6 +1076,7 @@
         async function loadDashboard() {
             loadMonthlyChallengeSummary(); // non-blocking
             loadSpotlightBanner();         // non-blocking
+            loadClubAdminBanner();         // non-blocking
             loadNotifications();           // non-blocking
             loadClubCard();                // non-blocking
 
