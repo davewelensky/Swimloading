@@ -584,6 +584,10 @@
             </button>
           </div>
         </div>
+
+        <!-- Suggested matches banner — populated by loadSuggestedMatches() -->
+        <div id="suggestedMatchesBanner" style="margin-bottom:16px;"></div>
+
         <div class="card">
           <div class="card-header">
             <div class="filter-row">
@@ -5962,6 +5966,150 @@ async function loadRoster() {
   });
 
   renderRosterTable();
+  loadSuggestedMatches();
+}
+
+// ── SUGGESTED MATCHES ─────────────────────────────────────────────
+// Fetch recent SwimLoading signups (last 14 days) and fuzzy-match
+// against unlinked roster entries so Britt can confirm in one click.
+
+function _nameScore(a, b) {
+  // Returns 0–1 similarity. Score ≥ 0.5 considered a match.
+  const wa = (a || '').toLowerCase().replace(/[^a-z ]/g, '').split(/\s+/).filter(Boolean);
+  const wb = (b || '').toLowerCase().replace(/[^a-z ]/g, '').split(/\s+/).filter(Boolean);
+  if (!wa.length || !wb.length) return 0;
+  const shared = wa.filter(w => wb.includes(w)).length;
+  return shared / Math.max(wa.length, wb.length);
+}
+
+async function loadSuggestedMatches() {
+  const banner = document.getElementById('suggestedMatchesBanner');
+  if (!banner) return;
+
+  // Dismissed pairs stored as "rosterId|userId"
+  const dismissed = new Set(JSON.parse(localStorage.getItem('_dismissedMatches') || '[]'));
+
+  const unlinked = allRoster.filter(r => !r.user_id);
+  if (!unlinked.length) { banner.innerHTML = ''; return; }
+
+  // Recent profiles — last 14 days, not already in club_members for this club
+  const since = new Date(Date.now() - 14 * 86400000).toISOString();
+  const { data: recentProfiles } = await sb.from('profiles')
+    .select('id, display_name, email, created_at')
+    .gte('created_at', since)
+    .not('display_name', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (!recentProfiles?.length) { banner.innerHTML = ''; return; }
+
+  // Exclude profiles already linked to this club
+  const { data: existingMembers } = await sb.from('club_members')
+    .select('user_id').eq('club_id', currentClub.id);
+  const alreadyLinked = new Set((existingMembers || []).map(m => m.user_id));
+
+  const candidates = recentProfiles.filter(p => !alreadyLinked.has(p.id));
+  if (!candidates.length) { banner.innerHTML = ''; return; }
+
+  // Find best match for each candidate
+  const suggestions = [];
+  for (const prof of candidates) {
+    let best = null, bestScore = 0;
+    for (const r of unlinked) {
+      const score = _nameScore(prof.display_name, r.display_name);
+      if (score > bestScore) { bestScore = score; best = r; }
+    }
+    if (best && bestScore >= 0.5) {
+      const key = `${best.id}|${prof.id}`;
+      if (!dismissed.has(key)) {
+        suggestions.push({ roster: best, profile: prof, score: bestScore, key });
+      }
+    }
+  }
+
+  if (!suggestions.length) { banner.innerHTML = ''; return; }
+
+  banner.innerHTML = `
+    <div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.25);border-radius:16px;padding:18px 20px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <i data-lucide="zap" style="width:15px;height:15px;color:var(--amber);"></i>
+        <span style="font-size:13px;font-weight:800;color:var(--amber);">
+          ${suggestions.length} suggested link${suggestions.length !== 1 ? 's' : ''} — new SwimLoading signups
+        </span>
+      </div>
+      <div style="font-size:12px;color:var(--text-sec);margin-bottom:14px;">
+        These swimmers joined SwimLoading recently. Confirm to link them to their roster entry.
+      </div>
+      <div id="suggestedMatchList">
+        ${suggestions.map(s => `
+          <div id="smrow-${s.key.replace('|','-')}" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
+              <div style="width:36px;height:36px;border-radius:50%;background:rgba(56,189,248,0.12);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--cyan);flex-shrink:0;">
+                ${(s.profile.display_name||'?')[0].toUpperCase()}
+              </div>
+              <div style="min-width:0;">
+                <div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.profile.display_name}</div>
+                <div style="font-size:11px;color:var(--text-sec);">
+                  Joined SwimLoading ${new Date(s.profile.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short'})}
+                  &nbsp;·&nbsp; Roster #${s.roster.member_number || '—'} ${s.roster.display_name}
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-shrink:0;">
+              <button class="btn-primary" style="width:auto;padding:7px 16px;border-radius:8px;font-size:12px;"
+                onclick="confirmSuggestedLink('${s.roster.id}','${s.profile.id}','${(s.roster.display_name||'').replace(/'/g,"\\'")}','${(s.profile.display_name||'').replace(/'/g,"\\'")}','${s.key}')">
+                <i data-lucide="link" style="width:12px;height:12px;"></i> Confirm link
+              </button>
+              <button class="btn-sm" style="border-color:rgba(255,255,255,0.1);color:var(--text-sec);"
+                onclick="dismissSuggestedMatch('${s.key}')">
+                Not them
+              </button>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  lucide.createIcons();
+}
+
+async function confirmSuggestedLink(rosterId, userId, rosterName, swName, key) {
+  const btn = document.querySelector(`#smrow-${key.replace('|','-')} .btn-primary`);
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span style="width:12px;height:12px;border:2px solid #080f1a;border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin 0.6s linear infinite;"></span>'; }
+
+  // Link in club_roster
+  const { error: rErr } = await sb.from('club_roster').update({ user_id: userId }).eq('id', rosterId);
+  if (rErr) { showToast('Link failed: ' + rErr.message, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Retry'; } return; }
+
+  // Ensure club_members row exists
+  await sb.from('club_members').upsert({
+    club_id: currentClub.id, user_id: userId, role: 'member',
+    is_active: true, roster_id: rosterId,
+    member_number: allRoster.find(r => r.id === rosterId)?.member_number?.toString() || null,
+  }, { onConflict: 'club_id,user_id', ignoreDuplicates: true });
+
+  // Update in-memory roster
+  const row = allRoster.find(r => r.id === rosterId);
+  if (row) { row.user_id = userId; row.sw_name = swName; }
+
+  // Remove from banner
+  document.getElementById(`smrow-${key.replace('|','-')}`)?.remove();
+  if (!document.getElementById('suggestedMatchList')?.children.length) {
+    document.getElementById('suggestedMatchesBanner').innerHTML = '';
+  }
+
+  renderRosterTable();
+  showToast(`${rosterName} linked to ${swName}`, 'success');
+}
+
+function dismissSuggestedMatch(key) {
+  try {
+    const list = JSON.parse(localStorage.getItem('_dismissedMatches') || '[]');
+    list.push(key);
+    localStorage.setItem('_dismissedMatches', JSON.stringify(list));
+  } catch (_) {}
+  document.getElementById(`smrow-${key.replace('|','-')}`)?.remove();
+  if (!document.getElementById('suggestedMatchList')?.children.length) {
+    document.getElementById('suggestedMatchesBanner').innerHTML = '';
+  }
 }
 
 function filterRoster(q)           { rosterFilter.query  = q.toLowerCase(); renderRosterTable(); }
