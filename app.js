@@ -6344,6 +6344,20 @@
                     console.warn('Admin notification failed (non-blocking):', notifErr);
                 }
 
+                // If swimmer arrived via a club join link, send them back to finish linking
+                try {
+                    const _pj = localStorage.getItem('_pendingJoin');
+                    if (_pj) {
+                        const { url, ts } = JSON.parse(_pj);
+                        localStorage.removeItem('_pendingJoin');
+                        // Only honour if stored within the last 24 hours
+                        if (url && (Date.now() - ts) < 86400000) {
+                            location.href = url;
+                            return;
+                        }
+                    }
+                } catch (_) {}
+
                 // Hide onboarding, show main app
                 document.getElementById('onboardingLegal').style.display = 'none';
                 document.getElementById('onboardingPersonal').style.display = 'none';

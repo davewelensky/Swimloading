@@ -117,7 +117,7 @@
     <div class="error-msg" id="authError"></div>
     <div class="divider"></div>
     <div style="font-size:12px;color:var(--text-sec);text-align:center;">
-      No account? <a href="/app" style="color:var(--cyan);text-decoration:none;">Create one on SwimLoading</a> first, then tap this link again.
+      No account? <a href="#" onclick="goCreateAccount(event)" style="color:var(--cyan);text-decoration:none;">Create one on SwimLoading</a> — we'll bring you straight back here.
     </div>
   </div>
 
@@ -325,6 +325,18 @@ async function init() {
 }
 
 // ─── Auth ──────────────────────────────────────────────────────────────────────
+
+function goCreateAccount(e) {
+  e.preventDefault();
+  // Save the current join URL so app.js can redirect back after onboarding
+  try {
+    localStorage.setItem('_pendingJoin', JSON.stringify({
+      url: location.href,
+      ts:  Date.now()
+    }));
+  } catch (_) {}
+  location.href = '/app';
+}
 
 async function doSignIn() {
   const email    = document.getElementById('authEmail').value.trim();

@@ -1851,6 +1851,7 @@ let allMembers     = [];
 let allCategories  = [];
 let allEvents      = [];
 let memberLogs     = {};  // user_id → log count this month
+let activeJoinCode = null;  // code from club_join_links — used for both swimmer and parent links
 
 // ── INIT ──────────────────────────────────────────────────────────
 async function init() {
@@ -4762,7 +4763,10 @@ async function submitAddAdmin() {
   const { data: profs } = await sb.from('profiles')
     .select('id, display_name').ilike('email', email).limit(1);
   if (!profs || !profs.length) {
-    showToast('No SwimLoading account found for that email', 'error'); return;
+    const joinUrl = `https://www.swimloading.com/join/${activeJoinCode || currentClub.slug}`;
+    try { await navigator.clipboard.writeText(joinUrl); } catch(_) {}
+    alert(`No SwimLoading account found for ${email}.\n\nThe club join link has been copied to your clipboard:\n${joinUrl}\n\nSend it to them — once they sign up and link their profile, come back here and add them.`);
+    return;
   }
   const userId = profs[0].id;
 
@@ -4800,6 +4804,12 @@ async function removeAdmin(adminId) {
 
 // ── PARENTS ───────────────────────────────────────────────────────
 async function loadParentsPage() {
+  if (!activeJoinCode) {
+    const { data: lnk } = await sb.from('club_join_links')
+      .select('code').eq('club_id', currentClub.id).eq('is_active', true)
+      .order('created_at', { ascending: false }).limit(1).single();
+    if (lnk) activeJoinCode = lnk.code;
+  }
   renderParentJoinLink();
   // Fetch links without the profiles FK join (parent_user_id → auth.users, not profiles)
   const { data: links } = await sb.from('parent_roster_links')
@@ -4832,9 +4842,9 @@ async function loadParentsPage() {
 }
 
 function renderParentJoinLink() {
-  const slug = currentClub?.slug;
-  if (!slug) return;
-  const baseLink = `https://swimloading.com/join/${slug}?role=parent`;
+  const code = activeJoinCode || currentClub?.slug;
+  if (!code) return;
+  const baseLink = `https://www.swimloading.com/join/${code}?role=parent`;
   const el = document.getElementById('parentJoinLinkBox');
   if (el) el.textContent = baseLink;
 }
@@ -5026,7 +5036,7 @@ async function submitInviteParent() {
     loadParentsPage();
   } else {
     // User doesn't exist yet — copy parent join link to clipboard and show instructions
-    const joinLink = `https://swimloading.com/join/${currentClub.slug}?role=parent`;
+    const joinLink = `https://www.swimloading.com/join/${activeJoinCode || currentClub.slug}?role=parent`;
     try { await navigator.clipboard.writeText(joinLink); } catch(_) {}
     closeInviteParentModal();
     alert(`${email} doesn't have a SwimLoading account yet.\n\nThe parent join link has been copied to your clipboard:\n${joinLink}\n\nSend it to them — once they sign up and request access for ${inviteSelectedRoster.display_name}, their request will appear here for approval.`);
@@ -5060,6 +5070,7 @@ async function loadJoinLink() {
 }
 
 function renderJoinLink(link) {
+  activeJoinCode = link.code;
   const url = `https://www.swimloading.com/join/${link.code}`;
   document.getElementById('joinLinkBox').innerHTML = `
     <div class="join-link-url">${url}</div>
@@ -5067,6 +5078,7 @@ function renderJoinLink(link) {
       <i data-lucide="copy" style="width:13px;height:13px;"></i> Copy
     </button>`;
   lucide.createIcons();
+  renderParentJoinLink();
 }
 
 async function generateNewLink() {
