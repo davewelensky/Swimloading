@@ -4777,13 +4777,27 @@ async function removeAdmin(adminId) {
 // ── PARENTS ───────────────────────────────────────────────────────
 async function loadParentsPage() {
   renderParentJoinLink();
+  // Fetch links without the profiles FK join (parent_user_id → auth.users, not profiles)
   const { data: links } = await sb.from('parent_roster_links')
-    .select('id, status, relationship, created_at, approved_at, notes, parent_user_id, profiles!parent_roster_links_parent_user_id_fkey(display_name, email), club_roster(display_name, category, member_number)')
+    .select('id, status, relationship, created_at, approved_at, notes, parent_user_id, club_roster(display_name, category, member_number)')
     .eq('club_id', currentClub.id)
     .order('created_at', { ascending: false });
 
-  const pending  = (links || []).filter(l => l.status === 'pending');
-  const approved = (links || []).filter(l => l.status === 'approved');
+  // Separately fetch profiles for all parent_user_ids
+  const parentIds = (links || []).map(l => l.parent_user_id).filter(Boolean);
+  let profileMap = {};
+  if (parentIds.length) {
+    const { data: profs } = await sb.from('profiles').select('id, display_name, email').in('id', parentIds);
+    (profs || []).forEach(p => { profileMap[p.id] = p; });
+  }
+  // Attach profile data to each link
+  const linksWithProfiles = (links || []).map(l => ({
+    ...l,
+    profiles: profileMap[l.parent_user_id] || null,
+  }));
+
+  const pending  = linksWithProfiles.filter(l => l.status === 'pending');
+  const approved = linksWithProfiles.filter(l => l.status === 'approved');
 
   const countEl = document.getElementById('parentPendingCount');
   if (countEl) countEl.textContent = pending.length || '';

@@ -560,6 +560,8 @@ let allWeekSessions= [];   // all club_squad_sessions for this club
 let allRoster      = [];   // club_roster rows for this club
 let allWeekAssign  = {};   // session_id → [roster_id, ...]
 
+let selectedDate    = new Date().toISOString().slice(0, 10); // YYYY-MM-DD, defaults to today
+
 let activeSqSession = null; // the club_squad_sessions template being opened
 let activeSession   = null; // the club_sessions instance (created/found)
 let attendanceMarks = {};   // roster_id → status
@@ -736,55 +738,79 @@ async function loadClubData() {
   allRoster = rosterData || [];
 }
 
+// ── DATE NAVIGATION ────────────────────────────────────────────────
+function shiftDate(days) {
+  const d = new Date(selectedDate + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  const todayStr = new Date().toISOString().slice(0, 10);
+  if (d.toISOString().slice(0, 10) > todayStr) return; // can't go to future
+  selectedDate = d.toISOString().slice(0, 10);
+  renderHome();
+}
+
 // ── HOME SCREEN ────────────────────────────────────────────────────
 function renderHome() {
   document.getElementById('homeClubName').textContent = currentClub.name || '';
   document.getElementById('homeGreeting').textContent = greeting() + ', ' + coachName.split(' ')[0];
-  const now = new Date();
-  document.getElementById('homeDate').textContent = now.toLocaleDateString('en-ZA', {
-    weekday: 'long', day: 'numeric', month: 'long'
-  });
 
-  const todayDow  = now.getDay();
-  const nowMins   = now.getHours() * 60 + now.getMinutes();
+  const selDate   = new Date(selectedDate + 'T00:00:00');
+  const todayStr  = new Date().toISOString().slice(0, 10);
+  const isToday   = selectedDate === todayStr;
+  const now       = new Date();
+
+  // Date display + nav
+  const dateLabel = isToday
+    ? 'Today — ' + selDate.toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' })
+    : selDate.toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  document.getElementById('homeDate').innerHTML =
+    `<span onclick="shiftDate(-1)" style="cursor:pointer;padding:2px 8px;border-radius:6px;background:rgba(255,255,255,0.06);font-size:18px;line-height:1;user-select:none;">‹</span>
+     <span style="flex:1;">${dateLabel}</span>
+     <span onclick="shiftDate(1)" style="cursor:pointer;padding:2px 8px;border-radius:6px;background:${isToday?'rgba(255,255,255,0.02)':'rgba(255,255,255,0.06)'};font-size:18px;line-height:1;user-select:none;color:${isToday?'var(--text-dim)':'inherit'};">›</span>`;
+  document.getElementById('homeDate').style.cssText = 'display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-sec);margin-top:3px;';
+
+  const selDow  = selDate.getDay();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
 
   const todaySessions = allWeekSessions
-    .filter(s => s.day_of_week === todayDow)
+    .filter(s => s.day_of_week === selDow)
     .sort((a, b) => toMins(a.start_time) - toMins(b.start_time));
 
   // Classify sessions: mine vs cover
   const mySessions    = todaySessions.filter(s => isMySession(s));
   const coverSessions = todaySessions.filter(s => !isMySession(s));
 
+  // Section label
+  const sectionLabel = isToday ? 'MY SESSIONS TODAY' : 'SESSIONS — ' + selDate.toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
+
   // Render my sessions
   const myEl = document.getElementById('mySessionsList');
   if (mySessions.length) {
-    myEl.innerHTML = mySessions.map(s => sessionTileHTML(s, nowMins, 'mine')).join('');
-    document.getElementById('mySessionsLabel').textContent = 'MY SESSIONS TODAY';
+    myEl.innerHTML = mySessions.map(s => sessionTileHTML(s, isToday ? nowMins : -1, 'mine')).join('');
+    document.getElementById('mySessionsLabel').textContent = sectionLabel;
   } else {
-    myEl.innerHTML = `<div style="padding:16px;text-align:center;font-size:13px;color:var(--text-sec);">No sessions assigned to you today. See cover sessions below.</div>`;
-    document.getElementById('mySessionsLabel').textContent = 'TODAY\'S SESSIONS';
-    // If no mine sessions, show all today sessions directly
+    document.getElementById('mySessionsLabel').textContent = sectionLabel;
+    // If no mine sessions, show all sessions for that day directly
     myEl.innerHTML = todaySessions.length
-      ? todaySessions.map(s => sessionTileHTML(s, nowMins, 'cover')).join('')
-      : `<div style="padding:20px;text-align:center;font-size:13px;color:var(--text-sec);">No sessions today.</div>`;
+      ? todaySessions.map(s => sessionTileHTML(s, isToday ? nowMins : -1, 'cover')).join('')
+      : `<div style="padding:20px;text-align:center;font-size:13px;color:var(--text-sec);">No sessions${isToday ? ' today' : ' on this day'}.</div>`;
   }
 
   // Cover section (only if coach has own sessions too)
   const coverEl = document.getElementById('coverSection');
   const coverList = document.getElementById('coverSessionsList');
   if (mySessions.length && coverSessions.length) {
-    coverList.innerHTML = coverSessions.map(s => sessionTileHTML(s, nowMins, 'cover')).join('');
+    coverList.innerHTML = coverSessions.map(s => sessionTileHTML(s, isToday ? nowMins : -1, 'cover')).join('');
     coverEl.style.display = '';
   } else {
     coverEl.style.display = 'none';
   }
 
-  // Next up this week (next 2 days with sessions after today)
-  const nextSessions = allWeekSessions
-    .filter(s => s.day_of_week > todayDow)
+  // Next up this week (only show when viewing today)
+  const nextSessions = isToday ? allWeekSessions
+    .filter(s => s.day_of_week > selDow)
     .sort((a, b) => a.day_of_week - b.day_of_week || toMins(a.start_time) - toMins(b.start_time))
-    .slice(0, 6); // max 6 upcoming
+    .slice(0, 6) // max 6 upcoming
+    : [];
 
   const nextEl = document.getElementById('nextUpSection');
   const nextList = document.getElementById('nextUpList');
@@ -925,7 +951,8 @@ function openConfirm(sqSessionId) {
 
   document.getElementById('confirmSquad').textContent = sq?.name || 'Squad';
   document.getElementById('confirmTime').textContent  = fmtTime(s.start_time) + (s.end_time ? ' – ' + fmtTime(s.end_time) : '');
-  document.getElementById('confirmDate').textContent  = dayFull[s.day_of_week] + ', ' + now.toLocaleDateString('en-ZA', {day:'numeric',month:'long',year:'numeric'});
+  const selD = new Date(selectedDate + 'T00:00:00');
+  document.getElementById('confirmDate').textContent  = dayFull[s.day_of_week] + ', ' + selD.toLocaleDateString('en-ZA', {day:'numeric',month:'long',year:'numeric'});
 
   const asgn = (allWeekAssign[s.id] || []).length;
   const cap  = s.max_capacity || sq?.max_members || 0;
@@ -957,7 +984,7 @@ async function startSession() {
   btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;margin:0 auto;"></div>';
 
   const s       = activeSqSession;
-  const today   = new Date().toISOString().slice(0, 10);
+  const today   = selectedDate; // uses selected date, not hardcoded today
   const nameVal = document.getElementById('confirmCoachName').value.trim() || coachName;
   const sq      = allSquads.find(q => q.id === s.squad_id);
 
