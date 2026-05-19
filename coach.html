@@ -305,6 +305,27 @@
       .screen-inner { max-width: 520px; margin: 0 auto; width: 100%; }
     }
 
+    /* Needs cover tile */
+    .tile-needs-cover .tile-accent { background: var(--danger); }
+    .badge-needs-cover {
+      font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
+      background: rgba(239,68,68,0.15); color: var(--danger);
+      padding: 2px 8px; border-radius: 8px;
+    }
+
+    /* Danger button (Can't make it) */
+    .btn-danger {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 14px; border-radius: 12px;
+      background: rgba(239,68,68,0.08); color: var(--danger);
+      border: 1px solid rgba(239,68,68,0.25);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.15s;
+    }
+    .btn-danger:active { opacity: 0.75; }
+
     /* Done screen */
     .done-hero {
       flex: 1; display: flex; flex-direction: column;
@@ -377,7 +398,7 @@
 
     <!-- Other sessions to cover -->
     <div id="coverSection" style="display:none;">
-      <div class="section-label">COVER A SESSION</div>
+      <div class="section-label" id="coverSectionLabel">OTHER SQUADS TODAY</div>
       <div style="padding:0 16px;" id="coverSessionsList"></div>
     </div>
 
@@ -439,6 +460,10 @@
         <button class="btn-primary" id="confirmStartBtn" onclick="startSession()">
           <i data-lucide="play-circle" style="width:18px;height:18px;"></i>
           Start marking attendance
+        </button>
+        <button class="btn-danger" id="cantMakeItBtn" onclick="cantMakeIt()" style="margin-top:10px;display:none;">
+          <i data-lucide="x-circle" style="width:16px;height:16px;"></i>
+          Can't make it today
         </button>
         <button class="btn-ghost" onclick="showScreen('home')" style="width:100%;margin-top:10px;">
           Cancel
@@ -557,10 +582,11 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ── STATE ──────────────────────────────────────────────────────────
-let currentUser   = null;
-let currentClub   = null;
-let coachName     = '';    // display name for the session
-let coachRole     = 'coach'; // 'admin' | 'moderator' | 'coach'
+let currentUser       = null;
+let currentClub       = null;
+let coachName         = '';    // display name for the session
+let coachRole         = 'coach'; // 'admin' | 'moderator' | 'coach'
+let coverNeededToday  = new Set(); // 'squadId_startTime' keys for sessions needing cover today
 
 let allSquads      = [];
 let allWeekSessions= [];   // all club_squad_sessions for this club
@@ -702,8 +728,19 @@ async function continueInit() {
   coachName = profile?.display_name || currentUser.email?.split('@')[0] || 'Coach';
 
   await loadClubData();
+  await loadCoverStatus();
   renderHome();
   showScreen('home');
+}
+
+// ── COVER STATUS ───────────────────────────────────────────────────
+async function loadCoverStatus() {
+  const { data } = await sb.from('club_sessions')
+    .select('squad_id, start_time')
+    .eq('club_id', currentClub.id)
+    .eq('session_date', selectedDate)
+    .eq('cover_needed', true);
+  coverNeededToday = new Set((data || []).map(s => `${s.squad_id}_${s.start_time}`));
 }
 
 // ── LOAD DATA ──────────────────────────────────────────────────────
@@ -747,12 +784,13 @@ async function loadClubData() {
 }
 
 // ── DATE NAVIGATION ────────────────────────────────────────────────
-function shiftDate(days) {
+async function shiftDate(days) {
   const d = new Date(selectedDate + 'T00:00:00');
   d.setDate(d.getDate() + days);
   const todayStr = new Date().toISOString().slice(0, 10);
-  if (d.toISOString().slice(0, 10) > todayStr) return; // can't go to future
+  if (d.toISOString().slice(0, 10) > todayStr) return;
   selectedDate = d.toISOString().slice(0, 10);
+  await loadCoverStatus();
   renderHome();
 }
 
@@ -808,6 +846,9 @@ function renderHome() {
   const coverList = document.getElementById('coverSessionsList');
   if (mySessions.length && coverSessions.length) {
     coverList.innerHTML = coverSessions.map(s => sessionTileHTML(s, isToday ? nowMins : -1, 'cover')).join('');
+    const anyNeedsCover = coverSessions.some(s => coverNeededToday.has(`${s.squad_id}_${s.start_time}`));
+    const coverLabel = document.getElementById('coverSectionLabel');
+    if (coverLabel) coverLabel.textContent = anyNeedsCover ? 'COVER NEEDED' : 'OTHER SQUADS TODAY';
     coverEl.style.display = '';
   } else {
     coverEl.style.display = 'none';
@@ -986,9 +1027,11 @@ function sessionTileHTML(s, nowMins, type) {
   const endM = toMins(s.end_time || s.start_time);
   const isPast = s.end_time ? endM + 5 < nowMins : toMins(s.start_time) + 65 < nowMins;
   const isLive = !isPast && toMins(s.start_time) <= nowMins + 15;
-  const tileClass = isPast ? 'tile-cover' : isLive ? 'tile-live' : type === 'mine' ? 'tile-mine' : 'tile-cover';
+  const needsCover = coverNeededToday.has(`${s.squad_id}_${s.start_time}`);
+  const tileClass = isPast ? 'tile-cover' : needsCover ? 'tile-needs-cover' : isLive ? 'tile-live' : type === 'mine' ? 'tile-mine' : 'tile-cover';
   const badge = isPast
     ? `<span style="font-size:9px;font-weight:700;color:var(--text-sec);">done</span>`
+    : needsCover ? `<span class="badge-needs-cover">NEEDS COVER</span>`
     : isLive ? `<span class="badge-live">LIVE</span>`
     : type === 'mine' ? `<span class="badge-mine">MY SESSION</span>`
     : `<span class="badge-cover">COVER</span>`;
@@ -1049,7 +1092,59 @@ function openConfirm(sqSessionId) {
     coverNote.style.display = 'none';
   }
 
+  // Show "Can't make it" only for my sessions that aren't already flagged
+  const alreadyFlagged = coverNeededToday.has(`${s.squad_id}_${s.start_time}`);
+  const cantBtn = document.getElementById('cantMakeItBtn');
+  if (cantBtn) cantBtn.style.display = (!isCover && !alreadyFlagged) ? '' : 'none';
+
   showScreen('confirm');
+}
+
+// ── CAN'T MAKE IT ──────────────────────────────────────────────────
+async function cantMakeIt() {
+  const s  = activeSqSession;
+  const sq = allSquads.find(q => q.id === s.squad_id);
+  const btn = document.getElementById('cantMakeItBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Notifying coaches…'; }
+
+  // Find or create the club_sessions record and mark cover_needed
+  const { data: existing } = await sb.from('club_sessions')
+    .select('id').eq('club_id', currentClub.id)
+    .eq('session_date', selectedDate).eq('squad_id', s.squad_id)
+    .eq('start_time', s.start_time).maybeSingle();
+
+  if (existing) {
+    await sb.from('club_sessions').update({ cover_needed: true }).eq('id', existing.id);
+  } else {
+    await sb.from('club_sessions').insert({
+      club_id:      currentClub.id,
+      session_date: selectedDate,
+      squad_id:     s.squad_id,
+      session_type: sq?.name || 'Squad',
+      start_time:   s.start_time,
+      coach_name:   coachName,
+      cover_needed: true,
+      created_by:   currentUser.id,
+    });
+  }
+
+  // Notify all other coaches in the club (push triggers via pg_net webhook)
+  const { data: coaches } = await sb.from('club_admins')
+    .select('user_id').eq('club_id', currentClub.id).neq('user_id', currentUser.id);
+  if (coaches?.length) {
+    await sb.from('notifications').insert(coaches.map(c => ({
+      recipient_user_id: c.user_id,
+      type:    'session_cover_needed',
+      title:   `${sq?.name || 'Squad'} needs cover`,
+      message: `${coachName} can't make the ${fmtTime(s.start_time)} session today — can you step in?`,
+      payload: { club_id: currentClub.id, squad_id: s.squad_id },
+    })));
+  }
+
+  coverNeededToday.add(`${s.squad_id}_${s.start_time}`);
+  toast('Coaches notified — session flagged for cover', 'success');
+  showScreen('home');
+  renderHome();
 }
 
 // ── START SESSION ──────────────────────────────────────────────────
@@ -1092,10 +1187,12 @@ async function startSession() {
       return;
     }
     session = created;
-  } else if (nameVal !== session.coach_name) {
-    // Update coach name if covering
-    await sb.from('club_sessions').update({ coach_name: nameVal }).eq('id', session.id);
-    session.coach_name = nameVal;
+  } else if (nameVal !== session.coach_name || session.cover_needed) {
+    // Update coach name and clear cover flag when someone takes the session
+    await sb.from('club_sessions').update({ coach_name: nameVal, cover_needed: false }).eq('id', session.id);
+    session.coach_name  = nameVal;
+    session.cover_needed = false;
+    coverNeededToday.delete(`${s.squad_id}_${s.start_time}`);
   }
 
   activeSession = session;
