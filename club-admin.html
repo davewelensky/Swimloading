@@ -1915,7 +1915,8 @@ async function loadClubContext() {
   ]);
 
   // Normalise both sources into a single list of { clubs, role } objects
-  const fromAdmins  = (adminRes.data  || []).map(r => ({ clubs: r.clubs,  role: r.role,  _source: 'club_admins'  }));
+  // Exclude 'coach' role — coaches access /coach only, not club-admin
+  const fromAdmins  = (adminRes.data  || []).filter(r => r.role !== 'coach').map(r => ({ clubs: r.clubs,  role: r.role,  _source: 'club_admins'  }));
   const fromMembers = (memberRes.data || []).map(r => ({ ...r,             role: r.role,  _source: 'club_members' }));
 
   // Merge, preferring club_admins entries; dedupe by club id
@@ -4772,7 +4773,7 @@ function renderTeamTable() {
     </div></td></tr>`;
     return;
   }
-  tbody.innerHTML = allTeam.map(a => {
+  tbody.innerHTML = allTeam.filter(a => a.role !== 'coach').map(a => {
     const name  = a.profile?.display_name || a.user_id;
     const email = a.profile?.email || '';
     const isMe  = a.user_id === currentUser.id;
@@ -4872,7 +4873,7 @@ async function grantCoachAccess(email, name, coachId) {
   const { error } = await sb.from('club_admins').upsert({
     club_id: currentClub.id,
     user_id: userId,
-    role: 'moderator',
+    role: 'coach',
   }, { onConflict: 'club_id,user_id', ignoreDuplicates: true });
 
   if (error) { showToast('Failed: ' + error.message, 'error'); if (btn) { btn.disabled = false; btn.innerHTML = 'Grant access'; } return; }
