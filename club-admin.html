@@ -97,13 +97,29 @@
     .cat-coelacanths { color:#fb923c; border-color:rgba(251,146,60,0.3); background:rgba(251,146,60,0.08); }
     .role-badge { font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; text-transform:uppercase; letter-spacing:0.08em; }
     .badge-health { display:inline-block; font-size:9px; font-weight:700; padding:1px 6px; border-radius:4px; text-transform:uppercase; letter-spacing:0.06em; margin-left:5px; vertical-align:middle; background:rgba(245,158,11,0.15); color:var(--amber); border:1px solid rgba(245,158,11,0.3); }
-    .badge-health.severe { background:rgba(239,68,68,0.15); color:var(--danger); border-color:rgba(239,68,68,0.3); }
+    .badge-health.serious { background:rgba(239,68,68,0.15); color:var(--danger); border-color:rgba(239,68,68,0.3); }
     .role-admin     { background:rgba(239,68,68,0.1); color:var(--danger); border:1px solid rgba(239,68,68,0.25); }
     .role-organiser { background:rgba(245,158,11,0.1); color:var(--amber); border:1px solid rgba(245,158,11,0.25); }
     .role-coach     { background:rgba(56,189,248,0.1); color:var(--cyan); border:1px solid rgba(56,189,248,0.25); }
     .role-member    { background:rgba(255,255,255,0.05); color:var(--text-sec); border:1px solid var(--border); }
     .action-btn { background:transparent; border:1px solid var(--border); border-radius:6px; padding:4px 10px; font-size:11px; font-weight:600; color:var(--text-sec); cursor:pointer; }
     .action-btn:hover { border-color:var(--cyan-border); color:var(--cyan); }
+
+    /* ── HEALTH TYPE / SEVERITY BUTTONS ── */
+    .h-btn {
+      padding: 12px 6px; border-radius: 10px;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      color: var(--text-sec); font-family: 'DM Sans', sans-serif;
+      font-size: 13px; font-weight: 600; cursor: pointer; text-align: center;
+      transition: all 0.12s; line-height: 1.3;
+    }
+    .h-btn:active { transform: scale(0.96); }
+    .h-btn.sel { border-color: rgba(56,189,248,0.5); color: var(--text); background: rgba(56,189,248,0.08); }
+    .h-btn.sel.h-illness { border-color: rgba(239,68,68,0.4); color: var(--danger); background: rgba(239,68,68,0.08); }
+    .h-btn.sel.h-injury  { border-color: rgba(245,158,11,0.4); color: var(--amber); background: rgba(245,158,11,0.08); }
+    .h-btn.sel.h-mild    { border-color: rgba(16,185,129,0.4); color: var(--green); background: rgba(16,185,129,0.08); }
+    .h-btn.sel.h-moderate{ border-color: rgba(245,158,11,0.4); color: var(--amber); background: rgba(245,158,11,0.08); }
+    .h-btn.sel.h-serious { border-color: rgba(239,68,68,0.4); color: var(--danger); background: rgba(239,68,68,0.08); }
 
     /* ── SEARCH / FILTER ── */
     .filter-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
@@ -505,6 +521,9 @@
       </button>
       <button class="nav-item" onclick="showPage('tracker')" id="nav-tracker">
         <i data-lucide="trending-up"></i> Squad Tracker
+      </button>
+      <button class="nav-item" onclick="showPage('health')" id="nav-health" style="display:none;">
+        <i data-lucide="activity"></i> Health
       </button>
       <button class="nav-item" id="nav-sets" style="display:none;"
         onclick="window.location.href='/sets/' + (currentClub?.slug || '')">
@@ -996,6 +1015,22 @@
         </div>
         <div id="squadCapacityStrip" style="display:none;margin-bottom:16px;"></div>
         <div id="trackerContent"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+
+      <!-- ── HEALTH ── -->
+      <div id="page-health" class="page">
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="page-title">Health</div>
+            <div class="page-sub">Active health issues across your squads</div>
+          </div>
+          <button class="btn" onclick="openAdminHealthLog()" style="display:flex;align-items:center;gap:6px;font-size:13px;">
+            <i data-lucide="plus" style="width:14px;height:14px;"></i> Log issue
+          </button>
+        </div>
+        <div id="healthPageContent">
+          <div style="padding:40px;text-align:center;"><div class="spinner" style="margin:0 auto;"></div></div>
+        </div>
       </div>
 
       <!-- ── SETTINGS ── -->
@@ -1889,7 +1924,7 @@ let allMembers     = [];
 let allCategories  = [];
 let allEvents      = [];
 let memberLogs     = {};  // user_id → log count this month
-let memberHealthMap = {}; // user_id → active swimmer_health_events[]
+let memberHealthMap = {}; // roster_id → active club_health_events[]
 let activeJoinCode = null;  // code from club_join_links — used for both swimmer and parent links
 
 // ── INIT ──────────────────────────────────────────────────────────
@@ -1988,6 +2023,7 @@ async function loadClubContext() {
   document.getElementById('nav-tempchallenge').style.display    = hasTempChallenge ? '' : 'none';
   document.getElementById('nav-tracker').style.display          = hasSquads        ? '' : 'none';
   document.getElementById('nav-sets').style.display             = hasSquads        ? '' : 'none';
+  document.getElementById('nav-health').style.display           = hasSquads        ? '' : 'none';
   document.getElementById('nav-entries').style.display          = hasGalaEntries   ? '' : 'none';
   document.getElementById('nav-attendance').style.display       = hasAttendance    ? '' : 'none';
   document.getElementById('nav-parents').style.display          = hasParentLanguage ? '' : 'none';
@@ -2069,6 +2105,7 @@ function showPage(name) {
   if (name === 'announcements') loadAnnouncements();
   if (name === 'tracker')       loadSquadTracker();
   if (name === 'parents')       loadParentsPage();
+  if (name === 'health')        loadHealthPage();
 }
 
 // ── DATA LOADERS ──────────────────────────────────────────────────
@@ -2139,6 +2176,7 @@ async function loadMembers() {
       return {
         id: r.id,
         _source: 'roster',
+        _rosterId: r.id,   // roster source: id IS the roster_id
         member_number: String(r.member_number ?? ''),
         user_id: r.user_id,
         category: r.category,
@@ -2158,6 +2196,7 @@ async function loadMembers() {
       const email = prof.email || '';
       const coachTitle = coachTitleMap[email.toLowerCase()] || null;
       return { ...m, _source: 'club_members',
+        _rosterId: m.club_roster?.id || null,
         _display_name: m.club_roster?.display_name || prof.display_name || '—',
         _email: email,
         _coachTitle: coachTitle,
@@ -2174,16 +2213,21 @@ async function loadMembers() {
 
   // Temp log counts + active health events (parallel)
   const userIds = allMembers.map(m => m.user_id).filter(Boolean);
+  const rosterIdsForHealth = allMembers.map(m => m._rosterId).filter(Boolean);
   memberHealthMap = {};
-  if (userIds.length) {
+  if (userIds.length || rosterIdsForHealth.length) {
     const [logsRes, healthRes] = await Promise.all([
-      sb.from('temp_logs').select('user_id').in('user_id', userIds).gte('created_at', since.toISOString()),
-      sb.from('swimmer_health_events').select('user_id, type, body_part, side, severity').in('user_id', userIds).is('resolved_at', null),
+      userIds.length
+        ? sb.from('temp_logs').select('user_id').in('user_id', userIds).gte('created_at', since.toISOString())
+        : Promise.resolve({ data: [] }),
+      rosterIdsForHealth.length
+        ? sb.from('club_health_events').select('roster_id, type, body_part, side, severity').eq('club_id', currentClub.id).in('roster_id', rosterIdsForHealth).is('resolved_at', null)
+        : Promise.resolve({ data: [] }),
     ]);
     (logsRes.data || []).forEach(l => { memberLogs[l.user_id] = (memberLogs[l.user_id] || 0) + 1; });
     (healthRes.data || []).forEach(h => {
-      if (!memberHealthMap[h.user_id]) memberHealthMap[h.user_id] = [];
-      memberHealthMap[h.user_id].push(h);
+      if (!memberHealthMap[h.roster_id]) memberHealthMap[h.roster_id] = [];
+      memberHealthMap[h.roster_id].push(h);
     });
   }
 
@@ -2275,17 +2319,17 @@ async function renderOverview() {
     actions.push({ dot:'blue', text:`${unlinked.length} member${unlinked.length>1?'s':''} haven't linked a SwimLoading account`, names: hasParentLanguage ? 'Parents haven\'t joined the app yet' : 'Members haven\'t joined the app yet', label:'Roster →', action:`showPage('roster')` });
   }
 
-  // Health alerts from swimmer_health_events (populated by loadMembers)
-  const membersWithHealth = allMembers.filter(m => m.user_id && (memberHealthMap[m.user_id] || []).length > 0);
-  const severeHealth = membersWithHealth.filter(m => memberHealthMap[m.user_id].some(e => e.severity === 'severe'));
-  if (severeHealth.length > 0) {
-    const names = severeHealth.slice(0, 3).map(m => m._display_name).join(', ') + (severeHealth.length > 3 ? ` +${severeHealth.length - 3} more` : '');
-    actions.push({ dot:'red', text:`${severeHealth.length} swimmer${severeHealth.length>1?'s':''} with a severe health issue`, names, label:'Members →', action:`showPage('members')` });
+  // Health alerts from club_health_events (populated by loadMembers)
+  const membersWithHealth = allMembers.filter(m => m._rosterId && (memberHealthMap[m._rosterId] || []).length > 0);
+  const seriousHealth = membersWithHealth.filter(m => memberHealthMap[m._rosterId].some(e => e.severity === 'serious'));
+  if (seriousHealth.length > 0) {
+    const names = seriousHealth.slice(0, 3).map(m => m._display_name).join(', ') + (seriousHealth.length > 3 ? ` +${seriousHealth.length - 3} more` : '');
+    actions.push({ dot:'red', text:`${seriousHealth.length} swimmer${seriousHealth.length>1?'s':''} with a serious health issue`, names, label:'Health →', action:`showPage('health')` });
   }
-  const otherHealth = membersWithHealth.filter(m => !memberHealthMap[m.user_id].some(e => e.severity === 'severe'));
+  const otherHealth = membersWithHealth.filter(m => !memberHealthMap[m._rosterId].some(e => e.severity === 'serious'));
   if (otherHealth.length > 0) {
     const names = otherHealth.slice(0, 3).map(m => m._display_name).join(', ') + (otherHealth.length > 3 ? ` +${otherHealth.length - 3} more` : '');
-    actions.push({ dot:'amber', text:`${otherHealth.length} swimmer${otherHealth.length>1?'s':''} with active health notes`, names, label:'Members →', action:`showPage('members')` });
+    actions.push({ dot:'amber', text:`${otherHealth.length} swimmer${otherHealth.length>1?'s':''} with active health notes`, names, label:'Health →', action:`showPage('health')` });
   }
 
   const actionsEl = document.getElementById('overviewActions');
@@ -2681,13 +2725,128 @@ function catClass(catName) {
 }
 
 function healthBadgeHTML(events) {
-  const worst = events.find(e => e.severity === 'severe') || events.find(e => e.severity === 'moderate') || events[0];
+  const worst = events.find(e => e.severity === 'serious') || events.find(e => e.severity === 'moderate') || events[0];
   const label = worst.body_part
-    ? `${worst.type} · ${worst.body_part}${worst.side ? ' ' + worst.side : ''}`
+    ? `${worst.type} · ${worst.body_part}${worst.side ? ' · ' + worst.side : ''}`
     : worst.type;
-  const cls = worst.severity === 'severe' ? ' severe' : '';
+  const cls = worst.severity === 'serious' ? ' serious' : '';
   const tip = events.length > 1 ? ` (${events.length})` : '';
   return `<span class="badge-health${cls}">${label}${tip}</span>`;
+}
+
+// ── HEALTH PAGE ───────────────────────────────────────────────────
+async function loadHealthPage() {
+  const el = document.getElementById('healthPageContent');
+  el.innerHTML = `<div style="padding:40px;text-align:center;"><div class="spinner" style="margin:0 auto;"></div></div>`;
+
+  const [activeRes, resolvedRes] = await Promise.all([
+    sb.from('club_health_events')
+      .select('id, roster_id, type, body_part, side, severity, notes, created_at, club_roster(display_name, squad_id)')
+      .eq('club_id', currentClub.id)
+      .is('resolved_at', null)
+      .order('created_at', { ascending: false }),
+    sb.from('club_health_events')
+      .select('id, roster_id, type, body_part, side, severity, notes, created_at, resolved_at, club_roster(display_name, squad_id)')
+      .eq('club_id', currentClub.id)
+      .not('resolved_at', 'is', null)
+      .order('resolved_at', { ascending: false })
+      .limit(20),
+  ]);
+
+  const active   = activeRes.data   || [];
+  const resolved = resolvedRes.data || [];
+
+  const sevLabel = s => s === 'serious' ? `<span style="color:var(--danger);font-weight:700;">${s}</span>` : s === 'moderate' ? `<span style="color:var(--amber);font-weight:700;">${s}</span>` : `<span style="color:var(--green);font-weight:700;">${s}</span>`;
+  const typeLabel = (type, bp, side) => {
+    if (type === 'illness') return 'Illness';
+    return `Injury — ${bp || 'unspecified'}${side ? ' · ' + side : ''}`;
+  };
+  const daysAgo = dt => {
+    const d = Math.floor((Date.now() - new Date(dt)) / 86400000);
+    return d === 0 ? 'today' : d === 1 ? 'yesterday' : `${d}d ago`;
+  };
+
+  const renderRow = (e, showResolve) => {
+    const name  = e.club_roster?.display_name || '—';
+    const squad = allSquads.find(s => s.id === e.club_roster?.squad_id)?.name || '—';
+    return `<tr>
+      <td style="font-weight:600;">${name}</td>
+      <td style="color:var(--text-sec);font-size:12px;">${squad}</td>
+      <td>${typeLabel(e.type, e.body_part, e.side)}</td>
+      <td>${sevLabel(e.severity)}</td>
+      <td style="color:var(--text-sec);font-size:12px;">${daysAgo(e.created_at)}</td>
+      ${showResolve
+        ? `<td><button class="action-btn" onclick="resolveClubHealthEvent('${e.id}')">Resolve</button></td>`
+        : `<td style="color:var(--text-sec);font-size:11px;">${daysAgo(e.resolved_at)}</td>`
+      }
+    </tr>`;
+  };
+
+  const tableHeader = () => `
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border);">
+          <th style="text-align:left;padding:8px 12px 8px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-sec);">Swimmer</th>
+          <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-sec);">Squad</th>
+          <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-sec);">Issue</th>
+          <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-sec);">Severity</th>
+          <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-sec);">Logged</th>
+          <th style="padding:8px 16px 8px 12px;"></th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+  const noIssuesHtml = `<div style="padding:32px;text-align:center;color:var(--text-sec);font-size:13px;">
+    <div style="font-size:28px;margin-bottom:8px;">&#10003;</div>
+    <div style="font-weight:600;color:var(--text);">No active health issues</div>
+    <div style="margin-top:4px;">All swimmers are good to go.</div>
+  </div>`;
+
+  const activeHtml = active.length
+    ? `<div class="card" style="margin-bottom:16px;overflow:hidden;">
+        <div class="card-header" style="border-bottom:1px solid var(--border);">
+          <div class="card-title">Active issues <span style="font-size:12px;font-weight:400;color:var(--text-sec);">${active.length} swimmer${active.length>1?'s':''}</span></div>
+        </div>
+        ${tableHeader()}${active.map(e => renderRow(e, true)).join('')}</tbody></table>
+      </div>`
+    : `<div class="card" style="margin-bottom:16px;">${noIssuesHtml}</div>`;
+
+  const resolvedHtml = resolved.length
+    ? `<div style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 0;cursor:pointer;" onclick="toggleResolvedHealth()">
+          <i data-lucide="chevron-right" style="width:14px;height:14px;color:var(--text-sec);transition:transform 0.2s;" id="resolvedChevron"></i>
+          <span style="font-size:12px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.06em;">Resolved (last 20)</span>
+        </div>
+        <div id="resolvedHealthSection" style="display:none;">
+          <div class="card" style="overflow:hidden;">
+            ${tableHeader()}${resolved.map(e => renderRow(e, false)).join('')}</tbody></table>
+          </div>
+        </div>
+      </div>`
+    : '';
+
+  el.innerHTML = activeHtml + resolvedHtml;
+  lucide.createIcons();
+}
+
+function toggleResolvedHealth() {
+  const section = document.getElementById('resolvedHealthSection');
+  const chevron = document.getElementById('resolvedChevron');
+  const isOpen  = section.style.display !== 'none';
+  section.style.display = isOpen ? 'none' : '';
+  if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(90deg)';
+}
+
+async function resolveClubHealthEvent(id) {
+  const { error } = await sb.from('club_health_events').update({ resolved_at: new Date().toISOString() }).eq('id', id);
+  if (error) { showToast('Could not resolve — try again', 'error'); return; }
+  showToast('Marked as resolved', 'success');
+  loadHealthPage();
+  // Also clear from memberHealthMap
+  for (const key of Object.keys(memberHealthMap)) {
+    memberHealthMap[key] = memberHealthMap[key].filter(e => e.id !== id);
+    if (!memberHealthMap[key].length) delete memberHealthMap[key];
+  }
 }
 
 function renderMembersTable(members) {
@@ -2709,7 +2868,7 @@ function renderMembersTable(members) {
     const joined   = m.joined_at
       ? new Date(m.joined_at).toLocaleDateString('en-ZA', {day:'numeric',month:'short',year:'numeric'})
       : '<span style="color:var(--text-dim);font-size:11px;">via roster</span>';
-    const healthEvents = memberHealthMap[m.user_id] || [];
+    const healthEvents = memberHealthMap[m._rosterId] || [];
     const healthBadge  = healthEvents.length ? healthBadgeHTML(healthEvents) : '';
     return `<tr class="${inactive ? 'inactive-row' : ''}">
       <td><span class="member-num">${m.member_number || '—'}</span></td>
@@ -8170,6 +8329,118 @@ function formatTime(secs) {
   return s.toFixed(2);
 }
 
+// ── ADMIN HEALTH LOGGING ──────────────────────────────────────────
+let _ahRosterId = null;
+let _ahType = '', _ahBodyPart = '', _ahSide = '', _ahSev = '';
+
+function openAdminHealthLog() {
+  _ahRosterId = null; _ahType = ''; _ahBodyPart = ''; _ahSide = ''; _ahSev = '';
+  document.getElementById('ahSwimmerSearch').value = '';
+  document.getElementById('ahSwimmerResults').innerHTML = '';
+  document.getElementById('ahSwimmerSection').style.display = '';
+  document.getElementById('ahFormSection').style.display = 'none';
+  document.querySelectorAll('.h-btn').forEach(b => b.classList.remove('sel'));
+  document.getElementById('ahBodySection').style.display  = 'none';
+  document.getElementById('ahSideSection').style.display  = 'none';
+  document.getElementById('ahSevSection').style.display   = 'none';
+  document.getElementById('ahNotes').value = '';
+  document.getElementById('adminHealthModal').classList.add('open');
+  lucide.createIcons();
+}
+
+function searchAHSwimmer(q) {
+  const lower = q.toLowerCase();
+  const results = lower.length < 1 ? [] : allRosterFull.filter(r =>
+    r.display_name?.toLowerCase().includes(lower) ||
+    String(r.member_number || '').includes(lower)
+  ).slice(0, 6);
+  const el = document.getElementById('ahSwimmerResults');
+  if (!results.length) { el.innerHTML = ''; return; }
+  el.innerHTML = results.map(r => `
+    <div onclick="selectAHSwimmer('${r.id}', '${(r.display_name||'').replace(/'/g,"\\'")}', this)"
+      style="padding:10px 12px;cursor:pointer;border-radius:8px;font-size:13px;display:flex;align-items:center;gap:8px;transition:background 0.1s;"
+      onmouseenter="this.style.background='rgba(255,255,255,0.04)'" onmouseleave="this.style.background=''">
+      <span style="font-weight:600;">${r.display_name}</span>
+      ${r.member_number ? `<span style="color:var(--text-sec);font-size:11px;">#${r.member_number}</span>` : ''}
+    </div>`).join('');
+}
+
+function selectAHSwimmer(rosterId, name) {
+  _ahRosterId = rosterId;
+  document.getElementById('ahSelectedName').textContent = name;
+  document.getElementById('ahSwimmerSection').style.display = 'none';
+  document.getElementById('ahFormSection').style.display = '';
+  lucide.createIcons();
+}
+
+function clearAHSwimmer() {
+  _ahRosterId = null;
+  document.getElementById('ahSwimmerSearch').value = '';
+  document.getElementById('ahSwimmerResults').innerHTML = '';
+  document.getElementById('ahSwimmerSection').style.display = '';
+  document.getElementById('ahFormSection').style.display = 'none';
+}
+
+function selectAHType(type) {
+  _ahType = type; _ahBodyPart = ''; _ahSide = '';
+  document.querySelectorAll('#ahb-illness,#ahb-injury').forEach(b => b.classList.remove('sel'));
+  document.getElementById(`ahb-${type}`).classList.add('sel');
+  document.getElementById('ahBodySection').style.display = type === 'injury' ? '' : 'none';
+  document.getElementById('ahSideSection').style.display = 'none';
+  document.getElementById('ahSevSection').style.display  = type === 'illness' ? '' : 'none';
+}
+
+function selectAHBodyPart(part) {
+  _ahBodyPart = part; _ahSide = '';
+  document.querySelectorAll('#ahb-shoulder,#ahb-hip,#ahb-knee,#ahb-other').forEach(b => b.classList.remove('sel'));
+  document.getElementById(`ahb-${part}`).classList.add('sel');
+  document.getElementById('ahSideSection').style.display = part !== 'other' ? '' : 'none';
+  document.getElementById('ahSevSection').style.display  = '';
+}
+
+function selectAHSide(side) {
+  _ahSide = side;
+  document.querySelectorAll('#ahb-left,#ahb-right,#ahb-both').forEach(b => b.classList.remove('sel'));
+  document.getElementById(`ahb-${side}`).classList.add('sel');
+}
+
+function selectAHSev(sev) {
+  _ahSev = sev;
+  document.querySelectorAll('#ahb-mild,#ahb-moderate,#ahb-serious').forEach(b => b.classList.remove('sel'));
+  document.getElementById(`ahb-${sev}`).classList.add('sel');
+}
+
+async function saveAdminHealthEvent() {
+  if (!_ahRosterId) { showToast('Select a swimmer first', 'error'); return; }
+  if (!_ahType)     { showToast('Select illness or injury', 'error'); return; }
+  if (_ahType === 'injury' && !_ahBodyPart) { showToast('Select a body area', 'error'); return; }
+  if (!_ahSev)      { showToast('Select severity', 'error'); return; }
+  const btn = document.getElementById('ahSaveBtn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const { error } = await sb.from('club_health_events').insert({
+    club_id:   currentClub.id,
+    roster_id: _ahRosterId,
+    logged_by: currentUser.id,
+    type:      _ahType,
+    body_part: _ahBodyPart || null,
+    side:      _ahSide     || null,
+    severity:  _ahSev,
+    notes:     document.getElementById('ahNotes').value.trim() || null,
+  });
+  btn.disabled = false; btn.textContent = 'Save';
+  if (error) { showToast('Could not save — try again', 'error'); return; }
+  document.getElementById('adminHealthModal').classList.remove('open');
+  showToast('Health issue logged', 'success');
+  loadHealthPage();
+  // Update local memberHealthMap
+  const m = allMembers.find(x => x._rosterId === _ahRosterId);
+  if (m) {
+    if (!memberHealthMap[_ahRosterId]) memberHealthMap[_ahRosterId] = [];
+    memberHealthMap[_ahRosterId].push({ type: _ahType, body_part: _ahBodyPart || null, side: _ahSide || null, severity: _ahSev });
+    renderMembersTable(allMembers);
+  }
+}
+
 // ── BOOT ──────────────────────────────────────────────────────────
 init();
 
@@ -8843,6 +9114,76 @@ function escHtml(s) {
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- ADMIN HEALTH LOG MODAL -->
+<div class="modal-overlay" id="adminHealthModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title">
+      <span>Log health issue</span>
+      <button class="modal-close" onclick="document.getElementById('adminHealthModal').classList.remove('open')">&times;</button>
+    </div>
+
+    <!-- Swimmer search -->
+    <div id="ahSwimmerSection">
+      <div class="form-group">
+        <div class="form-label">Swimmer</div>
+        <input type="text" class="form-input" id="ahSwimmerSearch" placeholder="Search name or number…"
+          oninput="searchAHSwimmer(this.value)" autocomplete="off">
+        <div id="ahSwimmerResults" style="margin-top:6px;max-height:160px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <div id="ahFormSection" style="display:none;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 12px;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);border-radius:10px;">
+        <i data-lucide="user" style="width:14px;height:14px;color:var(--cyan);flex-shrink:0;"></i>
+        <span style="font-size:13px;font-weight:600;" id="ahSelectedName"></span>
+        <button onclick="clearAHSwimmer()" style="margin-left:auto;font-size:11px;color:var(--text-sec);background:none;border:none;cursor:pointer;">Change</button>
+      </div>
+
+      <!-- Type -->
+      <div class="form-label" style="margin-bottom:8px;">What's the issue?</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
+        <button class="h-btn h-illness" id="ahb-illness" onclick="selectAHType('illness')">
+          Illness<br><span style="font-size:11px;font-weight:400;">Cold / Flu</span>
+        </button>
+        <button class="h-btn h-injury" id="ahb-injury" onclick="selectAHType('injury')">
+          Injury<br><span style="font-size:11px;font-weight:400;">Pain / Strain</span>
+        </button>
+      </div>
+
+      <div id="ahBodySection" style="display:none;">
+        <div class="form-label" style="margin-bottom:8px;">Which area?</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;">
+          <button class="h-btn" id="ahb-shoulder" onclick="selectAHBodyPart('shoulder')">Shoulder</button>
+          <button class="h-btn" id="ahb-hip"      onclick="selectAHBodyPart('hip')">Hip</button>
+          <button class="h-btn" id="ahb-knee"     onclick="selectAHBodyPart('knee')">Knee</button>
+          <button class="h-btn" id="ahb-other"    onclick="selectAHBodyPart('other')">Other</button>
+        </div>
+        <div id="ahSideSection" style="display:none;margin-bottom:16px;">
+          <div class="form-label" style="margin-bottom:8px;">Which side?</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+            <button class="h-btn" id="ahb-left"  onclick="selectAHSide('left')">Left</button>
+            <button class="h-btn" id="ahb-right" onclick="selectAHSide('right')">Right</button>
+            <button class="h-btn" id="ahb-both"  onclick="selectAHSide('both')">Both</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="ahSevSection" style="display:none;">
+        <div class="form-label" style="margin-bottom:8px;">How bad is it?</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
+          <button class="h-btn h-mild"     id="ahb-mild"     onclick="selectAHSev('mild')">Mild</button>
+          <button class="h-btn h-moderate" id="ahb-moderate" onclick="selectAHSev('moderate')">Moderate</button>
+          <button class="h-btn h-serious"  id="ahb-serious"  onclick="selectAHSev('serious')">Serious</button>
+        </div>
+        <div class="form-group">
+          <textarea class="form-input" id="ahNotes" placeholder="Notes — optional" style="min-height:56px;resize:none;"></textarea>
+        </div>
+        <button class="btn" onclick="saveAdminHealthEvent()" id="ahSaveBtn" style="width:100%;">Save</button>
+      </div>
+    </div>
   </div>
 </div>
 
