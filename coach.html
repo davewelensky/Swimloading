@@ -560,6 +560,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser   = null;
 let currentClub   = null;
 let coachName     = '';    // display name for the session
+let coachRole     = 'coach'; // 'admin' | 'moderator' | 'coach'
 
 let allSquads      = [];
 let allWeekSessions= [];   // all club_squad_sessions for this club
@@ -693,6 +694,7 @@ async function continueInit() {
   }
 
   currentClub = membership.clubs;
+  coachRole   = membership.role || 'coach';
 
   // Coach name from profile
   const { data: profile } = await sb.from('profiles')
@@ -899,10 +901,11 @@ function renderHome() {
     mySquadSection.style.display = 'none';
   }
 
-  // All squads — direct access tiles
+  // All squads — direct access tiles (admin/moderator only; coaches see only their assigned sessions)
   const allSquadsSection = document.getElementById('allSquadsSection');
   const allSquadsList    = document.getElementById('allSquadsList');
-  if (allSquads.length) {
+  const isHeadCoach      = coachRole === 'admin' || coachRole === 'moderator';
+  if (isHeadCoach && allSquads.length) {
     allSquadsList.innerHTML = allSquads.map(sq => {
       const count = allRoster.filter(r => r.squad_id === sq.id).length;
       const todaySess = allWeekSessions
