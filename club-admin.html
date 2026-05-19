@@ -4806,6 +4806,34 @@ async function removeAdmin(adminId) {
   showToast('Removed from team', 'success');
 }
 
+async function grantCoachAccess(email, name, coachId) {
+  const btn = document.getElementById(`grantBtn-${coachId}`);
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span style="width:11px;height:11px;border:2px solid var(--cyan);border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin 0.6s linear infinite;"></span>'; }
+
+  const { data: profs } = await sb.from('profiles')
+    .select('id, display_name').ilike('email', email).limit(1);
+
+  if (!profs?.length) {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="key" style="width:11px;height:11px;"></i> Grant access'; lucide.createIcons(); }
+    const joinUrl = `https://www.swimloading.com/join/${activeJoinCode || currentClub.slug}`;
+    try { await navigator.clipboard.writeText(joinUrl); } catch(_) {}
+    alert(`${name} doesn't have a SwimLoading account yet.\n\nThe join link has been copied to your clipboard:\n${joinUrl}\n\nSend it to them. Once they sign up, come back here and tap Grant access.`);
+    return;
+  }
+
+  const userId = profs[0].id;
+  const { error } = await sb.from('club_admins').upsert({
+    club_id: currentClub.id,
+    user_id: userId,
+    role: 'moderator',
+  }, { onConflict: 'club_id,user_id', ignoreDuplicates: true });
+
+  if (error) { showToast('Failed: ' + error.message, 'error'); if (btn) { btn.disabled = false; btn.innerHTML = 'Grant access'; } return; }
+
+  showToast(`${name} can now access the coach register`, 'success');
+  loadTeam();
+}
+
 // ── PARENTS ───────────────────────────────────────────────────────
 async function loadParentsPage() {
   if (!activeJoinCode) {
@@ -5745,6 +5773,9 @@ function renderCoaches() {
   const inactive = allCoaches.filter(c => !c.is_active);
   const admin    = isClubAdmin();
 
+  // Build set of emails already in club_admins — used to show/hide grant button
+  const adminEmailSet = new Set(allTeam.map(t => (t.profile?.email || '').toLowerCase()).filter(Boolean));
+
   function coachCard(c) {
     const initials  = c.name.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
     const isHead    = c.title === 'Head Coach';
@@ -5767,6 +5798,19 @@ function renderCoaches() {
     const actionBtn = c.is_active
       ? (admin && !isHead ? `<button class="btn-sm" style="color:var(--danger);border-color:rgba(239,68,68,0.2);" onclick="deactivateCoach('${c.id}','${c.name.replace(/'/g,"\\'")}')">Deactivate</button>` : '')
       : (admin ? `<button class="btn-sm" style="color:var(--green);border-color:rgba(16,185,129,0.2);" onclick="reactivateCoach('${c.id}')">Reactivate</button>` : '');
+
+    // Grant coach register access button — shown when coach has an email
+    // but isn't yet in club_admins, and current user is an admin
+    const hasAccess = c.email && adminEmailSet.has(c.email.toLowerCase());
+    const grantBtn = (admin && c.is_active && c.email && !hasAccess)
+      ? `<button class="btn-sm" style="color:var(--cyan);border-color:rgba(56,189,248,0.25);"
+           id="grantBtn-${c.id}"
+           onclick="grantCoachAccess('${c.email.replace(/'/g,"\\'")}','${c.name.replace(/'/g,"\\'")}','${c.id}')">
+           <i data-lucide="key" style="width:11px;height:11px;"></i> Grant access
+         </button>`
+      : (hasAccess ? `<span style="font-size:11px;color:var(--green);display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:20px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);">
+           <i data-lucide="check" style="width:11px;height:11px;"></i> Has access
+         </span>` : '');
 
     return `
     <div style="display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-bottom:1px solid var(--border);">
@@ -5792,7 +5836,8 @@ function renderCoaches() {
         ${ecLine}
         ${(since || c.notes) ? `<div style="font-size:11px;color:var(--text-dim);margin-top:3px;">${since}${until}${c.notes ? (since||until?' · ':'') + c.notes : ''}</div>` : ''}
       </div>
-      <div style="display:flex;gap:6px;flex-shrink:0;">
+      <div style="display:flex;gap:6px;flex-shrink:0;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+        ${grantBtn}
         <button class="btn-sm" onclick="openEditCoachModal('${c.id}')">Edit</button>
         ${actionBtn}
       </div>
