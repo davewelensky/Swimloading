@@ -96,6 +96,8 @@
     .cat-walrus     { color:#a78bfa; border-color:rgba(167,139,250,0.3); background:rgba(167,139,250,0.08); }
     .cat-coelacanths { color:#fb923c; border-color:rgba(251,146,60,0.3); background:rgba(251,146,60,0.08); }
     .role-badge { font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; text-transform:uppercase; letter-spacing:0.08em; }
+    .badge-health { display:inline-block; font-size:9px; font-weight:700; padding:1px 6px; border-radius:4px; text-transform:uppercase; letter-spacing:0.06em; margin-left:5px; vertical-align:middle; background:rgba(245,158,11,0.15); color:var(--amber); border:1px solid rgba(245,158,11,0.3); }
+    .badge-health.severe { background:rgba(239,68,68,0.15); color:var(--danger); border-color:rgba(239,68,68,0.3); }
     .role-admin     { background:rgba(239,68,68,0.1); color:var(--danger); border:1px solid rgba(239,68,68,0.25); }
     .role-organiser { background:rgba(245,158,11,0.1); color:var(--amber); border:1px solid rgba(245,158,11,0.25); }
     .role-coach     { background:rgba(56,189,248,0.1); color:var(--cyan); border:1px solid rgba(56,189,248,0.25); }
@@ -1887,6 +1889,7 @@ let allMembers     = [];
 let allCategories  = [];
 let allEvents      = [];
 let memberLogs     = {};  // user_id → log count this month
+let memberHealthMap = {}; // user_id → active swimmer_health_events[]
 let activeJoinCode = null;  // code from club_join_links — used for both swimmer and parent links
 
 // ── INIT ──────────────────────────────────────────────────────────
@@ -2169,12 +2172,19 @@ async function loadMembers() {
     return na - nb;
   });
 
-  // Temp log counts this month
+  // Temp log counts + active health events (parallel)
   const userIds = allMembers.map(m => m.user_id).filter(Boolean);
+  memberHealthMap = {};
   if (userIds.length) {
-    const { data: logs } = await sb.from('temp_logs')
-      .select('user_id').in('user_id', userIds).gte('created_at', since.toISOString());
-    (logs || []).forEach(l => { memberLogs[l.user_id] = (memberLogs[l.user_id] || 0) + 1; });
+    const [logsRes, healthRes] = await Promise.all([
+      sb.from('temp_logs').select('user_id').in('user_id', userIds).gte('created_at', since.toISOString()),
+      sb.from('swimmer_health_events').select('user_id, type, body_part, side, severity').in('user_id', userIds).is('resolved_at', null),
+    ]);
+    (logsRes.data || []).forEach(l => { memberLogs[l.user_id] = (memberLogs[l.user_id] || 0) + 1; });
+    (healthRes.data || []).forEach(h => {
+      if (!memberHealthMap[h.user_id]) memberHealthMap[h.user_id] = [];
+      memberHealthMap[h.user_id].push(h);
+    });
   }
 
   renderMembersTable(allMembers);
@@ -2263,6 +2273,19 @@ async function renderOverview() {
   }
   if (unlinked.length > 0) {
     actions.push({ dot:'blue', text:`${unlinked.length} member${unlinked.length>1?'s':''} haven't linked a SwimLoading account`, names: hasParentLanguage ? 'Parents haven\'t joined the app yet' : 'Members haven\'t joined the app yet', label:'Roster →', action:`showPage('roster')` });
+  }
+
+  // Health alerts from swimmer_health_events (populated by loadMembers)
+  const membersWithHealth = allMembers.filter(m => m.user_id && (memberHealthMap[m.user_id] || []).length > 0);
+  const severeHealth = membersWithHealth.filter(m => memberHealthMap[m.user_id].some(e => e.severity === 'severe'));
+  if (severeHealth.length > 0) {
+    const names = severeHealth.slice(0, 3).map(m => m._display_name).join(', ') + (severeHealth.length > 3 ? ` +${severeHealth.length - 3} more` : '');
+    actions.push({ dot:'red', text:`${severeHealth.length} swimmer${severeHealth.length>1?'s':''} with a severe health issue`, names, label:'Members →', action:`showPage('members')` });
+  }
+  const otherHealth = membersWithHealth.filter(m => !memberHealthMap[m.user_id].some(e => e.severity === 'severe'));
+  if (otherHealth.length > 0) {
+    const names = otherHealth.slice(0, 3).map(m => m._display_name).join(', ') + (otherHealth.length > 3 ? ` +${otherHealth.length - 3} more` : '');
+    actions.push({ dot:'amber', text:`${otherHealth.length} swimmer${otherHealth.length>1?'s':''} with active health notes`, names, label:'Members →', action:`showPage('members')` });
   }
 
   const actionsEl = document.getElementById('overviewActions');
@@ -2657,6 +2680,16 @@ function catClass(catName) {
   return map[catName] || 'cat-sailfish';
 }
 
+function healthBadgeHTML(events) {
+  const worst = events.find(e => e.severity === 'severe') || events.find(e => e.severity === 'moderate') || events[0];
+  const label = worst.body_part
+    ? `${worst.type} · ${worst.body_part}${worst.side ? ' ' + worst.side : ''}`
+    : worst.type;
+  const cls = worst.severity === 'severe' ? ' severe' : '';
+  const tip = events.length > 1 ? ` (${events.length})` : '';
+  return `<span class="badge-health${cls}">${label}${tip}</span>`;
+}
+
 function renderMembersTable(members) {
   const tbody = document.getElementById('membersTableBody');
   document.getElementById('memberCount').textContent = members.length + ' members';
@@ -2676,9 +2709,11 @@ function renderMembersTable(members) {
     const joined   = m.joined_at
       ? new Date(m.joined_at).toLocaleDateString('en-ZA', {day:'numeric',month:'short',year:'numeric'})
       : '<span style="color:var(--text-dim);font-size:11px;">via roster</span>';
+    const healthEvents = memberHealthMap[m.user_id] || [];
+    const healthBadge  = healthEvents.length ? healthBadgeHTML(healthEvents) : '';
     return `<tr class="${inactive ? 'inactive-row' : ''}">
       <td><span class="member-num">${m.member_number || '—'}</span></td>
-      <td><div class="member-name">${name}${inactive ? '<span class="inactive-badge">Inactive</span>' : ''}</div><div class="member-email">${email}</div></td>
+      <td><div class="member-name">${name}${inactive ? '<span class="inactive-badge">Inactive</span>' : ''}${healthBadge}</div><div class="member-email">${email}</div></td>
       <td><span class="cat-badge ${catClass(cat)}">${cat}</span></td>
       <td><span class="role-badge role-${m._coachTitle ? 'coach' : m.role}">${m._coachTitle || m.role}</span></td>
       <td style="font-size:12px;color:var(--text-sec);">${joined}</td>

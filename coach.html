@@ -175,6 +175,15 @@
       background: rgba(245,158,11,0.12); color: var(--amber);
       border: 1px solid rgba(245,158,11,0.25); border-radius: 6px; padding: 1px 6px;
     }
+    .badge-health {
+      font-size: 9px; font-weight: 800; text-transform: uppercase;
+      background: rgba(245,158,11,0.12); color: var(--amber);
+      border: 1px solid rgba(245,158,11,0.25); border-radius: 6px; padding: 1px 6px;
+    }
+    .badge-health.severe {
+      background: rgba(239,68,68,0.12); color: var(--danger);
+      border-color: rgba(239,68,68,0.25);
+    }
     .badge-intent-coming {
       font-size: 9px; font-weight: 700; color: var(--green); background: rgba(16,185,129,0.08);
       border-radius: 6px; padding: 1px 6px;
@@ -592,6 +601,7 @@ let allSquads      = [];
 let allWeekSessions= [];   // all club_squad_sessions for this club
 let allRoster      = [];   // club_roster rows for this club
 let allWeekAssign  = {};   // session_id → [roster_id, ...]
+let rosterHealthMap = {};  // roster_id → active swimmer_health_events[]
 
 let selectedDate    = new Date().toISOString().slice(0, 10); // YYYY-MM-DD, defaults to today
 
@@ -777,10 +787,28 @@ async function loadClubData() {
 
   // Roster (for marking + walk-in search)
   const { data: rosterData } = await sb.from('club_roster')
-    .select('id, display_name, member_number, squad_id, is_trial, fee_paid')
+    .select('id, display_name, member_number, squad_id, is_trial, fee_paid, user_id')
     .eq('club_id', currentClub.id)
     .order('display_name');
   allRoster = rosterData || [];
+
+  // Active health events keyed by roster_id
+  rosterHealthMap = {};
+  const rosterUserIds = allRoster.map(r => r.user_id).filter(Boolean);
+  if (rosterUserIds.length) {
+    const { data: healthData } = await sb.from('swimmer_health_events')
+      .select('user_id, type, body_part, side, severity')
+      .in('user_id', rosterUserIds)
+      .is('resolved_at', null);
+    const userToRoster = {};
+    allRoster.forEach(r => { if (r.user_id) userToRoster[r.user_id] = r.id; });
+    (healthData || []).forEach(h => {
+      const rid = userToRoster[h.user_id];
+      if (!rid) return;
+      if (!rosterHealthMap[rid]) rosterHealthMap[rid] = [];
+      rosterHealthMap[rid].push(h);
+    });
+  }
 }
 
 // ── DATE NAVIGATION ────────────────────────────────────────────────
@@ -1242,9 +1270,18 @@ function swimmerRowHTML(r) {
   const status = attendanceMarks[r.id] || '';
   const statusClass = status ? 'marked-' + status : '';
 
+  const healthEvents = rosterHealthMap[r.id] || [];
+  const healthBadge  = (() => {
+    if (!healthEvents.length) return '';
+    const worst = healthEvents.find(e => e.severity === 'severe') || healthEvents.find(e => e.severity === 'moderate') || healthEvents[0];
+    const label = worst.body_part ? `${worst.type} · ${worst.body_part}${worst.side ? ' ' + worst.side : ''}` : worst.type;
+    const cls = worst.severity === 'severe' ? ' severe' : '';
+    return `<span class="badge-health${cls}">${label}</span>`;
+  })();
   const badges = [
     r.is_trial     ? '<span class="badge-trial">TRIAL</span>' : '',
     r.fee_paid === false ? '<span class="badge-fee">UNPAID</span>' : '',
+    healthBadge,
   ].filter(Boolean).join('');
 
   const btns = MOBILE_STATUSES.map(ms => {
