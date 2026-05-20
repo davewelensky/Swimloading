@@ -9,21 +9,47 @@ let activeClubIndex  = 0;
 async function loadUserClubs() {
   if (!currentUser) return;
 
-  const [membersRes] = await Promise.all([
-    supabaseClient
-      .from('club_members')
-      .select(`
-        id, role, is_active, joined_at, category_id,
-        roster_id,
-        clubs ( id, name, code, slug, city, tagline, logo_url, club_type, contact_email, training_schedule ),
-        club_roster ( id, member_number, display_name, category, gender )
-      `)
-      .eq('user_id', currentUser.id)
-      .eq('is_active', true),
-    loadParentLinks(),
-  ]);
+  try {
+    // Fetch club_members and parent links in parallel; enrich clubs separately
+    const [membersRes] = await Promise.all([
+      supabaseClient
+        .from('club_members')
+        .select('id, role, is_active, joined_at, category_id, roster_id, club_id')
+        .eq('user_id', currentUser.id)
+        .eq('is_active', true),
+      loadParentLinks(),
+    ]);
 
-  currentUserClubs = membersRes.data || [];
+    const rows = membersRes.data || [];
+
+    if (rows.length) {
+      const clubIds = [...new Set(rows.map(r => r.club_id))];
+      const [clubsRes, rosterRes] = await Promise.all([
+        supabaseClient
+          .from('clubs')
+          .select('id, name, code, slug, city, tagline, logo_url, club_type, contact_email, training_schedule')
+          .in('id', clubIds),
+        supabaseClient
+          .from('club_roster')
+          .select('id, member_number, display_name, category, gender')
+          .in('id', rows.map(r => r.roster_id).filter(Boolean)),
+      ]);
+
+      const clubMap  = Object.fromEntries((clubsRes.data  || []).map(c => [c.id, c]));
+      const rosterMap = Object.fromEntries((rosterRes.data || []).map(r => [r.id, r]));
+
+      currentUserClubs = rows.map(r => ({
+        ...r,
+        clubs:       clubMap[r.club_id]      || null,
+        club_roster: rosterMap[r.roster_id]  || null,
+      }));
+    } else {
+      currentUserClubs = [];
+    }
+  } catch (err) {
+    console.warn('loadUserClubs error:', err);
+    currentUserClubs = [];
+  }
 
   const btn = document.getElementById('clubNavBtn');
   if (btn) btn.style.display = (currentUserClubs.length || parentLinks.length) ? 'flex' : 'none';
