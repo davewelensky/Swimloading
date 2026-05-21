@@ -86,7 +86,7 @@ export default async function handler(req, res) {
 
     for (const a of swims) {
         const matchedSpot = await matchSpot(a.start_latlng, spots);
-        const alreadyImported = importedMap.has(a.id);
+        const alreadyImported = importedMap.get(a.id) != null;
 
         upsertRows.push({
             user_id:               userId,
