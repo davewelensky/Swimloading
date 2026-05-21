@@ -130,7 +130,7 @@ export default async function handler(req, res) {
     }
 
     // Upsert into strava_imports (fire-and-forget, don't block response)
-    fetch(`${SUPABASE_URL}/rest/v1/strava_imports`, {
+    fetch(`${SUPABASE_URL}/rest/v1/strava_imports?on_conflict=user_id,strava_activity_id`, {
         method:  'POST',
         headers: {
             'Content-Type':  'application/json',
