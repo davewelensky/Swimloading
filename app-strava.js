@@ -361,8 +361,8 @@ function renderStravaLogForm(a) {
         <!-- Temperature -->
         <div class="form-group">
             <div class="form-label">Water temperature (°C) <span style="color:var(--danger);">*</span></div>
-            <input type="number" id="stravaTemp" placeholder="e.g. 16" step="0.5" min="0" max="40"${a.is_open_water && a.average_temp != null ? ` value="${a.average_temp}"` : ''}>
-            ${a.is_open_water && a.average_temp != null ? `<div style="font-size:11px;color:#10b981;margin-top:4px;">Detected from your device — confirm or adjust</div>` : ''}
+            <input type="number" id="stravaTemp" placeholder="e.g. 16" step="0.5" min="0" max="40"${a.average_temp != null ? ` value="${a.average_temp}"` : ''}>
+            ${a.average_temp != null ? `<div style="font-size:11px;color:#10b981;margin-top:4px;">Detected from your device — confirm or adjust</div>` : ''}
         </div>
 
         <!-- Conditions -->
