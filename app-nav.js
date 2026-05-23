@@ -74,6 +74,14 @@
         async function loadMonthlyChallenge() {
             const el = document.getElementById('monthlyChallenge');
             if (!el) return;
+
+            // Delegate to June Challenge when it's active
+            await jcInit();
+            if (jcIsActive()) {
+                jcLoadBoardSection();
+                return;
+            }
+
             const { now, monthStart, monthEnd, daysLeft, monthName, isLive, daysToLaunch } = getMonthWindow();
 
             // Reusable SwimBETTER explainer section (collapsible)
@@ -511,6 +519,14 @@
         async function loadMonthlyChallengeSummary() {
             const el = document.getElementById('dashMonthlyChallenge');
             if (!el) return;
+
+            // Delegate to June Challenge when it's active
+            await jcInit();
+            if (jcIsActive()) {
+                jcLoadDashboardCard();
+                return;
+            }
+
             const { now, monthStart, monthEnd, daysLeft, monthName, isLive, daysToLaunch } = getMonthWindow();
 
             if (!isLive) {

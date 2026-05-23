@@ -3168,6 +3168,9 @@
             // Check for new badges after creating a swim
             await checkAndAwardBadges();
 
+            // June Challenge — award points for creating a swim (non-blocking)
+            jcAwardPoints('create_swim', { spotName: locationName, refId: data?.[0]?.id });
+
             // Notify opted-in users about the new swim (once, using first event)
             if (data && data[0]) {
                 const newEventId = data[0].id;
@@ -4470,6 +4473,12 @@
                 }
 
                 showToast(status === 'requested' ? "Request sent to host!" : "You're in!", 'success');
+
+                // June Challenge — award points for joining a swim (approved joins only)
+                if (status === 'approved') {
+                    jcAwardPoints('attend_swim', { refId: eventId });
+                    jcCheckGroupBonus(eventId);
+                }
 
                 loadEvents(); // Refresh list
                 loadDashboard(); // Refresh dashboard
@@ -7468,11 +7477,20 @@
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Share Conditions';
             } else {
-                // Calculate points earned for this log
-                const ptsEarned = 10;
-                showToast(loggedAt ? `Backdated conditions logged! +${ptsEarned} points!` : `Conditions shared! +${ptsEarned} points`, 'success');
+                const juneLive = typeof jcIsActive === 'function' && jcIsActive();
+                if (!juneLive) {
+                    // Only show points toast when June Challenge isn't active
+                    showToast(loggedAt ? 'Backdated conditions logged! +10 points!' : 'Conditions shared! +10 points', 'success');
+                } else if (loggedAt) {
+                    showToast('Backdated conditions logged!', 'success');
+                }
                 analytics.track('temp_logged', { spot: spotNameForConfirm, temp, conditions });
                 if (hazards.length > 0) analytics.track('hazard_reported', { hazards });
+
+                // June Challenge — award points (handles its own success toast + WhatsApp prompt)
+                if (!loggedAt) {
+                    jcAwardPoints('temp_log', { spotId, spotName: spotNameForConfirm, temp });
+                }
 
                 // Reset backdate picker
                 const bdPicker = document.getElementById('backdatePicker');
