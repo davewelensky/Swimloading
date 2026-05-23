@@ -423,15 +423,20 @@
                   <div style="font-size:12px;font-weight:700;color:#f59e0b;">${daysLeft}d left</div>
                 </div>
 
-                <!-- Prize block — this is why people play -->
-                <div style="background:linear-gradient(135deg,rgba(251,191,36,0.1),rgba(180,83,9,0.08));border:1px solid rgba(251,191,36,0.25);border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;">
-                  <img src="/partners/TheMagic5.jpg" alt="THEMAGIC5 Vector Goggles" style="width:52px;height:52px;border-radius:9px;object-fit:cover;flex-shrink:0;border:1px solid rgba(251,191,36,0.35);" onerror="this.style.display='none'">
-                  <div style="flex:1;min-width:0;">
-                    <div style="font-size:14px;font-weight:800;color:#fbbf24;line-height:1.2;">THEMAGIC5 Vector Goggles</div>
-                    <div style="font-size:11px;color:#d97706;font-weight:600;margin-top:3px;">AI-fitted to your face &middot; R3,000 value</div>
-                    <div style="font-size:10px;color:#78350f;margin-top:1px;">Every point = 1 raffle entry</div>
+                <!-- Prize block — full-width image banner -->
+                <div style="border:1px solid rgba(251,191,36,0.3);border-radius:12px;overflow:hidden;margin-bottom:14px;">
+                  <div style="position:relative;height:90px;overflow:hidden;">
+                    <img src="/partners/TheMagic5.webp" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center 70%;display:block;" onerror="this.parentElement.style.background='linear-gradient(135deg,#1a0a00,#0d1728)'">
+                    <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,0.7) 0%,rgba(0,0,0,0.2) 60%,rgba(0,0,0,0) 100%);"></div>
+                    <div style="position:absolute;inset:0;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;">
+                      <div>
+                        <div style="font-size:13px;font-weight:900;color:#fbbf24;letter-spacing:-0.2px;text-shadow:0 1px 4px rgba(0,0,0,0.8);">THEMAGIC5 Vector Goggles</div>
+                        <div style="font-size:11px;color:#fde68a;font-weight:600;margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">AI-fitted · R3,000 value · Grand prize</div>
+                        <div style="font-size:10px;color:rgba(253,230,138,0.7);margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">Every point = 1 raffle entry</div>
+                      </div>
+                      <i data-lucide="trophy" style="width:22px;height:22px;color:#f59e0b;flex-shrink:0;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.8));"></i>
+                    </div>
                   </div>
-                  <i data-lucide="trophy" style="width:20px;height:20px;color:#f59e0b;flex-shrink:0;"></i>
                 </div>
 
                 <!-- Rank -->
