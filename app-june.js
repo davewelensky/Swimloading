@@ -322,7 +322,6 @@
             await jcInit();
 
             if (!jcIsActive()) {
-                // Show "coming soon" ribbon if June is within 14 days
                 const now = new Date();
                 const juneStart = jcConfig?.launch_date
                     ? new Date(jcConfig.launch_date + 'T00:00:00')
@@ -330,10 +329,13 @@
                 const daysAway = Math.ceil((juneStart - now) / 86400000);
                 if (daysAway > 0 && daysAway <= 14) {
                     el.innerHTML = `
-                    <div onclick="showPage('leaderboard')" style="cursor:pointer;background:linear-gradient(135deg,rgba(56,189,248,0.08),rgba(2,132,199,0.06));border:1px solid rgba(56,189,248,0.2);border-radius:14px;padding:14px 16px;">
-                      <div style="font-size:10px;font-weight:700;color:var(--ocean-light);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:5px;">June Community Challenge</div>
-                      <div style="font-weight:800;font-size:15px;color:var(--text);">Starts in ${daysAway} day${daysAway !== 1 ? 's' : ''}</div>
-                      <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;">Custom THEMAGIC5 goggles · Maurten · Blu Smooth</div>
+                    <div onclick="showPage('leaderboard')" style="cursor:pointer;background:linear-gradient(135deg,#0c1520,#080f1a);border:1px solid rgba(251,191,36,0.3);border-radius:16px;overflow:hidden;">
+                      <div style="height:3px;background:linear-gradient(90deg,#f59e0b,#fbbf24,#38bdf8);"></div>
+                      <div style="padding:16px;">
+                        <div style="font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">June Community Challenge</div>
+                        <div style="font-weight:800;font-size:18px;color:#f1f5f9;">Starts in ${daysAway} day${daysAway !== 1 ? 's' : ''}</div>
+                        <div style="font-size:12px;color:#64748b;margin-top:4px;">Custom THEMAGIC5 goggles · R3,000 value</div>
+                      </div>
                     </div>`;
                     initIcons();
                 }
@@ -341,51 +343,111 @@
             }
 
             try {
-                const score = await jcGetMyScore();
-                const { end } = jcDateRange();
+                const { start, end } = jcDateRange();
                 const daysLeft = Math.max(0, Math.ceil((end - new Date()) / 86400000));
 
-                const testBadge = jcConfig?.test_mode
-                    ? `<span style="background:rgba(245,158,11,0.2);color:#f59e0b;font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;margin-left:6px;">TEST</span>`
-                    : '';
+                const [score, recentRes] = await Promise.all([
+                    jcGetMyScore(),
+                    supabaseClient
+                        .from('june_challenge_events')
+                        .select('display_name, action_type, spot_name, created_at, points')
+                        .gte('created_at', start.toISOString())
+                        .order('created_at', { ascending: false })
+                        .limit(1),
+                ]);
 
-                let scoreLine;
-                if (score?.rank && score.points > 0) {
-                    const gapLine = score.personAboveName
-                        ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${score.personAbovePts - score.points} pts behind ${score.personAboveName}</div>`
-                        : `<div style="font-size:11px;color:#10b981;margin-top:2px;">You're leading — hold on!</div>`;
-                    scoreLine = `<div style="font-size:17px;font-weight:800;color:var(--text);line-height:1.2;">#${score.rank} &middot; ${score.points} pts</div>${gapLine}`;
-                } else {
-                    scoreLine = `<div style="font-size:13px;color:var(--text-secondary);">Log or join a swim to earn points</div>`;
-                }
-
-                el.innerHTML = `
-                <div onclick="jcOpenOverlay()" style="cursor:pointer;background:linear-gradient(135deg,rgba(14,116,144,0.12),rgba(2,132,199,0.08));border:1px solid rgba(56,189,248,0.3);border-radius:14px;padding:16px;">
-                  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:11px;">
-                    <div style="flex:1;min-width:0;">
-                      <div style="font-size:10px;font-weight:700;color:var(--ocean-light);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:3px;">June Challenge · Live${testBadge}</div>
-                      ${scoreLine}
-                    </div>
-                    <div style="flex-shrink:0;margin-left:12px;">
-                      <div style="background:rgba(56,189,248,0.15);color:var(--ocean-light);font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;">${daysLeft}d left</div>
-                    </div>
-                  </div>
-                  <div style="display:flex;align-items:center;gap:8px;padding:8px 11px;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.14);border-radius:10px;margin-bottom:11px;">
-                    <i data-lucide="trophy" style="width:14px;height:14px;color:var(--ocean-light);flex-shrink:0;"></i>
-                    <div style="font-size:12px;color:var(--text);font-weight:600;">Custom THEMAGIC5 goggles</div>
-                    <div style="font-size:11px;color:var(--text-secondary);margin-left:auto;">Grand prize</div>
-                  </div>
-                  <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ocean-light);font-weight:600;">
-                    <i data-lucide="activity" style="width:13px;height:13px;"></i>
-                    View live feed + leaderboard
-                    <i data-lucide="chevron-right" style="width:13px;height:13px;margin-left:auto;"></i>
-                  </div>
-                </div>
-                <div id="jcSharePrompt" style="display:none;"></div>`;
+                const recent = recentRes.data?.[0] || null;
+                el.innerHTML = jcRenderDashboardCard(score, daysLeft, recent);
                 initIcons();
             } catch (e) {
                 console.warn('jcLoadDashboardCard error:', e);
             }
+        }
+
+        function jcRenderDashboardCard(score, daysLeft, recent) {
+            const testBadge = jcConfig?.test_mode
+                ? `<span style="background:rgba(245,158,11,0.25);color:#f59e0b;font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;margin-left:6px;vertical-align:middle;">TEST</span>`
+                : '';
+
+            // Rank block
+            let rankBlock;
+            if (score?.rank && score.points > 0) {
+                const isLeading = !score.personAboveName;
+                const gap = isLeading ? 0 : score.personAbovePts - score.points;
+                rankBlock = `
+                <div style="background:linear-gradient(135deg,rgba(56,189,248,0.08),rgba(14,116,144,0.06));border:1px solid rgba(56,189,248,0.22);border-radius:12px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">
+                  <div style="flex:1;">
+                    <div style="font-size:34px;font-weight:900;color:#f1f5f9;line-height:1;letter-spacing:-1px;">#${score.rank}</div>
+                    <div style="font-size:13px;color:#64748b;margin-top:4px;">${isLeading ? '<span style="color:#10b981;font-weight:700;">You\'re leading</span>' : `<span style="color:#f59e0b;font-weight:600;">${gap} pts behind ${score.personAboveName}</span>`}</div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div style="font-size:24px;font-weight:900;color:#38bdf8;line-height:1;">${score.points}</div>
+                    <div style="font-size:11px;color:#475569;margin-top:2px;">points</div>
+                  </div>
+                </div>`;
+            } else {
+                rankBlock = `
+                <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:13px 16px;margin-bottom:12px;">
+                  <div style="font-size:13px;color:#475569;line-height:1.5;">Log a temp or join a swim to get on the board and enter the prize draw</div>
+                </div>`;
+            }
+
+            // Live activity teaser
+            const FEED_COPY = {
+                temp_log:    e => e.spot_name ? `${e.display_name} logged ${e.spot_name}` : `${e.display_name} logged conditions`,
+                create_swim: e => `${e.display_name} created a swim`,
+                attend_swim: e => `${e.display_name} joined a swim`,
+                streak_3day: e => `${e.display_name} hit a 3-day streak`,
+                dormant_spot:e => `${e.display_name} woke up a dormant spot`,
+                hazard_report:e=> `${e.display_name} reported a hazard`,
+            };
+            const liveRow = recent
+                ? `<div style="display:flex;align-items:center;gap:9px;padding:9px 12px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.12);border-radius:10px;margin-bottom:12px;">
+                    <div style="width:6px;height:6px;border-radius:50%;background:#ef4444;flex-shrink:0;box-shadow:0 0 8px rgba(239,68,68,0.7);"></div>
+                    <div style="font-size:12px;color:#94a3b8;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(FEED_COPY[recent.action_type] || (e => e.display_name))(recent)}</div>
+                    <div style="font-size:11px;color:#334155;flex-shrink:0;">${jcTimeAgo(new Date(recent.created_at))}</div>
+                   </div>`
+                : '';
+
+            return `
+            <div onclick="jcOpenOverlay()" style="cursor:pointer;background:linear-gradient(160deg,#0c1520 0%,#070e18 100%);border:1px solid rgba(251,191,36,0.28);border-radius:16px;overflow:hidden;position:relative;">
+              <!-- Gold top bar — signals prize quality -->
+              <div style="height:3px;background:linear-gradient(90deg,#b45309 0%,#f59e0b 40%,#fbbf24 60%,#38bdf8 100%);"></div>
+
+              <div style="padding:16px;">
+                <!-- Header row -->
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                  <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.8px;">
+                    <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:5px;vertical-align:middle;box-shadow:0 0 6px rgba(16,185,129,0.6);"></span>June Challenge · Live${testBadge}
+                  </div>
+                  <div style="font-size:12px;font-weight:700;color:#f59e0b;">${daysLeft}d left</div>
+                </div>
+
+                <!-- Prize block — this is why people play -->
+                <div style="background:linear-gradient(135deg,rgba(251,191,36,0.1),rgba(180,83,9,0.08));border:1px solid rgba(251,191,36,0.25);border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;">
+                  <img src="/partners/TheMagic5.jpg" alt="THEMAGIC5" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;border:1px solid rgba(251,191,36,0.3);" onerror="this.style.display='none'">
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:14px;font-weight:800;color:#fbbf24;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Custom THEMAGIC5 Goggles</div>
+                    <div style="font-size:11px;color:#78350f;font-weight:600;margin-top:2px;">R3,000 value &middot; Grand prize</div>
+                  </div>
+                  <i data-lucide="trophy" style="width:20px;height:20px;color:#f59e0b;flex-shrink:0;"></i>
+                </div>
+
+                <!-- Rank -->
+                ${rankBlock}
+
+                <!-- Live activity teaser — FOMO -->
+                ${liveRow}
+
+                <!-- CTA -->
+                <div style="display:flex;align-items:center;gap:8px;padding:11px 14px;border-radius:10px;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.18);">
+                  <i data-lucide="activity" style="width:15px;height:15px;color:#38bdf8;"></i>
+                  <span style="font-size:13px;font-weight:700;color:#38bdf8;">View live feed + leaderboard</span>
+                  <i data-lucide="chevron-right" style="width:14px;height:14px;color:#38bdf8;margin-left:auto;"></i>
+                </div>
+              </div>
+            </div>
+            <div id="jcSharePrompt" style="display:none;"></div>`;
         }
 
         // ── Board tab section (shown inside monthlyChallenge div) ────────────────────
@@ -516,29 +578,66 @@
 
         function jcRenderLeaderboard(sorted, myIdx, myPts) {
             if (!sorted.length) {
-                return '<div style="text-align:center;color:var(--text-secondary);padding:16px;font-size:13px;">No entries yet — be the first!</div>';
+                return `<div style="padding:36px 16px;text-align:center;">
+                  <div style="width:52px;height:52px;border-radius:50%;background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.15);margin:0 auto 14px;display:flex;align-items:center;justify-content:center;">
+                    <i data-lucide="trophy" style="width:22px;height:22px;color:rgba(251,191,36,0.45);"></i>
+                  </div>
+                  <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px;">No entries yet</div>
+                  <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">Log a temp or join a swim<br>to get on the board.</div>
+                </div>`;
             }
-            const MEDALS = ['#fbbf24', '#94a3b8', '#cd7c2f'];
+
+            const maxPts = sorted[0]?.[1].points || 1;
+            const PODIUM = [
+                { border:'rgba(251,191,36,0.5)',  bg:'linear-gradient(135deg,rgba(251,191,36,0.12),rgba(180,83,9,0.07))',   color:'#fbbf24', icon:'crown', nameSize:'15px' },
+                { border:'rgba(148,163,184,0.4)', bg:'linear-gradient(135deg,rgba(148,163,184,0.09),rgba(100,116,139,0.05))', color:'#94a3b8', icon:'medal', nameSize:'14px' },
+                { border:'rgba(205,124,47,0.4)',  bg:'linear-gradient(135deg,rgba(205,124,47,0.09),rgba(154,88,22,0.05))',   color:'#cd7c2f', icon:'award', nameSize:'14px' },
+            ];
+
             const rows = sorted.map(([uid, data], i) => {
                 const isMe   = currentUser && uid === currentUser.id;
                 const isTop3 = i < 3;
-                const iconEl = i === 0
-                    ? `<i data-lucide="crown"  style="width:15px;height:15px;color:${MEDALS[0]};flex-shrink:0;"></i>`
-                    : isTop3
-                    ? `<i data-lucide="medal"  style="width:15px;height:15px;color:${MEDALS[i]};flex-shrink:0;"></i>`
-                    : `<span style="font-size:11px;font-weight:700;width:15px;text-align:center;color:var(--text-secondary);flex-shrink:0;">${i+1}</span>`;
-                const bg     = isTop3 ? `rgba(${['251,191,36','148,163,184','205,124,47'][i]},0.08)` : isMe ? 'rgba(56,189,248,0.08)' : 'transparent';
-                const border = isTop3 ? `rgba(${['251,191,36','148,163,184','205,124,47'][i]},0.22)` : isMe ? 'rgba(56,189,248,0.22)' : 'transparent';
-                const ptColor = isTop3 ? MEDALS[i] : 'var(--ocean-light)';
-                return `<div style="display:flex;align-items:center;gap:9px;padding:${isTop3?'11px 12px':'8px 10px'};background:${bg};border:1px solid ${border};border-radius:10px;margin-bottom:5px;">
-                  ${iconEl}
-                  <span style="font-size:${isTop3?'14px':'13px'};font-weight:${isMe||isTop3?'700':'400'};color:${isMe?'var(--ocean-light)':'var(--text)'};flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${data.display_name || 'Swimmer'}${isMe?' <span style="font-size:10px;color:var(--text-secondary);font-weight:400;">(you)</span>':''}</span>
-                  <span style="font-size:${isTop3?'14px':'13px'};font-weight:700;color:${ptColor};flex-shrink:0;">${data.points}</span>
+                const pct    = Math.max(4, Math.round((data.points / maxPts) * 100));
+                const above  = i > 0 ? sorted[i - 1][1].points - data.points : 0;
+                const aColor = jcFeedAvatarColor(uid);
+                const ini    = jcInitials(data.display_name);
+
+                if (isTop3) {
+                    const p = PODIUM[i];
+                    return `<div style="background:${p.bg};border:1px solid ${p.border};border-radius:13px;padding:13px 14px;margin-bottom:8px;">
+                      <div style="display:flex;align-items:center;gap:11px;">
+                        <div style="width:40px;height:40px;border-radius:50%;background:rgba(${aColor},0.15);border:2px solid ${p.border};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;font-weight:800;color:rgb(${aColor});">${ini.toUpperCase()}</div>
+                        <div style="flex:1;min-width:0;">
+                          <div style="font-size:${p.nameSize};font-weight:800;color:${isMe ? 'var(--ocean-light)' : 'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${data.display_name || 'Swimmer'}${isMe ? ' <span style="font-size:10px;color:' + p.color + ';font-weight:600;">(you)</span>' : ''}</div>
+                          <div style="margin-top:6px;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;">
+                            <div style="height:100%;width:${pct}%;background:${p.color};border-radius:2px;"></div>
+                          </div>
+                          ${above > 0 ? `<div style="font-size:10px;color:var(--text-secondary);margin-top:3px;">${above} pts to move up</div>` : i === 0 ? '<div style="font-size:10px;color:' + p.color + ';font-weight:700;margin-top:3px;">Leading</div>' : ''}
+                        </div>
+                        <div style="text-align:right;flex-shrink:0;">
+                          <div style="font-size:${i === 0 ? '26px' : '20px'};font-weight:900;color:${p.color};line-height:1;letter-spacing:-1px;">${data.points}</div>
+                          <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">pts</div>
+                        </div>
+                        <i data-lucide="${p.icon}" style="width:${i === 0 ? '20px' : '17px'};height:${i === 0 ? '20px' : '17px'};color:${p.color};flex-shrink:0;"></i>
+                      </div>
+                    </div>`;
+                }
+
+                return `<div style="display:flex;align-items:center;gap:9px;padding:8px 10px;background:${isMe ? 'rgba(56,189,248,0.07)' : 'transparent'};border:1px solid ${isMe ? 'rgba(56,189,248,0.2)' : 'transparent'};border-radius:9px;margin-bottom:3px;">
+                  <span style="font-size:11px;font-weight:700;color:var(--text-secondary);width:18px;text-align:center;flex-shrink:0;">${i + 1}</span>
+                  <div style="width:30px;height:30px;border-radius:50%;background:rgba(${aColor},0.12);border:1px solid rgba(${aColor},0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:800;color:rgb(${aColor});">${ini.toUpperCase()}</div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:${isMe ? '700' : '500'};color:${isMe ? 'var(--ocean-light)' : 'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${data.display_name || 'Swimmer'}${isMe ? ' <span style="font-size:10px;color:var(--text-secondary);font-weight:400;">(you)</span>' : ''}</div>
+                    <div style="margin-top:3px;height:2px;background:rgba(255,255,255,0.05);border-radius:1px;overflow:hidden;">
+                      <div style="height:100%;width:${pct}%;background:rgba(${aColor},0.45);border-radius:1px;"></div>
+                    </div>
+                  </div>
+                  <span style="font-size:13px;font-weight:700;color:${isMe ? 'var(--ocean-light)' : '#64748b'};flex-shrink:0;">${data.points}</span>
                 </div>`;
             }).join('');
 
             const fallback = myIdx < 0 && currentUser
-                ? `<div style="text-align:center;font-size:12px;color:var(--text-secondary);margin-top:8px;">${myPts > 0 ? `You have ${myPts} pts` : 'Log conditions to get on the board!'}</div>`
+                ? `<div style="padding:12px 10px;background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.14);border-radius:9px;margin-top:6px;font-size:13px;color:var(--text-secondary);">${myPts > 0 ? `You have ${myPts} pts` : 'Log conditions to get on the board!'}</div>`
                 : '';
             return rows + fallback;
         }
@@ -604,48 +703,64 @@
 
         // ── Feed renderer ────────────────────────────────────────────────────────────
 
+        function jcFeedAvatarColor(userId) {
+            const colors = ['56,189,248','16,185,129','245,158,11','167,139,250','239,68,68','37,211,102','251,113,133','96,165,250'];
+            let h = 0;
+            for (let i = 0; i < (userId || '').length; i++) h = ((h << 5) - h) + userId.charCodeAt(i);
+            return colors[Math.abs(h) % colors.length];
+        }
+
+        function jcInitials(name) {
+            if (!name) return '?';
+            const p = name.trim().split(' ');
+            return p.length >= 2 ? p[0][0] + p[p.length - 1][0] : p[0].slice(0, 2);
+        }
+
         function jcRenderFeed(events) {
             if (!events.length) {
-                return '<div style="text-align:center;color:var(--text-secondary);padding:20px;font-size:13px;">No activity yet — be the first!</div>';
+                return `<div style="padding:36px 16px;text-align:center;">
+                  <div style="width:52px;height:52px;border-radius:50%;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.15);margin:0 auto 14px;display:flex;align-items:center;justify-content:center;">
+                    <i data-lucide="activity" style="width:22px;height:22px;color:rgba(56,189,248,0.45);"></i>
+                  </div>
+                  <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px;">No activity yet</div>
+                  <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">Log a temperature or create a swim<br>to be first on the live feed.</div>
+                </div>`;
             }
 
-            const ICONS = {
-                temp_log:       { icon: 'thermometer',    bg: '56,189,248' },
-                create_swim:    { icon: 'calendar-plus',  bg: '16,185,129' },
-                attend_swim:    { icon: 'check-circle',   bg: '16,185,129' },
-                hazard_report:  { icon: 'alert-triangle', bg: '239,68,68'  },
-                new_spot:       { icon: 'map-pin',        bg: '245,158,11' },
-                whatsapp_share: { icon: 'share-2',        bg: '37,211,102' },
-                streak_3day:    { icon: 'zap',            bg: '245,158,11' },
-                dormant_spot:   { icon: 'sunrise',        bg: '167,139,250'},
-                group_bonus:    { icon: 'users',          bg: '16,185,129' },
-            };
-
-            const TEMPLATES = {
-                temp_log:       e => e.spot_name ? `${e.display_name} logged temp at ${e.spot_name}` : `${e.display_name} logged conditions`,
-                create_swim:    e => e.spot_name ? `${e.display_name} created a swim at ${e.spot_name}` : `${e.display_name} created a community swim`,
-                attend_swim:    e => e.spot_name ? `${e.display_name} joined a swim at ${e.spot_name}` : `${e.display_name} joined a swim`,
-                hazard_report:  e => e.spot_name ? `${e.display_name} reported a hazard at ${e.spot_name}` : `${e.display_name} reported a hazard`,
-                new_spot:       e => e.spot_name ? `${e.display_name} logged ${e.spot_name} for the first time` : `${e.display_name} logged a new spot`,
-                whatsapp_share: e => `${e.display_name} shared to WhatsApp`,
-                streak_3day:    e => `${e.display_name} hit a 3-day streak`,
-                dormant_spot:   e => e.spot_name ? `${e.display_name} activated ${e.spot_name} after 30+ days` : `${e.display_name} activated a dormant spot`,
-                group_bonus:    () => 'Community swim bonus — 3+ swimmers!',
+            const ACTION_CFG = {
+                temp_log:       { r:'56,189,248',  action: e => e.spot_name ? `logged temp at <strong>${e.spot_name}</strong>` : 'logged conditions' },
+                create_swim:    { r:'16,185,129',  action: e => e.spot_name ? `created a swim at <strong>${e.spot_name}</strong>` : 'created a community swim' },
+                attend_swim:    { r:'16,185,129',  action: e => e.spot_name ? `joined a swim at <strong>${e.spot_name}</strong>` : 'joined a swim' },
+                hazard_report:  { r:'239,68,68',   action: e => e.spot_name ? `reported a hazard at <strong>${e.spot_name}</strong>` : 'reported a hazard' },
+                new_spot:       { r:'245,158,11',  action: e => e.spot_name ? `logged <strong>${e.spot_name}</strong> for the first time` : 'logged a new spot' },
+                whatsapp_share: { r:'37,211,102',  action: () => 'shared to WhatsApp' },
+                streak_3day:    { r:'245,158,11',  action: () => 'hit a <strong>3-day streak</strong>' },
+                dormant_spot:   { r:'167,139,250', action: e => e.spot_name ? `woke up <strong>${e.spot_name}</strong> after 30+ days` : 'activated a dormant spot' },
+                group_bonus:    { r:'16,185,129',  action: () => '<strong>3+ swimmers</strong> at one swim' },
             };
 
             return events.slice(0, 40).map(e => {
-                const cfg    = ICONS[e.action_type] || { icon: 'activity', bg: '56,189,248' };
-                const label  = (TEMPLATES[e.action_type] || (ev => ev.action_type))(e);
+                const cfg   = ACTION_CFG[e.action_type] || { r:'56,189,248', action: ev => ev.action_type };
+                const action = cfg.action(e);
                 const timeAgo = jcTimeAgo(new Date(e.created_at));
-                const isMe   = currentUser && e.user_id === currentUser.id;
-                return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
-                  <div style="width:28px;height:28px;border-radius:8px;background:rgba(${cfg.bg},0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
-                    <i data-lucide="${cfg.icon}" style="width:14px;height:14px;color:rgb(${cfg.bg});"></i>
-                  </div>
+                const isMe  = currentUser && e.user_id === currentUser.id;
+                const isNew = (Date.now() - new Date(e.created_at)) < 300000;
+                const aColor = jcFeedAvatarColor(e.user_id || 'x');
+                const ini   = jcInitials(e.display_name);
+
+                return `<div style="display:flex;align-items:flex-start;gap:11px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+                  <div style="width:38px;height:38px;border-radius:50%;background:rgba(${aColor},0.14);border:${isMe ? '2px solid rgba('+aColor+',0.55)' : '1px solid rgba('+aColor+',0.2)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:800;color:rgb(${aColor});letter-spacing:-0.3px;">${ini.toUpperCase()}</div>
                   <div style="flex:1;min-width:0;">
-                    <div style="font-size:13px;color:${isMe ? 'var(--ocean-light)' : 'var(--text)'};font-weight:${isMe ? '600' : '400'};line-height:1.4;">${label}</div>
-                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${timeAgo} &middot; +${e.points} pts</div>
+                    <div style="font-size:13px;line-height:1.45;color:var(--text);">
+                      <span style="font-weight:800;color:${isMe ? 'rgb('+aColor+')' : 'var(--text)'};">${e.display_name || 'Swimmer'}</span>
+                      <span style="font-weight:400;color:var(--text-secondary);"> ${action}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:7px;margin-top:4px;">
+                      ${isNew ? '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#ef4444;box-shadow:0 0 6px rgba(239,68,68,0.7);flex-shrink:0;"></span>' : ''}
+                      <span style="font-size:11px;color:var(--text-secondary);">${timeAgo}</span>
+                    </div>
                   </div>
+                  <div style="flex-shrink:0;background:rgba(${cfg.r},0.12);border:1px solid rgba(${cfg.r},0.28);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:800;color:rgb(${cfg.r});white-space:nowrap;margin-top:2px;">+${e.points}</div>
                 </div>`;
             }).join('');
         }
