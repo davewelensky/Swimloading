@@ -55,7 +55,13 @@
 
         function jcIsActive() {
             if (!jcConfig || !jcConfig.enabled) return false;
-            if (jcConfig.test_mode) return true;
+            if (jcConfig.test_mode) {
+                // Test mode: only show to whitelisted testers
+                if (!currentUser) return false;
+                const ids = jcConfig.tester_ids || [];
+                return ids.includes(currentUser.id);
+            }
+            // Live mode: anyone, within the challenge window
             const now = new Date();
             const start = new Date(jcConfig.launch_date + 'T00:00:00');
             const end   = new Date(jcConfig.end_date   + 'T23:59:59');
