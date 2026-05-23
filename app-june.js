@@ -425,10 +425,11 @@
 
                 <!-- Prize block — this is why people play -->
                 <div style="background:linear-gradient(135deg,rgba(251,191,36,0.1),rgba(180,83,9,0.08));border:1px solid rgba(251,191,36,0.25);border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;">
-                  <img src="/partners/TheMagic5.jpg" alt="THEMAGIC5" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;border:1px solid rgba(251,191,36,0.3);" onerror="this.style.display='none'">
+                  <img src="/partners/TheMagic5.jpg" alt="THEMAGIC5 Vector Goggles" style="width:52px;height:52px;border-radius:9px;object-fit:cover;flex-shrink:0;border:1px solid rgba(251,191,36,0.35);" onerror="this.style.display='none'">
                   <div style="flex:1;min-width:0;">
-                    <div style="font-size:14px;font-weight:800;color:#fbbf24;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Custom THEMAGIC5 Goggles</div>
-                    <div style="font-size:11px;color:#78350f;font-weight:600;margin-top:2px;">R3,000 value &middot; Grand prize</div>
+                    <div style="font-size:14px;font-weight:800;color:#fbbf24;line-height:1.2;">THEMAGIC5 Vector Goggles</div>
+                    <div style="font-size:11px;color:#d97706;font-weight:600;margin-top:3px;">AI-fitted to your face &middot; R3,000 value</div>
+                    <div style="font-size:10px;color:#78350f;margin-top:1px;">Every point = 1 raffle entry</div>
                   </div>
                   <i data-lucide="trophy" style="width:20px;height:20px;color:#f59e0b;flex-shrink:0;"></i>
                 </div>
@@ -522,8 +523,8 @@
 
                   <!-- Prizes -->
                   <div style="display:flex;gap:6px;margin-bottom:14px;">
-                    <div style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.22);border-radius:8px;padding:8px 10px;font-size:11px;font-weight:700;color:var(--ocean-light);flex:1;text-align:center;">
-                      <div>Custom Goggles</div><div style="font-weight:400;color:var(--text-secondary);margin-top:1px;">THEMAGIC5</div>
+                    <div style="background:linear-gradient(135deg,rgba(251,191,36,0.12),rgba(180,83,9,0.07));border:1px solid rgba(251,191,36,0.3);border-radius:8px;padding:8px 10px;font-size:11px;font-weight:700;color:#fbbf24;flex:1.4;text-align:center;">
+                      <div>Vector Goggles</div><div style="font-weight:600;color:#d97706;margin-top:1px;">THEMAGIC5 &middot; 1st</div>
                     </div>
                     <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;font-size:11px;font-weight:600;color:var(--text);flex:1;text-align:center;">
                       <div>Maurten Pack</div><div style="font-weight:400;color:var(--text-secondary);margin-top:1px;">2nd</div>
