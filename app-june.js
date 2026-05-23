@@ -426,7 +426,7 @@
                 <!-- Prize block — full-width image banner -->
                 <div style="border:1px solid rgba(251,191,36,0.3);border-radius:12px;overflow:hidden;margin-bottom:14px;">
                   <div style="position:relative;height:90px;overflow:hidden;">
-                    <img src="/partners/TheMagic5.webp" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center 70%;display:block;" onerror="this.parentElement.style.background='linear-gradient(135deg,#1a0a00,#0d1728)'">
+                    <img src="/partners/TheMagic5.jpg" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center 70%;display:block;" onerror="this.parentElement.style.background='linear-gradient(135deg,#1a0a00,#0d1728)'">
                     <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,0.7) 0%,rgba(0,0,0,0.2) 60%,rgba(0,0,0,0) 100%);"></div>
                     <div style="position:absolute;inset:0;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;">
                       <div>
