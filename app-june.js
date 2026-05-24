@@ -427,14 +427,14 @@
                 <div style="border:1px solid rgba(251,191,36,0.3);border-radius:12px;overflow:hidden;margin-bottom:14px;">
                   <div style="position:relative;height:130px;overflow:hidden;">
                     <img src="https://themagic5.com/cdn/shop/files/A5A0476-2.webp" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center 55%;display:block;" onerror="this.parentElement.style.background='linear-gradient(135deg,#1a0a00,#0d1728)'">
-                    <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,0.7) 0%,rgba(0,0,0,0.2) 60%,rgba(0,0,0,0) 100%);"></div>
-                    <div style="position:absolute;inset:0;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;">
+                    <div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.35) 55%,rgba(0,0,0,0) 100%);"></div>
+                    <div style="position:absolute;inset:0;padding:10px 14px;display:flex;align-items:flex-end;justify-content:space-between;">
                       <div>
-                        <div style="font-size:13px;font-weight:900;color:#fbbf24;letter-spacing:-0.2px;text-shadow:0 1px 4px rgba(0,0,0,0.8);">THEMAGIC5 Vector Goggles</div>
+                        <div style="font-size:13px;font-weight:900;color:#fbbf24;letter-spacing:-0.2px;text-shadow:0 1px 4px rgba(0,0,0,0.9);">THEMAGIC5 Vector Goggles</div>
                         <div style="font-size:11px;color:#fde68a;font-weight:600;margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">AI-fitted · R3,000 value · Grand prize</div>
-                        <div style="font-size:10px;color:rgba(253,230,138,0.7);margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">Every point = 1 raffle entry</div>
+                        <div style="font-size:10px;color:rgba(253,230,138,0.7);margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">Every point = 1 prize draw entry</div>
                       </div>
-                      <i data-lucide="trophy" style="width:22px;height:22px;color:#f59e0b;flex-shrink:0;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.8));"></i>
+                      <i data-lucide="trophy" style="width:22px;height:22px;color:#f59e0b;flex-shrink:0;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.9));margin-bottom:2px;"></i>
                     </div>
                   </div>
                 </div>
@@ -562,7 +562,7 @@
                           <span style="font-size:13px;font-weight:700;color:var(--ocean-light);white-space:nowrap;margin-left:12px;">+${JC_POINTS[k]}</span>
                         </div>`).join('')}
                       <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;line-height:1.5;">
-                        Every point is also a raffle entry — so every swimmer has a chance to win the THEMAGIC5 goggles.
+                        Every point is also a prize draw entry — so every swimmer has a chance to win the THEMAGIC5 goggles.
                       </div>
                     </div>
                   </div>
