@@ -20,7 +20,10 @@ async function loadUserClubs() {
       loadParentLinks(),
     ]);
 
-    const rows = membersRes.data || [];
+    // Exclude coach-role club_members — coaches access club data via the coach portal,
+    // not the swimmer view. Without this filter, coaches with no roster_id see
+    // "Not linked to roster yet" instead of useful content.
+    const rows = (membersRes.data || []).filter(r => r.role !== 'coach');
 
     if (rows.length) {
       const clubIds = [...new Set(rows.map(r => r.club_id))];

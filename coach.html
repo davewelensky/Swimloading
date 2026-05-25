@@ -719,7 +719,6 @@ let currentClub       = null;
 let coachName         = '';    // display name for the session
 let coachRole         = 'coach'; // 'admin' | 'moderator' | 'coach'
 let coverNeededToday  = new Set(); // 'squadId_startTime' keys for sessions needing cover today
-let initStarted       = false; // guard against double-init (TOKEN_REFRESHED + getSession race)
 
 let allSquads      = [];
 let allWeekSessions= [];   // all club_squad_sessions for this club
@@ -822,21 +821,25 @@ async function init() {
   showScreen('loading');
 
   try {
-    // Handle magic-link returns: Supabase fires SIGNED_IN when the hash tokens are processed
-    sb.auth.onAuthStateChange(async (event, session) => {
-      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session && !initStarted) {
-        initStarted = true;
-        currentUser = session.user;
-        try { await continueInit(); } catch (e) { showInitError(e.message); }
+    // If URL has a magic-link hash, give Supabase up to 3s to exchange it for a session.
+    // DO NOT use onAuthStateChange to trigger boot — causes Supabase v2 auth queue deadlock.
+    if (window.location.hash.includes('access_token')) {
+      let waited = 0;
+      while (waited < 3000) {
+        const { data: { session: s } } = await sb.auth.getSession();
+        if (s) break;
+        await new Promise(r => setTimeout(r, 200));
+        waited += 200;
       }
-    });
+      // Clean up the hash so it doesn't linger
+      window.history.replaceState(null, '', location.pathname);
+    }
 
-    // Check for an existing session (already logged in)
-    const { data: { session } } = await sb.auth.getSession();
+    // getSession() only — no onAuthStateChange (deadlock risk per CLAUDE.md)
+    const { data: { session }, error: sessErr } = await sb.auth.getSession();
+    if (sessErr) throw new Error(sessErr.message);
     if (!session) { showScreen('auth'); return; }
 
-    if (initStarted) return; // auth listener already picked it up
-    initStarted = true;
     currentUser = session.user;
     await continueInit();
   } catch (e) {
