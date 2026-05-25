@@ -719,6 +719,7 @@ let currentClub       = null;
 let coachName         = '';    // display name for the session
 let coachRole         = 'coach'; // 'admin' | 'moderator' | 'coach'
 let coverNeededToday  = new Set(); // 'squadId_startTime' keys for sessions needing cover today
+let initStarted       = false; // guard against double-init (TOKEN_REFRESHED + getSession race)
 
 let allSquads      = [];
 let allWeekSessions= [];   // all club_squad_sessions for this club
@@ -810,23 +811,37 @@ async function sendMagicLink() {
 }
 
 // ── INIT ───────────────────────────────────────────────────────────
+function showInitError(msg) {
+  document.getElementById('authTitle').textContent = 'Something went wrong';
+  document.getElementById('authSub').textContent   = msg || 'Please refresh and try again.';
+  document.getElementById('authForm').style.display = 'none';
+  showScreen('auth');
+}
+
 async function init() {
   showScreen('loading');
 
-  // Handle magic-link returns: Supabase fires SIGNED_IN when the hash tokens are processed
-  sb.auth.onAuthStateChange(async (event, session) => {
-    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session && !currentUser) {
-      currentUser = session.user;
-      await continueInit();
-    }
-  });
+  try {
+    // Handle magic-link returns: Supabase fires SIGNED_IN when the hash tokens are processed
+    sb.auth.onAuthStateChange(async (event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session && !initStarted) {
+        initStarted = true;
+        currentUser = session.user;
+        try { await continueInit(); } catch (e) { showInitError(e.message); }
+      }
+    });
 
-  // Check for an existing session (already logged in)
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) { showScreen('auth'); return; }
+    // Check for an existing session (already logged in)
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { showScreen('auth'); return; }
 
-  currentUser = session.user;
-  await continueInit();
+    if (initStarted) return; // auth listener already picked it up
+    initStarted = true;
+    currentUser = session.user;
+    await continueInit();
+  } catch (e) {
+    showInitError(e.message);
+  }
 }
 
 async function continueInit() {
@@ -839,21 +854,40 @@ async function continueInit() {
     showScreen('auth'); return;
   }
 
-  // Verify access
-  const { data: adminRows } = await sb.from('club_admins')
-    .select('role, clubs(*)')
+  // Verify access — use separate columns to avoid nested join RLS issues
+  const { data: adminRows, error: adminErr } = await sb.from('club_admins')
+    .select('role, club_id')
     .eq('user_id', currentUser.id);
 
-  const membership = (adminRows || []).find(r => r.clubs?.slug === slug);
-  if (!membership) {
+  if (adminErr) throw new Error('Could not verify access: ' + adminErr.message);
+
+  if (!adminRows?.length) {
     document.getElementById('authTitle').textContent = 'No coach access';
-    document.getElementById('authSub').textContent   = 'Ask your club admin (Britt) to add you to the team.';
+    document.getElementById('authSub').textContent   = 'Ask your club admin to add you to the team.';
     document.getElementById('authForm').style.display = 'none';
     showScreen('auth'); return;
   }
 
-  currentClub = membership.clubs;
-  coachRole   = membership.role || 'coach';
+  // Fetch club rows for the club_ids returned
+  const clubIds = adminRows.map(r => r.club_id).filter(Boolean);
+  const { data: clubRows, error: clubErr } = await sb.from('clubs')
+    .select('id, name, slug')
+    .in('id', clubIds);
+
+  if (clubErr) throw new Error('Could not load club data: ' + clubErr.message);
+
+  const matchClub = (clubRows || []).find(c => c.slug === slug);
+  const matchAdmin = matchClub ? adminRows.find(r => r.club_id === matchClub.id) : null;
+
+  if (!matchClub || !matchAdmin) {
+    document.getElementById('authTitle').textContent = 'No coach access';
+    document.getElementById('authSub').textContent   = 'Ask your club admin to add you to the team.';
+    document.getElementById('authForm').style.display = 'none';
+    showScreen('auth'); return;
+  }
+
+  currentClub = matchClub;
+  coachRole   = matchAdmin.role || 'coach';
 
   // Coach name from profile
   const { data: profile } = await sb.from('profiles')
@@ -1756,7 +1790,13 @@ async function saveCoachHealthEvent() {
 }
 
 // ── START ──────────────────────────────────────────────────────────
-init();
+init().catch(e => {
+  console.error('Coach portal init error:', e);
+  document.getElementById('authTitle').textContent = 'Something went wrong';
+  document.getElementById('authSub').textContent   = 'Please refresh and try again.';
+  document.getElementById('authForm').style.display = 'none';
+  try { showScreen('auth'); } catch (_) {}
+});
 </script>
 </body>
 </html>
