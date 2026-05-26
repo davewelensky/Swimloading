@@ -613,8 +613,18 @@
   <!-- Swimmer list -->
   <div style="flex:1;overflow-y:auto;" id="swimmerList"></div>
 
+  <!-- Session note -->
+  <div style="background:var(--bg-card);border-top:1px solid var(--border);padding:8px 16px 0;">
+    <textarea id="sessionNoteInput" rows="1"
+      placeholder="Session note — optional"
+      oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
+      style="width:100%;background:transparent;border:none;outline:none;resize:none;
+             font-size:13px;color:var(--text-sec);font-family:'DM Sans',sans-serif;
+             line-height:1.5;padding:4px 0;overflow:hidden;"></textarea>
+  </div>
+
   <!-- Walk-in / save bar -->
-  <div style="background:var(--bg-card);border-top:1px solid var(--border);padding:12px 16px;display:flex;gap:10px;flex-shrink:0;" class="safe-bottom">
+  <div style="background:var(--bg-card);padding:10px 16px;display:flex;gap:10px;flex-shrink:0;" class="safe-bottom">
     <button class="btn-ghost" onclick="openWalkin()" style="flex:1;padding:12px;">
       <i data-lucide="user-plus" style="width:15px;height:15px;"></i>
       Walk-in
@@ -1465,6 +1475,14 @@ async function startSession() {
   walkinAddedIds = new Set();
   (session.club_attendance || []).forEach(a => { attendanceMarks[a.roster_id] = a.status; });
 
+  // Pre-fill session note if one was saved previously
+  const noteEl = document.getElementById('sessionNoteInput');
+  if (noteEl) {
+    noteEl.value = session.notes || '';
+    noteEl.style.height = 'auto';
+    noteEl.style.height = (noteEl.scrollHeight || 24) + 'px';
+  }
+
   btn.disabled = false;
   btn.innerHTML = '<i data-lucide="play-circle" style="width:18px;height:18px;"></i> Start marking attendance';
   lucide.createIcons();
@@ -1716,8 +1734,14 @@ async function saveAttendance() {
     return;
   }
 
-  const { error } = await sb.from('club_attendance')
-    .upsert(upserts, { onConflict: 'session_id,roster_id' });
+  const sessionNote = (document.getElementById('sessionNoteInput')?.value || '').trim();
+
+  const [{ error }, ] = await Promise.all([
+    sb.from('club_attendance').upsert(upserts, { onConflict: 'session_id,roster_id' }),
+    sessionNote
+      ? sb.from('club_sessions').update({ notes: sessionNote }).eq('id', activeSession.id)
+      : Promise.resolve(),
+  ]);
 
   btn.disabled = false; label.textContent = 'Save attendance';
 
