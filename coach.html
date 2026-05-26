@@ -607,6 +607,9 @@
     </div>
   </div>
 
+  <!-- Pre-session briefing -->
+  <div id="sessionBriefing"></div>
+
   <!-- Swimmer list -->
   <div style="flex:1;overflow-y:auto;" id="swimmerList"></div>
 
@@ -1470,6 +1473,70 @@ function getSessionRoster() {
   return s ? allRoster.filter(r => r.squad_id === s.squad_id) : [];
 }
 
+function renderBriefing(roster) {
+  const el = document.getElementById('sessionBriefing');
+  if (!el) return;
+
+  // Expected count
+  const total = roster.length;
+
+  // Health flags
+  const healthCount = roster.filter(r => (rosterHealthMap[r.id] || []).length > 0).length;
+  const seriousCount = roster.filter(r => (rosterHealthMap[r.id] || []).some(e => e.severity === 'serious')).length;
+
+  // First back (missed last 2, has prior history)
+  const firstBack = roster.filter(r => {
+    const hist = rosterAttendanceHistory[r.id] || [];
+    const histByDate = {};
+    hist.forEach(h => { histByDate[h.session_date] = h.status; });
+    const lastTwo = recentSessionDates.slice(0, 2).map(d => histByDate[d] || null);
+    const hadHistory = hist.some(h => h.status === 'present');
+    return lastTwo.length >= 2 && lastTwo.every(d => d && d !== 'present') && hadHistory;
+  });
+
+  // Longest streak
+  let topStreak = null;
+  roster.forEach(r => {
+    const hist = rosterAttendanceHistory[r.id] || [];
+    const histByDate = {};
+    hist.forEach(h => { histByDate[h.session_date] = h.status; });
+    const dots = recentSessionDates.map(d => histByDate[d] || null);
+    const streakEnd = dots.findIndex(d => d !== 'present');
+    const streak = streakEnd === -1 ? dots.length : streakEnd;
+    if (streak >= 5 && (!topStreak || streak > topStreak.count)) {
+      topStreak = { name: r.display_name?.split(' ')[0], count: streak };
+    }
+  });
+
+  // Build pills
+  const pills = [];
+
+  pills.push(`<span style="font-size:12px;font-weight:700;color:var(--text-sec);">${total} expected</span>`);
+
+  if (seriousCount > 0) {
+    pills.push(`<span style="font-size:12px;font-weight:700;color:var(--danger);background:rgba(239,68,68,0.1);padding:3px 8px;border-radius:4px;">${seriousCount} serious health flag${seriousCount > 1 ? 's' : ''}</span>`);
+  } else if (healthCount > 0) {
+    pills.push(`<span style="font-size:12px;font-weight:700;color:var(--amber);background:rgba(245,158,11,0.08);padding:3px 8px;border-radius:4px;">${healthCount} health flag${healthCount > 1 ? 's' : ''}</span>`);
+  }
+
+  if (firstBack.length > 0) {
+    const names = firstBack.slice(0, 2).map(r => r.display_name?.split(' ')[0]).join(', ');
+    const extra = firstBack.length > 2 ? ` +${firstBack.length - 2}` : '';
+    pills.push(`<span style="font-size:12px;font-weight:700;color:var(--cyan);background:rgba(56,189,248,0.08);padding:3px 8px;border-radius:4px;">Back: ${names}${extra}</span>`);
+  }
+
+  if (topStreak) {
+    pills.push(`<span style="font-size:12px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.08);padding:3px 8px;border-radius:4px;">${topStreak.name} — ${topStreak.count} straight</span>`);
+  }
+
+  if (pills.length <= 1 && !healthCount && !firstBack.length) {
+    el.innerHTML = '';
+    return;
+  }
+
+  el.innerHTML = `<div style="padding:10px 20px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.015);">${pills.join('')}</div>`;
+}
+
 function renderMarkScreen() {
   const s   = activeSqSession;
   const sq  = allSquads.find(q => q.id === s?.squad_id);
@@ -1478,6 +1545,7 @@ function renderMarkScreen() {
 
   const roster = getSessionRoster();
   updateProgress(roster);
+  renderBriefing(roster);
 
   const swimmerList = document.getElementById('swimmerList');
   if (!roster.length) {
