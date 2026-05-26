@@ -165,6 +165,27 @@
       display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px;
     }
 
+    /* Attendance history dots */
+    .att-dots {
+      display: flex; align-items: center; gap: 3px; margin-top: 5px;
+    }
+    .att-dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    }
+    .att-dot-present  { background: #10b981; }
+    .att-dot-nc       { background: #ef4444; }
+    .att-dot-no_show  { background: #ef4444; opacity: 0.6; }
+    .att-dot-notice   { background: #f59e0b; }
+    .att-dot-away     { background: #94a3b8; }
+    .att-dot-dnp      { background: #64748b; }
+    .att-dot-missed   { background: rgba(255,255,255,0.12); }
+    .att-tag {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.3px;
+      margin-left: 5px; padding: 1px 5px; border-radius: 3px;
+    }
+    .att-tag-back  { color: #38bdf8; background: rgba(56,189,248,0.12); }
+    .att-tag-streak { color: #10b981; background: rgba(16,185,129,0.12); }
+
     .badge-trial {
       font-size: 9px; font-weight: 800;
       background: rgba(239,68,68,0.12); color: var(--danger);
@@ -734,6 +755,8 @@ let selectedDate    = localDateStr(); // YYYY-MM-DD, defaults to today (local ti
 let activeSqSession = null; // the club_squad_sessions template being opened
 let activeSession   = null; // the club_sessions instance (created/found)
 let attendanceMarks = {};   // roster_id → status
+let recentSessionDates = []; // last 6 session dates for active squad (newest first)
+let rosterAttendanceHistory = {}; // roster_id → [{session_date, status}, ...]
 let walkinQuery     = '';
 let walkinNewIds    = new Set(); // roster IDs created fresh this session (can be DB-deleted on remove)
 let walkinAddedIds  = new Set(); // roster IDs added from another squad this session (local remove only)
@@ -1337,6 +1360,46 @@ async function cantMakeIt() {
 }
 
 // ── START SESSION ──────────────────────────────────────────────────
+// ── ATTENDANCE HISTORY (for dots) ─────────────────────────────────
+async function loadAttendanceHistory() {
+  recentSessionDates = [];
+  rosterAttendanceHistory = {};
+  if (!activeSqSession) return;
+
+  // Get last 6 sessions for this squad (before today's selected date)
+  const { data: sessions } = await sb.from('club_sessions')
+    .select('id, session_date')
+    .eq('club_id', currentClub.id)
+    .eq('squad_id', activeSqSession.squad_id)
+    .lt('session_date', selectedDate)
+    .order('session_date', { ascending: false })
+    .limit(6);
+
+  if (!sessions?.length) return;
+  recentSessionDates = sessions.map(s => s.session_date); // newest first
+
+  // Get all attendance records for those sessions
+  const sessionIds = sessions.map(s => s.id);
+  const { data: records } = await sb.from('club_attendance')
+    .select('roster_id, status, session_id')
+    .in('session_id', sessionIds);
+
+  if (!records?.length) return;
+
+  // Build map: session_id → session_date
+  const sessionDateMap = {};
+  sessions.forEach(s => { sessionDateMap[s.id] = s.session_date; });
+
+  // Build per-roster history
+  records.forEach(rec => {
+    if (!rosterAttendanceHistory[rec.roster_id]) rosterAttendanceHistory[rec.roster_id] = [];
+    rosterAttendanceHistory[rec.roster_id].push({
+      session_date: sessionDateMap[rec.session_id],
+      status: rec.status
+    });
+  });
+}
+
 async function startSession() {
   const btn = document.getElementById('confirmStartBtn');
   btn.disabled = true;
@@ -1396,6 +1459,7 @@ async function startSession() {
   btn.innerHTML = '<i data-lucide="play-circle" style="width:18px;height:18px;"></i> Start marking attendance';
   lucide.createIcons();
 
+  await loadAttendanceHistory();
   renderMarkScreen();
   showScreen('mark');
 }
@@ -1466,10 +1530,45 @@ function swimmerRowHTML(r) {
   const hasSeriousH = healthEvents.some(e => e.severity === 'serious');
   const healthBtnCls = hasSeriousH ? 'has-serious' : hasHealth ? 'has-issue' : '';
 
+  // ── Attendance history dots ────────────────────────────────────────
+  const history = rosterAttendanceHistory[r.id] || [];
+  const historyByDate = {};
+  history.forEach(h => { historyByDate[h.session_date] = h.status; });
+
+  let dotsHTML = '';
+  if (recentSessionDates.length) {
+    const dotCls = s => {
+      if (!s) return 'missed';
+      if (s === 'present')  return 'present';
+      if (s === 'nc')       return 'nc';
+      if (s === 'no_show')  return 'no_show';
+      if (s === 'notice')   return 'notice';
+      if (s === 'away')     return 'away';
+      return 'dnp';
+    };
+    const dots = recentSessionDates.map(date => historyByDate[date] || null);
+
+    // Contextual tag
+    let tag = '';
+    const presentTotal = dots.filter(d => d === 'present').length;
+    const lastTwo = dots.slice(0, 2).every(d => d && d !== 'present');
+    if (lastTwo && presentTotal > 0) {
+      tag = `<span class="att-tag att-tag-back">FIRST BACK</span>`;
+    } else {
+      const streakLen = dots.findIndex(d => d !== 'present');
+      const streak = streakLen === -1 ? dots.length : streakLen;
+      if (streak >= 4) tag = `<span class="att-tag att-tag-streak">${streak} IN A ROW</span>`;
+    }
+
+    const dotSpans = dots.map(d => `<span class="att-dot att-dot-${dotCls(d)}" title="${d || 'no record'}"></span>`).join('');
+    dotsHTML = `<div class="att-dots">${dotSpans}${tag}</div>`;
+  }
+
   return `<div class="swimmer-row ${statusClass}" id="row-${r.id}">
     <div class="swimmer-name">
       <div class="name">${r.display_name || '—'}</div>
       ${badges ? `<div class="badges">${badges}</div>` : ''}
+      ${dotsHTML}
     </div>
     <button class="health-log-btn ${healthBtnCls}" onclick="openHealthModal('${r.id}', '${(r.display_name||'').replace(/'/g,"\\'")}')">
       <i data-lucide="${hasHealth ? 'activity' : 'plus'}" style="width:13px;height:13px;"></i>
