@@ -666,8 +666,15 @@
     <h2>Attendance saved</h2>
     <p id="doneSummary">Saved for the register.</p>
     <div style="margin-top:24px;display:flex;flex-direction:column;gap:10px;width:100%;">
-      <button class="btn-primary" onclick="showScreen('home')">
-        <i data-lucide="calendar" style="width:16px;height:16px;"></i>
+      <button class="btn-primary" id="waShareBtn">
+        <i data-lucide="share-2" style="width:16px;height:16px;"></i>
+        Share to WhatsApp
+      </button>
+      <button class="btn-ghost" id="copyShareBtn">
+        <i data-lucide="copy" style="width:16px;height:16px;"></i>
+        Copy summary
+      </button>
+      <button class="btn-ghost" onclick="showScreen('home')" style="margin-top:4px;">
         Back to sessions
       </button>
     </div>
@@ -1716,9 +1723,42 @@ async function saveAttendance() {
 
   if (error) { toast('Error saving: ' + error.message, 'error'); return; }
 
-  const presentCount = upserts.filter(u => u.status === 'present').length;
+  const presentCount  = upserts.filter(u => u.status === 'present').length;
+  const ncCount       = upserts.filter(u => u.status === 'nc').length;
+  const noticeCount   = upserts.filter(u => u.status === 'notice').length;
+  const awayCount     = upserts.filter(u => u.status === 'away').length;
+  const noShowCount   = upserts.filter(u => u.status === 'no_show').length;
+  const totalRoster   = getSessionRoster().length;
+
   document.getElementById('doneSummary').textContent =
-    `${presentCount} present, ${upserts.length - presentCount} absent — register saved for ${currentClub.name}.`;
+    `${presentCount} of ${totalRoster} present — register saved.`;
+
+  // Build WhatsApp message
+  const sq      = allSquads.find(q => q.id === activeSqSession?.squad_id);
+  const dateObj = new Date(selectedDate + 'T00:00:00');
+  const dayStr  = dateObj.toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'short' });
+  const timeStr = activeSqSession?.start_time
+    ? activeSqSession.start_time.slice(0,5).replace(/^0/, '').replace(':00','') + (parseInt(activeSqSession.start_time) < 12 ? 'am' : 'pm')
+    : '';
+
+  const lines = [
+    `${sq?.name || 'Squad'} · ${dayStr}${timeStr ? ' ' + timeStr : ''}`,
+    '',
+    `Present:  ${presentCount} / ${totalRoster}`,
+  ];
+  if (ncCount)     lines.push(`NC:       ${ncCount}`);
+  if (noticeCount) lines.push(`Notice:   ${noticeCount}`);
+  if (awayCount)   lines.push(`Away:     ${awayCount}`);
+  if (noShowCount) lines.push(`No show:  ${noShowCount}`);
+  lines.push('', 'Logged on SwimLoading');
+
+  const msgText = lines.join('\n');
+  const waUrl   = 'https://wa.me/?text=' + encodeURIComponent(msgText);
+
+  document.getElementById('waShareBtn').onclick = () => window.open(waUrl, '_blank');
+  document.getElementById('copyShareBtn').onclick = () => {
+    navigator.clipboard.writeText(msgText).then(() => toast('Copied to clipboard'));
+  };
 
   showScreen('done');
 }
