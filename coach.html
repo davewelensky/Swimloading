@@ -726,7 +726,10 @@ let allRoster      = [];   // club_roster rows for this club
 let allWeekAssign  = {};   // session_id → [roster_id, ...]
 let rosterHealthMap = {};  // roster_id → active swimmer_health_events[]
 
-let selectedDate    = new Date().toISOString().slice(0, 10); // YYYY-MM-DD, defaults to today
+function localDateStr(d = new Date()) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+let selectedDate    = localDateStr(); // YYYY-MM-DD, defaults to today (local time, not UTC)
 
 let activeSqSession = null; // the club_squad_sessions template being opened
 let activeSession   = null; // the club_sessions instance (created/found)
@@ -972,9 +975,10 @@ async function loadClubData() {
 async function shiftDate(days) {
   const d = new Date(selectedDate + 'T00:00:00');
   d.setDate(d.getDate() + days);
-  const todayStr = new Date().toISOString().slice(0, 10);
-  if (d.toISOString().slice(0, 10) > todayStr) return;
-  selectedDate = d.toISOString().slice(0, 10);
+  const todayStr = localDateStr();
+  const shifted  = localDateStr(d);
+  if (shifted > todayStr) return;
+  selectedDate = shifted;
   await loadCoverStatus();
   renderHome();
 }
@@ -985,7 +989,7 @@ function renderHome() {
   document.getElementById('homeGreeting').textContent = greeting() + ', ' + coachName.split(' ')[0];
 
   const selDate   = new Date(selectedDate + 'T00:00:00');
-  const todayStr  = new Date().toISOString().slice(0, 10);
+  const todayStr  = localDateStr();
   const isToday   = selectedDate === todayStr;
   const now       = new Date();
 
