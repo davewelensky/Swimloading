@@ -1546,6 +1546,73 @@
 
             section.style.display = 'block';
 
+            // Fetch active challenges for this user's clubs and compute their points
+            const _clIds = memberships.map(m => m.clubs?.id).filter(Boolean);
+            const _today = new Date().toISOString().slice(0, 10);
+            const { data: _challenges } = await supabaseClient
+                .from('club_challenges')
+                .select('id, club_id, title, end_date, start_date, scoring_actions, winner_type')
+                .in('club_id', _clIds)
+                .eq('status', 'active')
+                .gte('end_date', _today);
+
+            const _ucp = {}; // challenge_id → user's computed points
+            if (_challenges && _challenges.length > 0) {
+                for (const _c of _challenges) {
+                    let _pts = 0;
+                    const _acts = Array.isArray(_c.scoring_actions) ? _c.scoring_actions : [];
+
+                    // temp_log points
+                    const _ta = _acts.find(a => a.type === 'temp_log' && a.enabled && a.auto);
+                    if (_ta) {
+                        const { count: _tc } = await supabaseClient.from('temp_logs')
+                            .select('*', { count: 'exact', head: true })
+                            .eq('created_by', currentUser.id)
+                            .gte('created_at', _c.start_date)
+                            .lte('created_at', _c.end_date + 'T23:59:59Z');
+                        _pts += (_tc || 0) * _ta.points;
+                    }
+
+                    // join_swim points (two-step: get event IDs then participant count)
+                    const _ja = _acts.find(a => a.type === 'join_swim' && a.enabled && a.auto);
+                    if (_ja) {
+                        const { data: _eids } = await supabaseClient.from('swim_events')
+                            .select('id').gte('date', _c.start_date).lte('date', _c.end_date);
+                        if (_eids && _eids.length > 0) {
+                            const { count: _jc } = await supabaseClient.from('swim_participants')
+                                .select('*', { count: 'exact', head: true })
+                                .eq('user_id', currentUser.id)
+                                .in('swim_event_id', _eids.map(e => e.id))
+                                .in('status', ['rsvp', 'going']);
+                            _pts += (_jc || 0) * _ja.points;
+                        }
+                    }
+
+                    // create_swim points
+                    const _sa = _acts.find(a => a.type === 'create_swim' && a.enabled && a.auto);
+                    if (_sa) {
+                        const { count: _sc } = await supabaseClient.from('swim_events')
+                            .select('*', { count: 'exact', head: true })
+                            .eq('created_by', currentUser.id)
+                            .gte('date', _c.start_date).lte('date', _c.end_date);
+                        _pts += (_sc || 0) * _sa.points;
+                    }
+
+                    // manual / custom action points
+                    const { data: _mp } = await supabaseClient.from('club_challenge_points')
+                        .select('points').eq('challenge_id', _c.id).eq('user_id', currentUser.id);
+                    if (_mp) _pts += _mp.reduce((s, r) => s + r.points, 0);
+
+                    _ucp[_c.id] = _pts;
+                }
+            }
+            // Build club_id → challenges[] map for fast render lookup
+            const _cbc = {};
+            (_challenges || []).forEach(_c => {
+                if (!_cbc[_c.club_id]) _cbc[_c.club_id] = [];
+                _cbc[_c.club_id].push({ ..._c, _userPts: _ucp[_c.id] || 0 });
+            });
+
             const CAT_COLORS = {
                 Guppies:     { color: '#34d399', bg: 'rgba(52,211,153,0.1)',  border: 'rgba(52,211,153,0.25)' },
                 Sailfish:    { color: '#38bdf8', bg: 'rgba(56,189,248,0.1)',  border: 'rgba(56,189,248,0.25)' },
@@ -1561,6 +1628,29 @@
                 const catCfg = cat ? (CAT_COLORS[cat] || { color: '#38bdf8', bg: 'rgba(56,189,248,0.1)', border: 'rgba(56,189,248,0.25)' }) : null;
                 const isAdmin = m.role === 'admin' || m.role === 'organiser';
                 const joinDate = new Date(m.joined_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' });
+
+                // Active challenge cards for this club
+                const _clChallenges = _cbc[club.id] || [];
+                const _challengeHtml = _clChallenges.map(_ch => {
+                    const _dl = Math.max(0, Math.ceil((new Date(_ch.end_date) - new Date()) / 86400000));
+                    const _wl = _ch.winner_type === 'draw_entries' ? 'entries' : 'pts';
+                    return `<div style="margin-top:10px;background:rgba(250,204,21,0.05);border:1px solid rgba(250,204,21,0.2);border-radius:10px;padding:12px 14px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <i data-lucide="zap" style="width:13px;height:13px;color:#facc15;flex-shrink:0;"></i>
+                                <span style="font-size:13px;font-weight:700;color:#facc15;">${_ch.title}</span>
+                            </div>
+                            <span style="font-size:10px;font-weight:700;background:rgba(250,204,21,0.12);color:#facc15;border:1px solid rgba(250,204,21,0.25);padding:2px 8px;border-radius:6px;white-space:nowrap;">${_dl > 0 ? _dl + 'd left' : 'Ends today'}</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:8px 14px;text-align:center;min-width:56px;">
+                                <div style="font-size:22px;font-weight:800;color:#facc15;font-family:monospace;line-height:1;">${_ch._userPts}</div>
+                                <div style="font-size:9px;color:var(--text-secondary);margin-top:2px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">${_wl}</div>
+                            </div>
+                            <div style="flex:1;font-size:11px;color:var(--text-secondary);line-height:1.5;">Log water temps &amp; join swims to earn points</div>
+                        </div>
+                    </div>`;
+                }).join('');
 
                 return `
                 <div style="background:rgba(56,189,248,0.04);border:1px solid rgba(56,189,248,0.15);border-radius:14px;padding:16px;margin-bottom:10px;">
@@ -1601,6 +1691,7 @@
                             <i data-lucide="settings" style="width:13px;height:13px;"></i>Admin
                         </a>` : ''}
                     </div>
+                    ${_challengeHtml}
                 </div>`;
             }).join('');
 

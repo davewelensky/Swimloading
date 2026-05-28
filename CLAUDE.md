@@ -2,6 +2,52 @@
 
 > **Adding a region, spot, or international domain?** See [EXPANDING.md](EXPANDING.md) — it has the complete checklist, hardcode map, and cross-app consistency checks.
 
+---
+
+## CLUB PLATFORM — MANDATORY RULES (read before any club code change)
+
+These rules apply to every change touching `club-admin.html`, `coach.html`, `sets.html`, or any club guide page (`duc-guide.html`, `aquasharks-guide.html`, etc.).
+
+### Before making ANY club change, state all three out loud:
+1. **Which club asked for this?** (DUC or Aquasharks — name it explicitly)
+2. **Which feature flag gates it?** (e.g. `hasSquads`, `hasParentLanguage`, `hasLeague` — name it)
+3. **Does this touch shared code?** If yes, confirm with the user before proceeding.
+
+If you cannot answer all three — stop and ask.
+
+### The two clubs are completely separate products that share a codebase:
+
+| | DUC | Aquasharks |
+|---|---|---|
+| Type | `open_water` | `swim_club` |
+| Slug | `duc` | `aqua-sharks-atlantic` |
+| What it is | Open water SWIMMING club, adult members, monthly league races | Competitive pool club, youth + adult squads, Cape Town |
+| Has squads | NO | YES |
+| Has parents | NO | YES |
+| Has attendance | NO | YES |
+| Has sets planner | NO | YES |
+| Has league | YES | NO |
+| Has temp challenge | YES | NO |
+
+### Feature flags (clubs.features JSONB → window._clubFeatures):
+- `hasLeague` — League tab — DUC only
+- `hasTempChallenge` — Temp Challenge tab — DUC only
+- `hasSquads` — Squad Tracker, Sets Planner, Health — Aquasharks only
+- `hasTimetable` — Timetable settings — Aquasharks only
+- `hasAttendance` — Attendance tab — Aquasharks only
+- `hasGalaEntries` — Entries tab — Aquasharks only
+- `hasCoachingStaff` — Coaching staff card — Aquasharks only
+- `hasParentLanguage` — Parent portal, parent matching — Aquasharks only
+
+### Hard rules:
+- A feature built for one club is NEVER added to the other club without an explicit request
+- Every new feature in shared files MUST be gated behind a feature flag — no un-gated code
+- DUC is NOT a diving club. It is an open water swimming club with ~637 adult members
+- Aquasharks admin login is `britt@k8coaching.co.za` — never create a second auth account
+- Roster matching requires first name AND surname overlap — a shared first name alone is never a match
+
+---
+
 ## Architecture Overview (Split April 2026)
 
 The codebase was split from a single 12,300-line `index.html` into modular files to prevent crashes and improve maintainability.
