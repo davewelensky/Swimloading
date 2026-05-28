@@ -6271,12 +6271,23 @@ function _analyzeMatch(profileName, rosterName) {
 
   const shared = wa.filter(w => wb.includes(w));
   const score  = shared.length / Math.max(wa.length, wb.length);
-  if (score < 0.4) return { score, type: null };
 
-  // Same first name → likely the swimmer themselves
-  // Different first name but shared surname → likely a parent
   const firstMatch = wa[0] === wb[0];
-  return { score, type: firstMatch ? 'swimmer' : 'parent' };
+
+  // For multi-word names (the common case on large rosters) require BOTH first
+  // name AND at least one surname word to match. A shared first name alone
+  // (score 0.5) produces far too many false positives on 600+ member rosters.
+  if (wa.length >= 2 && wb.length >= 2) {
+    const surnameOverlap = wa.slice(1).filter(w => wb.slice(1).includes(w));
+    if (surnameOverlap.length === 0) return { score, type: null }; // no surname match → skip
+    if (firstMatch) return { score, type: 'swimmer' };
+    // Shared surname but different first name → possible parent
+    return { score, type: 'parent' };
+  }
+
+  // Single-word names: exact match only
+  if (score < 1.0) return { score, type: null };
+  return { score, type: 'swimmer' };
 }
 
 async function loadSuggestedMatches() {
