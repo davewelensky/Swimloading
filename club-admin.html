@@ -6263,7 +6263,7 @@ async function loadRoster() {
 // Fetch recent SwimLoading signups (last 14 days), classify as
 // swimmer (same first name) or likely parent (shared surname only).
 
-function _analyzeMatch(profileName, rosterName) {
+function _analyzeMatch(profileName, rosterName, { allowParents = false } = {}) {
   const norm = s => (s || '').toLowerCase().replace(/[^a-z ]/g, '').trim();
   const wa = norm(profileName).split(/\s+/).filter(Boolean);
   const wb = norm(rosterName).split(/\s+/).filter(Boolean);
@@ -6274,15 +6274,17 @@ function _analyzeMatch(profileName, rosterName) {
 
   const firstMatch = wa[0] === wb[0];
 
-  // For multi-word names (the common case on large rosters) require BOTH first
-  // name AND at least one surname word to match. A shared first name alone
-  // (score 0.5) produces far too many false positives on 600+ member rosters.
+  // For multi-word names require BOTH first name AND at least one surname word
+  // to match. A shared first name alone (score 0.5) causes far too many false
+  // positives on large rosters (e.g. "Emma Brownlee" → "EMMA RANDALL").
   if (wa.length >= 2 && wb.length >= 2) {
     const surnameOverlap = wa.slice(1).filter(w => wb.slice(1).includes(w));
-    if (surnameOverlap.length === 0) return { score, type: null }; // no surname match → skip
+    if (surnameOverlap.length === 0) return { score, type: null };
     if (firstMatch) return { score, type: 'swimmer' };
-    // Shared surname but different first name → possible parent
-    return { score, type: 'parent' };
+    // Shared surname, different first name → parent (only for clubs that have
+    // a parent portal — irrelevant for adult clubs like DUC).
+    if (allowParents) return { score, type: 'parent' };
+    return { score, type: null };
   }
 
   // Single-word names: exact match only
@@ -6298,19 +6300,24 @@ async function loadSuggestedMatches() {
   const unlinked  = allRoster.filter(r => !r.user_id);
   if (!unlinked.length) { banner.innerHTML = ''; return; }
 
+  const allowParents = !!(window._clubFeatures?.hasParentLanguage);
+
   const since = new Date(Date.now() - 14 * 86400000).toISOString();
-  const [profilesRes, membersRes, parentLinksRes] = await Promise.all([
+  const queries = [
     sb.from('profiles').select('id, display_name, email, created_at')
       .gte('created_at', since).not('display_name', 'is', null)
       .order('created_at', { ascending: false }).limit(100),
     sb.from('club_members').select('user_id').eq('club_id', currentClub.id),
-    sb.from('parent_roster_links').select('parent_user_id').eq('club_id', currentClub.id),
-  ]);
+  ];
+  // Only fetch parent links for clubs that actually have a parent portal
+  if (allowParents) queries.push(sb.from('parent_roster_links').select('parent_user_id').eq('club_id', currentClub.id));
+
+  const [profilesRes, membersRes, parentLinksRes] = await Promise.all(queries);
 
   if (!profilesRes.data?.length) { banner.innerHTML = ''; return; }
 
   const alreadyMember = new Set((membersRes.data || []).map(m => m.user_id));
-  const alreadyParent = new Set((parentLinksRes.data || []).map(l => l.parent_user_id));
+  const alreadyParent = new Set((parentLinksRes?.data || []).map(l => l.parent_user_id));
 
   const candidates = profilesRes.data.filter(p =>
     !alreadyMember.has(p.id) && !alreadyParent.has(p.id)
@@ -6322,7 +6329,7 @@ async function loadSuggestedMatches() {
   for (const prof of candidates) {
     let best = null, bestScore = 0, bestType = null;
     for (const r of unlinked) {
-      const { score, type } = _analyzeMatch(prof.display_name, r.display_name);
+      const { score, type } = _analyzeMatch(prof.display_name, r.display_name, { allowParents });
       if (score > bestScore) { bestScore = score; best = r; bestType = type; }
     }
     if (best && bestType) {
@@ -6376,9 +6383,10 @@ async function loadSuggestedMatches() {
       </div>`;
   }
 
+  const memberLabel = allowParents ? 'Swimmers' : 'Members';
   const swimSection = swimmers.length ? `
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--cyan);margin-bottom:8px;">
-      <i data-lucide="waves" style="width:12px;height:12px;"></i> Swimmers — ${swimmers.length}
+      <i data-lucide="${allowParents ? 'waves' : 'users'}" style="width:12px;height:12px;"></i> ${memberLabel} — ${swimmers.length}
     </div>
     ${swimmers.map(rowHtml).join('')}` : '';
 
@@ -6398,7 +6406,9 @@ async function loadSuggestedMatches() {
         </span>
       </div>
       <div style="font-size:12px;color:var(--text-sec);margin-bottom:14px;">
-        Swimmers: confirm their roster link. Likely parents: set them up with parent access to their swimmer.
+        ${allowParents
+          ? 'Swimmers: confirm their roster link. Likely parents: set them up with parent access to their swimmer.'
+          : 'Confirm their roster link to connect their SwimLoading account to your member database.'}
       </div>
       <div id="suggestedMatchList">${swimSection}${parentSection}</div>
     </div>`;
