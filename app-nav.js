@@ -75,11 +75,17 @@
             const el = document.getElementById('monthlyChallenge');
             if (!el) return;
 
-            // Delegate to June Challenge when it's active
+            // Delegate to June Challenge only once the date window is open
+            // (test_mode allows point awarding early but the board waits for launch_date)
             await jcInit();
             if (jcIsActive()) {
-                jcLoadBoardSection();
-                return;
+                const launchDate = jcConfig?.launch_date
+                    ? new Date(jcConfig.launch_date + 'T00:00:00')
+                    : new Date('2026-06-01');
+                if (new Date() >= launchDate) {
+                    jcLoadBoardSection();
+                    return;
+                }
             }
 
             const { now, monthStart, monthEnd, daysLeft, monthName, isLive, daysToLaunch } = getMonthWindow();
@@ -725,35 +731,7 @@
         // ─── End Monthly Challenge ──────────────────────────────────────────────
 
         async function loadLeaderboard() {
-            loadMonthlyChallenge(); // non-blocking — renders monthly challenge section
-            const listEl = document.getElementById('leaderboardList');
-
-            try {
-                // Fetch top swimmers by points
-                const { data, error } = await supabaseClient
-                    .from('user_stats')
-                    .select('user_id, points, profiles(display_name)')
-                    .gt('points', 0)
-                    .order('points', { ascending: false })
-                    .limit(10);
-
-                if (error) {
-                    console.error('Leaderboard error:', error);
-                    listEl.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 20px;">
-                        Could not load leaderboard<br>
-                        <small style="color: var(--text-secondary);">${error.message}</small>
-                    </div>`;
-                } else if (!data || data.length === 0) {
-                    listEl.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px;">No swimmers on the leaderboard yet. Log a temperature to earn points!</div>';
-                } else {
-                    listEl.innerHTML = renderLeaderboardList(data, 'points');
-                    initIcons();
-                }
-
-            } catch (err) {
-                console.error('Leaderboard error:', err);
-                listEl.innerHTML = '<div style="text-align: center; color: var(--danger); padding: 20px;">Error loading leaderboard</div>';
-            }
+            loadMonthlyChallenge();
         }
 
         function renderLeaderboardList(data, pointsField) {

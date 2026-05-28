@@ -1,38 +1,39 @@
-        // ── June Community Challenge ────────────────────────────────────────────────
+        // ── June Community Challenge v2 ──────────────────────────────────────────────
         // Feature-flagged via june_challenge_config table (id=1)
-        // test_mode=true  → visible to all logged-in users, labelled TEST
+        // test_mode=true  → visible to tester_ids only, labelled TEST
         // test_mode=false → live publicly, 1 Jun – 30 Jun 2026
         //
+        // All scoring goes through award_challenge_points RPC (Postgres SECURITY DEFINER).
+        // The RPC inserts into challenge_points_audit (audit trail) and
+        // june_challenge_events (live feed). No direct client inserts.
+        //
         // Hooks in app.js call jcAwardPoints() after each scoring action.
-        // This file owns: config loading, scoring, feed, leaderboard, overlay UI.
         // ────────────────────────────────────────────────────────────────────────────
 
         let jcConfig = null;
         let jcConfigLoaded = false;
-        let jcMyScore = null; // { points, rank, personAboveName, personAbovePts }
+        let jcMyScore = null;
 
+        // Points and labels come from the DB (june_challenge_config columns).
+        // These JS constants are display-only — the authoritative values are in the DB.
         const JC_POINTS = {
-            temp_log:       10,
-            create_swim:    25,
-            attend_swim:    20,
-            new_spot:       15,
-            hazard_report:  15,
+            temp_log:       15,
+            create_swim:    15,
+            join_swim:      20,
+            creator_bonus:  10,
             whatsapp_share:  5,
             streak_3day:    20,
-            dormant_spot:   30,
-            group_bonus:    10,
+            streak_7day:    50,
         };
 
         const JC_ACTION_LABELS = {
-            temp_log:       'Log conditions',
-            create_swim:    'Create a community swim',
-            attend_swim:    'Attend a swim',
-            new_spot:       'Log a new spot first',
-            hazard_report:  'Report a hazard',
+            temp_log:       'Log a temp',
+            create_swim:    'Create a swim',
+            join_swim:      'Join a swim',
+            creator_bonus:  'Someone joins your swim',
             whatsapp_share: 'Share to WhatsApp',
             streak_3day:    '3-day logging streak',
-            dormant_spot:   'Activate dormant spot (30+ days)',
-            group_bonus:    '3+ swimmers at a swim',
+            streak_7day:    '7-day logging streak',
         };
 
         // ── Init & config ───────────────────────────────────────────────────────────
@@ -56,12 +57,10 @@
         function jcIsActive() {
             if (!jcConfig || !jcConfig.enabled) return false;
             if (jcConfig.test_mode) {
-                // Test mode: only show to whitelisted testers
                 if (!currentUser) return false;
                 const ids = jcConfig.tester_ids || [];
                 return ids.includes(currentUser.id);
             }
-            // Live mode: anyone, within the challenge window
             const now = new Date();
             const start = new Date(jcConfig.launch_date + 'T00:00:00');
             const end   = new Date(jcConfig.end_date   + 'T23:59:59');
@@ -77,136 +76,71 @@
             };
         }
 
-        // ── Award points (called from app.js after each action) ─────────────────────
+        // ── Award points (calls server-side RPC) ─────────────────────────────────────
+        // opts: { spotId, spotName, refId, temp, metadata }
+        // Returns the RPC result: { awarded, points, total_points, draw_entries, reason }
 
         async function jcAwardPoints(actionType, opts = {}) {
-            // opts: { spotId, spotName, refId, temp, metadata }
-            await jcInit(); // ensure config is loaded before checking isActive
-            if (!jcIsActive()) return;
-            if (!currentUser) return;
+            await jcInit();
+            if (!jcIsActive()) return null;
+            if (!currentUser) return null;
 
-            const pts = JC_POINTS[actionType];
-            if (!pts) return;
+            const sourceTableMap = {
+                temp_log:       'temp_logs',
+                create_swim:    'swim_events',
+                join_swim:      'swim_participants',
+                creator_bonus:  'swim_events',
+                whatsapp_share: 'share_conversions',
+                streak_3day:    null,
+                streak_7day:    null,
+            };
 
-            const displayName = currentUserProfile?.display_name || 'Swimmer';
+            const metadata = {};
+            if (opts.spotId)   metadata.spot_id   = opts.spotId;
+            if (opts.spotName) metadata.spot_name = opts.spotName;
+            if (opts.temp)     metadata.temp       = opts.temp;
+            if (opts.metadata) Object.assign(metadata, opts.metadata);
 
             try {
-                const { error } = await supabaseClient.from('june_challenge_events').insert({
-                    user_id:      currentUser.id,
-                    display_name: displayName,
-                    action_type:  actionType,
-                    points:       pts,
-                    spot_id:      opts.spotId   || null,
-                    spot_name:    opts.spotName || null,
-                    ref_id:       opts.refId    || null,
-                    metadata:     opts.metadata || {},
+                const { data: result, error } = await supabaseClient.rpc('award_challenge_points', {
+                    p_user_id:          currentUser.id,
+                    p_action_type:      actionType,
+                    p_source_table:     sourceTableMap[actionType] || null,
+                    p_source_record_id: opts.refId || null,
+                    p_metadata:         metadata,
                 });
-                if (error) { console.warn('jcAwardPoints insert error:', error); return; }
 
-                // Check for automatic bonus events
-                const bonuses = [];
-                if (actionType === 'temp_log') {
-                    const [streakBonus, dormantBonus] = await Promise.all([
-                        jcCheckStreak3Day(),
-                        opts.spotId ? jcCheckDormantSpot(opts.spotId) : Promise.resolve(false),
-                    ]);
-                    if (streakBonus) bonuses.push({ type: 'streak_3day' });
-                    if (dormantBonus) bonuses.push({ type: 'dormant_spot' });
+                if (error) {
+                    console.warn('jcAwardPoints RPC error:', error);
+                    return null;
                 }
 
-                for (const b of bonuses) {
-                    await supabaseClient.from('june_challenge_events').insert({
-                        user_id:      currentUser.id,
-                        display_name: displayName,
-                        action_type:  b.type,
-                        points:       JC_POINTS[b.type],
-                        spot_id:      opts.spotId   || null,
-                        spot_name:    opts.spotName || null,
-                        metadata:     {},
-                    });
+                if (result?.awarded) {
+                    const score = await jcGetMyScore();
+                    jcShowPostActionFeedback(actionType, result.points, result.draw_entries, score, opts);
+                    jcLoadDashboardCard();
+                } else if (result?.reason === 'already_earned_today') {
+                    // Silent — user already knows they logged today
+                } else if (result?.reason === 'own_swim') {
+                    // Silent — expected when creator joins own swim
                 }
 
-                // Reload my score then show feedback
-                const score = await jcGetMyScore();
-                const totalPts = pts + bonuses.reduce((s, b) => s + JC_POINTS[b.type], 0);
-                jcShowPostActionFeedback(actionType, totalPts, score, bonuses, opts);
-
-                // Refresh dashboard card non-blocking
-                jcLoadDashboardCard();
-
+                return result;
             } catch (e) {
                 console.warn('jcAwardPoints error:', e);
+                return null;
             }
-        }
-
-        // ── Streak & dormant bonus checks ────────────────────────────────────────────
-
-        async function jcCheckStreak3Day() {
-            try {
-                const today     = new Date(); today.setHours(0, 0, 0, 0);
-                const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
-                const dayBefore = new Date(today); dayBefore.setDate(dayBefore.getDate() - 2);
-                const threeDaysAgo = new Date(today); threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-
-                const { data: logs } = await supabaseClient
-                    .from('temp_logs')
-                    .select('logged_at, created_at')
-                    .eq('user_id', currentUser.id)
-                    .gte('created_at', threeDaysAgo.toISOString())
-                    .order('created_at', { ascending: false });
-
-                if (!logs || logs.length < 3) return false;
-
-                const dayKey = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-                const logDays = new Set(logs.map(l => {
-                    const d = new Date(l.logged_at || l.created_at);
-                    return dayKey(d);
-                }));
-                if (!logDays.has(dayKey(today)) || !logDays.has(dayKey(yesterday)) || !logDays.has(dayKey(dayBefore))) return false;
-
-                // Already awarded today?
-                const { data: existing } = await supabaseClient
-                    .from('june_challenge_events')
-                    .select('id')
-                    .eq('user_id', currentUser.id)
-                    .eq('action_type', 'streak_3day')
-                    .gte('created_at', today.toISOString())
-                    .limit(1);
-                return !existing || existing.length === 0;
-            } catch (e) { return false; }
-        }
-
-        async function jcCheckDormantSpot(spotId) {
-            try {
-                const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-                // Get the last 2 logs at this spot — first is current, second is previous
-                const { data: logs } = await supabaseClient
-                    .from('temp_logs')
-                    .select('created_at')
-                    .eq('spot_id', spotId)
-                    .order('created_at', { ascending: false })
-                    .limit(2);
-                if (!logs || logs.length === 0) return false;
-                if (logs.length === 1) return false; // Only this log — never dormant
-                const prevLog = new Date(logs[1].created_at);
-                return prevLog < thirtyDaysAgo;
-            } catch (e) { return false; }
         }
 
         // ── Post-action feedback ─────────────────────────────────────────────────────
 
-        function jcShowPostActionFeedback(actionType, totalPts, score, bonuses, opts) {
-            let toastParts = [`+${totalPts} pts`];
+        function jcShowPostActionFeedback(actionType, pts, drawEntries, score, opts) {
+            const parts = [`+${pts} pts`];
+            if (drawEntries != null) parts.push(`${drawEntries} draw entries`);
+            if (score?.rank)         parts.push(`#${score.rank}`);
+            showToast(parts.join(' · '), 'success');
 
-            if (bonuses.find(b => b.type === 'streak_3day'))  toastParts.push('3-day streak!');
-            if (bonuses.find(b => b.type === 'dormant_spot')) toastParts.push('Spot reactivated!');
-
-            if (score?.rank) toastParts.push(`You're #${score.rank}`);
-
-            showToast(toastParts.join(' · '), 'success');
-
-            // Offer WhatsApp share for meaningful actions
-            if (['temp_log', 'create_swim', 'attend_swim'].includes(actionType)) {
+            if (['temp_log', 'create_swim', 'join_swim'].includes(actionType)) {
                 setTimeout(() => jcShowSharePrompt(actionType, opts, score), 1400);
             }
         }
@@ -221,13 +155,13 @@
                         ? `I just logged ${opts.temp ? opts.temp + '°C at ' : 'conditions at '}${opts.spotName} on SwimLoading. June Challenge is live! ${base}`
                         : `Just shared swim conditions on SwimLoading. June Challenge is live! ${base}`;
                 case 'create_swim':
-                    return `I just created a community swim${opts.spotName ? ' at ' + opts.spotName : ''} on SwimLoading. Come join! ${base}`;
-                case 'attend_swim':
-                    return `I'm swimming${opts.spotName ? ' at ' + opts.spotName : ''} this June. Join the SwimLoading Community Challenge! ${base}`;
+                    return `I just created a community swim${opts.spotName ? ' at ' + opts.spotName : ''} on SwimLoading. Join me! ${base}`;
+                case 'join_swim':
+                    return `I joined a community swim${opts.spotName ? ' at ' + opts.spotName : ''} on SwimLoading. Join the June Challenge! ${base}`;
                 default:
                     return score?.rank && score.rank <= 10
                         ? `I'm #${score.rank} on the June Challenge leaderboard on SwimLoading! ${base}`
-                        : `June Community Challenge is live on SwimLoading! ${base}`;
+                        : `June Community Challenge is live on SwimLoading! Log. Swim. Share. Win. ${base}`;
             }
         }
 
@@ -255,32 +189,11 @@
             const el = document.getElementById('jcSharePrompt');
             if (el) el.style.display = 'none';
             window.open(decodeURIComponent(encodedUrl), '_blank');
-            // Award share points — max 3 per day
-            await jcAwardSharePoints();
+            // Award share points via RPC (1 per day limit enforced server-side)
+            await jcAwardPoints('whatsapp_share', {});
         }
 
-        async function jcAwardSharePoints() {
-            if (!currentUser) return;
-            const today = new Date(); today.setHours(0, 0, 0, 0);
-            const { data: todayShares } = await supabaseClient
-                .from('june_challenge_events')
-                .select('id')
-                .eq('user_id', currentUser.id)
-                .eq('action_type', 'whatsapp_share')
-                .gte('created_at', today.toISOString())
-                .limit(3);
-            if (todayShares && todayShares.length >= 3) return;
-            await supabaseClient.from('june_challenge_events').insert({
-                user_id:      currentUser.id,
-                display_name: currentUserProfile?.display_name || 'Swimmer',
-                action_type:  'whatsapp_share',
-                points:       JC_POINTS.whatsapp_share,
-                metadata:     {},
-            });
-            jcLoadDashboardCard();
-        }
-
-        // ── My score ────────────────────────────────────────────────────────────────
+        // ── My score (quick rank from june_challenge_events) ─────────────────────────
 
         async function jcGetMyScore() {
             if (!currentUser || !jcIsActive()) return null;
@@ -369,7 +282,6 @@
                 ? `<span style="background:rgba(245,158,11,0.25);color:#f59e0b;font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;margin-left:6px;vertical-align:middle;">TEST</span>`
                 : '';
 
-            // Rank block
             let rankBlock;
             if (score?.rank && score.points > 0) {
                 const isLeading = !score.personAboveName;
@@ -392,14 +304,14 @@
                 </div>`;
             }
 
-            // Live activity teaser
             const FEED_COPY = {
-                temp_log:    e => e.spot_name ? `${e.display_name} logged ${e.spot_name}` : `${e.display_name} logged conditions`,
-                create_swim: e => `${e.display_name} created a swim`,
-                attend_swim: e => `${e.display_name} joined a swim`,
-                streak_3day: e => `${e.display_name} hit a 3-day streak`,
-                dormant_spot:e => `${e.display_name} woke up a dormant spot`,
-                hazard_report:e=> `${e.display_name} reported a hazard`,
+                temp_log:      e => e.spot_name ? `${e.display_name} logged ${e.spot_name}` : `${e.display_name} logged conditions`,
+                create_swim:   e => `${e.display_name} created a swim`,
+                join_swim:     e => `${e.display_name} joined a swim`,
+                creator_bonus: e => `${e.display_name} got a creator bonus`,
+                streak_3day:   e => `${e.display_name} hit a 3-day streak`,
+                streak_7day:   e => `${e.display_name} hit a 7-day streak`,
+                whatsapp_share:e => `${e.display_name} shared to WhatsApp`,
             };
             const liveRow = recent
                 ? `<div style="display:flex;align-items:center;gap:9px;padding:9px 12px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.12);border-radius:10px;margin-bottom:12px;">
@@ -411,11 +323,9 @@
 
             return `
             <div onclick="jcOpenOverlay()" style="cursor:pointer;background:linear-gradient(160deg,#0c1520 0%,#070e18 100%);border:1px solid rgba(251,191,36,0.28);border-radius:16px;overflow:hidden;position:relative;">
-              <!-- Gold top bar — signals prize quality -->
               <div style="height:3px;background:linear-gradient(90deg,#b45309 0%,#f59e0b 40%,#fbbf24 60%,#38bdf8 100%);"></div>
 
               <div style="padding:16px;">
-                <!-- Header row -->
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
                   <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.8px;">
                     <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:5px;vertical-align:middle;box-shadow:0 0 6px rgba(16,185,129,0.6);"></span>June Challenge · Live${testBadge}
@@ -423,29 +333,25 @@
                   <div style="font-size:12px;font-weight:700;color:#f59e0b;">${daysLeft}d left</div>
                 </div>
 
-                <!-- Prize block — full-width image banner -->
                 <div style="border:1px solid rgba(251,191,36,0.3);border-radius:12px;overflow:hidden;margin-bottom:14px;">
                   <div style="position:relative;height:130px;overflow:hidden;">
-                    <img src="https://themagic5.com/cdn/shop/files/A5A0476-2.webp" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center 55%;display:block;" onerror="this.parentElement.style.background='linear-gradient(135deg,#1a0a00,#0d1728)'">
+                    <img src="/icons/themagic5-goggles.jpg" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center 55%;display:block;" onerror="this.parentElement.style.background='linear-gradient(135deg,#1a0a00,#0d1728)'">
                     <div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.35) 55%,rgba(0,0,0,0) 100%);"></div>
                     <div style="position:absolute;inset:0;padding:10px 14px;display:flex;align-items:flex-end;justify-content:space-between;">
                       <div>
-                        <div style="font-size:13px;font-weight:900;color:#fbbf24;letter-spacing:-0.2px;text-shadow:0 1px 4px rgba(0,0,0,0.9);">THEMAGIC5 Vector Goggles</div>
+                        <div style="font-size:13px;font-weight:900;color:#fbbf24;letter-spacing:-0.2px;text-shadow:0 1px 4px rgba(0,0,0,0.9);">THEMAGIC5 Custom Goggles</div>
                         <div style="font-size:11px;color:#fde68a;font-weight:600;margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">AI-fitted · R3,000 value · Grand prize</div>
-                        <div style="font-size:10px;color:rgba(253,230,138,0.7);margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">Every point = 1 prize draw entry</div>
+                        <div style="font-size:10px;color:rgba(253,230,138,0.7);margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">Every valid point = 1 prize draw entry</div>
                       </div>
                       <i data-lucide="trophy" style="width:22px;height:22px;color:#f59e0b;flex-shrink:0;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.9));margin-bottom:2px;"></i>
                     </div>
                   </div>
                 </div>
 
-                <!-- Rank -->
                 ${rankBlock}
 
-                <!-- Live activity teaser — FOMO -->
                 ${liveRow}
 
-                <!-- CTA -->
                 <div style="display:flex;align-items:center;gap:8px;padding:11px 14px;border-radius:10px;background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.25);">
                   <i data-lucide="activity" style="width:15px;height:15px;color:#f59e0b;"></i>
                   <span style="font-size:13px;font-weight:700;color:#f59e0b;">View live feed + leaderboard</span>
@@ -456,7 +362,7 @@
             <div id="jcSharePrompt" style="display:none;"></div>`;
         }
 
-        // ── Board tab section (shown inside monthlyChallenge div) ────────────────────
+        // ── Board tab section ────────────────────────────────────────────────────────
 
         async function jcLoadBoardSection() {
             const el = document.getElementById('monthlyChallenge');
@@ -471,46 +377,32 @@
                 const now = new Date();
                 const daysLeft = Math.max(0, Math.ceil((end - now) / 86400000));
 
-                const [lbRes, myRes] = await Promise.all([
-                    supabaseClient
-                        .from('june_challenge_events')
-                        .select('user_id, display_name, points')
-                        .gte('created_at', start.toISOString())
-                        .lte('created_at', end.toISOString()),
-                    currentUser
-                        ? supabaseClient
-                            .from('june_challenge_events')
-                            .select('points')
-                            .eq('user_id', currentUser.id)
-                            .gte('created_at', start.toISOString())
-                            .lte('created_at', end.toISOString())
-                        : Promise.resolve({ data: [] }),
-                ]);
+                // Use get_challenge_leaders RPC for authoritative leaderboard
+                const { data: leaders, error: lbErr } = await supabaseClient.rpc('get_challenge_leaders');
+                if (lbErr) throw lbErr;
 
-                const byUser = {};
-                for (const r of (lbRes.data || [])) {
-                    if (!byUser[r.user_id]) byUser[r.user_id] = { display_name: r.display_name, points: 0 };
-                    byUser[r.user_id].points += r.points;
-                }
-                const sorted = Object.entries(byUser).sort((a, b) => b[1].points - a[1].points);
-                const myPts  = (myRes.data || []).reduce((s, r) => s + r.points, 0);
-                const myIdx  = sorted.findIndex(([uid]) => uid === currentUser?.id);
+                const sorted = (leaders || []);
+                const myData = sorted.find(r => r.user_id === currentUser?.id);
+                const myIdx  = sorted.findIndex(r => r.user_id === currentUser?.id);
 
                 const testBadge = jcConfig?.test_mode
                     ? `<span style="background:rgba(245,158,11,0.2);color:#f59e0b;font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;margin-left:6px;">TEST</span>`
                     : '';
 
                 let myPositionCard = '';
-                if (myIdx >= 0 && myPts > 0) {
+                if (myData && myData.total_points > 0) {
                     const above = myIdx > 0 ? sorted[myIdx - 1] : null;
                     const gapLine = above
-                        ? `${above[1].points - myPts} pts behind ${above[1].display_name}`
+                        ? `${above.total_points - myData.total_points} pts behind ${above.display_name}`
                         : "You're leading!";
+                    const qualBadge = myData.qualified_for_draw
+                        ? `<span style="font-size:10px;color:#10b981;font-weight:700;margin-left:6px;">Draw eligible</span>`
+                        : '';
                     myPositionCard = `
                     <div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
                       <div>
-                        <div style="font-size:13px;font-weight:700;color:var(--text);">You're #${myIdx+1} &middot; ${myPts} pts</div>
-                        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${gapLine}</div>
+                        <div style="font-size:13px;font-weight:700;color:var(--text);">You're #${myIdx+1} &middot; ${myData.total_points} pts${qualBadge}</div>
+                        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${gapLine} &middot; ${myData.draw_entries} draw entries</div>
                       </div>
                       <div style="font-size:15px;font-weight:800;color:${myIdx<3?'#fbbf24':'var(--text-secondary)'};">#${myIdx+1}</div>
                     </div>`;
@@ -521,7 +413,8 @@
                   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
                     <div>
                       <div style="font-size:10px;color:#7dd3fc;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:3px;">June Community Challenge${testBadge}</div>
-                      <div style="font-weight:800;font-size:17px;color:var(--text);line-height:1.2;">Log &middot; Swim &middot; Win THEMAGIC5</div>
+                      <div style="font-weight:800;font-size:17px;color:var(--text);line-height:1.2;">Log. Swim. Share. Win.</div>
+                      <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.4;">Every valid point becomes a prize draw entry. The more you participate, the better your odds.</div>
                     </div>
                     <div style="background:rgba(125,211,252,0.15);color:#7dd3fc;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;">${daysLeft}d left</div>
                   </div>
@@ -529,7 +422,7 @@
                   <!-- Prizes -->
                   <div style="display:flex;gap:6px;margin-bottom:14px;">
                     <div style="background:linear-gradient(135deg,rgba(251,191,36,0.12),rgba(180,83,9,0.07));border:1px solid rgba(251,191,36,0.3);border-radius:8px;padding:8px 10px;font-size:11px;font-weight:700;color:#fbbf24;flex:1.4;text-align:center;">
-                      <div>Vector Goggles</div><div style="font-weight:600;color:#d97706;margin-top:1px;">THEMAGIC5 &middot; 1st</div>
+                      <div>Magic5 Goggles</div><div style="font-weight:600;color:#d97706;margin-top:1px;">THEMAGIC5 &middot; 1st</div>
                     </div>
                     <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;font-size:11px;font-weight:600;color:var(--text);flex:1;text-align:center;">
                       <div>Maurten Pack</div><div style="font-weight:400;color:var(--text-secondary);margin-top:1px;">2nd</div>
@@ -545,7 +438,7 @@
                     <i data-lucide="trophy" style="width:12px;height:12px;color:#7dd3fc;"></i>Leaderboard
                   </div>
                   <div style="background:rgba(15,23,42,0.5);border-radius:10px;padding:10px;">
-                    ${jcRenderLeaderboard(sorted.slice(0, 20), myIdx, myPts)}
+                    ${jcRenderLeaderboard(sorted.slice(0, 20), myIdx, myData?.total_points || 0)}
                   </div>
 
                   <!-- How to earn (collapsible) -->
@@ -561,8 +454,9 @@
                           <span style="font-size:13px;color:var(--text);">${label}</span>
                           <span style="font-size:13px;font-weight:700;color:var(--ocean-light);white-space:nowrap;margin-left:12px;">+${JC_POINTS[k]}</span>
                         </div>`).join('')}
-                      <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;line-height:1.5;">
-                        Every point is also a prize draw entry — so every swimmer has a chance to win the THEMAGIC5 goggles.
+                      <div style="margin-top:10px;font-size:11px;color:var(--text-secondary);line-height:1.6;">
+                        The Magic5 winner will be drawn from qualified participants.<br>
+                        <span style="color:rgba(100,116,139,0.7);">Fair play rules apply. Prize draw eligibility requires genuine participation.</span>
                       </div>
                     </div>
                   </div>
@@ -580,7 +474,8 @@
             }
         }
 
-        // ── Leaderboard renderer (shared) ────────────────────────────────────────────
+        // ── Leaderboard renderer ─────────────────────────────────────────────────────
+        // Accepts array from get_challenge_leaders (objects) or old sorted array
 
         function jcRenderLeaderboard(sorted, myIdx, myPts) {
             if (!sorted.length) {
@@ -593,35 +488,45 @@
                 </div>`;
             }
 
-            const maxPts = sorted[0]?.[1].points || 1;
-            const PODIUM = [
-                { border:'rgba(251,191,36,0.5)',  bg:'linear-gradient(135deg,rgba(251,191,36,0.12),rgba(180,83,9,0.07))',   color:'#fbbf24', icon:'crown', nameSize:'15px' },
-                { border:'rgba(148,163,184,0.4)', bg:'linear-gradient(135deg,rgba(148,163,184,0.09),rgba(100,116,139,0.05))', color:'#94a3b8', icon:'medal', nameSize:'14px' },
-                { border:'rgba(205,124,47,0.4)',  bg:'linear-gradient(135deg,rgba(205,124,47,0.09),rgba(154,88,22,0.05))',   color:'#cd7c2f', icon:'award', nameSize:'14px' },
-            ];
+            // Normalise: supports both {user_id, display_name, total_points} objects
+            // and legacy [[uid, {display_name, points}]] tuples
+            const rows = sorted.map((item, i) => {
+                let uid, name, pts, drawEntries, qualified, isDisq;
+                if (Array.isArray(item)) {
+                    uid = item[0]; name = item[1].display_name; pts = item[1].points;
+                    drawEntries = null; qualified = null; isDisq = false;
+                } else {
+                    uid = item.user_id; name = item.display_name; pts = item.total_points;
+                    drawEntries = item.draw_entries; qualified = item.qualified_for_draw; isDisq = item.disqualified;
+                }
 
-            const rows = sorted.map(([uid, data], i) => {
                 const isMe   = currentUser && uid === currentUser.id;
-                const isTop3 = i < 3;
-                const pct    = Math.max(4, Math.round((data.points / maxPts) * 100));
-                const above  = i > 0 ? sorted[i - 1][1].points - data.points : 0;
+                const maxPts = (Array.isArray(sorted[0]) ? sorted[0][1].points : sorted[0].total_points) || 1;
+                const pct    = Math.max(4, Math.round((pts / maxPts) * 100));
                 const aColor = jcFeedAvatarColor(uid);
-                const ini    = jcInitials(data.display_name);
+                const ini    = jcInitials(name);
 
-                if (isTop3) {
+                const PODIUM = [
+                    { border:'rgba(251,191,36,0.5)',  bg:'linear-gradient(135deg,rgba(251,191,36,0.12),rgba(180,83,9,0.07))',   color:'#fbbf24', icon:'crown', nameSize:'15px' },
+                    { border:'rgba(148,163,184,0.4)', bg:'linear-gradient(135deg,rgba(148,163,184,0.09),rgba(100,116,139,0.05))', color:'#94a3b8', icon:'medal', nameSize:'14px' },
+                    { border:'rgba(205,124,47,0.4)',  bg:'linear-gradient(135deg,rgba(205,124,47,0.09),rgba(154,88,22,0.05))',   color:'#cd7c2f', icon:'award', nameSize:'14px' },
+                ];
+
+                if (i < 3) {
                     const p = PODIUM[i];
-                    return `<div style="background:${p.bg};border:1px solid ${p.border};border-radius:13px;padding:13px 14px;margin-bottom:8px;">
+                    const above = i > 0 ? (Array.isArray(sorted[i-1]) ? sorted[i-1][1].points : sorted[i-1].total_points) - pts : 0;
+                    return `<div style="background:${p.bg};border:1px solid ${p.border};border-radius:13px;padding:13px 14px;margin-bottom:8px;${isDisq?'opacity:0.4;':''}">
                       <div style="display:flex;align-items:center;gap:11px;">
                         <div style="width:40px;height:40px;border-radius:50%;background:rgba(${aColor},0.15);border:2px solid ${p.border};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;font-weight:800;color:rgb(${aColor});">${ini.toUpperCase()}</div>
                         <div style="flex:1;min-width:0;">
-                          <div style="font-size:${p.nameSize};font-weight:800;color:${isMe ? 'var(--ocean-light)' : 'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${data.display_name || 'Swimmer'}${isMe ? ' <span style="font-size:10px;color:' + p.color + ';font-weight:600;">(you)</span>' : ''}</div>
+                          <div style="font-size:${p.nameSize};font-weight:800;color:${isMe ? 'var(--ocean-light)' : 'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name || 'Swimmer'}${isMe ? ' <span style="font-size:10px;color:' + p.color + ';font-weight:600;">(you)</span>' : ''}${qualified ? ' <span style="font-size:9px;color:#10b981;">✓</span>' : ''}</div>
                           <div style="margin-top:6px;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;">
                             <div style="height:100%;width:${pct}%;background:${p.color};border-radius:2px;"></div>
                           </div>
                           ${above > 0 ? `<div style="font-size:10px;color:var(--text-secondary);margin-top:3px;">${above} pts to move up</div>` : i === 0 ? '<div style="font-size:10px;color:' + p.color + ';font-weight:700;margin-top:3px;">Leading</div>' : ''}
                         </div>
                         <div style="text-align:right;flex-shrink:0;">
-                          <div style="font-size:${i === 0 ? '26px' : '20px'};font-weight:900;color:${p.color};line-height:1;letter-spacing:-1px;">${data.points}</div>
+                          <div style="font-size:${i === 0 ? '26px' : '20px'};font-weight:900;color:${p.color};line-height:1;letter-spacing:-1px;">${pts}</div>
                           <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">pts</div>
                         </div>
                         <i data-lucide="${p.icon}" style="width:${i === 0 ? '20px' : '17px'};height:${i === 0 ? '20px' : '17px'};color:${p.color};flex-shrink:0;"></i>
@@ -629,16 +534,16 @@
                     </div>`;
                 }
 
-                return `<div style="display:flex;align-items:center;gap:9px;padding:8px 10px;background:${isMe ? 'rgba(56,189,248,0.07)' : 'transparent'};border:1px solid ${isMe ? 'rgba(56,189,248,0.2)' : 'transparent'};border-radius:9px;margin-bottom:3px;">
+                return `<div style="display:flex;align-items:center;gap:9px;padding:8px 10px;background:${isMe ? 'rgba(56,189,248,0.07)' : 'transparent'};border:1px solid ${isMe ? 'rgba(56,189,248,0.2)' : 'transparent'};border-radius:9px;margin-bottom:3px;${isDisq?'opacity:0.4;':''}">
                   <span style="font-size:11px;font-weight:700;color:var(--text-secondary);width:18px;text-align:center;flex-shrink:0;">${i + 1}</span>
                   <div style="width:30px;height:30px;border-radius:50%;background:rgba(${aColor},0.12);border:1px solid rgba(${aColor},0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:800;color:rgb(${aColor});">${ini.toUpperCase()}</div>
                   <div style="flex:1;min-width:0;">
-                    <div style="font-size:13px;font-weight:${isMe ? '700' : '500'};color:${isMe ? 'var(--ocean-light)' : 'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${data.display_name || 'Swimmer'}${isMe ? ' <span style="font-size:10px;color:var(--text-secondary);font-weight:400;">(you)</span>' : ''}</div>
+                    <div style="font-size:13px;font-weight:${isMe ? '700' : '500'};color:${isMe ? 'var(--ocean-light)' : 'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name || 'Swimmer'}${isMe ? ' <span style="font-size:10px;color:var(--text-secondary);font-weight:400;">(you)</span>' : ''}</div>
                     <div style="margin-top:3px;height:2px;background:rgba(255,255,255,0.05);border-radius:1px;overflow:hidden;">
                       <div style="height:100%;width:${pct}%;background:rgba(${aColor},0.45);border-radius:1px;"></div>
                     </div>
                   </div>
-                  <span style="font-size:13px;font-weight:700;color:${isMe ? 'var(--ocean-light)' : '#64748b'};flex-shrink:0;">${data.points}</span>
+                  <span style="font-size:13px;font-weight:700;color:${isMe ? 'var(--ocean-light)' : '#64748b'};flex-shrink:0;">${pts}</span>
                 </div>`;
             }).join('');
 
@@ -648,7 +553,7 @@
             return rows + fallback;
         }
 
-        // ── Overlay (full-screen panel) ──────────────────────────────────────────────
+        // ── Overlay ──────────────────────────────────────────────────────────────────
 
         function jcOpenOverlay() {
             const overlay = document.getElementById('jcOverlay');
@@ -674,12 +579,8 @@
 
             const { start, end } = jcDateRange();
             try {
-                const [lbRes, feedRes] = await Promise.all([
-                    supabaseClient
-                        .from('june_challenge_events')
-                        .select('user_id, display_name, points')
-                        .gte('created_at', start.toISOString())
-                        .lte('created_at', end.toISOString()),
+                const [lbResult, feedRes] = await Promise.all([
+                    supabaseClient.rpc('get_challenge_leaders'),
                     supabaseClient
                         .from('june_challenge_events')
                         .select('user_id, display_name, action_type, points, spot_name, created_at')
@@ -689,16 +590,11 @@
                         .limit(60),
                 ]);
 
-                const byUser = {};
-                for (const r of (lbRes.data || [])) {
-                    if (!byUser[r.user_id]) byUser[r.user_id] = { display_name: r.display_name, points: 0 };
-                    byUser[r.user_id].points += r.points;
-                }
-                const sorted = Object.entries(byUser).sort((a, b) => b[1].points - a[1].points);
-                const myPts  = byUser[currentUser?.id]?.points || 0;
-                const myIdx  = sorted.findIndex(([uid]) => uid === currentUser?.id);
+                const leaders = lbResult.data || [];
+                const myIdx   = leaders.findIndex(r => r.user_id === currentUser?.id);
+                const myPts   = leaders[myIdx]?.total_points || 0;
 
-                lbEl.innerHTML   = jcRenderLeaderboard(sorted.slice(0, 20), myIdx, myPts);
+                lbEl.innerHTML   = jcRenderLeaderboard(leaders.slice(0, 20), myIdx, myPts);
                 feedEl.innerHTML = jcRenderFeed(feedRes.data || []);
                 initIcons();
             } catch (e) {
@@ -729,30 +625,28 @@
                     <i data-lucide="activity" style="width:22px;height:22px;color:rgba(56,189,248,0.45);"></i>
                   </div>
                   <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px;">No activity yet</div>
-                  <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">Log a temperature or create a swim<br>to be first on the live feed.</div>
+                  <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">Log a temperature or join a swim<br>to be first on the live feed.</div>
                 </div>`;
             }
 
             const ACTION_CFG = {
                 temp_log:       { r:'56,189,248',  action: e => e.spot_name ? `logged temp at <strong>${e.spot_name}</strong>` : 'logged conditions' },
                 create_swim:    { r:'16,185,129',  action: e => e.spot_name ? `created a swim at <strong>${e.spot_name}</strong>` : 'created a community swim' },
-                attend_swim:    { r:'16,185,129',  action: e => e.spot_name ? `joined a swim at <strong>${e.spot_name}</strong>` : 'joined a swim' },
-                hazard_report:  { r:'239,68,68',   action: e => e.spot_name ? `reported a hazard at <strong>${e.spot_name}</strong>` : 'reported a hazard' },
-                new_spot:       { r:'245,158,11',  action: e => e.spot_name ? `logged <strong>${e.spot_name}</strong> for the first time` : 'logged a new spot' },
+                join_swim:      { r:'16,185,129',  action: e => e.spot_name ? `joined a swim at <strong>${e.spot_name}</strong>` : 'joined a swim' },
+                creator_bonus:  { r:'245,158,11',  action: () => 'got a <strong>creator bonus</strong>' },
                 whatsapp_share: { r:'37,211,102',  action: () => 'shared to WhatsApp' },
                 streak_3day:    { r:'245,158,11',  action: () => 'hit a <strong>3-day streak</strong>' },
-                dormant_spot:   { r:'167,139,250', action: e => e.spot_name ? `woke up <strong>${e.spot_name}</strong> after 30+ days` : 'activated a dormant spot' },
-                group_bonus:    { r:'16,185,129',  action: () => '<strong>3+ swimmers</strong> at one swim' },
+                streak_7day:    { r:'167,139,250', action: () => 'hit a <strong>7-day streak</strong>' },
             };
 
             return events.slice(0, 40).map(e => {
-                const cfg   = ACTION_CFG[e.action_type] || { r:'56,189,248', action: ev => ev.action_type };
-                const action = cfg.action(e);
+                const cfg     = ACTION_CFG[e.action_type] || { r:'56,189,248', action: ev => ev.action_type };
+                const action  = cfg.action(e);
                 const timeAgo = jcTimeAgo(new Date(e.created_at));
-                const isMe  = currentUser && e.user_id === currentUser.id;
-                const isNew = (Date.now() - new Date(e.created_at)) < 300000;
-                const aColor = jcFeedAvatarColor(e.user_id || 'x');
-                const ini   = jcInitials(e.display_name);
+                const isMe    = currentUser && e.user_id === currentUser.id;
+                const isNew   = (Date.now() - new Date(e.created_at)) < 300000;
+                const aColor  = jcFeedAvatarColor(e.user_id || 'x');
+                const ini     = jcInitials(e.display_name);
 
                 return `<div style="display:flex;align-items:flex-start;gap:11px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
                   <div style="width:38px;height:38px;border-radius:50%;background:rgba(${aColor},0.14);border:${isMe ? '2px solid rgba('+aColor+',0.55)' : '1px solid rgba('+aColor+',0.2)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:800;color:rgb(${aColor});letter-spacing:-0.3px;">${ini.toUpperCase()}</div>
@@ -779,94 +673,6 @@
             return `${Math.floor(secs / 86400)}d ago`;
         }
 
-        // ── Test mode: seed data ─────────────────────────────────────────────────────
-
-        async function jcSeedTestData() {
-            if (!jcConfig?.test_mode) { showToast('Not in test mode', 'error'); return; }
-            if (!currentUser) { showToast('Must be logged in', 'error'); return; }
-
-            const displayName = currentUserProfile?.display_name || 'Test User';
-            const demoSpots   = ['Clifton 4th', 'Big Bay', 'Sea Point Tidal Pool', 'Camps Bay', 'Muizenberg'];
-            const actions     = [
-                { type: 'temp_log',    pts: 10, spot: demoSpots[0], hoursAgo: 0 },
-                { type: 'temp_log',    pts: 10, spot: demoSpots[1], hoursAgo: 2 },
-                { type: 'create_swim', pts: 25, spot: demoSpots[2], hoursAgo: 4 },
-                { type: 'attend_swim', pts: 20, spot: demoSpots[3], hoursAgo: 6 },
-                { type: 'streak_3day', pts: 20, spot: demoSpots[0], hoursAgo: 1 },
-                { type: 'dormant_spot',pts: 30, spot: demoSpots[4], hoursAgo: 3 },
-            ];
-
-            const rows = actions.map(a => ({
-                user_id:      currentUser.id,
-                display_name: displayName,
-                action_type:  a.type,
-                points:       a.pts,
-                spot_name:    a.spot,
-                metadata:     {},
-                created_at:   new Date(Date.now() - a.hoursAgo * 3600000).toISOString(),
-            }));
-
-            const { error } = await supabaseClient.from('june_challenge_events').insert(rows);
-            if (error) { showToast('Seed failed: ' + error.message, 'error'); return; }
-            showToast(`Seeded ${rows.length} test events`, 'success');
-            jcLoadDashboardCard();
-            if (document.getElementById('jcOverlay')?.style.display === 'flex') {
-                jcLoadOverlayContent();
-            }
-        }
-
-        // ── Admin debug panel ────────────────────────────────────────────────────────
-
-        async function jcLoadAdminDebug(containerId) {
-            const el = document.getElementById(containerId || 'jcAdminDebug');
-            if (!el) return;
-            await jcInit();
-
-            const { start, end } = jcDateRange();
-            const { data } = await supabaseClient
-                .from('june_challenge_events')
-                .select('action_type, points, user_id, display_name, created_at, spot_name')
-                .gte('created_at', start.toISOString())
-                .lte('created_at', end.toISOString())
-                .order('created_at', { ascending: false })
-                .limit(200);
-
-            if (!data?.length) {
-                el.innerHTML = `<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:16px;">No events yet</div>
-                <button onclick="jcSeedTestData()" style="display:block;margin:8px auto;padding:8px 16px;border-radius:8px;border:1px solid rgba(245,158,11,0.3);background:rgba(245,158,11,0.1);color:#f59e0b;font-size:12px;cursor:pointer;">Seed Test Data</button>`;
-                return;
-            }
-
-            const byAction  = {};
-            data.forEach(r => { byAction[r.action_type] = (byAction[r.action_type] || 0) + 1; });
-            const totalPts   = data.reduce((s, r) => s + r.points, 0);
-            const uniqueUsers = new Set(data.map(r => r.user_id)).size;
-
-            el.innerHTML = `
-            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">
-              Events: <strong style="color:var(--text);">${data.length}</strong> &middot;
-              Users: <strong style="color:var(--text);">${uniqueUsers}</strong> &middot;
-              Total pts: <strong style="color:var(--ocean-light);">${totalPts}</strong>
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;">
-              ${Object.entries(byAction).map(([k,v]) => `<span style="background:rgba(56,189,248,0.1);color:var(--ocean-light);font-size:11px;padding:3px 8px;border-radius:6px;">${k}: ${v}</span>`).join('')}
-            </div>
-            <div style="max-height:280px;overflow-y:auto;font-size:12px;">
-              ${data.slice(0, 60).map(r => `<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
-                <span style="color:var(--ocean-light);">${r.display_name || '?'}</span>
-                <span style="color:var(--text-secondary);"> &middot; ${r.action_type} &middot; +${r.points}pts</span>
-                ${r.spot_name ? `<span style="color:rgba(255,255,255,0.4);"> &middot; ${r.spot_name}</span>` : ''}
-                <span style="color:rgba(255,255,255,0.25);"> &middot; ${jcTimeAgo(new Date(r.created_at))}</span>
-              </div>`).join('')}
-            </div>
-            <div style="display:flex;gap:8px;margin-top:10px;">
-              <button onclick="jcSeedTestData()" style="padding:8px 14px;border-radius:8px;border:1px solid rgba(245,158,11,0.3);background:rgba(245,158,11,0.1);color:#f59e0b;font-size:12px;cursor:pointer;flex:1;">Seed Test Data</button>
-              <button onclick="jcLoadAdminDebug('${containerId || 'jcAdminDebug'}')" style="padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer;flex:1;">Refresh</button>
-            </div>`;
-        }
-
-        // ── Group bonus detection (call after swim attendance updates) ───────────────
-
         // ── Overlay tab switcher ─────────────────────────────────────────────────────
 
         function jcSetTab(tab) {
@@ -892,37 +698,169 @@
             }
         }
 
-        // ── Group bonus detection ────────────────────────────────────────────────────
+        // ── Test mode: seed data ─────────────────────────────────────────────────────
 
-        async function jcCheckGroupBonus(swimEventId) {
-            if (!jcIsActive() || !swimEventId) return;
+        async function jcSeedTestData() {
+            if (!jcConfig?.test_mode) { showToast('Not in test mode', 'error'); return; }
+            if (!currentUser) { showToast('Must be logged in', 'error'); return; }
+
+            const displayName = currentUserProfile?.display_name || 'Test User';
+            const demoSpots   = ['Clifton 4th', 'Big Bay', 'Sea Point Tidal Pool', 'Camps Bay', 'Muizenberg'];
+
+            // Seed directly into june_challenge_events for feed display (test only)
+            const rows = [
+                { type: 'temp_log',       pts: JC_POINTS.temp_log,      spot: demoSpots[0], hoursAgo: 0 },
+                { type: 'join_swim',       pts: JC_POINTS.join_swim,     spot: demoSpots[1], hoursAgo: 2 },
+                { type: 'create_swim',    pts: JC_POINTS.create_swim,   spot: demoSpots[2], hoursAgo: 4 },
+                { type: 'creator_bonus',  pts: JC_POINTS.creator_bonus,  spot: null,         hoursAgo: 3 },
+                { type: 'streak_3day',    pts: JC_POINTS.streak_3day,   spot: demoSpots[0], hoursAgo: 1 },
+                { type: 'whatsapp_share', pts: JC_POINTS.whatsapp_share, spot: null,         hoursAgo: 5 },
+            ].map(a => ({
+                user_id:      currentUser.id,
+                display_name: displayName,
+                action_type:  a.type,
+                points:       a.pts,
+                spot_name:    a.spot,
+                metadata:     {},
+                created_at:   new Date(Date.now() - a.hoursAgo * 3600000).toISOString(),
+            }));
+
+            const { error } = await supabaseClient.from('june_challenge_events').insert(rows);
+            if (error) { showToast('Seed failed: ' + error.message, 'error'); return; }
+            showToast(`Seeded ${rows.length} test events`, 'success');
+            jcLoadDashboardCard();
+            if (document.getElementById('jcOverlay')?.style.display === 'flex') {
+                jcLoadOverlayContent();
+            }
+        }
+
+        // ── Admin debug panel ────────────────────────────────────────────────────────
+
+        async function jcLoadAdminDebug(containerId) {
+            const el = document.getElementById(containerId || 'jcAdminDebug');
+            if (!el) return;
+            await jcInit();
+
+            el.innerHTML = '<div style="color:var(--text-secondary);font-size:12px;padding:8px;">Loading…</div>';
+
+            const { start, end } = jcDateRange();
+
             try {
-                const { count } = await supabaseClient
-                    .from('swim_participants')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('swim_event_id', swimEventId)
-                    .in('status', ['approved']);
+                const [feedRes, leadersRes, flagsRes] = await Promise.all([
+                    supabaseClient
+                        .from('june_challenge_events')
+                        .select('action_type, points, user_id, display_name, created_at, spot_name')
+                        .gte('created_at', start.toISOString())
+                        .lte('created_at', end.toISOString())
+                        .order('created_at', { ascending: false })
+                        .limit(200),
+                    supabaseClient.rpc('get_challenge_leaders'),
+                    supabaseClient
+                        .from('challenge_admin_flags')
+                        .select('*')
+                        .eq('challenge_id', 1)
+                        .order('created_at', { ascending: false }),
+                ]);
 
-                if (count < 3) return;
+                const data      = feedRes.data || [];
+                const leaders   = leadersRes.data || [];
+                const flags     = flagsRes.data || [];
+                const totalPts  = data.reduce((s, r) => s + r.points, 0);
+                const uniqueUsers = new Set(data.map(r => r.user_id)).size;
+                const byAction  = {};
+                data.forEach(r => { byAction[r.action_type] = (byAction[r.action_type] || 0) + 1; });
 
-                // Check if group bonus already awarded for this event
-                const { data: existing } = await supabaseClient
-                    .from('june_challenge_events')
-                    .select('id')
-                    .eq('action_type', 'group_bonus')
-                    .eq('ref_id', swimEventId)
-                    .limit(1);
-                if (existing && existing.length > 0) return;
+                const openFlags = flags.filter(f => f.status === 'open');
 
-                // Award to current user only (they triggered it)
-                await supabaseClient.from('june_challenge_events').insert({
-                    user_id:      currentUser.id,
-                    display_name: currentUserProfile?.display_name || 'Swimmer',
-                    action_type:  'group_bonus',
-                    points:       JC_POINTS.group_bonus,
-                    ref_id:       swimEventId,
-                    metadata:     { participant_count: count },
-                });
-                showToast(`+${JC_POINTS.group_bonus} pts · 3+ swimmers at this swim!`, 'success');
-            } catch (e) { console.warn('jcCheckGroupBonus error:', e); }
+                el.innerHTML = `
+                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">
+                  Feed events: <strong style="color:var(--text);">${data.length}</strong> &middot;
+                  Users: <strong style="color:var(--text);">${uniqueUsers}</strong> &middot;
+                  Total pts: <strong style="color:var(--ocean-light);">${totalPts}</strong> &middot;
+                  Open flags: <strong style="color:${openFlags.length > 0 ? '#f59e0b' : 'var(--text)'};">${openFlags.length}</strong>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;">
+                  ${Object.entries(byAction).map(([k,v]) => `<span style="background:rgba(56,189,248,0.1);color:var(--ocean-light);font-size:11px;padding:3px 8px;border-radius:6px;">${k}: ${v}</span>`).join('')}
+                </div>
+
+                ${openFlags.length > 0 ? `
+                <div style="margin-bottom:12px;">
+                  <div style="font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;margin-bottom:6px;">Open Flags</div>
+                  ${openFlags.map(f => `
+                  <div style="padding:8px 10px;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);border-radius:8px;margin-bottom:4px;font-size:12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                      <span style="color:var(--text);font-weight:600;">${f.flag_type}</span>
+                      <span style="background:rgba(245,158,11,0.2);color:#f59e0b;padding:1px 6px;border-radius:4px;font-size:10px;">${f.severity}</span>
+                    </div>
+                    <div style="color:var(--text-secondary);margin-top:2px;">${f.description || ''}</div>
+                    <div style="display:flex;gap:6px;margin-top:6px;">
+                      <button onclick="jcAdminDismissFlag('${f.id}', '${containerId || 'jcAdminDebug'}')" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(16,185,129,0.3);background:rgba(16,185,129,0.1);color:#10b981;font-size:11px;cursor:pointer;">Dismiss</button>
+                      <button onclick="jcAdminConfirmFlag('${f.id}', '${containerId || 'jcAdminDebug'}')" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.1);color:#ef4444;font-size:11px;cursor:pointer;">Confirm</button>
+                    </div>
+                  </div>`).join('')}
+                </div>` : ''}
+
+                <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;margin-bottom:6px;">Top Leaders</div>
+                <div style="max-height:160px;overflow-y:auto;margin-bottom:10px;">
+                  ${leaders.slice(0, 10).map((r, i) => `
+                  <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12px;">
+                    <span style="color:var(--text-secondary);width:16px;">${i+1}</span>
+                    <span style="flex:1;color:${r.disqualified ? '#ef4444' : 'var(--text)'};">${r.display_name || '?'}${r.disqualified ? ' [DQ]' : ''}${r.qualified_for_draw ? ' ✓' : ''}</span>
+                    <span style="color:var(--ocean-light);font-weight:700;">${r.total_points}</span>
+                    <span style="color:rgba(100,116,139,0.7);">${r.draw_entries}e</span>
+                    ${r.suspicious_flags > 0 ? `<span style="color:#f59e0b;">⚑${r.suspicious_flags}</span>` : ''}
+                  </div>`).join('')}
+                </div>
+
+                <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;margin-bottom:6px;">Recent Feed</div>
+                <div style="max-height:180px;overflow-y:auto;font-size:12px;margin-bottom:10px;">
+                  ${data.slice(0, 40).map(r => `<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+                    <span style="color:var(--ocean-light);">${r.display_name || '?'}</span>
+                    <span style="color:var(--text-secondary);"> &middot; ${r.action_type} &middot; +${r.points}pts</span>
+                    ${r.spot_name ? `<span style="color:rgba(255,255,255,0.4);"> &middot; ${r.spot_name}</span>` : ''}
+                    <span style="color:rgba(255,255,255,0.25);"> &middot; ${jcTimeAgo(new Date(r.created_at))}</span>
+                  </div>`).join('')}
+                </div>
+
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button onclick="jcDetectFlags('${containerId || 'jcAdminDebug'}')" style="padding:8px 14px;border-radius:8px;border:1px solid rgba(245,158,11,0.3);background:rgba(245,158,11,0.1);color:#f59e0b;font-size:12px;cursor:pointer;">Detect Flags</button>
+                  <button onclick="jcSeedTestData()" style="padding:8px 14px;border-radius:8px;border:1px solid rgba(56,189,248,0.3);background:rgba(56,189,248,0.1);color:var(--ocean-light);font-size:12px;cursor:pointer;">Seed Test</button>
+                  <button onclick="jcLoadAdminDebug('${containerId || 'jcAdminDebug'}')" style="padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer;">Refresh</button>
+                </div>`;
+            } catch (e) {
+                el.innerHTML = `<div style="color:#ef4444;font-size:12px;">Admin load failed: ${e.message}</div>`;
+            }
+        }
+
+        async function jcDetectFlags(containerId) {
+            try {
+                const { data, error } = await supabaseClient.rpc('detect_challenge_flags');
+                if (error) throw error;
+                showToast(`Flag detection complete: ${data} patterns found`, 'success');
+                jcLoadAdminDebug(containerId);
+            } catch (e) {
+                showToast('Flag detection failed: ' + e.message, 'error');
+            }
+        }
+
+        async function jcAdminDismissFlag(flagId, containerId) {
+            try {
+                const { error } = await supabaseClient.rpc('admin_dismiss_flag', { p_flag_id: flagId });
+                if (error) throw error;
+                showToast('Flag dismissed', 'success');
+                jcLoadAdminDebug(containerId);
+            } catch (e) {
+                showToast('Failed: ' + e.message, 'error');
+            }
+        }
+
+        async function jcAdminConfirmFlag(flagId, containerId) {
+            try {
+                const { error } = await supabaseClient.rpc('admin_confirm_flag', { p_flag_id: flagId });
+                if (error) throw error;
+                showToast('Flag confirmed', 'success');
+                jcLoadAdminDebug(containerId);
+            } catch (e) {
+                showToast('Failed: ' + e.message, 'error');
+            }
         }

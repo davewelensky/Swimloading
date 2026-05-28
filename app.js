@@ -4476,8 +4476,7 @@
 
                 // June Challenge — award points for joining a swim (approved joins only)
                 if (status === 'approved') {
-                    jcAwardPoints('attend_swim', { refId: eventId });
-                    jcCheckGroupBonus(eventId);
+                    jcAwardPoints('join_swim', { refId: eventId });
                 }
 
                 loadEvents(); // Refresh list
