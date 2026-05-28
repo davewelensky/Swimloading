@@ -6328,12 +6328,13 @@ function _analyzeMatch(profileName, rosterName, { allowParents = false } = {}) {
 
   const firstMatch = wa[0] === wb[0];
 
-  // For multi-word names require BOTH first name AND at least one surname word
-  // to match. A shared first name alone (score 0.5) causes far too many false
-  // positives on large rosters (e.g. "Emma Brownlee" → "EMMA RANDALL").
+  // For multi-word names require BOTH first name AND surname (last word) to
+  // match. Using last word only — not any middle word — prevents false
+  // positives like "Cindy May Wang" matching "Levi May" on the middle name.
   if (wa.length >= 2 && wb.length >= 2) {
-    const surnameOverlap = wa.slice(1).filter(w => wb.slice(1).includes(w));
-    if (surnameOverlap.length === 0) return { score, type: null };
+    const lastA = wa[wa.length - 1];
+    const lastB = wb[wb.length - 1];
+    if (lastA !== lastB) return { score, type: null };
     if (firstMatch) return { score, type: 'swimmer' };
     // Shared surname, different first name → parent (only for clubs that have
     // a parent portal — irrelevant for adult clubs like DUC).
