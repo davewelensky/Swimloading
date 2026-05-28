@@ -6357,26 +6357,34 @@ async function loadSuggestedMatches() {
 
   const allowParents = !!(window._clubFeatures?.hasParentLanguage);
 
-  const since = new Date(Date.now() - 14 * 86400000).toISOString();
-  const queries = [
-    sb.from('profiles').select('id, display_name, email, created_at')
-      .gte('created_at', since).not('display_name', 'is', null)
-      .order('created_at', { ascending: false }).limit(100),
-    sb.from('club_members').select('user_id').eq('club_id', currentClub.id),
-  ];
-  // Only fetch parent links for clubs that actually have a parent portal
-  if (allowParents) queries.push(sb.from('parent_roster_links').select('parent_user_id').eq('club_id', currentClub.id));
+  // CRITICAL: only surface people who explicitly joined THIS club's portal
+  // (roster_id IS NULL = joined but not yet matched to a roster entry).
+  // Never scan the global profiles table — that would mix in users from
+  // other clubs and random SwimLoading signups with no club affiliation.
+  const [unlinkedMembersRes, parentLinksRes] = await Promise.all([
+    sb.from('club_members')
+      .select('user_id')
+      .eq('club_id', currentClub.id)
+      .is('roster_id', null),
+    allowParents
+      ? sb.from('parent_roster_links').select('parent_user_id').eq('club_id', currentClub.id)
+      : Promise.resolve({ data: [] }),
+  ]);
 
-  const [profilesRes, membersRes, parentLinksRes] = await Promise.all(queries);
+  const unlinkedMemberIds = (unlinkedMembersRes.data || []).map(m => m.user_id).filter(Boolean);
+  if (!unlinkedMemberIds.length) { banner.innerHTML = ''; return; }
 
-  if (!profilesRes.data?.length) { banner.innerHTML = ''; return; }
-
-  const alreadyMember = new Set((membersRes.data || []).map(m => m.user_id));
   const alreadyParent = new Set((parentLinksRes?.data || []).map(l => l.parent_user_id));
 
-  const candidates = profilesRes.data.filter(p =>
-    !alreadyMember.has(p.id) && !alreadyParent.has(p.id)
-  );
+  // Fetch profiles for these specific club members only
+  const { data: profileData } = await sb.from('profiles')
+    .select('id, display_name, email, created_at')
+    .in('id', unlinkedMemberIds)
+    .not('display_name', 'is', null);
+
+  if (!profileData?.length) { banner.innerHTML = ''; return; }
+
+  const candidates = profileData.filter(p => !alreadyParent.has(p.id));
   if (!candidates.length) { banner.innerHTML = ''; return; }
 
   const swimmers = [], parents = [];
