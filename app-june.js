@@ -335,7 +335,7 @@
 
                 <div style="border:1px solid rgba(251,191,36,0.3);border-radius:12px;overflow:hidden;margin-bottom:14px;">
                   <div style="position:relative;height:130px;overflow:hidden;">
-                    <img src="/icons/themagic5-goggles.jpg" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center 55%;display:block;" onerror="this.parentElement.style.background='linear-gradient(135deg,#1a0a00,#0d1728)'">
+                    <img src="/icons/tm5-hero.jpg" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center 55%;display:block;" onerror="this.parentElement.style.background='linear-gradient(135deg,#1a0a00,#0d1728)'">
                     <div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.35) 55%,rgba(0,0,0,0) 100%);"></div>
                     <div style="position:absolute;inset:0;padding:10px 14px;display:flex;align-items:flex-end;justify-content:space-between;">
                       <div>
