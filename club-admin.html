@@ -6365,7 +6365,8 @@ async function loadSuggestedMatches() {
     sb.from('club_members')
       .select('user_id')
       .eq('club_id', currentClub.id)
-      .is('roster_id', null),
+      .is('roster_id', null)
+      .not('role', 'eq', 'coach'),  // coaches don't need roster-matching
     allowParents
       ? sb.from('parent_roster_links').select('parent_user_id').eq('club_id', currentClub.id)
       : Promise.resolve({ data: [] }),
@@ -6387,6 +6388,19 @@ async function loadSuggestedMatches() {
   const candidates = profileData.filter(p => !alreadyParent.has(p.id));
   if (!candidates.length) { banner.innerHTML = ''; return; }
 
+  // Build a map of surname → how many unlinked roster entries share it.
+  // A parent suggestion for a common surname (2+ roster members) is too
+  // ambiguous — could be any of those children, so we skip it.
+  const norm = s => (s || '').toLowerCase().replace(/[^a-z ]/g, '').trim();
+  const surnameCounts = {};
+  for (const r of unlinked) {
+    const words = norm(r.display_name).split(/\s+/).filter(Boolean);
+    if (words.length >= 2) {
+      const sn = words[words.length - 1];
+      surnameCounts[sn] = (surnameCounts[sn] || 0) + 1;
+    }
+  }
+
   const swimmers = [], parents = [];
 
   for (const prof of candidates) {
@@ -6396,6 +6410,13 @@ async function loadSuggestedMatches() {
       if (score > bestScore) { bestScore = score; best = r; bestType = type; }
     }
     if (best && bestType) {
+      // Skip parent suggestions when the surname is shared by multiple unlinked
+      // roster members — too ambiguous to auto-suggest (e.g. two Thompsons).
+      if (bestType === 'parent') {
+        const profWords = norm(prof.display_name).split(/\s+/).filter(Boolean);
+        const profSurname = profWords.length >= 2 ? profWords[profWords.length - 1] : null;
+        if (!profSurname || (surnameCounts[profSurname] || 0) > 1) continue;
+      }
       const key = `${best.id}|${prof.id}`;
       if (!dismissed.has(key)) {
         const s = { roster: best, profile: prof, score: bestScore, type: bestType, key };
