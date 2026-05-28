@@ -7522,7 +7522,9 @@ function renderTodayBanner() {
     const [h, m] = (ss.start_time || '00:00').split(':').map(Number);
     const sessionMins = h * 60 + m;
     const minsUntil = sessionMins - nowMins;
-    const isNow = minsUntil <= 30 && minsUntil > -120;
+    const [eh, em] = (ss.end_time || '23:59').split(':').map(Number);
+    const endMins = eh * 60 + em;
+    const isNow = minsUntil <= 30 && nowMins < endMins;
     const timeLabel = ss.start_time ? ss.start_time.slice(0, 5) : '';
 
     // Check if already logged today for this squad
