@@ -712,12 +712,7 @@
             <option value="">Select a gala…</option>
           </select>
           <select class="filter-select" id="galaSquadFilter" onchange="renderGalaSwimmers()" style="width:auto;">
-            <option value="competitive">Competitive squads</option>
             <option value="">All squads</option>
-            <option value="a1000001-0000-0000-0000-000000000005">Gold Swim Fit</option>
-            <option value="a1000001-0000-0000-0000-000000000006">Junior</option>
-            <option value="a1000001-0000-0000-0000-000000000004">Silver</option>
-            <option value="a1000001-0000-0000-0000-000000000003">Bronze</option>
           </select>
         </div>
         <div id="galaEntriesContent">
@@ -3976,6 +3971,20 @@ function loadGalaPage() {
   const sel = document.getElementById('galaSelect');
   if (!sel) return;
   sel.innerHTML = '<option value="">Select a gala…</option>';
+
+  // Populate squad filter dynamically from loaded squads
+  const squadSel = document.getElementById('galaSquadFilter');
+  if (squadSel && allSquads.length) {
+    const current = squadSel.value;
+    squadSel.innerHTML = '<option value="">All squads</option>';
+    allSquads.forEach(sq => {
+      const o = document.createElement('option');
+      o.value = sq.id;
+      o.textContent = sq.name;
+      squadSel.appendChild(o);
+    });
+    if (current && squadSel.querySelector(`option[value="${current}"]`)) squadSel.value = current;
+  }
   (allEvents || [])
     .filter(e => e.is_active !== false)
     .sort((a, b) => new Date(a.event_date) - new Date(b.event_date))
@@ -4024,11 +4033,8 @@ async function onGalaSelect() {
 function renderGalaSwimmers() {
   if (!currentGalaId) return;
   const squadFilter = document.getElementById('galaSquadFilter').value;
-  const GOLD   = 'a1000001-0000-0000-0000-000000000005';
-  const JUNIOR = 'a1000001-0000-0000-0000-000000000006';
 
   let swimmers = allRoster.filter(r => {
-    if (squadFilter === 'competitive') return r.squad_id === GOLD || r.squad_id === JUNIOR;
     if (squadFilter === '') return true;
     return r.squad_id === squadFilter;
   }).sort((a, b) => a.display_name.localeCompare(b.display_name));
