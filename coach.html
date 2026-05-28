@@ -1386,37 +1386,63 @@ async function loadAttendanceHistory() {
   rosterAttendanceHistory = {};
   if (!activeSqSession) return;
 
-  // Get last 6 sessions for this squad (before today's selected date)
+  // Get last 6 sessions for THIS squad — defines which dates show as dots.
+  // Fetch 30 to handle clubs with multiple sessions per day (we deduplicate below).
   const { data: sessions } = await sb.from('club_sessions')
     .select('id, session_date')
     .eq('club_id', currentClub.id)
     .eq('squad_id', activeSqSession.squad_id)
     .lt('session_date', selectedDate)
     .order('session_date', { ascending: false })
-    .limit(6);
+    .limit(30);
 
   if (!sessions?.length) return;
-  recentSessionDates = sessions.map(s => s.session_date); // newest first
 
-  // Get all attendance records for those sessions
-  const sessionIds = sessions.map(s => s.id);
+  // Deduplicate: one dot per calendar day, newest first, max 6
+  const dateSeen = new Set();
+  sessions.forEach(s => dateSeen.add(s.session_date));
+  recentSessionDates = [...dateSeen].sort().reverse().slice(0, 6);
+
+  // Fetch ALL club sessions on those dates (all squads) so walk-ins to other
+  // squads appear correctly rather than showing as "missed".
+  const { data: allOnDates } = await sb.from('club_sessions')
+    .select('id, session_date')
+    .eq('club_id', currentClub.id)
+    .in('session_date', recentSessionDates);
+
+  if (!allOnDates?.length) return;
+
+  const sessionIds = allOnDates.map(s => s.id);
+  const sessionDateMap = {};
+  allOnDates.forEach(s => { sessionDateMap[s.id] = s.session_date; });
+
+  // Get attendance records for all sessions on those dates
   const { data: records } = await sb.from('club_attendance')
     .select('roster_id, status, session_id')
     .in('session_id', sessionIds);
 
   if (!records?.length) return;
 
-  // Build map: session_id → session_date
-  const sessionDateMap = {};
-  sessions.forEach(s => { sessionDateMap[s.id] = s.session_date; });
+  // Build per-roster history, deduplicating by date.
+  // When a swimmer appears in multiple sessions on the same day (e.g. a walk-in
+  // AND their own squad), prefer the highest-ranked status.
+  const statusRank = { present: 6, nc: 5, notice: 4, away: 3, no_show: 2, dnp: 1 };
+  const bestByRosterDate = {}; // { roster_id: { date: best_status } }
 
-  // Build per-roster history
   records.forEach(rec => {
-    if (!rosterAttendanceHistory[rec.roster_id]) rosterAttendanceHistory[rec.roster_id] = [];
-    rosterAttendanceHistory[rec.roster_id].push({
-      session_date: sessionDateMap[rec.session_id],
-      status: rec.status
-    });
+    const date = sessionDateMap[rec.session_id];
+    if (!date) return;
+    if (!bestByRosterDate[rec.roster_id]) bestByRosterDate[rec.roster_id] = {};
+    const existing = bestByRosterDate[rec.roster_id][date];
+    if (!existing || (statusRank[rec.status] || 0) > (statusRank[existing] || 0)) {
+      bestByRosterDate[rec.roster_id][date] = rec.status;
+    }
+  });
+
+  // Convert back to array format used by swimmerRowHTML / renderBriefing
+  Object.entries(bestByRosterDate).forEach(([rosterId, byDate]) => {
+    rosterAttendanceHistory[rosterId] = Object.entries(byDate)
+      .map(([session_date, status]) => ({ session_date, status }));
   });
 }
 
