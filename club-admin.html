@@ -2295,13 +2295,41 @@ async function renderOverview() {
   );
   document.getElementById('statMembers').textContent  = roster.length;
   document.getElementById('statSessions').textContent = allSquadSessions.length || '0';
-  document.getElementById('statTrials').textContent   = trialsEnding.length;
-  document.getElementById('statTrials').style.color   = trialsEnding.length > 0 ? 'var(--amber)' : 'var(--text)';
-  document.getElementById('statFees').textContent     = feesOverdue.length;
-  document.getElementById('statFees').style.color     = feesOverdue.length > 0 ? 'var(--danger)' : 'var(--text)';
-  // Hide squad-specific stat card for open water clubs
-  const sessCard = document.getElementById('statSessions')?.closest('.stat-card');
+
+  const trialsCard = document.getElementById('statTrialCard');
+  const feesCard   = document.getElementById('statFeeCard');
+  const sessCard   = document.getElementById('statSessions')?.closest('.stat-card');
   if (sessCard) sessCard.style.display = isSquadClub ? '' : 'none';
+
+  if (isSquadClub) {
+    document.getElementById('statTrials').textContent = trialsEnding.length;
+    document.getElementById('statTrials').style.color = trialsEnding.length > 0 ? 'var(--amber)' : 'var(--text)';
+    document.getElementById('statFees').textContent   = feesOverdue.length;
+    document.getElementById('statFees').style.color   = feesOverdue.length > 0 ? 'var(--danger)' : 'var(--text)';
+  } else {
+    // Replace squad-only cards with platform engagement stats
+    const rosterLinkedCount = roster.filter(r => r.user_id).length;
+    if (trialsCard) {
+      trialsCard.innerHTML = `<div class="stat-label">On SwimLoading</div><div class="stat-val">${rosterLinkedCount}</div><div class="stat-note">${roster.length - rosterLinkedCount} not yet linked</div>`;
+      trialsCard.style.cursor = 'default';
+      trialsCard.onclick = null;
+    }
+    if (feesCard) {
+      feesCard.innerHTML = `<div class="stat-label">Logs this month</div><div class="stat-val" id="statLogsMonth">—</div><div class="stat-note">by members</div>`;
+      feesCard.style.cursor = 'default';
+      feesCard.onclick = null;
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const linkedIds  = roster.filter(r => r.user_id).map(r => r.user_id);
+      if (linkedIds.length) {
+        sb.from('temp_logs').select('id', { count: 'exact', head: true })
+          .in('user_id', linkedIds).gte('created_at', monthStart)
+          .then(({ count }) => { const el = document.getElementById('statLogsMonth'); if (el) el.textContent = count ?? 0; });
+      } else {
+        const el = document.getElementById('statLogsMonth');
+        if (el) el.textContent = '0';
+      }
+    }
+  }
 
   // ── Action items ─────────────────────────────────────────────────
   const unassigned    = roster.filter(r => !r.squad_id);
@@ -2310,19 +2338,19 @@ async function renderOverview() {
   const noCoachToday  = allSquadSessions.filter(s => !s.coach_name);
   const actions = [];
 
-  if (feesOverdue.length > 0) {
+  if (isSquadClub && feesOverdue.length > 0) {
     const preview = feesOverdue.slice(0,3).map(r => r.display_name).join(', ')
       + (feesOverdue.length > 3 ? ` +${feesOverdue.length - 3} more` : '');
     actions.push({ dot:'red', text:`${feesOverdue.length} fee${feesOverdue.length>1?'s':''} overdue`, names:preview, label:'Roster →', action:`showRosterFiltered('fee-overdue')` });
   }
-  if (trialsEnding.length > 0) {
+  if (isSquadClub && trialsEnding.length > 0) {
     const preview = trialsEnding.map(r => {
       const d = Math.ceil((new Date(r.trial_end_date) - now) / 86400000);
       return r.display_name + (d === 0 ? ' (today)' : ` (${d}d)`);
     }).join(', ');
     actions.push({ dot:'amber', text:`${trialsEnding.length} trial${trialsEnding.length>1?'s':''} expiring this week`, names:preview, label:'Roster →', action:`showRosterFiltered('trial')` });
   }
-  if (trialsNoEnd.length > 0) {
+  if (isSquadClub && trialsNoEnd.length > 0) {
     actions.push({ dot:'amber', text:`${trialsNoEnd.length} trial${trialsNoEnd.length>1?'s':''} have no end date set`, names:trialsNoEnd.slice(0,3).map(r=>r.display_name).join(', ')+(trialsNoEnd.length>3?` +${trialsNoEnd.length-3} more`:''), label:'Roster →', action:`showRosterFiltered('trial')` });
   }
   if (isSquadClub && unassigned.length > 0) {
@@ -2544,9 +2572,8 @@ async function renderOverview() {
         { label: 'Not in a squad',           val: unassigned.length, color: unassigned.length > 0 ? 'var(--amber)' : 'var(--green)' },
       ]
     : [
-        { label: 'On SwimLoading',           val: `${linkedCount} / ${roster.length}`, color: linkedCount === roster.length ? 'var(--green)' : 'var(--text)' },
-        { label: 'Still to join app',        val: unlinked.length, color: unlinked.length > 0 ? 'var(--amber)' : 'var(--green)' },
-        { label: 'Active trials',            val: trialCount, color: trialCount > 0 ? 'var(--cyan)' : 'var(--text-sec)' },
+        { label: 'On SwimLoading',    val: `${linkedCount} / ${roster.length}`, color: linkedCount === roster.length ? 'var(--green)' : 'var(--text)' },
+        { label: 'Still to join app', val: unlinked.length, color: unlinked.length > 0 ? 'var(--amber)' : 'var(--green)' },
       ];
 
   const pipelineTitle = hasParentLanguage ? 'Parent &amp; Member Pipeline' : 'Member Onboarding';
@@ -4281,7 +4308,7 @@ function initTempChallengeMonthPicker() {
   const now = new Date();
   for (let i = 0; i < 4; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const val = d.toISOString().slice(0, 7);
+    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     const label = d.toLocaleString('en-ZA', { month: 'long', year: 'numeric' });
     const opt = document.createElement('option');
     opt.value = val; opt.textContent = label;
@@ -4299,19 +4326,25 @@ async function loadTempChallenge() {
   const monthStart = new Date(year, month - 1, 1).toISOString();
   const monthEnd   = new Date(year, month, 1).toISOString();
 
-  // Get all active members
-  const memberIds = allMembers.map(m => m.user_id);
-  if (!memberIds.length) {
+  // Use full roster as the standings source so all members appear,
+  // not just the subset who have created SwimLoading accounts
+  const rosterSource = allRosterFull.length ? allRosterFull : allMembers;
+  if (!rosterSource.length) {
     el.innerHTML = `<div class="empty"><div class="empty-title">No members yet</div><div class="empty-desc">Share the join link to add members first.</div></div>`;
     return;
   }
 
+  // Only query logs for members who have a linked user_id
+  const linkedUserIds = [...new Set(rosterSource.map(m => m.user_id).filter(Boolean))];
+
   // Fetch their temp logs for the month
-  const { data: logs } = await sb.from('temp_logs')
-    .select('user_id, spot_id, created_at, logged_at, spots(name, domain)')
-    .in('user_id', memberIds)
+  const { data: logs, error: logsError } = await sb.from('temp_logs')
+    .select('user_id, spot_id, created_at, logged_at, spots!temp_logs_spot_id_fkey(name, domain)')
+    .in('user_id', linkedUserIds)
     .gte('created_at', monthStart)
     .lt('created_at', monthEnd);
+
+  if (logsError) console.error('Temp Challenge logs error:', logsError);
 
   // Calculate points per member: 10pts/log + 10pts per unique spot per day
   const byUser = {};
@@ -4323,7 +4356,7 @@ async function loadTempChallenge() {
     byUser[l.user_id].logs.push(l);
   });
 
-  const standings = allMembers.map(m => {
+  const standings = rosterSource.map(m => {
     const ud = byUser[m.user_id] || { logs: [], days: {} };
     const logCount = ud.logs.length;
     const basePoints = logCount * 10;
@@ -4333,18 +4366,19 @@ async function loadTempChallenge() {
       logCount,
       swimDays: Object.keys(ud.days).length,
       points: basePoints + bonusPoints,
-      name: m._display_name || m.club_roster?.display_name || '—',
-      cat: m.club_categories?.name || 'Unassigned',
-      catId: m.category_id,
-      memberNum: m.member_number,
+      name: m._display_name || m.display_name || m.club_roster?.display_name || '—',
+      cat: m.club_categories?.name || m.category || 'Unassigned',
+      catId: m.category_id || null,
+      memberNum: (m.member_number || '').toString().replace(/^#/, ''),
     };
   }).sort((a, b) => b.points - a.points || b.logCount - a.logCount);
 
   const MEDAL = ['var(--gold)', 'var(--silver)', 'var(--bronze)'];
   const monthLabel = new Date(year, month - 1, 1).toLocaleString('en-ZA', { month: 'long', year: 'numeric' });
 
-  // Overall leaderboard
-  const overallRows = standings.map((s, i) => {
+  // Overall leaderboard — top 10 active participants only
+  const top10 = standings.filter(s => s.logCount > 0).slice(0, 10);
+  const overallRows = top10.map((s, i) => {
     const col = i < 3 ? MEDAL[i] : 'var(--text-sec)';
     return `<tr>
       <td style="font-weight:800;color:${col};">${i + 1}</td>
@@ -4358,39 +4392,42 @@ async function loadTempChallenge() {
   // Per-category breakdown
   const catGroups = {};
   allCategories.forEach(c => { catGroups[c.name] = []; });
-  standings.forEach(s => {
+  activeStandings.forEach(s => {
     if (catGroups[s.cat]) catGroups[s.cat].push(s);
     else catGroups['Unassigned'] = [...(catGroups['Unassigned'] || []), s];
   });
 
   const catCards = Object.entries(catGroups).filter(([, members]) => members.length > 0).map(([cat, members]) => {
-    const top = members[0];
+    const top10cat = members.slice(0, 10);
+    const top = top10cat[0];
     const catCls = catClass(cat);
     return `
     <div class="card" style="margin-bottom:14px;">
       <div class="card-header">
         <div style="display:flex;align-items:center;gap:10px;">
           <span class="cat-badge ${catCls}">${cat}</span>
-          <div class="card-title" style="font-size:12px;">${members.length} member${members.length !== 1 ? 's' : ''}</div>
+          <div class="card-title" style="font-size:12px;">${members.length} active</div>
         </div>
         ${top.points > 0 ? `<div style="font-size:11px;color:var(--text-sec);">Leading: <strong style="color:var(--text);">${top.name}</strong> · ${top.points} pts</div>` : ''}
       </div>
       <table>
         <thead><tr><th>Rank</th><th>Member</th><th>Logs</th><th>Days</th><th>Points</th></tr></thead>
         <tbody>
-          ${members.map((s, i) => `<tr>
-            <td style="font-weight:700;color:${i === 0 && s.points > 0 ? 'var(--gold)' : 'var(--text-sec)'};">${i + 1}</td>
+          ${top10cat.map((s, i) => `<tr>
+            <td style="font-weight:700;color:${i === 0 ? 'var(--gold)' : 'var(--text-sec)'};">${i + 1}</td>
             <td class="member-name">${s.name}</td>
             <td style="color:var(--text-sec);">${s.logCount}</td>
             <td style="color:var(--text-sec);">${s.swimDays}</td>
-            <td style="font-weight:700;color:${s.points > 0 ? 'var(--cyan)' : 'var(--text-sec)'};">${s.points}</td>
+            <td style="font-weight:700;color:var(--cyan);">${s.points}</td>
           </tr>`).join('')}
         </tbody>
       </table>
     </div>`;
   }).join('');
 
-  const noLogs = standings.every(s => s.points === 0);
+  const activeStandings = standings.filter(s => s.logCount > 0);
+  const noLogs = activeStandings.length === 0;
+  const totalLogs = activeStandings.reduce((s, m) => s + m.logCount, 0);
 
   el.innerHTML = `
     <div style="background:var(--cyan-dim);border:1px solid var(--cyan-border);border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
@@ -4399,7 +4436,7 @@ async function loadTempChallenge() {
         <div style="font-size:13px;color:var(--text-sec);">10 pts per log · +10 per unique spot per day · log anywhere</div>
       </div>
       <div style="text-align:right;">
-        <div style="font-size:22px;font-weight:800;color:var(--text);">${standings.reduce((s, m) => s + m.logCount, 0)}</div>
+        <div style="font-size:22px;font-weight:800;color:var(--text);">${totalLogs}</div>
         <div style="font-size:11px;color:var(--text-sec);">total logs by members</div>
       </div>
     </div>
