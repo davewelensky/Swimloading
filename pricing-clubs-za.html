@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SwimLoading for Clubs — South Africa</title>
+    <meta name="description" content="The complete club management platform for South African swimming clubs. Attendance, AI-assisted set building, qualifying time tracking, health monitoring, and parent management.">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
@@ -39,10 +40,8 @@
         }
         body::before {
             content: '';
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: 9999;
+            position: fixed; inset: 0;
+            pointer-events: none; z-index: 9999;
             background:
                 radial-gradient(18px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
                     rgba(56,189,248,0.55), transparent 100%),
@@ -67,18 +66,20 @@
             -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
         }
         .nav-brand img { height: 22px; width: auto; }
-        .nav-badge {
-            font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-            background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3);
-            color: #fbbf24; border-radius: 4px; padding: 3px 9px;
+        .nav-cta {
+            font-size: 13px; font-weight: 700;
+            background: var(--cyan); color: #080f1a;
+            border-radius: 50px; padding: 7px 18px;
+            text-decoration: none; transition: opacity 0.15s;
         }
+        .nav-cta:hover { opacity: 0.85; }
 
         /* ── Hero ── */
         .hero {
             position: relative; overflow: hidden;
-            padding: 72px 24px 60px;
+            padding: 80px 24px 64px;
             background:
-                radial-gradient(ellipse 80% 60% at 50% -10%, rgba(56,189,248,0.10) 0%, transparent 70%),
+                radial-gradient(ellipse 90% 60% at 50% -10%, rgba(56,189,248,0.12) 0%, transparent 70%),
                 linear-gradient(180deg, #0a1525 0%, var(--bg) 100%);
             border-bottom: 1px solid var(--border);
         }
@@ -98,13 +99,22 @@
             font-family: 'Bebas Neue', sans-serif;
             font-size: clamp(52px, 10vw, 88px);
             line-height: 0.93; letter-spacing: 0.02em;
-            margin-bottom: 20px;
+            margin-bottom: 22px;
         }
         .hero-title .cyan { color: var(--cyan); }
         .hero-sub {
-            font-size: 16px; color: rgba(241,245,249,0.75);
-            line-height: 1.65; max-width: 560px; margin-bottom: 28px;
+            font-size: 17px; color: rgba(241,245,249,0.8);
+            line-height: 1.65; max-width: 560px; margin-bottom: 32px;
         }
+        .hero-stats {
+            display: flex; gap: 32px; flex-wrap: wrap; margin-bottom: 32px;
+        }
+        .hero-stat { }
+        .hero-stat-num {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 36px; color: var(--cyan); letter-spacing: 0.02em; line-height: 1;
+        }
+        .hero-stat-label { font-size: 12px; color: var(--text-sec); margin-top: 2px; }
         .hero-problem {
             display: inline-block; font-size: 13px; font-weight: 500;
             color: var(--text-sec);
@@ -116,7 +126,7 @@
         .hero-problem strong { color: var(--text); }
 
         /* ── Layout ── */
-        .content { max-width: 720px; margin: 0 auto; padding: 56px 20px 0; display: flex; flex-direction: column; gap: 56px; }
+        .content { max-width: 760px; margin: 0 auto; padding: 60px 20px 0; display: flex; flex-direction: column; gap: 64px; }
 
         /* ── Section heads ── */
         .section-eyebrow {
@@ -125,12 +135,18 @@
         }
         .section-title {
             font-family: 'Bebas Neue', sans-serif;
-            font-size: 32px; letter-spacing: 0.04em; color: var(--text);
-            margin-bottom: 20px;
+            font-size: 36px; letter-spacing: 0.04em; color: var(--text);
+            margin-bottom: 22px;
+        }
+        .section-desc {
+            font-size: 15px; color: var(--text-sec); line-height: 1.65;
+            max-width: 560px; margin-bottom: 28px;
         }
 
         /* ── Feature grid ── */
         .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .feature-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+        @media (max-width: 620px) { .feature-grid-3 { grid-template-columns: 1fr; } }
         @media (max-width: 520px) { .feature-grid { grid-template-columns: 1fr; } }
 
         .feature-card {
@@ -140,6 +156,15 @@
             transition: border-color 0.2s;
         }
         .feature-card:hover { border-color: rgba(56,189,248,0.2); }
+        .feature-card.new { border-color: rgba(56,189,248,0.22); position: relative; overflow: hidden; }
+        .feature-card.new::after {
+            content: 'NEW';
+            position: absolute; top: 12px; right: 12px;
+            font-size: 9px; font-weight: 800; letter-spacing: 0.12em;
+            background: rgba(56,189,248,0.15); color: var(--cyan);
+            border: 1px solid rgba(56,189,248,0.3); border-radius: 4px;
+            padding: 2px 7px;
+        }
 
         .feature-icon {
             width: 38px; height: 38px;
@@ -147,7 +172,7 @@
             border: 1px solid var(--cyan-border);
             border-radius: 10px;
             display: flex; align-items: center; justify-content: center;
-            margin-bottom: 16px;
+            margin-bottom: 14px;
             color: var(--cyan);
         }
         .feature-icon.green {
@@ -160,12 +185,35 @@
             border-color: rgba(245,158,11,0.22);
             color: var(--amber);
         }
+        .feature-icon.red {
+            background: rgba(239,68,68,0.08);
+            border-color: rgba(239,68,68,0.22);
+            color: var(--danger);
+        }
         .feature-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 7px; }
         .feature-desc { font-size: 12px; color: var(--text-sec); line-height: 1.6; }
 
-        /* ── Performance section — 2-col ── */
-        .perf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-        @media (max-width: 520px) { .perf-grid { grid-template-columns: 1fr; } }
+        /* ── Screenshot-style mock ── */
+        .demo-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px; padding: 20px;
+            margin-bottom: 12px;
+        }
+        .dot-row { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+        .dot-row:last-child { border-bottom: none; }
+        .dot-name { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
+        .dot-badge { font-size: 10px; font-weight: 700; color: var(--danger); background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); border-radius: 4px; padding: 2px 6px; }
+        .dot-badge.streak { color: var(--cyan); background: rgba(56,189,248,0.1); border-color: rgba(56,189,248,0.25); }
+        .dots { display: flex; gap: 4px; }
+        .dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .dot-present { background: #10b981; }
+        .dot-missed { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.1); }
+        .dot-away { background: #f59e0b; }
+        .dot-nc { background: #ef4444; }
 
         /* ── Quote card ── */
         .quote-card {
@@ -175,8 +223,8 @@
             border-radius: 14px; padding: 22px 24px;
         }
         .quote-text {
-            font-size: 14px; color: rgba(241,245,249,0.82);
-            line-height: 1.7; font-style: italic; margin-bottom: 10px;
+            font-size: 14px; color: rgba(241,245,249,0.85);
+            line-height: 1.75; font-style: italic; margin-bottom: 10px;
         }
         .quote-attr { font-size: 12px; font-weight: 600; color: var(--text-sec); }
 
@@ -198,63 +246,140 @@
         .step-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 5px; }
         .step-desc { font-size: 13px; color: var(--text-sec); line-height: 1.55; }
 
-        /* ── Pricing card ── */
+        /* ── Pricing ── */
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 14px;
+        }
+        @media (max-width: 680px) { .pricing-grid { grid-template-columns: 1fr; } }
+
         .pricing-card {
-            background: linear-gradient(135deg, rgba(56,189,248,0.07) 0%, rgba(56,189,248,0.02) 100%);
-            border: 1.5px solid var(--cyan-border);
-            border-radius: 20px; padding: 36px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px; padding: 30px 26px;
+            display: flex; flex-direction: column;
+            position: relative;
         }
-        .pricing-tag {
-            display: inline-block;
+        .pricing-card.featured {
+            background: linear-gradient(160deg, rgba(56,189,248,0.09) 0%, rgba(56,189,248,0.03) 100%);
+            border-color: rgba(56,189,248,0.3);
+        }
+        .pricing-badge {
+            display: inline-block; margin-bottom: 16px;
             font-size: 9px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase;
-            background: var(--cyan); color: #080f1a;
-            border-radius: 20px; padding: 4px 12px; margin-bottom: 18px;
+            padding: 4px 12px; border-radius: 20px;
         }
+        .badge-starter { background: rgba(100,116,139,0.15); color: var(--text-sec); border: 1px solid rgba(100,116,139,0.25); }
+        .badge-club { background: rgba(56,189,248,0.15); color: var(--cyan); border: 1px solid rgba(56,189,248,0.3); }
+        .badge-pro { background: rgba(245,158,11,0.12); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+
+        .popular-tag {
+            position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+            font-size: 9px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
+            background: var(--cyan); color: #080f1a;
+            border-radius: 20px; padding: 4px 14px; white-space: nowrap;
+        }
+
+        .pricing-squad-label {
+            font-size: 12px; color: var(--text-sec); margin-bottom: 4px;
+        }
+        .pricing-squad-count {
+            font-size: 15px; font-weight: 700; color: var(--text);
+            margin-bottom: 18px; padding-bottom: 18px;
+            border-bottom: 1px solid var(--border);
+        }
+
         .pricing-price {
             font-family: 'Bebas Neue', sans-serif;
-            font-size: 80px; color: var(--text);
-            line-height: 1; letter-spacing: -0.01em; margin-bottom: 4px;
+            font-size: 60px; color: var(--text);
+            line-height: 1; letter-spacing: -0.01em;
+            margin-bottom: 2px;
         }
         .pricing-price .cur {
-            font-size: 34px; vertical-align: top;
-            margin-top: 16px; display: inline-block;
+            font-size: 26px; vertical-align: top;
+            margin-top: 12px; display: inline-block;
             color: var(--text-sec);
         }
         .pricing-price .per {
             font-family: 'DM Sans', sans-serif;
-            font-size: 17px; font-weight: 500;
+            font-size: 14px; font-weight: 500;
             color: var(--text-sec); letter-spacing: 0;
         }
-        .pricing-annual { font-size: 13px; color: var(--text-sec); margin-bottom: 24px; }
+        .pricing-annual {
+            font-size: 12px; color: var(--text-sec); margin-bottom: 22px;
+        }
         .pricing-annual strong { color: var(--success); }
+
         .pricing-includes {
-            list-style: none; margin-bottom: 30px;
-            display: flex; flex-direction: column; gap: 11px;
+            list-style: none; margin-bottom: 24px;
+            display: flex; flex-direction: column; gap: 9px;
+            flex: 1;
         }
         .pricing-includes li {
-            display: flex; align-items: flex-start; gap: 10px;
-            font-size: 13px; color: var(--text-sec); line-height: 1.45;
+            display: flex; align-items: flex-start; gap: 9px;
+            font-size: 12px; color: var(--text-sec); line-height: 1.45;
         }
         .pricing-includes li::before {
             content: '';
-            width: 16px; height: 16px; border-radius: 50%;
+            width: 15px; height: 15px; border-radius: 50%;
             flex-shrink: 0; margin-top: 1px;
-            background: rgba(16,185,129,0.15);
-            border: 1px solid rgba(16,185,129,0.4);
+            background: rgba(16,185,129,0.12);
+            border: 1px solid rgba(16,185,129,0.35);
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 5l2.5 2.5L8 3' stroke='%2310b981' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
-            background-size: 10px; background-position: center; background-repeat: no-repeat;
+            background-size: 9px; background-position: center; background-repeat: no-repeat;
         }
         .pricing-includes li strong { color: var(--text); }
+
+        .pricing-includes li.bold-li::before {
+            background-color: rgba(56,189,248,0.12);
+            border-color: rgba(56,189,248,0.35);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 5l2.5 2.5L8 3' stroke='%2338bdf8' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+        }
+
         .cta-btn {
             display: block; width: 100%; text-align: center;
-            padding: 16px; background: var(--cyan); color: #080f1a;
-            font-size: 15px; font-weight: 700;
-            border-radius: 50px; border: none; cursor: pointer;
+            padding: 14px; background: rgba(255,255,255,0.06); color: var(--text);
+            border: 1px solid rgba(255,255,255,0.12);
+            font-size: 14px; font-weight: 700;
+            border-radius: 50px; cursor: pointer;
             text-decoration: none; letter-spacing: 0.01em;
-            transition: opacity 0.15s, transform 0.15s;
+            transition: background 0.15s, border-color 0.15s;
         }
-        .cta-btn:hover { opacity: 0.9; transform: translateY(-1px); }
-        .cta-note { text-align: center; font-size: 12px; color: var(--text-sec); margin-top: 14px; line-height: 1.55; }
+        .cta-btn:hover { background: rgba(255,255,255,0.1); }
+        .cta-btn.primary { background: var(--cyan); color: #080f1a; border-color: transparent; }
+        .cta-btn.primary:hover { opacity: 0.9; }
+
+        .pricing-note {
+            text-align: center; font-size: 12px; color: var(--text-sec);
+            margin-top: 18px; line-height: 1.6;
+        }
+
+        /* ── Comparison table ── */
+        .compare-table {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px; overflow: hidden;
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .compare-table th, .compare-table td {
+            padding: 13px 18px; text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        .compare-table th {
+            font-size: 11px; font-weight: 700; color: var(--text-sec);
+            text-transform: uppercase; letter-spacing: 0.1em;
+            background: rgba(255,255,255,0.02);
+        }
+        .compare-table tr:last-child td { border-bottom: none; }
+        .compare-table td:not(:first-child) { text-align: center; }
+        .compare-table th:not(:first-child) { text-align: center; }
+        .check { color: var(--success); font-size: 16px; }
+        .cross { color: var(--text-sec); opacity: 0.3; font-size: 16px; }
+        .compare-table td:first-child { color: var(--text-sec); }
+        .compare-table .featured-col { color: var(--cyan); font-weight: 700; }
 
         /* ── Footer ── */
         .footer {
@@ -280,7 +405,7 @@
     <a href="/" class="nav-brand">
         <img src="/icons/logo-wave.png" alt="">SwimLoading
     </a>
-    <span class="nav-badge">South Africa · ZAR</span>
+    <a href="mailto:support@swimloading.com?subject=Club pricing — South Africa" class="nav-cta">Get started</a>
 </nav>
 
 <div class="hero">
@@ -288,94 +413,189 @@
     <div class="hero-inner">
         <div class="hero-eyebrow">
             <div class="hero-eyebrow-line"></div>
-            <span>For Swimming Clubs</span>
+            <span>For Swimming Clubs · South Africa</span>
         </div>
-        <h1 class="hero-title">The complete club<br><span class="cyan">platform</span></h1>
-        <p class="hero-sub">Roster, attendance, AI-generated training sets, qualifying time tracking, health monitoring, and parent management — all in one place. No spreadsheets. No printing. No WhatsApp chaos.</p>
+        <h1 class="hero-title">Stop running your club<br>on a <span class="cyan">spreadsheet</span></h1>
+        <p class="hero-sub">Attendance registers, AI-assisted training sets, qualifying time tracking, health monitoring, WhatsApp sharing, and a parent portal — all in one place. Built for South African swimming.</p>
+
+        <div class="hero-stats">
+            <div class="hero-stat">
+                <div class="hero-stat-num">7</div>
+                <div class="hero-stat-label">squads on the platform</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-num">200+</div>
+                <div class="hero-stat-label">swimmers registered</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-num">24h</div>
+                <div class="hero-stat-label">to full setup</div>
+            </div>
+        </div>
+
         <div class="hero-problem">
-            <strong>Most clubs run on a shared spreadsheet and a WhatsApp group.</strong> There's no attendance register, no session history, no health record, no way to see who's close to qualifying. That's the gap SwimLoading closes.
+            <strong>Most clubs still run on a shared spreadsheet and a WhatsApp group.</strong> There's no attendance register, no session history, no health record, no live view of who's close to qualifying. That's the gap SwimLoading closes.
         </div>
     </div>
 </div>
 
 <div class="content">
 
-    <!-- Section 1: For Club Admins -->
-    <div>
-        <div class="section-eyebrow">For Club Admins</div>
-        <div class="section-title">Run your club from one dashboard</div>
-        <div class="feature-grid">
-            <div class="feature-card">
-                <div class="feature-icon"><i data-lucide="users" style="width:18px;height:18px;"></i></div>
-                <div class="feature-title">Roster &amp; Squads</div>
-                <div class="feature-desc">Full club roster with member numbers, squad assignments, roles (youth, senior, coach, social), and fee status. Filter, search, and edit any swimmer in seconds.</div>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon"><i data-lucide="link" style="width:18px;height:18px;"></i></div>
-                <div class="feature-title">Club Join Links</div>
-                <div class="feature-desc">Generate a unique invite link. Swimmers tap it, create their SwimLoading account, and are automatically linked to your club. Parents get their own role-based link. No manual imports.</div>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon"><i data-lucide="heart-handshake" style="width:18px;height:18px;"></i></div>
-                <div class="feature-title">Parent Portal</div>
-                <div class="feature-desc">Parents link to their child's roster entry through a simple join link. Club admin approves the link. Parents see their child's squad and session info — nothing more.</div>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon amber"><i data-lucide="trophy" style="width:18px;height:18px;"></i></div>
-                <div class="feature-title">Gala Management</div>
-                <div class="feature-desc">Manage upcoming galas, track pre-entries per swimmer, and see fee status across the squad. One view for the whole competitive calendar.</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Section 2: For Coaches -->
+    <!-- ── Section 1: Coaches ── -->
     <div>
         <div class="section-eyebrow">For Coaches</div>
         <div class="section-title">Everything a coach needs on their phone</div>
+        <p class="section-desc">The coach register is a mobile app. Open a session, mark swimmers in five seconds per swimmer, and WhatsApp the summary — all from the pool deck.</p>
         <div class="feature-grid">
+            <div class="feature-card new">
+                <div class="feature-icon"><i data-lucide="circle-dot" style="width:18px;height:18px;"></i></div>
+                <div class="feature-title">Attendance History at a Glance</div>
+                <div class="feature-desc">Six coloured dots next to every swimmer's name — green for present, red for no contact, amber for away. See in one second who's consistent, who's just returned, or who's on a six-session streak. No spreadsheet required.</div>
+            </div>
+            <div class="feature-card new">
+                <div class="feature-icon amber"><i data-lucide="bell" style="width:18px;height:18px;"></i></div>
+                <div class="feature-title">Cover Needed Alerts</div>
+                <div class="feature-desc">When a coach marks a session as needing cover, every other coach sees a live "NEEDS COVER" badge on their home screen before the session starts. No more last-minute WhatsApp panics.</div>
+            </div>
             <div class="feature-card">
                 <div class="feature-icon"><i data-lucide="clipboard-check" style="width:18px;height:18px;"></i></div>
                 <div class="feature-title">Mobile Attendance Register</div>
-                <div class="feature-desc">Mark swimmers present, late, absent, or trial on your phone. Navigate back to previous sessions. Health alerts surface automatically next to swimmer names.</div>
+                <div class="feature-desc">Mark every swimmer present, NC, away, notice, or no-show in one tap. Navigate back to previous sessions to fill in missed days. Walk-in guests added mid-session. Health alerts surface automatically next to swimmer names.</div>
             </div>
             <div class="feature-card">
-                <div class="feature-icon"><i data-lucide="activity" style="width:18px;height:18px;"></i></div>
+                <div class="feature-icon red"><i data-lucide="activity" style="width:18px;height:18px;"></i></div>
                 <div class="feature-title">Health &amp; Injury Tracking</div>
-                <div class="feature-desc">Log injuries and illness per swimmer: shoulder, hip, knee, or general illness. Severity levels — mild, moderate, serious. Active issues appear as badges on the attendance register and admin roster. Resolve when the swimmer is cleared.</div>
+                <div class="feature-desc">Log injuries per swimmer — shoulder, hip, knee, back, or general illness — with severity: mild, moderate, or serious. Active issues appear as bold badges on the attendance register and the admin roster. Resolve when the swimmer is cleared.</div>
             </div>
-            <div class="feature-card">
-                <div class="feature-icon"><i data-lucide="sparkles" style="width:18px;height:18px;"></i></div>
-                <div class="feature-title">AI-Assisted Set Building</div>
-                <div class="feature-desc">Describe what you need and get a structured starting point — not a finished product, but a solid draft that a coach reviews, adjusts, and owns. Build a reusable library organised by squad and focus.</div>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon green"><i data-lucide="share-2" style="width:18px;height:18px;"></i></div>
-                <div class="feature-title">WhatsApp in One Tap</div>
-                <div class="feature-desc">Share a single session or the entire week's programme to WhatsApp with one tap. Coaches receive the full set formatted and ready — no PDFs, no printing, no copying from a whiteboard.</div>
+        </div>
+
+        <!-- Live demo mock -->
+        <div style="margin-top:16px;">
+            <div style="font-size:11px;font-weight:600;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">What a coach sees on the register</div>
+            <div class="demo-card">
+                <div class="dot-row">
+                    <div class="dot-name">Italia Bergström</div>
+                    <div class="dots">
+                        <div class="dot dot-present" title="present"></div>
+                        <div class="dot dot-present" title="present"></div>
+                        <div class="dot dot-present" title="present"></div>
+                        <div class="dot dot-present" title="present"></div>
+                        <div class="dot dot-missed" title="—"></div>
+                        <div class="dot dot-present" title="present"></div>
+                    </div>
+                    <div class="dot-badge streak" style="margin-left:8px;">4 IN A ROW</div>
+                </div>
+                <div class="dot-row">
+                    <div class="dot-name">Keanu Ndlovu <span style="font-size:10px;font-weight:500;color:var(--danger);margin-left:4px;">shoulder · mild</span></div>
+                    <div class="dots">
+                        <div class="dot dot-nc" title="NC"></div>
+                        <div class="dot dot-nc" title="NC"></div>
+                        <div class="dot dot-present" title="present"></div>
+                        <div class="dot dot-away" title="away"></div>
+                        <div class="dot dot-present" title="present"></div>
+                        <div class="dot dot-present" title="present"></div>
+                    </div>
+                    <div class="dot-badge" style="margin-left:8px;">FIRST BACK</div>
+                </div>
+                <div class="dot-row">
+                    <div class="dot-name">Zara Patel</div>
+                    <div class="dots">
+                        <div class="dot dot-present" title="present"></div>
+                        <div class="dot dot-present" title="present"></div>
+                        <div class="dot dot-present" title="present"></div>
+                        <div class="dot dot-present" title="present"></div>
+                        <div class="dot dot-present" title="present"></div>
+                        <div class="dot dot-present" title="present"></div>
+                    </div>
+                    <div class="dot-badge streak" style="margin-left:8px;">6 IN A ROW</div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Section 3: For Performance -->
+    <!-- ── Section 2: AI-Assisted Sets ── -->
     <div>
-        <div class="section-eyebrow">For Performance</div>
-        <div class="section-title">See exactly who's close to qualifying</div>
-        <div class="perf-grid">
+        <div class="section-eyebrow">For Training</div>
+        <div class="section-title">AI-assisted. Coach-approved.</div>
+        <p class="section-desc">Describe what you need — distance focus for a gala week, aerobic base for juniors, speed work for seniors — and get a structured, properly formatted set to review and own. Not a finished product; a solid first draft that cuts planning time in half.</p>
+        <div class="feature-grid">
             <div class="feature-card">
-                <div class="feature-icon amber"><i data-lucide="target" style="width:18px;height:18px;"></i></div>
-                <div class="feature-title">Squad Tracker &amp; Qualifying Times</div>
-                <div class="feature-desc">Track every swimmer's PBs across all events. See who is within seconds of L1, L2, L3 or SANJ qualifying times. The pipeline view shows your entire squad's progression at a glance.</div>
+                <div class="feature-icon"><i data-lucide="sparkles" style="width:18px;height:18px;"></i></div>
+                <div class="feature-title">AI-Assisted Set Building</div>
+                <div class="feature-desc">Describe the session goal and the AI drafts a complete structured set — warmup, main set, cool-down — with intervals, rest periods, and coaching notes. You review, adjust, and publish it. The coach always owns the programme.</div>
             </div>
             <div class="feature-card">
                 <div class="feature-icon"><i data-lucide="brain" style="width:18px;height:18px;"></i></div>
                 <div class="feature-title">AI Coaching Insights</div>
-                <div class="feature-desc">Claude analyses your training history and flags imbalances — too much speed, not enough endurance. Surfaces which swimmers are close to qualifying and what sets will get them there, with upcoming galas factored in.</div>
+                <div class="feature-desc">Every week, Claude analyses your training history and flags imbalances — too much speed, not enough endurance, approaching a gala without taper. Surfaces which swimmers are within seconds of qualifying and what sets will get them there.</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i data-lucide="calendar-days" style="width:18px;height:18px;"></i></div>
+                <div class="feature-title">Weekly Squad Planner</div>
+                <div class="feature-desc">Assign sets to each squad across the full week in a live calendar. One screen shows every squad, every day, every coach assignment. Build a reusable library organised by squad and training focus.</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon green"><i data-lucide="share-2" style="width:18px;height:18px;"></i></div>
+                <div class="feature-title">WhatsApp in One Tap</div>
+                <div class="feature-desc">Share a single session or the entire week's programme to WhatsApp in one tap. Coaches receive the full set formatted and ready — no PDFs, no printing, no copying from a whiteboard.</div>
             </div>
         </div>
-
     </div>
 
-    <!-- How it works -->
+    <!-- ── Section 3: Club Admin ── -->
+    <div>
+        <div class="section-eyebrow">For Club Admins</div>
+        <div class="section-title">Run your club from one dashboard</div>
+        <p class="section-desc">Everything you need to manage a growing club — roster, squads, galas, parent communication, and qualifying progress — without a spreadsheet in sight.</p>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon"><i data-lucide="users" style="width:18px;height:18px;"></i></div>
+                <div class="feature-title">Roster &amp; Squads</div>
+                <div class="feature-desc">Full club roster with member numbers, squad assignments, roles (youth, senior, coach, social, non-competing), fee status, and trial tracking. Filter, search, and edit any swimmer in seconds. Export any time.</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i data-lucide="link" style="width:18px;height:18px;"></i></div>
+                <div class="feature-title">Club Join Links</div>
+                <div class="feature-desc">Generate a unique link. Swimmers tap it, create their SwimLoading account, and are automatically linked to your club roster. Parents get their own role-based link. No manual imports, no data entry.</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i data-lucide="heart-handshake" style="width:18px;height:18px;"></i></div>
+                <div class="feature-title">Parent Portal</div>
+                <div class="feature-desc">Parents link to their child's roster entry through a simple join link. The admin approves the link. Parents see their child's squad and session info. Communication flows through the same platform — no extra app, no extra login.</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon amber"><i data-lucide="trophy" style="width:18px;height:18px;"></i></div>
+                <div class="feature-title">Gala Management</div>
+                <div class="feature-desc">Manage your competitive calendar: upcoming galas, pre-entry status per swimmer, and who has and hasn't paid. One view for every club admin and coach — no more gala spreadsheets.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Section 4: Performance ── -->
+    <div>
+        <div class="section-eyebrow">For Performance</div>
+        <div class="section-title">See exactly who's close to qualifying</div>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon amber"><i data-lucide="target" style="width:18px;height:18px;"></i></div>
+                <div class="feature-title">Squad Tracker &amp; Qualifying Times</div>
+                <div class="feature-desc">Track every swimmer's personal bests across all events. See who is within seconds of L1, L2, L3, or SANJ qualifying times. The pipeline view shows your entire squad's progression at a glance — no more guessing who's ready to compete up.</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i data-lucide="bar-chart-2" style="width:18px;height:18px;"></i></div>
+                <div class="feature-title">Season Progress</div>
+                <div class="feature-desc">Track improvement over the season against qualifying benchmarks. See trends by swimmer and by event. When a swimmer drops a PB, it updates immediately and their qualifying gaps recalculate across all events.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Testimonial ── -->
+    <div class="quote-card">
+        <div class="quote-text">"The attendance dots are exactly what I needed. In five seconds I can see who's been consistent and who I need to check in on — without scrolling through any messages or spreadsheets. It changed how I start every session."</div>
+        <div class="quote-attr">Teagan Thompson · Head Coach, Aquasharks Atlantic</div>
+    </div>
+
+    <!-- ── How it works ── -->
     <div>
         <div class="section-eyebrow">How it works</div>
         <div class="section-title">Up and running in 24 hours</div>
@@ -383,50 +603,137 @@
             <div class="step">
                 <div class="step-num">1</div>
                 <div class="step-body">
-                    <div class="step-title">We set up your club</div>
-                    <div class="step-desc">Tell us your squads, coaches, and spots. We configure the club and generate your join links within 24 hours.</div>
+                    <div class="step-title">You tell us your squads</div>
+                    <div class="step-desc">Send us your squad names, coaches, and usual pool location. We configure your club, set up the timetable, and generate your join links within 24 hours.</div>
                 </div>
             </div>
             <div class="step">
                 <div class="step-num">2</div>
                 <div class="step-body">
                     <div class="step-title">Coaches and swimmers join</div>
-                    <div class="step-desc">Share the join link. Every swimmer creates their SwimLoading account and is automatically linked to your roster. Parents get their own link.</div>
+                    <div class="step-desc">Share the join link with your swimmers and coaches. Each person creates their SwimLoading account and is automatically linked to the correct squad. Parents get their own separate link.</div>
                 </div>
             </div>
             <div class="step">
                 <div class="step-num">3</div>
                 <div class="step-body">
                     <div class="step-title">Your club runs on SwimLoading</div>
-                    <div class="step-desc">Attendance, sets, health tracking, qualifying progress — all in one place, on any device.</div>
+                    <div class="step-desc">Attendance, training sets, health tracking, qualifying progress, gala management — all live, all in one place, accessible from any phone or laptop.</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Pricing -->
-    <div>
-        <div class="section-eyebrow">Club subscription · ZAR</div>
-        <div class="pricing-card">
-            <div class="pricing-tag">Club Access</div>
-            <div class="pricing-price"><span class="cur">R</span>699<span class="per">/month</span></div>
-            <div class="pricing-annual">or <strong>R6,990/year — save R1,398</strong></div>
-            <ul class="pricing-includes">
-                <li><strong>Unlimited swimmers</strong> — no per-seat fees</li>
-                <li><strong>Full roster management</strong> with squads and roles</li>
-                <li>Coach attendance register — mobile-first</li>
-                <li>Health &amp; injury tracking per swimmer</li>
-                <li>AI-assisted set building and coaching insights</li>
-                <li>Weekly squad planner with WhatsApp sharing</li>
-                <li>Squad tracker with qualifying time progress (L1/L2/L3/SANJ)</li>
-                <li>Parent portal with approval flow</li>
-                <li>Gala management and pre-entries</li>
-                <li>Club join links for seamless onboarding</li>
-                <li>Email support — we respond</li>
-            </ul>
-            <a href="mailto:support@swimloading.com?subject=Club Access — South Africa" class="cta-btn">Get started — R699/month</a>
-            <div class="cta-note">Email us to get set up. We'll configure your squads and generate your join links within 24 hours.</div>
+    <!-- ── Pricing ── -->
+    <div id="pricing">
+        <div class="section-eyebrow">Pricing · ZAR</div>
+        <div class="section-title">Simple pricing by squad size</div>
+        <p class="section-desc">Every tier includes all features — attendance, AI-assisted sets, qualifying tracking, health monitoring, and parent portal. You pay for what your club needs, not per swimmer.</p>
+
+        <div class="pricing-grid">
+            <!-- Starter -->
+            <div class="pricing-card">
+                <div class="pricing-badge badge-starter">Starter</div>
+                <div class="pricing-squad-label">For smaller clubs</div>
+                <div class="pricing-squad-count">1 – 3 squads</div>
+                <div class="pricing-price"><span class="cur">R</span>499<span class="per">/mo</span></div>
+                <div class="pricing-annual">or <strong>R4,990/year — save R998</strong></div>
+                <ul class="pricing-includes">
+                    <li>Up to 3 squads, unlimited swimmers</li>
+                    <li>Mobile attendance register with history dots</li>
+                    <li>Health &amp; injury tracking</li>
+                    <li>AI-assisted set building</li>
+                    <li>Weekly squad planner + WhatsApp sharing</li>
+                    <li>Roster, roles, fee tracking, join links</li>
+                    <li>Gala management</li>
+                    <li>Email support</li>
+                </ul>
+                <a href="mailto:support@swimloading.com?subject=Starter plan — South Africa" class="cta-btn">Get started</a>
+            </div>
+
+            <!-- Club (featured) -->
+            <div class="pricing-card featured">
+                <div class="popular-tag">Most popular</div>
+                <div class="pricing-badge badge-club">Club</div>
+                <div class="pricing-squad-label">For growing clubs</div>
+                <div class="pricing-squad-count">4 – 6 squads</div>
+                <div class="pricing-price"><span class="cur">R</span>799<span class="per">/mo</span></div>
+                <div class="pricing-annual">or <strong>R7,990/year — save R1,598</strong></div>
+                <ul class="pricing-includes">
+                    <li>Up to 6 squads, unlimited swimmers</li>
+                    <li>Everything in Starter, plus:</li>
+                    <li class="bold-li"><strong>Squad tracker with qualifying times (L1/L2/L3/SANJ)</strong></li>
+                    <li class="bold-li"><strong>AI coaching insights and season analysis</strong></li>
+                    <li class="bold-li"><strong>Parent portal with approval flow</strong></li>
+                    <li class="bold-li"><strong>Cover needed alerts across coaches</strong></li>
+                    <li>Priority email support</li>
+                </ul>
+                <a href="mailto:support@swimloading.com?subject=Club plan — South Africa" class="cta-btn primary">Get started</a>
+            </div>
+
+            <!-- Pro -->
+            <div class="pricing-card">
+                <div class="pricing-badge badge-pro">Pro</div>
+                <div class="pricing-squad-label">For large academies</div>
+                <div class="pricing-squad-count">7+ squads · unlimited</div>
+                <div class="pricing-price"><span class="cur">R</span>1,199<span class="per">/mo</span></div>
+                <div class="pricing-annual">or <strong>R11,990/year — save R2,398</strong></div>
+                <ul class="pricing-includes">
+                    <li>Unlimited squads, unlimited swimmers</li>
+                    <li>Everything in Club, plus:</li>
+                    <li class="bold-li"><strong>Dedicated onboarding call</strong></li>
+                    <li class="bold-li"><strong>Custom squad &amp; timetable setup</strong></li>
+                    <li class="bold-li"><strong>Priority support with direct line to the team</strong></li>
+                    <li>Early access to new features</li>
+                </ul>
+                <a href="mailto:support@swimloading.com?subject=Pro plan — South Africa" class="cta-btn">Get started</a>
+            </div>
         </div>
+
+        <div class="pricing-note">
+            All plans are billed monthly or annually. Cancel any time. Annual billing saves approximately 17%.<br>
+            Not sure which plan? <a href="mailto:support@swimloading.com?subject=Club plan question" style="color:var(--cyan);text-decoration:none;">Email us</a> — we'll help you choose.
+        </div>
+    </div>
+
+    <!-- ── Comparison ── -->
+    <div>
+        <div class="section-eyebrow">What's included</div>
+        <div class="section-title">Feature comparison</div>
+        <table class="compare-table">
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>Starter</th>
+                    <th class="featured-col">Club</th>
+                    <th>Pro</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>Squads</td><td>1–3</td><td class="featured-col">4–6</td><td>Unlimited</td></tr>
+                <tr><td>Swimmers</td><td>Unlimited</td><td class="featured-col">Unlimited</td><td>Unlimited</td></tr>
+                <tr><td>Attendance register + history dots</td><td><span class="check">✓</span></td><td class="featured-col"><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+                <tr><td>Health &amp; injury tracking</td><td><span class="check">✓</span></td><td class="featured-col"><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+                <tr><td>AI-assisted set building</td><td><span class="check">✓</span></td><td class="featured-col"><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+                <tr><td>Weekly planner + WhatsApp sharing</td><td><span class="check">✓</span></td><td class="featured-col"><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+                <tr><td>Roster, join links, gala management</td><td><span class="check">✓</span></td><td class="featured-col"><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+                <tr><td>Squad tracker + qualifying times</td><td><span class="cross">–</span></td><td class="featured-col"><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+                <tr><td>AI coaching insights</td><td><span class="cross">–</span></td><td class="featured-col"><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+                <tr><td>Parent portal</td><td><span class="cross">–</span></td><td class="featured-col"><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+                <tr><td>Cover needed alerts</td><td><span class="cross">–</span></td><td class="featured-col"><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+                <tr><td>Dedicated onboarding call</td><td><span class="cross">–</span></td><td class="featured-col"><span class="cross">–</span></td><td><span class="check">✓</span></td></tr>
+                <tr><td>Priority direct support</td><td><span class="cross">–</span></td><td class="featured-col"><span class="cross">–</span></td><td><span class="check">✓</span></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ── Final CTA ── -->
+    <div style="background:linear-gradient(135deg,rgba(56,189,248,0.07) 0%,rgba(56,189,248,0.02) 100%);border:1.5px solid rgba(56,189,248,0.2);border-radius:20px;padding:40px;text-align:center;">
+        <div class="section-eyebrow" style="justify-content:center;display:flex;margin-bottom:10px;">Get started</div>
+        <h2 style="font-family:'Bebas Neue',sans-serif;font-size:40px;letter-spacing:0.04em;color:var(--text);margin-bottom:14px;">Ready to modernise your club?</h2>
+        <p style="font-size:15px;color:var(--text-sec);line-height:1.65;max-width:480px;margin:0 auto 28px;">We'll set everything up — squads, timetable, join links — within 24 hours of hearing from you. No long contracts. Cancel any time.</p>
+        <a href="mailto:support@swimloading.com?subject=Club pricing — South Africa" style="display:inline-block;padding:16px 40px;background:var(--cyan);color:#080f1a;font-size:15px;font-weight:700;border-radius:50px;text-decoration:none;letter-spacing:0.01em;">Email us to get set up</a>
+        <p style="font-size:12px;color:var(--text-sec);margin-top:14px;">support@swimloading.com · we respond within 24 hours</p>
     </div>
 
 </div>
