@@ -1841,6 +1841,10 @@ function buildGalaSessionPanel(ev) {
     html += `<div style="font-size:12px;color:var(--amber);background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:10px 12px;margin-bottom:14px;">
       Date of birth and gender not set — ask your coach to complete your profile for QT checks.
     </div>`;
+  } else {
+    html += `<div style="font-size:12px;color:var(--text-secondary);background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;margin-bottom:14px;line-height:1.5;">
+      You can only enter events where you have a qualifying time. <span style="color:var(--green);">Green = qualified</span>, <span style="color:var(--danger);">greyed out = not qualified yet</span>.
+    </div>`;
   }
 
   const sessions = ev.sessions_json;
@@ -1875,34 +1879,43 @@ function buildGalaSessionPanel(ev) {
 
       if (!ageOk) {
         canSelect = false; rowStyle = 'opacity:0.4;';
-        rightHtml = `<span style="font-size:10px;color:var(--text-dim);">11 &amp; over</span>`;
+        rightHtml = `<span style="font-size:10px;color:var(--text-dim);">11 &amp; over only</span>`;
       } else if (!hasProfile) {
         rightHtml = pb ? `<span style="font-size:11px;color:var(--text-secondary);">PB ${pb.time_text}</span>` : '';
       } else if (!qtStd) {
-        rightHtml = pb ? `<span style="font-size:11px;color:var(--text-secondary);">PB ${pb.time_text}</span>` : `<span style="font-size:10px;color:var(--text-dim);">No standard</span>`;
+        // No QT standard — open entry
+        rightHtml = pb
+          ? `<span style="font-size:11px;color:var(--cyan);background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.15);padding:2px 7px;border-radius:4px;">PB ${pb.time_text}</span>`
+          : `<span style="font-size:10px;color:var(--text-dim);">Open entry</span>`;
       } else if (!pb) {
         canSelect = false; rowStyle = 'opacity:0.45;';
-        rightHtml = `<span style="font-size:10px;color:var(--text-dim);">No PB on file — ask coach to add</span>`;
+        rightHtml = `<div style="text-align:right;">
+          <div style="font-size:10px;font-weight:700;color:var(--danger);margin-bottom:1px;">No qualifying time</div>
+          <div style="font-size:10px;color:var(--text-dim);">No PB on file — ask coach</div>
+        </div>`;
       } else if (pb.time_seconds <= qtStd.seconds) {
         const gap = qtStd.seconds - pb.time_seconds;
         rowStyle = 'background:rgba(16,185,129,0.04);border-radius:8px;';
-        rightHtml = `<span style="font-size:11px;color:var(--green);background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);padding:2px 7px;border-radius:4px;">PB ${pb.time_text} <span style="font-size:9px;">-${_fmtGapClub(gap)}</span></span>`;
+        rightHtml = `<div style="text-align:right;">
+          <span style="font-size:11px;color:var(--green);background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);padding:2px 7px;border-radius:4px;">Qualified ✓</span>
+          <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">PB ${pb.time_text} · ${_fmtGapClub(gap)} under QT</div>
+        </div>`;
       } else {
         const gap = pb.time_seconds - qtStd.seconds;
         const pct = gap / qtStd.seconds;
-        canSelect = false; rowStyle = 'opacity:0.5;';
-        const gapLabel = pct <= 0.04
-          ? `<span style="font-size:9px;color:var(--amber);">+${_fmtGapClub(gap)}</span>`
-          : '';
-        rightHtml = `<span style="font-size:11px;color:var(--text-secondary);background:rgba(255,255,255,0.04);padding:2px 7px;border-radius:4px;">PB ${pb.time_text} ${gapLabel} <span style="font-size:9px;color:var(--text-dim);">/ QT ${qtStd.text}</span></span>`;
+        canSelect = false; rowStyle = 'opacity:0.55;';
+        rightHtml = `<div style="text-align:right;">
+          <div style="font-size:10px;font-weight:700;color:var(--danger);margin-bottom:1px;">Not qualified yet</div>
+          <div style="font-size:10px;color:var(--text-secondary);">PB ${pb.time_text} · need ${qtStd.text}${pct <= 0.05 ? ` <span style="color:var(--amber);">(${_fmtGapClub(gap)} off)</span>` : ''}</div>
+        </div>`;
       }
 
-      html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 6px;${rowStyle}">
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:8px;${rowStyle}">
         <input type="checkbox" id="${cbId}" data-event="${evtName}" data-session="${sess.number}"
           ${checked ? 'checked' : ''} ${canSelect ? '' : 'disabled'}
           style="width:18px;height:18px;accent-color:var(--cyan);flex-shrink:0;cursor:${canSelect?'pointer':'not-allowed'};">
-        <label for="${cbId}" style="flex:1;font-size:14px;color:var(--text);cursor:${canSelect?'pointer':'default'};">${evtName}</label>
-        <div style="text-align:right;">${rightHtml}</div>
+        <label for="${cbId}" style="flex:1;font-size:14px;font-weight:${canSelect?'500':'400'};color:var(--text);cursor:${canSelect?'pointer':'default'};">${evtName}</label>
+        <div style="text-align:right;flex-shrink:0;">${rightHtml}</div>
       </div>`;
     });
   });
