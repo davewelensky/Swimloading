@@ -4271,9 +4271,14 @@ function renderGalaSwimmers() {
     return r.squad_id === squadFilter;
   }).sort((a, b) => a.display_name.localeCompare(b.display_name));
 
-  const enteredIds = new Set(galaEntriesData.filter(e => e.status !== 'scratched').map(e => e.roster_id));
-  const entered    = swimmers.filter(s => enteredIds.has(s.id));
-  const notEntered = swimmers.filter(s => !enteredIds.has(s.id));
+  // Three buckets: confirmed by admin | requested by swimmer only | no entries yet
+  const confirmedRosterIds = new Set(galaEntriesData.filter(e => e.status === 'entered').map(e => e.roster_id));
+  const requestedRosterIds = new Set(galaEntriesData.filter(e => e.status === 'requested').map(e => e.roster_id));
+  const anyEntryIds        = new Set(galaEntriesData.filter(e => e.status !== 'scratched').map(e => e.roster_id));
+  // enteredIds kept for swimmerCard badge logic (shows entries on card)
+  const enteredIds = anyEntryIds;
+  const entered    = swimmers.filter(s => confirmedRosterIds.has(s.id));
+  const notEntered = swimmers.filter(s => !anyEntryIds.has(s.id));
 
   const squadName  = s => allSquads.find(sq => sq.id === s.squad_id)?.name || '';
   const genderBadge = g => g === 'M'
@@ -4319,12 +4324,10 @@ function renderGalaSwimmers() {
   const event = allEvents.find(e => e.id === currentGalaId);
 
   // Split entries: swimmer-requested vs admin-confirmed
-  const confirmedIds  = new Set(galaEntriesData.filter(e => e.status === 'entered').map(e => e.roster_id));
-  const requestedIds  = new Set(galaEntriesData.filter(e => e.status === 'requested').map(e => e.roster_id));
-  // "Requests" = swimmers who have ONLY requested (not yet confirmed by admin)
-  const requestOnly   = [...requestedIds].filter(id => !confirmedIds.has(id));
   const totalConfirmed = galaEntriesData.filter(e => e.status === 'entered').length;
   const totalRequested = galaEntriesData.filter(e => e.status === 'requested').length;
+  // requestOnly = swimmers who submitted via app but admin hasn't confirmed yet
+  const requestOnly = [...requestedRosterIds].filter(id => !confirmedRosterIds.has(id));
 
   let html = `<div class="card">
     <div class="card-header">
@@ -4360,11 +4363,11 @@ function renderGalaSwimmers() {
   }
 
   if (entered.length > 0) {
-    html += `<div style="padding:8px 16px 2px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;">Confirmed (${entered.length})</div>`;
+    html += `<div style="padding:8px 16px 2px;font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;">Confirmed by coach (${entered.length})</div>`;
     html += entered.map(swimmerCard).join('');
   }
   if (notEntered.length > 0) {
-    html += `<div style="padding:8px 16px 2px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;">Not yet entered (${notEntered.length})</div>`;
+    html += `<div style="padding:8px 16px 2px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;">No entries yet (${notEntered.length})</div>`;
     html += notEntered.map(swimmerCard).join('');
   }
   if (swimmers.length === 0) {
