@@ -572,6 +572,7 @@
           <div class="stat-card" style="cursor:pointer;" onclick="showRosterFiltered('fee-overdue')" id="statFeeCard"><div class="stat-label">Fees overdue</div><div class="stat-val" id="statFees" style="color:var(--danger);">—</div><div class="stat-note">unpaid past due</div></div>
         </div>
         <div id="overviewActions"></div>
+        <div id="overviewGalas"></div>
         <div class="overview-2col" id="overviewTodaySquads"></div>
         <div id="overviewAttendance"></div>
         <div class="overview-2col" id="overviewBottom"></div>
@@ -2395,6 +2396,129 @@ async function renderOverview() {
           <i data-lucide="check-circle" style="width:16px;height:16px;"></i> All clear — nothing urgent needs your attention right now
         </div>
       </div>`;
+
+  // ── Gala Pipeline ────────────────────────────────────────────────
+  const galasEl = document.getElementById('overviewGalas');
+  if (galasEl && hasGalaEntries) {
+    const upcoming = (allEvents||[])
+      .filter(e => new Date(e.event_date + 'T12:00:00') >= now)
+      .sort((a,b) => new Date(a.event_date) - new Date(b.event_date))
+      .slice(0, 5);
+
+    if (upcoming.length) {
+      // Fetch entry counts for all upcoming galas in one query
+      const upcomingIds = upcoming.map(e => e.id);
+      const { data: entryRows } = await sb.from('club_gala_entries')
+        .select('event_id, roster_id, status')
+        .in('event_id', upcomingIds)
+        .neq('status', 'scratched');
+
+      // Build per-gala stats
+      const galaStats = {};
+      upcomingIds.forEach(id => { galaStats[id] = { confirmed: new Set(), requested: new Set() }; });
+      (entryRows || []).forEach(r => {
+        if (!galaStats[r.event_id]) return;
+        if (r.status === 'entered')    galaStats[r.event_id].confirmed.add(r.roster_id);
+        if (r.status === 'requested')  galaStats[r.event_id].requested.add(r.roster_id);
+      });
+
+      const rosterTotal = roster.length || 1;
+
+      // Inject "pending requests" action items per gala
+      const pendingGalas = upcoming.filter(e => galaStats[e.id]?.requested.size > 0);
+      if (pendingGalas.length > 0) {
+        const actEl = document.getElementById('overviewActions');
+        let ul = actEl?.querySelector('.action-list');
+        if (!ul && actEl) {
+          // No action list yet — create card
+          actEl.innerHTML = `<div class="card" style="margin-bottom:16px;">
+            <div class="card-header"><div class="card-title" style="display:flex;align-items:center;gap:8px;"><i data-lucide="zap" style="width:14px;height:14px;color:var(--cyan);"></i> Needs attention</div></div>
+            <ul class="action-list"></ul></div>`;
+          ul = actEl.querySelector('.action-list');
+        }
+        if (ul) {
+          pendingGalas.forEach(e => {
+            const n = galaStats[e.id].requested.size;
+            ul.insertAdjacentHTML('afterbegin', `<li class="action-item" onclick="viewGalaEntries('${e.id}')">
+              <div class="action-dot amber"></div>
+              <div class="action-text">
+                <div style="font-weight:600;">${n} swimmer${n>1?'s':''} requested entries for ${e.title}</div>
+                <div class="action-names">Review and confirm in Entries</div>
+              </div>
+              <div class="action-arrow">Entries →</div>
+            </li>`);
+          });
+        }
+      }
+
+      // Render the pipeline card
+      const rows = upcoming.map(e => {
+        const stats      = galaStats[e.id];
+        const confirmed  = stats.confirmed.size;
+        const requested  = stats.requested.size;
+        const noResponse = Math.max(0, rosterTotal - confirmed - requested);
+        const d          = new Date(e.event_date + 'T12:00:00');
+        const daysAway   = Math.ceil((d - now) / 86400000);
+        const soon       = daysAway <= 14;
+        const confPct    = Math.round(confirmed  / rosterTotal * 100);
+        const reqPct     = Math.round(requested  / rosterTotal * 100);
+        const totalEvts  = (entryRows || []).filter(r => r.event_id === e.id && r.status !== 'scratched').length;
+        const hasSessions = e.sessions_json?.length > 0;
+
+        return `<div style="padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;" onclick="viewGalaEntries('${e.id}')">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:12px;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px;">${e.title}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+                <span style="font-size:11px;color:var(--text-sec);">${d.getDate()} ${months[d.getMonth()]}${e.venue ? ' · ' + e.venue : ''}</span>
+                ${e.course ? `<span style="font-size:10px;color:var(--text-sec);background:rgba(255,255,255,0.05);padding:1px 6px;border-radius:4px;">${e.course}</span>` : ''}
+                ${!hasSessions ? `<span style="font-size:10px;color:var(--amber);background:rgba(245,158,11,0.08);padding:1px 6px;border-radius:4px;">No sessions set</span>` : ''}
+              </div>
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+              <div style="font-size:18px;font-weight:900;color:${soon?'var(--amber)':'var(--cyan)'};font-family:'Bebas Neue',sans-serif;line-height:1;">${daysAway === 0 ? 'TODAY' : daysAway + 'd'}</div>
+              <div style="font-size:10px;color:var(--text-sec);">away</div>
+            </div>
+          </div>
+
+          <!-- Stacked bar -->
+          <div style="height:8px;border-radius:4px;background:rgba(255,255,255,0.06);overflow:hidden;display:flex;margin-bottom:8px;">
+            <div style="width:${confPct}%;background:var(--green);transition:width 0.4s;"></div>
+            <div style="width:${reqPct}%;background:var(--amber);transition:width 0.4s;"></div>
+          </div>
+
+          <!-- Legend -->
+          <div style="display:flex;gap:14px;flex-wrap:wrap;">
+            <span style="font-size:11px;color:var(--green);display:flex;align-items:center;gap:4px;">
+              <span style="width:8px;height:8px;border-radius:2px;background:var(--green);display:inline-block;flex-shrink:0;"></span>
+              ${confirmed} confirmed
+            </span>
+            ${requested > 0 ? `<span style="font-size:11px;color:var(--amber);display:flex;align-items:center;gap:4px;">
+              <span style="width:8px;height:8px;border-radius:2px;background:var(--amber);display:inline-block;flex-shrink:0;"></span>
+              ${requested} requested
+            </span>` : ''}
+            <span style="font-size:11px;color:var(--text-sec);">${noResponse} no response</span>
+            ${totalEvts > 0 ? `<span style="font-size:11px;color:var(--text-sec);margin-left:auto;">${totalEvts} total events</span>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+
+      galasEl.innerHTML = `<div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title" style="display:flex;align-items:center;gap:8px;">
+            <i data-lucide="ticket" style="width:14px;height:14px;color:var(--cyan);"></i> Gala Pipeline
+          </div>
+          <button class="btn-sm" onclick="showPage('entries')" style="font-size:11px;">View entries</button>
+        </div>
+        ${rows}
+      </div>`;
+      lucide.createIcons();
+    } else {
+      galasEl.innerHTML = '';
+    }
+  } else if (galasEl) {
+    galasEl.innerHTML = '';
+  }
 
   // ── Week Dashboard (squad clubs) / clear for open water ─────────
   const todaySessionsEl = document.getElementById('overviewTodaySquads');
