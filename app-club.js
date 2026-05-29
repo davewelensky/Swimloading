@@ -34,7 +34,7 @@ async function loadUserClubs() {
           .in('id', clubIds),
         supabaseClient
           .from('club_roster')
-          .select('id, member_number, display_name, category, gender')
+          .select('id, member_number, display_name, category, gender, date_of_birth')
           .in('id', rows.map(r => r.roster_id).filter(Boolean)),
       ]);
 
@@ -213,7 +213,12 @@ async function renderSwimClub(container, club, roster, membership) {
   // Store context for the Galas tab (fetched lazily on first open)
   // _pbTimes: all PB swimmer times for QT comparison in galas tab
   const pbTimes = timeTrial.filter(t => t.is_pb);
-  window._galasCtx = { club, roster, profile, upcoming, _pbTimes: pbTimes };
+  // Merge profile sources: club_member_profile is authoritative, fall back to club_roster fields
+  const mergedProfile = {
+    date_of_birth: profile?.date_of_birth || roster?.date_of_birth || null,
+    gender:        profile?.gender        || roster?.gender        || null,
+  };
+  window._galasCtx = { club, roster, profile: mergedProfile, upcoming, _pbTimes: pbTimes };
   _galaTabLoaded = false; // reset so re-render reloads entries
 
   const hasGalas = upcoming.some(e => e.sessions_json?.length);
@@ -1631,7 +1636,11 @@ async function renderActiveParentSwimmer() {
   const timeTrial     = trialsRes.data     || [];
   const announcements = announcementsRes.data || [];
   const attendance    = attendanceRes.data || [];
-  const qtsByEvent    = getAgeGroupQTs(profile?.date_of_birth, profile?.gender);
+  const mergedProfile2 = {
+    date_of_birth: profile?.date_of_birth || roster?.date_of_birth || null,
+    gender:        profile?.gender        || roster?.gender        || null,
+  };
+  const qtsByEvent    = getAgeGroupQTs(mergedProfile2.date_of_birth, mergedProfile2.gender);
   const rosterCat     = roster?.category || '';
 
   // Parent context banner
