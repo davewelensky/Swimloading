@@ -4654,6 +4654,10 @@ async function loadTempChallenge() {
     </tr>`;
   }).join('');
 
+  const activeStandings = standings.filter(s => s.logCount > 0);
+  const noLogs = activeStandings.length === 0;
+  const totalLogs = activeStandings.reduce((s, m) => s + m.logCount, 0);
+
   // Per-category breakdown
   const catGroups = {};
   allCategories.forEach(c => { catGroups[c.name] = []; });
@@ -4689,10 +4693,6 @@ async function loadTempChallenge() {
       </table>
     </div>`;
   }).join('');
-
-  const activeStandings = standings.filter(s => s.logCount > 0);
-  const noLogs = activeStandings.length === 0;
-  const totalLogs = activeStandings.reduce((s, m) => s + m.logCount, 0);
 
   el.innerHTML = `
     <div style="background:var(--cyan-dim);border:1px solid var(--cyan-border);border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
