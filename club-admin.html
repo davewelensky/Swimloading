@@ -4193,7 +4193,14 @@ function renderGalaSwimmers() {
   };
 
   const event = allEvents.find(e => e.id === currentGalaId);
-  const totalEvents = galaEntriesData.filter(e => e.status !== 'scratched').length;
+
+  // Split entries: swimmer-requested vs admin-confirmed
+  const confirmedIds  = new Set(galaEntriesData.filter(e => e.status === 'entered').map(e => e.roster_id));
+  const requestedIds  = new Set(galaEntriesData.filter(e => e.status === 'requested').map(e => e.roster_id));
+  // "Requests" = swimmers who have ONLY requested (not yet confirmed by admin)
+  const requestOnly   = [...requestedIds].filter(id => !confirmedIds.has(id));
+  const totalConfirmed = galaEntriesData.filter(e => e.status === 'entered').length;
+  const totalRequested = galaEntriesData.filter(e => e.status === 'requested').length;
 
   let html = `<div class="card">
     <div class="card-header">
@@ -4205,15 +4212,31 @@ function renderGalaSwimmers() {
         </div>
       </div>
       <div class="card-actions">
-        <span style="font-size:12px;color:var(--text-sec);">${totalEvents} event${totalEvents !== 1 ? 's' : ''} entered</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+          ${totalConfirmed > 0 ? `<span style="font-size:11px;color:var(--cyan);">${totalConfirmed} confirmed</span>` : ''}
+          ${totalRequested > 0 ? `<span style="font-size:11px;color:var(--amber);">${totalRequested} requested</span>` : ''}
+        </div>
         <button class="btn-sm" onclick="exportGalaEntries()">
           <i data-lucide="download" style="width:13px;height:13px;"></i> Export CSV
         </button>
       </div>
     </div>`;
 
+  // ── Swimmer requests section (new) ──────────────────────────────
+  const requestSwimmers = swimmers.filter(s => requestOnly.includes(s.id));
+  if (requestSwimmers.length > 0) {
+    html += `<div style="padding:10px 16px 6px;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:0.1em;">Swimmer requests (${requestSwimmers.length})</span>
+      <span style="font-size:11px;color:var(--text-sec);">— review and confirm below</span>
+    </div>`;
+    html += requestSwimmers.map(swimmerCard).join('');
+    if (entered.length > 0 || notEntered.length > 0) {
+      html += `<div style="margin:4px 0;border-top:1px solid var(--border);"></div>`;
+    }
+  }
+
   if (entered.length > 0) {
-    html += `<div style="padding:8px 16px 2px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;">Entered (${entered.length})</div>`;
+    html += `<div style="padding:8px 16px 2px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;">Confirmed (${entered.length})</div>`;
     html += entered.map(swimmerCard).join('');
   }
   if (notEntered.length > 0) {
