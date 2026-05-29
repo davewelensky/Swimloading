@@ -311,6 +311,23 @@
         }
         .pricing-annual strong { color: var(--success); }
 
+        /* Currency switcher */
+        .currency-switcher {
+            display: flex; gap: 6px; flex-wrap: wrap;
+            justify-content: center; margin-bottom: 36px;
+        }
+        .currency-pill {
+            padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border);
+            background: transparent; color: var(--text-sec); font-family: 'DM Sans', sans-serif;
+            font-size: 12px; font-weight: 600; cursor: pointer; letter-spacing: 0.3px;
+            transition: border-color 0.15s, color 0.15s, background 0.15s;
+        }
+        .currency-pill:hover { border-color: rgba(56,189,248,0.3); color: var(--text); }
+        .currency-pill.active {
+            border-color: var(--cyan); color: var(--cyan);
+            background: rgba(56,189,248,0.08);
+        }
+
         .pricing-includes {
             list-style: none; margin-bottom: 24px;
             display: flex; flex-direction: column; gap: 9px;
@@ -626,9 +643,17 @@
 
     <!-- ── Pricing ── -->
     <div id="pricing">
-        <div class="section-eyebrow">Pricing · ZAR</div>
+        <div class="section-eyebrow">Pricing · <span id="pricing-eyebrow-currency">ZAR</span></div>
         <div class="section-title">Simple pricing by squad size</div>
         <p class="section-desc">Every tier includes all features — attendance, AI-assisted sets, qualifying tracking, health monitoring, and parent portal. You pay for what your club needs, not per swimmer.</p>
+
+        <div class="currency-switcher" id="currencySwitcher">
+            <button class="currency-pill active" data-currency="ZAR">ZAR</button>
+            <button class="currency-pill" data-currency="USD">USD</button>
+            <button class="currency-pill" data-currency="GBP">GBP</button>
+            <button class="currency-pill" data-currency="EUR">EUR</button>
+            <button class="currency-pill" data-currency="AUD">AUD</button>
+        </div>
 
         <div class="pricing-grid">
             <!-- Starter -->
@@ -636,8 +661,8 @@
                 <div class="pricing-badge badge-starter">Starter</div>
                 <div class="pricing-squad-label">For smaller clubs</div>
                 <div class="pricing-squad-count">1 – 3 squads</div>
-                <div class="pricing-price"><span class="cur">R</span>499<span class="per">/mo</span></div>
-                <div class="pricing-annual">or <strong>R4,990/year — save R998</strong></div>
+                <div class="pricing-price"><span class="cur js-sym">R</span><span class="js-mo" data-tier="starter">499</span><span class="per">/mo</span></div>
+                <div class="pricing-annual">or <strong><span class="js-sym">R</span><span class="js-yr" data-tier="starter">4,990</span>/year — save <span class="js-sym">R</span><span class="js-sv" data-tier="starter">998</span></strong></div>
                 <ul class="pricing-includes">
                     <li>Up to 3 squads, unlimited swimmers</li>
                     <li>Mobile attendance register with history dots</li>
@@ -648,7 +673,7 @@
                     <li>Gala management</li>
                     <li>Email support</li>
                 </ul>
-                <a href="mailto:support@swimloading.com?subject=Starter plan — South Africa" class="cta-btn">Get started</a>
+                <a href="mailto:support@swimloading.com?subject=Starter plan — South Africa" class="cta-btn" data-plan-subject="Starter plan">Get started</a>
             </div>
 
             <!-- Club (featured) -->
@@ -657,8 +682,8 @@
                 <div class="pricing-badge badge-club">Club</div>
                 <div class="pricing-squad-label">For growing clubs</div>
                 <div class="pricing-squad-count">4 – 6 squads</div>
-                <div class="pricing-price"><span class="cur">R</span>799<span class="per">/mo</span></div>
-                <div class="pricing-annual">or <strong>R7,990/year — save R1,598</strong></div>
+                <div class="pricing-price"><span class="cur js-sym">R</span><span class="js-mo" data-tier="club">799</span><span class="per">/mo</span></div>
+                <div class="pricing-annual">or <strong><span class="js-sym">R</span><span class="js-yr" data-tier="club">7,990</span>/year — save <span class="js-sym">R</span><span class="js-sv" data-tier="club">1,598</span></strong></div>
                 <ul class="pricing-includes">
                     <li>Up to 6 squads, unlimited swimmers</li>
                     <li>Everything in Starter, plus:</li>
@@ -668,7 +693,7 @@
                     <li class="bold-li"><strong>Cover needed alerts across coaches</strong></li>
                     <li>Priority email support</li>
                 </ul>
-                <a href="mailto:support@swimloading.com?subject=Club plan — South Africa" class="cta-btn primary">Get started</a>
+                <a href="mailto:support@swimloading.com?subject=Club plan — South Africa" class="cta-btn primary" data-plan-subject="Club plan">Get started</a>
             </div>
 
             <!-- Pro -->
@@ -676,8 +701,8 @@
                 <div class="pricing-badge badge-pro">Pro</div>
                 <div class="pricing-squad-label">For large academies</div>
                 <div class="pricing-squad-count">7+ squads · unlimited</div>
-                <div class="pricing-price"><span class="cur">R</span>1,199<span class="per">/mo</span></div>
-                <div class="pricing-annual">or <strong>R11,990/year — save R2,398</strong></div>
+                <div class="pricing-price"><span class="cur js-sym">R</span><span class="js-mo" data-tier="pro">1,199</span><span class="per">/mo</span></div>
+                <div class="pricing-annual">or <strong><span class="js-sym">R</span><span class="js-yr" data-tier="pro">11,990</span>/year — save <span class="js-sym">R</span><span class="js-sv" data-tier="pro">2,398</span></strong></div>
                 <ul class="pricing-includes">
                     <li>Unlimited squads, unlimited swimmers</li>
                     <li>Everything in Club, plus:</li>
@@ -686,7 +711,7 @@
                     <li class="bold-li"><strong>Priority support with direct line to the team</strong></li>
                     <li>Early access to new features</li>
                 </ul>
-                <a href="mailto:support@swimloading.com?subject=Pro plan — South Africa" class="cta-btn">Get started</a>
+                <a href="mailto:support@swimloading.com?subject=Pro plan — South Africa" class="cta-btn" data-plan-subject="Pro plan">Get started</a>
             </div>
         </div>
 
@@ -751,6 +776,92 @@
         document.body.style.setProperty('--mouse-x', e.clientX + 'px');
         document.body.style.setProperty('--mouse-y', e.clientY + 'px');
     });
+
+    // ── Currency config ─────────────────────────────────────────────────────
+    // Edit prices here. Annual = monthly × 10 (auto-derived). Save = monthly × 2.
+    const PRICES = {
+        ZAR: { symbol: 'R',   thousands: true,  starter: 499,  club: 799,  pro: 1199 },
+        USD: { symbol: '$',   thousands: false, starter: 49,   club: 89,   pro: 149  },
+        GBP: { symbol: '£',   thousands: false, starter: 39,   club: 69,   pro: 119  },
+        EUR: { symbol: '€',   thousands: false, starter: 45,   club: 79,   pro: 139  },
+        AUD: { symbol: 'A$',  thousands: false, starter: 79,   club: 139,  pro: 229  },
+    };
+
+    const STORAGE_KEY = 'swimloading_currency';
+
+    function fmt(n, thousands) {
+        return thousands ? n.toLocaleString('en-ZA') : n.toString();
+    }
+
+    function applyCurrency(code) {
+        const r = PRICES[code];
+        if (!r) return;
+
+        // Symbol spans
+        document.querySelectorAll('.js-sym').forEach(el => el.textContent = r.symbol);
+
+        // Monthly, annual, save amounts
+        ['starter', 'club', 'pro'].forEach(tier => {
+            const mo = r[tier];
+            const yr = mo * 10;
+            const sv = mo * 2;
+
+            const mo_el = document.querySelector(`.js-mo[data-tier="${tier}"]`);
+            const yr_el = document.querySelector(`.js-yr[data-tier="${tier}"]`);
+            const sv_el = document.querySelector(`.js-sv[data-tier="${tier}"]`);
+
+            if (mo_el) mo_el.textContent = fmt(mo, r.thousands);
+            if (yr_el) yr_el.textContent = fmt(yr, r.thousands);
+            if (sv_el) sv_el.textContent = fmt(sv, r.thousands);
+        });
+
+        // Eyebrow
+        const eyebrow = document.getElementById('pricing-eyebrow-currency');
+        if (eyebrow) eyebrow.textContent = code;
+
+        // Active pill
+        document.querySelectorAll('.currency-pill').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.currency === code);
+        });
+
+        // CTA email subjects
+        const region = code === 'ZAR' ? 'South Africa' : code;
+        document.querySelectorAll('[data-plan-subject]').forEach(a => {
+            const plan = a.dataset.planSubject;
+            a.href = `mailto:support@swimloading.com?subject=${encodeURIComponent(plan + ' — ' + region)}`;
+        });
+    }
+
+    function setCurrency(code) {
+        localStorage.setItem(STORAGE_KEY, code);
+        applyCurrency(code);
+    }
+
+    async function detectCurrency() {
+        // 1. Manual choice wins
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored && PRICES[stored]) return stored;
+
+        // 2. Geo-detect via lightweight IP API
+        try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 3000);
+            const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
+            clearTimeout(timeout);
+            const data = await res.json();
+            return data.country_code === 'ZA' ? 'ZAR' : 'USD';
+        } catch {
+            return 'USD'; // fallback
+        }
+    }
+
+    // Wire up pill buttons
+    document.querySelectorAll('.currency-pill').forEach(btn => {
+        btn.addEventListener('click', () => setCurrency(btn.dataset.currency));
+    });
+
+    // Init
+    detectCurrency().then(code => applyCurrency(code));
 </script>
 </body>
 </html>
