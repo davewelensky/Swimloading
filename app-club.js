@@ -167,7 +167,7 @@ async function renderSwimClub(container, club, roster, membership) {
 
     supabaseClient
       .from('club_events')
-      .select('id, title, event_date, description, is_league, venue, warmup_time, event_start, logistics, entry_open, entry_deadline')
+      .select('id, title, event_date, description, is_league, venue, warmup_time, event_start, logistics, entry_open, entry_deadline, sessions_json, course')
       .eq('club_id', club.id)
       .gte('event_date', today)
       .order('event_date')
@@ -210,12 +210,29 @@ async function renderSwimClub(container, club, roster, membership) {
   const qtsByEvent    = getAgeGroupQTs(profile?.date_of_birth, profile?.gender);
   const rosterCat     = roster?.category || '';
 
-  container.innerHTML =
-    renderSwimmerHero(club, roster, allResults, timeTrial, qtsByEvent) +
-    renderPlanningCard(club, rosterCat, attendance, upcoming, roster.id, club.id) +
-    renderAnnouncements(announcements) +
-    renderQTProgressBars(allResults, timeTrial, qtsByEvent) +
-    renderEventGraphs(allResults, timeTrial, qtsByEvent, roster.id, club.id);
+  // Store context for the Galas tab (fetched lazily on first open)
+  // _pbTimes: all PB swimmer times for QT comparison in galas tab
+  const pbTimes = timeTrial.filter(t => t.is_pb);
+  window._galasCtx = { club, roster, profile, upcoming, _pbTimes: pbTimes };
+  _galaTabLoaded = false; // reset so re-render reloads entries
+
+  const hasGalas = upcoming.some(e => e.sessions_json?.length);
+
+  container.innerHTML = `
+    <div style="display:flex;gap:0;margin-bottom:16px;background:rgba(255,255,255,0.04);border-radius:50px;padding:3px;">
+      <button class="club-inner-tab active" id="clubTabHome" onclick="showClubSubTab('home')" style="flex:1;padding:8px;border-radius:50px;border:none;background:rgba(56,189,248,0.15);color:var(--cyan);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s;">Home</button>
+      <button class="club-inner-tab" id="clubTabGalas" onclick="showClubSubTab('galas')" style="flex:1;padding:8px;border-radius:50px;border:none;background:transparent;color:var(--text-secondary);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;">Galas${hasGalas ? ' <span style="font-size:10px;background:rgba(56,189,248,0.2);color:var(--cyan);padding:1px 5px;border-radius:8px;">Enter</span>' : ''}</button>
+    </div>
+    <div id="clubSubHome">
+      ${renderSwimmerHero(club, roster, allResults, timeTrial, qtsByEvent)}
+      ${renderPlanningCard(club, rosterCat, attendance, upcoming, roster.id, club.id)}
+      ${renderAnnouncements(announcements)}
+      ${renderQTProgressBars(allResults, timeTrial, qtsByEvent)}
+      ${renderEventGraphs(allResults, timeTrial, qtsByEvent, roster.id, club.id)}
+    </div>
+    <div id="clubSubGalas" style="display:none;">
+      <div style="text-align:center;padding:32px;color:var(--text-secondary);font-size:13px;">Loading galas…</div>
+    </div>`;
 
   lucide.createIcons();
 }
@@ -1593,7 +1610,7 @@ async function renderActiveParentSwimmer() {
       .select('id, stroke, distance, course, time_seconds, time_text, is_pb, club_events(id, title, event_date)')
       .eq('roster_id', roster.id),
     supabaseClient.from('club_events')
-      .select('id, title, event_date, description, is_league, venue, warmup_time, event_start, logistics, entry_open, entry_deadline')
+      .select('id, title, event_date, description, is_league, venue, warmup_time, event_start, logistics, entry_open, entry_deadline, sessions_json, course')
       .eq('club_id', club.id).gte('event_date', today).order('event_date').limit(20),
     supabaseClient.from('club_member_profile')
       .select('date_of_birth, gender').eq('roster_id', roster.id).maybeSingle(),
@@ -1639,4 +1656,365 @@ async function renderActiveParentSwimmer() {
     renderEventGraphs(allResults, timeTrial, qtsByEvent, roster.id, club.id);
 
   lucide.createIcons();
+}
+
+// ─── Club inner tab switcher ───────────────────────────────────────────────────
+
+let _galaTabLoaded = false;
+
+function showClubSubTab(tab) {
+  const home  = document.getElementById('clubSubHome');
+  const galas = document.getElementById('clubSubGalas');
+  const btnHome  = document.getElementById('clubTabHome');
+  const btnGalas = document.getElementById('clubTabGalas');
+  if (!home || !galas) return;
+
+  if (tab === 'home') {
+    home.style.display  = '';
+    galas.style.display = 'none';
+    btnHome.style.background  = 'rgba(56,189,248,0.15)';
+    btnHome.style.color        = 'var(--cyan)';
+    btnGalas.style.background = 'transparent';
+    btnGalas.style.color      = 'var(--text-secondary)';
+  } else {
+    home.style.display  = 'none';
+    galas.style.display = '';
+    btnGalas.style.background = 'rgba(56,189,248,0.15)';
+    btnGalas.style.color       = 'var(--cyan)';
+    btnHome.style.background  = 'transparent';
+    btnHome.style.color       = 'var(--text-secondary)';
+    if (!_galaTabLoaded) { _galaTabLoaded = true; loadGalasTab(); }
+  }
+}
+
+// ─── Galas tab ────────────────────────────────────────────────────────────────
+
+let _galasQtMap    = {};   // "event|course" → { L2, L3, SANJ } in seconds — fetched once
+let _galasEntries  = {};   // eventId → [entry rows] — fetched once then kept in sync
+let _galasQtFetched = false;
+
+async function loadGalasTab() {
+  const ctx = window._galasCtx;
+  if (!ctx) return;
+  const { club, roster, profile, upcoming } = ctx;
+  const el = document.getElementById('clubSubGalas');
+  if (!el) return;
+
+  // Fetch QTs from DB (LC and SC) and existing entries in parallel
+  const dob    = profile?.date_of_birth;
+  const gender = profile?.gender;
+  const ssaG   = gender === 'F' ? 'W' : 'M';
+  const ag     = dob ? _clubSsaAgeGroup(dob) : null;
+
+  const fetches = [
+    supabaseClient
+      .from('club_gala_entries')
+      .select('id, event_id, event_name, session_number, swimmer_notes, status, entry_time_text')
+      .eq('club_id', club.id)
+      .eq('roster_id', roster.id),
+  ];
+
+  if (!_galasQtFetched && ag && ssaG) {
+    fetches.push(
+      supabaseClient
+        .from('ssa_qualifying_times')
+        .select('event, course, level, time_seconds, time_text')
+        .eq('gender', ssaG)
+        .eq('age_group', ag)
+        .in('level', ['L2', 'L3', 'SANJ'])
+        .eq('season', '2025-2026')
+    );
+  }
+
+  const [entriesRes, qtRes] = await Promise.all(fetches);
+
+  // Build entries map
+  _galasEntries = {};
+  (entriesRes.data || []).forEach(e => {
+    if (!_galasEntries[e.event_id]) _galasEntries[e.event_id] = [];
+    _galasEntries[e.event_id].push(e);
+  });
+
+  // Build QT map: "event|course" → { L2, L3, SANJ }
+  if (qtRes && !_galasQtFetched) {
+    _galasQtFetched = true;
+    (qtRes.data || []).forEach(row => {
+      const k = row.event + '|' + row.course;
+      if (!_galasQtMap[k]) _galasQtMap[k] = {};
+      _galasQtMap[k][row.level] = { seconds: row.time_seconds, text: row.time_text };
+    });
+  }
+
+  renderGalasTab();
+}
+
+function renderGalasTab() {
+  const ctx = window._galasCtx;
+  if (!ctx) return;
+  const { upcoming } = ctx;
+  const el = document.getElementById('clubSubGalas');
+  if (!el) return;
+
+  if (!upcoming.length) {
+    el.innerHTML = `<div class="card" style="text-align:center;padding:32px 16px;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px;">No upcoming galas</div>
+      <div style="font-size:13px;color:var(--text-secondary);">Your coach will add galas here when available.</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = upcoming.map(ev => renderGalaEntryCard(ev)).join('');
+  lucide.createIcons();
+}
+
+function renderGalaEntryCard(ev) {
+  const d        = new Date(ev.event_date + 'T12:00:00');
+  const entries  = (_galasEntries[ev.id] || []).filter(e => e.status !== 'scratched');
+  const count    = entries.length;
+  const deadline = ev.entry_deadline;
+  const deadlineStr = deadline
+    ? new Date(deadline + 'T12:00:00').toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })
+    : null;
+  const isDeadlineSoon = deadline && (new Date(deadline + 'T23:59:59') - new Date()) < 3 * 86400000;
+  const hasSessions = ev.sessions_json?.length > 0;
+  const course = ev.course || 'LC';
+
+  return `<div class="card" style="margin-bottom:10px;overflow:hidden;${count > 0 ? 'border-color:rgba(56,189,248,0.25);' : ''}" id="galaCard_${ev.id}">
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;" onclick="toggleGalaEntry('${ev.id}')">
+      <div style="background:rgba(56,189,248,0.08);border-radius:10px;padding:8px 10px;min-width:46px;text-align:center;flex-shrink:0;">
+        <div style="font-size:20px;font-weight:700;color:var(--cyan);line-height:1;">${d.getDate()}</div>
+        <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;">${d.toLocaleString('default',{month:'short'})}</div>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:15px;font-weight:700;color:var(--text);">${ev.title}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;">
+          ${ev.venue ? `<span style="font-size:11px;color:var(--text-secondary);background:rgba(255,255,255,0.04);padding:2px 7px;border-radius:4px;">${ev.venue}</span>` : ''}
+          <span style="font-size:11px;color:var(--text-secondary);background:rgba(255,255,255,0.04);padding:2px 7px;border-radius:4px;">${course}</span>
+          ${deadlineStr ? `<span style="font-size:11px;padding:2px 7px;border-radius:4px;${isDeadlineSoon ? 'color:var(--amber);background:rgba(245,158,11,0.08);' : 'color:var(--text-secondary);background:rgba(255,255,255,0.04);'}">Closes ${deadlineStr}</span>` : ''}
+          ${count > 0 ? `<span style="font-size:11px;color:var(--cyan);background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);padding:2px 8px;border-radius:10px;">${count} event${count!==1?'s':''} submitted</span>` : ''}
+        </div>
+      </div>
+      <i data-lucide="chevron-down" id="galaChevron_${ev.id}" style="width:18px;height:18px;color:var(--text-dim);transition:transform 0.2s;flex-shrink:0;"></i>
+    </div>
+    <div id="galaPanel_${ev.id}" style="display:none;border-top:1px solid rgba(255,255,255,0.07);padding:16px;">
+      ${hasSessions ? buildGalaSessionPanel(ev) : buildGalaGenericPanel(ev)}
+    </div>
+  </div>`;
+}
+
+function toggleGalaEntry(eventId) {
+  const panel   = document.getElementById('galaPanel_'   + eventId);
+  const chevron = document.getElementById('galaChevron_' + eventId);
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  // Close all
+  document.querySelectorAll('[id^="galaPanel_"]').forEach(p => { p.style.display = 'none'; });
+  document.querySelectorAll('[id^="galaChevron_"]').forEach(c => { c.style.transform = ''; });
+  if (!isOpen) {
+    panel.style.display = '';
+    if (chevron) chevron.style.transform = 'rotate(180deg)';
+  }
+}
+
+function buildGalaSessionPanel(ev) {
+  const entries   = _galasEntries[ev.id] || [];
+  const activeMap = {};
+  let savedNotes  = '';
+  entries.filter(e => e.status !== 'scratched').forEach(e => {
+    activeMap[`${e.session_number || 0}|${e.event_name}`] = e;
+    if (e.swimmer_notes) savedNotes = e.swimmer_notes;
+  });
+
+  const ctx    = window._galasCtx;
+  const pbMap  = {};
+  (ctx?.roster?.id ? [] : []).forEach(() => {}); // ensure ctx available
+
+  // Build PB map from existing results
+  const allTimes = window._galasCtx?._pbTimes || [];
+  allTimes.forEach(t => { pbMap[t.event + '|' + (t.course||'LC')] = t; });
+
+  const course = ev.course || 'LC';
+  let html = '';
+  const hasProfile = !!(ctx?.profile?.date_of_birth && ctx?.profile?.gender);
+
+  if (!hasProfile) {
+    html += `<div style="font-size:12px;color:var(--amber);background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:10px 12px;margin-bottom:14px;">
+      Date of birth and gender not set — ask your coach to complete your profile for QT checks.
+    </div>`;
+  }
+
+  const sessions = ev.sessions_json;
+  sessions.forEach((sess, si) => {
+    if (si > 0) html += '<div style="border-top:1px solid rgba(255,255,255,0.06);margin:14px 0;"></div>';
+
+    const levelCls   = sess.level === 'L3' || sess.level === 'SANJ'
+      ? 'color:#38bdf8;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);'
+      : 'color:#10b981;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);';
+    const levelLabel = sess.level === 'SANJ' ? 'SANJ' : sess.level === 'L3' ? 'L3+' : 'L2';
+
+    html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <span style="font-size:13px;font-weight:700;color:var(--text);">Session ${sess.number} — ${sess.label}</span>
+      <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;${levelCls}">${levelLabel}</span>
+      <span style="font-size:12px;color:var(--text-secondary);margin-left:auto;">${sess.start_time || ''}</span>
+    </div>`;
+
+    (sess.events || []).forEach(evtObj => {
+      const evtName = typeof evtObj === 'string' ? evtObj : evtObj.name;
+      const minAge  = evtObj.min_age || null;
+      const checked = !!activeMap[`${sess.number}|${evtName}`];
+      const cbId    = `gcb_${ev.id}_${sess.number}_${evtName.replace(/ /g,'_')}`;
+
+      // QT check
+      const qt  = _galasQtMap[evtName + '|' + course];
+      const qtStd = qt?.[sess.level];   // { seconds, text }
+      const pb  = pbMap[evtName + '|' + course] || pbMap[evtName + '|SC'];
+
+      let canSelect = true, rowStyle = '', rightHtml = '';
+      const ageOk = !(minAge && ctx?.profile?.date_of_birth &&
+        (new Date().getFullYear() - parseInt(ctx.profile.date_of_birth)) < minAge);
+
+      if (!ageOk) {
+        canSelect = false; rowStyle = 'opacity:0.4;';
+        rightHtml = `<span style="font-size:10px;color:var(--text-dim);">11 &amp; over</span>`;
+      } else if (!hasProfile) {
+        rightHtml = pb ? `<span style="font-size:11px;color:var(--text-secondary);">PB ${pb.time_text}</span>` : '';
+      } else if (!qtStd) {
+        rightHtml = pb ? `<span style="font-size:11px;color:var(--text-secondary);">PB ${pb.time_text}</span>` : `<span style="font-size:10px;color:var(--text-dim);">No standard</span>`;
+      } else if (!pb) {
+        canSelect = false; rowStyle = 'opacity:0.45;';
+        rightHtml = `<span style="font-size:10px;color:var(--text-dim);">No PB on file — ask coach to add</span>`;
+      } else if (pb.time_seconds <= qtStd.seconds) {
+        const gap = qtStd.seconds - pb.time_seconds;
+        rowStyle = 'background:rgba(16,185,129,0.04);border-radius:8px;';
+        rightHtml = `<span style="font-size:11px;color:var(--green);background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);padding:2px 7px;border-radius:4px;">PB ${pb.time_text} <span style="font-size:9px;">-${_fmtGapClub(gap)}</span></span>`;
+      } else {
+        const gap = pb.time_seconds - qtStd.seconds;
+        const pct = gap / qtStd.seconds;
+        canSelect = false; rowStyle = 'opacity:0.5;';
+        const gapLabel = pct <= 0.04
+          ? `<span style="font-size:9px;color:var(--amber);">+${_fmtGapClub(gap)}</span>`
+          : '';
+        rightHtml = `<span style="font-size:11px;color:var(--text-secondary);background:rgba(255,255,255,0.04);padding:2px 7px;border-radius:4px;">PB ${pb.time_text} ${gapLabel} <span style="font-size:9px;color:var(--text-dim);">/ QT ${qtStd.text}</span></span>`;
+      }
+
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 6px;${rowStyle}">
+        <input type="checkbox" id="${cbId}" data-event="${evtName}" data-session="${sess.number}"
+          ${checked ? 'checked' : ''} ${canSelect ? '' : 'disabled'}
+          style="width:18px;height:18px;accent-color:var(--cyan);flex-shrink:0;cursor:${canSelect?'pointer':'not-allowed'};">
+        <label for="${cbId}" style="flex:1;font-size:14px;color:var(--text);cursor:${canSelect?'pointer':'default'};">${evtName}</label>
+        <div style="text-align:right;">${rightHtml}</div>
+      </div>`;
+    });
+  });
+
+  const totalSelected = Object.keys(activeMap).length;
+  html += `
+    <div style="border-top:1px solid rgba(255,255,255,0.06);margin-top:14px;padding-top:14px;">
+      <textarea id="galaNotes_${ev.id}" rows="2"
+        style="width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:13px;resize:none;outline:none;margin-bottom:10px;"
+        placeholder="Note to coach (optional)">${savedNotes}</textarea>
+      <button onclick="saveGalaEntryFromApp('${ev.id}')"
+        style="width:100%;padding:13px;background:var(--cyan);color:#080f1a;border:none;border-radius:50px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;"
+        id="galaSaveBtn_${ev.id}">
+        ${totalSelected > 0 ? 'Update entries' : 'Submit entries'}
+      </button>
+      ${totalSelected > 0 ? `<button onclick="clearGalaEntryFromApp('${ev.id}')"
+        style="width:100%;margin-top:8px;padding:10px;background:transparent;border:1px solid rgba(239,68,68,0.25);border-radius:50px;color:var(--danger);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;">
+        Remove all my entries for this gala
+      </button>` : ''}
+    </div>`;
+
+  return html;
+}
+
+function buildGalaGenericPanel(ev) {
+  const EVENTS = ['50 Free','100 Free','200 Free','400 Free','800 Free','1500 Free',
+    '50 Back','100 Back','200 Back','50 Breast','100 Breast','200 Breast',
+    '50 Fly','100 Fly','200 Fly','100 IM','200 IM','400 IM'];
+  const entries   = _galasEntries[ev.id] || [];
+  const activeSet = new Set(entries.filter(e => e.status !== 'scratched').map(e => e.event_name));
+  let savedNotes  = entries.find(e => e.swimmer_notes)?.swimmer_notes || '';
+
+  const rows = EVENTS.map(evtName => {
+    const cbId = `gcb_${ev.id}_0_${evtName.replace(/ /g,'_')}`;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 6px;">
+      <input type="checkbox" id="${cbId}" data-event="${evtName}" data-session="0"
+        ${activeSet.has(evtName) ? 'checked' : ''}
+        style="width:18px;height:18px;accent-color:var(--cyan);cursor:pointer;flex-shrink:0;">
+      <label for="${cbId}" style="font-size:14px;color:var(--text);cursor:pointer;">${evtName}</label>
+    </div>`;
+  }).join('');
+
+  return `${rows}
+    <div style="border-top:1px solid rgba(255,255,255,0.06);margin-top:12px;padding-top:12px;">
+      <textarea id="galaNotes_${ev.id}" rows="2"
+        style="width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:13px;resize:none;outline:none;margin-bottom:10px;"
+        placeholder="Note to coach (optional)">${savedNotes}</textarea>
+      <button onclick="saveGalaEntryFromApp('${ev.id}')"
+        style="width:100%;padding:13px;background:var(--cyan);color:#080f1a;border:none;border-radius:50px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;"
+        id="galaSaveBtn_${ev.id}">Submit entries</button>
+    </div>`;
+}
+
+async function saveGalaEntryFromApp(eventId) {
+  const ctx = window._galasCtx;
+  if (!ctx) return;
+  const { club, roster } = ctx;
+
+  const btn = document.getElementById('galaSaveBtn_' + eventId);
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+  const panel = document.getElementById('galaPanel_' + eventId);
+  const notes = document.getElementById('galaNotes_' + eventId)?.value?.trim() || null;
+  const selected = [];
+  panel?.querySelectorAll('input[type="checkbox"]:checked:not(:disabled)').forEach(cb => {
+    selected.push({ event_name: cb.dataset.event, session_number: parseInt(cb.dataset.session) || null });
+  });
+
+  // Delete existing requested entries for this event
+  await supabaseClient.from('club_gala_entries')
+    .delete()
+    .eq('club_id', club.id).eq('event_id', eventId).eq('roster_id', roster.id).eq('status', 'requested');
+
+  if (selected.length > 0) {
+    const rows = selected.map(s => ({
+      club_id: club.id, event_id: eventId, roster_id: roster.id,
+      event_name: s.event_name, session_number: s.session_number,
+      swimmer_notes: notes, status: 'requested',
+    }));
+    const { data: inserted, error } = await supabaseClient.from('club_gala_entries').insert(rows).select();
+    if (error) { showToast('Save failed: ' + error.message, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Submit entries'; } return; }
+    _galasEntries[eventId] = [...(_galasEntries[eventId] || []).filter(e => e.status !== 'requested'), ...(inserted || [])];
+  } else {
+    _galasEntries[eventId] = (_galasEntries[eventId] || []).filter(e => e.status !== 'requested');
+  }
+
+  showToast(selected.length > 0 ? `${selected.length} event${selected.length!==1?'s':''} submitted` : 'Entries cleared', 'success');
+  renderGalasTab();
+}
+
+async function clearGalaEntryFromApp(eventId) {
+  if (!confirm('Remove all your entry requests for this gala?')) return;
+  const ctx = window._galasCtx;
+  if (!ctx) return;
+  const { club, roster } = ctx;
+  await supabaseClient.from('club_gala_entries')
+    .delete()
+    .eq('club_id', club.id).eq('event_id', eventId).eq('roster_id', roster.id).eq('status', 'requested');
+  _galasEntries[eventId] = (_galasEntries[eventId] || []).filter(e => e.status !== 'requested');
+  showToast('Entries removed');
+  renderGalasTab();
+}
+
+function _clubSsaAgeGroup(dob) {
+  if (!dob) return null;
+  const age = new Date().getFullYear() - parseInt(dob.slice(0, 4), 10);
+  if (age <= 10) return '10U';
+  if (age <= 16) return String(age);
+  return null;
+}
+
+function _fmtGapClub(sec) {
+  if (sec < 60) return sec.toFixed(1) + 's';
+  return Math.floor(sec / 60) + ':' + (sec % 60).toFixed(1).padStart(4, '0');
 }
