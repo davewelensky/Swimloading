@@ -1934,26 +1934,43 @@ function buildGalaGenericPanel(ev) {
   const entries   = _galasEntries[ev.id] || [];
   const activeSet = new Set(entries.filter(e => e.status !== 'scratched').map(e => e.event_name));
   let savedNotes  = entries.find(e => e.swimmer_notes)?.swimmer_notes || '';
+  const course    = ev.course || 'LC';
+
+  // Build PB map from context
+  const pbMap = {};
+  (window._galasCtx?._pbTimes || []).forEach(t => {
+    pbMap[t.event + '|' + (t.course || 'LC')] = t;
+  });
 
   const rows = EVENTS.map(evtName => {
     const cbId = `gcb_${ev.id}_0_${evtName.replace(/ /g,'_')}`;
-    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 6px;">
+    const pb   = pbMap[evtName + '|' + course] || pbMap[evtName + '|SC'];
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 6px;border-radius:8px;${pb ? 'background:rgba(255,255,255,0.02);' : ''}">
       <input type="checkbox" id="${cbId}" data-event="${evtName}" data-session="0"
         ${activeSet.has(evtName) ? 'checked' : ''}
         style="width:18px;height:18px;accent-color:var(--cyan);cursor:pointer;flex-shrink:0;">
-      <label for="${cbId}" style="font-size:14px;color:var(--text);cursor:pointer;">${evtName}</label>
+      <label for="${cbId}" style="flex:1;font-size:14px;color:var(--text);cursor:pointer;">${evtName}</label>
+      ${pb ? `<span style="font-size:11px;color:var(--cyan);background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.15);padding:2px 8px;border-radius:4px;white-space:nowrap;">PB ${pb.time_text}</span>` : ''}
     </div>`;
   }).join('');
 
-  return `${rows}
-    <div style="border-top:1px solid rgba(255,255,255,0.06);margin-top:12px;padding-top:12px;">
-      <textarea id="galaNotes_${ev.id}" rows="2"
-        style="width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:13px;resize:none;outline:none;margin-bottom:10px;"
-        placeholder="Note to coach (optional)">${savedNotes}</textarea>
-      <button onclick="saveGalaEntryFromApp('${ev.id}')"
-        style="width:100%;padding:13px;background:var(--cyan);color:#080f1a;border:none;border-radius:50px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;"
-        id="galaSaveBtn_${ev.id}">Submit entries</button>
-    </div>`;
+  const totalSelected = activeSet.size;
+  return `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;padding:8px 10px;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.15);border-radius:8px;">
+    Sessions not configured yet — your coach will add event levels shortly. Select what you plan to swim.
+  </div>
+  ${rows}
+  <div style="border-top:1px solid rgba(255,255,255,0.06);margin-top:12px;padding-top:12px;">
+    <textarea id="galaNotes_${ev.id}" rows="2"
+      style="width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:13px;resize:none;outline:none;margin-bottom:10px;"
+      placeholder="Note to coach (optional)">${savedNotes}</textarea>
+    <button onclick="saveGalaEntryFromApp('${ev.id}')"
+      style="width:100%;padding:13px;background:var(--cyan);color:#080f1a;border:none;border-radius:50px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;"
+      id="galaSaveBtn_${ev.id}">${totalSelected > 0 ? 'Update entries' : 'Submit entries'}</button>
+    ${totalSelected > 0 ? `<button onclick="clearGalaEntryFromApp('${ev.id}')"
+      style="width:100%;margin-top:8px;padding:10px;background:transparent;border:1px solid rgba(239,68,68,0.25);border-radius:50px;color:var(--danger);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;">
+      Remove all my entries
+    </button>` : ''}
+  </div>`;
 }
 
 async function saveGalaEntryFromApp(eventId) {
