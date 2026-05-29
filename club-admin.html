@@ -3902,14 +3902,27 @@ async function submitCreateEvent() {
 // ── EVENT DETAIL EDIT ─────────────────────────────────────────────
 let activeEventDetailId = null;
 
+const ED_EVENTS = [
+  '50 Free','100 Free','200 Free','400 Free','800 Free','1500 Free',
+  '50 Back','100 Back','200 Back',
+  '50 Breast','100 Breast','200 Breast',
+  '50 Fly','100 Fly','200 Fly',
+  '100 IM','200 IM','400 IM'
+];
+const ED_LEVEL_OPTIONS = [
+  { value:'L2',   label:'L2' },
+  { value:'L3',   label:'L3+' },
+  { value:'SANJ', label:'SANJ' },
+];
+
 function openEventDetail(eventId) {
   const e = allEvents.find(ev => ev.id === eventId);
   if (!e) return;
   activeEventDetailId = eventId;
 
   const d = new Date(e.event_date + 'T12:00:00');
-  document.getElementById('edTitle').textContent  = e.title;
-  document.getElementById('edDate').textContent   = d.toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'long', year:'numeric' });
+  document.getElementById('edTitle').textContent   = e.title;
+  document.getElementById('edDate').textContent    = d.toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'long', year:'numeric' });
   document.getElementById('edVenue').value         = e.venue        || '';
   document.getElementById('edWarmup').value        = e.warmup_time  || '';
   document.getElementById('edEventStart').value    = e.event_start  || '';
@@ -3917,7 +3930,99 @@ function openEventDetail(eventId) {
   document.getElementById('edEntryOpen').checked   = !!e.entry_open;
   document.getElementById('edDayEntries').checked  = !!e.allows_day_entries;
   document.getElementById('edLogistics').value     = e.logistics    || '';
+  document.getElementById('edCourse').value        = e.course || 'LC';
+
+  // Populate sessions editor
+  edRenderSessions(e.sessions_json || []);
   document.getElementById('eventDetailModal').classList.add('open');
+}
+
+function edRenderSessions(sessions) {
+  const el = document.getElementById('edSessionsList');
+  if (!sessions.length) { el.innerHTML = ''; return; }
+  el.innerHTML = sessions.map((sess, idx) => edSessionCard(sess, idx)).join('');
+  lucide.createIcons();
+}
+
+function edSessionCard(sess, idx) {
+  const levelOpts = ED_LEVEL_OPTIONS.map(o =>
+    `<option value="${o.value}"${sess.level === o.value ? ' selected' : ''}>${o.label}</option>`
+  ).join('');
+
+  const evtChecks = ED_EVENTS.map(evtName => {
+    const evtObj  = (sess.events || []).find(e => (typeof e === 'string' ? e : e.name) === evtName);
+    const checked = !!evtObj;
+    const minAge  = evtObj?.min_age || '';
+    const ageNote = evtName.includes('800') || evtName.includes('400 Free') || evtName.includes('200 Fly')
+      ? `<input type="number" placeholder="min age" value="${minAge}"
+           style="width:64px;font-size:11px;padding:2px 5px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--text-sec);"
+           data-minage="${evtName}" oninput="void(0)">`
+      : '';
+    return `<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer;padding:2px 0;">
+      <input type="checkbox" value="${evtName}" ${checked ? 'checked' : ''}
+        style="width:15px;height:15px;accent-color:var(--cyan);flex-shrink:0;">
+      ${evtName}
+      ${ageNote}
+    </label>`;
+  }).join('');
+
+  return `<div style="background:var(--bg-lift);border:1px solid var(--border);border-radius:10px;padding:14px;" id="edSess_${idx}">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <span style="font-size:12px;font-weight:700;color:var(--text-sec);">Session</span>
+      <input type="number" value="${sess.number}" min="1" max="9"
+        style="width:44px;font-size:14px;font-weight:700;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);text-align:center;"
+        data-field="number">
+      <select style="font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);" data-field="level">
+        ${levelOpts}
+      </select>
+      <input type="text" value="${sess.label || ''}" placeholder="e.g. Level 3+" maxlength="24"
+        style="flex:1;min-width:100px;font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);"
+        data-field="label">
+      <input type="text" value="${sess.start_time || ''}" placeholder="09:00" maxlength="5"
+        style="width:70px;font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);"
+        data-field="start_time">
+      <button onclick="edRemoveSession(${idx})" style="background:none;border:none;color:var(--danger);cursor:pointer;padding:4px;line-height:0;">
+        <i data-lucide="trash-2" style="width:15px;height:15px;"></i>
+      </button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px 12px;">
+      ${evtChecks}
+    </div>
+  </div>`;
+}
+
+function edAddSession() {
+  const current = edReadSessions();
+  current.push({ number: current.length + 1, level: 'L2', label: 'Level 2', start_time: '', events: [] });
+  edRenderSessions(current);
+}
+
+function edRemoveSession(idx) {
+  const current = edReadSessions();
+  current.splice(idx, 1);
+  // Renumber
+  current.forEach((s, i) => { if (s.number === idx + 1) s.number = i + 1; });
+  edRenderSessions(current);
+}
+
+function edReadSessions() {
+  const cards = document.querySelectorAll('#edSessionsList > div[id^="edSess_"]');
+  const sessions = [];
+  cards.forEach(card => {
+    const num       = parseInt(card.querySelector('[data-field="number"]')?.value) || 1;
+    const level     = card.querySelector('[data-field="level"]')?.value || 'L2';
+    const label     = card.querySelector('[data-field="label"]')?.value?.trim() || '';
+    const startTime = card.querySelector('[data-field="start_time"]')?.value?.trim() || '';
+    const events    = [];
+    card.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+      const evtName = cb.value;
+      const minAgeEl = card.querySelector(`input[data-minage="${evtName}"]`);
+      const minAge   = minAgeEl ? parseInt(minAgeEl.value) || null : null;
+      events.push(minAge ? { name: evtName, min_age: minAge } : { name: evtName });
+    });
+    sessions.push({ number: num, level, label, start_time: startTime, events });
+  });
+  return sessions;
 }
 
 function closeEventDetail() {
@@ -3930,6 +4035,7 @@ async function saveEventDetail() {
   const btn = document.getElementById('saveEventDetailBtn');
   btn.textContent = 'Saving…'; btn.disabled = true;
 
+  const sessions = edReadSessions();
   const updates = {
     venue:              document.getElementById('edVenue').value.trim()        || null,
     warmup_time:        document.getElementById('edWarmup').value.trim()       || null,
@@ -3938,6 +4044,8 @@ async function saveEventDetail() {
     entry_open:         document.getElementById('edEntryOpen').checked,
     allows_day_entries: document.getElementById('edDayEntries').checked,
     logistics:          document.getElementById('edLogistics').value.trim()    || null,
+    course:             document.getElementById('edCourse').value              || 'LC',
+    sessions_json:      sessions.length ? sessions : null,
   };
 
   const { error } = await sb.from('club_events').update(updates).eq('id', activeEventDetailId);
@@ -4057,9 +4165,10 @@ function renderGalaSwimmers() {
       `<span style="font-size:11px;color:var(--text-sec);background:rgba(255,255,255,0.04);padding:2px 6px;border-radius:4px;">${t.event} ${t.time_text}</span>`
     ).join('');
 
-    const entryBadges = myEntries.map(e =>
-      `<span style="font-size:11px;color:var(--cyan);background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);padding:2px 7px;border-radius:4px;">${e.event_name}${e.entry_time_text ? ' ' + e.entry_time_text : ''}</span>`
-    ).join('');
+    const entryBadges = myEntries.map(e => {
+      const isReq = e.status === 'requested';
+      return `<span style="font-size:11px;color:${isReq?'var(--amber)':'var(--cyan)'};background:${isReq?'rgba(245,158,11,0.08)':'rgba(56,189,248,0.1)'};border:1px solid ${isReq?'rgba(245,158,11,0.25)':'rgba(56,189,248,0.2)'};padding:2px 7px;border-radius:4px;">${e.event_name}${isReq?' <span style="font-size:10px;opacity:0.8;">req</span>':''}${e.entry_time_text ? ' ' + e.entry_time_text : ''}</span>`;
+    }).join('');
 
     return `<div style="display:flex;align-items:flex-start;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);gap:12px;">
       <div style="flex:1;min-width:0;">
@@ -9841,6 +9950,24 @@ function closeChallengeModal() {
       <textarea class="form-input" id="edLogistics" rows="6"
         placeholder="What to bring, parking, schedule notes, warm-up sets, team meeting time — anything parents and swimmers need to know."
         style="resize:vertical;line-height:1.5;"></textarea>
+    </div>
+
+    <!-- Sessions editor -->
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);">Gala Sessions</div>
+          <div style="font-size:11px;color:var(--text-sec);margin-top:2px;">Swimmer portal shows QT-gated events per session</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select class="filter-select" id="edCourse" style="width:auto;">
+            <option value="LC">LC (50m)</option>
+            <option value="SC">SC (25m)</option>
+          </select>
+          <button class="btn-sm" onclick="edAddSession()">+ Add session</button>
+        </div>
+      </div>
+      <div id="edSessionsList" style="display:flex;flex-direction:column;gap:12px;"></div>
     </div>
 
     <div class="modal-actions">

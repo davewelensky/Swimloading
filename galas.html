@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Gala Entries · SwimLoading</title>
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080f1a;
+      --bg-card:  #0d1728;
+      --bg-lift:  #111e35;
+      --cyan:     #38bdf8;
+      --text:     #f1f5f9;
+      --text-sec: #64748b;
+      --text-dim: #334155;
+      --border:   rgba(255,255,255,0.07);
+      --green:    #10b981;
+      --amber:    #f59e0b;
+      --danger:   #ef4444;
+    }
+
+    html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100dvh; }
+
+    .screen { display: none; min-height: 100dvh; flex-direction: column; }
+    .screen.active { display: flex; }
+
+    /* Nav */
+    .nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px;
+      background: rgba(8,15,26,0.95);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 15px; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      text-decoration: none;
+    }
+    .nav-brand img { height: 20px; width: auto; }
+    .nav-right { font-size: 13px; color: var(--text-sec); font-weight: 500; }
+
+    /* Content */
+    .content { flex: 1; padding: 20px 16px; max-width: 600px; margin: 0 auto; width: 100%; }
+
+    .section-label {
+      font-size: 11px; font-weight: 700; color: var(--text-sec);
+      text-transform: uppercase; letter-spacing: 0.1em; margin: 24px 0 10px;
+    }
+
+    /* Gala cards */
+    .gala-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; margin-bottom: 10px; overflow: hidden;
+    }
+    .gala-card.has-entries { border-color: rgba(56,189,248,0.25); }
+    .gala-card-header {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 16px; cursor: pointer;
+    }
+    .gala-date-block {
+      display: flex; flex-direction: column; align-items: center;
+      background: rgba(56,189,248,0.08); border-radius: 10px;
+      padding: 8px 10px; min-width: 46px; flex-shrink: 0;
+    }
+    .gala-date-day { font-size: 20px; font-weight: 700; color: var(--cyan); line-height: 1; }
+    .gala-date-mon { font-size: 11px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+    .gala-info    { flex: 1; min-width: 0; }
+    .gala-title   { font-size: 15px; font-weight: 600; color: var(--text); }
+    .gala-meta    { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+    .meta-chip    { font-size: 11px; color: var(--text-sec); background: rgba(255,255,255,0.04); padding: 2px 7px; border-radius: 4px; }
+    .meta-chip.deadline { color: var(--amber); background: rgba(245,158,11,0.08); }
+    .meta-chip.count    { color: var(--cyan);  background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.2); }
+    .gala-chevron { color: var(--text-dim); transition: transform 0.2s; flex-shrink: 0; }
+    .gala-card.open .gala-chevron { transform: rotate(180deg); }
+
+    /* Entry panel */
+    .entry-panel { display: none; border-top: 1px solid var(--border); padding: 16px; }
+    .gala-card.open .entry-panel { display: block; }
+
+    /* Session block */
+    .session-block { margin-bottom: 20px; }
+    .session-block:last-child { margin-bottom: 0; }
+    .session-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .session-title { font-size: 13px; font-weight: 700; color: var(--text); }
+    .session-time  { font-size: 12px; color: var(--text-sec); }
+    .level-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .level-l3  { background: rgba(56,189,248,0.1); color: var(--cyan); border: 1px solid rgba(56,189,248,0.2); }
+    .level-l2  { background: rgba(16,185,129,0.1); color: var(--green); border: 1px solid rgba(16,185,129,0.2); }
+    .level-sanj{ background: rgba(245,158,11,0.1);  color: var(--amber); border: 1px solid rgba(245,158,11,0.2); }
+
+    /* Event rows */
+    .event-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 10px; border-radius: 8px;
+      transition: background 0.1s;
+    }
+    .event-row.qualified  { background: rgba(16,185,129,0.04); }
+    .event-row.locked     { opacity: 0.45; }
+    .event-row input[type="checkbox"] {
+      width: 18px; height: 18px; accent-color: var(--cyan);
+      cursor: pointer; flex-shrink: 0;
+    }
+    .event-row input[type="checkbox"]:disabled { cursor: not-allowed; }
+    .event-name  { flex: 1; font-size: 14px; color: var(--text); cursor: pointer; }
+    .locked .event-name { cursor: default; }
+    .event-info  { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+    .qt-standard { font-size: 10px; color: var(--text-sec); white-space: nowrap; }
+    .pb-chip {
+      font-size: 11px; padding: 1px 6px; border-radius: 4px; white-space: nowrap;
+    }
+    .pb-qualified { background: rgba(16,185,129,0.1); color: var(--green); border: 1px solid rgba(16,185,129,0.2); }
+    .pb-close     { background: rgba(245,158,11,0.08); color: var(--amber); }
+    .pb-far       { background: rgba(255,255,255,0.04); color: var(--text-sec); }
+    .no-qt-chip   { font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+
+    /* Profile warning */
+    .profile-warn {
+      font-size: 12px; color: var(--amber);
+      background: rgba(245,158,11,0.08);
+      border: 1px solid rgba(245,158,11,0.2);
+      border-radius: 8px; padding: 10px 12px; margin-bottom: 14px;
+    }
+
+    /* Notes */
+    .notes-area {
+      width: 100%; margin-top: 14px;
+      background: var(--bg-lift); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 12px;
+      color: var(--text); font-family: inherit; font-size: 13px;
+      resize: none; outline: none; transition: border-color 0.15s;
+    }
+    .notes-area:focus { border-color: rgba(56,189,248,0.3); }
+    .notes-area::placeholder { color: var(--text-dim); }
+
+    /* Save */
+    .save-btn {
+      width: 100%; margin-top: 14px; padding: 13px;
+      background: var(--cyan); color: #080f1a;
+      border: none; border-radius: 50px;
+      font-family: inherit; font-size: 15px; font-weight: 700;
+      cursor: pointer; transition: opacity 0.15s;
+    }
+    .save-btn:active { opacity: 0.8; }
+    .save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .clear-btn {
+      width: 100%; margin-top: 8px; padding: 10px;
+      background: transparent; border: 1px solid rgba(239,68,68,0.25);
+      border-radius: 50px; color: var(--danger);
+      font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+
+    /* Divider */
+    .session-divider {
+      border: none; border-top: 1px solid var(--border); margin: 16px 0;
+    }
+
+    /* Empty / Loading */
+    .empty { text-align: center; padding: 48px 20px; color: var(--text-sec); }
+    .empty-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .loading { display: flex; justify-content: center; padding: 48px; }
+    .spinner {
+      width: 32px; height: 32px; border: 2px solid var(--border);
+      border-top-color: var(--cyan); border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #1e3a5f; color: var(--text);
+      padding: 12px 20px; border-radius: 10px;
+      font-size: 14px; font-weight: 500;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      z-index: 9999; opacity: 0; transition: opacity 0.2s;
+      pointer-events: none; white-space: nowrap;
+    }
+    .toast.show    { opacity: 1; }
+    .toast.success { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: var(--green); }
+    .toast.error   { background: rgba(239,68,68,0.15);  border: 1px solid rgba(239,68,68,0.3);  color: var(--danger); }
+
+    /* Login */
+    .login-wrap {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; min-height: 100dvh; padding: 32px 24px; gap: 20px;
+    }
+    .login-card {
+      width: 100%; max-width: 380px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px 24px;
+    }
+    .login-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .login-sub   { font-size: 13px; color: var(--text-sec); margin-bottom: 20px; }
+    .field-label { font-size: 12px; color: var(--text-sec); margin-bottom: 6px; font-weight: 600; }
+    .field-input {
+      width: 100%; padding: 11px 14px;
+      background: var(--bg-lift); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text);
+      font-family: inherit; font-size: 15px; outline: none;
+      transition: border-color 0.15s; margin-bottom: 14px;
+    }
+    .field-input:focus { border-color: rgba(56,189,248,0.4); }
+    .login-btn {
+      width: 100%; padding: 13px;
+      background: var(--cyan); color: #080f1a;
+      border: none; border-radius: 50px;
+      font-family: inherit; font-size: 15px; font-weight: 700;
+      cursor: pointer;
+    }
+    .login-btn:disabled { opacity: 0.4; }
+    .login-error { font-size: 13px; color: var(--danger); margin-top: 10px; text-align: center; }
+  </style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="screenLogin" class="screen active">
+  <div class="login-wrap">
+    <a href="/" class="nav-brand" style="margin-bottom:8px;">
+      <img src="/icons/logo-wave.png" alt="">SwimLoading
+    </a>
+    <div class="login-card">
+      <div class="login-title">Gala Entries</div>
+      <div class="login-sub">Sign in with your SwimLoading account</div>
+      <div class="field-label">Email</div>
+      <input type="email" id="loginEmail" class="field-input" placeholder="you@example.com" autocomplete="email">
+      <div class="field-label">Password</div>
+      <input type="password" id="loginPassword" class="field-input" placeholder="••••••••" autocomplete="current-password">
+      <button class="login-btn" id="loginBtn" onclick="doLogin()">Sign in</button>
+      <div id="loginError" class="login-error" style="display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading -->
+<div id="screenLoading" class="screen">
+  <div class="loading" style="margin:auto;"><div class="spinner"></div></div>
+</div>
+
+<!-- Error -->
+<div id="screenError" class="screen">
+  <div style="margin:auto;text-align:center;padding:40px 24px;max-width:360px;">
+    <div style="font-size:16px;font-weight:600;margin-bottom:8px;" id="errorTitle">Something went wrong</div>
+    <div style="font-size:14px;color:var(--text-sec);" id="errorBody"></div>
+  </div>
+</div>
+
+<!-- Main -->
+<div id="screenMain" class="screen">
+  <nav class="nav">
+    <a href="/" class="nav-brand"><img src="/icons/logo-wave.png" alt="">SwimLoading</a>
+    <span class="nav-right" id="clubName"></span>
+  </nav>
+  <div class="content">
+    <div style="margin-bottom:20px;">
+      <div style="font-size:22px;font-weight:700;margin-bottom:4px;">Gala Entries</div>
+      <div style="font-size:14px;color:var(--text-sec);" id="swimmerGreeting"></div>
+    </div>
+    <div id="galaList"><div class="loading"><div class="spinner"></div></div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SUPABASE_URL = 'https://ykcgbknreftuymhpfwxd.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlrY2dia25yZWZ0dXltaHBmd3hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDI5OTM2NzIsImV4cCI6MjAxODU2OTY3Mn0.B5nQXDDpNMnMCHCiHGkDEpOqRkFcnmHMzLYgURtQkZ4';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // ── State ────────────────────────────────────────────────────────
+  let currentUser  = null;
+  let myRosterId   = null;
+  let currentClub  = null;
+  let allEvents    = [];
+  let myEntries    = {};     // eventId → [entry rows]
+  let myPBMap      = {};     // "event|course" → {time_seconds, time_text}
+  let qtMap        = {};     // "gender|age_group|course|level|event" → {time_seconds, time_text}
+  let myAgeGroup   = null;   // SSA age group: '10U','11','12',…,'16', or null (senior)
+  let myGenderSSA  = null;   // 'M' or 'W'
+  let myAge        = null;
+
+  // ── Boot ─────────────────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', async () => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      await sb.auth.getSession();
+      window.history.replaceState(null, '', location.pathname);
+    }
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { showScreen('screenLogin'); return; }
+    currentUser = session.user;
+    showScreen('screenLoading');
+    await boot();
+  });
+
+  async function boot() {
+    const slug = location.pathname.replace(/^\/galas\/?/, '').replace(/\/$/, '') || null;
+    if (!slug) { showError('No club specified', 'Open this page via your club\'s link.'); return; }
+
+    const { data: club } = await sb.from('clubs').select('id, name, slug, features')
+      .eq('slug', slug).eq('is_active', true).maybeSingle();
+    if (!club) { showError('Club not found', 'Check the link and try again.'); return; }
+    currentClub = club;
+    document.getElementById('clubName').textContent = club.name;
+
+    // Find swimmer's roster entry — needs DOB and gender for QT checks
+    const { data: roster } = await sb.from('club_roster')
+      .select('id, display_name, date_of_birth, gender, squad_id')
+      .eq('club_id', club.id)
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+
+    if (!roster) {
+      showError('Not on roster', 'You\'re not registered with ' + club.name + '. Ask your coach to link your account.');
+      return;
+    }
+    myRosterId = roster.id;
+
+    // Compute swimmer age data for QT lookups
+    if (roster.date_of_birth) {
+      myAge        = Math.floor((Date.now() - new Date(roster.date_of_birth)) / 31557600000);
+      myAgeGroup   = _ssaAgeGroup(roster.date_of_birth);
+      myGenderSSA  = roster.gender ? _ssaGender(roster.gender) : null;
+    }
+
+    const name = roster.display_name?.split(' ')[0] || 'swimmer';
+    document.getElementById('swimmerGreeting').textContent =
+      'Hi ' + name + ' — select the events you want to enter for each gala below.';
+
+    // Parallel fetch: events, my entries, my PBs, QTs (if we have age/gender)
+    const fetches = [
+      sb.from('club_events')
+        .select('id, title, event_date, entry_deadline, pre_entry_cutoff, venue, sessions_json, course, is_league')
+        .eq('club_id', club.id)
+        .eq('is_active', true)
+        .gte('event_date', new Date().toISOString().slice(0, 10))
+        .order('event_date'),
+      sb.from('club_gala_entries')
+        .select('id, event_id, event_name, session_number, swimmer_notes, status, entry_time_text')
+        .eq('club_id', club.id)
+        .eq('roster_id', myRosterId),
+      sb.from('club_swimmer_times')
+        .select('event, course, time_seconds, time_text')
+        .eq('club_id', club.id)
+        .eq('roster_id', myRosterId)
+        .eq('is_pb', true),
+    ];
+
+    // Only fetch QTs if we have gender (needs M or W)
+    if (myGenderSSA) {
+      fetches.push(
+        sb.from('ssa_qualifying_times')
+          .select('gender, age_group, course, level, event, time_seconds, time_text')
+          .eq('gender', myGenderSSA)
+          .in('level', ['L2', 'L3', 'SANJ'])
+          .eq('season', '2025-2026')
+      );
+    }
+
+    const results = await Promise.all(fetches);
+    const [eventsRes, entriesRes, pbsRes] = results;
+    const qtRes = results[3] || null;
+
+    allEvents = eventsRes.data || [];
+
+    // Index entries
+    (entriesRes.data || []).forEach(e => {
+      if (!myEntries[e.event_id]) myEntries[e.event_id] = [];
+      myEntries[e.event_id].push(e);
+    });
+
+    // Build PB map: "event|course" → best time
+    (pbsRes.data || []).forEach(t => {
+      const key = t.event + '|' + (t.course || 'LC');
+      if (!myPBMap[key] || t.time_seconds < myPBMap[key].time_seconds) {
+        myPBMap[key] = { time_seconds: t.time_seconds, time_text: t.time_text };
+      }
+    });
+
+    // Build QT map
+    if (qtRes) {
+      (qtRes.data || []).forEach(row => {
+        qtMap[`${row.gender}|${row.age_group}|${row.course}|${row.level}|${row.event}`] = row;
+      });
+    }
+
+    showScreen('screenMain');
+    renderGalas();
+  }
+
+  // ── Render gala list ─────────────────────────────────────────────
+  function renderGalas() {
+    const el = document.getElementById('galaList');
+    if (!allEvents.length) {
+      el.innerHTML = `<div class="empty">
+        <div class="empty-title">No upcoming galas</div>
+        <div style="font-size:14px;color:var(--text-sec);">Your coach will add galas here when they're available.</div>
+      </div>`;
+      return;
+    }
+
+    el.innerHTML = allEvents.map(ev => {
+      const d        = new Date(ev.event_date + 'T12:00:00');
+      const entries  = (myEntries[ev.id] || []).filter(e => e.status !== 'scratched');
+      const count    = entries.length;
+      const deadline = ev.entry_deadline || (ev.pre_entry_cutoff ? ev.pre_entry_cutoff.slice(0, 10) : null);
+      const deadlineStr = deadline
+        ? new Date(deadline + (deadline.length === 10 ? 'T12:00:00' : '')).toLocaleDateString('en-ZA', { day:'numeric', month:'short' })
+        : null;
+      const isDeadlineSoon = deadline && (new Date(deadline + 'T23:59:59') - new Date()) < 3 * 86400000;
+
+      return `<div class="gala-card${count > 0 ? ' has-entries' : ''}" id="card_${ev.id}">
+        <div class="gala-card-header" onclick="toggleCard('${ev.id}')">
+          <div class="gala-date-block">
+            <div class="gala-date-day">${d.getDate()}</div>
+            <div class="gala-date-mon">${d.toLocaleString('default',{month:'short'})}</div>
+          </div>
+          <div class="gala-info">
+            <div class="gala-title">${ev.title}</div>
+            <div class="gala-meta">
+              ${ev.venue ? `<span class="meta-chip">${ev.venue}</span>` : ''}
+              <span class="meta-chip">${ev.course || 'LC'}</span>
+              ${deadlineStr ? `<span class="meta-chip${isDeadlineSoon ? ' deadline' : ''}">Entries close ${deadlineStr}</span>` : ''}
+              ${count > 0 ? `<span class="meta-chip count">${count} event${count!==1?'s':''} submitted</span>` : ''}
+            </div>
+          </div>
+          <i data-lucide="chevron-down" class="gala-chevron" style="width:18px;height:18px;"></i>
+        </div>
+        <div class="entry-panel" id="panel_${ev.id}"></div>
+      </div>`;
+    }).join('');
+
+    lucide.createIcons();
+  }
+
+  // ── Card toggle ──────────────────────────────────────────────────
+  function toggleCard(eventId) {
+    const card  = document.getElementById('card_' + eventId);
+    const panel = document.getElementById('panel_' + eventId);
+    if (!card) return;
+    const isOpen = card.classList.contains('open');
+    document.querySelectorAll('.gala-card.open').forEach(c => c.classList.remove('open'));
+    if (!isOpen) {
+      card.classList.add('open');
+      panel.innerHTML = buildPanel(eventId);
+      lucide.createIcons();
+    }
+  }
+
+  // ── Build entry panel ────────────────────────────────────────────
+  function buildPanel(eventId) {
+    const ev       = allEvents.find(e => e.id === eventId);
+    const sessions = ev?.sessions_json;
+
+    if (sessions && sessions.length) {
+      return buildSessionPanel(ev, sessions);
+    }
+    return buildGenericPanel(ev);
+  }
+
+  // ── Session-aware panel (when sessions_json is set) ──────────────
+  function buildSessionPanel(ev, sessions) {
+    const entries   = myEntries[ev.id] || [];
+    const activeMap = {};
+    let savedNotes  = '';
+    entries.filter(e => e.status !== 'scratched').forEach(e => {
+      activeMap[`${e.session_number || 0}:${e.event_name}`] = e;
+      if (e.swimmer_notes) savedNotes = e.swimmer_notes;
+    });
+
+    const hasProfile = !!(myAgeGroup && myGenderSSA);
+    const course     = ev.course || 'LC';
+    let   totalSelected = 0;
+
+    let html = '';
+
+    if (!hasProfile) {
+      html += `<div class="profile-warn">
+        Your date of birth and gender aren't set — QT qualification can't be checked.
+        Ask your coach to complete your profile, or select events manually below.
+      </div>`;
+    }
+
+    sessions.forEach((sess, si) => {
+      if (si > 0) html += '<hr class="session-divider">';
+
+      const qtLevel  = sess.level || 'L2'; // 'L2', 'L3', 'SANJ'
+      const levelCls = qtLevel === 'L3' || qtLevel === 'SANJ' ? 'level-l3' : 'level-l2';
+      const levelLbl = qtLevel === 'SANJ' ? 'SANJ' : qtLevel === 'L3' ? 'L3+' : 'L2';
+
+      html += `<div class="session-block" id="sessBlock_${ev.id}_${sess.number}">
+        <div class="session-header">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="session-title">Session ${sess.number} — ${sess.label}</span>
+            <span class="level-badge ${levelCls}">${levelLbl}</span>
+          </div>
+          <span class="session-time">${sess.start_time}</span>
+        </div>`;
+
+      const events = sess.events || [];
+      events.forEach(evtObj => {
+        const evtName = typeof evtObj === 'string' ? evtObj : evtObj.name;
+        const minAge  = evtObj.min_age || null;
+        const key     = `${sess.number}:${evtName}`;
+        const checked = !!activeMap[key];
+        if (checked) totalSelected++;
+
+        // Age check
+        const ageLocked = minAge && myAge !== null && myAge < minAge;
+
+        // QT lookup
+        const qtKey  = `${myGenderSSA}|${myAgeGroup}|${course}|${qtLevel}|${evtName}`;
+        const qt     = hasProfile ? qtMap[qtKey] : null;
+        const pbKey  = evtName + '|' + course;
+        const pb     = myPBMap[pbKey];
+
+        let canSelect, rowClass, pbHtml, qtHint;
+
+        if (ageLocked) {
+          canSelect = false; rowClass = 'locked';
+          pbHtml  = `<span class="no-qt-chip">11 &amp; over only</span>`;
+          qtHint  = '';
+        } else if (!hasProfile) {
+          // No DOB/gender — allow selection without QT check
+          canSelect = true; rowClass = '';
+          pbHtml  = pb ? `<span class="pb-chip pb-far">PB ${pb.time_text}</span>` : '';
+          qtHint  = '';
+        } else if (!myAgeGroup) {
+          // Senior — no SSA age group, no QT standard applies
+          canSelect = true; rowClass = pb ? 'qualified' : '';
+          pbHtml  = pb ? `<span class="pb-chip pb-qualified">PB ${pb.time_text}</span>` : '';
+          qtHint  = '<span class="qt-standard">Senior — no QT req.</span>';
+        } else if (!qt) {
+          // No QT standard for this age group / level combination
+          canSelect = true; rowClass = '';
+          pbHtml  = pb ? `<span class="pb-chip pb-far">PB ${pb.time_text}</span>` : '';
+          qtHint  = '<span class="no-qt-chip">No standard set</span>';
+        } else {
+          // We have a QT standard — check if swimmer qualifies
+          qtHint = `<span class="qt-standard">QT ${qt.time_text}</span>`;
+          if (!pb) {
+            canSelect = false; rowClass = 'locked';
+            pbHtml    = `<span class="no-qt-chip">No PB on file</span>`;
+          } else if (pb.time_seconds <= qt.time_seconds) {
+            canSelect = true; rowClass = 'qualified';
+            const gap = qt.time_seconds - pb.time_seconds;
+            pbHtml    = `<span class="pb-chip pb-qualified">PB ${pb.time_text} <span style="font-size:9px;">-${_fmtGap(gap)}</span></span>`;
+          } else {
+            // Not yet qualified — how close?
+            const gap = pb.time_seconds - qt.time_seconds;
+            const pct = gap / qt.time_seconds;
+            canSelect = false; rowClass = 'locked';
+            if (pct <= 0.04) {
+              pbHtml = `<span class="pb-chip pb-close">PB ${pb.time_text} <span style="font-size:9px;">+${_fmtGap(gap)}</span></span>`;
+            } else {
+              pbHtml = `<span class="pb-chip pb-far">PB ${pb.time_text}</span>`;
+            }
+          }
+        }
+
+        const cbId = `cb_${ev.id}_${sess.number}_${evtName.replace(/ /g,'_')}`;
+        html += `<div class="event-row${rowClass ? ' ' + rowClass : ''}">
+          <input type="checkbox" id="${cbId}"
+            data-event="${evtName}" data-session="${sess.number}"
+            ${checked ? 'checked' : ''} ${canSelect ? '' : 'disabled'}
+            onchange="onEvtChange('${ev.id}')">
+          <label class="event-name" for="${cbId}">${evtName}</label>
+          <div class="event-info">${pbHtml}${qtHint ? qtHint : ''}</div>
+        </div>`;
+      });
+
+      html += '</div>'; // session-block
+    });
+
+    // Notes + save
+    html += `
+      <hr class="session-divider">
+      <textarea class="notes-area" id="notes_${ev.id}" rows="2"
+        placeholder="Optional note to coach (relay squad, seeding, anything else)…">${savedNotes}</textarea>
+      <button class="save-btn" id="saveBtn_${ev.id}" onclick="saveEntries('${ev.id}')">
+        ${totalSelected > 0 ? 'Update entries' : 'Submit entries'}
+      </button>
+      ${totalSelected > 0 ? `<button class="clear-btn" onclick="clearEntries('${ev.id}')">Remove all my entries for this gala</button>` : ''}
+    `;
+
+    return html;
+  }
+
+  // ── Generic fallback panel (no sessions_json) ────────────────────
+  function buildGenericPanel(ev) {
+    const EVENTS = [
+      '50 Free','100 Free','200 Free','400 Free','800 Free','1500 Free',
+      '50 Back','100 Back','200 Back',
+      '50 Breast','100 Breast','200 Breast',
+      '50 Fly','100 Fly','200 Fly',
+      '100 IM','200 IM','400 IM'
+    ];
+    const entries   = myEntries[ev.id] || [];
+    const activeMap = {};
+    let savedNotes  = '';
+    entries.filter(e => e.status !== 'scratched').forEach(e => {
+      activeMap[e.event_name] = e;
+      if (e.swimmer_notes) savedNotes = e.swimmer_notes;
+    });
+
+    const course = ev.course || 'LC';
+    const rows = EVENTS.map(evtName => {
+      const checked = !!activeMap[evtName];
+      const pb      = myPBMap[evtName + '|' + course] || myPBMap[evtName + '|SC'];
+      const cbId    = `cb_${ev.id}_0_${evtName.replace(/ /g,'_')}`;
+      return `<div class="event-row">
+        <input type="checkbox" id="${cbId}" data-event="${evtName}" data-session="0"
+          ${checked ? 'checked' : ''} onchange="onEvtChange('${ev.id}')">
+        <label class="event-name" for="${cbId}">${evtName}</label>
+        ${pb ? `<span class="pb-chip pb-far">PB ${pb.time_text}</span>` : ''}
+      </div>`;
+    }).join('');
+
+    const totalSelected = entries.filter(e => e.status !== 'scratched').length;
+
+    return `${rows}
+      <textarea class="notes-area" id="notes_${ev.id}" rows="2"
+        placeholder="Optional note to coach…">${savedNotes}</textarea>
+      <button class="save-btn" id="saveBtn_${ev.id}" onclick="saveEntries('${ev.id}')">
+        ${totalSelected > 0 ? 'Update entries' : 'Submit entries'}
+      </button>
+      ${totalSelected > 0 ? `<button class="clear-btn" onclick="clearEntries('${ev.id}')">Remove all my entries</button>` : ''}`;
+  }
+
+  // ── Save entries ─────────────────────────────────────────────────
+  async function saveEntries(eventId) {
+    const btn = document.getElementById('saveBtn_' + eventId);
+    btn.disabled = true; btn.textContent = 'Saving…';
+
+    const panel   = document.getElementById('panel_' + eventId);
+    const notes   = document.getElementById('notes_' + eventId)?.value?.trim() || null;
+    const selected = [];
+
+    panel.querySelectorAll('input[type="checkbox"]:checked:not(:disabled)').forEach(cb => {
+      selected.push({
+        event_name:     cb.dataset.event,
+        session_number: parseInt(cb.dataset.session) || null,
+      });
+    });
+
+    // Delete existing 'requested' entries
+    await sb.from('club_gala_entries')
+      .delete()
+      .eq('club_id', currentClub.id)
+      .eq('event_id', eventId)
+      .eq('roster_id', myRosterId)
+      .eq('status', 'requested');
+
+    if (selected.length === 0) {
+      myEntries[eventId] = (myEntries[eventId] || []).filter(e => e.status !== 'requested');
+      showToast('Entries cleared');
+      await refreshEvent(eventId);
+      return;
+    }
+
+    const rows = selected.map(s => ({
+      club_id:        currentClub.id,
+      event_id:       eventId,
+      roster_id:      myRosterId,
+      event_name:     s.event_name,
+      session_number: s.session_number || null,
+      swimmer_notes:  notes,
+      status:         'requested',
+    }));
+
+    const { data: inserted, error } = await sb.from('club_gala_entries').insert(rows).select();
+    if (error) { showToast('Save failed: ' + error.message, 'error'); btn.disabled = false; return; }
+
+    myEntries[eventId] = [
+      ...(myEntries[eventId] || []).filter(e => e.status !== 'requested'),
+      ...(inserted || [])
+    ];
+
+    showToast(selected.length + ' event' + (selected.length !== 1 ? 's' : '') + ' submitted', 'success');
+    await refreshEvent(eventId);
+  }
+
+  async function clearEntries(eventId) {
+    if (!confirm('Remove all your entry requests for this gala?')) return;
+    await sb.from('club_gala_entries')
+      .delete()
+      .eq('club_id', currentClub.id)
+      .eq('event_id', eventId)
+      .eq('roster_id', myRosterId)
+      .eq('status', 'requested');
+    myEntries[eventId] = (myEntries[eventId] || []).filter(e => e.status !== 'requested');
+    showToast('Entries removed');
+    await refreshEvent(eventId);
+  }
+
+  async function refreshEvent(eventId) {
+    const { data } = await sb.from('club_gala_entries')
+      .select('id, event_id, event_name, session_number, swimmer_notes, status, entry_time_text')
+      .eq('club_id', currentClub.id)
+      .eq('event_id', eventId)
+      .eq('roster_id', myRosterId);
+    myEntries[eventId] = data || [];
+    renderGalas();
+  }
+
+  function onEvtChange() { /* update handled on save */ }
+
+  // ── Helpers ──────────────────────────────────────────────────────
+  function _ssaAgeGroup(dob) {
+    if (!dob) return null;
+    const age = new Date().getFullYear() - parseInt(dob.slice(0, 4), 10);
+    if (age <= 10) return '10U';
+    if (age <= 16) return String(age);
+    return null; // senior
+  }
+  function _ssaGender(g) { return g === 'F' ? 'W' : 'M'; }
+
+  function _fmtGap(sec) {
+    if (sec < 60) return sec.toFixed(1) + 's';
+    const m = Math.floor(sec / 60);
+    const s = (sec % 60).toFixed(1).padStart(4, '0');
+    return m + ':' + s;
+  }
+
+  // ── Login ─────────────────────────────────────────────────────────
+  async function doLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const pass  = document.getElementById('loginPassword').value;
+    const btn   = document.getElementById('loginBtn');
+    const err   = document.getElementById('loginError');
+    if (!email || !pass) return;
+    btn.disabled = true; btn.textContent = 'Signing in…';
+    err.style.display = 'none';
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error || !data.session) {
+      err.textContent = error?.message || 'Sign in failed';
+      err.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Sign in';
+      return;
+    }
+    currentUser = data.session.user;
+    showScreen('screenLoading');
+    await boot();
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && document.getElementById('screenLogin').classList.contains('active')) doLogin();
+  });
+
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+  function showError(title, body) {
+    document.getElementById('errorTitle').textContent = title;
+    document.getElementById('errorBody').textContent  = body;
+    showScreen('screenError');
+  }
+  let _toastTimer;
+  function showToast(msg, type = '') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (type ? ' ' + type : '');
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+  }
+</script>
+</body>
+</html>
