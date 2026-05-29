@@ -518,6 +518,18 @@
         </div>`;
 
       const events = sess.events || [];
+
+      // SA Swimming rule: qualifying for ANY event at this level lets you enter ALL events.
+      // Pre-check: does this swimmer have at least one qualifying time in this session?
+      const swimmerQualifiesForSession = hasProfile && myAgeGroup
+        ? events.some(evtObj => {
+            const evtName = typeof evtObj === 'string' ? evtObj : evtObj.name;
+            const qt = qtMap[`${myGenderSSA}|${myAgeGroup}|${course}|${qtLevel}|${evtName}`];
+            const pb = myPBMap[evtName + '|' + course];
+            return qt && pb && pb.time_seconds <= qt.time_seconds;
+          })
+        : false;
+
       events.forEach(evtObj => {
         const evtName = typeof evtObj === 'string' ? evtObj : evtObj.name;
         const minAge  = evtObj.min_age || null;
@@ -556,20 +568,23 @@
           pbHtml  = pb ? `<span class="pb-chip pb-far">PB ${pb.time_text}</span>` : '';
           qtHint  = '<span class="no-qt-chip">No standard set</span>';
         } else {
-          // We have a QT standard — check if swimmer qualifies
+          // We have a QT standard — check if swimmer qualifies for this specific event
           qtHint = `<span class="qt-standard">QT ${qt.time_text}</span>`;
           if (!pb) {
-            canSelect = false; rowClass = 'locked';
+            // No PB — locked unless swimmer already qualified via another event
+            canSelect = swimmerQualifiesForSession;
+            rowClass  = swimmerQualifiesForSession ? '' : 'locked';
             pbHtml    = `<span class="no-qt-chip">No PB on file</span>`;
           } else if (pb.time_seconds <= qt.time_seconds) {
             canSelect = true; rowClass = 'qualified';
             const gap = qt.time_seconds - pb.time_seconds;
             pbHtml    = `<span class="pb-chip pb-qualified">PB ${pb.time_text} <span style="font-size:9px;">-${_fmtGap(gap)}</span></span>`;
           } else {
-            // Not yet qualified — how close?
+            // PB exists but doesn't meet QT — unlocked if swimmer qualifies via another event
             const gap = pb.time_seconds - qt.time_seconds;
             const pct = gap / qt.time_seconds;
-            canSelect = false; rowClass = 'locked';
+            canSelect = swimmerQualifiesForSession;
+            rowClass  = swimmerQualifiesForSession ? '' : 'locked';
             if (pct <= 0.04) {
               pbHtml = `<span class="pb-chip pb-close">PB ${pb.time_text} <span style="font-size:9px;">+${_fmtGap(gap)}</span></span>`;
             } else {
