@@ -7851,42 +7851,65 @@
 
         // Show PWA install prompt with iOS/Android instructions
         function showPwaInstallPrompt() {
-            const dismissKey = 'pwaInstallDismissCount';
-            const dismissCount = parseInt(localStorage.getItem(dismissKey) || '0');
-            if (dismissCount >= 3) return; // Don't show after 3 dismissals
+            const dismissKey = 'pwaInstallDismissed';
+            if (localStorage.getItem(dismissKey)) return;
 
-            // Detect device
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const isIOS     = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
             const isAndroid = /Android/.test(navigator.userAgent);
-            const isPWACapable = isIOS || isAndroid;
+            if (!isIOS && !isAndroid) return;
+            if (window.matchMedia('(display-mode: standalone)').matches) return; // already installed
+            if (window.navigator.standalone) return; // iOS standalone
 
-            if (!isPWACapable || window.matchMedia('(display-mode: standalone)').matches) return; // Already installed
+            // iOS share icon SVG (the box-with-arrow the share sheet shows)
+            const iosShareIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;color:#38bdf8;"><polyline points="8 6 12 2 16 6"/><line x1="12" y1="2" x2="12" y2="15"/><path d="M20 16v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4"/></svg>`;
+
+            const steps = isIOS
+                ? `<div style="display:flex;gap:10px;align-items:flex-start;margin-top:10px;">
+                    <div style="display:flex;flex-direction:column;gap:7px;flex:1;">
+                      <div style="display:flex;align-items:center;gap:7px;font-size:12px;color:#f1f5f9;">
+                        <span style="background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#38bdf8;flex-shrink:0;">1</span>
+                        Tap the <span style="display:inline-flex;align-items:center;gap:3px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.25);border-radius:5px;padding:1px 6px;">${iosShareIcon} Share</span> button at the bottom of Safari
+                      </div>
+                      <div style="display:flex;align-items:center;gap:7px;font-size:12px;color:#f1f5f9;">
+                        <span style="background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#38bdf8;flex-shrink:0;">2</span>
+                        Scroll down and tap <strong style="color:#38bdf8;">"Add to Home Screen"</strong>
+                      </div>
+                    </div>
+                  </div>`
+                : `<div style="display:flex;flex-direction:column;gap:7px;margin-top:10px;">
+                    <div style="display:flex;align-items:center;gap:7px;font-size:12px;color:#f1f5f9;">
+                      <span style="background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#38bdf8;flex-shrink:0;">1</span>
+                      Tap the <strong style="color:#38bdf8;">⋮</strong> menu in Chrome (top right)
+                    </div>
+                    <div style="display:flex;align-items:center;gap:7px;font-size:12px;color:#f1f5f9;">
+                      <span style="background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#38bdf8;flex-shrink:0;">2</span>
+                      Tap <strong style="color:#38bdf8;">"Add to Home Screen"</strong> or <strong style="color:#38bdf8;">"Install app"</strong>
+                    </div>
+                  </div>`;
 
             const banner = document.createElement('div');
             banner.id = 'pwaInstallBanner';
             banner.style.cssText = `
-                position: sticky; top: 48px; z-index: 98;
-                background: linear-gradient(135deg, rgba(56,189,248,0.1), rgba(56,189,248,0.05));
-                border-bottom: 1px solid rgba(56,189,248,0.3);
-                padding: 12px 16px;
-                display: flex; align-items: center; justify-content: space-between; gap: 12px;
-                font-size: 13px; color: var(--text-secondary);
+                position:sticky;top:48px;z-index:98;
+                background:linear-gradient(135deg,#0a1e3a,#051225);
+                border-bottom:1px solid rgba(56,189,248,0.25);
+                padding:14px 16px;
             `;
-            const instructions = isIOS
-                ? 'Tap Share → Add to Home Screen for offline access & notifications'
-                : 'Tap menu → Install app for offline access & notifications';
-
             banner.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
-                    <i data-lucide="smartphone" style="width: 16px; height: 16px; color: var(--ocean-light); flex-shrink: 0;"></i>
-                    <span>${instructions}</span>
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
+                  <div style="flex:1;">
+                    <div style="font-size:13px;font-weight:700;color:#38bdf8;margin-bottom:2px;">Add SwimLoading to your home screen</div>
+                    <div style="font-size:12px;color:#64748b;">Works like an app — no browser bar, loads fast, gala entries in one tap.</div>
+                    ${steps}
+                  </div>
+                  <button onclick="document.getElementById('pwaInstallBanner').remove();localStorage.setItem('${dismissKey}','1');"
+                    style="background:none;border:none;color:#64748b;cursor:pointer;padding:0;font-size:18px;line-height:1;flex-shrink:0;">✕</button>
                 </div>
-                <button onclick="document.getElementById('pwaInstallBanner').remove(); localStorage.setItem('${dismissKey}', '${dismissCount + 1}');" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 0; font-size: 16px;">✕</button>
             `;
+
             const mainApp = document.getElementById('mainApp');
             if (mainApp && mainApp.parentNode) {
                 mainApp.parentNode.insertBefore(banner, mainApp);
-                setTimeout(() => initIcons(), 0);
             }
         }
 
