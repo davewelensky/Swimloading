@@ -198,6 +198,14 @@ async function renderSwimClub(container, club, roster, membership) {
       .eq('roster_id', roster.id)
       .gte('session_date', fourWeeksAgo.toISOString().slice(0,10))
       .lte('session_date', fourWeeksFwd.toISOString().slice(0,10)),
+
+    supabaseClient
+      .from('club_health_events')
+      .select('id, type, body_part, side, severity, notes, created_at, resolved_at')
+      .eq('club_id', club.id)
+      .eq('roster_id', roster.id)
+      .is('resolved_at', null)
+      .order('created_at', { ascending: false }),
   ]);
 
   const allResults    = resultsRes.data       || [];
@@ -207,6 +215,7 @@ async function renderSwimClub(container, club, roster, membership) {
   const timeTrial     = trialsRes.data        || [];
   const announcements = announcementsRes.data || [];
   const attendance    = attendanceRes.data    || [];
+  const healthEvents  = healthRes?.data       || [];
   const qtsByEvent    = getAgeGroupQTs(profile?.date_of_birth, profile?.gender);
   const rosterCat     = roster?.category || '';
 
@@ -231,6 +240,7 @@ async function renderSwimClub(container, club, roster, membership) {
     <div id="clubSubHome">
       ${renderSwimmerHero(club, roster, allResults, timeTrial, qtsByEvent)}
       ${renderPlanningCard(club, rosterCat, attendance, upcoming, roster.id, club.id)}
+      ${renderClubHealthCard(healthEvents, roster.id, club.id)}
       ${renderAnnouncements(announcements)}
       ${renderQTProgressBars(allResults, timeTrial, qtsByEvent)}
       ${renderEventGraphs(allResults, timeTrial, qtsByEvent, roster.id, club.id)}
@@ -768,6 +778,129 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
     ${galaHtml}
     ${sessionsHtml}
   </div>`;
+}
+
+// ─── Club Health Card (swimmer-facing) ────────────────────────────────────────
+
+function renderClubHealthCard(events, rosterId, clubId) {
+  const sevColor = s => s === 'significant' ? 'var(--danger)' : s === 'moderate' ? 'var(--amber)' : '#10b981';
+  const sevBg    = s => s === 'significant' ? 'rgba(239,68,68,0.1)' : s === 'moderate' ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)';
+
+  const rows = events.map(e => {
+    const label = [e.body_part, e.side ? `(${e.side})` : ''].filter(Boolean).join(' ') || e.type;
+    const date  = e.created_at
+      ? new Date(e.created_at).toLocaleDateString('en-ZA', { day:'numeric', month:'short' })
+      : '';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;color:var(--text);text-transform:capitalize;">${label}</div>
+        ${e.notes ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${e.notes}</div>` : ''}
+        <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${date}</div>
+      </div>
+      <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:${sevBg(e.severity)};color:${sevColor(e.severity)};text-transform:uppercase;flex-shrink:0;">${e.severity}</span>
+      <button onclick="resolveClubHealthEvent('${e.id}','${rosterId}','${clubId}')"
+        style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;color:#10b981;cursor:pointer;flex-shrink:0;">
+        Resolved
+      </button>
+    </div>`;
+  }).join('');
+
+  return `<div class="card" style="margin-bottom:12px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${events.length ? 10 : 0}px;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <i data-lucide="activity" style="width:15px;height:15px;color:var(--amber);"></i>
+        <span style="font-size:15px;font-weight:700;">Health</span>
+        ${events.length ? `<span style="font-size:10px;font-weight:700;background:rgba(245,158,11,0.12);color:var(--amber);padding:2px 7px;border-radius:8px;">${events.length} active</span>` : ''}
+      </div>
+      <button onclick="openClubHealthLog('${rosterId}','${clubId}')"
+        style="display:flex;align-items:center;gap:6px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);color:var(--amber);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">
+        <i data-lucide="plus" style="width:13px;height:13px;"></i> Log injury / illness
+      </button>
+    </div>
+    ${rows || `<div style="font-size:13px;color:var(--text-secondary);padding:4px 0;">No active health notes.</div>`}
+  </div>`;
+}
+
+let _healthLogRosterId = null;
+let _healthLogClubId   = null;
+let _clubHealthType    = '';
+let _clubHealthSev     = '';
+
+function openClubHealthLog(rosterId, clubId) {
+  _healthLogRosterId = rosterId;
+  _healthLogClubId   = clubId;
+  _clubHealthType    = '';
+  _clubHealthSev     = '';
+  document.querySelectorAll('.chl-type-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.chl-sev-btn').forEach(b => b.classList.remove('active'));
+  const bp = document.getElementById('chlBodyPart');
+  const sd = document.getElementById('chlSide');
+  const nt = document.getElementById('chlNotes');
+  if (bp) bp.value = '';
+  if (sd) sd.value = '';
+  if (nt) nt.value = '';
+  const br = document.getElementById('chlBodyRow');
+  if (br) br.style.display = 'none';
+  const m = document.getElementById('clubHealthLogModal');
+  if (m) m.style.display = 'flex';
+  if (window.lucide) lucide.createIcons();
+}
+
+function closeClubHealthLog() {
+  const m = document.getElementById('clubHealthLogModal');
+  if (m) m.style.display = 'none';
+}
+
+function selectClubHealthType(type) {
+  _clubHealthType = type;
+  document.querySelectorAll('.chl-type-btn').forEach(b => {
+    b.style.background = b.dataset.t === type ? 'var(--amber)' : 'rgba(255,255,255,0.05)';
+    b.style.color      = b.dataset.t === type ? '#080f1a'      : 'var(--text-secondary)';
+  });
+  const br = document.getElementById('chlBodyRow');
+  if (br) br.style.display = (type === 'injury' || type === 'soreness') ? '' : 'none';
+}
+
+function selectClubHealthSev(sev) {
+  _clubHealthSev = sev;
+  document.querySelectorAll('.chl-sev-btn').forEach(b => {
+    b.style.background = b.dataset.s === sev ? 'rgba(245,158,11,0.25)' : 'rgba(255,255,255,0.05)';
+    b.style.color      = b.dataset.s === sev ? 'var(--amber)'          : 'var(--text-secondary)';
+  });
+}
+
+async function saveClubHealthEvent() {
+  if (!_clubHealthType || !_clubHealthSev) {
+    alert('Please select a type and severity.');
+    return;
+  }
+  const today = new Date().toISOString().slice(0,10);
+  const bp    = document.getElementById('chlBodyPart')?.value || null;
+  const sd    = document.getElementById('chlSide')?.value     || null;
+  const nt    = document.getElementById('chlNotes')?.value?.trim() || null;
+
+  const uid = supabaseClient.auth?.getUser ? (await supabaseClient.auth.getUser()).data?.user?.id : currentUser?.id;
+  const { error } = await supabaseClient.from('club_health_events').insert({
+    club_id:   _healthLogClubId,
+    roster_id: _healthLogRosterId,
+    type:      _clubHealthType,
+    body_part: bp || null,
+    side:      sd || null,
+    severity:  _clubHealthSev,
+    notes:     nt,
+    logged_by: uid || null,
+  });
+
+  if (error) { console.error('Health save error:', error); alert('Could not save. Please try again.'); return; }
+  closeClubHealthLog();
+  // Reload club card to refresh health section
+  if (typeof loadUserClubs === 'function') loadUserClubs();
+}
+
+async function resolveClubHealthEvent(eventId, rosterId, clubId) {
+  const today = new Date().toISOString();
+  await supabaseClient.from('club_health_events').update({ resolved_at: today }).eq('id', eventId);
+  if (typeof loadUserClubs === 'function') loadUserClubs();
 }
 
 // ─── Gala Detail Modal ────────────────────────────────────────────────────────
@@ -1853,7 +1986,7 @@ function buildGalaSessionPanel(ev) {
     </div>`;
   } else {
     html += `<div style="font-size:12px;color:var(--text-secondary);background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;margin-bottom:14px;line-height:1.5;">
-      You can only enter events where you have a qualifying time. <span style="color:var(--green);">Green = qualified</span>, <span style="color:var(--danger);">greyed out = not qualified yet</span>.
+      To enter a session you need a qualifying time at that level in <em>any</em> event. Once qualified, all events in that session are open to you.
     </div>`;
   }
 
@@ -1872,15 +2005,22 @@ function buildGalaSessionPanel(ev) {
       <span style="font-size:12px;color:var(--text-secondary);margin-left:auto;">${sess.start_time || ''}</span>
     </div>`;
 
+    // Level eligibility: if the swimmer has ANY qualifying PB at this session's
+    // level, all events in the session are open — not just events where they
+    // have a specific PB. This matches the rule: qualify at L2 in any event →
+    // can enter ALL L2 events at the next gala. Same for L3 and SANJ.
+    const qualifiesAtSessionLevel = hasProfile && allTimes.some(t => {
+      const qt = _galasQtMap[t.event + '|' + (t.course || course)]?.[sess.level]
+              || _galasQtMap[t.event + '|' + (t.course === 'LC' ? 'SC' : 'LC')]?.[sess.level];
+      return qt && t.is_pb && t.time_seconds <= qt.seconds;
+    });
+
     (sess.events || []).forEach(evtObj => {
       const evtName = typeof evtObj === 'string' ? evtObj : evtObj.name;
       const minAge  = evtObj.min_age || null;
       const checked = !!activeMap[`${sess.number}|${evtName}`];
       const cbId    = `gcb_${ev.id}_${sess.number}_${evtName.replace(/ /g,'_')}`;
 
-      // QT check
-      const qt  = _galasQtMap[evtName + '|' + course];
-      const qtStd = qt?.[sess.level];   // { seconds, text }
       const pb  = pbMap[evtName + '|' + course] || pbMap[evtName + '|SC'];
 
       let canSelect = true, rowStyle = '', rightHtml = '';
@@ -1892,32 +2032,25 @@ function buildGalaSessionPanel(ev) {
         rightHtml = `<span style="font-size:10px;color:var(--text-dim);">11 &amp; over only</span>`;
       } else if (!hasProfile) {
         rightHtml = pb ? `<span style="font-size:11px;color:var(--text-secondary);">PB ${pb.time_text}</span>` : '';
-      } else if (!qtStd) {
-        // No QT standard — open entry
+      } else if (qualifiesAtSessionLevel) {
+        // Swimmer qualifies at this level — all events open
+        rowStyle = pb ? 'background:rgba(16,185,129,0.03);border-radius:8px;' : '';
         rightHtml = pb
-          ? `<span style="font-size:11px;color:var(--cyan);background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.15);padding:2px 7px;border-radius:4px;">PB ${pb.time_text}</span>`
-          : `<span style="font-size:10px;color:var(--text-dim);">Open entry</span>`;
-      } else if (!pb) {
-        canSelect = false; rowStyle = 'opacity:0.45;';
-        rightHtml = `<div style="text-align:right;">
-          <div style="font-size:10px;font-weight:700;color:var(--danger);margin-bottom:1px;">No qualifying time</div>
-          <div style="font-size:10px;color:var(--text-dim);">No PB on file — ask coach</div>
-        </div>`;
-      } else if (pb.time_seconds <= qtStd.seconds) {
-        const gap = qtStd.seconds - pb.time_seconds;
-        rowStyle = 'background:rgba(16,185,129,0.04);border-radius:8px;';
-        rightHtml = `<div style="text-align:right;">
-          <span style="font-size:11px;color:var(--green);background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);padding:2px 7px;border-radius:4px;">Qualified ✓</span>
-          <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">PB ${pb.time_text} · ${_fmtGapClub(gap)} under QT</div>
-        </div>`;
+          ? `<span style="font-size:11px;color:var(--green);background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);padding:2px 7px;border-radius:4px;">PB ${pb.time_text}</span>`
+          : `<span style="font-size:10px;color:var(--cyan);">Level eligible</span>`;
       } else {
-        const gap = pb.time_seconds - qtStd.seconds;
-        const pct = gap / qtStd.seconds;
-        canSelect = false; rowStyle = 'opacity:0.55;';
-        rightHtml = `<div style="text-align:right;">
-          <div style="font-size:10px;font-weight:700;color:var(--danger);margin-bottom:1px;">Not qualified yet</div>
-          <div style="font-size:10px;color:var(--text-secondary);">PB ${pb.time_text} · need ${qtStd.text}${pct <= 0.05 ? ` <span style="color:var(--amber);">(${_fmtGapClub(gap)} off)</span>` : ''}</div>
-        </div>`;
+        // Swimmer does not yet qualify at this level
+        canSelect = false; rowStyle = 'opacity:0.45;';
+        const qt = _galasQtMap[evtName + '|' + course]?.[sess.level];
+        rightHtml = pb
+          ? `<div style="text-align:right;">
+              <div style="font-size:10px;font-weight:700;color:var(--danger);margin-bottom:1px;">Not qualified at ${sess.level}</div>
+              <div style="font-size:10px;color:var(--text-secondary);">PB ${pb.time_text}${qt ? ' · need ' + qt.text : ''}</div>
+            </div>`
+          : `<div style="text-align:right;">
+              <div style="font-size:10px;font-weight:700;color:var(--danger);margin-bottom:1px;">Not qualified at ${sess.level}</div>
+              <div style="font-size:10px;color:var(--text-dim);">No PB on file</div>
+            </div>`;
       }
 
       html += `<div style="display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:8px;${rowStyle}">
