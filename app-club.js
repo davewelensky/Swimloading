@@ -581,10 +581,11 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
   const today = new Date(); today.setHours(0,0,0,0);
   const todayStr = today.toISOString().slice(0,10);
 
-  // Build Mon–Sun of current week
+  // On Sunday show NEXT week — swimmers plan ahead, current week is almost done
   const dow = today.getDay();
   const monday = new Date(today);
-  monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+  monday.setDate(today.getDate() + (dow === 0 ? 1 : -(dow - 1)));
+  const showingNextWeek = dow === 0;
 
   const SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const schedule = club.training_schedule || [];
@@ -748,7 +749,7 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
     }
 
     sessionsHtml = `
-    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">This week</div>
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">${showingNextWeek ? 'Next week' : 'This week'}</div>
     ${statsLine}
     ${rows}
     <div style="font-size:11px;color:rgba(245,158,11,0.6);margin-top:8px;">Masters sessions are optional — Britt recommends at least 1 per week.</div>`;
