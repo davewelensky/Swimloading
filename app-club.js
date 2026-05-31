@@ -133,10 +133,19 @@ async function renderActiveClub() {
   const club   = membership.clubs;
   const roster = membership.club_roster;
 
-  if (club.club_type === 'swim_club') {
-    await renderSwimClub(container, club, roster, membership);
-  } else {
-    await renderOpenWaterClub(container, club, roster, membership);
+  try {
+    if (club.club_type === 'swim_club') {
+      await renderSwimClub(container, club, roster, membership);
+    } else {
+      await renderOpenWaterClub(container, club, roster, membership);
+    }
+  } catch (err) {
+    console.error('renderActiveClub error:', err);
+    container.innerHTML = `<div style="padding:24px 16px;text-align:center;">
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">Could not load club</div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;">${err?.message || 'Unknown error'}</div>
+      <button onclick="renderActiveClub()" style="padding:9px 20px;background:var(--cyan);color:#080f1a;border:none;border-radius:20px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">Retry</button>
+    </div>`;
   }
 }
 
@@ -167,7 +176,7 @@ async function renderSwimClub(container, club, roster, membership) {
 
     supabaseClient
       .from('club_events')
-      .select('id, title, event_date, description, is_league, venue, warmup_time, event_start, logistics, entry_open, entry_deadline, sessions_json, course')
+      .select('id, title, event_date, description, is_league, venue, warmup_time, event_start, logistics, entry_open, entry_deadline, sessions_json, course, pre_entry_cutoff')
       .eq('club_id', club.id)
       .gte('event_date', today)
       .order('event_date')
@@ -1761,7 +1770,7 @@ async function renderActiveParentSwimmer() {
       .select('id, stroke, distance, course, time_seconds, time_text, is_pb, club_events(id, title, event_date)')
       .eq('roster_id', roster.id),
     supabaseClient.from('club_events')
-      .select('id, title, event_date, description, is_league, venue, warmup_time, event_start, logistics, entry_open, entry_deadline, sessions_json, course')
+      .select('id, title, event_date, description, is_league, venue, warmup_time, event_start, logistics, entry_open, entry_deadline, sessions_json, course, pre_entry_cutoff')
       .eq('club_id', club.id).gte('event_date', today).order('event_date').limit(20),
     supabaseClient.from('club_member_profile')
       .select('date_of_birth, gender').eq('roster_id', roster.id).maybeSingle(),
