@@ -903,7 +903,7 @@ async function saveClubHealthEvent() {
     logged_by: uid || null,
   });
 
-  if (error) { console.error('Health save error:', error); alert('Could not save. Please try again.'); return; }
+  if (error) { console.error('Health save error:', error); alert('Could not save: ' + error.message); return; }
   closeClubHealthLog();
   // Reload club card to refresh health section
   if (typeof loadUserClubs === 'function') loadUserClubs();
