@@ -7899,7 +7899,7 @@
                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
                   <div style="flex:1;">
                     <div style="font-size:13px;font-weight:700;color:#38bdf8;margin-bottom:2px;">Add SwimLoading to your home screen</div>
-                    <div style="font-size:12px;color:#64748b;">Works like an app — no browser bar, loads fast, gala entries in one tap.</div>
+                    <div style="font-size:12px;color:#64748b;">One tap from your home screen. Loads fast, no browser bar.</div>
                     ${steps}
                   </div>
                   <button onclick="document.getElementById('pwaInstallBanner').remove();localStorage.setItem('${dismissKey}','1');"
