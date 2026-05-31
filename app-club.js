@@ -631,6 +631,10 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
     // Collect all matching sessions for this day, sort by start time
     const daySessions = schedule.filter(s => {
       if (s.day !== dayNum) return false;
+      // Masters sessions always show — coach requires at least 1 per week
+      if (s.type === 'masters') return true;
+      // For squad sessions: if the session targets specific squads and the swimmer
+      // has a category set, only show sessions that match their category
       if (rosterCat && s.squads?.length) {
         return s.squads.some(sq =>
           rosterCat.toLowerCase().includes(sq.toLowerCase()) ||
@@ -772,8 +776,8 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
     let statsLine = '';
     if (squadTotal > 0 || mastersDone > 0) {
       const mastersNote = mastersThisWeek >= 1
-        ? `<span style="color:#f59e0b;"> · ${mastersThisWeek} masters</span>`
-        : `<span style="color:rgba(245,158,11,0.5);"> · 0 masters (1 recommended)</span>`;
+        ? `<span style="color:#10b981;"> · ${mastersThisWeek} masters ✓</span>`
+        : `<span style="color:#f59e0b;font-weight:700;"> · 0 masters — 1 required this week</span>`;
       statsLine = `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">${squadDone} of ${squadTotal} squad sessions${mastersNote}</div>`;
     } else {
       statsLine = `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">Tap a session to mark attendance</div>`;
