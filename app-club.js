@@ -233,7 +233,7 @@ async function renderSwimClub(container, club, roster, membership) {
     <div id="clubSubHome">
       ${renderSwimmerHero(club, roster, allResults, timeTrial, qtsByEvent)}
       ${renderPlanningCard(club, rosterCat, attendance, upcoming, roster.id, club.id)}
-      ${renderClubHealthCard(healthEvents, roster.id, club.id)}
+      <div id="clubHealthCard" style="margin-bottom:12px;"></div>
       ${renderAnnouncements(announcements)}
       ${renderQTProgressBars(allResults, timeTrial, qtsByEvent)}
       ${renderEventGraphs(allResults, timeTrial, qtsByEvent, roster.id, club.id)}
@@ -244,19 +244,23 @@ async function renderSwimClub(container, club, roster, membership) {
 
   lucide.createIcons();
 
-  // Load health events non-blocking — renders into the already-visible card
+  // Load health events non-blocking — fills placeholder div after main render
+  const _rId = roster.id, _cId = club.id;
   supabaseClient
     .from('club_health_events')
     .select('id, type, body_part, side, severity, notes, created_at, resolved_at')
-    .eq('club_id', club.id)
-    .eq('roster_id', roster.id)
+    .eq('club_id', _cId)
+    .eq('roster_id', _rId)
     .is('resolved_at', null)
     .order('created_at', { ascending: false })
-    .then(({ data }) => {
-      const el = document.getElementById('clubHealthCard');
-      if (!el) return;
-      el.outerHTML = renderClubHealthCard(data || [], roster.id, club.id);
-      if (window.lucide) lucide.createIcons();
+    .then(({ data, error }) => {
+      if (error) return; // RLS or other error — silently skip
+      try {
+        const el = document.getElementById('clubHealthCard');
+        if (!el) return;
+        el.innerHTML = renderClubHealthCard(data || [], _rId, _cId);
+        if (window.lucide) lucide.createIcons();
+      } catch (e) { console.warn('Health card render error:', e); }
     });
 }
 
@@ -813,7 +817,7 @@ function renderClubHealthCard(events, rosterId, clubId) {
     </div>`;
   }).join('');
 
-  return `<div class="card" id="clubHealthCard" style="margin-bottom:12px;">
+  return `<div class="card" style="padding:14px 16px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${events.length ? 10 : 0}px;">
       <div style="display:flex;align-items:center;gap:6px;">
         <i data-lucide="activity" style="width:15px;height:15px;color:var(--amber);"></i>
