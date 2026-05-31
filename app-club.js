@@ -159,7 +159,7 @@ async function renderSwimClub(container, club, roster, membership) {
   const fourWeeksAgo = new Date(); fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
   const fourWeeksFwd = new Date(); fourWeeksFwd.setDate(fourWeeksFwd.getDate() + 28);
 
-  const [resultsRes, upcomingRes, profileRes, trialsRes, announcementsRes, attendanceRes, healthRes] = await Promise.all([
+  const [resultsRes, upcomingRes, profileRes, trialsRes, announcementsRes, attendanceRes] = await Promise.all([
     supabaseClient
       .from('club_gala_results')
       .select('id, stroke, distance, course, time_seconds, time_text, is_pb, club_events(id, title, event_date)')
@@ -198,14 +198,6 @@ async function renderSwimClub(container, club, roster, membership) {
       .eq('roster_id', roster.id)
       .gte('session_date', fourWeeksAgo.toISOString().slice(0,10))
       .lte('session_date', fourWeeksFwd.toISOString().slice(0,10)),
-
-    supabaseClient
-      .from('club_health_events')
-      .select('id, type, body_part, side, severity, notes, created_at, resolved_at')
-      .eq('club_id', club.id)
-      .eq('roster_id', roster.id)
-      .is('resolved_at', null)
-      .order('created_at', { ascending: false }),
   ]);
 
   const allResults    = resultsRes.data       || [];
@@ -215,7 +207,8 @@ async function renderSwimClub(container, club, roster, membership) {
   const timeTrial     = trialsRes.data        || [];
   const announcements = announcementsRes.data || [];
   const attendance    = attendanceRes.data    || [];
-  const healthEvents  = healthRes?.data       || [];
+  // Health fetched separately — non-blocking, never crashes main render
+  const healthEvents  = [];
   const qtsByEvent    = getAgeGroupQTs(profile?.date_of_birth, profile?.gender);
   const rosterCat     = roster?.category || '';
 
@@ -250,6 +243,21 @@ async function renderSwimClub(container, club, roster, membership) {
     </div>`;
 
   lucide.createIcons();
+
+  // Load health events non-blocking — renders into the already-visible card
+  supabaseClient
+    .from('club_health_events')
+    .select('id, type, body_part, side, severity, notes, created_at, resolved_at')
+    .eq('club_id', club.id)
+    .eq('roster_id', roster.id)
+    .is('resolved_at', null)
+    .order('created_at', { ascending: false })
+    .then(({ data }) => {
+      const el = document.getElementById('clubHealthCard');
+      if (!el) return;
+      el.outerHTML = renderClubHealthCard(data || [], roster.id, club.id);
+      if (window.lucide) lucide.createIcons();
+    });
 }
 
 // ─── Swim Club Section Renderers ───────────────────────────────────────────────
@@ -805,7 +813,7 @@ function renderClubHealthCard(events, rosterId, clubId) {
     </div>`;
   }).join('');
 
-  return `<div class="card" style="margin-bottom:12px;">
+  return `<div class="card" id="clubHealthCard" style="margin-bottom:12px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${events.length ? 10 : 0}px;">
       <div style="display:flex;align-items:center;gap:6px;">
         <i data-lucide="activity" style="width:15px;height:15px;color:var(--amber);"></i>
