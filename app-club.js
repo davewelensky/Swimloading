@@ -159,7 +159,7 @@ async function renderSwimClub(container, club, roster, membership) {
   const fourWeeksAgo = new Date(); fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
   const fourWeeksFwd = new Date(); fourWeeksFwd.setDate(fourWeeksFwd.getDate() + 28);
 
-  const [resultsRes, upcomingRes, profileRes, trialsRes, announcementsRes, attendanceRes] = await Promise.all([
+  const [resultsRes, upcomingRes, profileRes, trialsRes, announcementsRes, attendanceRes, healthRes] = await Promise.all([
     supabaseClient
       .from('club_gala_results')
       .select('id, stroke, distance, course, time_seconds, time_text, is_pb, club_events(id, title, event_date)')
