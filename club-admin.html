@@ -2734,7 +2734,8 @@ function renderDayDashboard(dow) {
   const fmtT      = t => { if (!t) return ''; const [h,m]=t.split(':'); const hr=parseInt(h); return (hr>12?hr-12:hr||12)+':'+m+(hr>=12?'pm':'am'); };
   const toM       = t => { if (!t) return 0; const [h,m]=t.split(':'); return parseInt(h)*60+parseInt(m); };
   const nowMins   = new Date().getHours()*60+new Date().getMinutes();
-  const sqCap     = sq => allSquads.find(q => q.id === sq)?.max_members || 0;
+  const sqLookup  = id => (allSquadsAll.length ? allSquadsAll : allSquads).find(q => q.id === id);
+  const sqCap     = sq => sqLookup(sq)?.max_members || 0;
 
   // ── KPI calculations ────────────────────────────────────────────
 
@@ -2798,7 +2799,7 @@ function renderDayDashboard(dow) {
     .sort((a,b) => toM(a.start_time)-toM(b.start_time));
 
   const sessionRows = daySessions.length ? daySessions.map(s => {
-    const sq   = allSquads.find(q => q.id === s.squad_id);
+    const sq   = sqLookup(s.squad_id);
     const asgn = (allWeekAssignments[s.id]||[]).length;
     const cap  = sq?.max_members || 0;
     const pct  = cap > 0 ? Math.round(asgn/cap*100) : 0;
@@ -5704,19 +5705,24 @@ const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Satur
 async function loadSettingsPage() {
   loadSettings();
 
-  // Load all squads for this club
+  // Load all squads for this club (all, including inactive — needed for timetable)
   const { data: squads } = await sb.from('club_squads')
     .select('id, name, type, sort_order, max_members, is_active')
     .eq('club_id', currentClub.id)
     .order('sort_order');
-  allSquads = (squads || []).filter(s => s.is_active !== false);
+  // allSquads = active squads only (used for dropdowns, assignments, stats)
+  // allSquadsAll = every squad including inactive (used for timetable + name lookups)
+  allSquads    = (squads || []).filter(s => s.is_active !== false);
+  allSquadsAll = squads || [];
   renderSettingsSquads(squads || []);
 
-  // Load full timetable (all days, not just today)
-  if (allSquads.length) {
+  // Load timetable using ALL squads so masters/inactive squads still show
+  const timetableSquadIds = allSquadsAll.map(s => s.id);
+  if (timetableSquadIds.length) {
     const { data: sessions } = await sb.from('club_squad_sessions')
       .select('id, squad_id, day_of_week, start_time, end_time, coach_name, max_capacity, notes, is_active')
-      .in('squad_id', allSquads.map(s => s.id))
+      .in('squad_id', timetableSquadIds)
+      .eq('is_active', true)
       .order('day_of_week')
       .order('start_time');
     allTimetableSessions = sessions || [];
@@ -6530,7 +6536,8 @@ async function reactivateCoach(id) {
 // ── ROSTER ────────────────────────────────────────────────────────
 let allRoster = [];
 let allRosterFull = [];   // all roster entries including unlinked, for overview stats
-let allSquads = [];       // club_squads for this club
+let allSquads    = [];    // active club_squads (for dropdowns, assignments)
+let allSquadsAll = [];    // all squads including inactive (for timetable name/cap lookup)
 let allSquadSessions = []; // club_squad_sessions (recurring schedule)
 let rosterFilter = { query: '', status: '', cat: '' };
 let rosterLinkTargetId = null;
