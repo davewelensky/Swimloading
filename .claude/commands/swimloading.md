@@ -399,6 +399,43 @@ Code: `/Users/davewelensky/SwimLoading/device/SwimLoadingDisplay/SwimLoadingDisp
 
 ---
 
+## Monthly Challenge — CRITICAL RULES (prizes are real, mistakes have consequences)
+
+Real prizes ship every month. Getting the winner wrong causes public embarrassment and complaints.
+
+### NEVER do this:
+- Query `get_monthly_temp_leaders` with manually typed dates
+- Declare a winner based on a SQL result without confirming the date range matches the challenge month
+- Use any table called `leaderboard` — it does not exist
+
+### ALWAYS do this:
+1. **Check the Board tab** — open `swimloading.com/app` → Board → scroll to "Monthly Challenge Results"
+2. The panel auto-calculates every month from April 2026 onwards with correct dates — no SQL needed
+3. The winner shown for a completed month IS the winner — name, log count, points all visible
+4. Exclude `DaveW` (organiser) from prize eligibility — he always tops the board but cannot win
+5. If Supabase SQL is ever needed, use the RPC: `SELECT * FROM get_monthly_temp_leaders('YYYY-MM-01T00:00:00Z', 'YYYY-MM-31T23:59:59Z')` — and triple-check the month in both dates match
+
+### Current challenges running:
+- **Monthly pool challenge** (Apr–Dec 2026): most temp logs wins Maurten bundle. Via Art of Endurance.
+- **June Community Challenge** (1–30 Jun 2026): points for logging/joining/sharing, grand prize = TheMagic5 custom Vector goggles. Leaderboard in Board tab via `get_challenge_leaders` RPC. Winner drawn from qualified participants at month end.
+- **July challenge**: Blu Smooth MK2 wetsuit prize. Details TBC.
+
+### Challenge winner verification before any newsletter:
+1. Open Board tab → Monthly Challenge Results
+2. Find the correct month — confirm label matches (e.g. "May 2026")
+3. #1 name shown IS the winner
+4. Screenshot it before telling anyone
+
+### June 2026 challenge go-live SQL (already run on 1 Jun 2026):
+```sql
+DELETE FROM june_challenge_events;
+DELETE FROM challenge_points_audit;
+DELETE FROM challenge_admin_flags;
+UPDATE june_challenge_config SET test_mode = false WHERE id = 1;
+```
+
+---
+
 ## Development Rules
 
 1. **Always read the file before editing**
