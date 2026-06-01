@@ -7,8 +7,8 @@
 ## Strava API Changes — Action Required
 
 - [ ] **TODAY** — Go to strava.com/settings/api → check tier (Standard vs Extended Access)
-- [ ] **TODAY** — Redeem 3-month free Strava subscription code: `6dd19196f2`
-- [ ] **By 30 Jun 2026** — Ensure active Strava subscription on developer account (Standard Tier requirement)
+- [x] **TODAY** — Redeem 3-month free Strava subscription code: `6dd19196f2` ✓ Subscriber since 6/1/26
+- [x] **By 30 Jun 2026** — Ensure active Strava subscription on developer account ✓ Done
 - [ ] **By 1 Jun 2027** — Update API base URL in `api/strava/activities.js` line 45:
   - FROM: `https://www.strava.com/api/v3/`
   - TO:   `https://www.api-v3.strava.com/`
