@@ -4,6 +4,19 @@
 
 ---
 
+## Strava API Changes — Action Required
+
+- [ ] **TODAY** — Go to strava.com/settings/api → check tier (Standard vs Extended Access)
+- [ ] **TODAY** — Redeem 3-month free Strava subscription code: `6dd19196f2`
+- [ ] **By 30 Jun 2026** — Ensure active Strava subscription on developer account (Standard Tier requirement)
+- [ ] **By 1 Jun 2027** — Update API base URL in `api/strava/activities.js` line 45:
+  - FROM: `https://www.strava.com/api/v3/`
+  - TO:   `https://www.api-v3.strava.com/`
+- [ ] **By 1 Jun 2027** — Replace `oauth/deauthorize` with `oauth/revoke` if used anywhere
+- Note: SwimLoading is NOT affected by: intermediary restrictions (direct integration), Club endpoints (unused), Segments (unused). JSON body token calls are fine — only form params are deprecated.
+
+---
+
 ## Club Admin — Priority 1 (Britt replaces the spreadsheet)
 
 - [ ] **CSV / bulk import** — let Britt upload her May 2026.xlsx (or a CSV export), map columns, and import all ~50 swimmers at once. Biggest onboarding blocker.
