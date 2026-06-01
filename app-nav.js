@@ -732,6 +732,60 @@
 
         async function loadLeaderboard() {
             loadMonthlyChallenge();
+            loadPastWinners();
+        }
+
+        // ─── Past Monthly Winners ───────────────────────────────────────────────────
+        // Fetches the last 3 completed months automatically — no manual date entry.
+        // Winner = #1 eligible (excludes community data contributor).
+
+        const CONTRIBUTOR_ID = '2f6666a5-e042-44a5-a08d-558d5791c5bd';
+
+        async function loadPastWinners() {
+            const el = document.getElementById('pastWinners');
+            if (!el) return;
+
+            const now = new Date();
+            // Build last 3 completed months (never the current month)
+            const months = [];
+            for (let i = 1; i <= 3; i++) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const start = new Date(d.getFullYear(), d.getMonth(), 1);
+                const end   = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+                months.push({
+                    label: start.toLocaleString('default', { month: 'long', year: 'numeric' }),
+                    start: start.toISOString(),
+                    end:   end.toISOString(),
+                });
+            }
+
+            el.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.1em;margin:8px 0 10px;">Past Winners</div>`;
+
+            for (const m of months) {
+                const { data, error } = await supabaseClient.rpc('get_monthly_temp_leaders', {
+                    p_month_start: m.start,
+                    p_month_end:   m.end,
+                });
+                if (error || !data) continue;
+
+                const eligible = (data || []).filter(r => r.user_id !== CONTRIBUTOR_ID);
+                const winner   = eligible[0];
+                if (!winner) continue;
+
+                el.innerHTML += `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;margin-bottom:8px;">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:16px;">🥇</span>
+                    <div>
+                      <div style="font-size:13px;font-weight:700;color:var(--text);">${winner.display_name}</div>
+                      <div style="font-size:11px;color:var(--text-secondary);margin-top:1px;">${m.label} · ${winner.log_count} logs · ${winner.total_points} pts</div>
+                    </div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div style="font-size:11px;color:var(--text-secondary);">${eligible.length} swimmers</div>
+                  </div>
+                </div>`;
+            }
         }
 
         function renderLeaderboardList(data, pointsField) {
