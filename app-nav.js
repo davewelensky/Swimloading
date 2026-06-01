@@ -735,57 +735,112 @@
             loadPastWinners();
         }
 
-        // ─── Past Monthly Winners ───────────────────────────────────────────────────
-        // Fetches the last 3 completed months automatically — no manual date entry.
-        // Winner = #1 eligible (excludes community data contributor).
+        // ─── Monthly Challenge History ──────────────────────────────────────────────
+        // Shows every month from April 2026 onwards.
+        // Completed months → winner. Current month → live leader (in progress).
+        // Excludes community data contributor from prize eligibility.
 
         const CONTRIBUTOR_ID = '2f6666a5-e042-44a5-a08d-558d5791c5bd';
+        const CHALLENGE_START = { year: 2026, month: 3 }; // 0-indexed: 3 = April
 
         async function loadPastWinners() {
             const el = document.getElementById('pastWinners');
             if (!el) return;
 
             const now = new Date();
-            // Build last 3 completed months (never the current month)
+            const currentYear  = now.getFullYear();
+            const currentMonth = now.getMonth(); // 0-indexed
+
+            // Build all months from April 2026 to current month (inclusive)
             const months = [];
-            for (let i = 1; i <= 3; i++) {
-                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                const start = new Date(d.getFullYear(), d.getMonth(), 1);
-                const end   = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+            let y = CHALLENGE_START.year;
+            let m = CHALLENGE_START.month;
+            while (y < currentYear || (y === currentYear && m <= currentMonth)) {
+                const start   = new Date(y, m, 1);
+                const endDate = new Date(y, m + 1, 0, 23, 59, 59);
+                const isCurrent = (y === currentYear && m === currentMonth);
                 months.push({
-                    label: start.toLocaleString('default', { month: 'long', year: 'numeric' }),
-                    start: start.toISOString(),
-                    end:   end.toISOString(),
+                    label:     start.toLocaleString('default', { month: 'long', year: 'numeric' }),
+                    start:     start.toISOString(),
+                    end:       endDate.toISOString(),
+                    isCurrent,
                 });
+                m++;
+                if (m > 11) { m = 0; y++; }
             }
 
-            el.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.1em;margin:8px 0 10px;">Past Winners</div>`;
+            // Render skeleton
+            el.innerHTML = `
+              <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.1em;margin:20px 0 10px;">
+                Monthly Challenge Results
+              </div>
+              <div id="pastWinnersCards"></div>`;
 
-            for (const m of months) {
-                const { data, error } = await supabaseClient.rpc('get_monthly_temp_leaders', {
-                    p_month_start: m.start,
-                    p_month_end:   m.end,
+            const cards = document.getElementById('pastWinnersCards');
+
+            // Fetch all months in parallel
+            const results = await Promise.all(months.map(async mo => {
+                const { data } = await supabaseClient.rpc('get_monthly_temp_leaders', {
+                    p_month_start: mo.start,
+                    p_month_end:   mo.end,
                 });
-                if (error || !data) continue;
+                return { mo, data: data || [] };
+            }));
 
-                const eligible = (data || []).filter(r => r.user_id !== CONTRIBUTOR_ID);
+            // Render newest first
+            results.reverse().forEach(({ mo, data }) => {
+                const eligible = data.filter(r => r.user_id !== CONTRIBUTOR_ID);
                 const winner   = eligible[0];
-                if (!winner) continue;
+                const total    = eligible.length;
 
-                el.innerHTML += `
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;margin-bottom:8px;">
-                  <div style="display:flex;align-items:center;gap:10px;">
-                    <span style="font-size:16px;">🥇</span>
-                    <div>
-                      <div style="font-size:13px;font-weight:700;color:var(--text);">${winner.display_name}</div>
-                      <div style="font-size:11px;color:var(--text-secondary);margin-top:1px;">${m.label} · ${winner.log_count} logs · ${winner.total_points} pts</div>
+                const medal   = mo.isCurrent ? '🔴' : '🥇';
+                const label   = mo.isCurrent
+                    ? `<span style="font-size:10px;color:#38bdf8;font-weight:700;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);padding:2px 7px;border-radius:10px;margin-left:6px;">LIVE</span>`
+                    : '';
+                const subline = mo.isCurrent
+                    ? `${mo.label} · leading with ${winner?.log_count || 0} logs · ${winner?.total_points || 0} pts`
+                    : `${mo.label} · ${winner?.log_count || 0} logs · ${winner?.total_points || 0} pts`;
+
+                const topThree = eligible.slice(0, 3).map((r, i) => {
+                    const icons = ['🥇','🥈','🥉'];
+                    return `<span style="font-size:11px;color:var(--text-secondary);">${icons[i]} ${r.display_name} ${r.total_points}pts</span>`;
+                }).join('  ');
+
+                cards.innerHTML += `
+                <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,${mo.isCurrent?'0.12':'0.07'});border-radius:12px;margin-bottom:8px;overflow:hidden;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;"
+                       onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      <span style="font-size:18px;">${medal}</span>
+                      <div>
+                        <div style="display:flex;align-items:center;gap:4px;">
+                          <span style="font-size:14px;font-weight:700;color:var(--text);">${winner ? winner.display_name : 'No entries yet'}</span>
+                          ${label}
+                        </div>
+                        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${subline}</div>
+                      </div>
+                    </div>
+                    <div style="text-align:right;flex-shrink:0;">
+                      <div style="font-size:11px;color:var(--text-secondary);">${total} swimmer${total!==1?'s':''}</div>
                     </div>
                   </div>
-                  <div style="text-align:right;">
-                    <div style="font-size:11px;color:var(--text-secondary);">${eligible.length} swimmers</div>
+                  <div style="display:none;padding:0 14px 12px;border-top:1px solid rgba(255,255,255,0.06);">
+                    <div style="display:flex;flex-direction:column;gap:6px;padding-top:10px;">
+                      ${eligible.slice(0, 5).map((r, i) => {
+                          const medals2 = ['🥇','🥈','🥉','4','5'];
+                          return `<div style="display:flex;align-items:center;justify-content:space-between;">
+                            <div style="display:flex;align-items:center;gap:8px;">
+                              <span style="font-size:13px;min-width:20px;">${medals2[i]}</span>
+                              <span style="font-size:13px;color:var(--text);">${r.display_name}</span>
+                            </div>
+                            <span style="font-size:12px;color:var(--text-secondary);">${r.log_count} logs · ${r.total_points} pts</span>
+                          </div>`;
+                      }).join('')}
+                      ${total === 0 ? '<div style="font-size:13px;color:var(--text-secondary);">No logs yet this month.</div>' : ''}
+                    </div>
                   </div>
                 </div>`;
-            }
+            });
         }
 
         function renderLeaderboardList(data, pointsField) {
