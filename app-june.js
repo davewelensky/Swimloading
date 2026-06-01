@@ -419,16 +419,14 @@
                     <div style="background:rgba(125,211,252,0.15);color:#7dd3fc;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;">${daysLeft}d left</div>
                   </div>
 
-                  <!-- Prizes -->
-                  <div style="display:flex;gap:6px;margin-bottom:14px;">
-                    <div style="background:linear-gradient(135deg,rgba(251,191,36,0.12),rgba(180,83,9,0.07));border:1px solid rgba(251,191,36,0.3);border-radius:8px;padding:8px 10px;font-size:11px;font-weight:700;color:#fbbf24;flex:1.4;text-align:center;">
-                      <div>Magic5 Goggles</div><div style="font-weight:600;color:#d97706;margin-top:1px;">THEMAGIC5 &middot; 1st</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;font-size:11px;font-weight:600;color:var(--text);flex:1;text-align:center;">
-                      <div>Maurten Pack</div><div style="font-weight:400;color:var(--text-secondary);margin-top:1px;">2nd</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;font-size:11px;font-weight:600;color:var(--text);flex:1;text-align:center;">
-                      <div>Blu Smooth</div><div style="font-weight:400;color:var(--text-secondary);margin-top:1px;">3rd</div>
+                  <!-- Prize -->
+                  <div style="margin-bottom:14px;">
+                    <div style="background:linear-gradient(135deg,rgba(251,191,36,0.12),rgba(180,83,9,0.07));border:1px solid rgba(251,191,36,0.3);border-radius:8px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">
+                      <div>
+                        <div style="font-size:12px;font-weight:700;color:#fbbf24;">Grand Prize — THEMAGIC5</div>
+                        <div style="font-size:11px;color:#d97706;margin-top:2px;">Custom Vector goggles · AI-fitted to your face · R3,000 value</div>
+                      </div>
+                      <div style="font-size:11px;font-weight:700;color:#fbbf24;white-space:nowrap;margin-left:12px;">1 winner</div>
                     </div>
                   </div>
 
