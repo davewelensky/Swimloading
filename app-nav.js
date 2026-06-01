@@ -732,7 +732,8 @@
 
         async function loadLeaderboard() {
             loadMonthlyChallenge();
-            loadPastWinners();
+            // Past winners panel — admin only (prize verification)
+            if (currentUserProfile?.is_admin) loadPastWinners();
         }
 
         // ─── Monthly Challenge History ──────────────────────────────────────────────
