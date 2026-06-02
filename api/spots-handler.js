@@ -167,7 +167,11 @@ async function renderSpotPage(slug) {
     ],
   };
 
-  const body = `
+  // Sensor venues get a completely different hero-page layout
+  const venue = VENUE_MAP[slug];
+  const body = venue
+    ? renderSensorVenueBody(slug, spot, venue, regionSlug, regionName, recentLogs, nearbySpots, hazards)
+    : `
     <nav class="breadcrumb" aria-label="Breadcrumb">
       <div class="container">
         <a href="/">SwimLoading</a> ›
@@ -176,15 +180,13 @@ async function renderSpotPage(slug) {
       </div>
     </nav>
 
-    ${renderSpotHero(spot, latestData, recentLogs, trend, !!VENUE_MAP[slug])}
+    ${renderSpotHero(spot, latestData, recentLogs, trend, false)}
 
     <main class="container page-body">
-      ${renderMywaterliveWidget(slug)}
       ${renderHazards(hazards)}
 
       <section>
         <h2>Recent Logs <small>(last 7 days)</small></h2>
-        ${VENUE_MAP[slug] ? `<p class="mwl-logs-note">Current water temperature is measured by a live sensor — see the reading above. Community swim logs appear here when swimmers check in.</p>` : ''}
         ${renderFreshnessBar(recentLogs, latestData)}
         ${renderTrendSummary(spot, recentLogs, trend)}
         ${renderRecentLogsTable(recentLogs)}
@@ -207,10 +209,142 @@ async function renderSpotPage(slug) {
   return pageShell({ title, description, canonical: `https://www.swimloading.com/spots/${slug}`, jsonLd: [jsonLdDataset, jsonLdBreadcrumb, jsonLdFaq], body });
 }
 
-// ─── my-water.live LIVE SENSOR WIDGET ────────────────────────────────────────
+// ─── SENSOR VENUE HERO PAGE ───────────────────────────────────────────────────
+// Used instead of the standard spot page layout for my-water.live venues.
+
+function renderSensorVenueBody(slug, spot, venue, regionSlug, regionName, recentLogs, nearbySpots, hazards) {
+  const factsHtml = venue.facts.map(f =>
+    `<div class="svh-fact"><span class="svh-fact-dot"></span><span>${escapeHtml(f)}</span></div>`
+  ).join('');
+
+  const steps = [
+    'Pre-configured sensor delivered to the venue',
+    'Probe submerged — weatherproof enclosure mounted poolside',
+    'Sensor transmits readings automatically via its own SIM card — no Wi-Fi needed',
+    'Local weather data integrated alongside the water reading',
+    'Swimmers get a real-time view of conditions before they leave home',
+  ];
+  const stepsHtml = steps.map((s, i) =>
+    `<div class="svh-step"><span class="svh-step-num">${i + 1}</span><span>${escapeHtml(s)}</span></div>`
+  ).join('');
+
+  const recentLogsHtml = recentLogs.length
+    ? renderRecentLogsTable(recentLogs)
+    : `<p class="svh-no-logs">No community logs yet — be the first to log a swim here and add your reading to the SwimLoading feed.</p>`;
+
+  const nearbyHtml = nearbySpots.length
+    ? `<section class="svh-section">${renderNearbySpots(nearbySpots, regionSlug, regionName)}</section>` : '';
+
+  // Client-side temp fetch — key never appears here
+  const script = `<script>
+(function(){
+  var slot = document.getElementById('svh-temp');
+  var sub  = document.getElementById('svh-temp-sub');
+  if (!slot) return;
+  fetch('/api/mywaterlive?slug=${escapeHtml(slug)}')
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){
+      if (!d || d.unavailable) {
+        slot.textContent = '—';
+        if (sub) sub.textContent = 'Sensor data unavailable';
+        return;
+      }
+      slot.textContent = d.temperature != null ? parseFloat(d.temperature).toFixed(1) + '\\u00b0C' : '—';
+      if (sub && d.timestamp) {
+        try {
+          var t = new Date(d.timestamp).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+          sub.textContent = 'Sensor updated ' + t + (d.stale ? ' (cached)' : '');
+        } catch(e){}
+      }
+    })
+    .catch(function(){ if (slot) slot.textContent = '—'; });
+})();
+<\/script>`;
+
+  return `
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <div class="container">
+    <a href="/">SwimLoading</a> ›
+    <a href="/spots/${regionSlug}">${escapeHtml(regionName)}</a> ›
+    ${escapeHtml(spot.name)}
+  </div>
+</nav>
+
+<!-- VENUE HERO -->
+<div class="svh-hero">
+  <div class="container svh-hero-inner">
+    <div class="svh-hero-left">
+      <div class="svh-badge"><span class="svh-live-dot"></span>Live water temperature sensor</div>
+      <h1 class="svh-venue-name">${escapeHtml(spot.name)}</h1>
+      <p class="svh-tagline">Live water temperature for lakes &amp; lidos</p>
+      <div class="svh-temp-block">
+        <div class="svh-temp" id="svh-temp"><span class="svh-temp-loading">&#8203;</span></div>
+        <div class="svh-temp-sub" id="svh-temp-sub">Fetching live reading…</div>
+      </div>
+      <p class="svh-built">Built for the grit of open water &nbsp;·&nbsp; Engineered and tested at Tooting Bec Lido &nbsp;·&nbsp; Swimmer owned</p>
+      <div class="svh-ctas">
+        <a href="${escapeHtml(venue.url)}" target="_blank" rel="noopener noreferrer" class="svh-btn-primary">Full conditions at my-water.live &#8594;</a>
+        <a href="/app" class="svh-btn-secondary">Log your swim on SwimLoading</a>
+      </div>
+    </div>
+    <div class="svh-hero-right">
+      <div class="svh-type-strip">
+        ${venue.type.split('·').map(t => `<span class="svh-tag">${escapeHtml(t.trim())}</span>`).join('')}
+        <span class="svh-tag">Est. ${venue.built}</span>
+      </div>
+      <div class="svh-venue-headline">${escapeHtml(venue.headline)}</div>
+      <p class="svh-venue-desc">${escapeHtml(venue.desc)}</p>
+      <div class="svh-facts">${factsHtml}</div>
+    </div>
+  </div>
+</div>
+
+<main class="container svh-main">
+
+  <!-- Peter's story -->
+  <section class="svh-section svh-story-section">
+    <div class="svh-story-grid">
+      <div class="svh-story-text">
+        <div class="svh-section-label">About my-water.live</div>
+        <h2 class="svh-section-title">From water to cloud</h2>
+        <blockquote class="svh-blockquote">"My Water Live wasn't born in a boardroom; it was engineered at the water's edge."</blockquote>
+        <p>It started with a simple question here at Tooting Bec Lido: <em>"Do you log your readings anywhere?"</em> Until then, the data lived only in Strava descriptions. That question sparked a vision: a real-time sensor network for lakes and lidos that lets you check conditions before you've even left the house.</p>
+        <p>Manual readings with fish-tank thermometers are clunky — two people rarely see the same number. The sensor replaced that clutter with one accurate, continuous, automatic reading. No Wi-Fi required, no human error, no gaps.</p>
+        <blockquote class="svh-quote-pull">"When the mind screams 'don't get in', do it — it's good for the soul."</blockquote>
+        <a href="${escapeHtml(venue.url)}" target="_blank" rel="noopener noreferrer" class="svh-credit-link">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <strong>Powered by my-water.live</strong> — live sensor network for outdoor swimming venues
+        </a>
+      </div>
+      <div class="svh-how-works">
+        <div class="svh-section-label">How it works</div>
+        <h3 class="svh-how-title">Sensor to swimmer</h3>
+        <div class="svh-steps">${stepsHtml}</div>
+      </div>
+    </div>
+  </section>
+
+  ${hazards.length ? `<section class="svh-section">${renderHazards(hazards)}</section>` : ''}
+
+  <!-- Community logs -->
+  <section class="svh-section">
+    <h2>Community Swim Logs <small>(last 7 days)</small></h2>
+    <p class="svh-logs-note">Water temperature is measured continuously by the live sensor above. These are additional community readings logged by swimmers on SwimLoading.</p>
+    ${recentLogsHtml}
+  </section>
+
+  ${renderMapEmbed(spot)}
+
+  ${nearbyHtml}
+
+  ${renderAppTeaser(spot)}
+
+</main>
+${script}`;
+}
+
+// ─── my-water.live LIVE SENSOR WIDGET (legacy — used by non-hero path) ────────
 // Returns empty string for spots not in VENUE_MAP — no impact on other pages.
-// The widget fetches /api/mywaterlive client-side so it never blocks SSR.
-// The "Powered by my-water.live" credit is a contractual requirement.
 
 function renderMywaterliveWidget(slug) {
   const venue = VENUE_MAP[slug];
@@ -812,6 +946,60 @@ tr:last-child td{border-bottom:none}tr:hover td{background:rgba(56,189,248,0.04)
   .spot-cards{grid-template-columns:1fr}
   .stat-cards{grid-template-columns:repeat(2,1fr)}
   td,th{padding:9px 10px}
+}
+/* ── Sensor venue hero page ── */
+.svh-hero{background:linear-gradient(135deg,#061628 0%,#0a1e38 40%,rgba(2,132,199,0.15) 100%);border-bottom:1px solid rgba(56,189,248,0.2);padding:52px 0 48px;overflow:hidden}
+.svh-hero-inner{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start}
+.svh-hero-left{display:flex;flex-direction:column;gap:16px}
+.svh-badge{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:.1em;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:20px;padding:5px 14px;width:fit-content}
+.svh-live-dot{width:7px;height:7px;background:#22c55e;border-radius:50%;animation:pulse-dot 2s ease-in-out infinite;flex-shrink:0}
+.svh-venue-name{font-size:42px;font-weight:900;color:var(--text);line-height:1.05;margin:0}
+.svh-tagline{font-size:16px;color:var(--ocean-lt);font-weight:500;margin:0}
+.svh-temp-block{margin:8px 0 4px}
+.svh-temp{font-size:96px;font-weight:900;color:var(--ocean-lt);line-height:1;text-shadow:0 0 60px rgba(56,189,248,0.5);min-height:96px}
+.svh-temp-loading{display:inline-block;width:120px;height:80px;background:rgba(56,189,248,0.08);border-radius:8px;animation:pulse-dot 1.5s ease-in-out infinite}
+.svh-temp-sub{font-size:13px;color:var(--subtle);margin-top:6px}
+.svh-built{font-size:12px;color:var(--subtle);margin:0}
+.svh-ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:4px}
+.svh-btn-primary{display:inline-flex;align-items:center;background:var(--ocean);color:#fff!important;font-size:14px;font-weight:700;padding:12px 22px;border-radius:10px;text-decoration:none!important;transition:background .15s}
+.svh-btn-primary:hover{background:#0369a1;text-decoration:none!important}
+.svh-btn-secondary{display:inline-flex;align-items:center;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:var(--text)!important;font-size:14px;font-weight:600;padding:12px 22px;border-radius:10px;text-decoration:none!important;transition:all .15s}
+.svh-btn-secondary:hover{background:rgba(255,255,255,0.1);text-decoration:none!important}
+.svh-hero-right{padding-top:8px}
+.svh-type-strip{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.svh-tag{font-size:11px;font-weight:600;color:var(--ocean-lt);background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:20px;padding:3px 10px}
+.svh-venue-headline{font-size:18px;font-weight:800;color:var(--text);margin-bottom:10px;line-height:1.3}
+.svh-venue-desc{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px}
+.svh-facts{display:flex;flex-direction:column;gap:8px}
+.svh-fact{display:flex;align-items:flex-start;gap:9px;font-size:13px;color:var(--muted)}
+.svh-fact-dot{width:5px;height:5px;border-radius:50%;background:var(--ocean-lt);flex-shrink:0;margin-top:5px}
+/* Main content */
+.svh-main{padding-top:40px;padding-bottom:60px}
+.svh-section{margin:0 0 48px}
+.svh-section-label{font-size:11px;font-weight:700;color:var(--ocean-lt);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
+.svh-section-title{font-size:22px;font-weight:800;color:var(--text);margin-bottom:16px}
+.svh-story-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start}
+.svh-story-text p{font-size:14px;color:var(--muted);line-height:1.75;margin-bottom:14px}
+.svh-blockquote{font-size:17px;font-style:italic;color:var(--ocean-lt);border-left:3px solid var(--ocean-lt);padding-left:16px;margin:0 0 16px;line-height:1.6}
+.svh-quote-pull{font-size:15px;font-style:italic;color:var(--muted);border-left:2px solid rgba(255,255,255,0.1);padding-left:14px;margin:16px 0;line-height:1.6}
+.svh-credit-link{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);text-decoration:none;transition:color .15s;margin-top:4px}
+.svh-credit-link:hover{color:var(--ocean-lt);text-decoration:none}
+.svh-credit-link strong{color:var(--ocean-lt)}
+.svh-how-works{}
+.svh-how-title{font-size:16px;font-weight:700;color:var(--text);margin-bottom:16px}
+.svh-steps{display:flex;flex-direction:column;gap:12px}
+.svh-step{display:flex;align-items:flex-start;gap:12px;font-size:13px;color:var(--muted);line-height:1.5}
+.svh-step-num{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.25);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--ocean-lt);margin-top:1px}
+.svh-logs-note{font-size:13px;color:var(--subtle);background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.12);border-radius:8px;padding:10px 14px;margin-bottom:14px}
+.svh-no-logs{font-size:14px;color:var(--subtle);padding:16px 0}
+@media(max-width:700px){
+  .svh-hero{padding:36px 0 32px}
+  .svh-hero-inner{grid-template-columns:1fr;gap:28px}
+  .svh-temp{font-size:72px}
+  .svh-venue-name{font-size:30px}
+  .svh-story-grid{grid-template-columns:1fr;gap:28px}
+  .svh-ctas{flex-direction:column}
+  .svh-btn-primary,.svh-btn-secondary{width:100%;justify-content:center}
 }
 /* ── my-water.live venue hero ── */
 .mwl-hero-section{background:linear-gradient(135deg,#0d1f38 0%,#0a1628 50%,rgba(2,132,199,0.1) 100%);border:1px solid rgba(56,189,248,0.3);border-radius:var(--r);overflow:hidden;margin:0 0 32px}
