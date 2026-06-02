@@ -1052,7 +1052,7 @@
         <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
           <div>
             <div class="page-title">Health</div>
-            <div class="page-sub">Active health issues across your squads</div>
+            <div class="page-sub" id="healthPageSub">Active health issues across your members</div>
           </div>
           <button class="btn-sm" onclick="openAdminHealthLog()" style="display:flex;align-items:center;gap:6px;font-size:13px;">
             <i data-lucide="plus" style="width:14px;height:14px;"></i> Log issue
@@ -2060,6 +2060,10 @@ async function loadClubContext() {
   document.getElementById('nav-sets').style.display             = hasSquads        ? '' : 'none';
   document.getElementById('nav-health').style.display           = hasHealth        ? '' : 'none';
   document.getElementById('nav-groups').style.display           = hasGroups        ? '' : 'none';
+  const healthSub = document.getElementById('healthPageSub');
+  if (healthSub) healthSub.textContent = hasSquads
+    ? 'Active health issues across your squads'
+    : 'Active health issues across your members';
   document.getElementById('nav-entries').style.display          = hasGalaEntries   ? '' : 'none';
   document.getElementById('nav-attendance').style.display       = hasAttendance    ? '' : 'none';
   document.getElementById('nav-parents').style.display          = hasParentLanguage ? '' : 'none';
@@ -2955,12 +2959,13 @@ async function loadHealthPage() {
     return d === 0 ? 'today' : d === 1 ? 'yesterday' : `${d}d ago`;
   };
 
+  const showSquadCol = !!(window._clubFeatures?.hasSquads);
   const renderRow = (e, showResolve) => {
     const name  = e.club_roster?.display_name || '—';
-    const squad = allSquads.find(s => s.id === e.club_roster?.squad_id)?.name || '—';
+    const squad = showSquadCol ? (allSquads.find(s => s.id === e.club_roster?.squad_id)?.name || '—') : null;
     return `<tr>
       <td style="font-weight:600;">${name}</td>
-      <td style="color:var(--text-sec);font-size:12px;">${squad}</td>
+      ${showSquadCol ? `<td style="color:var(--text-sec);font-size:12px;">${squad}</td>` : ''}
       <td>${typeLabel(e.type, e.body_part, e.side)}</td>
       <td>${sevLabel(e.severity)}</td>
       <td style="color:var(--text-sec);font-size:12px;">${daysAgo(e.created_at)}</td>
@@ -2975,8 +2980,8 @@ async function loadHealthPage() {
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead>
         <tr style="border-bottom:1px solid var(--border);">
-          <th style="text-align:left;padding:8px 12px 8px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-sec);">Swimmer</th>
-          <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-sec);">Squad</th>
+          <th style="text-align:left;padding:8px 12px 8px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-sec);">Member</th>
+          ${showSquadCol ? `<th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-sec);">Squad</th>` : ''}
           <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-sec);">Issue</th>
           <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-sec);">Severity</th>
           <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-sec);">Logged</th>
