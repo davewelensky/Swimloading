@@ -808,8 +808,8 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
 // ─── Club Health Card (swimmer-facing) ────────────────────────────────────────
 
 function renderClubHealthCard(events, rosterId, clubId) {
-  const sevColor = s => s === 'significant' ? 'var(--danger)' : s === 'moderate' ? 'var(--amber)' : '#10b981';
-  const sevBg    = s => s === 'significant' ? 'rgba(239,68,68,0.1)' : s === 'moderate' ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)';
+  const sevColor = s => s === 'serious' || s === 'significant' ? 'var(--danger)' : s === 'moderate' ? 'var(--amber)' : '#10b981';
+  const sevBg    = s => s === 'serious' || s === 'significant' ? 'rgba(239,68,68,0.1)' : s === 'moderate' ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)';
 
   const rows = events.map(e => {
     const label = [e.body_part, e.side ? `(${e.side})` : ''].filter(Boolean).join(' ') || e.type;
