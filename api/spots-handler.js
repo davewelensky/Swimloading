@@ -216,62 +216,82 @@ function renderMywaterliveWidget(slug) {
   const venue = VENUE_MAP[slug];
   if (!venue) return '';
 
-  // Client-side only — the API key never appears here.
-  // On load: fetches live temp, replaces loading state with full feature card.
-  // On error/unavailable: section hidden cleanly.
+  // Facts list — rendered server-side, always visible
+  const factsHtml = venue.facts.map(f =>
+    `<li class="mwl-fact"><span class="mwl-fact-dot"></span>${escapeHtml(f)}</li>`
+  ).join('');
+
+  // Client-side temp slot — filled by fetch, never contains the API key
   const script = `
 <script>
 (function(){
-  var sec = document.getElementById('mwl-section');
-  if (!sec) return;
+  var slot = document.getElementById('mwl-temp-slot');
+  var upd  = document.getElementById('mwl-updated');
+  if (!slot) return;
   fetch('/api/mywaterlive?slug=${escapeHtml(slug)}')
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(d){
-      if (!d || d.unavailable) { sec.style.display = 'none'; return; }
-      var temp = d.temperature != null ? parseFloat(d.temperature).toFixed(1) + '\\u00b0C' : '\\u2014';
-      var when = '';
-      if (d.timestamp) {
-        try {
-          when = new Date(d.timestamp).toLocaleString('en-GB', {
-            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-          });
-        } catch(e) {}
+      if (!d || d.unavailable) {
+        slot.innerHTML = '<span class="mwl-temp-na">Sensor offline</span>';
+        return;
       }
-      var staleNote = d.stale ? ' <span class="mwl-stale">(last cached)</span>' : '';
-      sec.innerHTML = ''
-        + '<div class="mwl-feature">'
-        +   '<div class="mwl-feature-top">'
-        +     '<div class="mwl-feature-label"><span class="mwl-live-dot"></span>Live water temperature sensor</div>'
-        +     (when ? '<div class="mwl-feature-updated">Updated ' + when + staleNote + '</div>' : '')
-        +   '</div>'
-        +   '<div class="mwl-feature-body">'
-        +     '<div class="mwl-big-temp">' + temp + '</div>'
-        +     '<div class="mwl-feature-detail">'
-        +       '<div class="mwl-detail-title">Dedicated in-water sensor</div>'
-        +       '<div class="mwl-detail-desc">This reading comes from a permanent water temperature sensor installed at ${escapeHtml(venue.label)}, built and maintained by <strong>my-water.live</strong>. The sensor measures continuously throughout the day, every day of the year — not estimated, not crowd-sourced.</div>'
-        +       '<a href="' + d.venue_url + '" target="_blank" rel="noopener noreferrer" class="mwl-venue-btn">'
-        +         'View full conditions at my-water.live &#8594;'
-        +       '</a>'
-        +     '</div>'
-        +   '</div>'
-        +   '<div class="mwl-feature-footer">'
-        +     '<a href="' + d.venue_url + '" target="_blank" rel="noopener noreferrer" class="mwl-credit-link">'
-        +       '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>'
-        +       '<strong>Powered by my-water.live</strong> &mdash; live sensor network for open water swimming venues'
-        +     '</a>'
-        +   '</div>'
-        + '</div>';
+      var temp = d.temperature != null
+        ? parseFloat(d.temperature).toFixed(1) + '\\u00b0C'
+        : '\\u2014';
+      slot.innerHTML = temp;
+      if (upd && d.timestamp) {
+        try {
+          var t = new Date(d.timestamp).toLocaleString('en-GB',{
+            day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'
+          });
+          upd.textContent = 'Sensor reading ' + t + (d.stale ? ' (cached)' : '');
+        } catch(e){}
+      }
     })
-    .catch(function(){ sec.style.display = 'none'; });
+    .catch(function(){
+      if (slot) slot.innerHTML = '<span class="mwl-temp-na">Unavailable</span>';
+    });
 })();
 <\/script>`.trim();
 
   return `
-<section id="mwl-section" class="mwl-section">
-  <div class="mwl-feature mwl-feature-loading">
-    <div class="mwl-feature-label"><span class="mwl-live-dot"></span>Live water temperature sensor</div>
-    <div class="mwl-loading-text">Fetching live reading from ${escapeHtml(venue.label)} sensor…</div>
+<section class="mwl-hero-section">
+
+  <div class="mwl-hero-grid">
+
+    <!-- Left: venue info + facts -->
+    <div class="mwl-hero-info">
+      <div class="mwl-sensor-badge"><span class="mwl-live-dot"></span>Live sensor · my-water.live</div>
+      <h2 class="mwl-venue-headline">${escapeHtml(venue.headline)}</h2>
+      <p class="mwl-venue-desc">${escapeHtml(venue.desc)}</p>
+      <ul class="mwl-facts-list">${factsHtml}</ul>
+    </div>
+
+    <!-- Right: live temp + sensor credit -->
+    <div class="mwl-hero-temp-panel">
+      <div class="mwl-temp-label">Right now</div>
+      <div class="mwl-live-temp" id="mwl-temp-slot">
+        <span class="mwl-temp-loading">…</span>
+      </div>
+      <div class="mwl-temp-sub" id="mwl-updated">Live sensor data</div>
+      <div class="mwl-type-tags">
+        ${venue.type.split('·').map(t => `<span class="mwl-tag">${escapeHtml(t.trim())}</span>`).join('')}
+        <span class="mwl-tag">Est. ${venue.built}</span>
+      </div>
+      <a href="${escapeHtml(venue.url)}" target="_blank" rel="noopener noreferrer" class="mwl-visit-btn">
+        Full conditions at my-water.live &#8594;
+      </a>
+    </div>
+
   </div>
+
+  <div class="mwl-hero-footer">
+    <a href="${escapeHtml(venue.url)}" target="_blank" rel="noopener noreferrer" class="mwl-powered">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      <strong>Powered by my-water.live</strong> &mdash; permanent in-water sensor network for outdoor swimming venues
+    </a>
+  </div>
+
 </section>
 ${script}`;
 }
@@ -793,30 +813,43 @@ tr:last-child td{border-bottom:none}tr:hover td{background:rgba(56,189,248,0.04)
   .stat-cards{grid-template-columns:repeat(2,1fr)}
   td,th{padding:9px 10px}
 }
-/* ── my-water.live live sensor feature ── */
-.mwl-section{margin:0 0 32px}
-.mwl-feature{background:linear-gradient(135deg,rgba(2,132,199,0.12) 0%,rgba(2,132,199,0.04) 100%);border:1px solid rgba(56,189,248,0.35);border-radius:var(--r);overflow:hidden}
-.mwl-feature-loading{padding:20px 22px}
-.mwl-feature-top{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 0;flex-wrap:wrap;gap:6px}
-.mwl-feature-label{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:var(--ocean-lt);text-transform:uppercase;letter-spacing:.1em}
-.mwl-feature-updated{font-size:11px;color:var(--subtle)}
+/* ── my-water.live venue hero ── */
+.mwl-hero-section{background:linear-gradient(135deg,#0d1f38 0%,#0a1628 50%,rgba(2,132,199,0.1) 100%);border:1px solid rgba(56,189,248,0.3);border-radius:var(--r);overflow:hidden;margin:0 0 32px}
+.mwl-hero-grid{display:grid;grid-template-columns:1fr 280px;gap:0}
+.mwl-hero-info{padding:28px 28px 24px;border-right:1px solid rgba(56,189,248,0.12)}
+.mwl-sensor-badge{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;color:var(--ocean-lt);text-transform:uppercase;letter-spacing:.1em;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:20px;padding:4px 12px;margin-bottom:14px}
 .mwl-live-dot{width:7px;height:7px;background:#22c55e;border-radius:50%;animation:pulse-dot 2s ease-in-out infinite;flex-shrink:0}
-.mwl-stale{color:var(--subtle);font-size:10px}
-.mwl-feature-body{display:flex;align-items:flex-start;gap:24px;padding:16px 20px 20px;flex-wrap:wrap}
-.mwl-big-temp{font-size:64px;font-weight:900;color:var(--ocean-lt);line-height:1;text-shadow:0 0 50px rgba(56,189,248,0.4);flex-shrink:0}
-.mwl-feature-detail{flex:1;min-width:200px}
-.mwl-detail-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px}
-.mwl-detail-desc{font-size:13px;color:var(--muted);line-height:1.65;margin-bottom:14px}
-.mwl-detail-desc strong{color:var(--ocean-lt)}
-.mwl-venue-btn{display:inline-flex;align-items:center;background:var(--ocean);color:#fff!important;font-size:13px;font-weight:600;padding:8px 16px;border-radius:8px;text-decoration:none!important;transition:background .15s}
-.mwl-venue-btn:hover{background:#0369a1;text-decoration:none!important}
-.mwl-feature-footer{border-top:1px solid rgba(56,189,248,0.15);padding:10px 20px}
-.mwl-credit-link{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);text-decoration:none;transition:color .15s}
-.mwl-credit-link:hover{color:var(--ocean-lt);text-decoration:none}
-.mwl-credit-link strong{color:var(--ocean-lt)}
-.mwl-loading-text{font-size:13px;color:var(--subtle);margin-top:8px}
+.mwl-venue-headline{font-size:20px;font-weight:800;color:var(--text);margin-bottom:10px;line-height:1.25}
+.mwl-venue-desc{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px}
+.mwl-facts-list{list-style:none;display:flex;flex-direction:column;gap:7px}
+.mwl-fact{display:flex;align-items:flex-start;gap:9px;font-size:13px;color:var(--muted)}
+.mwl-fact-dot{width:5px;height:5px;border-radius:50%;background:var(--ocean-lt);flex-shrink:0;margin-top:5px}
+/* Right panel */
+.mwl-hero-temp-panel{padding:28px 22px;display:flex;flex-direction:column;align-items:flex-start;gap:6px;background:rgba(2,132,199,0.06)}
+.mwl-temp-label{font-size:11px;font-weight:700;color:var(--subtle);text-transform:uppercase;letter-spacing:.1em}
+.mwl-live-temp{font-size:72px;font-weight:900;color:var(--ocean-lt);line-height:1;text-shadow:0 0 50px rgba(56,189,248,0.4);min-height:72px}
+.mwl-temp-loading{font-size:36px;color:var(--subtle);animation:pulse-dot 1.5s ease-in-out infinite}
+.mwl-temp-na{font-size:18px;color:var(--subtle)}
+.mwl-temp-sub{font-size:11px;color:var(--subtle);margin-bottom:4px}
+.mwl-type-tags{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 16px}
+.mwl-tag{font-size:11px;font-weight:600;color:var(--ocean-lt);background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:20px;padding:3px 9px;white-space:nowrap}
+.mwl-visit-btn{display:inline-flex;align-items:center;background:var(--ocean);color:#fff!important;font-size:13px;font-weight:600;padding:9px 16px;border-radius:8px;text-decoration:none!important;transition:background .15s;white-space:nowrap;margin-top:auto}
+.mwl-visit-btn:hover{background:#0369a1;text-decoration:none!important}
+/* Footer */
+.mwl-hero-footer{border-top:1px solid rgba(56,189,248,0.12);padding:10px 22px}
+.mwl-powered{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--subtle);text-decoration:none;transition:color .15s}
+.mwl-powered:hover{color:var(--ocean-lt);text-decoration:none}
+.mwl-powered strong{color:var(--ocean-lt)}
+/* Logs note */
 .mwl-logs-note{font-size:13px;color:var(--subtle);background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.12);border-radius:8px;padding:10px 14px;margin-bottom:12px}
-@media(max-width:700px){.mwl-big-temp{font-size:48px}.mwl-feature-body{gap:14px}}
+@media(max-width:700px){
+  .mwl-hero-grid{grid-template-columns:1fr}
+  .mwl-hero-info{border-right:none;border-bottom:1px solid rgba(56,189,248,0.12);padding:20px}
+  .mwl-hero-temp-panel{padding:20px;flex-direction:row;flex-wrap:wrap;align-items:center;gap:16px}
+  .mwl-live-temp{font-size:56px}
+  .mwl-type-tags{margin:0}
+  .mwl-visit-btn{margin-top:0;width:100%}
+}
 `.trim();
 
 const FOOTER_HTML = `
