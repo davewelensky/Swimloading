@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>K8 Coaching Admin Guide · SwimLoading</title>
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080f1a;
+      --bg-card:  #0d1728;
+      --cyan:     #38bdf8;
+      --text:     #f1f5f9;
+      --text-sec: #64748b;
+      --border:   rgba(255,255,255,0.06);
+      --green:    #10b981;
+      --amber:    #f59e0b;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      background:
+        radial-gradient(18px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+          rgba(56,189,248,0.55), transparent 100%),
+        radial-gradient(500px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+          rgba(56,189,248,0.07), transparent 70%);
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8,15,26,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .nav-brand img { height: 22px; width: auto; }
+
+    .nav-badge {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--cyan);
+      background: rgba(56,189,248,0.1);
+      border: 1px solid rgba(56,189,248,0.2);
+      border-radius: 20px;
+      padding: 3px 10px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .hero {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 56px 24px 40px;
+      text-align: center;
+    }
+
+    .hero-eyebrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .hero-eyebrow-line { width: 28px; height: 2px; background: var(--cyan); border-radius: 2px; }
+    .hero-eyebrow span { font-size: 11px; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.15em; }
+
+    .hero h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(44px, 10vw, 72px);
+      line-height: 0.95;
+      letter-spacing: 0.02em;
+      margin-bottom: 16px;
+    }
+    .hero h1 span { color: var(--cyan); }
+
+    .hero-sub {
+      font-size: 16px;
+      color: rgba(241,245,249,0.65);
+      max-width: 480px;
+      margin: 0 auto 32px;
+      line-height: 1.7;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--cyan);
+      color: #080f1a;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 13px 26px;
+      border-radius: 50px;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:hover { opacity: 0.88; }
+
+    .content {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    .step {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 32px;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(56,189,248,0.12);
+      border: 1px solid rgba(56,189,248,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      color: var(--cyan);
+      margin-top: 2px;
+    }
+
+    .step-body { flex: 1; }
+
+    .step-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .step-desc {
+      font-size: 14px;
+      color: rgba(241,245,249,0.65);
+      line-height: 1.7;
+    }
+    .step-desc strong { color: var(--text); font-weight: 600; }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sec);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 14px;
+    }
+
+    .points-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .points-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+    .points-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(56,189,248,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .points-icon i { color: var(--cyan); width: 15px; height: 15px; }
+
+    .points-label { flex: 1; font-size: 14px; color: var(--text); }
+    .points-label span { display: block; font-size: 12px; color: var(--text-sec); margin-top: 1px; }
+
+    .points-val {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--cyan);
+    }
+
+    .member-screen {
+      background: linear-gradient(135deg, rgba(56,189,248,0.06) 0%, transparent 60%);
+      border: 1px solid rgba(56,189,248,0.15);
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin-bottom: 12px;
+    }
+
+    .member-screen-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--cyan);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .member-screen-title i { width: 15px; height: 15px; }
+
+    .member-screen-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .member-screen-list li {
+      font-size: 13px;
+      color: rgba(241,245,249,0.65);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .member-screen-list li::before {
+      content: '';
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--cyan);
+      margin-top: 7px;
+      flex-shrink: 0;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sec);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin: 40px 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .url-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(56,189,248,0.08);
+      border: 1px solid rgba(56,189,248,0.2);
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--cyan);
+      text-decoration: none;
+      margin-top: 10px;
+      word-break: break-all;
+    }
+    .url-chip i { width: 14px; height: 14px; flex-shrink: 0; }
+
+    .highlight-card {
+      background: linear-gradient(135deg, rgba(56,189,248,0.08) 0%, rgba(56,189,248,0.03) 100%);
+      border: 1px solid rgba(56,189,248,0.25);
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin-bottom: 12px;
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 28px 24px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-sec);
+    }
+
+    @media (max-width: 520px) {
+      .hero { padding: 40px 20px 32px; }
+      .content { padding: 0 20px 60px; }
+      .step { gap: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="https://swimloading.com" class="nav-brand">
+      <img src="/icons/logo-wave.png" alt="">SwimLoading
+    </a>
+    <span class="nav-badge">K8 Coaching Admin</span>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-eyebrow">
+      <div class="hero-eyebrow-line"></div>
+      <span>K8 Coaching</span>
+      <div class="hero-eyebrow-line"></div>
+    </div>
+    <h1>Your club<br>admin <span>guide</span></h1>
+    <p class="hero-sub">Get your K8 members logging open water sessions, manage training groups, run challenges, and track the November Robben Island cohort — all in one place.</p>
+    <a href="https://www.swimloading.com/club-admin/k8-coaching" class="btn-primary" target="_blank">
+      <i data-lucide="layout-dashboard" style="width:16px;height:16px;"></i>
+      Open K8 Admin
+    </a>
+  </div>
+
+  <div class="content">
+
+    <div class="section-label">Getting started</div>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Log into your admin panel</div>
+        <div class="step-desc">
+          Go to <strong>swimloading.com/club-admin/k8-coaching</strong> and sign in with your SwimLoading account (<strong>britt@k8coaching.co.za</strong>). If you also manage Aquasharks, you'll see a club picker — select K8 Coaching to enter the K8 dashboard.
+        </div>
+        <a href="https://www.swimloading.com/club-admin/k8-coaching" class="url-chip" target="_blank">
+          <i data-lucide="external-link"></i>
+          swimloading.com/club-admin/k8-coaching
+        </a>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Import your member roster</div>
+        <div class="step-desc">
+          Go to the <strong>Roster tab</strong> and upload a CSV with your K8 members. This is the master list — members link their SwimLoading account to their roster entry via the join link. You can update the roster at any time without affecting existing links.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">CSV format</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="columns"></i></div>
+            <div class="points-label">Required columns <span>first_name, last_name, email</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="plus-circle"></i></div>
+            <div class="points-label">Optional columns <span>date_of_birth, gender, member_type</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Share the join link with your members</div>
+        <div class="step-desc">
+          Go to the <strong>Join Link tab</strong>. Copy the link and send it to your K8 members via WhatsApp. When they tap it and sign in (or create a SwimLoading account), they're automatically linked to their roster entry. Their swims and temp logs start counting toward K8 challenges immediately.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">What happens when a member joins</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="user-check"></i></div>
+            <div class="points-label">SwimLoading account linked to K8 roster <span>Matched by name from your imported list</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="layers"></i></div>
+            <div class="points-label">They see the K8 Club tab in the app <span>Their membership card, upcoming sessions, challenges</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="activity"></i></div>
+            <div class="points-label">Their logs count toward K8 challenges <span>Any temp log, any spot — counts for K8 internally</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Training groups</div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">The November Robben Island group is ready</div>
+        <div class="step-desc">
+          A training group called <strong>"November Robben Island 2026"</strong> has already been created with a goal date of 15 November 2026. Go to the <strong>Groups tab</strong> to see it. You can edit the name, description, goal date, or close signups at any time.
+        </div>
+        <div class="highlight-card" style="margin-top:14px;">
+          <div style="font-size:13px;font-weight:700;color:var(--cyan);margin-bottom:6px;">November Robben Island 2026</div>
+          <div style="font-size:13px;color:rgba(241,245,249,0.65);">Training group for the November 2026 Robben Island crossing attempt. Signup is open — members can join via the Roster tab once they're linked.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">Add members to the group</div>
+        <div class="step-desc">
+          In the Groups tab, click <strong>Manage members</strong> on the November RI group. Tick the members who are attempting the crossing. You can update this list as more people commit or drop out.
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <div class="step-title">Post training sessions for the group</div>
+        <div class="step-desc">
+          Click <strong>Post session</strong> on any group. Fill in the title, date, time, location, and distance. A WhatsApp-ready text is generated automatically — tap <strong>Share to WhatsApp</strong> to send it straight to your training group chat.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">What to fill in</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="type"></i></div>
+            <div class="points-label">Title <span>e.g. "6km open water training swim"</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="map-pin"></i></div>
+            <div class="points-label">Location <span>e.g. "C4, Cape Town" or "Langebaan Lagoon"</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="ruler"></i></div>
+            <div class="points-label">Distance <span>In km — e.g. 6.0 for a 6km session</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="waves"></i></div>
+            <div class="points-label">Session type <span>Ocean / Dam / Pool / Race</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">7</div>
+      <div class="step-body">
+        <div class="step-title">See who's coming — RSVP tracking</div>
+        <div class="step-desc">
+          Members tap <strong>Going / Maybe / Not going</strong> on each session in their app. Click <strong>View</strong> on any session in the admin to see the full RSVP list — useful for planning safety cover and transport.
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">8</div>
+      <div class="step-body">
+        <div class="step-title">Create more groups any time</div>
+        <div class="step-desc">
+          Click <strong>New group</strong> to add more cohorts — for example a <strong>March Robben Island group</strong>, a <strong>Langebaan training group</strong>, or any other goal. Each group is independent — its own members, sessions, and challenges.
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Challenges</div>
+
+    <div class="step">
+      <div class="step-num">9</div>
+      <div class="step-body">
+        <div class="step-title">Run monthly or goal-based challenges</div>
+        <div class="step-desc">
+          Go to the <strong>Challenges tab</strong> to create an internal K8 challenge — for example <strong>"Log 8 ocean swims in July"</strong> or <strong>"Train 3x per week through October"</strong>. Set a start and end date, define the scoring, and pick a winner type. Members see it in their Club tab.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">Challenge options</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="calendar"></i></div>
+            <div class="points-label">Start and end date <span>Any window — a week, a month, the whole season</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="zap"></i></div>
+            <div class="points-label">Scoring actions <span>Temp logs, training sessions, group attendance</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="trophy"></i></div>
+            <div class="points-label">Winner type <span>Highest points or prize draw from qualifiers</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Temp challenge</div>
+
+    <div class="step">
+      <div class="step-num">10</div>
+      <div class="step-body">
+        <div class="step-title">Track monthly temp logs automatically</div>
+        <div class="step-desc">
+          The <strong>Temp Challenge tab</strong> automatically tracks every K8 member who logs water temperatures during the month — ocean, dam, pool, anywhere. Use the month picker to view any previous month. Useful for a simple monthly prize: most logs wins.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">How points work</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="thermometer"></i></div>
+            <div class="points-label">Every log <span>Any swim, any spot, any time</span></div>
+            <div class="points-val">10 pts</div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="map-pin"></i></div>
+            <div class="points-label">Unique spot bonus <span>Per different spot logged per day</span></div>
+            <div class="points-val">+10 pts</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Health tracking</div>
+
+    <div class="step">
+      <div class="step-num">11</div>
+      <div class="step-body">
+        <div class="step-title">Log injuries and illness for your athletes</div>
+        <div class="step-desc">
+          The <strong>Health tab</strong> lets you record when a member has an injury or illness — especially useful for the November RI cohort where you need to know if someone's shoulder is flaring up or they're sick before a long crossing. Members can also log their own health from the app.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">What you can log</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="activity"></i></div>
+            <div class="points-label">Injury <span>Shoulder, hip, knee, other — with side and severity</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="thermometer"></i></div>
+            <div class="points-label">Illness <span>Cold, flu, or general illness — mild / moderate / significant</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="check-circle"></i></div>
+            <div class="points-label">Resolve when cleared <span>Mark as resolved when the member is back to full training</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">What your members see</div>
+
+    <div class="member-screen">
+      <div class="member-screen-title">
+        <i data-lucide="smartphone"></i>
+        Club tab in the SwimLoading app
+      </div>
+      <ul class="member-screen-list">
+        <li>Their K8 Coaching membership card — club name, member number</li>
+        <li>Upcoming group sessions they've been added to — with RSVP buttons</li>
+        <li>Active challenges and their current score</li>
+        <li>Their own health log — can add injuries or illness themselves</li>
+      </ul>
+    </div>
+
+    <div class="section-label">Important — how logging works</div>
+
+    <div class="card">
+      <div class="card-title">SwimLoading first, K8 second</div>
+      <div class="points-row">
+        <div class="points-icon"><i data-lucide="globe"></i></div>
+        <div class="points-label">Every temp log goes to SwimLoading <span>It appears on the public conditions feed and counts for the SwimLoading June challenge</span></div>
+      </div>
+      <div class="points-row">
+        <div class="points-icon"><i data-lucide="layers"></i></div>
+        <div class="points-label">It also counts for K8 internally <span>The Temp Challenge tab and any K8 challenges track it automatically</span></div>
+      </div>
+      <div class="points-row">
+        <div class="points-icon"><i data-lucide="user"></i></div>
+        <div class="points-label">One SwimLoading account, multiple clubs <span>A member can be in both K8 and Aquasharks — one login, separate club data</span></div>
+      </div>
+    </div>
+
+    <div style="margin-top: 48px; text-align: center;">
+      <a href="https://www.swimloading.com/club-admin/k8-coaching" class="btn-primary" target="_blank">
+        <i data-lucide="layout-dashboard" style="width:16px;height:16px;"></i>
+        Open K8 Admin
+      </a>
+    </div>
+
+  </div>
+
+  <footer>
+    Questions? Contact Dave — swimloading.com
+  </footer>
+
+  <script>
+    document.addEventListener('mousemove', e => {
+      document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+      document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+    });
+    lucide.createIcons();
+  </script>
+</body>
+</html>
