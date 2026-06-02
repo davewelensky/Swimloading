@@ -1677,9 +1677,9 @@
                     if (_ta) {
                         const { count: _tc } = await supabaseClient.from('temp_logs')
                             .select('*', { count: 'exact', head: true })
-                            .eq('created_by', currentUser.id)
-                            .gte('created_at', _c.start_date)
-                            .lte('created_at', _c.end_date + 'T23:59:59Z');
+                            .eq('user_id', currentUser.id)
+                            .gte('logged_at', _c.start_date)
+                            .lte('logged_at', _c.end_date + 'T23:59:59Z');
                         _pts += (_tc || 0) * _ta.points;
                     }
 
