@@ -10,6 +10,7 @@ import {
   haversineKm, timeAgo, escapeHtml, formatDate,
 } from './seo-utils.js';
 import { getSpotSponsorHtml, getRegionSponsorHtml } from './sponsors.js';
+import { VENUE_MAP } from './mywaterlive-config.js';
 
 const REGION_SLUGS = new Set(Object.keys(REGION_DOMAINS));
 
@@ -178,6 +179,7 @@ async function renderSpotPage(slug) {
     ${renderSpotHero(spot, latestData, recentLogs, trend)}
 
     <main class="container page-body">
+      ${renderMywaterliveWidget(slug)}
       ${renderHazards(hazards)}
 
       <section>
@@ -202,6 +204,60 @@ async function renderSpotPage(slug) {
   `;
 
   return pageShell({ title, description, canonical: `https://www.swimloading.com/spots/${slug}`, jsonLd: [jsonLdDataset, jsonLdBreadcrumb, jsonLdFaq], body });
+}
+
+// ─── my-water.live LIVE SENSOR WIDGET ────────────────────────────────────────
+// Returns empty string for spots not in VENUE_MAP — no impact on other pages.
+// The widget fetches /api/mywaterlive client-side so it never blocks SSR.
+// The "Powered by my-water.live" credit is a contractual requirement.
+
+function renderMywaterliveWidget(slug) {
+  if (!VENUE_MAP[slug]) return '';
+
+  // Client-side script — never contains the API key.
+  // Hides the section cleanly if data is unavailable.
+  const script = `
+<script>
+(function(){
+  var sec = document.getElementById('mwl-section');
+  if (!sec) return;
+  fetch('/api/mywaterlive?slug=${escapeHtml(slug)}')
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){
+      if (!d || d.unavailable) { sec.style.display = 'none'; return; }
+      var temp = d.temperature != null ? parseFloat(d.temperature).toFixed(1) + '\\u00b0C' : '\\u2014';
+      var when = '';
+      if (d.timestamp) {
+        try {
+          when = new Date(d.timestamp).toLocaleString('en-GB', {
+            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+          });
+        } catch(e) {}
+      }
+      var staleNote = d.stale
+        ? ' <span style="color:var(--subtle);font-size:11px;">(last cached reading)</span>' : '';
+      sec.innerHTML =
+        '<div class="mwl-card">'
+        + '<div class="mwl-header"><span class="mwl-live-dot"></span>Live sensor reading</div>'
+        + '<div class="mwl-temp">' + temp + '</div>'
+        + (when ? '<div class="mwl-when">Sensor updated ' + when + staleNote + '</div>' : '')
+        + '<a href="' + d.venue_url + '" target="_blank" rel="noopener noreferrer" class="mwl-credit">'
+        + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>'
+        + 'Powered by my-water.live'
+        + '</a>'
+        + '</div>';
+    })
+    .catch(function(){ sec.style.display = 'none'; });
+})();
+<\/script>`.trim();
+
+  return `
+<section id="mwl-section" class="mwl-section">
+  <div class="mwl-card mwl-loading-card">
+    <div class="mwl-loading-text">Loading live reading…</div>
+  </div>
+</section>
+${script}`;
 }
 
 function renderSpotHero(spot, latestData, recentLogs, trend) {
@@ -719,6 +775,18 @@ tr:last-child td{border-bottom:none}tr:hover td{background:rgba(56,189,248,0.04)
   .stat-cards{grid-template-columns:repeat(2,1fr)}
   td,th{padding:9px 10px}
 }
+/* ── my-water.live live sensor widget ── */
+.mwl-section{margin:0 0 28px}
+.mwl-card{background:var(--card);border:1px solid rgba(56,189,248,0.3);border-radius:var(--r);padding:20px 22px}
+.mwl-loading-card{border-color:var(--border)}
+.mwl-loading-text{font-size:14px;color:var(--subtle)}
+.mwl-header{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:var(--ocean-lt);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+.mwl-live-dot{width:7px;height:7px;background:#22c55e;border-radius:50%;animation:pulse-dot 2s ease-in-out infinite;flex-shrink:0}
+.mwl-temp{font-size:42px;font-weight:900;color:var(--ocean-lt);line-height:1;margin-bottom:6px;text-shadow:0 0 40px rgba(56,189,248,0.3)}
+.mwl-when{font-size:13px;color:var(--subtle);margin-bottom:16px}
+.mwl-credit{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--ocean-lt);background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:6px;padding:6px 14px;text-decoration:none;transition:background .15s}
+.mwl-credit:hover{background:rgba(56,189,248,0.16);text-decoration:none}
+@media(max-width:700px){.mwl-temp{font-size:36px}}
 `.trim();
 
 const FOOTER_HTML = `
