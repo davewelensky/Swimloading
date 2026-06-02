@@ -399,6 +399,36 @@ Code: `/Users/davewelensky/SwimLoading/device/SwimLoadingDisplay/SwimLoadingDisp
 
 ---
 
+## Promo & Challenge System — HOW TO ADD OR END A PROMO
+
+All seasonal promos/challenges are config-driven. **Never hardcode promo HTML directly in pages.**
+
+### The two files
+- **`promos-config.js`** — add/end/override promos here. Keyed by id.
+- **`promos.js`** — engine, exposes `window.isPromoActive(id)`. Auto-hides `[data-promo="id"]` elements.
+
+### To add a promo (3 fields in promos-config.js):
+```js
+'my-promo-id': {
+  status:    'auto',          // "auto" | "on" | "off"
+  startDate: 'YYYY-MM-DD',   // SAST — first visible day
+  endDate:   'YYYY-MM-DD',   // SAST — last visible day (inclusive)
+  label:     'Human description',
+},
+```
+Wrap the HTML: `<div data-promo="my-promo-id">…</div>`
+Add scripts to the page: `<script src="/promos-config.js"></script><script src="/promos.js"></script>`
+
+### Current registry
+| ID | Status | Window |
+|----|--------|--------|
+| `magic5-memorial-day` | `off` | 15–27 May 2026 (finished) |
+| `june-challenge` | `auto` | 1–30 Jun 2026 |
+| `july-blusmooth` | pending | Jul 2026 |
+| `sis-june` | pending | mid-Jun 2026 |
+
+---
+
 ## Monthly Challenge — CRITICAL RULES (prizes are real, mistakes have consequences)
 
 Real prizes ship every month. Getting the winner wrong causes public embarrassment and complaints.

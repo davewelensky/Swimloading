@@ -105,6 +105,12 @@ style.css (1,138 lines)
   ├─ Component styles (cards, buttons, nav)
   └─ Media queries for mobile optimization
 
+promos-config.js
+  └─ ALL promo/challenge definitions — dates, status, label (edit here only)
+
+promos.js
+  └─ Promo engine — isPromoActive(id) helper + auto-hides [data-promo] elements
+
 manifest.json
   └─ PWA manifest (home screen install)
 
@@ -295,6 +301,59 @@ Vercel provides Lighthouse scores in deployment preview. Monitor:
 - First Contentful Paint (FCP) < 2s
 - Cumulative Layout Shift (CLS) < 0.1
 - Largest Contentful Paint (LCP) < 2.5s
+
+## Promo & Challenge System
+
+Seasonal promos and challenges are managed through two files — **never hardcode promo HTML/banners directly in pages**.
+
+### Files
+- **`promos-config.js`** — single source of truth. Add, end, or force promos here only.
+- **`promos.js`** — engine. Exposes `window.isPromoActive(id)`. Must be loaded AFTER `promos-config.js`.
+
+### Adding a new promo (3 fields)
+```js
+// in promos-config.js
+'july-blusmooth': {
+  status:    'auto',         // "auto" | "on" | "off"
+  startDate: '2026-07-01',   // SAST, first day it shows
+  endDate:   '2026-07-31',   // SAST, last day it shows (inclusive)
+  label:     'Blu Smooth July Challenge',
+},
+```
+Then wrap the promo HTML: `<div data-promo="july-blusmooth">…</div>`
+
+### Status overrides
+- `"auto"` — show only within date window (default)
+- `"on"` — force visible (QA, early preview)
+- `"off"` — force hidden (finished, paused)
+
+### Timezone
+All date comparisons use **Africa/Johannesburg (SAST)**. Change `PROMO_TIMEZONE` in `promos.js` to shift globally.
+
+### Using isPromoActive() for nav links / CTAs
+```js
+// Hide a nav link when promo is inactive — avoids dead links
+var link = document.getElementById('sale-nav-link');
+if (link) link.style.display = isPromoActive('magic5-memorial-day') ? '' : 'none';
+```
+
+### Loading the scripts
+Add to any page that uses `data-promo` attributes or `isPromoActive()`:
+```html
+<script src="/promos-config.js"></script>
+<script src="/promos.js"></script>
+```
+
+### Current promo registry
+
+| ID | Status | Window | Notes |
+|----|--------|--------|-------|
+| `magic5-memorial-day` | `off` | 15–27 May 2026 | Finished. Memorial Day sale. |
+| `june-challenge` | `auto` | 1–30 Jun 2026 | Magic5 goggles prize draw |
+| *(future)* `july-blusmooth` | — | Jul 2026 | MK2 wetsuit — details TBC |
+| *(future)* `sis-june` | — | mid-Jun 2026 | SiS challenge — brief coming |
+
+---
 
 ## Common Errors & Fixes
 
