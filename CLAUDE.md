@@ -1,6 +1,8 @@
 # SwimLoading — Architecture & Deployment Guide
 
 > **Adding a region, spot, or international domain?** See [EXPANDING.md](EXPANDING.md) — it has the complete checklist, hardcode map, and cross-app consistency checks.
+>
+> **Onboarding a new club?** See [CLUB_ONBOARDING.md](CLUB_ONBOARDING.md) — 8-step process, feature flag SQL, club type rules. Do not improvise.
 
 ---
 

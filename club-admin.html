@@ -538,6 +538,9 @@
       <button class="nav-item" onclick="showPage('challenges')" id="nav-challenges" style="display:none;">
         <i data-lucide="zap"></i> Challenges
       </button>
+      <button class="nav-item" onclick="showPage('groups')" id="nav-groups" style="display:none;">
+        <i data-lucide="users-round"></i> Groups
+      </button>
       <button class="nav-item" onclick="showPage('team')" id="nav-team">
         <i data-lucide="shield-check"></i> Team
       </button>
@@ -811,6 +814,20 @@
           </div>
         </div>
         <div id="leagueContent"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+
+      <!-- ── GROUPS ── -->
+      <div id="page-groups" class="page">
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="page-title">Groups</div>
+            <div class="page-sub">Goal-based training cohorts — members sign up, you post sessions</div>
+          </div>
+          <button class="btn-sm" onclick="openCreateGroup()">
+            <i data-lucide="plus" style="width:13px;height:13px;"></i> New group
+          </button>
+        </div>
+        <div id="groupsList"></div>
       </div>
 
       <!-- ── TEAM ── -->
@@ -2028,17 +2045,21 @@ async function loadClubContext() {
   const hasCoachingStaff  = F.coaching_staff  === true;
   const hasParentLanguage = F.parent_language === true;
   const hasChallenges     = F.challenges      === true;
+  const hasHealth         = F.health         === true || hasSquads; // squads clubs always have health
+  const hasGroups         = F.groups         === true;
 
   // Store on window so renderOverview() and other functions can read them
   window._clubFeatures = { hasLeague, hasTempChallenge, hasSquads, hasTimetable,
-    hasAttendance, hasGalaEntries, hasCoachingStaff, hasParentLanguage, hasChallenges };
+    hasAttendance, hasGalaEntries, hasCoachingStaff, hasParentLanguage, hasChallenges,
+    hasHealth, hasGroups };
 
   document.getElementById('nav-league').style.display           = hasLeague        ? '' : 'none';
   document.getElementById('nav-tempchallenge').style.display    = hasTempChallenge ? '' : 'none';
   document.getElementById('nav-challenges').style.display       = hasChallenges    ? '' : 'none';
   document.getElementById('nav-tracker').style.display          = hasSquads        ? '' : 'none';
   document.getElementById('nav-sets').style.display             = hasSquads        ? '' : 'none';
-  document.getElementById('nav-health').style.display           = hasSquads        ? '' : 'none';
+  document.getElementById('nav-health').style.display           = hasHealth        ? '' : 'none';
+  document.getElementById('nav-groups').style.display           = hasGroups        ? '' : 'none';
   document.getElementById('nav-entries').style.display          = hasGalaEntries   ? '' : 'none';
   document.getElementById('nav-attendance').style.display       = hasAttendance    ? '' : 'none';
   document.getElementById('nav-parents').style.display          = hasParentLanguage ? '' : 'none';
@@ -2114,6 +2135,7 @@ function showPage(name) {
   if (name === 'league')        renderLeague();
   if (name === 'tempchallenge') loadTempChallenge();
   if (name === 'challenges')   loadChallengesPage();
+  if (name === 'groups')       loadGroupsPage();
   if (name === 'attendance')    loadAttendance();
   if (name === 'roster')        { if (!allRoster.length) loadRoster(); else renderRosterTable(); }
   if (name === 'settings')      loadSettingsPage();
@@ -9982,6 +10004,353 @@ function _showChallengeModal(html) {
 function closeChallengeModal() {
   const el = document.getElementById('challengeModal');
   if (el) el.style.display = 'none';
+}
+
+// ── GROUPS ────────────────────────────────────────────────────────────────────
+
+async function loadGroupsPage() {
+  const el = document.getElementById('groupsList');
+  if (!el) return;
+  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  const { data: groups, error } = await sb
+    .from('club_groups')
+    .select('*, club_group_members(count), club_group_sessions(id, session_date, title)')
+    .eq('club_id', currentClub.id)
+    .order('goal_date', { ascending: true });
+
+  if (error || !groups?.length) {
+    el.innerHTML = `<div class="empty">
+      <i data-lucide="users-round"></i>
+      <div class="empty-title">No groups yet</div>
+      <div class="empty-desc">Create a goal-based group like "November Robben Island 2026" and members can sign up.</div>
+    </div>`;
+    lucide.createIcons();
+    return;
+  }
+
+  el.innerHTML = groups.map(g => {
+    const memberCount = g.club_group_members?.[0]?.count ?? 0;
+    const upcomingSessions = (g.club_group_sessions || [])
+      .filter(s => s.session_date >= new Date().toISOString().slice(0,10))
+      .sort((a,b) => a.session_date.localeCompare(b.session_date))
+      .slice(0, 3);
+    const goalDate = g.goal_date ? new Date(g.goal_date).toLocaleDateString('en-ZA', { day:'numeric', month:'long', year:'numeric' }) : null;
+    const daysLeft = g.goal_date ? Math.ceil((new Date(g.goal_date) - new Date()) / 86400000) : null;
+
+    return `<div class="card" style="margin-bottom:16px;">
+      <div class="card-header">
+        <div>
+          <div class="card-title" style="font-size:15px;">${g.name}</div>
+          ${g.goal_event ? `<div style="font-size:12px;color:var(--cyan);margin-top:2px;">${g.goal_event}${goalDate ? ' · ' + goalDate : ''}${daysLeft !== null && daysLeft > 0 ? ` <span style="color:var(--amber);">(${daysLeft} days)</span>` : ''}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span style="font-size:12px;color:var(--text-sec);">${memberCount} member${memberCount !== 1 ? 's' : ''}</span>
+          <button class="btn-sm" onclick="openEditGroup('${g.id}')"><i data-lucide="pencil" style="width:12px;height:12px;"></i> Edit</button>
+          <button class="btn-sm" onclick="openAddGroupSession('${g.id}')"><i data-lucide="plus" style="width:12px;height:12px;"></i> Post session</button>
+        </div>
+      </div>
+      ${g.description ? `<div style="padding:12px 18px;font-size:13px;color:var(--text-sec);border-bottom:1px solid var(--border);">${g.description}</div>` : ''}
+      ${upcomingSessions.length ? `
+        <div style="padding:12px 18px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-sec);margin-bottom:8px;">Upcoming sessions</div>
+          ${upcomingSessions.map(s => {
+            const d = new Date(s.session_date);
+            return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+              <div>
+                <div style="font-size:13px;font-weight:600;">${s.title}</div>
+                <div style="font-size:11px;color:var(--text-sec);">${d.toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short'})}</div>
+              </div>
+              <button class="btn-sm" onclick="openSessionDetail('${s.id}')">View</button>
+            </div>`;
+          }).join('')}
+        </div>` : `<div style="padding:12px 18px;font-size:12px;color:var(--text-sec);">No upcoming sessions — post one to get started.</div>`}
+      <div style="padding:10px 18px;border-top:1px solid var(--border);display:flex;gap:8px;">
+        <button class="btn-sm" onclick="openManageGroupMembers('${g.id}', '${g.name.replace(/'/g,"\\'")}')">
+          <i data-lucide="users" style="width:12px;height:12px;"></i> Manage members
+        </button>
+        <button class="btn-sm" onclick="shareGroupWhatsApp('${g.id}', '${g.name.replace(/'/g,"\\'")}')">
+          <i data-lucide="share-2" style="width:12px;height:12px;"></i> Share to WhatsApp
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+  lucide.createIcons();
+}
+
+function openCreateGroup() {
+  const existing = document.getElementById('groupModal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'groupModal';
+  modal.className = 'modal-overlay open';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-title">New Group <button class="modal-close" onclick="document.getElementById('groupModal').remove()">×</button></div>
+      <div class="form-group"><div class="form-label">Group name *</div>
+        <input class="form-input" id="gName" placeholder="e.g. November Robben Island 2026"></div>
+      <div class="form-group"><div class="form-label">Description</div>
+        <textarea class="form-input" id="gDesc" rows="2" placeholder="What is this group training toward?"></textarea></div>
+      <div class="form-group"><div class="form-label">Goal event</div>
+        <input class="form-input" id="gGoal" placeholder="e.g. Robben Island Crossing"></div>
+      <div class="form-row">
+        <div class="form-group"><div class="form-label">Goal date</div>
+          <input class="form-input" id="gGoalDate" type="date"></div>
+        <div class="form-group"><div class="form-label">Max members</div>
+          <input class="form-input" id="gMax" type="number" placeholder="Leave blank = unlimited"></div>
+      </div>
+      <div class="checkbox-row" style="margin-bottom:14px;">
+        <input type="checkbox" id="gSignupOpen" checked>
+        <label for="gSignupOpen">Signup open (members can join)</label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" onclick="document.getElementById('groupModal').remove()">Cancel</button>
+        <button class="btn-modal-primary" onclick="submitCreateGroup()">Create group</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function submitCreateGroup() {
+  const name = document.getElementById('gName')?.value?.trim();
+  if (!name) { showToast('Group name is required', 'error'); return; }
+  const { error } = await sb.from('club_groups').insert({
+    club_id: currentClub.id,
+    name,
+    description: document.getElementById('gDesc')?.value?.trim() || null,
+    goal_event:  document.getElementById('gGoal')?.value?.trim() || null,
+    goal_date:   document.getElementById('gGoalDate')?.value || null,
+    max_members: parseInt(document.getElementById('gMax')?.value) || null,
+    signup_open: document.getElementById('gSignupOpen')?.checked ?? true,
+  });
+  if (error) { showToast('Error creating group', 'error'); console.error(error); return; }
+  document.getElementById('groupModal')?.remove();
+  showToast('Group created', 'success');
+  loadGroupsPage();
+}
+
+async function openEditGroup(groupId) {
+  const { data: g } = await sb.from('club_groups').select('*').eq('id', groupId).single();
+  if (!g) return;
+  const existing = document.getElementById('groupModal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'groupModal';
+  modal.className = 'modal-overlay open';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-title">Edit Group <button class="modal-close" onclick="document.getElementById('groupModal').remove()">×</button></div>
+      <div class="form-group"><div class="form-label">Group name *</div>
+        <input class="form-input" id="gName" value="${g.name}"></div>
+      <div class="form-group"><div class="form-label">Description</div>
+        <textarea class="form-input" id="gDesc" rows="2">${g.description || ''}</textarea></div>
+      <div class="form-group"><div class="form-label">Goal event</div>
+        <input class="form-input" id="gGoal" value="${g.goal_event || ''}"></div>
+      <div class="form-row">
+        <div class="form-group"><div class="form-label">Goal date</div>
+          <input class="form-input" id="gGoalDate" type="date" value="${g.goal_date || ''}"></div>
+        <div class="form-group"><div class="form-label">Max members</div>
+          <input class="form-input" id="gMax" type="number" value="${g.max_members || ''}"></div>
+      </div>
+      <div class="checkbox-row" style="margin-bottom:14px;">
+        <input type="checkbox" id="gSignupOpen" ${g.signup_open ? 'checked' : ''}>
+        <label for="gSignupOpen">Signup open</label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" onclick="document.getElementById('groupModal').remove()">Cancel</button>
+        <button class="btn-modal-primary" onclick="submitEditGroup('${groupId}')">Save changes</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function submitEditGroup(groupId) {
+  const name = document.getElementById('gName')?.value?.trim();
+  if (!name) { showToast('Group name is required', 'error'); return; }
+  const { error } = await sb.from('club_groups').update({
+    name,
+    description: document.getElementById('gDesc')?.value?.trim() || null,
+    goal_event:  document.getElementById('gGoal')?.value?.trim() || null,
+    goal_date:   document.getElementById('gGoalDate')?.value || null,
+    max_members: parseInt(document.getElementById('gMax')?.value) || null,
+    signup_open: document.getElementById('gSignupOpen')?.checked ?? true,
+  }).eq('id', groupId);
+  if (error) { showToast('Error saving group', 'error'); return; }
+  document.getElementById('groupModal')?.remove();
+  showToast('Group updated', 'success');
+  loadGroupsPage();
+}
+
+function openAddGroupSession(groupId) {
+  const existing = document.getElementById('groupSessionModal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'groupSessionModal';
+  modal.className = 'modal-overlay open';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-title">Post Session <button class="modal-close" onclick="document.getElementById('groupSessionModal').remove()">×</button></div>
+      <div class="form-group"><div class="form-label">Title *</div>
+        <input class="form-input" id="gsTitle" placeholder="e.g. 6km open water training swim"></div>
+      <div class="form-row">
+        <div class="form-group"><div class="form-label">Date *</div>
+          <input class="form-input" id="gsDate" type="date"></div>
+        <div class="form-group"><div class="form-label">Time</div>
+          <input class="form-input" id="gsTime" type="time" placeholder="08:00"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><div class="form-label">Location</div>
+          <input class="form-input" id="gsLocation" placeholder="e.g. C4, Cape Town"></div>
+        <div class="form-group"><div class="form-label">Distance (km)</div>
+          <input class="form-input" id="gsDist" type="number" step="0.1" placeholder="e.g. 6"></div>
+      </div>
+      <div class="form-group"><div class="form-label">Session type</div>
+        <select class="form-input" id="gsType">
+          <option value="ocean">Ocean</option>
+          <option value="dam">Dam</option>
+          <option value="pool">Pool</option>
+          <option value="race">Race / Event</option>
+        </select>
+      </div>
+      <div class="form-group"><div class="form-label">Notes</div>
+        <textarea class="form-input" id="gsDesc" rows="2" placeholder="Wetsuit optional, bring nutrition for 6km..."></textarea></div>
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" onclick="document.getElementById('groupSessionModal').remove()">Cancel</button>
+        <button class="btn-modal-primary" onclick="submitGroupSession('${groupId}')">Post session</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function submitGroupSession(groupId) {
+  const title = document.getElementById('gsTitle')?.value?.trim();
+  const date  = document.getElementById('gsDate')?.value;
+  if (!title || !date) { showToast('Title and date are required', 'error'); return; }
+  const location = document.getElementById('gsLocation')?.value?.trim();
+  const time     = document.getElementById('gsTime')?.value || null;
+  const dist     = parseFloat(document.getElementById('gsDist')?.value) || null;
+  const type     = document.getElementById('gsType')?.value || 'ocean';
+  const desc     = document.getElementById('gsDesc')?.value?.trim() || null;
+
+  // Build WhatsApp share text
+  const timeStr = time ? ` at ${time}` : '';
+  const distStr = dist ? ` · ${dist}km` : '';
+  const waText  = `K8 Coaching — ${title}\n${new Date(date).toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long'})}${timeStr}${distStr ? '\n' + distStr : ''}${location ? '\nLocation: ' + location : ''}${desc ? '\n\n' + desc : ''}`;
+
+  const { error } = await sb.from('club_group_sessions').insert({
+    group_id: groupId, club_id: currentClub.id,
+    title, description: desc, session_date: date,
+    session_time: time, location, distance_km: dist,
+    session_type: type, whatsapp_text: waText,
+  });
+  if (error) { showToast('Error posting session', 'error'); console.error(error); return; }
+  document.getElementById('groupSessionModal')?.remove();
+  showToast('Session posted', 'success');
+  loadGroupsPage();
+}
+
+async function openSessionDetail(sessionId) {
+  const { data: s } = await sb.from('club_group_sessions').select('*').eq('id', sessionId).single();
+  if (!s) return;
+  const { data: rsvps } = await sb.from('club_group_rsvps')
+    .select('status, club_roster(display_name)')
+    .eq('session_id', sessionId);
+  const going    = (rsvps || []).filter(r => r.status === 'going');
+  const notGoing = (rsvps || []).filter(r => r.status === 'not_going');
+  const maybe    = (rsvps || []).filter(r => r.status === 'maybe');
+  const d = new Date(s.session_date);
+  const existing = document.getElementById('sessionDetailModal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'sessionDetailModal';
+  modal.className = 'modal-overlay open';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:520px;">
+      <div class="modal-title">${s.title} <button class="modal-close" onclick="document.getElementById('sessionDetailModal').remove()">×</button></div>
+      <div style="font-size:13px;color:var(--text-sec);margin-bottom:16px;">
+        ${d.toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}
+        ${s.session_time ? ' · ' + s.session_time.slice(0,5) : ''}
+        ${s.location ? ' · ' + s.location : ''}
+        ${s.distance_km ? ' · ' + s.distance_km + 'km' : ''}
+      </div>
+      ${s.description ? `<div style="font-size:13px;color:var(--text-sec);margin-bottom:16px;">${s.description}</div>` : ''}
+      <div style="display:flex;gap:12px;margin-bottom:16px;">
+        <div class="stat-card" style="flex:1;text-align:center;"><div class="stat-label">Going</div><div class="stat-val" style="color:var(--green);">${going.length}</div></div>
+        <div class="stat-card" style="flex:1;text-align:center;"><div class="stat-label">Maybe</div><div class="stat-val" style="color:var(--amber);">${maybe.length}</div></div>
+        <div class="stat-card" style="flex:1;text-align:center;"><div class="stat-label">Not going</div><div class="stat-val" style="color:var(--danger);">${notGoing.length}</div></div>
+      </div>
+      ${going.length ? `<div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-sec);margin-bottom:6px;">Going</div>${going.map(r=>`<div style="font-size:13px;padding:4px 0;">${r.club_roster?.display_name || '—'}</div>`).join('')}</div>` : ''}
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" onclick="document.getElementById('sessionDetailModal').remove()">Close</button>
+        <button class="btn-modal-primary" style="background:transparent;border:1px solid rgba(37,211,102,0.4);color:#25d366;" onclick="shareSessionWhatsApp('${sessionId}')">
+          <i data-lucide="share-2" style="width:14px;height:14px;margin-right:6px;"></i>Share to WhatsApp
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  lucide.createIcons();
+}
+
+async function shareSessionWhatsApp(sessionId) {
+  const { data: s } = await sb.from('club_group_sessions').select('whatsapp_text').eq('id', sessionId).single();
+  if (!s?.whatsapp_text) return;
+  window.open('https://wa.me/?text=' + encodeURIComponent(s.whatsapp_text), '_blank');
+}
+
+function shareGroupWhatsApp(groupId, groupName) {
+  const url = window.location.origin + '/club-admin/' + (currentClub?.slug || '');
+  const text = `Join the ${groupName} group on K8 Coaching (SwimLoading).\n${url}`;
+  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+}
+
+async function openManageGroupMembers(groupId, groupName) {
+  const { data: rosterData } = await sb.from('club_roster')
+    .select('id, display_name, member_number')
+    .eq('club_id', currentClub.id)
+    .order('display_name');
+  const { data: currentMembers } = await sb.from('club_group_members')
+    .select('roster_id').eq('group_id', groupId);
+  const inGroup = new Set((currentMembers || []).map(m => m.roster_id));
+
+  const existing = document.getElementById('groupMembersModal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'groupMembersModal';
+  modal.className = 'modal-overlay open';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-title">${groupName} — Members <button class="modal-close" onclick="document.getElementById('groupMembersModal').remove()">×</button></div>
+      <div style="font-size:12px;color:var(--text-sec);margin-bottom:12px;">Check members to include in this group.</div>
+      <div class="assign-swimmer-list" id="groupMemberList">
+        ${(rosterData || []).map(r => `
+          <div class="assign-swimmer-row">
+            <input type="checkbox" id="gm_${r.id}" data-rid="${r.id}" ${inGroup.has(r.id) ? 'checked' : ''}>
+            <label for="gm_${r.id}"><span class="assign-num">#${r.member_number || '—'}</span>${r.display_name}</label>
+          </div>`).join('')}
+      </div>
+      <div class="modal-actions" style="margin-top:16px;">
+        <button class="btn-modal-cancel" onclick="document.getElementById('groupMembersModal').remove()">Cancel</button>
+        <button class="btn-modal-primary" onclick="saveGroupMembers('${groupId}')">Save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function saveGroupMembers(groupId) {
+  const checks = document.querySelectorAll('#groupMemberList input[type=checkbox]');
+  const selected = [...checks].filter(c => c.checked).map(c => c.dataset.rid);
+  const deselected = [...checks].filter(c => !c.checked).map(c => c.dataset.rid);
+
+  const inserts = selected.map(rid => ({ group_id: groupId, roster_id: rid }));
+  if (inserts.length) {
+    await sb.from('club_group_members').upsert(inserts, { onConflict: 'group_id,roster_id', ignoreDuplicates: true });
+  }
+  if (deselected.length) {
+    await sb.from('club_group_members').delete().eq('group_id', groupId).in('roster_id', deselected);
+  }
+  document.getElementById('groupMembersModal')?.remove();
+  showToast('Group members saved', 'success');
+  loadGroupsPage();
 }
 
 </script>
