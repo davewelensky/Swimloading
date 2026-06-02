@@ -653,44 +653,73 @@
     </div>
 
     <div id="suggestSpotModal"
-        style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; padding: 20px; overflow-y: auto;">
-        <div style="max-width: 500px; margin: 40px auto; background: var(--bg-dark); border: 2px solid var(--border); border-radius: 20px; padding: 30px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="color: var(--text-primary); font-size: 20px; margin: 0;">Suggest a Spot</h3>
-                <button onclick="hideSuggestSpot()"
-                    style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; padding: 0; width: auto;">&times;</button>
-            </div>
-            <p style="color: var(--text-secondary); font-size: 13px; margin: 0 0 20px 0;">
-                Know a swim spot that's missing? Tell us about it and we'll review it.
-            </p>
-            <form id="suggestSpotForm" onsubmit="submitSpotSuggestion(event)">
-                <div class="form-group">
-                    <div class="form-label">Spot Name</div>
-                    <input type="text" id="suggestSpotName" placeholder="e.g. Kogel Bay" required maxlength="100">
+        style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:10000;padding:20px;overflow-y:auto;">
+        <div style="max-width:480px;margin:32px auto;background:#0d1728;border:1px solid rgba(56,189,248,0.2);border-radius:20px;padding:28px 24px;">
+
+            <!-- Header -->
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+                <div>
+                    <div style="font-size:10px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;">Request a spot</div>
+                    <h3 style="color:#f1f5f9;font-size:19px;font-weight:800;margin:0;line-height:1.2;">Your spot isn't here yet</h3>
                 </div>
+                <button onclick="hideSuggestSpot()" style="background:none;border:none;color:#64748b;font-size:22px;cursor:pointer;padding:0;line-height:1;margin-top:2px;">&times;</button>
+            </div>
+            <p style="color:#64748b;font-size:13px;margin:0 0 20px;line-height:1.6;">
+                SwimLoading covers swimmers in 8+ countries. Tell us where you swim and we'll add it within 48 hours.
+            </p>
+
+            <form id="suggestSpotForm" onsubmit="submitSpotSuggestion(event)">
+
+                <!-- Spot name -->
                 <div class="form-group">
-                    <div class="form-label">Type</div>
+                    <div class="form-label">Spot name <span style="color:#ef4444;">*</span></div>
+                    <input type="text" id="suggestSpotName"
+                        placeholder="e.g. Tooting Bec Lido, Bondi Beach, Lake Zürich"
+                        required maxlength="100"
+                        style="font-size:15px;">
+                </div>
+
+                <!-- Country -->
+                <div class="form-group">
+                    <div class="form-label">Country <span style="color:#ef4444;">*</span></div>
+                    <input type="text" id="suggestSpotCountry"
+                        placeholder="e.g. United Kingdom, Australia, Switzerland"
+                        required maxlength="80">
+                </div>
+
+                <!-- Water type -->
+                <div class="form-group">
+                    <div class="form-label">Water type <span style="color:#ef4444;">*</span></div>
                     <select id="suggestSpotType" required>
-                        <option value="OCEAN">Ocean</option>
-                        <option value="POOL">Pool</option>
-                        <option value="DAM">Dam</option>
-                        <option value="LAGOON">Lagoon</option>
-                        <option value="LAKE">Lake</option>
+                        <option value="OCEAN">Ocean / Sea</option>
+                        <option value="POOL">Outdoor Pool / Lido</option>
+                        <option value="LAKE">Lake / Reservoir</option>
+                        <option value="LAGOON">Lagoon / Estuary</option>
+                        <option value="DAM">Dam / River</option>
                     </select>
                 </div>
+
+                <!-- Region (optional) -->
                 <div class="form-group">
-                    <div class="form-label">Area / Region</div>
-                    <input type="text" id="suggestSpotRegion" placeholder="e.g. Overberg coast, near Hermanus" maxlength="100">
+                    <div class="form-label">Area or region <span style="color:#64748b;font-weight:400;">(optional)</span></div>
+                    <input type="text" id="suggestSpotRegion"
+                        placeholder="e.g. South London, Sydney Northern Beaches"
+                        maxlength="100">
                 </div>
+
+                <!-- Notes (optional) -->
                 <div class="form-group">
-                    <div class="form-label">Why should we add this spot?</div>
+                    <div class="form-label">Anything else we should know? <span style="color:#64748b;font-weight:400;">(optional)</span></div>
                     <textarea id="suggestSpotDescription"
-                        placeholder="Brief description — what makes it a good swim spot? Include any directions or landmarks."
-                        required minlength="20" maxlength="500"
-                        style="min-height: 80px;"></textarea>
-                    <small style="color: var(--text-secondary); font-size: 11px;">Minimum 20 characters</small>
+                        placeholder="GPS coordinates, nearest landmark, popular with which swimmers…"
+                        maxlength="500"
+                        style="min-height:70px;"></textarea>
                 </div>
-                <button type="submit" class="btn btn-success" id="submitSuggestBtn">Submit Suggestion</button>
+
+                <button type="submit" class="btn btn-success" id="submitSuggestBtn"
+                    style="width:100%;padding:13px;border-radius:50px;font-size:15px;font-weight:700;">
+                    Send request
+                </button>
             </form>
         </div>
     </div>

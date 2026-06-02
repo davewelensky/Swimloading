@@ -2448,11 +2448,15 @@
 
         // ========== SUGGEST A SPOT ==========
 
-        function showSuggestSpot() {
+        function showSuggestSpot(prefillName) {
             document.getElementById('suggestSpotModal').style.display = 'block';
             document.getElementById('suggestSpotForm').reset();
             document.getElementById('submitSuggestBtn').disabled = false;
-            document.getElementById('submitSuggestBtn').textContent = 'Submit Suggestion';
+            document.getElementById('submitSuggestBtn').textContent = 'Send request';
+            if (prefillName) {
+                const nameEl = document.getElementById('suggestSpotName');
+                if (nameEl) { nameEl.value = prefillName; nameEl.focus(); }
+            }
         }
 
         function hideSuggestSpot() {
@@ -2466,40 +2470,35 @@
             btn.disabled = true;
             btn.textContent = 'Submitting...';
 
-            const name = document.getElementById('suggestSpotName').value.trim();
-            const type = document.getElementById('suggestSpotType').value;
-            const region = document.getElementById('suggestSpotRegion').value.trim();
+            const name    = document.getElementById('suggestSpotName').value.trim();
+            const type    = document.getElementById('suggestSpotType').value;
+            const country = document.getElementById('suggestSpotCountry').value.trim();
+            const region  = document.getElementById('suggestSpotRegion').value.trim();
             const description = document.getElementById('suggestSpotDescription').value.trim();
 
-            if (description.length < 20) {
-                showToast('Please provide a longer description (20+ characters)', 'error');
-                btn.disabled = false;
-                btn.textContent = 'Submit Suggestion';
-                return;
-            }
-
+            // description is now optional — location alone is enough
             const { error } = await supabaseClient
                 .from('spot_suggestions')
                 .insert({
-                    user_id: currentUser.id,
-                    spot_name: name,
+                    user_id:    currentUser.id,
+                    spot_name:  name,
                     water_type: type,
-                    region: region || null,
-                    description: description
+                    region:     [country, region].filter(Boolean).join(', ') || null,
+                    description: description || null,
                 });
 
             if (error) {
                 if (error.message.includes('row-level security') || error.code === '42501') {
-                    showToast('You already have 3 pending suggestions. Wait for review.', 'error');
+                    showToast('You already have 3 pending requests. Wait for one to be reviewed.', 'error');
                 } else {
-                    showToast('Error submitting suggestion: ' + error.message, 'error');
+                    showToast('Error sending request: ' + error.message, 'error');
                 }
                 btn.disabled = false;
-                btn.textContent = 'Submit Suggestion';
+                btn.textContent = 'Send request';
                 return;
             }
 
-            showToast('Spot suggestion submitted! We\'ll review it soon.', 'success');
+            showToast('Request sent — we\'ll review and add your spot within 48h.', 'success');
             hideSuggestSpot();
         }
 
@@ -6990,7 +6989,7 @@
                     );
                 }
                 if (filtered.length === 0) {
-                    container.innerHTML = `<div class="sp-empty"><div class="sp-empty-icon"><i data-lucide="globe" style="width:32px;height:32px;"></i></div><div class="sp-empty-text">${q ? `No international spots found for "${pickerSearch}"` : 'No international spots yet'}</div></div>${spAddRowHTML()}`;
+                    container.innerHTML = q ? spNoResultsHTML(pickerSearch) : `<div class="sp-empty"><div class="sp-empty-icon"><i data-lucide="globe" style="width:32px;height:32px;"></i></div><div class="sp-empty-text">No international spots yet</div></div>${spAddRowHTML()}`;
                     initIcons();
                     return;
                 }
@@ -7017,7 +7016,7 @@
                 // Legacy path — show all spots where countries.is_domestic = false
                 const filtered = spots.filter(s => s.active !== false && internationalSpotIds.has(s.id));
                 if (filtered.length === 0) {
-                    container.innerHTML = `<div class="sp-empty"><div class="sp-empty-icon"><i data-lucide="globe" style="width:32px;height:32px;"></i></div><div class="sp-empty-text">No international spots found</div></div>${spAddRowHTML()}`;
+                    container.innerHTML = spNoResultsHTML(pickerSearch);
                     initIcons();
                     return;
                 }
@@ -7050,12 +7049,7 @@
                 ));
 
                 if (filtered.length === 0) {
-                    container.innerHTML = `
-                        <div class="sp-empty">
-                            <div class="sp-empty-icon"><i data-lucide="search" style="width:32px;height:32px;"></i></div>
-                            <div class="sp-empty-text">No spots found for "${pickerSearch}"</div>
-                        </div>
-                        ${spAddRowHTML()}`;
+                    container.innerHTML = spNoResultsHTML(pickerSearch);
                     initIcons();
                     return;
                 }
@@ -7104,10 +7098,10 @@
                 const label = pickerBrand === 'VIRGIN_ACTIVE' ? 'Virgin Active'
                             : pickerBrand === 'PUBLIC'        ? 'public pool'
                             : SP_TYPE_LABELS[pickerCategory].toLowerCase();
-                container.innerHTML = `
+                container.innerHTML = q ? spNoResultsHTML(pickerSearch) : `
                     <div class="sp-empty">
                         <div class="sp-empty-icon"><i data-lucide="${SP_TYPE_ICONS[pickerCategory]}" style="width:32px;height:32px;"></i></div>
-                        <div class="sp-empty-text">No ${label} spots found${q ? ` for "${pickerSearch}"` : ''}</div>
+                        <div class="sp-empty-text">No ${label} spots found</div>
                     </div>
                     ${spAddRowHTML()}`;
                 initIcons();
@@ -7189,14 +7183,40 @@
             initIcons();
         }
 
-        function spAddRowHTML() {
+        // Prominent no-results card shown when a search returns nothing.
+        // Passes the search term as prefill so the form opens pre-filled.
+        function spNoResultsHTML(searchTerm) {
+            const safe    = (searchTerm || '').replace(/'/g, "\\'");
+            const display = searchTerm ? `"${searchTerm}"` : 'your spot';
             return `
-                <div class="sp-add-row" onclick="closeSpotPicker(); showSuggestSpot();">
+                <div style="padding:24px 20px 8px;">
+                    <div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.2);border-radius:14px;padding:18px 16px;text-align:center;margin-bottom:4px;">
+                        <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:4px;">
+                            No spot found for ${display}
+                        </div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.5;">
+                            SwimLoading covers 8+ countries. If your spot isn't here yet, request it — we review within 48h.
+                        </div>
+                        <button onclick="closeSpotPicker(); showSuggestSpot('${safe}');"
+                            style="background:var(--cyan);color:#080f1a;border:none;border-radius:50px;padding:9px 22px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">
+                            Request ${display}
+                        </button>
+                    </div>
+                </div>`;
+        }
+
+        function spAddRowHTML(prefill) {
+            const onclick = prefill
+                ? `closeSpotPicker(); showSuggestSpot(${JSON.stringify(prefill)});`
+                : `closeSpotPicker(); showSuggestSpot();`;
+            return `
+                <div class="sp-add-row" onclick="${onclick}">
                     <div class="sp-add-icon">
                         <i data-lucide="plus" style="width:16px;height:16px;"></i>
                     </div>
                     <div>
-                        <div class="sp-add-label">Can't find your spot? Add it</div>
+                        <div class="sp-add-label">Your spot not here? Request it</div>
+                        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">We review within 48h — any country welcome</div>
                     </div>
                 </div>`;
         }
