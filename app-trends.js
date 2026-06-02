@@ -6,6 +6,7 @@
         // Note: conditionsCache and swimEventsCache are declared as var in Block 1 (global)
         let currentRegionDomain = null;
         let currentSpotId = null;
+        let currentSpotName = '';   // used by sensor banner
         let currentChartSource = 'community'; // 'community' | 'my'
         let currentChartWindow = '30d'; // '7d' | '30d' | '90d' | 'all'
         let currentWaterFilter = 'ocean'; // 'ocean' | 'lagoons' | 'pools' | 'inland' | 'international'
@@ -478,6 +479,48 @@
                 listEl.appendChild(item);
             });
 
+            // ── Add sensor spots that have no community logs ────────────────
+            // These won't appear in latest_spot_temps, so inject them from the global spots array.
+            const mwlVenues = window.MYWATERLIVE_VENUES || {};
+            const alreadyShown = new Set(sortedSpots.map(s => s.spot_name));
+            const sensorSpotsInRegion = (spots || []).filter(s =>
+                s.domain === domain && mwlVenues[s.name] && !alreadyShown.has(s.name)
+            );
+            sensorSpotsInRegion.forEach(function(s) {
+                const mwlV = mwlVenues[s.name];
+                const item = document.createElement('div');
+                item.className = 'spot-list-item';
+                item.onclick = function() { openSpotDetail(s.id, s.name, s.code); };
+                const tempId = 'mwl-list-temp-' + s.id;
+                item.innerHTML = `
+                    <div style="flex:1;">
+                        <div style="font-weight:700;color:var(--text-primary);font-size:16px;margin-bottom:2px;">
+                            ${s.name}
+                            <span style="display:inline-block;padding:2px 8px;margin-left:8px;font-size:10px;font-weight:700;letter-spacing:0.5px;border-radius:6px;background:rgba(168,85,247,0.2);border:1px solid rgba(168,85,247,0.5);color:var(--text-primary);vertical-align:middle;">${s.water_type}</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#22c55e;font-weight:600;">
+                            <span style="width:6px;height:6px;background:#22c55e;border-radius:50%;display:inline-block;flex-shrink:0;"></span>
+                            Live sensor · my-water.live
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div id="${tempId}" style="font-size:24px;font-weight:800;color:#38bdf8;">…</div>
+                    </div>`;
+                listEl.appendChild(item);
+                // Fetch live temp for the card
+                fetch('/api/mywaterlive?slug=' + encodeURIComponent(mwlV.slug))
+                    .then(function(r) { return r.ok ? r.json() : null; })
+                    .then(function(d) {
+                        const el = document.getElementById(tempId);
+                        if (!el) return;
+                        el.textContent = (d && d.temperature != null) ? parseFloat(d.temperature).toFixed(1) + '°C' : '—';
+                    })
+                    .catch(function() {
+                        const el = document.getElementById(tempId);
+                        if (el) el.textContent = '—';
+                    });
+            });
+
             initIcons();
         }
 
@@ -514,9 +557,14 @@
             // (spot drilldown is driven by spot_id and temp_logs)
 
             currentSpotId = spotId;
+            currentSpotName = spotName;
             document.getElementById('trendsOverview').style.display = 'none';
             document.getElementById('trendsRegionDetail').style.display = 'none';
             document.getElementById('trendsSpotDetail').style.display = 'block';
+
+            // Hide sensor banner while data loads (will be repopulated by loadSpotChartData)
+            const mwlBanner = document.getElementById('mwlSensorBanner');
+            if (mwlBanner) mwlBanner.style.display = 'none';
 
             // Update header with water type
             let waterLabel = '';
@@ -729,9 +777,59 @@
                     }
                 }
 
+                // ===== LIVE SENSOR BANNER (my-water.live venues) =====
+                const mwlBanner = document.getElementById('mwlSensorBanner');
+                if (mwlBanner) {
+                    const mwlVenue = (window.MYWATERLIVE_VENUES || {})[currentSpotName];
+                    if (mwlVenue) {
+                        mwlBanner.style.display = 'block';
+                        mwlBanner.innerHTML = `
+                          <div style="background:linear-gradient(135deg,rgba(2,132,199,0.15),rgba(2,132,199,0.05));border:1px solid rgba(56,189,248,0.4);border-radius:14px;padding:16px 18px;">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                              <span style="width:7px;height:7px;background:#22c55e;border-radius:50%;flex-shrink:0;display:inline-block;"></span>
+                              <span style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.08em;">Live sensor · my-water.live</span>
+                            </div>
+                            <div id="mwlTempVal" style="font-size:48px;font-weight:900;color:#38bdf8;line-height:1;">…</div>
+                            <div id="mwlTempWhen" style="font-size:12px;color:var(--text-secondary);margin-top:4px;margin-bottom:12px;">Fetching live reading…</div>
+                            <a href="${mwlVenue.url}" target="_blank" rel="noopener noreferrer"
+                               style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#38bdf8;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);border-radius:8px;padding:7px 14px;text-decoration:none;">
+                              Full conditions at my-water.live &#8594;
+                            </a>
+                          </div>`;
+                        // Fetch live temp
+                        fetch('/api/mywaterlive?slug=' + encodeURIComponent(mwlVenue.slug))
+                            .then(function(r) { return r.ok ? r.json() : null; })
+                            .then(function(d) {
+                                const tEl = document.getElementById('mwlTempVal');
+                                const wEl = document.getElementById('mwlTempWhen');
+                                if (!d || d.unavailable) {
+                                    if (tEl) tEl.textContent = '—';
+                                    if (wEl) wEl.textContent = 'Sensor data unavailable';
+                                    return;
+                                }
+                                if (tEl) tEl.textContent = d.temperature != null ? parseFloat(d.temperature).toFixed(1) + '°C' : '—';
+                                if (wEl && d.timestamp) {
+                                    try {
+                                        var t = new Date(d.timestamp).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+                                        wEl.textContent = 'Sensor updated ' + t + (d.stale ? ' (cached)' : '');
+                                    } catch(e) { if (wEl) wEl.textContent = ''; }
+                                }
+                            })
+                            .catch(function() {
+                                const tEl = document.getElementById('mwlTempVal');
+                                if (tEl) tEl.textContent = '—';
+                            });
+                    } else {
+                        mwlBanner.style.display = 'none';
+                    }
+                }
+
                 // ===== RENDER RECENT LOGS LIST =====
                 if (!recentLogs || recentLogs.length === 0) {
-                    listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">No logs found.</div>';
+                    const mwlVenueForLogs = (window.MYWATERLIVE_VENUES || {})[currentSpotName];
+                    listEl.innerHTML = mwlVenueForLogs
+                        ? '<div style="padding:16px 0;font-size:13px;color:var(--text-secondary);">No community logs yet — water temperature is provided by the live sensor above. Log your own swim after your session to add community data.</div>'
+                        : '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">No logs found.</div>';
                 } else {
                     const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
                     listEl.innerHTML = recentLogs.map(log => {
