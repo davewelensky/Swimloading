@@ -73,7 +73,7 @@ export default async function handler(req, res) {
       temperature: raw.water?.temperature ?? null,
       timestamp:   raw.water?.timestamp   ?? null,   // ISO8601
       venue_label: venue.label,
-      venue_url:   'https://my-water.live',
+      venue_url:   venue.url,
     };
 
     // Store in in-memory cache

@@ -7,8 +7,8 @@
 //   label = display name shown in the widget
 //
 export const VENUE_MAP = {
-  'tooting-bec-lido': { id: '4kq1', label: 'Tooting Bec Lido' },
-  'brockwell-lido':   { id: '2kq1', label: 'Brockwell Lido'   },
+  'tooting-bec-lido': { id: '4kq1', label: 'Tooting Bec Lido', url: 'https://tbl.my-water.live'        },
+  'brockwell-lido':   { id: '2kq1', label: 'Brockwell Lido',   url: 'https://brockwell.my-water.live'  },
 };
 
 // Server-side cache TTL ceiling in seconds.
