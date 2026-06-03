@@ -466,17 +466,48 @@
                 const item = document.createElement('div');
                 item.className = 'spot-list-item';
                 item.onclick = () => openSpotDetail(spotId, spotName, spotCode);
-                item.innerHTML = `
-                    <div style="flex: 1;">
-                        <div style="font-weight: 700; color: var(--text-primary); font-size: 16px; margin-bottom: 2px;">${spotName}${badgeHtml}</div>
-                        <div style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">${getTimeAgo(new Date(s.updated_at))}</div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="font-size: 24px; font-weight: 800; color: ${getDisplayTempColor(s.temp_c, s.water_type)};">${s.temp_c}°C</div>
-                        ${swimScoreBadgeHtml(swimScore)}
-                    </div>
-                `;
-                listEl.appendChild(item);
+
+                // If this spot has a live sensor, show sensor badge + fetch live temp
+                const mwlVenueForSpot = (window.MYWATERLIVE_VENUES || {})[spotName];
+                if (mwlVenueForSpot) {
+                    const tempId = 'mwl-list-temp-' + spotId;
+                    const ageId  = 'mwl-list-age-'  + spotId;
+                    item.innerHTML = `
+                        <div style="flex:1;">
+                            <div style="font-weight:700;color:var(--text-primary);font-size:16px;margin-bottom:2px;">${spotName}${badgeHtml}</div>
+                            <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#22c55e;font-weight:600;">
+                                <span style="width:6px;height:6px;background:#22c55e;border-radius:50%;display:inline-block;flex-shrink:0;"></span>
+                                Live sensor · my-water.live
+                            </div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div id="${tempId}" style="font-size:24px;font-weight:800;color:#38bdf8;">…</div>
+                        </div>`;
+                    listEl.appendChild(item);
+                    fetch('/api/mywaterlive?slug=' + encodeURIComponent(mwlVenueForSpot.slug))
+                        .then(function(r) { return r.ok ? r.json() : null; })
+                        .then(function(d) {
+                            const el = document.getElementById(tempId);
+                            if (!el) return;
+                            el.textContent = (d && d.temperature != null) ? parseFloat(d.temperature).toFixed(1) + '°C' : (s.temp_c + '°C');
+                        })
+                        .catch(function() {
+                            const el = document.getElementById(tempId);
+                            if (el) el.textContent = s.temp_c + '°C';
+                        });
+                } else {
+                    item.innerHTML = `
+                        <div style="flex: 1;">
+                            <div style="font-weight: 700; color: var(--text-primary); font-size: 16px; margin-bottom: 2px;">${spotName}${badgeHtml}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">${getTimeAgo(new Date(s.updated_at))}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size: 24px; font-weight: 800; color: ${getDisplayTempColor(s.temp_c, s.water_type)};">${s.temp_c}°C</div>
+                            ${swimScoreBadgeHtml(swimScore)}
+                        </div>
+                    `;
+                    listEl.appendChild(item);
+                }
             });
 
             // ── Add sensor spots that have no community logs ────────────────
