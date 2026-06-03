@@ -206,7 +206,7 @@ async function renderSpotPage(slug) {
     </main>
   `;
 
-  return pageShell({ title, description, canonical: `https://www.swimloading.com/spots/${slug}`, jsonLd: [jsonLdDataset, jsonLdBreadcrumb, jsonLdFaq], body });
+  return pageShell({ title, description, canonical: `https://www.swimloading.com/spots/${slug}`, jsonLd: [jsonLdDataset, jsonLdBreadcrumb, jsonLdFaq], body, ogImage: venue?.ogImage });
 }
 
 // ─── SENSOR VENUE HERO PAGE ───────────────────────────────────────────────────
@@ -761,7 +761,7 @@ function renderWinterSection(poolSpots, regionName) {
 
 function pageShell({ title, description, canonical, jsonLd, body, ogImage }) {
   const ldTags = jsonLd.map(d => `<script type="application/ld+json">${JSON.stringify(d)}</script>`).join('\n  ');
-  const image = ogImage || 'https://www.swimloading.com/screenshots/dashboard.jpg';
+  const image = ogImage || 'https://www.swimloading.com/screenshots/temps.jpg';
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
