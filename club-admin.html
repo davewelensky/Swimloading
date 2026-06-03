@@ -3160,8 +3160,10 @@ async function saveMember(memberId) {
   const catId = document.getElementById('editMemberCat').value;
   const role  = document.getElementById('editMemberRole').value;
   const notes = document.getElementById('editMemberNotes').value.trim();
+  const updatePayload = { category_id: catId || null, role, notes };
+  if (num) updatePayload.member_number = num; // only set if non-empty — avoids unique constraint on blank
   const { error } = await sb.from('club_members')
-    .update({ member_number: num, category_id: catId, role, notes })
+    .update(updatePayload)
     .eq('id', memberId);
   if (error) { showToast('Save failed: ' + error.message, 'error'); return; }
   const m = allMembers.find(x => x.id === memberId);
@@ -4643,10 +4645,10 @@ async function loadTempChallenge() {
     logsError = logsRes.error;
   }
 
-  // Store for CSV export
-  window._tempChallengeExportData = { logs, rosterSource, monthLabel };
-
   if (logsError) console.error('Temp Challenge logs error:', logsError);
+
+  // monthLabel defined here so it's available for export below
+  const monthLabel = new Date(year, month - 1, 1).toLocaleString('en-ZA', { month: 'long', year: 'numeric' });
 
   // Calculate points per member: 10pts/log + 10pts per unique spot per day
   const byUser = {};
@@ -4675,8 +4677,10 @@ async function loadTempChallenge() {
     };
   }).sort((a, b) => b.points - a.points || b.logCount - a.logCount);
 
+  // Store for CSV export (monthLabel now defined)
+  window._tempChallengeExportData = { logs, rosterSource, monthLabel };
+
   const MEDAL = ['var(--gold)', 'var(--silver)', 'var(--bronze)'];
-  const monthLabel = new Date(year, month - 1, 1).toLocaleString('en-ZA', { month: 'long', year: 'numeric' });
 
   // Overall leaderboard — top 10 active participants only
   const top10 = standings.filter(s => s.logCount > 0).slice(0, 10);
