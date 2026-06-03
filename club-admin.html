@@ -4631,14 +4631,20 @@ async function loadTempChallenge() {
   const linkedUserIds = [...new Set(rosterSource.map(m => m.user_id).filter(Boolean))];
 
   // Fetch their temp logs for the month (include temp_c for audit export)
-  const { data: logs, error: logsError } = await sb.from('temp_logs')
-    .select('user_id, spot_id, temp_c, created_at, logged_at, spots!temp_logs_spot_id_fkey(name, domain)')
-    .in('user_id', linkedUserIds)
-    .gte('created_at', monthStart)
-    .lt('created_at', monthEnd);
+  // Guard: skip DB call if no members have linked accounts yet (avoids .in([]) error)
+  let logs = [], logsError = null;
+  if (linkedUserIds.length > 0) {
+    const logsRes = await sb.from('temp_logs')
+      .select('user_id, spot_id, temp_c, created_at, logged_at, spots!temp_logs_spot_id_fkey(name, domain)')
+      .in('user_id', linkedUserIds)
+      .gte('created_at', monthStart)
+      .lt('created_at', monthEnd);
+    logs = logsRes.data || [];
+    logsError = logsRes.error;
+  }
 
   // Store for CSV export
-  window._tempChallengeExportData = { logs: logs || [], rosterSource, monthLabel };
+  window._tempChallengeExportData = { logs, rosterSource, monthLabel };
 
   if (logsError) console.error('Temp Challenge logs error:', logsError);
 
@@ -4751,8 +4757,64 @@ async function loadTempChallenge() {
       </table>
     </div>
     <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px;">By Category</div>
-    ${catCards}`}`;
+    ${catCards}`}
+    <div id="timeTrialSection"></div>`;
 
+  // Load time trial results for this club
+  loadTimeTrialResults();
+
+  lucide.createIcons();
+}
+
+async function loadTimeTrialResults() {
+  const el = document.getElementById('timeTrialSection');
+  if (!el || !currentClub) return;
+
+  const { data: times } = await sb
+    .from('club_swimmer_times')
+    .select('roster_id, event, course, time_text, time_seconds, meet_name, meet_date, club_roster(display_name, category)')
+    .eq('club_id', currentClub.id)
+    .order('meet_date', { ascending: false })
+    .order('time_seconds', { ascending: true });
+
+  if (!times || times.length === 0) return;
+
+  // Group by meet_name + meet_date
+  const meets = {};
+  times.forEach(t => {
+    const key = `${t.meet_name}|${t.meet_date}`;
+    if (!meets[key]) meets[key] = { name: t.meet_name, date: t.meet_date, event: t.event, results: [] };
+    meets[key].results.push(t);
+  });
+
+  const MEDAL = ['var(--gold)', 'var(--silver)', 'var(--bronze)'];
+  const sections = Object.values(meets).map(meet => {
+    const dateStr = meet.date ? new Date(meet.date).toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+    const rows = meet.results.map((t, i) => `<tr>
+      <td style="font-weight:800;color:${i < 3 ? MEDAL[i] : 'var(--text-sec)'};">${i + 1}</td>
+      <td class="member-name">${t.club_roster?.display_name || '—'}</td>
+      <td style="color:var(--text-sec);font-size:12px;">${t.club_roster?.category || '—'}</td>
+      <td style="font-weight:700;color:var(--cyan);">${t.time_text}</td>
+    </tr>`).join('');
+    return `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header">
+        <div>
+          <div class="card-title">${meet.name}</div>
+          ${dateStr ? `<div style="font-size:11px;color:var(--text-sec);margin-top:2px;">${dateStr}</div>` : ''}
+        </div>
+        <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.08em;">${meet.results.length} swimmers</div>
+      </div>
+      <table>
+        <thead><tr><th>Rank</th><th>Swimmer</th><th>Session</th><th>Time</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin:24px 0 12px;">Time Trial Results</div>
+    ${sections}`;
   lucide.createIcons();
 }
 
