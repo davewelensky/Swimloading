@@ -703,22 +703,25 @@
     (profsRes.data || []).forEach(p => { profileMap[p.id] = p.display_name; });
 
     // ── Render ──────────────────────────────────────────────────────
-    if (isSwimClub) {
-      renderSwimClubPage(club, clubEvtRes.data || [], memberCount);
-    } else {
-      renderHero(club, spotName, recentLogs, memberCount);
-      renderAbout(club);
-      renderConditions(recentLogs, spotName);
-      renderChart(recentLogs);
-      renderEvents(events);
-      renderTempChallenge(members || [], memberTempLogs, categories, profileMap);
-      renderLeague(standingsData || [], club, events);
-      renderLogs(recentLogs);
-      renderJoinBanner(club);
+    try {
+      if (isSwimClub) {
+        renderSwimClubPage(club, clubEvtRes.data || [], memberCount);
+      } else {
+        renderHero(club, spotName, recentLogs, memberCount);
+        renderAbout(club);
+        renderConditions(recentLogs, spotName);
+        renderChart(recentLogs);
+        renderEvents(events);
+        renderTempChallenge(members || [], memberTempLogs, categories, profileMap);
+        renderLeague(standingsData || [], club, events);
+        renderLogs(recentLogs);
+        renderJoinBanner(club);
+      }
+      renderAnnouncement(club);
+    } catch (renderErr) {
+      console.error('Club render error:', renderErr);
+      // Still show the page — partial content is better than blank
     }
-
-    // Club-specific announcements
-    renderAnnouncement(club);
 
     // Show page
     document.getElementById('pageLoading').style.display = 'none';
