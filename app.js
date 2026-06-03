@@ -7488,7 +7488,8 @@
 
             const { data, error } = await supabaseClient
                 .from('temp_logs')
-                .insert(logData);
+                .insert(logData)
+                .select('id');
 
             if (error) {
                 alert('Error logging temperature: ' + error.message);
@@ -7508,7 +7509,8 @@
 
                 // June Challenge — award points (handles its own success toast + WhatsApp prompt)
                 if (!loggedAt) {
-                    jcAwardPoints('temp_log', { spotId, spotName: spotNameForConfirm, temp });
+                    const newLogId = data?.[0]?.id || null;
+                    jcAwardPoints('temp_log', { spotId, spotName: spotNameForConfirm, temp, refId: newLogId });
                 }
 
                 // Reset backdate picker

@@ -4630,12 +4630,15 @@ async function loadTempChallenge() {
   // Only query logs for members who have a linked user_id
   const linkedUserIds = [...new Set(rosterSource.map(m => m.user_id).filter(Boolean))];
 
-  // Fetch their temp logs for the month
+  // Fetch their temp logs for the month (include temp_c for audit export)
   const { data: logs, error: logsError } = await sb.from('temp_logs')
-    .select('user_id, spot_id, created_at, logged_at, spots!temp_logs_spot_id_fkey(name, domain)')
+    .select('user_id, spot_id, temp_c, created_at, logged_at, spots!temp_logs_spot_id_fkey(name, domain)')
     .in('user_id', linkedUserIds)
     .gte('created_at', monthStart)
     .lt('created_at', monthEnd);
+
+  // Store for CSV export
+  window._tempChallengeExportData = { logs: logs || [], rosterSource, monthLabel };
 
   if (logsError) console.error('Temp Challenge logs error:', logsError);
 
@@ -4728,9 +4731,14 @@ async function loadTempChallenge() {
         <div style="font-size:12px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">${monthLabel} Challenge</div>
         <div style="font-size:13px;color:var(--text-sec);">10 pts per log · +10 per unique spot per day · log anywhere</div>
       </div>
-      <div style="text-align:right;">
-        <div style="font-size:22px;font-weight:800;color:var(--text);">${totalLogs}</div>
-        <div style="font-size:11px;color:var(--text-sec);">total logs by members</div>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div style="text-align:right;">
+          <div style="font-size:22px;font-weight:800;color:var(--text);">${totalLogs}</div>
+          <div style="font-size:11px;color:var(--text-sec);">total logs by members</div>
+        </div>
+        <button onclick="exportTempChallengeCSV()" style="padding:8px 16px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.4);border-radius:8px;color:#10b981;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;">
+          <i data-lucide="download" style="width:13px;height:13px;"></i>Export CSV
+        </button>
       </div>
     </div>
 
@@ -4746,6 +4754,43 @@ async function loadTempChallenge() {
     ${catCards}`}`;
 
   lucide.createIcons();
+}
+
+// ── TEMP CHALLENGE CSV EXPORT ─────────────────────────────────────
+function exportTempChallengeCSV() {
+  const d = window._tempChallengeExportData;
+  if (!d || !d.logs.length) { alert('No data to export.'); return; }
+
+  // Build name lookup from roster
+  const nameMap = {};
+  (d.rosterSource || []).forEach(m => {
+    if (m.user_id) nameMap[m.user_id] = m._display_name || m.display_name || m.club_roster?.display_name || '—';
+  });
+
+  // One row per log — sorted by swimmer name then date
+  const rows = d.logs
+    .filter(l => l.temp_c != null)
+    .map(l => {
+      const name   = nameMap[l.user_id] || l.user_id;
+      const date   = (l.logged_at || l.created_at).slice(0, 10);
+      const time   = (l.logged_at || l.created_at).slice(11, 16);
+      const spot   = l.spots?.name || '—';
+      const temp   = parseFloat(l.temp_c).toFixed(1);
+      const points = 10;
+      return [name, date, time, spot, temp, points];
+    })
+    .sort((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]));
+
+  const header  = ['Swimmer', 'Date', 'Time (UTC)', 'Spot', 'Temp (°C)', 'Points'];
+  const csvRows = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+  const csv     = csvRows.join('\n');
+  const blob    = new Blob([csv], { type: 'text/csv' });
+  const url     = URL.createObjectURL(blob);
+  const a       = document.createElement('a');
+  a.href        = url;
+  a.download    = `duc-temp-challenge-${d.monthLabel.replace(/\s/g, '-').toLowerCase()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ── GALA RESULTS ──────────────────────────────────────────────────
