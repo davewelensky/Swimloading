@@ -801,18 +801,11 @@
       <!-- ── COACHES ── -->
       <!-- ── LEAGUE ── -->
       <div id="page-league" class="page">
-        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-          <div>
-            <div class="page-title">League Standings</div>
-            <div class="page-sub" id="leaguePageSub">2025 season</div>
-          </div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <select class="filter-select" id="leagueYearSelect" onchange="renderLeague()" style="width:auto;"></select>
-            <button class="btn-primary" style="width:auto;padding:10px 20px;border-radius:10px;font-size:13px;" onclick="openResultsModal()">
-              <i data-lucide="plus" style="width:14px;height:14px;"></i> Enter results
-            </button>
-          </div>
+        <div class="page-header">
+          <div class="page-title">League Standings</div>
+          <div class="page-sub" id="leaguePageSub">2026 season · via ducs.co.za</div>
         </div>
+        <div id="leagueEventTabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;"></div>
         <div id="leagueContent"><div class="loading"><div class="spinner"></div></div></div>
       </div>
 
@@ -1502,48 +1495,6 @@
 </div>
 
 <!-- RESULTS ENTRY MODAL -->
-<div class="modal-overlay" id="resultsEntryModal">
-  <div class="modal" style="max-width:600px;">
-    <div class="modal-title">
-      Enter Race Results
-      <button class="modal-close" onclick="closeResultsModal()">&times;</button>
-    </div>
-    <div class="form-row" style="margin-bottom:14px;">
-      <div class="form-group">
-        <div class="form-label">League race</div>
-        <select class="form-input" id="resultsEventSelect" onchange="onResultsEventChange()">
-          <option value="">Select event…</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <div class="form-label">Course</div>
-        <select class="form-input" id="resultsCourse">
-          <option value="LC">Long Course (LC)</option>
-          <option value="SC">Short Course (SC)</option>
-        </select>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:2fr 60px 80px 80px 32px;gap:6px;padding:0 0 6px;margin-bottom:2px;">
-      <div style="font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Member</div>
-      <div style="font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Pos</div>
-      <div style="font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Points</div>
-      <div style="font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Time</div>
-      <div></div>
-    </div>
-    <div id="resultsRows" style="max-height:280px;overflow-y:auto;margin-bottom:10px;">
-      <div style="font-size:12px;color:var(--text-sec);padding:8px 0;">Select an event to enter results.</div>
-    </div>
-    <button class="btn-sm" onclick="addResultRow()" id="addResultRowBtn" style="display:none;margin-bottom:10px;">
-      <i data-lucide="plus" style="width:13px;height:13px;"></i> Add swimmer
-    </button>
-    <div style="font-size:11px;color:var(--text-sec);margin-bottom:14px;" id="resultsHint"></div>
-    <div class="modal-actions">
-      <button class="btn-modal-cancel" onclick="closeResultsModal()">Cancel</button>
-      <button class="btn-modal-primary" onclick="submitResults()">Save results &amp; update standings</button>
-    </div>
-  </div>
-</div>
-
 <!-- ADD ROSTER MEMBER MODAL -->
 <div class="modal-overlay" id="addRosterModal">
   <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto;">
@@ -5102,282 +5053,225 @@ function closeGalaResults() {
 }
 
 // ── LEAGUE ────────────────────────────────────────────────────────
-function initLeagueYearSelect() {
-  const sel = document.getElementById('leagueYearSelect');
-  if (sel.options.length > 0) return;
-  const current = new Date().getFullYear();
-  for (let y = current; y >= current - 3; y--) {
-    const opt = document.createElement('option');
-    opt.value = y;
-    opt.textContent = y + ' Season';
-    if (y === current) opt.selected = true;
-    sel.appendChild(opt);
-  }
-}
+// ── LEAGUE (ducs.co.za API) ────────────────────────────────────────
+let leagueEvents = [];
+let leagueResultsModal = null;
 
 async function renderLeague() {
-  initLeagueYearSelect();
   const el = document.getElementById('leagueContent');
+  const tabsEl = document.getElementById('leagueEventTabs');
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-  const year = parseInt(document.getElementById('leagueYearSelect').value) || new Date().getFullYear();
-  document.getElementById('leaguePageSub').textContent = year + ' season';
+  tabsEl.innerHTML = '';
 
-  const { data } = await sb.from('club_season_standings')
-    .select('*, club_roster(display_name, category)')
-    .eq('club_id', currentClub.id)
-    .eq('year', year)
-    .order('position', { ascending: true });
-
-  if (!data || data.length === 0) {
-    el.innerHTML = `<div class="empty">
-      <div class="empty-title">No standings yet</div>
-      <div class="empty-desc">2025 season standings will appear here once results are entered.</div>
-    </div>`; return;
+  let eventsData, standingsData;
+  try {
+    const [evRes, stRes] = await Promise.all([
+      fetch('/api/duc-league?endpoint=events'),
+      fetch('/api/duc-league?endpoint=standings'),
+    ]);
+    eventsData   = await evRes.json();
+    standingsData = await stRes.json();
+  } catch (e) {
+    el.innerHTML = `<div class="empty"><div class="empty-title">Could not load league data</div><div class="empty-desc">${e.message}</div></div>`;
+    return;
   }
 
-  const CAT_ORDER = ['Guppies','Sailfish','Makos','Walrus'];
-  const byCourse = { LC: [], SC: [] };
-  data.forEach(r => { if (byCourse[r.course]) byCourse[r.course].push(r); });
+  if (eventsData.error || standingsData.error) {
+    el.innerHTML = `<div class="empty"><div class="empty-title">API error</div><div class="empty-desc">${eventsData.error || standingsData.error}</div></div>`;
+    return;
+  }
+
+  leagueEvents = eventsData.data.events || [];
+
+  // Event tabs — most recent first
+  tabsEl.innerHTML = leagueEvents.map((ev, i) => `
+    <button onclick="showLeagueResults(${ev.id}, this)"
+      style="padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text-sec);cursor:pointer;transition:all 0.15s;"
+      onmouseover="this.style.borderColor='var(--cyan)';this.style.color='var(--cyan)'"
+      onmouseout="if(!this.classList.contains('active')){this.style.borderColor='rgba(255,255,255,0.1)';this.style.color='var(--text-sec)'}">
+      ${ev.name}
+    </button>`).join('');
+
+  // Standings
+  const standings = standingsData.data.standings || {};
+  const CAT_ORDER = ['Guppies','Sailfish','Makos','Walrus','Coelacanth'];
+  const MONTHS    = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
   const renderCourse = (rows, label) => {
-    if (!rows.length) return '';
+    if (!rows || !rows.length) return '';
     const byCat = {};
     rows.forEach(r => {
-      const cat = r.club_roster?.category || 'General';
-      if (!byCat[cat]) byCat[cat] = [];
-      byCat[cat].push(r);
+      if (!byCat[r.category]) byCat[r.category] = [];
+      byCat[r.category].push(r);
     });
     const cats = CAT_ORDER.filter(c => byCat[c]).concat(Object.keys(byCat).filter(c => !CAT_ORDER.includes(c)));
+
+    // Which months have data?
+    const months = [...new Set(rows.flatMap(r => Object.keys(r.monthlyPoints || {})))].sort((a,b) => +a - +b);
+
     return `
-      <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin:20px 0 10px;">${label}</div>
-      ${cats.map(cat => `
+      <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin:24px 0 12px;">${label}</div>
+      ${cats.map(cat => {
+        const swimmers = byCat[cat];
+        return `
         <div class="card" style="margin-bottom:14px;">
-          <div class="card-header"><div class="card-title">${cat} <span style="font-weight:400;color:var(--text-sec);font-size:12px;">${byCat[cat].length} swimmers</span></div></div>
+          <div class="card-header"><div class="card-title">${cat} <span style="font-weight:400;color:var(--text-sec);font-size:12px;">${swimmers.length} swimmers</span></div></div>
+          <div style="overflow-x:auto;">
           <table>
-            <thead><tr><th>Pos</th><th>Name</th><th>Swims</th><th>Points</th><th>Q</th></tr></thead>
-            <tbody>${byCat[cat].map(r => `<tr>
-              <td style="font-weight:800;color:${r.position===1?'var(--gold)':r.position===2?'var(--silver)':r.position===3?'var(--bronze)':'var(--text-sec)'};">${r.position}</td>
-              <td class="member-name">${r.club_roster?.display_name || '—'}</td>
-              <td style="color:var(--text-sec);">${r.swims_count || 0}</td>
-              <td style="font-weight:700;color:var(--cyan);">${r.top10_points || r.total_points || 0}</td>
-              <td>${(r.swims_count || 0) >= 7 ? '<span style="color:var(--green);font-weight:700;">Q</span>' : '—'}</td>
-            </tr>`).join('')}</tbody>
+            <thead><tr>
+              <th style="width:36px;">Pos</th>
+              <th>Name</th>
+              ${months.map(m => `<th style="text-align:right;color:var(--text-sec);">${MONTHS[+m]}</th>`).join('')}
+              <th style="text-align:right;">Total</th>
+            </tr></thead>
+            <tbody>${swimmers.map(r => {
+              const posColor = r.rank===1?'var(--gold)':r.rank===2?'#adb5bd':r.rank===3?'#cd7f32':'var(--text-sec)';
+              return `<tr style="cursor:pointer;" onclick="showLeagueSwimmer(${r.swimmerNumber})" title="View swimmer history">
+                <td style="font-weight:800;color:${posColor};">${r.rank}</td>
+                <td class="member-name">${r.swimmerName}</td>
+                ${months.map(m => `<td style="text-align:right;color:var(--text-sec);font-size:12px;">${r.monthlyPoints?.[m] ?? '—'}</td>`).join('')}
+                <td style="text-align:right;font-weight:700;color:var(--cyan);">${r.totalPoints}</td>
+              </tr>`;
+            }).join('')}</tbody>
           </table>
-        </div>`).join('')}`;
+          </div>
+        </div>`;
+      }).join('')}`;
   };
 
-  el.innerHTML = renderCourse(byCourse.LC, 'Long Course') + renderCourse(byCourse.SC, 'Short Course');
+  el.innerHTML = renderCourse(standings.LC, 'Long Course') + renderCourse(standings.SC, 'Short Course');
   lucide.createIcons();
 }
 
-// ── RESULTS ENTRY ─────────────────────────────────────────────────
-let pendingResults = [];
-
-function openResultsModal() {
-  const sel = document.getElementById('resultsEventSelect');
-  sel.innerHTML = '<option value="">Select event…</option>';
-  const leagueEvents = allEvents.filter(e => e.is_league);
-  if (!leagueEvents.length) {
-    sel.innerHTML = '<option value="" disabled>No league events — create one first</option>';
-  } else {
-    leagueEvents.forEach(e => {
-      const opt = document.createElement('option');
-      opt.value = e.id;
-      opt.textContent = e.title + ' — ' + new Date(e.event_date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
-      sel.appendChild(opt);
-    });
+async function showLeagueResults(eventId, btn) {
+  // Highlight active tab
+  document.querySelectorAll('#leagueEventTabs button').forEach(b => {
+    b.classList.remove('active');
+    b.style.borderColor = 'rgba(255,255,255,0.1)';
+    b.style.color = 'var(--text-sec)';
+    b.style.background = 'rgba(255,255,255,0.04)';
+  });
+  if (btn) {
+    btn.classList.add('active');
+    btn.style.borderColor = 'var(--cyan)';
+    btn.style.color = 'var(--cyan)';
+    btn.style.background = 'rgba(56,189,248,0.08)';
   }
-  pendingResults = [];
-  document.getElementById('resultsRows').innerHTML = '<div style="font-size:12px;color:var(--text-sec);padding:8px 0;">Select an event to enter results.</div>';
-  document.getElementById('addResultRowBtn').style.display = 'none';
-  document.getElementById('resultsHint').textContent = '';
-  document.getElementById('resultsEntryModal').classList.add('open');
-  lucide.createIcons();
-}
 
-function closeResultsModal() {
-  document.getElementById('resultsEntryModal').classList.remove('open');
-  pendingResults = [];
-}
+  const event = leagueEvents.find(e => e.id === eventId);
+  const modalId = 'leagueResultsModal';
+  let modal = document.getElementById(modalId);
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = modalId;
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `<div class="modal" style="max-width:700px;max-height:85vh;display:flex;flex-direction:column;">
+      <div class="modal-title" style="flex-shrink:0;">
+        <span id="leagueResultsTitle">Results</span>
+        <button class="modal-close" onclick="document.getElementById('${modalId}').classList.remove('open')">&times;</button>
+      </div>
+      <div id="leagueResultsBody" style="overflow-y:auto;flex:1;padding-top:4px;"></div>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+  document.getElementById('leagueResultsTitle').textContent = event ? event.name + ' Results' : 'Results';
+  document.getElementById('leagueResultsBody').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  modal.classList.add('open');
 
-function onResultsEventChange() {
-  const eventId = document.getElementById('resultsEventSelect').value;
-  if (!eventId) {
-    document.getElementById('resultsRows').innerHTML = '<div style="font-size:12px;color:var(--text-sec);padding:8px 0;">Select an event to enter results.</div>';
-    document.getElementById('addResultRowBtn').style.display = 'none';
-    document.getElementById('resultsHint').textContent = '';
+  const res = await fetch(`/api/duc-league?endpoint=results&id=${eventId}`);
+  const json = await res.json();
+  if (json.error) {
+    document.getElementById('leagueResultsBody').innerHTML = `<div style="padding:20px;color:var(--danger);">${json.error}</div>`;
     return;
   }
-  pendingResults = [];
-  document.getElementById('resultsRows').innerHTML = '<div style="font-size:12px;color:var(--text-sec);padding:8px 0;">Use "Add swimmer" to enter results.</div>';
-  document.getElementById('addResultRowBtn').style.display = '';
-  document.getElementById('resultsHint').textContent = 'Points auto-fill from position: 1st=50, 2nd=47, 3rd=45, then 44, 43… Override manually if needed.';
-  lucide.createIcons();
+
+  const results = json.data.results || {};
+  const CAT_ORDER = ['Guppies','Sailfish','Makos','Walrus','Coelacanth'];
+
+  const renderResultsCourse = (rows, label) => {
+    if (!rows || !rows.length) return '';
+    return `
+      <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin:16px 0 10px;">${label} · ${rows.length} finishers</div>
+      <div style="overflow-x:auto;">
+      <table>
+        <thead><tr>
+          <th style="width:36px;">Pos</th>
+          <th>#</th>
+          <th>Name</th>
+          <th>Cat</th>
+          <th style="text-align:right;">Time</th>
+          <th style="text-align:right;">Pts</th>
+        </tr></thead>
+        <tbody>${rows.map(r => {
+          const posColor = r.overallPosition===1?'var(--gold)':r.overallPosition===2?'#adb5bd':r.overallPosition===3?'#cd7f32':'var(--text-sec)';
+          const wetsuit  = r.wetsuit ? ' <span style="font-size:9px;color:var(--amber);font-weight:700;">WS</span>' : '';
+          const time     = r.adjustedTime !== r.rawTime ? `<span title="raw: ${r.rawTime}">${r.adjustedTime}</span>` : r.rawTime;
+          return `<tr>
+            <td style="font-weight:800;color:${posColor};">${r.overallPosition}</td>
+            <td style="color:var(--text-sec);font-size:12px;">${r.swimmerNumber}</td>
+            <td class="member-name">${r.swimmerName}${wetsuit}</td>
+            <td style="color:var(--text-sec);font-size:12px;">${r.category}</td>
+            <td style="text-align:right;font-variant-numeric:tabular-nums;">${time}</td>
+            <td style="text-align:right;font-weight:700;color:var(--cyan);">${r.points}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+      </div>`;
+  };
+
+  document.getElementById('leagueResultsBody').innerHTML =
+    renderResultsCourse(results.LC, 'Long Course') +
+    renderResultsCourse(results.SC, 'Short Course');
 }
 
-function addResultRow() {
-  pendingResults.push({ _id: Date.now(), roster_id: '', position: '', points: '', time: '' });
-  renderResultRows();
-}
+async function showLeagueSwimmer(swimmerNumber) {
+  const modalId = 'leagueSwimmerModal';
+  let modal = document.getElementById(modalId);
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = modalId;
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `<div class="modal" style="max-width:560px;max-height:85vh;display:flex;flex-direction:column;">
+      <div class="modal-title" style="flex-shrink:0;">
+        <span id="leagueSwimmerTitle">Swimmer</span>
+        <button class="modal-close" onclick="document.getElementById('${modalId}').classList.remove('open')">&times;</button>
+      </div>
+      <div id="leagueSwimmerBody" style="overflow-y:auto;flex:1;padding-top:4px;"></div>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+  document.getElementById('leagueSwimmerTitle').textContent = 'Swimmer #' + swimmerNumber;
+  document.getElementById('leagueSwimmerBody').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  modal.classList.add('open');
 
-function renderResultRows() {
-  const el = document.getElementById('resultsRows');
-  if (!pendingResults.length) {
-    el.innerHTML = '<div style="font-size:12px;color:var(--text-sec);padding:8px 0;">Use "Add swimmer" to enter results.</div>';
+  const res = await fetch(`/api/duc-league?endpoint=swimmer&id=${swimmerNumber}`);
+  const json = await res.json();
+  if (json.error) {
+    document.getElementById('leagueSwimmerBody').innerHTML = `<div style="padding:20px;color:var(--danger);">${json.error}</div>`;
     return;
   }
-  const opts = allRoster.map(r =>
-    `<option value="${r.id}">${r.display_name || '?'} (${r.category || '?'}${r.member_number ? ' #' + r.member_number : ''})</option>`
-  ).join('');
-  el.innerHTML = pendingResults.map(row => `
-    <div style="display:grid;grid-template-columns:2fr 60px 80px 80px 32px;gap:6px;align-items:center;margin-bottom:6px;">
-      <select class="form-input" style="padding:7px 10px;font-size:12px;" onchange="updateResultRow(${row._id},'roster_id',this.value)">
-        <option value="">— member —</option>${opts}
-      </select>
-      <input type="number" class="form-input" placeholder="Pos" min="1"
-        style="padding:7px 8px;font-size:12px;text-align:center;" value="${row.position}"
-        oninput="updateResultRowAutoPoints(${row._id},'position',this.value)">
-      <input type="number" class="form-input" placeholder="Pts"
-        style="padding:7px 8px;font-size:12px;text-align:center;" value="${row.points}"
-        id="pts-${row._id}"
-        oninput="updateResultRow(${row._id},'points',this.value)">
-      <input type="text" class="form-input" placeholder="MM:SS"
-        style="padding:7px 8px;font-size:12px;text-align:center;" value="${row.time}"
-        oninput="updateResultRow(${row._id},'time',this.value)" title="HH:MM:SS or MM:SS">
-      <button onclick="removeResultRow(${row._id})"
-        style="background:transparent;border:1px solid rgba(239,68,68,0.2);border-radius:6px;color:var(--danger);font-size:15px;cursor:pointer;padding:4px 8px;line-height:1;">&times;</button>
-    </div>`).join('');
-}
 
-function updateResultRow(rowId, field, value) {
-  const row = pendingResults.find(r => r._id === rowId);
-  if (row) row[field] = value;
-}
+  const { swimmer, history } = json.data;
+  document.getElementById('leagueSwimmerTitle').textContent = swimmer.name;
 
-function updateResultRowAutoPoints(rowId, field, value) {
-  const row = pendingResults.find(r => r._id === rowId);
-  if (!row) return;
-  row[field] = value;
-  const pos = parseInt(value);
-  if (pos >= 1) {
-    let pts;
-    if      (pos === 1) pts = 50;
-    else if (pos === 2) pts = 47;
-    else if (pos === 3) pts = 45;
-    else                pts = Math.max(46 - pos, 1);
-    row.points = pts;
-    const el = document.getElementById('pts-' + rowId);
-    if (el) el.value = pts;
-  }
-}
-
-function removeResultRow(rowId) {
-  pendingResults = pendingResults.filter(r => r._id !== rowId);
-  renderResultRows();
-}
-
-async function submitResults() {
-  const eventId = document.getElementById('resultsEventSelect').value;
-  const course  = document.getElementById('resultsCourse').value;
-  if (!eventId) { showToast('Select an event first', 'error'); return; }
-
-  const valid = pendingResults.filter(r => r.roster_id && r.points);
-  if (!valid.length) { showToast('Add at least one result with a member and points', 'error'); return; }
-
-  const event     = allEvents.find(e => e.id === eventId);
-  const eventDate = event?.event_date ? new Date(event.event_date) : new Date();
-  const year      = eventDate.getFullYear();
-  const MONTHS    = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-  const monthCol  = MONTHS[eventDate.getMonth()];
-
-  const rows = valid.map(r => {
-    let timeSecs = null;
-    if (r.time) {
-      const parts = r.time.split(':').map(Number);
-      if (parts.length === 3) timeSecs = parts[0]*3600 + parts[1]*60 + parts[2];
-      else if (parts.length === 2) timeSecs = parts[0]*60 + parts[1];
-    }
-    return {
-      club_id:      currentClub.id,
-      event_id:     eventId,
-      roster_id:    r.roster_id,
-      course,
-      position:     parseInt(r.position) || null,
-      time_seconds: timeSecs,
-      points:       parseInt(r.points),
-      year,
-      month_col:    monthCol,
-    };
-  });
-
-  const { error } = await sb.from('club_race_results').insert(rows);
-  if (error) { showToast('Save failed: ' + error.message, 'error'); return; }
-
-  showToast(rows.length + ' results saved — updating standings…', 'success');
-  closeResultsModal();
-  await recalculateStandings(year, course);
-  renderLeague();
-}
-
-async function recalculateStandings(year, course) {
-  const { data: allResults } = await sb.from('club_race_results')
-    .select('roster_id, points, month_col, course')
-    .eq('club_id', currentClub.id)
-    .eq('year', year)
-    .eq('course', course);
-  if (!allResults || !allResults.length) return;
-
-  const rosterIds = [...new Set(allResults.map(r => r.roster_id))];
-  const { data: rosterRows } = await sb.from('club_roster')
-    .select('id, category').in('id', rosterIds);
-  const catMap = {};
-  (rosterRows || []).forEach(r => { catMap[r.id] = r.category; });
-
-  const bySwimmer = {};
-  allResults.forEach(r => {
-    if (!bySwimmer[r.roster_id]) bySwimmer[r.roster_id] = { monthly: {}, allPts: [] };
-    const s = bySwimmer[r.roster_id];
-    s.monthly[r.month_col] = (s.monthly[r.month_col] || 0) + r.points;
-    s.allPts.push(r.points);
-  });
-
-  const upsertRows = Object.entries(bySwimmer).map(([rosterId, data]) => {
-    const sortedPts  = [...data.allPts].sort((a, b) => b - a);
-    const totalPts   = sortedPts.reduce((a, b) => a + b, 0);
-    const top10Pts   = sortedPts.slice(0, 10).reduce((a, b) => a + b, 0);
-    const swimsCount = data.allPts.length;
-    return { _rosterId: rosterId, totalPts, top10Pts, swimsCount, category: catMap[rosterId] || null };
-  });
-
-  // Rank within each category
-  const byCat = {};
-  upsertRows.forEach(r => {
-    const cat = r.category || 'General';
-    if (!byCat[cat]) byCat[cat] = [];
-    byCat[cat].push(r);
-  });
-  Object.values(byCat).forEach(rows => {
-    rows.sort((a, b) => b.top10Pts - a.top10Pts);
-    rows.forEach((r, i) => { r.position = i + 1; });
-  });
-
-  const dbRows = upsertRows.map(r => ({
-    club_id:      currentClub.id,
-    roster_id:    r._rosterId,
-    year,
-    course,
-    category:     r.category,
-    total_points: r.totalPts,
-    top10_points: r.top10Pts,
-    swims_count:  r.swimsCount,
-    position:     r.position,
-  }));
-
-  const { error } = await sb.from('club_season_standings').upsert(dbRows, {
-    onConflict: 'club_id,year,course,roster_id',
-  });
-  if (error) console.error('Standings recalculate failed:', error.message);
-  else showToast('Standings updated', 'success');
+  const totalPts = history.reduce((s, h) => s + h.points, 0);
+  document.getElementById('leagueSwimmerBody').innerHTML = `
+    <div style="display:flex;gap:20px;padding:4px 0 16px;flex-wrap:wrap;">
+      <div><div style="font-size:10px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Category</div><div style="font-weight:700;">${swimmer.category}</div></div>
+      <div><div style="font-size:10px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Gender</div><div style="font-weight:700;">${swimmer.gender === 'M' ? 'Male' : 'Female'}</div></div>
+      <div><div style="font-size:10px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Swims</div><div style="font-weight:700;">${history.length}</div></div>
+      <div><div style="font-size:10px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Total pts</div><div style="font-weight:700;color:var(--cyan);">${totalPts}</div></div>
+    </div>
+    <table>
+      <thead><tr><th>Event</th><th>Course</th><th style="text-align:right;">Pos</th><th style="text-align:right;">Time</th><th style="text-align:right;">Pts</th></tr></thead>
+      <tbody>${history.map(h => `<tr>
+        <td style="font-size:12px;">${h.eventName}</td>
+        <td style="color:var(--text-sec);font-size:12px;">${h.courseType}</td>
+        <td style="text-align:right;color:var(--text-sec);">${h.overallPosition}</td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums;">${h.adjustedTime}</td>
+        <td style="text-align:right;font-weight:700;color:var(--cyan);">${h.points}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
 }
 
 // ── TEAM ──────────────────────────────────────────────────────────
