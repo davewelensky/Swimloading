@@ -106,6 +106,9 @@
   /* Wide founders table */
   #mi-founders .mi-table .mi-tr { grid-template-columns:1.5fr 2fr 1.5fr 2fr 80px; }
 
+  /* ── Media conversation textareas ── */
+  .mconv-area { min-height:180px; resize:vertical; font-family:'DM Sans',monospace; font-size:13px; line-height:1.65; white-space:pre-wrap; }
+
   /* ── Status badges ── */
   .badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; text-transform:uppercase; letter-spacing:0.06em; white-space:nowrap; }
   .badge-idea       { background:rgba(100,116,139,0.15); color:#94a3b8; }
@@ -316,12 +319,28 @@
 
   <!-- MEDIA -->
   <div id="page-media" class="page">
-    <div class="page-toolbar">
-      <input type="search" class="search-input" placeholder="Search media contacts…" oninput="renderMedia()" id="mediaSearch">
+    <div class="page-toolbar" style="flex-wrap:wrap;">
+      <input type="search" class="search-input" placeholder="Search outlet, contact, email, notes, emails…" oninput="renderMedia()" id="mediaSearch" style="min-width:220px;">
       <select class="filter-select" id="mediaStatus" onchange="renderMedia()">
         <option value="">All statuses</option>
         <option>Idea</option><option>Contacted</option><option>Interested</option>
         <option>In Discussion</option><option>Confirmed</option><option>Not Now</option>
+      </select>
+      <select class="filter-select" id="mediaConvStageFilter" onchange="renderMedia()">
+        <option value="">All stages</option>
+        <option>Initial outreach sent</option><option>Response received</option>
+        <option>Reply drafted</option><option>Reply sent</option>
+        <option>Follow-up required</option><option>Meeting proposed</option>
+        <option>Partnership discussion</option><option>Closed / no action</option>
+      </select>
+      <select class="filter-select" id="mediaOwnerFilter" onchange="renderMedia()">
+        <option value="">All owners</option>
+        <option>Dave</option><option>Lindi</option>
+      </select>
+      <select class="filter-select" id="mediaFollowUpFilter" onchange="renderMedia()">
+        <option value="">Any follow-up</option>
+        <option value="due">Follow-up due</option>
+        <option value="overdue">Overdue</option>
       </select>
       <button class="btn-add" onclick="openModal('media')">
         <i data-lucide="plus"></i> Add contact
@@ -735,20 +754,36 @@
 
 <!-- Media modal -->
 <div class="modal-overlay" id="mediaModal">
-<div class="modal">
+<div class="modal" style="max-width:720px;">
   <div class="modal-head">
     <div class="modal-title" id="mediaModalTitle">Add Media Contact</div>
     <button class="modal-close" onclick="closeModal('media')">&times;</button>
   </div>
-  <div class="modal-body">
+  <div class="modal-body" style="max-height:78vh;overflow-y:auto;">
     <input type="hidden" id="mediaId">
+
+    <!-- Conversation summary bar (shown when editing) -->
+    <div id="mConvSummary" style="display:none;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.18);border-radius:10px;padding:12px 14px;margin-bottom:16px;display:none;">
+      <div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Conversation Summary</div>
+      <div style="display:flex;flex-wrap:wrap;gap:16px;">
+        <div><div style="font-size:10px;color:var(--text-sec);">Status</div><div id="mSumStatus" style="font-size:12px;font-weight:700;color:var(--text);">—</div></div>
+        <div><div style="font-size:10px;color:var(--text-sec);">Stage</div><div id="mSumStage" style="font-size:12px;font-weight:700;color:var(--text);">—</div></div>
+        <div><div style="font-size:10px;color:var(--text-sec);">Last Email</div><div id="mSumLastEmail" style="font-size:12px;font-weight:700;color:var(--text);">—</div></div>
+        <div><div style="font-size:10px;color:var(--text-sec);">Follow-Up</div><div id="mSumFollowUp" style="font-size:12px;font-weight:700;color:var(--text);">—</div></div>
+        <div><div style="font-size:10px;color:var(--text-sec);">Owner</div><div id="mSumOwner" style="font-size:12px;font-weight:700;color:var(--text);">—</div></div>
+      </div>
+    </div>
+
+    <!-- Contact details -->
+    <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">Contact Details</div>
     <div class="field-row">
-      <div class="field-group"><div class="field-label">Outlet / Publication *</div><input class="field-input" id="mName" placeholder="e.g. Outdoor Swimmer Mag"></div>
+      <div class="field-group"><div class="field-label">Outlet / Publication *</div><input class="field-input" id="mName" placeholder="e.g. Outdoor Swimming Society"></div>
       <div class="field-group"><div class="field-label">Category</div>
         <select class="field-input" id="mCategory">
           <option value="">— select —</option>
           <option>Magazine</option><option>Podcast</option><option>Blog</option>
-          <option>Newspaper</option><option>Newsletter</option><option>Influencer</option><option>Other</option>
+          <option>Newspaper</option><option>Newsletter</option><option>Influencer</option>
+          <option>Influencer / Strategic Media</option><option>Other</option>
         </select>
       </div>
     </div>
@@ -776,12 +811,63 @@
       </div>
     </div>
     <div class="field-group"><div class="field-label">Next action</div><input class="field-input" id="mNextAction"></div>
-    <div class="field-group"><div class="field-label">Follow-up date</div><input class="field-input" id="mFollowUp" type="date"></div>
-    <div class="field-group"><div class="field-label">Notes</div><textarea class="field-input field-textarea" id="mNotes"></textarea></div>
+    <div class="field-row">
+      <div class="field-group"><div class="field-label">Follow-up date</div><input class="field-input" id="mFollowUp" type="date"></div>
+      <div class="field-group"><div class="field-label">Notes</div><input class="field-input" id="mNotes" placeholder="Quick notes…"></div>
+    </div>
+
+    <!-- Conversation History -->
+    <div style="border-top:1px solid var(--border);margin:20px 0 14px;padding-top:16px;">
+      <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">Conversation History</div>
+
+      <!-- Stage + dates row -->
+      <div class="field-row" style="margin-bottom:14px;">
+        <div class="field-group"><div class="field-label">Conversation stage</div>
+          <select class="field-input" id="mConvStage">
+            <option value="">— none yet —</option>
+            <option>Initial outreach sent</option>
+            <option>Response received</option>
+            <option>Reply drafted</option>
+            <option>Reply sent</option>
+            <option>Follow-up required</option>
+            <option>Meeting proposed</option>
+            <option>Partnership discussion</option>
+            <option>Closed / no action</option>
+          </select>
+        </div>
+        <div class="field-group"><div class="field-label">Last email date</div><input class="field-input" id="mLastEmailDate" type="date"></div>
+        <div class="field-group"><div class="field-label">Next follow-up date</div><input class="field-input" id="mNextFollowUp" type="date"></div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">Initial Outreach Email</div>
+        <textarea class="field-input field-textarea mconv-area" id="mOutreach" placeholder="Paste the initial outreach email here…"></textarea>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Contact Response</div>
+        <textarea class="field-input field-textarea mconv-area" id="mResponse" placeholder="Paste the contact's response here…"></textarea>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Draft / Sent Reply <span style="font-weight:400;color:var(--text-dim);">— your reply back to them</span></div>
+        <textarea class="field-input field-textarea mconv-area" id="mDraftReply" placeholder="Paste the draft or sent reply here…"></textarea>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Key Takeaways</div>
+        <textarea class="field-input field-textarea mconv-area" id="mKeyTakeaways" placeholder="Summarise the key points, concerns, opportunities and next steps…"></textarea>
+      </div>
+
+      <!-- Quick actions -->
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;">
+        <button type="button" onclick="mCopyDraft()" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);color:var(--cyan);border-radius:7px;font-family:inherit;font-size:12px;font-weight:600;padding:6px 14px;cursor:pointer;display:flex;align-items:center;gap:5px;"><i data-lucide="copy" style="width:12px;height:12px;"></i>Copy Draft Reply</button>
+        <button type="button" onclick="mMarkReplySent()" style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:var(--green);border-radius:7px;font-family:inherit;font-size:12px;font-weight:600;padding:6px 14px;cursor:pointer;display:flex;align-items:center;gap:5px;"><i data-lucide="check-circle" style="width:12px;height:12px;"></i>Mark Reply Sent</button>
+        <button type="button" onclick="mMarkFollowUp()" style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);color:var(--amber);border-radius:7px;font-family:inherit;font-size:12px;font-weight:600;padding:6px 14px;cursor:pointer;display:flex;align-items:center;gap:5px;"><i data-lucide="clock" style="width:12px;height:12px;"></i>Mark Follow-Up Required</button>
+        <button type="button" onclick="mClearConv()" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:var(--danger);border-radius:7px;font-family:inherit;font-size:12px;font-weight:600;padding:6px 14px;cursor:pointer;display:flex;align-items:center;gap:5px;"><i data-lucide="trash-2" style="width:12px;height:12px;"></i>Clear Conversation Fields</button>
+      </div>
+    </div>
   </div>
-  <div class="modal-footer">
+  <div class="modal-footer" style="position:sticky;bottom:0;background:var(--bg-card);border-top:1px solid var(--border);padding:12px 20px;display:flex;justify-content:flex-end;gap:8px;">
     <button class="btn-cancel" onclick="closeModal('media')">Cancel</button>
-    <button class="btn-save" id="mediaSaveBtn" onclick="saveMedia()">Save</button>
+    <button class="btn-save" id="mediaSaveBtn" onclick="saveMedia()">Save contact</button>
   </div>
 </div>
 </div>
@@ -1285,36 +1371,72 @@ function renderClubs() {
 
 // ── MEDIA render ──────────────────────────────────────────────────────
 function renderMedia() {
-  const q      = (document.getElementById('mediaSearch').value || '').toLowerCase();
-  const status = document.getElementById('mediaStatus').value;
-  const rows = media.filter(r =>
-    (!q || [r.outlet_name, r.contact_name, r.category, r.notes].join(' ').toLowerCase().includes(q)) &&
-    (!status || r.status === status)
-  );
+  const q         = (document.getElementById('mediaSearch').value || '').toLowerCase();
+  const status    = document.getElementById('mediaStatus').value;
+  const stage     = document.getElementById('mediaConvStageFilter').value;
+  const owner     = document.getElementById('mediaOwnerFilter').value;
+  const fuFilter  = document.getElementById('mediaFollowUpFilter').value;
+  const today     = new Date().toISOString().slice(0,10);
+
+  const rows = media.filter(r => {
+    if (q) {
+      const haystack = [r.outlet_name, r.contact_name, r.contact_email, r.category,
+        r.notes, r.initial_outreach_email, r.contact_response,
+        r.draft_or_sent_reply, r.key_takeaways].join(' ').toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    if (status && r.status !== status) return false;
+    if (stage && r.conversation_stage !== stage) return false;
+    if (owner && r.owner !== owner) return false;
+    if (fuFilter === 'due' && !r.next_follow_up_date) return false;
+    if (fuFilter === 'overdue' && (!r.next_follow_up_date || r.next_follow_up_date >= today)) return false;
+    return true;
+  });
+
   const el = document.getElementById('mediaList');
-  if (!rows.length) { el.innerHTML = emptyState('radio', 'No media contacts yet', 'Add podcasts, magazines, blogs and influencers.'); return; }
-  el.innerHTML = rows.map(r => `
+  if (!rows.length) { el.innerHTML = emptyState('radio', 'No media contacts found', 'Add contacts or adjust your filters.'); return; }
+
+  const convStageColor = { 'Response received':'var(--green)', 'Reply drafted':'var(--cyan)',
+    'Reply sent':'var(--green)', 'Follow-up required':'var(--amber)',
+    'Meeting proposed':'var(--purple)', 'Partnership discussion':'var(--purple)',
+    'Closed / no action':'var(--text-sec)', 'Initial outreach sent':'var(--text-sec)' };
+
+  el.innerHTML = rows.map(r => {
+    const emailCount = [r.initial_outreach_email, r.contact_response, r.draft_or_sent_reply].filter(Boolean).length;
+    const fuOverdue  = r.next_follow_up_date && r.next_follow_up_date < today;
+    const fuDue      = r.next_follow_up_date && r.next_follow_up_date >= today;
+    const stageCol   = convStageColor[r.conversation_stage] || 'var(--text-sec)';
+
+    return `
     <div class="card" onclick="editMedia('${r.id}')">
       <div class="card-header">
-        <div>
-          <div class="card-name">${esc(r.outlet_name)}${r.category ? ` <span style="font-size:11px;font-weight:400;color:var(--text-sec);">${esc(r.category)}</span>` : ''}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="card-name">${esc(r.outlet_name)}${r.category ? ` <span style="font-size:10px;font-weight:400;color:var(--text-sec);margin-left:5px;">${esc(r.category)}</span>` : ''}</div>
           ${r.contact_name ? `<div class="card-sub">${esc(r.contact_name)}${r.contact_email ? ` · ${esc(r.contact_email)}` : ''}</div>` : ''}
         </div>
-        ${statusBadge(r.status)}
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
+          ${statusBadge(r.status)}
+          ${r.owner ? `<span style="font-size:10px;color:var(--text-sec);">${esc(r.owner)}</span>` : ''}
+        </div>
       </div>
-      ${r.reach ? `<div style="font-size:12px;color:var(--text-sec);margin-bottom:4px;">${esc(r.reach)}</div>` : ''}
+      ${r.reach ? `<div style="font-size:11px;color:var(--text-sec);margin-bottom:4px;">${esc(r.reach)}</div>` : ''}
+      ${r.conversation_stage ? `<div style="font-size:11px;font-weight:600;color:${stageCol};margin-bottom:4px;display:flex;align-items:center;gap:4px;"><span style="width:5px;height:5px;border-radius:50%;background:${stageCol};display:inline-block;"></span>${esc(r.conversation_stage)}</div>` : ''}
       ${r.next_action ? `<div class="next-action">${esc(r.next_action)}</div>` : ''}
-      <div class="card-footer">
-        <div style="display:flex;gap:10px;align-items:center;">
-          ${r.owner ? `<span class="card-owner">${esc(r.owner)}</span>` : ''}
-          ${r.follow_up_date ? `<span class="card-date ${isOverdue(r.follow_up_date)?'overdue':''}">${isOverdue(r.follow_up_date)?'Overdue · ':''}${fmtDate(r.follow_up_date)}</span>` : ''}
+      ${r.key_takeaways ? `<div style="font-size:11px;color:var(--text-sec);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.key_takeaways.slice(0,120))}${r.key_takeaways.length>120?'…':''}</div>` : ''}
+      <div class="card-footer" style="margin-top:10px;">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+          ${emailCount ? `<span style="font-size:10px;font-weight:600;color:var(--cyan);background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:4px;padding:1px 7px;">${emailCount} email${emailCount>1?'s':''} logged</span>` : ''}
+          ${fuOverdue ? `<span style="font-size:10px;font-weight:700;color:var(--danger);background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:4px;padding:1px 7px;">Follow-up overdue · ${fmtDate(r.next_follow_up_date)}</span>` : ''}
+          ${fuDue && !fuOverdue ? `<span style="font-size:10px;font-weight:600;color:var(--amber);background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:4px;padding:1px 7px;">Follow-up ${fmtDate(r.next_follow_up_date)}</span>` : ''}
+          ${r.last_email_date ? `<span style="font-size:10px;color:var(--text-sec);">Last email ${fmtDate(r.last_email_date)}</span>` : ''}
         </div>
         <div class="card-actions" onclick="event.stopPropagation()">
           ${r.instagram ? `<a href="https://instagram.com/${r.instagram.replace('@','')}" target="_blank" class="btn-icon"><i data-lucide="instagram"></i></a>` : ''}
           <button class="btn-icon danger" onclick="confirmDelete('growth_media','${r.id}',loadMedia)"><i data-lucide="trash-2"></i></button>
         </div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   lucide.createIcons();
 }
 
@@ -1386,7 +1508,8 @@ function openModal(type) {
   document.getElementById(type + 'Id').value = '';
   // Clear all fields
   document.getElementById(type + 'Modal').querySelectorAll('input:not([type=hidden]),select,textarea').forEach(el => { el.value = el.tagName === 'SELECT' ? el.options[0].value : ''; });
-  if (type === 'task') document.getElementById('tPriority').value = 'Medium';
+  if (type === 'task')  document.getElementById('tPriority').value = 'Medium';
+  if (type === 'media') { const s = document.getElementById('mConvSummary'); if (s) s.style.display = 'none'; }
 }
 
 function closeModal(type) {
@@ -1495,23 +1618,31 @@ async function saveMedia() {
   if (!name) { alert('Outlet name is required.'); return; }
   btn.disabled = true; btn.textContent = 'Saving…';
   const row = {
-    country:       currentCountry === 'ALL' ? 'UK' : currentCountry,
-    outlet_name:   name,
-    contact_name:  document.getElementById('mContactName').value.trim() || null,
-    contact_email: document.getElementById('mContactEmail').value.trim() || null,
-    instagram:     document.getElementById('mInstagram').value.trim() || null,
-    twitter:       document.getElementById('mTwitter').value.trim() || null,
-    category:      document.getElementById('mCategory').value || null,
-    reach:         document.getElementById('mReach').value.trim() || null,
-    status:        document.getElementById('mStatus').value,
-    owner:         document.getElementById('mOwner').value || null,
-    next_action:   document.getElementById('mNextAction').value.trim() || null,
-    follow_up_date:document.getElementById('mFollowUp').value || null,
-    notes:         document.getElementById('mNotes').value.trim() || null,
+    country:                currentCountry === 'ALL' ? 'UK' : currentCountry,
+    outlet_name:            name,
+    contact_name:           document.getElementById('mContactName').value.trim() || null,
+    contact_email:          document.getElementById('mContactEmail').value.trim() || null,
+    instagram:              document.getElementById('mInstagram').value.trim() || null,
+    twitter:                document.getElementById('mTwitter').value.trim() || null,
+    category:               document.getElementById('mCategory').value || null,
+    reach:                  document.getElementById('mReach').value.trim() || null,
+    status:                 document.getElementById('mStatus').value,
+    owner:                  document.getElementById('mOwner').value || null,
+    next_action:            document.getElementById('mNextAction').value.trim() || null,
+    follow_up_date:         document.getElementById('mFollowUp').value || null,
+    notes:                  document.getElementById('mNotes').value.trim() || null,
+    initial_outreach_email: document.getElementById('mOutreach').value.trim() || null,
+    contact_response:       document.getElementById('mResponse').value.trim() || null,
+    draft_or_sent_reply:    document.getElementById('mDraftReply').value.trim() || null,
+    key_takeaways:          document.getElementById('mKeyTakeaways').value.trim() || null,
+    conversation_stage:     document.getElementById('mConvStage').value || null,
+    last_email_date:        document.getElementById('mLastEmailDate').value || null,
+    next_follow_up_date:    document.getElementById('mNextFollowUp').value || null,
+    updated_at:             new Date().toISOString(),
   };
   if (id) await sb.from('growth_media').update(row).eq('id', id);
   else    await sb.from('growth_media').insert(row);
-  btn.disabled = false; btn.textContent = 'Save';
+  btn.disabled = false; btn.textContent = 'Save contact';
   closeModal('media');
   await loadMedia();
 }
@@ -1519,20 +1650,63 @@ async function saveMedia() {
 function editMedia(id) {
   const r = media.find(m => m.id === id); if (!r) return;
   document.getElementById('mediaModalTitle').textContent = 'Edit Media Contact';
-  document.getElementById('mediaId').value       = id;
-  document.getElementById('mName').value         = r.outlet_name || '';
-  document.getElementById('mContactName').value  = r.contact_name || '';
-  document.getElementById('mContactEmail').value = r.contact_email || '';
-  document.getElementById('mInstagram').value    = r.instagram || '';
-  document.getElementById('mTwitter').value      = r.twitter || '';
-  document.getElementById('mCategory').value     = r.category || '';
-  document.getElementById('mReach').value        = r.reach || '';
-  document.getElementById('mStatus').value       = r.status || 'Idea';
-  document.getElementById('mOwner').value        = r.owner || '';
-  document.getElementById('mNextAction').value   = r.next_action || '';
-  document.getElementById('mFollowUp').value     = r.follow_up_date || '';
-  document.getElementById('mNotes').value        = r.notes || '';
+  document.getElementById('mediaId').value              = id;
+  document.getElementById('mName').value                = r.outlet_name || '';
+  document.getElementById('mContactName').value         = r.contact_name || '';
+  document.getElementById('mContactEmail').value        = r.contact_email || '';
+  document.getElementById('mInstagram').value           = r.instagram || '';
+  document.getElementById('mTwitter').value             = r.twitter || '';
+  document.getElementById('mCategory').value            = r.category || '';
+  document.getElementById('mReach').value               = r.reach || '';
+  document.getElementById('mStatus').value              = r.status || 'Idea';
+  document.getElementById('mOwner').value               = r.owner || '';
+  document.getElementById('mNextAction').value          = r.next_action || '';
+  document.getElementById('mFollowUp').value            = r.follow_up_date || '';
+  document.getElementById('mNotes').value               = r.notes || '';
+  document.getElementById('mOutreach').value            = r.initial_outreach_email || '';
+  document.getElementById('mResponse').value            = r.contact_response || '';
+  document.getElementById('mDraftReply').value          = r.draft_or_sent_reply || '';
+  document.getElementById('mKeyTakeaways').value        = r.key_takeaways || '';
+  document.getElementById('mConvStage').value           = r.conversation_stage || '';
+  document.getElementById('mLastEmailDate').value       = r.last_email_date || '';
+  document.getElementById('mNextFollowUp').value        = r.next_follow_up_date || '';
+  // Conversation summary bar
+  const sum = document.getElementById('mConvSummary');
+  if (sum) {
+    sum.style.display = 'block';
+    document.getElementById('mSumStatus').textContent    = r.status || '—';
+    document.getElementById('mSumStage').textContent     = r.conversation_stage || '—';
+    document.getElementById('mSumLastEmail').textContent = r.last_email_date ? fmtDate(r.last_email_date) : '—';
+    document.getElementById('mSumFollowUp').textContent  = r.next_follow_up_date ? fmtDate(r.next_follow_up_date) : '—';
+    document.getElementById('mSumOwner').textContent     = r.owner || '—';
+  }
   document.getElementById('mediaModal').classList.add('open');
+}
+
+// Media quick actions
+function mCopyDraft() {
+  const txt = document.getElementById('mDraftReply').value;
+  if (!txt) { showToast('No draft reply to copy', 'error'); return; }
+  navigator.clipboard.writeText(txt).then(() => showToast('Draft reply copied to clipboard', 'success'));
+}
+function mMarkReplySent() {
+  document.getElementById('mConvStage').value = 'Reply sent';
+  document.getElementById('mStatus').value = 'In Discussion';
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('mLastEmailDate').value = today;
+  showToast('Marked as reply sent', 'success');
+}
+function mMarkFollowUp() {
+  document.getElementById('mConvStage').value = 'Follow-up required';
+  showToast('Marked as follow-up required', 'success');
+}
+function mClearConv() {
+  if (!confirm('Clear all conversation fields? This cannot be undone.')) return;
+  ['mOutreach','mResponse','mDraftReply','mKeyTakeaways'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('mConvStage').value = '';
+  document.getElementById('mLastEmailDate').value = '';
+  document.getElementById('mNextFollowUp').value = '';
+  showToast('Conversation fields cleared', 'success');
 }
 
 // ── Task save/edit ────────────────────────────────────────────────────
