@@ -186,7 +186,7 @@
       <span>SwimLoading</span>
     </div>
     <div class="auth-title">Growth Hub</div>
-    <div class="auth-sub">Founders only — sign in to continue.</div>
+    <div class="auth-sub">Founding Members only — sign in to continue.</div>
     <button class="btn-google" id="googleBtn" onclick="doGoogleLogin()">
       <svg width="18" height="18" viewBox="0 0 48 48" style="flex-shrink:0;"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
       Sign in with Google
@@ -208,7 +208,7 @@
   <div class="auth-box" style="text-align:center;">
     <div style="font-size:32px;margin-bottom:12px;">🔒</div>
     <div class="auth-title">Access denied</div>
-    <div class="auth-sub">This account is not a Growth Hub founder.</div>
+    <div class="auth-sub">This account is not a registered Founding Member.</div>
     <button onclick="sb.auth.signOut().then(()=>location.reload())" class="btn-cancel" style="margin-top:16px;width:100%;">Sign out</button>
   </div>
 </div>
@@ -373,7 +373,7 @@
     <div class="page-toolbar">
       <div>
         <div style="font-size:18px;font-weight:800;">Founding Member Registry</div>
-        <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">Global region map — active founding members and open positions</div>
+        <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">Global network of Founding Members supporting SwimLoading growth and community development.</div>
       </div>
       <button class="btn-add" onclick="openModal('founder')"><i data-lucide="user-plus"></i> Add founding member</button>
     </div>
@@ -1645,7 +1645,7 @@ let founders = [];
 // displayRole: shown in the Role column. DB role field is for access control only.
 const TARGET_REGIONS = [
   { code: 'ZA', name: 'South Africa',   flag: '🇿🇦', email: 'founders@swimloading.com',   displayRole: 'Founder & Platform Owner' },
-  { code: 'UK', name: 'United Kingdom', flag: '🇬🇧', email: 'uk@swimloading.com',          displayRole: 'Founding Member' },
+  { code: 'UK', name: 'United Kingdom', flag: '🇬🇧', email: 'uk@swimloading.com',          displayRole: 'UK Founding Member' },
   { code: 'AU', name: 'Australia',      flag: '🇦🇺', email: 'australia@swimloading.com',   displayRole: 'Founding Member' },
   { code: 'IE', name: 'Ireland',        flag: '🇮🇪', email: 'ireland@swimloading.com',     displayRole: 'Founding Member' },
   { code: 'US', name: 'United States',  flag: '🇺🇸', email: 'usa@swimloading.com',         displayRole: 'Founding Member' },
@@ -1696,7 +1696,7 @@ function renderFounders() {
           <tr style="border-bottom:1px solid var(--border);">
             <th style="text-align:left;padding:11px 16px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Region</th>
             <th style="text-align:left;padding:11px 16px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Role</th>
-            <th style="text-align:left;padding:11px 16px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Lead</th>
+            <th style="text-align:left;padding:11px 16px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Member</th>
             <th style="text-align:left;padding:11px 16px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Email</th>
             <th style="text-align:left;padding:11px 16px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Status</th>
             <th style="padding:11px 16px;"></th>
@@ -1742,7 +1742,7 @@ function renderFounders() {
               <td style="padding:13px 16px;text-align:right;">
                 ${f
                   ? `<button class="btn-icon" onclick="editFounder('${f.id}')"><i data-lucide="pencil"></i></button>`
-                  : `<button class="btn-icon" onclick="addFounderForRegion('${region.code}','${region.name}','${region.email}')"><i data-lucide="user-plus"></i> Assign</button>`}
+                  : `<button class="btn-icon" onclick="addFounderForRegion('${region.code}','${region.name}','${region.email}')"><i data-lucide="user-plus"></i> Assign Founding Member</button>`}
               </td>
             </tr>`;
           }).join('')}
@@ -1751,13 +1751,13 @@ function renderFounders() {
     </div>
 
     <div style="margin-top:16px;padding:14px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--text-sec);line-height:1.6;">
-      Founding Members support SwimLoading community growth, local engagement, clubs, events, swim spots and partnerships in their region. Founding Member status does not confer equity, ownership, employment, directorship, or financial entitlement. SwimLoading remains owned and operated by its founder and platform owner. See the <strong style="color:var(--text);">Founding Member Charter</strong> for full terms.
+      Founding Members are recognised community representatives who support SwimLoading growth within their region. Founding Member status does not confer ownership, equity, intellectual property rights, employment, directorship, financial entitlement, or decision-making authority over the SwimLoading platform. SwimLoading remains owned and operated by its Founder and Platform Owner.
     </div>`;
   lucide.createIcons();
 }
 
 function addFounderForRegion(code, name, email) {
-  document.getElementById('founderModalTitle').textContent = 'Assign ' + name + ' Founding Member';
+  document.getElementById('founderModalTitle').textContent = 'Assign Founding Member — ' + name;
   document.getElementById('founderId').value    = '';
   document.getElementById('fName').value        = '';
   document.getElementById('fEmail').value       = '';
