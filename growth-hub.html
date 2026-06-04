@@ -360,10 +360,13 @@
   <!-- FOUNDERS -->
   <div id="page-founders" class="page">
     <div class="page-toolbar">
-      <div style="font-size:14px;font-weight:600;">Founder Directory</div>
-      <button class="btn-add" onclick="openModal('founder')"><i data-lucide="plus"></i> Add founder</button>
+      <div>
+        <div style="font-size:18px;font-weight:800;">Founder Registry</div>
+        <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">Global region map — active founders and open positions</div>
+      </div>
+      <button class="btn-add" onclick="openModal('founder')"><i data-lucide="user-plus"></i> Add founder</button>
     </div>
-    <div id="foundersList" style="display:grid;gap:8px;max-width:720px;"><div class="spinner"></div></div>
+    <div id="foundersList" style="max-width:860px;"><div class="spinner"></div></div>
   </div>
 
 </div><!-- /app -->
@@ -635,7 +638,7 @@
 
 <!-- Founder modal -->
 <div class="modal-overlay" id="founderModal">
-<div class="modal" style="max-width:460px;">
+<div class="modal" style="max-width:480px;">
   <div class="modal-head">
     <div class="modal-title" id="founderModalTitle">Add Founder</div>
     <button class="modal-close" onclick="closeModal('founder')">&times;</button>
@@ -643,19 +646,22 @@
   <div class="modal-body">
     <input type="hidden" id="founderId">
     <div class="field-row">
-      <div class="field-group"><div class="field-label">Name *</div><input class="field-input" id="fName" placeholder="First name"></div>
-      <div class="field-group"><div class="field-label">Email *</div><input class="field-input" id="fEmail" type="email" placeholder="name@email.com"></div>
+      <div class="field-group"><div class="field-label">Full name *</div><input class="field-input" id="fName" placeholder="e.g. Lindi Mitchell"></div>
+      <div class="field-group"><div class="field-label">Login email *</div><input class="field-input" id="fEmail" type="email" placeholder="name@email.com"></div>
     </div>
     <div class="field-row">
-      <div class="field-group"><div class="field-label">Country</div>
+      <div class="field-group"><div class="field-label">Region</div>
         <select class="field-input" id="fCountry">
-          <option value="UK">🇬🇧 UK</option>
+          <option value="UK">🇬🇧 United Kingdom</option>
           <option value="ZA">🇿🇦 South Africa</option>
           <option value="AU">🇦🇺 Australia</option>
-          <option value="HR">🇭🇷 Croatia</option>
+          <option value="IE">🇮🇪 Ireland</option>
+          <option value="US">🇺🇸 United States</option>
           <option value="CH">🇨🇭 Switzerland</option>
           <option value="PT">🇵🇹 Portugal</option>
-          <option value="US">🇺🇸 USA</option>
+          <option value="HR">🇭🇷 Croatia</option>
+          <option value="NZ">🇳🇿 New Zealand</option>
+          <option value="FR">🇫🇷 France</option>
         </select>
       </div>
       <div class="field-group"><div class="field-label">Role</div>
@@ -664,6 +670,18 @@
           <option value="admin">Admin</option>
         </select>
       </div>
+    </div>
+    <div class="field-group">
+      <div class="field-label">Regional email</div>
+      <input class="field-input" id="fRegionalEmail" type="email" placeholder="e.g. uk@swimloading.com">
+      <div style="font-size:11px;color:var(--text-sec);margin-top:4px;">The @swimloading.com forwarding address for this region.</div>
+    </div>
+    <div class="field-group"><div class="field-label">Status</div>
+      <select class="field-input" id="fStatus">
+        <option value="Active">Active</option>
+        <option value="Onboarding">Onboarding</option>
+        <option value="Paused">Paused</option>
+      </select>
     </div>
   </div>
   <div class="modal-footer">
@@ -1598,6 +1616,20 @@ function copyCharter() {
 // ── FOUNDER DIRECTORY ─────────────────────────────────────────────────
 let founders = [];
 
+// Master region registry — edit this list to add/remove target regions
+const TARGET_REGIONS = [
+  { code: 'UK', name: 'United Kingdom',  flag: '🇬🇧', email: 'uk@swimloading.com'          },
+  { code: 'ZA', name: 'South Africa',    flag: '🇿🇦', email: 'za@swimloading.com'          },
+  { code: 'AU', name: 'Australia',       flag: '🇦🇺', email: 'australia@swimloading.com'   },
+  { code: 'IE', name: 'Ireland',         flag: '🇮🇪', email: 'ireland@swimloading.com'     },
+  { code: 'US', name: 'United States',   flag: '🇺🇸', email: 'usa@swimloading.com'         },
+  { code: 'CH', name: 'Switzerland',     flag: '🇨🇭', email: 'switzerland@swimloading.com' },
+  { code: 'PT', name: 'Portugal',        flag: '🇵🇹', email: 'portugal@swimloading.com'    },
+  { code: 'HR', name: 'Croatia',         flag: '🇭🇷', email: 'croatia@swimloading.com'     },
+  { code: 'NZ', name: 'New Zealand',     flag: '🇳🇿', email: 'nz@swimloading.com'          },
+  { code: 'FR', name: 'France',          flag: '🇫🇷', email: 'france@swimloading.com'      },
+];
+
 async function loadFounders() {
   const { data } = await sb.from('growth_founders').select('*').order('country').order('name');
   founders = data || [];
@@ -1606,33 +1638,93 @@ async function loadFounders() {
 
 function renderFounders() {
   const el = document.getElementById('foundersList');
-  if (!founders.length) { el.innerHTML = emptyState('users', 'No founders yet', 'Add founders to give them access to the Growth Hub.'); lucide.createIcons(); return; }
 
+  // Build lookup: country code → founder
   const byCountry = {};
-  founders.forEach(f => { if (!byCountry[f.country]) byCountry[f.country] = []; byCountry[f.country].push(f); });
+  founders.forEach(f => { byCountry[f.country] = f; });
 
-  el.innerHTML = Object.entries(byCountry).map(([country, rows]) => `
-    <div style="margin-bottom:4px;">
-      <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">${countryFlag(country)} ${countryName(country)}</div>
-      ${rows.map(f => `
-        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:13px 15px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;">
-          <div style="display:flex;align-items:center;gap:12px;">
-            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#38bdf8,#0284c7);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#080f1a;flex-shrink:0;">
-              ${(f.name||'?')[0].toUpperCase()}
-            </div>
-            <div>
-              <div style="font-size:14px;font-weight:700;">${esc(f.name||'—')}</div>
-              <div style="font-size:12px;color:var(--text-sec);">${esc(f.email)}</div>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span class="badge ${f.role==='admin'?'badge-confirmed':'badge-interested'}">${f.role}</span>
-            <button class="btn-icon" onclick="editFounder('${f.id}')"><i data-lucide="pencil"></i></button>
-            ${f.email !== currentUser.email ? `<button class="btn-icon danger" onclick="confirmDelete('growth_founders','${f.id}',loadFounders)"><i data-lucide="trash-2"></i></button>` : ''}
-          </div>
-        </div>`).join('')}
-    </div>`).join('');
+  const activeCount  = TARGET_REGIONS.filter(r => byCountry[r.code]).length;
+  const vacantCount  = TARGET_REGIONS.length - activeCount;
+
+  el.innerHTML = `
+    <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+      <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:12px 18px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:var(--green);">${activeCount}</div>
+        <div style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Active</div>
+      </div>
+      <div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:10px;padding:12px 18px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:var(--gold);">${vacantCount}</div>
+        <div style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Open</div>
+      </div>
+      <div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);border-radius:10px;padding:12px 18px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:var(--cyan);">${TARGET_REGIONS.length}</div>
+        <div style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Regions</div>
+      </div>
+    </div>
+
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border);">
+            <th style="text-align:left;padding:11px 16px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Region</th>
+            <th style="text-align:left;padding:11px 16px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Founder</th>
+            <th style="text-align:left;padding:11px 16px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Email</th>
+            <th style="text-align:left;padding:11px 16px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Status</th>
+            <th style="padding:11px 16px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${TARGET_REGIONS.map((region, i) => {
+            const f = byCountry[region.code];
+            const last = i === TARGET_REGIONS.length - 1;
+            return `<tr style="${last ? '' : 'border-bottom:1px solid var(--border);'}" class="founder-row" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background=''">
+              <td style="padding:13px 16px;">
+                <div style="display:flex;align-items:center;gap:9px;">
+                  <span style="font-size:20px;line-height:1;">${region.flag}</span>
+                  <span style="font-size:13px;font-weight:600;">${region.name}</span>
+                </div>
+              </td>
+              <td style="padding:13px 16px;">
+                ${f ? `<div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#38bdf8,#0284c7);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#080f1a;flex-shrink:0;">${(f.name||'?')[0].toUpperCase()}</div>
+                  <div>
+                    <div style="font-size:13px;font-weight:600;">${esc(f.name)}</div>
+                    <div style="font-size:11px;color:var(--text-sec);">${esc(f.email)}</div>
+                  </div>
+                </div>`
+                : `<span style="font-size:13px;color:var(--text-sec);font-style:italic;">Vacant</span>`}
+              </td>
+              <td style="padding:13px 16px;">
+                ${f?.regional_email
+                  ? `<span style="font-size:12px;color:var(--cyan);font-family:monospace;">${esc(f.regional_email)}</span>`
+                  : `<span style="font-size:12px;color:var(--text-sec);">—</span>`}
+              </td>
+              <td style="padding:13px 16px;">
+                ${f
+                  ? `<span class="badge badge-confirmed">Active</span>`
+                  : `<span class="badge badge-contacted">Open</span>`}
+              </td>
+              <td style="padding:13px 16px;text-align:right;">
+                ${f ? `<button class="btn-icon" onclick="editFounder('${f.id}')"><i data-lucide="pencil"></i></button>` : `<button class="btn-icon" onclick="addFounderForRegion('${region.code}','${region.name}','${region.email}')"><i data-lucide="user-plus"></i> Assign</button>`}
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
   lucide.createIcons();
+}
+
+function addFounderForRegion(code, name, email) {
+  document.getElementById('founderModalTitle').textContent = 'Assign ' + name + ' Founder';
+  document.getElementById('founderId').value    = '';
+  document.getElementById('fName').value        = '';
+  document.getElementById('fEmail').value       = '';
+  document.getElementById('fCountry').value     = code;
+  document.getElementById('fRole').value        = 'founder';
+  document.getElementById('fRegionalEmail').value = email;
+  document.getElementById('fStatus').value      = 'Active';
+  document.getElementById('founderModal').classList.add('open');
 }
 
 async function saveFounder() {
@@ -1642,7 +1734,13 @@ async function saveFounder() {
   const email = document.getElementById('fEmail').value.trim();
   if (!name || !email) { alert('Name and email are required.'); return; }
   btn.disabled = true; btn.textContent = 'Saving…';
-  const row = { name, email, country: document.getElementById('fCountry').value, role: document.getElementById('fRole').value };
+  const row = {
+    name, email,
+    country:        document.getElementById('fCountry').value,
+    role:           document.getElementById('fRole').value,
+    regional_email: document.getElementById('fRegionalEmail').value.trim() || null,
+    status:         document.getElementById('fStatus').value,
+  };
   if (id) await sb.from('growth_founders').update(row).eq('id', id);
   else    await sb.from('growth_founders').insert(row);
   btn.disabled = false; btn.textContent = 'Save';
@@ -1653,11 +1751,13 @@ async function saveFounder() {
 function editFounder(id) {
   const f = founders.find(x => x.id === id); if (!f) return;
   document.getElementById('founderModalTitle').textContent = 'Edit Founder';
-  document.getElementById('founderId').value  = id;
-  document.getElementById('fName').value      = f.name || '';
-  document.getElementById('fEmail').value     = f.email || '';
-  document.getElementById('fCountry').value   = f.country || 'UK';
-  document.getElementById('fRole').value      = f.role || 'founder';
+  document.getElementById('founderId').value        = id;
+  document.getElementById('fName').value            = f.name || '';
+  document.getElementById('fEmail').value           = f.email || '';
+  document.getElementById('fCountry').value         = f.country || 'UK';
+  document.getElementById('fRole').value            = f.role || 'founder';
+  document.getElementById('fRegionalEmail').value   = f.regional_email || '';
+  document.getElementById('fStatus').value          = f.status || 'Active';
   document.getElementById('founderModal').classList.add('open');
 }
 
