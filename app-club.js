@@ -1479,6 +1479,8 @@ async function saveTimeTrial(distance, stroke, course, rosterId, clubId) {
 async function renderOpenWaterClub(container, club, roster, membership) {
   const year = new Date().getFullYear();
 
+  const thirtyAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0,10);
+
   const queries = [
     supabaseClient
       .from('club_season_standings')
@@ -1513,14 +1515,53 @@ async function renderOpenWaterClub(container, club, roster, membership) {
           .eq('club_id', club.id)
           .order('time_seconds', { ascending: true })
       : Promise.resolve({ data: [] }),
+
+    // Squad sessions (timetable) for next session widget
+    roster?.squad_id
+      ? supabaseClient
+          .from('club_squad_sessions')
+          .select('day_of_week, start_time, end_time, coach_name')
+          .eq('squad_id', roster.squad_id)
+          .order('day_of_week')
+      : Promise.resolve({ data: [] }),
+
+    // My attendance (last 30 days)
+    roster?.id
+      ? supabaseClient
+          .from('club_attendance')
+          .select('status, created_at, session_id, club_sessions(session_date)')
+          .eq('roster_id', roster.id)
+          .gte('created_at', thirtyAgo + 'T00:00:00Z')
+      : Promise.resolve({ data: [] }),
+
+    // All sessions for this squad in last 30 days (for attendance %)
+    roster?.squad_id
+      ? supabaseClient
+          .from('club_sessions')
+          .select('id, session_date')
+          .eq('squad_id', roster.squad_id)
+          .gte('session_date', thirtyAgo)
+      : Promise.resolve({ data: [] }),
+
+    // Announcements
+    supabaseClient
+      .from('club_announcements')
+      .select('title, body, is_pinned, created_at')
+      .eq('club_id', club.id)
+      .order('is_pinned', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(3),
   ];
 
-  const [standingsRes, eventsRes, myTimesRes, allTimesRes] = await Promise.all(queries);
+  const [standingsRes, eventsRes, myTimesRes, allTimesRes, sessionsRes, attendanceRes, allSessionsRes, announcementsRes] = await Promise.all(queries);
 
   const showLeague = club.slug === 'duc' || (standingsRes.data || []).length > 0;
   container.innerHTML =
     renderClubHero(club, roster, membership) +
+    renderNextSession(sessionsRes.data || [], roster) +
+    renderAttendanceStreak(attendanceRes.data || [], allSessionsRes.data || []) +
     renderMyTimeTrialResults(myTimesRes.data || [], allTimesRes.data || [], roster) +
+    renderClubAnnouncements(announcementsRes.data || []) +
     (showLeague ? renderMyStandings(standingsRes.data || [], year) : '') +
     renderUpcomingEvents(eventsRes.data || [], club) +
     (showLeague ? renderFullLeaderboardLink(club) : '');
@@ -1528,10 +1569,146 @@ async function renderOpenWaterClub(container, club, roster, membership) {
   lucide.createIcons();
 }
 
+// ─── Next Session Countdown ──────────────────────────────────────────────────
+
+function renderNextSession(sessions, roster) {
+  if (!sessions.length) return '';
+
+  const now = new Date();
+  const nowDay = now.getDay(); // 0=Sun
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  // Find the next upcoming session
+  let best = null;
+  let bestDaysAhead = 999;
+
+  for (const s of sessions) {
+    const sMins = parseInt(s.start_time.split(':')[0]) * 60 + parseInt(s.start_time.split(':')[1]);
+    let daysAhead = s.day_of_week - nowDay;
+    if (daysAhead < 0) daysAhead += 7;
+    if (daysAhead === 0 && sMins <= nowMins) daysAhead = 7; // already passed today
+    if (daysAhead < bestDaysAhead) {
+      bestDaysAhead = daysAhead;
+      best = { ...s, daysAhead, startMins: sMins };
+    }
+  }
+
+  if (!best) return '';
+
+  const sessionDate = new Date(now);
+  sessionDate.setDate(sessionDate.getDate() + best.daysAhead);
+  const isToday = best.daysAhead === 0;
+  const isTomorrow = best.daysAhead === 1;
+  const dayLabel = isToday ? 'Today' : isTomorrow ? 'Tomorrow' : dayNames[best.day_of_week];
+  const timeLabel = best.start_time.slice(0,5);
+
+  // Calculate hours until
+  const sessionTime = new Date(sessionDate);
+  sessionTime.setHours(parseInt(best.start_time.split(':')[0]), parseInt(best.start_time.split(':')[1]), 0);
+  const hoursUntil = Math.max(0, Math.round((sessionTime - now) / 3600000));
+  const countdownText = isToday ? `In ${hoursUntil}h`
+    : isTomorrow ? `In ${hoursUntil}h`
+    : `In ${best.daysAhead} day${best.daysAhead > 1 ? 's' : ''}`;
+
+  const pulseColor = isToday ? 'var(--green)' : isTomorrow ? 'var(--cyan)' : 'var(--text-secondary)';
+
+  return `
+  <div class="card" style="margin-bottom:12px;border-left:3px solid ${pulseColor};">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:${pulseColor};text-transform:uppercase;letter-spacing:0.1em;">Next Session</div>
+        <div style="font-size:17px;font-weight:800;color:var(--text);margin-top:2px;">${dayLabel} · ${timeLabel}</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Camps Bay Primary · Coach ${best.coach_name || 'Britt'}</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:24px;font-weight:900;color:${pulseColor};font-family:'Bebas Neue',sans-serif;line-height:1;">${countdownText}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ─── Attendance Streak ───────────────────────────────────────────────────────
+
+function renderAttendanceStreak(attendance, allSessions) {
+  if (!allSessions.length) return '';
+
+  const attended = attendance.filter(a => a.status === 'present').length;
+  const total = allSessions.length;
+  const pct = total > 0 ? Math.round((attended / total) * 100) : 0;
+
+  // Calculate current streak (consecutive sessions attended, most recent first)
+  const attendedDates = new Set(
+    attendance.filter(a => a.status === 'present')
+      .map(a => a.club_sessions?.session_date)
+      .filter(Boolean)
+  );
+  const sortedSessions = [...allSessions].sort((a,b) => b.session_date.localeCompare(a.session_date));
+  let streak = 0;
+  for (const s of sortedSessions) {
+    if (attendedDates.has(s.session_date)) streak++;
+    else break;
+  }
+
+  const barColor = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--cyan)' : pct >= 25 ? 'var(--amber)' : 'var(--danger)';
+  const streakEmoji = streak >= 10 ? '' : streak >= 5 ? '' : '';
+
+  return `
+  <div class="card" style="margin-bottom:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.1em;">Attendance · Last 30 Days</div>
+        <div style="display:flex;align-items:baseline;gap:10px;margin-top:4px;">
+          <span style="font-size:28px;font-weight:900;color:${barColor};font-family:'Bebas Neue',sans-serif;line-height:1;">${pct}%</span>
+          <span style="font-size:12px;color:var(--text-secondary);">${attended} of ${total} sessions</span>
+        </div>
+      </div>
+      ${streak > 0 ? `
+      <div style="text-align:center;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:10px;padding:6px 14px;">
+        <div style="font-size:20px;font-weight:900;color:var(--cyan);font-family:'Bebas Neue',sans-serif;line-height:1;">${streak}${streakEmoji}</div>
+        <div style="font-size:9px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;">streak</div>
+      </div>` : ''}
+    </div>
+    <div style="margin-top:10px;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+      <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width 0.4s;"></div>
+    </div>
+  </div>`;
+}
+
+// ─── Club Announcements ──────────────────────────────────────────────────────
+
+function renderClubAnnouncements(announcements) {
+  if (!announcements.length) return '';
+
+  return `
+  <div style="margin-bottom:12px;">
+    ${announcements.map(a => {
+      const age = getTimeAgo ? getTimeAgo(new Date(a.created_at)) : '';
+      return `
+      <div class="card" style="margin-bottom:8px;${a.is_pinned ? 'border-left:3px solid var(--amber);' : ''}">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+          ${a.is_pinned ? '<i data-lucide="pin" style="width:11px;height:11px;color:var(--amber);"></i>' : '<i data-lucide="megaphone" style="width:11px;height:11px;color:var(--text-secondary);"></i>'}
+          <span style="font-size:13px;font-weight:700;color:var(--text);">${a.title || 'Announcement'}</span>
+          <span style="font-size:10px;color:var(--text-secondary);margin-left:auto;">${age}</span>
+        </div>
+        ${a.body ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.6;white-space:pre-line;">${a.body}</div>` : ''}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
 // ─── My Time Trial Results ───────────────────────────────────────────────────
 
 function renderMyTimeTrialResults(myTimes, allTimes, roster) {
   if (!myTimes.length) return '';
+
+  // Build progression map: event → [{ time_seconds, time_text, meet_date, meet_name }, ...] sorted oldest first
+  const progression = {};
+  myTimes.forEach(t => {
+    if (!progression[t.event]) progression[t.event] = [];
+    progression[t.event].push(t);
+  });
+  Object.values(progression).forEach(arr => arr.sort((a,b) => (a.meet_date||'').localeCompare(b.meet_date||'')));
 
   // Group by meet
   const meets = {};
@@ -1541,7 +1718,10 @@ function renderMyTimeTrialResults(myTimes, allTimes, roster) {
     meets[key].times.push(t);
   });
 
-  return Object.values(meets).map(meet => {
+  // Sort meets newest first
+  const sortedMeets = Object.values(meets).sort((a,b) => (b.date||'').localeCompare(a.date||''));
+
+  return sortedMeets.map(meet => {
     const dateStr = meet.date
       ? new Date(meet.date + 'T00:00:00').toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })
       : '';
@@ -1558,6 +1738,22 @@ function renderMyTimeTrialResults(myTimes, allTimes, roster) {
       // Colour by rank position
       const rankColor = rank === 1 ? 'var(--gold, #fbbf24)' : rank === 2 ? '#c0c0c0' : rank === 3 ? '#cd7f32' : 'var(--cyan)';
 
+      // Progression: compare to previous attempt at same event
+      let progressHtml = '';
+      const eventHist = progression[t.event] || [];
+      const thisIdx = eventHist.findIndex(h => h.meet_date === meet.date && h.time_seconds === t.time_seconds);
+      if (thisIdx > 0) {
+        const prev = eventHist[thisIdx - 1];
+        const diff = prev.time_seconds - t.time_seconds;
+        if (diff > 0) {
+          progressHtml = `<div style="font-size:10px;font-weight:700;color:var(--green);margin-top:1px;">-${diff}s faster</div>`;
+        } else if (diff < 0) {
+          progressHtml = `<div style="font-size:10px;font-weight:700;color:var(--amber);margin-top:1px;">+${Math.abs(diff)}s slower</div>`;
+        } else {
+          progressHtml = `<div style="font-size:10px;font-weight:600;color:var(--text-secondary);margin-top:1px;">same time</div>`;
+        }
+      }
+
       return `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
         <div style="flex:1;">
@@ -1568,9 +1764,10 @@ function renderMyTimeTrialResults(myTimes, allTimes, roster) {
           <div style="font-size:22px;font-weight:900;color:${rankColor};font-family:'Bebas Neue',sans-serif;line-height:1;">${rank || '—'}</div>
           <div style="font-size:9px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;">of ${total}</div>
         </div>
-        <div style="text-align:right;min-width:60px;">
+        <div style="text-align:right;min-width:70px;">
           <div style="font-size:18px;font-weight:800;color:var(--text);">${t.time_text}</div>
           ${t.is_pb ? '<div style="font-size:9px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.08em;">PB</div>' : ''}
+          ${progressHtml}
         </div>
       </div>`;
     }).join('');
