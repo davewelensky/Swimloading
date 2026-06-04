@@ -1496,11 +1496,12 @@ async function renderOpenWaterClub(container, club, roster, membership) {
       .limit(5),
   ]);
 
+  const showLeague = club.slug === 'duc' || (standingsRes.data || []).length > 0;
   container.innerHTML =
     renderClubHero(club, roster, membership) +
-    renderMyStandings(standingsRes.data || [], year) +
+    (showLeague ? renderMyStandings(standingsRes.data || [], year) : '') +
     renderUpcomingEvents(eventsRes.data || [], club) +
-    renderFullLeaderboardLink(club);
+    (showLeague ? renderFullLeaderboardLink(club) : '');
 
   lucide.createIcons();
 }
