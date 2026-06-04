@@ -15,8 +15,8 @@ export default async function handler(req, res) {
   else if (endpoint === 'swimmer' && id)        path = `/swimmers/${id}`;
   else return res.status(400).json({ error: 'Invalid endpoint' });
 
-  const key = process.env.DUCS_API_KEY;
-  if (!key) return res.status(500).json({ error: 'DUCS_API_KEY not configured' });
+  const key = process.env.DUCS_API_KEY?.trim();
+  if (!key) return res.status(500).json({ error: 'DUCS_API_KEY not configured', debug: { keyLength: 0 } });
 
   const upstream = await fetch(DUCS_BASE + path, {
     headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
@@ -24,7 +24,10 @@ export default async function handler(req, res) {
   });
 
   if (!upstream.ok) {
-    return res.status(upstream.status).json({ error: `Upstream error ${upstream.status}` });
+    return res.status(upstream.status).json({
+      error: `Upstream error ${upstream.status}`,
+      debug: { keyLength: key.length, keyPrefix: key.slice(0, 8) },
+    });
   }
 
   const data = await upstream.json();
