@@ -501,20 +501,7 @@
       <!-- 4. Locations -->
       <div class="mi-section" id="mi-locations">
         <div class="mi-section-title"><i data-lucide="map-pin" style="width:15px;height:15px;"></i> Locations &amp; Spot Directory</div>
-
-        <div class="mi-subsection-title">Regional Pages</div>
-        <div class="mi-table">
-          <div class="mi-tr mi-th"><span>Region</span><span>Purpose</span><span></span></div>
-          <div class="mi-tr"><span class="mi-name">United Kingdom</span><span class="mi-purpose">UK swim spot directory</span><a href="https://www.swimloading.com/spots/united-kingdom" target="_blank" class="mi-link">Open <i data-lucide="external-link" style="width:11px;height:11px;"></i></a></div>
-          <div class="mi-tr"><span class="mi-name">Atlantic Seaboard</span><span class="mi-purpose">Atlantic Seaboard swim spots and temperatures</span><a href="https://www.swimloading.com/spots/atlantic" target="_blank" class="mi-link">Open <i data-lucide="external-link" style="width:11px;height:11px;"></i></a></div>
-        </div>
-
-        <div class="mi-subsection-title" style="margin-top:14px;">UK Lidos</div>
-        <div class="mi-table">
-          <div class="mi-tr mi-th"><span>Lido</span><span>Purpose</span><span></span></div>
-          <div class="mi-tr"><span class="mi-name">Tooting Bec Lido</span><span class="mi-purpose">UK lido spot page</span><a href="https://www.swimloading.com/spots/tooting-bec-lido" target="_blank" class="mi-link">Open <i data-lucide="external-link" style="width:11px;height:11px;"></i></a></div>
-          <div class="mi-tr"><span class="mi-name">Brockwell Lido</span><span class="mi-purpose">UK lido spot page</span><a href="https://www.swimloading.com/spots/brockwell-lido" target="_blank" class="mi-link">Open <i data-lucide="external-link" style="width:11px;height:11px;"></i></a></div>
-        </div>
+        <div id="mi-locations-content"><div class="spinner"></div></div>
       </div>
 
       <!-- 5. Community Features -->
@@ -1144,9 +1131,79 @@ function switchTab(tab, btn) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   if (btn) btn.classList.add('active');
   document.getElementById('page-' + tab).classList.add('active');
-  if (tab === 'dashboard') renderDashboard();
-  if (tab === 'charter')   renderCharter();
-  if (tab === 'founders')  renderFounders();
+  if (tab === 'dashboard')   renderDashboard();
+  if (tab === 'charter')     renderCharter();
+  if (tab === 'founders')    renderFounders();
+  if (tab === 'masterindex') loadMasterIndexLocations();
+}
+
+// ── MASTER INDEX — Locations (dynamic) ───────────────────────────────
+const DOMAIN_SLUG_MAP = {
+  ATLANTIC:'atlantic', FALSE_BAY:'false-bay', WEST_COAST:'west-coast',
+  GARDEN_ROUTE:'garden-route', KZN:'kwazulu-natal', EASTERN_CAPE:'eastern-cape',
+  SOUTH_COAST:'south-coast', INLAND:'inland', GAUTENG:'gauteng',
+  FREE_STATE:'free-state', NAMIBIA:'namibia', UK:'united-kingdom',
+  EUROPE:'europe', WESTERN_AUSTRALIA:'western-australia', USA:'san-francisco',
+  SEYCHELLES:'seychelles', DALMATIA:'dalmatia', NON_COASTAL:'inland',
+};
+
+let _miLocationsLoaded = false;
+async function loadMasterIndexLocations() {
+  if (_miLocationsLoaded) return;
+  _miLocationsLoaded = true;
+  const el = document.getElementById('mi-locations-content');
+  if (!el) return;
+
+  const [domainsRes, spotsRes] = await Promise.all([
+    sb.from('domains').select('code, display_name, sort_order').order('sort_order'),
+    sb.from('spots').select('id, name, domain').order('name'),
+  ]);
+
+  const domains = domainsRes.data || [];
+  const spots   = spotsRes.data   || [];
+
+  // Domain rows
+  const domainRows = domains.map(d => {
+    const slug = DOMAIN_SLUG_MAP[d.code];
+    const count = spots.filter(s => s.domain === d.code).length;
+    const url = slug ? `https://www.swimloading.com/spots/${slug}` : null;
+    return `<div class="mi-tr">
+      <span class="mi-name">${d.display_name || d.code}</span>
+      <span class="mi-purpose">${count} spot${count !== 1 ? 's' : ''}</span>
+      ${url ? `<a href="${url}" target="_blank" class="mi-link">Open <i data-lucide="external-link" style="width:11px;height:11px;"></i></a>` : '<span></span>'}
+    </div>`;
+  }).join('');
+
+  // Spot search box + full list
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;">Regional Pages (${domains.length})</div>
+      <a href="https://www.swimloading.com/spots" target="_blank" class="mi-link" style="font-size:12px;">All spots directory <i data-lucide="external-link" style="width:11px;height:11px;"></i></a>
+    </div>
+    <div class="mi-table" style="margin-bottom:20px;">
+      <div class="mi-tr mi-th"><span>Region</span><span>Spots</span><span></span></div>
+      ${domainRows}
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">Individual Spot Pages (${spots.length})</div>
+    <input id="miSpotSearch" class="search-input" placeholder="Search spots..." oninput="filterMiSpots(this.value)" style="margin-bottom:10px;max-width:320px;">
+    <div class="mi-table" id="miSpotTable">
+      <div class="mi-tr mi-th"><span>Spot</span><span>Region</span><span></span></div>
+      ${spots.map(s => {
+        const slug = s.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+        const dom  = domains.find(d => d.code === s.domain);
+        return `<div class="mi-tr mi-spot-row" data-name="${s.name.toLowerCase()}">
+          <span class="mi-name">${s.name}</span>
+          <span class="mi-purpose">${dom?.display_name || s.domain}</span>
+          <a href="https://www.swimloading.com/spots/${slug}" target="_blank" class="mi-link">Open <i data-lucide="external-link" style="width:11px;height:11px;"></i></a>
+        </div>`;
+      }).join('')}
+    </div>`;
+  lucide.createIcons();
+}
+
+function filterMiSpots(q) {
+  const rows = document.querySelectorAll('.mi-spot-row');
+  rows.forEach(r => r.style.display = r.dataset.name.includes(q.toLowerCase()) ? '' : 'none');
 }
 
 // ── SPONSORS render ───────────────────────────────────────────────────
