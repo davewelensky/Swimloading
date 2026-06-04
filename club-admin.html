@@ -516,6 +516,9 @@
       <button class="nav-item" onclick="showPage('league')" id="nav-league" style="display:none;">
         <i data-lucide="trophy"></i> League
       </button>
+      <button class="nav-item" onclick="showPage('results')" id="nav-results" style="display:none;">
+        <i data-lucide="timer"></i> Results
+      </button>
       <button class="nav-item" onclick="showPage('attendance')" id="nav-attendance">
         <i data-lucide="clipboard-check"></i> Attendance
       </button>
@@ -753,6 +756,15 @@
           </div>
         </div>
         <div id="challengesContent"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+
+      <!-- ── RESULTS ── -->
+      <div id="page-results" class="page">
+        <div class="page-header">
+          <div class="page-title">Results</div>
+          <div class="page-sub">Time trials and race results for club members.</div>
+        </div>
+        <div id="resultsContent"><div class="loading"><div class="spinner"></div></div></div>
       </div>
 
       <!-- ── TEMP CHALLENGE ── -->
@@ -2006,6 +2018,7 @@ async function loadClubContext() {
 
   document.getElementById('nav-league').style.display           = hasLeague        ? '' : 'none';
   document.getElementById('nav-tempchallenge').style.display    = hasTempChallenge ? '' : 'none';
+  document.getElementById('nav-results').style.display          = hasTempChallenge ? '' : 'none';
   document.getElementById('nav-challenges').style.display       = hasChallenges    ? '' : 'none';
   document.getElementById('nav-tracker').style.display          = hasSquads        ? '' : 'none';
   document.getElementById('nav-sets').style.display             = hasSquads        ? '' : 'none';
@@ -2089,6 +2102,7 @@ function showPage(name) {
   if (name === 'entries')       loadGalaPage();
   if (name === 'league')        renderLeague();
   if (name === 'tempchallenge') loadTempChallenge();
+  if (name === 'results')       loadTimeTrialResults();
   if (name === 'challenges')   loadChallengesPage();
   if (name === 'groups')       loadGroupsPage();
   if (name === 'attendance')    loadAttendance();
@@ -4713,17 +4727,15 @@ async function loadTempChallenge() {
     </div>
     <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px;">By Category</div>
     ${catCards}`}
-    <div id="timeTrialSection"></div>`;
-
-  // Load time trial results for this club
-  loadTimeTrialResults();
+    `;
 
   lucide.createIcons();
 }
 
 async function loadTimeTrialResults() {
-  const el = document.getElementById('timeTrialSection');
+  const el = document.getElementById('resultsContent');
   if (!el || !currentClub) return;
+  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
   const { data: times } = await sb
     .from('club_swimmer_times')
@@ -4732,7 +4744,11 @@ async function loadTimeTrialResults() {
     .order('meet_date', { ascending: false })
     .order('time_seconds', { ascending: true });
 
-  if (!times || times.length === 0) return;
+  if (!times || times.length === 0) {
+    el.innerHTML = `<div class="empty"><i data-lucide="timer"></i><div class="empty-title">No results yet</div><div class="empty-desc">Time trial results will appear here once uploaded.</div></div>`;
+    lucide.createIcons();
+    return;
+  }
 
   // Group by meet_name + meet_date
   const meets = {};
@@ -4767,9 +4783,7 @@ async function loadTimeTrialResults() {
     </div>`;
   }).join('');
 
-  el.innerHTML = `
-    <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin:24px 0 12px;">Time Trial Results</div>
-    ${sections}`;
+  el.innerHTML = sections;
   lucide.createIcons();
 }
 
