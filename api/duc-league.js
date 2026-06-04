@@ -4,7 +4,7 @@
 // GET /api/duc-league?endpoint=swimmer&id=273
 // Proxy to ducs.co.za API — keeps the key off the client.
 
-const DUCS_BASE = 'https://ducs.co.za/api/v1';
+const DUCS_BASE = 'https://www.ducs.co.za/api/v1';
 
 export default async function handler(req, res) {
   const { endpoint, id } = req.query;
