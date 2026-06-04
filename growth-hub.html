@@ -242,6 +242,9 @@
     <button class="tab" onclick="switchTab('ideas',this)">
       Ideas
     </button>
+    <button class="tab" onclick="switchTab('templates',this)">
+      Templates
+    </button>
   </div>
 
   <!-- SPONSORS -->
@@ -314,6 +317,21 @@
       </button>
     </div>
     <div id="tasksList" style="display:grid;gap:8px;"><div class="spinner"></div></div>
+  </div>
+
+  <!-- TEMPLATES -->
+  <div id="page-templates" class="page">
+    <div class="page-toolbar">
+      <input type="search" class="search-input" placeholder="Search templates…" oninput="renderTemplates()" id="templateSearch">
+      <select class="filter-select" id="templateCategory" onchange="renderTemplates()">
+        <option value="">All categories</option>
+        <option>Sponsor</option><option>Club</option><option>Media</option><option>General</option>
+      </select>
+      <button class="btn-add" onclick="openModal('template')">
+        <i data-lucide="plus"></i> Add template
+      </button>
+    </div>
+    <div id="templatesList" class="card-grid"><div class="spinner"></div></div>
   </div>
 
   <!-- IDEAS -->
@@ -552,6 +570,48 @@
 </div>
 </div>
 
+<!-- Template modal -->
+<div class="modal-overlay" id="templateModal">
+<div class="modal" style="max-width:640px;">
+  <div class="modal-head">
+    <div class="modal-title" id="templateModalTitle">Add Template</div>
+    <button class="modal-close" onclick="closeModal('template')">&times;</button>
+  </div>
+  <div class="modal-body">
+    <input type="hidden" id="templateId">
+    <div class="field-row">
+      <div class="field-group"><div class="field-label">Template name *</div><input class="field-input" id="tmplTitle" placeholder="e.g. Sponsor intro — goggles brand"></div>
+      <div class="field-group"><div class="field-label">Category</div>
+        <select class="field-input" id="tmplCategory">
+          <option>Sponsor</option><option>Club</option><option>Media</option><option>General</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-group"><div class="field-label">Subject line</div><input class="field-input" id="tmplSubject" placeholder="e.g. SwimLoading — UK partnership opportunity"></div>
+    <div class="field-group">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="field-label">Email body</div>
+        <button onclick="copyTemplate()" style="background:transparent;border:1px solid var(--border);color:var(--text-sec);border-radius:6px;font-family:inherit;font-size:11px;padding:3px 10px;cursor:pointer;display:flex;align-items:center;gap:4px;" id="copyBtn">
+          <i data-lucide="copy" style="width:11px;height:11px;"></i> Copy
+        </button>
+      </div>
+      <textarea class="field-input field-textarea" id="tmplBody" style="min-height:240px;font-family:inherit;font-size:13px;line-height:1.6;" placeholder="Paste your email template here. Use [Name], [Brand], [Club] etc. as placeholders."></textarea>
+    </div>
+    <div class="field-group"><div class="field-label">Notes / when to use</div><textarea class="field-input field-textarea" id="tmplNotes" style="min-height:60px;" placeholder="e.g. Use for first contact with nutrition brands. Personalise paragraph 2."></textarea></div>
+    <div class="field-group"><div class="field-label">Owner</div>
+      <select class="field-input" id="tmplOwner">
+        <option value="">— either —</option>
+        <option>Dave</option><option>Lindi</option>
+      </select>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn-cancel" onclick="closeModal('template')">Cancel</button>
+    <button class="btn-save" id="templateSaveBtn" onclick="saveTemplate()">Save</button>
+  </div>
+</div>
+</div>
+
 <!-- Delete confirm -->
 <div class="confirm-overlay" id="confirmOverlay">
   <div class="confirm-box">
@@ -571,7 +631,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = null;
 let currentCountry = localStorage.getItem('gh_country') || 'UK';
-let sponsors = [], clubs = [], media = [], tasks = [], ideas = [];
+let sponsors = [], clubs = [], media = [], tasks = [], ideas = [], templates = [];
 
 // ── Boot ─────────────────────────────────────────────────────────────
 async function boot() {
@@ -650,7 +710,7 @@ function countryFilter(q) {
 
 // ── Load all ──────────────────────────────────────────────────────────
 async function loadAll() {
-  await Promise.all([loadSponsors(), loadClubs(), loadMedia(), loadTasks(), loadIdeas()]);
+  await Promise.all([loadSponsors(), loadClubs(), loadMedia(), loadTasks(), loadIdeas(), loadTemplates()]);
 }
 
 async function loadSponsors() {
@@ -699,6 +759,12 @@ function fmtDate(d) {
 function isOverdue(d) {
   if (!d) return false;
   return new Date(d + 'T00:00:00') < new Date(new Date().toDateString());
+}
+
+async function loadTemplates() {
+  const { data } = await countryFilter(sb.from('growth_templates').select('*')).order('category').order('title');
+  templates = data || [];
+  renderTemplates();
 }
 
 // ── Tab switching ─────────────────────────────────────────────────────
@@ -1104,6 +1170,108 @@ function editIdea(id) {
   document.getElementById('iTags').value   = r.tags || '';
   document.getElementById('iOwner').value  = r.owner || '';
   document.getElementById('ideaModal').classList.add('open');
+}
+
+// ── TEMPLATES render/save/edit ────────────────────────────────────────
+const CAT_COLOR = { Sponsor: '#38bdf8', Club: '#10b981', Media: '#a78bfa', General: '#f59e0b' };
+
+function renderTemplates() {
+  const q   = (document.getElementById('templateSearch').value || '').toLowerCase();
+  const cat = document.getElementById('templateCategory').value;
+  const rows = templates.filter(r =>
+    (!q || [r.title, r.subject, r.body, r.notes].join(' ').toLowerCase().includes(q)) &&
+    (!cat || r.category === cat)
+  );
+  const el = document.getElementById('templatesList');
+  if (!rows.length) { el.innerHTML = emptyState('mail', 'No templates yet', 'Add your best outreach emails so Lindi can use them too.'); lucide.createIcons(); return; }
+
+  // Group by category
+  const bycat = {};
+  rows.forEach(r => { if (!bycat[r.category]) bycat[r.category] = []; bycat[r.category].push(r); });
+
+  el.innerHTML = Object.entries(bycat).map(([cat, items]) => `
+    <div style="margin-bottom:6px;">
+      <div style="font-size:10px;font-weight:700;color:${CAT_COLOR[cat]||'var(--text-sec)'};text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">${cat}</div>
+      ${items.map(r => `
+        <div class="card" style="margin-bottom:8px;" onclick="openTemplateView('${r.id}')">
+          <div class="card-header">
+            <div>
+              <div class="card-name">${esc(r.title)}</div>
+              ${r.subject ? `<div class="card-sub" style="margin-top:2px;">Subject: ${esc(r.subject)}</div>` : ''}
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;" onclick="event.stopPropagation()">
+              ${r.owner ? `<span class="card-owner">${esc(r.owner)}</span>` : ''}
+              <button class="btn-icon" onclick="event.stopPropagation();copyToClipboard(templates.find(t=>t.id==='${r.id}').body,'${r.id}')"><i data-lucide="copy"></i> Copy</button>
+              <button class="btn-icon" onclick="event.stopPropagation();editTemplate('${r.id}')"><i data-lucide="pencil"></i></button>
+              <button class="btn-icon danger" onclick="event.stopPropagation();confirmDelete('growth_templates','${r.id}',loadTemplates)"><i data-lucide="trash-2"></i></button>
+            </div>
+          </div>
+          ${r.body ? `<div style="font-size:12px;color:var(--text-sec);line-height:1.5;margin-top:4px;white-space:pre-wrap;max-height:80px;overflow:hidden;mask-image:linear-gradient(to bottom,#fff 60%,transparent);">${esc(r.body)}</div>` : ''}
+          ${r.notes ? `<div style="margin-top:8px;font-size:11px;color:var(--text-sec);background:rgba(255,255,255,0.03);border-radius:5px;padding:4px 8px;">${esc(r.notes)}</div>` : ''}
+        </div>`).join('')}
+    </div>`).join('');
+  lucide.createIcons();
+}
+
+function openTemplateView(id) {
+  const r = templates.find(t => t.id === id); if (!r) return;
+  editTemplate(id);
+}
+
+function copyToClipboard(text, id) {
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector(`[onclick*="copyToClipboard"][onclick*="${id}"]`);
+    if (btn) { btn.innerHTML = '<i data-lucide="check"></i> Copied!'; btn.style.color='var(--green)'; setTimeout(()=>{ btn.innerHTML='<i data-lucide="copy"></i> Copy'; btn.style.color=''; lucide.createIcons(); }, 2000); lucide.createIcons(); }
+  });
+}
+
+function copyTemplate() {
+  const body = document.getElementById('tmplBody').value;
+  if (!body) return;
+  navigator.clipboard.writeText(body).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.innerHTML = '<i data-lucide="check" style="width:11px;height:11px;"></i> Copied!';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => { btn.innerHTML = '<i data-lucide="copy" style="width:11px;height:11px;"></i> Copy'; btn.style.color = ''; lucide.createIcons(); }, 2000);
+    lucide.createIcons();
+  });
+}
+
+async function saveTemplate() {
+  const id  = document.getElementById('templateId').value;
+  const btn = document.getElementById('templateSaveBtn');
+  const title = document.getElementById('tmplTitle').value.trim();
+  if (!title) { alert('Template name is required.'); return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const row = {
+    country:  currentCountry === 'ALL' ? 'UK' : currentCountry,
+    title,
+    category: document.getElementById('tmplCategory').value,
+    subject:  document.getElementById('tmplSubject').value.trim() || null,
+    body:     document.getElementById('tmplBody').value.trim() || null,
+    notes:    document.getElementById('tmplNotes').value.trim() || null,
+    owner:    document.getElementById('tmplOwner').value || null,
+  };
+  if (id) await sb.from('growth_templates').update(row).eq('id', id);
+  else    await sb.from('growth_templates').insert(row);
+  btn.disabled = false; btn.textContent = 'Save';
+  closeModal('template');
+  await loadTemplates();
+}
+
+function editTemplate(id) {
+  const r = templates.find(t => t.id === id); if (!r) return;
+  document.getElementById('templateModalTitle').textContent = 'Edit Template';
+  document.getElementById('templateId').value    = id;
+  document.getElementById('tmplTitle').value     = r.title || '';
+  document.getElementById('tmplCategory').value  = r.category || 'Sponsor';
+  document.getElementById('tmplSubject').value   = r.subject || '';
+  document.getElementById('tmplBody').value      = r.body || '';
+  document.getElementById('tmplNotes').value     = r.notes || '';
+  document.getElementById('tmplOwner').value     = r.owner || '';
+  document.getElementById('templateModal').classList.add('open');
+  lucide.createIcons();
 }
 
 // ── Delete confirm ────────────────────────────────────────────────────
