@@ -1019,7 +1019,7 @@
         <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
           <div>
             <div class="page-title">Squad Tracker</div>
-            <div class="page-sub">Swimmer progress — galas attended, PBs and qualifying time matrix</div>
+            <div class="page-sub" id="trackerPageSub">Swimmer progress — galas attended, PBs and qualifying time matrix</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <div class="matrix-toggle">
@@ -3263,6 +3263,17 @@ async function loadSquadTracker() {
   const el = document.getElementById('trackerContent');
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
+  // Hide QT/gala features for non-swim clubs (K8, DUC etc)
+  const isCompetitiveClub = currentClub?.club_type === 'swim_club';
+  window._trackerIsCompetitive = isCompetitiveClub;
+  document.getElementById('trackerViewMatrix').style.display     = isCompetitiveClub ? '' : 'none';
+  document.getElementById('trackerViewPipeline').style.display   = isCompetitiveClub ? '' : 'none';
+  document.getElementById('matrixCourseFilter').style.display    = 'none';
+  document.getElementById('champsYearFilter').style.display      = 'none';
+  document.getElementById('trackerPageSub').textContent          = isCompetitiveClub
+    ? 'Swimmer progress — galas attended, PBs and qualifying time matrix'
+    : 'Squad membership and session groups';
+
   // Fetch roster + both time tables + attendance in parallel
   const clubId = currentClub.id;
   const [rosterRes, swimTimesRes, galaTimesRes, attendRes] = await Promise.all([
@@ -3417,11 +3428,11 @@ function renderTrackerGrid(swimmers) {
 
     const allEvents = Object.values(byEvent);
 
-    // QT lookup for this swimmer — cards use today's age group
+    // QT lookup for this swimmer — cards use today's age group (swim clubs only)
     const ssaAg = _ssaAgeGroup(s.date_of_birth);
     const ssaG  = s.gender ? _ssaGender(s.gender) : null;
-    const hasQt = !!(ssaAg && ssaG);
-    const ageUp = _ageUpWarning(s.date_of_birth);
+    const hasQt = !!(ssaAg && ssaG) && !!window._trackerIsCompetitive;
+    const ageUp = window._trackerIsCompetitive ? _ageUpWarning(s.date_of_birth) : null;
 
     // Sort by best QT level achieved so the card surface shows the most notable events
     if (hasQt) {
