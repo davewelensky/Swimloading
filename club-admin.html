@@ -1554,7 +1554,7 @@
         <input type="text" class="form-input" id="newRosterCat" placeholder="e.g. Level 2, SANJ">
       </div>
     </div>
-    <div class="form-row">
+    <div class="form-row" id="rosterSchoolSasaRow">
       <div class="form-group">
         <div class="form-label">School</div>
         <input type="text" class="form-input" id="newRosterSchool" placeholder="e.g. Camps Bay Primary">
@@ -1605,7 +1605,7 @@
     <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin:20px 0 12px;border-top:1px solid var(--border);padding-top:16px;" id="guardian2Header">
       Second Guardian / Parent <span style="font-weight:400;text-transform:none;font-size:11px;color:var(--text-dim);">optional</span>
     </div>
-    <div class="form-row">
+    <div class="form-row" id="guardianG2Row">
       <div class="form-group" style="flex:2;">
         <div class="form-label">Name</div>
         <input type="text" class="form-input" id="newG2Name" placeholder="e.g. John Smith">
@@ -7001,6 +7001,13 @@ function openRosterEditModal(id) {
     o.textContent = s.name;
     if (s.id === r.squad_id) o.selected = true;
     sel.appendChild(o);
+  });
+
+  // Hide youth/parent fields for non-swim-club (K8, DUC are adult open water clubs)
+  const showYouthFields = !!window._clubFeatures?.hasParentLanguage;
+  ['rosterSchoolSasaRow','guardianSection','guardianG1Row','guardian2Header','guardianG2Row'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = showYouthFields ? '' : 'none';
   });
 
   document.getElementById('rosterEditModal').classList.add('open');
