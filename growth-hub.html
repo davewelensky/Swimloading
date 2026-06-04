@@ -227,28 +227,24 @@
   </div>
 
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('sponsors',this)">
-      Sponsors
-    </button>
-    <button class="tab" onclick="switchTab('clubs',this)">
-      Clubs
-    </button>
-    <button class="tab" onclick="switchTab('media',this)">
-      Media
-    </button>
-    <button class="tab" onclick="switchTab('tasks',this)">
-      Tasks
-    </button>
-    <button class="tab" onclick="switchTab('ideas',this)">
-      Ideas
-    </button>
-    <button class="tab" onclick="switchTab('templates',this)">
-      Templates
-    </button>
+    <button class="tab active" onclick="switchTab('dashboard',this)">Dashboard</button>
+    <button class="tab" onclick="switchTab('sponsors',this)">Sponsors</button>
+    <button class="tab" onclick="switchTab('clubs',this)">Clubs</button>
+    <button class="tab" onclick="switchTab('media',this)">Media</button>
+    <button class="tab" onclick="switchTab('tasks',this)">Tasks</button>
+    <button class="tab" onclick="switchTab('ideas',this)">Ideas</button>
+    <button class="tab" onclick="switchTab('templates',this)">Templates</button>
+    <button class="tab" onclick="switchTab('charter',this)">Charter</button>
+    <button class="tab" onclick="switchTab('founders',this)">Founders</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page active">
+    <div id="dashContent"><div class="spinner"></div></div>
   </div>
 
   <!-- SPONSORS -->
-  <div id="page-sponsors" class="page active">
+  <div id="page-sponsors" class="page">
     <div class="page-toolbar">
       <input type="search" class="search-input" placeholder="Search sponsors…" oninput="renderSponsors()" id="sponsorSearch">
       <select class="filter-select" id="sponsorStatus" onchange="renderSponsors()">
@@ -343,6 +339,31 @@
       </button>
     </div>
     <div id="ideasList" class="card-grid"><div class="spinner"></div></div>
+  </div>
+
+  <!-- CHARTER -->
+  <div id="page-charter" class="page">
+    <div style="max-width:720px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:24px;">
+        <div>
+          <div style="font-size:22px;font-weight:800;letter-spacing:-0.3px;">Founding Member Charter</div>
+          <div style="font-size:13px;color:var(--text-sec);margin-top:3px;">SwimLoading · Last updated June 2026</div>
+        </div>
+        <button onclick="copyCharter()" style="background:transparent;border:1px solid var(--border);color:var(--text-sec);border-radius:8px;font-family:inherit;font-size:12px;padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          <i data-lucide="copy" style="width:13px;height:13px;"></i> Copy full charter
+        </button>
+      </div>
+      <div id="charterDoc" style="line-height:1.8;color:var(--text);"></div>
+    </div>
+  </div>
+
+  <!-- FOUNDERS -->
+  <div id="page-founders" class="page">
+    <div class="page-toolbar">
+      <div style="font-size:14px;font-weight:600;">Founder Directory</div>
+      <button class="btn-add" onclick="openModal('founder')"><i data-lucide="plus"></i> Add founder</button>
+    </div>
+    <div id="foundersList" style="display:grid;gap:8px;max-width:720px;"><div class="spinner"></div></div>
   </div>
 
 </div><!-- /app -->
@@ -612,6 +633,46 @@
 </div>
 </div>
 
+<!-- Founder modal -->
+<div class="modal-overlay" id="founderModal">
+<div class="modal" style="max-width:460px;">
+  <div class="modal-head">
+    <div class="modal-title" id="founderModalTitle">Add Founder</div>
+    <button class="modal-close" onclick="closeModal('founder')">&times;</button>
+  </div>
+  <div class="modal-body">
+    <input type="hidden" id="founderId">
+    <div class="field-row">
+      <div class="field-group"><div class="field-label">Name *</div><input class="field-input" id="fName" placeholder="First name"></div>
+      <div class="field-group"><div class="field-label">Email *</div><input class="field-input" id="fEmail" type="email" placeholder="name@email.com"></div>
+    </div>
+    <div class="field-row">
+      <div class="field-group"><div class="field-label">Country</div>
+        <select class="field-input" id="fCountry">
+          <option value="UK">🇬🇧 UK</option>
+          <option value="ZA">🇿🇦 South Africa</option>
+          <option value="AU">🇦🇺 Australia</option>
+          <option value="HR">🇭🇷 Croatia</option>
+          <option value="CH">🇨🇭 Switzerland</option>
+          <option value="PT">🇵🇹 Portugal</option>
+          <option value="US">🇺🇸 USA</option>
+        </select>
+      </div>
+      <div class="field-group"><div class="field-label">Role</div>
+        <select class="field-input" id="fRole">
+          <option value="founder">Founder</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn-cancel" onclick="closeModal('founder')">Cancel</button>
+    <button class="btn-save" id="founderSaveBtn" onclick="saveFounder()">Save</button>
+  </div>
+</div>
+</div>
+
 <!-- Delete confirm -->
 <div class="confirm-overlay" id="confirmOverlay">
   <div class="confirm-box">
@@ -698,10 +759,13 @@ function launchApp() {
 }
 
 // ── Country ───────────────────────────────────────────────────────────
-function onCountryChange() {
+async function onCountryChange() {
   currentCountry = document.getElementById('countryPicker').value;
   localStorage.setItem('gh_country', currentCountry);
-  loadAll();
+  await loadAll();
+  // Re-render whichever tab is currently active
+  const active = document.querySelector('.page.active');
+  if (active?.id === 'page-dashboard') renderDashboard();
 }
 
 function countryFilter(q) {
@@ -710,7 +774,9 @@ function countryFilter(q) {
 
 // ── Load all ──────────────────────────────────────────────────────────
 async function loadAll() {
-  await Promise.all([loadSponsors(), loadClubs(), loadMedia(), loadTasks(), loadIdeas(), loadTemplates()]);
+  await Promise.all([loadSponsors(), loadClubs(), loadMedia(), loadTasks(), loadIdeas(), loadTemplates(), loadFounders()]);
+  renderDashboard();
+  renderCharter();
 }
 
 async function loadSponsors() {
@@ -771,8 +837,11 @@ async function loadTemplates() {
 function switchTab(tab, btn) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
+  if (btn) btn.classList.add('active');
   document.getElementById('page-' + tab).classList.add('active');
+  if (tab === 'dashboard') renderDashboard();
+  if (tab === 'charter')   renderCharter();
+  if (tab === 'founders')  renderFounders();
 }
 
 // ── SPONSORS render ───────────────────────────────────────────────────
@@ -1283,6 +1352,313 @@ function confirmDelete(table, id, reloadFn) {
     overlay.classList.remove('open');
     await reloadFn();
   };
+}
+
+// ── DASHBOARD ────────────────────────────────────────────────────────
+function renderDashboard() {
+  const today = new Date().toISOString().slice(0,10);
+  const country = currentCountry === 'ALL' ? '' : currentCountry;
+
+  const totalSponsors  = sponsors.length;
+  const confirmed      = sponsors.filter(s => s.status === 'Confirmed').length;
+  const inDiscussion   = sponsors.filter(s => s.status === 'In Discussion' || s.status === 'Interested').length;
+  const totalClubs     = clubs.length;
+  const totalTasks     = tasks.length;
+  const openTasks      = tasks.filter(t => t.status !== 'Done').length;
+  const doneTasks      = tasks.filter(t => t.status === 'Done').length;
+
+  const overdueSponsors = sponsors.filter(s => s.follow_up_date && s.follow_up_date < today && s.status !== 'Confirmed' && s.status !== 'Not Now');
+  const overdueMedia    = media.filter(m => m.follow_up_date && m.follow_up_date < today);
+  const overdueTasks    = tasks.filter(t => t.due_date && t.due_date < today && t.status !== 'Done');
+  const upcomingTasks   = tasks.filter(t => t.due_date && t.due_date >= today && t.status !== 'Done').sort((a,b) => a.due_date.localeCompare(b.due_date)).slice(0,5);
+
+  const statCard = (icon, value, label, color) =>
+    `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:14px;">
+      <div style="width:40px;height:40px;border-radius:10px;background:${color}18;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i data-lucide="${icon}" style="width:20px;height:20px;color:${color};"></i>
+      </div>
+      <div>
+        <div style="font-size:26px;font-weight:800;line-height:1;">${value}</div>
+        <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${label}</div>
+      </div>
+    </div>`;
+
+  const overdueRow = (icon, name, date, tabName) =>
+    `<div onclick="switchTab('${tabName}',document.querySelector('[onclick*=\\'${tabName}\\']'))" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.15);border-radius:8px;cursor:pointer;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+        <i data-lucide="${icon}" style="width:13px;height:13px;color:var(--danger);flex-shrink:0;"></i>
+        <span style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(name)}</span>
+      </div>
+      <span style="font-size:11px;color:#fca5a5;white-space:nowrap;">${fmtDate(date)}</span>
+    </div>`;
+
+  const taskRow = t =>
+    `<div onclick="editTask('${t.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;cursor:pointer;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+        ${statusBadge(t.priority)}
+        <span style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(t.task_title)}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        ${t.assigned_to ? `<span style="font-size:11px;color:var(--text-sec);">${esc(t.assigned_to)}</span>` : ''}
+        <span style="font-size:11px;color:var(--text-sec);">${fmtDate(t.due_date)}</span>
+      </div>
+    </div>`;
+
+  const allOverdue = [
+    ...overdueSponsors.map(s => ({icon:'package', name:s.sponsor_name, date:s.follow_up_date, tab:'sponsors'})),
+    ...overdueMedia.map(m => ({icon:'radio', name:m.outlet_name, date:m.follow_up_date, tab:'media'})),
+    ...overdueTasks.map(t => ({icon:'check-square', name:t.task_title, date:t.due_date, tab:'tasks'})),
+  ].sort((a,b) => a.date.localeCompare(b.date));
+
+  document.getElementById('dashContent').innerHTML = `
+    <div style="max-width:900px;">
+      <div style="font-size:18px;font-weight:800;margin-bottom:16px;">
+        ${country ? `${countryFlag(country)} ${countryName(country)}` : '🌍 All regions'} overview
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:28px;">
+        ${statCard('package', totalSponsors, `sponsor${totalSponsors!==1?'s':''} · ${confirmed} confirmed`, '#38bdf8')}
+        ${statCard('trending-up', inDiscussion, 'in pipeline', '#a78bfa')}
+        ${statCard('users', totalClubs, `club${totalClubs!==1?'s':''} tracked`, '#10b981')}
+        ${statCard('check-square', openTasks, `open task${openTasks!==1?'s':''} · ${doneTasks} done`, '#f59e0b')}
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--danger);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;display:flex;align-items:center;gap:5px;">
+            <i data-lucide="alert-circle" style="width:12px;height:12px;"></i>
+            Overdue follow-ups ${allOverdue.length ? `(${allOverdue.length})` : ''}
+          </div>
+          <div style="display:grid;gap:6px;">
+            ${allOverdue.length ? allOverdue.slice(0,8).map(o => overdueRow(o.icon, o.name, o.date, o.tab)).join('') : '<div style="font-size:13px;color:var(--text-sec);padding:12px 0;">Nothing overdue.</div>'}
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;display:flex;align-items:center;gap:5px;">
+            <i data-lucide="clock" style="width:12px;height:12px;"></i>
+            Upcoming tasks
+          </div>
+          <div style="display:grid;gap:6px;">
+            ${upcomingTasks.length ? upcomingTasks.map(taskRow).join('') : '<div style="font-size:13px;color:var(--text-sec);padding:12px 0;">No upcoming tasks.</div>'}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  lucide.createIcons();
+}
+
+function countryFlag(c) { return {UK:'🇬🇧',ZA:'🇿🇦',AU:'🇦🇺',HR:'🇭🇷',CH:'🇨🇭',PT:'🇵🇹',US:'🇺🇸'}[c]||'🌍'; }
+function countryName(c) { return {UK:'United Kingdom',ZA:'South Africa',AU:'Australia',HR:'Croatia',CH:'Switzerland',PT:'Portugal',US:'USA'}[c]||c; }
+
+// ── CHARTER ───────────────────────────────────────────────────────────
+const CHARTER_TEXT = `# SwimLoading Founding Member Charter
+
+## Purpose
+
+The SwimLoading Founding Member Programme exists to grow and strengthen the global SwimLoading community through local leadership, swimmer engagement, club development, event participation, and partnership opportunities.
+
+Founding Members help represent SwimLoading within their region and contribute to the ongoing development of the platform and community.
+
+---
+
+## Vision
+
+To build the world's most connected open water swimming community, helping swimmers discover locations, track conditions, connect with others, and participate in meaningful challenges and events.
+
+---
+
+## Role of a Founding Member
+
+A Founding Member acts as a regional ambassador and community leader for SwimLoading.
+
+The role focuses on:
+
+- Community growth
+- Club engagement
+- Swim spot development
+- Event participation
+- Partnership opportunities
+- Product feedback
+
+---
+
+## Responsibilities
+
+### Community Development
+
+- Introduce swimmers to SwimLoading.
+- Promote the platform within local swimming communities.
+- Support the onboarding of clubs and groups.
+- Encourage participation in SwimLoading challenges and events.
+
+### Swim Spot Development
+
+- Identify and validate swim locations.
+- Suggest improvements or corrections to existing locations.
+- Contribute local knowledge and content.
+
+### Events
+
+- Identify local events suitable for listing on SwimLoading.
+- Build relationships with event organisers.
+- Promote events through local networks.
+
+### Partnerships
+
+- Introduce potential sponsors, clubs, coaches, brands, and strategic partners.
+- Support partnership discussions where appropriate.
+- Provide local market insight.
+
+### Product Feedback
+
+- Share feedback from local swimmers.
+- Recommend new features and improvements.
+- Help ensure SwimLoading remains relevant to regional communities.
+
+---
+
+## Recognition
+
+Founding Members will be recognised on the SwimLoading platform and within community communications.
+
+Regional identities such as:
+
+- uk@swimloading.com
+- australia@swimloading.com
+- switzerland@swimloading.com
+
+may be assigned to support regional activities.
+
+These identities remain the property of SwimLoading.
+
+---
+
+## Expectations
+
+Founding Members are expected to:
+
+- Act professionally and respectfully.
+- Represent SwimLoading positively.
+- Maintain regular communication.
+- Support community growth initiatives.
+- Respect member privacy and confidentiality.
+
+---
+
+## Ownership and Equity
+
+Founding Member status does not confer:
+
+- Equity ownership
+- Shareholding rights
+- Intellectual property ownership
+- Directorship
+- Employment status
+- Financial entitlement
+
+Any future commercial, employment, or ownership arrangements must be agreed separately in writing.
+
+---
+
+## Appointment and Review
+
+Founding Member appointments are voluntary and may be reviewed periodically.
+
+Either SwimLoading or the Founding Member may end the arrangement at any time.
+
+Regional email identities, platform access, and associated resources remain the property of SwimLoading.
+
+---
+
+## Guiding Principle
+
+Help more swimmers discover great places to swim, connect with each other, and enjoy open water safely and confidently.`;
+
+function renderCharter() {
+  // Convert markdown-ish to HTML
+  const html = CHARTER_TEXT
+    .replace(/^# (.+)$/gm, '<h1 style="font-size:24px;font-weight:800;margin-bottom:6px;letter-spacing:-0.3px;">$1</h1>')
+    .replace(/^## (.+)$/gm, '<h2 style="font-size:17px;font-weight:700;color:var(--cyan);margin:28px 0 10px;padding-top:20px;border-top:1px solid var(--border);">$1</h2>')
+    .replace(/^### (.+)$/gm, '<h3 style="font-size:14px;font-weight:700;color:var(--text);margin:18px 0 8px;">$1</h3>')
+    .replace(/^---$/gm, '')
+    .replace(/^- (.+)$/gm, '<li style="margin-bottom:4px;color:var(--text-sec);">$1</li>')
+    .replace(/(<li[^>]*>.*<\/li>\n?)+/g, m => `<ul style="padding-left:20px;margin:8px 0;display:grid;gap:2px;">${m}</ul>`)
+    .replace(/^(?!<[hul])(.+)$/gm, p => p.trim() ? `<p style="color:var(--text-sec);line-height:1.7;margin-bottom:8px;">${p}</p>` : '')
+    .trim();
+  document.getElementById('charterDoc').innerHTML = html;
+}
+
+function copyCharter() {
+  navigator.clipboard.writeText(CHARTER_TEXT).then(() => {
+    const btn = document.querySelector('[onclick="copyCharter()"]');
+    if (btn) { btn.innerHTML = '<i data-lucide="check" style="width:13px;height:13px;"></i> Copied!'; btn.style.color='var(--green)'; setTimeout(()=>{ btn.innerHTML='<i data-lucide="copy" style="width:13px;height:13px;"></i> Copy full charter'; btn.style.color=''; lucide.createIcons(); },2000); lucide.createIcons(); }
+  });
+}
+
+// ── FOUNDER DIRECTORY ─────────────────────────────────────────────────
+let founders = [];
+
+async function loadFounders() {
+  const { data } = await sb.from('growth_founders').select('*').order('country').order('name');
+  founders = data || [];
+  renderFounders();
+}
+
+function renderFounders() {
+  const el = document.getElementById('foundersList');
+  if (!founders.length) { el.innerHTML = emptyState('users', 'No founders yet', 'Add founders to give them access to the Growth Hub.'); lucide.createIcons(); return; }
+
+  const byCountry = {};
+  founders.forEach(f => { if (!byCountry[f.country]) byCountry[f.country] = []; byCountry[f.country].push(f); });
+
+  el.innerHTML = Object.entries(byCountry).map(([country, rows]) => `
+    <div style="margin-bottom:4px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">${countryFlag(country)} ${countryName(country)}</div>
+      ${rows.map(f => `
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:13px 15px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#38bdf8,#0284c7);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#080f1a;flex-shrink:0;">
+              ${(f.name||'?')[0].toUpperCase()}
+            </div>
+            <div>
+              <div style="font-size:14px;font-weight:700;">${esc(f.name||'—')}</div>
+              <div style="font-size:12px;color:var(--text-sec);">${esc(f.email)}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="badge ${f.role==='admin'?'badge-confirmed':'badge-interested'}">${f.role}</span>
+            <button class="btn-icon" onclick="editFounder('${f.id}')"><i data-lucide="pencil"></i></button>
+            ${f.email !== currentUser.email ? `<button class="btn-icon danger" onclick="confirmDelete('growth_founders','${f.id}',loadFounders)"><i data-lucide="trash-2"></i></button>` : ''}
+          </div>
+        </div>`).join('')}
+    </div>`).join('');
+  lucide.createIcons();
+}
+
+async function saveFounder() {
+  const id  = document.getElementById('founderId').value;
+  const btn = document.getElementById('founderSaveBtn');
+  const name  = document.getElementById('fName').value.trim();
+  const email = document.getElementById('fEmail').value.trim();
+  if (!name || !email) { alert('Name and email are required.'); return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const row = { name, email, country: document.getElementById('fCountry').value, role: document.getElementById('fRole').value };
+  if (id) await sb.from('growth_founders').update(row).eq('id', id);
+  else    await sb.from('growth_founders').insert(row);
+  btn.disabled = false; btn.textContent = 'Save';
+  closeModal('founder');
+  await loadFounders();
+}
+
+function editFounder(id) {
+  const f = founders.find(x => x.id === id); if (!f) return;
+  document.getElementById('founderModalTitle').textContent = 'Edit Founder';
+  document.getElementById('founderId').value  = id;
+  document.getElementById('fName').value      = f.name || '';
+  document.getElementById('fEmail').value     = f.email || '';
+  document.getElementById('fCountry').value   = f.country || 'UK';
+  document.getElementById('fRole').value      = f.role || 'founder';
+  document.getElementById('founderModal').classList.add('open');
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────
