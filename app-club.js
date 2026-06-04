@@ -1479,7 +1479,7 @@ async function saveTimeTrial(distance, stroke, course, rosterId, clubId) {
 async function renderOpenWaterClub(container, club, roster, membership) {
   const year = new Date().getFullYear();
 
-  const [standingsRes, eventsRes] = await Promise.all([
+  const queries = [
     supabaseClient
       .from('club_season_standings')
       .select('course, position, total_points, top10_points, swims_count, jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec')
@@ -1494,16 +1494,98 @@ async function renderOpenWaterClub(container, club, roster, membership) {
       .gte('event_date', new Date().toISOString().slice(0,10))
       .order('event_date')
       .limit(5),
-  ]);
+
+    // My time trial results
+    roster?.id
+      ? supabaseClient
+          .from('club_swimmer_times')
+          .select('event, course, time_text, time_seconds, meet_name, meet_date, is_pb')
+          .eq('club_id', club.id)
+          .eq('roster_id', roster.id)
+          .order('meet_date', { ascending: false })
+      : Promise.resolve({ data: [] }),
+
+    // All results for meets I've participated in (for ranking)
+    roster?.id
+      ? supabaseClient
+          .from('club_swimmer_times')
+          .select('roster_id, event, time_seconds, meet_name, meet_date, club_roster(display_name)')
+          .eq('club_id', club.id)
+          .order('time_seconds', { ascending: true })
+      : Promise.resolve({ data: [] }),
+  ];
+
+  const [standingsRes, eventsRes, myTimesRes, allTimesRes] = await Promise.all(queries);
 
   const showLeague = club.slug === 'duc' || (standingsRes.data || []).length > 0;
   container.innerHTML =
     renderClubHero(club, roster, membership) +
+    renderMyTimeTrialResults(myTimesRes.data || [], allTimesRes.data || [], roster) +
     (showLeague ? renderMyStandings(standingsRes.data || [], year) : '') +
     renderUpcomingEvents(eventsRes.data || [], club) +
     (showLeague ? renderFullLeaderboardLink(club) : '');
 
   lucide.createIcons();
+}
+
+// ─── My Time Trial Results ───────────────────────────────────────────────────
+
+function renderMyTimeTrialResults(myTimes, allTimes, roster) {
+  if (!myTimes.length) return '';
+
+  // Group by meet
+  const meets = {};
+  myTimes.forEach(t => {
+    const key = `${t.meet_name}|${t.meet_date}`;
+    if (!meets[key]) meets[key] = { name: t.meet_name, date: t.meet_date, times: [] };
+    meets[key].times.push(t);
+  });
+
+  return Object.values(meets).map(meet => {
+    const dateStr = meet.date
+      ? new Date(meet.date + 'T00:00:00').toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })
+      : '';
+
+    const rows = meet.times.map(t => {
+      // Find rank among all swimmers for this event at this meet
+      const eventResults = allTimes
+        .filter(a => a.meet_name === meet.name && a.meet_date === meet.date && a.event === t.event)
+        .sort((a, b) => a.time_seconds - b.time_seconds);
+      const rank = eventResults.findIndex(a => a.roster_id === roster?.id) + 1;
+      const total = eventResults.length;
+      const eventLabel = (t.event || '').replace(/_/g, ' ');
+
+      // Colour by rank position
+      const rankColor = rank === 1 ? 'var(--gold, #fbbf24)' : rank === 2 ? '#c0c0c0' : rank === 3 ? '#cd7f32' : 'var(--cyan)';
+
+      return `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);">${eventLabel}</div>
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:1px;">${dateStr}</div>
+        </div>
+        <div style="text-align:center;min-width:60px;">
+          <div style="font-size:22px;font-weight:900;color:${rankColor};font-family:'Bebas Neue',sans-serif;line-height:1;">${rank || '—'}</div>
+          <div style="font-size:9px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;">of ${total}</div>
+        </div>
+        <div style="text-align:right;min-width:60px;">
+          <div style="font-size:18px;font-weight:800;color:var(--text);">${t.time_text}</div>
+          ${t.is_pb ? '<div style="font-size:9px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.08em;">PB</div>' : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+    return `
+    <div class="card" style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;">Time Trial</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text);">${meet.name}</div>
+        </div>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
 }
 
 // ─── Shared Hero ───────────────────────────────────────────────────────────────
