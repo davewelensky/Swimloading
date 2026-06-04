@@ -34,7 +34,7 @@ async function loadUserClubs() {
           .in('id', clubIds),
         supabaseClient
           .from('club_roster')
-          .select('id, member_number, display_name, category, gender, date_of_birth')
+          .select('id, member_number, display_name, category, gender, date_of_birth, squad_id')
           .in('id', rows.map(r => r.roster_id).filter(Boolean)),
       ]);
 
