@@ -246,7 +246,7 @@
     <button class="tab" onclick="switchTab('ideas',this)">Ideas</button>
     <button class="tab" onclick="switchTab('templates',this)">Templates</button>
     <button class="tab" onclick="switchTab('charter',this)">Charter</button>
-    <button class="tab" onclick="switchTab('founders',this)">Founders</button>
+    <button class="tab" onclick="switchTab('founders',this)">Regional Leads</button>
   </div>
 
   <!-- DASHBOARD -->
@@ -368,16 +368,16 @@
     </div>
   </div>
 
-  <!-- FOUNDERS -->
+  <!-- REGIONAL LEADS -->
   <div id="page-founders" class="page">
     <div class="page-toolbar">
       <div>
-        <div style="font-size:18px;font-weight:800;">Founder Registry</div>
-        <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">Global region map — active founders and open positions</div>
+        <div style="font-size:18px;font-weight:800;">Regional Lead Registry</div>
+        <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">Global region map — active regional leads and open positions</div>
       </div>
-      <button class="btn-add" onclick="openModal('founder')"><i data-lucide="user-plus"></i> Add founder</button>
+      <button class="btn-add" onclick="openModal('founder')"><i data-lucide="user-plus"></i> Add regional lead</button>
     </div>
-    <div id="foundersList" style="max-width:860px;"><div class="spinner"></div></div>
+    <div id="foundersList" style="max-width:920px;"><div class="spinner"></div></div>
   </div>
 
 </div><!-- /app -->
@@ -647,11 +647,11 @@
 </div>
 </div>
 
-<!-- Founder modal -->
+<!-- Regional Lead modal -->
 <div class="modal-overlay" id="founderModal">
 <div class="modal" style="max-width:480px;">
   <div class="modal-head">
-    <div class="modal-title" id="founderModalTitle">Add Founder</div>
+    <div class="modal-title" id="founderModalTitle">Add Regional Lead</div>
     <button class="modal-close" onclick="closeModal('founder')">&times;</button>
   </div>
   <div class="modal-body">
@@ -1642,17 +1642,18 @@ function copyCharter() {
 let founders = [];
 
 // Master region registry — edit this list to add/remove target regions
+// displayRole: shown in the Role column. DB role field is for access control only.
 const TARGET_REGIONS = [
-  { code: 'UK', name: 'United Kingdom',  flag: '🇬🇧', email: 'uk@swimloading.com'          },
-  { code: 'ZA', name: 'South Africa',    flag: '🇿🇦', email: 'za@swimloading.com'          },
-  { code: 'AU', name: 'Australia',       flag: '🇦🇺', email: 'australia@swimloading.com'   },
-  { code: 'IE', name: 'Ireland',         flag: '🇮🇪', email: 'ireland@swimloading.com'     },
-  { code: 'US', name: 'United States',   flag: '🇺🇸', email: 'usa@swimloading.com'         },
-  { code: 'CH', name: 'Switzerland',     flag: '🇨🇭', email: 'switzerland@swimloading.com' },
-  { code: 'PT', name: 'Portugal',        flag: '🇵🇹', email: 'portugal@swimloading.com'    },
-  { code: 'HR', name: 'Croatia',         flag: '🇭🇷', email: 'croatia@swimloading.com'     },
-  { code: 'NZ', name: 'New Zealand',     flag: '🇳🇿', email: 'nz@swimloading.com'          },
-  { code: 'FR', name: 'France',          flag: '🇫🇷', email: 'france@swimloading.com'      },
+  { code: 'ZA', name: 'South Africa',   flag: '🇿🇦', email: 'founders@swimloading.com',   displayRole: 'Founder & Platform Owner' },
+  { code: 'UK', name: 'United Kingdom', flag: '🇬🇧', email: 'uk@swimloading.com',          displayRole: 'Regional Lead' },
+  { code: 'AU', name: 'Australia',      flag: '🇦🇺', email: 'australia@swimloading.com',   displayRole: 'Regional Lead' },
+  { code: 'IE', name: 'Ireland',        flag: '🇮🇪', email: 'ireland@swimloading.com',     displayRole: 'Regional Lead' },
+  { code: 'US', name: 'United States',  flag: '🇺🇸', email: 'usa@swimloading.com',         displayRole: 'Regional Lead' },
+  { code: 'CH', name: 'Switzerland',    flag: '🇨🇭', email: 'switzerland@swimloading.com', displayRole: 'Regional Lead' },
+  { code: 'PT', name: 'Portugal',       flag: '🇵🇹', email: 'portugal@swimloading.com',    displayRole: 'Regional Lead' },
+  { code: 'HR', name: 'Croatia',        flag: '🇭🇷', email: 'croatia@swimloading.com',     displayRole: 'Regional Lead' },
+  { code: 'NZ', name: 'New Zealand',    flag: '🇳🇿', email: 'nz@swimloading.com',          displayRole: 'Regional Lead' },
+  { code: 'FR', name: 'France',         flag: '🇫🇷', email: 'france@swimloading.com',      displayRole: 'Regional Lead' },
 ];
 
 async function loadFounders() {
@@ -1664,12 +1665,14 @@ async function loadFounders() {
 function renderFounders() {
   const el = document.getElementById('foundersList');
 
-  // Build lookup: country code → founder
+  // Build lookup: country code → lead (deduplicate — admin takes priority)
   const byCountry = {};
-  founders.forEach(f => { byCountry[f.country] = f; });
+  founders.forEach(f => {
+    if (!byCountry[f.country] || f.role === 'admin') byCountry[f.country] = f;
+  });
 
-  const activeCount  = TARGET_REGIONS.filter(r => byCountry[r.code]).length;
-  const vacantCount  = TARGET_REGIONS.length - activeCount;
+  const activeCount = TARGET_REGIONS.filter(r => byCountry[r.code]).length;
+  const vacantCount = TARGET_REGIONS.length - activeCount;
 
   el.innerHTML = `
     <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
@@ -1687,12 +1690,13 @@ function renderFounders() {
       </div>
     </div>
 
-    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
-      <table style="width:100%;border-collapse:collapse;">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;min-width:620px;">
         <thead>
           <tr style="border-bottom:1px solid var(--border);">
             <th style="text-align:left;padding:11px 16px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Region</th>
-            <th style="text-align:left;padding:11px 16px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Founder</th>
+            <th style="text-align:left;padding:11px 16px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Role</th>
+            <th style="text-align:left;padding:11px 16px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Lead</th>
             <th style="text-align:left;padding:11px 16px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Email</th>
             <th style="text-align:left;padding:11px 16px;font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Status</th>
             <th style="padding:11px 16px;"></th>
@@ -1702,7 +1706,12 @@ function renderFounders() {
           ${TARGET_REGIONS.map((region, i) => {
             const f = byCountry[region.code];
             const last = i === TARGET_REGIONS.length - 1;
-            return `<tr style="${last ? '' : 'border-bottom:1px solid var(--border);'}" class="founder-row" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background=''">
+            const isFounder = region.code === 'ZA' && f?.role === 'admin';
+            const displayRole = f ? region.displayRole : 'Regional Lead';
+            const roleStyle = isFounder
+              ? 'font-size:12px;font-weight:700;color:var(--gold);'
+              : 'font-size:12px;color:var(--text-sec);';
+            return `<tr style="${last ? '' : 'border-bottom:1px solid var(--border);'}" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background=''">
               <td style="padding:13px 16px;">
                 <div style="display:flex;align-items:center;gap:9px;">
                   <span style="font-size:20px;line-height:1;">${region.flag}</span>
@@ -1710,14 +1719,15 @@ function renderFounders() {
                 </div>
               </td>
               <td style="padding:13px 16px;">
-                ${f ? `<div style="display:flex;align-items:center;gap:8px;">
-                  <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#38bdf8,#0284c7);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#080f1a;flex-shrink:0;">${(f.name||'?')[0].toUpperCase()}</div>
-                  <div>
-                    <div style="font-size:13px;font-weight:600;">${esc(f.name)}</div>
-                    <div style="font-size:11px;color:var(--text-sec);">${esc(f.email)}</div>
-                  </div>
-                </div>`
-                : `<span style="font-size:13px;color:var(--text-sec);font-style:italic;">Vacant</span>`}
+                <span style="${roleStyle}">${esc(displayRole)}</span>
+              </td>
+              <td style="padding:13px 16px;">
+                ${f
+                  ? `<div style="display:flex;align-items:center;gap:8px;">
+                      <div style="width:28px;height:28px;border-radius:50%;background:${isFounder ? 'linear-gradient(135deg,#fbbf24,#f59e0b)' : 'linear-gradient(135deg,#38bdf8,#0284c7)'};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#080f1a;flex-shrink:0;">${(f.name||'?')[0].toUpperCase()}</div>
+                      <span style="font-size:13px;font-weight:600;">${esc(f.name)}</span>
+                    </div>`
+                  : `<span style="font-size:13px;color:var(--text-sec);font-style:italic;">Vacant</span>`}
               </td>
               <td style="padding:13px 16px;">
                 ${f?.regional_email
@@ -1730,18 +1740,24 @@ function renderFounders() {
                   : `<span class="badge badge-contacted">Open</span>`}
               </td>
               <td style="padding:13px 16px;text-align:right;">
-                ${f ? `<button class="btn-icon" onclick="editFounder('${f.id}')"><i data-lucide="pencil"></i></button>` : `<button class="btn-icon" onclick="addFounderForRegion('${region.code}','${region.name}','${region.email}')"><i data-lucide="user-plus"></i> Assign</button>`}
+                ${f
+                  ? `<button class="btn-icon" onclick="editFounder('${f.id}')"><i data-lucide="pencil"></i></button>`
+                  : `<button class="btn-icon" onclick="addFounderForRegion('${region.code}','${region.name}','${region.email}')"><i data-lucide="user-plus"></i> Assign lead</button>`}
               </td>
             </tr>`;
           }).join('')}
         </tbody>
       </table>
+    </div>
+
+    <div style="margin-top:16px;padding:14px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--text-sec);line-height:1.6;">
+      Regional Leads support SwimLoading community growth, local engagement, clubs, events, swim spots and partnerships in their region. Regional Lead status does not imply founder status, equity, ownership, employment, directorship, or financial entitlement. SwimLoading remains owned and operated by its founder and platform owner.
     </div>`;
   lucide.createIcons();
 }
 
 function addFounderForRegion(code, name, email) {
-  document.getElementById('founderModalTitle').textContent = 'Assign ' + name + ' Founder';
+  document.getElementById('founderModalTitle').textContent = 'Assign ' + name + ' Regional Lead';
   document.getElementById('founderId').value    = '';
   document.getElementById('fName').value        = '';
   document.getElementById('fEmail').value       = '';
@@ -1775,7 +1791,7 @@ async function saveFounder() {
 
 function editFounder(id) {
   const f = founders.find(x => x.id === id); if (!f) return;
-  document.getElementById('founderModalTitle').textContent = 'Edit Founder';
+  document.getElementById('founderModalTitle').textContent = 'Edit Regional Lead';
   document.getElementById('founderId').value        = id;
   document.getElementById('fName').value            = f.name || '';
   document.getElementById('fEmail').value           = f.email || '';
