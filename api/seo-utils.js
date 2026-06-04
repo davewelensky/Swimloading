@@ -59,6 +59,7 @@ export const DOMAIN_MAP = {
   WESTERN_AUSTRALIA: { display: 'Western Australia',  region: 'western-australia' },
   USA:               { display: 'United States',       region: 'san-francisco' },
   SEYCHELLES:        { display: 'Seychelles',          region: 'seychelles' },
+  DALMATIA:          { display: 'Dalmatia',            region: 'dalmatia' },
 };
 
 // Country-code filter for region slugs that are sub-regions of a shared domain (e.g. EUROPE)
@@ -124,6 +125,8 @@ export const REGION_DOMAINS = {
   'san-francisco':     ['USA'],
   'usa':               ['USA'],
   'seychelles':        ['SEYCHELLES'],
+  'dalmatia':          ['DALMATIA'],
+  'croatia':           ['DALMATIA'],
 };
 
 export const REGION_NAMES = {
@@ -147,6 +150,8 @@ export const REGION_NAMES = {
   'san-francisco':     'San Francisco',
   'usa':               'United States',
   'seychelles':        'Seychelles',
+  'dalmatia':          'Dalmatia, Croatia',
+  'croatia':           'Dalmatia, Croatia',
 };
 
 export const REGION_INTROS = {
@@ -190,6 +195,10 @@ export const REGION_INTROS = {
     "SwimLoading is tracking open water temperatures across the United States, starting with San Francisco Bay. Aquatic Park's sheltered cove has a 50+ year tradition of year-round cold water swimming — one of the most dedicated open water communities anywhere in the world.",
   'seychelles':
     "SwimLoading is live in the Seychelles, tracking open water temperatures in the warm Indian Ocean. Beau Vallon on Mahé is the island's most popular swim beach — sheltered, warm, and stunning year-round.",
+  'dalmatia':
+    "The Dalmatian coast is one of Europe's finest open water swimming destinations — crystalline Adriatic water, island-dotted channels, and summer temperatures that peak at 25–27°C. SwimLoading tracks conditions in Hvar and Split, where the swimming season runs from May through October. Sea urchins on rocky entries are the main hazard; jellyfish are seasonal (July–September). Blue Flag beaches are the gold standard for water quality along the coast.",
+  'croatia':
+    "Croatia's Dalmatian coast offers some of the clearest and warmest open water swimming in the Mediterranean. SwimLoading tracks temperatures at Hvar Town Beach, the Pakleni Islands, and Split's beaches. The Adriatic is warmest in July–August (24–27°C) and swimmable from May through October.",
 };
 
 // Maps /countries/[slug] → the region slug that spots-handler should render.
@@ -203,6 +212,7 @@ export const COUNTRY_SLUGS = {
   'portugal':       'portugal',
   'united-states':  'san-francisco',
   'seychelles':     'seychelles',
+  'croatia':        'dalmatia',
 };
 
 export function getLocationLabel(domain, area, countryCode) {

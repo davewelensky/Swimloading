@@ -5263,15 +5263,16 @@
                 WESTERN_AUSTRALIA: 'western_australia',
                 USA:               'usa',
                 SEYCHELLES:        'seychelles',
+                DALMATIA:          'dalmatia',
             };
             const group = SAFETY_GROUP[domain] || '';
 
-            const isIntlGroup = group === 'uk' || group === 'europe' || group === 'western_australia' || group === 'usa' || group === 'seychelles';
+            const isIntlGroup = group === 'uk' || group === 'europe' || group === 'western_australia' || group === 'usa' || group === 'seychelles' || group === 'dalmatia';
 
             // ── Show/hide sharks section — no sharks for UK/Europe (WA has sharks) ─
             const sharksSection = document.getElementById('sharksSection');
             if (sharksSection) {
-                const noSharks = group === 'uk' || group === 'europe';
+                const noSharks = group === 'uk' || group === 'europe' || group === 'dalmatia';
                 sharksSection.style.display = noSharks ? 'none' : '';
             }
 
@@ -5370,6 +5371,10 @@
                         color: '#f59e0b', icon: 'alert-triangle', title: 'Seychelles Open Water Hazards',
                         body: 'Seychelles waters are warm and generally calm, but <strong>stone fish</strong> and <strong>sea urchins</strong> are present — wear reef shoes in shallow water. Box jellyfish are occasionally reported. Currents can be strong during the northwest monsoon (Nov–Mar). Swim at beaches with lifeguard cover where possible.',
                     },
+                    dalmatia: {
+                        color: '#f59e0b', icon: 'alert-triangle', title: 'Adriatic Open Water Hazards',
+                        body: '<strong>Sea urchins</strong> are abundant on rocky seabeds — reef shoes are strongly recommended when entering from rocks. <strong>Jellyfish</strong> (barrel jellyfish and mauve stingers) are common in the Adriatic July–September. Check local beach advisories. Strong <em>bura</em> (NE wind) and <em>jugo</em> (SE wind) can create unexpected swell and currents.',
+                    },
                 };
                 const tip = ALERT_TIPS[group];
                 if (tip) {
@@ -5399,6 +5404,7 @@
                 western_australia: `<strong>Western Australia:</strong> Great White Sharks are active along the WA coast year-round. No shark nets at Cottesloe — swim at patrolled beaches between the flags. Download the <strong>SharkSmart WA app</strong> for real-time tagged shark alerts.`,
                 usa:               `<strong>San Francisco Bay Area:</strong> Great White Sharks patrol the waters near the Farallon Islands (25 miles offshore) and are occasionally tracked entering the Bay. Attacks inside Aquatic Park are extremely rare — the cove has a 50+ year safety record. Check the <strong>Shark Net app</strong> for tagged shark activity off the California coast.`,
                 seychelles:        `<strong>Seychelles:</strong> Shark attacks are very rare but have occurred historically at a small number of spots. Bull sharks are present in some deeper channels. Swim at beaches recommended by local operators and avoid areas with fishing activity or murky runoff water.`,
+                dalmatia:          null,
             };
             const sharksNote = document.getElementById('sharksRegionalNote');
             if (sharksNote) {
@@ -5420,6 +5426,7 @@
                 western_australia: `<strong>WA (Indian Ocean) temps:</strong> Perth's Indian Ocean runs 17–22°C in summer and 15–18°C in winter — comfortable year-round. Cold shock is a low risk, but be aware of strong afternoon sea breezes (Fremantle Doctor) creating chop and currents at exposed beaches.`,
                 usa:               `<strong>San Francisco Bay temps:</strong> Aquatic Park runs 12–16°C year-round — cold even in summer, thanks to Pacific upwelling. The Pacific at Ocean Beach is typically 11–14°C. Cold shock on entry is a real risk. The local Dolphin Club and South End Rowing Club swim here daily without wetsuits — acclimatise gradually.`,
                 seychelles:        `<strong>Seychelles temps:</strong> Indian Ocean water sits at 27–30°C year-round — no cold shock risk. Hypothermia is not a concern, but stay hydrated and use sun protection. Water is warmest and calmest during the southeast trade wind season (May–Oct).`,
+                dalmatia:          `<strong>Dalmatia (Adriatic) temps:</strong> Sea temperature peaks at 24–27°C in July–August — one of the warmest swimming destinations in Europe. Spring (May) runs 17–20°C and autumn (Oct) stays above 20°C. Cold shock is not a significant risk in summer, but spring/autumn swimmers should acclimatise gradually.`,
             };
             const coldNote = document.getElementById('coldWaterRegionalNote');
             if (coldNote) {
@@ -5469,6 +5476,10 @@
                 seychelles: [
                     ['tel:999','phone','Emergency Services','Police · Ambulance · Fire · Coast Guard','999'],
                     ['tel:+248 4 297 000','anchor','Seychelles Coast Guard','Maritime emergency · Search & rescue','+248 4 297 000'],
+                ],
+                dalmatia: [
+                    ['tel:112','phone','Emergency Services','Police · Ambulance · Fire','112'],
+                    ['tel:9155','anchor','MRCC Split (Sea Rescue)','Maritime rescue coordination · Adriatic','9155'],
                 ],
             };
             const contactsEl = document.getElementById('safetyRegionalContacts');
@@ -5522,6 +5533,11 @@
                     ['tel:999','phone','Emergency Services','Police · Ambulance · Fire · Coast Guard','999'],
                     ['tel:+248 4 297 000','anchor','Seychelles Coast Guard','Maritime emergency · Marine incidents','+248 4 297 000'],
                     ['tel:+248 4 322 000','droplets','Seychelles Tourism Authority','Tourist assistance · Local advice','+248 4 322 000'],
+                ]},
+                dalmatia: { title: 'Reporting (Croatia)', contacts: [
+                    ['tel:9155','anchor','MRCC Split — Sea Rescue','Maritime emergency · Adriatic','9155'],
+                    ['tel:112','phone','Emergency Services','Police · Ambulance · Fire','112'],
+                    ['https://www.adriatic.hr/','droplets','Adriatic.hr Water Quality','Beach water quality · Blue Flag status','adriatic.hr'],
                 ]},
             };
             const reportingEl = document.getElementById('safetyRegionalReporting');
@@ -6627,7 +6643,7 @@
 
         const SP_TYPE_LABELS = { OCEAN: 'Ocean', POOL: 'Pool', LAGOON: 'Lagoon', DAM: 'Inland', LAKE: 'Lake' };
         const SP_TYPE_ICONS  = { OCEAN: 'waves', POOL: 'droplets', LAGOON: 'anchor', DAM: 'mountain-snow', LAKE: 'waves' };
-        const INTERNATIONAL_DOMAINS = new Set(['EUROPE', 'NAMIBIA', 'UK', 'WESTERN_AUSTRALIA', 'USA', 'SEYCHELLES']);
+        const INTERNATIONAL_DOMAINS = new Set(['EUROPE', 'NAMIBIA', 'UK', 'WESTERN_AUSTRALIA', 'USA', 'SEYCHELLES', 'DALMATIA']);
         const COUNTRY_NAMES = { ZA: 'South Africa', NA: 'Namibia', CH: 'Switzerland', AU: 'Australia', GB: 'United Kingdom', FR: 'France', DE: 'Germany', IT: 'Italy', SC: 'Seychelles' };
         const AREA_DISPLAY = {
             ATLANTIC: 'Atlantic Seaboard',
