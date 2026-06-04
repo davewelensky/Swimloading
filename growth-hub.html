@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Growth Hub — SwimLoading</title>
+<meta name="robots" content="noindex,nofollow">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #080f1a; --bg-card: #0d1728; --bg-hover: #111e30;
+    --cyan: #38bdf8; --text: #f1f5f9; --text-sec: #64748b;
+    --border: rgba(255,255,255,0.07); --danger: #ef4444;
+    --green: #10b981; --amber: #f59e0b; --purple: #a78bfa;
+    --gold: #fbbf24;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ── Auth screens ── */
+  .auth-screen { display:none; position:fixed; inset:0; align-items:center; justify-content:center; background:var(--bg); z-index:100; flex-direction:column; gap:16px; padding:24px; }
+  .auth-screen.active { display:flex; }
+  .auth-box { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:32px; width:100%; max-width:380px; }
+  .auth-logo { display:flex; align-items:center; gap:8px; margin-bottom:24px; }
+  .auth-logo img { height:24px; }
+  .auth-logo span { font-size:18px; font-weight:800; background:linear-gradient(135deg,#38bdf8,#0284c7); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .auth-title { font-size:20px; font-weight:700; margin-bottom:4px; }
+  .auth-sub { font-size:13px; color:var(--text-sec); margin-bottom:24px; }
+  .form-input { width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:inherit; font-size:14px; padding:10px 12px; margin-bottom:12px; }
+  .form-input:focus { outline:none; border-color:var(--cyan); }
+  .btn-auth { width:100%; background:var(--cyan); color:#080f1a; border:none; border-radius:8px; font-family:inherit; font-size:14px; font-weight:700; padding:12px; cursor:pointer; }
+  .btn-auth:disabled { opacity:0.5; cursor:not-allowed; }
+  .auth-error { color:var(--danger); font-size:12px; margin-top:8px; }
+
+  /* ── Layout ── */
+  .topbar { background:var(--bg-card); border-bottom:1px solid var(--border); padding:0 20px; height:56px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10; }
+  .topbar-left { display:flex; align-items:center; gap:12px; }
+  .topbar-logo { display:flex; align-items:center; gap:7px; text-decoration:none; }
+  .topbar-logo img { height:20px; }
+  .topbar-logo span { font-size:15px; font-weight:800; background:linear-gradient(135deg,#38bdf8,#0284c7); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .hub-badge { background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); color:var(--cyan); font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; text-transform:uppercase; letter-spacing:0.08em; }
+  .topbar-right { display:flex; align-items:center; gap:12px; }
+  .country-select { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:inherit; font-size:13px; font-weight:600; padding:6px 10px; cursor:pointer; }
+  .user-pill { font-size:12px; color:var(--text-sec); }
+  .btn-signout { background:transparent; border:1px solid var(--border); color:var(--text-sec); border-radius:6px; font-family:inherit; font-size:12px; padding:5px 10px; cursor:pointer; }
+  .btn-signout:hover { border-color:var(--danger); color:var(--danger); }
+
+  /* ── Tabs ── */
+  .tabs { display:flex; gap:4px; padding:16px 20px 0; border-bottom:1px solid var(--border); overflow-x:auto; }
+  .tab { background:transparent; border:none; color:var(--text-sec); font-family:inherit; font-size:13px; font-weight:600; padding:8px 16px; border-radius:8px 8px 0 0; cursor:pointer; white-space:nowrap; border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .tab.active { color:var(--cyan); border-bottom-color:var(--cyan); background:rgba(56,189,248,0.06); }
+  .tab:hover:not(.active) { color:var(--text); background:rgba(255,255,255,0.04); }
+
+  /* ── Page content ── */
+  .page { display:none; padding:20px; max-width:1100px; margin:0 auto; }
+  .page.active { display:block; }
+  .page-toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
+  .search-input { flex:1; min-width:160px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:inherit; font-size:13px; padding:8px 12px; }
+  .search-input:focus { outline:none; border-color:var(--cyan); }
+  .filter-select { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:inherit; font-size:13px; padding:8px 10px; cursor:pointer; }
+  .btn-add { background:var(--cyan); color:#080f1a; border:none; border-radius:8px; font-family:inherit; font-size:13px; font-weight:700; padding:8px 16px; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; }
+  .btn-add:hover { background:#7dd3fc; }
+  .btn-add svg { width:14px; height:14px; }
+
+  /* ── Cards ── */
+  .card-grid { display:grid; gap:10px; }
+  .card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; cursor:pointer; transition:border-color 0.15s; }
+  .card:hover { border-color:rgba(56,189,248,0.3); }
+  .card-header { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:8px; }
+  .card-name { font-size:15px; font-weight:700; }
+  .card-sub { font-size:12px; color:var(--text-sec); margin-top:2px; }
+  .card-meta { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .meta-pill { font-size:11px; color:var(--text-sec); background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:4px; padding:2px 7px; }
+  .card-footer { display:flex; align-items:center; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+  .card-owner { font-size:11px; color:var(--text-sec); }
+  .card-date { font-size:11px; color:var(--text-sec); }
+  .card-actions { display:flex; gap:6px; }
+  .btn-icon { background:transparent; border:1px solid var(--border); border-radius:6px; color:var(--text-sec); cursor:pointer; padding:4px 7px; font-size:11px; display:flex; align-items:center; gap:4px; }
+  .btn-icon:hover { border-color:var(--cyan); color:var(--cyan); }
+  .btn-icon.danger:hover { border-color:var(--danger); color:var(--danger); }
+  .btn-icon svg { width:12px; height:12px; }
+
+  /* ── Status badges ── */
+  .badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; text-transform:uppercase; letter-spacing:0.06em; white-space:nowrap; }
+  .badge-idea       { background:rgba(100,116,139,0.15); color:#94a3b8; }
+  .badge-contacted  { background:rgba(251,191,36,0.12); color:var(--gold); }
+  .badge-interested { background:rgba(167,139,250,0.12); color:var(--purple); }
+  .badge-discussion { background:rgba(56,189,248,0.12); color:var(--cyan); }
+  .badge-confirmed  { background:rgba(16,185,129,0.12); color:var(--green); }
+  .badge-notnow     { background:rgba(239,68,68,0.10); color:var(--danger); }
+  .badge-todo       { background:rgba(100,116,139,0.15); color:#94a3b8; }
+  .badge-inprogress { background:rgba(56,189,248,0.12); color:var(--cyan); }
+  .badge-done       { background:rgba(16,185,129,0.12); color:var(--green); }
+  .badge-low        { background:rgba(100,116,139,0.12); color:#94a3b8; }
+  .badge-medium     { background:rgba(251,191,36,0.12); color:var(--gold); }
+  .badge-high       { background:rgba(239,68,68,0.12); color:var(--danger); }
+
+  /* ── Tasks list ── */
+  .task-row { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 14px; display:flex; align-items:flex-start; gap:12px; cursor:pointer; transition:border-color 0.15s; }
+  .task-row:hover { border-color:rgba(56,189,248,0.3); }
+  .task-check { width:18px; height:18px; border-radius:4px; border:2px solid var(--border); flex-shrink:0; margin-top:1px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .task-check.done { background:var(--green); border-color:var(--green); }
+  .task-check svg { width:11px; height:11px; color:#fff; }
+  .task-body { flex:1; min-width:0; }
+  .task-title { font-size:14px; font-weight:600; }
+  .task-title.done { text-decoration:line-through; color:var(--text-sec); }
+  .task-detail { font-size:12px; color:var(--text-sec); margin-top:3px; display:flex; gap:10px; flex-wrap:wrap; }
+
+  /* ── Ideas list ── */
+  .idea-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; cursor:pointer; transition:border-color 0.15s; }
+  .idea-card:hover { border-color:rgba(56,189,248,0.3); }
+  .idea-title { font-size:15px; font-weight:700; margin-bottom:6px; }
+  .idea-body { font-size:13px; color:var(--text-sec); line-height:1.6; white-space:pre-wrap; }
+  .idea-tags { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+  .idea-tag { font-size:11px; background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.2); color:var(--cyan); border-radius:4px; padding:1px 7px; }
+
+  /* ── Modal ── */
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:50; align-items:center; justify-content:center; padding:20px; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; width:100%; max-width:560px; max-height:90vh; overflow-y:auto; }
+  .modal-head { padding:20px 20px 0; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; background:var(--bg-card); padding-bottom:14px; border-bottom:1px solid var(--border); }
+  .modal-title { font-size:16px; font-weight:700; }
+  .modal-close { background:transparent; border:none; color:var(--text-sec); font-size:20px; cursor:pointer; line-height:1; padding:2px 6px; }
+  .modal-close:hover { color:var(--text); }
+  .modal-body { padding:20px; display:grid; gap:12px; }
+  .field-group { display:grid; gap:4px; }
+  .field-label { font-size:11px; font-weight:700; color:var(--text-sec); text-transform:uppercase; letter-spacing:0.08em; }
+  .field-input { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:inherit; font-size:14px; padding:9px 11px; width:100%; }
+  .field-input:focus { outline:none; border-color:var(--cyan); }
+  .field-textarea { resize:vertical; min-height:80px; }
+  .field-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .modal-footer { padding:16px 20px; border-top:1px solid var(--border); display:flex; gap:10px; justify-content:flex-end; position:sticky; bottom:0; background:var(--bg-card); }
+  .btn-cancel { background:transparent; border:1px solid var(--border); color:var(--text-sec); border-radius:8px; font-family:inherit; font-size:13px; padding:9px 16px; cursor:pointer; }
+  .btn-cancel:hover { border-color:var(--text); color:var(--text); }
+  .btn-save { background:var(--cyan); color:#080f1a; border:none; border-radius:8px; font-family:inherit; font-size:13px; font-weight:700; padding:9px 20px; cursor:pointer; }
+  .btn-save:hover { background:#7dd3fc; }
+  .btn-save:disabled { opacity:0.5; cursor:not-allowed; }
+
+  /* ── Delete confirm ── */
+  .confirm-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:60; align-items:center; justify-content:center; padding:20px; }
+  .confirm-overlay.open { display:flex; }
+  .confirm-box { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:24px; max-width:340px; width:100%; text-align:center; }
+  .confirm-title { font-size:15px; font-weight:700; margin-bottom:8px; }
+  .confirm-sub { font-size:13px; color:var(--text-sec); margin-bottom:20px; }
+  .confirm-btns { display:flex; gap:10px; justify-content:center; }
+  .btn-del { background:var(--danger); color:#fff; border:none; border-radius:8px; font-family:inherit; font-size:13px; font-weight:700; padding:9px 20px; cursor:pointer; }
+
+  /* ── Empty state ── */
+  .empty { text-align:center; padding:60px 20px; color:var(--text-sec); }
+  .empty-icon { margin-bottom:12px; opacity:0.3; }
+  .empty-title { font-size:15px; font-weight:600; color:var(--text); margin-bottom:4px; }
+  .empty-sub { font-size:13px; }
+
+  /* ── Next action highlight ── */
+  .next-action { font-size:12px; color:var(--text); background:rgba(56,189,248,0.06); border:1px solid rgba(56,189,248,0.15); border-radius:5px; padding:3px 8px; margin-top:6px; display:inline-block; }
+  .overdue { background:rgba(239,68,68,0.08); border-color:rgba(239,68,68,0.2); color:#fca5a5; }
+
+  /* ── Loading ── */
+  .spinner { width:20px; height:20px; border:2px solid var(--border); border-top-color:var(--cyan); border-radius:50%; animation:spin 0.7s linear infinite; margin:40px auto; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  @media (max-width: 520px) {
+    .field-row { grid-template-columns:1fr; }
+    .topbar { padding:0 14px; }
+    .page { padding:14px; }
+    .tabs { padding:12px 14px 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loadingScreen" class="auth-screen active">
+  <div class="spinner"></div>
+</div>
+
+<!-- Login -->
+<div id="loginScreen" class="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <img src="/icons/logo-wave.png" alt="">
+      <span>SwimLoading</span>
+    </div>
+    <div class="auth-title">Growth Hub</div>
+    <div class="auth-sub">Founders only — sign in to continue.</div>
+    <input type="email" id="loginEmail" class="form-input" placeholder="Email">
+    <input type="password" id="loginPassword" class="form-input" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn-auth" id="loginBtn" onclick="doLogin()">Sign In</button>
+    <div class="auth-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- Access denied -->
+<div id="accessDenied" class="auth-screen">
+  <div class="auth-box" style="text-align:center;">
+    <div style="font-size:32px;margin-bottom:12px;">🔒</div>
+    <div class="auth-title">Access denied</div>
+    <div class="auth-sub">This account is not a Growth Hub founder.</div>
+    <button onclick="sb.auth.signOut().then(()=>location.reload())" class="btn-cancel" style="margin-top:16px;width:100%;">Sign out</button>
+  </div>
+</div>
+
+<!-- Main app (hidden until auth confirmed) -->
+<div id="app" style="display:none;">
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <a href="/" class="topbar-logo">
+        <img src="/icons/logo-wave.png" alt="">
+        <span>SwimLoading</span>
+      </a>
+      <span class="hub-badge">Growth Hub</span>
+    </div>
+    <div class="topbar-right">
+      <select class="country-select" id="countryPicker" onchange="onCountryChange()">
+        <option value="UK">🇬🇧 UK</option>
+        <option value="ZA">🇿🇦 South Africa</option>
+        <option value="AU">🇦🇺 Australia</option>
+        <option value="HR">🇭🇷 Croatia</option>
+        <option value="ALL">🌍 All</option>
+      </select>
+      <span class="user-pill" id="userPill"></span>
+      <button class="btn-signout" onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('sponsors',this)">
+      Sponsors
+    </button>
+    <button class="tab" onclick="switchTab('clubs',this)">
+      Clubs
+    </button>
+    <button class="tab" onclick="switchTab('media',this)">
+      Media
+    </button>
+    <button class="tab" onclick="switchTab('tasks',this)">
+      Tasks
+    </button>
+    <button class="tab" onclick="switchTab('ideas',this)">
+      Ideas
+    </button>
+  </div>
+
+  <!-- SPONSORS -->
+  <div id="page-sponsors" class="page active">
+    <div class="page-toolbar">
+      <input type="search" class="search-input" placeholder="Search sponsors…" oninput="renderSponsors()" id="sponsorSearch">
+      <select class="filter-select" id="sponsorStatus" onchange="renderSponsors()">
+        <option value="">All statuses</option>
+        <option>Idea</option><option>Contacted</option><option>Interested</option>
+        <option>In Discussion</option><option>Confirmed</option><option>Not Now</option>
+      </select>
+      <select class="filter-select" id="sponsorSort" onchange="renderSponsors()">
+        <option value="follow_up">Sort: Follow-up date</option>
+        <option value="updated">Sort: Recently updated</option>
+        <option value="name">Sort: Name</option>
+      </select>
+      <button class="btn-add" onclick="openModal('sponsor')">
+        <i data-lucide="plus"></i> Add sponsor
+      </button>
+    </div>
+    <div id="sponsorsList" class="card-grid"><div class="spinner"></div></div>
+  </div>
+
+  <!-- CLUBS -->
+  <div id="page-clubs" class="page">
+    <div class="page-toolbar">
+      <input type="search" class="search-input" placeholder="Search clubs…" oninput="renderClubs()" id="clubSearch">
+      <select class="filter-select" id="clubStatus" onchange="renderClubs()">
+        <option value="">All statuses</option>
+        <option>Idea</option><option>Contacted</option><option>Interested</option>
+        <option>In Discussion</option><option>Confirmed</option><option>Not Now</option>
+      </select>
+      <button class="btn-add" onclick="openModal('club')">
+        <i data-lucide="plus"></i> Add club
+      </button>
+    </div>
+    <div id="clubsList" class="card-grid"><div class="spinner"></div></div>
+  </div>
+
+  <!-- MEDIA -->
+  <div id="page-media" class="page">
+    <div class="page-toolbar">
+      <input type="search" class="search-input" placeholder="Search media contacts…" oninput="renderMedia()" id="mediaSearch">
+      <select class="filter-select" id="mediaStatus" onchange="renderMedia()">
+        <option value="">All statuses</option>
+        <option>Idea</option><option>Contacted</option><option>Interested</option>
+        <option>In Discussion</option><option>Confirmed</option><option>Not Now</option>
+      </select>
+      <button class="btn-add" onclick="openModal('media')">
+        <i data-lucide="plus"></i> Add contact
+      </button>
+    </div>
+    <div id="mediaList" class="card-grid"><div class="spinner"></div></div>
+  </div>
+
+  <!-- TASKS -->
+  <div id="page-tasks" class="page">
+    <div class="page-toolbar">
+      <input type="search" class="search-input" placeholder="Search tasks…" oninput="renderTasks()" id="taskSearch">
+      <select class="filter-select" id="taskStatus" onchange="renderTasks()">
+        <option value="">All statuses</option>
+        <option>To Do</option><option>In Progress</option><option>Done</option>
+      </select>
+      <select class="filter-select" id="taskPriority" onchange="renderTasks()">
+        <option value="">All priorities</option>
+        <option>High</option><option>Medium</option><option>Low</option>
+      </select>
+      <button class="btn-add" onclick="openModal('task')">
+        <i data-lucide="plus"></i> Add task
+      </button>
+    </div>
+    <div id="tasksList" style="display:grid;gap:8px;"><div class="spinner"></div></div>
+  </div>
+
+  <!-- IDEAS -->
+  <div id="page-ideas" class="page">
+    <div class="page-toolbar">
+      <input type="search" class="search-input" placeholder="Search ideas…" oninput="renderIdeas()" id="ideaSearch">
+      <button class="btn-add" onclick="openModal('idea')">
+        <i data-lucide="plus"></i> Add idea
+      </button>
+    </div>
+    <div id="ideasList" class="card-grid"><div class="spinner"></div></div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- ── MODALS ── -->
+
+<!-- Sponsor modal -->
+<div class="modal-overlay" id="sponsorModal">
+<div class="modal">
+  <div class="modal-head">
+    <div class="modal-title" id="sponsorModalTitle">Add Sponsor</div>
+    <button class="modal-close" onclick="closeModal('sponsor')">&times;</button>
+  </div>
+  <div class="modal-body">
+    <input type="hidden" id="sponsorId">
+    <div class="field-row">
+      <div class="field-group"><div class="field-label">Sponsor name *</div><input class="field-input" id="sName" placeholder="e.g. THEMAGIC5"></div>
+      <div class="field-group"><div class="field-label">Category</div>
+        <select class="field-input" id="sCategory">
+          <option value="">— select —</option>
+          <option>Wetsuit / Gear</option><option>Goggles</option><option>Nutrition</option>
+          <option>Apparel</option><option>Tech / Wearables</option><option>Race / Event</option>
+          <option>Health / Recovery</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-group"><div class="field-label">Website</div><input class="field-input" id="sWebsite" placeholder="https://"></div>
+    <div class="field-row">
+      <div class="field-group"><div class="field-label">Contact name</div><input class="field-input" id="sContactName" placeholder="First Last"></div>
+      <div class="field-group"><div class="field-label">Contact email</div><input class="field-input" id="sContactEmail" type="email" placeholder="name@brand.com"></div>
+    </div>
+    <div class="field-row">
+      <div class="field-group"><div class="field-label">Instagram</div><input class="field-input" id="sInstagram" placeholder="@handle"></div>
+      <div class="field-group"><div class="field-label">LinkedIn</div><input class="field-input" id="sLinkedin" placeholder="linkedin.com/in/…"></div>
+    </div>
+    <div class="field-group"><div class="field-label">Proposed offer</div><input class="field-input" id="sOffer" placeholder="e.g. Discount code + co-post"></div>
+    <div class="field-row">
+      <div class="field-group"><div class="field-label">Status</div>
+        <select class="field-input" id="sStatus">
+          <option>Idea</option><option>Contacted</option><option>Interested</option>
+          <option>In Discussion</option><option>Confirmed</option><option>Not Now</option>
+        </select>
+      </div>
+      <div class="field-group"><div class="field-label">Owner</div>
+        <select class="field-input" id="sOwner">
+          <option value="">— assign —</option>
+          <option>Dave</option><option>Lindi</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-group"><div class="field-label">Next action</div><input class="field-input" id="sNextAction" placeholder="e.g. Send intro email"></div>
+    <div class="field-group"><div class="field-label">Follow-up date</div><input class="field-input" id="sFollowUp" type="date"></div>
+    <div class="field-group"><div class="field-label">Notes</div><textarea class="field-input field-textarea" id="sNotes" placeholder="WhatsApp notes, context, ideas…"></textarea></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn-cancel" onclick="closeModal('sponsor')">Cancel</button>
+    <button class="btn-save" id="sponsorSaveBtn" onclick="saveSponsor()">Save</button>
+  </div>
+</div>
+</div>
+
+<!-- Club modal -->
+<div class="modal-overlay" id="clubModal">
+<div class="modal">
+  <div class="modal-head">
+    <div class="modal-title" id="clubModalTitle">Add Club</div>
+    <button class="modal-close" onclick="closeModal('club')">&times;</button>
+  </div>
+  <div class="modal-body">
+    <input type="hidden" id="clubId">
+    <div class="field-row">
+      <div class="field-group"><div class="field-label">Club name *</div><input class="field-input" id="cName" placeholder="e.g. Serpentine SC"></div>
+      <div class="field-group"><div class="field-label">Location</div><input class="field-input" id="cLocation" placeholder="e.g. London"></div>
+    </div>
+    <div class="field-row">
+      <div class="field-group"><div class="field-label">Website</div><input class="field-input" id="cWebsite" placeholder="https://"></div>
+      <div class="field-group"><div class="field-label">Facebook / Group URL</div><input class="field-input" id="cFacebook" placeholder="facebook.com/…"></div>
+    </div>
+    <div class="field-row">
+      <div class="field-group"><div class="field-label">Contact name</div><input class="field-input" id="cContactName"></div>
+      <div class="field-group"><div class="field-label">Contact email</div><input class="field-input" id="cContactEmail" type="email"></div>
+    </div>
+    <div class="field-row">
+      <div class="field-group"><div class="field-label">Status</div>
+        <select class="field-input" id="cStatus">
+          <option>Idea</option><option>Contacted</option><option>Interested</option>
+          <option>In Discussion</option><option>Confirmed</option><option>Not Now</option>
+        </select>
+      </div>
+      <div class="field-group"><div class="field-label">Owner</div>
+        <select class="field-input" id="cOwner">
+          <option value="">— assign —</option>
+          <option>Dave</option><option>Lindi</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-group"><div class="field-label">Next action</div><input class="field-input" id="cNextAction"></div>
+    <div class="field-group"><div class="field-label">Notes</div><textarea class="field-input field-textarea" id="cNotes"></textarea></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn-cancel" onclick="closeModal('club')">Cancel</button>
+    <button class="btn-save" id="clubSaveBtn" onclick="saveClub()">Save</button>
+  </div>
+</div>
+</div>
+
+<!-- Media modal -->
+<div class="modal-overlay" id="mediaModal">
+<div class="modal">
+  <div class="modal-head">
+    <div class="modal-title" id="mediaModalTitle">Add Media Contact</div>
+    <button class="modal-close" onclick="closeModal('media')">&times;</button>
+  </div>
+  <div class="modal-body">
+    <input type="hidden" id="mediaId">
+    <div class="field-row">
+      <div class="field-group"><div class="field-label">Outlet / Publication *</div><input class="field-input" id="mName" placeholder="e.g. Outdoor Swimmer Mag"></div>
+      <div class="field-group"><div class="field-label">Category</div>
+        <select class="field-input" id="mCategory">
+          <option value="">— select —</option>
+          <option>Magazine</option><option>Podcast</option><option>Blog</option>
+          <option>Newspaper</option><option>Newsletter</option><option>Influencer</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-group"><div class="field-label">Contact name</div><input class="field-input" id="mContactName"></div>
+      <div class="field-group"><div class="field-label">Contact email</div><input class="field-input" id="mContactEmail" type="email"></div>
+    </div>
+    <div class="field-row">
+      <div class="field-group"><div class="field-label">Instagram</div><input class="field-input" id="mInstagram" placeholder="@handle"></div>
+      <div class="field-group"><div class="field-label">Twitter / X</div><input class="field-input" id="mTwitter" placeholder="@handle"></div>
+    </div>
+    <div class="field-group"><div class="field-label">Estimated reach / audience</div><input class="field-input" id="mReach" placeholder="e.g. 50k IG followers"></div>
+    <div class="field-row">
+      <div class="field-group"><div class="field-label">Status</div>
+        <select class="field-input" id="mStatus">
+          <option>Idea</option><option>Contacted</option><option>Interested</option>
+          <option>In Discussion</option><option>Confirmed</option><option>Not Now</option>
+        </select>
+      </div>
+      <div class="field-group"><div class="field-label">Owner</div>
+        <select class="field-input" id="mOwner">
+          <option value="">— assign —</option>
+          <option>Dave</option><option>Lindi</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-group"><div class="field-label">Next action</div><input class="field-input" id="mNextAction"></div>
+    <div class="field-group"><div class="field-label">Follow-up date</div><input class="field-input" id="mFollowUp" type="date"></div>
+    <div class="field-group"><div class="field-label">Notes</div><textarea class="field-input field-textarea" id="mNotes"></textarea></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn-cancel" onclick="closeModal('media')">Cancel</button>
+    <button class="btn-save" id="mediaSaveBtn" onclick="saveMedia()">Save</button>
+  </div>
+</div>
+</div>
+
+<!-- Task modal -->
+<div class="modal-overlay" id="taskModal">
+<div class="modal">
+  <div class="modal-head">
+    <div class="modal-title" id="taskModalTitle">Add Task</div>
+    <button class="modal-close" onclick="closeModal('task')">&times;</button>
+  </div>
+  <div class="modal-body">
+    <input type="hidden" id="taskId">
+    <div class="field-group"><div class="field-label">Task *</div><input class="field-input" id="tTitle" placeholder="What needs to happen?"></div>
+    <div class="field-row">
+      <div class="field-group"><div class="field-label">Assigned to</div>
+        <select class="field-input" id="tAssigned">
+          <option value="">— assign —</option>
+          <option>Dave</option><option>Lindi</option><option>Both</option>
+        </select>
+      </div>
+      <div class="field-group"><div class="field-label">Priority</div>
+        <select class="field-input" id="tPriority">
+          <option>High</option><option selected>Medium</option><option>Low</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-group"><div class="field-label">Due date</div><input class="field-input" id="tDue" type="date"></div>
+      <div class="field-group"><div class="field-label">Status</div>
+        <select class="field-input" id="tStatus">
+          <option>To Do</option><option>In Progress</option><option>Done</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-group"><div class="field-label">Notes</div><textarea class="field-input field-textarea" id="tNotes" style="min-height:60px;"></textarea></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn-cancel" onclick="closeModal('task')">Cancel</button>
+    <button class="btn-save" id="taskSaveBtn" onclick="saveTask()">Save</button>
+  </div>
+</div>
+</div>
+
+<!-- Idea modal -->
+<div class="modal-overlay" id="ideaModal">
+<div class="modal">
+  <div class="modal-head">
+    <div class="modal-title" id="ideaModalTitle">Add Idea</div>
+    <button class="modal-close" onclick="closeModal('idea')">&times;</button>
+  </div>
+  <div class="modal-body">
+    <input type="hidden" id="ideaId">
+    <div class="field-group"><div class="field-label">Title *</div><input class="field-input" id="iTitle" placeholder="Short headline for the idea"></div>
+    <div class="field-group"><div class="field-label">Details</div><textarea class="field-input field-textarea" id="iBody" style="min-height:120px;" placeholder="Expand on the idea — context, links, how it could work…"></textarea></div>
+    <div class="field-row">
+      <div class="field-group"><div class="field-label">Tags</div><input class="field-input" id="iTags" placeholder="e.g. campaign, sponsor, social"></div>
+      <div class="field-group"><div class="field-label">Owner</div>
+        <select class="field-input" id="iOwner">
+          <option value="">— assign —</option>
+          <option>Dave</option><option>Lindi</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn-cancel" onclick="closeModal('idea')">Cancel</button>
+    <button class="btn-save" id="ideaSaveBtn" onclick="saveIdea()">Save</button>
+  </div>
+</div>
+</div>
+
+<!-- Delete confirm -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-title">Delete this entry?</div>
+    <div class="confirm-sub">This cannot be undone.</div>
+    <div class="confirm-btns">
+      <button class="btn-cancel" onclick="document.getElementById('confirmOverlay').classList.remove('open')">Cancel</button>
+      <button class="btn-del" id="confirmDeleteBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL  = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let currentCountry = localStorage.getItem('gh_country') || 'UK';
+let sponsors = [], clubs = [], media = [], tasks = [], ideas = [];
+
+// ── Boot ─────────────────────────────────────────────────────────────
+async function boot() {
+  const timeout = setTimeout(() => {
+    show('loginScreen');
+  }, 5000);
+
+  try {
+    const { data: { user } } = await sb.auth.getUser();
+    clearTimeout(timeout);
+    if (!user) { show('loginScreen'); return; }
+
+    const { data: founder } = await sb.from('growth_founders').select('name,country,role').eq('email', user.email).maybeSingle();
+    if (!founder) { show('accessDenied'); return; }
+
+    currentUser = { ...user, founderName: founder.name || user.email.split('@')[0] };
+    launchApp();
+  } catch (e) {
+    clearTimeout(timeout);
+    show('loginScreen');
+  }
+}
+
+function show(id) {
+  ['loadingScreen','loginScreen','accessDenied'].forEach(s => {
+    const el = document.getElementById(s);
+    el.classList.toggle('active', s === id);
+  });
+}
+
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pw    = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  const btn   = document.getElementById('loginBtn');
+  errEl.textContent = '';
+  if (!email || !pw) { errEl.textContent = 'Enter email and password.'; return; }
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+  if (error) { btn.disabled = false; btn.textContent = 'Sign In'; errEl.textContent = error.message; return; }
+  const { data: founder } = await sb.from('growth_founders').select('name,country,role').eq('email', data.user.email).maybeSingle();
+  if (!founder) {
+    await sb.auth.signOut();
+    btn.disabled = false; btn.textContent = 'Sign In';
+    errEl.textContent = 'This account is not a Growth Hub founder.';
+    return;
+  }
+  currentUser = { ...data.user, founderName: founder.name || data.user.email.split('@')[0] };
+  launchApp();
+}
+
+function signOut() { sb.auth.signOut().then(() => location.reload()); }
+
+function launchApp() {
+  ['loadingScreen','loginScreen','accessDenied'].forEach(id => {
+    document.getElementById(id).classList.remove('active');
+  });
+  document.getElementById('app').style.display = '';
+  document.getElementById('userPill').textContent = currentUser.founderName;
+  const picker = document.getElementById('countryPicker');
+  picker.value = currentCountry;
+  lucide.createIcons();
+  loadAll();
+}
+
+// ── Country ───────────────────────────────────────────────────────────
+function onCountryChange() {
+  currentCountry = document.getElementById('countryPicker').value;
+  localStorage.setItem('gh_country', currentCountry);
+  loadAll();
+}
+
+function countryFilter(q) {
+  return currentCountry === 'ALL' ? q : q.eq('country', currentCountry);
+}
+
+// ── Load all ──────────────────────────────────────────────────────────
+async function loadAll() {
+  await Promise.all([loadSponsors(), loadClubs(), loadMedia(), loadTasks(), loadIdeas()]);
+}
+
+async function loadSponsors() {
+  const { data } = await countryFilter(sb.from('growth_sponsors').select('*')).order('follow_up_date', { ascending: true, nullsFirst: false });
+  sponsors = data || [];
+  renderSponsors();
+}
+async function loadClubs() {
+  const { data } = await countryFilter(sb.from('growth_clubs').select('*')).order('updated_at', { ascending: false });
+  clubs = data || [];
+  renderClubs();
+}
+async function loadMedia() {
+  const { data } = await countryFilter(sb.from('growth_media').select('*')).order('follow_up_date', { ascending: true, nullsFirst: false });
+  media = data || [];
+  renderMedia();
+}
+async function loadTasks() {
+  const { data } = await countryFilter(sb.from('growth_tasks').select('*')).order('due_date', { ascending: true, nullsFirst: false });
+  tasks = data || [];
+  renderTasks();
+}
+async function loadIdeas() {
+  const { data } = await countryFilter(sb.from('growth_ideas').select('*')).order('created_at', { ascending: false });
+  ideas = data || [];
+  renderIdeas();
+}
+
+// ── Status helpers ────────────────────────────────────────────────────
+function statusBadge(s) {
+  const map = {
+    'Idea': 'idea', 'Contacted': 'contacted', 'Interested': 'interested',
+    'In Discussion': 'discussion', 'Confirmed': 'confirmed', 'Not Now': 'notnow',
+    'To Do': 'todo', 'In Progress': 'inprogress', 'Done': 'done',
+    'High': 'high', 'Medium': 'medium', 'Low': 'low',
+  };
+  return `<span class="badge badge-${map[s]||'idea'}">${s}</span>`;
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  const dt = new Date(d + 'T00:00:00');
+  return dt.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+}
+
+function isOverdue(d) {
+  if (!d) return false;
+  return new Date(d + 'T00:00:00') < new Date(new Date().toDateString());
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('page-' + tab).classList.add('active');
+}
+
+// ── SPONSORS render ───────────────────────────────────────────────────
+function renderSponsors() {
+  const q      = (document.getElementById('sponsorSearch').value || '').toLowerCase();
+  const status = document.getElementById('sponsorStatus').value;
+  const sort   = document.getElementById('sponsorSort').value;
+  let rows = sponsors.filter(r =>
+    (!q || [r.sponsor_name, r.contact_name, r.category, r.notes].join(' ').toLowerCase().includes(q)) &&
+    (!status || r.status === status)
+  );
+  if (sort === 'name') rows.sort((a,b) => (a.sponsor_name||'').localeCompare(b.sponsor_name||''));
+  else if (sort === 'updated') rows.sort((a,b) => (b.updated_at||'').localeCompare(a.updated_at||''));
+  // follow_up already ordered from DB but re-sort client-side after filter
+  else rows.sort((a,b) => {
+    if (!a.follow_up_date && !b.follow_up_date) return 0;
+    if (!a.follow_up_date) return 1;
+    if (!b.follow_up_date) return -1;
+    return a.follow_up_date.localeCompare(b.follow_up_date);
+  });
+  const el = document.getElementById('sponsorsList');
+  if (!rows.length) { el.innerHTML = emptyState('package', 'No sponsors yet', 'Add your first sponsor or partner idea.'); return; }
+  el.innerHTML = rows.map(r => `
+    <div class="card" onclick="editSponsor('${r.id}')">
+      <div class="card-header">
+        <div>
+          <div class="card-name">${esc(r.sponsor_name)}${r.category ? ` <span style="font-size:11px;font-weight:400;color:var(--text-sec);">${esc(r.category)}</span>` : ''}</div>
+          ${r.contact_name ? `<div class="card-sub">${esc(r.contact_name)}${r.contact_email ? ` · ${esc(r.contact_email)}` : ''}</div>` : ''}
+        </div>
+        ${statusBadge(r.status)}
+      </div>
+      ${r.proposed_offer ? `<div style="font-size:12px;color:var(--text-sec);margin-bottom:4px;">${esc(r.proposed_offer)}</div>` : ''}
+      ${r.next_action ? `<div class="next-action">${esc(r.next_action)}</div>` : ''}
+      <div class="card-footer">
+        <div style="display:flex;gap:10px;align-items:center;">
+          ${r.owner ? `<span class="card-owner">${esc(r.owner)}</span>` : ''}
+          ${r.follow_up_date ? `<span class="card-date ${isOverdue(r.follow_up_date)?'overdue':''}">${isOverdue(r.follow_up_date)?'Overdue · ':''}${fmtDate(r.follow_up_date)}</span>` : ''}
+        </div>
+        <div class="card-actions" onclick="event.stopPropagation()">
+          ${r.website ? `<a href="${esc(r.website)}" target="_blank" class="btn-icon"><i data-lucide="external-link"></i></a>` : ''}
+          <button class="btn-icon danger" onclick="confirmDelete('growth_sponsors','${r.id}',loadSponsors)"><i data-lucide="trash-2"></i></button>
+        </div>
+      </div>
+    </div>`).join('');
+  lucide.createIcons();
+}
+
+// ── CLUBS render ──────────────────────────────────────────────────────
+function renderClubs() {
+  const q      = (document.getElementById('clubSearch').value || '').toLowerCase();
+  const status = document.getElementById('clubStatus').value;
+  const rows = clubs.filter(r =>
+    (!q || [r.club_name, r.location, r.contact_name, r.notes].join(' ').toLowerCase().includes(q)) &&
+    (!status || r.status === status)
+  );
+  const el = document.getElementById('clubsList');
+  if (!rows.length) { el.innerHTML = emptyState('users', 'No clubs yet', 'Add swim clubs and communities to reach.'); return; }
+  el.innerHTML = rows.map(r => `
+    <div class="card" onclick="editClub('${r.id}')">
+      <div class="card-header">
+        <div>
+          <div class="card-name">${esc(r.club_name)}${r.location ? ` <span style="font-size:11px;font-weight:400;color:var(--text-sec);">${esc(r.location)}</span>` : ''}</div>
+          ${r.contact_name ? `<div class="card-sub">${esc(r.contact_name)}${r.contact_email ? ` · ${esc(r.contact_email)}` : ''}</div>` : ''}
+        </div>
+        ${statusBadge(r.status)}
+      </div>
+      ${r.next_action ? `<div class="next-action">${esc(r.next_action)}</div>` : ''}
+      <div class="card-footer">
+        <span class="card-owner">${r.owner ? esc(r.owner) : ''}</span>
+        <div class="card-actions" onclick="event.stopPropagation()">
+          ${r.website ? `<a href="${esc(r.website)}" target="_blank" class="btn-icon"><i data-lucide="external-link"></i></a>` : ''}
+          ${r.facebook_url ? `<a href="${esc(r.facebook_url)}" target="_blank" class="btn-icon"><i data-lucide="users"></i></a>` : ''}
+          <button class="btn-icon danger" onclick="confirmDelete('growth_clubs','${r.id}',loadClubs)"><i data-lucide="trash-2"></i></button>
+        </div>
+      </div>
+    </div>`).join('');
+  lucide.createIcons();
+}
+
+// ── MEDIA render ──────────────────────────────────────────────────────
+function renderMedia() {
+  const q      = (document.getElementById('mediaSearch').value || '').toLowerCase();
+  const status = document.getElementById('mediaStatus').value;
+  const rows = media.filter(r =>
+    (!q || [r.outlet_name, r.contact_name, r.category, r.notes].join(' ').toLowerCase().includes(q)) &&
+    (!status || r.status === status)
+  );
+  const el = document.getElementById('mediaList');
+  if (!rows.length) { el.innerHTML = emptyState('radio', 'No media contacts yet', 'Add podcasts, magazines, blogs and influencers.'); return; }
+  el.innerHTML = rows.map(r => `
+    <div class="card" onclick="editMedia('${r.id}')">
+      <div class="card-header">
+        <div>
+          <div class="card-name">${esc(r.outlet_name)}${r.category ? ` <span style="font-size:11px;font-weight:400;color:var(--text-sec);">${esc(r.category)}</span>` : ''}</div>
+          ${r.contact_name ? `<div class="card-sub">${esc(r.contact_name)}${r.contact_email ? ` · ${esc(r.contact_email)}` : ''}</div>` : ''}
+        </div>
+        ${statusBadge(r.status)}
+      </div>
+      ${r.reach ? `<div style="font-size:12px;color:var(--text-sec);margin-bottom:4px;">${esc(r.reach)}</div>` : ''}
+      ${r.next_action ? `<div class="next-action">${esc(r.next_action)}</div>` : ''}
+      <div class="card-footer">
+        <div style="display:flex;gap:10px;align-items:center;">
+          ${r.owner ? `<span class="card-owner">${esc(r.owner)}</span>` : ''}
+          ${r.follow_up_date ? `<span class="card-date ${isOverdue(r.follow_up_date)?'overdue':''}">${isOverdue(r.follow_up_date)?'Overdue · ':''}${fmtDate(r.follow_up_date)}</span>` : ''}
+        </div>
+        <div class="card-actions" onclick="event.stopPropagation()">
+          ${r.instagram ? `<a href="https://instagram.com/${r.instagram.replace('@','')}" target="_blank" class="btn-icon"><i data-lucide="instagram"></i></a>` : ''}
+          <button class="btn-icon danger" onclick="confirmDelete('growth_media','${r.id}',loadMedia)"><i data-lucide="trash-2"></i></button>
+        </div>
+      </div>
+    </div>`).join('');
+  lucide.createIcons();
+}
+
+// ── TASKS render ──────────────────────────────────────────────────────
+function renderTasks() {
+  const q        = (document.getElementById('taskSearch').value || '').toLowerCase();
+  const status   = document.getElementById('taskStatus').value;
+  const priority = document.getElementById('taskPriority').value;
+  const rows = tasks.filter(r =>
+    (!q || [r.task_title, r.assigned_to, r.notes].join(' ').toLowerCase().includes(q)) &&
+    (!status || r.status === status) &&
+    (!priority || r.priority === priority)
+  );
+  const el = document.getElementById('tasksList');
+  if (!rows.length) { el.innerHTML = emptyState('check-square', 'No tasks yet', 'Add tasks and assign them between founders.'); return; }
+  el.innerHTML = rows.map(r => `
+    <div class="task-row" onclick="editTask('${r.id}')">
+      <div class="task-check ${r.status==='Done'?'done':''}" onclick="event.stopPropagation();toggleTaskDone('${r.id}','${r.status}')">
+        ${r.status==='Done' ? '<i data-lucide="check" style="width:11px;height:11px;color:#fff;"></i>' : ''}
+      </div>
+      <div class="task-body">
+        <div class="task-title ${r.status==='Done'?'done':''}">${esc(r.task_title)}</div>
+        <div class="task-detail">
+          ${r.assigned_to ? `<span>${esc(r.assigned_to)}</span>` : ''}
+          ${statusBadge(r.priority)}
+          ${r.status !== 'Done' ? statusBadge(r.status) : ''}
+          ${r.due_date ? `<span class="${isOverdue(r.due_date)&&r.status!=='Done'?'overdue':''}">${isOverdue(r.due_date)&&r.status!=='Done'?'Overdue · ':''}${fmtDate(r.due_date)}</span>` : ''}
+        </div>
+        ${r.notes ? `<div style="font-size:12px;color:var(--text-sec);margin-top:4px;">${esc(r.notes)}</div>` : ''}
+      </div>
+      <div onclick="event.stopPropagation()">
+        <button class="btn-icon danger" onclick="confirmDelete('growth_tasks','${r.id}',loadTasks)"><i data-lucide="trash-2"></i></button>
+      </div>
+    </div>`).join('');
+  lucide.createIcons();
+}
+
+async function toggleTaskDone(id, currentStatus) {
+  const newStatus = currentStatus === 'Done' ? 'To Do' : 'Done';
+  await sb.from('growth_tasks').update({ status: newStatus }).eq('id', id);
+  await loadTasks();
+}
+
+// ── IDEAS render ──────────────────────────────────────────────────────
+function renderIdeas() {
+  const q = (document.getElementById('ideaSearch').value || '').toLowerCase();
+  const rows = ideas.filter(r =>
+    !q || [r.title, r.body, r.tags].join(' ').toLowerCase().includes(q)
+  );
+  const el = document.getElementById('ideasList');
+  if (!rows.length) { el.innerHTML = emptyState('lightbulb', 'No ideas yet', 'Capture campaign ideas, feature thoughts, anything.'); return; }
+  el.innerHTML = rows.map(r => `
+    <div class="idea-card" onclick="editIdea('${r.id}')">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+        <div class="idea-title">${esc(r.title)}</div>
+        <button class="btn-icon danger" onclick="event.stopPropagation();confirmDelete('growth_ideas','${r.id}',loadIdeas)"><i data-lucide="trash-2"></i></button>
+      </div>
+      ${r.body ? `<div class="idea-body">${esc(r.body)}</div>` : ''}
+      ${r.tags ? `<div class="idea-tags">${r.tags.split(',').map(t=>`<span class="idea-tag">${esc(t.trim())}</span>`).join('')}</div>` : ''}
+      <div style="margin-top:8px;font-size:11px;color:var(--text-sec);">${r.owner ? esc(r.owner) + ' · ' : ''}${fmtDate(r.created_at?.slice(0,10))}</div>
+    </div>`).join('');
+  lucide.createIcons();
+}
+
+// ── Modal helpers ─────────────────────────────────────────────────────
+function openModal(type) {
+  document.getElementById(type + 'Modal').classList.add('open');
+  document.getElementById(type + 'ModalTitle').textContent = 'Add ' + type.charAt(0).toUpperCase() + type.slice(1).replace('media','Media Contact');
+  document.getElementById(type + 'Id').value = '';
+  // Clear all fields
+  document.getElementById(type + 'Modal').querySelectorAll('input:not([type=hidden]),select,textarea').forEach(el => { el.value = el.tagName === 'SELECT' ? el.options[0].value : ''; });
+  if (type === 'task') document.getElementById('tPriority').value = 'Medium';
+}
+
+function closeModal(type) {
+  document.getElementById(type + 'Modal').classList.remove('open');
+}
+
+// ── Sponsor save/edit ─────────────────────────────────────────────────
+async function saveSponsor() {
+  const id  = document.getElementById('sponsorId').value;
+  const btn = document.getElementById('sponsorSaveBtn');
+  const name = document.getElementById('sName').value.trim();
+  if (!name) { alert('Sponsor name is required.'); return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const row = {
+    country: currentCountry === 'ALL' ? 'UK' : currentCountry,
+    sponsor_name: name,
+    website:       document.getElementById('sWebsite').value.trim() || null,
+    contact_name:  document.getElementById('sContactName').value.trim() || null,
+    contact_email: document.getElementById('sContactEmail').value.trim() || null,
+    instagram:     document.getElementById('sInstagram').value.trim() || null,
+    linkedin:      document.getElementById('sLinkedin').value.trim() || null,
+    category:      document.getElementById('sCategory').value || null,
+    proposed_offer:document.getElementById('sOffer').value.trim() || null,
+    status:        document.getElementById('sStatus').value,
+    owner:         document.getElementById('sOwner').value || null,
+    next_action:   document.getElementById('sNextAction').value.trim() || null,
+    follow_up_date:document.getElementById('sFollowUp').value || null,
+    notes:         document.getElementById('sNotes').value.trim() || null,
+  };
+  if (id) await sb.from('growth_sponsors').update(row).eq('id', id);
+  else    await sb.from('growth_sponsors').insert(row);
+  btn.disabled = false; btn.textContent = 'Save';
+  closeModal('sponsor');
+  await loadSponsors();
+}
+
+function editSponsor(id) {
+  const r = sponsors.find(s => s.id === id); if (!r) return;
+  document.getElementById('sponsorModalTitle').textContent = 'Edit Sponsor';
+  document.getElementById('sponsorId').value = id;
+  document.getElementById('sName').value         = r.sponsor_name || '';
+  document.getElementById('sWebsite').value      = r.website || '';
+  document.getElementById('sContactName').value  = r.contact_name || '';
+  document.getElementById('sContactEmail').value = r.contact_email || '';
+  document.getElementById('sInstagram').value    = r.instagram || '';
+  document.getElementById('sLinkedin').value     = r.linkedin || '';
+  document.getElementById('sCategory').value     = r.category || '';
+  document.getElementById('sOffer').value        = r.proposed_offer || '';
+  document.getElementById('sStatus').value       = r.status || 'Idea';
+  document.getElementById('sOwner').value        = r.owner || '';
+  document.getElementById('sNextAction').value   = r.next_action || '';
+  document.getElementById('sFollowUp').value     = r.follow_up_date || '';
+  document.getElementById('sNotes').value        = r.notes || '';
+  document.getElementById('sponsorModal').classList.add('open');
+}
+
+// ── Club save/edit ────────────────────────────────────────────────────
+async function saveClub() {
+  const id  = document.getElementById('clubId').value;
+  const btn = document.getElementById('clubSaveBtn');
+  const name = document.getElementById('cName').value.trim();
+  if (!name) { alert('Club name is required.'); return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const row = {
+    country:       currentCountry === 'ALL' ? 'UK' : currentCountry,
+    club_name:     name,
+    location:      document.getElementById('cLocation').value.trim() || null,
+    website:       document.getElementById('cWebsite').value.trim() || null,
+    facebook_url:  document.getElementById('cFacebook').value.trim() || null,
+    contact_name:  document.getElementById('cContactName').value.trim() || null,
+    contact_email: document.getElementById('cContactEmail').value.trim() || null,
+    status:        document.getElementById('cStatus').value,
+    owner:         document.getElementById('cOwner').value || null,
+    next_action:   document.getElementById('cNextAction').value.trim() || null,
+    notes:         document.getElementById('cNotes').value.trim() || null,
+  };
+  if (id) await sb.from('growth_clubs').update(row).eq('id', id);
+  else    await sb.from('growth_clubs').insert(row);
+  btn.disabled = false; btn.textContent = 'Save';
+  closeModal('club');
+  await loadClubs();
+}
+
+function editClub(id) {
+  const r = clubs.find(c => c.id === id); if (!r) return;
+  document.getElementById('clubModalTitle').textContent = 'Edit Club';
+  document.getElementById('clubId').value        = id;
+  document.getElementById('cName').value         = r.club_name || '';
+  document.getElementById('cLocation').value     = r.location || '';
+  document.getElementById('cWebsite').value      = r.website || '';
+  document.getElementById('cFacebook').value     = r.facebook_url || '';
+  document.getElementById('cContactName').value  = r.contact_name || '';
+  document.getElementById('cContactEmail').value = r.contact_email || '';
+  document.getElementById('cStatus').value       = r.status || 'Idea';
+  document.getElementById('cOwner').value        = r.owner || '';
+  document.getElementById('cNextAction').value   = r.next_action || '';
+  document.getElementById('cNotes').value        = r.notes || '';
+  document.getElementById('clubModal').classList.add('open');
+}
+
+// ── Media save/edit ───────────────────────────────────────────────────
+async function saveMedia() {
+  const id  = document.getElementById('mediaId').value;
+  const btn = document.getElementById('mediaSaveBtn');
+  const name = document.getElementById('mName').value.trim();
+  if (!name) { alert('Outlet name is required.'); return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const row = {
+    country:       currentCountry === 'ALL' ? 'UK' : currentCountry,
+    outlet_name:   name,
+    contact_name:  document.getElementById('mContactName').value.trim() || null,
+    contact_email: document.getElementById('mContactEmail').value.trim() || null,
+    instagram:     document.getElementById('mInstagram').value.trim() || null,
+    twitter:       document.getElementById('mTwitter').value.trim() || null,
+    category:      document.getElementById('mCategory').value || null,
+    reach:         document.getElementById('mReach').value.trim() || null,
+    status:        document.getElementById('mStatus').value,
+    owner:         document.getElementById('mOwner').value || null,
+    next_action:   document.getElementById('mNextAction').value.trim() || null,
+    follow_up_date:document.getElementById('mFollowUp').value || null,
+    notes:         document.getElementById('mNotes').value.trim() || null,
+  };
+  if (id) await sb.from('growth_media').update(row).eq('id', id);
+  else    await sb.from('growth_media').insert(row);
+  btn.disabled = false; btn.textContent = 'Save';
+  closeModal('media');
+  await loadMedia();
+}
+
+function editMedia(id) {
+  const r = media.find(m => m.id === id); if (!r) return;
+  document.getElementById('mediaModalTitle').textContent = 'Edit Media Contact';
+  document.getElementById('mediaId').value       = id;
+  document.getElementById('mName').value         = r.outlet_name || '';
+  document.getElementById('mContactName').value  = r.contact_name || '';
+  document.getElementById('mContactEmail').value = r.contact_email || '';
+  document.getElementById('mInstagram').value    = r.instagram || '';
+  document.getElementById('mTwitter').value      = r.twitter || '';
+  document.getElementById('mCategory').value     = r.category || '';
+  document.getElementById('mReach').value        = r.reach || '';
+  document.getElementById('mStatus').value       = r.status || 'Idea';
+  document.getElementById('mOwner').value        = r.owner || '';
+  document.getElementById('mNextAction').value   = r.next_action || '';
+  document.getElementById('mFollowUp').value     = r.follow_up_date || '';
+  document.getElementById('mNotes').value        = r.notes || '';
+  document.getElementById('mediaModal').classList.add('open');
+}
+
+// ── Task save/edit ────────────────────────────────────────────────────
+async function saveTask() {
+  const id  = document.getElementById('taskId').value;
+  const btn = document.getElementById('taskSaveBtn');
+  const title = document.getElementById('tTitle').value.trim();
+  if (!title) { alert('Task title is required.'); return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const row = {
+    country:     currentCountry === 'ALL' ? 'UK' : currentCountry,
+    task_title:  title,
+    assigned_to: document.getElementById('tAssigned').value || null,
+    priority:    document.getElementById('tPriority').value,
+    due_date:    document.getElementById('tDue').value || null,
+    status:      document.getElementById('tStatus').value,
+    notes:       document.getElementById('tNotes').value.trim() || null,
+  };
+  if (id) await sb.from('growth_tasks').update(row).eq('id', id);
+  else    await sb.from('growth_tasks').insert(row);
+  btn.disabled = false; btn.textContent = 'Save';
+  closeModal('task');
+  await loadTasks();
+}
+
+function editTask(id) {
+  const r = tasks.find(t => t.id === id); if (!r) return;
+  document.getElementById('taskModalTitle').textContent = 'Edit Task';
+  document.getElementById('taskId').value       = id;
+  document.getElementById('tTitle').value       = r.task_title || '';
+  document.getElementById('tAssigned').value    = r.assigned_to || '';
+  document.getElementById('tPriority').value    = r.priority || 'Medium';
+  document.getElementById('tDue').value         = r.due_date || '';
+  document.getElementById('tStatus').value      = r.status || 'To Do';
+  document.getElementById('tNotes').value       = r.notes || '';
+  document.getElementById('taskModal').classList.add('open');
+}
+
+// ── Idea save/edit ────────────────────────────────────────────────────
+async function saveIdea() {
+  const id  = document.getElementById('ideaId').value;
+  const btn = document.getElementById('ideaSaveBtn');
+  const title = document.getElementById('iTitle').value.trim();
+  if (!title) { alert('Title is required.'); return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const row = {
+    country: currentCountry === 'ALL' ? 'UK' : currentCountry,
+    title,
+    body:  document.getElementById('iBody').value.trim() || null,
+    tags:  document.getElementById('iTags').value.trim() || null,
+    owner: document.getElementById('iOwner').value || null,
+  };
+  if (id) await sb.from('growth_ideas').update(row).eq('id', id);
+  else    await sb.from('growth_ideas').insert(row);
+  btn.disabled = false; btn.textContent = 'Save';
+  closeModal('idea');
+  await loadIdeas();
+}
+
+function editIdea(id) {
+  const r = ideas.find(i => i.id === id); if (!r) return;
+  document.getElementById('ideaModalTitle').textContent = 'Edit Idea';
+  document.getElementById('ideaId').value  = id;
+  document.getElementById('iTitle').value  = r.title || '';
+  document.getElementById('iBody').value   = r.body || '';
+  document.getElementById('iTags').value   = r.tags || '';
+  document.getElementById('iOwner').value  = r.owner || '';
+  document.getElementById('ideaModal').classList.add('open');
+}
+
+// ── Delete confirm ────────────────────────────────────────────────────
+function confirmDelete(table, id, reloadFn) {
+  const overlay = document.getElementById('confirmOverlay');
+  overlay.classList.add('open');
+  document.getElementById('confirmDeleteBtn').onclick = async () => {
+    await sb.from(table).delete().eq('id', id);
+    overlay.classList.remove('open');
+    await reloadFn();
+  };
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function emptyState(icon, title, sub) {
+  return `<div class="empty">
+    <div class="empty-icon"><i data-lucide="${icon}" style="width:40px;height:40px;"></i></div>
+    <div class="empty-title">${title}</div>
+    <div class="empty-sub">${sub}</div>
+  </div>`;
+}
+
+// Close modal on backdrop click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+});
+
+boot();
+</script>
+</body>
+</html>
