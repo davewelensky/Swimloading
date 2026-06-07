@@ -7513,18 +7513,24 @@
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Share Conditions';
             } else {
+                // True backdate = picker was used AND the chosen date is a past calendar day (UTC)
+                const todayUTC = new Date().toISOString().slice(0, 10);
+                const loggedAtIsToday = loggedAt && new Date(loggedAt).toISOString().slice(0, 10) === todayUTC;
+                const isTrueBackdate = loggedAt && !loggedAtIsToday;
+
                 const juneLive = typeof jcIsActive === 'function' && jcIsActive();
                 if (!juneLive) {
                     // Only show points toast when June Challenge isn't active
-                    showToast(loggedAt ? 'Backdated conditions logged! +10 points!' : 'Conditions shared! +10 points', 'success');
-                } else if (loggedAt) {
+                    showToast(isTrueBackdate ? 'Backdated conditions logged! +10 points!' : 'Conditions shared! +10 points', 'success');
+                } else if (isTrueBackdate) {
                     showToast('Backdated conditions logged!', 'success');
                 }
                 analytics.track('temp_logged', { spot: spotNameForConfirm, temp, conditions });
                 if (hazards.length > 0) analytics.track('hazard_reported', { hazards });
 
-                // June Challenge — award points (handles its own success toast + WhatsApp prompt)
-                if (!loggedAt) {
+                // June Challenge — award points for live logs AND same-day picker logs
+                // Genuine past-date backdates are excluded to prevent gaming
+                if (!isTrueBackdate) {
                     const newLogId = data?.[0]?.id || null;
                     jcAwardPoints('temp_log', { spotId, spotName: spotNameForConfirm, temp, refId: newLogId });
                 }
