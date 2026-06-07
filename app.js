@@ -969,14 +969,14 @@
                     if (domainSpots.length === 0) return;
                     fdHtml += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);padding:8px 16px 4px;font-weight:700;pointer-events:none;">— ${d.display_name} —</div>`;
                     domainSpots.forEach(spot => {
-                        fdHtml += `<div class="fd-option" data-value="${spot.id}" onclick="fdEventSpotSelect(${spot.id},'${spot.name.replace(/'/g, "\\'")}')">${spot.name}</div>`;
+                        fdHtml += `<div class="fd-option" data-value="${spot.id}" onclick="fdEventSpotSelect('${spot.id}','${spot.name.replace(/'/g, "\\'")}')">${spot.name}</div>`;
                     });
                 });
                 const ungrouped = spots.filter(s => !domainCodes.includes(s.domain));
                 if (ungrouped.length > 0) {
                     fdHtml += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);padding:8px 16px 4px;font-weight:700;pointer-events:none;">— Other —</div>`;
                     ungrouped.forEach(spot => {
-                        fdHtml += `<div class="fd-option" data-value="${spot.id}" onclick="fdEventSpotSelect(${spot.id},'${spot.name.replace(/'/g, "\\'")}')">${spot.name}</div>`;
+                        fdHtml += `<div class="fd-option" data-value="${spot.id}" onclick="fdEventSpotSelect('${spot.id}','${spot.name.replace(/'/g, "\\'")}')">${spot.name}</div>`;
                     });
                 }
                 eventSpotPanel.innerHTML = fdHtml;
