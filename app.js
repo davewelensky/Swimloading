@@ -42,6 +42,24 @@
         // Global state
         let currentUser = null;
         let currentUserProfile = null;  // full profile object loaded at app start
+
+        // ── Activity audit ────────────────────────────────────────────────────
+        // Fire-and-forget — never blocks the user action.
+        // Routes through /api/audit-log so Vercel captures the real IP + geo.
+        function auditLog(actionType, metadata) {
+            try {
+                fetch('/api/audit-log', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId:     currentUser?.id || null,
+                        actionType,
+                        path:       window.location.pathname + window.location.search,
+                        metadata:   metadata || null,
+                    }),
+                }).catch(() => {}); // silent fail
+            } catch (e) { /* never break the app */ }
+        }
         let spots = [];
         let domains = [];  // loaded from DB — replaces all hardcoded DOMAINS arrays
         let internationalSpotIds = new Set(); // spot IDs where countries.is_domestic = false
@@ -329,6 +347,9 @@
 
         // Load main app
         async function loadApp() {
+            // Audit session start — captures IP/geo via server
+            auditLog('session_start', { email: currentUser?.email });
+
             // Load domains early — needed for onboarding dropdowns AND main app
             await loadDomains();
 
@@ -640,9 +661,11 @@
             });
 
             if (error) {
+                auditLog('sign_in_failed', { email, reason: error.message });
                 alert('Login failed: ' + error.message);
             } else {
                 currentUser = data.user;
+                auditLog('sign_in', { email: data.user.email });
                 loadApp();
             }
         }
@@ -7527,6 +7550,7 @@
                 }
                 analytics.track('temp_logged', { spot: spotNameForConfirm, temp, conditions });
                 if (hazards.length > 0) analytics.track('hazard_reported', { hazards });
+                auditLog('temp_log', { spot: spotNameForConfirm, spotId, temp, conditions, backdated: !!isTrueBackdate });
 
                 // June Challenge — award points for live logs AND same-day picker logs
                 // Genuine past-date backdates are excluded to prevent gaming
