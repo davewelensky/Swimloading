@@ -528,6 +528,9 @@
       <button class="nav-item" onclick="showPage('tracker')" id="nav-tracker">
         <i data-lucide="trending-up"></i> Squad Tracker
       </button>
+      <button class="nav-item" onclick="showPage('timetable')" id="nav-timetable" style="display:none;">
+        <i data-lucide="calendar-days"></i> Timetable
+      </button>
       <button class="nav-item" onclick="showPage('health')" id="nav-health" style="display:none;">
         <i data-lucide="activity"></i> Health
       </button>
@@ -1050,6 +1053,26 @@
         </div>
         <div id="squadCapacityStrip" style="display:none;margin-bottom:16px;"></div>
         <div id="trackerContent"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+
+      <!-- ── TIMETABLE ── -->
+      <div id="page-timetable" class="page">
+        <div class="page-header">
+          <div class="page-title">Weekly Timetable</div>
+          <div class="page-sub">Recurring sessions — drives Today's Schedule and attendance sheets</div>
+        </div>
+        <div class="card" style="padding:24px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div style="flex:1;">
+              <div style="font-size:13px;color:var(--text-sec);">Add or manage your club's weekly training schedule</div>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button style="background:none;border:1px solid var(--border);color:var(--text-sec);cursor:pointer;font-size:13px;padding:8px 14px;border-radius:8px;" onclick="openScheduleImport()" onmouseover="this.style.borderColor='var(--cyan)';this.style.color='var(--cyan)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-sec)'">Import schedule</button>
+              <button class="btn-primary" style="width:auto;padding:8px 16px;border-radius:8px;font-size:13px;" onclick="openAddTimetableModal()">Add session</button>
+            </div>
+          </div>
+          <div id="timetablePageList"><div style="color:var(--text-sec);font-size:13px;">Loading…</div></div>
+        </div>
       </div>
 
       <!-- ── HEALTH ── -->
@@ -2021,6 +2044,7 @@ async function loadClubContext() {
   document.getElementById('nav-results').style.display          = hasTempChallenge ? '' : 'none';
   document.getElementById('nav-challenges').style.display       = hasChallenges    ? '' : 'none';
   document.getElementById('nav-tracker').style.display          = hasSquads        ? '' : 'none';
+  document.getElementById('nav-timetable').style.display        = hasTimetable      ? '' : 'none';
   document.getElementById('nav-sets').style.display             = hasSquads        ? '' : 'none';
   document.getElementById('nav-health').style.display           = hasHealth        ? '' : 'none';
   document.getElementById('nav-groups').style.display           = hasGroups        ? '' : 'none';
@@ -5863,15 +5887,18 @@ function renderSettingsSquads(squads) {
 
 function renderSettingsTimetable(sessions) {
   const el = document.getElementById('settingsTimetableList');
+  const pageEl = document.getElementById('timetablePageList');
   const active = sessions.filter(s => s.is_active !== false);
   if (!active.length) {
-    el.innerHTML = `<div style="color:var(--text-sec);font-size:13px;text-align:center;padding:12px 0;">No sessions yet — add your weekly schedule above.</div>`;
+    const emptyMsg = `<div style="color:var(--text-sec);font-size:13px;text-align:center;padding:12px 0;">No sessions yet — add your weekly schedule above.</div>`;
+    el.innerHTML = emptyMsg;
+    if (pageEl) pageEl.innerHTML = emptyMsg;
     return;
   }
   const byDay = {};
   active.forEach(s => { (byDay[s.day_of_week] = byDay[s.day_of_week] || []).push(s); });
   const sortedDays = [1,2,3,4,5,6,0].filter(d => byDay[d]);
-  el.innerHTML = sortedDays.map(dow => `
+  const html = sortedDays.map(dow => `
     <div style="margin-bottom:14px;">
       <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">${DAYS[dow]}</div>
       ${byDay[dow].map(s => {
@@ -5896,6 +5923,8 @@ function renderSettingsTimetable(sessions) {
       }).join('')}
     </div>
   `).join('');
+  el.innerHTML = html;
+  if (pageEl) pageEl.innerHTML = html;
 }
 
 // ── SQUAD CRUD ─────────────────────────────────────────────────────
