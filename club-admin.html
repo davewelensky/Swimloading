@@ -5833,37 +5833,40 @@ async function loadSettingsPage() {
   renderSettingsSquads(squads || []);
 
   // Load timetable using ALL squads so masters/inactive squads still show
-  const timetableSquadIds = allSquadsAll.map(s => s.id);
-  if (timetableSquadIds.length) {
-    const { data: sessions } = await sb.from('club_squad_sessions')
-      .select('id, squad_id, day_of_week, start_time, end_time, coach_name, max_capacity, notes, is_active')
-      .in('squad_id', timetableSquadIds)
-      .eq('is_active', true)
-      .order('day_of_week')
-      .order('start_time');
-    allTimetableSessions = sessions || [];
-    allWeekSessions = allTimetableSessions; // keep dashboard in sync
-    // Load assignment counts for each session (async, non-blocking)
-    sessionAssignmentCounts = {};
-    renderSettingsTimetable(allTimetableSessions);
-    if (allTimetableSessions.length) {
-      const sessionIds = allTimetableSessions.map(s => s.id);
-      sb.from('club_session_assignments')
-        .select('session_id')
-        .eq('club_id', currentClub.id)
-        .in('session_id', sessionIds)
-        .then(({ data: counts }) => {
-          (counts || []).forEach(a => {
-            sessionAssignmentCounts[a.session_id] = (sessionAssignmentCounts[a.session_id] || 0) + 1;
-          });
+  allTimetableSessions = [];
+  sessionAssignmentCounts = {};
+  renderSettingsTimetable([]);
+  // Timetable loading disabled temporarily due to performance issues
+  setTimeout(() => {
+    const timetableSquadIds = allSquadsAll.map(s => s.id);
+    if (timetableSquadIds.length) {
+      sb.from('club_squad_sessions')
+        .select('id, squad_id, day_of_week, start_time, end_time, coach_name, max_capacity, notes, is_active')
+        .in('squad_id', timetableSquadIds)
+        .eq('is_active', true)
+        .order('day_of_week')
+        .order('start_time')
+        .then(({ data: sessions }) => {
+          allTimetableSessions = sessions || [];
+          allWeekSessions = allTimetableSessions;
+          sessionAssignmentCounts = {};
           renderSettingsTimetable(allTimetableSessions);
+          if (allTimetableSessions.length) {
+            const sessionIds = allTimetableSessions.map(s => s.id);
+            sb.from('club_session_assignments')
+              .select('session_id')
+              .eq('club_id', currentClub.id)
+              .in('session_id', sessionIds)
+              .then(({ data: counts }) => {
+                (counts || []).forEach(a => {
+                  sessionAssignmentCounts[a.session_id] = (sessionAssignmentCounts[a.session_id] || 0) + 1;
+                });
+                renderSettingsTimetable(allTimetableSessions);
+              });
+          }
         });
     }
-  } else {
-    allTimetableSessions = [];
-    sessionAssignmentCounts = {};
-    renderSettingsTimetable([]);
-  }
+  }, 100);
 }
 
 function renderSettingsSquads(squads) {
