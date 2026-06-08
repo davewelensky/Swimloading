@@ -5819,24 +5819,32 @@ function copyLink(url) {
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
 async function loadSettingsPage() {
-  loadSettings();
+  try {
+    loadSettings();
 
-  // Load all squads for this club (all, including inactive — needed for timetable)
-  const { data: squads } = await sb.from('club_squads')
-    .select('id, name, type, sort_order, max_members, is_active')
-    .eq('club_id', currentClub.id)
-    .order('sort_order');
-  // allSquads = active squads only (used for dropdowns, assignments, stats)
-  // allSquadsAll = every squad including inactive (used for timetable + name lookups)
-  allSquads    = (squads || []).filter(s => s.is_active !== false);
-  allSquadsAll = squads || [];
-  renderSettingsSquads(squads || []);
+    // Load all squads for this club (all, including inactive — needed for timetable)
+    const { data: squads } = await sb.from('club_squads')
+      .select('id, name, type, sort_order, max_members, is_active')
+      .eq('club_id', currentClub.id)
+      .order('sort_order');
+    // allSquads = active squads only (used for dropdowns, assignments, stats)
+    // allSquadsAll = every squad including inactive (used for timetable + name lookups)
+    allSquads    = (squads || []).filter(s => s.is_active !== false);
+    allSquadsAll = squads || [];
+    renderSettingsSquads(squads || []);
+  } catch (err) {
+    console.error('Error loading settings:', err);
+    document.getElementById('settingsSquadList').innerHTML = `<div style="color:var(--danger);padding:12px;">Error loading settings: ${err.message}</div>`;
+    document.getElementById('settingsTimetableList').innerHTML = `<div style="color:var(--danger);padding:12px;">Error loading timetable</div>`;
+    return;
+  }
 
   // Load timetable using ALL squads so masters/inactive squads still show
   allTimetableSessions = [];
   sessionAssignmentCounts = {};
-  renderSettingsTimetable([]);
-  // Timetable loading disabled temporarily due to performance issues
+  const el = document.getElementById('settingsTimetableList');
+  if (el) el.innerHTML = `<div style="color:var(--text-sec);font-size:13px;padding:12px 0;">Loading timetable...</div>`;
+
   setTimeout(() => {
     const timetableSquadIds = allSquadsAll.map(s => s.id);
     if (timetableSquadIds.length) {
@@ -5862,9 +5870,21 @@ async function loadSettingsPage() {
                   sessionAssignmentCounts[a.session_id] = (sessionAssignmentCounts[a.session_id] || 0) + 1;
                 });
                 renderSettingsTimetable(allTimetableSessions);
+              })
+              .catch(err => {
+                console.error('Error loading assignments:', err);
+                const el = document.getElementById('settingsTimetableList');
+                if (el) el.innerHTML = `<div style="color:var(--danger);padding:12px;">Error loading swimmer counts</div>`;
               });
           }
+        })
+        .catch(err => {
+          console.error('Error loading sessions:', err);
+          const el = document.getElementById('settingsTimetableList');
+          if (el) el.innerHTML = `<div style="color:var(--danger);padding:12px;">Error loading timetable: ${err.message}</div>`;
         });
+    } else {
+      renderSettingsTimetable([]);
     }
   }, 100);
 }
