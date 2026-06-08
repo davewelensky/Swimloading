@@ -5895,6 +5895,8 @@ function renderSettingsTimetable(sessions) {
     if (pageEl) pageEl.innerHTML = emptyMsg;
     return;
   }
+  const squadMap = {};
+  allSquads.forEach(s => { squadMap[s.id] = s; });
   const byDay = {};
   active.forEach(s => { (byDay[s.day_of_week] = byDay[s.day_of_week] || []).push(s); });
   const sortedDays = [1,2,3,4,5,6,0].filter(d => byDay[d]);
@@ -5902,7 +5904,7 @@ function renderSettingsTimetable(sessions) {
     <div style="margin-bottom:14px;">
       <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">${DAYS[dow]}</div>
       ${byDay[dow].map(s => {
-        const squad = allSquads.find(q => q.id === s.squad_id);
+        const squad = squadMap[s.squad_id];
         const start = s.start_time?.slice(0,5) || '';
         const end   = s.end_time?.slice(0,5)   || '';
         return `
