@@ -10662,7 +10662,7 @@ async function loadGroupsPage() {
                 <div style="font-size:13px;font-weight:600;">${s.title}</div>
                 <div style="font-size:11px;color:var(--text-sec);">${d.toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short'})}</div>
               </div>
-              <button class="btn-sm" onclick="openSessionDetail('${s.id}')">View</button>
+              <button class="btn-sm" onclick="openGroupSessionDetail('${s.id}')">View</button>
             </div>`;
           }).join('')}
         </div>` : `<div style="padding:12px 18px;font-size:12px;color:var(--text-sec);">No upcoming sessions — post one to get started.</div>`}
@@ -10850,7 +10850,7 @@ async function submitGroupSession(groupId) {
   loadGroupsPage();
 }
 
-async function openSessionDetail(sessionId) {
+async function openGroupSessionDetail(sessionId) {
   const { data: s } = await sb.from('club_group_sessions').select('*').eq('id', sessionId).single();
   if (!s) return;
   const { data: rsvps } = await sb.from('club_group_rsvps')
