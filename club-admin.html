@@ -5993,13 +5993,22 @@ async function loadTimetablePage() {
       .order('day_of_week')
       .order('start_time');
 
-    // Build squad lookup
-    const squadMap = {};
-    (squads || []).forEach(s => { squadMap[s.id] = s; });
-
-    // Render
     allTimetableSessions = sessions || [];
     allSquads = (squads || []).filter(s => s.is_active !== false);
+
+    // Load assignment counts so coach buttons show correct numbers
+    if (allTimetableSessions.length) {
+      const sessionIds = allTimetableSessions.map(s => s.id);
+      const { data: counts } = await sb.from('club_session_assignments')
+        .select('session_id')
+        .eq('club_id', currentClub.id)
+        .in('session_id', sessionIds);
+      sessionAssignmentCounts = {};
+      (counts || []).forEach(a => {
+        sessionAssignmentCounts[a.session_id] = (sessionAssignmentCounts[a.session_id] || 0) + 1;
+      });
+    }
+
     renderSettingsTimetable(allTimetableSessions);
   } catch (err) {
     console.error('Error loading timetable:', err);
