@@ -2817,11 +2817,22 @@ function renderDayDashboard(dow) {
             ${cap&&openSpots>0&&!isPast?`<span style="font-size:10px;color:var(--text-sec);">${cap-asgn} open</span>`:''}
           </div>
         </div>
-        <div style="flex-shrink:0;text-align:right;">
-          ${s.coach_name
-            ?`<div style="font-size:12px;color:var(--text-sec);">${s.coach_name}</div>`
-            :`<div style="font-size:11px;font-weight:700;color:var(--danger);">NO COACH</div>`}
-          <div style="font-size:10px;color:var(--cyan);margin-top:2px;">View →</div>
+        <div style="flex-shrink:0;text-align:right;display:flex;align-items:center;gap:8px;">
+          <div>
+            ${s.coach_name
+              ?`<div style="font-size:12px;color:var(--text-sec);">${s.coach_name}</div>`
+              :`<div style="font-size:11px;font-weight:700;color:var(--danger);">NO COACH</div>`}
+            <div style="font-size:10px;color:var(--cyan);margin-top:2px;">View →</div>
+          </div>
+          ${(sq?.name||'').toLowerCase().includes('learn to swim')
+            ? `<button onclick="event.stopPropagation();openLTSSlotsModal('${s.id}','${(sq?.name||'').replace(/'/g,"\\'")}')"
+                style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);color:var(--cyan);
+                       font-size:10px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;
+                       white-space:nowrap;letter-spacing:0.04em;">
+                Slots
+              </button>`
+            : ''
+          }
         </div>
       </div>
     </div>`;
@@ -10072,6 +10083,204 @@ function closeChallengeModal() {
   if (el) el.style.display = 'none';
 }
 
+// ── LTS SLOTS ADMIN ───────────────────────────────────────────────────────────
+
+let ltsModalSessionId   = null;  // active squad_session_id for slot editing
+let ltsSlotsAdminList   = [];    // current slots in modal
+let ltsRosterForClub    = [];    // LTS roster members for autocomplete
+
+function openLTSSlotsModal(sqSessionId, sqName) {
+  ltsModalSessionId = sqSessionId;
+  document.getElementById('ltsSlotsModalTitle').textContent = sqName + ' — Lesson Slots';
+  document.getElementById('ltsSlotsAdminList').innerHTML =
+    '<div style="padding:20px;text-align:center;"><div class="spinner" style="margin:0 auto;"></div></div>';
+  document.getElementById('ltsSlotsModal').style.display = 'flex';
+  document.getElementById('ltsNewClientName').value = '';
+  document.getElementById('ltsNewNote').value = '';
+  document.getElementById('ltsNewTime').value = '';
+  document.getElementById('ltsClientSuggestions').style.display = 'none';
+  loadLTSSlotsAdmin();
+
+  // Pre-load LTS roster for autocomplete
+  if (!ltsRosterForClub.length && currentClub?.id) {
+    sb.from('club_roster').select('id, display_name').eq('club_id', currentClub.id)
+      .then(({ data }) => { ltsRosterForClub = data || []; });
+  }
+}
+
+function closeLTSSlotsModal() {
+  document.getElementById('ltsSlotsModal').style.display = 'none';
+}
+
+async function loadLTSSlotsAdmin() {
+  const { data, error } = await sb.from('club_lts_slots')
+    .select('*')
+    .eq('squad_session_id', ltsModalSessionId)
+    .order('sort_order').order('slot_time');
+
+  ltsSlotsAdminList = data || [];
+  renderLTSSlotsAdmin();
+}
+
+function ltsAdminFmtTime(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':');
+  const hr = parseInt(h);
+  return (hr > 12 ? hr - 12 : hr || 12) + ':' + m + (hr >= 12 ? 'pm' : 'am');
+}
+
+function renderLTSSlotsAdmin() {
+  const el = document.getElementById('ltsSlotsAdminList');
+  if (!ltsSlotsAdminList.length) {
+    el.innerHTML = `<div style="text-align:center;padding:28px;color:var(--text-sec);font-size:13px;">
+      No slots yet — add the first one below.</div>`;
+    return;
+  }
+
+  el.innerHTML = ltsSlotsAdminList.map((slot, i) => {
+    const timeFmt  = ltsAdminFmtTime(slot.slot_time);
+    const active   = slot.is_active !== false;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:11px 0;
+                        border-bottom:1px solid rgba(255,255,255,0.05);opacity:${active?'1':'0.45'};">
+      <!-- reorder buttons -->
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <button onclick="ltsSlotMove(${i},-1)" style="background:none;border:none;color:var(--text-dim);cursor:pointer;padding:2px 4px;font-size:12px;" ${i===0?'disabled':''}>▲</button>
+        <button onclick="ltsSlotMove(${i},1)"  style="background:none;border:none;color:var(--text-dim);cursor:pointer;padding:2px 4px;font-size:12px;" ${i===ltsSlotsAdminList.length-1?'disabled':''}>▼</button>
+      </div>
+      <!-- time -->
+      <div style="min-width:52px;font-size:13px;font-weight:700;color:var(--cyan);">${timeFmt}</div>
+      <!-- name + note -->
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:14px;font-weight:700;">${slot.client_name}</div>
+        ${slot.note ? `<div style="font-size:11px;color:var(--text-sec);margin-top:1px;">${slot.note}</div>` : ''}
+      </div>
+      <!-- duration -->
+      <div style="font-size:11px;color:var(--text-sec);white-space:nowrap;">${slot.duration_mins || 30} min</div>
+      <!-- toggle + delete -->
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button onclick="toggleLTSSlot('${slot.id}', ${active})"
+          style="background:${active?'rgba(16,185,129,0.1)':'rgba(100,116,139,0.1)'};
+                 border:1px solid ${active?'rgba(16,185,129,0.25)':'rgba(100,116,139,0.2)'};
+                 color:${active?'var(--green)':'var(--text-sec)'};
+                 font-size:10px;font-weight:700;padding:4px 9px;border-radius:7px;cursor:pointer;">
+          ${active ? 'On' : 'Off'}
+        </button>
+        <button onclick="deleteLTSSlot('${slot.id}')"
+          style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);
+                 color:var(--danger);font-size:10px;font-weight:700;
+                 padding:4px 9px;border-radius:7px;cursor:pointer;">
+          Delete
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function ltsClientAutocomplete(val) {
+  const sugEl = document.getElementById('ltsClientSuggestions');
+  if (!val || val.length < 2) { sugEl.style.display = 'none'; return; }
+  const lower = val.toLowerCase();
+  const matches = ltsRosterForClub
+    .filter(r => (r.display_name || '').toLowerCase().includes(lower))
+    .slice(0, 6);
+  if (!matches.length) { sugEl.style.display = 'none'; return; }
+  sugEl.innerHTML = matches.map(r =>
+    `<div onclick="ltsPickClient('${r.display_name.replace(/'/g,"\\'")}', '${r.id}')"
+          style="padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.05);"
+          onmouseover="this.style.background='rgba(56,189,248,0.06)'"
+          onmouseout="this.style.background=''">
+      ${r.display_name}
+     </div>`
+  ).join('');
+  sugEl.style.display = '';
+}
+
+function ltsPickClient(name, rosterId) {
+  document.getElementById('ltsNewClientName').value = name;
+  document.getElementById('ltsNewClientName').dataset.rosterId = rosterId;
+  document.getElementById('ltsClientSuggestions').style.display = 'none';
+}
+
+async function addLTSSlot() {
+  const timeVal  = document.getElementById('ltsNewTime').value;
+  const nameVal  = document.getElementById('ltsNewClientName').value.trim();
+  const durVal   = parseInt(document.getElementById('ltsNewDuration').value) || 30;
+  const noteVal  = document.getElementById('ltsNewNote').value.trim() || null;
+  const rosterId = document.getElementById('ltsNewClientName').dataset.rosterId || null;
+
+  if (!timeVal) { showToast('Please set a time', 'error'); return; }
+  if (!nameVal) { showToast('Please enter a client name', 'error'); return; }
+
+  const btn = document.getElementById('ltsAddBtn');
+  btn.disabled = true; btn.textContent = 'Adding…';
+
+  const sortOrder = ltsSlotsAdminList.length;
+
+  const { data, error } = await sb.from('club_lts_slots').insert({
+    club_id:          currentClub.id,
+    squad_session_id: ltsModalSessionId,
+    roster_id:        rosterId || null,
+    client_name:      nameVal,
+    slot_time:        timeVal,
+    duration_mins:    durVal,
+    note:             noteVal,
+    sort_order:       sortOrder,
+    is_active:        true,
+  }).select().single();
+
+  btn.disabled = false; btn.textContent = 'Add slot';
+
+  if (error) { showToast('Could not add slot: ' + error.message, 'error'); return; }
+
+  ltsSlotsAdminList.push(data);
+  document.getElementById('ltsNewClientName').value = '';
+  document.getElementById('ltsNewClientName').dataset.rosterId = '';
+  document.getElementById('ltsNewNote').value = '';
+  document.getElementById('ltsNewTime').value = '';
+  renderLTSSlotsAdmin();
+  showToast('Slot added');
+}
+
+async function deleteLTSSlot(slotId) {
+  if (!confirm('Delete this lesson slot? Past attendance records will be kept.')) return;
+  const { error } = await sb.from('club_lts_slots').delete().eq('id', slotId);
+  if (error) { showToast('Could not delete: ' + error.message, 'error'); return; }
+  ltsSlotsAdminList = ltsSlotsAdminList.filter(s => s.id !== slotId);
+  renderLTSSlotsAdmin();
+  showToast('Slot removed');
+}
+
+async function toggleLTSSlot(slotId, currentlyActive) {
+  const { error } = await sb.from('club_lts_slots')
+    .update({ is_active: !currentlyActive }).eq('id', slotId);
+  if (error) { showToast('Could not update', 'error'); return; }
+  const slot = ltsSlotsAdminList.find(s => s.id === slotId);
+  if (slot) slot.is_active = !currentlyActive;
+  renderLTSSlotsAdmin();
+}
+
+async function ltsSlotMove(idx, dir) {
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= ltsSlotsAdminList.length) return;
+
+  // Swap in local array
+  [ltsSlotsAdminList[idx], ltsSlotsAdminList[newIdx]] =
+    [ltsSlotsAdminList[newIdx], ltsSlotsAdminList[idx]];
+
+  // Update sort_order for both
+  const a = ltsSlotsAdminList[idx];
+  const b = ltsSlotsAdminList[newIdx];
+  a.sort_order = idx;
+  b.sort_order = newIdx;
+
+  renderLTSSlotsAdmin();
+
+  await Promise.all([
+    sb.from('club_lts_slots').update({ sort_order: idx   }).eq('id', a.id),
+    sb.from('club_lts_slots').update({ sort_order: newIdx }).eq('id', b.id),
+  ]);
+}
+
 // ── GROUPS ────────────────────────────────────────────────────────────────────
 
 async function loadGroupsPage() {
@@ -10774,6 +10983,62 @@ async function saveGroupMembers(groupId) {
 
 <!-- CHALLENGE MODAL (award points + draw) -->
 <div class="modal-overlay" id="challengeModal" onclick="if(event.target===this)closeChallengeModal()" style="align-items:center;justify-content:center;"></div>
+
+<!-- ── LTS SLOTS MODAL ─────────────────────────────────────────────── -->
+<div class="modal-overlay" id="ltsSlotsModal" onclick="if(event.target===this)closeLTSSlotsModal()"
+     style="align-items:flex-end;justify-content:stretch;">
+  <div style="background:var(--bg-modal,#0d1728);border-radius:20px 20px 0 0;
+              border-top:1px solid rgba(255,255,255,0.07);width:100%;max-width:640px;
+              margin:0 auto;max-height:88vh;display:flex;flex-direction:column;">
+
+    <!-- Header -->
+    <div style="padding:20px 22px 16px;border-bottom:1px solid rgba(255,255,255,0.06);flex-shrink:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div style="font-size:16px;font-weight:800;" id="ltsSlotsModalTitle">Lesson Slots</div>
+        <button onclick="closeLTSSlotsModal()" style="background:none;border:none;color:var(--text-sec);font-size:20px;cursor:pointer;padding:0 4px;">×</button>
+      </div>
+      <div id="ltsSlotsModalSub" style="font-size:12px;color:var(--text-sec);">Recurring weekly schedule for this session</div>
+    </div>
+
+    <!-- Slot list -->
+    <div style="flex:1;overflow-y:auto;padding:16px 22px;" id="ltsSlotsAdminList"></div>
+
+    <!-- Add slot form -->
+    <div style="padding:16px 22px;border-top:1px solid rgba(255,255,255,0.06);flex-shrink:0;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-sec);margin-bottom:10px;">Add Slot</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div>
+          <div style="font-size:11px;color:var(--text-sec);margin-bottom:4px;">Time</div>
+          <input type="time" id="ltsNewTime" class="input-field" style="padding:9px 12px;font-size:14px;">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-sec);margin-bottom:4px;">Duration</div>
+          <select id="ltsNewDuration" class="input-field" style="padding:9px 12px;font-size:14px;">
+            <option value="15">15 min</option>
+            <option value="20">20 min</option>
+            <option value="30" selected>30 min</option>
+            <option value="45">45 min</option>
+            <option value="60">60 min</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom:10px;">
+        <div style="font-size:11px;color:var(--text-sec);margin-bottom:4px;">Client name</div>
+        <input type="text" id="ltsNewClientName" class="input-field" placeholder="e.g. Benji Giard"
+               style="padding:9px 12px;font-size:14px;" autocomplete="off"
+               oninput="ltsClientAutocomplete(this.value)">
+        <div id="ltsClientSuggestions" style="display:none;background:var(--bg-card);border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;margin-top:4px;"></div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px;color:var(--text-sec);margin-bottom:4px;">Note (optional)</div>
+        <input type="text" id="ltsNewNote" class="input-field" placeholder="e.g. + Mom · nervous in water"
+               style="padding:9px 12px;font-size:14px;">
+      </div>
+      <button class="btn-modal-primary" onclick="addLTSSlot()" id="ltsAddBtn"
+              style="width:100%;padding:12px;">Add slot</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>

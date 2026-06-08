@@ -439,6 +439,53 @@
     .done-hero .checkmark i { width: 36px; height: 36px; color: var(--green); }
     .done-hero h2 { font-size: 26px; font-weight: 800; }
     .done-hero p { font-size: 14px; color: var(--text-sec); }
+
+  /* ── LTS APPOINTMENT VIEW ─────────────────────────────────────── */
+  .lts-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 18px; padding: 18px; margin-bottom: 10px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .lts-card.lts-next { border-color: rgba(56,189,248,0.45); background: rgba(56,189,248,0.04); }
+  .lts-card.lts-done-here { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.04); opacity: 0.75; }
+  .lts-card.lts-done-away { opacity: 0.4; }
+
+  .lts-card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .lts-time-pill { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; color: var(--text-sec); text-transform: uppercase; }
+  .lts-next-badge {
+    font-size: 9px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--cyan); background: rgba(56,189,248,0.14); padding: 2px 8px; border-radius: 99px;
+  }
+  .lts-status-badge {
+    font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 99px;
+  }
+  .lts-status-badge.here { color: var(--green); background: rgba(16,185,129,0.14); }
+  .lts-status-badge.away { color: var(--text-sec); background: rgba(100,116,139,0.12); }
+
+  .lts-client-name {
+    font-family: 'Bebas Neue', sans-serif; font-size: 44px; letter-spacing: 0.03em;
+    color: var(--text); line-height: 1; margin-bottom: 2px;
+  }
+  .lts-client-note { font-size: 12px; color: var(--text-sec); margin-bottom: 14px; min-height: 18px; }
+
+  .lts-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .lts-btn-here, .lts-btn-away {
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    padding: 15px 16px; border-radius: 12px; border: none;
+    font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700;
+    cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+  }
+  .lts-btn-here:active, .lts-btn-away:active { transform: scale(0.97); }
+  .lts-btn-here { background: rgba(16,185,129,0.14); color: var(--green); border: 1px solid rgba(16,185,129,0.25); }
+  .lts-btn-away { background: rgba(239,68,68,0.1); color: var(--danger); border: 1px solid rgba(239,68,68,0.2); }
+
+  .lts-undo-row { display: flex; justify-content: flex-end; margin-top: 8px; }
+  .lts-undo-btn { background: none; border: none; color: var(--text-dim); font-size: 12px; cursor: pointer; padding: 4px 8px; font-family: 'DM Sans', sans-serif; }
+  .lts-undo-btn:active { color: var(--text-sec); }
+
+  .lts-empty-state { text-align: center; padding: 56px 24px; color: var(--text-sec); font-size: 14px; line-height: 1.6; }
+  .lts-empty-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
   </style>
 </head>
 <body>
@@ -688,6 +735,47 @@
         Back to sessions
       </button>
     </div>
+  </div>
+</div>
+
+<!-- ── LTS APPOINTMENTS SCREEN ──────────────────────────────────────────────── -->
+<div class="screen" id="screen-lts">
+  <!-- Nav -->
+  <nav class="coach-nav">
+    <span class="back-btn" onclick="showScreen('home')">
+      <i data-lucide="chevron-left"></i> Sessions
+    </span>
+    <div style="text-align:center;flex:1;">
+      <div id="ltsNavTitle" style="font-size:13px;font-weight:700;color:var(--text);">Learn to Swim</div>
+      <div id="ltsNavSub" style="font-size:11px;color:var(--text-sec);"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:2px;">
+      <span class="back-btn" onclick="ltsShiftDate(-1)"><i data-lucide="chevron-left" style="width:18px;height:18px;"></i></span>
+      <span class="back-btn" onclick="ltsShiftDate(1)"><i data-lucide="chevron-right" style="width:18px;height:18px;"></i></span>
+    </div>
+  </nav>
+
+  <!-- Progress bar -->
+  <div style="height:3px;background:rgba(255,255,255,0.05);">
+    <div id="ltsProgressFill" style="height:100%;background:var(--green);width:0%;transition:width 0.4s;"></div>
+  </div>
+
+  <!-- Date strip -->
+  <div id="ltsDateStrip" style="padding:10px 18px 0;font-size:12px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.06em;"></div>
+
+  <!-- Scrollable slot cards -->
+  <div style="flex:1;overflow-y:auto;padding:12px 16px 16px;" id="ltsSlotsContainer"></div>
+
+  <!-- Bottom bar -->
+  <div class="safe-bottom" style="padding:12px 16px;background:var(--bg-card);border-top:1px solid var(--border);flex-shrink:0;">
+    <div id="ltsCountLabel" style="font-size:12px;color:var(--text-sec);text-align:center;margin-bottom:8px;"></div>
+    <button class="btn-primary" id="ltsWaBtn" style="display:none;width:100%;" onclick="ltsWhatsApp()">
+      <i data-lucide="message-circle" style="width:16px;height:16px;"></i>
+      Share summary to WhatsApp
+    </button>
+    <button class="btn-ghost" style="width:100%;margin-top:8px;display:none;" id="ltsCopyBtn" onclick="ltsCopySummary()">
+      <i data-lucide="copy" style="width:15px;height:15px;"></i> Copy summary
+    </button>
   </div>
 </div>
 
@@ -1294,6 +1382,9 @@ function openConfirm(sqSessionId) {
   const s = allWeekSessions.find(x => x.id === sqSessionId);
   if (!s) return;
   activeSqSession = s;
+
+  // LTS squads skip the confirm screen — go straight to appointment view
+  if (isLTSSquad(s.squad_id)) { startLTSSession(); return; }
 
   const sq  = allSquads.find(q => q.id === s.squad_id);
   const now = new Date();
@@ -2051,6 +2142,239 @@ async function saveCoachHealthEvent() {
   }
   closeHealthSheet();
   toast('Health note saved', 'success');
+}
+
+// ── LTS APPOINTMENT VIEW ───────────────────────────────────────────
+
+let ltsSlots      = [];  // club_lts_slots for active squad_session
+let ltsAttendance = {};  // slot_id → {id, attended, ...}
+
+function isLTSSquad(squadId) {
+  const sq = allSquads.find(q => q.id === squadId);
+  return !!(sq?.name?.toLowerCase().includes('learn to swim'));
+}
+
+async function startLTSSession() {
+  const s  = activeSqSession;
+  const sq = allSquads.find(q => q.id === s.squad_id);
+
+  // Update nav labels
+  document.getElementById('ltsNavTitle').textContent = sq?.name || 'Learn to Swim';
+  document.getElementById('ltsNavSub').textContent   =
+    fmtTime(s.start_time) + (s.end_time ? ' – ' + fmtTime(s.end_time) : '');
+
+  showScreen('lts');
+  await loadLTSSlots();
+}
+
+async function loadLTSSlots() {
+  const s = activeSqSession;
+  if (!s) return;
+
+  const container = document.getElementById('ltsSlotsContainer');
+  container.innerHTML = `<div style="padding:40px;text-align:center;"><div class="spinner" style="margin:0 auto;"></div></div>`;
+
+  // Update date strip
+  const dateObj = new Date(selectedDate + 'T00:00:00');
+  const dayFull = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  document.getElementById('ltsDateStrip').textContent =
+    dayFull[dateObj.getDay()] + ' · ' + dateObj.toLocaleDateString('en-ZA', { day:'numeric', month:'long', year:'numeric' });
+
+  // Find the matching squad_session for selectedDate's day of week
+  const dow     = dateObj.getDay();
+  const sq      = allSquads.find(q => q.id === s.squad_id);
+  const daySession = allWeekSessions.find(ws =>
+    ws.squad_id === s.squad_id && ws.day_of_week === dow && ws.is_active !== false
+  ) || s;
+  activeSqSession = daySession; // update for WhatsApp summary
+
+  const { data: slots, error } = await sb.from('club_lts_slots')
+    .select('*')
+    .eq('squad_session_id', daySession.id)
+    .eq('is_active', true)
+    .order('sort_order')
+    .order('slot_time');
+
+  if (error) {
+    container.innerHTML = `<div class="lts-empty-state"><div class="lts-empty-title">Could not load schedule</div><div>${error.message}</div></div>`;
+    return;
+  }
+
+  ltsSlots = slots || [];
+
+  if (!ltsSlots.length) {
+    container.innerHTML = `<div class="lts-empty-state">
+      <div class="lts-empty-title">No slots set up yet</div>
+      <div>Ask your admin to add lesson slots for this session in the club admin panel.</div>
+    </div>`;
+    document.getElementById('ltsProgressFill').style.width = '0%';
+    document.getElementById('ltsCountLabel').textContent   = '0 slots';
+    document.getElementById('ltsWaBtn').style.display      = 'none';
+    document.getElementById('ltsCopyBtn').style.display    = 'none';
+    return;
+  }
+
+  // Load existing attendance for today
+  const { data: att } = await sb.from('club_lts_attendance')
+    .select('*')
+    .in('slot_id', ltsSlots.map(sl => sl.id))
+    .eq('session_date', selectedDate);
+
+  ltsAttendance = {};
+  (att || []).forEach(a => { ltsAttendance[a.slot_id] = a; });
+
+  renderLTSView();
+}
+
+function renderLTSView() {
+  const container = document.getElementById('ltsSlotsContainer');
+
+  // "Up next": first slot that is unmarked and hasn't ended yet
+  const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
+  let nextIdx = -1;
+  for (let i = 0; i < ltsSlots.length; i++) {
+    const a = ltsAttendance[ltsSlots[i].id];
+    if (a && a.attended !== null && a.attended !== undefined) continue;
+    const slotMins = toMins(ltsSlots[i].slot_time);
+    const endMins  = slotMins + (ltsSlots[i].duration_mins || 30);
+    if (endMins >= nowMins - 5) { nextIdx = i; break; }
+  }
+
+  container.innerHTML = ltsSlots.map((slot, i) => ltsCardHTML(slot, i === nextIdx)).join('');
+
+  // Progress
+  const marked = ltsSlots.filter(sl => {
+    const a = ltsAttendance[sl.id];
+    return a && a.attended !== null && a.attended !== undefined;
+  }).length;
+  const total = ltsSlots.length;
+  const pct   = total ? Math.round(marked / total * 100) : 0;
+
+  document.getElementById('ltsProgressFill').style.width  = pct + '%';
+  document.getElementById('ltsCountLabel').textContent     = `${marked} of ${total} marked`;
+
+  const allDone = marked === total && total > 0;
+  document.getElementById('ltsWaBtn').style.display    = allDone ? '' : 'none';
+  document.getElementById('ltsCopyBtn').style.display  = allDone ? '' : 'none';
+
+  lucide.createIcons();
+}
+
+function ltsCardHTML(slot, isNext) {
+  const a         = ltsAttendance[slot.id];
+  const attended  = a?.attended;
+  const isMarked  = a && attended !== null && attended !== undefined;
+
+  // Use first name only for big display
+  const displayName = (slot.client_name || 'Unknown').split(' ')[0].toUpperCase();
+  const timePill    = fmtTime(slot.slot_time) + ' · ' + (slot.duration_mins || 30) + ' min';
+
+  let cardClass = 'lts-card';
+  if (isMarked && attended)  cardClass += ' lts-done-here';
+  if (isMarked && !attended) cardClass += ' lts-done-away';
+  if (!isMarked && isNext)   cardClass += ' lts-next';
+
+  const topBadge = isMarked
+    ? `<span class="lts-status-badge ${attended ? 'here' : 'away'}">${attended ? 'Attended' : 'Away'}</span>`
+    : isNext ? `<span class="lts-next-badge">Up next</span>` : '';
+
+  const note = slot.note || '';
+  const noteHtml = `<div class="lts-client-note">${note}</div>`;
+
+  const actionsHtml = isMarked
+    ? `<div class="lts-undo-row"><button class="lts-undo-btn" onclick="markLTSSlot('${slot.id}', null)">Undo</button></div>`
+    : `<div class="lts-actions">
+        <button class="lts-btn-here" onclick="markLTSSlot('${slot.id}', true)">
+          <i data-lucide="check" style="width:18px;height:18px;"></i> Here
+        </button>
+        <button class="lts-btn-away" onclick="markLTSSlot('${slot.id}', false)">
+          <i data-lucide="x" style="width:18px;height:18px;"></i> Away
+        </button>
+      </div>`;
+
+  return `<div class="${cardClass}" id="lts-slot-${slot.id}">
+    <div class="lts-card-top">
+      <span class="lts-time-pill">${timePill}</span>
+      ${topBadge}
+    </div>
+    <div class="lts-client-name">${displayName}</div>
+    ${noteHtml}
+    ${actionsHtml}
+  </div>`;
+}
+
+async function markLTSSlot(slotId, attended) {
+  // Optimistic update
+  if (attended === null) {
+    delete ltsAttendance[slotId];
+  } else {
+    ltsAttendance[slotId] = { slot_id: slotId, attended, session_date: selectedDate };
+  }
+  renderLTSView();
+
+  // Persist
+  if (attended === null) {
+    await sb.from('club_lts_attendance')
+      .delete().eq('slot_id', slotId).eq('session_date', selectedDate);
+  } else {
+    const { data, error } = await sb.from('club_lts_attendance')
+      .upsert({ slot_id: slotId, session_date: selectedDate, attended, marked_at: new Date().toISOString() },
+               { onConflict: 'slot_id,session_date' })
+      .select().single();
+    if (error) {
+      toast('Could not save — try again', 'error');
+      delete ltsAttendance[slotId];
+      renderLTSView();
+    } else {
+      ltsAttendance[slotId] = data;
+    }
+  }
+}
+
+function ltsSummaryLines() {
+  const sq      = allSquads.find(q => q.id === activeSqSession?.squad_id);
+  const dateObj = new Date(selectedDate + 'T00:00:00');
+  const dayStr  = dateObj.toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  const lines   = [sq?.name || 'Learn to Swim', dayStr, ''];
+  ltsSlots.forEach(slot => {
+    const a        = ltsAttendance[slot.id];
+    const name     = (slot.client_name || '').split(' ')[0].padEnd(12);
+    const time     = (slot.slot_time || '').slice(0, 5);
+    const status   = a?.attended === true ? 'Here' : a?.attended === false ? 'Away' : '-';
+    lines.push(`${time}  ${name}  ${status}`);
+  });
+  lines.push('', 'Logged on SwimLoading');
+  return lines.join('\n');
+}
+
+function ltsWhatsApp() {
+  window.open('https://wa.me/?text=' + encodeURIComponent(ltsSummaryLines()), '_blank');
+}
+
+function ltsCopySummary() {
+  navigator.clipboard.writeText(ltsSummaryLines()).then(() => toast('Copied to clipboard'));
+}
+
+function ltsShiftDate(delta) {
+  const d = new Date(selectedDate + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  selectedDate = localDateStr(d);
+
+  // Update nav sub text for the new day's session
+  const newDow     = d.getDay();
+  const squadId    = activeSqSession?.squad_id;
+  const daySession = allWeekSessions.find(ws =>
+    ws.squad_id === squadId && ws.day_of_week === newDow && ws.is_active !== false
+  );
+  if (daySession) {
+    activeSqSession = daySession;
+    document.getElementById('ltsNavSub').textContent =
+      fmtTime(daySession.start_time) + (daySession.end_time ? ' – ' + fmtTime(daySession.end_time) : '');
+  } else {
+    document.getElementById('ltsNavSub').textContent = 'No session';
+  }
+
+  loadLTSSlots();
 }
 
 // ── START ──────────────────────────────────────────────────────────
