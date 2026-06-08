@@ -2814,53 +2814,111 @@ function renderDayDashboard(dow) {
   const daySessions = allWeekSessions.filter(s => s.day_of_week === dow)
     .sort((a,b) => toM(a.start_time)-toM(b.start_time));
 
-  const sessionRows = daySessions.length ? daySessions.map(s => {
-    const sq   = sqLookup(s.squad_id);
-    const asgn = (allWeekAssignments[s.id]||[]).length;
-    const cap  = sq?.max_members || 0;
-    const pct  = cap > 0 ? Math.round(asgn/cap*100) : 0;
-    const endM = toM(s.end_time || s.start_time);
-    const isPast = dow===todayDow && (s.end_time ? endM<nowMins : toM(s.start_time)+60<nowMins);
-    const isNow  = dow===todayDow && !isPast && toM(s.start_time)<=nowMins;
-    const bColor = pct>=90?'var(--amber)':pct>=65?'var(--green)':'var(--cyan)';
+  // Group LTS sessions by time; keep other sessions separate
+  const groupedSessions = [];
+  const seenTimes = new Set();
+  for (const s of daySessions) {
+    const sq = sqLookup(s.squad_id);
+    const isLTS = (sq?.name||'').toLowerCase().includes('learn to swim');
+    const timeKey = `${s.start_time}`;
 
-    return `<div style="display:flex;align-items:center;gap:0;padding:0;border-bottom:1px solid var(--border);opacity:${isPast?'0.35':'1'};${isNow?'background:rgba(56,189,248,0.04);':''};cursor:pointer;" onclick="openSessionDetail('${s.id}')" onmouseover="this.style.background='rgba(56,189,248,0.07)'" onmouseout="this.style.background='${isNow?'rgba(56,189,248,0.04)':'transparent'}'">
-      <div style="width:3px;min-height:52px;background:${isPast?'transparent':isNow?'var(--green)':s.coach_name?'rgba(56,189,248,0.3)':'var(--amber)'};flex-shrink:0;"></div>
-      <div style="flex:1;display:flex;align-items:center;gap:12px;padding:11px 14px;">
-        <div style="min-width:88px;font-size:12px;font-weight:700;color:${isPast?'var(--text-sec)':'var(--cyan)'};">${fmtT(s.start_time)}${s.end_time?'–'+fmtT(s.end_time):''}</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;">
-            ${sq?.name||'Squad'}
-            ${isNow?`<span style="font-size:9px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.15);padding:1px 7px;border-radius:10px;">LIVE</span>`:''}
-            ${isPast?`<span style="font-size:9px;color:var(--text-sec);">done</span>`:''}
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:5px;">
-            <div style="width:80px;height:3px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden;">
-              <div style="width:${cap?Math.min(pct,100):0}%;height:100%;background:${bColor};border-radius:2px;"></div>
+    if (isLTS && seenTimes.has(timeKey)) {
+      // Already grouped; add coach to existing group
+      const group = groupedSessions.find(g => g.time === timeKey && g.isLTS);
+      if (group) group.coaches.push({ id: s.id, name: s.coach_name, assignments: (allWeekAssignments[s.id]||[]).length });
+    } else {
+      if (isLTS) seenTimes.add(timeKey);
+      groupedSessions.push({
+        isLTS,
+        time: s.start_time,
+        endTime: s.end_time,
+        squadId: s.squad_id,
+        squad: sq,
+        coaches: isLTS ? [{ id: s.id, name: s.coach_name, assignments: (allWeekAssignments[s.id]||[]).length }] : [],
+        sessionId: s.id,  // For non-LTS
+        coachName: s.coach_name,  // For non-LTS
+        totalAssignments: (allWeekAssignments[s.id]||[]).length  // For non-LTS
+      });
+    }
+  }
+
+  const sessionRows = groupedSessions.length ? groupedSessions.map(group => {
+    const isPast = dow===todayDow && (toM(group.endTime || group.time)<nowMins);
+    const isNow  = dow===todayDow && !isPast && toM(group.time)<=nowMins;
+    const cap  = group.squad?.max_members || 0;
+
+    if (group.isLTS) {
+      // Grouped LTS session
+      const totalAsgn = group.coaches.reduce((sum, c) => sum + c.assignments, 0);
+      const pct = cap > 0 ? Math.round(totalAsgn/cap*100) : 0;
+      const bColor = pct>=90?'var(--amber)':pct>=65?'var(--green)':'var(--cyan)';
+      const coachList = group.coaches.map(c => c.name).join(' · ');
+      const firstSessionId = group.coaches[0]?.id;
+
+      return `<div style="display:flex;align-items:center;gap:0;padding:0;border-bottom:1px solid var(--border);opacity:${isPast?'0.35':'1'};${isNow?'background:rgba(56,189,248,0.04);':''};cursor:pointer;" onclick="openSessionDetail('${firstSessionId}')" onmouseover="this.style.background='rgba(56,189,248,0.07)'" onmouseout="this.style.background='${isNow?'rgba(56,189,248,0.04)':'transparent'}'">
+        <div style="width:3px;min-height:52px;background:${isPast?'transparent':isNow?'var(--green)':'rgba(56,189,248,0.3)'};flex-shrink:0;"></div>
+        <div style="flex:1;display:flex;align-items:center;gap:12px;padding:11px 14px;">
+          <div style="min-width:88px;font-size:12px;font-weight:700;color:${isPast?'var(--text-sec)':'var(--cyan)'};">${fmtT(group.time)}${group.endTime?'–'+fmtT(group.endTime):''}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;">
+              ${group.squad?.name||'Squad'}
+              ${isNow?`<span style="font-size:9px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.15);padding:1px 7px;border-radius:10px;">LIVE</span>`:''}
+              ${isPast?`<span style="font-size:9px;color:var(--text-sec);">done</span>`:''}
             </div>
-            <span style="font-size:11px;color:${bColor};font-weight:600;">${asgn}${cap?' / '+cap:''}</span>
-            ${cap&&openSpots>0&&!isPast?`<span style="font-size:10px;color:var(--text-sec);">${cap-asgn} open</span>`:''}
+            <div style="display:flex;align-items:center;gap:8px;margin-top:5px;">
+              <div style="font-size:11px;color:var(--text-sec);">${coachList}</div>
+              <div style="width:80px;height:3px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden;margin-left:8px;">
+                <div style="width:${cap?Math.min(pct,100):0}%;height:100%;background:${bColor};border-radius:2px;"></div>
+              </div>
+              <span style="font-size:11px;color:${bColor};font-weight:600;">${totalAsgn}${cap?' / '+cap:''}</span>
+            </div>
+          </div>
+          <div style="flex-shrink:0;text-align:right;display:flex;align-items:center;gap:8px;">
+            <div style="font-size:10px;color:var(--cyan);">View →</div>
+            <button onclick="event.stopPropagation();openLTSSlotsModal('${firstSessionId}','${(group.squad?.name||'').replace(/'/g,"\\'")}')"
+              style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);color:var(--cyan);
+                     font-size:10px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;
+                     white-space:nowrap;letter-spacing:0.04em;">
+              Slots
+            </button>
           </div>
         </div>
-        <div style="flex-shrink:0;text-align:right;display:flex;align-items:center;gap:8px;">
-          <div>
-            ${s.coach_name
-              ?`<div style="font-size:12px;color:var(--text-sec);">${s.coach_name}</div>`
-              :`<div style="font-size:11px;font-weight:700;color:var(--danger);">NO COACH</div>`}
-            <div style="font-size:10px;color:var(--cyan);margin-top:2px;">View →</div>
+      </div>`;
+    } else {
+      // Individual session (non-LTS)
+      const asgn = group.totalAssignments;
+      const pct  = cap > 0 ? Math.round(asgn/cap*100) : 0;
+      const bColor = pct>=90?'var(--amber)':pct>=65?'var(--green)':'var(--cyan)';
+
+      return `<div style="display:flex;align-items:center;gap:0;padding:0;border-bottom:1px solid var(--border);opacity:${isPast?'0.35':'1'};${isNow?'background:rgba(56,189,248,0.04);':''};cursor:pointer;" onclick="openSessionDetail('${group.sessionId}')" onmouseover="this.style.background='rgba(56,189,248,0.07)'" onmouseout="this.style.background='${isNow?'rgba(56,189,248,0.04)':'transparent'}'">
+        <div style="width:3px;min-height:52px;background:${isPast?'transparent':isNow?'var(--green)':group.coachName?'rgba(56,189,248,0.3)':'var(--amber)'};flex-shrink:0;"></div>
+        <div style="flex:1;display:flex;align-items:center;gap:12px;padding:11px 14px;">
+          <div style="min-width:88px;font-size:12px;font-weight:700;color:${isPast?'var(--text-sec)':'var(--cyan)'};">${fmtT(group.time)}${group.endTime?'–'+fmtT(group.endTime):''}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;">
+              ${group.squad?.name||'Squad'}
+              ${isNow?`<span style="font-size:9px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.15);padding:1px 7px;border-radius:10px;">LIVE</span>`:''}
+              ${isPast?`<span style="font-size:9px;color:var(--text-sec);">done</span>`:''}
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:5px;">
+              <div style="width:80px;height:3px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden;">
+                <div style="width:${cap?Math.min(pct,100):0}%;height:100%;background:${bColor};border-radius:2px;"></div>
+              </div>
+              <span style="font-size:11px;color:${bColor};font-weight:600;">${asgn}${cap?' / '+cap:''}</span>
+              ${cap&&openSpots>0&&!isPast?`<span style="font-size:10px;color:var(--text-sec);">${cap-asgn} open</span>`:''}
+            </div>
           </div>
-          ${currentClub?.slug === 'aqua-sharks-atlantic' && (sq?.name||'').toLowerCase().includes('learn to swim')
-            ? `<button onclick="event.stopPropagation();openLTSSlotsModal('${s.id}','${(sq?.name||'').replace(/'/g,"\\'")}')"
-                style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);color:var(--cyan);
-                       font-size:10px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;
-                       white-space:nowrap;letter-spacing:0.04em;">
-                Slots
-              </button>`
-            : ''
-          }
+          <div style="flex-shrink:0;text-align:right;display:flex;align-items:center;gap:8px;">
+            <div>
+              ${group.coachName
+                ?`<div style="font-size:12px;color:var(--text-sec);">${group.coachName}</div>`
+                :`<div style="font-size:11px;font-weight:700;color:var(--danger);">NO COACH</div>`}
+              <div style="font-size:10px;color:var(--cyan);margin-top:2px;">View →</div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>`;
+      </div>`;
+    }
   }).join('') : `<div style="padding:28px;text-align:center;color:var(--text-sec);font-size:13px;">No sessions on ${dayFull[dow]}</div>`;
 
   const isToday  = dow === todayDow;
