@@ -2131,7 +2131,7 @@ function showPage(name) {
   if (name === 'groups')       loadGroupsPage();
   if (name === 'attendance')    loadAttendance();
   if (name === 'roster')        { if (!allRoster.length) loadRoster(); else renderRosterTable(); }
-  if (name === 'timetable')     renderSettingsTimetable(allTimetableSessions || []);
+  if (name === 'timetable')     loadTimetablePage();
   if (name === 'settings')      loadSettingsPage();
   if (name === 'team')          loadTeam();
   if (name === 'announcements') loadAnnouncements();
@@ -5910,6 +5910,43 @@ function renderSettingsSquads(squads) {
       </div>
     </div>
   `).join('');
+}
+
+async function loadTimetablePage() {
+  const el = document.getElementById('timetablePageList');
+  if (el) el.innerHTML = `<div style="color:var(--text-sec);font-size:13px;padding:12px 0;">Loading timetable...</div>`;
+
+  try {
+    const { data: squads } = await sb.from('club_squads')
+      .select('id, name, type, is_active')
+      .eq('club_id', currentClub.id)
+      .order('sort_order');
+
+    const squadIds = (squads || []).map(s => s.id);
+    if (!squadIds.length) {
+      if (el) el.innerHTML = `<div style="color:var(--text-sec);font-size:13px;padding:12px 0;">No squads found</div>`;
+      return;
+    }
+
+    const { data: sessions } = await sb.from('club_squad_sessions')
+      .select('id, squad_id, day_of_week, start_time, end_time, coach_name, max_capacity, notes, is_active')
+      .in('squad_id', squadIds)
+      .eq('is_active', true)
+      .order('day_of_week')
+      .order('start_time');
+
+    // Build squad lookup
+    const squadMap = {};
+    (squads || []).forEach(s => { squadMap[s.id] = s; });
+
+    // Render
+    allTimetableSessions = sessions || [];
+    allSquads = (squads || []).filter(s => s.is_active !== false);
+    renderSettingsTimetable(allTimetableSessions);
+  } catch (err) {
+    console.error('Error loading timetable:', err);
+    if (el) el.innerHTML = `<div style="color:var(--danger);padding:12px;">Error: ${err.message}</div>`;
+  }
 }
 
 function renderSettingsTimetable(sessions) {
