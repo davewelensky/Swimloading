@@ -779,6 +779,43 @@
   </div>
 </div>
 
+<!-- ── K8 SIMPLE REGISTER ──────────────────────────────────────────────────────── -->
+<div class="screen" id="screen-k8">
+  <!-- Nav -->
+  <nav class="coach-nav">
+    <span class="back-btn" onclick="showScreen('home')">
+      <i data-lucide="chevron-left"></i> Sessions
+    </span>
+    <div style="text-align:center;flex:1;">
+      <div style="font-size:13px;font-weight:700;color:var(--text);">K8 Register</div>
+    </div>
+  </nav>
+
+  <!-- Session selector -->
+  <div style="padding:12px 16px;background:var(--bg-card);border-bottom:1px solid var(--border);">
+    <select id="k8SessionSelect" class="input-field" onchange="loadK8Swimmers()">
+      <option value="">Select session...</option>
+    </select>
+  </div>
+
+  <!-- Search -->
+  <div style="padding:12px 16px;background:rgba(255,255,255,0.02);">
+    <input type="text" class="input-field" id="k8SearchInput" placeholder="Search by name…"
+      oninput="filterK8Swimmers(this.value)" autocomplete="off">
+  </div>
+
+  <!-- Swimmer list -->
+  <div style="flex:1;overflow-y:auto;" id="k8SwimmerList"></div>
+
+  <!-- Save bar -->
+  <div class="safe-bottom" style="padding:12px 16px;background:var(--bg-card);border-top:1px solid var(--border);flex-shrink:0;">
+    <button class="btn-primary" onclick="saveK8Attendance()" style="width:100%;">
+      <i data-lucide="check-circle" style="width:16px;height:16px;"></i>
+      Save attendance
+    </button>
+  </div>
+</div>
+
 <!-- ── HEALTH LOG SHEET ────────────────────────────────────────────────────── -->
 <div class="health-sheet-overlay" id="healthSheetOverlay" onclick="maybeCloseHealthSheet(event)">
   <div class="health-sheet" id="healthSheet">
@@ -867,6 +904,13 @@ let recentSessionDates = []; // last 6 session dates for active squad (newest fi
 let rosterAttendanceHistory = {}; // roster_id → [{session_date, status}, ...]
 let walkinQuery     = '';
 let walkinNewIds    = new Set(); // roster IDs created fresh this session (can be DB-deleted on remove)
+
+// K8 state
+let k8AllSwimmers   = [];  // all K8 swimmers (unsorted)
+let k8FilteredList  = [];  // filtered/sorted for display
+let k8Attendance    = {}; // roster_id → 'present' | 'away'
+let k8SelectedSessionId = null;
+let k8SelectedSessionLabel = '';
 let walkinAddedIds  = new Set(); // roster IDs added from another squad this session (local remove only)
 
 // Simple statuses for mobile. Saved to the same status codes as admin.
@@ -1118,6 +1162,28 @@ async function shiftDate(days) {
 function renderHome() {
   document.getElementById('homeClubName').textContent = currentClub.name || '';
   document.getElementById('homeGreeting').textContent = greeting() + ', ' + coachName.split(' ')[0];
+
+  // K8 register shortcut
+  if (currentClub?.slug === 'k8-coaching') {
+    showK8RegisterIfNeeded();
+    // Add K8 button to mySessionsList
+    const myEl = document.getElementById('mySessionsList');
+    myEl.innerHTML = `
+      <div class="session-tile" onclick="showScreen('k8')" style="cursor:pointer;background:rgba(56,189,248,0.06);border-color:rgba(56,189,248,0.2);">
+        <div class="tile-accent" style="background:#38bdf8;"></div>
+        <div class="tile-body">
+          <div class="tile-squad">K8 Simple Register</div>
+          <div class="tile-time">Swimmers by name · quick mark</div>
+        </div>
+        <div style="padding:14px 16px;text-align:right;">
+          <div class="tile-time">Open ›</div>
+        </div>
+      </div>
+    `;
+    document.getElementById('mySessionsLabel').textContent = 'QUICK ACCESS';
+    lucide.createIcons();
+    return;
+  }
 
   const selDate   = new Date(selectedDate + 'T00:00:00');
   const todayStr  = localDateStr();
@@ -2381,6 +2447,193 @@ function ltsShiftDate(delta) {
   }
 
   loadLTSSlots();
+}
+
+// ── K8 SIMPLE REGISTER ─────────────────────────────────────────────────
+
+function showK8RegisterIfNeeded() {
+  // K8 only
+  if (currentClub?.slug !== 'k8-coaching') return;
+
+  // Populate session dropdown on home screen or show K8 view
+  populateK8Sessions();
+}
+
+function populateK8Sessions() {
+  const sel = document.getElementById('k8SessionSelect');
+  if (!sel) return;
+
+  sel.innerHTML = '<option value="">Select session...</option>';
+
+  // Build list of this week's sessions grouped by day + time
+  const sessionMap = {};
+  allWeekSessions.forEach(ws => {
+    if (ws.is_active === false) return;
+    const key = `${DAYS[ws.day_of_week]} ${fmtTime(ws.start_time)}`;
+    if (!sessionMap[key]) sessionMap[key] = ws;
+  });
+
+  Object.entries(sessionMap).forEach(([label, session]) => {
+    const opt = document.createElement('option');
+    opt.value = session.id;
+    opt.textContent = label;
+    sel.appendChild(opt);
+  });
+}
+
+function loadK8Swimmers() {
+  const sel = document.getElementById('k8SessionSelect');
+  k8SelectedSessionId = sel.value;
+  k8SelectedSessionLabel = sel.options[sel.selectedIndex].text;
+
+  if (!k8SelectedSessionId) {
+    document.getElementById('k8SwimmerList').innerHTML =
+      '<div class="empty-state"><div class="sub">Select a session to view swimmers</div></div>';
+    return;
+  }
+
+  // Get all swimmers from this club (sorted by first name)
+  k8AllSwimmers = allRoster
+    .filter(r => r.is_active !== false)
+    .sort((a, b) => {
+      const aFirst = (a.display_name || '').split(' ')[0].toLowerCase();
+      const bFirst = (b.display_name || '').split(' ')[0].toLowerCase();
+      return aFirst.localeCompare(bFirst);
+    });
+
+  k8FilteredList = [...k8AllSwimmers];
+  k8Attendance = {};
+
+  renderK8SwimmerList();
+}
+
+function filterK8Swimmers(query) {
+  const q = query.toLowerCase().trim();
+
+  if (!q) {
+    k8FilteredList = [...k8AllSwimmers];
+  } else {
+    k8FilteredList = k8AllSwimmers.filter(r => {
+      const name = (r.display_name || '').toLowerCase();
+      return name.includes(q);
+    });
+  }
+
+  renderK8SwimmerList();
+}
+
+function renderK8SwimmerList() {
+  const container = document.getElementById('k8SwimmerList');
+
+  if (!k8FilteredList.length) {
+    container.innerHTML = '<div class="empty-state"><div class="sub">No swimmers found</div></div>';
+    return;
+  }
+
+  container.innerHTML = k8FilteredList.map(swimmer => {
+    const status = k8Attendance[swimmer.id];
+    const isPresent = status === 'present';
+    const isAway = status === 'away';
+    const buttonClass = isPresent ? 'active-present' : isAway ? 'active-away' : '';
+
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);">
+        <div style="flex:1;">
+          <div style="font-size:15px;font-weight:600;color:var(--text);">
+            ${(swimmer.display_name || 'Unknown').split(' ')[0]}
+            <span style="font-size:13px;color:var(--text-sec);font-weight:400;margin-left:6px;">
+              ${(swimmer.display_name || '').split(' ').slice(1).join(' ')}
+            </span>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button onclick="toggleK8Attendance('${swimmer.id}', 'present')"
+            style="width:44px;height:44px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text-sec);font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;${isPresent ? 'background:rgba(16,185,129,0.18);border-color:rgba(16,185,129,0.5);color:#10b981;' : ''}">
+            <i data-lucide="check" style="width:18px;height:18px;"></i>
+          </button>
+          <button onclick="toggleK8Attendance('${swimmer.id}', 'away')"
+            style="width:44px;height:44px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text-sec);font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;${isAway ? 'background:rgba(100,116,139,0.15);border-color:rgba(100,116,139,0.4);color:#94a3b8;' : ''}">
+            <i data-lucide="x" style="width:18px;height:18px;"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  lucide.createIcons();
+}
+
+function toggleK8Attendance(swimmerId, status) {
+  if (k8Attendance[swimmerId] === status) {
+    delete k8Attendance[swimmerId];
+  } else {
+    k8Attendance[swimmerId] = status;
+  }
+  renderK8SwimmerList();
+}
+
+async function saveK8Attendance() {
+  if (!k8SelectedSessionId) {
+    toast('Please select a session', 'error');
+    return;
+  }
+
+  // Find the session
+  const session = allWeekSessions.find(ws => ws.id === k8SelectedSessionId);
+  if (!session) {
+    toast('Session not found', 'error');
+    return;
+  }
+
+  // Create or find club_sessions record for today
+  const { data: existing } = await sb.from('club_sessions')
+    .select('id')
+    .eq('club_id', currentClub.id)
+    .eq('session_date', selectedDate)
+    .eq('squad_id', session.squad_id)
+    .eq('session_type', 'K8 Register')
+    .single();
+
+  let sessionId;
+  if (existing) {
+    sessionId = existing.id;
+  } else {
+    const { data: created, error } = await sb.from('club_sessions').insert({
+      club_id: currentClub.id,
+      session_date: selectedDate,
+      squad_id: session.squad_id,
+      session_type: 'K8 Register',
+      coach_name: coachName || 'Coach',
+    }).select('id').single();
+
+    if (error) {
+      toast('Failed to save: ' + error.message, 'error');
+      return;
+    }
+    sessionId = created.id;
+  }
+
+  // Save attendance records
+  const attendanceRecords = Object.entries(k8Attendance).map(([rosterId, status]) => ({
+    session_id: sessionId,
+    roster_id: rosterId,
+    status: status === 'present' ? 'present' : 'no_contact',
+    marked_at: new Date().toISOString(),
+  }));
+
+  if (attendanceRecords.length > 0) {
+    const { error } = await sb.from('club_session_attendance').upsert(attendanceRecords, {
+      onConflict: 'session_id,roster_id',
+    });
+
+    if (error) {
+      toast('Failed to save attendance: ' + error.message, 'error');
+      return;
+    }
+  }
+
+  toast('Attendance saved', 'success');
+  showScreen('home');
 }
 
 // ── START ──────────────────────────────────────────────────────────
