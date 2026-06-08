@@ -5843,19 +5843,22 @@ async function loadSettingsPage() {
       .order('start_time');
     allTimetableSessions = sessions || [];
     allWeekSessions = allTimetableSessions; // keep dashboard in sync
-    // Load assignment counts for each session
+    // Load assignment counts for each session (async, non-blocking)
     sessionAssignmentCounts = {};
+    renderSettingsTimetable(allTimetableSessions);
     if (allTimetableSessions.length) {
       const sessionIds = allTimetableSessions.map(s => s.id);
-      const { data: counts } = await sb.from('club_session_assignments')
+      sb.from('club_session_assignments')
         .select('session_id')
         .eq('club_id', currentClub.id)
-        .in('session_id', sessionIds);
-      (counts || []).forEach(a => {
-        sessionAssignmentCounts[a.session_id] = (sessionAssignmentCounts[a.session_id] || 0) + 1;
-      });
+        .in('session_id', sessionIds)
+        .then(({ data: counts }) => {
+          (counts || []).forEach(a => {
+            sessionAssignmentCounts[a.session_id] = (sessionAssignmentCounts[a.session_id] || 0) + 1;
+          });
+          renderSettingsTimetable(allTimetableSessions);
+        });
     }
-    renderSettingsTimetable(allTimetableSessions);
   } else {
     allTimetableSessions = [];
     sessionAssignmentCounts = {};
