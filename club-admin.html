@@ -6161,8 +6161,10 @@ async function openSessionAssignModal(sessionId) {
     'Assigned swimmers appear in Today\'s Schedule. Coaches mark attendance separately.';
 
   const { data: existing } = await sb.from('club_session_assignments')
-    .select('roster_id').eq('session_id', sessionId).eq('club_id', currentClub.id);
+    .select('roster_id, time_slot').eq('session_id', sessionId).eq('club_id', currentClub.id);
   const assignedIds = new Set((existing || []).map(a => a.roster_id));
+  const timeSlotMap = {};
+  (existing || []).forEach(a => { timeSlotMap[a.roster_id] = a.time_slot; });
 
   // allRosterFull may be empty if Settings was opened before Overview loaded
   let rosterSource = allRosterFull.filter(r => r.squad_id === session.squad_id);
@@ -6176,20 +6178,40 @@ async function openSessionAssignModal(sessionId) {
   }
   const squadMembers = [...rosterSource].sort((a, b) => (a.display_name || '').localeCompare(b.display_name || ''));
 
+  // Check if this is an LTS session (contains "learn to swim" in name)
+  const isLTS = (squad?.name || '').toLowerCase().includes('learn to swim');
+  const ltsTimeSlots = ['15:30', '15:50', '16:10', '16:30', '16:50', '17:00', '17:10', '17:20'];
+
   const list = document.getElementById('assignSwimmerList');
   list.innerHTML = squadMembers.length
-    ? squadMembers.map(m => `
-        <div class="assign-swimmer-row" onclick="this.querySelector('input').click()">
-          <input type="checkbox" id="assign_${m.id}" value="${m.id}" ${assignedIds.has(m.id) ? 'checked' : ''} onchange="updateAssignCount()">
-          <label for="assign_${m.id}" onclick="event.stopPropagation()">
-            <span class="assign-num">#${m.member_number || '—'}</span>
+    ? squadMembers.map(m => {
+        const isAssigned = assignedIds.has(m.id);
+        const slot = timeSlotMap[m.id];
+        return `
+        <div class="assign-swimmer-row" style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.03);">
+          <input type="checkbox" id="assign_${m.id}" value="${m.id}" ${isAssigned ? 'checked' : ''} onchange="updateAssignCount()" style="cursor:pointer;">
+          <label for="assign_${m.id}" onclick="event.stopPropagation()" style="flex:1;cursor:pointer;">
+            <span class="assign-num" style="font-size:11px;color:var(--text-sec);margin-right:8px;">#${m.member_number || '—'}</span>
             ${m.display_name}
           </label>
-        </div>`).join('')
+          ${isLTS && isAssigned ? `
+            <select id="slot_${m.id}" data-member-id="${m.id}" style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);color:var(--text);font-size:12px;padding:4px 8px;border-radius:5px;cursor:pointer;" onchange="updateTimeSlot('${m.id}', this.value)">
+              <option value="">— No slot —</option>
+              ${ltsTimeSlots.map(ts => `<option value="${ts}" ${slot === ts ? 'selected' : ''}>${ts}</option>`).join('')}
+            </select>
+          ` : ''}
+        </div>`;
+      }).join('')
     : `<div style="color:var(--text-sec);font-size:13px;padding:12px 0;text-align:center;">No members in this squad yet.</div>`;
 
   updateAssignCount();
   document.getElementById('sessionAssignModal').classList.add('open');
+}
+
+function updateTimeSlot(memberId, timeSlot) {
+  // Just update the select UI; save happens in saveSessionAssignments()
+  if (!document.getElementById(`slot_${memberId}`)) return;
+  document.getElementById(`slot_${memberId}`).value = timeSlot;
 }
 
 function updateAssignCount() {
@@ -6217,11 +6239,20 @@ async function saveSessionAssignments() {
 
   const checked   = [...document.querySelectorAll('#assignSwimmerList input:checked')].map(i => i.value);
   const unchecked = [...document.querySelectorAll('#assignSwimmerList input:not(:checked)')].map(i => i.value);
+
   const ops = [];
-  if (checked.length)   ops.push(sb.from('club_session_assignments').upsert(
-    checked.map(rid => ({ club_id: currentClub.id, roster_id: rid, session_id: currentAssignSessionId })),
-    { onConflict: 'roster_id,session_id' }
-  ));
+  if (checked.length) {
+    const rows = checked.map(rid => {
+      const row = { club_id: currentClub.id, roster_id: rid, session_id: currentAssignSessionId };
+      const slotSelect = document.getElementById(`slot_${rid}`);
+      if (slotSelect) {
+        const slot = slotSelect.value;
+        if (slot) row.time_slot = slot;
+      }
+      return row;
+    });
+    ops.push(sb.from('club_session_assignments').upsert(rows, { onConflict: 'roster_id,session_id' }));
+  }
   if (unchecked.length) ops.push(sb.from('club_session_assignments')
     .delete().eq('session_id', currentAssignSessionId).in('roster_id', unchecked));
   const results = await Promise.all(ops);
