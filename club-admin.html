@@ -6058,7 +6058,7 @@ function renderSettingsTimetable(sessions) {
         if (g.isLTS) {
           // ONE grouped row for Learn to Swim — with per-coach Slots buttons
           const coachButtons = g.coaches.map(c =>
-            `<button onclick="openLTSSlotsModal('${c.id}','${(g.squad?.name||'').replace(/'/g,"\\'")}')"
+            `<button onclick="openSessionDetail('${c.id}')"
               style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);color:var(--cyan);cursor:pointer;font-size:12px;padding:4px 10px;border-radius:6px;font-weight:600;"
               onmouseover="this.style.background='rgba(56,189,248,0.18)'" onmouseout="this.style.background='rgba(56,189,248,0.08)'">
               ${c.coach_name} <span style="opacity:0.7;">(${sessionAssignmentCounts[c.id]||0})</span>
@@ -8394,12 +8394,31 @@ function openSessionDetail(squadSessionId) {
   const pct   = cap > 0 ? Math.round(asgn/cap*100) : 0;
   const bColor = pct>=90?'var(--danger)':pct>=75?'var(--amber)':'var(--green)';
 
+  // Fetch time slots for this session (LTS sessions have these)
+  const { data: slotData } = await sb.from('club_session_assignments')
+    .select('roster_id, time_slot')
+    .eq('session_id', s.id)
+    .eq('club_id', currentClub.id);
+  const timeSlotMap = {};
+  (slotData || []).forEach(a => { if (a.time_slot) timeSlotMap[a.roster_id] = a.time_slot; });
+  const hasTimeSlots = Object.keys(timeSlotMap).length > 0;
+
   const swimmers = assignedIds.map(rid => allRosterFull.find(r => r.id === rid)).filter(Boolean)
-    .sort((a,b) => (a.display_name||'').localeCompare(b.display_name||''));
+    .sort((a,b) => {
+      if (hasTimeSlots) {
+        const ta = timeSlotMap[a.id] || '99:99';
+        const tb = timeSlotMap[b.id] || '99:99';
+        return ta.localeCompare(tb);
+      }
+      return (a.display_name||'').localeCompare(b.display_name||'');
+    });
 
   const swimRows = swimmers.length
     ? swimmers.map(r => `
         <div style="display:flex;align-items:center;gap:10px;padding:9px 20px;border-bottom:1px solid var(--border);">
+          ${hasTimeSlots && timeSlotMap[r.id]
+            ? `<div style="font-size:12px;font-weight:700;color:var(--cyan);min-width:42px;">${timeSlotMap[r.id]}</div>`
+            : ''}
           <div style="flex:1;font-size:13px;font-weight:500;">${r.display_name || r.id}</div>
           ${r.is_trial
             ? `<span style="font-size:9px;font-weight:700;background:rgba(239,68,68,0.15);color:var(--danger);padding:1px 8px;border-radius:8px;letter-spacing:0.04em;">TRIAL</span>`
