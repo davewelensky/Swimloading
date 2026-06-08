@@ -2824,7 +2824,7 @@ function renderDayDashboard(dow) {
               :`<div style="font-size:11px;font-weight:700;color:var(--danger);">NO COACH</div>`}
             <div style="font-size:10px;color:var(--cyan);margin-top:2px;">View →</div>
           </div>
-          ${(sq?.name||'').toLowerCase().includes('learn to swim')
+          ${currentClub?.slug === 'aqua-sharks-atlantic' && (sq?.name||'').toLowerCase().includes('learn to swim')
             ? `<button onclick="event.stopPropagation();openLTSSlotsModal('${s.id}','${(sq?.name||'').replace(/'/g,"\\'")}')"
                 style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);color:var(--cyan);
                        font-size:10px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;
@@ -10090,6 +10090,11 @@ let ltsSlotsAdminList   = [];    // current slots in modal
 let ltsRosterForClub    = [];    // LTS roster members for autocomplete
 
 function openLTSSlotsModal(sqSessionId, sqName) {
+  // Aquasharks only
+  if (currentClub?.slug !== 'aqua-sharks-atlantic') {
+    showToast('Lesson slots are only available for Aquasharks', 'error');
+    return;
+  }
   ltsModalSessionId = sqSessionId;
   document.getElementById('ltsSlotsModalTitle').textContent = sqName + ' — Lesson Slots';
   document.getElementById('ltsSlotsAdminList').innerHTML =

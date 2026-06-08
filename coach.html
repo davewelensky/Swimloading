@@ -2150,11 +2150,15 @@ let ltsSlots      = [];  // club_lts_slots for active squad_session
 let ltsAttendance = {};  // slot_id → {id, attended, ...}
 
 function isLTSSquad(squadId) {
+  // Aquasharks only — prevent activation for other clubs
+  if (currentClub?.slug !== 'aqua-sharks-atlantic') return false;
   const sq = allSquads.find(q => q.id === squadId);
   return !!(sq?.name?.toLowerCase().includes('learn to swim'));
 }
 
 async function startLTSSession() {
+  // Aquasharks only
+  if (currentClub?.slug !== 'aqua-sharks-atlantic') return;
   const s  = activeSqSession;
   const sq = allSquads.find(q => q.id === s.squad_id);
 
@@ -2168,6 +2172,8 @@ async function startLTSSession() {
 }
 
 async function loadLTSSlots() {
+  // Aquasharks only
+  if (currentClub?.slug !== 'aqua-sharks-atlantic') return;
   const s = activeSqSession;
   if (!s) return;
 
