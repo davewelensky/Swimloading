@@ -6401,8 +6401,16 @@ function openScheduleImport() {
   schedImportRawUnmatched = [];
   document.getElementById('scheduleImportModal').classList.add('open');
   lucide.createIcons();
-  // click-on-dropzone opens file picker
-  document.getElementById('schedImportDropZone').onclick = () => document.getElementById('schedImportFile').click();
+  const dz = document.getElementById('schedImportDropZone');
+  dz.onclick = () => document.getElementById('schedImportFile').click();
+  dz.ondragover = e => { e.preventDefault(); dz.style.borderColor = 'var(--cyan)'; dz.style.background = 'rgba(56,189,248,0.07)'; };
+  dz.ondragleave = () => { dz.style.borderColor = ''; dz.style.background = ''; };
+  dz.ondrop = e => {
+    e.preventDefault();
+    dz.style.borderColor = ''; dz.style.background = '';
+    const file = e.dataTransfer.files[0];
+    if (file) handleScheduleFile(file);
+  };
 }
 
 function closeScheduleImport() {
