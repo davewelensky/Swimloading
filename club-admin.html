@@ -7861,11 +7861,16 @@ const ATTENDANCE_STATUSES = [
   { key: 'catch_up',   label: 'C/U',   title: 'Catch-up'     },
 ];
 
-let allSessions       = [];
-let activeSessionId   = null;   // session being marked
-let attendanceMarks   = {};     // rosterId → status for active session
-let sessionIntents    = {};     // rosterId → intent status for active mark modal
-let allIntents        = [];     // all club_session_attendance rows for stats
+let allSessions          = [];
+let activeSessionId      = null;   // session being marked
+let activeSquadSessionId = null;   // recurring template id (for LTS slot lookup)
+let attendanceMarks      = {};     // rosterId → status for active session
+let sessionIntents       = {};     // rosterId → intent status for active mark modal
+let allIntents           = [];     // all club_session_attendance rows for stats
+let ltsSlotMap           = {};     // rosterId → time_slot for current LTS mark
+let ltsSwimmerIds        = [];     // ordered roster ids for current LTS session
+let walkins              = [];     // walk-in roster ids added this session
+let sessionHealthMap     = {};     // rosterId → active health events[]
 
 async function loadAttendance() {
   const eightWeeksAgo = new Date(Date.now() - 56 * 86400000).toISOString().slice(0,10);
@@ -8395,14 +8400,24 @@ async function openSessionDetail(squadSessionId) {
   const pct   = cap > 0 ? Math.round(asgn/cap*100) : 0;
   const bColor = pct>=90?'var(--danger)':pct>=75?'var(--amber)':'var(--green)';
 
-  // Fetch time slots for this session (LTS sessions have these)
-  const { data: slotData } = await sb.from('club_session_assignments')
-    .select('roster_id, time_slot')
-    .eq('session_id', s.id)
-    .eq('club_id', currentClub.id);
+  // Fetch time slots, health events, and previous session note in parallel
+  const [slotRes, healthRes, prevNoteRes] = await Promise.all([
+    sb.from('club_session_assignments').select('roster_id, time_slot').eq('session_id', s.id).eq('club_id', currentClub.id),
+    assignedIds.length ? sb.from('club_health_events').select('roster_id, type, body_part, notes, severity').in('roster_id', assignedIds).is('resolved_at', null) : Promise.resolve({ data: [] }),
+    sb.from('club_sessions').select('notes, session_date, coach_name').eq('club_id', currentClub.id).eq('squad_id', s.squad_id).eq('coach_name', s.coach_name || '').not('notes', 'is', null).order('session_date', { ascending: false }).limit(1).maybeSingle(),
+  ]);
+
   const timeSlotMap = {};
-  (slotData || []).forEach(a => { if (a.time_slot) timeSlotMap[a.roster_id] = a.time_slot; });
+  (slotRes.data || []).forEach(a => { if (a.time_slot) timeSlotMap[a.roster_id] = a.time_slot; });
   const hasTimeSlots = Object.keys(timeSlotMap).length > 0;
+
+  const detailHealthMap = {};
+  (healthRes.data || []).forEach(h => {
+    if (!detailHealthMap[h.roster_id]) detailHealthMap[h.roster_id] = [];
+    detailHealthMap[h.roster_id].push(h);
+  });
+
+  const prevNote = prevNoteRes.data;
 
   const swimmers = assignedIds.map(rid => allRosterFull.find(r => r.id === rid)).filter(Boolean)
     .sort((a,b) => {
@@ -8415,20 +8430,34 @@ async function openSessionDetail(squadSessionId) {
     });
 
   const swimRows = swimmers.length
-    ? swimmers.map(r => `
+    ? swimmers.map(r => {
+        const healthFlags = detailHealthMap[r.id] || [];
+        const healthBadge = healthFlags.length
+          ? `<span title="${healthFlags.map(h=>(h.body_part||h.type||'Health note')+(h.notes?' — '+h.notes:'')).join('; ')}" style="font-size:9px;font-weight:700;background:rgba(239,68,68,0.15);color:var(--danger);padding:1px 8px;border-radius:8px;letter-spacing:0.04em;cursor:help;">HEALTH</span>`
+          : '';
+        return `
         <div style="display:flex;align-items:center;gap:10px;padding:9px 20px;border-bottom:1px solid var(--border);">
           ${hasTimeSlots && timeSlotMap[r.id]
             ? `<div style="font-size:12px;font-weight:700;color:var(--cyan);min-width:42px;">${timeSlotMap[r.id]}</div>`
             : ''}
           <div style="flex:1;font-size:13px;font-weight:500;">${r.display_name || r.id}</div>
+          ${healthBadge}
           ${r.is_trial
             ? `<span style="font-size:9px;font-weight:700;background:rgba(239,68,68,0.15);color:var(--danger);padding:1px 8px;border-radius:8px;letter-spacing:0.04em;">TRIAL</span>`
             : ''}
           ${!r.fee_paid
             ? `<span style="font-size:9px;font-weight:700;background:rgba(245,158,11,0.15);color:var(--amber);padding:1px 8px;border-radius:8px;letter-spacing:0.04em;">FEE DUE</span>`
             : ''}
-        </div>`).join('')
+        </div>`;
+      }).join('')
     : `<div style="padding:24px 20px;text-align:center;color:var(--text-sec);font-size:13px;">No swimmers assigned to this session.<br><span onclick="showPage('settings')" style="color:var(--cyan);cursor:pointer;">Set up squad assignments →</span></div>`;
+
+  const prevNoteCard = prevNote?.notes
+    ? `<div style="margin:0;padding:12px 20px;background:rgba(245,158,11,0.07);border-bottom:1px solid rgba(245,158,11,0.2);">
+        <div style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Previous session note (${prevNote.session_date})</div>
+        <div style="font-size:12px;color:var(--text);">${prevNote.notes}</div>
+      </div>`
+    : '';
 
   const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const sessionLabel = isToday ? 'Today' : dayNames[s.day_of_week];
@@ -8474,14 +8503,17 @@ async function openSessionDetail(squadSessionId) {
       </div>
     </div>
 
+    <!-- previous note briefing -->
+    ${prevNoteCard}
+
     <!-- swimmer list -->
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-sec);padding:10px 20px 4px;">${asgn} Swimmer${asgn!==1?'s':''}</div>
     ${swimRows}
 
     <!-- footer action -->
-    ${isToday && !isPast ? `<div style="padding:16px 20px;border-top:1px solid var(--border);margin-top:4px;">
+    ${isToday ? `<div style="padding:16px 20px;border-top:1px solid var(--border);margin-top:4px;">
       <button onclick="closeSessionDetail();openMarkFromSchedule('${s.id}')" style="width:100%;padding:13px;background:var(--cyan,#38bdf8);color:#080f1a;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">Mark Attendance →</button>
-    </div>` : isPast ? `<div style="padding:14px 20px;text-align:center;color:var(--text-sec);font-size:12px;">Session complete — view in Attendance tab</div>`
+    </div>`
     : `<div style="padding:14px 20px;text-align:center;color:var(--text-sec);font-size:12px;">Attendance can only be marked on the session day</div>`}
   `;
 
@@ -8500,17 +8532,20 @@ function closeSessionDetail() {
 async function openMarkFromSchedule(squadSessionId) {
   const tpl = allWeekSessions.find(s => s.id === squadSessionId);
   if (!tpl) return;
+  activeSquadSessionId = squadSessionId;
   const today = new Date().toISOString().slice(0, 10);
   const sq = allSquads.find(q => q.id === tpl.squad_id);
 
-  // Check if a club_sessions record already exists for this squad + date + time
-  const { data: existing } = await sb.from('club_sessions')
+  // Check if a club_sessions record already exists for this squad + date + time + coach
+  let lookup = sb.from('club_sessions')
     .select('*, club_attendance(id, roster_id, status)')
     .eq('club_id', currentClub.id)
     .eq('session_date', today)
     .eq('squad_id', tpl.squad_id)
-    .eq('start_time', tpl.start_time)
-    .maybeSingle();
+    .eq('start_time', tpl.start_time);
+  if (tpl.coach_name) lookup = lookup.eq('coach_name', tpl.coach_name);
+  else lookup = lookup.is('coach_name', null);
+  const { data: existing } = await lookup.maybeSingle();
 
   if (existing) {
     if (!allSessions.find(s => s.id === existing.id)) allSessions.unshift(existing);
@@ -8536,23 +8571,59 @@ async function openMarkFromSchedule(squadSessionId) {
 
 async function openMarkSession(sessionId) {
   activeSessionId = sessionId;
+  walkins = [];
+  ltsSlotMap = {};
+  ltsSwimmerIds = [];
+  sessionHealthMap = {};
   const session = allSessions.find(s => s.id === sessionId);
   if (!session) return;
 
-  // Load swimmer self-reported intents for this date
-  const { data: intents } = await sb.from('club_session_attendance')
-    .select('roster_id, session_start, status')
-    .eq('club_id', currentClub.id)
-    .eq('session_date', session.session_date);
+  const sq = allSquads.find(q => q.id === session.squad_id);
+  const isLTS = (sq?.name || '').toLowerCase().includes('learn to swim');
+
+  // Load intents, LTS assignments, and health events in parallel
+  const fetches = [
+    sb.from('club_session_attendance').select('roster_id, session_start, status').eq('club_id', currentClub.id).eq('session_date', session.session_date),
+  ];
+  if (isLTS && activeSquadSessionId) {
+    fetches.push(sb.from('club_session_assignments').select('roster_id, time_slot').eq('session_id', activeSquadSessionId).eq('club_id', currentClub.id));
+  } else {
+    fetches.push(Promise.resolve({ data: [] }));
+  }
+  const [intentRes, slotRes] = await Promise.all(fetches);
 
   sessionIntents = {};
-  (intents || []).forEach(i => {
+  (intentRes.data || []).forEach(i => {
     const sessionStartShort = (session.start_time || '').slice(0,5);
-    // Prefer exact time match; fall back to any intent for the day
     if (!sessionIntents[i.roster_id] || i.session_start === sessionStartShort) {
       sessionIntents[i.roster_id] = i.status;
     }
   });
+
+  // Build LTS slot map and ordered swimmer id list
+  const slots = slotRes.data || [];
+  if (slots.length) {
+    slots.sort((a,b) => (a.time_slot||'99:99').localeCompare(b.time_slot||'99:99'));
+    slots.forEach(a => { if (a.time_slot) ltsSlotMap[a.roster_id] = a.time_slot; });
+    ltsSwimmerIds = slots.map(a => a.roster_id);
+    // Load health events for these specific swimmers
+    const { data: health } = await sb.from('club_health_events').select('roster_id, type, body_part, notes, severity').in('roster_id', ltsSwimmerIds).is('resolved_at', null);
+    (health || []).forEach(h => {
+      if (!sessionHealthMap[h.roster_id]) sessionHealthMap[h.roster_id] = [];
+      sessionHealthMap[h.roster_id].push(h);
+    });
+  } else {
+    // Non-LTS: load health for all squad members
+    const squadRoster = allRosterFull.filter(r => r.squad_id === session.squad_id);
+    if (squadRoster.length) {
+      const rids = squadRoster.map(r => r.id);
+      const { data: health } = await sb.from('club_health_events').select('roster_id, type, body_part, notes, severity').in('roster_id', rids).is('resolved_at', null);
+      (health || []).forEach(h => {
+        if (!sessionHealthMap[h.roster_id]) sessionHealthMap[h.roster_id] = [];
+        sessionHealthMap[h.roster_id].push(h);
+      });
+    }
+  }
 
   // Pre-fill marks from existing coach attendance
   attendanceMarks = {};
@@ -8565,7 +8636,66 @@ async function openMarkSession(sessionId) {
 function closeMarkSession() {
   document.getElementById('markSessionModal').classList.remove('open');
   activeSessionId = null;
+  activeSquadSessionId = null;
   attendanceMarks = {};
+  ltsSlotMap = {};
+  ltsSwimmerIds = [];
+  walkins = [];
+  sessionHealthMap = {};
+}
+
+function getSessionRoster(session) {
+  if (ltsSwimmerIds.length) {
+    // LTS: use the assigned swimmers for this specific coach's session
+    const base = ltsSwimmerIds.map(id => allRosterFull.find(r => r.id === id)).filter(Boolean);
+    const walkinRoster = walkins.map(id => allRosterFull.find(r => r.id === id)).filter(Boolean);
+    return [...base, ...walkinRoster];
+  }
+  const base = session.squad_id
+    ? allRosterFull.filter(r => r.squad_id === session.squad_id)
+    : allRosterFull;
+  const walkinRoster = walkins.map(id => allRosterFull.find(r => r.id === id)).filter(Boolean);
+  return [...base, ...walkinRoster];
+}
+
+function renderSwimmerRow(r, isWalkin) {
+  const status = attendanceMarks[r.id] || '';
+  const intent = sessionIntents[r.id] || '';
+  const slot   = ltsSlotMap[r.id] || '';
+  const health = sessionHealthMap[r.id] || [];
+  const intentBadge = intent === 'attending'
+    ? `<span style="font-size:9px;font-weight:800;color:#10b981;background:rgba(16,185,129,0.1);border-radius:6px;padding:1px 6px;white-space:nowrap;">Said coming</span>`
+    : intent === 'absent'
+    ? `<span style="font-size:9px;font-weight:800;color:#ef4444;background:rgba(239,68,68,0.08);border-radius:6px;padding:1px 6px;white-space:nowrap;">Said absent</span>`
+    : '';
+  const trialBadge = r.is_trial
+    ? `<span style="font-size:9px;font-weight:800;color:#ef4444;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:6px;padding:1px 6px;white-space:nowrap;">TRIAL</span>`
+    : '';
+  const feeBadge = r.fee_paid === false
+    ? `<span style="font-size:9px;font-weight:800;color:#f59e0b;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:6px;padding:1px 6px;white-space:nowrap;">UNPAID</span>`
+    : '';
+  const healthBadge = health.length
+    ? `<span title="${health.map(h=>(h.body_part||h.type||'Health')+(h.notes?' — '+h.notes:'')).join('; ')}" style="font-size:9px;font-weight:800;color:var(--danger);background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:6px;padding:1px 6px;white-space:nowrap;cursor:help;">HEALTH</span>`
+    : '';
+  const walkinBadge = isWalkin
+    ? `<span style="font-size:9px;font-weight:800;color:var(--cyan);background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);border-radius:6px;padding:1px 6px;white-space:nowrap;">WALK-IN</span>`
+    : '';
+  return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);gap:8px;" id="row-${r.id}">
+    <div style="display:flex;align-items:center;min-width:0;flex-wrap:wrap;gap:4px;">
+      ${slot ? `<span style="font-size:11px;font-weight:700;color:var(--cyan);min-width:40px;">${slot}</span>` : ''}
+      <span style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;">${r.display_name}</span>
+      ${trialBadge}${feeBadge}${walkinBadge}${healthBadge}${intentBadge}
+      ${health.length ? `<span style="font-size:10px;color:var(--danger);width:100%;padding-left:${slot?'44px':'0'};">${health.map(h=>(h.body_part||h.type)+(h.notes?' — '+h.notes:'')).join(' · ')}</span>` : ''}
+    </div>
+    <div id="btns-${r.id}" style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
+      ${ATTENDANCE_STATUSES.map(s => `
+        <button onclick="setMark('${r.id}','${s.key}')" title="${s.title}"
+          style="font-size:10px;font-weight:700;padding:4px 7px;border-radius:7px;cursor:pointer;transition:all 0.1s;
+            ${status===s.key ? markActiveStyle(s.key) : 'background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text-sec);'}">
+          ${s.label}
+        </button>`).join('')}
+    </div>
+  </div>`;
 }
 
 function renderMarkModal(session) {
@@ -8573,76 +8703,109 @@ function renderMarkModal(session) {
   const dateLabel = d.toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   const el = document.getElementById('markSessionContent');
 
-  // Filter roster to this squad if session has one; fall back to full roster
   const squad = session.squad_id ? allSquads.find(s => s.id === session.squad_id) : null;
-  const roster = session.squad_id
-    ? allRosterFull.filter(r => r.squad_id === session.squad_id)
-    : allRosterFull;
+  const isLTS = (squad?.name || '').toLowerCase().includes('learn to swim');
+  const roster = getSessionRoster(session);
+  const baseRoster = isLTS
+    ? ltsSwimmerIds.map(id => allRosterFull.find(r => r.id === id)).filter(Boolean)
+    : (session.squad_id ? allRosterFull.filter(r => r.squad_id === session.squad_id) : allRosterFull);
+  const walkinRoster = walkins.map(id => allRosterFull.find(r => r.id === id)).filter(Boolean);
 
-  // Group by category
-  const byCat = {};
-  roster.forEach(r => {
-    const cat = r.category || 'Unassigned';
-    if (!byCat[cat]) byCat[cat] = [];
-    byCat[cat].push(r);
-  });
+  const attended   = Object.values(attendanceMarks).filter(s => s === 'present' || s === 'late' || s === 'catch_up').length;
+  const sessionLabel = squad ? squad.name : `${session.session_type} Session`;
+  const existingNote = session.notes || '';
 
-  const attended   = Object.values(attendanceMarks).filter(s => s === 'present' || s === 'late').length;
-  const saidComing = roster.filter(r => sessionIntents[r.id] === 'attending').length;
-  const saidAbsent = roster.filter(r => sessionIntents[r.id] === 'absent').length;
-  const noResponse = roster.length - saidComing - saidAbsent;
-  const sessionLabel = squad ? `${squad.name}` : `${session.session_type} Session`;
+  // Walk-in search: show all non-assigned roster members
+  const assignedSet = new Set(roster.map(r => r.id));
+  const walkinOptions = allRosterFull.filter(r => !assignedSet.has(r.id))
+    .sort((a,b) => (a.display_name||'').localeCompare(b.display_name||''));
+
+  let swimmerRows;
+  if (isLTS) {
+    swimmerRows = baseRoster.map(r => renderSwimmerRow(r, false)).join('');
+    if (walkinRoster.length) {
+      swimmerRows += `<div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin:14px 0 8px;">Walk-ins</div>`;
+      swimmerRows += walkinRoster.map(r => renderSwimmerRow(r, true)).join('');
+    }
+  } else {
+    // Group by category
+    const byCat = {};
+    baseRoster.forEach(r => {
+      const cat = r.category || 'Unassigned';
+      if (!byCat[cat]) byCat[cat] = [];
+      byCat[cat].push(r);
+    });
+    swimmerRows = Object.entries(byCat).map(([cat, swimmers]) =>
+      `<div style="font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin:14px 0 8px;">${cat}</div>
+       ${swimmers.map(r => renderSwimmerRow(r, false)).join('')}`
+    ).join('');
+    if (walkinRoster.length) {
+      swimmerRows += `<div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin:14px 0 8px;">Walk-ins</div>`;
+      swimmerRows += walkinRoster.map(r => renderSwimmerRow(r, true)).join('');
+    }
+  }
 
   el.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
       <div>
         <div style="font-size:15px;font-weight:700;color:var(--text);">${sessionLabel} — ${dateLabel}</div>
+        ${session.coach_name ? `<div style="font-size:12px;color:var(--text-sec);margin-top:2px;">Coach: ${session.coach_name}</div>` : ''}
         <div style="font-size:12px;color:var(--text-sec);margin-top:3px;" id="markCount">${attended} of ${roster.length} present</div>
       </div>
       <button onclick="markAll('present')" style="font-size:12px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:20px;padding:6px 14px;cursor:pointer;">Mark all present</button>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:14px;padding:10px 12px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;flex-wrap:wrap;">
-      <span style="font-size:11px;font-weight:700;color:#10b981;">${saidComing} said coming</span>
-      <span style="font-size:11px;color:var(--text-sec);">·</span>
-      <span style="font-size:11px;font-weight:700;color:#ef4444;">${saidAbsent} said absent</span>
-      <span style="font-size:11px;color:var(--text-sec);">·</span>
-      <span style="font-size:11px;color:var(--text-sec);">${noResponse} no response</span>
+    ${!roster.length ? `<div style="text-align:center;padding:24px;color:var(--text-sec);font-size:13px;">No swimmers assigned to this squad yet.</div>` : ''}
+    ${swimmerRows}
+
+    <!-- Walk-in picker -->
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
+      <button onclick="toggleWalkinSearch()" style="font-size:12px;font-weight:700;color:var(--cyan);background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:20px;padding:6px 14px;cursor:pointer;">+ Add walk-in</button>
+      <div id="walkinSearchBox" style="display:none;margin-top:10px;">
+        <input id="walkinInput" oninput="filterWalkins()" placeholder="Search swimmer name..." style="width:100%;padding:8px 12px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box;">
+        <div id="walkinResults" style="margin-top:6px;max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);"></div>
+      </div>
     </div>
-    ${!roster.length ? `<div style="text-align:center;padding:24px;color:var(--text-sec);font-size:13px;">No swimmers assigned to this squad yet.<br><a href="#" onclick="showPage('roster')" style="color:var(--cyan);">Assign in Roster</a></div>` : ''}
-    ${Object.entries(byCat).map(([cat, swimmers]) => `
-      <div style="font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin:14px 0 8px;">${cat}</div>
-      ${swimmers.map(r => {
-        const status = attendanceMarks[r.id] || '';
-        const intent = sessionIntents[r.id] || '';
-        const intentBadge = intent === 'attending'
-          ? `<span style="font-size:9px;font-weight:800;color:#10b981;background:rgba(16,185,129,0.1);border-radius:6px;padding:1px 6px;margin-left:6px;white-space:nowrap;">Said coming</span>`
-          : intent === 'absent'
-          ? `<span style="font-size:9px;font-weight:800;color:#ef4444;background:rgba(239,68,68,0.08);border-radius:6px;padding:1px 6px;margin-left:6px;white-space:nowrap;">Said absent</span>`
-          : `<span style="font-size:9px;color:var(--text-sec);margin-left:6px;opacity:0.5;">no response</span>`;
-        const trialBadge = r.is_trial
-          ? `<span style="font-size:9px;font-weight:800;color:#ef4444;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:6px;padding:1px 6px;margin-left:5px;white-space:nowrap;">TRIAL</span>`
-          : '';
-        const feeBadge = r.fee_paid === false
-          ? `<span style="font-size:9px;font-weight:800;color:#f59e0b;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:6px;padding:1px 6px;margin-left:5px;white-space:nowrap;">UNPAID</span>`
-          : '';
-        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);gap:8px;" id="row-${r.id}">
-          <div style="display:flex;align-items:center;min-width:0;flex-wrap:wrap;gap:2px;">
-            <span style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;">${r.display_name}</span>
-            ${trialBadge}${feeBadge}${intentBadge}
-          </div>
-          <div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
-            ${ATTENDANCE_STATUSES.map(s => `
-              <button onclick="setMark('${r.id}','${s.key}')" title="${s.title}"
-                style="font-size:10px;font-weight:700;padding:4px 7px;border-radius:7px;cursor:pointer;transition:all 0.1s;
-                  ${status===s.key ? markActiveStyle(s.key) : 'background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text-sec);'}">
-                ${s.label}
-              </button>`).join('')}
-          </div>
-        </div>`;
-      }).join('')}
-    `).join('')}`;
+
+    <!-- Note to Britt -->
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
+      <div style="font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Note to Britt (optional)</div>
+      <textarea id="coachNoteField" placeholder="e.g. Nathan no-showed at 16:30, Gabie took a double. Rooibos pool was cold." style="width:100%;min-height:70px;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;resize:vertical;box-sizing:border-box;font-family:inherit;">${existingNote}</textarea>
+    </div>`;
+
+  // Populate walk-in options into a data attr so filterWalkins() can use them
+  window._walkinPool = walkinOptions;
   lucide.createIcons();
   updateMarkCount();
+}
+
+function toggleWalkinSearch() {
+  const box = document.getElementById('walkinSearchBox');
+  if (!box) return;
+  const visible = box.style.display !== 'none';
+  box.style.display = visible ? 'none' : 'block';
+  if (!visible) {
+    filterWalkins();
+    document.getElementById('walkinInput')?.focus();
+  }
+}
+
+function filterWalkins() {
+  const q = (document.getElementById('walkinInput')?.value || '').toLowerCase();
+  const pool = (window._walkinPool || []).filter(r => (r.display_name||'').toLowerCase().includes(q));
+  const container = document.getElementById('walkinResults');
+  if (!container) return;
+  if (!pool.length) { container.innerHTML = `<div style="padding:10px;font-size:12px;color:var(--text-sec);">No matches</div>`; return; }
+  container.innerHTML = pool.slice(0, 20).map(r =>
+    `<div onclick="addWalkin('${r.id}')" style="padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);" onmouseover="this.style.background='rgba(56,189,248,0.07)'" onmouseout="this.style.background='transparent'">${r.display_name}</div>`
+  ).join('');
+}
+
+function addWalkin(rosterId) {
+  if (walkins.includes(rosterId)) return;
+  walkins.push(rosterId);
+  attendanceMarks[rosterId] = 'present';
+  const session = allSessions.find(s => s.id === activeSessionId);
+  if (session) renderMarkModal(session);
 }
 
 function markActiveStyle(status) {
@@ -8662,11 +8825,10 @@ function markActiveStyle(status) {
 }
 
 function setMark(rosterId, status) {
-  // Clicking the already-active status toggles it off
   attendanceMarks[rosterId] = attendanceMarks[rosterId] === status ? '' : status;
-  const row = document.getElementById('row-' + rosterId);
-  if (row) {
-    row.querySelector('div:last-child').innerHTML = ATTENDANCE_STATUSES.map(s => `
+  const btns = document.getElementById('btns-' + rosterId);
+  if (btns) {
+    btns.innerHTML = ATTENDANCE_STATUSES.map(s => `
       <button onclick="setMark('${rosterId}','${s.key}')" title="${s.title}"
         style="font-size:10px;font-weight:700;padding:4px 7px;border-radius:7px;cursor:pointer;transition:all 0.1s;
           ${attendanceMarks[rosterId]===s.key ? markActiveStyle(s.key) : 'background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text-sec);'}">
@@ -8678,18 +8840,15 @@ function setMark(rosterId, status) {
 
 function markAll(status) {
   const session = allSessions.find(s => s.id === activeSessionId);
-  const roster = session?.squad_id
-    ? allRosterFull.filter(r => r.squad_id === session.squad_id)
-    : allRosterFull;
-  roster.forEach(r => { attendanceMarks[r.id] = status; });
-  if (session) renderMarkModal(session);
+  if (!session) return;
+  getSessionRoster(session).forEach(r => { attendanceMarks[r.id] = status; });
+  renderMarkModal(session);
 }
 
 function updateMarkCount() {
   const session = allSessions.find(s => s.id === activeSessionId);
-  const roster = session?.squad_id
-    ? allRosterFull.filter(r => r.squad_id === session.squad_id)
-    : allRosterFull;
+  if (!session) return;
+  const roster = getSessionRoster(session);
   const attended = Object.values(attendanceMarks).filter(s => s === 'present' || s === 'late' || s === 'catch_up').length;
   const el = document.getElementById('markCount');
   if (el) el.textContent = `${attended} of ${roster.length} present`;
@@ -8700,27 +8859,38 @@ async function saveAttendance() {
   const btn = document.getElementById('saveAttendanceBtn');
   btn.textContent = 'Saving…'; btn.disabled = true;
 
-  const upserts = Object.entries(attendanceMarks).map(([roster_id, status]) => ({
-    session_id: activeSessionId, roster_id, status, marked_by: currentUser.id,
-  }));
+  const upserts = Object.entries(attendanceMarks)
+    .filter(([, status]) => status)
+    .map(([roster_id, status]) => ({
+      session_id: activeSessionId, roster_id, status, marked_by: currentUser.id,
+    }));
 
-  if (!upserts.length) { showToast('Mark at least one swimmer'); btn.textContent = 'Save'; btn.disabled = false; return; }
+  if (!upserts.length) { showToast('Mark at least one swimmer'); btn.textContent = 'Save attendance'; btn.disabled = false; return; }
 
-  const { error } = await sb.from('club_attendance')
-    .upsert(upserts, { onConflict: 'session_id,roster_id' });
+  const coachNote = (document.getElementById('coachNoteField')?.value || '').trim();
 
-  if (error) { showToast('Error saving: ' + error.message); btn.textContent = 'Save'; btn.disabled = false; return; }
+  // Save attendance + optional coach note in parallel
+  const saves = [
+    sb.from('club_attendance').upsert(upserts, { onConflict: 'session_id,roster_id' }),
+  ];
+  if (coachNote) {
+    saves.push(sb.from('club_sessions').update({ notes: coachNote }).eq('id', activeSessionId));
+  }
+  const [{ error }] = await Promise.all(saves);
+
+  if (error) { showToast('Error saving: ' + error.message); btn.textContent = 'Save attendance'; btn.disabled = false; return; }
 
   // Update local session cache
   const session = allSessions.find(s => s.id === activeSessionId);
   if (session) {
     session.club_attendance = upserts.map(u => ({ ...u, id: u.roster_id }));
+    if (coachNote) session.notes = coachNote;
   }
 
   showToast('Attendance saved');
   closeMarkSession();
   renderSessionsList();
-  btn.textContent = 'Save'; btn.disabled = false;
+  btn.textContent = 'Save attendance'; btn.disabled = false;
 }
 
 // ── PER-SWIMMER DETAIL ────────────────────────────────────────────
