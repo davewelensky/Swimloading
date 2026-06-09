@@ -8484,11 +8484,24 @@ async function openSessionDetail(squadSessionId) {
   const pct   = cap > 0 ? Math.round(asgn/cap*100) : 0;
   const bColor = pct>=90?'var(--danger)':pct>=75?'var(--amber)':'var(--green)';
 
-  // Fetch time slots, health events, and previous session note in parallel
-  const [slotRes, healthRes, prevNoteRes] = await Promise.all([
+  // Calculate upcoming date for this recurring session (today if today, otherwise next occurrence)
+  const nextDate = (() => {
+    const d = new Date(); d.setHours(0,0,0,0);
+    const diff = (s.day_of_week - d.getDay() + 7) % 7;
+    const t = new Date(d); t.setDate(d.getDate() + diff);
+    return t.toISOString().slice(0, 10);
+  })();
+  const sessionStartShort = (s.start_time || '').slice(0, 5);
+  window._detailNextDate = nextDate;
+  window._detailSessionStart = sessionStartShort;
+  window._detailSquadSessionId = squadSessionId;
+
+  // Fetch time slots, health events, previous session note, and pre-absences in parallel
+  const [slotRes, healthRes, prevNoteRes, preAbsentRes] = await Promise.all([
     sb.from('club_session_assignments').select('roster_id, time_slot').eq('session_id', s.id).eq('club_id', currentClub.id),
     assignedIds.length ? sb.from('club_health_events').select('roster_id, type, body_part, notes, severity').in('roster_id', assignedIds).is('resolved_at', null) : Promise.resolve({ data: [] }),
     sb.from('club_sessions').select('notes, session_date, coach_name').eq('club_id', currentClub.id).eq('squad_id', s.squad_id).eq('coach_name', s.coach_name || '').not('notes', 'is', null).order('session_date', { ascending: false }).limit(1).maybeSingle(),
+    sb.from('club_session_attendance').select('roster_id, status').eq('club_id', currentClub.id).eq('session_date', nextDate).eq('session_start', sessionStartShort),
   ]);
 
   const timeSlotMap = {};
@@ -8502,6 +8515,8 @@ async function openSessionDetail(squadSessionId) {
   });
 
   const prevNote = prevNoteRes.data;
+
+  const preAbsentSet = new Set((preAbsentRes.data || []).filter(a => a.status === 'absent').map(a => a.roster_id));
 
   const swimmers = assignedIds.map(rid => allRosterFull.find(r => r.id === rid)).filter(Boolean)
     .sort((a,b) => {
@@ -8519,19 +8534,22 @@ async function openSessionDetail(squadSessionId) {
         const healthBadge = healthFlags.length
           ? `<span title="${healthFlags.map(h=>(h.body_part||h.type||'Health note')+(h.notes?' — '+h.notes:'')).join('; ')}" style="font-size:9px;font-weight:700;background:rgba(239,68,68,0.15);color:var(--danger);padding:1px 8px;border-radius:8px;letter-spacing:0.04em;cursor:help;">HEALTH</span>`
           : '';
+        const isPreAbsent = preAbsentSet.has(r.id);
         return `
-        <div style="display:flex;align-items:center;gap:10px;padding:9px 20px;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:8px;padding:9px 20px;border-bottom:1px solid var(--border);${isPreAbsent?'opacity:0.6;':''}">
           ${hasTimeSlots && timeSlotMap[r.id]
             ? `<div style="font-size:12px;font-weight:700;color:var(--cyan);min-width:42px;">${timeSlotMap[r.id]}</div>`
             : ''}
-          <div style="flex:1;font-size:13px;font-weight:500;">${r.display_name || r.id}</div>
-          ${healthBadge}
-          ${r.is_trial
-            ? `<span style="font-size:9px;font-weight:700;background:rgba(239,68,68,0.15);color:var(--danger);padding:1px 8px;border-radius:8px;letter-spacing:0.04em;">TRIAL</span>`
-            : ''}
-          ${!r.fee_paid
-            ? `<span style="font-size:9px;font-weight:700;background:rgba(245,158,11,0.15);color:var(--amber);padding:1px 8px;border-radius:8px;letter-spacing:0.04em;">FEE DUE</span>`
-            : ''}
+          <div style="flex:1;font-size:13px;font-weight:500;${isPreAbsent?'text-decoration:line-through;color:var(--text-sec);':''}">${r.display_name || r.id}</div>
+          <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
+            ${healthBadge}
+            ${r.is_trial ? `<span style="font-size:9px;font-weight:700;background:rgba(239,68,68,0.15);color:var(--danger);padding:1px 8px;border-radius:8px;letter-spacing:0.04em;">TRIAL</span>` : ''}
+            ${!r.fee_paid ? `<span style="font-size:9px;font-weight:700;background:rgba(245,158,11,0.15);color:var(--amber);padding:1px 8px;border-radius:8px;letter-spacing:0.04em;">FEE DUE</span>` : ''}
+            ${isPreAbsent
+              ? `<span style="font-size:9px;font-weight:700;background:rgba(239,68,68,0.12);color:var(--danger);padding:1px 8px;border-radius:8px;letter-spacing:0.04em;border:1px solid rgba(239,68,68,0.25);">NOT COMING</span>
+                 <button onclick="togglePreAbsent('${r.id}')" style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:6px;cursor:pointer;background:transparent;border:1px solid rgba(239,68,68,0.3);color:rgba(239,68,68,0.7);">Undo</button>`
+              : `<button onclick="togglePreAbsent('${r.id}')" style="font-size:10px;font-weight:600;padding:3px 9px;border-radius:6px;cursor:pointer;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text-sec);">Not coming</button>`}
+          </div>
         </div>`;
       }).join('')
     : `<div style="padding:24px 20px;text-align:center;color:var(--text-sec);font-size:13px;">No swimmers assigned to this session.<br><span onclick="showPage('settings')" style="color:var(--cyan);cursor:pointer;">Set up squad assignments →</span></div>`;
@@ -8597,8 +8615,12 @@ async function openSessionDetail(squadSessionId) {
     <!-- footer action -->
     ${isToday ? `<div style="padding:16px 20px;border-top:1px solid var(--border);margin-top:4px;">
       <button onclick="closeSessionDetail();openMarkFromSchedule('${s.id}')" style="width:100%;padding:13px;background:var(--cyan,#38bdf8);color:#080f1a;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">Mark Attendance →</button>
+      <div style="margin-top:8px;font-size:11px;color:var(--text-sec);text-align:center;">Walk-in swimmers (e.g. Riley on Gold days) can be added inside ↑</div>
     </div>`
-    : `<div style="padding:14px 20px;text-align:center;color:var(--text-sec);font-size:12px;">Attendance can only be marked on the session day</div>`}
+    : `<div style="padding:14px 20px;border-top:1px solid var(--border);text-align:center;">
+        <div style="font-size:12px;color:var(--text-sec);">Tap <strong style="color:var(--text);">Not coming</strong> above to pre-mark absences for ${dayNames[s.day_of_week]}</div>
+        <div style="font-size:11px;color:var(--text-sec);margin-top:4px;opacity:0.6;">Attendance marking opens on the session day · Walk-ins added when marking</div>
+      </div>`}
   `;
 
   modal.style.display = 'flex';
@@ -8608,6 +8630,49 @@ async function openSessionDetail(squadSessionId) {
 function closeSessionDetail() {
   const modal = document.getElementById('sessionDetailModal');
   if (modal) modal.style.display = 'none';
+}
+
+async function togglePreAbsent(rosterId) {
+  const nextDate    = window._detailNextDate;
+  const startTime   = window._detailSessionStart;
+  const sqSessionId = window._detailSquadSessionId;
+  if (!nextDate || !startTime) return;
+
+  // Check if already pre-marked absent
+  const { data: existing } = await sb.from('club_session_attendance')
+    .select('id')
+    .eq('club_id', currentClub.id)
+    .eq('session_date', nextDate)
+    .eq('session_start', startTime)
+    .eq('roster_id', rosterId)
+    .eq('status', 'absent')
+    .maybeSingle();
+
+  if (existing) {
+    // Remove the pre-absence
+    const { error } = await sb.from('club_session_attendance')
+      .delete()
+      .eq('club_id', currentClub.id)
+      .eq('session_date', nextDate)
+      .eq('session_start', startTime)
+      .eq('roster_id', rosterId);
+    if (error) { showToast('Could not remove: ' + error.message, 'error'); return; }
+    showToast('Absence removed', 'success');
+  } else {
+    // Pre-mark as absent
+    const { error } = await sb.from('club_session_attendance').insert({
+      club_id:       currentClub.id,
+      session_date:  nextDate,
+      session_start: startTime,
+      roster_id:     rosterId,
+      status:        'absent',
+    });
+    if (error) { showToast('Could not save: ' + error.message, 'error'); return; }
+    showToast('Marked as not coming', 'success');
+  }
+
+  // Refresh the detail view in place
+  await openSessionDetail(sqSessionId);
 }
 
 // ── MARK ATTENDANCE ───────────────────────────────────────────────
@@ -8748,9 +8813,9 @@ function renderSwimmerRow(r, isWalkin) {
   const slot   = ltsSlotMap[r.id] || '';
   const health = sessionHealthMap[r.id] || [];
   const intentBadge = intent === 'attending'
-    ? `<span style="font-size:9px;font-weight:800;color:#10b981;background:rgba(16,185,129,0.1);border-radius:6px;padding:1px 6px;white-space:nowrap;">Said coming</span>`
+    ? `<span style="font-size:9px;font-weight:800;color:#10b981;background:rgba(16,185,129,0.1);border-radius:6px;padding:1px 6px;white-space:nowrap;">Confirmed</span>`
     : intent === 'absent'
-    ? `<span style="font-size:9px;font-weight:800;color:#ef4444;background:rgba(239,68,68,0.08);border-radius:6px;padding:1px 6px;white-space:nowrap;">Said absent</span>`
+    ? `<span style="font-size:9px;font-weight:800;color:#ef4444;background:rgba(239,68,68,0.08);border-radius:6px;padding:1px 6px;white-space:nowrap;">Not coming</span>`
     : '';
   const trialBadge = r.is_trial
     ? `<span style="font-size:9px;font-weight:800;color:#ef4444;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:6px;padding:1px 6px;white-space:nowrap;">TRIAL</span>`
@@ -8841,11 +8906,11 @@ function renderMarkModal(session) {
     ${!roster.length ? `<div style="text-align:center;padding:24px;color:var(--text-sec);font-size:13px;">No swimmers assigned to this squad yet.</div>` : ''}
     ${swimmerRows}
 
-    <!-- Walk-in picker -->
+    <!-- Walk-in / add swimmer -->
     <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
-      <button onclick="toggleWalkinSearch()" style="font-size:12px;font-weight:700;color:var(--cyan);background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:20px;padding:6px 14px;cursor:pointer;">+ Add walk-in</button>
+      <button onclick="toggleWalkinSearch()" style="font-size:12px;font-weight:700;color:var(--cyan);background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:20px;padding:6px 14px;cursor:pointer;">+ Add swimmer</button>
       <div id="walkinSearchBox" style="display:none;margin-top:10px;">
-        <input id="walkinInput" oninput="filterWalkins()" placeholder="Search swimmer name..." style="width:100%;padding:8px 12px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box;">
+        <input id="walkinInput" oninput="filterWalkins()" placeholder="Search by name (any squad)..." style="width:100%;padding:8px 12px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box;">
         <div id="walkinResults" style="margin-top:6px;max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);"></div>
       </div>
     </div>
@@ -8878,7 +8943,7 @@ function filterWalkins() {
   const pool = (window._walkinPool || []).filter(r => (r.display_name||'').toLowerCase().includes(q));
   const container = document.getElementById('walkinResults');
   if (!container) return;
-  if (!pool.length) { container.innerHTML = `<div style="padding:10px;font-size:12px;color:var(--text-sec);">No matches</div>`; return; }
+  if (!pool.length) { container.innerHTML = `<div style="padding:10px 14px;font-size:12px;color:var(--text-sec);">No match found — new swimmers must be added via the <span onclick="closeMarkSession();showPage('roster')" style="color:var(--cyan);cursor:pointer;text-decoration:underline;">Roster tab</span> first</div>`; return; }
   container.innerHTML = pool.slice(0, 20).map(r =>
     `<div onclick="addWalkin('${r.id}')" style="padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);" onmouseover="this.style.background='rgba(56,189,248,0.07)'" onmouseout="this.style.background='transparent'">${r.display_name}</div>`
   ).join('');
