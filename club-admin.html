@@ -3350,6 +3350,7 @@ let allSessionAssignments = {};   // session_id → roster_id[]
 let sessionAssignmentCounts = {}; // session_id → count (settings timetable)
 let allWeekSessions = [];         // all sessions across all days
 let allWeekAssignments = {};      // session_id → roster_id[] for all week
+let allWeekTimeSlots   = {};      // session_id → [{roster_id, time_slot}] sorted — for LTS banner preview
 let dashDay = new Date().getDay(); // currently selected day on the dashboard (0=Sun)
 let clubAttendancePct = null;     // set by attendance pulse, read by dashboard
 
@@ -7770,7 +7771,7 @@ async function loadSquads() {
     if (allWeekSessions.length) {
       const allIds = allWeekSessions.map(s => s.id);
       const { data: assignData } = await sb.from('club_session_assignments')
-        .select('session_id, roster_id')
+        .select('session_id, roster_id, time_slot')
         .eq('club_id', currentClub.id)
         .in('session_id', allIds);
       (assignData || []).forEach(a => {
@@ -7778,6 +7779,15 @@ async function loadSquads() {
         allWeekAssignments[a.session_id].push(a.roster_id);
       });
       allSquadSessions.forEach(s => { allSessionAssignments[s.id] = allWeekAssignments[s.id] || []; });
+      // Build time-slot map for LTS banner timetable display
+      allWeekTimeSlots = {};
+      (assignData || []).forEach(a => {
+        if (!allWeekTimeSlots[a.session_id]) allWeekTimeSlots[a.session_id] = [];
+        allWeekTimeSlots[a.session_id].push({ roster_id: a.roster_id, time_slot: a.time_slot });
+      });
+      Object.keys(allWeekTimeSlots).forEach(sid => {
+        allWeekTimeSlots[sid].sort((x, y) => (x.time_slot || '99:99').localeCompare(y.time_slot || '99:99'));
+      });
     }
   } else {
     allWeekSessions = [];
@@ -7785,6 +7795,7 @@ async function loadSquads() {
     allTimetableSessions = [];
     allWeekAssignments = {};
     allSessionAssignments = {};
+    allWeekTimeSlots = {};
   }
 }
 
@@ -8213,9 +8224,11 @@ function renderTodayBanner() {
     const isNow = minsUntil <= 30 && nowMins < endMins;
     const timeLabel = ss.start_time ? ss.start_time.slice(0, 5) : '';
 
-    // Check if already logged today for this squad
+    // Check if already logged today — match by squad + start_time so each LTS coach tracks separately
     const alreadyLogged = allSessions.find(s =>
-      s.session_date === todayStr && s.squad_id === ss.squad_id
+      s.session_date === todayStr &&
+      s.squad_id === ss.squad_id &&
+      (s.start_time || '').slice(0, 5) === (ss.start_time || '').slice(0, 5)
     );
 
     let statusBadge = '';
@@ -8226,21 +8239,44 @@ function renderTodayBanner() {
       statusBadge = `<span style="font-size:11px;font-weight:700;color:var(--cyan);background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);border-radius:20px;padding:3px 10px;">${minsUntil > 0 ? 'In ' + minsUntil + ' min' : 'Now'}</span>`;
     }
 
+    // For LTS sessions, show the per-slot timetable in the card
+    const isLTSCard = (squad?.name || '').toLowerCase().includes('learn to swim');
+    const slotEntries = isLTSCard ? (allWeekTimeSlots[ss.id] || []) : [];
+    const ltsSlotBlock = slotEntries.length ? `
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+        ${slotEntries.map(sl => {
+          const member = allRosterFull.find(r => r.id === sl.roster_id);
+          if (!member) return '';
+          const slotTime = sl.time_slot ? sl.time_slot.slice(0, 5) : '—';
+          return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;">
+            <span style="font-size:11px;font-weight:700;color:var(--cyan);min-width:38px;font-variant-numeric:tabular-nums;">${slotTime}</span>
+            <span style="font-size:13px;color:var(--text);">${member.display_name || ''}</span>
+          </div>`;
+        }).filter(Boolean).join('')}
+      </div>` : '';
+
+    const cardBg = isNow && !alreadyLogged ? 'rgba(56,189,248,0.06)' : 'rgba(255,255,255,0.02)';
+    const cardBorder = isNow && !alreadyLogged ? 'rgba(56,189,248,0.25)' : 'var(--border)';
+    const btnBg = alreadyLogged ? 'rgba(255,255,255,0.06)' : 'var(--cyan)';
+    const btnColor = alreadyLogged ? 'var(--text-sec)' : '#080f1a';
+    const btnLabel = alreadyLogged ? 'Edit' : 'Check In';
+
     return `
-    <div style="background:${isNow && !alreadyLogged ? 'rgba(56,189,248,0.06)' : 'rgba(255,255,255,0.02)'};border:1px solid ${isNow && !alreadyLogged ? 'rgba(56,189,248,0.25)' : 'var(--border)'};border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-      <div>
-        <div style="font-size:14px;font-weight:700;color:var(--text);">${squad?.name || ss.session_type || 'Session'}</div>
-        <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${timeLabel}${ss.end_time ? ' – ' + ss.end_time.slice(0,5) : ''}${ss.coach_name ? ' · ' + ss.coach_name : ''} · ${ss.session_type || 'Training'}${ss.max_capacity ? ' · ' + ss.max_capacity + ' max' : ''}</div>
+    <div style="background:${cardBg};border:1px solid ${cardBorder};border-radius:12px;padding:14px 16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);">${squad?.name || ss.session_type || 'Session'}${isLTSCard && ss.coach_name ? ' — ' + ss.coach_name : ''}</div>
+          <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${timeLabel}${ss.end_time ? ' – ' + ss.end_time.slice(0,5) : ''}${!isLTSCard && ss.coach_name ? ' · ' + ss.coach_name : ''} · ${ss.session_type || 'Training'}${ss.max_capacity ? ' · ' + ss.max_capacity + ' max' : ''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          ${statusBadge}
+          <button onclick="checkInSession('${ss.squad_id}','${ss.start_time || ''}','${ss.session_type || 'PM'}')"
+            style="padding:8px 16px;border-radius:20px;font-size:12px;font-weight:800;border:none;cursor:pointer;background:${btnBg};color:${btnColor};">
+            ${btnLabel}
+          </button>
+        </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-        ${statusBadge}
-        <button onclick="checkInSession('${ss.squad_id}','${ss.start_time || ''}','${ss.session_type || 'PM'}')"
-          style="padding:8px 16px;border-radius:20px;font-size:12px;font-weight:800;border:none;cursor:pointer;
-          background:${alreadyLogged ? 'rgba(255,255,255,0.06)' : 'var(--cyan)'};
-          color:${alreadyLogged ? 'var(--text-sec)' : '#080f1a'};">
-          ${alreadyLogged ? 'Edit' : 'Check In'}
-        </button>
-      </div>
+      ${ltsSlotBlock}
     </div>`;
   }).join('');
 
