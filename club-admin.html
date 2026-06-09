@@ -8898,17 +8898,19 @@ function renderSwimmerRow(r, isWalkin) {
   const walkinBadge = isWalkin
     ? `<span style="font-size:9px;font-weight:800;color:var(--cyan);background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);border-radius:6px;padding:1px 6px;white-space:nowrap;">WALK-IN</span>`
     : '';
-  return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);gap:8px;" id="row-${r.id}">
-    <div style="display:flex;align-items:center;min-width:0;flex-wrap:wrap;gap:4px;">
-      ${slot ? `<span style="font-size:11px;font-weight:700;color:var(--cyan);min-width:40px;">${slot}</span>` : ''}
-      <span style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;">${r.display_name}</span>
+  return `<div style="padding:10px 0;border-bottom:1px solid var(--border);" id="row-${r.id}">
+    <!-- Name + badges row -->
+    <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:8px;">
+      ${slot ? `<span style="font-size:11px;font-weight:700;color:var(--cyan);min-width:38px;">${slot}</span>` : ''}
+      <span style="font-size:14px;font-weight:600;color:${status==='present'?'var(--green)':status?'var(--text-sec)':'var(--text)'};">${r.display_name}</span>
       ${trialBadge}${feeBadge}${walkinBadge}${healthBadge}${intentBadge}
-      ${health.length ? `<span style="font-size:10px;color:var(--danger);width:100%;padding-left:${slot?'44px':'0'};">${health.map(h=>(h.body_part||h.type)+(h.notes?' — '+h.notes:'')).join(' · ')}</span>` : ''}
+      ${health.length ? `<span style="font-size:10px;color:var(--danger);width:100%;">${health.map(h=>(h.body_part||h.type)+(h.notes?' — '+h.notes:'')).join(' · ')}</span>` : ''}
     </div>
-    <div id="btns-${r.id}" style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
+    <!-- Status buttons row — full width, easy to tap -->
+    <div id="btns-${r.id}" style="display:flex;gap:5px;">
       ${ATTENDANCE_STATUSES.map(s => `
         <button onclick="setMark('${r.id}','${s.key}')" title="${s.title}"
-          style="font-size:10px;font-weight:700;padding:4px 7px;border-radius:7px;cursor:pointer;transition:all 0.1s;
+          style="flex:1;font-size:11px;font-weight:700;padding:7px 2px;border-radius:8px;cursor:pointer;transition:all 0.1s;min-height:36px;
             ${status===s.key ? markActiveStyle(s.key) : 'background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text-sec);'}">
           ${s.label}
         </button>`).join('')}
@@ -9044,11 +9046,17 @@ function markActiveStyle(status) {
 
 function setMark(rosterId, status) {
   attendanceMarks[rosterId] = attendanceMarks[rosterId] === status ? '' : status;
+  // Tint the name to reflect status
+  const nameEl = document.querySelector(`#row-${rosterId} span[style*="font-size:14px"]`);
+  if (nameEl) {
+    const cur = attendanceMarks[rosterId];
+    nameEl.style.color = cur === 'present' ? 'var(--green)' : cur ? 'var(--text-sec)' : 'var(--text)';
+  }
   const btns = document.getElementById('btns-' + rosterId);
   if (btns) {
     btns.innerHTML = ATTENDANCE_STATUSES.map(s => `
       <button onclick="setMark('${rosterId}','${s.key}')" title="${s.title}"
-        style="font-size:10px;font-weight:700;padding:4px 7px;border-radius:7px;cursor:pointer;transition:all 0.1s;
+        style="flex:1;font-size:11px;font-weight:700;padding:7px 2px;border-radius:8px;cursor:pointer;transition:all 0.1s;min-height:36px;
           ${attendanceMarks[rosterId]===s.key ? markActiveStyle(s.key) : 'background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text-sec);'}">
         ${s.label}
       </button>`).join('');
