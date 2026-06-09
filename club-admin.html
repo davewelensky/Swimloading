@@ -8243,28 +8243,40 @@ function renderTodayBanner() {
     const isLTSCard = (squad?.name || '').toLowerCase().includes('learn to swim');
     const slotEntries = isLTSCard ? (allWeekTimeSlots[ss.id] || []) : [];
     const sessionStartShort = (ss.start_time || '').slice(0, 5);
+    // Group slot entries by time so multiple swimmers sharing a slot appear together
+    const slotGroups = {};
+    slotEntries.forEach(sl => {
+      const t = sl.time_slot ? sl.time_slot.slice(0, 5) : '—';
+      if (!slotGroups[t]) slotGroups[t] = [];
+      slotGroups[t].push(sl);
+    });
     const ltsSlotBlock = slotEntries.length ? `
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
-        ${slotEntries.map(sl => {
-          const member = allRosterFull.find(r => r.id === sl.roster_id);
-          if (!member) return '';
-          const slotTime = sl.time_slot ? sl.time_slot.slice(0, 5) : '—';
-          const intent = (allIntents || []).find(i =>
-            i.roster_id === sl.roster_id &&
-            i.session_date === todayStr &&
-            i.session_start === sessionStartShort
-          )?.status;
-          const intentBadge = intent === 'absent'
-            ? `<span style="font-size:10px;font-weight:700;color:#ef4444;background:rgba(239,68,68,0.1);border-radius:5px;padding:1px 6px;margin-left:4px;white-space:nowrap;">Not coming</span>`
-            : intent === 'attending'
-            ? `<span style="font-size:10px;font-weight:700;color:#10b981;background:rgba(16,185,129,0.1);border-radius:5px;padding:1px 6px;margin-left:4px;white-space:nowrap;">Confirmed</span>`
-            : '';
-          return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
-            <span style="font-size:11px;font-weight:700;color:var(--cyan);min-width:38px;font-variant-numeric:tabular-nums;">${slotTime}</span>
-            <span style="font-size:13px;color:${intent === 'absent' ? 'var(--text-sec)' : 'var(--text)'};">${member.display_name || ''}</span>
-            ${intentBadge}
+        ${Object.entries(slotGroups).map(([slotTime, slots]) => {
+          const swimmerRows = slots.map(sl => {
+            const member = allRosterFull.find(r => r.id === sl.roster_id);
+            if (!member) return '';
+            const intent = (allIntents || []).find(i =>
+              i.roster_id === sl.roster_id &&
+              i.session_date === todayStr &&
+              i.session_start === sessionStartShort
+            )?.status;
+            const intentBadge = intent === 'absent'
+              ? `<span style="font-size:10px;font-weight:700;color:#ef4444;background:rgba(239,68,68,0.1);border-radius:5px;padding:1px 5px;white-space:nowrap;">Not coming</span>`
+              : intent === 'attending'
+              ? `<span style="font-size:10px;font-weight:700;color:#10b981;background:rgba(16,185,129,0.1);border-radius:5px;padding:1px 5px;white-space:nowrap;">Confirmed</span>`
+              : '';
+            return `<div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:13px;color:${intent === 'absent' ? 'var(--text-sec)' : 'var(--text)'};">${member.display_name || ''}</span>
+              ${intentBadge}
+            </div>`;
+          }).filter(Boolean).join('');
+          if (!swimmerRows) return '';
+          return `<div style="display:flex;align-items:flex-start;gap:10px;padding:4px 0;">
+            <span style="font-size:11px;font-weight:700;color:var(--cyan);min-width:38px;flex-shrink:0;padding-top:2px;font-variant-numeric:tabular-nums;">${slotTime}</span>
+            <div style="display:flex;flex-direction:column;gap:3px;">${swimmerRows}</div>
           </div>`;
-        }).filter(Boolean).join('')}
+        }).join('')}
       </div>` : '';
 
     const cardBg = isNow && !alreadyLogged ? 'rgba(56,189,248,0.06)' : 'rgba(255,255,255,0.02)';
