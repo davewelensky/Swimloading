@@ -662,11 +662,12 @@
             <div class="filter-row">
               <input type="text" class="search-input" placeholder="Search name or number…" oninput="filterRoster(this.value)" id="rosterSearch">
               <select class="filter-select" onchange="filterRosterByStatus(this.value)" id="rosterStatusFilter">
-                <option value="">All</option>
+                <option value="">All active</option>
                 <option value="linked">Linked</option>
                 <option value="unlinked">Unlinked</option>
                 <option value="trial">Trials</option>
                 <option value="fee-overdue">Fee overdue</option>
+                <option value="inactive">Inactive (left)</option>
               </select>
               <select class="filter-select" onchange="filterRosterByCat(this.value)" id="rosterCatFilter">
                 <option value="">All squads</option>
@@ -1478,6 +1479,12 @@
       <button class="btn-modal-cancel" onclick="closeRosterEditModal()">Cancel</button>
       <button class="btn-modal-primary" onclick="saveRosterEdit()">Save changes</button>
     </div>
+    <div id="rosterDeactivateSection" style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
+      <button id="rosterDeactivateBtn" onclick="toggleRosterActive()" style="width:100%;padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.06);color:#ef4444;">
+        Deactivate — swimmer has left
+      </button>
+      <div style="font-size:11px;color:var(--text-sec);margin-top:6px;text-align:center;">Removes them from attendance lists. History is kept. You can reactivate from Roster → Inactive filter.</div>
+    </div>
   </div>
 </div>
 
@@ -2168,8 +2175,9 @@ async function loadMembers() {
       .eq('club_id', currentClub.id)
       .not('user_id', 'is', null),
     sb.from('club_roster')
-      .select('id, member_number, display_name, category, user_id, squad_id, is_trial, fee_paid, trial_end_date, fee_due_date')
+      .select('id, member_number, display_name, category, user_id, squad_id, is_trial, fee_paid, trial_end_date, fee_due_date, is_active')
       .eq('club_id', currentClub.id)
+      .eq('is_active', true)
       .order('member_number'),
     sb.from('club_coaches')
       .select('email, title')
@@ -6955,7 +6963,7 @@ let rosterLinkSearchTimer = null;
 async function loadRoster() {
   const { data: roster } = await sb
     .from('club_roster')
-    .select('id, member_number, display_name, category, gender, user_id, phone, squad_id, date_of_birth, is_trial, fee_paid, trial_start_date, trial_end_date')
+    .select('id, member_number, display_name, category, gender, user_id, phone, squad_id, date_of_birth, is_trial, fee_paid, trial_start_date, trial_end_date, is_active')
     .eq('club_id', currentClub.id)
     .order('member_number', { ascending: true, nullsFirst: false });
 
@@ -7267,6 +7275,8 @@ function renderRosterTable() {
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const rows = allRoster.filter(r => {
+    if (status === 'inactive') return r.is_active === false;  // show ONLY inactive
+    if (r.is_active === false) return false;                  // hide inactive in all other views
     if (status === 'linked'      && !r.user_id) return false;
     if (status === 'unlinked'    &&  r.user_id) return false;
     if (status === 'trial'       && !r.is_trial) return false;
@@ -7373,6 +7383,16 @@ function openRosterEditModal(id) {
     if (el) el.style.display = showYouthFields ? '' : 'none';
   });
 
+  // Deactivate/reactivate button label
+  const isActive = r.is_active !== false;
+  const deactBtn = document.getElementById('rosterDeactivateBtn');
+  if (deactBtn) {
+    deactBtn.textContent = isActive ? 'Deactivate — swimmer has left' : 'Reactivate — swimmer has returned';
+    deactBtn.style.color  = isActive ? '#ef4444' : '#10b981';
+    deactBtn.style.borderColor = isActive ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)';
+    deactBtn.style.background  = isActive ? 'rgba(239,68,68,0.06)' : 'rgba(16,185,129,0.06)';
+  }
+
   document.getElementById('rosterEditModal').classList.add('open');
   document.getElementById('rosterEditNum').focus();
 }
@@ -7430,6 +7450,22 @@ async function saveRosterEdit() {
   closeRosterEditModal();
   renderRosterTable();
   showToast('Member updated', 'success');
+}
+
+async function toggleRosterActive() {
+  if (!rosterEditTargetId) return;
+  const row = allRoster.find(r => r.id === rosterEditTargetId);
+  if (!row) return;
+  const newActive = row.is_active === false;  // toggle: false→true, true→false
+  const label = newActive ? 'reactivated' : 'deactivated';
+  const { error } = await sb.from('club_roster')
+    .update({ is_active: newActive })
+    .eq('id', rosterEditTargetId);
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  row.is_active = newActive;
+  closeRosterEditModal();
+  renderRosterTable();
+  showToast(`${row.display_name || 'Swimmer'} ${label}`, 'success');
 }
 
 async function toggleRosterTrial(id, current) {
