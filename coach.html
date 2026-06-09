@@ -2212,8 +2212,9 @@ async function saveCoachHealthEvent() {
 
 // ── LTS APPOINTMENT VIEW ───────────────────────────────────────────
 
-let ltsSlots      = [];  // club_lts_slots for active squad_session
-let ltsAttendance = {};  // slot_id → {id, attended, ...}
+let ltsSlots      = [];  // slot objects for active squad_session (built from club_session_assignments)
+let ltsAttendance = {};  // roster_id → attendance row
+let ltsIntents    = {};  // roster_id → pre-absence intent status ('absent'/'attending')
 
 function isLTSSquad(squadId) {
   // Aquasharks only — prevent activation for other clubs
@@ -2252,48 +2253,79 @@ async function loadLTSSlots() {
   document.getElementById('ltsDateStrip').textContent =
     dayFull[dateObj.getDay()] + ' · ' + dateObj.toLocaleDateString('en-ZA', { day:'numeric', month:'long', year:'numeric' });
 
-  // Find the matching squad_session for selectedDate's day of week
-  const dow     = dateObj.getDay();
-  const sq      = allSquads.find(q => q.id === s.squad_id);
+  // Find the matching squad_session for selectedDate's day of week — match by squad + day + coach
+  const dow = dateObj.getDay();
   const daySession = allWeekSessions.find(ws =>
+    ws.squad_id === s.squad_id &&
+    ws.day_of_week === dow &&
+    ws.is_active !== false &&
+    (ws.coach_name || '') === (s.coach_name || '')
+  ) || allWeekSessions.find(ws =>
     ws.squad_id === s.squad_id && ws.day_of_week === dow && ws.is_active !== false
   ) || s;
-  activeSqSession = daySession; // update for WhatsApp summary
+  activeSqSession = daySession;
 
-  const { data: slots, error } = await sb.from('club_lts_slots')
-    .select('*')
-    .eq('squad_session_id', daySession.id)
-    .eq('is_active', true)
-    .order('sort_order')
-    .order('slot_time');
+  // Load assignments for THIS coach's session with time slots
+  const { data: asgn, error: asgnErr } = await sb.from('club_session_assignments')
+    .select('roster_id, time_slot')
+    .eq('session_id', daySession.id)
+    .eq('club_id', currentClub.id)
+    .order('time_slot');
 
-  if (error) {
-    container.innerHTML = `<div class="lts-empty-state"><div class="lts-empty-title">Could not load schedule</div><div>${error.message}</div></div>`;
+  if (asgnErr) {
+    container.innerHTML = `<div class="lts-empty-state"><div class="lts-empty-title">Could not load schedule</div><div>${asgnErr.message}</div></div>`;
     return;
   }
 
-  ltsSlots = slots || [];
+  // Build slot objects from assignments + roster
+  const sessionStart = (daySession.start_time || '').slice(0, 5);
+  ltsSlots = (asgn || [])
+    .map(a => {
+      const member = allRoster.find(r => r.id === a.roster_id);
+      if (!member) return null;
+      return {
+        id:           a.roster_id,          // use roster_id as the slot key
+        roster_id:    a.roster_id,
+        slot_time:    a.time_slot || sessionStart,
+        client_name:  member.display_name || '—',
+        is_trial:     member.is_trial,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => (a.slot_time || '').localeCompare(b.slot_time || ''));
 
   if (!ltsSlots.length) {
     container.innerHTML = `<div class="lts-empty-state">
-      <div class="lts-empty-title">No slots set up yet</div>
-      <div>Ask your admin to add lesson slots for this session in the club admin panel.</div>
+      <div class="lts-empty-title">No swimmers assigned yet</div>
+      <div>Ask your admin to assign swimmers to this session in the club admin panel.</div>
     </div>`;
     document.getElementById('ltsProgressFill').style.width = '0%';
-    document.getElementById('ltsCountLabel').textContent   = '0 slots';
+    document.getElementById('ltsCountLabel').textContent   = '0 swimmers';
     document.getElementById('ltsWaBtn').style.display      = 'none';
     document.getElementById('ltsCopyBtn').style.display    = 'none';
     return;
   }
 
-  // Load existing attendance for today
+  // Load attendance marks for today (keyed by roster_id)
+  const rosterIds = ltsSlots.map(sl => sl.roster_id);
   const { data: att } = await sb.from('club_lts_attendance')
     .select('*')
-    .in('slot_id', ltsSlots.map(sl => sl.id))
-    .eq('session_date', selectedDate);
+    .eq('squad_session_id', daySession.id)
+    .eq('session_date', selectedDate)
+    .in('roster_id', rosterIds);
 
   ltsAttendance = {};
-  (att || []).forEach(a => { ltsAttendance[a.slot_id] = a; });
+  (att || []).forEach(a => { if (a.roster_id) ltsAttendance[a.roster_id] = a; });
+
+  // Load pre-absence intents ("not coming" notices)
+  const { data: intents } = await sb.from('club_session_attendance')
+    .select('roster_id, status')
+    .eq('club_id', currentClub.id)
+    .eq('session_date', selectedDate)
+    .eq('session_start', sessionStart)
+    .in('roster_id', rosterIds);
+  ltsIntents = {};
+  (intents || []).forEach(i => { ltsIntents[i.roster_id] = i.status; });
 
   renderLTSView();
 }
@@ -2305,10 +2337,10 @@ function renderLTSView() {
   const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
   let nextIdx = -1;
   for (let i = 0; i < ltsSlots.length; i++) {
-    const a = ltsAttendance[ltsSlots[i].id];
+    const a = ltsAttendance[ltsSlots[i].roster_id];
     if (a && a.attended !== null && a.attended !== undefined) continue;
     const slotMins = toMins(ltsSlots[i].slot_time);
-    const endMins  = slotMins + (ltsSlots[i].duration_mins || 30);
+    const endMins  = slotMins + 30; // 30-min slots
     if (endMins >= nowMins - 5) { nextIdx = i; break; }
   }
 
@@ -2316,7 +2348,7 @@ function renderLTSView() {
 
   // Progress
   const marked = ltsSlots.filter(sl => {
-    const a = ltsAttendance[sl.id];
+    const a = ltsAttendance[sl.roster_id];
     return a && a.attended !== null && a.attended !== undefined;
   }).length;
   const total = ltsSlots.length;
@@ -2333,90 +2365,108 @@ function renderLTSView() {
 }
 
 function ltsCardHTML(slot, isNext) {
-  const a         = ltsAttendance[slot.id];
-  const attended  = a?.attended;
-  const isMarked  = a && attended !== null && attended !== undefined;
+  const a        = ltsAttendance[slot.roster_id];
+  const attended = a?.attended;
+  const isMarked = a && attended !== null && attended !== undefined;
+  const intent   = !isMarked ? ltsIntents[slot.roster_id] : null;
+  const notComing = intent === 'absent';
 
   // Use first name only for big display
   const displayName = (slot.client_name || 'Unknown').split(' ')[0].toUpperCase();
-  const timePill    = fmtTime(slot.slot_time) + ' · ' + (slot.duration_mins || 30) + ' min';
+  const timePill    = fmtTime(slot.slot_time);
 
   let cardClass = 'lts-card';
   if (isMarked && attended)  cardClass += ' lts-done-here';
   if (isMarked && !attended) cardClass += ' lts-done-away';
-  if (!isMarked && isNext)   cardClass += ' lts-next';
+  if (!isMarked && notComing) cardClass += ' lts-done-away';
+  if (!isMarked && !notComing && isNext) cardClass += ' lts-next';
+
+  const trialBadge = slot.is_trial
+    ? `<span style="font-size:9px;font-weight:700;background:rgba(239,68,68,0.15);color:var(--danger);padding:1px 6px;border-radius:4px;letter-spacing:0.04em;">TRIAL</span>`
+    : '';
 
   const topBadge = isMarked
     ? `<span class="lts-status-badge ${attended ? 'here' : 'away'}">${attended ? 'Attended' : 'Away'}</span>`
+    : notComing
+    ? `<span class="lts-status-badge away">Not coming</span>`
     : isNext ? `<span class="lts-next-badge">Up next</span>` : '';
 
-  const note = slot.note || '';
-  const noteHtml = `<div class="lts-client-note">${note}</div>`;
-
   const actionsHtml = isMarked
-    ? `<div class="lts-undo-row"><button class="lts-undo-btn" onclick="markLTSSlot('${slot.id}', null)">Undo</button></div>`
+    ? `<div class="lts-undo-row"><button class="lts-undo-btn" onclick="markLTSSlot('${slot.roster_id}', null)">Undo</button></div>`
     : `<div class="lts-actions">
-        <button class="lts-btn-here" onclick="markLTSSlot('${slot.id}', true)">
+        <button class="lts-btn-here" onclick="markLTSSlot('${slot.roster_id}', true)">
           <i data-lucide="check" style="width:18px;height:18px;"></i> Here
         </button>
-        <button class="lts-btn-away" onclick="markLTSSlot('${slot.id}', false)">
+        <button class="lts-btn-away" onclick="markLTSSlot('${slot.roster_id}', false)">
           <i data-lucide="x" style="width:18px;height:18px;"></i> Away
         </button>
       </div>`;
 
-  return `<div class="${cardClass}" id="lts-slot-${slot.id}">
+  return `<div class="${cardClass}" id="lts-slot-${slot.roster_id}">
     <div class="lts-card-top">
       <span class="lts-time-pill">${timePill}</span>
       ${topBadge}
     </div>
-    <div class="lts-client-name">${displayName}</div>
-    ${noteHtml}
+    <div class="lts-client-name">${displayName} ${trialBadge}</div>
     ${actionsHtml}
   </div>`;
 }
 
-async function markLTSSlot(slotId, attended) {
+async function markLTSSlot(rosterId, attended) {
+  const sqSessionId = activeSqSession?.id;
+  if (!sqSessionId) return;
+
   // Optimistic update
   if (attended === null) {
-    delete ltsAttendance[slotId];
+    delete ltsAttendance[rosterId];
   } else {
-    ltsAttendance[slotId] = { slot_id: slotId, attended, session_date: selectedDate };
+    ltsAttendance[rosterId] = { roster_id: rosterId, squad_session_id: sqSessionId, attended, session_date: selectedDate };
   }
   renderLTSView();
 
   // Persist
   if (attended === null) {
     await sb.from('club_lts_attendance')
-      .delete().eq('slot_id', slotId).eq('session_date', selectedDate);
+      .delete()
+      .eq('roster_id', rosterId)
+      .eq('squad_session_id', sqSessionId)
+      .eq('session_date', selectedDate);
   } else {
     const { data, error } = await sb.from('club_lts_attendance')
-      .upsert({ slot_id: slotId, session_date: selectedDate, attended, marked_at: new Date().toISOString() },
-               { onConflict: 'slot_id,session_date' })
+      .upsert(
+        { roster_id: rosterId, squad_session_id: sqSessionId, session_date: selectedDate, attended, marked_at: new Date().toISOString() },
+        { onConflict: 'roster_id,squad_session_id,session_date' }
+      )
       .select().single();
     if (error) {
       toast('Could not save — try again', 'error');
-      delete ltsAttendance[slotId];
+      delete ltsAttendance[rosterId];
       renderLTSView();
     } else {
-      ltsAttendance[slotId] = data;
+      ltsAttendance[rosterId] = data;
     }
   }
 }
 
 function ltsSummaryLines() {
   const sq      = allSquads.find(q => q.id === activeSqSession?.squad_id);
+  const coach   = activeSqSession?.coach_name || '';
   const dateObj = new Date(selectedDate + 'T00:00:00');
   const dayStr  = dateObj.toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
-  const lines   = [sq?.name || 'Learn to Swim', dayStr, ''];
+  const lines   = [sq?.name || 'Learn to Swim', coach ? `Coach: ${coach}` : '', dayStr, ''];
   ltsSlots.forEach(slot => {
-    const a        = ltsAttendance[slot.id];
-    const name     = (slot.client_name || '').split(' ')[0].padEnd(12);
-    const time     = (slot.slot_time || '').slice(0, 5);
-    const status   = a?.attended === true ? 'Here' : a?.attended === false ? 'Away' : '-';
+    const a      = ltsAttendance[slot.roster_id];
+    const intent = ltsIntents[slot.roster_id];
+    const name   = (slot.client_name || '').split(' ')[0].padEnd(12);
+    const time   = (slot.slot_time || '').slice(0, 5);
+    const status = a?.attended === true  ? 'Here'
+                 : a?.attended === false ? 'Away'
+                 : intent === 'absent'   ? 'Not coming'
+                 : '-';
     lines.push(`${time}  ${name}  ${status}`);
   });
   lines.push('', 'Logged on SwimLoading');
-  return lines.join('\n');
+  return lines.filter(Boolean).join('\n');
 }
 
 function ltsWhatsApp() {
