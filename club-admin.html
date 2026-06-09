@@ -1453,6 +1453,13 @@
         <input type="text" class="form-input" id="rosterEditPhone" placeholder="e.g. 082 123 4567">
       </div>
     </div>
+    <div class="form-row" id="rosterEditLtsSlotRow" style="display:none;">
+      <div class="form-group">
+        <div class="form-label">Lesson time <span style="font-weight:400;color:var(--text-dim);">LTS slot</span></div>
+        <input type="time" class="form-input" id="rosterEditLtsSlot">
+      </div>
+      <div class="form-group"></div>
+    </div>
     <div style="display:flex;gap:24px;margin:4px 0 16px;">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text);">
         <input type="checkbox" id="rosterEditTrial" style="width:16px;height:16px;accent-color:var(--cyan);" onchange="onRosterEditTrialToggle(this)"> Trial swimmer
@@ -7346,7 +7353,7 @@ function renderRosterTable() {
 
 let rosterEditTargetId = null;
 
-function openRosterEditModal(id) {
+async function openRosterEditModal(id) {
   const r = allRoster.find(r => r.id === id);
   if (!r) return;
   rosterEditTargetId = id;
@@ -7375,6 +7382,34 @@ function openRosterEditModal(id) {
     if (s.id === r.squad_id) o.selected = true;
     sel.appendChild(o);
   });
+
+  // LTS lesson time field — show only for LTS squad members
+  const squad = allSquads.find(s => s.id === r.squad_id);
+  const isLTS = (squad?.name || '').toLowerCase().includes('learn to swim');
+  const ltsRow = document.getElementById('rosterEditLtsSlotRow');
+  const ltsInput = document.getElementById('rosterEditLtsSlot');
+  if (ltsRow) ltsRow.style.display = isLTS ? '' : 'none';
+  if (isLTS && ltsInput) {
+    ltsInput.value = '';
+    // Find their current slot from the in-memory cache first
+    let currentSlot = null;
+    for (const sid of Object.keys(allWeekTimeSlots)) {
+      const entry = allWeekTimeSlots[sid]?.find(e => e.roster_id === r.id);
+      if (entry?.time_slot) { currentSlot = entry.time_slot.slice(0, 5); break; }
+    }
+    if (!currentSlot) {
+      // Fall back to DB query
+      const { data } = await sb.from('club_session_assignments')
+        .select('time_slot')
+        .eq('roster_id', r.id)
+        .eq('club_id', currentClub.id)
+        .not('time_slot', 'is', null)
+        .limit(1)
+        .maybeSingle();
+      currentSlot = data?.time_slot?.slice(0, 5) || '';
+    }
+    ltsInput.value = currentSlot || '';
+  }
 
   // Hide youth/parent fields for non-swim-club (K8, DUC are adult open water clubs)
   const showYouthFields = !!window._clubFeatures?.hasParentLanguage;
@@ -7446,6 +7481,24 @@ async function saveRosterEdit() {
 
   const row = allRoster.find(r => r.id === id);
   if (row) Object.assign(row, { member_number: num||null, category: cat||null, phone: phone||null, date_of_birth: dob, gender, squad_id, is_trial, fee_paid, trial_start_date, trial_end_date, fee_due_date });
+
+  // Save LTS lesson time if this is an LTS squad member
+  const editedSquad = allSquads.find(s => s.id === (squad_id || row?.squad_id));
+  const editedIsLTS = (editedSquad?.name || '').toLowerCase().includes('learn to swim');
+  if (editedIsLTS) {
+    const ltsInput = document.getElementById('rosterEditLtsSlot');
+    const newSlot = ltsInput?.value || null;
+    await sb.from('club_session_assignments')
+      .update({ time_slot: newSlot })
+      .eq('roster_id', id)
+      .eq('club_id', currentClub.id);
+    // Update in-memory cache
+    Object.keys(allWeekTimeSlots).forEach(sid => {
+      const entry = allWeekTimeSlots[sid]?.find(e => e.roster_id === id);
+      if (entry) entry.time_slot = newSlot;
+      if (allWeekTimeSlots[sid]) allWeekTimeSlots[sid].sort((a,b) => (a.time_slot||'99:99').localeCompare(b.time_slot||'99:99'));
+    });
+  }
 
   closeRosterEditModal();
   renderRosterTable();
