@@ -8254,6 +8254,16 @@ function renderTodayBanner() {
 async function checkInSession(squadId, startTime, sessionType) {
   const now = new Date();
   const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  const todayDow = now.getDay();
+
+  // Set activeSquadSessionId by matching the recurring template — needed for LTS slot lookup
+  const matchingTemplate = (allWeekSessions || []).find(s =>
+    s.squad_id === squadId &&
+    s.day_of_week === todayDow &&
+    (s.start_time || '').slice(0,5) === (startTime || '').slice(0,5)
+  );
+  activeSquadSessionId = matchingTemplate?.id || null;
+
   // Find or create today's session for this squad + start time
   let session = allSessions.find(s => s.session_date === todayStr && s.squad_id === squadId && s.start_time === startTime);
   if (!session) {
@@ -8776,6 +8786,18 @@ async function openMarkSession(sessionId) {
 
   const sq = allSquads.find(q => q.id === session.squad_id);
   const isLTS = (sq?.name || '').toLowerCase().includes('learn to swim');
+
+  // If activeSquadSessionId not set (e.g. opened from sessions list), find matching recurring template
+  if (!activeSquadSessionId && session.squad_id && session.start_time && session.session_date) {
+    const dow = new Date(session.session_date + 'T12:00:00').getDay();
+    const tmpl = (allWeekSessions || []).find(t =>
+      t.squad_id === session.squad_id &&
+      t.day_of_week === dow &&
+      (t.start_time || '').slice(0,5) === (session.start_time || '').slice(0,5) &&
+      (!t.coach_name || !session.coach_name || t.coach_name === session.coach_name)
+    );
+    if (tmpl) activeSquadSessionId = tmpl.id;
+  }
 
   // Load intents, LTS assignments, and health events in parallel
   const fetches = [
