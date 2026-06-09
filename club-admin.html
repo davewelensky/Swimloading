@@ -8294,7 +8294,41 @@ function renderSessionsList() {
 
   const rosterTotal = allRosterFull.length || 1;
 
-  el.innerHTML = renderTodayBanner() + Object.entries(byDate).map(([date, sessions]) => {
+  // Build "yesterday" section for scheduled sessions that don't have records yet
+  const _yd = new Date(Date.now() - 86400000);
+  const yesterdayStr  = _yd.toISOString().slice(0, 10);
+  const yesterdayDow  = _yd.getDay();
+  const yesterdayLabel = _yd.toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long' });
+  const unrecordedYesterday = (allWeekSessions || []).filter(ss =>
+    ss.day_of_week === yesterdayDow &&
+    !allSessions.some(r =>
+      r.session_date === yesterdayStr &&
+      r.squad_id === ss.squad_id &&
+      (r.start_time || '').slice(0,5) === (ss.start_time || '').slice(0,5)
+    )
+  ).sort((a,b) => (a.start_time||'').localeCompare(b.start_time||''));
+
+  const yesterdayUnrecordedHtml = unrecordedYesterday.length ? `
+    <div style="margin-bottom:20px;">
+      <div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">${yesterdayLabel} — Not yet recorded</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${unrecordedYesterday.map(ss => {
+          const sq = allSquads.find(q => q.id === ss.squad_id);
+          return `<div style="background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.15);border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text);">${sq?.name || 'Squad'}</div>
+              <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${(ss.start_time||'').slice(0,5)}${ss.end_time?' – '+ss.end_time.slice(0,5):''}${ss.coach_name?' · '+ss.coach_name:''}</div>
+            </div>
+            <button onclick="openMarkFromSchedule('${ss.id}','${yesterdayStr}')"
+              style="padding:8px 16px;border-radius:20px;font-size:12px;font-weight:800;border:1px solid rgba(245,158,11,0.35);cursor:pointer;background:rgba(245,158,11,0.1);color:var(--amber);white-space:nowrap;">
+              Mark →
+            </button>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : '';
+
+  el.innerHTML = renderTodayBanner() + yesterdayUnrecordedHtml + Object.entries(byDate).map(([date, sessions]) => {
     const d = new Date(date + 'T12:00:00');
     const dateLabel = d.toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long' });
     return `
@@ -8484,13 +8518,22 @@ async function openSessionDetail(squadSessionId) {
   const pct   = cap > 0 ? Math.round(asgn/cap*100) : 0;
   const bColor = pct>=90?'var(--danger)':pct>=75?'var(--amber)':'var(--green)';
 
-  // Calculate upcoming date for this recurring session (today if today, otherwise next occurrence)
+  // Calculate upcoming / recent dates for this recurring session
+  const _baseDay = new Date(); _baseDay.setHours(0,0,0,0);
+  const _diffFwd = (s.day_of_week - _baseDay.getDay() + 7) % 7; // 0 = today
+  const _daysAgo = _diffFwd === 0 ? 0 : (7 - _diffFwd);          // days since last occurrence
   const nextDate = (() => {
-    const d = new Date(); d.setHours(0,0,0,0);
-    const diff = (s.day_of_week - d.getDay() + 7) % 7;
-    const t = new Date(d); t.setDate(d.getDate() + diff);
-    return t.toISOString().slice(0, 10);
+    const d = new Date(_baseDay); d.setDate(_baseDay.getDate() + _diffFwd);
+    return d.toISOString().slice(0, 10);
   })();
+  const lastDate = _diffFwd === 0 ? nextDate : (() => {
+    const d = new Date(_baseDay); d.setDate(_baseDay.getDate() - _daysAgo);
+    return d.toISOString().slice(0, 10);
+  })();
+  // Allow marking for today (diffFwd=0) or sessions up to 2 days ago
+  const canMarkPast = _daysAgo > 0 && _daysAgo <= 2;
+  const markDate    = _diffFwd === 0 ? nextDate : (canMarkPast ? lastDate : null);
+
   const sessionStartShort = (s.start_time || '').slice(0, 5);
   window._detailNextDate = nextDate;
   window._detailSessionStart = sessionStartShort;
@@ -8613,9 +8656,12 @@ async function openSessionDetail(squadSessionId) {
     ${swimRows}
 
     <!-- footer action -->
-    ${isToday ? `<div style="padding:16px 20px;border-top:1px solid var(--border);margin-top:4px;">
-      <button onclick="closeSessionDetail();openMarkFromSchedule('${s.id}')" style="width:100%;padding:13px;background:var(--cyan,#38bdf8);color:#080f1a;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">Mark Attendance →</button>
-      <div style="margin-top:8px;font-size:11px;color:var(--text-sec);text-align:center;">Walk-in swimmers (e.g. Riley on Gold days) can be added inside ↑</div>
+    ${markDate ? `<div style="padding:16px 20px;border-top:1px solid var(--border);margin-top:4px;">
+      <button onclick="closeSessionDetail();openMarkFromSchedule('${s.id}','${markDate}')" style="width:100%;padding:13px;background:${canMarkPast?'var(--amber,#f59e0b)':'var(--cyan,#38bdf8)'};color:#080f1a;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">
+        ${canMarkPast ? 'Mark ' + dayNames[s.day_of_week] + ' Attendance →' : 'Mark Attendance →'}
+      </button>
+      ${canMarkPast ? `<div style="margin-top:6px;font-size:11px;color:var(--amber);text-align:center;opacity:0.85;">Recording for ${markDate}</div>` : ''}
+      <div style="margin-top:${canMarkPast?'4':'8'}px;font-size:11px;color:var(--text-sec);text-align:center;">Walk-in swimmers (e.g. Riley on Gold days) can be added inside ↑</div>
     </div>`
     : `<div style="padding:14px 20px;border-top:1px solid var(--border);text-align:center;">
         <div style="font-size:12px;color:var(--text-sec);">Tap <strong style="color:var(--text);">Not coming</strong> above to pre-mark absences for ${dayNames[s.day_of_week]}</div>
@@ -8678,11 +8724,12 @@ async function togglePreAbsent(rosterId) {
 // ── MARK ATTENDANCE ───────────────────────────────────────────────
 
 // Called from Overview — finds or creates a club_sessions instance from a recurring squad session
-async function openMarkFromSchedule(squadSessionId) {
+// dateOverride allows marking past sessions (e.g. yesterday)
+async function openMarkFromSchedule(squadSessionId, dateOverride) {
   const tpl = allWeekSessions.find(s => s.id === squadSessionId);
   if (!tpl) return;
   activeSquadSessionId = squadSessionId;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = dateOverride || new Date().toISOString().slice(0, 10);
   const sq = allSquads.find(q => q.id === tpl.squad_id);
 
   // Check if a club_sessions record already exists for this squad + date + time + coach
