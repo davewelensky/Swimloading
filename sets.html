@@ -190,6 +190,14 @@
       display: flex; align-items: center; justify-content: center;
     }
     .cell-rest span { font-size: 11px; color: var(--text-dim); }
+    .cell-add-more {
+      border-radius: 6px; border: 1px dashed rgba(255,255,255,0.07);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      padding: 5px 0; transition: border-color 0.15s, background 0.15s;
+    }
+    .cell-add-more:hover { border-color: rgba(56,189,248,0.3); background: rgba(56,189,248,0.04); }
+    .cell-add-more:hover i { color: var(--cyan); }
+    .cell-add-more i { color: var(--text-dim); }
 
     .set-chip {
       min-height: 66px; border-radius: 8px; padding: 8px 10px;
@@ -1079,16 +1087,27 @@ function renderPlanner() {
       const dow = d.getDay();
       const ds    = dateStr(d);
       const slot  = squadDefaultSlot(sq.id, dow);
-      const asgn  = ['AM','PM','PM2','PM3'].map(sl => assignments[`${sq.id}|${ds}|${sl}`]).find(Boolean);
-      const trains = trainingDays[sq.id].has(dow);
+      const SLOTS   = ['AM','PM','PM2','PM3'];
+      const allAsgns = SLOTS.map(sl => assignments[`${sq.id}|${ds}|${sl}`]).filter(Boolean);
+      const nextSlot = SLOTS.find(sl => !assignments[`${sq.id}|${ds}|${sl}`]) || slot;
+      const trains  = trainingDays[sq.id].has(dow);
 
-      if (asgn?.club_swim_sets) {
-        const s = asgn.club_swim_sets;
-        return `<td><div class="set-chip ${focusClass(s.focus)}" onclick="openView('${asgn.id}')">
-          <div class="chip-name">${h(s.name)}</div>
-          <div class="chip-meta">${fmtDist(s.total_distance)}${s.pool_type ? ' · ' + s.pool_type : ''}</div>
-          ${asgn.delivering_coach ? `<div class="chip-coach">${h(asgn.delivering_coach)}</div>` : ''}
-        </div></td>`;
+      if (allAsgns.length) {
+        const chips = allAsgns.map(asgn => {
+          const s = asgn.club_swim_sets;
+          if (!s) return '';
+          return `<div class="set-chip ${focusClass(s.focus)}" onclick="openView('${asgn.id}')">
+            <div class="chip-name">${h(s.name)}</div>
+            <div class="chip-meta">${fmtDist(s.total_distance)}${s.pool_type ? ' · ' + s.pool_type : ''}</div>
+            ${asgn.delivering_coach ? `<div class="chip-coach">${h(asgn.delivering_coach)}</div>` : ''}
+          </div>`;
+        }).join('');
+        const addBtn = trains && allAsgns.length < SLOTS.length
+          ? `<div class="cell-add-more" onclick="openAssign('${sq.id}','${ds}','${nextSlot}')" title="Add another set">
+               <i data-lucide="plus" style="width:12px;height:12px;"></i>
+             </div>`
+          : '';
+        return `<td><div style="display:flex;flex-direction:column;gap:4px;">${chips}${addBtn}</div></td>`;
       }
       if (!trains) {
         return `<td><div class="cell-rest"><span>—</span></div></td>`;
