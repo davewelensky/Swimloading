@@ -6423,144 +6423,220 @@ function schedImportBack() {
   document.getElementById('schedImportFile').value = '';
 }
 
+// ── Britt's schedule format helpers ───────────────────────────────
+function _siNorm(s) { return (s||'').trim().toLowerCase().replace(/\s+/g,' '); }
+function _siStrip(s) { return s.replace(/\([^)]*\)/g,'').trim(); }  // strip "(notes)"
+function _siCoach(cell) {                                            // "Private (Kaisea)" → "Kaisea"
+  const m = String(cell).match(/Private\s*\(([^)]+)\)/i);
+  return m ? m[1].trim() : String(cell).trim();
+}
+function _siTime(s) {                                                // "15h30" or "15:30" → "15:30"
+  if (!s) return null;
+  const clean = String(s).trim().replace(/h/i,':').replace(/[^0-9:]/g,'');
+  return /^\d{1,2}:\d{2}$/.test(clean) ? clean : null;
+}
+
+// Column pairs [timeCol, nameCol] → day_of_week (Mon=1 … Fri=5)
+const SI_COL_PAIRS = [[0,1,1],[2,3,2],[4,5,3],[6,7,4],[8,9,5]];
+
 async function handleScheduleFile(file) {
   if (!file) return;
   const errEl = document.getElementById('schedImportError');
   errEl.style.display = 'none';
 
-  // Ensure roster loaded
+  // Ensure roster + sessions loaded
   let roster = allRosterFull.length ? allRosterFull : [];
   if (!roster.length) {
-    const { data } = await sb.from('club_roster')
-      .select('id, display_name, squad_id, member_number')
-      .eq('club_id', currentClub.id);
+    const { data } = await sb.from('club_roster').select('id, display_name, squad_id').eq('club_id', currentClub.id);
     roster = data || [];
   }
 
-  // Ensure timetable sessions loaded
   let sessions = allTimetableSessions.length ? allTimetableSessions : [];
   if (!sessions.length) {
     const { data: sq } = await sb.from('club_squads').select('id').eq('club_id', currentClub.id).eq('is_active', true);
-    if (sq && sq.length) {
+    if (sq?.length) {
       const { data: sess } = await sb.from('club_squad_sessions')
-        .select('id, squad_id, day_of_week').in('squad_id', sq.map(s => s.id)).eq('is_active', true);
+        .select('id, squad_id, day_of_week, coach_name, start_time').in('squad_id', sq.map(s => s.id)).eq('is_active', true);
       sessions = sess || [];
       allTimetableSessions = sessions;
     }
   }
 
-  // Build lookup maps
-  const rosterByName = {};
-  roster.forEach(r => {
-    const key = (r.display_name || '').trim().toLowerCase();
-    rosterByName[key] = r;
-    // Also try reversed (Last First → First Last)
-    const parts = key.split(/\s+/);
-    if (parts.length >= 2) rosterByName[parts[parts.length-1] + ' ' + parts.slice(0,-1).join(' ')] = r;
-  });
-
-  const sessionBySquadDay = {};
-  sessions.forEach(s => { sessionBySquadDay[`${s.squad_id}_${s.day_of_week}`] = s.id; });
-
-  // Parse Excel with SheetJS
-  let wb;
+  // Parse Excel
+  let aoa;
   try {
     const buf = await file.arrayBuffer();
-    wb = XLSX.read(buf, { type: 'array' });
+    const wb = XLSX.read(buf, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
   } catch(e) {
-    errEl.textContent = 'Could not read file: ' + e.message;
-    errEl.style.display = '';
-    return;
+    errEl.textContent = 'Could not read file: ' + e.message; errEl.style.display = ''; return;
   }
 
-  // name_normalized → { raw, days: Set<day_of_week> }
-  const nameTodays = {};
-
-  for (const sheetName of wb.SheetNames) {
-    const ws = wb.Sheets[sheetName];
-    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-    if (!aoa.length) continue;
-
-    // Find header row: first row with ≥ 3 day-name hits
-    let headerRowIdx = -1, dayColMap = {};
-    for (let r = 0; r < Math.min(15, aoa.length); r++) {
-      const hits = {};
-      aoa[r].forEach((cell, c) => { const d = detectDayFromCell(cell); if (d !== null) hits[c] = d; });
-      if (Object.keys(hits).length >= 3) { headerRowIdx = r; dayColMap = hits; break; }
+  // Build roster lookup: normalised name → roster row
+  const rByName = {};
+  roster.forEach(r => {
+    const k = _siNorm(r.display_name);
+    rByName[k] = r;
+    const p = k.split(' ');
+    if (p.length >= 2) {
+      rByName[p[p.length-1]+' '+p.slice(0,-1).join(' ')] = r;  // reversed
+      rByName[p[0]+' '+p[p.length-1]] = r;                     // first + last
     }
-    if (headerRowIdx === -1) continue;
+  });
 
-    // Collect names below header in day columns
-    for (let r = headerRowIdx + 1; r < aoa.length; r++) {
-      const row = aoa[r];
-      for (const [colStr, dow] of Object.entries(dayColMap)) {
-        const cell = String(row[parseInt(colStr)] || '').trim();
-        if (!cell || cell.length < 2 || cell.length > 60) continue;
-        // Skip obvious non-names
-        if (/^[\d\/\-\.]+$/.test(cell)) continue;
-        if (/^(present|absent|away|dnp|nc|no[_ ]?show|squad|group|total|coach|session)$/i.test(cell)) continue;
-        const key = cell.toLowerCase();
-        if (!nameTodays[key]) nameTodays[key] = { raw: cell, days: new Set() };
-        nameTodays[key].days.add(dow);
+  // Build session lookup: normCoach + '_' + day_of_week → session_id
+  const sessByCoachDay = {};
+  sessions.forEach(s => {
+    if (s.coach_name) sessByCoachDay[_siNorm(s.coach_name)+'_'+s.day_of_week] = s.id;
+  });
+
+  const assignments = [], unmatched = [], matchedNames = new Set();
+  let currentCoach = null;
+
+  for (const row of aoa) {
+    // Detect section header — any cell like "Private (Kaisea)"
+    const hdrCell = row.find(c => typeof c === 'string' && /Private\s*\(/i.test(c));
+    if (hdrCell) {
+      // Each day column may name a different coach — take the first non-empty one
+      currentCoach = _siCoach(hdrCell);
+      // But store per-column coach map for this section
+      row._coachByPair = {};
+      for (const [, nameCol, dow] of SI_COL_PAIRS) {
+        const cell = row[nameCol - 1] || row[nameCol];  // time col or name col
+        // find the coach for this day's column pair
+        const dayCell = [row[nameCol-1], row[nameCol]].find(c => typeof c === 'string' && /Private\s*\(/i.test(c));
+        if (dayCell) row._coachByPair[dow] = _siCoach(dayCell);
+      }
+      continue;
+    }
+    if (!currentCoach) continue;
+
+    for (const [timeCol, nameCol, dow] of SI_COL_PAIRS) {
+      const rawTime = String(row[timeCol] || '').trim();
+      const rawName = String(row[nameCol] || '').trim();
+      if (!rawName || !rawTime) continue;
+      const timeSlot = _siTime(rawTime);
+      if (!timeSlot) continue;
+
+      // Determine actual coach for this day (may differ per column — e.g. Ellen on Mon, Britt on Tue)
+      // The coach header row stores per-column coach name in row._coachByPair
+      // We scan backwards to find the most recent header row that specified a coach for this dow
+      // Simpler: re-scan aoa up to current row for the most recent header that has a coach in this col pair
+      // ... handled below by building a coachForDay map while iterating
+      // For now use currentCoach (correct for single-coach sections; see fix below)
+      const coachForSlot = currentCoach;
+
+      const names = rawName.split('/').map(n => _siStrip(n).trim()).filter(n => n.length > 1);
+      for (const name of names) {
+        const key = _siNorm(name);
+        let r = rByName[key];
+        // Single-word name: try first-name match
+        if (!r && !key.includes(' ')) r = roster.find(m => _siNorm(m.display_name).split(' ')[0] === key);
+        const sessId = sessByCoachDay[_siNorm(coachForSlot)+'_'+dow];
+        if (r && sessId) {
+          assignments.push({ roster_id: r.id, session_id: sessId, name, time_slot: timeSlot, day: dow, coach: coachForSlot });
+          matchedNames.add(name);
+        } else {
+          unmatched.push(`${name} (${coachForSlot}, ${['','Mon','Tue','Wed','Thu','Fri','Sat'][dow]})`);
+        }
       }
     }
   }
 
-  if (!Object.keys(nameTodays).length) {
-    errEl.textContent = 'No names detected. The file needs day columns (Mon, Tue, Wed…) with swimmer names below.';
-    errEl.style.display = '';
-    return;
+  // The file has DIFFERENT coaches per column in the same section row
+  // Re-process using per-column coach detection
+  assignments.length = 0; unmatched.length = 0; matchedNames.clear();
+
+  // Build a per-column-pair coach map by scanning header rows
+  const coachByPairDow = {};  // dow → coach name (from most recent header)
+  for (const row of aoa) {
+    const isHeader = row.some(c => typeof c === 'string' && /Private\s*\(/i.test(c));
+    if (isHeader) {
+      for (const [timeCol, nameCol, dow] of SI_COL_PAIRS) {
+        // The name column of this pair is nameCol; the cell just to its left (timeCol) or at nameCol
+        // The header row puts coach labels in the name columns (even cols)
+        const cell = row[nameCol];
+        if (typeof cell === 'string' && /Private\s*\(/i.test(cell)) {
+          coachByPairDow[dow] = _siCoach(cell);
+        } else if (!cell || cell === '') {
+          // No coach listed for this day in this section — leave as-is (keep previous)
+        }
+      }
+      continue;
+    }
+
+    // Data row — process each day pair using the coach assigned to that column
+    for (const [timeCol, nameCol, dow] of SI_COL_PAIRS) {
+      const coach = coachByPairDow[dow];
+      if (!coach) continue;
+      const rawTime = String(row[timeCol] || '').trim();
+      const rawName = String(row[nameCol] || '').trim();
+      if (!rawName || !rawTime) continue;
+      const timeSlot = _siTime(rawTime);
+      if (!timeSlot) continue;
+
+      const names = rawName.split('/').map(n => _siStrip(n).trim()).filter(n => n.length > 1);
+      for (const name of names) {
+        const key = _siNorm(name);
+        let r = rByName[key];
+        if (!r && !key.includes(' ')) r = roster.find(m => _siNorm(m.display_name).split(' ')[0] === key);
+        const sessId = sessByCoachDay[_siNorm(coach)+'_'+dow];
+        if (r && sessId) {
+          assignments.push({ roster_id: r.id, session_id: sessId, name, time_slot: timeSlot, day: dow, coach });
+          matchedNames.add(name);
+        } else {
+          unmatched.push(`${name} (${coach}, ${['','Mon','Tue','Wed','Thu','Fri','Sat'][dow]})`);
+        }
+      }
+    }
   }
 
-  // Match names → roster → sessions
-  const assignments = [];
-  const matchedNames = new Set();
-  const unmatched = [];
+  // Deduplicate assignments (same roster_id + session_id → keep first)
+  const seen = new Set();
+  const dedupedAssignments = assignments.filter(a => {
+    const k = a.roster_id+'_'+a.session_id;
+    if (seen.has(k)) return false;
+    seen.add(k); return true;
+  });
 
-  for (const [nameKey, { raw, days }] of Object.entries(nameTodays)) {
-    let rEntry = rosterByName[nameKey];
-    // Fallback: first + last word only
-    if (!rEntry) {
-      const parts = nameKey.split(/\s+/);
-      if (parts.length > 2) rEntry = rosterByName[parts[0] + ' ' + parts[parts.length-1]];
-    }
-    if (!rEntry) { unmatched.push(raw); continue; }
-    matchedNames.add(raw);
-    for (const dow of days) {
-      const sessId = sessionBySquadDay[`${rEntry.squad_id}_${dow}`];
-      if (sessId) assignments.push({ roster_id: rEntry.id, session_id: sessId, name: raw, day: dow });
-    }
+  schedImportParsed = dedupedAssignments;
+  schedImportRawUnmatched = [...new Set(unmatched)];
+
+  if (!dedupedAssignments.length) {
+    errEl.textContent = 'No assignments found. Check the file format matches the expected layout.';
+    errEl.style.display = ''; return;
   }
 
-  schedImportParsed = assignments;
-  schedImportRawUnmatched = unmatched;
-
-  // Render preview
-  const DNAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const byName = {};
-  assignments.forEach(a => { (byName[a.name] = byName[a.name] || []).push(DNAMES[a.day]); });
+  // Preview grouped by coach
+  const DNAMES = ['','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const byCoach = {};
+  dedupedAssignments.forEach(a => { (byCoach[a.coach] = byCoach[a.coach]||[]).push(a); });
 
   document.getElementById('schedImportSummary').innerHTML =
     `<span style="color:var(--green);font-weight:600;">${matchedNames.size} swimmers matched</span> · ` +
-    `<span style="color:var(--cyan);font-weight:600;">${assignments.length} session assignments</span>` +
-    (unmatched.length ? ` · <span style="color:var(--amber);">${unmatched.length} not found in roster</span>` : '');
+    `<span style="color:var(--cyan);font-weight:600;">${dedupedAssignments.length} assignments</span>` +
+    (schedImportRawUnmatched.length ? ` · <span style="color:var(--amber);">${schedImportRawUnmatched.length} not found in roster</span>` : '');
 
-  document.getElementById('schedImportPreview').innerHTML = `
+  document.getElementById('schedImportPreview').innerHTML = Object.entries(byCoach).map(([coach, rows]) => `
+    <div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.08em;margin:12px 0 5px;">${coach}</div>
     <table style="width:100%;border-collapse:collapse;">
-      <thead><tr style="border-bottom:1px solid var(--border);">
-        <th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--text-sec);font-weight:600;">Swimmer</th>
-        <th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--text-sec);font-weight:600;">Assigned days</th>
+      <thead><tr>
+        <th style="text-align:left;padding:3px 8px;font-size:10px;color:var(--text-sec);">Time</th>
+        <th style="text-align:left;padding:3px 8px;font-size:10px;color:var(--text-sec);">Swimmer</th>
+        <th style="text-align:left;padding:3px 8px;font-size:10px;color:var(--text-sec);">Day</th>
       </tr></thead>
-      <tbody>${Object.entries(byName).sort((a,b)=>a[0].localeCompare(b[0])).map(([name, days]) =>
+      <tbody>${rows.sort((a,b)=>a.day-b.day||a.time_slot.localeCompare(b.time_slot)).map(a =>
         `<tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
-          <td style="padding:5px 8px;">${name}</td>
-          <td style="padding:5px 8px;color:var(--cyan);">${days.join(', ')}</td>
+          <td style="padding:3px 8px;color:var(--cyan);font-size:12px;">${a.time_slot}</td>
+          <td style="padding:3px 8px;font-size:12px;">${a.name}</td>
+          <td style="padding:3px 8px;font-size:11px;color:var(--text-sec);">${DNAMES[a.day]}</td>
         </tr>`).join('')}
       </tbody>
-    </table>`;
+    </table>`).join('');
 
-  document.getElementById('schedImportUnmatched').innerHTML = unmatched.length
-    ? `<div style="font-size:12px;color:var(--amber);padding:8px 10px;background:rgba(245,158,11,0.08);border-radius:6px;margin-top:8px;"><strong>Not matched (${unmatched.length}):</strong> ${unmatched.join(', ')}</div>`
+  document.getElementById('schedImportUnmatched').innerHTML = schedImportRawUnmatched.length
+    ? `<div style="font-size:12px;color:var(--amber);padding:8px 10px;background:rgba(245,158,11,0.08);border-radius:6px;margin-top:8px;"><strong>Not in roster (${schedImportRawUnmatched.length}):</strong><br>${schedImportRawUnmatched.join('<br>')}</div>`
     : '';
 
   document.getElementById('schedImportStep1').style.display = 'none';
@@ -6573,7 +6649,7 @@ async function confirmScheduleImport() {
   btn.textContent = 'Importing…'; btn.disabled = true;
 
   const rows = schedImportParsed.map(a => ({
-    club_id: currentClub.id, roster_id: a.roster_id, session_id: a.session_id
+    club_id: currentClub.id, roster_id: a.roster_id, session_id: a.session_id, time_slot: a.time_slot || null,
   }));
 
   const { error } = await sb.from('club_session_assignments')
