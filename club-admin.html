@@ -10815,7 +10815,6 @@ function closeLTSSlotsModal() {
 }
 
 async function loadLTSCoachSlots() {
-  // Fetch swimmers assigned to this session with their time slots
   const { data, error } = await sb.from('club_session_assignments')
     .select('roster_id, time_slot, club_roster(display_name)')
     .eq('session_id', ltsModalSessionId)
@@ -10824,74 +10823,101 @@ async function loadLTSCoachSlots() {
 
   if (error) {
     document.getElementById('ltsSlotsCoachList').innerHTML =
-      `<div style="color:var(--danger);padding:16px;font-size:13px;">Error loading slots: ${error.message}</div>`;
+      `<div style="color:var(--danger);padding:16px;font-size:13px;">Error: ${error.message}</div>`;
     return;
   }
 
-  const slots = (data || []).filter(a => a.time_slot).sort((a, b) => a.time_slot.localeCompare(b.time_slot));
+  const slots = (data || []).sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''));
   const session = allTimetableSessions.find(s => s.id === ltsModalSessionId);
   const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const fmtT = t => { if (!t) return ''; const [h,m] = t.split(':'); const hr = parseInt(h); return (hr > 12 ? hr - 12 : hr || 12) + ':' + m + (hr >= 12 ? 'pm' : 'am'); };
+  const fmtT = t => { if (!t) return ''; const [h,m] = t.split(':'); const hr = parseInt(h); return (hr > 12 ? hr-12 : hr||12) + ':' + m + (hr >= 12 ? 'pm' : 'am'); };
 
-  // Session info
   if (session) {
     document.getElementById('ltsSlotsSessionInfo').textContent =
       `${DAYS[session.day_of_week]} ${fmtT(session.start_time)} → ${fmtT(session.end_time)}`;
   }
 
-  // Get current time for "NOW" indicator
-  const now = new Date();
-  const todayDow = now.getDay();
-  const nowMins = now.getHours() * 60 + now.getMinutes();
-  const isToday = session && session.day_of_week === todayDow;
+  // Update "add swimmer" dropdown — exclude already-assigned
+  const assignedIds = new Set(slots.map(s => s.roster_id));
+  const addSel = document.getElementById('ltsAddSwimmerSelect');
+  if (addSel) {
+    addSel.innerHTML = '<option value="">Select swimmer…</option>' +
+      [...allRosterFull]
+        .sort((a, b) => (a.display_name || '').localeCompare(b.display_name || ''))
+        .filter(r => !assignedIds.has(r.id))
+        .map(r => `<option value="${r.id}">${r.display_name || r.id}</option>`)
+        .join('');
+  }
 
-  // Render slots
   const el = document.getElementById('ltsSlotsCoachList');
   if (!slots.length) {
-    el.innerHTML = `<div style="color:var(--text-sec);font-size:13px;padding:16px;text-align:center;">No swimmers assigned yet.</div>`;
+    el.innerHTML = `<div style="color:var(--text-sec);font-size:13px;padding:20px;text-align:center;">No swimmers assigned yet — add one below.</div>`;
     return;
   }
 
-  el.innerHTML = slots.map((slot, idx) => {
+  el.innerHTML = slots.map(slot => {
     const swimmer = slot.club_roster?.display_name || '—';
-    const time = slot.time_slot;
-    const [slotH, slotM] = time.split(':').map(Number);
-    const slotMins = slotH * 60 + slotM;
-    const nextMins = slotMins + 20; // 20-min duration
-
-    let status = '';
-    let statusColor = 'var(--text-sec)';
-    if (isToday) {
-      if (slotMins <= nowMins && nowMins < nextMins) {
-        status = '🔴 NOW';
-        statusColor = 'var(--green)';
-      } else if (idx + 1 < slots.length) {
-        const nextSlotMins = parseInt(slots[idx + 1].time_slot.split(':')[0]) * 60 + parseInt(slots[idx + 1].time_slot.split(':')[1]);
-        if (slotMins > nowMins) {
-          status = '⏭ NEXT';
-          statusColor = 'var(--cyan)';
-        }
-      }
-    }
-
-    return `<div style="display:flex;align-items:center;gap:12px;padding:14px;background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.15);border-radius:10px;margin-bottom:10px;cursor:pointer;" onclick="editLTSSlotSwimmer('${slot.roster_id}', '${time}', '${swimmer}')">
-      <div style="flex-shrink:0;text-align:center;">
-        <div style="font-size:16px;font-weight:800;color:var(--cyan);min-width:52px;">${time}</div>
-        ${status ? `<div style="font-size:10px;font-weight:700;color:${statusColor};margin-top:2px;">${status}</div>` : ''}
-      </div>
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:14px;font-weight:700;color:var(--text);">${swimmer}</div>
-        <div style="font-size:11px;color:var(--text-sec);margin-top:2px;">20 min</div>
-      </div>
-      <div style="flex-shrink:0;color:var(--cyan);font-size:12px;font-weight:600;">Reassign →</div>
+    const time = slot.time_slot || '';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(56,189,248,0.04);border:1px solid rgba(56,189,248,0.12);border-radius:10px;margin-bottom:8px;">
+      <input type="time" value="${time}"
+        onchange="updateLTSSlotTime('${slot.roster_id}', this.value)"
+        style="font-size:15px;font-weight:800;color:var(--cyan);background:transparent;border:none;border-bottom:1px solid rgba(56,189,248,0.3);width:90px;padding:2px 0;flex-shrink:0;cursor:pointer;">
+      <div style="flex:1;font-size:14px;font-weight:600;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${swimmer}</div>
+      <button onclick="removeLTSSlotSwimmer('${slot.roster_id}')"
+        style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#ef4444;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;white-space:nowrap;">
+        Remove
+      </button>
     </div>`;
   }).join('');
 }
 
-function editLTSSlotSwimmer(rosterId, timeSlot, swimmerName) {
-  // Show a menu to reassign this swimmer to a different slot
-  showToast(`Tap swimmer name to swap with another slot`, 'info');
-  // Future: implement swap UI
+async function updateLTSSlotTime(rosterId, newTime) {
+  if (!newTime) return;
+  const { error } = await sb.from('club_session_assignments')
+    .update({ time_slot: newTime })
+    .eq('session_id', ltsModalSessionId)
+    .eq('roster_id', rosterId)
+    .eq('club_id', currentClub.id);
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  const slot = (allWeekTimeSlots[ltsModalSessionId] || []).find(s => s.roster_id === rosterId);
+  if (slot) slot.time_slot = newTime;
+  allWeekTimeSlots[ltsModalSessionId]?.sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''));
+  showToast('Time updated', 'success');
+  loadLTSCoachSlots();
+}
+
+async function removeLTSSlotSwimmer(rosterId) {
+  const { error } = await sb.from('club_session_assignments')
+    .delete()
+    .eq('session_id', ltsModalSessionId)
+    .eq('roster_id', rosterId)
+    .eq('club_id', currentClub.id);
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  allWeekAssignments[ltsModalSessionId] = (allWeekAssignments[ltsModalSessionId] || []).filter(id => id !== rosterId);
+  allWeekTimeSlots[ltsModalSessionId]   = (allWeekTimeSlots[ltsModalSessionId]   || []).filter(s => s.roster_id !== rosterId);
+  showToast('Removed', 'success');
+  loadLTSCoachSlots();
+}
+
+async function addLTSSlotSwimmer() {
+  const rosterId = document.getElementById('ltsAddSwimmerSelect').value;
+  const timeVal  = document.getElementById('ltsAddSlotTime').value;
+  if (!rosterId) { showToast('Select a swimmer', 'error'); return; }
+  if (!timeVal)  { showToast('Enter a time', 'error'); return; }
+  const { error } = await sb.from('club_session_assignments')
+    .upsert({ session_id: ltsModalSessionId, roster_id: rosterId, time_slot: timeVal, club_id: currentClub.id },
+             { onConflict: 'roster_id,session_id' });
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  if (!allWeekAssignments[ltsModalSessionId]) allWeekAssignments[ltsModalSessionId] = [];
+  if (!allWeekAssignments[ltsModalSessionId].includes(rosterId)) allWeekAssignments[ltsModalSessionId].push(rosterId);
+  if (!allWeekTimeSlots[ltsModalSessionId]) allWeekTimeSlots[ltsModalSessionId] = [];
+  const existing = allWeekTimeSlots[ltsModalSessionId].find(s => s.roster_id === rosterId);
+  if (existing) existing.time_slot = timeVal;
+  else allWeekTimeSlots[ltsModalSessionId].push({ roster_id: rosterId, time_slot: timeVal });
+  allWeekTimeSlots[ltsModalSessionId].sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''));
+  document.getElementById('ltsAddSwimmerSelect').value = '';
+  showToast('Swimmer added', 'success');
+  loadLTSCoachSlots();
 }
 
 async function loadLTSSlotsAdmin() {
@@ -11782,11 +11808,28 @@ async function saveGroupMembers(groupId) {
         </div>
         <button onclick="closeLTSSlotsModal()" style="background:none;border:none;color:var(--text-sec);font-size:20px;cursor:pointer;padding:0 4px;">×</button>
       </div>
-      <div id="ltsSlotsModalSub" style="font-size:12px;color:var(--text-sec);">20-min slots · tap to reassign swimmer</div>
+      <div id="ltsSlotsModalSub" style="font-size:12px;color:var(--text-sec);">Tap time to edit · tap Remove to delete · add swimmers below</div>
     </div>
 
     <!-- Slot list (time slots with swimmers) -->
     <div style="flex:1;overflow-y:auto;padding:16px 22px;" id="ltsSlotsCoachList"></div>
+
+    <!-- Add swimmer footer -->
+    <div style="border-top:1px solid rgba(255,255,255,0.06);padding:16px 22px;flex-shrink:0;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Add swimmer to slot</div>
+      <div style="display:flex;gap:8px;align-items:stretch;">
+        <input type="time" id="ltsAddSlotTime"
+          style="font-size:14px;font-weight:700;color:var(--cyan);background:rgba(255,255,255,0.04);border:1px solid rgba(56,189,248,0.25);border-radius:8px;padding:8px 10px;width:110px;flex-shrink:0;">
+        <select id="ltsAddSwimmerSelect"
+          style="flex:1;font-size:13px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);min-width:0;">
+          <option value="">Select swimmer…</option>
+        </select>
+        <button onclick="addLTSSlotSwimmer()"
+          style="background:var(--cyan);color:#080f1a;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0;">
+          Add
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
