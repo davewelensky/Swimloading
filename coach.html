@@ -654,6 +654,15 @@
     </div>
   </div>
 
+  <!-- Swimmer search -->
+  <div style="padding:8px 16px;background:var(--bg-card);border-bottom:1px solid var(--border);">
+    <input type="search" id="swimmerSearch" placeholder="Search by name…"
+      oninput="filterAttendanceSearch(this.value)"
+      style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid var(--border);
+             border-radius:10px;padding:9px 14px;font-size:14px;color:var(--text);
+             font-family:'DM Sans',sans-serif;outline:none;-webkit-appearance:none;">
+  </div>
+
   <!-- Pre-session briefing -->
   <div id="sessionBriefing"></div>
 
@@ -1677,6 +1686,15 @@ async function startSession() {
 }
 
 // ── MARK SCREEN ────────────────────────────────────────────────────
+function filterAttendanceSearch(query) {
+  const q = (query || '').toLowerCase().trim();
+  document.querySelectorAll('#swimmerList .swimmer-row').forEach(row => {
+    if (!q) { row.style.display = ''; return; }
+    const name = (row.querySelector('.name')?.textContent || '').toLowerCase();
+    row.style.display = name.includes(q) ? '' : 'none';
+  });
+}
+
 function getSessionRoster() {
   const s = activeSqSession;
   return s ? allRoster.filter(r => r.squad_id === s.squad_id) : [];
@@ -1755,6 +1773,9 @@ function renderMarkScreen() {
   const roster = getSessionRoster();
   updateProgress(roster);
   renderBriefing(roster);
+
+  const searchEl = document.getElementById('swimmerSearch');
+  if (searchEl) searchEl.value = '';
 
   const swimmerList = document.getElementById('swimmerList');
   if (!roster.length) {
