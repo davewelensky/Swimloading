@@ -731,9 +731,121 @@
         // ─── End Monthly Challenge ──────────────────────────────────────────────
 
         async function loadLeaderboard() {
+            loadDUCChallenge();
             loadMonthlyChallenge();
             // Past winners panel — admin only (prize verification)
             if (currentUserProfile?.is_admin) loadPastWinners();
+        }
+
+        // ─── DUC Member Challenge ───────────────────────────────────────────────────
+        const DUC_CLUB_ID = 'f72cf810-0019-40f8-a57f-476bea8a8f55';
+        let _ducMemberChecked = false;
+        let _isDUCMember = false;
+
+        async function checkIsDUCMember() {
+            if (_ducMemberChecked) return _isDUCMember;
+            _ducMemberChecked = true;
+            if (!currentUser) return false;
+            const { count } = await supabaseClient
+                .from('club_roster')
+                .select('id', { count: 'exact', head: true })
+                .eq('club_id', DUC_CLUB_ID)
+                .eq('user_id', currentUser.id)
+                .eq('is_active', true);
+            _isDUCMember = (count || 0) > 0;
+            return _isDUCMember;
+        }
+
+        async function loadDUCChallenge() {
+            const el = document.getElementById('ducChallenge');
+            if (!el) return;
+
+            const isMember = await checkIsDUCMember();
+            if (!isMember) return;
+
+            el.style.display = '';
+            el.innerHTML = `<div style="text-align:center;padding:14px;color:var(--text-secondary);font-size:13px;">Loading DUC Challenge…</div>`;
+
+            try {
+                const now = new Date();
+                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+                const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+                const daysLeft   = Math.ceil((new Date(now.getFullYear(), now.getMonth() + 1, 1) - now) / 86400000);
+                const monthName  = now.toLocaleString('en-ZA', { month: 'long', year: 'numeric' });
+
+                const { data: leaders, error } = await supabaseClient.rpc('get_duc_june_leaders', {
+                    p_month_start: monthStart,
+                    p_month_end:   monthEnd
+                });
+                if (error) throw error;
+
+                const rows = (leaders || []);
+                const myRow  = rows.find(r => r.user_id === currentUser?.id);
+                const myIdx  = rows.findIndex(r => r.user_id === currentUser?.id);
+
+                const PRIZES = [
+                    { label: '1st', prize: 'Maurten Pack',  color: '#fbbf24', bg: 'rgba(251,191,36,0.12)',   border: 'rgba(251,191,36,0.3)' },
+                    { label: '2nd', prize: 'Maurten Pack',  color: '#94a3b8', bg: 'rgba(148,163,184,0.10)',  border: 'rgba(148,163,184,0.25)' },
+                    { label: '3rd', prize: 'SiS Pack',      color: '#cd7c2f', bg: 'rgba(205,124,47,0.10)',   border: 'rgba(205,124,47,0.25)' },
+                ];
+
+                const prizeRow = PRIZES.map((p, i) => {
+                    const leader = rows[i];
+                    return `<div style="flex:1;min-width:90px;background:${p.bg};border:1px solid ${p.border};border-radius:10px;padding:10px 12px;">
+                        <div style="font-size:10px;font-weight:700;color:${p.color};text-transform:uppercase;letter-spacing:0.05em;">${p.label} · ${p.prize}</div>
+                        <div style="font-size:13px;font-weight:700;color:var(--text);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${leader ? leader.display_name : '—'}</div>
+                        <div style="font-size:11px;color:var(--text-secondary);margin-top:1px;">${leader ? leader.log_count + ' log' + (leader.log_count !== 1 ? 's' : '') + ' · ' + leader.total_points + ' pts' : 'No logs yet'}</div>
+                    </div>`;
+                }).join('');
+
+                const myCard = myRow && myRow.log_count > 0 ? `
+                    <div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:10px;padding:11px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div style="font-size:13px;font-weight:700;color:var(--text);">You're #${myIdx+1} · ${myRow.total_points} pts</div>
+                            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${myRow.log_count} log${myRow.log_count !== 1 ? 's' : ''} this month${myIdx > 0 ? ' · ' + (rows[myIdx-1].total_points - myRow.total_points) + ' pts behind ' + rows[myIdx-1].display_name : ' · You\'re leading!'}</div>
+                        </div>
+                        <div style="font-size:15px;font-weight:800;color:${myIdx < 3 ? '#fbbf24' : 'var(--text-secondary)'};">#${myIdx+1}</div>
+                    </div>` : '';
+
+                const MEDAL = ['#fbbf24', '#94a3b8', '#cd7c2f'];
+                const listRows = rows.slice(0, 15).map((r, i) => {
+                    const isMe = r.user_id === currentUser?.id;
+                    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:${isMe ? 'rgba(56,189,248,0.07)' : 'transparent'};">
+                        <div style="font-size:13px;font-weight:800;color:${i < 3 ? MEDAL[i] : 'var(--text-secondary)'};width:22px;text-align:center;">${i+1}</div>
+                        <div style="flex:1;font-size:13px;font-weight:${isMe ? '700' : '500'};color:${isMe ? 'var(--text)' : 'var(--text)'}">${r.display_name}${isMe ? ' <span style="font-size:10px;color:var(--cyan);">you</span>' : ''}</div>
+                        <div style="font-size:11px;color:var(--text-secondary);">${r.log_count} log${r.log_count !== 1 ? 's' : ''}</div>
+                        <div style="font-size:13px;font-weight:700;color:var(--cyan);min-width:44px;text-align:right;">${r.total_points}</div>
+                    </div>`;
+                }).join('');
+
+                el.innerHTML = `
+                <div style="background:linear-gradient(135deg,rgba(14,116,144,0.08),rgba(251,191,36,0.04));border:1px solid rgba(251,191,36,0.25);border-radius:14px;padding:18px;margin-bottom:4px;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+                        <div>
+                            <div style="font-size:10px;color:#fbbf24;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:3px;">DUC Members Only</div>
+                            <div style="font-weight:800;font-size:17px;color:var(--text);line-height:1.2;">${monthName} Temperature Challenge</div>
+                            <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;">Log the most temps. Log anywhere. 20 pts per log.</div>
+                        </div>
+                        <div style="background:rgba(251,191,36,0.15);color:#fbbf24;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;">${daysLeft}d left</div>
+                    </div>
+
+                    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">${prizeRow}</div>
+
+                    ${myCard}
+
+                    <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+                        <i data-lucide="trophy" style="width:12px;height:12px;color:#fbbf24;"></i>Standings
+                    </div>
+                    <div style="background:rgba(15,23,42,0.5);border-radius:10px;padding:8px 6px;">
+                        ${rows.length ? listRows : '<div style="text-align:center;color:var(--text-secondary);padding:16px;font-size:13px;">No logs yet this month — be first!</div>'}
+                    </div>
+                </div>`;
+
+                initIcons();
+            } catch (e) {
+                console.warn('loadDUCChallenge error:', e);
+                el.style.display = 'none';
+            }
         }
 
         // ─── Monthly Challenge History ──────────────────────────────────────────────
