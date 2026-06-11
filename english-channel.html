@@ -156,11 +156,13 @@
                     <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;" id="heroNeapAway">—</div>
                 </div>
             </div>
-            <div style="display:flex;gap:8px;align-items:center;background:rgba(14,165,233,0.10);border:1px solid rgba(14,165,233,0.2);border-radius:10px;padding:10px;">
+            <div id="tideWindowCta" style="display:flex;gap:8px;align-items:center;background:rgba(14,165,233,0.10);border:1px solid rgba(14,165,233,0.2);border-radius:10px;padding:10px;">
                 <div style="flex:1;font-size:12px;color:var(--text-primary);font-weight:600;line-height:1.3;">Crossing in 2026 or 2027?<br><span style="font-weight:400;color:var(--text-secondary);">Track YOUR tide window</span></div>
-                <a href="/app" class="cta-btn" style="padding:9px 16px;font-size:12px;flex-shrink:0;">Track it &rarr;</a>
+                <button onclick="openTideWindowEditor()" class="cta-btn" style="padding:9px 16px;font-size:12px;flex-shrink:0;border:none;cursor:pointer;">Set window &rarr;</button>
             </div>
         </div>
+
+        <div id="myTideWindowCard" style="display:none;"></div>
 
         <div id="goSignal" class="signal-card unknown">
             <div class="signal-label">Channel Status</div>
@@ -510,6 +512,54 @@
 
     </div>
 
+    <!-- ═══════════════════════ TIDE WINDOW MODAL ═══════════════════════ -->
+    <div id="tideWindowModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;align-items:center;justify-content:center;padding:16px;">
+        <div style="background:var(--bg-card);border-radius:16px;padding:20px;max-width:480px;width:100%;border:1px solid var(--border);max-height:90vh;overflow-y:auto;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                <div style="font-size:16px;font-weight:800;color:var(--ocean-light);">Your Tide Window</div>
+                <button onclick="closeTideWindowEditor()" style="background:transparent;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer;">&times;</button>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.5;">When does your booked tide window start? We'll personalise the forecast, historical context, and crossing score for your specific dates.</div>
+
+            <div style="margin-bottom:12px;">
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">Window start date</div>
+                <input type="date" id="twStart" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;">
+            </div>
+
+            <div style="margin-bottom:12px;">
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">Window end date</div>
+                <input type="date" id="twEnd" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;">
+            </div>
+
+            <div style="margin-bottom:12px;">
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">Your position in tide (optional)</div>
+                <select id="twPosition" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:#111c30;color:var(--text-primary);font-size:13px;">
+                    <option value="">Don't know / Not set</option>
+                    <option value="1">1st position</option>
+                    <option value="2">2nd position</option>
+                    <option value="3">3rd position</option>
+                    <option value="4">4th position</option>
+                    <option value="5">5th position</option>
+                    <option value="6">6th position</option>
+                    <option value="7">7th position</option>
+                    <option value="standby">Standby</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">Pilot (optional)</div>
+                <input type="text" id="twPilot" placeholder="e.g. Michael Oram" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:13px;">
+            </div>
+
+            <div style="display:flex;gap:8px;">
+                <button onclick="clearTideWindow()" style="flex:1;padding:11px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;">Clear</button>
+                <button onclick="saveTideWindow()" style="flex:2;padding:11px;border-radius:8px;border:none;background:var(--ocean);color:white;font-size:13px;font-weight:700;cursor:pointer;">Save Window</button>
+            </div>
+
+            <div style="font-size:10px;color:var(--text-secondary);margin-top:14px;line-height:1.5;text-align:center;opacity:.7;">Saved locally on your device. Email is not collected unless you also subscribe to the daily forecast.</div>
+        </div>
+    </div>
+
     <!-- ═══════════════════════ FAQ ═══════════════════════ -->
     <div id="panelFaq" class="panel">
 
@@ -631,6 +681,9 @@ async function init() {
     loadPilotLeaderboard();
     loadYearlyChart();
 
+    // Personalised tide window (depends on _wf/_mf being loaded)
+    renderTideWindow();
+
     document.getElementById('lastRefreshed').textContent =
         'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
@@ -653,6 +706,7 @@ async function refreshAll() {
     reset('communityLogs', 'Loading community logs...');
     document.getElementById('nextWindowCard').innerHTML = '';
     document.getElementById('crossingIntelligence').innerHTML = '';
+    document.getElementById('myTideWindowCard').innerHTML = '';
     document.getElementById('goSignal').className = 'signal-card unknown';
     document.getElementById('goSignal').innerHTML = '<div class="signal-label">Channel Status</div><div class="signal-title">Checking conditions...</div><div class="signal-sub">Fetching live data.</div>';
     await init();
@@ -1788,6 +1842,205 @@ async function runSearch() {
     } catch (e) {
         console.error('Search failed', e);
         el.innerHTML = '<div style="font-size:13px;color:var(--text-secondary);text-align:center;padding:20px;">Search failed — try again.</div>';
+    }
+}
+
+// ─── TIDE WINDOW SELECTOR ─────────────────────────────────────────────────────
+const TW_KEY = 'channel_tide_window_v1';
+
+function getTideWindow() {
+    try { return JSON.parse(localStorage.getItem(TW_KEY) || 'null'); } catch { return null; }
+}
+
+function openTideWindowEditor() {
+    const tw = getTideWindow();
+    if (tw) {
+        document.getElementById('twStart').value = tw.start || '';
+        document.getElementById('twEnd').value = tw.end || '';
+        document.getElementById('twPosition').value = tw.position || '';
+        document.getElementById('twPilot').value = tw.pilot || '';
+    } else {
+        // Default to ~6 weeks ahead, 7-day window
+        const start = new Date(); start.setDate(start.getDate() + 42);
+        const end = new Date(start); end.setDate(end.getDate() + 6);
+        document.getElementById('twStart').value = start.toISOString().split('T')[0];
+        document.getElementById('twEnd').value = end.toISOString().split('T')[0];
+    }
+    document.getElementById('tideWindowModal').style.display = 'flex';
+}
+
+function closeTideWindowEditor() {
+    document.getElementById('tideWindowModal').style.display = 'none';
+}
+
+function saveTideWindow() {
+    const start = document.getElementById('twStart').value;
+    const end = document.getElementById('twEnd').value;
+    const position = document.getElementById('twPosition').value;
+    const pilot = document.getElementById('twPilot').value.trim();
+    if (!start || !end) { alert('Please enter both start and end dates.'); return; }
+    if (new Date(end) < new Date(start)) { alert('End date must be on or after start date.'); return; }
+    localStorage.setItem(TW_KEY, JSON.stringify({ start, end, position, pilot, savedAt: new Date().toISOString() }));
+    closeTideWindowEditor();
+    renderTideWindow();
+}
+
+function clearTideWindow() {
+    localStorage.removeItem(TW_KEY);
+    closeTideWindowEditor();
+    renderTideWindow();
+}
+
+async function renderTideWindow() {
+    const card = document.getElementById('myTideWindowCard');
+    const ctaText = document.querySelector('#tideWindowCta > div');
+    const ctaBtn = document.querySelector('#tideWindowCta > button');
+    const tw = getTideWindow();
+    if (!tw) {
+        card.style.display = 'none';
+        if (ctaText) ctaText.innerHTML = 'Crossing in 2026 or 2027?<br><span style="font-weight:400;color:var(--text-secondary);">Track YOUR tide window</span>';
+        if (ctaBtn) ctaBtn.textContent = 'Set window →';
+        return;
+    }
+
+    const start = new Date(tw.start);
+    const end = new Date(tw.end);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const daysUntil = Math.round((start - today) / 86400000);
+    const daysUntilEnd = Math.round((end - today) / 86400000);
+    const inWindow = daysUntil <= 0 && daysUntilEnd >= 0;
+    const past = daysUntilEnd < 0;
+
+    let countdownLabel, countdownDetail;
+    if (past) {
+        countdownLabel = 'Window passed';
+        countdownDetail = `${Math.abs(daysUntilEnd)} days ago`;
+    } else if (inWindow) {
+        countdownLabel = 'YOUR TIDE IS NOW';
+        countdownDetail = `${daysUntilEnd + 1} day${daysUntilEnd === 0 ? '' : 's'} remaining`;
+    } else {
+        countdownLabel = `In ${daysUntil} day${daysUntil === 1 ? '' : 's'}`;
+        countdownDetail = `${formatDateShort(start)} – ${formatDateShort(end)}`;
+    }
+    const sigColor = past ? 'var(--text-secondary)' : inWindow ? 'var(--success)' : 'var(--ocean-light)';
+
+    if (ctaText) ctaText.innerHTML = `Your tide window<br><span style="font-weight:400;color:var(--text-secondary);">${formatDateShort(start)} – ${formatDateShort(end)}${tw.position ? ' · position ' + tw.position : ''}</span>`;
+    if (ctaBtn) ctaBtn.textContent = 'Edit →';
+
+    // Compute days within forecast window (0-15 days)
+    const windowDays = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        windowDays.push(new Date(d));
+    }
+    const forecastIdxByDate = {};
+    if (_wf?.time) _wf.time.forEach((t, i) => { forecastIdxByDate[t] = i; });
+
+    // Build per-day window list with score
+    const perDay = windowDays.map(dt => {
+        const iso = dt.toISOString().split('T')[0];
+        const idx = forecastIdxByDate[iso];
+        const wind = idx !== undefined ? (_wf?.wind_speed_10m_max?.[idx] ?? null) : null;
+        const dir = idx !== undefined ? (_wf?.wind_direction_10m_dominant?.[idx] ?? null) : null;
+        const wave = idx !== undefined ? (_mf?.wave_height_max?.[idx] ?? null) : null;
+        const sst = idx !== undefined ? (_mf?.sea_surface_temperature_max?.[idx] ?? bestTemp() ?? null) : null;
+        const score = idx !== undefined ? scoreDay(wind, dir, wave, sst) : null;
+        return { date: dt, iso, wind, dir, wave, sst, score, inForecast: idx !== undefined };
+    });
+
+    const inForecast = perDay.filter(d => d.inForecast);
+    let summary = '';
+    if (past) {
+        summary = 'This window has passed. Edit to set your next tide.';
+    } else if (!inForecast.length) {
+        summary = `Forecast not yet available — your window is ${daysUntil} days away (forecasts cover ~16 days).`;
+    } else if (inForecast.length < windowDays.length) {
+        const covered = inForecast.length, total = windowDays.length;
+        const best = inForecast.reduce((b, d) => d.score > (b?.score ?? -1) ? d : b, null);
+        summary = `${covered}/${total} days in 16-day forecast. ${best ? `Best day so far: ${formatDateShort(best.date)} · score ${best.score}/100.` : ''}`;
+    } else {
+        const best = inForecast.reduce((b, d) => d.score > (b?.score ?? -1) ? d : b, null);
+        const avgScore = Math.round(inForecast.reduce((s, d) => s + d.score, 0) / inForecast.length);
+        summary = `Full forecast available. Best day: ${formatDateShort(best.date)} (score ${best.score}). Avg: ${avgScore}/100.`;
+    }
+
+    const dayRows = perDay.map(d => {
+        if (!d.inForecast) {
+            return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid var(--border);margin-bottom:6px;opacity:.55;">
+                <div style="width:80px;font-size:12px;color:var(--text-secondary);">${formatDateShort(d.date)}</div>
+                <div style="flex:1;font-size:11px;color:var(--text-secondary);">Beyond 16-day forecast window</div>
+                <div style="font-size:11px;color:var(--text-secondary);">—</div>
+            </div>`;
+        }
+        const col = d.score >= 70 ? 'var(--success)' : d.score >= 45 ? 'var(--warning)' : 'var(--danger)';
+        const bg = d.score >= 70 ? 'rgba(34,197,94,0.08)' : d.score >= 45 ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.06)';
+        const border = d.score >= 70 ? 'rgba(34,197,94,0.25)' : d.score >= 45 ? 'rgba(245,158,11,0.25)' : 'rgba(239,68,68,0.2)';
+        const parts = [];
+        if (typeof d.wind === 'number') parts.push(`${d.wind.toFixed(0)}kt${typeof d.dir === 'number' ? ' ' + windDir(d.dir) : ''}`);
+        if (typeof d.wave === 'number') parts.push(`${d.wave.toFixed(1)}m`);
+        if (typeof d.sst === 'number') parts.push(`${d.sst}°C`);
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:${bg};border:1px solid ${border};margin-bottom:6px;">
+            <div style="width:80px;font-size:12px;font-weight:600;">${formatDateShort(d.date)}</div>
+            <div style="flex:1;font-size:11px;color:var(--text-secondary);">${parts.join(' · ')}</div>
+            <div style="font-size:14px;font-weight:800;color:${col};">${d.score}</div>
+        </div>`;
+    }).join('');
+
+    // Render the card
+    card.style.display = 'block';
+    card.innerHTML = `<div class="card" style="background:linear-gradient(135deg,rgba(34,197,94,0.06),rgba(14,165,233,0.04));border:1px solid rgba(14,165,233,0.3);">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;">
+            <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--text-secondary);margin-bottom:4px;">MY TIDE WINDOW</div>
+                <div style="font-size:18px;font-weight:800;color:${sigColor};line-height:1.2;">${countdownLabel}</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">${countdownDetail}</div>
+                ${tw.position || tw.pilot ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">${tw.position ? `Position ${tw.position}` : ''}${tw.position && tw.pilot ? ' · ' : ''}${tw.pilot ? `Pilot: ${tw.pilot}` : ''}</div>` : ''}
+            </div>
+            <button onclick="openTideWindowEditor()" style="font-size:11px;background:rgba(14,165,233,0.10);color:var(--ocean-light);border:1px solid rgba(14,165,233,0.25);border-radius:6px;padding:5px 10px;cursor:pointer;flex-shrink:0;">Edit</button>
+        </div>
+        <div style="font-size:12px;color:var(--text-primary);padding:8px 10px;background:rgba(0,0,0,0.15);border-radius:8px;margin-bottom:10px;line-height:1.4;">${summary}</div>
+        ${dayRows}
+        <div id="windowHistoryCard" style="margin-top:12px;"></div>
+    </div>`;
+
+    // Fetch historical context
+    loadWindowHistory(start, end);
+}
+
+function formatDateShort(d) {
+    return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+async function loadWindowHistory(start, end) {
+    const el = document.getElementById('windowHistoryCard');
+    if (!el) return;
+    try {
+        const { data, error } = await sb.rpc('channel_window_history', {
+            p_start_month: start.getMonth() + 1,
+            p_start_day: start.getDate(),
+            p_end_month: end.getMonth() + 1,
+            p_end_day: end.getDate(),
+            p_from_year: 2010
+        });
+        if (error) throw error;
+        const h = data?.[0];
+        if (!h || !Number(h.swims_count)) {
+            el.innerHTML = '<div style="font-size:11px;color:var(--text-secondary);text-align:center;padding:8px;">No historical swims in this date range.</div>';
+            return;
+        }
+        const fastest = fmtTime(h.fastest_seconds);
+        const median = fmtTime(Math.round(h.median_seconds));
+        el.innerHTML = `<div style="background:rgba(14,165,233,0.04);border:1px solid rgba(14,165,233,0.15);border-radius:8px;padding:10px 12px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:6px;">HISTORICALLY · THIS WEEK</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                <div style="text-align:center;"><div style="font-size:18px;font-weight:900;color:var(--ocean-light);">${h.swims_count}</div><div style="font-size:9px;color:var(--text-secondary);">swims since 2010</div></div>
+                <div style="text-align:center;"><div style="font-size:14px;font-weight:800;color:var(--ocean-light);">${fastest}</div><div style="font-size:9px;color:var(--text-secondary);">fastest (${h.fastest_year})</div></div>
+                <div style="text-align:center;"><div style="font-size:14px;font-weight:800;color:var(--warning);">${median}</div><div style="font-size:9px;color:var(--text-secondary);">median time</div></div>
+            </div>
+            <div style="font-size:10px;color:var(--text-secondary);text-align:center;margin-top:8px;">${h.male_count}M / ${h.female_count}F · ${h.years_with_swims} years had crossings · fastest was ${h.fastest_name}</div>
+        </div>`;
+    } catch (e) {
+        console.error('Window history failed', e);
+        el.innerHTML = '';
     }
 }
 
