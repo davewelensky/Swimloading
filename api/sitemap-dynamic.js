@@ -50,6 +50,15 @@ export default async function handler(req, res) {
       urls.push(url(`${BASE}/spots/${regionSlug}`, '0.8', 'daily', TODAY()));
     }
 
+    // English Channel content cluster (cost, training, qualifying, pilots, records, relay, jellyfish, tide-windows, famous-swims)
+    const CHANNEL_CLUSTER = [
+      'cost', 'training-plan', 'qualifying-swim', 'pilots', 'records',
+      'relay', 'jellyfish', 'tide-windows', 'famous-swims',
+    ];
+    for (const slug of CHANNEL_CLUSTER) {
+      urls.push(url(`${BASE}/english-channel/${slug}`, '0.8', 'weekly', TODAY()));
+    }
+
     // English Channel solo swims (3,443 individual pages from the database)
     const channelSwims = await dbGet(
       'channel_solo_swims?slug=not.is.null&select=slug,year&order=year.desc'
