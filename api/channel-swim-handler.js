@@ -225,7 +225,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
   <div class="foot">
     Source: public Channel solo swim database (CSA + CS&PF + historical) · <a href="https://db.marathonswimmers.org" target="_blank" rel="noopener">LongSwims</a> · <a href="/english-channel/data-sources">Data sources &amp; attribution</a>
     <div style="margin-top:8px;font-size:11px;">
-      <a href="mailto:hello@swimloading.com?subject=Channel%20swim%20-%20${encodeURIComponent(s.full_name + ' (' + s.year + ')')}&amp;body=Reference%3A%20${encodeURIComponent('https://www.swimloading.com/english-channel/swim/' + (s.slug || s.unique_id))}%0A%0AI%20would%20like%20to%3A%20%5Breport%20an%20inaccuracy%20%2F%20request%20removal%20%2F%20add%20information%5D%0A%0ADetails%3A">
+      <a href="mailto:support@swimloading.com?subject=Channel%20swim%20-%20${encodeURIComponent(s.full_name + ' (' + s.year + ')')}&amp;body=Reference%3A%20${encodeURIComponent('https://www.swimloading.com/english-channel/swim/' + (s.slug || s.unique_id))}%0A%0AI%20would%20like%20to%3A%20%5Breport%20an%20inaccuracy%20%2F%20request%20removal%20%2F%20add%20information%5D%0A%0ADetails%3A">
         Report an inaccuracy or request removal &rarr;
       </a>
     </div>

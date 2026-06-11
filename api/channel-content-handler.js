@@ -1073,7 +1073,7 @@ const PAGES = {
         h2: 'Request a correction or removal',
         p: [
           'If a swim page contains an error, or if you are the swimmer (or next of kin) and would like to be removed or have your details changed, please contact us directly. We respond within 7 working days and we don\'t require legal process for reasonable requests.',
-          'Email <a href="mailto:hello@swimloading.com?subject=Channel%20swim%20page%20request"><strong>hello@swimloading.com</strong></a> with the URL of the swim page and what you\'d like changed.',
+          'Email <a href="mailto:support@swimloading.com?subject=Channel%20swim%20page%20request"><strong>support@swimloading.com</strong></a> with the URL of the swim page and what you\'d like changed.',
         ],
         callout: { label: 'For minors', body: 'Swims by individuals who were under 18 at the time of the crossing receive heightened protection. If you are a parent or guardian of a minor whose swim is indexed here and you\'d prefer it not be, we will remove the page on request, no questions asked.' },
       },
@@ -1098,7 +1098,7 @@ const PAGES = {
 
     faqs: [
       { q: 'Why is my swim on SwimLoading?',
-        a: 'If your Channel crossing was ratified by CSA or CS&PF, your name and time are part of the public sporting record. SwimLoading indexes that record to make it searchable. You can request removal at any time — email hello@swimloading.com.' },
+        a: 'If your Channel crossing was ratified by CSA or CS&PF, your name and time are part of the public sporting record. SwimLoading indexes that record to make it searchable. You can request removal at any time — email support@swimloading.com.' },
       { q: 'I want my swim removed. How long does it take?',
         a: 'We respond within 7 working days. Reasonable removal requests don\'t require legal process.' },
       { q: 'The time / pilot / year is wrong for my swim. Can you fix it?',
