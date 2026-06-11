@@ -2303,8 +2303,8 @@ async function loadEvents() {
 // ── OVERVIEW ──────────────────────────────────────────────────────
 async function renderOverview() {
   const now       = new Date();
-  const todayStr  = now.toISOString().slice(0, 10);
-  const in7days   = new Date(now.getTime() + 7 * 86400000).toISOString().slice(0, 10);
+  const todayStr  = localISO(now);
+  const in7days   = localISO(new Date(now.getTime() + 7 * 86400000));
   const days      = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const months    = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const roster    = allRosterFull.length ? allRosterFull : [];
@@ -2577,9 +2577,9 @@ async function renderOverview() {
   } else {
     attEl.innerHTML = `<div class="card" style="margin-bottom:16px;"><div style="padding:20px;text-align:center;"><div class="spinner" style="margin:0 auto;"></div></div></div>`;
 
-    const thirtyDaysAgo  = new Date(now.getTime() - 30 * 86400000).toISOString().slice(0,10);
-    const sixtyDaysAgo   = new Date(now.getTime() - 60 * 86400000).toISOString().slice(0,10);
-    const twentyOneDaysAgo = new Date(now.getTime() - 21 * 86400000).toISOString().slice(0,10);
+    const thirtyDaysAgo  = localISO(new Date(now.getTime() - 30 * 86400000));
+    const sixtyDaysAgo   = localISO(new Date(now.getTime() - 60 * 86400000));
+    const twentyOneDaysAgo = localISO(new Date(now.getTime() - 21 * 86400000));
 
     const { data: sessionsWithAtt } = await sb.from('club_sessions')
       .select('id, session_date, squad_id, club_attendance(roster_id, status)')
@@ -4711,7 +4711,7 @@ async function loadTempChallenge() {
   const el = document.getElementById('tempChallengeContent');
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
-  const monthVal = document.getElementById('tempChallengeMonth')?.value || new Date().toISOString().slice(0, 7);
+  const monthVal = document.getElementById('tempChallengeMonth')?.value || localISO(new Date()).slice(0, 7);
   const [year, month] = monthVal.split('-').map(Number);
   const monthStart = new Date(year, month - 1, 1).toISOString();
   const monthEnd   = new Date(year, month, 1).toISOString();
@@ -6889,7 +6889,7 @@ function openAddCoachModal() {
   document.getElementById('coachTitle').value     = 'Assistant Coach';
   document.getElementById('coachCertLevel').value = '';
   document.getElementById('coachFaLevel').value   = '';
-  document.getElementById('coachStartDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('coachStartDate').value = localISO(new Date());
   document.getElementById('addCoachModal').classList.add('open');
   setTimeout(() => document.getElementById('coachName').focus(), 100);
 }
@@ -6965,7 +6965,7 @@ async function deactivateCoach(id, name) {
   if (!confirm(`Mark ${name} as no longer active?`)) return;
   const { error } = await sb.from('club_coaches').update({
     is_active:  false,
-    end_date:   new Date().toISOString().slice(0,10),
+    end_date:   localISO(new Date()),
     updated_at: new Date().toISOString(),
   }).eq('id', id);
   if (error) { showToast('Failed: ' + error.message, 'error'); return; }
@@ -7307,7 +7307,7 @@ function renderRosterTable() {
   const tbody = document.getElementById('rosterTableBody');
   const { query, status, cat } = rosterFilter;
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localISO(new Date());
   const rows = allRoster.filter(r => {
     if (status === 'inactive') return r.is_active === false;  // show ONLY inactive
     if (r.is_active === false) return false;                  // hide inactive in all other views
@@ -7966,7 +7966,7 @@ function openAddRosterModal() {
     allSquads.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
 
   // Set today as join date default
-  document.getElementById('newRosterJoinDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('newRosterJoinDate').value = localISO(new Date());
 
   // Show guardian sections by default
   ['guardianSection','guardian2Header','collectionHeader'].forEach(id => {
@@ -8084,7 +8084,7 @@ let walkins              = [];     // walk-in roster ids added this session
 let sessionHealthMap     = {};     // rosterId → active health events[]
 
 async function loadAttendance() {
-  const eightWeeksAgo = new Date(Date.now() - 56 * 86400000).toISOString().slice(0,10);
+  const eightWeeksAgo = localISO(new Date(Date.now() - 56 * 86400000));
   const [sessionsRes, intentsRes] = await Promise.all([
     sb.from('club_sessions')
       .select('*, club_attendance(id, roster_id, status)')
@@ -8128,7 +8128,7 @@ function populateReportFilters() {
   const months = [];
   for (let i = 0; i < 6; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const val = d.toISOString().slice(0, 7);
+    const val = localISO(d).slice(0, 7);
     const label = d.toLocaleDateString('en-ZA', { month: 'long', year: 'numeric' });
     months.push(`<option value="${val}">${label}</option>`);
   }
@@ -8146,11 +8146,11 @@ async function renderAttendanceReport() {
   const el = document.getElementById('attendanceContent');
   el.innerHTML = `<div class="loading"><div class="spinner"></div></div>`;
 
-  const monthVal = document.getElementById('reportMonth')?.value || new Date().toISOString().slice(0, 7);
+  const monthVal = document.getElementById('reportMonth')?.value || localISO(new Date()).slice(0, 7);
   const squadVal = document.getElementById('reportSquad')?.value || '';
   const [y, m]   = monthVal.split('-').map(Number);
   const monthStart = `${monthVal}-01`;
-  const monthEnd   = new Date(y, m, 0).toISOString().slice(0, 10);
+  const monthEnd   = localISO(new Date(y, m, 0));
 
   let q = sb.from('club_sessions')
     .select('id, session_date, start_time, session_type, squad_id, coach_name, club_attendance(roster_id, status)')
@@ -8269,11 +8269,11 @@ async function renderAttendanceReport() {
 
 // ── CSV EXPORT ────────────────────────────────────────────────────
 async function exportAttendanceCSV() {
-  const monthVal = document.getElementById('reportMonth')?.value || new Date().toISOString().slice(0, 7);
+  const monthVal = document.getElementById('reportMonth')?.value || localISO(new Date()).slice(0, 7);
   const squadVal = document.getElementById('reportSquad')?.value || '';
   const [y, m]   = monthVal.split('-').map(Number);
   const monthStart = `${monthVal}-01`;
-  const monthEnd   = new Date(y, m, 0).toISOString().slice(0, 10);
+  const monthEnd   = localISO(new Date(y, m, 0));
 
   let q = sb.from('club_sessions')
     .select('id, session_date, start_time, session_type, squad_id, club_attendance(roster_id, status)')
@@ -8673,7 +8673,7 @@ function renderAttendanceStats() {
   });
 
   // Last 30 days for recent trend
-  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0,10);
+  const cutoff = localISO(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
   const recentSessions = allSessions.filter(s => s.session_date >= cutoff);
   const recentByRoster = {};
   recentSessions.forEach(s => {
@@ -8751,7 +8751,7 @@ function renderAttendanceStats() {
 
 // ── NEW SESSION MODAL ─────────────────────────────────────────────
 function openNewSession() {
-  const today = new Date().toISOString().slice(0,10);
+  const today = localISO(new Date());
   const hour  = new Date().getHours();
   const defaultType = hour < 10 ? 'AM' : hour < 15 ? 'PM' : hour < 17 ? 'Dryland' : 'PM';
   document.getElementById('nsDate').value = today;
@@ -9015,7 +9015,7 @@ async function openMarkFromSchedule(squadSessionId, dateOverride) {
   const tpl = allWeekSessions.find(s => s.id === squadSessionId);
   if (!tpl) return;
   activeSquadSessionId = squadSessionId;
-  const today = dateOverride || new Date().toISOString().slice(0, 10);
+  const today = dateOverride || localISO(new Date());
   const sq = allSquads.find(q => q.id === tpl.squad_id);
 
   // Check if a club_sessions record already exists for this squad + date + time + coach
@@ -10316,7 +10316,7 @@ function _renderChallengeEmpty() {
 
 function _renderChallengeList() {
   const el    = document.getElementById('challengesContent');
-  const today = new Date().toISOString().slice(0,10);
+  const today = localISO(new Date());
   const MEDAL = ['#f5c518','#a0a0b0','#cd7f32'];
 
   const cards = _challenges.map(c => {
@@ -10377,8 +10377,8 @@ function showChallengeCreate(challengeId) {
     _formActions = _DEFAULT_SCORING_ACTIONS.map(d=>({...d}));
   }
 
-  const today     = new Date().toISOString().slice(0,10);
-  const plus30    = new Date(Date.now()+30*86400000).toISOString().slice(0,10);
+  const today     = localISO(new Date());
+  const plus30    = localISO(new Date(Date.now()+30*86400000));
   const c         = _editingChallenge;
   const allCats   = [...new Set(allMembers.map(m=>m.category).filter(Boolean))].sort();
   const genderVal = c?.gender_filter || '';
@@ -10651,7 +10651,7 @@ async function viewChallenge(id) {
   const idx = _challenges.findIndex(x=>x.id===id);
   if (idx>=0) _challenges[idx]=c; else _challenges.push(c);
 
-  const today    = new Date().toISOString().slice(0,10);
+  const today    = localISO(new Date());
   const isLive   = c.status==='active' && c.start_date<=today && c.end_date>=today;
   const isEnded  = c.end_date<today && c.status!=='completed';
   const daysLeft = isLive ? Math.ceil((new Date(c.end_date+'T23:59:59')-new Date())/86400000) : null;
@@ -10941,7 +10941,7 @@ async function runDraw(challengeId) {
   // Build weighted pool from all recorded points for this challenge
   // For a fair draw we include auto-computed points too — re-fetch leaderboard data
   // Simple version: use manual + temp_log counts (fast, fair for most cases)
-  const today = new Date().toISOString().slice(0,10);
+  const today = localISO(new Date());
   const startISO = c.start_date+'T00:00:00+00:00';
   const endISO   = c.end_date+'T23:59:59+00:00';
   const eligible = allMembers.filter(m=>m.user_id);
@@ -11331,7 +11331,7 @@ async function loadGroupsPage() {
   el.innerHTML = groups.map(g => {
     const memberCount = g.club_group_members?.[0]?.count ?? 0;
     const upcomingSessions = (g.club_group_sessions || [])
-      .filter(s => s.session_date >= new Date().toISOString().slice(0,10))
+      .filter(s => s.session_date >= localISO(new Date()))
       .sort((a,b) => a.session_date.localeCompare(b.session_date))
       .slice(0, 3);
     const goalDate = g.goal_date ? new Date(g.goal_date).toLocaleDateString('en-ZA', { day:'numeric', month:'long', year:'numeric' }) : null;
