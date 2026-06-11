@@ -1042,6 +1042,7 @@ const PAGES = {
         p: [
           'The 3,443 ratified solo crossings indexed on SwimLoading come from a <strong>public, community-maintained spreadsheet</strong> compiled from <strong>Channel Swimming Association (CSA)</strong> published records, <strong>Channel Swimming &amp; Piloting Federation (CS&amp;PF)</strong> records, the historical book <em>It\'s Cold in the Channel</em>, and direct confirmations from individual swimmers.',
           'The database is hosted publicly via <a href="https://db.marathonswimmers.org" target="_blank" rel="noopener">LongSwims (db.marathonswimmers.org)</a> and is maintained by the marathon swimming community.',
+          'SwimLoading is an independent platform. We are <strong>not affiliated with, or endorsed by, the CSA or CS&amp;PF</strong> — we index their published public records, with attribution.',
         ],
         callout: { label: 'Why we publish it', body: 'Channel records are part of the public sporting record — names, times, dates, and pilots have always been published by the governing bodies. We index that record so swimmers, families, and researchers can search it.' },
       },
@@ -1053,6 +1054,7 @@ const PAGES = {
           '<strong>16-day wind &amp; astronomy</strong> — <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> Forecast API (CC BY 4.0 attribution)',
           '<strong>10-day wave &amp; swell</strong> — Open-Meteo Marine API (CC BY 4.0 attribution)',
           '<strong>Tide times at Dover</strong> — <a href="https://www.worldtides.info" target="_blank" rel="noopener">WorldTides</a> commercial API',
+          '<strong>UK lido water temperatures</strong> — <a href="https://my-water.live" target="_blank" rel="noopener">my-water.live</a> live sensors, used with permission',
         ],
       },
       {
