@@ -191,7 +191,6 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
     ${s.nationality_when_swam ? `<div class="fact"><div class="fact-key">Nationality</div><div class="fact-val">${escapeHtml(s.nationality_when_swam)}${s.county_state ? ' · ' + escapeHtml(s.county_state) : ''}</div></div>` : ''}
     ${s.ratifier ? `<div class="fact"><div class="fact-key">Ratified by</div><div class="fact-val">${escapeHtml(s.ratifier)}</div></div>` : ''}
     ${s.landed_at_cap_gris_nez && s.landed_at_cap_gris_nez !== 'n/a' ? `<div class="fact"><div class="fact-key">Landed at Cap Gris-Nez</div><div class="fact-val">${escapeHtml(s.landed_at_cap_gris_nez)}${s.landing_landmark ? ' · ' + escapeHtml(s.landing_landmark) : ''}</div></div>` : ''}
-    ${s.disability ? `<div class="fact"><div class="fact-key">Notable</div><div class="fact-val">${escapeHtml(s.disability)}</div></div>` : ''}
   </div>
 
   ${s.comments ? `<div class="card"><div class="card-label">Notes</div><div style="font-size:14px;color:var(--text);line-height:1.6;">${escapeHtml(s.comments)}</div>${s.website ? `<div style="margin-top:12px;font-size:12px;"><a href="${escapeHtml(s.website)}" target="_blank" rel="noopener" style="color:var(--ocean-light);">Read more &rarr;</a></div>` : ''}</div>` : ''}
@@ -223,7 +222,15 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
     </div>
   </div>
 
-  <div class="foot">Source: public Channel solo swim database (CSA + CS&PF + historical) · <a href="https://db.marathonswimmers.org" target="_blank" rel="noopener">LongSwims</a> · <a href="/crossings/english-channel">&larr; English Channel hub</a></div>
+  <div class="foot">
+    Source: public Channel solo swim database (CSA + CS&PF + historical) · <a href="https://db.marathonswimmers.org" target="_blank" rel="noopener">LongSwims</a> · <a href="/english-channel/data-sources">Data sources &amp; attribution</a>
+    <div style="margin-top:8px;font-size:11px;">
+      <a href="mailto:hello@swimloading.com?subject=Channel%20swim%20-%20${encodeURIComponent(s.full_name + ' (' + s.year + ')')}&amp;body=Reference%3A%20${encodeURIComponent('https://www.swimloading.com/english-channel/swim/' + (s.slug || s.unique_id))}%0A%0AI%20would%20like%20to%3A%20%5Breport%20an%20inaccuracy%20%2F%20request%20removal%20%2F%20add%20information%5D%0A%0ADetails%3A">
+        Report an inaccuracy or request removal &rarr;
+      </a>
+    </div>
+    <div style="margin-top:6px;"><a href="/crossings/english-channel">&larr; English Channel hub</a></div>
+  </div>
 
 </div>
 

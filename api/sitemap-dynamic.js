@@ -53,7 +53,7 @@ export default async function handler(req, res) {
     // English Channel content cluster (cost, training, qualifying, pilots, records, relay, jellyfish, tide-windows, famous-swims)
     const CHANNEL_CLUSTER = [
       'cost', 'training-plan', 'qualifying-swim', 'pilots', 'records',
-      'relay', 'jellyfish', 'tide-windows', 'famous-swims',
+      'relay', 'jellyfish', 'tide-windows', 'famous-swims', 'data-sources',
     ];
     for (const slug of CHANNEL_CLUSTER) {
       urls.push(url(`${BASE}/english-channel/${slug}`, '0.8', 'weekly', TODAY()));

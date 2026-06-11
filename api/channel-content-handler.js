@@ -14,6 +14,7 @@ export const CLUSTER_SLUGS = [
   'jellyfish',
   'tide-windows',
   'famous-swims',
+  'data-sources',
 ];
 
 const BASE = 'https://www.swimloading.com';
@@ -334,6 +335,7 @@ function renderRelated(currentSlug) {
     'jellyfish':         { title: 'Jellyfish in the Channel',        desc: 'Species, peak months, sting handling' },
     'tide-windows':      { title: 'Tide windows explained',          desc: 'Neap vs spring, position 1-7, calendar' },
     'famous-swims':      { title: 'Famous Channel swims',            desc: 'Webb, Ederle, Streeter, Thomas, Waschburger' },
+    'data-sources':      { title: 'Data sources & attribution',      desc: 'Where the data comes from and how to request removal' },
   };
   const others = CLUSTER_SLUGS.filter(s => s !== currentSlug);
   return `<section class="block"><h2 class="h2">Continue reading</h2><div class="related-grid">${
@@ -1023,6 +1025,88 @@ const PAGES = {
         a: 'Not yet ratified. Sarah Thomas\'s four-way (2019) stands as the longest.' },
       { q: 'Is there a swim faster than Waschburger\'s 6:45:25?',
         a: 'Not as of 2025. Watch the records page — it updates live from the database.' },
+    ],
+  },
+
+  // ─── 10. DATA SOURCES & ATTRIBUTION ──────────────────────────────────────
+  'data-sources': {
+    title: 'English Channel data sources & attribution',
+    meta: 'Where SwimLoading\'s English Channel data comes from, how it\'s attributed, and how to request a correction or removal.',
+    eyebrow: 'English Channel · Data sources',
+    h1: 'Data sources & attribution',
+    lede: 'SwimLoading publishes English Channel data drawn from public records, public APIs, and a community-maintained swim database. We credit every source and provide a route for individuals to request corrections or removal.',
+
+    sections: [
+      {
+        h2: 'The Channel solo swim database',
+        p: [
+          'The 3,443 ratified solo crossings indexed on SwimLoading come from a <strong>public, community-maintained spreadsheet</strong> compiled from <strong>Channel Swimming Association (CSA)</strong> published records, <strong>Channel Swimming &amp; Piloting Federation (CS&amp;PF)</strong> records, the historical book <em>It\'s Cold in the Channel</em>, and direct confirmations from individual swimmers.',
+          'The database is hosted publicly via <a href="https://db.marathonswimmers.org" target="_blank" rel="noopener">LongSwims (db.marathonswimmers.org)</a> and is maintained by the marathon swimming community.',
+        ],
+        callout: { label: 'Why we publish it', body: 'Channel records are part of the public sporting record — names, times, dates, and pilots have always been published by the governing bodies. We index that record so swimmers, families, and researchers can search it.' },
+      },
+      {
+        h2: 'Live conditions and forecasts',
+        bullets: [
+          '<strong>Sea surface temperature</strong> — NOAA OISST v2.1 (National Oceanic &amp; Atmospheric Administration, US public domain) via the NCEI ERDDAP server',
+          '<strong>Sandettie Lightship buoy</strong> (NDBC station 62304) — observed wind and water temperature, NOAA public domain',
+          '<strong>16-day wind &amp; astronomy</strong> — <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> Forecast API (CC BY 4.0 attribution)',
+          '<strong>10-day wave &amp; swell</strong> — Open-Meteo Marine API (CC BY 4.0 attribution)',
+          '<strong>Tide times at Dover</strong> — <a href="https://www.worldtides.info" target="_blank" rel="noopener">WorldTides</a> commercial API',
+        ],
+      },
+      {
+        h2: 'What we publish about each swim',
+        p: 'For each ratified crossing we display facts that are already in the public sporting record:',
+        bullets: [
+          'Swimmer name and nationality',
+          'Year and (where known) exact date',
+          'Crossing time and direction',
+          'Pilot and boat',
+          'Multi-way information (2/3/4-way)',
+          'Governing body that ratified the swim',
+          'Public honours (e.g. IMSHOF — International Marathon Swimming Hall of Fame)',
+        ],
+        callout: { label: 'What we do not publish', warn: true, body: 'We do not display sensitive personal information (disability or health markers) from the source database, even when present. We retain such fields in our database for completeness but render only public sporting facts on swim pages.' },
+      },
+      {
+        h2: 'Request a correction or removal',
+        p: [
+          'If a swim page contains an error, or if you are the swimmer (or next of kin) and would like to be removed or have your details changed, please contact us directly. We respond within 7 working days and we don\'t require legal process for reasonable requests.',
+          'Email <a href="mailto:hello@swimloading.com?subject=Channel%20swim%20page%20request"><strong>hello@swimloading.com</strong></a> with the URL of the swim page and what you\'d like changed.',
+        ],
+        callout: { label: 'For minors', body: 'Swims by individuals who were under 18 at the time of the crossing receive heightened protection. If you are a parent or guardian of a minor whose swim is indexed here and you\'d prefer it not be, we will remove the page on request, no questions asked.' },
+      },
+      {
+        h2: 'How the live records pages stay current',
+        p: 'The Channel solo swim database is updated by the community as new ratified swims are confirmed. We refresh our copy regularly. The most recent revision visible in our records was <strong>29 November 2025</strong>. New crossings ratified after that date are imported in periodic syncs.',
+      },
+      {
+        h2: 'Attribution policy',
+        bullets: [
+          'Every records, pilots, and search result block displays the source attribution',
+          'Individual swim pages link back to the LongSwims database',
+          'Forecast data sources are credited where the data appears',
+          'Open-Meteo data is used under CC BY 4.0 — credit displayed on the hub page',
+        ],
+      },
+      {
+        h2: 'Acceptable use of SwimLoading data',
+        p: 'You\'re welcome to link to SwimLoading swim pages from articles, social posts, or your own website. If you\'d like to use SwimLoading\'s pilot leaderboard or records tables in your own publication, please email us first — we\'ll usually say yes.',
+      },
+    ],
+
+    faqs: [
+      { q: 'Why is my swim on SwimLoading?',
+        a: 'If your Channel crossing was ratified by CSA or CS&PF, your name and time are part of the public sporting record. SwimLoading indexes that record to make it searchable. You can request removal at any time — email hello@swimloading.com.' },
+      { q: 'I want my swim removed. How long does it take?',
+        a: 'We respond within 7 working days. Reasonable removal requests don\'t require legal process.' },
+      { q: 'The time / pilot / year is wrong for my swim. Can you fix it?',
+        a: 'Yes. Email us with the swim URL and the correct details. We\'ll update our copy and may flag the correction back to the source database.' },
+      { q: 'Can I download the data?',
+        a: 'The underlying database is public at <a href="https://db.marathonswimmers.org" target="_blank" rel="noopener">db.marathonswimmers.org</a>. Please use that as your source rather than scraping SwimLoading.' },
+      { q: 'Do you sell the data?',
+        a: 'No. SwimLoading\'s paid tier (Channel Pro) provides the intelligence layer — personal tide-window scoring, 16-day forecasts, the predictor. The underlying ratified swim records are publicly viewable.' },
     ],
   },
 
