@@ -17,6 +17,7 @@ const STATIC_PAGES = [
   { path: '/dassen',              priority: '0.7', changefreq: 'weekly'  },
   { path: '/westangle',           priority: '0.7', changefreq: 'weekly'  },
   { path: '/intel',               priority: '0.7', changefreq: 'weekly'  },
+  { path: '/crossings/english-channel', priority: '0.9', changefreq: 'daily' },
   { path: '/pricing',             priority: '0.6', changefreq: 'monthly' },
   { path: '/pro',                 priority: '0.6', changefreq: 'monthly' },
   { path: '/partners/maurten',    priority: '0.7', changefreq: 'monthly' },
@@ -47,6 +48,21 @@ export default async function handler(req, res) {
     // Region pages — pulled directly from REGION_DOMAINS so seo-utils is the single source of truth
     for (const regionSlug of Object.keys(REGION_DOMAINS)) {
       urls.push(url(`${BASE}/spots/${regionSlug}`, '0.8', 'daily', TODAY()));
+    }
+
+    // English Channel solo swims (3,443 individual pages from the database)
+    const channelSwims = await dbGet(
+      'channel_solo_swims?slug=not.is.null&select=slug,year&order=year.desc'
+    ) || [];
+    for (const swim of channelSwims) {
+      // Recent (last 5y) crawl more often; historical stable
+      const recent = swim.year >= new Date().getFullYear() - 5;
+      urls.push(url(
+        `${BASE}/english-channel/swim/${swim.slug}`,
+        recent ? '0.6' : '0.4',
+        recent ? 'weekly' : 'yearly',
+        TODAY()
+      ));
     }
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>

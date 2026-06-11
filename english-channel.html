@@ -1611,16 +1611,28 @@ async function loadChannelRecords() {
         ]);
         if (meErr || woErr) throw (meErr || woErr);
 
-        // Hero cards
+        // Hero cards — wrap in anchor so the whole card is clickable
         if (men?.[0]) {
-            document.getElementById('manRecTime').textContent = fmtTime(men[0].time_seconds);
-            document.getElementById('manRecName').textContent = men[0].full_name;
-            document.getElementById('manRecMeta').textContent = `${men[0].year} · ${men[0].nationality_when_swam || ''}`;
+            const m = men[0];
+            const manHero = document.getElementById('manRecTime').closest('div');
+            if (manHero) {
+                manHero.style.cursor = 'pointer';
+                manHero.onclick = () => { window.location.href = swimHref(m); };
+            }
+            document.getElementById('manRecTime').textContent = fmtTime(m.time_seconds);
+            document.getElementById('manRecName').textContent = m.full_name;
+            document.getElementById('manRecMeta').textContent = `${m.year} · ${m.nationality_when_swam || ''}`;
         }
         if (women?.[0]) {
-            document.getElementById('womRecTime').textContent = fmtTime(women[0].time_seconds);
-            document.getElementById('womRecName').textContent = women[0].full_name;
-            document.getElementById('womRecMeta').textContent = `${women[0].year} · ${women[0].nationality_when_swam || ''}`;
+            const w = women[0];
+            const womHero = document.getElementById('womRecTime').closest('div');
+            if (womHero) {
+                womHero.style.cursor = 'pointer';
+                womHero.onclick = () => { window.location.href = swimHref(w); };
+            }
+            document.getElementById('womRecTime').textContent = fmtTime(w.time_seconds);
+            document.getElementById('womRecName').textContent = w.full_name;
+            document.getElementById('womRecMeta').textContent = `${w.year} · ${w.nationality_when_swam || ''}`;
         }
 
         // Top 10 men's
@@ -1646,32 +1658,36 @@ async function loadChannelRecords() {
     }
 }
 
+function swimHref(r) {
+    return `/english-channel/swim/${r.slug || r.unique_id}`;
+}
+
 function renderRecordList(rows, accentColor) {
     if (!rows?.length) return '<div style="color:var(--text-secondary);font-size:13px;">No data.</div>';
     return rows.map((r, i) => {
         const pos = i + 1;
         const posColor = pos === 1 ? accentColor : pos === 2 ? '#cbd5e1' : pos === 3 ? '#cd7f32' : '#64748b';
-        return `<div class="record-row">
+        return `<a class="record-row" href="${swimHref(r)}" style="text-decoration:none;color:inherit;">
             <div class="record-pos" style="color:${posColor};">${pos}</div>
             <div style="flex:1;">
-                <div style="font-size:13px;font-weight:600;">${r.full_name}</div>
+                <div style="font-size:13px;font-weight:600;color:var(--ocean-light);">${r.full_name}</div>
                 <div style="font-size:11px;color:var(--text-secondary);">${r.year} · ${r.nationality_when_swam || '—'}${r.pilot ? ' · pilot: ' + r.pilot : ''}</div>
             </div>
             <div style="font-size:14px;font-weight:700;color:var(--ocean-light);">${fmtTime(r.time_seconds)}</div>
-        </div>`;
+        </a>`;
     }).join('');
 }
 
 function multiRecRow(label, rec, color) {
     if (!rec) return '';
-    return `<div class="record-row">
+    return `<a class="record-row" href="${swimHref(rec)}" style="text-decoration:none;color:inherit;">
         <div style="width:64px;font-size:11px;font-weight:700;color:${color};">${label}</div>
         <div style="flex:1;">
-            <div style="font-size:13px;font-weight:600;">${rec.full_name}</div>
+            <div style="font-size:13px;font-weight:600;color:var(--ocean-light);">${rec.full_name}</div>
             <div style="font-size:11px;color:var(--text-secondary);">${rec.year} · ${rec.nationality_when_swam || '—'}${rec.pilot ? ' · pilot: ' + rec.pilot : ''}</div>
         </div>
         <div style="font-size:14px;font-weight:700;color:var(--ocean-light);">${fmtTime(rec.time_seconds)}</div>
-    </div>`;
+    </a>`;
 }
 
 async function loadChannelTotals() {
@@ -1823,10 +1839,10 @@ async function runSearch() {
             if (s.honours) tags.push(`<span style="font-size:9px;background:rgba(245,158,11,0.15);color:var(--warning);padding:1px 5px;border-radius:3px;">${s.honours}</span>`);
             if (s.n_ways > 1) tags.push(`<span style="font-size:9px;background:rgba(14,165,233,0.15);color:var(--ocean-light);padding:1px 5px;border-radius:3px;">${s.n_ways}-WAY</span>`);
             if (s.direction === 'F-E') tags.push(`<span style="font-size:9px;background:rgba(34,197,94,0.15);color:var(--success);padding:1px 5px;border-radius:3px;">F→E</span>`);
-            return `<div style="padding:10px 0;border-bottom:1px solid var(--border);">
+            return `<a href="${swimHref(s)}" style="display:block;padding:10px 0;border-bottom:1px solid var(--border);text-decoration:none;color:inherit;">
                 <div style="display:flex;align-items:flex-start;gap:10px;">
                     <div style="flex:1;">
-                        <div style="font-size:13px;font-weight:700;color:var(--text-primary);">${s.full_name} ${s.gender === 'F' ? '<span style="color:var(--warning);font-size:10px;">♀</span>' : ''}</div>
+                        <div style="font-size:13px;font-weight:700;color:var(--ocean-light);">${s.full_name} ${s.gender === 'F' ? '<span style="color:var(--warning);font-size:10px;">♀</span>' : ''}</div>
                         <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${s.year} · ${s.nationality_when_swam || '—'}${s.age ? ' · age ' + Math.round(s.age) : ''}${s.pilot ? ' · pilot: ' + s.pilot : ''}${s.boat ? ' · ' + s.boat : ''}</div>
                         ${tags.length ? `<div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;">${tags.join('')}</div>` : ''}
                     </div>
@@ -1835,7 +1851,7 @@ async function runSearch() {
                         <div style="font-size:10px;color:var(--text-secondary);">${s.ratifier || ''}</div>
                     </div>
                 </div>
-            </div>`;
+            </a>`;
         }).join('');
         const showing = data.length === 50 ? 'Showing 50 results (refine your search)' : `${data.length} result${data.length===1?'':'s'}`;
         el.innerHTML = `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">${showing}</div>${rows}`;
