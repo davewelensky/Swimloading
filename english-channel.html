@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>English Channel Water Temperature & Conditions | SwimLoading</title>
+    <meta name="description" content="Live English Channel water temperature, tides, 7-day wind forecast, and crossing window. NOAA satellite + Sandettie buoy + Open-Meteo for Channel swimmers.">
+    <link rel="canonical" href="https://www.swimloading.com/crossings/english-channel">
+    <meta property="og:title" content="English Channel Conditions | SwimLoading">
+    <meta property="og:description" content="Live water temperature, tides, 7-day wind + swell forecast, and crossing window for English Channel swimmers.">
+    <meta property="og:url" content="https://www.swimloading.com/crossings/english-channel">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"Place","name":"English Channel Crossing","description":"Open water swimming crossing from Shakespeare Beach, Dover to Cap Gris-Nez, France","geo":{"@type":"GeoCoordinates","latitude":51.1172,"longitude":1.3271},"url":"https://www.swimloading.com/crossings/english-channel"}
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+    :root {
+        --bg-dark:#0a1628; --bg-card:#111c30; --ocean:#0ea5e9;
+        --ocean-light:#38bdf8; --text-primary:#f0f9ff;
+        --text-secondary:#94a3b8; --danger:#ef4444;
+        --success:#22c55e; --warning:#f59e0b; --border:rgba(255,255,255,0.08);
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg-dark);color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;padding:0 0 60px;}
+    body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;background:radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,0.55),transparent 100%),radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,0.07),transparent 70%);}
+    .header{background:linear-gradient(135deg,#0a1628,#091a2e);border-bottom:1px solid var(--border);padding:10px 16px;position:sticky;top:0;z-index:100;}
+    .header-inner{display:flex;align-items:center;gap:12px;max-width:600px;margin:0 auto;}
+    .header-text{flex:1;text-align:right;}
+    .header-title{font-size:19px;font-weight:800;color:var(--ocean-light);letter-spacing:-0.4px;line-height:1.2;}
+    .header-sub{font-size:11px;color:var(--text-secondary);margin-top:2px;}
+    .header-actions{display:flex;align-items:center;gap:8px;margin-top:4px;justify-content:flex-end;}
+    .container{padding:14px;max-width:600px;margin:0 auto;}
+    .card{background:var(--bg-card);border-radius:16px;padding:18px;margin-bottom:14px;border:1px solid var(--border);}
+    .card-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-secondary);margin-bottom:12px;}
+    .tab-bar{display:flex;background:rgba(15,23,42,0.8);border-radius:10px;padding:3px;margin-bottom:16px;gap:2px;}
+    .tab-btn{flex:1;background:transparent;border:none;color:var(--text-secondary);font-size:12px;font-weight:600;padding:8px 2px;border-radius:8px;cursor:pointer;}
+    .tab-btn.active{background:var(--ocean);color:white;}
+    .panel{display:none;} .panel.active{display:block;}
+    .signal-card{border-radius:16px;padding:20px;margin-bottom:14px;border:1px solid;}
+    .signal-card.go{background:rgba(34,197,94,0.08);border-color:rgba(34,197,94,0.3);}
+    .signal-card.caution{background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.3);}
+    .signal-card.wait{background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.3);}
+    .signal-card.unknown{background:rgba(148,163,184,0.06);border-color:rgba(148,163,184,0.2);}
+    .signal-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;}
+    .signal-card.go .signal-label{color:var(--success);} .signal-card.caution .signal-label{color:var(--warning);}
+    .signal-card.wait .signal-label{color:var(--danger);} .signal-card.unknown .signal-label{color:var(--text-secondary);}
+    .signal-title{font-size:26px;font-weight:800;color:var(--text-primary);margin-bottom:4px;}
+    .signal-sub{font-size:13px;color:var(--text-secondary);line-height:1.5;}
+    .signal-attr{font-size:10px;color:var(--text-secondary);opacity:.55;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);}
+    .stat-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
+    .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+    .stat-box{background:rgba(15,23,42,0.6);border-radius:12px;padding:14px 10px;text-align:center;border:1px solid var(--border);}
+    .stat-val{font-size:22px;font-weight:800;color:var(--text-primary);line-height:1;margin-bottom:4px;}
+    .stat-val.blue{color:var(--ocean-light);} .stat-val.green{color:var(--success);} .stat-val.amber{color:var(--warning);} .stat-val.red{color:var(--danger);}
+    .stat-lbl{font-size:11px;color:var(--text-secondary);line-height:1.3;}
+    .month-row{display:grid;grid-template-columns:86px 64px 1fr 30px;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;font-size:12px;margin-bottom:2px;border:1px solid transparent;}
+    .month-row.season{background:rgba(14,165,233,0.10);}
+    .month-row.season .month-name{color:var(--ocean-light);font-weight:700;}
+    .month-row.season .month-temp{color:var(--text-primary);}
+    .month-row.off{opacity:.55;} .month-row.current{border-color:rgba(56,189,248,0.45);}
+    .month-name{font-weight:600;color:var(--text-primary);} .month-temp{color:var(--text-secondary);font-weight:600;}
+    .month-cond{color:var(--text-secondary);} .month-flag{text-align:right;font-weight:700;}
+    .month-flag.in{color:var(--success);} .month-flag.out{color:var(--text-secondary);}
+    .fact-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;}
+    .fact-row:last-child{border-bottom:none;}
+    .fact-key{color:var(--text-secondary);width:130px;flex-shrink:0;}
+    .fact-val{color:var(--text-primary);font-weight:600;line-height:1.5;flex:1;}
+    .record-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border);}
+    .record-row:last-child{border-bottom:none;}
+    .record-pos{font-size:16px;font-weight:800;width:24px;color:var(--text-secondary);}
+    .cta-btn{display:inline-block;padding:12px 28px;border-radius:50px;background:var(--ocean-light);color:#080f1a;font-size:13px;font-weight:700;text-decoration:none;cursor:pointer;border:none;letter-spacing:.02em;}
+    .cta-btn.ghost{background:rgba(14,165,233,0.10);border:1px solid rgba(14,165,233,0.4);color:var(--ocean-light);}
+    .loading-msg{text-align:center;color:var(--text-secondary);padding:30px;font-size:13px;}
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-inner">
+        <a href="https://swimloading.com" style="display:flex;align-items:center;gap:7px;text-decoration:none;font-size:18px;font-weight:800;letter-spacing:-0.5px;background:linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;flex-shrink:0;"><img src="icons/logo-wave.png" alt="" style="height:22px;width:auto;">SwimLoading</a>
+        <div class="header-text">
+            <div class="header-title">English Channel</div>
+            <div class="header-sub">Shakespeare Beach &rarr; Cap Gris-Nez &middot; 33.8 km</div>
+            <div class="header-actions">
+                <div id="lastRefreshed" style="font-size:10px;color:var(--text-secondary);"></div>
+                <button id="refreshBtn" onclick="refreshAll()" title="Refresh" style="background:rgba(14,165,233,0.10);border:1px solid rgba(14,165,233,0.25);color:var(--ocean-light);border-radius:20px;padding:3px 10px;font-size:13px;cursor:pointer;line-height:1;">&#8635;</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="tab-bar" style="margin-top:14px;">
+        <button class="tab-btn active" onclick="showTab('now',this)">Now</button>
+        <button class="tab-btn" onclick="showTab('window',this)">Window</button>
+        <button class="tab-btn" onclick="showTab('records',this)">Records</button>
+        <button class="tab-btn" onclick="showTab('plan',this)">Plan</button>
+    </div>
+
+    <!-- ═══════════════════════ NOW ═══════════════════════ -->
+    <div id="panelNow" class="panel active">
+
+        <div id="goSignal" class="signal-card unknown">
+            <div class="signal-label">Channel Status</div>
+            <div class="signal-title">Checking conditions...</div>
+            <div class="signal-sub">Fetching NOAA satellite, Sandettie buoy and wave forecast.</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Live Conditions — Strait of Dover</div>
+            <div class="stat-grid-3">
+                <div class="stat-box"><div class="stat-val blue" id="sstVal">—</div><div class="stat-lbl">Sea Surface Temp<br>NOAA satellite</div></div>
+                <div class="stat-box"><div class="stat-val blue" id="windVal">—</div><div class="stat-lbl">Wind Speed<br>Sandettie buoy</div></div>
+                <div class="stat-box"><div class="stat-val blue" id="wtmpVal">—</div><div class="stat-lbl">Water Temp<br>Sandettie buoy</div></div>
+            </div>
+            <div class="stat-grid">
+                <div class="stat-box"><div class="stat-val blue" id="waveVal">—</div><div class="stat-lbl">Wave Height<br>Open-Meteo forecast</div></div>
+                <div class="stat-box"><div class="stat-val blue" id="swellVal">—</div><div class="stat-lbl">Swell Height<br>Open-Meteo forecast</div></div>
+            </div>
+            <div id="condUpdated" style="font-size:11px;color:var(--text-secondary);"></div>
+            <div style="font-size:10px;color:var(--text-secondary);opacity:.55;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);">NOAA OISST v2.1 satellite &middot; Sandettie Lightship (NDBC 62304) &middot; Open-Meteo Marine &middot; Updates every 30 min</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Tides — Dover</div>
+            <div id="tideCard" class="loading-msg">Loading tide data...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Conditions Checklist</div>
+            <div id="condChecklist" class="loading-msg">Checking...</div>
+        </div>
+
+    </div>
+
+    <!-- ═══════════════════════ WINDOW ═══════════════════════ -->
+    <div id="panelWindow" class="panel">
+
+        <div id="nextWindowCard"></div>
+
+        <div class="card">
+            <div class="card-label">7-Day Crossing Window</div>
+            <div id="crossingWindow" class="loading-msg">Analysing...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">7-Day Wind Forecast — Dover Strait</div>
+            <div id="windForecast" class="loading-msg">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">7-Day Wave &amp; Swell Forecast — Dover Strait</div>
+            <div id="swellForecast" class="loading-msg">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Water Temp by Month — Dover Strait</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">
+                Swim season runs late June to early October. September and October are the warmest months due to thermal lag; the trade-off is shorter days and deteriorating weather. Qualifying swims (6h in &le;16&deg;C) are typically done in May–June.
+            </div>
+            <div id="monthTable"></div>
+        </div>
+
+    </div>
+
+    <!-- ═══════════════════════ RECORDS ═══════════════════════ -->
+    <div id="panelRecords" class="panel">
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+            <div style="background:linear-gradient(135deg,rgba(14,165,233,0.12),rgba(14,165,233,0.04));border:1px solid rgba(14,165,233,0.3);border-radius:14px;padding:14px;text-align:center;">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:6px;">WORLD RECORD (E&rarr;F)</div>
+                <div style="font-size:22px;font-weight:900;color:var(--ocean-light);letter-spacing:-1px;">6:45:25</div>
+                <div style="font-size:12px;font-weight:700;color:var(--text-primary);margin-top:4px;">Andreas Waschburger</div>
+                <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">Sep 2023</div>
+            </div>
+            <div style="background:linear-gradient(135deg,rgba(14,165,233,0.12),rgba(14,165,233,0.04));border:1px solid rgba(14,165,233,0.3);border-radius:14px;padding:14px;text-align:center;">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:6px;">FIRST CROSSING</div>
+                <div style="font-size:22px;font-weight:900;color:var(--ocean-light);letter-spacing:-1px;">21:45</div>
+                <div style="font-size:12px;font-weight:700;color:var(--text-primary);margin-top:4px;">Matthew Webb</div>
+                <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">Aug 1875</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Solo Records — England &rarr; France</div>
+            <div class="record-row">
+                <div class="record-pos" style="color:#f59e0b;">1</div>
+                <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Andreas Waschburger</div><div style="font-size:11px;color:var(--text-secondary);">Sep 2023 &middot; England to France</div></div>
+                <div style="font-size:14px;font-weight:700;color:var(--ocean-light);">6:45:25</div>
+            </div>
+            <div class="record-row">
+                <div class="record-pos" style="color:#94a3b8;">2</div>
+                <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Trent Grimsey</div><div style="font-size:11px;color:var(--text-secondary);">Sep 2012 &middot; England to France &middot; previous record</div></div>
+                <div style="font-size:14px;font-weight:700;color:var(--ocean-light);">6:55:00</div>
+            </div>
+            <div class="record-row">
+                <div class="record-pos" style="color:#94a3b8;">—</div>
+                <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Richard Davey</div><div style="font-size:11px;color:var(--text-secondary);">1988 &middot; France to England (F&rarr;E direction, rarely attempted)</div></div>
+                <div style="font-size:14px;font-weight:700;color:var(--ocean-light);">8:05:00</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Multi-Way Records</div>
+            <div class="record-row">
+                <div style="width:56px;font-size:11px;font-weight:700;color:var(--ocean-light);">2-WAY</div>
+                <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Susie Maroney</div><div style="font-size:11px;color:var(--text-secondary);">1991 &middot; England→France→England (~68 km)</div></div>
+                <div style="font-size:14px;font-weight:700;color:var(--ocean-light);">17:14</div>
+            </div>
+            <div class="record-row">
+                <div style="width:56px;font-size:11px;font-weight:700;color:var(--ocean-light);">3-WAY</div>
+                <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Philip Rush</div><div style="font-size:11px;color:var(--text-secondary);">1987 &middot; Triple crossing</div></div>
+                <div style="font-size:14px;font-weight:700;color:var(--ocean-light);">28:21</div>
+            </div>
+            <div class="record-row">
+                <div style="width:56px;font-size:11px;font-weight:700;color:var(--ocean-light);">4-WAY</div>
+                <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Sarah Thomas</div><div style="font-size:11px;color:var(--text-secondary);">Sep 2019 &middot; Non-stop, breast cancer survivor</div></div>
+                <div style="font-size:14px;font-weight:700;color:var(--ocean-light);">54:10</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">By the Numbers</div>
+            <div class="stat-grid-3">
+                <div class="stat-box"><div class="stat-val blue">3,318</div><div class="stat-lbl">Ratified solo swims since 1875</div></div>
+                <div class="stat-box"><div class="stat-val amber">12–16h</div><div class="stat-lbl">Average crossing time</div></div>
+                <div class="stat-box"><div class="stat-val blue">~40km</div><div class="stat-lbl">Actual distance swum (spring tides)</div></div>
+            </div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;line-height:1.5;">Source: LongSwims Database (ultraswimming.org) &middot; Records updated Sep 2023</div>
+        </div>
+
+    </div>
+
+    <!-- ═══════════════════════ PLAN ═══════════════════════ -->
+    <div id="panelPlan" class="panel">
+
+        <div class="card">
+            <div class="card-label">Crossing Time Predictor</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Enter your pace to estimate your Channel crossing time. The model accounts for tidal sweep (adding 1–7 km to the straight-line distance) and cold-water pace reduction.</div>
+            <div style="display:flex;gap:6px;margin-bottom:12px;">
+                <button id="btnPool50" onclick="setPaceMode('pool50')" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.15);color:var(--ocean-light);font-size:12px;font-weight:600;cursor:pointer;">50m Pool</button>
+                <button id="btnPool25" onclick="setPaceMode('pool25')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;">25m Pool</button>
+                <button id="btnOW" onclick="setPaceMode('ow')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;">Open Water</button>
+            </div>
+            <input type="text" id="inputPace" placeholder="e.g. 18:00 (mm:ss per km)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;margin-bottom:6px;">
+            <div id="paceHint" style="font-size:11px;color:var(--text-secondary);margin-bottom:12px;">Your 1km pace from a continuous 50m pool swim — not intervals. What you sustain over 3km+ without stopping.</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+                <div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">Water temp (°C)</div>
+                    <input type="number" id="inputTemp" placeholder="e.g. 16" min="10" max="22" step="0.5" style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;">
+                    <div style="font-size:10px;color:var(--text-secondary);margin-top:3px;">Check Now tab for live reading</div>
+                </div>
+                <div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">Tide type</div>
+                    <select id="inputTide" style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:#111c30;color:var(--text-primary);font-size:13px;">
+                        <option value="neap">Neap — ~35 km effective</option>
+                        <option value="spring">Spring — ~40 km effective</option>
+                    </select>
+                    <div style="font-size:10px;color:var(--text-secondary);margin-top:3px;">Neap = HW Dover &lt;6.1m (check tides)</div>
+                </div>
+            </div>
+            <button onclick="calcCrossingTime()" style="width:100%;padding:11px;border-radius:8px;border:none;background:var(--ocean);color:white;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px;">Estimate My Crossing Time &rarr;</button>
+            <div id="predResult" style="display:none;"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Booking &amp; Costs</div>
+            <div class="fact-row"><div class="fact-key">Lead time</div><div class="fact-val">~2 years in advance; slots allocated by position within each neap tide window</div></div>
+            <div class="fact-row"><div class="fact-key">Weather wait</div><div class="fact-val">Swimmers typically wait ~1 week in Dover for a suitable weather window</div></div>
+            <div class="fact-row"><div class="fact-key">Pilot fee</div><div class="fact-val">£3,000–£4,500 GBP (deposit £700–£1,200 to secure the slot)</div></div>
+            <div class="fact-row"><div class="fact-key">CSA registration</div><div class="fact-val">~£390 solo (+ £35 info pack + £72.50 certificate); CS&amp;PF ~£720</div></div>
+            <div class="fact-row"><div class="fact-key">All-in estimate</div><div class="fact-val">£3,500–£5,000+ for a solo attempt</div></div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:12px;line-height:1.5;padding-top:10px;border-top:1px solid var(--border);">Costs are indicative from swimmer reports (2022–2024). Confirm current fees with your pilot and governing body.</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">About the Crossing</div>
+            <div class="fact-row"><div class="fact-key">Distance</div><div class="fact-val">33.8 km straight line; swimmers typically cover 35–40 km due to tidal sweep</div></div>
+            <div class="fact-row"><div class="fact-key">Governing bodies</div><div class="fact-val">Channel Swimming Association (CSA) and Channel Swimming &amp; Piloting Federation (CS&amp;PF)</div></div>
+            <div class="fact-row"><div class="fact-key">Season</div><div class="fact-val">Official CSA season: Apr 1 – Oct 31; practical swim window: late June to early October</div></div>
+            <div class="fact-row"><div class="fact-key">Qualifying swim</div><div class="fact-val">6-hour swim in water &le;16&deg;C (61&deg;F)</div></div>
+            <div class="fact-row"><div class="fact-key">World record</div><div class="fact-val">Andreas Waschburger, 6h 45m (Sep 2023) — England to France</div></div>
+            <div class="fact-row"><div class="fact-key">First crossing</div><div class="fact-val">Matthew Webb, 21h 45m (1875)</div></div>
+            <div class="fact-row"><div class="fact-key">Typical duration</div><div class="fact-val">12–16 hours average; slowest ~27 hours</div></div>
+            <div class="fact-row"><div class="fact-key">Traffic</div><div class="fact-val">Busiest shipping lane in the world — ~600 tankers + 200 ferries daily</div></div>
+            <div class="fact-row"><div class="fact-key">Completions</div><div class="fact-val">3,318 ratified solo swims since 1875 (LongSwims Database)</div></div>
+            <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
+                <a href="https://cspf.co.uk" target="_blank" rel="noopener" class="cta-btn ghost">CS&amp;PF Official Site</a>
+                <a href="https://www.channelswimmingassociation.com" target="_blank" rel="noopener" class="cta-btn ghost">Channel Swimming Association</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Community Logs — Near the Channel</div>
+            <div id="communityLogs" class="loading-msg">Loading community logs...</div>
+        </div>
+
+        <div class="card" style="text-align:center;">
+            <div class="card-label">Plan Your Crossing</div>
+            <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:16px;">SwimLoading tracks conditions at swim spots across the UK. Join the community logging Channel-area water temperatures.</div>
+            <a href="/app" class="cta-btn">Open SwimLoading</a>
+        </div>
+
+    </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+const DOVER_LAT = 51.1279;
+const DOVER_LNG = 1.3134;
+const WORLDTIDES_KEY = '7e54bed9-1290-4668-82da-aecaaa714a50';
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, storageKey: 'sb-szgkzuswelntnevobnoh-auth-token' }
+});
+
+let _cond = null;  // /api/channel-conditions
+let _wf = null;    // Open-Meteo wind daily
+let _mf = null;    // Open-Meteo marine daily
+let _paceMode = 'pool50';
+
+// ─── INIT ──────────────────────────────────────────────────────────────────────
+
+document.addEventListener('mousemove', e => {
+    document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+    document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+});
+
+async function init() {
+    [_cond, _wf, _mf] = await Promise.all([
+        fetchChannelConditions(),
+        fetchWindForecast(),
+        fetchMarineForecast()
+    ]);
+
+    // Now tab
+    updateStatBoxes();
+    buildGoSignal();
+    loadTides();
+    buildChecklist();
+
+    // Window tab
+    renderNextWindow();
+    renderCrossingWindow();
+    renderWindForecast();
+    renderSwellForecast();
+    renderMonthTable();
+
+    // Plan tab
+    loadCommunityLogs();
+    prefillTemp();
+
+    document.getElementById('lastRefreshed').textContent =
+        'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+    const btn = document.getElementById('refreshBtn');
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+}
+
+async function refreshAll() {
+    const btn = document.getElementById('refreshBtn');
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
+    _cond = null; _wf = null; _mf = null;
+    const reset = (id, msg) => { const e = document.getElementById(id); if (e) e.innerHTML = `<div class="loading-msg">${msg}</div>`; };
+    reset('tideCard', 'Loading tide data...');
+    reset('condChecklist', 'Checking...');
+    reset('crossingWindow', 'Analysing...');
+    reset('windForecast', 'Loading...');
+    reset('swellForecast', 'Loading...');
+    reset('communityLogs', 'Loading community logs...');
+    document.getElementById('nextWindowCard').innerHTML = '';
+    document.getElementById('goSignal').className = 'signal-card unknown';
+    document.getElementById('goSignal').innerHTML = '<div class="signal-label">Channel Status</div><div class="signal-title">Checking conditions...</div><div class="signal-sub">Fetching live data.</div>';
+    await init();
+}
+
+// ─── TAB SWITCHING ─────────────────────────────────────────────────────────────
+
+function showTab(name, btn) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('panel' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+    btn.classList.add('active');
+}
+
+// ─── HELPERS ───────────────────────────────────────────────────────────────────
+
+function windDir(deg) {
+    const d = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+    return d[Math.round(deg / 22.5) % 16];
+}
+
+function timeAgo(ts) {
+    const diff = (Date.now() - new Date(ts)) / 60000;
+    if (diff < 60) return `${Math.round(diff)}m ago`;
+    if (diff < 1440) return `${Math.round(diff / 60)}h ago`;
+    return `${Math.round(diff / 1440)}d ago`;
+}
+
+function secsToHMS(s) {
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = Math.floor(s % 60);
+    return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+function parsePace(str) {
+    const m = str.trim().match(/^(\d+):(\d{2})$/);
+    if (!m) return null;
+    return parseInt(m[1]) * 60 + parseInt(m[2]);
+}
+
+// ─── DATA FETCHING ─────────────────────────────────────────────────────────────
+
+async function fetchChannelConditions() {
+    try {
+        const res = await fetch('/api/channel-conditions');
+        if (!res.ok) return null;
+        return await res.json();
+    } catch { return null; }
+}
+
+async function fetchWindForecast() {
+    const today = new Date().toISOString().split('T')[0];
+    const end = new Date(); end.setDate(end.getDate() + 6);
+    const endStr = end.toISOString().split('T')[0];
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${DOVER_LAT}&longitude=${DOVER_LNG}&daily=wind_speed_10m_max,wind_direction_10m_dominant,wind_gusts_10m_max&wind_speed_unit=kn&timezone=Europe%2FLondon&start_date=${today}&end_date=${endStr}`;
+    try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 6000);
+        const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+        clearTimeout(timer);
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.daily || null;
+    } catch { return null; }
+}
+
+async function fetchMarineForecast() {
+    const today = new Date().toISOString().split('T')[0];
+    const end = new Date(); end.setDate(end.getDate() + 6);
+    const endStr = end.toISOString().split('T')[0];
+    const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${DOVER_LAT}&longitude=${DOVER_LNG}&daily=wave_height_max,swell_wave_height_max,wave_period_max&timezone=Europe%2FLondon&start_date=${today}&end_date=${endStr}`;
+    try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 6000);
+        const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+        clearTimeout(timer);
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.daily || null;
+    } catch { return null; }
+}
+
+// ─── NOW TAB ───────────────────────────────────────────────────────────────────
+
+function updateStatBoxes() {
+    const sstC = _cond?.sst_c ?? null;
+    const windKt = _cond?.wind_kt ?? null;
+    const wtmpC = _cond?.wtmp_c ?? null;
+    const waveH = _mf?.wave_height_max?.[0] ?? null;
+    const swellH = _mf?.swell_wave_height_max?.[0] ?? null;
+
+    document.getElementById('sstVal').textContent = sstC !== null ? sstC + '°C' : 'N/A';
+    document.getElementById('windVal').textContent = windKt !== null ? windKt + ' kt' : 'N/A';
+    document.getElementById('wtmpVal').textContent = wtmpC !== null ? wtmpC + '°C' : 'N/A';
+    document.getElementById('waveVal').textContent = waveH !== null ? waveH.toFixed(1) + 'm' : 'N/A';
+    document.getElementById('swellVal').textContent = swellH !== null ? swellH.toFixed(1) + 'm' : 'N/A';
+
+    const ts = new Date().toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const allNull = sstC === null && windKt === null && wtmpC === null;
+    document.getElementById('condUpdated').textContent = allNull ? 'Live data unavailable — using forecast data only.' : 'Updated: ' + ts;
+}
+
+function buildGoSignal() {
+    const el = document.getElementById('goSignal');
+    const sstC = _cond?.sst_c ?? null;
+    const wtmpC = _cond?.wtmp_c ?? null;
+    const buoyWind = _cond?.wind_kt ?? null;
+    const forecastWind = _wf?.wind_speed_10m_max?.[0] ?? null;
+    const waveH = _mf?.wave_height_max?.[0] ?? null;
+
+    const temp = sstC !== null ? sstC : wtmpC;
+    const wind = buoyWind !== null ? buoyWind : forecastWind;
+
+    if (temp === null && wind === null) {
+        el.className = 'signal-card unknown';
+        el.innerHTML = `<div class="signal-label">Channel Status</div><div class="signal-title">Data unavailable</div><div class="signal-sub">Live sources could not be reached. Check the Window tab for the 7-day forecast.</div>`;
+        return;
+    }
+
+    const t = temp ?? 14;
+    const w = wind ?? 999;
+    const wv = waveH ?? 0;
+
+    let cls, title, sub;
+    if (t >= 16 && w <= 15 && wv <= 1.5) {
+        cls = 'go'; title = 'GO';
+        sub = `Water ${t}°C, wind ${w.toFixed(0)} kt, waves ${wv.toFixed(1)}m — conditions are in the crossing window.`;
+    } else if (t >= 14 && w <= 20 && wv <= 2.5) {
+        cls = 'caution'; title = 'WAIT';
+        const why = [];
+        if (t < 16) why.push(`water ${t}°C`);
+        if (w > 15) why.push(`wind ${w.toFixed(0)}kt`);
+        if (wv > 1.5) why.push(`waves ${wv.toFixed(1)}m`);
+        sub = `Marginal — ${why.join(', ')}. Monitor closely and confirm with your pilot.`;
+    } else {
+        cls = 'wait'; title = 'NO-GO';
+        const why = [];
+        if (t < 14) why.push(`water ${t}°C (below 14°C)`);
+        if (w > 20) why.push(`wind ${w.toFixed(0)}kt`);
+        if (wv > 2.5) why.push(`waves ${wv.toFixed(1)}m`);
+        sub = why.join(' · ') || 'Outside crossing conditions.';
+    }
+
+    const windSrc = buoyWind !== null ? 'Sandettie buoy' : 'Open-Meteo forecast';
+    const tempSrc = sstC !== null ? 'NOAA satellite' : (wtmpC !== null ? 'Sandettie buoy' : 'no reading');
+    el.className = 'signal-card ' + cls;
+    el.innerHTML = `<div class="signal-label">Channel Status</div><div class="signal-title">${title}</div><div class="signal-sub">${sub}</div><div class="signal-attr">GO: &ge;16°C, &le;15kt, &le;1.5m &middot; WAIT: &ge;14°C, &le;20kt, &le;2.5m &middot; Temp: ${tempSrc} &middot; Wind: ${windSrc}</div>`;
+}
+
+async function loadTides() {
+    const el = document.getElementById('tideCard');
+
+    const fallback = `<div style="font-size:12px;color:var(--text-secondary);line-height:1.65;"><strong style="color:var(--text-primary);">Semi-diurnal</strong> — 2 highs, 2 lows per ~24h. Tidal range: ~6m spring, ~3m neap.<br><br>
+        <strong style="color:var(--warning);">Tidal current shapes your crossing.</strong> The Channel sweeps in an S-curve — flood (NE current) for the first half, ebb (SW current) for the second. Neap tides are slower and more predictable; slower swimmers should book neap windows to avoid overshoot past Cap Gris-Nez. HW Dover &lt;6.1m = neap; &gt;6.1m = spring.<br><br>
+        Live tide times: <a href="https://www.tidetimes.org.uk/dover-tide-times" target="_blank" style="color:var(--ocean-light);">tidetimes.org.uk (Dover)</a></div>`;
+
+    try {
+        const url = `https://www.worldtides.info/api/v3?extremes&lat=${DOVER_LAT}&lon=${DOVER_LNG}&days=2&datum=LAT&key=${WORLDTIDES_KEY}&_=${Date.now()}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        const data = await res.json();
+        if (!data.extremes?.length) { el.innerHTML = fallback; return; }
+
+        const now = Date.now() / 1000;
+        const extremes = data.extremes.slice(0, 8);
+        const upcoming = extremes.filter(e => e.dt > now);
+        const nextTide = upcoming[0];
+        const nextHigh = upcoming.find(e => e.type === 'High');
+        const isSpring = nextHigh && nextHigh.height > 6.1;
+
+        const tideState = nextTide?.type === 'High' ? 'Ebbing (falling)' : 'Flooding (rising)';
+        const tideCol = nextTide?.type === 'High' ? 'var(--ocean-light)' : 'var(--success)';
+        const nextLabel = nextTide
+            ? `Next ${nextTide.type}: ${new Date(nextTide.dt * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} (${nextTide.height.toFixed(1)}m)`
+            : '—';
+        const tideName = isSpring ? 'Spring tides — HW >' + nextHigh.height.toFixed(1) + 'm' : 'Neap tides — HW <6.1m';
+        const tideAdvice = isSpring
+            ? 'Spring tide: stronger currents and greater tidal sweep — faster swimmers can benefit, but slower swimmers risk overshooting Cap Gris-Nez.'
+            : 'Neap tide: slower currents, more predictable S-curve — preferred window for most swimmers.';
+        const crossingHint = nextTide?.type === 'Low'
+            ? 'Flood starting — good time to begin outbound leg'
+            : 'Ebb running — current pushing SW; confirm timing with your pilot';
+
+        const rows = extremes.slice(0, 6).map(e => {
+            const t = new Date(e.dt * 1000);
+            const past = e.dt < now;
+            return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);opacity:${past ? .45 : 1};">
+                <div style="width:90px;font-size:11px;color:var(--text-secondary);">${t.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</div>
+                <div style="width:48px;font-size:12px;font-weight:600;color:var(--text-primary);">${t.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
+                <div style="flex:1;font-size:12px;color:${e.type === 'High' ? 'var(--ocean-light)' : 'var(--success)'};">${e.type}${e.type === 'High' && e.height > 6.1 ? ' <span style="font-size:9px;color:var(--warning);">spring</span>' : ''}</div>
+                <div style="font-size:13px;font-weight:700;color:var(--text-primary);">${e.height.toFixed(1)}m</div>
+            </div>`;
+        }).join('');
+
+        el.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:8px;">
+                <div>
+                    <div style="font-size:18px;font-weight:800;color:${tideCol};">${tideState}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${nextLabel}</div>
+                    <div style="font-size:11px;color:${isSpring ? 'var(--warning)' : 'var(--success)'};margin-top:4px;font-weight:600;">${tideName}</div>
+                </div>
+                <div style="text-align:right;font-size:11px;color:var(--text-secondary);max-width:160px;line-height:1.4;">${crossingHint}</div>
+            </div>
+            <div style="font-size:11px;color:var(--text-secondary);background:rgba(14,165,233,0.06);border:1px solid rgba(14,165,233,0.15);border-radius:8px;padding:8px 10px;margin-bottom:12px;line-height:1.5;">${tideAdvice}</div>
+            ${rows}
+            <div style="font-size:10px;color:var(--text-secondary);margin-top:8px;">Dover Harbour · WorldTides · HW Dover &lt;6.1m = neap; &gt;6.1m = spring</div>`;
+    } catch {
+        el.innerHTML = fallback;
+    }
+}
+
+function buildChecklist() {
+    const el = document.getElementById('condChecklist');
+    const sstC = _cond?.sst_c ?? null;
+    const wtmpC = _cond?.wtmp_c ?? null;
+    const buoyWind = _cond?.wind_kt ?? null;
+    const forecastWind = _wf?.wind_speed_10m_max?.[0] ?? null;
+    const waveH = _mf?.wave_height_max?.[0] ?? null;
+    const temp = sstC !== null ? sstC : wtmpC;
+    const wind = buoyWind !== null ? buoyWind : forecastWind;
+    const month = new Date().getMonth();
+    const inSeason = month >= 5 && month <= 9;
+
+    const checks = [
+        {
+            ok: temp !== null && temp >= 16,
+            warn: temp !== null && temp >= 14 && temp < 16,
+            label: temp !== null ? `Water temp — ${temp}°C` : 'Water temp — no data',
+            pass: 'At or above 16°C — CSA crossing threshold met.',
+            warn_msg: `${temp}°C — below ideal 16°C; cold tolerance and cold-water experience required.`,
+            fail: temp === null ? 'No live temperature. Check monthly averages in Window tab.' : `${temp}°C — below 14°C; very cold for a Channel attempt.`
+        },
+        {
+            ok: wind !== null && wind <= 15,
+            warn: wind !== null && wind <= 20,
+            label: wind !== null ? `Wind — ${wind.toFixed(0)} kt` : 'Wind — no data',
+            pass: 'Light wind — ideal conditions. Beaufort F3 or below.',
+            warn_msg: `${wind?.toFixed(0)}kt — marginal. Beaufort F4. Discuss with your pilot before committing.`,
+            fail: wind === null ? 'No wind data. Check 7-day forecast in Window tab.' : `${wind?.toFixed(0)}kt — Beaufort F5+. Crossing not recommended.`
+        },
+        {
+            ok: waveH !== null && waveH <= 1.5,
+            warn: waveH !== null && waveH <= 2.5,
+            label: waveH !== null ? `Waves — ${waveH.toFixed(1)}m` : 'Waves — no forecast',
+            pass: 'Calm sea — good conditions.',
+            warn_msg: `${waveH?.toFixed(1)}m — choppy. Experienced swimmers can manage.`,
+            fail: waveH === null ? 'No wave data. Check Window tab.' : `${waveH?.toFixed(1)}m — rough conditions; crossing inadvisable.`
+        },
+        {
+            ok: inSeason,
+            warn: !inSeason && (month === 4 || month === 10),
+            label: `Season — ${inSeason ? 'Open (Jun–Oct)' : 'Outside prime window'}`,
+            pass: 'Within the June–October swim season.',
+            warn_msg: 'Edge of season (May or November). CSA season runs Apr 1–Oct 31 but conditions are marginal.',
+            fail: 'Outside the official season (Apr 1 – Oct 31). Training swims only.'
+        }
+    ];
+
+    const windSrc = buoyWind !== null ? '' : ' (forecast)';
+    el.innerHTML = checks.map(c => {
+        const icon = c.ok ? '&#10003;' : c.warn ? '&#9888;' : '&#10007;';
+        const col = c.ok ? 'var(--success)' : c.warn ? 'var(--warning)' : 'var(--danger)';
+        const msg = c.ok ? c.pass : c.warn ? c.warn_msg : c.fail;
+        return `<div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+            <div style="font-size:16px;color:${col};font-weight:700;flex-shrink:0;width:20px;">${icon}</div>
+            <div><div style="font-size:13px;font-weight:600;color:var(--text-primary);">${c.label}</div><div style="font-size:12px;color:${col};margin-top:2px;line-height:1.4;">${msg}</div></div>
+        </div>`;
+    }).join('') + `<div style="font-size:10px;color:var(--text-secondary);margin-top:10px;">All go/no-go decisions must be made with your pilot. This is an information tool, not a safety clearance.</div>`;
+}
+
+// ─── WINDOW TAB ────────────────────────────────────────────────────────────────
+
+function renderNextWindow() {
+    const el = document.getElementById('nextWindowCard');
+    if (!_wf && !_mf) { el.innerHTML = ''; return; }
+
+    const days = (_wf?.time || _mf?.time || []).length;
+    const scored = Array.from({ length: days }, (_, i) => {
+        const wind = _wf?.wind_speed_10m_max?.[i] ?? null;
+        const wave = _mf?.wave_height_max?.[i] ?? null;
+        const windOk = wind === null ? true : wind <= 15;
+        const windMarg = wind === null ? true : wind <= 20;
+        const waveOk = wave === null ? true : wave <= 1.5;
+        const waveMarg = wave === null ? true : wave <= 2.5;
+        const tier = (windOk && waveOk) ? 'go' : (windMarg && waveMarg) ? 'check' : 'nogo';
+        return { i, tier, wind, wave, date: (_wf?.time || _mf?.time)[i] };
+    });
+
+    const best = scored.find(d => d.tier === 'go') || scored.find(d => d.tier === 'check');
+    if (!best) {
+        el.innerHTML = `<div class="card" style="border-left:3px solid var(--danger);padding:16px;margin-bottom:14px;"><div class="card-label">Next Crossing Window</div><div style="font-size:14px;color:var(--text-secondary);margin-top:4px;">No favourable wind/wave window in the next 7 days. Wait for calmer conditions.</div></div>`;
+        return;
+    }
+
+    const dayLabel = best.i === 0 ? 'Today' : best.i === 1 ? 'Tomorrow' : new Date(best.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+    const sig = best.tier === 'go' ? { label: 'GO', col: 'var(--success)' } : { label: 'CHECK', col: 'var(--warning)' };
+    const windStr = best.wind !== null ? `${best.wind.toFixed(0)}kt wind` : '—';
+    const waveStr = best.wave !== null ? `${best.wave.toFixed(1)}m waves` : '—';
+
+    const strips = scored.slice(0, 7).map(d => {
+        const col = d.tier === 'go' ? '#10b981' : d.tier === 'check' ? '#f59e0b' : '#ef4444';
+        const lbl = d.i === 0 ? 'Today' : MONTHS[new Date(d.date).getMonth()] + ' ' + new Date(d.date).getDate();
+        return `<div style="text-align:center;flex:1;${d.i === best.i ? 'font-weight:700;' : 'opacity:.5;'}"><div style="font-size:9px;color:var(--text-secondary);">${lbl}</div><div style="width:10px;height:10px;border-radius:50%;background:${col};margin:4px auto 0;"></div></div>`;
+    }).join('');
+
+    el.innerHTML = `<div class="card" style="border-left:3px solid ${sig.col};padding:16px;margin-bottom:14px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;">
+            <div><div style="font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:4px;">NEXT CROSSING WINDOW</div>
+            <div style="font-size:20px;font-weight:800;color:${sig.col};">${dayLabel}</div>
+            <div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">${windStr} &middot; ${waveStr}</div></div>
+            <div style="text-align:right;"><div style="font-size:22px;font-weight:900;color:${sig.col};">${sig.label}</div><div style="font-size:10px;color:var(--text-secondary);">crossing signal</div></div>
+        </div>
+        <div style="display:flex;gap:4px;background:rgba(0,0,0,0.2);border-radius:8px;padding:8px;">${strips}</div>
+        <div style="font-size:10px;color:var(--text-secondary);margin-top:8px;">Wind + wave only. Water temp and tidal timing must also be checked. Always confirm with your pilot.</div>
+    </div>`;
+}
+
+function renderCrossingWindow() {
+    const el = document.getElementById('crossingWindow');
+    if (!_wf && !_mf) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Forecast data unavailable.</div>'; return; }
+
+    const days = (_wf?.time || _mf?.time || []).length;
+    let html = '';
+    for (let i = 0; i < days; i++) {
+        const date = (_wf?.time || _mf?.time)[i];
+        const wind = _wf?.wind_speed_10m_max?.[i] ?? null;
+        const wave = _mf?.wave_height_max?.[i] ?? null;
+        const dayName = i === 0 ? 'Today' : new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+
+        let cls, label, detail;
+        const windOk = wind === null ? true : wind <= 15;
+        const windMarg = wind === null ? true : wind <= 20;
+        const waveOk = wave === null ? true : wave <= 1.5;
+        const waveMarg = wave === null ? true : wave <= 2.5;
+
+        if (windOk && waveOk) {
+            cls = 'go'; label = 'GO';
+            const p = []; if (wind !== null) p.push(`${wind.toFixed(0)}kt`); if (wave !== null) p.push(`${wave.toFixed(1)}m`);
+            detail = p.join(', ') || 'Conditions look good';
+        } else if (windMarg && waveMarg) {
+            cls = 'caution'; label = 'WAIT';
+            const p = []; if (wind > 15) p.push(`${wind.toFixed(0)}kt wind`); if (wave > 1.5) p.push(`${wave.toFixed(1)}m swell`);
+            detail = 'Marginal — ' + p.join(', ');
+        } else {
+            cls = 'wait'; label = 'NO-GO';
+            const p = []; if (wind > 20) p.push(`wind ${wind.toFixed(0)}kt`); if (wave > 2.5) p.push(`waves ${wave.toFixed(1)}m`);
+            detail = p.join(', ') || 'Outside thresholds';
+        }
+
+        const bgCol = cls === 'go' ? 'rgba(34,197,94,0.08)' : cls === 'caution' ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.06)';
+        const borderCol = cls === 'go' ? 'rgba(34,197,94,0.3)' : cls === 'caution' ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.25)';
+        const labelCol = cls === 'go' ? 'var(--success)' : cls === 'caution' ? 'var(--warning)' : 'var(--danger)';
+        html += `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:${i===0?'2px':'1px'} solid ${borderCol};background:${bgCol};margin-bottom:8px;">
+            <div style="width:80px;font-size:12px;font-weight:${i===0?700:500};color:${i===0?'var(--ocean-light)':'var(--text-primary)'};">${dayName}</div>
+            <div style="flex:1;font-size:12px;color:var(--text-secondary);">${detail}</div>
+            <div style="font-size:13px;font-weight:800;color:${labelCol};">${label}</div>
+        </div>`;
+    }
+    el.innerHTML = html + `<div style="font-size:10px;color:var(--text-secondary);padding:4px 0;">Wind &le;15kt + waves &le;1.5m = GO &middot; Temp and tidal timing not included.</div>`;
+}
+
+function renderWindForecast() {
+    const el = document.getElementById('windForecast');
+    if (!_wf) {
+        el.innerHTML = `<div style="font-size:13px;color:var(--text-secondary);">Wind forecast unavailable. <a href="https://www.windy.com/51.128/1.313?wind,51.128,1.313,10" target="_blank" style="color:var(--ocean-light);">Open Windy.com &rarr;</a></div>`;
+        return;
+    }
+    const rows = _wf.time.map((date, i) => {
+        const spd = _wf.wind_speed_10m_max[i];
+        const dir = _wf.wind_direction_10m_dominant[i];
+        const gust = _wf.wind_gusts_10m_max[i];
+        const dirLabel = windDir(dir);
+        const isToday = i === 0;
+        const dayName = isToday ? 'Today' : new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+        const spdCol = spd <= 10 ? 'var(--success)' : spd <= 15 ? 'var(--ocean-light)' : spd <= 20 ? 'var(--warning)' : 'var(--danger)';
+        const spdLabel = spd <= 10 ? 'F1–2' : spd <= 15 ? 'F3' : spd <= 20 ? 'F4' : 'F5+';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);${isToday?'background:rgba(14,165,233,0.06);margin:0 -4px;padding:9px 4px;border-radius:8px;':''}">
+            <div style="width:80px;font-size:12px;font-weight:${isToday?700:400};color:${isToday?'var(--ocean-light)':'var(--text-primary)'};">${dayName}</div>
+            <div style="font-size:18px;"><span style="display:inline-block;transform:rotate(${(dir+180)%360}deg);">&#8593;</span></div>
+            <div style="flex:1;">
+                <div style="font-size:13px;font-weight:600;">${dirLabel} ${spd?.toFixed(0)||'?'} kt</div>
+                <div style="font-size:11px;color:var(--text-secondary);">Gusts ${gust?.toFixed(0)||'?'} kt</div>
+            </div>
+            <div style="font-size:12px;font-weight:600;color:${spdCol};">${spdLabel}</div>
+        </div>`;
+    }).join('');
+    el.innerHTML = rows + `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo · Dover Strait · Daily max wind in knots · F3=ideal, F4=marginal, F5+=no-go</div>`;
+}
+
+function renderSwellForecast() {
+    const el = document.getElementById('swellForecast');
+    if (!_mf) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Marine forecast unavailable.</div>'; return; }
+    const rows = _mf.time.map((date, i) => {
+        const wh = _mf.wave_height_max[i];
+        const sw = _mf.swell_wave_height_max?.[i];
+        const wp = _mf.wave_period_max?.[i];
+        const isToday = i === 0;
+        const dayName = isToday ? 'Today' : new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+        const wCol = wh <= 1 ? 'var(--success)' : wh <= 1.5 ? 'var(--ocean-light)' : wh <= 2.5 ? 'var(--warning)' : 'var(--danger)';
+        const wLabel = wh <= 1 ? 'Calm' : wh <= 1.5 ? 'Slight' : wh <= 2.5 ? 'Moderate' : 'Rough';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);${isToday?'background:rgba(14,165,233,0.06);margin:0 -4px;padding:9px 4px;border-radius:8px;':''}">
+            <div style="width:80px;font-size:12px;font-weight:${isToday?700:400};color:${isToday?'var(--ocean-light)':'var(--text-primary)'};">${dayName}</div>
+            <div style="flex:1;">
+                <div style="font-size:13px;font-weight:600;">Wave ${wh?.toFixed(1)}m${sw != null ? ` · Swell ${sw?.toFixed(1)}m` : ''}</div>
+                <div style="font-size:11px;color:var(--text-secondary);">${wp != null ? `Period ${wp?.toFixed(0)}s` : ''}</div>
+            </div>
+            <div style="font-size:12px;font-weight:600;color:${wCol};">${wLabel}</div>
+        </div>`;
+    }).join('');
+    el.innerHTML = rows + `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo Marine · Dover Strait · Significant wave height</div>`;
+}
+
+// ─── MONTHLY TABLE ─────────────────────────────────────────────────────────────
+
+const MONTHLY = [
+    { name:'January',   temp:'8–9°C',   cond:'Too cold',                  season:false },
+    { name:'February',  temp:'7–8°C',   cond:'Too cold',                  season:false },
+    { name:'March',     temp:'7–8°C',   cond:'Too cold',                  season:false },
+    { name:'April',     temp:'9–10°C',  cond:'Too cold',                  season:false },
+    { name:'May',       temp:'11–13°C', cond:'Qualifying swims',          season:false },
+    { name:'June',      temp:'14–16°C', cond:'Season opens',              season:true  },
+    { name:'July',      temp:'16–17°C', cond:'Prime season',              season:true  },
+    { name:'August',    temp:'17–18°C', cond:'Warmest / busiest',         season:true  },
+    { name:'September', temp:'17–18°C', cond:'Peak water temp',           season:true  },
+    { name:'October',   temp:'16–17°C', cond:'Shoulder; fewer daylight hours', season:false },
+    { name:'November',  temp:'12–13°C', cond:'Too cold',                  season:false },
+    { name:'December',  temp:'9–11°C',  cond:'Too cold',                  season:false },
+];
+
+function renderMonthTable() {
+    const m = new Date().getMonth();
+    document.getElementById('monthTable').innerHTML = MONTHLY.map((row, i) => `
+        <div class="month-row ${row.season ? 'season' : 'off'}${i === m ? ' current' : ''}">
+            <div class="month-name">${row.name}</div>
+            <div class="month-temp">${row.temp}</div>
+            <div class="month-cond">${row.cond}</div>
+            <div class="month-flag ${row.season ? 'in' : 'out'}">${row.season ? '&#10003;' : '&#10007;'}</div>
+        </div>`).join('');
+}
+
+// ─── COMMUNITY LOGS ────────────────────────────────────────────────────────────
+
+async function loadCommunityLogs() {
+    const el = document.getElementById('communityLogs');
+    try {
+        const { data: logs, error } = await sb.from('temp_logs')
+            .select('temp_c, conditions, created_at, spots!temp_logs_spot_id_fkey!inner(name, country_code)')
+            .eq('spots.country_code', 'GB')
+            .order('created_at', { ascending: false })
+            .limit(5);
+        if (error) throw error;
+        el.classList.remove('loading-msg');
+        if (!logs?.length) {
+            el.innerHTML = `<div style="text-align:center;padding:10px 0;"><div style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:14px;">No Channel conditions logged yet. Swim near Dover? Log the water temperature and help the community.</div><a href="/app" class="cta-btn ghost">Log a Temperature</a></div>`;
+            return;
+        }
+        el.innerHTML = logs.map(l => `
+            <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border);">
+                <div style="flex:1;">
+                    <div style="font-size:13px;font-weight:600;">${l.spots?.name || 'Unknown spot'}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);">${timeAgo(l.created_at)}${l.conditions ? ' &middot; ' + l.conditions : ''}</div>
+                </div>
+                <div style="font-size:15px;font-weight:700;color:var(--ocean-light);">${parseFloat(l.temp_c).toFixed(1)}&deg;C</div>
+            </div>`).join('');
+    } catch {
+        el.classList.remove('loading-msg');
+        el.innerHTML = `<div style="text-align:center;padding:10px 0;"><div style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:14px;">No Channel conditions logged yet.</div><a href="/app" class="cta-btn ghost">Log a Temperature</a></div>`;
+    }
+}
+
+// ─── CROSSING TIME PREDICTOR ───────────────────────────────────────────────────
+
+function setPaceMode(mode) {
+    _paceMode = mode;
+    ['pool50','pool25','ow'].forEach(m => {
+        const btn = document.getElementById('btn' + (m === 'pool50' ? 'Pool50' : m === 'pool25' ? 'Pool25' : 'OW'));
+        const active = m === mode;
+        btn.style.background = active ? 'rgba(14,165,233,0.15)' : 'transparent';
+        btn.style.color = active ? 'var(--ocean-light)' : 'var(--text-secondary)';
+        btn.style.borderColor = active ? 'rgba(14,165,233,0.4)' : 'rgba(255,255,255,0.08)';
+    });
+    const hints = {
+        pool50: 'Your 1km pace from a continuous 50m pool swim — not intervals. What you sustain over 3km+ without stopping.',
+        pool25: 'Your 1km pace from a continuous 25m pool swim — not intervals. What you sustain over 3km+ without stopping.',
+        ow: 'Your 1km pace in open water — sustained effort over distance, not a sprint.'
+    };
+    document.getElementById('paceHint').textContent = hints[mode];
+}
+
+function prefillTemp() {
+    const temp = _cond?.wtmp_c ?? _cond?.sst_c ?? null;
+    if (temp !== null) document.getElementById('inputTemp').value = temp.toFixed(1);
+}
+
+function calcCrossingTime() {
+    const paceStr = document.getElementById('inputPace').value;
+    const tempStr = document.getElementById('inputTemp').value;
+    const tideType = document.getElementById('inputTide').value;
+    const paceSecPerKm = parsePace(paceStr);
+    if (!paceSecPerKm) { alert('Enter your pace as mm:ss per km (e.g. 18:00)'); return; }
+
+    // Pool → OW conversion (turns + open-water overhead)
+    let owPace = paceSecPerKm;
+    if (_paceMode === 'pool50') owPace = paceSecPerKm * 1.13;
+    if (_paceMode === 'pool25') owPace = paceSecPerKm * 1.19;
+
+    // Effective distance depends on tidal sweep
+    const effKm = tideType === 'spring' ? 40 : 35;
+
+    // Cold-water factor
+    const temp = parseFloat(tempStr) || 16;
+    const cold = temp >= 16 ? 1.0 : temp >= 15 ? 1.03 : temp >= 14 ? 1.06 : temp >= 13 ? 1.10 : 1.15;
+
+    const swimSecs = effKm * owPace * cold;
+    const feedSecs = 1200; // ~20 min of feeds
+    const total = swimSecs + feedSecs;
+
+    const paceLabel = _paceMode === 'pool50' ? '50m pool' : _paceMode === 'pool25' ? '25m pool' : 'open water';
+    const effPaceStr = `${Math.floor(owPace / 60)}:${String(Math.round(owPace % 60)).padStart(2,'0')}`;
+    const coldNote = cold === 1.0 ? 'none' : `+${Math.round((cold - 1) * 100)}% at ${temp}°C`;
+
+    const el = document.getElementById('predResult');
+    el.style.display = 'block';
+    el.innerHTML = `<div style="background:rgba(14,165,233,0.08);border:1px solid rgba(14,165,233,0.25);border-radius:12px;padding:16px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:8px;">Estimated Crossing Time</div>
+        <div style="font-size:36px;font-weight:900;color:var(--ocean-light);letter-spacing:-1px;margin-bottom:4px;">${secsToHMS(total)}</div>
+        <div style="font-size:12px;color:var(--text-secondary);line-height:1.9;">
+            <div>OW pace: ${effPaceStr}/km${_paceMode !== 'ow' ? ` (converted from ${paceStr} ${paceLabel})` : ''}</div>
+            <div>Effective distance: ${effKm} km (${tideType} tide)</div>
+            <div>Cold-water adjustment: ${coldNote}</div>
+            <div>Feed allowance: 20 min</div>
+        </div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);">Estimate only. Actual time depends on conditions, navigation, and the Channel on the day. Always work with an experienced pilot.</div>
+    </div>`;
+}
+
+// ─── BOOT ──────────────────────────────────────────────────────────────────────
+
+init();
+</script>
+</body>
+</html>
