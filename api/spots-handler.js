@@ -782,6 +782,13 @@ function pageShell({ title, description, canonical, jsonLd, body, ogImage }) {
   <meta name="twitter:description" content="${escapeHtml(description)}">
   <meta name="twitter:image" content="${image}">
   ${ldTags}
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-89R519Y9T4"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-89R519Y9T4');
+  </script>
   <style>${INLINE_CSS}</style>
 </head>
 <body>
