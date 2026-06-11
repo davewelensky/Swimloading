@@ -112,9 +112,9 @@
         <div class="card">
             <div class="card-label">Live Conditions — Strait of Dover</div>
             <div class="stat-grid-3">
-                <div class="stat-box"><div class="stat-val blue" id="sstVal">—</div><div class="stat-lbl">Sea Surface Temp<br>NOAA satellite</div></div>
-                <div class="stat-box"><div class="stat-val blue" id="windVal">—</div><div class="stat-lbl">Wind Speed<br>Sandettie buoy</div></div>
-                <div class="stat-box"><div class="stat-val blue" id="wtmpVal">—</div><div class="stat-lbl">Water Temp<br>Sandettie buoy</div></div>
+                <div class="stat-box"><div class="stat-val blue" id="sstVal">—</div><div class="stat-lbl" id="sstSrc">Sea Surface Temp<br>Loading...</div></div>
+                <div class="stat-box"><div class="stat-val blue" id="windVal">—</div><div class="stat-lbl" id="windSrc">Wind Speed<br>Loading...</div></div>
+                <div class="stat-box"><div class="stat-val blue" id="wtmpVal">—</div><div class="stat-lbl" id="wtmpSrc">Water Temp<br>Loading...</div></div>
             </div>
             <div class="stat-grid">
                 <div class="stat-box"><div class="stat-val blue" id="waveVal">—</div><div class="stat-lbl">Wave Height<br>Open-Meteo forecast</div></div>
@@ -140,6 +140,8 @@
     <div id="panelWindow" class="panel">
 
         <div id="nextWindowCard"></div>
+
+        <div id="crossingIntelligence"></div>
 
         <div class="card">
             <div class="card-label">7-Day Crossing Window</div>
@@ -346,6 +348,7 @@ async function init() {
 
     // Window tab
     renderNextWindow();
+    buildCrossingIntelligence();
     renderCrossingWindow();
     renderWindForecast();
     renderSwellForecast();
@@ -374,6 +377,7 @@ async function refreshAll() {
     reset('swellForecast', 'Loading...');
     reset('communityLogs', 'Loading community logs...');
     document.getElementById('nextWindowCard').innerHTML = '';
+    document.getElementById('crossingIntelligence').innerHTML = '';
     document.getElementById('goSignal').className = 'signal-card unknown';
     document.getElementById('goSignal').innerHTML = '<div class="signal-label">Channel Status</div><div class="signal-title">Checking conditions...</div><div class="signal-sub">Fetching live data.</div>';
     await init();
@@ -443,7 +447,7 @@ async function fetchMarineForecast() {
     const today = new Date().toISOString().split('T')[0];
     const end = new Date(); end.setDate(end.getDate() + 6);
     const endStr = end.toISOString().split('T')[0];
-    const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${DOVER_LAT}&longitude=${DOVER_LNG}&daily=wave_height_max,swell_wave_height_max,wave_period_max&timezone=Europe%2FLondon&start_date=${today}&end_date=${endStr}`;
+    const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${DOVER_LAT}&longitude=${DOVER_LNG}&daily=wave_height_max,swell_wave_height_max,wave_period_max,sea_surface_temperature_max&timezone=Europe%2FLondon&start_date=${today}&end_date=${endStr}`;
     try {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 6000);
@@ -457,34 +461,54 @@ async function fetchMarineForecast() {
 
 // ─── NOW TAB ───────────────────────────────────────────────────────────────────
 
+function bestTemp() {
+    // Priority: NOAA satellite → Open-Meteo marine SST → buoy water temp
+    return _cond?.sst_c ?? _mf?.sea_surface_temperature_max?.[0] ?? _cond?.wtmp_c ?? null;
+}
+
+function bestWind() {
+    // Priority: Sandettie buoy → Open-Meteo forecast
+    return _cond?.wind_kt ?? _wf?.wind_speed_10m_max?.[0] ?? null;
+}
+
 function updateStatBoxes() {
     const sstC = _cond?.sst_c ?? null;
+    const marineSst = _mf?.sea_surface_temperature_max?.[0] ?? null;
     const windKt = _cond?.wind_kt ?? null;
+    const forecastWind = _wf?.wind_speed_10m_max?.[0] ?? null;
     const wtmpC = _cond?.wtmp_c ?? null;
     const waveH = _mf?.wave_height_max?.[0] ?? null;
     const swellH = _mf?.swell_wave_height_max?.[0] ?? null;
 
-    document.getElementById('sstVal').textContent = sstC !== null ? sstC + '°C' : 'N/A';
-    document.getElementById('windVal').textContent = windKt !== null ? windKt + ' kt' : 'N/A';
-    document.getElementById('wtmpVal').textContent = wtmpC !== null ? wtmpC + '°C' : 'N/A';
+    // Resolve best available for each stat
+    const displaySst = sstC ?? marineSst;
+    const displayWind = windKt ?? forecastWind;
+    const displayWtmp = wtmpC ?? marineSst;  // marine SST is best proxy for water temp
+
+    const sstSrc = sstC !== null ? 'NOAA satellite' : marineSst !== null ? 'Open-Meteo Marine' : 'No data';
+    const windSrcLabel = windKt !== null ? 'Sandettie buoy' : forecastWind !== null ? 'Open-Meteo forecast' : 'No data';
+    const wtmpSrcLabel = wtmpC !== null ? 'Sandettie buoy' : marineSst !== null ? 'Open-Meteo Marine' : 'No data';
+
+    document.getElementById('sstVal').textContent = displaySst !== null ? displaySst + '°C' : 'N/A';
+    document.getElementById('windVal').textContent = displayWind !== null ? displayWind.toFixed(0) + ' kt' : 'N/A';
+    document.getElementById('wtmpVal').textContent = displayWtmp !== null ? displayWtmp + '°C' : 'N/A';
     document.getElementById('waveVal').textContent = waveH !== null ? waveH.toFixed(1) + 'm' : 'N/A';
     document.getElementById('swellVal').textContent = swellH !== null ? swellH.toFixed(1) + 'm' : 'N/A';
 
+    document.getElementById('sstSrc').innerHTML = 'Sea Surface Temp<br>' + sstSrc;
+    document.getElementById('windSrc').innerHTML = 'Wind Speed<br>' + windSrcLabel;
+    document.getElementById('wtmpSrc').innerHTML = 'Water Temp<br>' + wtmpSrcLabel;
+
     const ts = new Date().toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-    const allNull = sstC === null && windKt === null && wtmpC === null;
-    document.getElementById('condUpdated').textContent = allNull ? 'Live data unavailable — using forecast data only.' : 'Updated: ' + ts;
+    const allNull = displaySst === null && displayWind === null && displayWtmp === null;
+    document.getElementById('condUpdated').textContent = allNull ? 'All sources unavailable.' : 'Updated: ' + ts;
 }
 
 function buildGoSignal() {
     const el = document.getElementById('goSignal');
-    const sstC = _cond?.sst_c ?? null;
-    const wtmpC = _cond?.wtmp_c ?? null;
-    const buoyWind = _cond?.wind_kt ?? null;
-    const forecastWind = _wf?.wind_speed_10m_max?.[0] ?? null;
+    const temp = bestTemp();
+    const wind = bestWind();
     const waveH = _mf?.wave_height_max?.[0] ?? null;
-
-    const temp = sstC !== null ? sstC : wtmpC;
-    const wind = buoyWind !== null ? buoyWind : forecastWind;
 
     if (temp === null && wind === null) {
         el.className = 'signal-card unknown';
@@ -492,34 +516,49 @@ function buildGoSignal() {
         return;
     }
 
-    const t = temp ?? 14;
-    const w = wind ?? 999;
+    const t = temp ?? null;
+    const w = wind;    // may be null — null = unknown, NOT a blocker
     const wv = waveH ?? 0;
 
+    // Each factor independently — null wind = uncertain, not NO-GO
+    const tempFail  = t !== null && t < 14;
+    const tempWarn  = t !== null && t >= 14 && t < 16;
+    const windFail  = w !== null && w > 20;
+    const windWarn  = w !== null && w > 15 && w <= 20;
+    const waveFail  = wv > 2.5;
+    const waveWarn  = wv > 1.5 && wv <= 2.5;
+
     let cls, title, sub;
-    if (t >= 16 && w <= 15 && wv <= 1.5) {
+    if (!tempFail && !windFail && !waveFail && !tempWarn && !windWarn && !waveWarn) {
         cls = 'go'; title = 'GO';
-        sub = `Water ${t}°C, wind ${w.toFixed(0)} kt, waves ${wv.toFixed(1)}m — conditions are in the crossing window.`;
-    } else if (t >= 14 && w <= 20 && wv <= 2.5) {
-        cls = 'caution'; title = 'WAIT';
-        const why = [];
-        if (t < 16) why.push(`water ${t}°C`);
-        if (w > 15) why.push(`wind ${w.toFixed(0)}kt`);
-        if (wv > 1.5) why.push(`waves ${wv.toFixed(1)}m`);
-        sub = `Marginal — ${why.join(', ')}. Monitor closely and confirm with your pilot.`;
-    } else {
+        const parts = [];
+        if (t !== null) parts.push(`water ${t}°C`);
+        if (w !== null) parts.push(`wind ${w.toFixed(0)}kt`);
+        else parts.push('wind unknown — check Window tab');
+        parts.push(`waves ${wv.toFixed(1)}m`);
+        sub = parts.join(' · ');
+    } else if (tempFail || windFail || waveFail) {
         cls = 'wait'; title = 'NO-GO';
         const why = [];
-        if (t < 14) why.push(`water ${t}°C (below 14°C)`);
-        if (w > 20) why.push(`wind ${w.toFixed(0)}kt`);
-        if (wv > 2.5) why.push(`waves ${wv.toFixed(1)}m`);
-        sub = why.join(' · ') || 'Outside crossing conditions.';
+        if (tempFail) why.push(`water ${t}°C (below 14°C)`);
+        if (windFail) why.push(`wind ${w.toFixed(0)}kt`);
+        if (waveFail) why.push(`waves ${wv.toFixed(1)}m`);
+        if (w === null) why.push('wind unknown');
+        sub = why.join(' · ');
+    } else {
+        cls = 'caution'; title = 'WAIT';
+        const why = [];
+        if (tempWarn) why.push(`water ${t}°C`);
+        if (windWarn) why.push(`wind ${w.toFixed(0)}kt`);
+        if (w === null) why.push('wind unknown');
+        if (waveWarn) why.push(`waves ${wv.toFixed(1)}m`);
+        sub = `Marginal — ${why.join(', ')}. Confirm with your pilot.`;
     }
 
-    const windSrc = buoyWind !== null ? 'Sandettie buoy' : 'Open-Meteo forecast';
-    const tempSrc = sstC !== null ? 'NOAA satellite' : (wtmpC !== null ? 'Sandettie buoy' : 'no reading');
+    const score = scoreDay(wind, _wf?.wind_direction_10m_dominant?.[0] ?? null, waveH, temp);
+    const scoreCol = score >= 70 ? 'var(--success)' : score >= 45 ? 'var(--warning)' : 'var(--danger)';
     el.className = 'signal-card ' + cls;
-    el.innerHTML = `<div class="signal-label">Channel Status</div><div class="signal-title">${title}</div><div class="signal-sub">${sub}</div><div class="signal-attr">GO: &ge;16°C, &le;15kt, &le;1.5m &middot; WAIT: &ge;14°C, &le;20kt, &le;2.5m &middot; Temp: ${tempSrc} &middot; Wind: ${windSrc}</div>`;
+    el.innerHTML = `<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;"><div><div class="signal-label">Channel Status</div><div class="signal-title">${title}</div></div><div style="text-align:right;"><div style="font-size:28px;font-weight:900;color:${scoreCol};line-height:1;">${score}</div><div style="font-size:10px;color:var(--text-secondary);">/ 100</div></div></div><div class="signal-sub">${sub}</div><div class="signal-attr">GO: &ge;16°C, &le;15kt, &le;1.5m &middot; WAIT: &ge;14°C, &le;20kt, &le;2.5m &middot; Score accounts for temp, wind speed + direction, wave height</div>`;
 }
 
 async function loadTides() {
@@ -585,13 +624,9 @@ async function loadTides() {
 
 function buildChecklist() {
     const el = document.getElementById('condChecklist');
-    const sstC = _cond?.sst_c ?? null;
-    const wtmpC = _cond?.wtmp_c ?? null;
-    const buoyWind = _cond?.wind_kt ?? null;
-    const forecastWind = _wf?.wind_speed_10m_max?.[0] ?? null;
+    const temp = bestTemp();
+    const wind = bestWind();
     const waveH = _mf?.wave_height_max?.[0] ?? null;
-    const temp = sstC !== null ? sstC : wtmpC;
-    const wind = buoyWind !== null ? buoyWind : forecastWind;
     const month = new Date().getMonth();
     const inSeason = month >= 5 && month <= 9;
 
@@ -630,7 +665,6 @@ function buildChecklist() {
         }
     ];
 
-    const windSrc = buoyWind !== null ? '' : ' (forecast)';
     el.innerHTML = checks.map(c => {
         const icon = c.ok ? '&#10003;' : c.warn ? '&#9888;' : '&#10007;';
         const col = c.ok ? 'var(--success)' : c.warn ? 'var(--warning)' : 'var(--danger)';
@@ -640,6 +674,133 @@ function buildChecklist() {
             <div><div style="font-size:13px;font-weight:600;color:var(--text-primary);">${c.label}</div><div style="font-size:12px;color:${col};margin-top:2px;line-height:1.4;">${msg}</div></div>
         </div>`;
     }).join('') + `<div style="font-size:10px;color:var(--text-secondary);margin-top:10px;">All go/no-go decisions must be made with your pilot. This is an information tool, not a safety clearance.</div>`;
+}
+
+// ─── SCORING MODEL ────────────────────────────────────────────────────────────
+// Returns 0-100. Combines temp (25), wind speed (35), wind direction (15), wave (25).
+
+function scoreDay(wind, windDir, wave, sst) {
+    // Temperature: how close to ideal for a Channel crossing
+    const tempScore = sst === null ? 13 :
+        sst >= 17 ? 25 : sst >= 16 ? 22 : sst >= 15 ? 16 : sst >= 14 ? 9 : 3;
+
+    // Wind speed: most critical factor
+    const windScore = wind === null ? 17 :
+        wind <= 7 ? 35 : wind <= 10 ? 31 : wind <= 13 ? 25 : wind <= 15 ? 18 : wind <= 18 ? 10 : wind <= 22 ? 4 : 0;
+
+    // Wind direction: E/NE best (pushes swimmer toward France), W/SW worst (into headwind)
+    const wd = windDir;
+    const windDirScore = wd === null ? 7 :
+        (wd >= 45 && wd <= 135) ? 15 :    // E quadrant — ideal
+        (wd < 45 || wd > 315) ? 11 :       // N — cold but manageable
+        (wd > 135 && wd <= 180) ? 9 :      // SE
+        (wd > 180 && wd <= 225) ? 5 :      // S/SW
+        3;                                  // W/NW — into the Channel
+
+    // Wave height
+    const waveScore = wave === null ? 12 :
+        wave <= 0.8 ? 25 : wave <= 1.2 ? 21 : wave <= 1.5 ? 16 : wave <= 2.0 ? 9 : wave <= 2.5 ? 4 : 0;
+
+    return tempScore + windScore + windDirScore + waveScore;
+}
+
+function coldFactor(temp) {
+    if (temp === null) return null;
+    return temp >= 16 ? 0 : temp >= 15 ? 3 : temp >= 14 ? 6 : temp >= 13 ? 10 : 15;
+}
+
+function buildCrossingIntelligence() {
+    const el = document.getElementById('crossingIntelligence');
+    if (!_wf && !_mf) { el.innerHTML = ''; return; }
+
+    const days = (_wf?.time || _mf?.time || []).length;
+    const sst = bestTemp();
+
+    const dayScores = Array.from({ length: days }, (_, i) => {
+        const wind = _wf?.wind_speed_10m_max?.[i] ?? null;
+        const windDir = _wf?.wind_direction_10m_dominant?.[i] ?? null;
+        const wave = _mf?.wave_height_max?.[i] ?? null;
+        const daySST = _mf?.sea_surface_temperature_max?.[i] ?? sst;
+        const score = scoreDay(wind, windDir, wave, daySST);
+        const date = (_wf?.time || _mf?.time)[i];
+        return { i, score, wind, windDir, wave, sst: daySST, date };
+    });
+
+    const best = [...dayScores].sort((a, b) => b.score - a.score)[0];
+    const weekAvg = Math.round(dayScores.reduce((s, d) => s + d.score, 0) / dayScores.length);
+    const weekLabel = weekAvg >= 70 ? 'GOOD WEEK' : weekAvg >= 50 ? 'MIXED WEEK' : 'TOUGH WEEK';
+    const weekCol = weekAvg >= 70 ? 'var(--success)' : weekAvg >= 50 ? 'var(--warning)' : 'var(--danger)';
+
+    const bestDay = best.i === 0 ? 'Today' : best.i === 1 ? 'Tomorrow'
+        : new Date(best.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+    const bestWindLabel = best.wind !== null ? `${best.wind.toFixed(0)}kt ${windDir(best.windDir ?? 0)}` : 'wind unknown';
+    const bestWaveLabel = best.wave !== null ? `${best.wave.toFixed(1)}m waves` : '';
+    const bestTempLabel = best.sst !== null ? `${best.sst}°C water` : '';
+    const bestDetail = [bestWindLabel, bestWaveLabel, bestTempLabel].filter(Boolean).join(' · ');
+
+    // Temperature intelligence
+    const currentSst = sst ?? best.sst;
+    let tempLine = '', tempNote = '';
+    if (currentSst !== null) {
+        const cf = coldFactor(currentSst);
+        if (currentSst >= 16) {
+            tempLine = `${currentSst}°C — at or above 16°C crossing threshold`;
+            tempNote = 'Qualifying swims viable · No cold penalty to pace';
+        } else {
+            tempLine = `${currentSst}°C — ${(16 - currentSst).toFixed(1)}°C below 16°C ideal`;
+            tempNote = `Cold factor: +${cf}% to estimated pace · Qualifying swims (6h in ≤16°C) are viable`;
+        }
+    } else {
+        tempLine = 'No temperature data — check monthly averages below';
+        tempNote = 'Typical Jun: 14–16°C · Jul: 16–17°C · Aug–Sep: 17–18°C';
+    }
+
+    // Wind direction intelligence this week
+    const windsWithDir = dayScores.filter(d => d.windDir !== null);
+    const dominantDir = windsWithDir.length
+        ? windsWithDir.reduce((a, b) => a.score > b.score ? a : b).windDir
+        : null;
+    const dirLabel = dominantDir !== null ? windDir(dominantDir) : null;
+    const dirAdvice = dirLabel ? (
+        ['E','NE','ENE'].includes(dirLabel) ? `${dirLabel} winds dominant — favourable direction this week` :
+        ['W','WNW','NW','WSW','SW'].includes(dirLabel) ? `${dirLabel} winds dominant — into the Channel; expect chop` :
+        `${dirLabel} winds dominant — manageable direction`
+    ) : '';
+
+    const scoreBar = dayScores.slice(0, 7).map(d => {
+        const col = d.score >= 70 ? '#10b981' : d.score >= 45 ? '#f59e0b' : '#ef4444';
+        const lbl = d.i === 0 ? 'T' : new Date(d.date).toLocaleDateString('en-GB', { weekday: 'short' }).slice(0,1);
+        return `<div style="text-align:center;flex:1;${d.i === best.i ? 'opacity:1;' : 'opacity:.55;'}">
+            <div style="font-size:8px;color:var(--text-secondary);margin-bottom:3px;">${lbl}</div>
+            <div style="font-size:11px;font-weight:700;color:${col};">${d.score}</div>
+            <div style="height:${Math.max(3, Math.round(d.score / 5))}px;background:${col};border-radius:2px;margin-top:3px;"></div>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = `<div class="card" style="margin-bottom:14px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;">
+            <div>
+                <div class="card-label" style="margin-bottom:4px;">Crossing Intelligence</div>
+                <div style="font-size:20px;font-weight:800;color:${weekCol};">${weekLabel}</div>
+                <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">7-day avg score: ${weekAvg}/100</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:11px;color:var(--text-secondary);">Best day</div>
+                <div style="font-size:15px;font-weight:700;color:var(--text-primary);">${bestDay}</div>
+                <div style="font-size:22px;font-weight:900;color:${weekCol};">${best.score}<span style="font-size:12px;font-weight:400;color:var(--text-secondary);">/100</span></div>
+            </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:14px;background:rgba(0,0,0,0.2);border-radius:8px;padding:10px 8px 6px;">${scoreBar}</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">${bestDetail ? 'Best: ' + bestDetail : ''}</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+            <div style="font-size:12px;">
+                <div style="font-weight:600;color:var(--text-primary);margin-bottom:2px;">${tempLine}</div>
+                <div style="color:var(--text-secondary);">${tempNote}</div>
+            </div>
+            ${dirAdvice ? `<div style="font-size:12px;color:var(--text-secondary);">${dirAdvice}</div>` : ''}
+        </div>
+        <div style="font-size:10px;color:var(--text-secondary);opacity:.6;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">Score = temp (25) + wind speed (35) + wind direction (15) + wave height (25) · Tidal timing not included</div>
+    </div>`;
 }
 
 // ─── WINDOW TAB ────────────────────────────────────────────────────────────────
@@ -694,43 +855,46 @@ function renderCrossingWindow() {
     if (!_wf && !_mf) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Forecast data unavailable.</div>'; return; }
 
     const days = (_wf?.time || _mf?.time || []).length;
+    const sst = bestTemp();
     let html = '';
     for (let i = 0; i < days; i++) {
         const date = (_wf?.time || _mf?.time)[i];
         const wind = _wf?.wind_speed_10m_max?.[i] ?? null;
+        const windDir_ = _wf?.wind_direction_10m_dominant?.[i] ?? null;
         const wave = _mf?.wave_height_max?.[i] ?? null;
+        const daySst = _mf?.sea_surface_temperature_max?.[i] ?? sst;
+        const score = scoreDay(wind, windDir_, wave, daySst);
         const dayName = i === 0 ? 'Today' : new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 
-        let cls, label, detail;
+        let cls, label;
         const windOk = wind === null ? true : wind <= 15;
         const windMarg = wind === null ? true : wind <= 20;
         const waveOk = wave === null ? true : wave <= 1.5;
         const waveMarg = wave === null ? true : wave <= 2.5;
 
-        if (windOk && waveOk) {
-            cls = 'go'; label = 'GO';
-            const p = []; if (wind !== null) p.push(`${wind.toFixed(0)}kt`); if (wave !== null) p.push(`${wave.toFixed(1)}m`);
-            detail = p.join(', ') || 'Conditions look good';
-        } else if (windMarg && waveMarg) {
-            cls = 'caution'; label = 'WAIT';
-            const p = []; if (wind > 15) p.push(`${wind.toFixed(0)}kt wind`); if (wave > 1.5) p.push(`${wave.toFixed(1)}m swell`);
-            detail = 'Marginal — ' + p.join(', ');
-        } else {
-            cls = 'wait'; label = 'NO-GO';
-            const p = []; if (wind > 20) p.push(`wind ${wind.toFixed(0)}kt`); if (wave > 2.5) p.push(`waves ${wave.toFixed(1)}m`);
-            detail = p.join(', ') || 'Outside thresholds';
-        }
+        if (windOk && waveOk) { cls = 'go'; label = 'GO'; }
+        else if (windMarg && waveMarg) { cls = 'caution'; label = 'WAIT'; }
+        else { cls = 'wait'; label = 'NO-GO'; }
+
+        const parts = [];
+        if (wind !== null) parts.push(`${wind.toFixed(0)}kt${windDir_ !== null ? ' ' + windDir(windDir_) : ''}`);
+        if (wave !== null) parts.push(`${wave.toFixed(1)}m`);
+        if (daySst !== null) parts.push(`${daySst}°C`);
+        const detail = parts.join(' · ') || '—';
 
         const bgCol = cls === 'go' ? 'rgba(34,197,94,0.08)' : cls === 'caution' ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.06)';
         const borderCol = cls === 'go' ? 'rgba(34,197,94,0.3)' : cls === 'caution' ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.25)';
         const labelCol = cls === 'go' ? 'var(--success)' : cls === 'caution' ? 'var(--warning)' : 'var(--danger)';
-        html += `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:${i===0?'2px':'1px'} solid ${borderCol};background:${bgCol};margin-bottom:8px;">
-            <div style="width:80px;font-size:12px;font-weight:${i===0?700:500};color:${i===0?'var(--ocean-light)':'var(--text-primary)'};">${dayName}</div>
-            <div style="flex:1;font-size:12px;color:var(--text-secondary);">${detail}</div>
-            <div style="font-size:13px;font-weight:800;color:${labelCol};">${label}</div>
+        const scoreCol = score >= 70 ? 'var(--success)' : score >= 45 ? 'var(--warning)' : 'var(--danger)';
+
+        html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:${i===0?'2px':'1px'} solid ${borderCol};background:${bgCol};margin-bottom:8px;">
+            <div style="width:76px;font-size:12px;font-weight:${i===0?700:500};color:${i===0?'var(--ocean-light)':'var(--text-primary)'};">${dayName}</div>
+            <div style="flex:1;font-size:11px;color:var(--text-secondary);">${detail}</div>
+            <div style="font-size:12px;font-weight:700;color:${scoreCol};width:32px;text-align:center;">${score}</div>
+            <div style="font-size:12px;font-weight:800;color:${labelCol};width:40px;text-align:right;">${label}</div>
         </div>`;
     }
-    el.innerHTML = html + `<div style="font-size:10px;color:var(--text-secondary);padding:4px 0;">Wind &le;15kt + waves &le;1.5m = GO &middot; Temp and tidal timing not included.</div>`;
+    el.innerHTML = html + `<div style="font-size:10px;color:var(--text-secondary);padding:4px 0;">Score 0–100 · Wind speed+dir+waves+temp · GO: wind ≤15kt, waves ≤1.5m · Tidal timing not included</div>`;
 }
 
 function renderWindForecast() {
