@@ -59,10 +59,9 @@ export default async function handler(req, res) {
       urls.push(url(`${BASE}/english-channel/${slug}`, '0.8', 'weekly', TODAY()));
     }
 
-    // English Channel solo swims (3,443 individual pages from the database)
-    const channelSwims = await dbGet(
-      'channel_solo_swims?slug=not.is.null&select=slug,year&order=year.desc'
-    ) || [];
+    // English Channel solo swims (3,443 individual pages from the database).
+    // PostgREST defaults to 1000 rows — paginate to get them all.
+    const channelSwims = await fetchAllSwims();
     for (const swim of channelSwims) {
       // Recent (last 5y) crawl more often; historical stable
       const recent = swim.year >= new Date().getFullYear() - 5;
@@ -75,6 +74,7 @@ export default async function handler(req, res) {
     }
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.join('\n')}
 </urlset>`;
@@ -98,4 +98,39 @@ function url(loc, priority, changefreq, lastmod) {
     `    <priority>${priority}</priority>`,
     '  </url>',
   ].filter(Boolean).join('\n');
+}
+
+// Paginated fetch — PostgREST caps at 1000 rows per request. We chunk via Range headers.
+async function fetchAllSwims() {
+  const SUPABASE_URL = process.env.SUPABASE_URL || 'https://szgkzuswelntnevobnoh.supabase.co';
+  const ANON_KEY = process.env.SUPABASE_ANON_KEY ||
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+
+  const all = [];
+  const pageSize = 1000;
+  for (let start = 0; start < 10000; start += pageSize) {
+    const end = start + pageSize - 1;
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/channel_solo_swims?slug=not.is.null&select=slug,year&order=year.desc`,
+        {
+          headers: {
+            apikey: ANON_KEY,
+            Authorization: `Bearer ${ANON_KEY}`,
+            Accept: 'application/json',
+            Range: `${start}-${end}`,
+            'Range-Unit': 'items',
+          },
+        }
+      );
+      if (!res.ok) break;
+      const chunk = await res.json();
+      if (!chunk?.length) break;
+      all.push(...chunk);
+      if (chunk.length < pageSize) break;
+    } catch {
+      break;
+    }
+  }
+  return all;
 }
