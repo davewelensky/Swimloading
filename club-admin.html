@@ -8328,7 +8328,7 @@ function renderTodayBanner() {
   if (!allSquadSessions.length) return '';
   const now = new Date();
   const nowMins = now.getHours() * 60 + now.getMinutes();
-  const todayStr = now.toISOString().slice(0, 10);
+  const todayStr = localISO(now);
 
   const cards = allSquadSessions.map(ss => {
     const squad = allSquads.find(s => s.id === ss.squad_id);
@@ -8448,9 +8448,15 @@ function renderTodayBanner() {
   </div>`;
 }
 
+// Local-timezone ISO date (YYYY-MM-DD). NEVER use toISOString() for session dates —
+// it converts to UTC, which shifts SAST local midnight to the previous day.
+function localISO(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
 async function checkInSession(squadId, startTime, sessionType) {
   const now = new Date();
-  const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  const todayStr = localISO(now);
   const todayDow = now.getDay();
 
   // Set activeSquadSessionId by matching the recurring template — needed for LTS slot lookup
@@ -8493,13 +8499,13 @@ function renderSessionsList() {
 
   const rosterTotal = allRosterFull.length || 1;
 
-  // Build date range: today + 7 days back
-  const todayMs = new Date(new Date().toDateString()).getTime();
+  // Build date range: today + 7 days back (all local time — toISOString shifts to UTC)
+  const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
   const dates = [];
   for (let i = 0; i < 8; i++) {
-    const d = new Date(todayMs - i * 86400000);
+    const d = new Date(todayMid); d.setDate(todayMid.getDate() - i);
     dates.push({
-      iso: d.toISOString().slice(0, 10),
+      iso: localISO(d),
       dow: d.getDay(),
       label: d.toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' })
     });
@@ -8804,11 +8810,11 @@ async function openSessionDetail(squadSessionId) {
   const _daysAgo = _diffFwd === 0 ? 0 : (7 - _diffFwd);          // days since last occurrence
   const nextDate = (() => {
     const d = new Date(_baseDay); d.setDate(_baseDay.getDate() + _diffFwd);
-    return d.toISOString().slice(0, 10);
+    return localISO(d);
   })();
   const lastDate = _diffFwd === 0 ? nextDate : (() => {
     const d = new Date(_baseDay); d.setDate(_baseDay.getDate() - _daysAgo);
-    return d.toISOString().slice(0, 10);
+    return localISO(d);
   })();
   // Allow marking for today (diffFwd=0) or sessions up to 2 days ago
   const canMarkPast = _daysAgo > 0 && _daysAgo <= 2;
