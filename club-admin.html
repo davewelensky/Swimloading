@@ -8473,95 +8473,168 @@ async function checkInSession(squadId, startTime, sessionType) {
 // ── SESSIONS LIST ─────────────────────────────────────────────────
 function renderSessionsList() {
   const el = document.getElementById('attendanceContent');
-  if (!allSessions.length && !allSquadSessions.length) {
+  if (!allSessions.length && !(allWeekSessions || []).length) {
     el.innerHTML = `<div class="empty">
       <i data-lucide="clipboard-check" style="width:36px;height:36px;color:var(--text-sec);margin-bottom:12px;display:block;"></i>
       <div class="empty-title">No sessions yet</div>
-      <div class="empty-desc">Tap "New session" to record your first training session.</div>
+      <div class="empty-desc">Tap "New session" to record your first training session, or set up your weekly timetable in Settings.</div>
     </div>`;
     lucide.createIcons(); return;
   }
 
-  // Group by date
-  const byDate = {};
-  allSessions.forEach(s => {
-    const d = s.session_date;
-    if (!byDate[d]) byDate[d] = [];
-    byDate[d].push(s);
-  });
-
   const rosterTotal = allRosterFull.length || 1;
 
-  // Build "yesterday" section for scheduled sessions that don't have records yet
-  const _yd = new Date(Date.now() - 86400000);
-  const yesterdayStr  = _yd.toISOString().slice(0, 10);
-  const yesterdayDow  = _yd.getDay();
-  const yesterdayLabel = _yd.toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long' });
-  const unrecordedYesterday = (allWeekSessions || []).filter(ss =>
-    ss.day_of_week === yesterdayDow &&
-    !allSessions.some(r =>
-      r.session_date === yesterdayStr &&
-      r.squad_id === ss.squad_id &&
-      (r.start_time || '').slice(0,5) === (ss.start_time || '').slice(0,5)
-    )
-  ).sort((a,b) => (a.start_time||'').localeCompare(b.start_time||''));
+  // Build date range: today + 7 days back
+  const todayMs = new Date(new Date().toDateString()).getTime();
+  const dates = [];
+  for (let i = 0; i < 8; i++) {
+    const d = new Date(todayMs - i * 86400000);
+    dates.push({
+      iso: d.toISOString().slice(0, 10),
+      dow: d.getDay(),
+      label: d.toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' })
+    });
+  }
+  const recentIsoSet = new Set(dates.map(d => d.iso));
 
-  const yesterdayUnrecordedHtml = unrecordedYesterday.length ? `
-    <div style="margin-bottom:20px;">
-      <div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">${yesterdayLabel} — Not yet recorded</div>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        ${unrecordedYesterday.map(ss => {
-          const sq = allSquads.find(q => q.id === ss.squad_id);
-          return `<div style="background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.15);border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-            <div>
-              <div style="font-size:14px;font-weight:700;color:var(--text);">${sq?.name || 'Squad'}</div>
-              <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${(ss.start_time||'').slice(0,5)}${ss.end_time?' – '+ss.end_time.slice(0,5):''}${ss.coach_name?' · '+ss.coach_name:''}</div>
-            </div>
-            <button onclick="openMarkFromSchedule('${ss.id}','${yesterdayStr}')"
-              style="padding:8px 16px;border-radius:20px;font-size:12px;font-weight:800;border:1px solid rgba(245,158,11,0.35);cursor:pointer;background:rgba(245,158,11,0.1);color:var(--amber);white-space:nowrap;">
-              Mark →
-            </button>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>` : '';
+  // ── Render a single session card (recorded OR scheduled-but-not-recorded) ──
+  function sessionCard({ recorded, scheduled, dateIso }) {
+    const s = recorded;
+    const sched = scheduled;
+    const squadId = s?.squad_id || sched?.squad_id;
+    const squadName = squadId ? (allSquads.find(sq => sq.id === squadId)?.name || '') : '';
+    const squadRosterSize = squadId ? allRosterFull.filter(r => r.squad_id === squadId).length : rosterTotal;
+    const startTime = (s?.start_time || sched?.start_time || '').slice(0, 5);
+    const endTime = (s?.end_time || sched?.end_time || '').slice(0, 5);
+    const coach = s?.coach_name || sched?.coach_name || '';
+    const sessionType = s?.session_type || 'PM';
+    const typeColour = { AM:'#38bdf8', PM:'#10b981', Dryland:'#f59e0b', Drills:'#a78bfa', Race:'#ef4444' }[sessionType] || '#64748b';
 
-  el.innerHTML = renderTodayBanner() + yesterdayUnrecordedHtml + Object.entries(byDate).map(([date, sessions]) => {
-    const d = new Date(date + 'T12:00:00');
-    const dateLabel = d.toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long' });
-    return `
-    <div style="margin-bottom:24px;">
-      <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">${dateLabel}</div>
-      ${sessions.map(s => {
-        const attended = (s.club_attendance || []).filter(a => a.status === 'present' || a.status === 'late').length;
-        const total    = s.club_attendance?.length || 0;
-        const pct      = rosterTotal ? Math.round(attended / rosterTotal * 100) : 0;
-        const typeColour = { AM:'#38bdf8', PM:'#10b981', Dryland:'#f59e0b', Drills:'#a78bfa', Race:'#ef4444' }[s.session_type] || '#64748b';
-        const squadName = s.squad_id ? (allSquads.find(sq => sq.id === s.squad_id)?.name || '') : '';
-        const squadRosterSize = s.squad_id ? allRosterFull.filter(r => r.squad_id === s.squad_id).length : rosterTotal;
-        const sessionPct = squadRosterSize ? Math.round(attended / squadRosterSize * 100) : 0;
-        return `
-        <div class="card" style="margin-bottom:10px;cursor:pointer;" onclick="openMarkSession('${s.id}')">
+    if (s) {
+      // Recorded session — clickable to edit
+      const attended = (s.club_attendance || []).filter(a => a.status === 'present' || a.status === 'late').length;
+      const total = s.club_attendance?.length || 0;
+      const sessionPct = squadRosterSize ? Math.round(attended / squadRosterSize * 100) : 0;
+      const statusBadge = total === 0
+        ? `<span style="font-size:11px;font-weight:700;color:var(--amber);background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);border-radius:20px;padding:3px 10px;">Not marked</span>`
+        : `<span style="font-size:11px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:20px;padding:3px 10px;">Marked</span>`;
+      return `
+        <div class="card" style="margin-bottom:8px;cursor:pointer;" onclick="openMarkSession('${s.id}')">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-            <div style="display:flex;align-items:center;gap:12px;">
+            <div style="display:flex;align-items:center;gap:12px;min-width:0;">
               <div style="width:44px;height:44px;border-radius:10px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.15);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;">
-                <div style="font-size:9px;font-weight:700;color:${typeColour};text-transform:uppercase;letter-spacing:0.06em;">${s.session_type}</div>
-                ${s.start_time ? `<div style="font-size:10px;color:var(--text-sec);">${s.start_time.slice(0,5)}</div>` : ''}
+                <div style="font-size:9px;font-weight:700;color:${typeColour};text-transform:uppercase;letter-spacing:0.06em;">${sessionType}</div>
+                ${startTime ? `<div style="font-size:10px;color:var(--text-sec);">${startTime}</div>` : ''}
               </div>
-              <div>
-                <div style="font-size:14px;font-weight:700;color:var(--text);">${squadName || s.session_type + ' Session'}${s.notes ? ` — ${s.notes}` : ''}</div>
-                <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${s.coach_name ? s.coach_name + ' · ' : ''}${attended} of ${squadRosterSize} present · ${sessionPct}%</div>
+              <div style="min-width:0;">
+                <div style="font-size:14px;font-weight:700;color:var(--text);">${squadName || sessionType + ' Session'}${s.notes ? ` — ${s.notes}` : ''}</div>
+                <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${coach ? coach + ' · ' : ''}${attended} of ${squadRosterSize} present · ${sessionPct}%</div>
               </div>
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-              ${total === 0 ? `<span style="font-size:11px;font-weight:700;color:var(--amber);background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);border-radius:20px;padding:3px 10px;">Not marked</span>` : `<span style="font-size:11px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:20px;padding:3px 10px;">Marked</span>`}
+              ${statusBadge}
               <i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--text-sec);"></i>
             </div>
           </div>
         </div>`;
-      }).join('')}
-    </div>`;
+    }
+
+    // Scheduled (not recorded) — shows Mark button
+    return `
+      <div style="background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.15);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+          <div style="width:44px;height:44px;border-radius:10px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.18);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;">
+            <div style="font-size:9px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:0.06em;">PM</div>
+            ${startTime ? `<div style="font-size:10px;color:var(--text-sec);">${startTime}</div>` : ''}
+          </div>
+          <div style="min-width:0;">
+            <div style="font-size:14px;font-weight:700;color:var(--text);">${squadName || 'Squad'}</div>
+            <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">${startTime}${endTime ? ' – ' + endTime : ''}${coach ? ' · ' + coach : ''}</div>
+          </div>
+        </div>
+        <button onclick="openMarkFromSchedule('${sched.id}','${dateIso}')"
+          style="padding:8px 16px;border-radius:20px;font-size:12px;font-weight:800;border:1px solid rgba(245,158,11,0.35);cursor:pointer;background:rgba(245,158,11,0.1);color:var(--amber);white-space:nowrap;flex-shrink:0;">
+          Mark &rarr;
+        </button>
+      </div>`;
+  }
+
+  // ── Build merged session list per date ────────────────────────────
+  const recentSections = dates.map(({ iso, dow, label }, idx) => {
+    const recorded = allSessions.filter(s => s.session_date === iso);
+    const scheduled = (allWeekSessions || []).filter(s => s.day_of_week === dow);
+
+    // Match: each recorded → scheduled by squad + start_time prefix
+    const matchedRecorded = new Set();
+    const items = [];
+    scheduled.forEach(sched => {
+      const schedTime = (sched.start_time || '').slice(0, 5);
+      const rec = recorded.find(r =>
+        r.squad_id === sched.squad_id &&
+        (r.start_time || '').slice(0, 5) === schedTime &&
+        !matchedRecorded.has(r.id)
+      );
+      if (rec) {
+        matchedRecorded.add(rec.id);
+        items.push({ kind: 'rec', sortTime: schedTime || (rec.start_time || '99:99').slice(0,5), recorded: rec, scheduled: sched });
+      } else {
+        items.push({ kind: 'sched', sortTime: schedTime || '99:99', scheduled: sched });
+      }
+    });
+    // Ad-hoc recorded sessions (no matching timetable entry)
+    recorded.forEach(r => {
+      if (matchedRecorded.has(r.id)) return;
+      const t = (r.start_time || '').slice(0, 5) || '99:99';
+      items.push({ kind: 'rec', sortTime: t, recorded: r });
+    });
+    items.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
+
+    if (!items.length) return '';
+    const isToday = idx === 0;
+    const isYesterday = idx === 1;
+    const suffix = isToday ? '<span style="color:var(--cyan);">Today</span>' : isYesterday ? '<span style="color:var(--amber);">Yesterday</span>' : '';
+    const unmarkedCount = items.filter(it => it.kind === 'sched' || (it.recorded && !(it.recorded.club_attendance?.length))).length;
+    const countLabel = unmarkedCount > 0
+      ? `<span style="color:var(--amber);font-weight:700;">${unmarkedCount} not marked</span>`
+      : `<span style="color:var(--green);font-weight:700;">all marked</span>`;
+
+    return `
+      <div style="margin-bottom:22px;">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;gap:8px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;">
+            ${label}${suffix ? ' · ' + suffix : ''}
+          </div>
+          <div style="font-size:11px;letter-spacing:0.04em;">${countLabel}</div>
+        </div>
+        ${items.map(it => sessionCard({
+          recorded: it.recorded,
+          scheduled: it.scheduled,
+          dateIso: iso
+        })).join('')}
+      </div>`;
+  }).filter(Boolean).join('');
+
+  // ── Older recorded sessions (beyond last 8 days) ──────────────────
+  const olderRecorded = allSessions.filter(s => !recentIsoSet.has(s.session_date));
+  const olderByDate = {};
+  olderRecorded.forEach(s => {
+    const d = s.session_date;
+    if (!olderByDate[d]) olderByDate[d] = [];
+    olderByDate[d].push(s);
+  });
+
+  const olderSections = Object.entries(olderByDate).map(([date, sessions]) => {
+    const d = new Date(date + 'T12:00:00');
+    const dateLabel = d.toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' });
+    sessions.sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+    return `
+      <div style="margin-bottom:22px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">${dateLabel}</div>
+        ${sessions.map(s => sessionCard({ recorded: s, dateIso: date })).join('')}
+      </div>`;
   }).join('');
+
+  el.innerHTML = renderTodayBanner() + recentSections + olderSections;
   lucide.createIcons();
 }
 
