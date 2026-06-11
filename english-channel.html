@@ -135,6 +135,7 @@
         <button class="tab-btn" onclick="showTab('window',this)">16-day</button>
         <button class="tab-btn" onclick="showTab('pilots',this)">Pilots</button>
         <button class="tab-btn" onclick="showTab('records',this)">Records</button>
+        <button class="tab-btn" onclick="showTab('explore',this)">Explore</button>
         <button class="tab-btn" onclick="showTab('plan',this)">Plan</button>
         <button class="tab-btn" onclick="showTab('faq',this)">FAQ</button>
     </div>
@@ -257,28 +258,10 @@
         </div>
 
         <div class="card">
-            <div class="card-label">CSA-Registered Pilots</div>
-            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Channel Swimming Association &middot; <a href="https://www.channelswimmingassociation.com/pilots" target="_blank" rel="noopener" style="color:var(--ocean-light);">Full list &amp; contacts &rarr;</a></div>
-            <div class="record-row"><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Reg Brickell</div><div style="font-size:11px;color:var(--text-secondary);">Viking Princess &middot; Folkestone</div></div></div>
-            <div class="record-row"><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Eric Hartley</div><div style="font-size:11px;color:var(--text-secondary);">Sea Satin &middot; Dover</div></div></div>
-            <div class="record-row"><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Mike Oram</div><div style="font-size:11px;color:var(--text-secondary);">Gallivant / Sea Leopard &middot; Dover</div></div></div>
-            <div class="record-row"><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Andy King</div><div style="font-size:11px;color:var(--text-secondary);">Louise Jane &middot; Dover</div></div></div>
-            <div class="record-row"><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Stuart Gleeson</div><div style="font-size:11px;color:var(--text-secondary);">Pace Arrow &middot; Dover</div></div></div>
-            <div class="record-row"><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Paul Foreman</div><div style="font-size:11px;color:var(--text-secondary);">Optimist &middot; Dover</div></div></div>
-            <div class="record-row"><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Lou Tsaposka</div><div style="font-size:11px;color:var(--text-secondary);">Masterpiece &middot; Dover</div></div></div>
-            <div style="font-size:10px;color:var(--text-secondary);opacity:.6;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">Vessel assignments change &middot; some pilots are registered with both CSA and CS&amp;PF &middot; always verify on the official site before booking</div>
-        </div>
-
-        <div class="card">
-            <div class="card-label">CS&amp;PF-Registered Pilots</div>
-            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Channel Swimming &amp; Piloting Federation &middot; <a href="https://cspf.co.uk/pilots" target="_blank" rel="noopener" style="color:var(--ocean-light);">Full list &amp; contacts &rarr;</a></div>
-            <div class="record-row"><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Eddie Spelling</div><div style="font-size:11px;color:var(--text-secondary);">Anastasia &middot; Dover</div></div></div>
-            <div class="record-row"><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Neil Streeter</div><div style="font-size:11px;color:var(--text-secondary);">Suva &middot; Dover</div></div></div>
-            <div class="record-row"><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Lance Oram</div><div style="font-size:11px;color:var(--text-secondary);">Sea Leopard &middot; Dover</div></div></div>
-            <div class="record-row"><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Reg Brickell Jr.</div><div style="font-size:11px;color:var(--text-secondary);">Viking Princess &middot; Folkestone</div></div></div>
-            <div class="record-row"><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Andy King</div><div style="font-size:11px;color:var(--text-secondary);">Louise Jane &middot; Dover</div></div></div>
-            <div class="record-row"><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Mike Oram</div><div style="font-size:11px;color:var(--text-secondary);">Gallivant &middot; Dover</div></div></div>
-            <div style="font-size:10px;color:var(--text-secondary);opacity:.6;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">Listed pilots represent established names in the community as of 2024 &middot; always confirm registration and availability with the relevant federation</div>
+            <div class="card-label">Pilot Leaderboard — Most Ratified Crossings</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:14px;line-height:1.5;">Pilots ranked by total ratified solo crossings (CSA + CS&amp;PF + historical). Live from public database.</div>
+            <div id="pilotLeaderboard" class="loading-msg">Loading pilot stats...</div>
+            <div style="font-size:10px;color:var(--text-secondary);opacity:.6;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">For current registration status and bookings, always confirm with <a href="https://www.channelswimmingassociation.com/pilots" target="_blank" rel="noopener" style="color:var(--ocean-light);">CSA</a> or <a href="https://cspf.co.uk/pilots" target="_blank" rel="noopener" style="color:var(--ocean-light);">CS&amp;PF</a>.</div>
         </div>
 
         <div class="card">
@@ -311,77 +294,40 @@
     <!-- ═══════════════════════ RECORDS ═══════════════════════ -->
     <div id="panelRecords" class="panel">
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+        <div id="recordHero" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
             <div style="background:linear-gradient(135deg,rgba(14,165,233,0.12),rgba(14,165,233,0.04));border:1px solid rgba(14,165,233,0.3);border-radius:14px;padding:14px;text-align:center;">
-                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:6px;">WORLD RECORD (E&rarr;F)</div>
-                <div style="font-size:22px;font-weight:900;color:var(--ocean-light);letter-spacing:-1px;">6:45:25</div>
-                <div style="font-size:12px;font-weight:700;color:var(--text-primary);margin-top:4px;">Andreas Waschburger</div>
-                <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">Sep 2023</div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:6px;">MEN&apos;S WORLD RECORD (E&rarr;F)</div>
+                <div style="font-size:22px;font-weight:900;color:var(--ocean-light);letter-spacing:-1px;" id="manRecTime">—</div>
+                <div style="font-size:12px;font-weight:700;color:var(--text-primary);margin-top:4px;" id="manRecName">Loading...</div>
+                <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;" id="manRecMeta">&nbsp;</div>
             </div>
-            <div style="background:linear-gradient(135deg,rgba(14,165,233,0.12),rgba(14,165,233,0.04));border:1px solid rgba(14,165,233,0.3);border-radius:14px;padding:14px;text-align:center;">
-                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:6px;">FIRST CROSSING</div>
-                <div style="font-size:22px;font-weight:900;color:var(--ocean-light);letter-spacing:-1px;">21:45</div>
-                <div style="font-size:12px;font-weight:700;color:var(--text-primary);margin-top:4px;">Matthew Webb</div>
-                <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">Aug 1875</div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-label">Solo Records — England &rarr; France</div>
-            <div class="record-row">
-                <div class="record-pos" style="color:#f59e0b;">1</div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Andreas Waschburger</div><div style="font-size:11px;color:var(--text-secondary);">Sep 2023 &middot; England to France</div></div>
-                <div style="font-size:14px;font-weight:700;color:var(--ocean-light);">6:45:25</div>
-            </div>
-            <div class="record-row">
-                <div class="record-pos" style="color:#94a3b8;">2</div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Trent Grimsey</div><div style="font-size:11px;color:var(--text-secondary);">Sep 2012 &middot; England to France &middot; previous record</div></div>
-                <div style="font-size:14px;font-weight:700;color:var(--ocean-light);">6:55:00</div>
-            </div>
-            <div class="record-row">
-                <div class="record-pos" style="color:#f59e0b;">&#9792;</div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Yvetta Hlavacova</div><div style="font-size:11px;color:var(--text-secondary);">2006 &middot; women&apos;s world record</div></div>
-                <div style="font-size:14px;font-weight:700;color:var(--ocean-light);">7:25:00</div>
+            <div style="background:linear-gradient(135deg,rgba(245,158,11,0.12),rgba(245,158,11,0.04));border:1px solid rgba(245,158,11,0.3);border-radius:14px;padding:14px;text-align:center;">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--warning);margin-bottom:6px;">WOMEN&apos;S WORLD RECORD (E&rarr;F)</div>
+                <div style="font-size:22px;font-weight:900;color:var(--warning);letter-spacing:-1px;" id="womRecTime">—</div>
+                <div style="font-size:12px;font-weight:700;color:var(--text-primary);margin-top:4px;" id="womRecName">Loading...</div>
+                <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;" id="womRecMeta">&nbsp;</div>
             </div>
         </div>
 
         <div class="card">
-            <div class="card-label">Multi-Way Records</div>
-            <div class="record-row">
-                <div style="width:56px;font-size:11px;font-weight:700;color:var(--ocean-light);">2-WAY</div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Philip Rush</div><div style="font-size:11px;color:var(--text-secondary);">Aug 1987 &middot; men&apos;s 2-way record (~67 km)</div></div>
-                <div style="font-size:14px;font-weight:700;color:var(--ocean-light);">16:10</div>
-            </div>
-            <div class="record-row">
-                <div style="width:56px;font-size:11px;font-weight:700;color:var(--warning);">2-WAY &#9792;</div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Susie Maroney</div><div style="font-size:11px;color:var(--text-secondary);">22 Jul 1991 &middot; women&apos;s 2-way record</div></div>
-                <div style="font-size:14px;font-weight:700;color:var(--ocean-light);">17:14</div>
-            </div>
-            <div class="record-row">
-                <div style="width:56px;font-size:11px;font-weight:700;color:var(--ocean-light);">3-WAY</div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Philip Rush</div><div style="font-size:11px;color:var(--text-secondary);">1987 &middot; Triple crossing</div></div>
-                <div style="font-size:14px;font-weight:700;color:var(--ocean-light);">28:21</div>
-            </div>
-            <div class="record-row">
-                <div style="width:56px;font-size:11px;font-weight:700;color:var(--ocean-light);">4-WAY</div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Sarah Thomas</div><div style="font-size:11px;color:var(--text-secondary);">Sep 2019 &middot; Non-stop, breast cancer survivor</div></div>
-                <div style="font-size:14px;font-weight:700;color:var(--ocean-light);">54:10</div>
-            </div>
+            <div class="card-label">Top 10 Fastest — Men&apos;s Solo E&rarr;F</div>
+            <div id="topMen" class="loading-msg">Loading leaderboard...</div>
         </div>
 
         <div class="card">
-            <div class="card-label">By the Numbers</div>
-            <div class="stat-grid-3">
-                <div class="stat-box"><div class="stat-val blue" style="font-size:18px;">2,500+</div><div class="stat-lbl">Ratified solo swims (CSA + CS&amp;PF)</div></div>
-                <div class="stat-box"><div class="stat-val amber" style="font-size:18px;">12–16h</div><div class="stat-lbl">Average crossing time</div></div>
-                <div class="stat-box"><div class="stat-val blue" style="font-size:18px;">~50%</div><div class="stat-lbl">Approximate success rate</div></div>
-            </div>
-            <div class="stat-grid-3" style="margin-top:8px;">
-                <div class="stat-box"><div class="stat-val blue" style="font-size:16px;">~33 km</div><div class="stat-lbl">Straight-line distance</div></div>
-                <div class="stat-box"><div class="stat-val amber" style="font-size:16px;">40–50 km</div><div class="stat-lbl">Typical swum distance (with tide)</div></div>
-                <div class="stat-box"><div class="stat-val blue" style="font-size:16px;">~3,400</div><div class="stat-lbl">Total individuals (est.)</div></div>
-            </div>
-            <div style="font-size:11px;color:var(--text-secondary);margin-top:12px;line-height:1.5;">Sources: <a href="https://www.channelswimmingassociation.com" target="_blank" rel="noopener" style="color:var(--ocean-light);">CSA</a>, <a href="https://cspf.co.uk/solo-swims-statistics" target="_blank" rel="noopener" style="color:var(--ocean-light);">CS&amp;PF</a>, <a href="https://db.marathonswimmers.org" target="_blank" rel="noopener" style="color:var(--ocean-light);">LongSwims Database</a> &middot; Figures combine both federations; verify live counts before quoting publicly</div>
+            <div class="card-label">Top 10 Fastest — Women&apos;s Solo E&rarr;F</div>
+            <div id="topWomen" class="loading-msg">Loading leaderboard...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Multi-Way Records (Live from Database)</div>
+            <div id="multiWayRecords" class="loading-msg">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">By the Numbers — Live Database</div>
+            <div id="totalsCard" class="loading-msg">Loading...</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:12px;line-height:1.5;">Source: public Channel solo swim database (CSA + CS&amp;PF + early historical), 1875–2025 &middot; <a href="https://www.channelswimmingassociation.com" target="_blank" rel="noopener" style="color:var(--ocean-light);">CSA</a> &middot; <a href="https://cspf.co.uk" target="_blank" rel="noopener" style="color:var(--ocean-light);">CS&amp;PF</a> &middot; <a href="https://db.marathonswimmers.org" target="_blank" rel="noopener" style="color:var(--ocean-light);">LongSwims</a> &middot; Last updated 2025-11-29</div>
         </div>
 
         <div class="card">
@@ -410,6 +356,39 @@
                 <div style="width:90px;font-size:11px;font-weight:700;color:var(--warning);">PIONEER (F)</div>
                 <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Gertrude Ederle</div><div style="font-size:11px;color:var(--text-secondary);">First woman &middot; 6 Aug 1926 &middot; 14h 39m (then world&apos;s fastest)</div></div>
             </div>
+        </div>
+
+    </div>
+
+    <!-- ═══════════════════════ EXPLORE ═══════════════════════ -->
+    <div id="panelExplore" class="panel">
+
+        <div class="card">
+            <div class="card-label">Explore 3,443 Channel Solo Swims (1875–2025)</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.5;">Search the complete public database of ratified solo crossings. Useful for researching your pilot's track record, finding swims by a specific athlete, or browsing your tide window's history.</div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+                <input type="text" id="exploreQuery" placeholder="Swimmer name (e.g. Webb)" oninput="searchSwims()" style="padding:9px 12px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:13px;">
+                <input type="number" id="exploreYear" placeholder="Year (e.g. 2024)" min="1875" max="2025" oninput="searchSwims()" style="padding:9px 12px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:13px;">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
+                <input type="text" id="explorePilot" placeholder="Pilot (e.g. Oram)" oninput="searchSwims()" style="padding:9px 12px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:13px;">
+                <input type="text" id="exploreNation" placeholder="Nationality" oninput="searchSwims()" style="padding:9px 12px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:13px;">
+                <select id="exploreGender" onchange="searchSwims()" style="padding:9px 12px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:#111c30;color:var(--text-primary);font-size:13px;">
+                    <option value="">All genders</option>
+                    <option value="M">Men only</option>
+                    <option value="F">Women only</option>
+                </select>
+            </div>
+
+            <div id="exploreResults" style="margin-top:8px;">
+                <div style="font-size:12px;color:var(--text-secondary);text-align:center;padding:30px 10px;">Search above to browse swims.</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Swims by Year — All time</div>
+            <div id="yearlyChart" class="loading-msg">Loading...</div>
         </div>
 
     </div>
@@ -645,6 +624,12 @@ async function init() {
     // Plan tab
     loadCommunityLogs();
     prefillTemp();
+
+    // Live database
+    loadChannelRecords();
+    loadChannelTotals();
+    loadPilotLeaderboard();
+    loadYearlyChart();
 
     document.getElementById('lastRefreshed').textContent =
         'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -1546,6 +1531,264 @@ function calcCrossingTime() {
         </div>
         <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);">Estimate only. Actual time depends on conditions, navigation, and the Channel on the day. Always work with an experienced pilot.</div>
     </div>`;
+}
+
+// ─── LIVE DATA FROM CHANNEL DATABASE ──────────────────────────────────────────
+
+function fmtTime(secs) {
+    if (secs === null || secs === undefined) return '—';
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    return s > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+                 : `${h}:${String(m).padStart(2,'0')}`;
+}
+
+async function loadChannelRecords() {
+    try {
+        // Top 10 men's solo E-F
+        const [{ data: men, error: meErr }, { data: women, error: woErr }, { data: men2, error: m2Err }, { data: men3, error: m3Err }, { data: men4, error: m4Err }, { data: women2, error: w2Err }] = await Promise.all([
+            sb.rpc('channel_fastest', { p_direction: 'E-F', p_gender: 'M', p_n_ways: 1, p_limit: 10 }),
+            sb.rpc('channel_fastest', { p_direction: 'E-F', p_gender: 'F', p_n_ways: 1, p_limit: 10 }),
+            sb.rpc('channel_fastest', { p_direction: null, p_gender: 'M', p_n_ways: 2, p_limit: 3 }),
+            sb.rpc('channel_fastest', { p_direction: null, p_gender: null, p_n_ways: 3, p_limit: 3 }),
+            sb.rpc('channel_fastest', { p_direction: null, p_gender: null, p_n_ways: 4, p_limit: 3 }),
+            sb.rpc('channel_fastest', { p_direction: null, p_gender: 'F', p_n_ways: 2, p_limit: 3 }),
+        ]);
+        if (meErr || woErr) throw (meErr || woErr);
+
+        // Hero cards
+        if (men?.[0]) {
+            document.getElementById('manRecTime').textContent = fmtTime(men[0].time_seconds);
+            document.getElementById('manRecName').textContent = men[0].full_name;
+            document.getElementById('manRecMeta').textContent = `${men[0].year} · ${men[0].nationality_when_swam || ''}`;
+        }
+        if (women?.[0]) {
+            document.getElementById('womRecTime').textContent = fmtTime(women[0].time_seconds);
+            document.getElementById('womRecName').textContent = women[0].full_name;
+            document.getElementById('womRecMeta').textContent = `${women[0].year} · ${women[0].nationality_when_swam || ''}`;
+        }
+
+        // Top 10 men's
+        document.getElementById('topMen').innerHTML = renderRecordList(men, '#f59e0b');
+        document.getElementById('topWomen').innerHTML = renderRecordList(women, '#ec4899');
+
+        // Multi-way records
+        const multiHtml = [
+            multiRecRow('2-WAY', men2?.[0], 'var(--ocean-light)'),
+            multiRecRow('2-WAY ♀', women2?.[0], 'var(--warning)'),
+            multiRecRow('3-WAY', men3?.[0], 'var(--ocean-light)'),
+            multiRecRow('4-WAY', men4?.[0], 'var(--ocean-light)'),
+        ].filter(Boolean).join('');
+        document.getElementById('multiWayRecords').innerHTML = multiHtml || '<div style="color:var(--text-secondary);font-size:13px;">No multi-way records in dataset.</div>';
+        document.getElementById('multiWayRecords').classList.remove('loading-msg');
+    } catch (e) {
+        console.error('Records load failed', e);
+        const fail = '<div style="font-size:13px;color:var(--text-secondary);">Could not load live records from database.</div>';
+        ['topMen','topWomen','multiWayRecords'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.classList.remove('loading-msg'); el.innerHTML = fail; }
+        });
+    }
+}
+
+function renderRecordList(rows, accentColor) {
+    if (!rows?.length) return '<div style="color:var(--text-secondary);font-size:13px;">No data.</div>';
+    return rows.map((r, i) => {
+        const pos = i + 1;
+        const posColor = pos === 1 ? accentColor : pos === 2 ? '#cbd5e1' : pos === 3 ? '#cd7f32' : '#64748b';
+        return `<div class="record-row">
+            <div class="record-pos" style="color:${posColor};">${pos}</div>
+            <div style="flex:1;">
+                <div style="font-size:13px;font-weight:600;">${r.full_name}</div>
+                <div style="font-size:11px;color:var(--text-secondary);">${r.year} · ${r.nationality_when_swam || '—'}${r.pilot ? ' · pilot: ' + r.pilot : ''}</div>
+            </div>
+            <div style="font-size:14px;font-weight:700;color:var(--ocean-light);">${fmtTime(r.time_seconds)}</div>
+        </div>`;
+    }).join('');
+}
+
+function multiRecRow(label, rec, color) {
+    if (!rec) return '';
+    return `<div class="record-row">
+        <div style="width:64px;font-size:11px;font-weight:700;color:${color};">${label}</div>
+        <div style="flex:1;">
+            <div style="font-size:13px;font-weight:600;">${rec.full_name}</div>
+            <div style="font-size:11px;color:var(--text-secondary);">${rec.year} · ${rec.nationality_when_swam || '—'}${rec.pilot ? ' · pilot: ' + rec.pilot : ''}</div>
+        </div>
+        <div style="font-size:14px;font-weight:700;color:var(--ocean-light);">${fmtTime(rec.time_seconds)}</div>
+    </div>`;
+}
+
+async function loadChannelTotals() {
+    try {
+        const { data, error } = await sb.rpc('channel_totals');
+        if (error) throw error;
+        const t = data?.[0];
+        if (!t) throw new Error('no data');
+        const avg = fmtTime(Math.round(t.avg_time_seconds));
+        const med = fmtTime(Math.round(t.median_time_seconds));
+        document.getElementById('totalsCard').innerHTML = `
+            <div class="stat-grid-3">
+                <div class="stat-box"><div class="stat-val blue" style="font-size:20px;">${t.total_swims.toLocaleString()}</div><div class="stat-lbl">Total ratified solo swims<br>1875–${t.latest_year}</div></div>
+                <div class="stat-box"><div class="stat-val blue" style="font-size:20px;">${t.unique_individuals.toLocaleString()}</div><div class="stat-lbl">Unique individuals<br>completed</div></div>
+                <div class="stat-box"><div class="stat-val amber" style="font-size:18px;">${med}</div><div class="stat-lbl">Median crossing time<br>(solo, 1-way)</div></div>
+            </div>
+            <div class="stat-grid-3" style="margin-top:8px;">
+                <div class="stat-box"><div class="stat-val blue" style="font-size:18px;">${t.male.toLocaleString()}</div><div class="stat-lbl">Men's solo<br>(${Math.round(t.male/t.total_swims*100)}%)</div></div>
+                <div class="stat-box"><div class="stat-val" style="font-size:18px;color:var(--warning);">${t.female.toLocaleString()}</div><div class="stat-lbl">Women's solo<br>(${Math.round(t.female/t.total_swims*100)}%)</div></div>
+                <div class="stat-box"><div class="stat-val blue" style="font-size:18px;">${t.e_to_f.toLocaleString()}</div><div class="stat-lbl">E&rarr;F direction<br>(${Math.round(t.e_to_f/t.total_swims*100)}%)</div></div>
+            </div>
+            <div class="stat-grid-3" style="margin-top:8px;">
+                <div class="stat-box"><div class="stat-val blue" style="font-size:18px;">${t.two_way}</div><div class="stat-lbl">Two-way<br>crossings</div></div>
+                <div class="stat-box"><div class="stat-val" style="font-size:18px;color:var(--warning);">${t.three_way}</div><div class="stat-lbl">Three-way<br>crossings</div></div>
+                <div class="stat-box"><div class="stat-val" style="font-size:18px;color:var(--success);">${t.four_way}</div><div class="stat-lbl">Four-way<br>crossings</div></div>
+            </div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;text-align:center;">Average time: ${avg} &middot; Earliest: ${t.earliest_year} &middot; Latest: ${t.latest_year}</div>
+        `;
+        document.getElementById('totalsCard').classList.remove('loading-msg');
+    } catch (e) {
+        console.error('Totals load failed', e);
+        document.getElementById('totalsCard').innerHTML = '<div style="font-size:13px;color:var(--text-secondary);">Could not load totals.</div>';
+        document.getElementById('totalsCard').classList.remove('loading-msg');
+    }
+}
+
+async function loadPilotLeaderboard() {
+    const el = document.getElementById('pilotLeaderboard');
+    try {
+        const { data, error } = await sb.rpc('channel_pilot_stats', { p_min_swims: 20, p_limit: 25 });
+        if (error) throw error;
+        if (!data?.length) throw new Error('no data');
+
+        const rows = data.map((p, i) => {
+            const active = p.last_year >= 2023;
+            const activeIcon = active ? '<span style="color:var(--success);font-size:10px;font-weight:700;">ACTIVE</span>' : '<span style="color:var(--text-secondary);font-size:10px;">retired</span>';
+            const fastest = p.fastest_time_seconds ? fmtTime(p.fastest_time_seconds) : '—';
+            return `<div class="record-row">
+                <div class="record-pos" style="color:${i < 3 ? '#f59e0b' : '#64748b'};">${i + 1}</div>
+                <div style="flex:1;">
+                    <div style="font-size:13px;font-weight:700;">${p.pilot}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:1px;">
+                        ${p.total_swims} swims &middot; ${p.first_year}–${p.last_year} &middot; ${activeIcon}
+                    </div>
+                    ${p.fastest_swimmer ? `<div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">Fastest: ${fastest} (${p.fastest_swimmer}, ${p.fastest_year})</div>` : ''}
+                    ${p.boats ? `<div style="font-size:10px;color:var(--text-secondary);margin-top:2px;opacity:.7;">Boats: ${p.boats.length > 60 ? p.boats.slice(0,60) + '…' : p.boats}</div>` : ''}
+                </div>
+                <div style="font-size:18px;font-weight:900;color:var(--ocean-light);">${p.total_swims}</div>
+            </div>`;
+        }).join('');
+        el.innerHTML = rows;
+        el.classList.remove('loading-msg');
+    } catch (e) {
+        console.error('Pilot leaderboard failed', e);
+        el.innerHTML = '<div style="font-size:13px;color:var(--text-secondary);">Could not load pilot stats.</div>';
+        el.classList.remove('loading-msg');
+    }
+}
+
+async function loadYearlyChart() {
+    const el = document.getElementById('yearlyChart');
+    try {
+        const { data, error } = await sb.rpc('channel_yearly_stats', { p_from_year: 1950 });
+        if (error) throw error;
+        if (!data?.length) throw new Error('no data');
+        const max = Math.max(...data.map(d => Number(d.total_swims)));
+
+        // Simple inline bar chart
+        const barHeight = 110;
+        const rowWidth = Math.max(2, Math.floor(580 / data.length));
+        const bars = data.map(d => {
+            const h = Math.max(1, Math.round((Number(d.total_swims) / max) * barHeight));
+            const isRecent = d.year >= 2020;
+            return `<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;min-width:0;" title="${d.year}: ${d.total_swims} swims (${d.male}M / ${d.female}F)">
+                <div style="width:80%;height:${h}px;background:${isRecent ? 'var(--ocean-light)' : 'rgba(14,165,233,0.5)'};border-radius:1px 1px 0 0;"></div>
+            </div>`;
+        }).join('');
+        const startYear = data[0].year;
+        const endYear = data[data.length-1].year;
+        const peakYear = data.reduce((max, d) => Number(d.total_swims) > Number(max.total_swims) ? d : max);
+        const recentTotal = data.filter(d => d.year >= 2020).reduce((s, d) => s + Number(d.total_swims), 0);
+
+        el.innerHTML = `
+            <div style="display:flex;align-items:flex-end;height:${barHeight + 4}px;gap:1px;background:rgba(0,0,0,0.15);border-radius:6px;padding:4px;margin-bottom:8px;">
+                ${bars}
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-secondary);">
+                <span>${startYear}</span>
+                <span>1975</span>
+                <span>2000</span>
+                <span>${endYear}</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px;">
+                <div class="stat-box"><div class="stat-val blue" style="font-size:18px;">${peakYear.total_swims}</div><div class="stat-lbl">Peak year<br>${peakYear.year}</div></div>
+                <div class="stat-box"><div class="stat-val blue" style="font-size:18px;">${recentTotal}</div><div class="stat-lbl">Last 6 years<br>2020–${endYear}</div></div>
+                <div class="stat-box"><div class="stat-val amber" style="font-size:18px;">${Math.round(recentTotal/6)}</div><div class="stat-lbl">Recent avg<br>per year</div></div>
+            </div>
+        `;
+        el.classList.remove('loading-msg');
+    } catch (e) {
+        console.error('Yearly chart failed', e);
+        el.innerHTML = '<div style="font-size:13px;color:var(--text-secondary);">Could not load yearly stats.</div>';
+        el.classList.remove('loading-msg');
+    }
+}
+
+let _searchTimer = null;
+function searchSwims() {
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(runSearch, 300);
+}
+
+async function runSearch() {
+    const el = document.getElementById('exploreResults');
+    const q = document.getElementById('exploreQuery').value.trim();
+    const y = parseInt(document.getElementById('exploreYear').value) || null;
+    const p = document.getElementById('explorePilot').value.trim();
+    const n = document.getElementById('exploreNation').value.trim();
+    const g = document.getElementById('exploreGender').value;
+
+    if (!q && !y && !p && !n && !g) {
+        el.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);text-align:center;padding:30px 10px;">Search above to browse swims.</div>';
+        return;
+    }
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);text-align:center;padding:20px;">Searching...</div>';
+
+    try {
+        const { data, error } = await sb.rpc('channel_search_swims', {
+            p_query: q || null, p_year: y, p_gender: g || null,
+            p_pilot: p || null, p_nationality: n || null, p_limit: 50
+        });
+        if (error) throw error;
+        if (!data?.length) {
+            el.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);text-align:center;padding:20px;">No swims match your search.</div>';
+            return;
+        }
+        const rows = data.map(s => {
+            const tags = [];
+            if (s.honours) tags.push(`<span style="font-size:9px;background:rgba(245,158,11,0.15);color:var(--warning);padding:1px 5px;border-radius:3px;">${s.honours}</span>`);
+            if (s.n_ways > 1) tags.push(`<span style="font-size:9px;background:rgba(14,165,233,0.15);color:var(--ocean-light);padding:1px 5px;border-radius:3px;">${s.n_ways}-WAY</span>`);
+            if (s.direction === 'F-E') tags.push(`<span style="font-size:9px;background:rgba(34,197,94,0.15);color:var(--success);padding:1px 5px;border-radius:3px;">F→E</span>`);
+            return `<div style="padding:10px 0;border-bottom:1px solid var(--border);">
+                <div style="display:flex;align-items:flex-start;gap:10px;">
+                    <div style="flex:1;">
+                        <div style="font-size:13px;font-weight:700;color:var(--text-primary);">${s.full_name} ${s.gender === 'F' ? '<span style="color:var(--warning);font-size:10px;">♀</span>' : ''}</div>
+                        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${s.year} · ${s.nationality_when_swam || '—'}${s.age ? ' · age ' + Math.round(s.age) : ''}${s.pilot ? ' · pilot: ' + s.pilot : ''}${s.boat ? ' · ' + s.boat : ''}</div>
+                        ${tags.length ? `<div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;">${tags.join('')}</div>` : ''}
+                    </div>
+                    <div style="text-align:right;flex-shrink:0;">
+                        <div style="font-size:14px;font-weight:700;color:var(--ocean-light);">${fmtTime(s.time_seconds)}</div>
+                        <div style="font-size:10px;color:var(--text-secondary);">${s.ratifier || ''}</div>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+        const showing = data.length === 50 ? 'Showing 50 results (refine your search)' : `${data.length} result${data.length===1?'':'s'}`;
+        el.innerHTML = `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">${showing}</div>${rows}`;
+    } catch (e) {
+        console.error('Search failed', e);
+        el.innerHTML = '<div style="font-size:13px;color:var(--text-secondary);text-align:center;padding:20px;">Search failed — try again.</div>';
+    }
 }
 
 // ─── EMAIL CAPTURE ─────────────────────────────────────────────────────────────

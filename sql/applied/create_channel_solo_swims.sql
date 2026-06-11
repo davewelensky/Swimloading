@@ -1,0 +1,21 @@
+-- Phase 2a — English Channel solo swim database
+-- Source: public community database (LongSwims / "Cold in the Channel")
+-- 3,443 ratified solo swims, 1875-present
+-- Applied via Supabase MCP migration 'create_channel_solo_swims' and
+-- subsequent 'create_channel_stats_rpcs' migration.
+-- See database for full schema; this file is a snapshot for reference.
+
+-- Table: public.channel_solo_swims
+--   unique_id BIGINT PRIMARY KEY
+--   year, full_name, gender, n_ways, direction, time_seconds, pilot, boat,
+--   nationality_when_swam, honours, comments, age, etc. (56 cols total)
+--   indexes on year, gender, pilot, time_seconds, direction, nationality, lower(full_name)
+--   RLS: public SELECT only
+
+-- RPC functions:
+--   channel_totals() — overall stats
+--   channel_fastest(direction, gender, n_ways, limit) — leaderboards
+--   channel_pilot_stats(min_swims, limit) — pilot rankings
+--   channel_yearly_stats(from_year) — yearly counts
+--   channel_search_swims(query, year, gender, pilot, nationality, limit)
+-- All SECURITY DEFINER, GRANT EXECUTE to anon + authenticated
