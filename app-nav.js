@@ -461,6 +461,73 @@
             } catch (e) { /* not a club admin or coach */ }
         }
 
+        // Personal race-day banners — one entry per swimmer with a gala link.
+        // Each entry: { userIds:[], emails:[], page, swimmer, gala_date_iso, show_from_iso, hide_after_iso }
+        async function loadRaceDayBanner() {
+            try {
+                const ITALIA_ID = '6d9abd10-612d-4179-a325-e5c9470a8e0c';
+                const ITALIA_EMAIL = 'italia@lollis.co.za';
+                const PARENT_EMAIL = 'milenapugliese2008@outlook.com'; // mum (Milena)
+
+                const RACE_PAGES = [
+                    {
+                        ids: [ITALIA_ID],
+                        emails: [ITALIA_EMAIL, PARENT_EMAIL],
+                        page: '/italia',
+                        swimmer: 'Italia',
+                        gala_label: 'Saturday gala',
+                        gala_date_iso: '2026-06-13',
+                        // Show from Friday onwards
+                        show_from_iso: '2026-06-12T00:00:00+02:00',
+                        hide_after_iso: '2026-06-13T23:59:59+02:00',
+                    },
+                ];
+
+                const banner = document.getElementById('raceDayBanner');
+                if (!banner) return;
+                if (!currentUser) return;
+
+                const userId = currentUser?.id;
+                const userEmail = (currentUserProfile?.email || currentUser?.email || '').toLowerCase();
+                const now = new Date();
+
+                const match = RACE_PAGES.find(r => {
+                    const idMatch = r.ids.includes(userId);
+                    const emailMatch = r.emails.map(e => e.toLowerCase()).includes(userEmail);
+                    if (!idMatch && !emailMatch) return false;
+                    const showFrom = new Date(r.show_from_iso);
+                    const hideAfter = new Date(r.hide_after_iso);
+                    return now >= showFrom && now <= hideAfter;
+                });
+
+                if (!match) { banner.style.display = 'none'; return; }
+
+                const gala = new Date(match.gala_date_iso + 'T09:00:00+02:00');
+                const diffMs = gala - now;
+                const diffH = Math.round(diffMs / 3600000);
+                let countdown;
+                if (diffMs < 0) countdown = 'today';
+                else if (diffH < 24) countdown = `in ${diffH} hour${diffH === 1 ? '' : 's'}`;
+                else countdown = 'tomorrow';
+
+                banner.style.display = 'block';
+                banner.innerHTML = `
+                    <a href="${match.page}" style="display:block;text-decoration:none;background:linear-gradient(135deg,rgba(125,211,252,0.16),rgba(56,189,248,0.06));border:1px solid rgba(125,211,252,0.35);border-radius:14px;padding:14px 16px;color:#fff;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
+                            <span style="background:#7dd3fc;color:#0a0f1e;font-size:10px;font-weight:800;padding:2px 9px;border-radius:20px;letter-spacing:0.3px;">RACE DAY</span>
+                            <span style="font-size:11px;color:rgba(255,255,255,0.6);font-weight:600;letter-spacing:0.4px;text-transform:uppercase;">${match.gala_label} ${countdown}</span>
+                        </div>
+                        <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:3px;line-height:1.3;">${match.swimmer}&apos;s race day plan</div>
+                        <div style="font-size:13px;color:rgba(255,255,255,0.65);margin-bottom:10px;">4 events · timeline · nutrition · between-race protocol</div>
+                        <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#7dd3fc;">Open the plan
+                            <span style="font-size:14px;">&rarr;</span>
+                        </div>
+                    </a>`;
+            } catch (e) {
+                console.error('loadRaceDayBanner failed', e);
+            }
+        }
+
         async function loadSpotlightBanner() {
             try {
                 const { data: spotRows } = await supabaseClient
