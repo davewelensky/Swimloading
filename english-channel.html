@@ -675,6 +675,39 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: true, storageKey: 'sb-szgkzuswelntnevobnoh-auth-token' }
 });
 
+// ─── CHANNEL PRO ACCESS ────────────────────────────────────────────────────────
+// Beta allowlist. Migrate to a Supabase table check when Stripe is live.
+const CHANNEL_PRO_ALLOWLIST = ['dave.welensky@gmail.com', 'lindi@mitchell.co.za'];
+let _channelProUser = null;
+
+async function loadChannelProStatus() {
+    try {
+        const { data: { session } } = await sb.auth.getSession();
+        const email = (session?.user?.email || '').toLowerCase();
+        _channelProUser = email && CHANNEL_PRO_ALLOWLIST.includes(email);
+    } catch { _channelProUser = false; }
+    return _channelProUser;
+}
+
+function isChannelPro() { return !!_channelProUser; }
+
+function proGateHtml(opts = {}) {
+    const reason = opts.reason || 'This is a Channel Pro feature.';
+    return `<div style="background:linear-gradient(135deg,rgba(245,158,11,0.10),rgba(14,165,233,0.06));border:1px solid rgba(245,158,11,0.30);border-radius:12px;padding:16px;text-align:center;margin:${opts.margin || '12px 0'};">
+        <div style="display:inline-block;font-size:9px;font-weight:800;letter-spacing:0.16em;color:var(--warning);background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.30);padding:3px 10px;border-radius:5px;margin-bottom:10px;">CHANNEL PRO</div>
+        <div style="font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:6px;">${opts.title || 'Unlock the full intelligence layer'}</div>
+        <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin-bottom:14px;max-width:380px;margin-left:auto;margin-right:auto;">${reason}</div>
+        <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;">
+            <a href="/app" class="cta-btn" style="padding:9px 16px;font-size:12px;">Sign in</a>
+            <span style="font-size:11px;color:var(--text-secondary);align-self:center;">Currently in private beta</span>
+        </div>
+    </div>`;
+}
+
+function proInlineBadge() {
+    return `<span style="display:inline-block;font-size:9px;font-weight:800;letter-spacing:0.14em;color:var(--warning);background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.30);padding:2px 7px;border-radius:4px;vertical-align:middle;margin-left:6px;">PRO</span>`;
+}
+
 let _cond = null;  // /api/channel-conditions
 let _wf = null;    // Open-Meteo wind daily (Dover)
 let _mf = null;    // Open-Meteo marine daily (Dover)
@@ -695,6 +728,7 @@ async function init() {
         fetchMarineForecast(),
         fetchCapGrisNez()
     ]);
+    await loadChannelProStatus();
 
     // Now tab
     updateHero();
@@ -1411,7 +1445,8 @@ function renderCrossingWindow() {
     const el = document.getElementById('crossingWindow');
     if (!_wf && !_mf) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Forecast data unavailable.</div>'; return; }
 
-    const days = (_wf?.time || _mf?.time || []).length;
+    const totalDays = (_wf?.time || _mf?.time || []).length;
+    const days = isChannelPro() ? totalDays : Math.min(3, totalDays);
     const sst = bestTemp();
     let html = '';
     for (let i = 0; i < days; i++) {
@@ -1451,7 +1486,12 @@ function renderCrossingWindow() {
             <div style="font-size:12px;font-weight:800;color:${labelCol};width:40px;text-align:right;">${label}</div>
         </div>`;
     }
-    el.innerHTML = html + `<div style="font-size:10px;color:var(--text-secondary);padding:4px 0;">Score 0–100 · GO: wind &le;10kt, waves &le;1.2m · WAIT: wind &le;18kt, waves &le;2.0m · Pilots typically no-swim at Beaufort 4+</div>`;
+    const proCta = isChannelPro() ? '' : proGateHtml({
+        title: `Unlock the full 16-day window`,
+        reason: `You're seeing 3 days. Channel Pro unlocks the full 16-day forecast, daily score, and personal tide window scoring.`,
+        margin: '12px 0 4px',
+    });
+    el.innerHTML = html + proCta + `<div style="font-size:10px;color:var(--text-secondary);padding:4px 0;">Score 0–100 · GO: wind &le;10kt, waves &le;1.2m · WAIT: wind &le;18kt, waves &le;2.0m · Pilots typically no-swim at Beaufort 4+</div>`;
 }
 
 function renderWindForecast() {
@@ -1460,7 +1500,9 @@ function renderWindForecast() {
         el.innerHTML = `<div style="font-size:13px;color:var(--text-secondary);">Wind forecast unavailable. <a href="https://www.windy.com/51.128/1.313?wind,51.128,1.313,10" target="_blank" style="color:var(--ocean-light);">Open Windy.com &rarr;</a></div>`;
         return;
     }
-    const rows = _wf.time.map((date, i) => {
+    const proDayCap = isChannelPro() ? _wf.time.length : Math.min(3, _wf.time.length);
+    const visibleTimes = _wf.time.slice(0, proDayCap);
+    const rows = visibleTimes.map((date, i) => {
         const spd = _wf.wind_speed_10m_max[i];
         const dir = _wf.wind_direction_10m_dominant[i];
         const gust = _wf.wind_gusts_10m_max[i];
@@ -1479,13 +1521,16 @@ function renderWindForecast() {
             <div style="font-size:12px;font-weight:600;color:${spdCol};">${spdLabel}</div>
         </div>`;
     }).join('');
-    el.innerHTML = rows + `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo · Dover Strait · Daily max wind in knots · F3=ideal, F4=marginal, F5+=no-go</div>`;
+    const proCta = isChannelPro() ? '' : proGateHtml({ title: 'Full 16-day wind forecast', reason: 'You\'re seeing 3 days. Channel Pro unlocks the full 16-day Dover Strait wind forecast.', margin: '10px 0 4px' });
+    el.innerHTML = rows + proCta + `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo · Dover Strait · Daily max wind in knots · F3=ideal, F4=marginal, F5+=no-go</div>`;
 }
 
 function renderSwellForecast() {
     const el = document.getElementById('swellForecast');
     if (!_mf) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Marine forecast unavailable.</div>'; return; }
-    const rows = _mf.time.map((date, i) => {
+    const proDayCap = isChannelPro() ? _mf.time.length : Math.min(3, _mf.time.length);
+    const visibleTimes = _mf.time.slice(0, proDayCap);
+    const rows = visibleTimes.map((date, i) => {
         const wh = _mf.wave_height_max[i];
         const sw = _mf.swell_wave_height_max?.[i];
         const wp = _mf.wave_period_max?.[i];
@@ -1502,7 +1547,8 @@ function renderSwellForecast() {
             <div style="font-size:12px;font-weight:600;color:${wCol};">${wLabel}</div>
         </div>`;
     }).join('');
-    el.innerHTML = rows + `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo Marine · Dover Strait · Significant wave height</div>`;
+    const proCta = isChannelPro() ? '' : proGateHtml({ title: 'Full 10-day wave forecast', reason: 'You\'re seeing 3 days. Channel Pro unlocks the full 10-day Dover Strait wave + swell forecast.', margin: '10px 0 4px' });
+    el.innerHTML = rows + proCta + `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo Marine · Dover Strait · Significant wave height</div>`;
 }
 
 // ─── MONTHLY TABLE ─────────────────────────────────────────────────────────────
@@ -1588,6 +1634,14 @@ function prefillTemp() {
 }
 
 function calcCrossingTime() {
+    if (!isChannelPro()) {
+        document.getElementById('predResult').style.display = 'block';
+        document.getElementById('predResult').innerHTML = proGateHtml({
+            title: 'Crossing time predictor is Channel Pro',
+            reason: 'The predictor models pool-to-OW pace conversion, cold-water adjustment, and tidal sweep distance to estimate your finish time. Available to Channel Pro members.',
+        });
+        return;
+    }
     const paceStr = document.getElementById('inputPace').value;
     const tempStr = document.getElementById('inputTemp').value;
     const tideType = document.getElementById('inputTide').value;
@@ -1677,9 +1731,15 @@ async function loadChannelRecords() {
             document.getElementById('womRecMeta').textContent = `${w.year} · ${w.nationality_when_swam || ''}`;
         }
 
-        // Top 10 men's
-        document.getElementById('topMen').innerHTML = renderRecordList(men, '#f59e0b');
-        document.getElementById('topWomen').innerHTML = renderRecordList(women, '#ec4899');
+        // Top 10 men's / women's — gate beyond 3 for non-Pro
+        const proLimit = isChannelPro() ? Infinity : 3;
+        const proGate = (n) => isChannelPro() ? '' : proGateHtml({
+            title: `Unlock the full top ${n}`,
+            reason: `You're seeing the top 3. Channel Pro unlocks the full top 10 leaderboard with nationality, pilot, and direct links to every swim page.`,
+            margin: '12px 0 0',
+        });
+        document.getElementById('topMen').innerHTML = renderRecordList(men.slice(0, proLimit), '#f59e0b') + proGate(10);
+        document.getElementById('topWomen').innerHTML = renderRecordList(women.slice(0, proLimit), '#ec4899') + proGate(10);
 
         // Multi-way records
         const multiHtml = [
@@ -1773,7 +1833,8 @@ async function loadPilotLeaderboard() {
         if (error) throw error;
         if (!data?.length) throw new Error('no data');
 
-        const rows = data.map((p, i) => {
+        const visible = isChannelPro() ? data : data.slice(0, 3);
+        const rows = visible.map((p, i) => {
             const active = p.last_year >= 2023;
             const activeIcon = active ? '<span style="color:var(--success);font-size:10px;font-weight:700;">ACTIVE</span>' : '<span style="color:var(--text-secondary);font-size:10px;">retired</span>';
             const fastest = p.fastest_time_seconds ? fmtTime(p.fastest_time_seconds) : '—';
@@ -1790,7 +1851,12 @@ async function loadPilotLeaderboard() {
                 <div style="font-size:18px;font-weight:900;color:var(--ocean-light);">${p.total_swims}</div>
             </div>`;
         }).join('');
-        el.innerHTML = rows;
+        const proCta = isChannelPro() ? '' : proGateHtml({
+            title: `Unlock the full pilot leaderboard`,
+            reason: `Showing top 3 of ${data.length}. Channel Pro unlocks every active CSA + CS&PF pilot's full track record — total ratified crossings, years active, fastest swim, boats.`,
+            margin: '14px 0 0',
+        });
+        el.innerHTML = rows + proCta;
         el.classList.remove('loading-msg');
     } catch (e) {
         console.error('Pilot leaderboard failed', e);
@@ -1867,9 +1933,10 @@ async function runSearch() {
     el.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);text-align:center;padding:20px;">Searching...</div>';
 
     try {
+        const proLimit = isChannelPro() ? 50 : 10;
         const { data, error } = await sb.rpc('channel_search_swims', {
             p_query: q || null, p_year: y, p_gender: g || null,
-            p_pilot: p || null, p_nationality: n || null, p_limit: 50
+            p_pilot: p || null, p_nationality: n || null, p_limit: proLimit
         });
         if (error) throw error;
         if (!data?.length) {
@@ -1895,8 +1962,14 @@ async function runSearch() {
                 </div>
             </a>`;
         }).join('');
-        const showing = data.length === 50 ? 'Showing 50 results (refine your search)' : `${data.length} result${data.length===1?'':'s'}`;
-        el.innerHTML = `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">${showing}</div>${rows}`;
+        const cap = isChannelPro() ? 50 : 10;
+        const showing = data.length === cap ? `Showing ${cap} results${isChannelPro() ? ' (refine your search)' : ''}` : `${data.length} result${data.length===1?'':'s'}`;
+        const proCta = isChannelPro() ? '' : proGateHtml({
+            title: 'Unlock the full search',
+            reason: `Free results are capped at 10. Channel Pro unlocks the full search across all 3,443 ratified solo crossings — by year, pilot, nationality, gender, name.`,
+            margin: '14px 0 4px',
+        });
+        el.innerHTML = `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">${showing}</div>${rows}${proCta}`;
     } catch (e) {
         console.error('Search failed', e);
         el.innerHTML = '<div style="font-size:13px;color:var(--text-secondary);text-align:center;padding:20px;">Search failed — try again.</div>';
@@ -1911,6 +1984,10 @@ function getTideWindow() {
 }
 
 function openTideWindowEditor() {
+    if (!isChannelPro()) {
+        alert('Channel Pro feature. Currently in private beta — contact us to join.');
+        return;
+    }
     const tw = getTideWindow();
     if (tw) {
         document.getElementById('twStart').value = tw.start || '';
@@ -1953,6 +2030,15 @@ async function renderTideWindow() {
     const card = document.getElementById('myTideWindowCard');
     const ctaText = document.querySelector('#tideWindowCta > div');
     const ctaBtn = document.querySelector('#tideWindowCta > button');
+
+    // Non-Pro users: show the bait, but the editor is gated
+    if (!isChannelPro()) {
+        card.style.display = 'none';
+        if (ctaText) ctaText.innerHTML = 'Crossing in 2026 or 2027?<br><span style="font-weight:400;color:var(--text-secondary);">Personal forecast + score per day in your window</span>';
+        if (ctaBtn) { ctaBtn.textContent = 'Pro →'; ctaBtn.style.opacity = '0.85'; }
+        return;
+    }
+
     const tw = getTideWindow();
     if (!tw) {
         card.style.display = 'none';
