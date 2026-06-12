@@ -1569,8 +1569,8 @@
         <input type="text" class="form-input" id="newRosterName" placeholder="e.g. Jane Smith">
       </div>
       <div class="form-group" style="flex:1;">
-        <div class="form-label">Member #</div>
-        <input type="text" class="form-input" id="newRosterNum" placeholder="e.g. 17">
+        <div class="form-label">Member # <span style="color:var(--text-sec);font-weight:400;text-transform:none;letter-spacing:0;">· auto</span></div>
+        <input type="number" class="form-input" id="newRosterNum" placeholder="auto">
       </div>
     </div>
     <div class="form-row">
@@ -7944,6 +7944,16 @@ function onSquadChange(squadId) {
   // simpler: just hide the section headers; fields remain but aren't required
 }
 
+// Next member number for the current club = highest existing in this club's roster + 1.
+// member_number is a per-club unique integer; this guarantees no collision and no guessing.
+function nextMemberNumber() {
+  const max = (allRoster || []).reduce((m, r) => {
+    const n = parseInt(r.member_number, 10);
+    return Number.isFinite(n) && n > m ? n : m;
+  }, 0);
+  return max + 1;
+}
+
 function openAddRosterModal() {
   // Reset all fields
   ['newRosterName','newRosterNum','newRosterDob','newRosterSchool','newRosterSasa',
@@ -7964,6 +7974,9 @@ function openAddRosterModal() {
   const sel = document.getElementById('newRosterSquad');
   sel.innerHTML = '<option value="">— select squad —</option>' +
     allSquads.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+
+  // Pre-fill the next member number (Britt can override; blank also auto-assigns on save)
+  document.getElementById('newRosterNum').value = nextMemberNumber();
 
   // Set today as join date default
   document.getElementById('newRosterJoinDate').value = localISO(new Date());
@@ -7991,18 +8004,31 @@ async function submitAddRosterMember() {
 
   if (!name) { showToast('Name is required', 'error'); return; }
 
-  // 1. Insert roster entry
-  const { data: roster, error: rErr } = await sb.from('club_roster').insert({
-    club_id:        currentClub.id,
-    display_name:   name,
-    member_number:  num    || null,
-    category:       cat    || null,
-    gender:         gender || null,
-    squad_id:       squadId,
-    date_of_birth:  dob    || null,
-    is_trial:       document.getElementById('newIsTrial').checked,
-    fee_paid:       document.getElementById('newFeePaid').checked,
-  }).select('id').single();
+  // Member # auto-assigns when blank, and retries on the rare collision with the
+  // per-club unique (club_id, member_number) index — so Britt never has to guess.
+  let memberNum = num ? parseInt(num, 10) : nextMemberNumber();
+  if (!Number.isFinite(memberNum)) memberNum = nextMemberNumber();
+
+  let roster, rErr;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    ({ data: roster, error: rErr } = await sb.from('club_roster').insert({
+      club_id:        currentClub.id,
+      display_name:   name,
+      member_number:  memberNum,
+      category:       cat    || null,
+      gender:         gender || null,
+      squad_id:       squadId,
+      date_of_birth:  dob    || null,
+      is_trial:       document.getElementById('newIsTrial').checked,
+      fee_paid:       document.getElementById('newFeePaid').checked,
+    }).select('id').single());
+    // 23505 = unique_violation → the number was taken, bump and retry
+    if (rErr && (rErr.code === '23505' || /duplicate|unique/i.test(rErr.message || ''))) {
+      memberNum = nextMemberNumber() + attempt + 1;
+      continue;
+    }
+    break;
+  }
 
   if (rErr) { showToast('Failed: ' + rErr.message, 'error'); return; }
 
@@ -8084,6 +8110,13 @@ let walkins              = [];     // walk-in roster ids added this session
 let sessionHealthMap     = {};     // rosterId → active health events[]
 
 async function loadAttendance() {
+  // The schedule "Mark →" cards come from the timetable (allWeekSessions). loadAttendance
+  // used to assume an earlier loadSquads() had populated it — fragile on a direct nav, and
+  // allSquadSessions ("Today's Schedule") was frozen to the weekday the app first loaded.
+  // Load the timetable if missing, then recompute today against the actual current weekday.
+  if (!allSquads.length || !(allWeekSessions || []).length) await loadSquads();
+  allSquadSessions = (allWeekSessions || []).filter(s => s.day_of_week === new Date().getDay());
+
   const eightWeeksAgo = localISO(new Date(Date.now() - 56 * 86400000));
   const [sessionsRes, intentsRes] = await Promise.all([
     sb.from('club_sessions')
