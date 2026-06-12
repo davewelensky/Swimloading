@@ -77,6 +77,10 @@
     .tab-btn.active{background:var(--ocean);color:white;}
     .panel{display:none;} .panel.active{display:block;}
     .signal-card{border-radius:16px;padding:20px;margin-bottom:14px;border:1px solid;}
+    .sc-btn{flex:1;padding:8px;border-radius:8px;border:1px solid rgba(14,165,233,0.25);background:rgba(14,165,233,0.06);color:var(--text-secondary);font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;}
+    .sc-btn.active{background:rgba(14,165,233,0.16);border-color:var(--ocean-light);color:var(--ocean-light);}
+    .sc-wrap[data-tide="neap"] .sc-spring{display:none;}
+    .sc-wrap[data-tide="spring"] .sc-neap{display:none;}
     .signal-card.go{background:rgba(34,197,94,0.08);border-color:rgba(34,197,94,0.3);}
     .signal-card.caution{background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.3);}
     .signal-card.wait{background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.3);}
@@ -179,6 +183,11 @@
             <div class="signal-sub">Fetching NOAA satellite, Sandettie buoy and wave forecast.</div>
         </div>
 
+        <div class="card" id="weekOutlookCard" style="display:none;">
+            <div class="card-label">Can I cross this week?</div>
+            <div id="weekOutlook"></div>
+        </div>
+
         <div class="card">
             <div class="card-label">Live Conditions — Strait of Dover</div>
             <div class="stat-grid-3">
@@ -195,8 +204,55 @@
         </div>
 
         <div class="card">
+            <div class="card-label">Water Temperature — 30-Day Trend</div>
+            <div id="tempTrendCard" class="loading-msg">Loading temperature history…</div>
+        </div>
+
+        <div class="card">
             <div class="card-label">Tides — Dover</div>
             <div id="tideCard" class="loading-msg">Loading tide data...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Route &amp; Tide Simulator</div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.55;margin-bottom:10px;">You aim straight for France, but the tide sweeps you sideways — NE on the flood, SW on the ebb — so your track over the ground is an <strong style="color:var(--text-primary);">S-curve</strong>. Springs sweep harder (overshoot risk); neaps are gentler.</div>
+            <div class="sc-wrap" id="scWrap" data-tide="neap">
+                <div style="display:flex;gap:6px;margin-bottom:10px;">
+                    <button class="sc-btn active" data-tide="neap" onclick="setTideSim('neap')">Neap tide</button>
+                    <button class="sc-btn" data-tide="spring" onclick="setTideSim('spring')">Spring tide</button>
+                </div>
+                <svg viewBox="0 0 300 196" style="width:100%;max-width:340px;display:block;margin:0 auto;">
+                    <!-- coastlines -->
+                    <rect x="0" y="0" width="300" height="22" fill="rgba(56,189,248,0.07)"/>
+                    <rect x="0" y="174" width="300" height="22" fill="rgba(217,119,6,0.08)"/>
+                    <text x="8" y="15" font-size="9" font-weight="700" fill="var(--ocean-light)">ENGLAND · Shakespeare Beach</text>
+                    <text x="292" y="190" font-size="9" font-weight="700" fill="var(--gold)" text-anchor="end">FRANCE · Cap Gris-Nez</text>
+                    <!-- straight-line aim -->
+                    <line x1="150" y1="28" x2="150" y2="166" stroke="rgba(255,255,255,0.18)" stroke-width="1" stroke-dasharray="4 4"/>
+                    <text x="156" y="100" font-size="8" fill="var(--text-secondary)">straight line ~33 km</text>
+                    <!-- tide arrows -->
+                    <g class="sc-arrows">
+                        <path d="M196,62 h26 m-7,-5 l7,5 -7,5" stroke="rgba(34,197,94,0.8)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" class="sc-flood"/>
+                        <text x="200" y="56" font-size="8" fill="rgba(34,197,94,0.9)" class="sc-flood">Flood · NE</text>
+                        <path d="M104,132 h-26 m7,-5 l-7,5 7,5" stroke="rgba(56,189,248,0.8)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" class="sc-ebb"/>
+                        <text x="100" y="126" font-size="8" fill="rgba(56,189,248,0.9)" text-anchor="end" class="sc-ebb">Ebb · SW</text>
+                    </g>
+                    <!-- S-curve track (one shown at a time) -->
+                    <path class="sc-track sc-neap"   id="scPathNeap"   d="M150,28 C200,55 200,82 150,97 C100,112 100,139 150,166" fill="none" stroke="var(--ocean-light)" stroke-width="2.5" stroke-linecap="round"/>
+                    <path class="sc-track sc-spring" id="scPathSpring" d="M150,28 C248,58 248,84 150,97 C52,110 52,136 150,166" fill="none" stroke="var(--gold)" stroke-width="2.5" stroke-linecap="round"/>
+                    <!-- start / end markers -->
+                    <circle cx="150" cy="28" r="3.5" fill="var(--ocean-light)"/>
+                    <circle cx="150" cy="166" r="3.5" fill="var(--gold)"/>
+                    <!-- swimmer -->
+                    <circle class="sc-neap" r="4" fill="#fff" stroke="var(--ocean-light)" stroke-width="2">
+                        <animateMotion dur="7s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#scPathNeap"/></animateMotion>
+                    </circle>
+                    <circle class="sc-spring" r="4" fill="#fff" stroke="var(--gold)" stroke-width="2">
+                        <animateMotion dur="7s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#scPathSpring"/></animateMotion>
+                    </circle>
+                </svg>
+                <div id="scNote" style="font-size:11px;color:var(--text-secondary);margin-top:10px;line-height:1.5;">Neap window: gentler sweep, more predictable landing — preferred by most swimmers and slower crossings.</div>
+            </div>
         </div>
 
         <div class="card" style="background:linear-gradient(135deg,rgba(34,197,94,0.08),rgba(14,165,233,0.06));border:1px solid rgba(14,165,233,0.25);">
@@ -746,6 +802,8 @@ async function init() {
     updateHero();
     updateStatBoxes();
     buildGoSignal();
+    renderWeekOutlook();
+    renderTempTrend();
     loadTides();
     renderCapGrisNez();
     renderAstronomy();
@@ -874,6 +932,118 @@ async function fetchMarineForecast() {
         const data = await res.json();
         return data.daily || null;
     } catch { return null; }
+}
+
+async function fetchSstHistory() {
+    // 30-day daily sea-surface-temperature history at the Channel midpoint (Dover side)
+    const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${DOVER_LAT}&longitude=${DOVER_LNG}&daily=sea_surface_temperature_max&past_days=31&forecast_days=1&timezone=Europe%2FLondon`;
+    try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 7000);
+        const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+        clearTimeout(timer);
+        if (!res.ok) return null;
+        const d = (await res.json()).daily;
+        if (!d || !d.time) return null;
+        return d.time.map((t, i) => ({ date: t, sst: d.sea_surface_temperature_max[i] }))
+                     .filter(p => p.sst != null);
+    } catch { return null; }
+}
+
+function renderWeekOutlook() {
+    const card = document.getElementById('weekOutlookCard');
+    const el = document.getElementById('weekOutlook');
+    if (!card || !el) return;
+    const times = _wf?.time || _mf?.time || [];
+    if (!times.length) { card.style.display = 'none'; return; }
+    const days = times.slice(0, 7).map((date, i) => {
+        const wind = _wf?.wind_speed_10m_max?.[i] ?? null;
+        const dir  = _wf?.wind_direction_10m_dominant?.[i] ?? null;
+        const wave = _mf?.wave_height_max?.[i] ?? null;
+        const sst  = _mf?.sea_surface_temperature_max?.[i] ?? null;
+        return { date, score: scoreDay(wind, dir, wave, sst) };
+    });
+    const best = [...days].sort((a, b) => b.score - a.score)[0];
+    const goDays = days.filter(d => d.score >= 55).length;
+    let verdict, vColor;
+    if (best.score >= 70)      { verdict = 'Yes — a strong window is open'; vColor = 'var(--success)'; }
+    else if (best.score >= 55) { verdict = goDays > 1 ? `Likely — ${goDays} workable days` : 'Maybe — one workable day'; vColor = 'var(--warning)'; }
+    else                       { verdict = 'Unlikely — wait for the next window'; vColor = 'var(--danger)'; }
+    const bestLabel = best.score >= 55
+        ? `Best day: <strong style="color:var(--text-primary);">${(() => { const d = days.indexOf(best); return d === 0 ? 'today' : d === 1 ? 'tomorrow' : new Date(best.date).toLocaleDateString('en-GB', { weekday: 'long' }); })()}</strong> · ${best.score}/100`
+        : 'No day clears the go threshold in the next 7';
+    const dots = days.map(d => {
+        const col = d.score >= 70 ? '#10b981' : d.score >= 55 ? '#f59e0b' : '#ef4444';
+        const dn = new Date(d.date).toLocaleDateString('en-GB', { weekday: 'short' })[0];
+        return `<div style="flex:1;text-align:center;">
+            <div style="height:${Math.max(8, Math.round(d.score * 0.42))}px;background:${col};border-radius:3px;margin:0 auto 4px;width:60%;min-height:8px;opacity:.9;"></div>
+            <div style="font-size:9px;color:var(--text-secondary);">${dn}</div>
+        </div>`;
+    }).join('');
+    card.style.display = '';
+    el.innerHTML = `
+        <div style="font-size:17px;font-weight:800;color:${vColor};line-height:1.2;margin-bottom:4px;">${verdict}</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">${bestLabel}</div>
+        <div style="display:flex;align-items:flex-end;gap:4px;height:60px;">${dots}</div>
+        <div style="font-size:10px;color:var(--text-secondary);opacity:.6;margin-top:6px;">Next 7 days · daily go-score from wind, direction, wave height &amp; water temp</div>`;
+}
+
+function setTideSim(mode) {
+    const wrap = document.getElementById('scWrap');
+    if (!wrap) return;
+    wrap.dataset.tide = mode;
+    wrap.querySelectorAll('.sc-btn').forEach(b => b.classList.toggle('active', b.dataset.tide === mode));
+    const note = document.getElementById('scNote');
+    if (note) note.textContent = mode === 'spring'
+        ? 'Spring window: stronger currents sweep you further up- and down-Channel. Faster swimmers can use the push, but slower swimmers risk overshooting Cap Gris-Nez.'
+        : 'Neap window: gentler sweep, more predictable landing — preferred by most swimmers and slower crossings.';
+}
+
+async function renderTempTrend() {
+    const el = document.getElementById('tempTrendCard');
+    if (!el) return;
+    const hist = await fetchSstHistory();
+    if (!hist || hist.length < 7) {
+        el.innerHTML = `<div style="font-size:12px;color:var(--text-secondary);">Temperature history is briefly unavailable. Current water temperature is shown above.</div>`;
+        return;
+    }
+    const temps = hist.map(p => p.sst);
+    const cur = temps[temps.length - 1];
+    const first = temps[0];
+    const lo = Math.min(...temps), hi = Math.max(...temps);
+    const delta = cur - first;
+    const W = 320, H = 96, padL = 4, padR = 4, padT = 8, padB = 14;
+    const span = (hi - lo) || 1;
+    const x = i => padL + (i / (temps.length - 1)) * (W - padL - padR);
+    const y = v => padT + (1 - (v - lo) / span) * (H - padT - padB);
+    const line = temps.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    const area = `${line} L${x(temps.length - 1).toFixed(1)},${H - padB} L${x(0).toFixed(1)},${H - padB} Z`;
+    const cx = x(temps.length - 1), cy = y(cur);
+    const fmtD = s => { const d = new Date(s); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); };
+    const arrow = delta > 0.1 ? '▲' : delta < -0.1 ? '▼' : '→';
+    const dColor = delta > 0.1 ? 'var(--success)' : delta < -0.1 ? 'var(--ocean-light)' : 'var(--text-secondary)';
+    el.classList.remove('loading-msg');
+    el.innerHTML = `
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+            <div style="font-size:26px;font-weight:900;color:var(--ocean-light);letter-spacing:-1px;line-height:1;">${cur.toFixed(1)}°C<span style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-left:6px;">now</span></div>
+            <div style="font-size:12px;color:${dColor};font-weight:700;">${arrow} ${Math.abs(delta).toFixed(1)}°C <span style="color:var(--text-secondary);font-weight:500;">over 30 days</span></div>
+        </div>
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:96px;display:block;overflow:visible;">
+            <defs><linearGradient id="sstFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="rgba(56,189,248,0.28)"/><stop offset="100%" stop-color="rgba(56,189,248,0)"/>
+            </linearGradient></defs>
+            <line x1="${padL}" y1="${y(16)}" x2="${W - padR}" y2="${y(16)}" stroke="rgba(34,197,94,0.35)" stroke-width="1" stroke-dasharray="3 3"/>
+            <text x="${W - padR}" y="${y(16) - 3}" text-anchor="end" font-size="8" fill="rgba(34,197,94,0.7)">16°C qualifying floor</text>
+            <path d="${area}" fill="url(#sstFill)"/>
+            <path d="${line}" fill="none" stroke="var(--ocean-light)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+            <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="#fff" stroke="var(--ocean-light)" stroke-width="2"/>
+        </svg>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-secondary);margin-top:2px;">
+            <span>${fmtD(hist[0].date)}</span>
+            <span>Range ${lo.toFixed(1)}–${hi.toFixed(1)}°C</span>
+            <span>Today</span>
+        </div>
+        <div style="font-size:10px;color:var(--text-secondary);opacity:.55;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);">Daily SST · Open-Meteo Marine (NOAA-blended), Channel midpoint · last 30 days</div>`;
 }
 
 async function fetchCapGrisNez() {
@@ -1096,7 +1266,7 @@ function buildGoSignal() {
     const score = scoreDay(wind, _wf?.wind_direction_10m_dominant?.[0] ?? null, waveH, temp);
     const scoreCol = score >= 70 ? 'var(--success)' : score >= 45 ? 'var(--warning)' : 'var(--danger)';
     el.className = 'signal-card ' + cls;
-    el.innerHTML = `<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;"><div><div class="signal-label">Channel Status</div><div class="signal-title">${title}</div></div><div style="text-align:right;"><div style="font-size:28px;font-weight:900;color:${scoreCol};line-height:1;">${score}</div><div style="font-size:10px;color:var(--text-secondary);">/ 100</div></div></div><div class="signal-sub">${sub}</div><div class="signal-attr">GO: &ge;16°C, &le;10kt, &le;1.2m &middot; WAIT: &ge;14°C, &le;18kt, &le;2.0m &middot; Pilots typically no-swim at Beaufort 4+ &middot; Score: temp + wind speed + direction + waves</div>`;
+    el.innerHTML = `<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;"><div><div class="signal-label">Channel Status</div><div class="signal-title">${title}</div></div><div style="text-align:right;"><div style="font-size:28px;font-weight:900;color:${scoreCol};line-height:1;">${score}</div><div style="font-size:10px;color:var(--text-secondary);">/ 100</div></div></div><div class="signal-sub">${sub}</div><div class="signal-attr"><strong style="color:var(--text-secondary);">What the score means:</strong> 0–100, weighted the way a pilot weighs a swim day. <span style="color:var(--success);">70+ go</span> &middot; <span style="color:var(--warning);">45–69 marginal</span> &middot; <span style="color:var(--danger);">below 45 no-go</span>. Built from water temp, wind speed, wind direction and wave height. Thresholds — GO &ge;16°C / &le;10kt / &le;1.2m; pilots call no-swim at Beaufort 4+ (&ge;11kt). It reflects sea state, not your fitness — always confirm with your pilot the evening before.</div>`;
 }
 
 async function loadTides() {
