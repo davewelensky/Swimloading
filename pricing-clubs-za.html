@@ -851,16 +851,18 @@
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored && PRICES[stored]) return stored;
 
-        // 2. Geo-detect via lightweight IP API
+        // 2. Geo-detect via lightweight IP API — auto-localise to the visitor's currency
         try {
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 3000);
             const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
             clearTimeout(timeout);
-            const data = await res.json();
-            return data.country_code === 'ZA' ? 'ZAR' : 'USD';
+            const cc = (await res.json()).country_code;
+            const map = { ZA: 'ZAR', GB: 'GBP', AU: 'AUD' };
+            const euro = ['IE','FR','DE','ES','IT','NL','BE','PT','AT','FI','GR'];
+            return map[cc] || (euro.includes(cc) ? 'EUR' : 'USD');
         } catch {
-            return 'USD'; // fallback
+            return 'ZAR'; // fallback to home currency
         }
     }
 
