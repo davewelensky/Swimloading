@@ -73,6 +73,13 @@
 
         .divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(14,165,233,0.12), transparent); margin: 4px 0; }
 
+        /* Currency switcher */
+        .currency-switcher { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-bottom: 22px; }
+        .currency-pill { padding: 5px 13px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; letter-spacing: 0.3px; transition: border-color 0.15s, color 0.15s, background 0.15s; }
+        .currency-pill:hover { border-color: rgba(14,165,233,0.3); color: var(--text-primary); }
+        .currency-pill.active { border-color: var(--ocean); color: var(--ocean-light); background: rgba(14,165,233,0.08); }
+        .price-note { font-size: 11px; color: var(--text-dim); font-weight: 500; letter-spacing: 0; }
+
         .compare-table { width: 100%; border-collapse: collapse; font-size: 12px; }
         .compare-table th { font-size: 10px; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.08em; padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
         .compare-table th:not(:first-child) { text-align: center; }
@@ -108,7 +115,15 @@
 </div>
 
 <div class="section">
-    <div class="section-title">Choose your plan</div>
+    <div class="section-title">Choose your plan · <span id="cur-eyebrow">ZAR</span></div>
+
+    <div class="currency-switcher" id="currencySwitcher">
+        <button class="currency-pill active" data-currency="ZAR">ZAR</button>
+        <button class="currency-pill" data-currency="GBP">GBP</button>
+        <button class="currency-pill" data-currency="AUD">AUD</button>
+        <button class="currency-pill" data-currency="EUR">EUR</button>
+        <button class="currency-pill" data-currency="USD">USD</button>
+    </div>
 
     <!-- Free -->
     <div class="plan-card">
@@ -125,31 +140,31 @@
         <a href="/pro" class="plan-cta ghost">Explore all routes →</a>
     </div>
 
-    <!-- RI Pro -->
+    <!-- Single Route -->
     <div class="plan-card">
-        <span class="plan-badge starter">Most Accessible</span>
-        <div class="plan-name">RI Pro</div>
-        <div class="plan-price" style="color:var(--ocean-light);"><span class="currency">$</span>5</div>
-        <div class="plan-desc">Full prediction engine for the Robben Island crossing — SA's most swum open water route. 920 verified swims in the database.</div>
+        <span class="plan-badge starter">Single Crossing</span>
+        <div class="plan-name">Single Route</div>
+        <div class="plan-price" style="color:var(--ocean-light);"><span class="currency js-sym">R</span><span class="js-price" data-tier="single">199</span> <span class="price-note">once-off</span></div>
+        <div class="plan-desc">Full prediction engine for any one route you choose — Robben Island, Cape Point, Dassen or another crossing you're training for. Pay once, keep it.</div>
         <div class="plan-routes">
-            <span class="route-tag ocean">RI Crossing 7.4km</span>
+            <span class="route-tag ocean">Any one route</span>
         </div>
         <ul class="plan-features">
-            <li class="pro">Pace prediction — calibrated to NW conditions</li>
-            <li class="pro">Percentile ranking vs 920 historical finishers</li>
-            <li class="pro">Conditions comparison: NW assist vs SE Wind vs Calm</li>
+            <li class="pro">Pace prediction — calibrated to real conditions</li>
+            <li class="pro">Percentile ranking vs historical finishers</li>
+            <li class="pro">Conditions comparison: wind assist vs wind vs calm</li>
             <li class="pro">Pool → open water pace converter</li>
-            <li class="pro">Previous RI time → open-ocean pace calibrator</li>
+            <li class="pro">Previous-time → open-ocean pace calibrator</li>
             <li class="inc">Everything in Free</li>
         </ul>
-        <a href="mailto:support@swimloading.com?subject=RI Pro" class="plan-cta primary">Get RI Pro — $5</a>
+        <a href="mailto:support@swimloading.com?subject=Single Route" class="plan-cta primary" data-plan-subject="Single Route">Get a single route — <span class="js-sym">R</span><span class="js-price" data-tier="single">199</span></a>
     </div>
 
     <!-- All Access -->
     <div class="plan-card featured">
         <span class="plan-badge best">Best Value</span>
         <div class="plan-name">All Access</div>
-        <div class="plan-price" style="color:var(--ocean-light);"><span class="currency">$</span>49<span class="period">/year</span></div>
+        <div class="plan-price" style="color:var(--ocean-light);"><span class="currency js-sym">R</span><span class="js-price" data-tier="all">1,200</span><span class="period">/year</span></div>
         <div class="plan-desc">Every route. Every prediction model. Big 5 Campaign Intel. Unlimited use. New routes added at no extra cost.</div>
         <div class="plan-routes">
             <span class="route-tag gold">False Bay 33km</span>
@@ -170,15 +185,15 @@
             <li class="pro">All new routes included during subscription</li>
             <li class="inc">Everything in Free</li>
         </ul>
-        <a href="mailto:support@swimloading.com?subject=All Access Annual" class="plan-cta gold-cta">Get All Access — $49/year</a>
-        <div style="text-align:center;font-size:11px;color:var(--text-dim);margin-top:10px;">Less than a month's pool membership</div>
+        <a href="mailto:support@swimloading.com?subject=All Access Annual" class="plan-cta gold-cta" data-plan-subject="All Access Annual">Get All Access — <span class="js-sym">R</span><span class="js-price" data-tier="all">1,200</span>/year</a>
+        <div style="text-align:center;font-size:11px;color:var(--text-dim);margin-top:10px;">A fraction of what one crossing attempt costs</div>
     </div>
 
     <!-- Big 5 Bundle -->
     <div class="plan-card">
         <span class="plan-badge starter">Big 5 Focus</span>
         <div class="plan-name">Big 5 Bundle</div>
-        <div class="plan-price" style="color:var(--text-primary);"><span class="currency" style="color:var(--text-secondary);">$</span>29</div>
+        <div class="plan-price" style="color:var(--text-primary);"><span class="currency js-sym" style="color:var(--text-secondary);">R</span><span class="js-price" data-tier="big5">499</span> <span class="price-note">once-off</span></div>
         <div class="plan-desc">All five Big 5 routes unlocked, including Campaign Intel. Ideal if you're focused solely on completing the series.</div>
         <div class="plan-routes">
             <span class="route-tag gold">False Bay</span>
@@ -194,7 +209,7 @@
             <li class="pro">Pool converter · Calibration tools</li>
             <li class="inc">Everything in Free</li>
         </ul>
-        <a href="mailto:support@swimloading.com?subject=Big 5 Bundle" class="plan-cta ghost">Get Big 5 Bundle — $29</a>
+        <a href="mailto:support@swimloading.com?subject=Big 5 Bundle" class="plan-cta ghost" data-plan-subject="Big 5 Bundle">Get Big 5 Bundle — <span class="js-sym">R</span><span class="js-price" data-tier="big5">499</span></a>
     </div>
 </div>
 
@@ -221,7 +236,7 @@
                 <tr>
                     <th>Feature</th>
                     <th>Free</th>
-                    <th class="col-hi" style="color:var(--ocean-light);">RI Pro</th>
+                    <th class="col-hi" style="color:var(--ocean-light);">Single Route</th>
                     <th style="color:var(--gold);">All Access</th>
                 </tr>
             </thead>
@@ -230,7 +245,7 @@
                 <tr><td>GO / CAUTION / HOLD signal</td><td><span class="check">✓</span></td><td class="col-hi"><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
                 <tr><td>Community water temperature</td><td><span class="check">✓</span></td><td class="col-hi"><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
                 <tr><td>Historical records & leaderboards</td><td><span class="check">✓</span></td><td class="col-hi"><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
-                <tr><td>RI pace prediction + percentile</td><td><span class="dash">—</span></td><td class="col-hi"><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+                <tr><td>Pace prediction + percentile (per route)</td><td><span class="dash">—</span></td><td class="col-hi"><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
                 <tr><td>Pool → OW pace converter</td><td><span class="dash">—</span></td><td class="col-hi"><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
                 <tr><td>Big 5 prediction models</td><td><span class="dash">—</span></td><td class="col-hi"><span class="dash">—</span></td><td><span class="check">✓</span></td></tr>
                 <tr><td>Big 5 Campaign Intel dashboard</td><td><span class="dash">—</span></td><td class="col-hi"><span class="dash">—</span></td><td><span class="check">✓</span></td></tr>
@@ -280,6 +295,59 @@
         document.body.style.setProperty('--mouse-x', e.clientX + 'px');
         document.body.style.setProperty('--mouse-y', e.clientY + 'px');
     });
+
+    // ── Currency config — edit prices here only ──────────────────────────────
+    // single = once-off single route · big5 = once-off Big 5 bundle · all = annual
+    const PRICES = {
+        ZAR: { symbol: 'R',   thousands: true,  single: 199, big5: 499,  all: 1200 },
+        GBP: { symbol: '£',   thousands: false, single: 10,  big5: 25,   all: 55   },
+        AUD: { symbol: 'A$',  thousands: false, single: 18,  big5: 45,   all: 99   },
+        EUR: { symbol: '€',   thousands: false, single: 11,  big5: 27,   all: 65   },
+        USD: { symbol: '$',   thousands: false, single: 11,  big5: 27,   all: 65   },
+    };
+    const STORAGE_KEY = 'swimloading_currency_intel';
+
+    function fmt(n, thousands) { return thousands ? n.toLocaleString('en-US') : n.toString(); }
+
+    function applyCurrency(code) {
+        const r = PRICES[code];
+        if (!r) return;
+        document.querySelectorAll('.js-sym').forEach(el => el.textContent = r.symbol);
+        document.querySelectorAll('.js-price').forEach(el => {
+            const tier = el.dataset.tier;
+            if (r[tier] != null) el.textContent = fmt(r[tier], r.thousands);
+        });
+        const eyebrow = document.getElementById('cur-eyebrow');
+        if (eyebrow) eyebrow.textContent = code;
+        document.querySelectorAll('.currency-pill').forEach(btn =>
+            btn.classList.toggle('active', btn.dataset.currency === code));
+        document.querySelectorAll('[data-plan-subject]').forEach(a => {
+            const plan = a.dataset.planSubject;
+            a.href = `mailto:support@swimloading.com?subject=${encodeURIComponent(plan + ' — ' + code)}`;
+        });
+    }
+
+    function setCurrency(code) { localStorage.setItem(STORAGE_KEY, code); applyCurrency(code); }
+
+    async function detectCurrency() {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored && PRICES[stored]) return stored;
+        try {
+            const controller = new AbortController();
+            const t = setTimeout(() => controller.abort(), 3000);
+            const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
+            clearTimeout(t);
+            const cc = (await res.json()).country_code;
+            const map = { ZA: 'ZAR', GB: 'GBP', AU: 'AUD' };
+            const euro = ['IE','FR','DE','ES','IT','NL','BE','PT','AT','FI','GR'];
+            return map[cc] || (euro.includes(cc) ? 'EUR' : 'USD');
+        } catch { return 'ZAR'; }
+    }
+
+    document.querySelectorAll('.currency-pill').forEach(btn =>
+        btn.addEventListener('click', () => setCurrency(btn.dataset.currency)));
+
+    detectCurrency().then(applyCurrency);
 </script>
 </body>
 </html>
