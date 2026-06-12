@@ -11,42 +11,54 @@
 These rules apply to every change touching `club-admin.html`, `coach.html`, `sets.html`, or any club guide page (`duc-guide.html`, `aquasharks-guide.html`, etc.).
 
 ### Before making ANY club change, state all three out loud:
-1. **Which club asked for this?** (DUC or Aquasharks — name it explicitly)
+1. **Which club asked for this?** (DUC, Aquasharks, or K8 — name it explicitly. Britt runs TWO clubs, so "Britt asked" is not enough — confirm which.)
 2. **Which feature flag gates it?** (e.g. `hasSquads`, `hasParentLanguage`, `hasLeague` — name it)
 3. **Does this touch shared code?** If yes, confirm with the user before proceeding.
 
 If you cannot answer all three — stop and ask.
 
-### The two clubs are completely separate products that share a codebase:
+### THREE clubs share this codebase. Two admins:
+- **Steve** → DUC
+- **Britt** → Aquasharks **and** K8 Coaching (always ask her *which* one)
 
-| | DUC | Aquasharks |
-|---|---|---|
-| Type | `open_water` | `swim_club` |
-| Slug | `duc` | `aqua-sharks-atlantic` |
-| What it is | Open water SWIMMING club, adult members, monthly league races | Competitive pool club, youth + adult squads, Cape Town |
-| Has squads | NO | YES |
-| Has parents | NO | YES |
-| Has attendance | NO | YES |
-| Has sets planner | NO | YES |
-| Has league | YES | NO |
-| Has temp challenge | YES | NO |
+They are separate products. Never assume a feature for one applies to another.
+
+| | DUC | Aquasharks | K8 Coaching |
+|---|---|---|---|
+| Admin | Steve | Britt | Britt |
+| Type | `open_water` | `swim_club` | `open_water` |
+| Slug | `duc` | `aqua-sharks-atlantic` | `k8-coaching` |
+| club_id | — | `385e2c9d-b32e-47d1-bb1d-1e042523de23` | `de64faab-c3d2-4997-a6bb-904ab989650c` |
+| What it is | Open water SWIMMING club, adult members, monthly league races | Competitive pool club, youth + adult squads, Cape Town | Britt's coaching business — open water + Masters squads (06:00/07:00/08:00 Group, Mon/Wed/Fri) |
+| Has squads | NO | YES | YES |
+| Has parents | NO | YES | NO |
+| Has attendance | NO | YES | YES |
+| Has timetable | NO | YES | YES |
+| Has sets planner | NO | YES | YES |
+| Has league | YES | NO | YES |
+| Has temp challenge | YES | NO | YES |
+| Has gala entries | NO | YES | NO |
+| Has coaching staff | NO | YES | YES |
+
+K8 is a **hybrid**: open-water type with league + temp challenge (DUC-like) *and* squads + attendance + timetable + sets (Aquasharks-like), but NO parents and NO gala entries. Don't pattern-match it to either of the others — check its actual flags.
 
 ### Feature flags (clubs.features JSONB → window._clubFeatures):
-- `hasLeague` — League tab — DUC only
-- `hasTempChallenge` — Temp Challenge tab — DUC only
-- `hasSquads` — Squad Tracker, Sets Planner, Health — Aquasharks only
-- `hasTimetable` — Timetable settings — Aquasharks only
-- `hasAttendance` — Attendance tab — Aquasharks only
+- `hasLeague` — League tab — DUC + K8
+- `hasTempChallenge` — Temp Challenge tab — DUC + K8
+- `hasSquads` — Squad Tracker, Sets Planner, Health — Aquasharks + K8
+- `hasTimetable` — Timetable settings — Aquasharks + K8
+- `hasAttendance` — Attendance tab — Aquasharks + K8
 - `hasGalaEntries` — Entries tab — Aquasharks only
-- `hasCoachingStaff` — Coaching staff card — Aquasharks only
+- `hasCoachingStaff` — Coaching staff card — Aquasharks + K8
 - `hasParentLanguage` — Parent portal, parent matching — Aquasharks only
 
 ### Hard rules:
-- A feature built for one club is NEVER added to the other club without an explicit request
+- A feature built for one club is NEVER added to another club without an explicit request
 - Every new feature in shared files MUST be gated behind a feature flag — no un-gated code
 - DUC is NOT a diving club. It is an open water swimming club with ~637 adult members
-- Aquasharks admin login is `britt@k8coaching.co.za` — never create a second auth account
+- Britt's login is `britt@k8coaching.co.za` for BOTH her clubs — never create a second auth account. Her club_admins rows (Aquasharks + K8) both use this one user_id (`7ade0520-0cf0-4dfb-8275-f053a17a836c`)
 - Roster matching requires first name AND surname overlap — a shared first name alone is never a match
+- The timetable (`club_squad_sessions`) drives the attendance "Mark →" cards. A squad with no timetable rows never shows a scheduled card — it must be hand-recorded. `day_of_week` is 0=Sun…6=Sat (matches JS `getDay()`).
 
 ---
 
