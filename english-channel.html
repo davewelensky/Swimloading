@@ -58,7 +58,7 @@
         --bg-dark:#0a1628; --bg-card:#111c30; --ocean:#0ea5e9;
         --ocean-light:#38bdf8; --text-primary:#f0f9ff;
         --text-secondary:#94a3b8; --danger:#ef4444;
-        --success:#22c55e; --warning:#f59e0b; --border:rgba(255,255,255,0.08);
+        --success:#22c55e; --warning:#f59e0b; --gold:#d97706; --border:rgba(255,255,255,0.08);
     }
     *{box-sizing:border-box;margin:0;padding:0;}
     body{background:var(--bg-dark);color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;padding:0 0 60px;}
@@ -243,13 +243,8 @@
                     <!-- start / end markers -->
                     <circle cx="150" cy="28" r="3.5" fill="var(--ocean-light)"/>
                     <circle cx="150" cy="166" r="3.5" fill="var(--gold)"/>
-                    <!-- swimmer -->
-                    <circle class="sc-neap" r="4" fill="#fff" stroke="var(--ocean-light)" stroke-width="2">
-                        <animateMotion dur="7s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#scPathNeap"/></animateMotion>
-                    </circle>
-                    <circle class="sc-spring" r="4" fill="#fff" stroke="var(--gold)" stroke-width="2">
-                        <animateMotion dur="7s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#scPathSpring"/></animateMotion>
-                    </circle>
+                    <!-- swimmer — single JS-driven dot follows the active path (SMIL won't start on a hidden element) -->
+                    <circle id="scSwimmer" cx="150" cy="28" r="4" fill="#fff" stroke="var(--ocean-light)" stroke-width="2"/>
                 </svg>
                 <div id="scNote" style="font-size:11px;color:var(--text-secondary);margin-top:10px;line-height:1.5;">Neap window: gentler sweep, more predictable landing — preferred by most swimmers and slower crossings.</div>
             </div>
@@ -804,6 +799,7 @@ async function init() {
     buildGoSignal();
     renderWeekOutlook();
     renderTempTrend();
+    startScSwimmer();
     loadTides();
     renderCapGrisNez();
     renderAstronomy();
@@ -988,11 +984,35 @@ function renderWeekOutlook() {
         <div style="font-size:10px;color:var(--text-secondary);opacity:.6;margin-top:6px;">Next 7 days · daily go-score from wind, direction, wave height &amp; water temp</div>`;
 }
 
+let _scRAF = null;
+function startScSwimmer() {
+    const sw = document.getElementById('scSwimmer');
+    if (!sw || _scRAF) return;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let start = null;
+    const dur = 7000;
+    function frame(ts) {
+        const wrap = document.getElementById('scWrap');
+        const path = document.getElementById(wrap?.dataset.tide === 'spring' ? 'scPathSpring' : 'scPathNeap');
+        if (path) {
+            if (start === null) start = ts;
+            const frac = reduce ? 0 : ((ts - start) % dur) / dur;
+            const pt = path.getPointAtLength(frac * path.getTotalLength());
+            sw.setAttribute('cx', pt.x.toFixed(1));
+            sw.setAttribute('cy', pt.y.toFixed(1));
+        }
+        _scRAF = reduce ? null : requestAnimationFrame(frame);
+    }
+    _scRAF = requestAnimationFrame(frame);
+}
+
 function setTideSim(mode) {
     const wrap = document.getElementById('scWrap');
     if (!wrap) return;
     wrap.dataset.tide = mode;
     wrap.querySelectorAll('.sc-btn').forEach(b => b.classList.toggle('active', b.dataset.tide === mode));
+    const sw = document.getElementById('scSwimmer');
+    if (sw) sw.setAttribute('stroke', mode === 'spring' ? 'var(--gold)' : 'var(--ocean-light)');
     const note = document.getElementById('scNote');
     if (note) note.textContent = mode === 'spring'
         ? 'Spring window: stronger currents sweep you further up- and down-Channel. Faster swimmers can use the push, but slower swimmers risk overshooting Cap Gris-Nez.'
