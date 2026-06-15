@@ -46,6 +46,11 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
 
   try {
+    // Greater London hub — must come before REGION_SLUGS check
+  if (slug === 'greater-london') {
+    const html = await renderGreaterLondonPage();
+    return res.status(200).send(html);
+  }
     if (REGION_SLUGS.has(slug)) {
       const html = await renderRegionalPage(slug);
       return res.status(200).send(html);
@@ -1341,13 +1346,260 @@ function buildRegionFaqJsonLd(regionName, spots) {
     ],
   };
 }
+// ─── GREATER LONDON HUB PAGE ──────────────────────────────────────────────────
+// Drop this function into spots-handler.js, before render404().
+// Call it from the main handler with: if (slug === 'greater-london') { ... }
 
+async function renderGreaterLondonPage() {
+  const title       = 'Open Water Swimming Spots in Greater London | SwimLoading';
+  const description = 'Explore open water swimming spots, lidos, ponds, reservoirs and swimming locations across Greater London. Check water temperatures, conditions and recent swim activity with SwimLoading.';
+  const canonical   = 'https://www.swimloading.com/spots/greater-london';
+
+  // Pull all UK spots from Supabase — these are the 12 London spots we inserted
+  const LONDON_CODES = [
+    'TOOTING_LIDO', 'BROCKWELL_LIDO', 'LONDON_FIELDS_LIDO',
+    'PARLIAMENT_HILL_LIDO', 'HAMPSTEAD_MIXED_POND', 'HAMPSTEAD_LADIES_POND',
+    'HAMPSTEAD_MENS_POND', 'SERPENTINE_LIDO', 'WEST_RESERVOIR',
+    'CHARLTON_LIDO', 'HAMPTON_POOL', 'OASIS_SPORTS_CENTRE',
+  ];
+
+  const allUKSpots = await dbGet(
+    `spots?active=eq.true&domain=eq.UK&country_code=eq.GB&select=id,name,code,area,water_type,latitude,longitude`
+  ) || [];
+
+  // Filter to our 12 London spots, preserve order
+  const londonSpots = LONDON_CODES
+    .map(code => allUKSpots.find(s => s.code === code))
+    .filter(Boolean);
+
+  // Fetch latest temp for each spot
+  const tempsMap = {};
+  await Promise.all(londonSpots.map(async (spot) => {
+    try {
+      const logs = await dbGet(
+        `temp_logs?spot_id=eq.${spot.id}&select=temp_c,created_at&order=created_at.desc&limit=1`
+      );
+      tempsMap[spot.id] = logs?.[0] || null;
+    } catch (_) {}
+  }));
+
+  // JSON-LD
+  const jsonLdBreadcrumb = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'SwimLoading',    item: 'https://www.swimloading.com' },
+      { '@type': 'ListItem', position: 2, name: 'United Kingdom', item: 'https://www.swimloading.com/spots/united-kingdom' },
+      { '@type': 'ListItem', position: 3, name: 'Greater London', item: canonical },
+    ],
+  };
+
+  const jsonLdItemList = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Open Water Swimming Spots in Greater London',
+    url: canonical,
+    itemListElement: londonSpots.map((s, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      url: `https://www.swimloading.com/spots/${generateSlug(s.name)}`,
+      name: s.name,
+    })),
+  };
+
+  const jsonLdFaq = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: [
+      {
+        '@type': 'Question',
+        name: 'What are the best open water swimming spots in Greater London?',
+        acceptedAnswer: { '@type': 'Answer', text: 'Greater London has 12 tracked swimming venues on SwimLoading, including Tooting Bec Lido, the Hampstead Heath ponds, Brockwell Lido, Serpentine Lido, and West Reservoir. Each has different water temperatures, facilities, and access requirements.' },
+      },
+      {
+        '@type': 'Question',
+        name: 'What is the water temperature at London lidos and ponds?',
+        acceptedAnswer: { '@type': 'Answer', text: 'Water temperatures at London swimming venues vary significantly by location and season. Unheated venues like the Hampstead ponds can be below 10°C in winter and reach 20°C+ in summer. Heated lidos like London Fields and Oasis maintain warmer temperatures year-round. Check individual spot pages on SwimLoading for the latest community-logged readings.' },
+      },
+      {
+        '@type': 'Question',
+        name: 'What is the difference between a lido and a pond in London?',
+        acceptedAnswer: { '@type': 'Answer', text: 'A lido is an outdoor swimming pool — either heated or unheated, with a defined pool structure. London ponds, specifically the Hampstead Heath ponds, are natural freshwater bodies fed by springs and managed by the City of London. Ponds offer a more wild swimming experience; lidos are more structured venues with lifeguards and set hours.' },
+      },
+      {
+        '@type': 'Question',
+        name: 'Can I swim in London year-round?',
+        acceptedAnswer: { '@type': 'Answer', text: 'Yes. Several London venues are open year-round, including Tooting Bec Lido, the Hampstead Heath ponds, and Parliament Hill Lido. Heated lidos like Hampton Pool and London Fields Lido are also open in winter. Water temperatures in winter can drop below 5°C at unheated venues.' },
+      },
+      {
+        '@type': 'Question',
+        name: 'How can I log my swim at a London venue on SwimLoading?',
+        acceptedAnswer: { '@type': 'Answer', text: 'SwimLoading is free. Sign up at swimloading.com or download the app and log your swim, water temperature, and conditions at any London venue. Your data helps other swimmers plan their sessions.' },
+      },
+    ],
+  };
+
+  // ── Spot cards ──────────────────────────────────────────────────────────────
+
+  const TYPE_LABEL = { POOL: 'Lido', LAKE: 'Pond', RESERVOIR: 'Reservoir', OCEAN: 'Open Water' };
+  const TYPE_COLOR = { POOL: '#a78bfa', LAKE: '#34d399', RESERVOIR: '#38bdf8', OCEAN: '#38bdf8' };
+
+  // Area groupings for display
+  const AREA_GROUP = {
+    'TOOTING_LIDO':           'South London',
+    'BROCKWELL_LIDO':         'South London',
+    'CHARLTON_LIDO':          'South East London',
+    'HAMPTON_POOL':           'South West London',
+    'LONDON_FIELDS_LIDO':     'East London',
+    'WEST_RESERVOIR':         'North London',
+    'PARLIAMENT_HILL_LIDO':   'North London',
+    'HAMPSTEAD_MIXED_POND':   'North London',
+    'HAMPSTEAD_LADIES_POND':  'North London',
+    'HAMPSTEAD_MENS_POND':    'North London',
+    'SERPENTINE_LIDO':        'Central London',
+    'OASIS_SPORTS_CENTRE':    'Central London',
+  };
+
+  const spotCardsHtml = londonSpots.map(spot => {
+    const slug      = generateSlug(spot.name);
+    const typeLabel = TYPE_LABEL[spot.water_type] || spot.water_type;
+    const typeColor = TYPE_COLOR[spot.water_type] || '#94a3b8';
+    const tempData  = tempsMap[spot.id];
+    const tempHtml  = tempData?.temp_c != null
+      ? `<div class="spot-card-temp">${parseFloat(tempData.temp_c).toFixed(1)}°C <span>latest</span></div>
+         <div class="spot-card-meta">Updated ${timeAgo(tempData.created_at)}</div>`
+      : `<div class="spot-card-temp spot-card-temp-none">No logs yet</div>
+         <div class="spot-card-meta">Be the first to log this spot</div>`;
+    const areaGroup = AREA_GROUP[spot.code] || (spot.area || 'London');
+
+    return `
+      <a href="/spots/${escapeHtml(slug)}" class="spot-card"
+         onclick="gtag('event','spot_card_click',{region:'greater-london',spot:'${escapeHtml(slug)}'})">
+        <div class="spot-card-top">
+          <span class="spot-card-name">${escapeHtml(spot.name)}</span>
+          <span class="spot-card-type" style="color:${typeColor}">${typeLabel}</span>
+        </div>
+        <div style="font-size:11px;color:var(--subtle);margin-bottom:8px;">${escapeHtml(areaGroup)}</div>
+        ${tempHtml}
+        <div class="spot-card-cta">View conditions ›</div>
+      </a>`;
+  }).join('');
+
+  // ── SEO editorial copy ──────────────────────────────────────────────────────
+
+  const seoCopy = `
+    <h2>Swimming Outdoors in London</h2>
+
+    <p>London has one of the most active outdoor swimming communities in the world. Across the city, swimmers brave unheated lidos, natural ponds, and managed reservoirs year-round — from the coloured cubicles of <a href="/spots/tooting-bec-lido">Tooting Bec Lido</a> to the spring-fed ponds of Hampstead Heath. The city's outdoor swimming culture runs deep, shaped by decades of cold water tradition and a community that keeps going long after summer ends.</p>
+
+    <p>SwimLoading tracks water temperatures and conditions at London's key swimming venues so you can check before you get in. Community members log their swims, report conditions, and help build a real-time picture of what the water is actually like — not just on a warm July afternoon, but in February too.</p>
+
+    <h3 style="font-size:16px;font-weight:700;color:var(--text);margin:20px 0 10px;">Lidos, Ponds and Reservoirs — what's the difference?</h3>
+
+    <p><strong style="color:var(--text)">Lidos</strong> are outdoor swimming pools, either heated or unheated. London's lidos range from the 91-metre unheated expanse of <a href="/spots/tooting-bec-lido">Tooting Bec Lido</a> to the rooftop heated pool at <a href="/spots/oasis-sports-centre">Oasis Sports Centre</a> in Covent Garden. Most are managed venues with lifeguards, changing facilities, and set opening hours.</p>
+
+    <p><strong style="color:var(--text)">Ponds</strong> — specifically the Hampstead Heath ponds — are natural freshwater bodies fed by springs. The <a href="/spots/hampstead-mixed-pond">Mixed Pond</a>, <a href="/spots/hampstead-ladies-pond">Ladies' Pond</a>, and <a href="/spots/hampstead-mens-pond">Men's Pond</a> are all managed by the City of London and open year-round. They offer some of the most authentic wild swimming available anywhere in a major city. Water temperatures follow natural seasonal patterns with no heating.</p>
+
+    <p><strong style="color:var(--text)">Reservoirs</strong> like <a href="/spots/west-reservoir">West Reservoir</a> in Stoke Newington are Victorian-era infrastructure repurposed for outdoor swimming. Managed sessions with trained safety staff make these accessible to swimmers who want open water without the unpredictability of river or sea swimming.</p>
+
+    <h3 style="font-size:16px;font-weight:700;color:var(--text);margin:20px 0 10px;">Why water temperature matters</h3>
+
+    <p>Water temperature is the single most important variable for outdoor swimming safety and enjoyment. A 15°C pond and a 19°C lido feel completely different — and both feel different again at 8°C in January. Cold water shock, swim performance, and how long you can safely stay in are all directly linked to water temperature, not air temperature.</p>
+
+    <p>Air temperature and water temperature can diverge significantly, especially in spring when the air warms faster than the water. A sunny 20°C day in April can still mean 10°C water at the Hampstead ponds. Always check the water temperature before you swim — not the forecast.</p>
+
+    <h3 style="font-size:16px;font-weight:700;color:var(--text);margin:20px 0 10px;">How SwimLoading helps London swimmers</h3>
+
+    <p>SwimLoading is a community platform where swimmers log water temperatures, conditions, and swim sessions at outdoor swimming venues. Every time a swimmer records their swim at <a href="/spots/brockwell-lido">Brockwell Lido</a> or the <a href="/spots/serpentine-lido">Serpentine</a>, it adds to a growing dataset that helps the next swimmer decide whether to go.</p>
+
+    <p>Across London, conditions vary dramatically between venues even on the same day — a heated lido might be at 28°C while a natural pond nearby sits at 12°C. SwimLoading lets you compare across locations, track seasonal trends, and find the conditions that suit your swim style. <a href="/join">Join SwimLoading free</a> to start logging your London swims.</p>`;
+
+  // ── FAQ accordion ───────────────────────────────────────────────────────────
+
+  const faqItems = jsonLdFaq.mainEntity.map(item => `
+    <details style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:8px;">
+      <summary style="padding:14px 16px;font-size:15px;font-weight:600;color:var(--text);cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        ${escapeHtml(item.name)}<span style="font-size:20px;color:var(--ocean-lt);flex-shrink:0;font-weight:400;">+</span>
+      </summary>
+      <div style="padding:0 16px 14px;font-size:14px;line-height:1.7;color:var(--muted);">${escapeHtml(item.acceptedAnswer.text)}</div>
+    </details>`).join('');
+
+  // ── Assemble body ───────────────────────────────────────────────────────────
+
+  const body = `
+    <div class="region-hero">
+      <div class="container region-hero-inner">
+        <div class="region-hero-text">
+          <nav class="breadcrumb breadcrumb-inline" aria-label="Breadcrumb">
+            <a href="/">SwimLoading</a> ›
+            <a href="/spots/united-kingdom">United Kingdom</a> ›
+            Greater London
+          </nav>
+          <h1>Open Water Swimming Spots in Greater London</h1>
+          <p class="intro-text">Find London lidos, ponds, reservoirs and open water swimming venues with current conditions and water temperature tracking.</p>
+          <a href="/join"
+             class="btn-hero"
+             onclick="gtag('event','regional_hub_join_click',{region:'greater-london'})">
+            Join SwimLoading — it's free →
+          </a>
+        </div>
+        <div class="region-hero-phones">
+          <div class="phone-frame"><img src="/screenshots/temps.jpg" alt="Water temperatures" loading="lazy"></div>
+          <div class="phone-frame phone-frame-back"><img src="/screenshots/dashboard.jpg" alt="SwimLoading dashboard" loading="lazy"></div>
+        </div>
+      </div>
+    </div>
+
+    <main class="container page-body">
+
+      <section>
+        <h2>Swimming Locations · Greater London</h2>
+        <p class="spot-cards-hint">Tap any spot for current conditions and recent logs</p>
+        <div class="spot-cards">${spotCardsHtml}</div>
+      </section>
+
+      <nav aria-label="Related regions" style="display:flex;flex-wrap:wrap;gap:8px;margin:32px 0;">
+        <a href="/spots/tooting-bec-lido" style="padding:7px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;">Tooting Bec Lido</a>
+        <a href="/spots/brockwell-lido"   style="padding:7px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;">Brockwell Lido</a>
+        <a href="/spots/united-kingdom"   style="padding:7px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;">All UK Spots</a>
+        <a href="/app"                    style="padding:7px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;">Open the App</a>
+      </nav>
+
+      <section class="seo-copy">
+        ${seoCopy}
+      </section>
+
+      <section>
+        <h2>Frequently Asked Questions</h2>
+        ${faqItems}
+      </section>
+
+      <section class="cta-box">
+        <p>Help build the UK swimming conditions map. Every swim you log at a London venue adds to the dataset.</p>
+        <a href="/join"
+           class="btn-cta"
+           onclick="gtag('event','regional_hub_join_click',{region:'greater-london',source:'bottom_cta'})">
+          Join SwimLoading — it's free →
+        </a>
+      </section>
+
+    </main>`;
+
+  return pageShell({
+    title,
+    description,
+    canonical,
+    jsonLd: [jsonLdBreadcrumb, jsonLdItemList, jsonLdFaq],
+    body,
+  });
+}
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
 function capitalise(str) {
   if (!str) return '';
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
+
 
 function render404(slug) {
   return pageShell({
