@@ -60,6 +60,7 @@ export const DOMAIN_MAP = {
   USA:               { display: 'United States',       region: 'san-francisco' },
   SEYCHELLES:        { display: 'Seychelles',          region: 'seychelles' },
   DALMATIA:          { display: 'Dalmatia',            region: 'dalmatia' },
+  FRANCE:            { display: 'France',              region: 'france' },
 };
 
 // Country-code filter for region slugs that are sub-regions of a shared domain (e.g. EUROPE)
@@ -67,6 +68,7 @@ export const DOMAIN_MAP = {
 export const REGION_COUNTRY_FILTER = {
   'switzerland': 'CH',
   'portugal':    'PT',
+  'france': 'FR',
   'australia':   'AU',  // WESTERN_AUSTRALIA only has AU spots currently, but future-proof
 };
 
@@ -127,6 +129,7 @@ export const REGION_DOMAINS = {
   'seychelles':        ['SEYCHELLES'],
   'dalmatia':          ['DALMATIA'],
   'croatia':           ['DALMATIA'],
+  'france':            ['FRANCE'],
 };
 
 export const REGION_NAMES = {
@@ -152,6 +155,7 @@ export const REGION_NAMES = {
   'seychelles':        'Seychelles',
   'dalmatia':          'Dalmatia, Croatia',
   'croatia':           'Dalmatia, Croatia',
+  'france':            'France',
 };
 
 export const REGION_INTROS = {
@@ -199,6 +203,8 @@ export const REGION_INTROS = {
     "The Dalmatian coast is one of Europe's finest open water swimming destinations — crystalline Adriatic water, island-dotted channels, and summer temperatures that peak at 25–27°C. SwimLoading tracks conditions in Hvar and Split, where the swimming season runs from May through October. Sea urchins on rocky entries are the main hazard; jellyfish are seasonal (July–September). Blue Flag beaches are the gold standard for water quality along the coast.",
   'croatia':
     "Croatia's Dalmatian coast offers some of the clearest and warmest open water swimming in the Mediterranean. SwimLoading tracks temperatures at Hvar Town Beach, the Pakleni Islands, and Split's beaches. The Adriatic is warmest in July–August (24–27°C) and swimmable from May through October.",
+'france':
+  "France's Mediterranean coastline offers some of Europe's finest open water swimming — warm, clear water, sheltered bays, and a year-round swimming culture rooted in the Côte d'Azur. Water temperatures along the French Riviera typically range from 13–14°C in winter to 24–26°C in summer, making it genuinely swimmable for most of the year.\n\nVillefranche-sur-Mer is one of the jewels of the coast — a deep natural harbour between Nice and Monaco with exceptionally clear water, minimal current, and a sheltered bay that stays calm even when the open sea is choppy. The old fishing village, colourful waterfront, and proximity to Nice make it one of the most picturesque open water venues in Europe.\n\nNice's Promenade des Anglais stretches 7 kilometres along the Baie des Anges — a pebble beach with easy water access and a strong local swimming tradition. The open water here is deeper and slightly more exposed than Villefranche but offers a spectacular urban swim backdrop year-round.\n\nSwimLoading is building its French community. If you swim along the Côte d'Azur, log your temperature and conditions — your data helps every swimmer planning a session on this coastline.",
 };
 
 // Maps /countries/[slug] → the region slug that spots-handler should render.
@@ -213,6 +219,7 @@ export const COUNTRY_SLUGS = {
   'united-states':  'san-francisco',
   'seychelles':     'seychelles',
   'croatia':        'dalmatia',
+  'france':         'france',
 };
 
 export function getLocationLabel(domain, area, countryCode) {
