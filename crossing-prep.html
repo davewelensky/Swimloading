@@ -283,7 +283,7 @@
     <a href="/" class="nav-brand"><img src="/icons/logo-wave.png" alt="">SwimLoading</a>
     <div class="nav-right">
         <span class="nav-label" id="navLabel"></span>
-        <a href="/app" class="btn-nav">Log a session</a>
+        <button class="btn-nav" id="navLogBtn" onclick="openLogModal()" style="cursor:pointer;border:none;">Log a session</button>
     </div>
 </nav>
 
@@ -1532,8 +1532,20 @@ async function renderDashboard() {
         selector.style.display = 'none';
     }
 
-    // Hide log CTA in admin view
+    // Hide log CTA and nav button in admin view
     document.getElementById('logCta').style.display = _isAdminView ? 'none' : 'flex';
+    const navLogBtn = document.getElementById('navLogBtn');
+    if (_isAdminView) {
+        navLogBtn.textContent = 'Admin view';
+        navLogBtn.style.background = 'rgba(245,158,11,0.2)';
+        navLogBtn.style.color = '#f59e0b';
+        navLogBtn.onclick = null;
+    } else {
+        navLogBtn.textContent = 'Log a session';
+        navLogBtn.style.background = '';
+        navLogBtn.style.color = '';
+        navLogBtn.onclick = openLogModal;
+    }
 
     // GA4
     if (typeof gtag === 'function') {
