@@ -6,11 +6,11 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-89R519Y9T4');
+      gtag('config', 'G-89R519Y9T4', { send_page_view: false });
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Channel Preparation | SwimLoading</title>
+    <title>Crossing Intelligence Pro | SwimLoading</title>
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -21,10 +21,17 @@
         --cyan: #38bdf8; --text: #f1f5f9; --text-sec: #64748b;
         --border: rgba(255,255,255,0.06); --border2: rgba(255,255,255,0.09);
         --amber: #f59e0b; --green: #10b981; --danger: #ef4444;
-        --purple: #a78bfa;
+        --purple: #a78bfa; --blue: #60a5fa;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding-bottom: 80px; }
+    body::before {
+        content: '';
+        position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+        background:
+            radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px), rgba(56,189,248,0.55), transparent 100%),
+            radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px), rgba(56,189,248,0.07), transparent 70%);
+    }
 
     /* NAV */
     nav { background:rgba(8,15,26,0.95); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); padding:11px 18px; position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; gap:12px; }
@@ -45,44 +52,84 @@
     @keyframes spin { to{transform:rotate(360deg)} }
 
     /* MAIN LAYOUT */
-    #dashboard { display:none; max-width:680px; margin:0 auto; padding:0 16px; }
+    #dashboard { display:none; max-width:720px; margin:0 auto; padding:0 16px; }
 
-    /* PAGE HEADER */
-    .page-header { padding:28px 0 22px; border-bottom:1px solid var(--border); margin-bottom:22px; display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
-    .page-header-left h1 { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:.04em; line-height:1.1; margin-bottom:3px; }
-    .page-header-left p { font-size:12px; color:var(--text-sec); }
-    .log-btn { display:inline-flex; align-items:center; gap:6px; padding:9px 18px; border-radius:50px; background:var(--cyan); color:#080f1a; font-size:12px; font-weight:700; text-decoration:none; flex-shrink:0; }
+    /* ADMIN BANNER */
+    .admin-banner { background:rgba(245,158,11,0.12); border-bottom:1px solid rgba(245,158,11,0.3); padding:8px 16px; text-align:center; font-size:12px; color:var(--amber); font-weight:600; }
 
-    /* PHASE BANNER */
-    .phase-banner { border-radius:14px; padding:18px 20px; margin-bottom:16px; display:flex; align-items:flex-start; gap:16px; }
-    .phase-icon { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-    .phase-content { flex:1; min-width:0; }
-    .phase-label { font-size:9px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; margin-bottom:4px; opacity:.7; }
-    .phase-name { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:.04em; line-height:1; margin-bottom:5px; }
-    .phase-desc { font-size:12px; line-height:1.6; opacity:.8; }
-    .phase-countdown { font-size:11px; font-weight:700; margin-top:8px; opacity:.7; }
+    /* PRO HEADER */
+    .pro-header { padding:24px 0 20px; border-bottom:1px solid var(--border); margin-bottom:20px; }
+    .pro-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:50px; background:linear-gradient(135deg,rgba(56,189,248,0.15),rgba(56,189,248,0.05)); border:1px solid rgba(56,189,248,0.25); font-size:10px; font-weight:700; letter-spacing:.1em; color:var(--cyan); text-transform:uppercase; margin-bottom:12px; }
+    .pro-header h1 { font-family:'Bebas Neue',sans-serif; font-size:30px; letter-spacing:.04em; line-height:1.1; margin-bottom:6px; }
+    .pro-header-meta { display:flex; flex-wrap:wrap; gap:6px 18px; margin-top:10px; }
+    .meta-chip { font-size:11px; color:var(--text-sec); display:flex; align-items:center; gap:5px; }
+    .meta-chip strong { color:var(--text); }
+    .phase-chip { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:8px; font-size:11px; font-weight:700; margin-top:12px; }
 
-    /* RECOMMENDATIONS */
-    .section-title { font-size:9px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--text-sec); margin-bottom:10px; }
-    .rec-card { background:var(--bg-card); border-radius:14px; padding:16px 18px; margin-bottom:10px; display:flex; gap:14px; align-items:flex-start; border-left:3px solid transparent; }
-    .rec-card.high { border-left-color:var(--cyan); background:linear-gradient(90deg,rgba(56,189,248,0.05),var(--bg-card)); }
-    .rec-card.medium { border-left-color:var(--amber); background:linear-gradient(90deg,rgba(245,158,11,0.04),var(--bg-card)); }
-    .rec-card.info { border-left-color:var(--border2); }
-    .rec-icon { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:rgba(255,255,255,0.04); margin-top:1px; }
-    .rec-title { font-size:13px; font-weight:700; color:var(--text); margin-bottom:4px; line-height:1.3; }
-    .rec-body { font-size:12px; color:#94a3b8; line-height:1.65; }
-    .rec-action { display:inline-block; margin-top:8px; font-size:11px; font-weight:700; color:var(--cyan); text-decoration:none; }
-    .rec-action:hover { opacity:.8; }
+    /* ATTEMPT SELECTOR */
+    .attempt-selector { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    .attempt-selector label { font-size:11px; color:var(--text-sec); font-weight:600; flex-shrink:0; }
+    .attempt-select { flex:1; min-width:180px; background:rgba(255,255,255,0.04); border:1px solid var(--border2); border-radius:8px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px; padding:7px 10px; outline:none; }
 
-    /* TWO-COL GRID */
-    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
-    @media(max-width:520px) { .grid2 { grid-template-columns:1fr; } }
+    /* SETUP STATE */
+    #setupState { display:none; max-width:520px; margin:40px auto; padding:0 18px; text-align:center; }
+    #setupState h2 { font-family:'Bebas Neue',sans-serif; font-size:30px; letter-spacing:.04em; margin-bottom:8px; }
+    #setupState p { font-size:13px; color:var(--text-sec); line-height:1.6; margin-bottom:28px; }
+    .crossing-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; text-align:left; margin-bottom:24px; }
+    @media(max-width:480px) { .crossing-grid { grid-template-columns:1fr; } }
+    .crossing-option { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; cursor:pointer; transition:border-color .2s; }
+    .crossing-option:hover, .crossing-option.selected { border-color:var(--cyan); background:rgba(56,189,248,0.04); }
+    .crossing-option h4 { font-size:13px; font-weight:700; margin-bottom:3px; }
+    .crossing-option p { font-size:11px; color:var(--text-sec); }
+    .crossing-option .dist-badge { font-size:10px; font-weight:700; color:var(--cyan); margin-top:4px; }
+    .setup-form { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:20px; text-align:left; margin-bottom:16px; }
+    .setup-form label { display:block; font-size:11px; font-weight:600; color:var(--text-sec); margin-bottom:5px; margin-top:14px; }
+    .setup-form label:first-child { margin-top:0; }
+    .setup-input { width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--border2); border-radius:8px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px; padding:9px 12px; outline:none; }
+    .setup-input::-webkit-calendar-picker-indicator { filter:invert(1); opacity:.4; cursor:pointer; }
+    .btn-primary { display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:12px 28px; border-radius:50px; background:var(--cyan); color:#080f1a; font-size:14px; font-weight:700; border:none; cursor:pointer; text-decoration:none; }
+    .btn-primary:disabled { opacity:.5; cursor:not-allowed; }
 
-    /* STAT PANELS */
+    /* SECTION */
+    .section-gap { margin-top:24px; }
+    .section-title { font-size:9px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--text-sec); margin-bottom:12px; }
+
+    /* CARDS */
     .panel { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:16px; }
     .panel-label { font-size:9px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--text-sec); margin-bottom:12px; }
     .big-num { font-family:'Bebas Neue',sans-serif; font-size:40px; line-height:1; }
     .big-sub { font-size:11px; color:var(--text-sec); margin-top:3px; }
+
+    /* READINESS SCORE */
+    .readiness-card { background:linear-gradient(135deg,rgba(56,189,248,0.07),rgba(13,23,40,0)); border:1px solid rgba(56,189,248,0.15); border-radius:16px; padding:20px; margin-bottom:10px; }
+    .readiness-score-row { display:flex; align-items:flex-end; gap:14px; margin-bottom:14px; }
+    .readiness-score-num { font-family:'Bebas Neue',sans-serif; font-size:64px; line-height:1; }
+    .readiness-score-meta { padding-bottom:6px; }
+    .readiness-band { font-size:13px; font-weight:700; margin-bottom:3px; }
+    .readiness-disclaimer { font-size:10px; color:var(--text-sec); line-height:1.5; }
+    .score-bar-list { display:flex; flex-direction:column; gap:8px; margin-top:4px; }
+    .score-bar-row { display:grid; grid-template-columns:140px 1fr 36px; align-items:center; gap:8px; }
+    @media(max-width:480px) { .score-bar-row { grid-template-columns:110px 1fr 30px; } }
+    .score-bar-label { font-size:11px; color:var(--text-sec); }
+    .score-bar-track { height:6px; background:rgba(255,255,255,0.05); border-radius:50px; overflow:hidden; }
+    .score-bar-fill { height:100%; border-radius:50px; transition:width .4s; }
+    .score-bar-val { font-size:11px; font-weight:700; text-align:right; }
+
+    /* TWO COLUMN */
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+    @media(max-width:520px) { .grid2 { grid-template-columns:1fr; } }
+
+    /* DEMAND VS PREP */
+    .demand-row { display:flex; align-items:flex-start; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); }
+    .demand-row:last-child { border-bottom:none; }
+    .demand-label { font-size:11px; color:var(--text-sec); width:130px; flex-shrink:0; padding-top:2px; }
+    .demand-body { flex:1; }
+    .demand-crossing { font-size:12px; font-weight:700; color:var(--text); }
+    .demand-yours { font-size:11px; color:var(--text-sec); margin-top:2px; }
+    .demand-gap { font-size:10px; font-weight:700; padding:2px 8px; border-radius:50px; margin-top:4px; display:inline-block; }
+    .gap-warn { background:rgba(245,158,11,0.1); color:var(--amber); border:1px solid rgba(245,158,11,0.2); }
+    .gap-ok { background:rgba(16,185,129,0.08); color:var(--green); border:1px solid rgba(16,185,129,0.2); }
+    .gap-info { background:rgba(255,255,255,0.04); color:var(--text-sec); border:1px solid var(--border2); }
 
     /* COLD ACCLIMATION */
     .cold-sessions { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
@@ -108,7 +155,38 @@
     .ratio-labels { display:flex; justify-content:space-between; }
     .ratio-lbl { font-size:10px; }
 
-    /* QUALIFIER PROGRESS */
+    /* EVIDENCE TRACKER */
+    .evidence-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    @media(max-width:520px) { .evidence-grid { grid-template-columns:1fr; } }
+    .evidence-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:14px; }
+    .evidence-card.done { border-color:rgba(16,185,129,0.3); background:rgba(16,185,129,0.04); }
+    .evidence-card.partial { border-color:rgba(245,158,11,0.25); background:rgba(245,158,11,0.03); }
+    .evidence-icon-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+    .evidence-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+    .dot-done { background:var(--green); }
+    .dot-partial { background:var(--amber); }
+    .dot-todo { background:rgba(255,255,255,0.15); }
+    .evidence-name { font-size:12px; font-weight:700; }
+    .evidence-current { font-size:11px; color:var(--text-sec); line-height:1.5; }
+    .evidence-action { font-size:10px; font-weight:700; color:var(--cyan); margin-top:6px; }
+
+    /* TREND PANELS */
+    .trend-bars { display:flex; align-items:flex-end; gap:4px; height:52px; margin:8px 0 4px; }
+    .trend-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; height:100%; }
+    .trend-bar { width:100%; border-radius:3px 3px 0 0; min-height:3px; }
+    .trend-lbl { font-size:8px; color:var(--text-sec); }
+
+    /* FOCUS CARDS */
+    .focus-card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:16px 18px; margin-bottom:10px; display:flex; gap:14px; align-items:flex-start; border-left:3px solid transparent; }
+    .focus-card.high { border-left-color:var(--cyan); background:linear-gradient(90deg,rgba(56,189,248,0.05),var(--bg-card)); }
+    .focus-card.medium { border-left-color:var(--amber); background:linear-gradient(90deg,rgba(245,158,11,0.04),var(--bg-card)); }
+    .focus-card.info { border-left-color:var(--border2); }
+    .focus-icon { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:rgba(255,255,255,0.04); margin-top:1px; }
+    .focus-title { font-size:13px; font-weight:700; color:var(--text); margin-bottom:4px; line-height:1.3; }
+    .focus-body { font-size:12px; color:#94a3b8; line-height:1.65; }
+    .focus-action { display:inline-block; margin-top:8px; font-size:11px; font-weight:700; color:var(--cyan); text-decoration:none; }
+
+    /* QUALIFIER */
     .qualifier-items { display:flex; flex-direction:column; gap:8px; margin-top:4px; }
     .qualifier-row { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:10px; background:rgba(255,255,255,0.03); }
     .qualifier-status { width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
@@ -119,7 +197,7 @@
     .qualifier-title { font-size:12px; font-weight:700; color:var(--text); }
     .qualifier-sub { font-size:11px; color:var(--text-sec); margin-top:1px; }
 
-    /* RECENT SESSIONS */
+    /* SESSIONS */
     .session-list { display:flex; flex-direction:column; }
     .session-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
     .session-row:last-child { border-bottom:none; }
@@ -132,17 +210,50 @@
     .tag-lido { background:rgba(255,255,255,0.04); color:var(--text-sec); border:1px solid var(--border); }
     .tag-cold { background:rgba(96,165,250,0.1); color:#93c5fd; border:1px solid rgba(96,165,250,0.2); }
 
-    /* SET TARGET */
-    .target-panel { background:rgba(255,255,255,0.02); border:1px solid var(--border2); border-radius:10px; padding:12px 14px; margin-top:10px; display:flex; align-items:center; gap:10px; }
-    .target-input { flex:1; background:transparent; border:none; font-family:'DM Sans',sans-serif; font-size:13px; color:var(--text); outline:none; }
+    /* TARGET DATE */
+    .target-panel { background:rgba(255,255,255,0.02); border:1px solid var(--border2); border-radius:10px; padding:12px 14px; margin-top:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .target-input { background:transparent; border:none; font-family:'DM Sans',sans-serif; font-size:13px; color:var(--text); outline:none; min-width:140px; }
     .target-input::-webkit-calendar-picker-indicator { filter:invert(1); opacity:.4; cursor:pointer; }
-    .target-save { padding:7px 16px; border-radius:50px; background:var(--cyan); color:#080f1a; font-size:12px; font-weight:700; border:none; cursor:pointer; }
+    .target-save { padding:7px 16px; border-radius:50px; background:var(--cyan); color:#080f1a; font-size:12px; font-weight:700; border:none; cursor:pointer; white-space:nowrap; }
 
-    .section-gap { margin-top:22px; margin-bottom:10px; }
+    /* WEEKLY REVIEW */
+    .review-card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:20px; margin-bottom:10px; }
+    .review-section { margin-bottom:14px; }
+    .review-section:last-child { margin-bottom:0; }
+    .review-section-label { font-size:9px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--text-sec); margin-bottom:6px; }
+    .review-text { font-size:13px; color:#cbd5e1; line-height:1.7; }
+    .review-list { list-style:none; display:flex; flex-direction:column; gap:5px; }
+    .review-list li { font-size:12px; color:#94a3b8; line-height:1.5; padding-left:14px; position:relative; }
+    .review-list li::before { content:'–'; position:absolute; left:0; color:var(--text-sec); }
+    .review-list li.good::before { content:'↑'; color:var(--green); }
+    .review-list li.risk::before { content:'↓'; color:var(--amber); }
+
+    /* BENCHMARK */
+    .bench-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
+    .bench-row:last-child { border-bottom:none; }
+    .bench-label { font-size:11px; color:var(--text-sec); flex:1; }
+    .bench-val { font-size:13px; font-weight:700; }
+
+    /* NOTES */
+    .note-card { background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:8px; }
+    .note-type { font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-sec); margin-bottom:5px; }
+    .note-text { font-size:13px; color:var(--text); line-height:1.6; white-space:pre-wrap; }
+
+    /* PHASE BANNER */
+    .phase-banner { border-radius:14px; padding:16px 18px; margin-bottom:14px; display:flex; align-items:flex-start; gap:14px; }
+    .phase-name-big { font-family:'Bebas Neue',sans-serif; font-size:21px; letter-spacing:.04em; line-height:1; margin-bottom:5px; }
+    .phase-desc { font-size:12px; line-height:1.6; opacity:.8; }
+
+    /* INSUFFICIENT DATA */
+    .data-warning { background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.15); border-radius:12px; padding:14px 16px; margin-bottom:10px; }
+    .data-warning p { font-size:12px; color:#fbbf24; line-height:1.6; }
+
+    /* MISC */
+    .divider { border:none; border-top:1px solid var(--border); margin:22px 0; }
+    a { color:var(--cyan); }
     </style>
 </head>
 <body>
-
 <nav>
     <a href="/" class="nav-brand"><img src="/icons/logo-wave.png" alt="">SwimLoading</a>
     <div class="nav-right">
@@ -154,7 +265,7 @@
 <!-- AUTH GATE -->
 <div id="authGate">
     <h2>Private dashboard</h2>
-    <p>This is a private Channel preparation dashboard. Sign in to SwimLoading to access your preparation intelligence.</p>
+    <p>This is a private Crossing Intelligence Pro dashboard. Sign in to SwimLoading to access your preparation intelligence.</p>
     <a href="/app" style="display:inline-block;padding:12px 28px;border-radius:50px;background:var(--cyan);color:#080f1a;font-size:14px;font-weight:700;text-decoration:none;">Sign in to SwimLoading</a>
 </div>
 
@@ -164,50 +275,73 @@
     <p style="font-size:13px;color:var(--text-sec);">Loading your preparation data…</p>
 </div>
 
+<!-- SETUP STATE — no crossing attempt yet -->
+<div id="setupState">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);margin-bottom:10px;">Crossing Intelligence Pro</div>
+    <h2>Choose your target crossing</h2>
+    <p>Select your target crossing to unlock preparation tracking, readiness scoring, and personalised intelligence.</p>
+    <div class="crossing-grid" id="crossingGrid"></div>
+    <div class="setup-form" id="setupForm" style="display:none;">
+        <label>Target crossing date (optional — you can set this later)</label>
+        <input type="date" class="setup-input" id="setupTargetDate">
+        <label>Coach name (optional)</label>
+        <input type="text" class="setup-input" id="setupCoach" placeholder="e.g. Sarah Jones">
+        <label>Pilot name (optional)</label>
+        <input type="text" class="setup-input" id="setupPilot" placeholder="e.g. Mike Oram">
+    </div>
+    <button class="btn-primary" id="createAttemptBtn" disabled onclick="createAttempt()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Create crossing attempt
+    </button>
+</div>
+
 <!-- DASHBOARD -->
 <div id="dashboard">
 
-    <div class="page-header">
-        <div class="page-header-left">
-            <h1 id="dashTitle">Channel Preparation</h1>
-            <p id="dashSub">English Channel · Private dashboard</p>
-        </div>
-        <a href="/app" class="log-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Log session
-        </a>
+    <!-- PRO HEADER -->
+    <div class="pro-header" id="proHeader"></div>
+
+    <!-- ATTEMPT SELECTOR (shown when multiple attempts) -->
+    <div class="attempt-selector" id="attemptSelector" style="display:none;">
+        <label>Crossing attempt:</label>
+        <select class="attempt-select" id="attemptSelect" onchange="switchAttempt(this.value)"></select>
     </div>
 
     <!-- PHASE BANNER -->
     <div id="phaseBanner" class="phase-banner"></div>
 
-    <!-- SET TARGET DATE -->
-    <div class="panel" style="margin-bottom:16px;">
+    <!-- TARGET DATE (if not set) -->
+    <div class="panel" id="targetDatePanel" style="display:none;margin-bottom:16px;">
         <div class="panel-label">Target crossing date</div>
-        <div id="targetDisplay" style="font-size:13px;color:var(--text-sec);margin-bottom:8px;">No target date set — add one to unlock countdown and phase tracking.</div>
+        <div id="targetDisplay" style="font-size:13px;color:var(--text-sec);margin-bottom:8px;"></div>
         <div class="target-panel">
-            <input type="date" class="target-input" id="targetInput" placeholder="Set target date">
-            <button class="target-save" id="targetSave">Save</button>
+            <input type="date" class="target-input" id="targetInput">
+            <button class="target-save" onclick="saveTargetDate()">Save date</button>
         </div>
     </div>
 
-    <!-- RECOMMENDATIONS -->
-    <div class="section-title section-gap">What to focus on now</div>
-    <div id="recsContainer"></div>
+    <!-- DATA WARNINGS -->
+    <div id="dataWarnings"></div>
 
-    <!-- COLD ACCLIMATION + TRAINING RHYTHM -->
-    <div class="grid2">
+    <!-- READINESS OVERVIEW -->
+    <div class="section-title section-gap">Readiness overview</div>
+    <div id="readinessOverview"></div>
 
+    <!-- DEMAND VS PREP -->
+    <div class="section-title section-gap">Crossing demand vs your preparation</div>
+    <div class="panel" id="demandPanel"></div>
+
+    <!-- COLD ACCLIMATION + RHYTHM -->
+    <div class="grid2 section-gap">
         <div class="panel">
-            <div class="panel-label">Cold acclimation</div>
+            <div class="panel-label">Temperature intelligence</div>
             <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:3px;">
-                <span class="big-num" id="coldestVal" style="color:#60a5fa;">—</span>
+                <span class="big-num" id="coldestVal" style="color:var(--blue);">—</span>
                 <span style="font-size:12px;color:var(--text-sec);">coldest</span>
             </div>
             <div class="big-sub" id="coldStatus"></div>
             <div class="cold-sessions" id="coldBars"></div>
         </div>
-
         <div class="panel">
             <div class="panel-label">Training rhythm</div>
             <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:3px;">
@@ -218,10 +352,9 @@
             <div class="rhythm-bars" id="rhythmBars"></div>
             <div class="rhythm-benchmark">
                 <span class="rhythm-note" id="rhythmNote"></span>
-                <span class="rhythm-note">Target: <span>4×</span></span>
+                <span class="rhythm-note">Target: <span id="rhythmTarget">4×</span></span>
             </div>
         </div>
-
     </div>
 
     <!-- OPEN WATER RATIO -->
@@ -235,223 +368,524 @@
         <div style="font-size:12px;color:#94a3b8;line-height:1.6;margin-top:10px;" id="ratioComment"></div>
     </div>
 
-    <!-- QUALIFIER PROGRESS -->
-    <div class="panel section-gap">
-        <div class="panel-label">Qualifying swim progress</div>
-        <div class="qualifier-items" id="qualifierItems"></div>
-        <div style="font-size:11px;color:var(--text-sec);line-height:1.6;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
-            CSA requirement: 6 continuous hours in water ≤16°C, witnessed by an approved observer. Dover Harbour and Tooting Bec Lido are both approved venues.
+    <!-- EVIDENCE TRACKER -->
+    <div class="section-title section-gap">Evidence tracker</div>
+    <div class="evidence-grid" id="evidenceGrid"></div>
+
+    <!-- WHAT TO FOCUS ON -->
+    <div class="section-title section-gap">What to focus on now</div>
+    <div id="focusContainer"></div>
+
+    <!-- WEEKLY REVIEW -->
+    <div class="section-title section-gap">Weekly intelligence review</div>
+    <div id="weeklyReview"></div>
+
+    <!-- TREND PANELS -->
+    <div class="section-title section-gap">8-week trends</div>
+    <div class="grid2" id="trendPanels"></div>
+
+    <!-- QUALIFIER PROGRESS (shown when crossing requires one) -->
+    <div id="qualifierSection" style="display:none;">
+        <div class="section-title section-gap">Qualifying swim progress</div>
+        <div class="panel">
+            <div class="qualifier-items" id="qualifierItems"></div>
+            <div id="qualifierFootnote" style="font-size:11px;color:var(--text-sec);line-height:1.6;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);"></div>
         </div>
     </div>
+
+    <!-- COMMUNITY BENCHMARK -->
+    <div id="communitySection" class="section-gap"></div>
+
+    <!-- PREP NOTES -->
+    <div id="prepNotesSection" class="section-gap"></div>
 
     <!-- RECENT SESSIONS -->
     <div class="section-title section-gap">Recent sessions</div>
     <div class="panel">
         <div class="session-list" id="sessionList"></div>
         <div id="noSessions" style="display:none;text-align:center;padding:20px 0;font-size:13px;color:var(--text-sec);">
-            No sessions logged yet. <a href="/app" style="color:var(--cyan);">Log your first session →</a>
+            No sessions logged yet. <a href="/app">Log your first session</a>
         </div>
     </div>
 
-</div>
+    <!-- DISCLAIMER -->
+    <div style="margin-top:28px;padding:16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:12px;">
+        <p style="font-size:11px;color:var(--text-sec);line-height:1.65;">
+            Readiness scores and preparation intelligence are indicative only and do not replace coaching, medical advice, pilot guidance, race organiser guidance, or official crossing association requirements. Always consult qualified professionals before attempting any marathon swim.
+        </p>
+    </div>
+
+</div><!-- end #dashboard -->
 
 <script>
+document.addEventListener('mousemove', e => {
+    document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+    document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+});
+
 const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: true, storageKey: 'sb-szgkzuswelntnevobnoh-auth-token' }
 });
 
-const CROSSING = { name: 'English Channel', distance: 33, tempMin: 14, tempMax: 18, qualifierHours: 6, qualifierMaxTemp: 16 };
+const DAVE_ID = 'df137255-3add-4153-b368-32e06e2be188';
 
+// State
 let _session = null;
+let _viewingId = null;
+let _isAdminView = false;
 let _logs = [];
-let _targetDate = null;
+let _crossings = [];
+let _attempts = [];
+let _activeAttempt = null;
+let _crossing = null;
+let _evidence = [];
+let _selectedCrossingSlug = null;
 
-// ─── PHASE ENGINE ────────────────────────────────────────────────────────────
-
-function getPhase(daysToTarget) {
-    if (daysToTarget === null) return { name: 'Target date not set', color: '#64748b', bg: 'rgba(255,255,255,0.03)', border: 'rgba(255,255,255,0.06)', desc: 'Set your target crossing date above to unlock phase tracking, countdown and prioritised recommendations.', icon: '#64748b' };
-    if (daysToTarget > 280) return { name: 'Base Fitness', color: '#6ee7b7', bg: 'rgba(52,211,153,0.06)', border: 'rgba(52,211,153,0.15)', desc: 'The foundation phase. Build swimming frequency and consistency. Any water temperature is useful — the goal is habit and endurance base. Aim for 3+ sessions per week.', icon: '#34d399' };
-    if (daysToTarget > 140) return { name: 'Endurance Building', color: var_amber, bg: 'rgba(245,158,11,0.06)', border: 'rgba(245,158,11,0.18)', desc: 'Volume phase. Extend your session duration week by week. Begin deliberate cold exposure — seek out sessions in sub-16°C water when available. Build toward 2-hour sessions.', icon: '#f59e0b' };
-    if (daysToTarget > 84)  return { name: 'Cold Acclimation', color: '#60a5fa', bg: 'rgba(96,165,250,0.06)', border: 'rgba(96,165,250,0.2)', desc: 'Cold is now the priority. Seek the coldest water available. Every sub-16°C session is building the physiological adaptation you need. Target 3-hour+ continuous swims. Book your qualifying swim observer.', icon: '#60a5fa' };
-    if (daysToTarget > 42)  return { name: 'Peak Preparation', color: '#38bdf8', bg: 'rgba(56,189,248,0.07)', border: 'rgba(56,189,248,0.22)', desc: 'The qualifying swim window is now. Book it immediately — observer slots fill fast in summer. Build to 4-hour+ swims. Maximise open water sessions. Finalise your pilot and feed plan.', icon: '#38bdf8' };
-    if (daysToTarget > 14)  return { name: 'Final Taper', color: '#a78bfa', bg: 'rgba(167,139,250,0.06)', border: 'rgba(167,139,250,0.2)', desc: 'Reduce volume but maintain cold exposure and open water feel. Nothing new. This is not the time to try longer sessions — your fitness is banked. Logistics, feeds, crew briefing.', icon: '#a78bfa' };
-    return { name: 'Final Countdown', color: '#f87171', bg: 'rgba(239,68,68,0.06)', border: 'rgba(239,68,68,0.2)', desc: 'Rest, eat, sleep. Your training is done. Review weather windows with your pilot. Trust the preparation.', icon: '#f87171' };
-}
-const var_amber = '#f59e0b'; // inline workaround for template literal
-
-function renderPhase(daysToTarget) {
-    const phase = getPhase(daysToTarget);
-    const countdownStr = daysToTarget !== null
-        ? `${daysToTarget} days to target · ${Math.round(daysToTarget / 7)} weeks`
-        : '';
-
-    document.getElementById('phaseBanner').style.cssText = `background:${phase.bg};border:1px solid ${phase.border};border-radius:14px;padding:18px 20px;margin-bottom:16px;display:flex;align-items:flex-start;gap:16px;`;
-    document.getElementById('phaseBanner').innerHTML = `
-        <div style="width:42px;height:42px;border-radius:12px;background:${phase.bg};border:1px solid ${phase.border};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${phase.icon}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        </div>
-        <div style="flex:1;min-width:0;">
-            <div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${phase.color};opacity:.7;margin-bottom:3px;">Preparation phase</div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.04em;line-height:1;color:${phase.color};margin-bottom:6px;">${phase.name}</div>
-            <div style="font-size:12px;color:#94a3b8;line-height:1.65;">${phase.desc}</div>
-            ${countdownStr ? `<div style="font-size:11px;font-weight:700;margin-top:8px;color:${phase.color};opacity:.6;">${countdownStr}</div>` : ''}
-        </div>`;
-}
-
-// ─── INTELLIGENCE ENGINE ──────────────────────────────────────────────────────
+// ─── UTILITIES ────────────────────────────────────────────────────────────────
 
 function daysSince(isoStr) {
-    if (!isoStr) return 999;
+    if (!isoStr) return 9999;
     return Math.floor((Date.now() - new Date(isoStr).getTime()) / 86400000);
 }
 
-function isOpenWater(spotName) {
-    if (!spotName) return false;
-    const name = spotName.toLowerCase();
+function daysUntil(dateStr) {
+    if (!dateStr) return null;
+    const d = new Date(dateStr); d.setHours(0,0,0,0);
+    const now = new Date(); now.setHours(0,0,0,0);
+    return Math.max(0, Math.floor((d - now) / 86400000));
+}
+
+function formatDate(isoStr) {
+    return new Date(isoStr).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+}
+
+function isOpenWater(log) {
+    if (log.location_type === 'open_water') return true;
+    if (log.location_type === 'pool' || log.location_type === 'lido') return false;
+    // Infer from spot name
+    const name = (log.spots?.name || '').toLowerCase();
     return !name.includes('lido') && !name.includes('pool') && !name.includes('baths');
 }
 
-function buildRecommendations(logs, daysToTarget) {
-    const recs = [];
-    if (!logs.length) {
-        recs.push({ priority: 'high', title: 'Log your first session', body: 'Connect Strava or log a swim manually in the SwimLoading app. Your training intelligence unlocks as sessions accumulate.', action: { label: 'Log a session', href: '/app' } });
-        return recs;
-    }
+function tempColor(t) {
+    if (t === null || t === undefined) return 'var(--text-sec)';
+    if (t <= 12) return '#93c5fd';
+    if (t <= 14) return '#60a5fa';
+    if (t <= 16) return '#38bdf8';
+    if (t <= 19) return '#7dd3fc';
+    return '#94a3b8';
+}
 
-    const now = Date.now();
-    const last28 = logs.filter(l => daysSince(l.created_at) <= 28);
-    const last56 = logs.filter(l => daysSince(l.created_at) <= 56 && daysSince(l.created_at) > 28);
-    const perWeekNow = last28.length / 4;
-    const perWeekPrev = last56.length / 4;
-    const lastSession = daysSince(logs[0]?.created_at);
-    const coldLogs = logs.filter(l => l.temp_c !== null && l.temp_c <= CROSSING.qualifierMaxTemp);
-    const openWaterLogs = logs.filter(l => isOpenWater(l.spots?.name));
-    const openRatio = logs.length > 0 ? openWaterLogs.length / logs.length : 0;
-    const logsWithDist = logs.filter(l => l.distance_km && l.distance_km > 0);
-    const coldest = logs.reduce((min, l) => (l.temp_c !== null && l.temp_c < min) ? l.temp_c : min, 99);
+function uidHash(uid) {
+    if (!uid) return '';
+    let h = 0;
+    for (let i = 0; i < uid.length; i++) { h = ((h << 5) - h) + uid.charCodeAt(i); h |= 0; }
+    return Math.abs(h).toString(36);
+}
 
-    // 1. Session gap — most urgent
-    if (lastSession >= 7) {
-        recs.push({ priority: 'high', title: `${lastSession} days since your last session`, body: `Cold water acclimation fades faster than fitness. A week out of the water sets back your thermal adaptation — a short swim today resets the clock. Even 30 minutes counts.`, action: { label: 'Log a session now', href: '/app' } });
-    }
+// ─── PHASE ENGINE (crossing-agnostic) ────────────────────────────────────────
 
-    // 2. Frequency
-    if (perWeekNow < 2.5 && lastSession < 7) {
-        const trend = perWeekNow < perWeekPrev ? 'down from' : 'compared to';
-        recs.push({ priority: perWeekNow < 2 ? 'high' : 'medium', title: 'Increase training frequency', body: `You're averaging ${perWeekNow.toFixed(1)} sessions/week over the last 4 weeks. Channel preparation benchmarks suggest 4×/week in the build phase. Add one session to your week — it doesn't need to be long.`, action: null });
-    }
+function getPhase(daysToTarget) {
+    if (daysToTarget === null) return {
+        name: 'Target date not set', color: '#64748b',
+        bg: 'rgba(255,255,255,0.03)', border: 'rgba(255,255,255,0.06)',
+        desc: 'Set your target crossing date to unlock countdown, phase tracking, and prioritised weekly focus.',
+        key: 'no_target'
+    };
+    if (daysToTarget > 168) return {
+        name: 'Foundation', color: '#6ee7b7',
+        bg: 'rgba(52,211,153,0.06)', border: 'rgba(52,211,153,0.15)',
+        desc: 'Build swimming frequency and consistency. Any water temperature is useful right now — the goal is habit and an endurance base. Aim for 3+ sessions per week.',
+        key: 'foundation'
+    };
+    if (daysToTarget > 84) return {
+        name: 'Build', color: '#f59e0b',
+        bg: 'rgba(245,158,11,0.06)', border: 'rgba(245,158,11,0.18)',
+        desc: 'Volume phase. Extend session duration week by week. Begin deliberate temperature specificity — seek conditions that match your target crossing. Build toward long continuous swims.',
+        key: 'build'
+    };
+    if (daysToTarget > 42) return {
+        name: 'Specific Preparation', color: '#60a5fa',
+        bg: 'rgba(96,165,250,0.06)', border: 'rgba(96,165,250,0.2)',
+        desc: 'Crossing-specific work now. Seek conditions that match your target. Every session in the relevant temperature range or open water conditions is building the specific adaptation you need.',
+        key: 'specific'
+    };
+    if (daysToTarget > 14) return {
+        name: 'Peak / Qualifying', color: '#38bdf8',
+        bg: 'rgba(56,189,248,0.07)', border: 'rgba(56,189,248,0.22)',
+        desc: 'If your crossing requires a qualifying swim, this is the window. Book it immediately — observer slots fill fast. Build to target long swim distances. Finalise pilot and feed plan.',
+        key: 'qualifying'
+    };
+    if (daysToTarget > 0) return {
+        name: 'Taper', color: '#a78bfa',
+        bg: 'rgba(167,139,250,0.06)', border: 'rgba(167,139,250,0.2)',
+        desc: 'Reduce volume but maintain feel in the water. Nothing new. Your fitness is banked. Logistics, feeds, crew briefing, weather monitoring.',
+        key: 'taper'
+    };
+    return {
+        name: 'Review Phase', color: '#f87171',
+        bg: 'rgba(239,68,68,0.06)', border: 'rgba(239,68,68,0.2)',
+        desc: 'Target date has passed. Review your preparation data or start planning your next attempt.',
+        key: 'review'
+    };
+}
 
-    // 3. Qualifying swim — urgent when close
-    if (daysToTarget !== null && daysToTarget <= 140 && daysToTarget > 42) {
-        recs.push({ priority: 'high', title: 'Book your qualifying swim observer now', body: `CSA and CS&PF observer slots fill fast over summer. You need a witnessed 6-hour swim in ≤16°C — contact the Channel Swimming Association before your window closes. Dover Harbour and Tooting Bec are both approved.`, action: { label: 'Channel Swimming Association', href: 'https://www.channelswimmingassociation.com' } });
-    }
+function renderPhase(daysToTarget) {
+    const phase = getPhase(daysToTarget);
+    const countdown = daysToTarget !== null && daysToTarget > 0
+        ? `${daysToTarget} days to target · ${Math.round(daysToTarget / 7)} weeks` : '';
+    document.getElementById('phaseBanner').style.cssText =
+        `background:${phase.bg};border:1px solid ${phase.border};border-radius:14px;padding:16px 18px;margin-bottom:14px;display:flex;align-items:flex-start;gap:14px;`;
+    document.getElementById('phaseBanner').innerHTML = `
+        <div style="width:40px;height:40px;border-radius:11px;background:${phase.bg};border:1px solid ${phase.border};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${phase.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div style="flex:1;min-width:0;">
+            <div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${phase.color};opacity:.7;margin-bottom:3px;">Preparation phase</div>
+            <div class="phase-name-big" style="color:${phase.color};">${phase.name}</div>
+            <div class="phase-desc" style="color:#94a3b8;">${phase.desc}</div>
+            ${countdown ? `<div style="font-size:11px;font-weight:700;margin-top:7px;color:${phase.color};opacity:.6;">${countdown}</div>` : ''}
+        </div>`;
+}
 
-    // 4. Cold exposure
-    if (coldest > 16 && logs.length >= 3) {
-        recs.push({ priority: 'high', title: 'Seek colder water', body: `Your coldest logged swim is ${coldest}°C. The qualifier requires ≤16°C, and Channel crossings can be 14–15°C at night. Tooting Bec is coldest early morning. Aim for at least 5 sessions in sub-16°C water before your qualifier.`, action: null });
-    } else if (coldLogs.length < 5 && logs.length >= 5) {
-        recs.push({ priority: 'medium', title: `Build cold exposure — ${coldLogs.length} of ${logs.length} sessions below 16°C`, body: `Sub-16°C sessions are the ones that matter for your qualifier and for crossing confidence. Prioritise early morning swims when water temperatures are lowest, or visit Tooting Bec in spring when the lido is at its coldest.`, action: null });
-    }
+// ─── PRO HEADER ───────────────────────────────────────────────────────────────
 
-    // 5. Open water
-    if (openRatio < 0.35 && logs.length >= 4) {
-        recs.push({ priority: 'medium', title: 'More open water sessions', body: `${Math.round(openRatio * 100)}% of your sessions have been in open water. The Channel is 33km of open sea — chop, swell, currents, no walls to push off. Plan a Dover Harbour or coastal session. The psychological difference from a lido is significant.`, action: null });
-    }
+function renderProHeader(name, crossing, attempt, daysToTarget) {
+    const days = daysToTarget;
+    const phase = getPhase(days);
+    const crossingName = crossing?.name || 'Marathon Swim';
+    const distStr = crossing?.distance_km ? `${crossing.distance_km} km` : 'Distance TBC';
+    const targetStr = attempt?.target_date
+        ? new Date(attempt.target_date).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})
+        : 'Target date not set';
+    const weeksStr = days !== null ? `${Math.round(days / 7)} weeks` : '—';
+    const isPro = attempt?.is_pro;
 
-    // 6. Distance logging
-    if (logsWithDist.length === 0 && logs.length >= 5) {
-        recs.push({ priority: 'medium', title: 'Start logging swim distance', body: `Distance tracking is how we measure long-swim progression — the clearest indicator of Channel readiness. Next time you log a session in the app, add your distance. It unlocks duration analysis and progression tracking.`, action: { label: 'Log with distance', href: '/app' } });
-    } else if (logsWithDist.length > 0) {
-        const maxDist = Math.max(...logsWithDist.map(l => l.distance_km));
-        if (maxDist < 8 && daysToTarget !== null && daysToTarget < 200) {
-            recs.push({ priority: 'medium', title: `Longest logged swim: ${maxDist}km — start extending`, body: `The Channel is 33km. Your longest logged distance is ${maxDist}km. Start building 1–2km per week. The goal isn't to swim 33km in training — it's to build the confidence that comes from sessions where 10km+ feels manageable.`, action: null });
+    document.getElementById('proHeader').innerHTML = `
+        ${isPro ? '<div class="pro-badge"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Pro</div>' : ''}
+        <h1 id="dashTitle">${name.split(' ')[0]}'s Crossing Intelligence</h1>
+        <div class="pro-header-meta">
+            <span class="meta-chip"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><strong>${crossingName}</strong></span>
+            <span class="meta-chip"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>${distStr}</span>
+            <span class="meta-chip"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${targetStr}</span>
+            ${days !== null ? `<span class="meta-chip"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${weeksStr} remaining</span>` : ''}
+        </div>
+        <div class="phase-chip" style="background:${phase.bg};border:1px solid ${phase.border};color:${phase.color};">
+            ${phase.name} phase
+        </div>`;
+}
+
+// ─── READINESS ENGINE ─────────────────────────────────────────────────────────
+
+function calculateCrossingReadiness({ swims, crossing, attempt, evidence }) {
+    if (!crossing) return null;
+
+    const benchWeeklyKm = crossing.benchmark_weekly_km || (crossing.distance_km ? crossing.distance_km * 1.2 : 40);
+    const benchLongSwimKm = crossing.benchmark_long_swim_km || (crossing.distance_km ? crossing.distance_km * 0.6 : 15);
+    const benchColdHours = crossing.benchmark_cold_hours || 0;
+    const benchOWPct = crossing.benchmark_open_water_percent || 50;
+    const isColdCrossing = crossing.typical_temp_max_c !== null && crossing.typical_temp_max_c <= 20;
+    const targetTemp = crossing.typical_temp_max_c || 20;
+
+    const last28 = swims.filter(s => daysSince(s.created_at) <= 28);
+    const last56 = swims.filter(s => daysSince(s.created_at) <= 56);
+
+    // 1. Weekly volume (20 pts)
+    const weekKm = [0,1,2,3].map(w => {
+        const wSwims = last28.filter(s => {
+            const d = daysSince(s.created_at);
+            return d >= w * 7 && d < (w + 1) * 7;
+        });
+        return wSwims.reduce((sum, s) => sum + (s.distance_km || 0), 0);
+    });
+    const avgWeeklyKm = weekKm.reduce((a,b) => a+b, 0) / 4;
+    const volScore = Math.min(20, benchWeeklyKm > 0 ? (avgWeeklyKm / benchWeeklyKm) * 20 : 0);
+
+    // 2. Long swim (20 pts)
+    const longestSwimKm = last56.length ? Math.max(...last56.map(s => s.distance_km || 0)) : 0;
+    const longSwimScore = Math.min(20, benchLongSwimKm > 0 ? (longestSwimKm / benchLongSwimKm) * 20 : 0);
+
+    // 3. Temperature specificity (20 pts)
+    const swimsWithTemp = last56.filter(s => s.temp_c !== null && s.temp_c !== undefined);
+    let tempScore = 0;
+    let coldestLogged = swimsWithTemp.length ? Math.min(...swimsWithTemp.map(s => s.temp_c)) : null;
+    let coldSessionCount = 0;
+    let coldHoursLogged = 0;
+    if (swimsWithTemp.length > 0) {
+        if (isColdCrossing && benchColdHours > 0) {
+            // Count sessions at or below typical_temp_max_c
+            const coldSwims = swimsWithTemp.filter(s => s.temp_c <= targetTemp);
+            coldSessionCount = coldSwims.length;
+            coldHoursLogged = coldSwims.reduce((sum, s) => sum + (s.duration_minutes || 60) / 60, 0);
+            tempScore = Math.min(20, benchColdHours > 0 ? (coldHoursLogged / benchColdHours) * 20 : 0);
+        } else {
+            // Warm/non-cold crossing: reward open water exposure consistency
+            const recentTempSwims = last28.filter(s => s.temp_c !== null);
+            tempScore = Math.min(20, (recentTempSwims.length / 8) * 20);
         }
     }
 
-    // 7. Positive — good frequency
-    if (perWeekNow >= 4 && recs.length < 2) {
-        recs.push({ priority: 'info', title: `Strong training rhythm — ${perWeekNow.toFixed(1)} sessions/week`, body: `You're hitting the Channel preparation frequency benchmark. Consistency at this level over 12+ weeks is what builds the physiological base. Keep it up — the priority now is making sure those sessions include quality cold exposure and open water time.`, action: null });
-    }
+    // 4. Open water (15 pts)
+    const owSwims28 = last28.filter(s => isOpenWater(s));
+    const owPct = last28.length > 0 ? (owSwims28.length / last28.length) * 100 : 0;
+    const owScore = Math.min(15, benchOWPct > 0 ? (owPct / benchOWPct) * 15 : 0);
 
-    // Cap at 3, prioritise high
-    recs.sort((a, b) => (a.priority === 'high' ? -1 : a.priority === 'medium' ? 0 : 1) - (b.priority === 'high' ? -1 : b.priority === 'medium' ? 0 : 1));
-    return recs.slice(0, 3);
+    // 5. Training consistency (15 pts) — weeks in last 8 with ≥3 swims
+    let consistentWeeks = 0;
+    for (let w = 0; w < 8; w++) {
+        const wSwims = swims.filter(s => {
+            const d = daysSince(s.created_at);
+            return d >= w * 7 && d < (w + 1) * 7;
+        });
+        if (wSwims.length >= 3) consistentWeeks++;
+    }
+    const consistencyScore = Math.min(15, (consistentWeeks / 6) * 15);
+
+    // 6. Evidence (10 pts)
+    let evidenceScore = 0;
+    const evComplete = evidence.filter(e => e.evidence_status === 'complete');
+    const hasQualifier = crossing.requires_observer && crossing.qualifying_duration_minutes;
+    if (hasQualifier) {
+        const qualDone = evComplete.some(e => e.evidence_type === 'qualifying_swim');
+        if (qualDone) evidenceScore += 5;
+    } else {
+        evidenceScore += 3;
+    }
+    const longSwimEv = evComplete.some(e => e.evidence_type === 'long_swim');
+    const feedEv = evComplete.some(e => e.evidence_type === 'feed_practice');
+    if (longSwimEv) evidenceScore += 3;
+    if (feedEv) evidenceScore += 2;
+    evidenceScore = Math.min(10, evidenceScore);
+
+    const totalScore = Math.round(volScore + longSwimScore + tempScore + owScore + consistencyScore + evidenceScore);
+    let band, bandColor;
+    if (totalScore >= 80) { band = 'Strong preparation base'; bandColor = 'var(--green)'; }
+    else if (totalScore >= 60) { band = 'Developing preparation base'; bandColor = 'var(--cyan)'; }
+    else if (totalScore >= 40) { band = 'Significant preparation gaps'; bandColor = 'var(--amber)'; }
+    else { band = 'Early preparation stage'; bandColor = 'var(--text-sec)'; }
+
+    // Strengths and risks
+    const components = [
+        { name: 'Weekly volume', score: volScore, max: 20 },
+        { name: 'Long swim progression', score: longSwimScore, max: 20 },
+        { name: 'Temperature specificity', score: tempScore, max: 20 },
+        { name: 'Open water exposure', score: owScore, max: 15 },
+        { name: 'Training consistency', score: consistencyScore, max: 15 },
+        { name: 'Crossing evidence', score: evidenceScore, max: 10 },
+    ];
+
+    const strengths = components.filter(c => c.score / c.max >= 0.7).map(c => c.name);
+    const risks = components.filter(c => c.score / c.max < 0.4).map(c => c.name);
+
+    // Data sufficiency
+    const missingDataWarnings = [];
+    const weeksOfData = swims.length > 0 ? Math.ceil(daysSince(swims[swims.length - 1]?.created_at) / 7) : 0;
+    if (weeksOfData < 4) missingDataWarnings.push('Fewer than 4 weeks of logged sessions');
+    if (swims.length < 12) missingDataWarnings.push('Fewer than 12 sessions logged — more data improves accuracy');
+    const owCount = swims.filter(s => isOpenWater(s)).length;
+    if (owCount === 0) missingDataWarnings.push('No open water sessions logged');
+    const tempCount = swims.filter(s => s.temp_c !== null).length;
+    if (tempCount === 0) missingDataWarnings.push('No temperature data — log water temperature to unlock temperature intelligence');
+    const distCount = swims.filter(s => s.distance_km && s.distance_km > 0).length;
+    if (distCount === 0) missingDataWarnings.push('No distance data — log swim distance to unlock volume tracking');
+
+    const hasSufficientData = swims.length >= 4;
+
+    return {
+        totalScore: hasSufficientData ? totalScore : null,
+        band: hasSufficientData ? band : null,
+        bandColor: hasSufficientData ? bandColor : null,
+        componentScores: components,
+        strengths,
+        risks,
+        missingDataWarnings,
+        hasSufficientData,
+        keyMetrics: {
+            avgWeeklyKm: Math.round(avgWeeklyKm * 10) / 10,
+            longestSwimKm,
+            coldestLogged,
+            coldSessionCount,
+            coldHoursLogged: Math.round(coldHoursLogged * 10) / 10,
+            owPct: Math.round(owPct),
+            consistentWeeks,
+            weekKm,
+        }
+    };
 }
 
-function renderRecs(logs, daysToTarget) {
-    const recs = buildRecommendations(logs, daysToTarget);
-    const icons = {
-        high: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
-        medium: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
-        info: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
-    };
-    document.getElementById('recsContainer').innerHTML = recs.map(r => `
-        <div class="rec-card ${r.priority}">
-            <div class="rec-icon">${icons[r.priority] || icons.info}</div>
-            <div style="flex:1;min-width:0;">
-                <div class="rec-title">${r.title}</div>
-                <div class="rec-body">${r.body}</div>
-                ${r.action ? `<a href="${r.action.href}" class="rec-action">${r.action.label} →</a>` : ''}
+// ─── RENDER: READINESS OVERVIEW ───────────────────────────────────────────────
+
+function renderReadinessOverview(result) {
+    const el = document.getElementById('readinessOverview');
+    if (!result) { el.innerHTML = ''; return; }
+
+    if (!result.hasSufficientData) {
+        el.innerHTML = `<div class="data-warning"><p>Readiness scoring needs more data. Log at least 4 sessions to unlock your readiness score.</p></div>`;
+        return;
+    }
+
+    const scoreColor = result.totalScore >= 80 ? 'var(--green)' : result.totalScore >= 60 ? 'var(--cyan)' : result.totalScore >= 40 ? 'var(--amber)' : 'var(--text-sec)';
+    const bars = result.componentScores.map(c => {
+        const pct = Math.round((c.score / c.max) * 100);
+        const col = pct >= 70 ? 'var(--green)' : pct >= 40 ? 'var(--cyan)' : 'var(--amber)';
+        return `<div class="score-bar-row">
+            <span class="score-bar-label">${c.name}</span>
+            <div class="score-bar-track"><div class="score-bar-fill" style="width:${pct}%;background:${col};"></div></div>
+            <span class="score-bar-val" style="color:${col};">${Math.round(c.score)}/${c.max}</span>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = `
+        <div class="readiness-card">
+            <div class="readiness-score-row">
+                <div class="readiness-score-num" style="color:${scoreColor};">${result.totalScore}</div>
+                <div class="readiness-score-meta">
+                    <div class="readiness-band" style="color:${scoreColor};">${result.band}</div>
+                    <div style="font-size:11px;color:var(--text-sec);">out of 100 · based on real training data</div>
+                </div>
+            </div>
+            <div class="score-bar-list">${bars}</div>
+            ${result.strengths.length ? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);"><div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:6px;">Current strengths</div><div style="font-size:12px;color:#94a3b8;">${result.strengths.join(' · ')}</div></div>` : ''}
+            ${result.risks.length ? `<div style="margin-top:10px;"><div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);margin-bottom:6px;">Preparation gaps</div><div style="font-size:12px;color:#94a3b8;">${result.risks.join(' · ')}</div></div>` : ''}
+        </div>`;
+}
+
+// ─── RENDER: DATA WARNINGS ────────────────────────────────────────────────────
+
+function renderDataWarnings(result) {
+    const el = document.getElementById('dataWarnings');
+    if (!result || !result.missingDataWarnings.length) { el.innerHTML = ''; return; }
+    el.innerHTML = `<div class="data-warning" style="margin-bottom:14px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);margin-bottom:6px;">Data gaps</div>
+        ${result.missingDataWarnings.map(w => `<p>${w}</p>`).join('')}
+    </div>`;
+}
+
+// ─── RENDER: DEMAND VS PREP ───────────────────────────────────────────────────
+
+function renderDemand(logs, crossing, result) {
+    const el = document.getElementById('demandPanel');
+    if (!crossing) { el.innerHTML = '<div style="font-size:13px;color:var(--text-sec);padding:4px 0;">No crossing selected.</div>'; return; }
+
+    const km = result?.keyMetrics;
+    const rows = [];
+
+    if (crossing.distance_km) {
+        const longest = km?.longestSwimKm || 0;
+        const gap = crossing.benchmark_long_swim_km ? crossing.benchmark_long_swim_km - longest : null;
+        rows.push({
+            label: 'Crossing distance',
+            crossing: `${crossing.distance_km} km`,
+            yours: longest > 0 ? `Longest recent swim: ${longest} km` : 'No distance logged',
+            gap: gap !== null ? (gap > 0 ? `${gap.toFixed(1)} km below benchmark` : 'At or above benchmark') : null,
+            warn: gap !== null && gap > 2
+        });
+    }
+
+    if (crossing.typical_temp_min_c !== null) {
+        const coldest = km?.coldestLogged;
+        const aboveMin = coldest !== null && coldest > (crossing.typical_temp_min_c + 2);
+        rows.push({
+            label: 'Typical temperature',
+            crossing: `${crossing.typical_temp_min_c}–${crossing.typical_temp_max_c}°C`,
+            yours: coldest !== null ? `Coldest logged: ${coldest}°C` : 'No temperature data',
+            gap: coldest !== null
+                ? (coldest <= crossing.typical_temp_max_c ? 'Within target range' : `${(coldest - crossing.typical_temp_max_c).toFixed(1)}°C above typical max`)
+                : 'Log water temperature to compare',
+            warn: aboveMin
+        });
+    }
+
+    if (crossing.benchmark_weekly_km) {
+        const avgKm = km?.avgWeeklyKm || 0;
+        const gap = crossing.benchmark_weekly_km - avgKm;
+        rows.push({
+            label: 'Weekly volume',
+            crossing: `${crossing.benchmark_weekly_km} km/week benchmark`,
+            yours: avgKm > 0 ? `Current avg: ${avgKm} km/week` : 'No distance logged',
+            gap: avgKm > 0 ? (gap > 0 ? `${gap.toFixed(1)} km/week below benchmark` : 'At or above benchmark') : 'Log distance to compare',
+            warn: gap > 10
+        });
+    }
+
+    if (crossing.requires_observer && crossing.qualifying_duration_minutes) {
+        const qualDone = _evidence.some(e => e.evidence_type === 'qualifying_swim' && e.evidence_status === 'complete');
+        rows.push({
+            label: 'Qualifying swim',
+            crossing: `${Math.round(crossing.qualifying_duration_minutes / 60)} hours in ≤${crossing.qualifying_temp_limit_c}°C`,
+            yours: qualDone ? 'Qualifying swim recorded' : 'Not yet recorded',
+            gap: qualDone ? 'Complete' : 'Required — not yet logged',
+            warn: !qualDone
+        });
+    }
+
+    el.innerHTML = `<div class="panel-label">Your evidence vs crossing demands</div>` + rows.map(r => `
+        <div class="demand-row">
+            <span class="demand-label">${r.label}</span>
+            <div class="demand-body">
+                <div class="demand-crossing">${r.crossing}</div>
+                <div class="demand-yours">${r.yours}</div>
+                ${r.gap ? `<span class="demand-gap ${r.warn ? 'gap-warn' : 'gap-ok'}">${r.gap}</span>` : ''}
             </div>
         </div>`).join('');
 }
 
-// ─── COLD ACCLIMATION ─────────────────────────────────────────────────────────
+// ─── RENDER: COLD ACCLIMATION ─────────────────────────────────────────────────
 
-function renderCold(logs) {
-    const withTemp = logs.filter(l => l.temp_c !== null);
-    if (!withTemp.length) { document.getElementById('coldestVal').textContent = '—'; document.getElementById('coldStatus').textContent = 'No temperature data yet'; return; }
-
+function renderCold(logs, crossing) {
+    const withTemp = logs.filter(l => l.temp_c !== null && l.temp_c !== undefined);
+    if (!withTemp.length) {
+        document.getElementById('coldestVal').textContent = '—';
+        document.getElementById('coldStatus').textContent = 'No temperature data yet';
+        document.getElementById('coldBars').innerHTML = '';
+        return;
+    }
     const coldest = Math.min(...withTemp.map(l => l.temp_c));
     document.getElementById('coldestVal').textContent = coldest + '°';
 
-    // Status message
+    const tempMax = crossing?.typical_temp_max_c || 18;
+    const tempMin = crossing?.typical_temp_min_c || 14;
     let status;
-    if (coldest <= 13) status = 'Exceptional — well below Channel conditions';
-    else if (coldest <= 15) status = 'On target for qualifying conditions';
-    else if (coldest <= 17) status = 'Good — building toward qualifier temp';
-    else status = 'Warm — seek colder sessions';
+    if (coldest <= tempMin) status = 'Within target crossing temp range';
+    else if (coldest <= tempMax) status = 'Building toward typical crossing conditions';
+    else if (coldest <= tempMax + 4) status = `Target: ${tempMax}°C — seeking colder water recommended`;
+    else status = `Well above typical crossing temp (${tempMax}°C)`;
     document.getElementById('coldStatus').textContent = status;
 
-    // Bucket bars: ≤14, 14-16, 16-18, 18+
+    // Build buckets around the crossing temp range
+    const b1 = tempMin, b2 = tempMax, b3 = tempMax + 3;
     const buckets = [
-        { label: '≤14°', color: '#60a5fa', count: withTemp.filter(l => l.temp_c <= 14).length },
-        { label: '14–16°', color: '#38bdf8', count: withTemp.filter(l => l.temp_c > 14 && l.temp_c <= 16).length },
-        { label: '16–18°', color: '#7dd3fc', count: withTemp.filter(l => l.temp_c > 16 && l.temp_c <= 18).length },
-        { label: '18°+', color: '#64748b', count: withTemp.filter(l => l.temp_c > 18).length },
+        { label: `≤${b1}°`, color: '#60a5fa', count: withTemp.filter(l => l.temp_c <= b1).length },
+        { label: `${b1}–${b2}°`, color: '#38bdf8', count: withTemp.filter(l => l.temp_c > b1 && l.temp_c <= b2).length },
+        { label: `${b2}–${b3}°`, color: '#7dd3fc', count: withTemp.filter(l => l.temp_c > b2 && l.temp_c <= b3).length },
+        { label: `${b3}°+`, color: '#64748b', count: withTemp.filter(l => l.temp_c > b3).length },
     ];
     const maxCount = Math.max(...buckets.map(b => b.count), 1);
     document.getElementById('coldBars').innerHTML = buckets.map(b => `
         <div class="cold-bar-row">
             <span class="cold-bar-label" style="color:${b.color};">${b.label}</span>
-            <div class="cold-bar-track"><div class="cold-bar-fill" style="width:${Math.max(4,b.count/maxCount*100)}%;background:${b.color};"></div></div>
+            <div class="cold-bar-track"><div class="cold-bar-fill" style="width:${Math.max(4, b.count/maxCount*100)}%;background:${b.color};"></div></div>
             <span class="cold-bar-count" style="color:${b.color};">${b.count}</span>
         </div>`).join('');
 }
 
-// ─── TRAINING RHYTHM ──────────────────────────────────────────────────────────
+// ─── RENDER: TRAINING RHYTHM ──────────────────────────────────────────────────
 
 function renderRhythm(logs) {
-    // Last 8 weeks, one bar per week
     const weeks = [];
     for (let i = 7; i >= 0; i--) {
-        const weekStart = new Date(Date.now() - (i + 1) * 7 * 86400000);
-        const weekEnd = new Date(Date.now() - i * 7 * 86400000);
-        const count = logs.filter(l => {
-            const d = new Date(l.created_at);
-            return d >= weekStart && d < weekEnd;
-        }).length;
-        weeks.push({ count, label: i === 0 ? 'now' : `${i}w` });
+        const wSwims = logs.filter(l => {
+            const d = daysSince(l.created_at);
+            return d >= i * 7 && d < (i + 1) * 7;
+        });
+        weeks.push({ count: wSwims.length, label: i === 0 ? 'now' : `${i}w` });
     }
-
-    const last4 = weeks.slice(4).reduce((s, w) => s + w.count, 0) / 4;
-    document.getElementById('weeklyAvg').textContent = last4.toFixed(1);
-
-    const trend = last4 >= 4 ? 'On target' : last4 >= 2.5 ? 'Building' : 'Below target';
+    const last4avg = weeks.slice(0, 4).reduce((s, w) => s + w.count, 0) / 4;
+    document.getElementById('weeklyAvg').textContent = last4avg.toFixed(1);
+    const trend = last4avg >= 4 ? 'On target' : last4avg >= 2.5 ? 'Building' : 'Below target';
     document.getElementById('rhythmStatus').textContent = trend;
-
     const maxW = Math.max(...weeks.map(w => w.count), 4);
     document.getElementById('rhythmBars').innerHTML = weeks.map(w => {
         const h = Math.max(4, (w.count / maxW) * 48);
@@ -461,65 +895,312 @@ function renderRhythm(logs) {
             <span class="rhythm-bar-lbl">${w.label}</span>
         </div>`;
     }).join('');
-
-    const trendText = last4 > (weeks.slice(0,4).reduce((s,w) => s+w.count,0)/4) ? 'Trending up' : last4 < 2 ? 'Needs work' : 'Consistent';
-    document.getElementById('rhythmNote').innerHTML = `<span style="color:${last4>=4?'var(--green)':last4>=2?'var(--amber)':'var(--danger)'}">${trendText}</span>`;
+    const prev4 = weeks.slice(4).reduce((s,w) => s+w.count, 0) / 4;
+    const trendText = last4avg > prev4 + 0.3 ? 'Trending up' : last4avg < prev4 - 0.3 ? 'Trending down' : 'Consistent';
+    const col = last4avg >= 4 ? 'var(--green)' : last4avg >= 2 ? 'var(--amber)' : 'var(--danger)';
+    document.getElementById('rhythmNote').innerHTML = `<span style="color:${col}">${trendText}</span>`;
 }
 
-// ─── OPEN WATER RATIO ─────────────────────────────────────────────────────────
+// ─── RENDER: OPEN WATER RATIO ─────────────────────────────────────────────────
 
-function renderRatio(logs) {
-    if (!logs.length) return;
-    const openCount = logs.filter(l => isOpenWater(l.spots?.name)).length;
-    const lidoCount = logs.length - openCount;
-    const pct = Math.round((openCount / logs.length) * 100);
-
+function renderRatio(logs, crossing) {
+    if (!logs.length) { document.getElementById('ratioBar').innerHTML = ''; return; }
+    const owCount = logs.filter(l => isOpenWater(l)).length;
+    const pct = Math.round((owCount / logs.length) * 100);
+    const benchmark = crossing?.benchmark_open_water_percent || 60;
     document.getElementById('ratioBar').innerHTML = `
         <div class="ratio-open" style="width:${pct}%"></div>
         <div class="ratio-lido" style="width:${100-pct}%"></div>`;
-    document.getElementById('ratioOpenLabel').textContent = `${pct}% open water (${openCount} sessions)`;
-    document.getElementById('ratioLidoLabel').textContent = `${100-pct}% lido/pool (${lidoCount} sessions)`;
-
-    let comment;
-    if (pct >= 50) comment = 'Good balance. Open water sessions build the specific skills the Channel demands — reading conditions, sighting without lane ropes, managing chop. Keep prioritising sea and open water venues.';
-    else if (pct >= 25) comment = 'Building open water exposure. The Channel requires comfort in conditions a lido cannot replicate. Plan at least one open water or coastal session per fortnight, increasing as your target date approaches.';
-    else comment = 'Most of your training is in controlled water. That\'s fine for cold acclimation and endurance — but plan open water or coastal sessions to build the Channel-specific skills: sighting, chop, currents, and the psychological difference of open sea.';
+    document.getElementById('ratioOpenLabel').textContent = `${pct}% open water (${owCount} sessions)`;
+    document.getElementById('ratioLidoLabel').textContent = `${100-pct}% lido/pool (${logs.length - owCount} sessions)`;
+    const comment = pct >= benchmark
+        ? `Good open water exposure relative to crossing benchmark (${benchmark}%). Prioritise venues that match your target crossing conditions.`
+        : pct >= benchmark * 0.5
+        ? `Building open water exposure. Crossing benchmark is ${benchmark}% — add open water sessions to build the specific skills and conditions exposure your target crossing demands.`
+        : `Most training is in controlled water. That builds fitness and cold acclimation but cannot replicate the conditions of your target crossing. Prioritise open water, coastal, or conditions-specific sessions.`;
     document.getElementById('ratioComment').textContent = comment;
 }
 
-// ─── QUALIFIER PROGRESS ───────────────────────────────────────────────────────
+// ─── RENDER: EVIDENCE TRACKER ─────────────────────────────────────────────────
 
-function renderQualifier(logs) {
-    const coldest = logs.length ? Math.min(...logs.filter(l=>l.temp_c!==null).map(l=>l.temp_c), 99) : 99;
-    const coldQualSessions = logs.filter(l => l.temp_c !== null && l.temp_c <= 16);
+function renderEvidenceTracker(evidence, crossing) {
+    const isCold = crossing?.typical_temp_max_c !== null && crossing?.typical_temp_max_c <= 20;
+    const needsQualifier = crossing?.requires_observer && crossing?.qualifying_duration_minutes;
+
+    const cards = [
+        { type: 'long_swim', label: 'Long swim', action: `Target: ≥ ${Math.round(crossing?.benchmark_long_swim_km || 15)} km continuous` },
+        ...(isCold ? [{ type: 'cold_acclimation', label: 'Cold acclimation', action: `Exposure in ≤${crossing?.typical_temp_max_c}°C water` }] : []),
+        ...(needsQualifier ? [{ type: 'qualifying_swim', label: 'Qualifying swim', action: `${Math.round(crossing.qualifying_duration_minutes/60)} hrs in ≤${crossing.qualifying_temp_limit_c}°C` }] : []),
+        { type: 'feed_practice', label: 'Feed practice', action: 'Feeding in the water — logistics and tolerance' },
+        { type: 'open_water', label: 'Open water consistency', action: 'Regular ocean/open water sessions' },
+        ...(isCold ? [{ type: 'rough_water', label: 'Rough water', action: 'Chop, swell, or wind-driven conditions' }] : []),
+    ];
+
+    document.getElementById('evidenceGrid').innerHTML = cards.map(card => {
+        const ev = evidence.find(e => e.evidence_type === card.type);
+        const done = ev?.evidence_status === 'complete';
+        const partial = ev?.evidence_status === 'pending' && ev;
+        const cls = done ? 'done' : partial ? 'partial' : '';
+        const dotCls = done ? 'dot-done' : partial ? 'dot-partial' : 'dot-todo';
+        let current = 'Not yet logged';
+        if (done) {
+            current = ev.evidence_date ? `Completed ${formatDate(ev.evidence_date)}` : 'Completed';
+            if (ev.distance_km) current += ` · ${ev.distance_km} km`;
+        } else if (partial) {
+            current = 'In progress / pending';
+        }
+        return `<div class="evidence-card ${cls}">
+            <div class="evidence-icon-row">
+                <div class="evidence-dot ${dotCls}"></div>
+                <div class="evidence-name">${card.label}</div>
+            </div>
+            <div class="evidence-current">${current}</div>
+            <div class="evidence-action">${card.action}</div>
+        </div>`;
+    }).join('');
+}
+
+// ─── RENDER: WHAT TO FOCUS ON ─────────────────────────────────────────────────
+
+function renderFocus(logs, crossing, result, evidence) {
+    const priorities = [];
+    if (!result) return;
+    const km = result.keyMetrics;
+    const benchWeekly = crossing?.benchmark_weekly_km || 40;
+    const benchLong = crossing?.benchmark_long_swim_km || 15;
+    const benchCold = crossing?.benchmark_cold_hours || 0;
+    const benchOW = crossing?.benchmark_open_water_percent || 50;
+
+    if (!logs.length) {
+        priorities.push({ priority: 'high', title: 'Log your first session', why: 'All preparation intelligence is driven by your real training data.', current: 'No sessions logged yet.', action: { label: 'Log a session', href: '/app' } });
+    } else {
+        const lastSession = daysSince(logs[0]?.created_at);
+        if (lastSession >= 7) {
+            priorities.push({ priority: 'high', title: `${lastSession} days since last session`, why: 'Temperature adaptation and open water feel fade faster than fitness. Even a short session resets the consistency clock.', current: `Last session: ${formatDate(logs[0].created_at)}`, action: { label: 'Log a session', href: '/app' } });
+        }
+        if (km.avgWeeklyKm < benchWeekly * 0.6 && km.avgWeeklyKm >= 0) {
+            priorities.push({ priority: km.avgWeeklyKm < benchWeekly * 0.3 ? 'high' : 'medium', title: 'Build weekly volume', why: `Current evidence suggests ${km.avgWeeklyKm} km/week. Crossing benchmark is ${benchWeekly} km/week. Sustainable volume is the foundation.`, current: `${km.avgWeeklyKm} km/week average — ${benchWeekly - km.avgWeeklyKm} km/week below benchmark`, action: null });
+        }
+        if (km.longestSwimKm < benchLong * 0.6) {
+            priorities.push({ priority: 'medium', title: 'Long swim progression', why: `Your longest recent swim (${km.longestSwimKm} km) is significantly below the ${benchLong} km benchmark. Extend by 1–2 km per week.`, current: `Longest in 56 days: ${km.longestSwimKm || 0} km`, action: null });
+        }
+        if (benchCold > 0 && km.coldHoursLogged < benchCold * 0.5) {
+            priorities.push({ priority: 'medium', title: 'Temperature specificity', why: `Current evidence suggests ${km.coldHoursLogged} hours in target crossing temperature range. Benchmark is ${benchCold} hours.`, current: `${km.coldHoursLogged} hrs in target temp range — ${km.coldSessionCount} sessions`, action: null });
+        }
+        if (km.owPct < benchOW * 0.5) {
+            priorities.push({ priority: 'medium', title: 'Open water exposure', why: `${km.owPct}% of recent sessions are open water. The benchmark for this crossing is ${benchOW}%. Pool fitness is a base — crossing demands open water specificity.`, current: `${km.owPct}% open water in last 28 days`, action: null });
+        }
+        const needsQualifier = crossing?.requires_observer && crossing?.qualifying_duration_minutes;
+        if (needsQualifier) {
+            const qualDone = evidence.some(e => e.evidence_type === 'qualifying_swim' && e.evidence_status === 'complete');
+            if (!qualDone) {
+                priorities.push({ priority: 'high', title: 'Book qualifying swim observer', why: `This crossing requires a ${Math.round(crossing.qualifying_duration_minutes/60)}-hour qualifying swim in ≤${crossing.qualifying_temp_limit_c}°C, witnessed by an approved observer. Observer slots fill fast.`, current: 'Not yet booked', action: null });
+            }
+        }
+        const feedDone = evidence.some(e => e.evidence_type === 'feed_practice' && e.evidence_status === 'complete');
+        if (!feedDone && logs.length >= 10) {
+            priorities.push({ priority: 'medium', title: 'Feed practice in the water', why: 'Feeding without stopping and without nausea is a trained skill. Start practicing now — not race week.', current: 'No feed practice logged', action: null });
+        }
+        if (km.consistentWeeks < 4) {
+            priorities.push({ priority: 'medium', title: 'Training rhythm', why: 'Fewer than 4 of the last 8 weeks had 3+ sessions. Consistency compounds — each week of regular swimming builds the base for the next.', current: `${km.consistentWeeks} of 8 weeks with 3+ sessions`, action: null });
+        }
+        const distCount = logs.filter(l => l.distance_km && l.distance_km > 0).length;
+        if (distCount === 0) {
+            priorities.push({ priority: 'medium', title: 'Log swim distances', why: 'Distance data unlocks volume tracking, long swim progression, and the most important components of your readiness score.', current: 'No distance logged in any session', action: { label: 'Log with distance', href: '/app' } });
+        }
+    }
+
+    // Cap at 3 high/medium, sorted
+    priorities.sort((a,b) => (a.priority === 'high' ? -1 : 0) - (b.priority === 'high' ? -1 : 0));
+    const top3 = priorities.slice(0, 3);
+
+    const iconHigh = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+    const iconMed = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+
+    document.getElementById('focusContainer').innerHTML = top3.length
+        ? top3.map(f => `
+            <div class="focus-card ${f.priority}">
+                <div class="focus-icon">${f.priority === 'high' ? iconHigh : iconMed}</div>
+                <div style="flex:1;min-width:0;">
+                    <div class="focus-title">${f.title}</div>
+                    <div class="focus-body">${f.why}</div>
+                    ${f.current ? `<div style="font-size:11px;color:var(--text-sec);margin-top:5px;">${f.current}</div>` : ''}
+                    ${f.action ? `<a href="${f.action.href}" class="focus-action">${f.action.label} →</a>` : ''}
+                </div>
+            </div>`).join('')
+        : `<div class="panel" style="text-align:center;padding:20px;"><div style="font-size:13px;color:var(--text-sec);">No priority gaps — strong preparation across all dimensions.</div></div>`;
+}
+
+// ─── RENDER: WEEKLY REVIEW ────────────────────────────────────────────────────
+
+function renderWeeklyReview(logs, result) {
+    const el = document.getElementById('weeklyReview');
+    const MIN_SWIMS = 12;
+    const MIN_WEEKS = 4;
+
+    const weeksOfData = logs.length > 0 ? Math.ceil(daysSince(logs[logs.length-1]?.created_at) / 7) : 0;
+    const hasOW = logs.some(l => isOpenWater(l));
+    const hasTemp = logs.some(l => l.temp_c !== null);
+    const hasDist = logs.some(l => l.distance_km && l.distance_km > 0);
+    const hasDuration = logs.some(l => l.duration_minutes && l.duration_minutes > 0);
+
+    if (logs.length < MIN_SWIMS || weeksOfData < MIN_WEEKS || !hasOW || !hasDist) {
+        el.innerHTML = `<div class="review-card">
+            <div class="review-text" style="color:var(--text-sec);">We need more logged swims before giving week-ahead guidance. Keep logging distance, duration, water temperature, and location type so SwimLoading can assess volume, consistency, open water exposure, and temperature adaptation.</div>
+            <div style="margin-top:12px;font-size:11px;color:var(--text-sec);">
+                ${!hasDist ? '<div style="margin-bottom:3px;">— Log swim distance to unlock volume tracking</div>' : ''}
+                ${!hasOW ? '<div style="margin-bottom:3px;">— Log an open water session to unlock specificity analysis</div>' : ''}
+                ${!hasTemp ? '<div style="margin-bottom:3px;">— Log water temperature to unlock cold acclimation intelligence</div>' : ''}
+                ${logs.length < MIN_SWIMS ? `<div style="margin-bottom:3px;">— ${MIN_SWIMS - logs.length} more sessions needed (${logs.length}/${MIN_SWIMS})</div>` : ''}
+            </div>
+        </div>`;
+        return;
+    }
+
+    if (!result) { el.innerHTML = ''; return; }
+
+    const km = result.keyMetrics;
+    const thisWeek = logs.filter(l => daysSince(l.created_at) <= 7);
+    const prevWeek = logs.filter(l => daysSince(l.created_at) > 7 && daysSince(l.created_at) <= 14);
+    const thisWeekKm = thisWeek.reduce((s, l) => s + (l.distance_km || 0), 0);
+    const prevWeekKm = prevWeek.reduce((s, l) => s + (l.distance_km || 0), 0);
+    const improved = [];
+    const risks = [];
+
+    if (thisWeek.length > prevWeek.length) improved.push(`More sessions this week (${thisWeek.length} vs ${prevWeek.length} last week)`);
+    if (thisWeekKm > prevWeekKm && prevWeekKm > 0) improved.push(`Volume up this week (${thisWeekKm.toFixed(1)} km vs ${prevWeekKm.toFixed(1)} km)`);
+    const thisWeekOW = thisWeek.filter(l => isOpenWater(l)).length;
+    if (thisWeekOW > 0) improved.push(`${thisWeekOW} open water session${thisWeekOW > 1 ? 's' : ''} this week`);
+
+    if (daysSince(logs[0]?.created_at) >= 5) risks.push('No session in the last 5 days — consistency at risk');
+    if (thisWeekKm < prevWeekKm * 0.6 && prevWeekKm > 0) risks.push('Volume dropped significantly from last week');
+    const last7Cold = thisWeek.filter(l => l.temp_c !== null && l.temp_c <= (_crossing?.typical_temp_max_c || 18)).length;
+    if (last7Cold === 0 && logs.filter(l => daysSince(l.created_at) <= 28 && l.temp_c !== null).length > 3) {
+        risks.push('No temperature-specific session this week');
+    }
+
+    const bench = _crossing?.benchmark_weekly_km || 40;
+    const focus = [];
+    if (km.avgWeeklyKm < bench * 0.7) focus.push(`Add one more session to close the volume gap (target ${bench} km/week)`);
+    if (km.longestSwimKm < (_crossing?.benchmark_long_swim_km || 15) * 0.6) focus.push('Schedule a long swim this week — extend by 1–2 km from your recent longest');
+    if (thisWeekOW === 0) focus.push('Include at least one open water session');
+    if (!thisWeek.some(l => l.temp_c !== null)) focus.push('Log water temperature on every session');
+
+    el.innerHTML = `<div class="review-card">
+        <div class="review-section">
+            <div class="review-section-label">This week</div>
+            <div class="review-text">${thisWeek.length} session${thisWeek.length !== 1 ? 's' : ''}${thisWeekKm > 0 ? ` · ${thisWeekKm.toFixed(1)} km` : ''} · Score: ${result.totalScore !== null ? result.totalScore + '/100' : 'building data'}</div>
+        </div>
+        ${improved.length ? `<div class="review-section">
+            <div class="review-section-label">What improved</div>
+            <ul class="review-list">${improved.map(i => `<li class="good">${i}</li>`).join('')}</ul>
+        </div>` : ''}
+        ${risks.length ? `<div class="review-section">
+            <div class="review-section-label">Preparation risks</div>
+            <ul class="review-list">${risks.map(r => `<li class="risk">${r}</li>`).join('')}</ul>
+        </div>` : ''}
+        <div class="review-section">
+            <div class="review-section-label">Suggested focus next week</div>
+            <ul class="review-list">${focus.length ? focus.map(f => `<li>${f}</li>`).join('') : '<li>Maintain current momentum — consistency is the goal</li>'}</ul>
+        </div>
+    </div>`;
+}
+
+// ─── RENDER: 8-WEEK TRENDS ────────────────────────────────────────────────────
+
+function renderTrends(logs) {
+    const el = document.getElementById('trendPanels');
+    const weeks = Array.from({length: 8}, (_, i) => {
+        const wSwims = logs.filter(l => {
+            const d = daysSince(l.created_at);
+            return d >= i * 7 && d < (i + 1) * 7;
+        });
+        return {
+            label: i === 0 ? 'now' : `${i}w`,
+            count: wSwims.length,
+            km: wSwims.reduce((s, l) => s + (l.distance_km || 0), 0),
+            longest: wSwims.length ? Math.max(...wSwims.map(l => l.distance_km || 0)) : 0,
+            owCount: wSwims.filter(l => isOpenWater(l)).length,
+        };
+    }).reverse();
+
+    function miniBar(vals, color, unit, decimals) {
+        const max = Math.max(...vals, 1);
+        return `<div class="trend-bars">${vals.map((v, i) => {
+            const h = Math.max(3, (v / max) * 46);
+            return `<div class="trend-col">
+                <div class="trend-bar" style="height:${h}px;background:${color};margin-top:auto;opacity:${0.4 + 0.6 * (i / vals.length)};"></div>
+                <span class="trend-lbl">${weeks[i].label}</span>
+            </div>`;
+        }).join('')}</div>`;
+    }
+
+    el.innerHTML = `
+        <div class="panel">
+            <div class="panel-label">Weekly sessions</div>
+            ${miniBar(weeks.map(w => w.count), 'var(--cyan)', 'sessions')}
+            <div style="font-size:11px;color:var(--text-sec);">Last 8 weeks · avg ${(weeks.reduce((s,w)=>s+w.count,0)/8).toFixed(1)}/week</div>
+        </div>
+        <div class="panel">
+            <div class="panel-label">Weekly km</div>
+            ${miniBar(weeks.map(w => w.km), 'var(--cyan)', 'km', 1)}
+            <div style="font-size:11px;color:var(--text-sec);">Last 8 weeks · avg ${(weeks.reduce((s,w)=>s+w.km,0)/8).toFixed(1)} km/week</div>
+        </div>
+        <div class="panel">
+            <div class="panel-label">Longest swim</div>
+            ${miniBar(weeks.map(w => w.longest), 'var(--blue)', 'km', 1)}
+            <div style="font-size:11px;color:var(--text-sec);">Max ${Math.max(...weeks.map(w=>w.longest)).toFixed(1)} km in last 8 weeks</div>
+        </div>
+        <div class="panel">
+            <div class="panel-label">Open water sessions</div>
+            ${miniBar(weeks.map(w => w.owCount), '#34d399', 'sessions')}
+            <div style="font-size:11px;color:var(--text-sec);">${weeks.reduce((s,w)=>s+w.owCount,0)} open water sessions last 8 weeks</div>
+        </div>`;
+}
+
+// ─── RENDER: QUALIFIER ────────────────────────────────────────────────────────
+
+function renderQualifier(logs, crossing, evidence) {
+    if (!crossing?.requires_observer || !crossing?.qualifying_duration_minutes) {
+        document.getElementById('qualifierSection').style.display = 'none';
+        return;
+    }
+    document.getElementById('qualifierSection').style.display = 'block';
+
+    const tempLimit = crossing.qualifying_temp_limit_c || 16;
+    const durationHrs = Math.round(crossing.qualifying_duration_minutes / 60);
+    const withTemp = logs.filter(l => l.temp_c !== null);
+    const coldest = withTemp.length ? Math.min(...withTemp.map(l => l.temp_c)) : 99;
+    const coldQualSessions = logs.filter(l => l.temp_c !== null && l.temp_c <= tempLimit);
     const logsWithDist = logs.filter(l => l.distance_km && l.distance_km > 0);
-    const maxDist = logsWithDist.length ? Math.max(...logsWithDist.map(l=>l.distance_km)) : 0;
-    const hasObserver = false; // can't detect from data — manual
+    const maxDist = logsWithDist.length ? Math.max(...logsWithDist.map(l => l.distance_km)) : 0;
+    const qualEvidence = evidence.find(e => e.evidence_type === 'qualifying_swim' && e.evidence_status === 'complete');
+    const benchLong = crossing.benchmark_long_swim_km || crossing.distance_km * 0.6 || 15;
 
     const items = [
         {
-            done: coldest <= 16,
-            partial: coldest <= 18 && coldest > 16,
-            title: 'Can swim in ≤16°C water',
-            sub: coldest <= 99 ? `Coldest logged: ${coldest === 99 ? '—' : coldest + '°C'}` : 'No temperature data yet'
+            done: coldest <= tempLimit,
+            partial: coldest <= tempLimit + 2 && coldest > tempLimit,
+            title: `Can swim in ≤${tempLimit}°C water`,
+            sub: coldest < 99 ? `Coldest logged: ${coldest}°C` : 'No temperature data yet'
         },
         {
             done: coldQualSessions.length >= 10,
             partial: coldQualSessions.length >= 3,
-            title: 'Cold water exposure built',
-            sub: `${coldQualSessions.length} sessions logged in ≤16°C water (recommend 10+ before qualifier)`
+            title: `Cold water exposure`,
+            sub: `${coldQualSessions.length} sessions in ≤${tempLimit}°C (recommend 10+ before qualifier)`
         },
         {
-            done: maxDist >= 8,
-            partial: maxDist >= 4,
+            done: maxDist >= benchLong,
+            partial: maxDist >= benchLong * 0.6,
             title: 'Long swim endurance',
-            sub: maxDist > 0 ? `Longest logged: ${maxDist}km — build toward 8km+ continuous` : 'Log distance to track this'
+            sub: maxDist > 0 ? `Longest: ${maxDist} km — target ${benchLong} km` : 'Log distance to track this'
         },
         {
-            done: false,
+            done: !!qualEvidence,
             partial: false,
-            title: 'Observer booked',
-            sub: 'Contact CSA / CS&PF — must be an approved observer for the qualifier to count'
+            title: 'Qualifying swim complete',
+            sub: qualEvidence ? `Completed ${formatDate(qualEvidence.evidence_date)} — observer: ${qualEvidence.observer_name || 'recorded'}` : 'Must be witnessed by an approved observer'
         }
     ];
 
@@ -537,37 +1218,27 @@ function renderQualifier(logs) {
                 <div class="qualifier-sub">${item.sub}</div>
             </div>
         </div>`).join('');
+
+    document.getElementById('qualifierFootnote').textContent =
+        `Qualifier requirement: ${durationHrs} continuous hours in ≤${tempLimit}°C water, witnessed by an approved observer. Contact the relevant governing body to confirm the approved venues and observer process for your crossing.`;
 }
 
-// ─── RECENT SESSIONS ──────────────────────────────────────────────────────────
-
-function formatDate(isoStr) {
-    const d = new Date(isoStr);
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-function tempColor(t) {
-    if (t === null) return 'var(--text-sec)';
-    if (t <= 14) return '#60a5fa';
-    if (t <= 16) return '#38bdf8';
-    if (t <= 19) return '#7dd3fc';
-    return '#94a3b8';
-}
+// ─── RENDER: SESSIONS ─────────────────────────────────────────────────────────
 
 function renderSessions(logs) {
-    const recent = logs.slice(0, 8);
+    const recent = logs.slice(0, 10);
     if (!recent.length) { document.getElementById('noSessions').style.display = 'block'; return; }
-
     document.getElementById('sessionList').innerHTML = recent.map(l => {
-        const spot = l.spots?.name || 'Unknown spot';
-        const open = isOpenWater(spot);
-        const cold = l.temp_c !== null && l.temp_c <= 16;
-        const tag = cold ? `<span class="session-tag tag-cold">${l.temp_c}°C cold</span>` : open ? `<span class="session-tag tag-sea">Open water</span>` : `<span class="session-tag tag-lido">Lido</span>`;
-        const dist = l.distance_km ? `<span style="font-size:10px;color:var(--text-sec);"> · ${l.distance_km}km</span>` : '';
+        const spot = l.spots?.name || 'Unknown location';
+        const ow = isOpenWater(l);
+        const cold = l.temp_c !== null && _crossing && l.temp_c <= (_crossing.typical_temp_max_c || 18);
+        const tag = cold ? `<span class="session-tag tag-cold">${l.temp_c}°C</span>` : ow ? `<span class="session-tag tag-sea">Open water</span>` : `<span class="session-tag tag-lido">Lido/pool</span>`;
+        const dist = l.distance_km ? ` · ${l.distance_km} km` : '';
+        const dur = l.duration_minutes ? ` · ${Math.round(l.duration_minutes/60*10)/10}h` : '';
         return `<div class="session-row">
             <div class="session-temp" style="color:${tempColor(l.temp_c)};">${l.temp_c !== null ? l.temp_c + '°' : '—'}</div>
             <div class="session-info">
-                <div class="session-spot">${spot}${dist}</div>
+                <div class="session-spot">${spot}${dist}${dur}</div>
                 <div class="session-date">${formatDate(l.created_at)}</div>
             </div>
             ${tag}
@@ -575,36 +1246,189 @@ function renderSessions(logs) {
     }).join('');
 }
 
-// ─── TARGET DATE ─────────────────────────────────────────────────────────────
+// ─── RENDER: COMMUNITY BENCHMARK ─────────────────────────────────────────────
 
-async function loadTarget(userId) {
-    const { data } = await sb.from('crossing_targets').select('target_date').eq('user_id', userId).eq('crossing_name', 'English Channel').maybeSingle();
-    return data?.target_date || null;
+function renderCommunityBenchmark(crossingSlug, activeSwimmerCount) {
+    const el = document.getElementById('communitySection');
+    if (!crossingSlug) { el.innerHTML = ''; return; }
+    if (activeSwimmerCount !== null && activeSwimmerCount < 3) {
+        el.innerHTML = `<div class="section-title">Community benchmark</div>
+            <div class="panel" style="text-align:center;padding:20px;">
+                <div style="font-size:13px;color:var(--text-sec);">Benchmarking will appear once enough swimmers are actively preparing for this crossing. Individual swimmer data is never shown.</div>
+            </div>`;
+        return;
+    }
+    el.innerHTML = ''; // populated if community data available
 }
 
-async function saveTarget(userId, dateStr) {
-    await sb.from('crossing_targets').upsert({ user_id: userId, crossing_name: 'English Channel', target_date: dateStr, updated_at: new Date().toISOString() }, { onConflict: 'user_id,crossing_name' });
+// ─── SETUP STATE ──────────────────────────────────────────────────────────────
+
+function renderSetupState(crossings) {
+    const grid = document.getElementById('crossingGrid');
+    const featured = ['english-channel','robben-island','false-bay','north-channel','catalina-channel','manhattan-island','rottnest-channel','custom-marathon-swim'];
+    const show = crossings.filter(c => featured.includes(c.slug));
+
+    grid.innerHTML = show.map(c => `
+        <div class="crossing-option" data-slug="${c.slug}" onclick="selectCrossing('${c.slug}')">
+            <h4>${c.name}</h4>
+            <p>${c.description ? c.description.slice(0, 80) + '…' : ''}</p>
+            ${c.distance_km ? `<div class="dist-badge">${c.distance_km} km</div>` : '<div class="dist-badge">Distance TBC</div>'}
+        </div>`).join('');
 }
 
-function daysUntil(dateStr) {
-    if (!dateStr) return null;
-    const d = new Date(dateStr);
-    d.setHours(0,0,0,0);
-    const now = new Date(); now.setHours(0,0,0,0);
-    return Math.max(0, Math.floor((d - now) / 86400000));
+function selectCrossing(slug) {
+    _selectedCrossingSlug = slug;
+    document.querySelectorAll('.crossing-option').forEach(el => {
+        el.classList.toggle('selected', el.dataset.slug === slug);
+    });
+    document.getElementById('setupForm').style.display = 'block';
+    document.getElementById('createAttemptBtn').disabled = false;
 }
 
-function renderTargetDisplay(dateStr) {
-    if (!dateStr) { document.getElementById('targetDisplay').textContent = 'No target date set — add one to unlock countdown and phase tracking.'; document.getElementById('targetInput').value = ''; return; }
-    const days = daysUntil(dateStr);
-    const d = new Date(dateStr);
-    document.getElementById('targetDisplay').innerHTML = `<span style="color:var(--text);font-weight:700;">${d.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</span> <span style="color:var(--text-sec);">— ${days} days away (${Math.round(days/7)} weeks)</span>`;
-    document.getElementById('targetInput').value = dateStr;
+async function createAttempt() {
+    const btn = document.getElementById('createAttemptBtn');
+    btn.disabled = true;
+    btn.textContent = 'Creating…';
+
+    const crossing = _crossings.find(c => c.slug === _selectedCrossingSlug);
+    if (!crossing) { btn.disabled = false; btn.textContent = 'Create crossing attempt'; return; }
+
+    const targetDate = document.getElementById('setupTargetDate').value || null;
+    const coachName = document.getElementById('setupCoach').value || null;
+    const pilotName = document.getElementById('setupPilot').value || null;
+
+    const { data, error } = await sb.from('crossing_attempts').insert({
+        user_id: _viewingId,
+        crossing_id: crossing.id,
+        target_date: targetDate,
+        coach_name: coachName,
+        pilot_name: pilotName,
+        status: 'active',
+        is_pro: false
+    }).select('*, crossings(*)').single();
+
+    if (error) {
+        console.error(error);
+        btn.disabled = false;
+        btn.textContent = 'Create crossing attempt';
+        return;
+    }
+
+    _activeAttempt = data;
+    _crossing = data.crossings;
+    document.getElementById('setupState').style.display = 'none';
+    await renderDashboard();
+
+    if (typeof gtag === 'function') {
+        gtag('event', 'crossing_attempt_created', {
+            crossing_slug: crossing.slug,
+            has_target_date: !!targetDate,
+            page_path: window.location.pathname
+        });
+    }
+}
+
+// ─── TARGET DATE SAVE ─────────────────────────────────────────────────────────
+
+async function saveTargetDate() {
+    if (_isAdminView) return;
+    const val = document.getElementById('targetInput').value;
+    if (!val || !_activeAttempt) return;
+    await sb.from('crossing_attempts').update({ target_date: val, updated_at: new Date().toISOString() }).eq('id', _activeAttempt.id);
+    _activeAttempt.target_date = val;
+    await renderDashboard();
+
+    if (typeof gtag === 'function') {
+        gtag('event', 'crossing_target_saved', {
+            crossing_slug: _crossing?.slug,
+            page_path: window.location.pathname
+        });
+    }
+}
+
+// ─── ATTEMPT SELECTOR ─────────────────────────────────────────────────────────
+
+async function switchAttempt(attemptId) {
+    const attempt = _attempts.find(a => a.id === attemptId);
+    if (!attempt) return;
+    _activeAttempt = attempt;
+    _crossing = attempt.crossings;
+    const { data: ev } = await sb.from('crossing_evidence').select('*').eq('crossing_attempt_id', attempt.id);
+    _evidence = ev || [];
+    await renderDashboard();
+}
+
+// ─── RENDER DASHBOARD ─────────────────────────────────────────────────────────
+
+async function renderDashboard() {
+    const attempt = _activeAttempt;
+    const crossing = _crossing;
+
+    const { data: profData } = await sb.from('profiles').select('display_name, email').eq('id', _viewingId).maybeSingle();
+    const name = profData?.display_name || profData?.email?.split('@')[0] || 'Swimmer';
+
+    // Update nav label
+    document.getElementById('navLabel').textContent = name;
+
+    const days = attempt?.target_date ? daysUntil(attempt.target_date) : null;
+
+    renderProHeader(name, crossing, attempt, days);
+    renderPhase(days);
+
+    // Target date panel — show if not set
+    const targetPanel = document.getElementById('targetDatePanel');
+    if (!attempt?.target_date) {
+        targetPanel.style.display = 'block';
+        document.getElementById('targetDisplay').textContent = 'No target date set — add one to unlock countdown and phase tracking.';
+        document.getElementById('targetInput').value = '';
+    } else {
+        targetPanel.style.display = 'none';
+        document.getElementById('targetInput').value = attempt.target_date;
+    }
+
+    // Readiness engine
+    const result = calculateCrossingReadiness({ swims: _logs, crossing, attempt, evidence: _evidence });
+
+    renderDataWarnings(result);
+    renderReadinessOverview(result);
+    renderDemand(_logs, crossing, result);
+    renderCold(_logs, crossing);
+    renderRhythm(_logs);
+    renderRatio(_logs, crossing);
+    renderEvidenceTracker(_evidence, crossing);
+    renderFocus(_logs, crossing, result, _evidence);
+    renderWeeklyReview(_logs, result);
+    renderTrends(_logs);
+    renderQualifier(_logs, crossing, _evidence);
+    renderSessions(_logs);
+    renderCommunityBenchmark(crossing?.slug, null);
+
+    // Attempt selector
+    const selector = document.getElementById('attemptSelector');
+    if (_attempts.length > 1) {
+        selector.style.display = 'flex';
+        document.getElementById('attemptSelect').innerHTML = _attempts.map(a =>
+            `<option value="${a.id}" ${a.id === attempt?.id ? 'selected' : ''}>${a.crossings?.name || 'Unknown'} ${a.target_date ? '· ' + a.target_date.slice(0,4) : ''}</option>`
+        ).join('');
+    } else {
+        selector.style.display = 'none';
+    }
+
+    // GA4
+    if (typeof gtag === 'function') {
+        const uid_hash = uidHash(_viewingId);
+        gtag('event', 'crossing_pro_view', {
+            crossing_slug: crossing?.slug || 'none',
+            preparation_phase: days !== null ? (days > 168 ? 'foundation' : days > 84 ? 'build' : days > 42 ? 'specific' : days > 14 ? 'qualifying' : 'taper') : 'no_target',
+            readiness_band: result?.band || 'insufficient_data',
+            has_sufficient_data: result?.hasSufficientData || false,
+            uid_hash,
+            page_path: window.location.pathname
+        });
+    }
 }
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
-
-const DAVE_ID = 'df137255-3add-4153-b368-32e06e2be188';
 
 async function init() {
     document.getElementById('loadingState').style.display = 'block';
@@ -618,70 +1442,86 @@ async function init() {
         return;
     }
 
-    // Admin override: ?uid= param lets Dave view any athlete's dashboard
+    // Admin override: ?uid= lets Dave view any athlete's dashboard
     const params = new URLSearchParams(window.location.search);
     const uidOverride = (session.user.id === DAVE_ID && params.get('uid')) ? params.get('uid') : null;
-    const viewingId = uidOverride || session.user.id;
-    const isAdminView = !!uidOverride;
+    _viewingId = uidOverride || session.user.id;
+    _isAdminView = !!uidOverride;
 
-    // Personalise nav
-    let name;
-    if (isAdminView) {
-        const { data: prof } = await sb.from('profiles').select('display_name, email').eq('id', viewingId).maybeSingle();
-        name = prof?.display_name || prof?.email?.split('@')[0] || 'Athlete';
-        // Show admin banner
+    if (_isAdminView) {
+        const { data: prof } = await sb.from('profiles').select('display_name, email').eq('id', _viewingId).maybeSingle();
+        const adminName = prof?.display_name || prof?.email?.split('@')[0] || 'Athlete';
         const banner = document.createElement('div');
-        banner.style.cssText = 'background:rgba(245,158,11,0.12);border-bottom:1px solid rgba(245,158,11,0.3);padding:8px 16px;text-align:center;font-size:12px;color:#f59e0b;font-weight:600;';
-        banner.innerHTML = `Admin view — viewing <strong>${name}</strong>'s dashboard &nbsp;·&nbsp; <a href="/dave" style="color:#f59e0b;">Back to control centre</a>`;
+        banner.className = 'admin-banner';
+        banner.innerHTML = `Admin view — viewing <strong>${adminName}</strong>'s dashboard &nbsp;·&nbsp; <a href="/dave" style="color:var(--amber);">Back to control centre</a>`;
         document.body.insertBefore(banner, document.body.firstChild);
     } else {
-        name = session.user.user_metadata?.display_name || session.user.email?.split('@')[0] || 'Swimmer';
+        const name = session.user.user_metadata?.display_name || session.user.email?.split('@')[0] || 'Swimmer';
+        document.getElementById('navLabel').textContent = name;
     }
-    document.getElementById('navLabel').textContent = name;
-    document.getElementById('dashTitle').textContent = name.split(' ')[0] + "'s Channel Prep";
 
-    // Load logs + target in parallel
-    const [logsResult, target] = await Promise.all([
-        sb.from('temp_logs')
-            .select('id, temp_c, conditions, notes, created_at, distance_km, spots(name, domain)')
-            .eq('created_by', viewingId)
-            .order('created_at', { ascending: false })
-            .limit(120),
-        loadTarget(viewingId)
+    // Load crossings, attempts, logs in parallel
+    const [crossingsRes, attemptsRes, logsRes] = await Promise.all([
+        sb.from('crossings').select('*').eq('is_active', true).order('name'),
+        sb.from('crossing_attempts').select('*, crossings(*)').eq('user_id', _viewingId).in('status', ['active','qualifying','taper','planning']).order('created_at', { ascending: false }),
+        sb.from('temp_logs').select('id, temp_c, conditions, notes, created_at, distance_km, duration_minutes, location_type, spots(name, domain)').eq('created_by', _viewingId).order('created_at', { ascending: false }).limit(200)
     ]);
 
-    _logs = logsResult.data || [];
-    _targetDate = target;
+    _crossings = crossingsRes.data || [];
+    _attempts = attemptsRes.data || [];
+    _logs = logsRes.data || [];
 
-    const days = daysUntil(_targetDate);
+    // Determine active attempt
+    if (_attempts.length > 0) {
+        // Prefer attempt whose crossing_id matches ?crossing= param, else first
+        const slugParam = params.get('crossing');
+        _activeAttempt = slugParam
+            ? _attempts.find(a => a.crossings?.slug === slugParam) || _attempts[0]
+            : _attempts[0];
+        _crossing = _activeAttempt.crossings;
 
-    // Render all sections
-    renderTargetDisplay(_targetDate);
-    renderPhase(days);
-    renderRecs(_logs, days);
-    renderCold(_logs);
-    renderRhythm(_logs);
-    renderRatio(_logs);
-    renderQualifier(_logs);
-    renderSessions(_logs);
+        // Load evidence for active attempt
+        const { data: ev } = await sb.from('crossing_evidence').select('*').eq('crossing_attempt_id', _activeAttempt.id);
+        _evidence = ev || [];
 
-    // Target save handler (read-only in admin view)
-    document.getElementById('targetSave').addEventListener('click', async () => {
-        if (isAdminView) return;
-        const val = document.getElementById('targetInput').value;
-        if (!val) return;
-        await saveTarget(viewingId, val);
-        _targetDate = val;
-        const newDays = daysUntil(val);
-        renderTargetDisplay(val);
-        renderPhase(newDays);
-        renderRecs(_logs, newDays);
-    });
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        await renderDashboard();
 
-    document.getElementById('loadingState').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'block';
+    } else {
+        // Check legacy crossing_targets for backward compat
+        const { data: legacyTarget } = await sb.from('crossing_targets').select('target_date, crossing_name').eq('user_id', _viewingId).maybeSingle();
 
-    if (typeof gtag === 'function') gtag('event', 'crossing_prep_view', { crossing_name: 'English Channel', session_count: _logs.length });
+        if (legacyTarget) {
+            // Auto-create attempt from legacy target
+            const legacyCrossing = _crossings.find(c => c.name === legacyTarget.crossing_name) || _crossings.find(c => c.slug === 'english-channel');
+            if (legacyCrossing) {
+                const { data: newAttempt } = await sb.from('crossing_attempts').insert({
+                    user_id: _viewingId,
+                    crossing_id: legacyCrossing.id,
+                    target_date: legacyTarget.target_date || null,
+                    status: 'active',
+                    is_pro: false
+                }).select('*, crossings(*)').single();
+                if (newAttempt) {
+                    _activeAttempt = newAttempt;
+                    _crossing = newAttempt.crossings;
+                    _attempts = [newAttempt];
+                    _evidence = [];
+                    document.getElementById('loadingState').style.display = 'none';
+                    document.getElementById('dashboard').style.display = 'block';
+                    await renderDashboard();
+                    document.getElementById('loadingState').style.display = 'none';
+                    return;
+                }
+            }
+        }
+
+        // No attempt — show setup state
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('setupState').style.display = 'block';
+        renderSetupState(_crossings);
+    }
 }
 
 init();
