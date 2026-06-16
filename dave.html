@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dave's Control Centre | SwimLoading</title>
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700&display=swap" rel="stylesheet">
+    <style>
+    :root{--bg:#080f1a;--bg-card:#0d1728;--cyan:#38bdf8;--text:#f1f5f9;--text-sec:#64748b;--border:rgba(255,255,255,0.06);--amber:#f59e0b;--green:#10b981;--danger:#ef4444;--purple:#a78bfa;}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:'DM Sans',-apple-system,sans-serif;min-height:100vh;padding-bottom:60px;}
+    #authGate{display:none;max-width:380px;margin:120px auto;padding:0 20px;text-align:center;}
+    #authGate h2{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:.04em;margin-bottom:10px;}
+    #authGate p{font-size:13px;color:var(--text-sec);line-height:1.65;margin-bottom:20px;}
+    #authGate a{display:inline-block;padding:12px 28px;border-radius:50px;background:var(--cyan);color:#080f1a;font-size:14px;font-weight:700;text-decoration:none;}
+    nav{background:rgba(8,15,26,0.95);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;}
+    .nav-brand{display:flex;align-items:center;gap:7px;text-decoration:none;font-size:17px;font-weight:800;letter-spacing:-0.5px;background:linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .nav-brand img{height:22px;width:auto;}
+    .nav-label{font-size:12px;color:var(--text-sec);}
+    .container{max-width:860px;margin:0 auto;padding:0 16px;}
+    .page-header{padding:36px 0 28px;}
+    .page-header h1{font-family:'Bebas Neue',sans-serif;font-size:38px;letter-spacing:.04em;color:var(--text);margin-bottom:6px;}
+    .page-header p{font-size:13px;color:var(--text-sec);}
+    .section{margin-bottom:36px;}
+    .section-label{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text-sec);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+    .link-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;}
+    .link-card{display:flex;flex-direction:column;gap:6px;padding:14px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;text-decoration:none;color:inherit;transition:border-color .15s,transform .15s;}
+    .link-card:hover{border-color:rgba(56,189,248,0.35);transform:translateY(-1px);}
+    .link-card.cyan{border-color:rgba(56,189,248,0.2);}
+    .link-card.amber{border-color:rgba(245,158,11,0.2);}
+    .link-card.green{border-color:rgba(16,185,129,0.2);}
+    .link-card.purple{border-color:rgba(167,139,250,0.2);}
+    .link-card.danger{border-color:rgba(239,68,68,0.2);}
+    .card-tag{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:50px;align-self:flex-start;}
+    .tag-cyan{background:rgba(56,189,248,0.12);color:var(--cyan);}
+    .tag-amber{background:rgba(245,158,11,0.12);color:var(--amber);}
+    .tag-green{background:rgba(16,185,129,0.12);color:var(--green);}
+    .tag-purple{background:rgba(167,139,250,0.12);color:var(--purple);}
+    .tag-danger{background:rgba(239,68,68,0.12);color:var(--danger);}
+    .card-title{font-size:14px;font-weight:700;color:var(--text);}
+    .card-sub{font-size:11px;color:var(--text-sec);line-height:1.5;}
+    .athlete-card{display:flex;align-items:center;gap:14px;padding:16px 18px;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;margin-bottom:10px;}
+    .athlete-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,rgba(56,189,248,0.2),rgba(14,165,233,0.1));border:1px solid rgba(56,189,248,0.25);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--cyan);flex-shrink:0;}
+    .athlete-info{flex:1;}
+    .athlete-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px;}
+    .athlete-meta{font-size:11px;color:var(--text-sec);}
+    .athlete-links{display:flex;gap:8px;flex-wrap:wrap;}
+    .athlete-link{font-size:11px;font-weight:700;padding:5px 12px;border-radius:50px;text-decoration:none;border:1px solid;transition:opacity .15s;}
+    .athlete-link:hover{opacity:.8;}
+    .al-cyan{color:var(--cyan);border-color:rgba(56,189,248,0.3);background:rgba(56,189,248,0.06);}
+    .al-green{color:var(--green);border-color:rgba(16,185,129,0.3);background:rgba(16,185,129,0.06);}
+    .al-amber{color:var(--amber);border-color:rgba(245,158,11,0.3);background:rgba(245,158,11,0.06);}
+    .al-purple{color:var(--purple);border-color:rgba(167,139,250,0.3);background:rgba(167,139,250,0.06);}
+    .note{font-size:11px;color:var(--text-sec);background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.15);border-radius:10px;padding:10px 14px;margin-top:8px;line-height:1.6;}
+    #main{display:none;}
+    </style>
+</head>
+<body>
+
+<div id="authGate">
+    <h2>Admin access only</h2>
+    <p>This page is restricted to Dave's account.</p>
+    <a href="/app">Go to app</a>
+</div>
+
+<div id="main">
+<nav>
+    <a href="/" class="nav-brand"><img src="/icons/logo-wave.png" alt="">SwimLoading</a>
+    <span class="nav-label" id="navLabel"></span>
+</nav>
+
+<div class="container">
+    <div class="page-header">
+        <h1>Control Centre</h1>
+        <p>Every page, panel and athlete dashboard — one place.</p>
+    </div>
+
+    <!-- ATHLETES -->
+    <div class="section">
+        <div class="section-label">Athletes</div>
+
+        <div class="athlete-card">
+            <div class="athlete-avatar">L</div>
+            <div class="athlete-info">
+                <div class="athlete-name">Lindi Mitchell</div>
+                <div class="athlete-meta">English Channel · lindi@mitchell.co.za</div>
+            </div>
+            <div class="athlete-links">
+                <a href="/journeys/lindi-english-channel" class="athlete-link al-cyan" target="_blank">Journey page</a>
+                <a href="/crossing-prep?uid=392a8281-3c91-4022-b6bb-1d8acf9e5ea0" class="athlete-link al-green" target="_blank">Her dashboard</a>
+            </div>
+        </div>
+
+        <div class="athlete-card">
+            <div class="athlete-avatar">J</div>
+            <div class="athlete-info">
+                <div class="athlete-name">James</div>
+                <div class="athlete-meta">English Channel · no account yet</div>
+            </div>
+            <div class="athlete-links">
+                <a href="/journeys/james-english-channel" class="athlete-link al-cyan" target="_blank">Journey page</a>
+                <span class="athlete-link al-amber" style="cursor:default;opacity:.5;">No account yet</span>
+            </div>
+        </div>
+
+        <div class="note">Dashboard admin view: you must be logged in as DaveW. Each "Her/His dashboard" link loads their data in read-only mode with an amber banner. Target date saving is disabled in admin view.</div>
+    </div>
+
+    <!-- CLUBS -->
+    <div class="section">
+        <div class="section-label">Club Admin Panels</div>
+        <div class="link-grid">
+            <a href="/club-admin/duc" class="link-card cyan" target="_blank">
+                <span class="card-tag tag-cyan">Open water</span>
+                <span class="card-title">DUC</span>
+                <span class="card-sub">Steve · League, temp challenge, roster</span>
+            </a>
+            <a href="/club-admin/aqua-sharks-atlantic" class="link-card green" target="_blank">
+                <span class="card-tag tag-green">Swim club</span>
+                <span class="card-title">Aquasharks</span>
+                <span class="card-sub">Britt · Squads, attendance, sets, parents</span>
+            </a>
+            <a href="/club-admin/k8-coaching" class="link-card purple" target="_blank">
+                <span class="card-tag tag-purple">Coaching</span>
+                <span class="card-title">K8 Coaching</span>
+                <span class="card-sub">Britt · Squads, attendance, league</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- COACH VIEWS -->
+    <div class="section">
+        <div class="section-label">Coach Register Views</div>
+        <div class="link-grid">
+            <a href="/coach/aqua-sharks-atlantic" class="link-card green" target="_blank">
+                <span class="card-tag tag-green">Aquasharks</span>
+                <span class="card-title">Coach Register</span>
+                <span class="card-sub">Mark attendance by session</span>
+            </a>
+            <a href="/coach/k8-coaching" class="link-card purple" target="_blank">
+                <span class="card-tag tag-purple">K8 Coaching</span>
+                <span class="card-title">Coach Register</span>
+                <span class="card-sub">Mark attendance by session</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- SETS PLANNER -->
+    <div class="section">
+        <div class="section-label">Sets Planner</div>
+        <div class="link-grid">
+            <a href="/sets/aqua-sharks-atlantic" class="link-card green" target="_blank">
+                <span class="card-tag tag-green">Aquasharks</span>
+                <span class="card-title">Sets Planner</span>
+                <span class="card-sub">Weekly calendar, AI generator, library</span>
+            </a>
+            <a href="/sets/k8-coaching" class="link-card purple" target="_blank">
+                <span class="card-tag tag-purple">K8 Coaching</span>
+                <span class="card-title">Sets Planner</span>
+                <span class="card-sub">Weekly calendar, AI generator, library</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div class="section">
+        <div class="section-label">Main App</div>
+        <div class="link-grid">
+            <a href="/app" class="link-card cyan" target="_blank">
+                <span class="card-tag tag-cyan">App</span>
+                <span class="card-title">SwimLoading App</span>
+                <span class="card-sub">Dashboard, log temps, trends, fuel</span>
+            </a>
+            <a href="/crossing-prep" class="link-card cyan" target="_blank">
+                <span class="card-tag tag-cyan">Crossing prep</span>
+                <span class="card-title">Your Prep Dashboard</span>
+                <span class="card-sub">Your own Channel prep data</span>
+            </a>
+            <a href="/admin" class="link-card amber" target="_blank">
+                <span class="card-tag tag-amber">Admin</span>
+                <span class="card-title">Swim Live Tracker</span>
+                <span class="card-sub">Create and manage live tracking events</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- INTELLIGENCE PAGES -->
+    <div class="section">
+        <div class="section-label">Intelligence Pages</div>
+        <div class="link-grid">
+            <a href="/crossings" class="link-card cyan" target="_blank">
+                <span class="card-tag tag-cyan">Crossings</span>
+                <span class="card-title">Crossings Index</span>
+                <span class="card-sub">All 11 crossing pages</span>
+            </a>
+            <a href="/crossings/english-channel" class="link-card cyan" target="_blank">
+                <span class="card-tag tag-cyan">Live data</span>
+                <span class="card-title">English Channel</span>
+                <span class="card-sub">Temp, tides, forecast, pilots</span>
+            </a>
+            <a href="/robben" class="link-card cyan" target="_blank">
+                <span class="card-tag tag-cyan">SA</span>
+                <span class="card-title">Robben Island</span>
+                <span class="card-sub">Conditions intelligence</span>
+            </a>
+            <a href="/intel" class="link-card cyan" target="_blank">
+                <span class="card-tag tag-cyan">Intel</span>
+                <span class="card-title">Race Intelligence Hub</span>
+                <span class="card-sub">Big 5, Cape Point, Dassen, Preekstoel</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- MARKETING -->
+    <div class="section">
+        <div class="section-label">Marketing &amp; Landing Pages</div>
+        <div class="link-grid">
+            <a href="/" class="link-card" target="_blank">
+                <span class="card-tag tag-cyan">Landing</span>
+                <span class="card-title">Welcome page</span>
+                <span class="card-sub">Main public landing page</span>
+            </a>
+            <a href="/pricing" class="link-card" target="_blank">
+                <span class="card-tag tag-cyan">Pricing</span>
+                <span class="card-title">Pricing</span>
+                <span class="card-sub">Free / Pro / Club tiers</span>
+            </a>
+            <a href="/pro" class="link-card" target="_blank">
+                <span class="card-tag tag-cyan">Product</span>
+                <span class="card-title">Big Water Intel</span>
+                <span class="card-sub">Pro product page</span>
+            </a>
+            <a href="/blog/duc-demo.html" class="link-card amber" target="_blank">
+                <span class="card-tag tag-amber">Sales demo</span>
+                <span class="card-title">DUC Club Demo</span>
+                <span class="card-sub">Club tier sales page</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- PARTNER PAGES -->
+    <div class="section">
+        <div class="section-label">Partner Pages</div>
+        <div class="link-grid">
+            <a href="/partners/maurten" class="link-card" target="_blank">
+                <span class="card-tag tag-green">Partner</span>
+                <span class="card-title">Maurten</span>
+                <span class="card-sub">Partner hero page</span>
+            </a>
+            <a href="/partners/sis" class="link-card" target="_blank">
+                <span class="card-tag tag-green">Partner</span>
+                <span class="card-title">SiS</span>
+                <span class="card-sub">Partner hero page</span>
+            </a>
+            <a href="/partners/blu-smooth" class="link-card" target="_blank">
+                <span class="card-tag tag-green">Partner</span>
+                <span class="card-title">Blu Smooth</span>
+                <span class="card-sub">Partner hero page</span>
+            </a>
+            <a href="/partners/themagic5" class="link-card" target="_blank">
+                <span class="card-tag tag-green">Partner</span>
+                <span class="card-title">THEMAGIC5</span>
+                <span class="card-sub">Partner hero page</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- CLUB GUIDES -->
+    <div class="section">
+        <div class="section-label">Club Guide Pages</div>
+        <div class="link-grid">
+            <a href="/aquasharks-guide" class="link-card green" target="_blank">
+                <span class="card-tag tag-green">Aquasharks</span>
+                <span class="card-title">Admin Guide</span>
+                <span class="card-sub">Britt's admin guide</span>
+            </a>
+            <a href="/aquasharks-swimmers" class="link-card green" target="_blank">
+                <span class="card-tag tag-green">Aquasharks</span>
+                <span class="card-title">Swimmer Guide</span>
+                <span class="card-sub">Swimmer onboarding</span>
+            </a>
+            <a href="/aquasharks-coach" class="link-card green" target="_blank">
+                <span class="card-tag tag-green">Aquasharks</span>
+                <span class="card-title">Coach Guide</span>
+                <span class="card-sub">Coach register guide</span>
+            </a>
+        </div>
+    </div>
+
+</div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+const DAVE_ID = 'df137255-3add-4153-b368-32e06e2be188';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, storageKey: 'sb-szgkzuswelntnevobnoh-auth-token' }
+});
+
+async function init() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session || session.user.id !== DAVE_ID) {
+        document.getElementById('authGate').style.display = 'block';
+        return;
+    }
+    const name = session.user.user_metadata?.display_name || 'Dave';
+    document.getElementById('navLabel').textContent = `Logged in as ${name}`;
+    document.getElementById('main').style.display = 'block';
+}
+
+init();
+</script>
+</body>
+</html>

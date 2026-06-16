@@ -604,6 +604,8 @@ function renderTargetDisplay(dateStr) {
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 
+const DAVE_ID = 'df137255-3add-4153-b368-32e06e2be188';
+
 async function init() {
     document.getElementById('loadingState').style.display = 'block';
 
@@ -616,8 +618,25 @@ async function init() {
         return;
     }
 
+    // Admin override: ?uid= param lets Dave view any athlete's dashboard
+    const params = new URLSearchParams(window.location.search);
+    const uidOverride = (session.user.id === DAVE_ID && params.get('uid')) ? params.get('uid') : null;
+    const viewingId = uidOverride || session.user.id;
+    const isAdminView = !!uidOverride;
+
     // Personalise nav
-    const name = session.user.user_metadata?.display_name || session.user.email?.split('@')[0] || 'Swimmer';
+    let name;
+    if (isAdminView) {
+        const { data: prof } = await sb.from('profiles').select('display_name, email').eq('id', viewingId).maybeSingle();
+        name = prof?.display_name || prof?.email?.split('@')[0] || 'Athlete';
+        // Show admin banner
+        const banner = document.createElement('div');
+        banner.style.cssText = 'background:rgba(245,158,11,0.12);border-bottom:1px solid rgba(245,158,11,0.3);padding:8px 16px;text-align:center;font-size:12px;color:#f59e0b;font-weight:600;';
+        banner.innerHTML = `Admin view — viewing <strong>${name}</strong>'s dashboard &nbsp;·&nbsp; <a href="/dave" style="color:#f59e0b;">Back to control centre</a>`;
+        document.body.insertBefore(banner, document.body.firstChild);
+    } else {
+        name = session.user.user_metadata?.display_name || session.user.email?.split('@')[0] || 'Swimmer';
+    }
     document.getElementById('navLabel').textContent = name;
     document.getElementById('dashTitle').textContent = name.split(' ')[0] + "'s Channel Prep";
 
@@ -625,10 +644,10 @@ async function init() {
     const [logsResult, target] = await Promise.all([
         sb.from('temp_logs')
             .select('id, temp_c, conditions, notes, created_at, distance_km, spots(name, domain)')
-            .eq('created_by', session.user.id)
+            .eq('created_by', viewingId)
             .order('created_at', { ascending: false })
             .limit(120),
-        loadTarget(session.user.id)
+        loadTarget(viewingId)
     ]);
 
     _logs = logsResult.data || [];
@@ -646,11 +665,12 @@ async function init() {
     renderQualifier(_logs);
     renderSessions(_logs);
 
-    // Target save handler
+    // Target save handler (read-only in admin view)
     document.getElementById('targetSave').addEventListener('click', async () => {
+        if (isAdminView) return;
         const val = document.getElementById('targetInput').value;
         if (!val) return;
-        await saveTarget(session.user.id, val);
+        await saveTarget(viewingId, val);
         _targetDate = val;
         const newDays = daysUntil(val);
         renderTargetDisplay(val);
