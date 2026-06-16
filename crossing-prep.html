@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-89R519Y9T4"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -9,569 +8,251 @@
       gtag('js', new Date());
       gtag('config', 'G-89R519Y9T4');
     </script>
-
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Channel Preparation Dashboard | SwimLoading</title>
-    <meta name="robots" content="noindex">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Channel Preparation | SwimLoading</title>
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
     <style>
     :root {
-        --bg: #080f1a;
-        --bg-card: #0d1728;
-        --bg-card2: #111e35;
-        --cyan: #38bdf8;
-        --ocean: #0ea5e9;
-        --text: #f1f5f9;
-        --text-sec: #64748b;
-        --border: rgba(255,255,255,0.06);
-        --amber: #f59e0b;
-        --green: #10b981;
-        --danger: #ef4444;
+        --bg: #080f1a; --bg-card: #0d1728; --bg-card2: #0a1320;
+        --cyan: #38bdf8; --text: #f1f5f9; --text-sec: #64748b;
+        --border: rgba(255,255,255,0.06); --border2: rgba(255,255,255,0.09);
+        --amber: #f59e0b; --green: #10b981; --danger: #ef4444;
         --purple: #a78bfa;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-        background: var(--bg);
-        color: var(--text);
-        font-family: 'DM Sans', -apple-system, sans-serif;
-        min-height: 100vh;
-        padding-bottom: 80px;
-    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding-bottom: 80px; }
 
     /* NAV */
-    nav {
-        background: rgba(8,15,26,0.95);
-        backdrop-filter: blur(12px);
-        border-bottom: 1px solid var(--border);
-        padding: 10px 16px;
-        position: sticky;
-        top: 0;
-        z-index: 100;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-    }
-    .nav-brand {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        text-decoration: none;
-        font-size: 17px;
-        font-weight: 800;
-        letter-spacing: -0.5px;
-        background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        flex-shrink: 0;
-    }
-    .nav-brand img { height: 20px; width: auto; }
-    .nav-right { display: flex; align-items: center; gap: 8px; }
-    .nav-pill {
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: .1em;
-        text-transform: uppercase;
-        padding: 3px 10px;
-        border-radius: 50px;
-        border: 1px solid rgba(56,189,248,0.3);
-        color: var(--cyan);
-        background: rgba(56,189,248,0.06);
-    }
-    .nav-link { font-size: 12px; color: var(--text-sec); text-decoration: none; }
-    .nav-link:hover { color: var(--cyan); }
-
-    /* LAYOUT */
-    .container { max-width: 640px; margin: 0 auto; padding: 0 14px; }
+    nav { background:rgba(8,15,26,0.95); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); padding:11px 18px; position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .nav-brand { display:flex; align-items:center; gap:7px; text-decoration:none; font-size:17px; font-weight:800; letter-spacing:-0.5px; background:linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .nav-brand img { height:20px; }
+    .nav-right { display:flex; align-items:center; gap:8px; }
+    .nav-label { font-size:11px; color:var(--text-sec); }
+    .btn-nav { display:inline-block; padding:7px 16px; border-radius:50px; font-size:12px; font-weight:700; text-decoration:none; background:var(--cyan); color:#080f1a; }
 
     /* AUTH GATE */
-    #authGate {
-        display: none;
-        padding: 60px 20px;
-        text-align: center;
-        max-width: 400px;
-        margin: 0 auto;
-    }
-    #authGate h2 { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: .04em; margin-bottom: 12px; }
-    #authGate p { font-size: 13px; color: var(--text-sec); line-height: 1.6; margin-bottom: 24px; }
-
-    /* HERO */
-    .prep-hero {
-        padding: 20px 14px 0;
-        max-width: 640px;
-        margin: 0 auto;
-    }
-    .swimmer-header {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 6px;
-    }
-    .swimmer-avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, rgba(56,189,248,0.3), rgba(14,165,233,0.1));
-        border: 1px solid rgba(56,189,248,0.3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-family: 'Bebas Neue', sans-serif;
-        font-size: 18px;
-        color: var(--cyan);
-        flex-shrink: 0;
-    }
-    .swimmer-name {
-        font-family: 'Bebas Neue', sans-serif;
-        font-size: 22px;
-        letter-spacing: .04em;
-        color: var(--text);
-        line-height: 1;
-    }
-    .swimmer-crossing {
-        font-size: 11px;
-        color: var(--text-sec);
-        margin-top: 2px;
-    }
-
-    /* CARDS */
-    .card {
-        background: var(--bg-card);
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 16px;
-        margin-bottom: 12px;
-    }
-    .card-label {
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: .1em;
-        text-transform: uppercase;
-        color: var(--text-sec);
-        margin-bottom: 12px;
-    }
-
-    /* COUNTDOWN */
-    .countdown-card {
-        background: linear-gradient(135deg, rgba(14,165,233,0.14), rgba(8,15,26,0.6));
-        border: 1px solid rgba(14,165,233,0.3);
-        border-radius: 16px;
-        padding: 18px;
-        margin-bottom: 12px;
-    }
-    .countdown-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 8px;
-        margin-bottom: 14px;
-    }
-    .countdown-unit {
-        text-align: center;
-        background: rgba(8,15,26,0.5);
-        border: 1px solid rgba(56,189,248,0.15);
-        border-radius: 10px;
-        padding: 10px 6px;
-    }
-    .countdown-val {
-        font-family: 'Bebas Neue', sans-serif;
-        font-size: 32px;
-        letter-spacing: .02em;
-        color: var(--cyan);
-        line-height: 1;
-    }
-    .countdown-lbl {
-        font-size: 9px;
-        font-weight: 700;
-        letter-spacing: .1em;
-        text-transform: uppercase;
-        color: var(--text-sec);
-        margin-top: 3px;
-    }
-    .no-target {
-        text-align: center;
-        padding: 10px 0 4px;
-    }
-    .no-target p { font-size: 13px; color: var(--text-sec); margin-bottom: 12px; line-height: 1.5; }
-
-    /* STATS STRIP */
-    .stats-strip {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 8px;
-        margin-bottom: 12px;
-    }
-    .stat-box {
-        background: var(--bg-card);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 12px 8px;
-        text-align: center;
-    }
-    .stat-val {
-        font-family: 'Bebas Neue', sans-serif;
-        font-size: 26px;
-        letter-spacing: .02em;
-        line-height: 1;
-        margin-bottom: 4px;
-    }
-    .stat-val.cyan { color: var(--cyan); }
-    .stat-val.green { color: var(--green); }
-    .stat-val.amber { color: var(--amber); }
-    .stat-val.purple { color: var(--purple); }
-    .stat-lbl { font-size: 10px; color: var(--text-sec); line-height: 1.3; }
-
-    /* COLD EXPOSURE BAR */
-    .cold-bar-wrap { margin-bottom: 8px; }
-    .cold-bar-track {
-        height: 8px;
-        background: rgba(255,255,255,0.06);
-        border-radius: 50px;
-        margin: 8px 0 4px;
-        overflow: hidden;
-        position: relative;
-    }
-    .cold-bar-fill {
-        height: 100%;
-        border-radius: 50px;
-        background: linear-gradient(90deg, #38bdf8, #10b981);
-        transition: width .6s ease;
-    }
-    .cold-bar-labels {
-        display: flex;
-        justify-content: space-between;
-        font-size: 10px;
-        color: var(--text-sec);
-    }
-
-    /* INTELLIGENCE */
-    .intel-card {
-        background: linear-gradient(135deg, rgba(167,139,250,0.08), rgba(8,15,26,0.5));
-        border: 1px solid rgba(167,139,250,0.2);
-        border-radius: 16px;
-        padding: 16px;
-        margin-bottom: 12px;
-    }
-    .intel-label {
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: .12em;
-        text-transform: uppercase;
-        color: var(--purple);
-        margin-bottom: 12px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-    .intel-label::before {
-        content: '';
-        width: 5px;
-        height: 5px;
-        border-radius: 50%;
-        background: var(--purple);
-        animation: intelPulse 2s infinite;
-    }
-    @keyframes intelPulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-    .intel-item {
-        display: flex;
-        gap: 10px;
-        align-items: flex-start;
-        padding: 10px 0;
-        border-bottom: 1px solid rgba(255,255,255,0.05);
-    }
-    .intel-item:last-child { border-bottom: none; padding-bottom: 0; }
-    .intel-icon {
-        width: 28px;
-        height: 28px;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        margin-top: 1px;
-    }
-    .intel-icon.go { background: rgba(16,185,129,0.12); }
-    .intel-icon.warn { background: rgba(245,158,11,0.12); }
-    .intel-icon.info { background: rgba(56,189,248,0.10); }
-    .intel-text { flex: 1; }
-    .intel-heading { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 3px; line-height: 1.4; }
-    .intel-sub { font-size: 11px; color: var(--text-sec); line-height: 1.55; }
-
-    /* SESSION FEED */
-    .session-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 0;
-        border-bottom: 1px solid var(--border);
-    }
-    .session-row:last-child { border-bottom: none; }
-    .session-temp {
-        font-family: 'Bebas Neue', sans-serif;
-        font-size: 22px;
-        letter-spacing: .02em;
-        color: var(--cyan);
-        width: 52px;
-        flex-shrink: 0;
-        line-height: 1;
-    }
-    .session-info { flex: 1; min-width: 0; }
-    .session-spot { font-size: 12px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .session-meta { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
-    .session-dist { font-size: 12px; font-weight: 700; color: var(--text-sec); flex-shrink: 0; }
-    .session-cond {
-        font-size: 10px;
-        font-weight: 600;
-        padding: 2px 8px;
-        border-radius: 50px;
-        flex-shrink: 0;
-    }
-    .cond-calm { background: rgba(16,185,129,0.1); color: var(--green); border: 1px solid rgba(16,185,129,0.2); }
-    .cond-chop { background: rgba(245,158,11,0.1); color: var(--amber); border: 1px solid rgba(245,158,11,0.2); }
-    .cond-other { background: rgba(255,255,255,0.04); color: var(--text-sec); border: 1px solid var(--border); }
-
-    /* TARGET DATE FORM */
-    .target-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .target-form input[type="date"] {
-        flex: 1;
-        padding: 9px 12px;
-        border-radius: 10px;
-        border: 1px solid rgba(56,189,248,0.3);
-        background: rgba(14,165,233,0.06);
-        color: var(--text);
-        font-size: 14px;
-        font-family: 'DM Sans', sans-serif;
-        min-width: 150px;
-    }
-    .target-form input[type="date"]:focus { outline: none; border-color: var(--cyan); }
-    .btn-sm {
-        padding: 9px 16px;
-        border-radius: 50px;
-        border: none;
-        background: var(--cyan);
-        color: #080f1a;
-        font-size: 12px;
-        font-weight: 700;
-        cursor: pointer;
-        font-family: 'DM Sans', sans-serif;
-        white-space: nowrap;
-    }
-    .btn-ghost-sm {
-        padding: 9px 14px;
-        border-radius: 50px;
-        border: 1px solid var(--border);
-        background: transparent;
-        color: var(--text-sec);
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        font-family: 'DM Sans', sans-serif;
-    }
-    .btn-ghost-sm:hover { border-color: rgba(56,189,248,0.3); color: var(--cyan); }
-
-    /* LOG CTA */
-    .log-cta {
-        background: linear-gradient(135deg, rgba(14,165,233,0.1), rgba(8,15,26,0.5));
-        border: 1px solid rgba(14,165,233,0.2);
-        border-radius: 14px;
-        padding: 14px 16px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 12px;
-        text-decoration: none;
-    }
-    .log-cta-text { flex: 1; }
-    .log-cta-title { font-size: 13px; font-weight: 700; color: var(--text); }
-    .log-cta-sub { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
-    .log-cta-arrow { color: var(--cyan); font-size: 18px; flex-shrink: 0; }
-
-    /* READINESS GAUGE */
-    .gauge-wrap { text-align: center; padding: 8px 0 4px; }
-    .gauge-score {
-        font-family: 'Bebas Neue', sans-serif;
-        font-size: 64px;
-        letter-spacing: .02em;
-        line-height: 1;
-    }
-    .gauge-band { font-size: 12px; font-weight: 700; margin-top: 4px; }
-    .gauge-bar-track {
-        height: 6px;
-        background: rgba(255,255,255,0.06);
-        border-radius: 50px;
-        margin: 10px 0 4px;
-        overflow: hidden;
-    }
-    .gauge-bar-fill {
-        height: 100%;
-        border-radius: 50px;
-        transition: width .8s ease;
-    }
-
-    /* QUALIFYING BANNER */
-    .qual-banner {
-        background: rgba(245,158,11,0.08);
-        border: 1px solid rgba(245,158,11,0.25);
-        border-radius: 12px;
-        padding: 12px 14px;
-        display: flex;
-        gap: 10px;
-        align-items: flex-start;
-        margin-bottom: 12px;
-    }
-    .qual-icon { flex-shrink: 0; margin-top: 1px; }
-    .qual-text { flex: 1; font-size: 12px; color: var(--text-sec); line-height: 1.6; }
-    .qual-text strong { color: var(--text); }
+    #authGate { display:none; max-width:420px; margin:80px auto; padding:0 18px; text-align:center; }
+    #authGate h2 { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:.04em; margin-bottom:10px; }
+    #authGate p { font-size:13px; color:var(--text-sec); line-height:1.65; margin-bottom:22px; }
 
     /* LOADING */
-    .loading-placeholder {
-        text-align: center;
-        padding: 40px 20px;
-        color: var(--text-sec);
-        font-size: 13px;
-    }
+    #loadingState { display:none; max-width:500px; margin:60px auto; padding:0 18px; text-align:center; }
+    .spinner { width:28px; height:28px; border:2px solid var(--border2); border-top-color:var(--cyan); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 14px; }
+    @keyframes spin { to{transform:rotate(360deg)} }
 
-    @media (max-width: 480px) {
-        .countdown-grid { grid-template-columns: repeat(4, 1fr); }
-        .stats-strip { grid-template-columns: 1fr 1fr; }
-        .countdown-val { font-size: 26px; }
-    }
+    /* MAIN LAYOUT */
+    #dashboard { display:none; max-width:680px; margin:0 auto; padding:0 16px; }
+
+    /* PAGE HEADER */
+    .page-header { padding:28px 0 22px; border-bottom:1px solid var(--border); margin-bottom:22px; display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+    .page-header-left h1 { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:.04em; line-height:1.1; margin-bottom:3px; }
+    .page-header-left p { font-size:12px; color:var(--text-sec); }
+    .log-btn { display:inline-flex; align-items:center; gap:6px; padding:9px 18px; border-radius:50px; background:var(--cyan); color:#080f1a; font-size:12px; font-weight:700; text-decoration:none; flex-shrink:0; }
+
+    /* PHASE BANNER */
+    .phase-banner { border-radius:14px; padding:18px 20px; margin-bottom:16px; display:flex; align-items:flex-start; gap:16px; }
+    .phase-icon { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .phase-content { flex:1; min-width:0; }
+    .phase-label { font-size:9px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; margin-bottom:4px; opacity:.7; }
+    .phase-name { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:.04em; line-height:1; margin-bottom:5px; }
+    .phase-desc { font-size:12px; line-height:1.6; opacity:.8; }
+    .phase-countdown { font-size:11px; font-weight:700; margin-top:8px; opacity:.7; }
+
+    /* RECOMMENDATIONS */
+    .section-title { font-size:9px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--text-sec); margin-bottom:10px; }
+    .rec-card { background:var(--bg-card); border-radius:14px; padding:16px 18px; margin-bottom:10px; display:flex; gap:14px; align-items:flex-start; border-left:3px solid transparent; }
+    .rec-card.high { border-left-color:var(--cyan); background:linear-gradient(90deg,rgba(56,189,248,0.05),var(--bg-card)); }
+    .rec-card.medium { border-left-color:var(--amber); background:linear-gradient(90deg,rgba(245,158,11,0.04),var(--bg-card)); }
+    .rec-card.info { border-left-color:var(--border2); }
+    .rec-icon { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:rgba(255,255,255,0.04); margin-top:1px; }
+    .rec-title { font-size:13px; font-weight:700; color:var(--text); margin-bottom:4px; line-height:1.3; }
+    .rec-body { font-size:12px; color:#94a3b8; line-height:1.65; }
+    .rec-action { display:inline-block; margin-top:8px; font-size:11px; font-weight:700; color:var(--cyan); text-decoration:none; }
+    .rec-action:hover { opacity:.8; }
+
+    /* TWO-COL GRID */
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+    @media(max-width:520px) { .grid2 { grid-template-columns:1fr; } }
+
+    /* STAT PANELS */
+    .panel { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:16px; }
+    .panel-label { font-size:9px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--text-sec); margin-bottom:12px; }
+    .big-num { font-family:'Bebas Neue',sans-serif; font-size:40px; line-height:1; }
+    .big-sub { font-size:11px; color:var(--text-sec); margin-top:3px; }
+
+    /* COLD ACCLIMATION */
+    .cold-sessions { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+    .cold-bar-row { display:flex; align-items:center; gap:8px; }
+    .cold-bar-label { font-size:11px; color:var(--text-sec); width:42px; flex-shrink:0; text-align:right; }
+    .cold-bar-track { flex:1; height:7px; background:rgba(255,255,255,0.05); border-radius:50px; overflow:hidden; }
+    .cold-bar-fill { height:100%; border-radius:50px; }
+    .cold-bar-count { font-size:11px; font-weight:700; width:18px; text-align:right; flex-shrink:0; }
+
+    /* RHYTHM BARS */
+    .rhythm-bars { display:flex; align-items:flex-end; gap:5px; height:56px; margin:10px 0 5px; }
+    .rhythm-bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; height:100%; }
+    .rhythm-bar { width:100%; border-radius:4px 4px 0 0; min-height:4px; transition:height .3s; }
+    .rhythm-bar-lbl { font-size:9px; color:var(--text-sec); }
+    .rhythm-benchmark { border-top:1px dashed rgba(56,189,248,0.3); padding-top:4px; display:flex; justify-content:space-between; }
+    .rhythm-note { font-size:10px; color:var(--text-sec); }
+    .rhythm-note span { color:var(--cyan); font-weight:700; }
+
+    /* OPEN WATER RATIO */
+    .ratio-visual { display:flex; height:10px; border-radius:50px; overflow:hidden; margin:10px 0 6px; }
+    .ratio-open { background:linear-gradient(90deg,#0ea5e9,#38bdf8); }
+    .ratio-lido { background:rgba(255,255,255,0.1); }
+    .ratio-labels { display:flex; justify-content:space-between; }
+    .ratio-lbl { font-size:10px; }
+
+    /* QUALIFIER PROGRESS */
+    .qualifier-items { display:flex; flex-direction:column; gap:8px; margin-top:4px; }
+    .qualifier-row { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:10px; background:rgba(255,255,255,0.03); }
+    .qualifier-status { width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .status-done { background:rgba(16,185,129,0.15); }
+    .status-part { background:rgba(245,158,11,0.12); }
+    .status-todo { background:rgba(255,255,255,0.05); }
+    .qualifier-text { flex:1; }
+    .qualifier-title { font-size:12px; font-weight:700; color:var(--text); }
+    .qualifier-sub { font-size:11px; color:var(--text-sec); margin-top:1px; }
+
+    /* RECENT SESSIONS */
+    .session-list { display:flex; flex-direction:column; }
+    .session-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
+    .session-row:last-child { border-bottom:none; }
+    .session-temp { font-family:'Bebas Neue',sans-serif; font-size:22px; width:46px; flex-shrink:0; line-height:1; }
+    .session-info { flex:1; min-width:0; }
+    .session-spot { font-size:12px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .session-date { font-size:10px; color:var(--text-sec); margin-top:1px; }
+    .session-tag { font-size:9px; font-weight:700; padding:2px 8px; border-radius:50px; flex-shrink:0; }
+    .tag-sea { background:rgba(56,189,248,0.08); color:var(--cyan); border:1px solid rgba(56,189,248,0.2); }
+    .tag-lido { background:rgba(255,255,255,0.04); color:var(--text-sec); border:1px solid var(--border); }
+    .tag-cold { background:rgba(96,165,250,0.1); color:#93c5fd; border:1px solid rgba(96,165,250,0.2); }
+
+    /* SET TARGET */
+    .target-panel { background:rgba(255,255,255,0.02); border:1px solid var(--border2); border-radius:10px; padding:12px 14px; margin-top:10px; display:flex; align-items:center; gap:10px; }
+    .target-input { flex:1; background:transparent; border:none; font-family:'DM Sans',sans-serif; font-size:13px; color:var(--text); outline:none; }
+    .target-input::-webkit-calendar-picker-indicator { filter:invert(1); opacity:.4; cursor:pointer; }
+    .target-save { padding:7px 16px; border-radius:50px; background:var(--cyan); color:#080f1a; font-size:12px; font-weight:700; border:none; cursor:pointer; }
+
+    .section-gap { margin-top:22px; margin-bottom:10px; }
     </style>
 </head>
 <body>
 
 <nav>
-    <a href="/" class="nav-brand">
-        <img src="icons/logo-wave.png" alt="">SwimLoading
-    </a>
+    <a href="/" class="nav-brand"><img src="/icons/logo-wave.png" alt="">SwimLoading</a>
     <div class="nav-right">
-        <span class="nav-pill">Channel Prep</span>
-        <a href="/app" class="nav-link">← App</a>
+        <span class="nav-label" id="navLabel"></span>
+        <a href="/app" class="btn-nav">Log a session</a>
     </div>
 </nav>
 
 <!-- AUTH GATE -->
 <div id="authGate">
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:48px;letter-spacing:.04em;color:var(--cyan);margin-bottom:4px;">Channel Prep</div>
-    <h2>Your private preparation dashboard</h2>
-    <p>This dashboard is private to you. Log in to see your training stats, countdown to your crossing window and personalised coaching insights.</p>
-    <a href="/app" style="display:inline-block;padding:13px 28px;border-radius:50px;background:var(--cyan);color:#080f1a;font-size:14px;font-weight:700;text-decoration:none;">Sign in to SwimLoading</a>
+    <h2>Private dashboard</h2>
+    <p>This is a private Channel preparation dashboard. Sign in to SwimLoading to access your preparation intelligence.</p>
+    <a href="/app" style="display:inline-block;padding:12px 28px;border-radius:50px;background:var(--cyan);color:#080f1a;font-size:14px;font-weight:700;text-decoration:none;">Sign in to SwimLoading</a>
 </div>
 
-<!-- MAIN DASHBOARD -->
-<div id="prepDashboard" style="display:none;">
+<!-- LOADING -->
+<div id="loadingState">
+    <div class="spinner"></div>
+    <p style="font-size:13px;color:var(--text-sec);">Loading your preparation data…</p>
+</div>
 
-    <div class="prep-hero">
-        <div style="padding:16px 0 10px;">
-            <div class="swimmer-header">
-                <div class="swimmer-avatar" id="swimmerAvatar">?</div>
-                <div>
-                    <div class="swimmer-name" id="swimmerName">Loading...</div>
-                    <div class="swimmer-crossing" id="swimmerCrossing">English Channel preparation</div>
-                </div>
-            </div>
+<!-- DASHBOARD -->
+<div id="dashboard">
+
+    <div class="page-header">
+        <div class="page-header-left">
+            <h1 id="dashTitle">Channel Preparation</h1>
+            <p id="dashSub">English Channel · Private dashboard</p>
         </div>
-    </div>
-
-    <div class="container">
-
-        <!-- LOG A SESSION CTA -->
-        <a href="/app" class="log-cta">
-            <div class="log-cta-text">
-                <div class="log-cta-title">Log today's session</div>
-                <div class="log-cta-sub">Add water temp, distance, conditions and notes</div>
-            </div>
-            <div class="log-cta-arrow">+</div>
+        <a href="/app" class="log-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Log session
         </a>
+    </div>
 
-        <!-- COUNTDOWN -->
-        <div class="countdown-card">
-            <div class="card-label" style="margin-bottom:10px;">Countdown to crossing window</div>
-            <div id="countdownDisplay"></div>
-            <div id="targetDateEdit" style="display:none;margin-top:12px;">
-                <div style="font-size:11px;color:var(--text-sec);margin-bottom:8px;">Set your target crossing date</div>
-                <div class="target-form">
-                    <input type="date" id="targetDateInput">
-                    <button class="btn-sm" onclick="saveTargetDate()">Save</button>
-                    <button class="btn-ghost-sm" onclick="toggleDateEdit()">Cancel</button>
-                </div>
+    <!-- PHASE BANNER -->
+    <div id="phaseBanner" class="phase-banner"></div>
+
+    <!-- SET TARGET DATE -->
+    <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-label">Target crossing date</div>
+        <div id="targetDisplay" style="font-size:13px;color:var(--text-sec);margin-bottom:8px;">No target date set — add one to unlock countdown and phase tracking.</div>
+        <div class="target-panel">
+            <input type="date" class="target-input" id="targetInput" placeholder="Set target date">
+            <button class="target-save" id="targetSave">Save</button>
+        </div>
+    </div>
+
+    <!-- RECOMMENDATIONS -->
+    <div class="section-title section-gap">What to focus on now</div>
+    <div id="recsContainer"></div>
+
+    <!-- COLD ACCLIMATION + TRAINING RHYTHM -->
+    <div class="grid2">
+
+        <div class="panel">
+            <div class="panel-label">Cold acclimation</div>
+            <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:3px;">
+                <span class="big-num" id="coldestVal" style="color:#60a5fa;">—</span>
+                <span style="font-size:12px;color:var(--text-sec);">coldest</span>
             </div>
+            <div class="big-sub" id="coldStatus"></div>
+            <div class="cold-sessions" id="coldBars"></div>
         </div>
 
-        <!-- KEY STATS -->
-        <div class="stats-strip">
-            <div class="stat-box">
-                <div class="stat-val cyan" id="statSessions">—</div>
-                <div class="stat-lbl">Sessions<br>logged</div>
+        <div class="panel">
+            <div class="panel-label">Training rhythm</div>
+            <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:3px;">
+                <span class="big-num" id="weeklyAvg" style="color:var(--cyan);">—</span>
+                <span style="font-size:12px;color:var(--text-sec);">/ week</span>
             </div>
-            <div class="stat-box">
-                <div class="stat-val green" id="statColdest">—</div>
-                <div class="stat-lbl">Coldest<br>swim °C</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-val amber" id="statRecent">—</div>
-                <div class="stat-lbl">Sessions<br>this month</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-val purple" id="statWeeks">—</div>
-                <div class="stat-lbl">Active<br>weeks</div>
-            </div>
-        </div>
-
-        <!-- COLD WATER EXPOSURE -->
-        <div class="card" id="coldExposureCard" style="display:none;">
-            <div class="card-label">Cold water exposure</div>
-            <div id="coldExposureContent"></div>
-        </div>
-
-        <!-- DISTANCE STATS (if available) -->
-        <div class="card" id="distanceCard" style="display:none;">
-            <div class="card-label">Distance tracking</div>
-            <div id="distanceContent"></div>
-        </div>
-
-        <!-- QUALIFYING SWIM REMINDER -->
-        <div class="qual-banner" id="qualBanner" style="display:none;">
-            <div class="qual-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            </div>
-            <div class="qual-text" id="qualBannerText"></div>
-        </div>
-
-        <!-- INTELLIGENCE PANEL -->
-        <div class="intel-card" id="intelCard" style="display:none;">
-            <div class="intel-label">Preparation intelligence</div>
-            <div id="intelItems"></div>
-        </div>
-
-        <!-- READINESS SCORE -->
-        <div class="card" id="readinessCard" style="display:none;">
-            <div class="card-label">Channel readiness score</div>
-            <div id="readinessContent"></div>
-            <div style="font-size:10px;color:var(--text-sec);opacity:.6;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);line-height:1.5;">Score is indicative and based on your logged SwimLoading sessions. It does not replace coaching, medical assessment, or pilot requirements.</div>
-        </div>
-
-        <!-- RECENT SESSIONS -->
-        <div class="card" id="sessionsCard" style="display:none;">
-            <div class="card-label">Recent sessions</div>
-            <div id="sessionsFeed"></div>
-            <div id="sessionsEmpty" style="display:none;font-size:13px;color:var(--text-sec);text-align:center;padding:20px 0;">No sessions logged yet.<br>Log your first swim from the SwimLoading app.</div>
-        </div>
-
-        <!-- BOTTOM CTA -->
-        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:center;margin-top:8px;">
-            <div style="font-size:12px;color:var(--text-sec);margin-bottom:12px;line-height:1.6;">Your preparation data is private. Only you can see this dashboard.</div>
-            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-                <a href="/app" style="display:inline-block;padding:10px 20px;border-radius:50px;background:var(--cyan);color:#080f1a;font-size:12px;font-weight:700;text-decoration:none;">Log a session</a>
-                <a href="/crossings/english-channel" style="display:inline-block;padding:10px 20px;border-radius:50px;border:1px solid var(--border);background:transparent;color:var(--text-sec);font-size:12px;font-weight:600;text-decoration:none;">Channel conditions</a>
+            <div class="big-sub" id="rhythmStatus"></div>
+            <div class="rhythm-bars" id="rhythmBars"></div>
+            <div class="rhythm-benchmark">
+                <span class="rhythm-note" id="rhythmNote"></span>
+                <span class="rhythm-note">Target: <span>4×</span></span>
             </div>
         </div>
 
     </div>
+
+    <!-- OPEN WATER RATIO -->
+    <div class="panel" style="margin-bottom:10px;">
+        <div class="panel-label">Open water vs pool/lido</div>
+        <div class="ratio-visual" id="ratioBar"></div>
+        <div class="ratio-labels">
+            <span class="ratio-lbl" id="ratioOpenLabel" style="color:var(--cyan);font-weight:700;"></span>
+            <span class="ratio-lbl" id="ratioLidoLabel" style="color:var(--text-sec);"></span>
+        </div>
+        <div style="font-size:12px;color:#94a3b8;line-height:1.6;margin-top:10px;" id="ratioComment"></div>
+    </div>
+
+    <!-- QUALIFIER PROGRESS -->
+    <div class="panel section-gap">
+        <div class="panel-label">Qualifying swim progress</div>
+        <div class="qualifier-items" id="qualifierItems"></div>
+        <div style="font-size:11px;color:var(--text-sec);line-height:1.6;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+            CSA requirement: 6 continuous hours in water ≤16°C, witnessed by an approved observer. Dover Harbour and Tooting Bec Lido are both approved venues.
+        </div>
+    </div>
+
+    <!-- RECENT SESSIONS -->
+    <div class="section-title section-gap">Recent sessions</div>
+    <div class="panel">
+        <div class="session-list" id="sessionList"></div>
+        <div id="noSessions" style="display:none;text-align:center;padding:20px 0;font-size:13px;color:var(--text-sec);">
+            No sessions logged yet. <a href="/app" style="color:var(--cyan);">Log your first session →</a>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -581,440 +262,407 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: true, storageKey: 'sb-szgkzuswelntnevobnoh-auth-token' }
 });
 
-// Channel constants
-const CHANNEL_DIST_KM = 33;
-const CHANNEL_TEMP_MIN = 14;
-const CHANNEL_TEMP_MAX = 18;
-const CHANNEL_QUAL_TEMP = 16;
-const CHANNEL_QUAL_HOURS = 6;
+const CROSSING = { name: 'English Channel', distance: 33, tempMin: 14, tempMax: 18, qualifierHours: 6, qualifierMaxTemp: 16 };
 
 let _session = null;
 let _logs = [];
-let _target = null;
+let _targetDate = null;
 
-function ga4(event, params) {
-    if (typeof gtag === 'function') gtag('event', event, params);
+// ─── PHASE ENGINE ────────────────────────────────────────────────────────────
+
+function getPhase(daysToTarget) {
+    if (daysToTarget === null) return { name: 'Target date not set', color: '#64748b', bg: 'rgba(255,255,255,0.03)', border: 'rgba(255,255,255,0.06)', desc: 'Set your target crossing date above to unlock phase tracking, countdown and prioritised recommendations.', icon: '#64748b' };
+    if (daysToTarget > 280) return { name: 'Base Fitness', color: '#6ee7b7', bg: 'rgba(52,211,153,0.06)', border: 'rgba(52,211,153,0.15)', desc: 'The foundation phase. Build swimming frequency and consistency. Any water temperature is useful — the goal is habit and endurance base. Aim for 3+ sessions per week.', icon: '#34d399' };
+    if (daysToTarget > 140) return { name: 'Endurance Building', color: var_amber, bg: 'rgba(245,158,11,0.06)', border: 'rgba(245,158,11,0.18)', desc: 'Volume phase. Extend your session duration week by week. Begin deliberate cold exposure — seek out sessions in sub-16°C water when available. Build toward 2-hour sessions.', icon: '#f59e0b' };
+    if (daysToTarget > 84)  return { name: 'Cold Acclimation', color: '#60a5fa', bg: 'rgba(96,165,250,0.06)', border: 'rgba(96,165,250,0.2)', desc: 'Cold is now the priority. Seek the coldest water available. Every sub-16°C session is building the physiological adaptation you need. Target 3-hour+ continuous swims. Book your qualifying swim observer.', icon: '#60a5fa' };
+    if (daysToTarget > 42)  return { name: 'Peak Preparation', color: '#38bdf8', bg: 'rgba(56,189,248,0.07)', border: 'rgba(56,189,248,0.22)', desc: 'The qualifying swim window is now. Book it immediately — observer slots fill fast in summer. Build to 4-hour+ swims. Maximise open water sessions. Finalise your pilot and feed plan.', icon: '#38bdf8' };
+    if (daysToTarget > 14)  return { name: 'Final Taper', color: '#a78bfa', bg: 'rgba(167,139,250,0.06)', border: 'rgba(167,139,250,0.2)', desc: 'Reduce volume but maintain cold exposure and open water feel. Nothing new. This is not the time to try longer sessions — your fitness is banked. Logistics, feeds, crew briefing.', icon: '#a78bfa' };
+    return { name: 'Final Countdown', color: '#f87171', bg: 'rgba(239,68,68,0.06)', border: 'rgba(239,68,68,0.2)', desc: 'Rest, eat, sleep. Your training is done. Review weather windows with your pilot. Trust the preparation.', icon: '#f87171' };
 }
+const var_amber = '#f59e0b'; // inline workaround for template literal
 
-// ── BOOT ──────────────────────────────────────────────────────────────────────
-async function init() {
-    const { data: { session } } = await sb.auth.getSession();
+function renderPhase(daysToTarget) {
+    const phase = getPhase(daysToTarget);
+    const countdownStr = daysToTarget !== null
+        ? `${daysToTarget} days to target · ${Math.round(daysToTarget / 7)} weeks`
+        : '';
 
-    if (!session) {
-        document.getElementById('authGate').style.display = 'block';
-        return;
-    }
-
-    _session = session;
-    document.getElementById('prepDashboard').style.display = 'block';
-
-    const email = session.user.email || '';
-    const name = email.split('@')[0].replace(/[._]/g, ' ')
-        .replace(/\b\w/g, c => c.toUpperCase());
-    document.getElementById('swimmerAvatar').textContent = name.charAt(0).toUpperCase();
-    document.getElementById('swimmerName').textContent = name;
-
-    await Promise.all([loadLogs(), loadTarget()]);
-    renderAll();
-
-    ga4('page_view', { page_title: 'Channel Prep Dashboard', page_path: '/crossing-prep' });
-}
-
-// ── DATA LOAD ─────────────────────────────────────────────────────────────────
-async function loadLogs() {
-    const { data, error } = await sb
-        .from('temp_logs')
-        .select('id, temp_c, conditions, notes, created_at, distance_km, spot_id, spots(name, domain)')
-        .eq('user_id', _session.user.id)
-        .order('created_at', { ascending: false })
-        .limit(100);
-    if (error) { console.warn('logs error', error); return; }
-    _logs = data || [];
-}
-
-async function loadTarget() {
-    const { data } = await sb
-        .from('crossing_targets')
-        .select('*')
-        .eq('user_id', _session.user.id)
-        .eq('crossing_name', 'English Channel')
-        .maybeSingle();
-    _target = data;
-}
-
-// ── RENDER ALL ────────────────────────────────────────────────────────────────
-function renderAll() {
-    renderCountdown();
-    renderStats();
-    renderColdExposure();
-    renderDistance();
-    renderIntelligence();
-    renderReadiness();
-    renderSessions();
-}
-
-// ── COUNTDOWN ─────────────────────────────────────────────────────────────────
-function renderCountdown() {
-    const el = document.getElementById('countdownDisplay');
-
-    if (!_target || !_target.target_date) {
-        el.innerHTML = `
-            <div class="no-target">
-                <p>Set your target crossing window to see your countdown and get tailored timing intelligence.</p>
-                <button class="btn-sm" onclick="toggleDateEdit()">Set my target date</button>
-            </div>`;
-        return;
-    }
-
-    const target = new Date(_target.target_date);
-    const now = new Date();
-    const diff = target - now;
-
-    if (diff <= 0) {
-        el.innerHTML = `<div style="text-align:center;font-size:14px;font-weight:700;color:var(--green);">Crossing window reached. Good luck.</div>`;
-        return;
-    }
-
-    const days = Math.floor(diff / 86400000);
-    const weeks = Math.floor(days / 7);
-    const months = Math.floor(days / 30.44);
-
-    el.innerHTML = `
-        <div class="countdown-grid">
-            <div class="countdown-unit"><div class="countdown-val">${months}</div><div class="countdown-lbl">Months</div></div>
-            <div class="countdown-unit"><div class="countdown-val">${weeks % 4}</div><div class="countdown-lbl">Weeks</div></div>
-            <div class="countdown-unit"><div class="countdown-val">${days % 7}</div><div class="countdown-lbl">Days</div></div>
-            <div class="countdown-unit"><div class="countdown-val">${days}</div><div class="countdown-lbl">Total days</div></div>
+    document.getElementById('phaseBanner').style.cssText = `background:${phase.bg};border:1px solid ${phase.border};border-radius:14px;padding:18px 20px;margin-bottom:16px;display:flex;align-items:flex-start;gap:16px;`;
+    document.getElementById('phaseBanner').innerHTML = `
+        <div style="width:42px;height:42px;border-radius:12px;background:${phase.bg};border:1px solid ${phase.border};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${phase.icon}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-            <div style="font-size:11px;color:var(--text-sec);">Target: <strong style="color:var(--text);">${target.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</strong></div>
-            <button class="btn-ghost-sm" onclick="toggleDateEdit()" style="font-size:11px;padding:5px 12px;">Change date</button>
+        <div style="flex:1;min-width:0;">
+            <div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${phase.color};opacity:.7;margin-bottom:3px;">Preparation phase</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.04em;line-height:1;color:${phase.color};margin-bottom:6px;">${phase.name}</div>
+            <div style="font-size:12px;color:#94a3b8;line-height:1.65;">${phase.desc}</div>
+            ${countdownStr ? `<div style="font-size:11px;font-weight:700;margin-top:8px;color:${phase.color};opacity:.6;">${countdownStr}</div>` : ''}
         </div>`;
 }
 
-function toggleDateEdit() {
-    const el = document.getElementById('targetDateEdit');
-    el.style.display = el.style.display === 'none' ? 'block' : 'none';
-    if (_target && _target.target_date) {
-        document.getElementById('targetDateInput').value = _target.target_date;
-    }
+// ─── INTELLIGENCE ENGINE ──────────────────────────────────────────────────────
+
+function daysSince(isoStr) {
+    if (!isoStr) return 999;
+    return Math.floor((Date.now() - new Date(isoStr).getTime()) / 86400000);
 }
 
-async function saveTargetDate() {
-    const val = document.getElementById('targetDateInput').value;
-    if (!val) return;
-    const { data, error } = await sb.from('crossing_targets').upsert({
-        user_id: _session.user.id,
-        crossing_name: 'English Channel',
-        target_date: val,
-        updated_at: new Date().toISOString()
-    }, { onConflict: 'user_id,crossing_name' }).select().maybeSingle();
-    if (!error) {
-        _target = data;
-        document.getElementById('targetDateEdit').style.display = 'none';
-        renderCountdown();
-        renderIntelligence();
-        ga4('crossing_target_set', { crossing_name: 'English Channel', target_date: val });
-    }
+function isOpenWater(spotName) {
+    if (!spotName) return false;
+    const name = spotName.toLowerCase();
+    return !name.includes('lido') && !name.includes('pool') && !name.includes('baths');
 }
 
-// ── STATS ─────────────────────────────────────────────────────────────────────
-function renderStats() {
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const recentCount = _logs.filter(l => new Date(l.created_at) >= monthStart).length;
-
-    const temps = _logs.map(l => parseFloat(l.temp_c)).filter(t => !isNaN(t));
-    const coldest = temps.length ? Math.min(...temps).toFixed(1) : '—';
-
-    // Unique weeks with any session
-    const weeks = new Set(_logs.map(l => {
-        const d = new Date(l.created_at);
-        const jan1 = new Date(d.getFullYear(), 0, 1);
-        return d.getFullYear() + '-' + Math.ceil((((d - jan1) / 86400000) + jan1.getDay() + 1) / 7);
-    }));
-
-    document.getElementById('statSessions').textContent = _logs.length || '0';
-    document.getElementById('statColdest').textContent = coldest;
-    document.getElementById('statRecent').textContent = recentCount;
-    document.getElementById('statWeeks').textContent = weeks.size || '0';
-}
-
-// ── COLD EXPOSURE ─────────────────────────────────────────────────────────────
-function renderColdExposure() {
-    if (!_logs.length) return;
-    const card = document.getElementById('coldExposureCard');
-    const el = document.getElementById('coldExposureContent');
-    card.style.display = 'block';
-
-    const temps = _logs.map(l => parseFloat(l.temp_c)).filter(t => !isNaN(t));
-    const coldest = Math.min(...temps);
-    const warmest = Math.max(...temps);
-    const avg = (temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1);
-
-    // Cold acclimatisation: how close to channel min temp (14°C)
-    // Below 14 = fully acclimatised. 14-16 = developing. 16-18 = building. >18 = early
-    let coldStatus, coldColor;
-    if (coldest <= CHANNEL_TEMP_MIN) { coldStatus = 'Acclimatised to Channel temperatures'; coldColor = 'var(--green)'; }
-    else if (coldest <= 16) { coldStatus = 'Good cold exposure — targeting below 14°C'; coldColor = 'var(--cyan)'; }
-    else if (coldest <= 18) { coldStatus = 'Building cold tolerance — need lower temps'; coldColor = 'var(--amber)'; }
-    else { coldStatus = 'Cold exposure needed — all swims above 18°C'; coldColor = 'var(--danger)'; }
-
-    // Bar: 0°C = 0%, 14°C = 100% (acclimatised), invert direction
-    const barPct = Math.max(0, Math.min(100, (1 - (coldest - 8) / 12) * 100));
-
-    el.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
-            <div style="text-align:center;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:${coldColor};line-height:1;">${coldest.toFixed(1)}°</div>
-                <div style="font-size:10px;color:var(--text-sec);margin-top:3px;">Coldest</div>
-            </div>
-            <div style="text-align:center;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--text-sec);line-height:1;">${avg}°</div>
-                <div style="font-size:10px;color:var(--text-sec);margin-top:3px;">Average</div>
-            </div>
-            <div style="text-align:center;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--text-sec);line-height:1;">${warmest.toFixed(1)}°</div>
-                <div style="font-size:10px;color:var(--text-sec);margin-top:3px;">Warmest</div>
-            </div>
-        </div>
-        <div style="font-size:11px;font-weight:600;color:${coldColor};margin-bottom:6px;">${coldStatus}</div>
-        <div class="cold-bar-wrap">
-            <div class="cold-bar-track">
-                <div class="cold-bar-fill" style="width:${barPct}%"></div>
-            </div>
-            <div class="cold-bar-labels">
-                <span>Cold ← 8°C</span>
-                <span>Channel: 14–18°C</span>
-                <span>Warm → 24°C</span>
-            </div>
-        </div>`;
-}
-
-// ── DISTANCE ──────────────────────────────────────────────────────────────────
-function renderDistance() {
-    const withDist = _logs.filter(l => l.distance_km && parseFloat(l.distance_km) > 0);
-    if (!withDist.length) return;
-
-    const card = document.getElementById('distanceCard');
-    const el = document.getElementById('distanceContent');
-    card.style.display = 'block';
-
-    const distances = withDist.map(l => parseFloat(l.distance_km));
-    const totalKm = distances.reduce((a, b) => a + b, 0).toFixed(1);
-    const longestKm = Math.max(...distances).toFixed(1);
-
-    // Weekly average (last 8 weeks)
-    const eightWeeksAgo = new Date(Date.now() - 56 * 86400000);
-    const recentDist = withDist
-        .filter(l => new Date(l.created_at) >= eightWeeksAgo)
-        .reduce((a, l) => a + parseFloat(l.distance_km), 0);
-    const weeklyAvg = (recentDist / 8).toFixed(1);
-
-    el.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-            <div style="text-align:center;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--cyan);line-height:1;">${totalKm}</div>
-                <div style="font-size:10px;color:var(--text-sec);margin-top:3px;">Total km</div>
-            </div>
-            <div style="text-align:center;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--green);line-height:1;">${longestKm}</div>
-                <div style="font-size:10px;color:var(--text-sec);margin-top:3px;">Longest swim</div>
-            </div>
-            <div style="text-align:center;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--amber);line-height:1;">${weeklyAvg}</div>
-                <div style="font-size:10px;color:var(--text-sec);margin-top:3px;">Avg km/week</div>
-            </div>
-        </div>`;
-}
-
-// ── INTELLIGENCE ──────────────────────────────────────────────────────────────
-function renderIntelligence() {
-    if (!_logs.length) return;
-    const card = document.getElementById('intelCard');
-    const el = document.getElementById('intelItems');
-    card.style.display = 'block';
-
-    const items = [];
-    const now = new Date();
-    const temps = _logs.map(l => parseFloat(l.temp_c)).filter(t => !isNaN(t));
-    const coldest = temps.length ? Math.min(...temps) : 99;
-
-    // Days to target
-    let daysToTarget = null;
-    if (_target && _target.target_date) {
-        daysToTarget = Math.floor((new Date(_target.target_date) - now) / 86400000);
+function buildRecommendations(logs, daysToTarget) {
+    const recs = [];
+    if (!logs.length) {
+        recs.push({ priority: 'high', title: 'Log your first session', body: 'Connect Strava or log a swim manually in the SwimLoading app. Your training intelligence unlocks as sessions accumulate.', action: { label: 'Log a session', href: '/app' } });
+        return recs;
     }
 
-    // Session frequency
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
-    const recentSessions = _logs.filter(l => new Date(l.created_at) >= thirtyDaysAgo).length;
-    const weeklyRate = (recentSessions / 4.3).toFixed(1);
+    const now = Date.now();
+    const last28 = logs.filter(l => daysSince(l.created_at) <= 28);
+    const last56 = logs.filter(l => daysSince(l.created_at) <= 56 && daysSince(l.created_at) > 28);
+    const perWeekNow = last28.length / 4;
+    const perWeekPrev = last56.length / 4;
+    const lastSession = daysSince(logs[0]?.created_at);
+    const coldLogs = logs.filter(l => l.temp_c !== null && l.temp_c <= CROSSING.qualifierMaxTemp);
+    const openWaterLogs = logs.filter(l => isOpenWater(l.spots?.name));
+    const openRatio = logs.length > 0 ? openWaterLogs.length / logs.length : 0;
+    const logsWithDist = logs.filter(l => l.distance_km && l.distance_km > 0);
+    const coldest = logs.reduce((min, l) => (l.temp_c !== null && l.temp_c < min) ? l.temp_c : min, 99);
 
-    // ① Session frequency
-    if (recentSessions === 0) {
-        items.push({ type:'warn', heading:'No sessions in the last 30 days', sub:'Consistency is the foundation of Channel preparation. Aim to get back in the water this week.' });
-    } else if (recentSessions < 8) {
-        items.push({ type:'warn', heading:`${recentSessions} sessions in the last month (~${weeklyRate}/week)`, sub:'Channel swimmers typically train 4–6 times per week. Build session frequency before adding volume per session.' });
-    } else {
-        items.push({ type:'go', heading:`Strong session consistency — ${recentSessions} swims in 30 days`, sub:`Averaging ${weeklyRate} sessions per week. Maintain this through summer and focus on building session length.` });
+    // 1. Session gap — most urgent
+    if (lastSession >= 7) {
+        recs.push({ priority: 'high', title: `${lastSession} days since your last session`, body: `Cold water acclimation fades faster than fitness. A week out of the water sets back your thermal adaptation — a short swim today resets the clock. Even 30 minutes counts.`, action: { label: 'Log a session now', href: '/app' } });
     }
 
-    // ② Cold water
-    if (coldest <= CHANNEL_TEMP_MIN) {
-        items.push({ type:'go', heading:`Cold water acclimatised — coldest logged: ${coldest.toFixed(1)}°C`, sub:'You have swum at or below Channel temperatures. Continue cold exposure through summer to maintain tolerance.' });
-    } else if (coldest <= 16) {
-        items.push({ type:'info', heading:`Cold exposure at ${coldest.toFixed(1)}°C — building well`, sub:`Channel water in July–September is 14–18°C. Target sessions below 14°C to confirm your cold tolerance. Dover Harbour training is ideal for this.` });
-    } else {
-        items.push({ type:'warn', heading:`Cold exposure gap — coldest swim is ${coldest.toFixed(1)}°C`, sub:`Channel conditions are 14–18°C. Prioritise open water sessions in colder water. Dover Harbour (from May) is the most accessible Channel-temperature training venue.` });
+    // 2. Frequency
+    if (perWeekNow < 2.5 && lastSession < 7) {
+        const trend = perWeekNow < perWeekPrev ? 'down from' : 'compared to';
+        recs.push({ priority: perWeekNow < 2 ? 'high' : 'medium', title: 'Increase training frequency', body: `You're averaging ${perWeekNow.toFixed(1)} sessions/week over the last 4 weeks. Channel preparation benchmarks suggest 4×/week in the build phase. Add one session to your week — it doesn't need to be long.`, action: null });
     }
 
-    // ③ Timing/qualifier
-    if (daysToTarget !== null) {
-        if (daysToTarget > 365) {
-            items.push({ type:'info', heading:`${Math.floor(daysToTarget/7)} weeks until your target window`, sub:'You have time to build systematically. Focus now on: cold acclimatisation, session frequency, then progressive long swims from January onward.' });
-        } else if (daysToTarget > 180) {
-            items.push({ type:'info', heading:`${Math.floor(daysToTarget/30)} months to your crossing window`, sub:`Time to plan your 6-hour qualifying swim. CSA/CS&PF qualifying swims must be completed in the calendar year of your crossing, in water ≤16°C.` });
-        } else if (daysToTarget > 90) {
-            items.push({ type:'warn', heading:'Qualifying swim window is approaching', sub:`Your 6-hour qualifier must be in water ≤16°C, witnessed by an approved observer. Dover Harbour runs qualifying sessions from May. Book yours now — slots fill quickly.` });
-        } else {
-            items.push({ type:'warn', heading:'Crossing is within 90 days', sub:'Final phase: long swims 3–4 weeks out, then a 2-week taper. Confirm pilot briefing, nutrition plan and weather window strategy with your pilot.' });
+    // 3. Qualifying swim — urgent when close
+    if (daysToTarget !== null && daysToTarget <= 140 && daysToTarget > 42) {
+        recs.push({ priority: 'high', title: 'Book your qualifying swim observer now', body: `CSA and CS&PF observer slots fill fast over summer. You need a witnessed 6-hour swim in ≤16°C — contact the Channel Swimming Association before your window closes. Dover Harbour and Tooting Bec are both approved.`, action: { label: 'Channel Swimming Association', href: 'https://www.channelswimmingassociation.com' } });
+    }
+
+    // 4. Cold exposure
+    if (coldest > 16 && logs.length >= 3) {
+        recs.push({ priority: 'high', title: 'Seek colder water', body: `Your coldest logged swim is ${coldest}°C. The qualifier requires ≤16°C, and Channel crossings can be 14–15°C at night. Tooting Bec is coldest early morning. Aim for at least 5 sessions in sub-16°C water before your qualifier.`, action: null });
+    } else if (coldLogs.length < 5 && logs.length >= 5) {
+        recs.push({ priority: 'medium', title: `Build cold exposure — ${coldLogs.length} of ${logs.length} sessions below 16°C`, body: `Sub-16°C sessions are the ones that matter for your qualifier and for crossing confidence. Prioritise early morning swims when water temperatures are lowest, or visit Tooting Bec in spring when the lido is at its coldest.`, action: null });
+    }
+
+    // 5. Open water
+    if (openRatio < 0.35 && logs.length >= 4) {
+        recs.push({ priority: 'medium', title: 'More open water sessions', body: `${Math.round(openRatio * 100)}% of your sessions have been in open water. The Channel is 33km of open sea — chop, swell, currents, no walls to push off. Plan a Dover Harbour or coastal session. The psychological difference from a lido is significant.`, action: null });
+    }
+
+    // 6. Distance logging
+    if (logsWithDist.length === 0 && logs.length >= 5) {
+        recs.push({ priority: 'medium', title: 'Start logging swim distance', body: `Distance tracking is how we measure long-swim progression — the clearest indicator of Channel readiness. Next time you log a session in the app, add your distance. It unlocks duration analysis and progression tracking.`, action: { label: 'Log with distance', href: '/app' } });
+    } else if (logsWithDist.length > 0) {
+        const maxDist = Math.max(...logsWithDist.map(l => l.distance_km));
+        if (maxDist < 8 && daysToTarget !== null && daysToTarget < 200) {
+            recs.push({ priority: 'medium', title: `Longest logged swim: ${maxDist}km — start extending`, body: `The Channel is 33km. Your longest logged distance is ${maxDist}km. Start building 1–2km per week. The goal isn't to swim 33km in training — it's to build the confidence that comes from sessions where 10km+ feels manageable.`, action: null });
         }
-    } else {
-        items.push({ type:'info', heading:'Set your target date to unlock timing intelligence', sub:'Once you set a target crossing window, SwimLoading will give you week-by-week guidance on when to schedule your qualifier, long swims and taper.' });
     }
 
-    // ④ Long swim recommendation (if we have distance data)
-    const withDist = _logs.filter(l => l.distance_km && parseFloat(l.distance_km) > 0);
-    if (withDist.length) {
-        const longest = Math.max(...withDist.map(l => parseFloat(l.distance_km)));
-        const pct = longest / CHANNEL_DIST_KM;
-        if (pct < 0.3) {
-            items.push({ type:'warn', heading:`Longest swim: ${longest.toFixed(1)} km — build to ${Math.round(CHANNEL_DIST_KM * 0.5)} km next`, sub:'Channel readiness requires comfortable completion of 20+ km. Build toward a 10 km swim as your next major milestone.' });
-        } else if (pct < 0.6) {
-            items.push({ type:'info', heading:`Longest swim: ${longest.toFixed(1)} km — progressing well`, sub:`You're at ${Math.round(pct*100)}% of Channel distance. Continue adding 1–2 km to your longest session each month. Plan a 4-hour continuous swim in the next 6 weeks.` });
-        } else {
-            items.push({ type:'go', heading:`Longest swim: ${longest.toFixed(1)} km — strong base`, sub:`You've covered ${Math.round(pct*100)}% of Channel distance in training. Focus on time in the water at cold temperatures and nutrition strategy.` });
-        }
-    } else {
-        items.push({ type:'info', heading:'Add distance when logging sessions to unlock long-swim tracking', sub:'Logging your swim distance lets SwimLoading track your longest swim progression and give distance-based preparation guidance.' });
+    // 7. Positive — good frequency
+    if (perWeekNow >= 4 && recs.length < 2) {
+        recs.push({ priority: 'info', title: `Strong training rhythm — ${perWeekNow.toFixed(1)} sessions/week`, body: `You're hitting the Channel preparation frequency benchmark. Consistency at this level over 12+ weeks is what builds the physiological base. Keep it up — the priority now is making sure those sessions include quality cold exposure and open water time.`, action: null });
     }
 
-    const iconSvg = {
-        go: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
-        warn: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
-        info: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`
+    // Cap at 3, prioritise high
+    recs.sort((a, b) => (a.priority === 'high' ? -1 : a.priority === 'medium' ? 0 : 1) - (b.priority === 'high' ? -1 : b.priority === 'medium' ? 0 : 1));
+    return recs.slice(0, 3);
+}
+
+function renderRecs(logs, daysToTarget) {
+    const recs = buildRecommendations(logs, daysToTarget);
+    const icons = {
+        high: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+        medium: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+        info: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
     };
-
-    el.innerHTML = items.map(i => `
-        <div class="intel-item">
-            <div class="intel-icon ${i.type}">${iconSvg[i.type]}</div>
-            <div class="intel-text">
-                <div class="intel-heading">${i.heading}</div>
-                <div class="intel-sub">${i.sub}</div>
+    document.getElementById('recsContainer').innerHTML = recs.map(r => `
+        <div class="rec-card ${r.priority}">
+            <div class="rec-icon">${icons[r.priority] || icons.info}</div>
+            <div style="flex:1;min-width:0;">
+                <div class="rec-title">${r.title}</div>
+                <div class="rec-body">${r.body}</div>
+                ${r.action ? `<a href="${r.action.href}" class="rec-action">${r.action.label} →</a>` : ''}
             </div>
         </div>`).join('');
 }
 
-// ── READINESS SCORE ───────────────────────────────────────────────────────────
-function renderReadiness() {
-    if (!_logs.length) return;
-    const card = document.getElementById('readinessCard');
-    const el = document.getElementById('readinessContent');
-    card.style.display = 'block';
+// ─── COLD ACCLIMATION ─────────────────────────────────────────────────────────
 
-    const temps = _logs.map(l => parseFloat(l.temp_c)).filter(t => !isNaN(t));
-    const coldest = temps.length ? Math.min(...temps) : 20;
-    const withDist = _logs.filter(l => l.distance_km && parseFloat(l.distance_km) > 0);
-    const longest = withDist.length ? Math.max(...withDist.map(l => parseFloat(l.distance_km))) : 0;
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
-    const recentSessions = _logs.filter(l => new Date(l.created_at) >= thirtyDaysAgo).length;
-    const eightWeeksAgo = new Date(Date.now() - 56 * 86400000);
-    const recentDist = withDist.filter(l => new Date(l.created_at) >= eightWeeksAgo).reduce((a, l) => a + parseFloat(l.distance_km), 0);
-    const weeklyKm = recentDist / 8;
+function renderCold(logs) {
+    const withTemp = logs.filter(l => l.temp_c !== null);
+    if (!withTemp.length) { document.getElementById('coldestVal').textContent = '—'; document.getElementById('coldStatus').textContent = 'No temperature data yet'; return; }
 
-    const longestScore = Math.round(Math.min(30, longest / CHANNEL_DIST_KM * 30));
-    const weeklyScore = Math.round(Math.min(25, weeklyKm / (CHANNEL_DIST_KM * 1.5) * 25));
-    let coldScore = coldest <= CHANNEL_TEMP_MIN ? 25 : coldest <= CHANNEL_TEMP_MAX ? 18 : 8;
-    const owScore = Math.round(Math.min(20, recentSessions / 12 * 20));
-    const total = longestScore + weeklyScore + coldScore + owScore;
+    const coldest = Math.min(...withTemp.map(l => l.temp_c));
+    document.getElementById('coldestVal').textContent = coldest + '°';
 
-    const band = total >= 80 ? { label: 'Strong preparation base', color: '#10b981' }
-        : total >= 60 ? { label: 'Developing preparation base', color: '#38bdf8' }
-        : total >= 40 ? { label: 'Significant preparation gaps', color: '#f59e0b' }
-        : { label: 'Early preparation stage', color: '#ef4444' };
+    // Status message
+    let status;
+    if (coldest <= 13) status = 'Exceptional — well below Channel conditions';
+    else if (coldest <= 15) status = 'On target for qualifying conditions';
+    else if (coldest <= 17) status = 'Good — building toward qualifier temp';
+    else status = 'Warm — seek colder sessions';
+    document.getElementById('coldStatus').textContent = status;
 
-    el.innerHTML = `
-        <div class="gauge-wrap">
-            <div class="gauge-score" style="color:${band.color}">${total}</div>
-            <div style="font-size:10px;color:var(--text-sec);">out of 100</div>
-            <div class="gauge-band" style="color:${band.color}">${band.label}</div>
-            <div class="gauge-bar-track">
-                <div class="gauge-bar-fill" style="width:${total}%;background:${band.color}"></div>
-            </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
-            <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
-                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-sec);margin-bottom:3px;">Long swim</div>
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:${longestScore>=20?'#10b981':'#f59e0b'}">${longestScore}/30</div>
-                <div style="font-size:10px;color:var(--text-sec);margin-top:2px;">${longest > 0 ? longest.toFixed(1)+'km longest' : 'No distance logged'}</div>
-            </div>
-            <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
-                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-sec);margin-bottom:3px;">Weekly volume</div>
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:${weeklyScore>=18?'#10b981':'#f59e0b'}">${weeklyScore}/25</div>
-                <div style="font-size:10px;color:var(--text-sec);margin-top:2px;">${weeklyKm > 0 ? weeklyKm.toFixed(1)+'km/wk avg' : 'Log distance to unlock'}</div>
-            </div>
-            <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
-                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-sec);margin-bottom:3px;">Cold water</div>
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:${coldScore>=22?'#10b981':'#f59e0b'}">${coldScore}/25</div>
-                <div style="font-size:10px;color:var(--text-sec);margin-top:2px;">Coldest: ${coldest.toFixed(1)}°C</div>
-            </div>
-            <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
-                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-sec);margin-bottom:3px;">Open water frequency</div>
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:${owScore>=15?'#10b981':'#f59e0b'}">${owScore}/20</div>
-                <div style="font-size:10px;color:var(--text-sec);margin-top:2px;">${recentSessions} sessions / 30 days</div>
-            </div>
-        </div>`;
+    // Bucket bars: ≤14, 14-16, 16-18, 18+
+    const buckets = [
+        { label: '≤14°', color: '#60a5fa', count: withTemp.filter(l => l.temp_c <= 14).length },
+        { label: '14–16°', color: '#38bdf8', count: withTemp.filter(l => l.temp_c > 14 && l.temp_c <= 16).length },
+        { label: '16–18°', color: '#7dd3fc', count: withTemp.filter(l => l.temp_c > 16 && l.temp_c <= 18).length },
+        { label: '18°+', color: '#64748b', count: withTemp.filter(l => l.temp_c > 18).length },
+    ];
+    const maxCount = Math.max(...buckets.map(b => b.count), 1);
+    document.getElementById('coldBars').innerHTML = buckets.map(b => `
+        <div class="cold-bar-row">
+            <span class="cold-bar-label" style="color:${b.color};">${b.label}</span>
+            <div class="cold-bar-track"><div class="cold-bar-fill" style="width:${Math.max(4,b.count/maxCount*100)}%;background:${b.color};"></div></div>
+            <span class="cold-bar-count" style="color:${b.color};">${b.count}</span>
+        </div>`).join('');
 }
 
-// ── SESSION FEED ──────────────────────────────────────────────────────────────
-function renderSessions() {
-    const card = document.getElementById('sessionsCard');
-    const el = document.getElementById('sessionsFeed');
-    const empty = document.getElementById('sessionsEmpty');
-    card.style.display = 'block';
+// ─── TRAINING RHYTHM ──────────────────────────────────────────────────────────
 
-    if (!_logs.length) { empty.style.display = 'block'; return; }
+function renderRhythm(logs) {
+    // Last 8 weeks, one bar per week
+    const weeks = [];
+    for (let i = 7; i >= 0; i--) {
+        const weekStart = new Date(Date.now() - (i + 1) * 7 * 86400000);
+        const weekEnd = new Date(Date.now() - i * 7 * 86400000);
+        const count = logs.filter(l => {
+            const d = new Date(l.created_at);
+            return d >= weekStart && d < weekEnd;
+        }).length;
+        weeks.push({ count, label: i === 0 ? 'now' : `${i}w` });
+    }
 
-    const recent = _logs.slice(0, 10);
+    const last4 = weeks.slice(4).reduce((s, w) => s + w.count, 0) / 4;
+    document.getElementById('weeklyAvg').textContent = last4.toFixed(1);
 
-    el.innerHTML = recent.map(log => {
-        const date = new Date(log.created_at);
-        const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-        const spotName = log.spots?.name || 'Open water';
-        const cond = (log.conditions || '').toLowerCase();
-        let condClass = 'cond-other', condLabel = log.conditions || '—';
-        if (cond.includes('calm')) { condClass = 'cond-calm'; condLabel = 'Calm'; }
-        else if (cond.includes('chop')) { condClass = 'cond-chop'; condLabel = 'Choppy'; }
-        const distStr = log.distance_km ? `${parseFloat(log.distance_km).toFixed(1)} km` : '';
-        const noteSnippet = log.notes ? log.notes.replace(/Imported from Strava: /i,'').split('\n')[0].slice(0,60) : '';
+    const trend = last4 >= 4 ? 'On target' : last4 >= 2.5 ? 'Building' : 'Below target';
+    document.getElementById('rhythmStatus').textContent = trend;
 
-        return `<div class="session-row">
-            <div class="session-temp">${parseFloat(log.temp_c).toFixed(1)}°</div>
-            <div class="session-info">
-                <div class="session-spot">${spotName}</div>
-                <div class="session-meta">${dateStr}${noteSnippet ? ' · ' + noteSnippet : ''}</div>
+    const maxW = Math.max(...weeks.map(w => w.count), 4);
+    document.getElementById('rhythmBars').innerHTML = weeks.map(w => {
+        const h = Math.max(4, (w.count / maxW) * 48);
+        const col = w.count >= 4 ? 'var(--cyan)' : w.count >= 2 ? 'var(--amber)' : 'rgba(255,255,255,0.12)';
+        return `<div class="rhythm-bar-col">
+            <div class="rhythm-bar" style="height:${h}px;background:${col};margin-top:auto;"></div>
+            <span class="rhythm-bar-lbl">${w.label}</span>
+        </div>`;
+    }).join('');
+
+    const trendText = last4 > (weeks.slice(0,4).reduce((s,w) => s+w.count,0)/4) ? 'Trending up' : last4 < 2 ? 'Needs work' : 'Consistent';
+    document.getElementById('rhythmNote').innerHTML = `<span style="color:${last4>=4?'var(--green)':last4>=2?'var(--amber)':'var(--danger)'}">${trendText}</span>`;
+}
+
+// ─── OPEN WATER RATIO ─────────────────────────────────────────────────────────
+
+function renderRatio(logs) {
+    if (!logs.length) return;
+    const openCount = logs.filter(l => isOpenWater(l.spots?.name)).length;
+    const lidoCount = logs.length - openCount;
+    const pct = Math.round((openCount / logs.length) * 100);
+
+    document.getElementById('ratioBar').innerHTML = `
+        <div class="ratio-open" style="width:${pct}%"></div>
+        <div class="ratio-lido" style="width:${100-pct}%"></div>`;
+    document.getElementById('ratioOpenLabel').textContent = `${pct}% open water (${openCount} sessions)`;
+    document.getElementById('ratioLidoLabel').textContent = `${100-pct}% lido/pool (${lidoCount} sessions)`;
+
+    let comment;
+    if (pct >= 50) comment = 'Good balance. Open water sessions build the specific skills the Channel demands — reading conditions, sighting without lane ropes, managing chop. Keep prioritising sea and open water venues.';
+    else if (pct >= 25) comment = 'Building open water exposure. The Channel requires comfort in conditions a lido cannot replicate. Plan at least one open water or coastal session per fortnight, increasing as your target date approaches.';
+    else comment = 'Most of your training is in controlled water. That\'s fine for cold acclimation and endurance — but plan open water or coastal sessions to build the Channel-specific skills: sighting, chop, currents, and the psychological difference of open sea.';
+    document.getElementById('ratioComment').textContent = comment;
+}
+
+// ─── QUALIFIER PROGRESS ───────────────────────────────────────────────────────
+
+function renderQualifier(logs) {
+    const coldest = logs.length ? Math.min(...logs.filter(l=>l.temp_c!==null).map(l=>l.temp_c), 99) : 99;
+    const coldQualSessions = logs.filter(l => l.temp_c !== null && l.temp_c <= 16);
+    const logsWithDist = logs.filter(l => l.distance_km && l.distance_km > 0);
+    const maxDist = logsWithDist.length ? Math.max(...logsWithDist.map(l=>l.distance_km)) : 0;
+    const hasObserver = false; // can't detect from data — manual
+
+    const items = [
+        {
+            done: coldest <= 16,
+            partial: coldest <= 18 && coldest > 16,
+            title: 'Can swim in ≤16°C water',
+            sub: coldest <= 99 ? `Coldest logged: ${coldest === 99 ? '—' : coldest + '°C'}` : 'No temperature data yet'
+        },
+        {
+            done: coldQualSessions.length >= 10,
+            partial: coldQualSessions.length >= 3,
+            title: 'Cold water exposure built',
+            sub: `${coldQualSessions.length} sessions logged in ≤16°C water (recommend 10+ before qualifier)`
+        },
+        {
+            done: maxDist >= 8,
+            partial: maxDist >= 4,
+            title: 'Long swim endurance',
+            sub: maxDist > 0 ? `Longest logged: ${maxDist}km — build toward 8km+ continuous` : 'Log distance to track this'
+        },
+        {
+            done: false,
+            partial: false,
+            title: 'Observer booked',
+            sub: 'Contact CSA / CS&PF — must be an approved observer for the qualifier to count'
+        }
+    ];
+
+    const iconDone = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+    const iconPart = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+    const iconTodo = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>`;
+
+    document.getElementById('qualifierItems').innerHTML = items.map(item => `
+        <div class="qualifier-row">
+            <div class="qualifier-status ${item.done ? 'status-done' : item.partial ? 'status-part' : 'status-todo'}">
+                ${item.done ? iconDone : item.partial ? iconPart : iconTodo}
             </div>
-            ${distStr ? `<div class="session-dist">${distStr}</div>` : ''}
-            <span class="session-cond ${condClass}">${condLabel}</span>
+            <div class="qualifier-text">
+                <div class="qualifier-title">${item.title}</div>
+                <div class="qualifier-sub">${item.sub}</div>
+            </div>
+        </div>`).join('');
+}
+
+// ─── RECENT SESSIONS ──────────────────────────────────────────────────────────
+
+function formatDate(isoStr) {
+    const d = new Date(isoStr);
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function tempColor(t) {
+    if (t === null) return 'var(--text-sec)';
+    if (t <= 14) return '#60a5fa';
+    if (t <= 16) return '#38bdf8';
+    if (t <= 19) return '#7dd3fc';
+    return '#94a3b8';
+}
+
+function renderSessions(logs) {
+    const recent = logs.slice(0, 8);
+    if (!recent.length) { document.getElementById('noSessions').style.display = 'block'; return; }
+
+    document.getElementById('sessionList').innerHTML = recent.map(l => {
+        const spot = l.spots?.name || 'Unknown spot';
+        const open = isOpenWater(spot);
+        const cold = l.temp_c !== null && l.temp_c <= 16;
+        const tag = cold ? `<span class="session-tag tag-cold">${l.temp_c}°C cold</span>` : open ? `<span class="session-tag tag-sea">Open water</span>` : `<span class="session-tag tag-lido">Lido</span>`;
+        const dist = l.distance_km ? `<span style="font-size:10px;color:var(--text-sec);"> · ${l.distance_km}km</span>` : '';
+        return `<div class="session-row">
+            <div class="session-temp" style="color:${tempColor(l.temp_c)};">${l.temp_c !== null ? l.temp_c + '°' : '—'}</div>
+            <div class="session-info">
+                <div class="session-spot">${spot}${dist}</div>
+                <div class="session-date">${formatDate(l.created_at)}</div>
+            </div>
+            ${tag}
         </div>`;
     }).join('');
 }
 
-document.addEventListener('mousemove', e => {
-    document.body.style.setProperty('--mouse-x', e.clientX + 'px');
-    document.body.style.setProperty('--mouse-y', e.clientY + 'px');
-});
+// ─── TARGET DATE ─────────────────────────────────────────────────────────────
+
+async function loadTarget(userId) {
+    const { data } = await sb.from('crossing_targets').select('target_date').eq('user_id', userId).eq('crossing_name', 'English Channel').maybeSingle();
+    return data?.target_date || null;
+}
+
+async function saveTarget(userId, dateStr) {
+    await sb.from('crossing_targets').upsert({ user_id: userId, crossing_name: 'English Channel', target_date: dateStr, updated_at: new Date().toISOString() }, { onConflict: 'user_id,crossing_name' });
+}
+
+function daysUntil(dateStr) {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    d.setHours(0,0,0,0);
+    const now = new Date(); now.setHours(0,0,0,0);
+    return Math.max(0, Math.floor((d - now) / 86400000));
+}
+
+function renderTargetDisplay(dateStr) {
+    if (!dateStr) { document.getElementById('targetDisplay').textContent = 'No target date set — add one to unlock countdown and phase tracking.'; document.getElementById('targetInput').value = ''; return; }
+    const days = daysUntil(dateStr);
+    const d = new Date(dateStr);
+    document.getElementById('targetDisplay').innerHTML = `<span style="color:var(--text);font-weight:700;">${d.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</span> <span style="color:var(--text-sec);">— ${days} days away (${Math.round(days/7)} weeks)</span>`;
+    document.getElementById('targetInput').value = dateStr;
+}
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+
+async function init() {
+    document.getElementById('loadingState').style.display = 'block';
+
+    const { data: { session } } = await sb.auth.getSession();
+    _session = session;
+
+    if (!session) {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('authGate').style.display = 'block';
+        return;
+    }
+
+    // Personalise nav
+    const name = session.user.user_metadata?.display_name || session.user.email?.split('@')[0] || 'Swimmer';
+    document.getElementById('navLabel').textContent = name;
+    document.getElementById('dashTitle').textContent = name.split(' ')[0] + "'s Channel Prep";
+
+    // Load logs + target in parallel
+    const [logsResult, target] = await Promise.all([
+        sb.from('temp_logs')
+            .select('id, temp_c, conditions, notes, created_at, distance_km, spots(name, domain)')
+            .eq('created_by', session.user.id)
+            .order('created_at', { ascending: false })
+            .limit(120),
+        loadTarget(session.user.id)
+    ]);
+
+    _logs = logsResult.data || [];
+    _targetDate = target;
+
+    const days = daysUntil(_targetDate);
+
+    // Render all sections
+    renderTargetDisplay(_targetDate);
+    renderPhase(days);
+    renderRecs(_logs, days);
+    renderCold(_logs);
+    renderRhythm(_logs);
+    renderRatio(_logs);
+    renderQualifier(_logs);
+    renderSessions(_logs);
+
+    // Target save handler
+    document.getElementById('targetSave').addEventListener('click', async () => {
+        const val = document.getElementById('targetInput').value;
+        if (!val) return;
+        await saveTarget(session.user.id, val);
+        _targetDate = val;
+        const newDays = daysUntil(val);
+        renderTargetDisplay(val);
+        renderPhase(newDays);
+        renderRecs(_logs, newDays);
+    });
+
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+
+    if (typeof gtag === 'function') gtag('event', 'crossing_prep_view', { crossing_name: 'English Channel', session_count: _logs.length });
+}
 
 init();
 </script>
