@@ -124,6 +124,7 @@
     .faq-item[open] summary{color:var(--ocean-light);}
     .faq-item p{font-size:13px;color:var(--text-secondary);line-height:1.6;padding:0 0 14px;margin:0;}
     .faq-item p strong{color:var(--text-primary);}
+    @keyframes pilotPulse { 0%,100%{opacity:1} 50%{opacity:.25} }
     </style>
 </head>
 <body>
@@ -143,6 +144,79 @@
 </div>
 
 <div class="container">
+    <!-- ═══════════════════════ CONVERSION: TRAINING SECTION ═══════════════════════ -->
+    <div id="trainingCtaCard" style="background:linear-gradient(135deg,rgba(14,165,233,0.10),rgba(8,15,26,0.6));border:1px solid rgba(14,165,233,0.25);border-radius:16px;padding:20px;margin-top:14px;margin-bottom:14px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ocean-light);margin-bottom:10px;">Training for the English Channel?</div>
+        <p style="font-size:13px;color:var(--text-secondary);line-height:1.65;margin-bottom:16px;">The English Channel is not only a distance challenge. It is a cold water, tide, nutrition, pacing and preparation challenge. SwimLoading helps swimmers log training, track water temperature exposure, monitor long swims and build a preparation record before crossing day.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <a href="/app" id="ecTrainingCta" class="cta-btn" style="padding:10px 20px;font-size:12px;text-decoration:none;" onclick="ecGa4('signup_cta_click',{cta_label:'Track my Channel preparation',page_path:'/crossings/english-channel'})">Track my Channel preparation</a>
+            <button onclick="ecOpenReadiness();ecGa4('readiness_checker_opened',{crossing_name:'English Channel',page_path:'/crossings/english-channel'})" class="cta-btn ghost" style="padding:10px 20px;font-size:12px;border:none;cursor:pointer;">Check my readiness</button>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════ READINESS CHECKER ═══════════════════════ -->
+    <div id="ecReadinessPanel" style="display:none;background:#0d1728;border:1px solid rgba(56,189,248,0.25);border-radius:16px;padding:20px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ocean-light);margin-bottom:4px;">Readiness Checker</div>
+                <div style="font-size:14px;font-weight:700;color:var(--text-primary);">English Channel — ~33 km, 14–18°C</div>
+            </div>
+            <button onclick="ecCloseReadiness()" style="background:rgba(255,255,255,0.06);border:none;color:var(--text-secondary);font-size:18px;width:30px;height:30px;border-radius:50%;cursor:pointer;">×</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+            <div>
+                <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em;">Longest swim (km)</div>
+                <input type="number" id="ec_longest" placeholder="e.g. 10" min="0" step="0.5" style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid rgba(14,165,233,0.25);background:rgba(14,165,233,0.05);color:var(--text-primary);font-size:14px;">
+            </div>
+            <div>
+                <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em;">Weekly volume (km)</div>
+                <input type="number" id="ec_weekly" placeholder="e.g. 20" min="0" step="1" style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid rgba(14,165,233,0.25);background:rgba(14,165,233,0.05);color:var(--text-primary);font-size:14px;">
+            </div>
+            <div>
+                <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em;">Coldest water (°C)</div>
+                <input type="number" id="ec_coldest" placeholder="e.g. 15" min="0" max="30" step="0.5" style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid rgba(14,165,233,0.25);background:rgba(14,165,233,0.05);color:var(--text-primary);font-size:14px;">
+            </div>
+            <div>
+                <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em;">Open water swims (8 weeks)</div>
+                <input type="number" id="ec_ow" placeholder="e.g. 8" min="0" max="50" step="1" style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid rgba(14,165,233,0.25);background:rgba(14,165,233,0.05);color:var(--text-primary);font-size:14px;">
+            </div>
+        </div>
+        <button onclick="ecCalcReadiness()" style="width:100%;padding:11px;border-radius:50px;border:none;background:var(--ocean-light);color:#080f1a;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px;">Calculate My Readiness Score</button>
+        <div id="ec_result" style="display:none;"></div>
+    </div>
+
+    <!-- ═══════════════════════ JAMES PILOT SECTION ═══════════════════════ -->
+    <div style="background:#0d1728;border:1px solid rgba(245,158,11,0.2);border-radius:16px;padding:20px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <div style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--warning);background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);padding:3px 10px;border-radius:50px;">
+                <span style="width:5px;height:5px;border-radius:50%;background:var(--warning);display:inline-block;animation:pilotPulse 2s infinite;"></span>
+                Pilot athlete journey
+            </div>
+        </div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:6px;">James' English Channel preparation</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:10px;">Following a real swimmer's Channel prep journey</div>
+        <p style="font-size:12px;color:var(--text-secondary);line-height:1.65;margin-bottom:14px;">James is preparing for an English Channel swim. Once connected to SwimLoading, his training journey will show real swim logs, long swim progression, cold water exposure and readiness indicators.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px;">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:4px;">Target crossing</div>
+                <div style="font-size:13px;font-weight:600;color:var(--text-primary);">English Channel</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px;">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:4px;">Status</div>
+                <div style="font-size:13px;font-weight:600;color:var(--warning);">Awaiting SwimLoading connection</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px;">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:4px;">Data source</div>
+                <div style="font-size:12px;font-weight:500;color:var(--text-secondary);">SwimLoading + Strava once connected</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px;">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:4px;">Journey type</div>
+                <div style="font-size:12px;font-weight:500;color:var(--text-secondary);">Pilot athlete journey</div>
+            </div>
+        </div>
+        <a href="/journeys/james-english-channel" class="cta-btn ghost" style="font-size:12px;padding:9px 18px;text-decoration:none;display:inline-block;">Follow James' journey</a>
+    </div>
+
     <div class="tab-bar" style="margin-top:14px;">
         <button class="tab-btn active" onclick="showTab('now',this)">Now</button>
         <button class="tab-btn" onclick="showTab('window',this)">16-day</button>
@@ -831,6 +905,13 @@ async function init() {
 
     const btn = document.getElementById('refreshBtn');
     if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+
+    // Update conversion CTAs based on auth state
+    try {
+        const { data: { session } } = await sb.auth.getSession();
+        ecUpdateCtaForSession(session);
+        ecGa4('crossing_index_view', { crossing_name: 'English Channel', page_path: '/crossings/english-channel' });
+    } catch(e) { /* non-critical */ }
 }
 
 async function refreshAll() {
@@ -2430,6 +2511,95 @@ async function submitEmail(ev, source) {
         }
     }
     return false;
+}
+
+// ─── CROSSING READINESS CHECKER ───────────────────────────────────────────────
+
+function ecGa4(event, params) { if (typeof gtag === 'function') gtag('event', event, params); }
+
+function ecOpenReadiness() {
+    document.getElementById('ecReadinessPanel').style.display = 'block';
+    document.getElementById('ecReadinessPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function ecCloseReadiness() {
+    document.getElementById('ecReadinessPanel').style.display = 'none';
+}
+
+function ecCalcReadiness() {
+    const longest = parseFloat(document.getElementById('ec_longest').value) || 0;
+    const weekly = parseFloat(document.getElementById('ec_weekly').value) || 0;
+    const coldest = parseFloat(document.getElementById('ec_coldest').value);
+    const owSwims = parseFloat(document.getElementById('ec_ow').value) || 0;
+
+    if (isNaN(coldest)) { alert('Please enter your coldest water temperature.'); return; }
+
+    const distKm = 33, tempMin = 14, tempMax = 18;
+    const longestScore = Math.min(30, longest / distKm * 30);
+    const weeklyScore = Math.min(25, weekly / (distKm * 1.5) * 25);
+    let coldScore = coldest <= tempMin ? 25 : coldest <= tempMax ? 18 : 8;
+    const owScore = Math.min(20, owSwims / 12 * 20);
+    const total = Math.round(longestScore + weeklyScore + coldScore + owScore);
+
+    const bands = [
+        { min: 80, label: 'Strong preparation base', color: '#10b981' },
+        { min: 60, label: 'Developing preparation base', color: '#38bdf8' },
+        { min: 40, label: 'Significant preparation gaps', color: '#f59e0b' },
+        { min: 0,  label: 'Early preparation stage', color: '#ef4444' }
+    ];
+    const band = bands.find(b => total >= b.min);
+
+    const strengths = [], risks = [], actions = [];
+    if (longestScore >= 24) strengths.push('Long swim distance is well-developed for the Channel');
+    else { risks.push('Longest swim should build toward 20+ km before attempting'); actions.push('Schedule a 20 km training swim as your next major milestone'); }
+    if (weeklyScore >= 20) strengths.push('Weekly volume provides a strong aerobic base');
+    else { risks.push('Weekly training volume is below Channel benchmarks (50 km/week peak)'); actions.push('Gradually build weekly volume to 40–50 km/week in the 6 months before your crossing'); }
+    if (coldScore >= 25) strengths.push('Cold water exposure matches Channel crossing conditions');
+    else if (coldScore >= 18) actions.push('Increase cold water exposure — target sessions below 14°C');
+    else { risks.push('Cold water tolerance is significantly below Channel temperatures (14–18°C)'); actions.push('Prioritise cold water acclimatisation immediately — start with any open water below 18°C'); }
+    if (owScore >= 16) strengths.push('Open water consistency is strong');
+    else { risks.push('Open water session frequency is low for a Channel attempt'); actions.push('Increase open water sessions to at least 2 per week through the season'); }
+    if (total >= 60) actions.push('Consider booking a coach experienced in Channel crossings');
+
+    const ecSession = typeof _channelProUser !== 'undefined';
+    const saveCta = ecSession
+        ? `<a href="/app" class="cta-btn" style="display:block;text-align:center;text-decoration:none;margin-top:14px;padding:10px;" onclick="ecGa4('app_cta_click',{cta_label:'Save to my SwimLoading profile',page_path:'/crossings/english-channel'})">Save to my SwimLoading profile</a>`
+        : `<a href="/app" class="cta-btn" style="display:block;text-align:center;text-decoration:none;margin-top:14px;padding:10px;" onclick="ecGa4('signup_cta_click',{cta_label:'Create account to save readiness score',page_path:'/crossings/english-channel'})">Create account to save my readiness score</a>`;
+
+    const listHtml = (items, color, label) => !items.length ? '' :
+        `<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${color};margin:10px 0 6px;">${label}</div>
+         <ul style="list-style:none;padding:0;">${items.map(i=>`<li style="font-size:12px;color:var(--text-secondary);padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05);line-height:1.5;display:flex;gap:6px;align-items:flex-start;"><span style="color:var(--ocean-light);flex-shrink:0;">→</span>${i}</li>`).join('')}</ul>`;
+
+    document.getElementById('ec_result').innerHTML = `
+        <div style="text-align:center;margin-bottom:14px;">
+            <div style="font-size:64px;font-weight:900;color:${band.color};font-family:-apple-system,sans-serif;line-height:1;">${total}</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">out of 100</div>
+            <div style="font-size:14px;font-weight:700;color:${band.color};margin-top:4px;">${band.label}</div>
+        </div>
+        <div class="stat-grid" style="margin-bottom:8px;">
+            <div class="stat-box"><div class="stat-val ${Math.round(longestScore)>=20?'green':'amber'}">${Math.round(longestScore)}/30</div><div class="stat-lbl">Long swim</div></div>
+            <div class="stat-box"><div class="stat-val ${Math.round(weeklyScore)>=18?'green':'amber'}">${Math.round(weeklyScore)}/25</div><div class="stat-lbl">Weekly volume</div></div>
+            <div class="stat-box"><div class="stat-val ${coldScore>=22?'green':'amber'}">${coldScore}/25</div><div class="stat-lbl">Cold water</div></div>
+            <div class="stat-box"><div class="stat-val ${Math.round(owScore)>=15?'green':'amber'}">${Math.round(owScore)}/20</div><div class="stat-lbl">Open water</div></div>
+        </div>
+        ${listHtml(strengths,'#10b981','Strengths')}
+        ${listHtml(risks,'#f59e0b','Preparation gaps')}
+        ${listHtml(actions,'#38bdf8','Next actions')}
+        ${saveCta}
+        <div style="font-size:11px;color:var(--text-secondary);opacity:.6;line-height:1.55;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);margin-top:12px;">Readiness scoring is indicative only and does not replace coaching, medical advice, pilot guidance or official crossing association requirements.</div>
+    `;
+    document.getElementById('ec_result').style.display = 'block';
+
+    ecGa4('readiness_score_calculated', { crossing_name: 'English Channel', readiness_score: total, page_path: '/crossings/english-channel' });
+}
+
+// Update training CTA based on session state (runs after init())
+function ecUpdateCtaForSession(session) {
+    const cta = document.getElementById('ecTrainingCta');
+    if (cta && session) {
+        cta.textContent = 'Go to my dashboard';
+        cta.href = '/app';
+    }
 }
 
 // ─── BOOT ──────────────────────────────────────────────────────────────────────

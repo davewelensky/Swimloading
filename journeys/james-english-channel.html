@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-89R519Y9T4"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-89R519Y9T4');
+    </script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>James' English Channel Journey | SwimLoading</title>
+    <meta name="description" content="Follow James' pilot athlete journey preparing for an English Channel swim with SwimLoading — training logs, cold water exposure, long swim progression and readiness tracking.">
+    <link rel="canonical" href="https://www.swimloading.com/journeys/james-english-channel">
+    <meta property="og:title" content="James' English Channel Journey | SwimLoading">
+    <meta property="og:description" content="A pilot SwimLoading athlete journey following preparation for an English Channel swim.">
+    <meta property="og:url" content="https://www.swimloading.com/journeys/james-english-channel">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+    <style>
+    :root {
+        --bg: #080f1a;
+        --bg-card: #0d1728;
+        --cyan: #38bdf8;
+        --ocean: #0ea5e9;
+        --text: #f1f5f9;
+        --text-sec: #64748b;
+        --border: rgba(255,255,255,0.06);
+        --amber: #f59e0b;
+        --green: #10b981;
+        --danger: #ef4444;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'DM Sans', -apple-system, sans-serif;
+        min-height: 100vh;
+        padding-bottom: 60px;
+    }
+    body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 9999;
+        background:
+            radial-gradient(18px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+                rgba(56,189,248,0.55), transparent 100%),
+            radial-gradient(500px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+                rgba(56,189,248,0.07), transparent 70%);
+    }
+    nav {
+        background: rgba(8,15,26,0.92);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border);
+        padding: 12px 20px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+    .nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        text-decoration: none;
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        flex-shrink: 0;
+    }
+    .nav-brand img { height: 22px; width: auto; }
+    .nav-right { display: flex; align-items: center; gap: 10px; }
+    .nav-back {
+        font-size: 12px;
+        color: var(--text-sec);
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .nav-back:hover { color: var(--cyan); }
+    .nav-cta {
+        display: inline-block;
+        padding: 8px 18px;
+        border-radius: 50px;
+        background: var(--cyan);
+        color: #080f1a;
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .container { max-width: 700px; margin: 0 auto; padding: 0 16px; }
+
+    /* HERO */
+    .hero {
+        padding: 48px 16px 40px;
+        max-width: 700px;
+        margin: 0 auto;
+    }
+    .pilot-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        color: var(--amber);
+        background: rgba(245,158,11,0.1);
+        border: 1px solid rgba(245,158,11,0.3);
+        padding: 4px 14px;
+        border-radius: 50px;
+        margin-bottom: 20px;
+    }
+    .pilot-badge::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--amber);
+        animation: pulse-amber 2s infinite;
+    }
+    @keyframes pulse-amber {
+        0%, 100% { opacity: 1; }
+        50% { opacity: .3; }
+    }
+    .hero h1 {
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: clamp(34px, 7vw, 52px);
+        line-height: 1.05;
+        color: var(--text);
+        margin-bottom: 12px;
+        letter-spacing: .03em;
+    }
+    .hero h1 span { color: var(--cyan); }
+    .hero p {
+        font-size: 15px;
+        color: var(--text-sec);
+        line-height: 1.65;
+        max-width: 540px;
+        margin-bottom: 24px;
+    }
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: var(--text-sec);
+        background: rgba(255,255,255,0.04);
+        border: 1px solid var(--border);
+        padding: 5px 14px;
+        border-radius: 50px;
+    }
+
+    /* CARDS */
+    .card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 14px;
+    }
+    .card-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: var(--text-sec);
+        margin-bottom: 14px;
+    }
+
+    /* OVERVIEW */
+    .overview-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    .overview-row {
+        padding: 10px 14px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+    }
+    .overview-key {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--text-sec);
+        margin-bottom: 4px;
+    }
+    .overview-val {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        line-height: 1.4;
+    }
+
+    /* TRACKING CARDS */
+    .tracking-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 10px;
+    }
+    .tracking-card {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+    }
+    .tracking-icon {
+        font-size: 20px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+    }
+    .tracking-name {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 4px;
+    }
+    .tracking-desc {
+        font-size: 11px;
+        color: var(--text-sec);
+        line-height: 1.5;
+    }
+
+    /* DASHBOARD PENDING */
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    .dash-stat {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        text-align: center;
+    }
+    .dash-val {
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 28px;
+        letter-spacing: .04em;
+        color: var(--text-sec);
+        opacity: .45;
+        margin-bottom: 4px;
+    }
+    .dash-label {
+        font-size: 11px;
+        color: var(--text-sec);
+        opacity: .6;
+    }
+    .dash-pending {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: var(--amber);
+        background: rgba(245,158,11,0.1);
+        border: 1px solid rgba(245,158,11,0.2);
+        padding: 2px 10px;
+        border-radius: 50px;
+        margin-top: 6px;
+    }
+
+    /* CTA */
+    .cta-section {
+        background: linear-gradient(135deg, rgba(14,165,233,0.12), rgba(8,15,26,0.5));
+        border: 1px solid rgba(14,165,233,0.25);
+        border-radius: 20px;
+        padding: 32px 24px;
+        text-align: center;
+        margin: 32px 0 48px;
+    }
+    .cta-section h2 {
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 28px;
+        letter-spacing: .04em;
+        color: var(--text);
+        margin-bottom: 10px;
+    }
+    .cta-section p {
+        font-size: 13px;
+        color: var(--text-sec);
+        line-height: 1.65;
+        margin-bottom: 20px;
+        max-width: 440px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .cta-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .btn-primary {
+        display: inline-block;
+        padding: 12px 26px;
+        border-radius: 50px;
+        background: var(--cyan);
+        color: #080f1a;
+        font-size: 14px;
+        font-weight: 700;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        font-family: 'DM Sans', sans-serif;
+        transition: opacity .15s;
+    }
+    .btn-primary:hover { opacity: .88; }
+    .btn-ghost {
+        display: inline-block;
+        padding: 12px 26px;
+        border-radius: 50px;
+        background: transparent;
+        border: 1px solid rgba(255,255,255,0.15);
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: border-color .15s;
+    }
+    .btn-ghost:hover { border-color: rgba(56,189,248,0.5); color: var(--cyan); }
+
+    .section-divider {
+        padding-top: 32px;
+        margin-top: 8px;
+        border-top: 1px solid var(--border);
+        margin-bottom: 16px;
+    }
+    .section-divider h2 {
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 22px;
+        letter-spacing: .04em;
+        color: var(--text);
+    }
+
+    @media (max-width: 520px) {
+        .overview-grid { grid-template-columns: 1fr; }
+        .tracking-grid { grid-template-columns: 1fr 1fr; }
+        .dashboard-grid { grid-template-columns: 1fr 1fr; }
+        .cta-btns { flex-direction: column; align-items: center; }
+    }
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="/" class="nav-brand">
+        <img src="/icons/logo-wave.png" alt="">SwimLoading
+    </a>
+    <div class="nav-right">
+        <a href="/crossings/english-channel" class="nav-back">← English Channel</a>
+        <a href="/app" id="navCta" class="nav-cta">Open App</a>
+    </div>
+</nav>
+
+<div class="hero">
+    <div class="pilot-badge">Pilot athlete journey</div>
+    <h1>James'<br><span>English Channel</span><br>Journey</h1>
+    <p>A pilot SwimLoading athlete journey following preparation for an English Channel swim.</p>
+    <div class="status-pill">Awaiting SwimLoading connection</div>
+</div>
+
+<div class="container">
+
+    <!-- JOURNEY OVERVIEW -->
+    <div class="card">
+        <div class="card-label">Journey overview</div>
+        <div class="overview-grid">
+            <div class="overview-row">
+                <div class="overview-key">Crossing</div>
+                <div class="overview-val">English Channel</div>
+            </div>
+            <div class="overview-row">
+                <div class="overview-key">Athlete</div>
+                <div class="overview-val">James</div>
+            </div>
+            <div class="overview-row">
+                <div class="overview-key">Status</div>
+                <div class="overview-val" style="color:var(--amber);">Setup in progress</div>
+            </div>
+            <div class="overview-row">
+                <div class="overview-key">Data</div>
+                <div class="overview-val" style="color:var(--text-sec);">Pending SwimLoading account connection</div>
+            </div>
+            <div class="overview-row" style="grid-column:span 2 / span 2;">
+                <div class="overview-key">Data source</div>
+                <div class="overview-val">SwimLoading + Strava once connected</div>
+            </div>
+            <div class="overview-row" style="grid-column:span 2 / span 2;">
+                <div class="overview-key">Planned tracking</div>
+                <div class="overview-val">Training swims, long swim progression, cold water exposure, weekly volume, readiness trend</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WHAT WILL BE TRACKED -->
+    <div class="section-divider">
+        <h2>What will be tracked</h2>
+    </div>
+    <div class="card" style="padding:16px;">
+        <div class="tracking-grid">
+            <div class="tracking-card">
+                <div class="tracking-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                </div>
+                <div class="tracking-name">Weekly swim volume</div>
+                <div class="tracking-desc">Total km per week across all sessions</div>
+            </div>
+            <div class="tracking-card">
+                <div class="tracking-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                </div>
+                <div class="tracking-name">Longest swim progression</div>
+                <div class="tracking-desc">Month-by-month longest single swim</div>
+            </div>
+            <div class="tracking-card">
+                <div class="tracking-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+                </div>
+                <div class="tracking-name">Cold water exposure</div>
+                <div class="tracking-desc">Temperature of each open water swim</div>
+            </div>
+            <div class="tracking-card">
+                <div class="tracking-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6c.7 2.3 4.5 4 9 4s8.3-1.7 9-4"/><path d="M3 18c.7-2.3 4.5-4 9-4s8.3 1.7 9 4"/><line x1="12" y1="2" x2="12" y2="22"/></svg>
+                </div>
+                <div class="tracking-name">Open water sessions</div>
+                <div class="tracking-desc">Frequency and location of OW swims</div>
+            </div>
+            <div class="tracking-card">
+                <div class="tracking-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fc4c02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <div class="tracking-name">Strava imports</div>
+                <div class="tracking-desc">Swim activities imported from Strava once connected</div>
+            </div>
+            <div class="tracking-card">
+                <div class="tracking-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </div>
+                <div class="tracking-name">Readiness score</div>
+                <div class="tracking-desc">Indicative readiness based on logged data</div>
+            </div>
+            <div class="tracking-card" style="grid-column:span 2 / span 2;">
+                <div class="tracking-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                </div>
+                <div class="tracking-name">Notes and learnings</div>
+                <div class="tracking-desc">Session notes, conditions, key milestones and reflections throughout the preparation</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PLACEHOLDER DASHBOARD -->
+    <div class="section-divider">
+        <h2>Preparation dashboard</h2>
+    </div>
+    <div class="card" style="padding:16px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <div style="flex:1;">
+                <div style="font-size:13px;font-weight:600;color:var(--text);">James · English Channel preparation</div>
+                <div style="font-size:11px;color:var(--text-sec);margin-top:2px;">Data will appear here once James connects his SwimLoading account</div>
+            </div>
+            <span style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);padding:3px 10px;border-radius:50px;">Setup in progress</span>
+        </div>
+        <div class="dashboard-grid">
+            <div class="dash-stat">
+                <div class="dash-val">—</div>
+                <div class="dash-label">Weekly volume</div>
+                <div class="dash-pending">Pending</div>
+            </div>
+            <div class="dash-stat">
+                <div class="dash-val">—</div>
+                <div class="dash-label">Longest swim</div>
+                <div class="dash-pending">Pending</div>
+            </div>
+            <div class="dash-stat">
+                <div class="dash-val">—</div>
+                <div class="dash-label">Coldest swim</div>
+                <div class="dash-pending">Pending</div>
+            </div>
+            <div class="dash-stat">
+                <div class="dash-val">—</div>
+                <div class="dash-label">Readiness score</div>
+                <div class="dash-pending">Pending</div>
+            </div>
+        </div>
+        <div class="dash-stat" style="margin-top:10px;text-align:left;padding:14px 16px;">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-sec);margin-bottom:6px;">Latest swim</div>
+            <div style="font-size:13px;color:var(--text-sec);opacity:.55;font-style:italic;">No sessions logged yet — data will appear here once James connects his SwimLoading account and begins logging.</div>
+        </div>
+        <div style="margin-top:14px;padding:12px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:10px;font-size:12px;color:var(--text-sec);line-height:1.55;">
+            This is a pilot journey page. No data has been fabricated. All stats above will update automatically once James connects SwimLoading and begins logging his preparation.
+        </div>
+    </div>
+
+    <!-- CTA FOR OTHER SWIMMERS -->
+    <div class="cta-section">
+        <h2>Training for your own crossing?</h2>
+        <p>Use SwimLoading to build your preparation record, track open water conditions and monitor your readiness.</p>
+        <div class="cta-btns">
+            <a href="/app" id="mainCta" class="btn-primary" onclick="ga4('signup_cta_click',{cta_label:'Create my SwimLoading account',page_path:'/journeys/james-english-channel'})">Create my SwimLoading account</a>
+            <a href="/crossings" class="btn-ghost" onclick="ga4('crossing_card_click',{crossing_name:'All crossings',page_path:'/journeys/james-english-channel'})">Explore crossings</a>
+        </div>
+    </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, storageKey: 'sb-szgkzuswelntnevobnoh-auth-token' }
+});
+
+function ga4(event, params) {
+    if (typeof gtag === 'function') gtag('event', event, params);
+}
+
+async function init() {
+    try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) {
+            document.getElementById('navCta').textContent = 'Open App';
+            document.getElementById('mainCta').textContent = 'Go to my dashboard';
+            document.getElementById('mainCta').href = '/app';
+        }
+    } catch(e) { /* non-critical */ }
+
+    ga4('journey_page_view', { crossing_name: 'English Channel', page_path: '/journeys/james-english-channel' });
+}
+
+document.addEventListener('mousemove', e => {
+    document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+    document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+});
+
+init();
+</script>
+</body>
+</html>

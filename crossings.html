@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-89R519Y9T4"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-89R519Y9T4');
+    </script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Open Water Crossing Intelligence | SwimLoading</title>
+    <meta name="description" content="Explore iconic open water crossings, training guidance, water temperatures, readiness tools and athlete journeys with SwimLoading.">
+    <link rel="canonical" href="https://www.swimloading.com/crossings">
+    <meta property="og:title" content="Open Water Crossing Intelligence | SwimLoading">
+    <meta property="og:description" content="Explore iconic open water crossings, training guidance, water temperatures, readiness tools and athlete journeys with SwimLoading.">
+    <meta property="og:url" content="https://www.swimloading.com/crossings">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+    <style>
+    :root {
+        --bg: #080f1a;
+        --bg-card: #0d1728;
+        --cyan: #38bdf8;
+        --ocean: #0ea5e9;
+        --text: #f1f5f9;
+        --text-sec: #64748b;
+        --border: rgba(255,255,255,0.06);
+        --amber: #f59e0b;
+        --green: #10b981;
+        --danger: #ef4444;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'DM Sans', -apple-system, sans-serif;
+        min-height: 100vh;
+        padding-bottom: 60px;
+    }
+    body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 9999;
+        background:
+            radial-gradient(18px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+                rgba(56,189,248,0.55), transparent 100%),
+            radial-gradient(500px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+                rgba(56,189,248,0.07), transparent 70%);
+    }
+
+    /* NAV */
+    nav {
+        background: rgba(8,15,26,0.92);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border);
+        padding: 12px 20px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        text-decoration: none;
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .nav-brand img { height: 22px; width: auto; }
+    .nav-cta {
+        display: inline-block;
+        padding: 8px 18px;
+        border-radius: 50px;
+        background: var(--cyan);
+        color: #080f1a;
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+    }
+    .nav-cta.ghost {
+        background: transparent;
+        border: 1px solid rgba(56,189,248,0.35);
+        color: var(--cyan);
+    }
+
+    /* HERO */
+    .hero {
+        padding: 56px 20px 48px;
+        max-width: 700px;
+        margin: 0 auto;
+        text-align: center;
+    }
+    .hero-eyebrow {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        color: var(--cyan);
+        background: rgba(56,189,248,0.1);
+        border: 1px solid rgba(56,189,248,0.25);
+        padding: 4px 14px;
+        border-radius: 50px;
+        margin-bottom: 20px;
+    }
+    .hero h1 {
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: clamp(38px, 8vw, 62px);
+        line-height: 1.05;
+        color: var(--text);
+        margin-bottom: 18px;
+        letter-spacing: .02em;
+    }
+    .hero h1 span { color: var(--cyan); }
+    .hero p {
+        font-size: 16px;
+        color: var(--text-sec);
+        line-height: 1.65;
+        max-width: 540px;
+        margin: 0 auto 32px;
+    }
+    .hero-ctas {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    .btn-primary {
+        display: inline-block;
+        padding: 14px 30px;
+        border-radius: 50px;
+        background: var(--cyan);
+        color: #080f1a;
+        font-size: 15px;
+        font-weight: 700;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        transition: opacity .15s;
+    }
+    .btn-primary:hover { opacity: .88; }
+    .btn-ghost {
+        display: inline-block;
+        padding: 14px 30px;
+        border-radius: 50px;
+        background: transparent;
+        border: 1px solid rgba(255,255,255,0.15);
+        color: var(--text);
+        font-size: 15px;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        transition: border-color .15s;
+    }
+    .btn-ghost:hover { border-color: rgba(56,189,248,0.5); color: var(--cyan); }
+
+    /* CONTAINER */
+    .container { max-width: 900px; margin: 0 auto; padding: 0 16px; }
+
+    /* SECTION HEADER */
+    .section-header {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        margin-bottom: 20px;
+        padding-top: 40px;
+    }
+    .section-header h2 {
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 26px;
+        letter-spacing: .04em;
+        color: var(--text);
+    }
+    .section-badge {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .12em;
+        color: var(--amber);
+        background: rgba(245,158,11,0.1);
+        border: 1px solid rgba(245,158,11,0.25);
+        padding: 2px 10px;
+        border-radius: 50px;
+    }
+
+    /* FEATURED GRID */
+    .featured-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+    .crossing-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        transition: border-color .2s, transform .2s;
+        text-decoration: none;
+        color: inherit;
+    }
+    .crossing-card:hover { border-color: rgba(56,189,248,0.35); transform: translateY(-2px); }
+    .crossing-card.featured {
+        background: linear-gradient(135deg, rgba(14,165,233,0.12), rgba(8,15,26,0.6));
+        border-color: rgba(14,165,233,0.3);
+    }
+    .crossing-card.featured:hover { border-color: rgba(56,189,248,0.6); }
+    .crossing-region {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: var(--text-sec);
+    }
+    .crossing-name {
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 22px;
+        letter-spacing: .04em;
+        color: var(--text);
+        line-height: 1.1;
+    }
+    .crossing-card.featured .crossing-name { font-size: 26px; }
+    .crossing-meta {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .meta-chip {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 50px;
+        border: 1px solid var(--border);
+        color: var(--text-sec);
+    }
+    .meta-chip.temp { color: var(--cyan); border-color: rgba(56,189,248,0.25); background: rgba(56,189,248,0.06); }
+    .meta-chip.dist { color: var(--green); border-color: rgba(16,185,129,0.25); background: rgba(16,185,129,0.06); }
+    .meta-chip.diff-extreme { color: var(--danger); border-color: rgba(239,68,68,0.25); background: rgba(239,68,68,0.06); }
+    .meta-chip.diff-very-hard { color: var(--amber); border-color: rgba(245,158,11,0.25); background: rgba(245,158,11,0.06); }
+    .meta-chip.diff-hard { color: #a78bfa; border-color: rgba(167,139,250,0.25); background: rgba(167,139,250,0.06); }
+    .crossing-ctas {
+        display: flex;
+        gap: 8px;
+        margin-top: auto;
+    }
+    .card-btn {
+        flex: 1;
+        padding: 9px 12px;
+        border-radius: 50px;
+        font-size: 12px;
+        font-weight: 700;
+        text-align: center;
+        cursor: pointer;
+        border: none;
+        text-decoration: none;
+        transition: opacity .15s;
+    }
+    .card-btn:hover { opacity: .85; }
+    .card-btn.primary { background: var(--cyan); color: #080f1a; }
+    .card-btn.ghost { background: transparent; border: 1px solid rgba(56,189,248,0.3); color: var(--cyan); }
+
+    /* ALL CROSSINGS GRID */
+    .crossings-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 14px;
+        margin-bottom: 16px;
+    }
+
+    /* READINESS CHECKER */
+    .readiness-section {
+        background: var(--bg-card);
+        border: 1px solid rgba(56,189,248,0.2);
+        border-radius: 20px;
+        padding: 28px 24px;
+        margin: 40px 0 48px;
+    }
+    .readiness-header {
+        margin-bottom: 24px;
+    }
+    .readiness-header h2 {
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 28px;
+        letter-spacing: .04em;
+        color: var(--text);
+        margin-bottom: 8px;
+    }
+    .readiness-header p {
+        font-size: 13px;
+        color: var(--text-sec);
+        line-height: 1.6;
+    }
+    .readiness-select {
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: 10px;
+        border: 1px solid rgba(56,189,248,0.3);
+        background: rgba(14,165,233,0.06);
+        color: var(--text);
+        font-size: 14px;
+        font-family: 'DM Sans', sans-serif;
+        margin-bottom: 16px;
+    }
+    .readiness-form {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .form-field label {
+        display: block;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-sec);
+        margin-bottom: 5px;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+    }
+    .form-field input {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(56,189,248,0.25);
+        background: rgba(14,165,233,0.05);
+        color: var(--text);
+        font-size: 14px;
+        font-family: 'DM Sans', sans-serif;
+    }
+    .form-field input:focus { outline: none; border-color: var(--cyan); }
+    .readiness-submit {
+        width: 100%;
+        padding: 12px;
+        border-radius: 50px;
+        border: none;
+        background: var(--cyan);
+        color: #080f1a;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: 'DM Sans', sans-serif;
+        transition: opacity .15s;
+    }
+    .readiness-submit:hover { opacity: .88; }
+
+    /* SCORE RESULT */
+    .score-result {
+        margin-top: 20px;
+        padding: 20px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: rgba(8,15,26,0.5);
+        display: none;
+    }
+    .score-result.visible { display: block; }
+    .score-circle {
+        text-align: center;
+        margin-bottom: 16px;
+    }
+    .score-number {
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 72px;
+        line-height: 1;
+        letter-spacing: .02em;
+    }
+    .score-band {
+        font-size: 13px;
+        font-weight: 700;
+        margin-top: 4px;
+    }
+    .score-breakdown {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin: 16px 0;
+    }
+    .score-item {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+    }
+    .score-item-label { font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--text-sec); text-transform: uppercase; margin-bottom: 4px; }
+    .score-item-val { font-size: 18px; font-weight: 800; }
+    .score-list { margin: 12px 0; padding-left: 0; list-style: none; }
+    .score-list li { font-size: 12px; color: var(--text-sec); padding: 5px 0; border-bottom: 1px solid var(--border); line-height: 1.5; display: flex; gap: 8px; align-items: flex-start; }
+    .score-list li:last-child { border-bottom: none; }
+    .score-list li::before { content: '→'; color: var(--cyan); flex-shrink: 0; margin-top: 1px; }
+    .disclaimer {
+        font-size: 11px;
+        color: var(--text-sec);
+        opacity: .65;
+        line-height: 1.55;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+        margin-top: 12px;
+    }
+
+    /* BOTTOM CTA */
+    .bottom-cta {
+        background: linear-gradient(135deg, rgba(14,165,233,0.12), rgba(8,15,26,0.5));
+        border: 1px solid rgba(14,165,233,0.25);
+        border-radius: 20px;
+        padding: 36px 24px;
+        text-align: center;
+        margin: 0 0 48px;
+    }
+    .bottom-cta h2 {
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 30px;
+        letter-spacing: .04em;
+        color: var(--text);
+        margin-bottom: 12px;
+    }
+    .bottom-cta p { font-size: 14px; color: var(--text-sec); line-height: 1.65; margin-bottom: 24px; max-width: 460px; margin-left: auto; margin-right: auto; }
+
+    @media (max-width: 520px) {
+        .hero { padding: 40px 16px 36px; }
+        .readiness-form { grid-template-columns: 1fr; }
+        .score-breakdown { grid-template-columns: 1fr; }
+        .featured-grid { grid-template-columns: 1fr; }
+        .crossings-grid { grid-template-columns: 1fr; }
+        .hero-ctas { flex-direction: column; align-items: center; }
+    }
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="/" class="nav-brand">
+        <img src="icons/logo-wave.png" alt="">SwimLoading
+    </a>
+    <a href="/app" id="navCta" class="nav-cta">Open App</a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+    <div class="hero-eyebrow">Crossing Intelligence</div>
+    <h1>Crossing Intelligence<br>for <span>Open Water</span> Swimmers</h1>
+    <p>Explore iconic open water crossings, understand the conditions, and track your readiness with SwimLoading.</p>
+    <div class="hero-ctas">
+        <a href="/app" id="heroCta" class="btn-primary" onclick="ga4('signup_cta_click',{cta_label:'Start tracking your crossing prep',page_path:'/crossings'})">Start tracking your crossing prep</a>
+        <a href="#all-crossings" class="btn-ghost">Browse all crossings</a>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- FEATURED -->
+    <div class="section-header">
+        <h2>Featured Crossings</h2>
+        <span class="section-badge">Most tracked</span>
+    </div>
+    <div class="featured-grid">
+
+        <div class="crossing-card featured">
+            <div class="crossing-region">English Channel / Strait of Dover</div>
+            <div class="crossing-name">English Channel</div>
+            <div class="crossing-meta">
+                <span class="meta-chip dist">~33 km</span>
+                <span class="meta-chip temp">14–18°C</span>
+                <span class="meta-chip diff-extreme">Extreme</span>
+            </div>
+            <p style="font-size:12px;color:var(--text-sec);line-height:1.6;">The world's most iconic open water crossing. Shakespeare Beach to Cap Gris-Nez. Cold, tidal, shipping-lane crossing.</p>
+            <div class="crossing-ctas">
+                <a href="/crossings/english-channel" class="card-btn primary" onclick="ga4('crossing_card_click',{crossing_name:'English Channel',page_path:'/crossings'})">View crossing</a>
+                <button class="card-btn ghost" onclick="openReadiness({name:'English Channel',distKm:33,tempMin:14,tempMax:18,difficulty:'Extreme'});ga4('readiness_checker_opened',{crossing_name:'English Channel',page_path:'/crossings'})">Check readiness</button>
+            </div>
+        </div>
+
+        <div class="crossing-card featured">
+            <div class="crossing-region">Cape Town, South Africa</div>
+            <div class="crossing-name">Robben Island</div>
+            <div class="crossing-meta">
+                <span class="meta-chip dist">7.5 km</span>
+                <span class="meta-chip temp">12–16°C</span>
+                <span class="meta-chip diff-hard">Hard</span>
+            </div>
+            <p style="font-size:12px;color:var(--text-sec);line-height:1.6;">Cold Atlantic water, strong currents, the original South African marathon swim. Nelson Mandela swam these waters.</p>
+            <div class="crossing-ctas">
+                <a href="/robben" class="card-btn primary" onclick="ga4('crossing_card_click',{crossing_name:'Robben Island',page_path:'/crossings'})">View crossing</a>
+                <button class="card-btn ghost" onclick="openReadiness({name:'Robben Island',distKm:7.5,tempMin:12,tempMax:16,difficulty:'Hard'});ga4('readiness_checker_opened',{crossing_name:'Robben Island',page_path:'/crossings'})">Check readiness</button>
+            </div>
+        </div>
+
+        <div class="crossing-card featured">
+            <div class="crossing-region">Ireland / Scotland</div>
+            <div class="crossing-name">North Channel</div>
+            <div class="crossing-meta">
+                <span class="meta-chip dist">~35 km</span>
+                <span class="meta-chip temp">10–14°C</span>
+                <span class="meta-chip diff-extreme">Extreme</span>
+            </div>
+            <p style="font-size:12px;color:var(--text-sec);line-height:1.6;">The coldest and toughest of the Oceans Seven. Donaghadee to Portpatrick. Lion's mane jellyfish at every turn.</p>
+            <div class="crossing-ctas">
+                <a href="/crossings/north-channel" class="card-btn primary" onclick="ga4('crossing_card_click',{crossing_name:'North Channel',page_path:'/crossings'})">View crossing</a>
+                <button class="card-btn ghost" onclick="openReadiness({name:'North Channel',distKm:35,tempMin:10,tempMax:14,difficulty:'Extreme'});ga4('readiness_checker_opened',{crossing_name:'North Channel',page_path:'/crossings'})">Check readiness</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ALL CROSSINGS -->
+    <div class="section-header" id="all-crossings">
+        <h2>All Crossings</h2>
+    </div>
+    <div class="crossings-grid">
+
+        <div class="crossing-card">
+            <div class="crossing-region">Cape Town, South Africa</div>
+            <div class="crossing-name">False Bay</div>
+            <div class="crossing-meta">
+                <span class="meta-chip dist">~28 km</span>
+                <span class="meta-chip temp">14–18°C</span>
+                <span class="meta-chip diff-extreme">Extreme</span>
+            </div>
+            <div class="crossing-ctas">
+                <a href="/crossings/false-bay" class="card-btn primary" onclick="ga4('crossing_card_click',{crossing_name:'False Bay',page_path:'/crossings'})">View crossing</a>
+                <button class="card-btn ghost" onclick="openReadiness({name:'False Bay',distKm:28,tempMin:14,tempMax:18,difficulty:'Extreme'});ga4('readiness_checker_opened',{crossing_name:'False Bay',page_path:'/crossings'})">Check readiness</button>
+            </div>
+        </div>
+
+        <div class="crossing-card">
+            <div class="crossing-region">California, USA</div>
+            <div class="crossing-name">Catalina Channel</div>
+            <div class="crossing-meta">
+                <span class="meta-chip dist">~33 km</span>
+                <span class="meta-chip temp">14–20°C</span>
+                <span class="meta-chip diff-very-hard">Very Hard</span>
+            </div>
+            <div class="crossing-ctas">
+                <a href="/crossings/catalina-channel" class="card-btn primary" onclick="ga4('crossing_card_click',{crossing_name:'Catalina Channel',page_path:'/crossings'})">View crossing</a>
+                <button class="card-btn ghost" onclick="openReadiness({name:'Catalina Channel',distKm:33,tempMin:14,tempMax:20,difficulty:'Very Hard'});ga4('readiness_checker_opened',{crossing_name:'Catalina Channel',page_path:'/crossings'})">Check readiness</button>
+            </div>
+        </div>
+
+        <div class="crossing-card">
+            <div class="crossing-region">Western Australia</div>
+            <div class="crossing-name">Rottnest Channel</div>
+            <div class="crossing-meta">
+                <span class="meta-chip dist">19.7 km</span>
+                <span class="meta-chip temp">18–22°C</span>
+                <span class="meta-chip diff-hard">Hard</span>
+            </div>
+            <div class="crossing-ctas">
+                <a href="/crossings/rottnest-channel" class="card-btn primary" onclick="ga4('crossing_card_click',{crossing_name:'Rottnest Channel',page_path:'/crossings'})">View crossing</a>
+                <button class="card-btn ghost" onclick="openReadiness({name:'Rottnest Channel',distKm:19.7,tempMin:18,tempMax:22,difficulty:'Hard'});ga4('readiness_checker_opened',{crossing_name:'Rottnest Channel',page_path:'/crossings'})">Check readiness</button>
+            </div>
+        </div>
+
+        <div class="crossing-card">
+            <div class="crossing-region">New York, USA</div>
+            <div class="crossing-name">Manhattan Island</div>
+            <div class="crossing-meta">
+                <span class="meta-chip dist">~48 km</span>
+                <span class="meta-chip temp">16–24°C</span>
+                <span class="meta-chip diff-very-hard">Very Hard</span>
+            </div>
+            <div class="crossing-ctas">
+                <a href="/crossings/manhattan-island" class="card-btn primary" onclick="ga4('crossing_card_click',{crossing_name:'Manhattan Island',page_path:'/crossings'})">View crossing</a>
+                <button class="card-btn ghost" onclick="openReadiness({name:'Manhattan Island',distKm:48,tempMin:16,tempMax:24,difficulty:'Very Hard'});ga4('readiness_checker_opened',{crossing_name:'Manhattan Island',page_path:'/crossings'})">Check readiness</button>
+            </div>
+        </div>
+
+        <div class="crossing-card">
+            <div class="crossing-region">New Zealand</div>
+            <div class="crossing-name">Cook Strait</div>
+            <div class="crossing-meta">
+                <span class="meta-chip dist">~26 km</span>
+                <span class="meta-chip temp">10–15°C</span>
+                <span class="meta-chip diff-extreme">Extreme</span>
+            </div>
+            <div class="crossing-ctas">
+                <a href="/crossings/cook-strait" class="card-btn primary" onclick="ga4('crossing_card_click',{crossing_name:'Cook Strait',page_path:'/crossings'})">View crossing</a>
+                <button class="card-btn ghost" onclick="openReadiness({name:'Cook Strait',distKm:26,tempMin:10,tempMax:15,difficulty:'Extreme'});ga4('readiness_checker_opened',{crossing_name:'Cook Strait',page_path:'/crossings'})">Check readiness</button>
+            </div>
+        </div>
+
+        <div class="crossing-card">
+            <div class="crossing-region">Hawaii, USA</div>
+            <div class="crossing-name">Molokai Channel</div>
+            <div class="crossing-meta">
+                <span class="meta-chip dist">~42 km</span>
+                <span class="meta-chip temp">24–28°C</span>
+                <span class="meta-chip diff-extreme">Extreme</span>
+            </div>
+            <div class="crossing-ctas">
+                <a href="/crossings/molokai-channel" class="card-btn primary" onclick="ga4('crossing_card_click',{crossing_name:'Molokai Channel',page_path:'/crossings'})">View crossing</a>
+                <button class="card-btn ghost" onclick="openReadiness({name:'Molokai Channel',distKm:42,tempMin:24,tempMax:28,difficulty:'Extreme'});ga4('readiness_checker_opened',{crossing_name:'Molokai Channel',page_path:'/crossings'})">Check readiness</button>
+            </div>
+        </div>
+
+        <div class="crossing-card">
+            <div class="crossing-region">Spain / Morocco</div>
+            <div class="crossing-name">Strait of Gibraltar</div>
+            <div class="crossing-meta">
+                <span class="meta-chip dist">~14 km</span>
+                <span class="meta-chip temp">18–22°C</span>
+                <span class="meta-chip diff-hard">Hard</span>
+            </div>
+            <div class="crossing-ctas">
+                <a href="/crossings/strait-of-gibraltar" class="card-btn primary" onclick="ga4('crossing_card_click',{crossing_name:'Strait of Gibraltar',page_path:'/crossings'})">View crossing</a>
+                <button class="card-btn ghost" onclick="openReadiness({name:'Strait of Gibraltar',distKm:14,tempMin:18,tempMax:22,difficulty:'Hard'});ga4('readiness_checker_opened',{crossing_name:'Strait of Gibraltar',page_path:'/crossings'})">Check readiness</button>
+            </div>
+        </div>
+
+        <div class="crossing-card">
+            <div class="crossing-region">English Channel / Normandy</div>
+            <div class="crossing-name">Jersey to France</div>
+            <div class="crossing-meta">
+                <span class="meta-chip dist">~22 km</span>
+                <span class="meta-chip temp">14–18°C</span>
+                <span class="meta-chip diff-very-hard">Very Hard</span>
+            </div>
+            <div class="crossing-ctas">
+                <a href="/crossings/jersey-to-france" class="card-btn primary" onclick="ga4('crossing_card_click',{crossing_name:'Jersey to France',page_path:'/crossings'})">View crossing</a>
+                <button class="card-btn ghost" onclick="openReadiness({name:'Jersey to France',distKm:22,tempMin:14,tempMax:18,difficulty:'Very Hard'});ga4('readiness_checker_opened',{crossing_name:'Jersey to France',page_path:'/crossings'})">Check readiness</button>
+            </div>
+        </div>
+
+        <div class="crossing-card">
+            <div class="crossing-region">Japan</div>
+            <div class="crossing-name">Tsugaru Strait</div>
+            <div class="crossing-meta">
+                <span class="meta-chip dist">19.5 km</span>
+                <span class="meta-chip temp">15–20°C</span>
+                <span class="meta-chip diff-very-hard">Very Hard</span>
+            </div>
+            <div class="crossing-ctas">
+                <a href="/crossings/tsugaru-strait" class="card-btn primary" onclick="ga4('crossing_card_click',{crossing_name:'Tsugaru Strait',page_path:'/crossings'})">View crossing</a>
+                <button class="card-btn ghost" onclick="openReadiness({name:'Tsugaru Strait',distKm:19.5,tempMin:15,tempMax:20,difficulty:'Very Hard'});ga4('readiness_checker_opened',{crossing_name:'Tsugaru Strait',page_path:'/crossings'})">Check readiness</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- READINESS CHECKER -->
+    <div class="readiness-section" id="readiness-section">
+        <div class="readiness-header">
+            <div style="display:inline-block;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan);background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);padding:3px 12px;border-radius:50px;margin-bottom:12px;">Readiness Checker</div>
+            <h2>Check My Crossing Readiness</h2>
+            <p>Enter your current training state and get an indicative readiness score for your target crossing.</p>
+        </div>
+        <select class="readiness-select" id="crossingSelect" onchange="onCrossingSelect()">
+            <option value="">— Select a crossing —</option>
+            <option value="english-channel" data-dist="33" data-tmin="14" data-tmax="18" data-diff="Extreme">English Channel (~33 km, 14–18°C)</option>
+            <option value="robben-island" data-dist="7.5" data-tmin="12" data-tmax="16" data-diff="Hard">Robben Island (7.5 km, 12–16°C)</option>
+            <option value="false-bay" data-dist="28" data-tmin="14" data-tmax="18" data-diff="Extreme">False Bay (~28 km, 14–18°C)</option>
+            <option value="north-channel" data-dist="35" data-tmin="10" data-tmax="14" data-diff="Extreme">North Channel (~35 km, 10–14°C)</option>
+            <option value="catalina-channel" data-dist="33" data-tmin="14" data-tmax="20" data-diff="Very Hard">Catalina Channel (~33 km, 14–20°C)</option>
+            <option value="rottnest-channel" data-dist="19.7" data-tmin="18" data-tmax="22" data-diff="Hard">Rottnest Channel (19.7 km, 18–22°C)</option>
+            <option value="manhattan-island" data-dist="48" data-tmin="16" data-tmax="24" data-diff="Very Hard">Manhattan Island (~48 km, 16–24°C)</option>
+            <option value="cook-strait" data-dist="26" data-tmin="10" data-tmax="15" data-diff="Extreme">Cook Strait (~26 km, 10–15°C)</option>
+            <option value="molokai-channel" data-dist="42" data-tmin="24" data-tmax="28" data-diff="Extreme">Molokai Channel (~42 km, 24–28°C)</option>
+            <option value="strait-of-gibraltar" data-dist="14" data-tmin="18" data-tmax="22" data-diff="Hard">Strait of Gibraltar (~14 km, 18–22°C)</option>
+            <option value="jersey-to-france" data-dist="22" data-tmin="14" data-tmax="18" data-diff="Very Hard">Jersey to France (~22 km, 14–18°C)</option>
+            <option value="tsugaru-strait" data-dist="19.5" data-tmin="15" data-tmax="20" data-diff="Very Hard">Tsugaru Strait (19.5 km, 15–20°C)</option>
+        </select>
+        <div class="readiness-form">
+            <div class="form-field">
+                <label>Longest swim (km)</label>
+                <input type="number" id="rc_longest" placeholder="e.g. 10" min="0" step="0.5">
+            </div>
+            <div class="form-field">
+                <label>Weekly volume (km)</label>
+                <input type="number" id="rc_weekly" placeholder="e.g. 20" min="0" step="1">
+            </div>
+            <div class="form-field">
+                <label>Coldest water (°C)</label>
+                <input type="number" id="rc_coldest" placeholder="e.g. 15" min="0" max="30" step="0.5">
+            </div>
+            <div class="form-field">
+                <label>Open water swims (8 weeks)</label>
+                <input type="number" id="rc_ow" placeholder="e.g. 8" min="0" max="50" step="1">
+            </div>
+        </div>
+        <button class="readiness-submit" onclick="calcReadiness('crossings')">Calculate My Readiness Score</button>
+        <div class="score-result" id="rc_result"></div>
+    </div>
+
+    <!-- BOTTOM CTA -->
+    <div class="bottom-cta">
+        <h2>Track your crossing preparation</h2>
+        <p>Log open water swims, track cold water exposure, monitor your long swim progression and build a readiness record before crossing day.</p>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+            <a href="/app" id="bottomCta" class="btn-primary" onclick="ga4('signup_cta_click',{cta_label:'Create my SwimLoading account',page_path:'/crossings'})">Create my SwimLoading account</a>
+            <a href="/crossings/english-channel" class="btn-ghost">Explore the English Channel</a>
+        </div>
+    </div>
+
+</div>
+
+<!-- READINESS MODAL (for card buttons) -->
+<div id="readiness-modal" style="display:none;position:fixed;inset:0;background:rgba(8,15,26,0.85);backdrop-filter:blur(6px);z-index:1000;overflow-y:auto;padding:20px 16px;">
+    <div style="max-width:540px;margin:40px auto;background:var(--bg-card);border:1px solid rgba(56,189,248,0.25);border-radius:20px;padding:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <div id="modal-crossing-name" style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.04em;color:var(--text);"></div>
+            <button onclick="closeReadinessModal()" style="background:rgba(255,255,255,0.06);border:none;color:var(--text-sec);font-size:18px;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>
+        </div>
+        <div id="modal-crossing-meta" style="margin-bottom:16px;display:flex;gap:8px;flex-wrap:wrap;"></div>
+        <div class="readiness-form">
+            <div class="form-field">
+                <label>Longest swim (km)</label>
+                <input type="number" id="m_longest" placeholder="e.g. 10" min="0" step="0.5">
+            </div>
+            <div class="form-field">
+                <label>Weekly volume (km)</label>
+                <input type="number" id="m_weekly" placeholder="e.g. 20" min="0" step="1">
+            </div>
+            <div class="form-field">
+                <label>Coldest water (°C)</label>
+                <input type="number" id="m_coldest" placeholder="e.g. 15" min="0" max="30" step="0.5">
+            </div>
+            <div class="form-field">
+                <label>Open water swims (8 weeks)</label>
+                <input type="number" id="m_ow" placeholder="e.g. 8" min="0" max="50" step="1">
+            </div>
+        </div>
+        <button class="readiness-submit" onclick="calcReadiness('modal')">Calculate My Readiness Score</button>
+        <div class="score-result" id="m_result"></div>
+    </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, storageKey: 'sb-szgkzuswelntnevobnoh-auth-token' }
+});
+
+let _session = null;
+let _modalCrossing = null;
+
+function ga4(event, params) {
+    if (typeof gtag === 'function') gtag('event', event, params);
+}
+
+async function init() {
+    try {
+        const { data: { session } } = await sb.auth.getSession();
+        _session = session;
+        if (session) {
+            document.getElementById('navCta').textContent = 'Open App';
+            document.getElementById('heroCta').textContent = 'Go to my dashboard';
+            document.getElementById('heroCta').href = '/app';
+            if (document.getElementById('bottomCta')) {
+                document.getElementById('bottomCta').textContent = 'Go to my dashboard';
+                document.getElementById('bottomCta').href = '/app';
+            }
+        }
+    } catch(e) { /* non-critical */ }
+
+    ga4('crossing_index_view', { page_path: '/crossings' });
+}
+
+function openReadiness(crossing) {
+    _modalCrossing = crossing;
+    document.getElementById('modal-crossing-name').textContent = crossing.name + ' — Readiness Check';
+    document.getElementById('modal-crossing-meta').innerHTML =
+        `<span class="meta-chip dist">${crossing.distKm} km</span>
+         <span class="meta-chip temp">${crossing.tempMin}–${crossing.tempMax}°C</span>`;
+    document.getElementById('m_result').className = 'score-result';
+    document.getElementById('readiness-modal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeReadinessModal() {
+    document.getElementById('readiness-modal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function onCrossingSelect() {
+    const sel = document.getElementById('crossingSelect');
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt.value) return;
+    _modalCrossing = {
+        name: opt.text.split('(')[0].trim(),
+        distKm: parseFloat(opt.dataset.dist),
+        tempMin: parseFloat(opt.dataset.tmin),
+        tempMax: parseFloat(opt.dataset.tmax),
+        difficulty: opt.dataset.diff
+    };
+}
+
+function scoreReadiness(longest, weekly, coldest, owSwims, crossing) {
+    const { distKm, tempMin, tempMax } = crossing;
+    const longestScore = Math.min(30, longest / distKm * 30);
+    const benchmark = distKm * 1.5;
+    const weeklyScore = Math.min(25, weekly / benchmark * 25);
+    let coldScore;
+    if (coldest <= tempMin) coldScore = 25;
+    else if (coldest <= tempMax) coldScore = 18;
+    else coldScore = 8;
+    const owScore = Math.min(20, owSwims / 12 * 20);
+    const total = Math.round(longestScore + weeklyScore + coldScore + owScore);
+    return { total, longestScore: Math.round(longestScore), weeklyScore: Math.round(weeklyScore), coldScore, owScore: Math.round(owScore) };
+}
+
+function getBand(score) {
+    if (score >= 80) return { label: 'Strong preparation base', color: '#10b981' };
+    if (score >= 60) return { label: 'Developing preparation base', color: '#38bdf8' };
+    if (score >= 40) return { label: 'Significant preparation gaps', color: '#f59e0b' };
+    return { label: 'Early preparation stage', color: '#ef4444' };
+}
+
+function getInsights(scores, crossing) {
+    const { longestScore, weeklyScore, coldScore, owScore, total } = scores;
+    const strengths = [], risks = [], actions = [];
+    if (longestScore >= 24) strengths.push('Long swim distance is well-developed for this crossing');
+    else risks.push(`Longest swim needs to reach closer to ${Math.round(crossing.distKm * 0.7)} km before attempting`);
+    if (weeklyScore >= 20) strengths.push('Weekly volume provides a strong aerobic base');
+    else { risks.push('Weekly training volume is below the benchmark for this crossing'); actions.push(`Build weekly volume toward ${Math.round(crossing.distKm * 1.5)} km/week`); }
+    if (coldScore >= 25) strengths.push('Cold water exposure matches or exceeds crossing conditions');
+    else if (coldScore >= 18) { actions.push(`Increase cold water exposure below ${crossing.tempMin}°C`); }
+    else { risks.push(`Cold water tolerance is below crossing temperature (${crossing.tempMin}–${crossing.tempMax}°C)`); actions.push(`Prioritise acclimatisation swims below ${crossing.tempMax}°C`); }
+    if (owScore >= 16) strengths.push('Open water consistency is strong over the past 8 weeks');
+    else { risks.push('Open water session frequency is low'); actions.push('Increase open water swims to at least 1–2 per week'); }
+    if (longestScore < 15) actions.push(`Complete a swim of at least ${Math.round(crossing.distKm * 0.5)} km as next milestone`);
+    if (total >= 60) actions.push('Consider a structured crossing preparation programme with a coach');
+    return { strengths, risks, actions };
+}
+
+function calcReadiness(context) {
+    const prefix = context === 'modal' ? 'm_' : 'rc_';
+    const resultEl = document.getElementById(prefix + 'result');
+
+    let crossing = _modalCrossing;
+    if (context !== 'modal') {
+        const sel = document.getElementById('crossingSelect');
+        if (!sel.value) { alert('Please select a crossing first.'); return; }
+        crossing = {
+            name: sel.options[sel.selectedIndex].text.split('(')[0].trim(),
+            distKm: parseFloat(sel.options[sel.selectedIndex].dataset.dist),
+            tempMin: parseFloat(sel.options[sel.selectedIndex].dataset.tmin),
+            tempMax: parseFloat(sel.options[sel.selectedIndex].dataset.tmax),
+        };
+    }
+
+    const longest = parseFloat(document.getElementById(prefix + 'longest').value) || 0;
+    const weekly = parseFloat(document.getElementById(prefix + 'weekly').value) || 0;
+    const coldest = parseFloat(document.getElementById(prefix + 'coldest').value);
+    const owSwims = parseFloat(document.getElementById(prefix + 'ow').value) || 0;
+
+    if (isNaN(coldest)) { alert('Please enter your coldest water temperature.'); return; }
+
+    const scores = scoreReadiness(longest, weekly, coldest, owSwims, crossing);
+    const band = getBand(scores.total);
+    const { strengths, risks, actions } = getInsights(scores, crossing);
+
+    ga4('readiness_score_calculated', { crossing_name: crossing.name, readiness_score: scores.total, page_path: '/crossings' });
+
+    const saveCta = _session
+        ? `<a href="/app" class="readiness-submit" style="display:block;text-align:center;text-decoration:none;margin-top:14px;" onclick="ga4('app_cta_click',{cta_label:'Save to my SwimLoading profile',page_path:'/crossings'})">Save this to my SwimLoading profile</a>`
+        : `<a href="/app" class="readiness-submit" style="display:block;text-align:center;text-decoration:none;margin-top:14px;" onclick="ga4('signup_cta_click',{cta_label:'Create account to save readiness score',page_path:'/crossings'})">Create account to save my readiness score</a>`;
+
+    resultEl.innerHTML = `
+        <div class="score-circle">
+            <div class="score-number" style="color:${band.color}">${scores.total}</div>
+            <div style="font-size:11px;color:var(--text-sec);margin-top:2px;">out of 100</div>
+            <div class="score-band" style="color:${band.color}">${band.label}</div>
+        </div>
+        <div class="score-breakdown">
+            <div class="score-item"><div class="score-item-label">Long swim</div><div class="score-item-val" style="color:${scores.longestScore>=20?'#10b981':'#f59e0b'}">${scores.longestScore}/30</div></div>
+            <div class="score-item"><div class="score-item-label">Weekly volume</div><div class="score-item-val" style="color:${scores.weeklyScore>=18?'#10b981':'#f59e0b'}">${scores.weeklyScore}/25</div></div>
+            <div class="score-item"><div class="score-item-label">Cold water</div><div class="score-item-val" style="color:${scores.coldScore>=22?'#10b981':'#f59e0b'}">${scores.coldScore}/25</div></div>
+            <div class="score-item"><div class="score-item-label">Open water</div><div class="score-item-val" style="color:${scores.owScore>=15?'#10b981':'#f59e0b'}">${scores.owScore}/20</div></div>
+        </div>
+        ${strengths.length ? `<div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--green);margin-bottom:6px;">Strengths</div><ul class="score-list">${strengths.map(s=>`<li>${s}</li>`).join('')}</ul>` : ''}
+        ${risks.length ? `<div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--amber);margin-bottom:6px;margin-top:10px;">Preparation gaps</div><ul class="score-list">${risks.map(r=>`<li>${r}</li>`).join('')}</ul>` : ''}
+        ${actions.length ? `<div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:6px;margin-top:10px;">Next actions</div><ul class="score-list">${actions.map(a=>`<li>${a}</li>`).join('')}</ul>` : ''}
+        ${saveCta}
+        <div class="disclaimer">Readiness scoring is indicative only and does not replace coaching, medical advice, pilot guidance or official crossing association requirements.</div>
+    `;
+    resultEl.className = 'score-result visible';
+}
+
+document.addEventListener('mousemove', e => {
+    document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+    document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+});
+
+document.getElementById('readiness-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeReadinessModal();
+});
+
+init();
+</script>
+</body>
+</html>
