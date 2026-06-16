@@ -276,6 +276,10 @@
     /* MISC */
     .divider { border:none; border-top:1px solid var(--border); margin:22px 0; }
     a { color:var(--cyan); }
+
+    /* TAB BAR */
+    .tab-btn { background:none; border:none; color:var(--text-sec); font-family:'DM Sans',sans-serif; font-size:13px; font-weight:600; padding:14px 16px; cursor:pointer; border-bottom:2px solid transparent; transition:color .2s, border-color .2s; }
+    .tab-btn.active { color:var(--cyan); border-bottom-color:var(--cyan); }
     </style>
 </head>
 <body>
@@ -286,6 +290,15 @@
         <button class="btn-nav" id="navLogBtn" onclick="openLogModal()" style="cursor:pointer;border:none;">Log a session</button>
     </div>
 </nav>
+
+<!-- TAB BAR -->
+<div id="tabBar" style="display:none; position:sticky; top:57px; z-index:90; background:rgba(8,15,26,0.97); backdrop-filter:blur(12px); border-bottom:1px solid rgba(255,255,255,0.06);">
+  <div style="max-width:720px; margin:0 auto; display:flex; gap:0; padding:0 16px;">
+    <button class="tab-btn active" onclick="switchTab('dashboard')" id="tabDashboard">Dashboard</button>
+    <button class="tab-btn" onclick="switchTab('log')" id="tabLog">Training Log</button>
+    <button class="tab-btn" onclick="switchTab('intel')" id="tabIntel">Intelligence</button>
+  </div>
+</div>
 
 <!-- AUTH GATE -->
 <div id="authGate">
@@ -322,6 +335,20 @@
 
 <!-- DASHBOARD -->
 <div id="dashboard">
+
+<div id="tabContentDashboard">
+
+    <!-- NO TARGET BANNER -->
+    <div id="noTargetBanner" style="display:none;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:12px;padding:14px 16px;margin:16px 0;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:180px;">
+        <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:3px;">Set your target date</div>
+        <div style="font-size:12px;color:var(--text-sec);">Your readiness score and phase are estimated until you set a crossing date.</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="date" id="quickTargetDate" class="setup-input" style="width:150px;font-size:12px;padding:7px 10px;">
+        <button class="btn-primary" style="padding:8px 16px;font-size:12px;" onclick="saveQuickTargetDate()">Save</button>
+      </div>
+    </div>
 
     <!-- PRO HEADER -->
     <div class="pro-header" id="proHeader"></div>
@@ -432,21 +459,20 @@
     <!-- PREP NOTES -->
     <div id="prepNotesSection" class="section-gap"></div>
 
-    <!-- RECENT SESSIONS -->
-    <div class="section-title section-gap">Recent sessions</div>
-    <div class="panel">
-        <div class="session-list" id="sessionList"></div>
-        <div id="noSessions" style="display:none;text-align:center;padding:20px 0;font-size:13px;color:var(--text-sec);">
-            No sessions logged yet. <a href="/app">Log your first session</a>
-        </div>
-    </div>
-
     <!-- DISCLAIMER -->
     <div style="margin-top:28px;padding:16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:12px;">
         <p style="font-size:11px;color:var(--text-sec);line-height:1.65;">
             Readiness scores and preparation intelligence are indicative only and do not replace coaching, medical advice, pilot guidance, race organiser guidance, or official crossing association requirements. Always consult qualified professionals before attempting any marathon swim.
         </p>
     </div>
+
+</div><!-- end tabContentDashboard -->
+
+<!-- TRAINING LOG TAB -->
+<div id="tabContentLog" style="display:none; padding:20px 0;"></div>
+
+<!-- INTELLIGENCE TAB -->
+<div id="tabContentIntel" style="display:none; padding:20px 0;"></div>
 
 </div><!-- end #dashboard -->
 
@@ -530,6 +556,50 @@
             <button class="btn-save" id="logSaveBtn" onclick="saveSession()">Save session</button>
         </div>
     </div>
+</div>
+
+<!-- EDIT SESSION MODAL -->
+<div id="editOverlay" class="modal-overlay" style="display:none;" onclick="closeEditModal()"></div>
+<div id="editModal" class="modal-box" style="display:none;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+    <div class="modal-title">Edit Session</div>
+    <button onclick="closeEditModal()" style="background:none;border:none;color:var(--text-sec);cursor:pointer;font-size:20px;">&#x2715;</button>
+  </div>
+  <input type="hidden" id="editLogId">
+  <label style="display:block;font-size:11px;font-weight:600;color:var(--text-sec);margin-bottom:5px;">Date</label>
+  <input type="date" id="editDate" class="setup-input" style="margin-bottom:12px;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+    <div>
+      <label style="display:block;font-size:11px;font-weight:600;color:var(--text-sec);margin-bottom:5px;">Temperature (°C)</label>
+      <input type="number" id="editTemp" class="setup-input" step="0.1" placeholder="e.g. 15.5">
+    </div>
+    <div>
+      <label style="display:block;font-size:11px;font-weight:600;color:var(--text-sec);margin-bottom:5px;">Distance (km)</label>
+      <input type="number" id="editDist" class="setup-input" step="0.1" placeholder="e.g. 5.0">
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+    <div>
+      <label style="display:block;font-size:11px;font-weight:600;color:var(--text-sec);margin-bottom:5px;">Duration (minutes)</label>
+      <input type="number" id="editDur" class="setup-input" placeholder="e.g. 120">
+    </div>
+    <div>
+      <label style="display:block;font-size:11px;font-weight:600;color:var(--text-sec);margin-bottom:5px;">Session type</label>
+      <select id="editLocType" class="setup-input">
+        <option value="open_water">Open water</option>
+        <option value="lido">Lido / outdoor pool</option>
+        <option value="pool">Indoor pool</option>
+      </select>
+    </div>
+  </div>
+  <label style="display:block;font-size:11px;font-weight:600;color:var(--text-sec);margin-bottom:5px;">Location</label>
+  <input type="text" id="editLocName" class="setup-input" placeholder="e.g. Tooting Bec Lido" style="margin-bottom:12px;">
+  <label style="display:block;font-size:11px;font-weight:600;color:var(--text-sec);margin-bottom:5px;">Notes</label>
+  <textarea id="editNotes" class="setup-input" rows="2" placeholder="Optional notes" style="resize:none;"></textarea>
+  <div style="margin-top:18px;display:flex;gap:10px;">
+    <button class="btn-primary" style="flex:1;" onclick="saveEdit()">Save changes</button>
+    <button onclick="closeEditModal()" style="flex:0;padding:12px 20px;border-radius:50px;border:1px solid var(--border2);background:none;color:var(--text-sec);cursor:pointer;font-size:14px;font-weight:600;">Cancel</button>
+  </div>
 </div>
 
 <script>
@@ -1435,6 +1505,7 @@ async function createAttempt() {
     _attempts = [data];
     document.getElementById('setupState').style.display = 'none';
     document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('tabBar').style.display = '';
     await renderDashboard();
 
     if (typeof gtag === 'function') {
@@ -1495,13 +1566,16 @@ async function renderDashboard() {
 
     // Target date panel — show if not set
     const targetPanel = document.getElementById('targetDatePanel');
+    const noTargetBanner = document.getElementById('noTargetBanner');
     if (!attempt?.target_date) {
         targetPanel.style.display = 'block';
         document.getElementById('targetDisplay').textContent = 'No target date set — add one to unlock countdown and phase tracking.';
         document.getElementById('targetInput').value = '';
+        if (noTargetBanner) noTargetBanner.style.display = 'flex';
     } else {
         targetPanel.style.display = 'none';
         document.getElementById('targetInput').value = attempt.target_date;
+        if (noTargetBanner) noTargetBanner.style.display = 'none';
     }
 
     // Readiness engine
@@ -1518,7 +1592,6 @@ async function renderDashboard() {
     renderWeeklyReview(_logs, result);
     renderTrends(_logs);
     renderQualifier(_logs, crossing, _evidence);
-    renderSessions(_logs);
     renderCommunityBenchmark(crossing?.slug, null);
 
     // Attempt selector
@@ -1708,6 +1781,251 @@ async function saveSession() {
     }
 }
 
+// ─── TAB SWITCHING ────────────────────────────────────────────────────────────
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  document.getElementById('tabContentDashboard').style.display = tab === 'dashboard' ? '' : 'none';
+  document.getElementById('tabContentLog').style.display = tab === 'log' ? '' : 'none';
+  document.getElementById('tabContentIntel').style.display = tab === 'intel' ? '' : 'none';
+  if (tab === 'log') renderLogTab();
+  if (tab === 'intel') renderIntelTab();
+}
+
+// ─── TRAINING LOG TAB ─────────────────────────────────────────────────────────
+
+function renderLogTab() {
+  const el = document.getElementById('tabContentLog');
+  if (!_logs || !_logs.length) {
+    el.innerHTML = '<p style="text-align:center;color:var(--text-sec);padding:40px 16px;">No sessions logged yet. Use "Log a session" to start.</p>';
+    return;
+  }
+  const sorted = [..._logs].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+  el.innerHTML = `
+    <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+      <p style="font-size:13px;color:var(--text-sec);">${sorted.length} session${sorted.length!==1?'s':''} total</p>
+      <button class="btn-primary" style="padding:9px 18px;font-size:12px;" onclick="openLogModal()">+ Log a session</button>
+    </div>
+    <div id="logList">
+      ${sorted.map(l => {
+        const d = new Date(l.created_at);
+        const dateStr = d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+        const loc = l.spots ? l.spots.name : (l.notes ? l.notes.split('\n')[0] : '—');
+        const locType = l.location_type || 'open_water';
+        const locIcon = locType === 'pool' ? '&#9632;' : locType === 'lido' ? '&#9671;' : '&#9670;';
+        return `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer;" onclick="openEditModal('${l.id}')">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+            <div>
+              <div style="font-size:13px;font-weight:600;margin-bottom:4px;">${dateStr}</div>
+              <div style="font-size:11px;color:var(--text-sec);">${locIcon} ${loc}${l.temp_c != null ? ' · ' + l.temp_c + '°C' : ''}${l.distance_km > 0 ? ' · ' + l.distance_km + 'km' : ''}${l.duration_minutes ? ' · ' + l.duration_minutes + 'min' : ''}</div>
+            </div>
+            <span style="font-size:10px;color:var(--cyan);border:1px solid rgba(56,189,248,0.3);border-radius:6px;padding:3px 8px;white-space:nowrap;">Edit</span>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+// ─── EDIT SESSION MODAL ───────────────────────────────────────────────────────
+
+function openEditModal(logId) {
+  const l = _logs.find(x => x.id === logId);
+  if (!l) return;
+  document.getElementById('editLogId').value = l.id;
+  document.getElementById('editDate').value = l.created_at.split('T')[0];
+  document.getElementById('editTemp').value = l.temp_c != null ? l.temp_c : '';
+  document.getElementById('editDist').value = l.distance_km || '';
+  document.getElementById('editDur').value = l.duration_minutes || '';
+  document.getElementById('editLocName').value = (l.notes || '').split('\n')[0];
+  document.getElementById('editLocType').value = l.location_type || 'open_water';
+  document.getElementById('editNotes').value = (l.notes || '').split('\n').slice(1).join('\n');
+  document.getElementById('editModal').style.display = '';
+  document.getElementById('editOverlay').style.display = '';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').style.display = 'none';
+  document.getElementById('editOverlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+async function saveEdit() {
+  const id = document.getElementById('editLogId').value;
+  const locName = document.getElementById('editLocName').value.trim();
+  const extraNotes = document.getElementById('editNotes').value.trim();
+  const notesVal = locName ? (extraNotes ? locName + '\n' + extraNotes : locName) : extraNotes;
+
+  const { error } = await sb.from('temp_logs').update({
+    created_at: document.getElementById('editDate').value + 'T06:00:00',
+    temp_c: parseFloat(document.getElementById('editTemp').value) || null,
+    distance_km: parseFloat(document.getElementById('editDist').value) || 0,
+    duration_minutes: parseInt(document.getElementById('editDur').value) || null,
+    location_type: document.getElementById('editLocType').value || null,
+    notes: notesVal || null,
+  }).eq('id', id);
+
+  if (error) { alert('Error: ' + error.message); return; }
+
+  closeEditModal();
+  const { data } = await sb.from('temp_logs')
+    .select('id, temp_c, conditions, notes, created_at, distance_km, duration_minutes, location_type, spots!temp_logs_spot_id_fkey(name, domain)')
+    .eq('user_id', _viewingId)
+    .order('created_at', { ascending: false });
+  _logs = data || [];
+  await renderDashboard();
+  renderLogTab();
+}
+
+// ─── QUICK TARGET DATE (banner) ───────────────────────────────────────────────
+
+async function saveQuickTargetDate() {
+  const d = document.getElementById('quickTargetDate').value;
+  if (!d || !_activeAttempt) return;
+  const { error } = await sb.from('crossing_attempts').update({ target_date: d }).eq('id', _activeAttempt.id);
+  if (error) { alert(error.message); return; }
+  _activeAttempt.target_date = d;
+  document.getElementById('noTargetBanner').style.display = 'none';
+  await renderDashboard();
+}
+
+// ─── INTELLIGENCE TAB ─────────────────────────────────────────────────────────
+
+function getPhaseForIntel(attempt) {
+  if (!attempt || !attempt.target_date) return { key: 'foundation', label: 'Foundation' };
+  const days = Math.ceil((new Date(attempt.target_date) - new Date()) / 86400000);
+  if (days < 0) return { key: 'review', label: 'Review' };
+  if (days < 14) return { key: 'taper', label: 'Taper' };
+  if (days < 42) return { key: 'peak', label: 'Peak / Qualifying' };
+  if (days < 84) return { key: 'specific', label: 'Specific Prep' };
+  if (days < 168) return { key: 'build', label: 'Build' };
+  return { key: 'foundation', label: 'Foundation' };
+}
+
+function getResourcesForCrossing(slug) {
+  const resources = {
+    'english-channel': [
+      { label: 'Channel Swimming & Piloting Federation (CS&PF)', url: 'https://www.channelswimming.net/', desc: 'Official governing body, registration, pilots' },
+      { label: 'Channel Swimming Association (CSA)', url: 'https://www.channelswimmingassociation.com/', desc: 'Historic governing body, ratification rules' },
+      { label: 'Dover Harbour tides', url: 'https://www.bbc.co.uk/weather/coast-and-sea/tide-tables/7/86/', desc: 'Daily tide tables for Dover' },
+    ],
+    'robben-island': [
+      { label: 'Robben Island Swim Association', url: 'https://robbenislandswim.co.za/', desc: 'Official organiser, entry requirements' },
+      { label: 'False Bay water temperatures', url: 'https://swimloading.com/app', desc: 'Community temperature logs, Cape Town' },
+    ],
+    'north-channel': [
+      { label: 'Solo Swims of Northern Ireland (SSNI)', url: 'https://soloswims.com/', desc: 'Governing body, registration, approved observers' },
+    ],
+    'rottnest-channel': [
+      { label: 'Rottnest Channel Swim', url: 'https://rottnestchannelswim.com.au/', desc: 'Official event site, entry portal' },
+    ],
+  };
+  const list = resources[slug] || [];
+  const defaults = [
+    { label: 'Open Water Source', url: 'https://www.openwaterswimming.com/', desc: 'International marathon swimming news and resources' },
+    { label: 'World Open Water Swimming Association', url: 'https://www.worldopenwaterswimmingassociation.com/', desc: 'Race calendar, records, rules' },
+    { label: 'SwimLoading community water temps', url: 'https://swimloading.com/app', desc: 'Real-time temperatures from open water swimmers' },
+  ];
+  return [...list, ...defaults].map(r => `<a href="${r.url}" target="_blank" rel="noopener" style="display:block;padding:10px 0;border-bottom:1px solid var(--border);text-decoration:none;color:var(--text);">
+    <div style="font-size:13px;font-weight:600;color:var(--cyan);">${r.label}</div>
+    <div style="font-size:11px;color:var(--text-sec);margin-top:2px;">${r.desc}</div>
+  </a>`).join('');
+}
+
+function renderIntelTab() {
+  const el = document.getElementById('tabContentIntel');
+  if (!_crossing) {
+    el.innerHTML = '<p style="text-align:center;color:var(--text-sec);padding:40px;">Select a crossing to see intelligence.</p>';
+    return;
+  }
+  const c = _crossing;
+  const phase = getPhaseForIntel(_activeAttempt);
+
+  const phases = [
+    { key:'foundation', label:'Foundation', weeks:'Week 1–24 (>168 days out)', desc:'Build base aerobic fitness. Establish weekly swim routine. Begin open water sessions. Focus on technique and consistency over volume.' },
+    { key:'build', label:'Build', weeks:'Weeks 25–44 (84–168 days out)', desc:'Increase weekly volume steadily. Start cold water acclimatisation. Aim for progressive long swims every 2–3 weeks. Begin feed practice.' },
+    { key:'specific', label:'Specific Prep', weeks:'Weeks 45–50 (42–84 days out)', desc:'Crossing-specific training: simulate conditions, practice feeds, night swims if required. Aim for weekly volume near benchmark. Target longest swim of your preparation.' },
+    { key:'peak', label:'Peak / Qualifying', weeks:'Weeks 51–52 (14–42 days out)', desc:'Complete qualifying swim with observer. Final long swims. Confirm crew, pilot, support. Begin taper protocol.' },
+    { key:'taper', label:'Taper', weeks:'Final 2 weeks', desc:'Reduce volume, maintain intensity. Rest, sleep, nutrition. Briefings with pilot and crew. Final admin.' },
+  ];
+
+  el.innerHTML = `
+    <div class="section-gap">
+      <div class="section-title">Crossing Profile</div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+          <div>
+            <h2 style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:.04em;">${c.name}</h2>
+            <p style="font-size:12px;color:var(--text-sec);">${c.region || ''}${c.country ? ' · ' + c.country : ''}</p>
+          </div>
+          ${c.distance_km ? `<div style="text-align:right;"><div style="font-size:22px;font-weight:800;color:var(--cyan);">${c.distance_km}km</div><div style="font-size:10px;color:var(--text-sec);">distance</div></div>` : ''}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+          ${c.typical_temp_min_c != null ? `<span style="background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--blue);">${c.typical_temp_min_c}–${c.typical_temp_max_c}°C water</span>` : ''}
+          ${c.difficulty ? `<span style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.2);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--purple);text-transform:capitalize;">${c.difficulty}</span>` : ''}
+          ${c.requires_observer ? `<span style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--amber);">Observer required</span>` : ''}
+        </div>
+        ${c.description ? `<p style="font-size:13px;color:var(--text-sec);line-height:1.65;">${c.description}</p>` : ''}
+      </div>
+    </div>
+
+    ${c.benchmark_weekly_km ? `
+    <div class="section-gap">
+      <div class="section-title">Training Benchmarks (Build Phase Target)</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:var(--cyan);">${c.benchmark_weekly_km}km</div>
+          <div style="font-size:10px;color:var(--text-sec);margin-top:2px;">weekly volume</div>
+        </div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:var(--cyan);">${c.benchmark_long_swim_km}km</div>
+          <div style="font-size:10px;color:var(--text-sec);margin-top:2px;">longest session target</div>
+        </div>
+        ${c.benchmark_cold_hours > 0 ? `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;text-align:center;"><div style="font-size:22px;font-weight:800;color:var(--blue);">${c.benchmark_cold_hours}h</div><div style="font-size:10px;color:var(--text-sec);margin-top:2px;">cold water exposure</div></div>` : ''}
+        ${c.benchmark_open_water_percent ? `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;text-align:center;"><div style="font-size:22px;font-weight:800;color:var(--green);">${c.benchmark_open_water_percent}%</div><div style="font-size:10px;color:var(--text-sec);margin-top:2px;">open water sessions</div></div>` : ''}
+      </div>
+    </div>` : ''}
+
+    ${c.qualifying_duration_minutes ? `
+    <div class="section-gap">
+      <div class="section-title">Qualifying Swim Requirements</div>
+      <div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);border-radius:14px;padding:18px;">
+        <p style="font-size:13px;color:var(--text);line-height:1.6;">
+          You must complete a qualifying swim of <strong>${Math.round(c.qualifying_duration_minutes/60)} hours</strong>
+          ${c.qualifying_temp_limit_c ? ` in water at or below <strong>${c.qualifying_temp_limit_c}°C</strong>` : ''}
+          ${c.requires_observer ? ` with an <strong>approved observer</strong> present` : ''}.
+          This must be submitted to your governing body for official recognition.
+        </p>
+      </div>
+    </div>` : ''}
+
+    <div class="section-gap">
+      <div class="section-title">24-Month Preparation Phases</div>
+      ${phases.map(p => {
+        const isCurrent = phase.key === p.key;
+        return `<div style="background:${isCurrent ? 'rgba(56,189,248,0.07)' : 'var(--bg-card)'};border:1px solid ${isCurrent ? 'rgba(56,189,248,0.3)' : 'var(--border)'};border-radius:12px;padding:14px 16px;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <span style="width:8px;height:8px;border-radius:50%;background:${isCurrent ? 'var(--cyan)' : 'var(--border2)'};flex-shrink:0;display:inline-block;"></span>
+            <strong style="font-size:13px;">${p.label}</strong>
+            <span style="font-size:10px;color:var(--text-sec);">${p.weeks}</span>
+            ${isCurrent ? '<span style="margin-left:auto;font-size:9px;font-weight:700;color:var(--cyan);border:1px solid rgba(56,189,248,0.3);border-radius:4px;padding:2px 6px;">CURRENT</span>' : ''}
+          </div>
+          <p style="font-size:12px;color:var(--text-sec);line-height:1.6;padding-left:16px;">${p.desc}</p>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="section-gap">
+      <div class="section-title">Key Resources</div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:18px;">
+        ${getResourcesForCrossing(c.slug)}
+      </div>
+    </div>
+  `;
+}
+
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 
 async function init() {
@@ -1766,6 +2084,7 @@ async function init() {
 
         document.getElementById('loadingState').style.display = 'none';
         document.getElementById('dashboard').style.display = 'block';
+        document.getElementById('tabBar').style.display = '';
         await renderDashboard();
 
     } else {
@@ -1790,8 +2109,8 @@ async function init() {
                     _evidence = [];
                     document.getElementById('loadingState').style.display = 'none';
                     document.getElementById('dashboard').style.display = 'block';
+                    document.getElementById('tabBar').style.display = '';
                     await renderDashboard();
-                    document.getElementById('loadingState').style.display = 'none';
                     return;
                 }
             }
