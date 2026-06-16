@@ -94,6 +94,31 @@
     .section-gap { margin-top:24px; }
     .section-title { font-size:9px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--text-sec); margin-bottom:12px; }
 
+    /* LOG MODAL */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:1000; }
+    .modal-box { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:1001; background:#0d1728; border:1px solid rgba(255,255,255,0.1); border-radius:18px; padding:24px; width:min(520px,95vw); max-height:90vh; overflow-y:auto; }
+    .modal-title { font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:.04em; margin-bottom:18px; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    @media(max-width:480px) { .form-row { grid-template-columns:1fr; } }
+    .form-field { margin-bottom:14px; }
+    .form-label { display:block; font-size:11px; font-weight:600; color:var(--text-sec); margin-bottom:5px; }
+    .form-label span { color:var(--cyan); }
+    .form-input { width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--border2); border-radius:8px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px; padding:9px 12px; outline:none; -webkit-appearance:none; }
+    .form-input::-webkit-calendar-picker-indicator { filter:invert(1); opacity:.4; cursor:pointer; }
+    .form-input:focus { border-color:rgba(56,189,248,0.4); }
+    .type-btns { display:flex; gap:6px; }
+    .type-btn { flex:1; padding:8px 6px; border-radius:8px; background:rgba(255,255,255,0.04); border:1px solid var(--border2); color:var(--text-sec); font-family:'DM Sans',sans-serif; font-size:12px; font-weight:600; cursor:pointer; text-align:center; }
+    .type-btn.active { background:rgba(56,189,248,0.12); border-color:rgba(56,189,248,0.3); color:var(--cyan); }
+    .evidence-checks { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+    .ev-check { display:flex; align-items:center; gap:5px; padding:5px 10px; border-radius:50px; background:rgba(255,255,255,0.03); border:1px solid var(--border); cursor:pointer; font-size:11px; font-weight:600; color:var(--text-sec); user-select:none; }
+    .ev-check.checked { background:rgba(56,189,248,0.08); border-color:rgba(56,189,248,0.25); color:var(--cyan); }
+    .modal-actions { display:flex; gap:10px; margin-top:20px; }
+    .btn-save { flex:1; padding:12px; border-radius:50px; background:var(--cyan); color:#080f1a; font-size:14px; font-weight:700; border:none; cursor:pointer; }
+    .btn-save:disabled { opacity:.5; cursor:not-allowed; }
+    .btn-cancel { padding:12px 20px; border-radius:50px; background:rgba(255,255,255,0.05); border:1px solid var(--border2); color:var(--text-sec); font-size:13px; font-weight:600; cursor:pointer; }
+    .log-cta { display:inline-flex; align-items:center; gap:6px; padding:10px 20px; border-radius:50px; background:var(--cyan); color:#080f1a; font-size:13px; font-weight:700; border:none; cursor:pointer; }
+    .log-cta svg { flex-shrink:0; }
+
     /* CARDS */
     .panel { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:16px; }
     .panel-label { font-size:9px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--text-sec); margin-bottom:12px; }
@@ -301,6 +326,14 @@
     <!-- PRO HEADER -->
     <div class="pro-header" id="proHeader"></div>
 
+    <!-- LOG SESSION CTA -->
+    <div style="margin:16px 0 0;display:flex;justify-content:flex-end;" id="logCta">
+        <button class="log-cta" onclick="openLogModal()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Log a training session
+        </button>
+    </div>
+
     <!-- ATTEMPT SELECTOR (shown when multiple attempts) -->
     <div class="attempt-selector" id="attemptSelector" style="display:none;">
         <label>Crossing attempt:</label>
@@ -416,6 +449,88 @@
     </div>
 
 </div><!-- end #dashboard -->
+
+<!-- LOG SESSION MODAL -->
+<div id="logModal" style="display:none;">
+    <div class="modal-overlay" onclick="closeLogModal()"></div>
+    <div class="modal-box">
+        <div class="modal-title">Log a training session</div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label class="form-label">Date</label>
+                <input type="date" class="form-input" id="logDate">
+            </div>
+            <div class="form-field">
+                <label class="form-label">Water temperature <span>(°C)</span></label>
+                <input type="number" class="form-input" id="logTemp" placeholder="e.g. 14.5" min="0" max="40" step="0.5">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label class="form-label">Distance <span>(km)</span></label>
+                <input type="number" class="form-input" id="logDistance" placeholder="e.g. 5.0" min="0" step="0.1">
+            </div>
+            <div class="form-field">
+                <label class="form-label">Duration <span>(minutes)</span></label>
+                <input type="number" class="form-input" id="logDuration" placeholder="e.g. 90" min="1" step="1">
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label class="form-label">Location name</label>
+            <input type="text" class="form-input" id="logLocation" placeholder="e.g. Tooting Bec Lido, Dover Harbour, local pool…">
+        </div>
+
+        <div class="form-field">
+            <label class="form-label">Session type</label>
+            <div class="type-btns" id="typebtns">
+                <button class="type-btn" data-type="open_water" onclick="setLocationType('open_water')">Open water</button>
+                <button class="type-btn" data-type="lido" onclick="setLocationType('lido')">Lido</button>
+                <button class="type-btn" data-type="pool" onclick="setLocationType('pool')">Pool</button>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label class="form-label">Tag as evidence <span>(optional)</span></label>
+            <div class="evidence-checks" id="evidenceChecks">
+                <div class="ev-check" data-type="long_swim" onclick="toggleEvidence(this)">Long swim</div>
+                <div class="ev-check" data-type="cold_acclimation" onclick="toggleEvidence(this)">Cold session</div>
+                <div class="ev-check" data-type="qualifying_swim" onclick="toggleEvidence(this)">Qualifying swim</div>
+                <div class="ev-check" data-type="feed_practice" onclick="toggleEvidence(this)">Feed practice</div>
+                <div class="ev-check" data-type="night_swim" onclick="toggleEvidence(this)">Night swim</div>
+                <div class="ev-check" data-type="rough_water" onclick="toggleEvidence(this)">Rough water</div>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label class="form-label">Notes <span>(optional)</span></label>
+            <textarea class="form-input" id="logNotes" rows="2" placeholder="Conditions, how it felt, anything worth recording…" style="resize:vertical;"></textarea>
+        </div>
+
+        <!-- qualifying swim extra fields (shown when tagged) -->
+        <div id="qualifierExtra" style="display:none;">
+            <div class="form-row">
+                <div class="form-field">
+                    <label class="form-label">Observer name</label>
+                    <input type="text" class="form-input" id="logObserver" placeholder="e.g. John Smith">
+                </div>
+                <div class="form-field">
+                    <label class="form-label">Observer contact</label>
+                    <input type="text" class="form-input" id="logObserverContact" placeholder="email or phone">
+                </div>
+            </div>
+        </div>
+
+        <div id="logError" style="display:none;font-size:12px;color:var(--danger);margin-top:10px;"></div>
+
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeLogModal()">Cancel</button>
+            <button class="btn-save" id="logSaveBtn" onclick="saveSession()">Save session</button>
+        </div>
+    </div>
+</div>
 
 <script>
 document.addEventListener('mousemove', e => {
@@ -1229,7 +1344,7 @@ function renderSessions(logs) {
     const recent = logs.slice(0, 10);
     if (!recent.length) { document.getElementById('noSessions').style.display = 'block'; return; }
     document.getElementById('sessionList').innerHTML = recent.map(l => {
-        const spot = l.spots?.name || 'Unknown location';
+        const spot = l.spots?.name || (l.notes ? l.notes.split('\n')[0].slice(0, 40) : 'Training session');
         const ow = isOpenWater(l);
         const cold = l.temp_c !== null && _crossing && l.temp_c <= (_crossing.typical_temp_max_c || 18);
         const tag = cold ? `<span class="session-tag tag-cold">${l.temp_c}°C</span>` : ow ? `<span class="session-tag tag-sea">Open water</span>` : `<span class="session-tag tag-lido">Lido/pool</span>`;
@@ -1417,6 +1532,9 @@ async function renderDashboard() {
         selector.style.display = 'none';
     }
 
+    // Hide log CTA in admin view
+    document.getElementById('logCta').style.display = _isAdminView ? 'none' : 'flex';
+
     // GA4
     if (typeof gtag === 'function') {
         const uid_hash = uidHash(_viewingId);
@@ -1426,6 +1544,153 @@ async function renderDashboard() {
             readiness_band: result?.band || 'insufficient_data',
             has_sufficient_data: result?.hasSufficientData || false,
             uid_hash,
+            page_path: window.location.pathname
+        });
+    }
+}
+
+// ─── LOG SESSION MODAL ────────────────────────────────────────────────────────
+
+let _logLocationType = null;
+
+function openLogModal() {
+    if (_isAdminView) return;
+    // Default date to today
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    document.getElementById('logDate').value = `${yyyy}-${mm}-${dd}`;
+    document.getElementById('logTemp').value = '';
+    document.getElementById('logDistance').value = '';
+    document.getElementById('logDuration').value = '';
+    document.getElementById('logLocation').value = '';
+    document.getElementById('logNotes').value = '';
+    document.getElementById('logError').style.display = 'none';
+    document.getElementById('qualifierExtra').style.display = 'none';
+    document.getElementById('logObserver').value = '';
+    document.getElementById('logObserverContact').value = '';
+    _logLocationType = null;
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.ev-check').forEach(b => b.classList.remove('checked'));
+    document.getElementById('logSaveBtn').disabled = false;
+    document.getElementById('logModal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeLogModal() {
+    document.getElementById('logModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function setLocationType(type) {
+    _logLocationType = type;
+    document.querySelectorAll('.type-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.type === type);
+    });
+}
+
+function toggleEvidence(el) {
+    el.classList.toggle('checked');
+    const hasQual = document.querySelector('.ev-check[data-type="qualifying_swim"]')?.classList.contains('checked');
+    document.getElementById('qualifierExtra').style.display = hasQual ? 'block' : 'none';
+}
+
+async function saveSession() {
+    const btn = document.getElementById('logSaveBtn');
+    const errEl = document.getElementById('logError');
+    errEl.style.display = 'none';
+
+    const dateVal = document.getElementById('logDate').value;
+    const tempVal = document.getElementById('logTemp').value;
+    const distVal = document.getElementById('logDistance').value;
+    const durVal = document.getElementById('logDuration').value;
+    const locVal = document.getElementById('logLocation').value.trim();
+    const notesVal = document.getElementById('logNotes').value.trim();
+
+    if (!dateVal) {
+        errEl.textContent = 'Please set a date.';
+        errEl.style.display = 'block';
+        return;
+    }
+    if (!tempVal && !distVal) {
+        errEl.textContent = 'Add at least a water temperature or a distance.';
+        errEl.style.display = 'block';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    // Combine location name into notes
+    const combinedNotes = locVal
+        ? (notesVal ? `${locVal}\n${notesVal}` : locVal)
+        : (notesVal || null);
+
+    const logRow = {
+        user_id: _viewingId,
+        temp_c: tempVal ? parseFloat(tempVal) : null,
+        distance_km: distVal ? parseFloat(distVal) : null,
+        duration_minutes: durVal ? parseInt(durVal) : null,
+        location_type: _logLocationType || null,
+        notes: combinedNotes,
+        created_at: new Date(dateVal + 'T08:00:00').toISOString(),
+    };
+
+    const { data: newLog, error: logError } = await sb.from('temp_logs').insert(logRow).select('id').single();
+
+    if (logError) {
+        console.error('log insert error:', logError);
+        errEl.textContent = 'Could not save session: ' + (logError.message || 'unknown error');
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Save session';
+        return;
+    }
+
+    // Save evidence rows for checked tags
+    const checkedEv = [...document.querySelectorAll('.ev-check.checked')];
+    if (checkedEv.length > 0 && _activeAttempt) {
+        const evRows = checkedEv.map(el => ({
+            user_id: _viewingId,
+            crossing_attempt_id: _activeAttempt.id,
+            swim_id: newLog.id,
+            evidence_type: el.dataset.type,
+            evidence_status: 'complete',
+            evidence_date: dateVal,
+            duration_minutes: durVal ? parseInt(durVal) : null,
+            distance_km: distVal ? parseFloat(distVal) : null,
+            water_temperature_c: tempVal ? parseFloat(tempVal) : null,
+            location_name: locVal || null,
+            observer_name: document.getElementById('logObserver').value.trim() || null,
+            observer_contact: document.getElementById('logObserverContact').value.trim() || null,
+        }));
+        await sb.from('crossing_evidence').insert(evRows);
+    }
+
+    // Reload logs and evidence, re-render
+    const [logsRes, evRes] = await Promise.all([
+        sb.from('temp_logs')
+            .select('id, temp_c, conditions, notes, created_at, distance_km, duration_minutes, location_type, spots!temp_logs_spot_id_fkey(name, domain)')
+            .eq('user_id', _viewingId)
+            .order('created_at', { ascending: false })
+            .limit(200),
+        _activeAttempt
+            ? sb.from('crossing_evidence').select('*').eq('crossing_attempt_id', _activeAttempt.id)
+            : Promise.resolve({ data: [] })
+    ]);
+    _logs = logsRes.data || [];
+    _evidence = evRes.data || [];
+
+    closeLogModal();
+    await renderDashboard();
+
+    if (typeof gtag === 'function') {
+        gtag('event', 'crossing_quick_log_saved', {
+            crossing_slug: _crossing?.slug,
+            has_distance: !!distVal,
+            has_temp: !!tempVal,
+            evidence_count: checkedEv.length,
             page_path: window.location.pathname
         });
     }
