@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-89R519Y9T4"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-89R519Y9T4');
+    </script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Channel Preparation Dashboard | SwimLoading</title>
+    <meta name="robots" content="noindex">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+    <style>
+    :root {
+        --bg: #080f1a;
+        --bg-card: #0d1728;
+        --bg-card2: #111e35;
+        --cyan: #38bdf8;
+        --ocean: #0ea5e9;
+        --text: #f1f5f9;
+        --text-sec: #64748b;
+        --border: rgba(255,255,255,0.06);
+        --amber: #f59e0b;
+        --green: #10b981;
+        --danger: #ef4444;
+        --purple: #a78bfa;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'DM Sans', -apple-system, sans-serif;
+        min-height: 100vh;
+        padding-bottom: 80px;
+    }
+
+    /* NAV */
+    nav {
+        background: rgba(8,15,26,0.95);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border);
+        padding: 10px 16px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+    .nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        text-decoration: none;
+        font-size: 17px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        flex-shrink: 0;
+    }
+    .nav-brand img { height: 20px; width: auto; }
+    .nav-right { display: flex; align-items: center; gap: 8px; }
+    .nav-pill {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        padding: 3px 10px;
+        border-radius: 50px;
+        border: 1px solid rgba(56,189,248,0.3);
+        color: var(--cyan);
+        background: rgba(56,189,248,0.06);
+    }
+    .nav-link { font-size: 12px; color: var(--text-sec); text-decoration: none; }
+    .nav-link:hover { color: var(--cyan); }
+
+    /* LAYOUT */
+    .container { max-width: 640px; margin: 0 auto; padding: 0 14px; }
+
+    /* AUTH GATE */
+    #authGate {
+        display: none;
+        padding: 60px 20px;
+        text-align: center;
+        max-width: 400px;
+        margin: 0 auto;
+    }
+    #authGate h2 { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: .04em; margin-bottom: 12px; }
+    #authGate p { font-size: 13px; color: var(--text-sec); line-height: 1.6; margin-bottom: 24px; }
+
+    /* HERO */
+    .prep-hero {
+        padding: 20px 14px 0;
+        max-width: 640px;
+        margin: 0 auto;
+    }
+    .swimmer-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 6px;
+    }
+    .swimmer-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, rgba(56,189,248,0.3), rgba(14,165,233,0.1));
+        border: 1px solid rgba(56,189,248,0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 18px;
+        color: var(--cyan);
+        flex-shrink: 0;
+    }
+    .swimmer-name {
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 22px;
+        letter-spacing: .04em;
+        color: var(--text);
+        line-height: 1;
+    }
+    .swimmer-crossing {
+        font-size: 11px;
+        color: var(--text-sec);
+        margin-top: 2px;
+    }
+
+    /* CARDS */
+    .card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 12px;
+    }
+    .card-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: var(--text-sec);
+        margin-bottom: 12px;
+    }
+
+    /* COUNTDOWN */
+    .countdown-card {
+        background: linear-gradient(135deg, rgba(14,165,233,0.14), rgba(8,15,26,0.6));
+        border: 1px solid rgba(14,165,233,0.3);
+        border-radius: 16px;
+        padding: 18px;
+        margin-bottom: 12px;
+    }
+    .countdown-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+    .countdown-unit {
+        text-align: center;
+        background: rgba(8,15,26,0.5);
+        border: 1px solid rgba(56,189,248,0.15);
+        border-radius: 10px;
+        padding: 10px 6px;
+    }
+    .countdown-val {
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 32px;
+        letter-spacing: .02em;
+        color: var(--cyan);
+        line-height: 1;
+    }
+    .countdown-lbl {
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: var(--text-sec);
+        margin-top: 3px;
+    }
+    .no-target {
+        text-align: center;
+        padding: 10px 0 4px;
+    }
+    .no-target p { font-size: 13px; color: var(--text-sec); margin-bottom: 12px; line-height: 1.5; }
+
+    /* STATS STRIP */
+    .stats-strip {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    .stat-box {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px 8px;
+        text-align: center;
+    }
+    .stat-val {
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 26px;
+        letter-spacing: .02em;
+        line-height: 1;
+        margin-bottom: 4px;
+    }
+    .stat-val.cyan { color: var(--cyan); }
+    .stat-val.green { color: var(--green); }
+    .stat-val.amber { color: var(--amber); }
+    .stat-val.purple { color: var(--purple); }
+    .stat-lbl { font-size: 10px; color: var(--text-sec); line-height: 1.3; }
+
+    /* COLD EXPOSURE BAR */
+    .cold-bar-wrap { margin-bottom: 8px; }
+    .cold-bar-track {
+        height: 8px;
+        background: rgba(255,255,255,0.06);
+        border-radius: 50px;
+        margin: 8px 0 4px;
+        overflow: hidden;
+        position: relative;
+    }
+    .cold-bar-fill {
+        height: 100%;
+        border-radius: 50px;
+        background: linear-gradient(90deg, #38bdf8, #10b981);
+        transition: width .6s ease;
+    }
+    .cold-bar-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 10px;
+        color: var(--text-sec);
+    }
+
+    /* INTELLIGENCE */
+    .intel-card {
+        background: linear-gradient(135deg, rgba(167,139,250,0.08), rgba(8,15,26,0.5));
+        border: 1px solid rgba(167,139,250,0.2);
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 12px;
+    }
+    .intel-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        color: var(--purple);
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .intel-label::before {
+        content: '';
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--purple);
+        animation: intelPulse 2s infinite;
+    }
+    @keyframes intelPulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .intel-item {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .intel-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .intel-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
+    .intel-icon.go { background: rgba(16,185,129,0.12); }
+    .intel-icon.warn { background: rgba(245,158,11,0.12); }
+    .intel-icon.info { background: rgba(56,189,248,0.10); }
+    .intel-text { flex: 1; }
+    .intel-heading { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 3px; line-height: 1.4; }
+    .intel-sub { font-size: 11px; color: var(--text-sec); line-height: 1.55; }
+
+    /* SESSION FEED */
+    .session-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--border);
+    }
+    .session-row:last-child { border-bottom: none; }
+    .session-temp {
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 22px;
+        letter-spacing: .02em;
+        color: var(--cyan);
+        width: 52px;
+        flex-shrink: 0;
+        line-height: 1;
+    }
+    .session-info { flex: 1; min-width: 0; }
+    .session-spot { font-size: 12px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .session-meta { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
+    .session-dist { font-size: 12px; font-weight: 700; color: var(--text-sec); flex-shrink: 0; }
+    .session-cond {
+        font-size: 10px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 50px;
+        flex-shrink: 0;
+    }
+    .cond-calm { background: rgba(16,185,129,0.1); color: var(--green); border: 1px solid rgba(16,185,129,0.2); }
+    .cond-chop { background: rgba(245,158,11,0.1); color: var(--amber); border: 1px solid rgba(245,158,11,0.2); }
+    .cond-other { background: rgba(255,255,255,0.04); color: var(--text-sec); border: 1px solid var(--border); }
+
+    /* TARGET DATE FORM */
+    .target-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .target-form input[type="date"] {
+        flex: 1;
+        padding: 9px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(56,189,248,0.3);
+        background: rgba(14,165,233,0.06);
+        color: var(--text);
+        font-size: 14px;
+        font-family: 'DM Sans', sans-serif;
+        min-width: 150px;
+    }
+    .target-form input[type="date"]:focus { outline: none; border-color: var(--cyan); }
+    .btn-sm {
+        padding: 9px 16px;
+        border-radius: 50px;
+        border: none;
+        background: var(--cyan);
+        color: #080f1a;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: 'DM Sans', sans-serif;
+        white-space: nowrap;
+    }
+    .btn-ghost-sm {
+        padding: 9px 14px;
+        border-radius: 50px;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text-sec);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: 'DM Sans', sans-serif;
+    }
+    .btn-ghost-sm:hover { border-color: rgba(56,189,248,0.3); color: var(--cyan); }
+
+    /* LOG CTA */
+    .log-cta {
+        background: linear-gradient(135deg, rgba(14,165,233,0.1), rgba(8,15,26,0.5));
+        border: 1px solid rgba(14,165,233,0.2);
+        border-radius: 14px;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+        text-decoration: none;
+    }
+    .log-cta-text { flex: 1; }
+    .log-cta-title { font-size: 13px; font-weight: 700; color: var(--text); }
+    .log-cta-sub { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
+    .log-cta-arrow { color: var(--cyan); font-size: 18px; flex-shrink: 0; }
+
+    /* READINESS GAUGE */
+    .gauge-wrap { text-align: center; padding: 8px 0 4px; }
+    .gauge-score {
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 64px;
+        letter-spacing: .02em;
+        line-height: 1;
+    }
+    .gauge-band { font-size: 12px; font-weight: 700; margin-top: 4px; }
+    .gauge-bar-track {
+        height: 6px;
+        background: rgba(255,255,255,0.06);
+        border-radius: 50px;
+        margin: 10px 0 4px;
+        overflow: hidden;
+    }
+    .gauge-bar-fill {
+        height: 100%;
+        border-radius: 50px;
+        transition: width .8s ease;
+    }
+
+    /* QUALIFYING BANNER */
+    .qual-banner {
+        background: rgba(245,158,11,0.08);
+        border: 1px solid rgba(245,158,11,0.25);
+        border-radius: 12px;
+        padding: 12px 14px;
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        margin-bottom: 12px;
+    }
+    .qual-icon { flex-shrink: 0; margin-top: 1px; }
+    .qual-text { flex: 1; font-size: 12px; color: var(--text-sec); line-height: 1.6; }
+    .qual-text strong { color: var(--text); }
+
+    /* LOADING */
+    .loading-placeholder {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-sec);
+        font-size: 13px;
+    }
+
+    @media (max-width: 480px) {
+        .countdown-grid { grid-template-columns: repeat(4, 1fr); }
+        .stats-strip { grid-template-columns: 1fr 1fr; }
+        .countdown-val { font-size: 26px; }
+    }
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="/" class="nav-brand">
+        <img src="icons/logo-wave.png" alt="">SwimLoading
+    </a>
+    <div class="nav-right">
+        <span class="nav-pill">Channel Prep</span>
+        <a href="/app" class="nav-link">← App</a>
+    </div>
+</nav>
+
+<!-- AUTH GATE -->
+<div id="authGate">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:48px;letter-spacing:.04em;color:var(--cyan);margin-bottom:4px;">Channel Prep</div>
+    <h2>Your private preparation dashboard</h2>
+    <p>This dashboard is private to you. Log in to see your training stats, countdown to your crossing window and personalised coaching insights.</p>
+    <a href="/app" style="display:inline-block;padding:13px 28px;border-radius:50px;background:var(--cyan);color:#080f1a;font-size:14px;font-weight:700;text-decoration:none;">Sign in to SwimLoading</a>
+</div>
+
+<!-- MAIN DASHBOARD -->
+<div id="prepDashboard" style="display:none;">
+
+    <div class="prep-hero">
+        <div style="padding:16px 0 10px;">
+            <div class="swimmer-header">
+                <div class="swimmer-avatar" id="swimmerAvatar">?</div>
+                <div>
+                    <div class="swimmer-name" id="swimmerName">Loading...</div>
+                    <div class="swimmer-crossing" id="swimmerCrossing">English Channel preparation</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+
+        <!-- LOG A SESSION CTA -->
+        <a href="/app" class="log-cta">
+            <div class="log-cta-text">
+                <div class="log-cta-title">Log today's session</div>
+                <div class="log-cta-sub">Add water temp, distance, conditions and notes</div>
+            </div>
+            <div class="log-cta-arrow">+</div>
+        </a>
+
+        <!-- COUNTDOWN -->
+        <div class="countdown-card">
+            <div class="card-label" style="margin-bottom:10px;">Countdown to crossing window</div>
+            <div id="countdownDisplay"></div>
+            <div id="targetDateEdit" style="display:none;margin-top:12px;">
+                <div style="font-size:11px;color:var(--text-sec);margin-bottom:8px;">Set your target crossing date</div>
+                <div class="target-form">
+                    <input type="date" id="targetDateInput">
+                    <button class="btn-sm" onclick="saveTargetDate()">Save</button>
+                    <button class="btn-ghost-sm" onclick="toggleDateEdit()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- KEY STATS -->
+        <div class="stats-strip">
+            <div class="stat-box">
+                <div class="stat-val cyan" id="statSessions">—</div>
+                <div class="stat-lbl">Sessions<br>logged</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-val green" id="statColdest">—</div>
+                <div class="stat-lbl">Coldest<br>swim °C</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-val amber" id="statRecent">—</div>
+                <div class="stat-lbl">Sessions<br>this month</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-val purple" id="statWeeks">—</div>
+                <div class="stat-lbl">Active<br>weeks</div>
+            </div>
+        </div>
+
+        <!-- COLD WATER EXPOSURE -->
+        <div class="card" id="coldExposureCard" style="display:none;">
+            <div class="card-label">Cold water exposure</div>
+            <div id="coldExposureContent"></div>
+        </div>
+
+        <!-- DISTANCE STATS (if available) -->
+        <div class="card" id="distanceCard" style="display:none;">
+            <div class="card-label">Distance tracking</div>
+            <div id="distanceContent"></div>
+        </div>
+
+        <!-- QUALIFYING SWIM REMINDER -->
+        <div class="qual-banner" id="qualBanner" style="display:none;">
+            <div class="qual-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div class="qual-text" id="qualBannerText"></div>
+        </div>
+
+        <!-- INTELLIGENCE PANEL -->
+        <div class="intel-card" id="intelCard" style="display:none;">
+            <div class="intel-label">Preparation intelligence</div>
+            <div id="intelItems"></div>
+        </div>
+
+        <!-- READINESS SCORE -->
+        <div class="card" id="readinessCard" style="display:none;">
+            <div class="card-label">Channel readiness score</div>
+            <div id="readinessContent"></div>
+            <div style="font-size:10px;color:var(--text-sec);opacity:.6;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);line-height:1.5;">Score is indicative and based on your logged SwimLoading sessions. It does not replace coaching, medical assessment, or pilot requirements.</div>
+        </div>
+
+        <!-- RECENT SESSIONS -->
+        <div class="card" id="sessionsCard" style="display:none;">
+            <div class="card-label">Recent sessions</div>
+            <div id="sessionsFeed"></div>
+            <div id="sessionsEmpty" style="display:none;font-size:13px;color:var(--text-sec);text-align:center;padding:20px 0;">No sessions logged yet.<br>Log your first swim from the SwimLoading app.</div>
+        </div>
+
+        <!-- BOTTOM CTA -->
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:center;margin-top:8px;">
+            <div style="font-size:12px;color:var(--text-sec);margin-bottom:12px;line-height:1.6;">Your preparation data is private. Only you can see this dashboard.</div>
+            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+                <a href="/app" style="display:inline-block;padding:10px 20px;border-radius:50px;background:var(--cyan);color:#080f1a;font-size:12px;font-weight:700;text-decoration:none;">Log a session</a>
+                <a href="/crossings/english-channel" style="display:inline-block;padding:10px 20px;border-radius:50px;border:1px solid var(--border);background:transparent;color:var(--text-sec);font-size:12px;font-weight:600;text-decoration:none;">Channel conditions</a>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, storageKey: 'sb-szgkzuswelntnevobnoh-auth-token' }
+});
+
+// Channel constants
+const CHANNEL_DIST_KM = 33;
+const CHANNEL_TEMP_MIN = 14;
+const CHANNEL_TEMP_MAX = 18;
+const CHANNEL_QUAL_TEMP = 16;
+const CHANNEL_QUAL_HOURS = 6;
+
+let _session = null;
+let _logs = [];
+let _target = null;
+
+function ga4(event, params) {
+    if (typeof gtag === 'function') gtag('event', event, params);
+}
+
+// ── BOOT ──────────────────────────────────────────────────────────────────────
+async function init() {
+    const { data: { session } } = await sb.auth.getSession();
+
+    if (!session) {
+        document.getElementById('authGate').style.display = 'block';
+        return;
+    }
+
+    _session = session;
+    document.getElementById('prepDashboard').style.display = 'block';
+
+    const email = session.user.email || '';
+    const name = email.split('@')[0].replace(/[._]/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase());
+    document.getElementById('swimmerAvatar').textContent = name.charAt(0).toUpperCase();
+    document.getElementById('swimmerName').textContent = name;
+
+    await Promise.all([loadLogs(), loadTarget()]);
+    renderAll();
+
+    ga4('page_view', { page_title: 'Channel Prep Dashboard', page_path: '/crossing-prep' });
+}
+
+// ── DATA LOAD ─────────────────────────────────────────────────────────────────
+async function loadLogs() {
+    const { data, error } = await sb
+        .from('temp_logs')
+        .select('id, temp_c, conditions, notes, created_at, distance_km, spot_id, spots(name, domain)')
+        .eq('user_id', _session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+    if (error) { console.warn('logs error', error); return; }
+    _logs = data || [];
+}
+
+async function loadTarget() {
+    const { data } = await sb
+        .from('crossing_targets')
+        .select('*')
+        .eq('user_id', _session.user.id)
+        .eq('crossing_name', 'English Channel')
+        .maybeSingle();
+    _target = data;
+}
+
+// ── RENDER ALL ────────────────────────────────────────────────────────────────
+function renderAll() {
+    renderCountdown();
+    renderStats();
+    renderColdExposure();
+    renderDistance();
+    renderIntelligence();
+    renderReadiness();
+    renderSessions();
+}
+
+// ── COUNTDOWN ─────────────────────────────────────────────────────────────────
+function renderCountdown() {
+    const el = document.getElementById('countdownDisplay');
+
+    if (!_target || !_target.target_date) {
+        el.innerHTML = `
+            <div class="no-target">
+                <p>Set your target crossing window to see your countdown and get tailored timing intelligence.</p>
+                <button class="btn-sm" onclick="toggleDateEdit()">Set my target date</button>
+            </div>`;
+        return;
+    }
+
+    const target = new Date(_target.target_date);
+    const now = new Date();
+    const diff = target - now;
+
+    if (diff <= 0) {
+        el.innerHTML = `<div style="text-align:center;font-size:14px;font-weight:700;color:var(--green);">Crossing window reached. Good luck.</div>`;
+        return;
+    }
+
+    const days = Math.floor(diff / 86400000);
+    const weeks = Math.floor(days / 7);
+    const months = Math.floor(days / 30.44);
+
+    el.innerHTML = `
+        <div class="countdown-grid">
+            <div class="countdown-unit"><div class="countdown-val">${months}</div><div class="countdown-lbl">Months</div></div>
+            <div class="countdown-unit"><div class="countdown-val">${weeks % 4}</div><div class="countdown-lbl">Weeks</div></div>
+            <div class="countdown-unit"><div class="countdown-val">${days % 7}</div><div class="countdown-lbl">Days</div></div>
+            <div class="countdown-unit"><div class="countdown-val">${days}</div><div class="countdown-lbl">Total days</div></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <div style="font-size:11px;color:var(--text-sec);">Target: <strong style="color:var(--text);">${target.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</strong></div>
+            <button class="btn-ghost-sm" onclick="toggleDateEdit()" style="font-size:11px;padding:5px 12px;">Change date</button>
+        </div>`;
+}
+
+function toggleDateEdit() {
+    const el = document.getElementById('targetDateEdit');
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    if (_target && _target.target_date) {
+        document.getElementById('targetDateInput').value = _target.target_date;
+    }
+}
+
+async function saveTargetDate() {
+    const val = document.getElementById('targetDateInput').value;
+    if (!val) return;
+    const { data, error } = await sb.from('crossing_targets').upsert({
+        user_id: _session.user.id,
+        crossing_name: 'English Channel',
+        target_date: val,
+        updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id,crossing_name' }).select().maybeSingle();
+    if (!error) {
+        _target = data;
+        document.getElementById('targetDateEdit').style.display = 'none';
+        renderCountdown();
+        renderIntelligence();
+        ga4('crossing_target_set', { crossing_name: 'English Channel', target_date: val });
+    }
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+function renderStats() {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const recentCount = _logs.filter(l => new Date(l.created_at) >= monthStart).length;
+
+    const temps = _logs.map(l => parseFloat(l.temp_c)).filter(t => !isNaN(t));
+    const coldest = temps.length ? Math.min(...temps).toFixed(1) : '—';
+
+    // Unique weeks with any session
+    const weeks = new Set(_logs.map(l => {
+        const d = new Date(l.created_at);
+        const jan1 = new Date(d.getFullYear(), 0, 1);
+        return d.getFullYear() + '-' + Math.ceil((((d - jan1) / 86400000) + jan1.getDay() + 1) / 7);
+    }));
+
+    document.getElementById('statSessions').textContent = _logs.length || '0';
+    document.getElementById('statColdest').textContent = coldest;
+    document.getElementById('statRecent').textContent = recentCount;
+    document.getElementById('statWeeks').textContent = weeks.size || '0';
+}
+
+// ── COLD EXPOSURE ─────────────────────────────────────────────────────────────
+function renderColdExposure() {
+    if (!_logs.length) return;
+    const card = document.getElementById('coldExposureCard');
+    const el = document.getElementById('coldExposureContent');
+    card.style.display = 'block';
+
+    const temps = _logs.map(l => parseFloat(l.temp_c)).filter(t => !isNaN(t));
+    const coldest = Math.min(...temps);
+    const warmest = Math.max(...temps);
+    const avg = (temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1);
+
+    // Cold acclimatisation: how close to channel min temp (14°C)
+    // Below 14 = fully acclimatised. 14-16 = developing. 16-18 = building. >18 = early
+    let coldStatus, coldColor;
+    if (coldest <= CHANNEL_TEMP_MIN) { coldStatus = 'Acclimatised to Channel temperatures'; coldColor = 'var(--green)'; }
+    else if (coldest <= 16) { coldStatus = 'Good cold exposure — targeting below 14°C'; coldColor = 'var(--cyan)'; }
+    else if (coldest <= 18) { coldStatus = 'Building cold tolerance — need lower temps'; coldColor = 'var(--amber)'; }
+    else { coldStatus = 'Cold exposure needed — all swims above 18°C'; coldColor = 'var(--danger)'; }
+
+    // Bar: 0°C = 0%, 14°C = 100% (acclimatised), invert direction
+    const barPct = Math.max(0, Math.min(100, (1 - (coldest - 8) / 12) * 100));
+
+    el.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
+            <div style="text-align:center;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:${coldColor};line-height:1;">${coldest.toFixed(1)}°</div>
+                <div style="font-size:10px;color:var(--text-sec);margin-top:3px;">Coldest</div>
+            </div>
+            <div style="text-align:center;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--text-sec);line-height:1;">${avg}°</div>
+                <div style="font-size:10px;color:var(--text-sec);margin-top:3px;">Average</div>
+            </div>
+            <div style="text-align:center;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--text-sec);line-height:1;">${warmest.toFixed(1)}°</div>
+                <div style="font-size:10px;color:var(--text-sec);margin-top:3px;">Warmest</div>
+            </div>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:${coldColor};margin-bottom:6px;">${coldStatus}</div>
+        <div class="cold-bar-wrap">
+            <div class="cold-bar-track">
+                <div class="cold-bar-fill" style="width:${barPct}%"></div>
+            </div>
+            <div class="cold-bar-labels">
+                <span>Cold ← 8°C</span>
+                <span>Channel: 14–18°C</span>
+                <span>Warm → 24°C</span>
+            </div>
+        </div>`;
+}
+
+// ── DISTANCE ──────────────────────────────────────────────────────────────────
+function renderDistance() {
+    const withDist = _logs.filter(l => l.distance_km && parseFloat(l.distance_km) > 0);
+    if (!withDist.length) return;
+
+    const card = document.getElementById('distanceCard');
+    const el = document.getElementById('distanceContent');
+    card.style.display = 'block';
+
+    const distances = withDist.map(l => parseFloat(l.distance_km));
+    const totalKm = distances.reduce((a, b) => a + b, 0).toFixed(1);
+    const longestKm = Math.max(...distances).toFixed(1);
+
+    // Weekly average (last 8 weeks)
+    const eightWeeksAgo = new Date(Date.now() - 56 * 86400000);
+    const recentDist = withDist
+        .filter(l => new Date(l.created_at) >= eightWeeksAgo)
+        .reduce((a, l) => a + parseFloat(l.distance_km), 0);
+    const weeklyAvg = (recentDist / 8).toFixed(1);
+
+    el.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+            <div style="text-align:center;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--cyan);line-height:1;">${totalKm}</div>
+                <div style="font-size:10px;color:var(--text-sec);margin-top:3px;">Total km</div>
+            </div>
+            <div style="text-align:center;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--green);line-height:1;">${longestKm}</div>
+                <div style="font-size:10px;color:var(--text-sec);margin-top:3px;">Longest swim</div>
+            </div>
+            <div style="text-align:center;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--amber);line-height:1;">${weeklyAvg}</div>
+                <div style="font-size:10px;color:var(--text-sec);margin-top:3px;">Avg km/week</div>
+            </div>
+        </div>`;
+}
+
+// ── INTELLIGENCE ──────────────────────────────────────────────────────────────
+function renderIntelligence() {
+    if (!_logs.length) return;
+    const card = document.getElementById('intelCard');
+    const el = document.getElementById('intelItems');
+    card.style.display = 'block';
+
+    const items = [];
+    const now = new Date();
+    const temps = _logs.map(l => parseFloat(l.temp_c)).filter(t => !isNaN(t));
+    const coldest = temps.length ? Math.min(...temps) : 99;
+
+    // Days to target
+    let daysToTarget = null;
+    if (_target && _target.target_date) {
+        daysToTarget = Math.floor((new Date(_target.target_date) - now) / 86400000);
+    }
+
+    // Session frequency
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
+    const recentSessions = _logs.filter(l => new Date(l.created_at) >= thirtyDaysAgo).length;
+    const weeklyRate = (recentSessions / 4.3).toFixed(1);
+
+    // ① Session frequency
+    if (recentSessions === 0) {
+        items.push({ type:'warn', heading:'No sessions in the last 30 days', sub:'Consistency is the foundation of Channel preparation. Aim to get back in the water this week.' });
+    } else if (recentSessions < 8) {
+        items.push({ type:'warn', heading:`${recentSessions} sessions in the last month (~${weeklyRate}/week)`, sub:'Channel swimmers typically train 4–6 times per week. Build session frequency before adding volume per session.' });
+    } else {
+        items.push({ type:'go', heading:`Strong session consistency — ${recentSessions} swims in 30 days`, sub:`Averaging ${weeklyRate} sessions per week. Maintain this through summer and focus on building session length.` });
+    }
+
+    // ② Cold water
+    if (coldest <= CHANNEL_TEMP_MIN) {
+        items.push({ type:'go', heading:`Cold water acclimatised — coldest logged: ${coldest.toFixed(1)}°C`, sub:'You have swum at or below Channel temperatures. Continue cold exposure through summer to maintain tolerance.' });
+    } else if (coldest <= 16) {
+        items.push({ type:'info', heading:`Cold exposure at ${coldest.toFixed(1)}°C — building well`, sub:`Channel water in July–September is 14–18°C. Target sessions below 14°C to confirm your cold tolerance. Dover Harbour training is ideal for this.` });
+    } else {
+        items.push({ type:'warn', heading:`Cold exposure gap — coldest swim is ${coldest.toFixed(1)}°C`, sub:`Channel conditions are 14–18°C. Prioritise open water sessions in colder water. Dover Harbour (from May) is the most accessible Channel-temperature training venue.` });
+    }
+
+    // ③ Timing/qualifier
+    if (daysToTarget !== null) {
+        if (daysToTarget > 365) {
+            items.push({ type:'info', heading:`${Math.floor(daysToTarget/7)} weeks until your target window`, sub:'You have time to build systematically. Focus now on: cold acclimatisation, session frequency, then progressive long swims from January onward.' });
+        } else if (daysToTarget > 180) {
+            items.push({ type:'info', heading:`${Math.floor(daysToTarget/30)} months to your crossing window`, sub:`Time to plan your 6-hour qualifying swim. CSA/CS&PF qualifying swims must be completed in the calendar year of your crossing, in water ≤16°C.` });
+        } else if (daysToTarget > 90) {
+            items.push({ type:'warn', heading:'Qualifying swim window is approaching', sub:`Your 6-hour qualifier must be in water ≤16°C, witnessed by an approved observer. Dover Harbour runs qualifying sessions from May. Book yours now — slots fill quickly.` });
+        } else {
+            items.push({ type:'warn', heading:'Crossing is within 90 days', sub:'Final phase: long swims 3–4 weeks out, then a 2-week taper. Confirm pilot briefing, nutrition plan and weather window strategy with your pilot.' });
+        }
+    } else {
+        items.push({ type:'info', heading:'Set your target date to unlock timing intelligence', sub:'Once you set a target crossing window, SwimLoading will give you week-by-week guidance on when to schedule your qualifier, long swims and taper.' });
+    }
+
+    // ④ Long swim recommendation (if we have distance data)
+    const withDist = _logs.filter(l => l.distance_km && parseFloat(l.distance_km) > 0);
+    if (withDist.length) {
+        const longest = Math.max(...withDist.map(l => parseFloat(l.distance_km)));
+        const pct = longest / CHANNEL_DIST_KM;
+        if (pct < 0.3) {
+            items.push({ type:'warn', heading:`Longest swim: ${longest.toFixed(1)} km — build to ${Math.round(CHANNEL_DIST_KM * 0.5)} km next`, sub:'Channel readiness requires comfortable completion of 20+ km. Build toward a 10 km swim as your next major milestone.' });
+        } else if (pct < 0.6) {
+            items.push({ type:'info', heading:`Longest swim: ${longest.toFixed(1)} km — progressing well`, sub:`You're at ${Math.round(pct*100)}% of Channel distance. Continue adding 1–2 km to your longest session each month. Plan a 4-hour continuous swim in the next 6 weeks.` });
+        } else {
+            items.push({ type:'go', heading:`Longest swim: ${longest.toFixed(1)} km — strong base`, sub:`You've covered ${Math.round(pct*100)}% of Channel distance in training. Focus on time in the water at cold temperatures and nutrition strategy.` });
+        }
+    } else {
+        items.push({ type:'info', heading:'Add distance when logging sessions to unlock long-swim tracking', sub:'Logging your swim distance lets SwimLoading track your longest swim progression and give distance-based preparation guidance.' });
+    }
+
+    const iconSvg = {
+        go: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+        warn: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+        info: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`
+    };
+
+    el.innerHTML = items.map(i => `
+        <div class="intel-item">
+            <div class="intel-icon ${i.type}">${iconSvg[i.type]}</div>
+            <div class="intel-text">
+                <div class="intel-heading">${i.heading}</div>
+                <div class="intel-sub">${i.sub}</div>
+            </div>
+        </div>`).join('');
+}
+
+// ── READINESS SCORE ───────────────────────────────────────────────────────────
+function renderReadiness() {
+    if (!_logs.length) return;
+    const card = document.getElementById('readinessCard');
+    const el = document.getElementById('readinessContent');
+    card.style.display = 'block';
+
+    const temps = _logs.map(l => parseFloat(l.temp_c)).filter(t => !isNaN(t));
+    const coldest = temps.length ? Math.min(...temps) : 20;
+    const withDist = _logs.filter(l => l.distance_km && parseFloat(l.distance_km) > 0);
+    const longest = withDist.length ? Math.max(...withDist.map(l => parseFloat(l.distance_km))) : 0;
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
+    const recentSessions = _logs.filter(l => new Date(l.created_at) >= thirtyDaysAgo).length;
+    const eightWeeksAgo = new Date(Date.now() - 56 * 86400000);
+    const recentDist = withDist.filter(l => new Date(l.created_at) >= eightWeeksAgo).reduce((a, l) => a + parseFloat(l.distance_km), 0);
+    const weeklyKm = recentDist / 8;
+
+    const longestScore = Math.round(Math.min(30, longest / CHANNEL_DIST_KM * 30));
+    const weeklyScore = Math.round(Math.min(25, weeklyKm / (CHANNEL_DIST_KM * 1.5) * 25));
+    let coldScore = coldest <= CHANNEL_TEMP_MIN ? 25 : coldest <= CHANNEL_TEMP_MAX ? 18 : 8;
+    const owScore = Math.round(Math.min(20, recentSessions / 12 * 20));
+    const total = longestScore + weeklyScore + coldScore + owScore;
+
+    const band = total >= 80 ? { label: 'Strong preparation base', color: '#10b981' }
+        : total >= 60 ? { label: 'Developing preparation base', color: '#38bdf8' }
+        : total >= 40 ? { label: 'Significant preparation gaps', color: '#f59e0b' }
+        : { label: 'Early preparation stage', color: '#ef4444' };
+
+    el.innerHTML = `
+        <div class="gauge-wrap">
+            <div class="gauge-score" style="color:${band.color}">${total}</div>
+            <div style="font-size:10px;color:var(--text-sec);">out of 100</div>
+            <div class="gauge-band" style="color:${band.color}">${band.label}</div>
+            <div class="gauge-bar-track">
+                <div class="gauge-bar-fill" style="width:${total}%;background:${band.color}"></div>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+            <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-sec);margin-bottom:3px;">Long swim</div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:${longestScore>=20?'#10b981':'#f59e0b'}">${longestScore}/30</div>
+                <div style="font-size:10px;color:var(--text-sec);margin-top:2px;">${longest > 0 ? longest.toFixed(1)+'km longest' : 'No distance logged'}</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-sec);margin-bottom:3px;">Weekly volume</div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:${weeklyScore>=18?'#10b981':'#f59e0b'}">${weeklyScore}/25</div>
+                <div style="font-size:10px;color:var(--text-sec);margin-top:2px;">${weeklyKm > 0 ? weeklyKm.toFixed(1)+'km/wk avg' : 'Log distance to unlock'}</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-sec);margin-bottom:3px;">Cold water</div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:${coldScore>=22?'#10b981':'#f59e0b'}">${coldScore}/25</div>
+                <div style="font-size:10px;color:var(--text-sec);margin-top:2px;">Coldest: ${coldest.toFixed(1)}°C</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px;">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-sec);margin-bottom:3px;">Open water frequency</div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:${owScore>=15?'#10b981':'#f59e0b'}">${owScore}/20</div>
+                <div style="font-size:10px;color:var(--text-sec);margin-top:2px;">${recentSessions} sessions / 30 days</div>
+            </div>
+        </div>`;
+}
+
+// ── SESSION FEED ──────────────────────────────────────────────────────────────
+function renderSessions() {
+    const card = document.getElementById('sessionsCard');
+    const el = document.getElementById('sessionsFeed');
+    const empty = document.getElementById('sessionsEmpty');
+    card.style.display = 'block';
+
+    if (!_logs.length) { empty.style.display = 'block'; return; }
+
+    const recent = _logs.slice(0, 10);
+
+    el.innerHTML = recent.map(log => {
+        const date = new Date(log.created_at);
+        const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        const spotName = log.spots?.name || 'Open water';
+        const cond = (log.conditions || '').toLowerCase();
+        let condClass = 'cond-other', condLabel = log.conditions || '—';
+        if (cond.includes('calm')) { condClass = 'cond-calm'; condLabel = 'Calm'; }
+        else if (cond.includes('chop')) { condClass = 'cond-chop'; condLabel = 'Choppy'; }
+        const distStr = log.distance_km ? `${parseFloat(log.distance_km).toFixed(1)} km` : '';
+        const noteSnippet = log.notes ? log.notes.replace(/Imported from Strava: /i,'').split('\n')[0].slice(0,60) : '';
+
+        return `<div class="session-row">
+            <div class="session-temp">${parseFloat(log.temp_c).toFixed(1)}°</div>
+            <div class="session-info">
+                <div class="session-spot">${spotName}</div>
+                <div class="session-meta">${dateStr}${noteSnippet ? ' · ' + noteSnippet : ''}</div>
+            </div>
+            ${distStr ? `<div class="session-dist">${distStr}</div>` : ''}
+            <span class="session-cond ${condClass}">${condLabel}</span>
+        </div>`;
+    }).join('');
+}
+
+document.addEventListener('mousemove', e => {
+    document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+    document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+});
+
+init();
+</script>
+</body>
+</html>
