@@ -264,6 +264,33 @@
     .note-type { font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-sec); margin-bottom:5px; }
     .note-text { font-size:13px; color:var(--text); line-height:1.6; white-space:pre-wrap; }
 
+    /* CAPABILITY */
+    .cap-score-ring { width:72px; height:72px; border-radius:50%; border:3px solid; display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; }
+    .cap-score-num { font-family:'Bebas Neue',sans-serif; font-size:26px; line-height:1; }
+    .cap-score-lbl { font-size:8px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+
+    /* GAP ANALYSIS */
+    .gap-card { border-radius:14px; padding:18px; border:1px solid; margin-bottom:10px; }
+    .gap-title { font-size:14px; font-weight:700; margin-bottom:6px; }
+    .gap-body { font-size:13px; line-height:1.65; color:#94a3b8; }
+    .gap-narrative { background:rgba(255,255,255,0.03); border:1px solid var(--border2); border-radius:10px; padding:14px 16px; margin-top:12px; font-size:13px; color:#cbd5e1; line-height:1.7; }
+
+    /* CONFIDENCE */
+    .conf-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:50px; font-size:10px; font-weight:700; letter-spacing:.08em; }
+
+    /* ONBOARDING MODAL */
+    .onboard-step { display:none; }
+    .onboard-step.active { display:block; }
+    .check-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px; }
+    @media(max-width:480px) { .check-grid { grid-template-columns:1fr; } }
+    .check-option { display:flex; align-items:center; gap:8px; padding:10px 12px; border-radius:10px; background:rgba(255,255,255,0.03); border:1px solid var(--border); cursor:pointer; font-size:13px; transition:border-color .2s; }
+    .check-option input[type=checkbox] { accent-color:var(--cyan); width:15px; height:15px; cursor:pointer; }
+    .check-option:has(input:checked) { border-color:rgba(56,189,248,0.3); background:rgba(56,189,248,0.05); }
+    .select-input { width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--border2); border-radius:8px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px; padding:9px 12px; outline:none; }
+    .step-progress { display:flex; gap:4px; margin-bottom:20px; }
+    .step-dot { flex:1; height:3px; border-radius:2px; background:rgba(255,255,255,0.08); transition:background .2s; }
+    .step-dot.done { background:var(--cyan); }
+
     /* PHASE BANNER */
     .phase-banner { border-radius:14px; padding:16px 18px; margin-bottom:14px; display:flex; align-items:flex-start; gap:14px; }
     .phase-name-big { font-family:'Bebas Neue',sans-serif; font-size:21px; letter-spacing:.04em; line-height:1; margin-bottom:5px; }
@@ -383,12 +410,19 @@
     <!-- DATA WARNINGS -->
     <div id="dataWarnings"></div>
 
-    <!-- READINESS OVERVIEW -->
-    <div class="section-title section-gap">Readiness overview</div>
+    <!-- ATHLETE CAPABILITY -->
+    <div class="section-title section-gap">Athlete profile</div>
+    <div id="capabilitySection"></div>
+
+    <!-- PREPARATION SCORE (was Readiness) -->
+    <div class="section-title section-gap">Preparation score</div>
     <div id="readinessOverview"></div>
 
+    <!-- GAP ANALYSIS -->
+    <div class="section-gap" id="gapAnalysisSection"></div>
+
     <!-- DEMAND VS PREP -->
-    <div class="section-title section-gap">Crossing demand vs your preparation</div>
+    <div class="section-title section-gap">Crossing demands vs your evidence</div>
     <div class="panel" id="demandPanel"></div>
 
     <!-- COLD ACCLIMATION + RHYTHM -->
@@ -602,6 +636,115 @@
   </div>
 </div>
 
+<!-- CAPABILITY PROFILE ONBOARDING MODAL -->
+<div id="capOnboardOverlay" class="modal-overlay" style="display:none;" onclick="closeCapOnboard()"></div>
+<div id="capOnboardModal" class="modal-box" style="display:none;max-width:540px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+    <div class="modal-title">Athlete Profile Setup</div>
+    <button onclick="closeCapOnboard()" style="background:none;border:none;color:var(--text-sec);cursor:pointer;font-size:20px;">&#x2715;</button>
+  </div>
+  <p style="font-size:12px;color:var(--text-sec);margin-bottom:16px;">Takes under 3 minutes. Tells SwimLoading about your swimming background so your capability assessment reflects who you are — not just your recent logs.</p>
+
+  <div class="step-progress" id="stepProgress"></div>
+
+  <!-- Step 1: Background -->
+  <div class="onboard-step active" id="capStep1">
+    <div style="font-size:12px;font-weight:700;color:var(--cyan);margin-bottom:12px;">Background</div>
+    <div class="form-row">
+      <div class="form-field">
+        <label class="form-label">Years swimming (total)</label>
+        <input type="number" id="capYearsSwim" class="form-input" min="0" max="60" placeholder="e.g. 15">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Years open water swimming</label>
+        <input type="number" id="capYearsOW" class="form-input" min="0" max="60" placeholder="e.g. 5">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label class="form-label">Longest swim ever (km)</label>
+        <input type="number" id="capLongestEver" class="form-input" min="0" step="0.1" placeholder="e.g. 10">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Typical peak weekly km</label>
+        <input type="number" id="capPeakWeekly" class="form-input" min="0" step="1" placeholder="e.g. 30">
+      </div>
+    </div>
+    <div class="form-field">
+      <label class="form-label">Longest crossing / named swim completed</label>
+      <input type="text" id="capLongestCrossing" class="form-input" placeholder="e.g. Robben Island, 10km lido event, none">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+      <button class="btn-primary" onclick="capNext(1)">Next &rarr;</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Marathon history -->
+  <div class="onboard-step" id="capStep2">
+    <div style="font-size:12px;font-weight:700;color:var(--cyan);margin-bottom:12px;">Marathon &amp; Crossing History</div>
+    <div class="form-field">
+      <label class="form-label">Number of marathon swims completed (&ge; 10km)</label>
+      <input type="number" id="capMarathonCount" class="form-input" min="0" placeholder="e.g. 3">
+    </div>
+    <div class="form-field" style="margin-top:14px;">
+      <label class="form-label">Which of these have you completed? (tick all that apply)</label>
+      <div class="check-grid">
+        <label class="check-option"><input type="checkbox" id="capCrossEC"> English Channel</label>
+        <label class="check-option"><input type="checkbox" id="capCrossNC"> North Channel</label>
+        <label class="check-option"><input type="checkbox" id="capCrossRI"> Robben Island</label>
+        <label class="check-option"><input type="checkbox" id="capCrossCC"> Catalina Channel</label>
+        <label class="check-option"><input type="checkbox" id="capCrossMI"> Manhattan Island</label>
+        <label class="check-option"><input type="checkbox" id="capCrossCS"> Cook Strait</label>
+        <label class="check-option"><input type="checkbox" id="capCrossGB"> Gibraltar Strait</label>
+        <label class="check-option"><input type="checkbox" id="capCrossOther"> Other major crossing</label>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+      <button onclick="capBack(2)" style="padding:12px 20px;border-radius:50px;background:rgba(255,255,255,0.05);border:1px solid var(--border2);color:var(--text-sec);font-size:13px;font-weight:600;cursor:pointer;">&larr; Back</button>
+      <button class="btn-primary" onclick="capNext(2)">Next &rarr;</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Conditions & self-assessment -->
+  <div class="onboard-step" id="capStep3">
+    <div style="font-size:12px;font-weight:700;color:var(--cyan);margin-bottom:12px;">Cold Water &amp; Experience</div>
+    <div class="form-field">
+      <label class="form-label">Cold water experience level</label>
+      <select id="capColdExp" class="select-input">
+        <option value="">— Select —</option>
+        <option value="none">None — rarely swim in water below 18°C</option>
+        <option value="limited">Limited — some cold water sessions, still uncomfortable</option>
+        <option value="moderate">Moderate — regularly swim in 14–18°C, adapted</option>
+        <option value="extensive">Extensive — comfortable below 14°C, years of acclimatisation</option>
+        <option value="elite">Elite — multi-hour swims in sub-12°C, North Channel level</option>
+      </select>
+    </div>
+    <div class="form-field" style="margin-top:14px;">
+      <label class="form-label">How would you describe yourself?</label>
+      <select id="capSelfAssess" class="select-input">
+        <option value="">— Select —</option>
+        <option value="beginner">Beginner — building swimming fitness for the first time</option>
+        <option value="intermediate">Intermediate — regular swimmer, first open water goals</option>
+        <option value="experienced">Experienced — multiple open water events, strong base</option>
+        <option value="marathon_swimmer">Marathon swimmer — multiple 10km+ events completed</option>
+        <option value="elite">Elite — world-class marathon swimmer</option>
+      </select>
+    </div>
+    <div class="form-field" style="margin-top:14px;">
+      <label class="form-label">Coach name (optional)</label>
+      <input type="text" id="capCoach" class="form-input" placeholder="e.g. Sarah Jones">
+    </div>
+    <div class="form-field" style="margin-top:14px;">
+      <label class="form-label">Major achievements (optional)</label>
+      <textarea id="capAchievements" class="form-input" rows="2" placeholder="e.g. 3× Robben Island finisher, 2023 Two Oceans qualifier…" style="resize:none;"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+      <button onclick="capBack(3)" style="padding:12px 20px;border-radius:50px;background:rgba(255,255,255,0.05);border:1px solid var(--border2);color:var(--text-sec);font-size:13px;font-weight:600;cursor:pointer;">&larr; Back</button>
+      <button class="btn-primary" id="capSaveBtn" onclick="saveCapabilityProfile()">Save profile</button>
+    </div>
+  </div>
+</div>
+
 <script>
 document.addEventListener('mousemove', e => {
     document.body.style.setProperty('--mouse-x', e.clientX + 'px');
@@ -627,6 +770,7 @@ let _activeAttempt = null;
 let _crossing = null;
 let _evidence = [];
 let _selectedCrossingSlug = null;
+let _capabilityProfile = null;
 
 // ─── UTILITIES ────────────────────────────────────────────────────────────────
 
@@ -897,6 +1041,186 @@ function calculateCrossingReadiness({ swims, crossing, attempt, evidence }) {
             consistentWeeks,
             weekKm,
         }
+    };
+}
+
+// ─── CAPABILITY ENGINE ────────────────────────────────────────────────────────
+// Measures swimmer background. NOT current training. Changes rarely.
+
+function calculateAthleteCapability(profile) {
+    if (!profile) return { score: null, band: null, bandColor: 'var(--text-sec)', isEstimated: true };
+
+    const yearsOW = profile.years_open_water || 0;
+    const longestKm = profile.longest_swim_ever_km || 0;
+    const marathons = profile.marathon_swims_completed || 0;
+    const crossings = (profile.crossings_completed || []).length;
+    const coldLevel = profile.cold_water_experience_level || 'none';
+    const selfAssess = profile.self_assessed_experience_level || 'beginner';
+
+    // Years OW (0–25)
+    const yrScore = yearsOW >= 10 ? 25 : yearsOW >= 5 ? 20 : yearsOW >= 3 ? 15 : yearsOW >= 1 ? 8 : 3;
+    // Longest swim (0–25)
+    const distScore = longestKm >= 30 ? 25 : longestKm >= 20 ? 22 : longestKm >= 15 ? 18 : longestKm >= 10 ? 13 : longestKm >= 5 ? 8 : longestKm >= 2 ? 4 : 2;
+    // Marathon swims (0–20)
+    const mScore = marathons >= 10 ? 20 : marathons >= 5 ? 16 : marathons >= 3 ? 12 : marathons >= 1 ? 7 : 0;
+    // Crossings (0–15)
+    const cScore = crossings >= 5 ? 15 : crossings >= 3 ? 12 : crossings >= 2 ? 9 : crossings >= 1 ? 6 : 0;
+    // Cold (0–10)
+    const coldMap = { none: 0, limited: 2, moderate: 5, extensive: 8, elite: 10 };
+    const coldScore = coldMap[coldLevel] || 0;
+    // Self-assessed floor (0–5 bonus)
+    const selfMap = { beginner: 0, intermediate: 1, experienced: 2, marathon_swimmer: 4, elite: 5 };
+    const selfBonus = selfMap[selfAssess] || 0;
+
+    const score = Math.min(100, yrScore + distScore + mScore + cScore + coldScore + selfBonus);
+
+    let band, bandColor;
+    if (score >= 80) { band = 'Elite Marathon Background'; bandColor = '#a78bfa'; }
+    else if (score >= 60) { band = 'Strong Marathon Background'; bandColor = '#38bdf8'; }
+    else if (score >= 40) { band = 'Experienced Open Water Swimmer'; bandColor = '#10b981'; }
+    else if (score >= 20) { band = 'Developing Open Water Swimmer'; bandColor = '#f59e0b'; }
+    else { band = 'Early Stage Open Water Swimmer'; bandColor = '#64748b'; }
+
+    return { score, band, bandColor, isEstimated: false,
+        components: { yrScore, distScore, mScore, cScore, coldScore } };
+}
+
+// ─── CONFIDENCE ENGINE ────────────────────────────────────────────────────────
+// Measures how much we trust the assessment. Shown beside every recommendation.
+
+function calculateConfidenceScore(logs, capabilityProfile) {
+    let score = 0;
+    const weeksOfData = logs.length > 0 ? Math.ceil(daysSince(logs[logs.length - 1]?.created_at) / 7) : 0;
+
+    // Data depth
+    if (weeksOfData >= 8) score += 30;
+    else if (weeksOfData >= 4) score += 20;
+    else if (weeksOfData >= 2) score += 10;
+
+    // Volume of swims
+    if (logs.length >= 20) score += 25;
+    else if (logs.length >= 10) score += 20;
+    else if (logs.length >= 5) score += 10;
+
+    // Temperature data present
+    if (logs.some(l => l.temp_c !== null)) score += 15;
+    // Open water data
+    if (logs.some(l => isOpenWater(l))) score += 10;
+    // Capability profile completed
+    if (capabilityProfile) score += 20;
+
+    score = Math.min(100, score);
+
+    let band, bandColor, bandBg;
+    if (score >= 70) { band = 'High'; bandColor = '#10b981'; bandBg = 'rgba(16,185,129,0.1)'; }
+    else if (score >= 40) { band = 'Moderate'; bandColor = '#f59e0b'; bandBg = 'rgba(245,158,11,0.1)'; }
+    else { band = 'Low'; bandColor = '#64748b'; bandBg = 'rgba(255,255,255,0.05)'; }
+
+    const limitingFactor = !capabilityProfile
+        ? 'Complete your athlete profile to increase confidence'
+        : weeksOfData < 4 ? 'More training data needed — keep logging sessions'
+        : logs.length < 10 ? 'Log more sessions to improve assessment accuracy'
+        : !logs.some(l => l.temp_c !== null) ? 'Add water temperature to sessions'
+        : 'Good data coverage — assessment is reliable';
+
+    return { score, band, bandColor, bandBg, limitingFactor };
+}
+
+// ─── GAP ANALYSIS ENGINE ──────────────────────────────────────────────────────
+// The CORE product. Compares (capability + preparation) against crossing requirements.
+// Returns plain-language gaps, strengths, evidence missing, and a narrative interpretation.
+
+function calculateCrossingGapAnalysis(capability, prepResult, crossing, evidence, capProfile) {
+    if (!crossing) return null;
+
+    const gaps = [];
+    const strengths = [];
+    const evidenceMissing = [];
+
+    const km = prepResult?.keyMetrics;
+    const capScore = capability?.score;
+    const benchWeekly = crossing.benchmark_weekly_km || 40;
+    const benchLong = crossing.benchmark_long_swim_km || 15;
+    const benchCold = crossing.benchmark_cold_hours || 0;
+    const benchOW = crossing.benchmark_open_water_percent || 60;
+    const isCold = crossing.typical_temp_max_c !== null && crossing.typical_temp_max_c <= 20;
+    const needsQualifier = crossing.requires_observer && crossing.qualifying_duration_minutes;
+
+    // Volume gap
+    if (km) {
+        const volRatio = benchWeekly > 0 ? km.avgWeeklyKm / benchWeekly : 0;
+        if (volRatio < 0.5) gaps.push({ severity: 'high', area: 'Volume', text: `Current weekly volume (${km.avgWeeklyKm} km) is well below the ${benchWeekly} km/week benchmark for this crossing.` });
+        else if (volRatio < 0.8) gaps.push({ severity: 'medium', area: 'Volume', text: `Weekly volume is building but ${(benchWeekly - km.avgWeeklyKm).toFixed(1)} km/week short of benchmark.` });
+        else strengths.push('Weekly training volume meets crossing benchmark');
+
+        // Long swim gap
+        const longRatio = benchLong > 0 ? km.longestSwimKm / benchLong : 0;
+        if (longRatio < 0.5) gaps.push({ severity: 'high', area: 'Long swim', text: `Longest recent swim (${km.longestSwimKm} km) is significantly below the ${benchLong} km target.` });
+        else if (longRatio < 0.8) gaps.push({ severity: 'medium', area: 'Long swim', text: `Long swim progression is building — ${km.longestSwimKm} km of ${benchLong} km target.` });
+        else strengths.push(`Long swim progression strong — ${km.longestSwimKm} km of ${benchLong} km target`);
+
+        // Cold gap
+        if (isCold && benchCold > 0) {
+            if (km.coldHoursLogged < benchCold * 0.3) gaps.push({ severity: 'high', area: 'Cold acclimation', text: `Only ${km.coldHoursLogged} hours of cold exposure logged against a ${benchCold}-hour target. This crossing requires sustained cold water preparation.` });
+            else if (km.coldHoursLogged < benchCold * 0.7) gaps.push({ severity: 'medium', area: 'Cold acclimation', text: `${km.coldHoursLogged} of ${benchCold} target hours in crossing-temperature water.` });
+            else strengths.push('Cold water exposure within benchmark range');
+        }
+
+        // OW gap
+        if (km.owPct < benchOW * 0.5) gaps.push({ severity: 'medium', area: 'Open water specificity', text: `${km.owPct}% of recent sessions are open water. Target is ${benchOW}% for this crossing.` });
+        else if (km.owPct >= benchOW) strengths.push(`Open water ratio (${km.owPct}%) meets the ${benchOW}% benchmark`);
+    }
+
+    // Qualifier evidence
+    if (needsQualifier) {
+        const qualDone = evidence.some(e => e.evidence_type === 'qualifying_swim' && e.evidence_status === 'complete');
+        if (!qualDone) evidenceMissing.push(`${Math.round(crossing.qualifying_duration_minutes/60)}-hour qualifying swim in ≤${crossing.qualifying_temp_limit_c}°C with approved observer`);
+        else strengths.push('Qualifying swim completed and recorded');
+    }
+
+    // Feed practice
+    if (crossing.benchmark_feed_practice) {
+        const feedDone = evidence.some(e => e.evidence_type === 'feed_practice' && e.evidence_status === 'complete');
+        if (!feedDone) evidenceMissing.push('Feed practice in the water');
+        else strengths.push('Feed practice logged');
+    }
+
+    // Night swim
+    if (crossing.benchmark_night_swim) {
+        const nightDone = evidence.some(e => e.evidence_type === 'night_swim' && e.evidence_status === 'complete');
+        if (!nightDone) evidenceMissing.push('Night swim session');
+    }
+
+    // Capability-adjusted narrative
+    let narrative = '';
+    const hasInsuffData = !prepResult?.hasSufficientData;
+
+    if (hasInsuffData && !capProfile) {
+        narrative = 'SwimLoading needs more data to assess your preparation. Log sessions with distance, temperature, and location type — and complete your athlete profile — to unlock the full gap analysis.';
+    } else if (hasInsuffData && capProfile) {
+        const capBand = capability?.band || 'developing';
+        narrative = `Your athlete profile shows a ${capBand}. SwimLoading needs more recent training data to assess current preparation. Keep logging sessions to build the evidence base.`;
+    } else if (capScore !== null && capScore >= 60 && gaps.filter(g => g.severity === 'high').length === 0) {
+        narrative = `Strong marathon background meets current preparation. ${strengths.length > 0 ? strengths[0] + '. ' : ''}${evidenceMissing.length ? 'Focus on completing missing evidence: ' + evidenceMissing[0] + '.' : 'Continue current build toward the crossing.'}`;
+    } else if (capScore !== null && capScore >= 60 && gaps.some(g => g.severity === 'high')) {
+        const topGap = gaps.find(g => g.severity === 'high');
+        narrative = `Strong athlete background but preparation has a critical gap: ${topGap?.text || ''} Given your experience level, this is addressable — prioritise this in the next training block.`;
+    } else if (gaps.some(g => g.severity === 'high')) {
+        const topGap = gaps.find(g => g.severity === 'high');
+        narrative = `The most important gap is ${topGap?.area?.toLowerCase() || 'volume'}. ${topGap?.text || ''} ${evidenceMissing.length ? 'Evidence also missing: ' + evidenceMissing[0] + '.' : ''}`;
+    } else if (gaps.length === 0 && strengths.length > 0) {
+        narrative = `Preparation is tracking well across all measured dimensions. ${strengths.slice(0,2).join('. ')}. Continue building toward peak phase.`;
+    } else {
+        narrative = `Preparation is developing. ${gaps.map(g => g.text).slice(0,2).join(' ')}`;
+    }
+
+    return {
+        gaps: gaps.sort((a, b) => (a.severity === 'high' ? -1 : 1) - (b.severity === 'high' ? -1 : 1)),
+        strengths,
+        evidenceMissing,
+        narrative,
+        biggestGap: gaps[0] || null,
+        secondaryGap: gaps[1] || null,
     };
 }
 
@@ -1446,6 +1770,109 @@ function renderCommunityBenchmark(crossingSlug, activeSwimmerCount) {
     el.innerHTML = ''; // populated if community data available
 }
 
+// ─── RENDER: ATHLETE CAPABILITY ───────────────────────────────────────────────
+
+function renderCapabilitySection(capability, capProfile, el) {
+    if (!el) return;
+    const score = capability?.score;
+    const band = capability?.band;
+    const bandColor = capability?.bandColor || 'var(--text-sec)';
+
+    if (!capProfile) {
+        el.innerHTML = `
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:18px;display:flex;align-items:flex-start;gap:14px;">
+                <div class="cap-score-ring" style="border-color:rgba(255,255,255,0.12);color:var(--text-sec);">
+                    <div class="cap-score-num" style="font-size:18px;color:var(--text-sec);">—</div>
+                </div>
+                <div style="flex:1;">
+                    <div style="font-size:13px;font-weight:700;margin-bottom:4px;">Complete your athlete profile</div>
+                    <div style="font-size:12px;color:var(--text-sec);line-height:1.6;margin-bottom:10px;">Tell SwimLoading about your background so your capability assessment reflects who you really are — not just your recent log history.</div>
+                    <button class="btn-primary" style="padding:8px 18px;font-size:12px;" onclick="openCapOnboard()">Set up profile (3 min)</button>
+                </div>
+            </div>`;
+        return;
+    }
+
+    const details = [
+        capProfile.years_open_water ? `${capProfile.years_open_water} years open water` : null,
+        capProfile.marathon_swims_completed ? `${capProfile.marathon_swims_completed} marathon swim${capProfile.marathon_swims_completed !== 1 ? 's' : ''}` : null,
+        (capProfile.crossings_completed || []).length > 0 ? `${(capProfile.crossings_completed).length} major crossing${(capProfile.crossings_completed).length !== 1 ? 's' : ''}` : null,
+        capProfile.cold_water_experience_level ? capProfile.cold_water_experience_level + ' cold experience' : null,
+    ].filter(Boolean);
+
+    el.innerHTML = `
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:18px;display:flex;align-items:flex-start;gap:14px;">
+            <div class="cap-score-ring" style="border-color:${bandColor};color:${bandColor};">
+                <div class="cap-score-num" style="color:${bandColor};">${score}</div>
+                <div class="cap-score-lbl" style="color:${bandColor};opacity:.7;">cap</div>
+            </div>
+            <div style="flex:1;">
+                <div style="font-size:13px;font-weight:700;color:${bandColor};margin-bottom:3px;">${band}</div>
+                <div style="font-size:11px;color:var(--text-sec);line-height:1.6;">${details.join(' · ')}</div>
+                ${capProfile.major_achievements ? `<div style="font-size:11px;color:#94a3b8;margin-top:5px;line-height:1.5;">${capProfile.major_achievements}</div>` : ''}
+                <button onclick="openCapOnboard()" style="margin-top:8px;background:none;border:none;color:var(--cyan);font-size:11px;font-weight:700;cursor:pointer;padding:0;font-family:'DM Sans',sans-serif;">Edit profile →</button>
+            </div>
+        </div>`;
+}
+
+// ─── RENDER: GAP ANALYSIS ─────────────────────────────────────────────────────
+
+function renderGapAnalysis(gapResult, confidence, el) {
+    if (!el) return;
+    if (!gapResult) { el.innerHTML = ''; return; }
+
+    const confBadge = `<span class="conf-badge" style="background:${confidence?.bandBg};color:${confidence?.bandColor};">${confidence?.band || 'Low'} confidence</span>`;
+
+    let html = `
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+            <div style="font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--text-sec);">Gap analysis</div>
+            ${confBadge}
+        </div>`;
+
+    if (gapResult.narrative) {
+        html += `<div class="gap-narrative">${gapResult.narrative}</div>`;
+    }
+
+    if (gapResult.biggestGap) {
+        const g = gapResult.biggestGap;
+        const col = g.severity === 'high' ? 'var(--amber)' : 'var(--cyan)';
+        const bg = g.severity === 'high' ? 'rgba(245,158,11,0.06)' : 'rgba(56,189,248,0.05)';
+        const border = g.severity === 'high' ? 'rgba(245,158,11,0.2)' : 'rgba(56,189,248,0.15)';
+        html += `<div class="gap-card" style="background:${bg};border-color:${border};margin-top:12px;">
+            <div class="gap-title" style="color:${col};">Primary gap: ${g.area}</div>
+            <div class="gap-body">${g.text}</div>
+        </div>`;
+    }
+
+    if (gapResult.secondaryGap) {
+        const g = gapResult.secondaryGap;
+        html += `<div class="gap-card" style="background:rgba(255,255,255,0.02);border-color:var(--border);margin-top:0;">
+            <div class="gap-title" style="font-size:12px;color:var(--text-sec);">Secondary: ${g.area}</div>
+            <div class="gap-body" style="font-size:12px;">${g.text}</div>
+        </div>`;
+    }
+
+    if (gapResult.strengths.length > 0) {
+        html += `<div style="margin-top:8px;padding:12px 14px;background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.15);border-radius:10px;">
+            <div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--green);margin-bottom:6px;">What is already strong</div>
+            ${gapResult.strengths.map(s => `<div style="font-size:12px;color:#94a3b8;line-height:1.5;margin-bottom:3px;">↑ ${s}</div>`).join('')}
+        </div>`;
+    }
+
+    if (gapResult.evidenceMissing.length > 0) {
+        html += `<div style="margin-top:8px;padding:12px 14px;background:rgba(167,139,250,0.05);border:1px solid rgba(167,139,250,0.15);border-radius:10px;">
+            <div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--purple);margin-bottom:6px;">Evidence missing</div>
+            ${gapResult.evidenceMissing.map(e => `<div style="font-size:12px;color:#94a3b8;line-height:1.5;margin-bottom:3px;">— ${e}</div>`).join('')}
+        </div>`;
+    }
+
+    if (confidence?.limitingFactor) {
+        html += `<div style="margin-top:10px;font-size:11px;color:var(--text-sec);line-height:1.5;">${confidence.limitingFactor}</div>`;
+    }
+
+    el.innerHTML = html;
+}
+
 // ─── SETUP STATE ──────────────────────────────────────────────────────────────
 
 function renderSetupState(crossings) {
@@ -1556,6 +1983,12 @@ async function renderDashboard() {
     const { data: profData } = await sb.from('profiles').select('display_name, email').eq('id', _viewingId).maybeSingle();
     const name = profData?.display_name || profData?.email?.split('@')[0] || 'Swimmer';
 
+    // Load capability profile if not already loaded
+    if (_capabilityProfile === null) {
+        const { data: cap } = await sb.from('athlete_capability_profiles').select('*').eq('user_id', _viewingId).maybeSingle();
+        _capabilityProfile = cap || undefined; // undefined = loaded but empty
+    }
+
     // Update nav label
     document.getElementById('navLabel').textContent = name;
 
@@ -1578,18 +2011,24 @@ async function renderDashboard() {
         if (noTargetBanner) noTargetBanner.style.display = 'none';
     }
 
-    // Readiness engine
-    const result = calculateCrossingReadiness({ swims: _logs, crossing, attempt, evidence: _evidence });
+    // Run all three engines
+    const capabilityResult = calculateAthleteCapability(_capabilityProfile || null);
+    const prepResult = calculateCrossingReadiness({ swims: _logs, crossing, attempt, evidence: _evidence });
+    const gapResult = calculateCrossingGapAnalysis(capabilityResult, prepResult, crossing, _evidence, _capabilityProfile || null);
+    const confidence = calculateConfidenceScore(_logs, _capabilityProfile || null);
 
-    renderDataWarnings(result);
-    renderReadinessOverview(result);
-    renderDemand(_logs, crossing, result);
+    // Render new sections
+    renderCapabilitySection(capabilityResult, _capabilityProfile || null, document.getElementById('capabilitySection'));
+    renderDataWarnings(prepResult);
+    renderReadinessOverview(prepResult);
+    renderGapAnalysis(gapResult, confidence, document.getElementById('gapAnalysisSection'));
+    renderDemand(_logs, crossing, prepResult);
     renderCold(_logs, crossing);
     renderRhythm(_logs);
     renderRatio(_logs, crossing);
     renderEvidenceTracker(_evidence, crossing);
-    renderFocus(_logs, crossing, result, _evidence);
-    renderWeeklyReview(_logs, result);
+    renderFocus(_logs, crossing, prepResult, _evidence);
+    renderWeeklyReview(_logs, prepResult);
     renderTrends(_logs);
     renderQualifier(_logs, crossing, _evidence);
     renderCommunityBenchmark(crossing?.slug, null);
@@ -1626,8 +2065,10 @@ async function renderDashboard() {
         gtag('event', 'crossing_pro_view', {
             crossing_slug: crossing?.slug || 'none',
             preparation_phase: days !== null ? (days > 168 ? 'foundation' : days > 84 ? 'build' : days > 42 ? 'specific' : days > 14 ? 'qualifying' : 'taper') : 'no_target',
-            readiness_band: result?.band || 'insufficient_data',
-            has_sufficient_data: result?.hasSufficientData || false,
+            readiness_band: prepResult?.band || 'insufficient_data',
+            capability_band: capabilityResult?.band || 'no_profile',
+            confidence_band: confidence?.band || 'low',
+            has_sufficient_data: prepResult?.hasSufficientData || false,
             uid_hash,
             page_path: window.location.pathname
         });
@@ -1889,6 +2330,122 @@ async function saveQuickTargetDate() {
   _activeAttempt.target_date = d;
   document.getElementById('noTargetBanner').style.display = 'none';
   await renderDashboard();
+}
+
+// ─── CAPABILITY PROFILE ONBOARDING ───────────────────────────────────────────
+
+let _capCurrentStep = 1;
+const CAP_TOTAL_STEPS = 3;
+
+function openCapOnboard() {
+    _capCurrentStep = 1;
+    // Pre-fill if profile exists
+    if (_capabilityProfile) {
+        const p = _capabilityProfile;
+        document.getElementById('capYearsSwim').value = p.years_swimming || '';
+        document.getElementById('capYearsOW').value = p.years_open_water || '';
+        document.getElementById('capLongestEver').value = p.longest_swim_ever_km || '';
+        document.getElementById('capPeakWeekly').value = p.typical_peak_weekly_km || '';
+        document.getElementById('capLongestCrossing').value = p.longest_crossing_ever || '';
+        document.getElementById('capMarathonCount').value = p.marathon_swims_completed || '';
+        const ec = document.getElementById('capCrossEC');
+        const nc = document.getElementById('capCrossNC');
+        const ri = document.getElementById('capCrossRI');
+        const cc = document.getElementById('capCrossCC');
+        const mi = document.getElementById('capCrossMI');
+        const cs = document.getElementById('capCrossCS');
+        const gb = document.getElementById('capCrossGB');
+        const ot = document.getElementById('capCrossOther');
+        const done = p.crossings_completed || [];
+        if (ec) ec.checked = done.includes('english-channel');
+        if (nc) nc.checked = done.includes('north-channel');
+        if (ri) ri.checked = done.includes('robben-island');
+        if (cc) cc.checked = done.includes('catalina-channel');
+        if (mi) mi.checked = done.includes('manhattan-island');
+        if (cs) cs.checked = done.includes('cook-strait');
+        if (gb) gb.checked = done.includes('strait-of-gibraltar');
+        if (ot) ot.checked = done.includes('other');
+        document.getElementById('capColdExp').value = p.cold_water_experience_level || '';
+        document.getElementById('capSelfAssess').value = p.self_assessed_experience_level || '';
+        document.getElementById('capCoach').value = p.coach_name || '';
+        document.getElementById('capAchievements').value = p.major_achievements || '';
+    }
+    showCapStep(1);
+    document.getElementById('capOnboardOverlay').style.display = '';
+    document.getElementById('capOnboardModal').style.display = '';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeCapOnboard() {
+    document.getElementById('capOnboardOverlay').style.display = 'none';
+    document.getElementById('capOnboardModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function showCapStep(step) {
+    _capCurrentStep = step;
+    document.querySelectorAll('.onboard-step').forEach((el, i) => {
+        el.classList.toggle('active', i + 1 === step);
+    });
+    const prog = document.getElementById('stepProgress');
+    prog.innerHTML = Array.from({length: CAP_TOTAL_STEPS}, (_, i) =>
+        `<div class="step-dot ${i < step ? 'done' : ''}"></div>`
+    ).join('');
+}
+
+function capNext(fromStep) { showCapStep(fromStep + 1); }
+function capBack(fromStep) { showCapStep(fromStep - 1); }
+
+async function saveCapabilityProfile() {
+    const btn = document.getElementById('capSaveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    const crossingsDone = [];
+    if (document.getElementById('capCrossEC')?.checked) crossingsDone.push('english-channel');
+    if (document.getElementById('capCrossNC')?.checked) crossingsDone.push('north-channel');
+    if (document.getElementById('capCrossRI')?.checked) crossingsDone.push('robben-island');
+    if (document.getElementById('capCrossCC')?.checked) crossingsDone.push('catalina-channel');
+    if (document.getElementById('capCrossMI')?.checked) crossingsDone.push('manhattan-island');
+    if (document.getElementById('capCrossCS')?.checked) crossingsDone.push('cook-strait');
+    if (document.getElementById('capCrossGB')?.checked) crossingsDone.push('strait-of-gibraltar');
+    if (document.getElementById('capCrossOther')?.checked) crossingsDone.push('other');
+
+    const profileData = {
+        user_id: _viewingId,
+        years_swimming: parseInt(document.getElementById('capYearsSwim').value) || null,
+        years_open_water: parseInt(document.getElementById('capYearsOW').value) || null,
+        longest_swim_ever_km: parseFloat(document.getElementById('capLongestEver').value) || null,
+        longest_crossing_ever: document.getElementById('capLongestCrossing').value.trim() || null,
+        typical_peak_weekly_km: parseFloat(document.getElementById('capPeakWeekly').value) || null,
+        marathon_swims_completed: parseInt(document.getElementById('capMarathonCount').value) || 0,
+        crossings_completed: crossingsDone,
+        cold_water_experience_level: document.getElementById('capColdExp').value || null,
+        self_assessed_experience_level: document.getElementById('capSelfAssess').value || null,
+        coach_name: document.getElementById('capCoach').value.trim() || null,
+        major_achievements: document.getElementById('capAchievements').value.trim() || null,
+        updated_at: new Date().toISOString(),
+    };
+
+    const capResult = calculateAthleteCapability(profileData);
+    profileData.capability_score = capResult.score;
+    profileData.capability_band = capResult.band;
+
+    const { data, error } = await sb.from('athlete_capability_profiles')
+        .upsert(profileData, { onConflict: 'user_id' })
+        .select('*')
+        .single();
+
+    if (error) {
+        btn.disabled = false;
+        btn.textContent = 'Save profile';
+        alert('Could not save profile: ' + error.message);
+        return;
+    }
+
+    _capabilityProfile = data;
+    closeCapOnboard();
+    await renderDashboard();
 }
 
 // ─── INTELLIGENCE TAB ─────────────────────────────────────────────────────────
