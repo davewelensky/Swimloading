@@ -65,6 +65,8 @@
     .nav-item.active { background:var(--cyan-dim); color:var(--cyan); font-weight:700; }
     .sidebar-divider { height:1px; background:var(--border); margin:8px 4px; }
     @media(max-width:700px) { .sidebar-divider { display:none; } }
+    @media(max-width:700px) { #overviewHomeBtn { display:flex !important; } }
+    @media(max-width:700px) { #nav-overview { position:sticky; left:0; background:var(--bg,#080f1a); z-index:1; } }
 
     /* ── MAIN ── */
     .main { padding:24px; overflow-y:auto; }
@@ -495,6 +497,11 @@
     </div>
     <div class="nav-right">
       <span id="navAdminName" style="font-size:12px;color:var(--text-sec);"></span>
+      <button id="overviewHomeBtn" onclick="showPage('overview')"
+        style="display:none;background:none;border:1px solid var(--border);color:var(--text-sec);cursor:pointer;padding:5px 10px;border-radius:7px;font-size:12px;font-weight:600;align-items:center;gap:5px;"
+        title="Back to Overview">
+        <i data-lucide="layout-dashboard" style="width:14px;height:14px;"></i> Overview
+      </button>
       <a class="btn-sm" href="/app" style="text-decoration:none;">
         <i data-lucide="arrow-left" style="width:13px;height:13px;"></i> App
       </a>
@@ -1266,6 +1273,21 @@
         <input type="text" class="form-input" id="ttNotes" placeholder="e.g. Pool 1 only">
       </div>
     </div>
+    <div class="form-group">
+      <div class="form-label">Custom session name <span style="font-weight:400;color:var(--text-dim);">optional — overrides squad name</span></div>
+      <input type="text" class="form-input" id="ttCustomName" placeholder="e.g. Dryland, Water Polo, Open Water">
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+      <input type="checkbox" id="ttIsMultisquad" style="width:16px;height:16px;accent-color:var(--cyan);"
+        onchange="document.getElementById('ttSecondarySquadGroup').style.display = this.checked ? '' : 'none'">
+      <label for="ttIsMultisquad" style="font-size:13px;color:var(--text);cursor:pointer;">Multi-squad session (assign swimmers from multiple squads)</label>
+    </div>
+    <div class="form-group" id="ttSecondarySquadGroup" style="display:none;">
+      <div class="form-label">Also include squad <span style="font-weight:400;color:var(--text-dim);">optional second squad for attendance</span></div>
+      <select class="form-input" id="ttSecondarySquad">
+        <option value="">— none —</option>
+      </select>
+    </div>
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="closeAddTimetableModal()">Cancel</button>
       <button class="btn-modal-primary" id="ttSubmitBtn" onclick="submitAddTimetable()">Add session</button>
@@ -1414,7 +1436,10 @@
       Edit Member
       <button class="modal-close" onclick="closeRosterEditModal()">&times;</button>
     </div>
-    <div id="rosterEditName" style="font-weight:700;font-size:15px;margin-bottom:18px;color:var(--text);"></div>
+    <div class="form-group" style="margin-bottom:16px;">
+      <div class="form-label">Name</div>
+      <input type="text" class="form-input" id="rosterEditDisplayName" autocomplete="off">
+    </div>
     <div class="form-row">
       <div class="form-group">
         <div class="form-label">Member #</div>
@@ -1423,6 +1448,14 @@
       <div class="form-group">
         <div class="form-label">Squad</div>
         <select class="form-input" id="rosterEditSquad">
+          <option value="">— none —</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Also in squad <span style="font-weight:400;color:var(--text-dim);">optional second squad</span></div>
+        <select class="form-input" id="rosterEditSecondarySquad">
           <option value="">— none —</option>
         </select>
       </div>
@@ -2234,7 +2267,7 @@ async function loadMembers() {
       .eq('club_id', currentClub.id)
       .not('user_id', 'is', null),
     sb.from('club_roster')
-      .select('id, member_number, display_name, category, user_id, squad_id, is_trial, fee_paid, trial_end_date, fee_due_date, is_active')
+      .select('id, member_number, display_name, category, user_id, squad_id, secondary_squad_id, is_trial, fee_paid, trial_end_date, fee_due_date, is_active')
       .eq('club_id', currentClub.id)
       .eq('is_active', true)
       .order('member_number'),
@@ -5994,7 +6027,7 @@ async function loadSettingsPage() {
     const timetableSquadIds = allSquadsAll.map(s => s.id);
     if (timetableSquadIds.length) {
       sb.from('club_squad_sessions')
-        .select('id, squad_id, day_of_week, start_time, end_time, coach_name, max_capacity, notes, is_active')
+        .select('id, squad_id, day_of_week, start_time, end_time, coach_name, max_capacity, notes, is_active, custom_name, is_multisquad, secondary_squad_id')
         .in('squad_id', timetableSquadIds)
         .eq('is_active', true)
         .order('day_of_week')
@@ -6155,10 +6188,14 @@ function renderSettingsTimetable(sessions) {
             <div style="padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:4px;border:1px solid var(--border);">
               <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
                 <div style="font-size:13px;">
-                  <span style="font-weight:600;color:var(--text);">${g.squad?.name||'—'}</span>
+                  <span style="font-weight:600;color:var(--text);">${g.main?.custom_name || g.squad?.name||'—'}</span>
                   <span style="color:var(--text-sec);margin-left:10px;">${start}${end?'–'+end:''}</span>
                 </div>
-                <div style="display:flex;gap:6px;flex-wrap:wrap;">${coachButtons}</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                  ${coachButtons}
+                  <button onclick="editTimetableSession('${s.id}')" style="background:none;border:1px solid var(--border);color:var(--text-sec);cursor:pointer;font-size:12px;padding:4px 10px;border-radius:6px;" onmouseover="this.style.borderColor='var(--cyan-border)';this.style.color='var(--cyan)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-sec)'">Edit</button>
+                  <button onclick="deleteTimetableSession('${s.id}')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:4px 8px;border-radius:6px;opacity:0.6;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">Remove</button>
+                </div>
               </div>
             </div>`;
         } else {
@@ -6166,7 +6203,7 @@ function renderSettingsTimetable(sessions) {
           return `
             <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:4px;border:1px solid var(--border);">
               <div style="font-size:13px;">
-                <span style="font-weight:600;color:var(--text);">${g.squad?.name||'—'}</span>
+                <span style="font-weight:600;color:var(--text);">${s.custom_name || g.squad?.name||'—'}</span>
                 <span style="color:var(--text-sec);margin-left:10px;">${start}${end?'–'+end:''}</span>
                 ${s.coach_name   ? `<span style="color:var(--text-sec);margin-left:8px;">· ${s.coach_name}</span>`  : `<span style="color:var(--amber);margin-left:8px;font-size:11px;">· no coach</span>`}
                 ${s.max_capacity ? `<span style="color:var(--cyan);margin-left:8px;">· max ${s.max_capacity}</span>` : ''}
@@ -6268,6 +6305,12 @@ function openAddTimetableModal() {
   document.getElementById('ttCoach').value = '';
   document.getElementById('ttCap').value   = '';
   document.getElementById('ttNotes').value = '';
+  document.getElementById('ttCustomName').value = '';
+  document.getElementById('ttIsMultisquad').checked = false;
+  document.getElementById('ttSecondarySquadGroup').style.display = 'none';
+  const sel2tt = document.getElementById('ttSecondarySquad');
+  sel2tt.innerHTML = '<option value="">— none —</option>';
+  allSquads.forEach(s => { const o = document.createElement('option'); o.value = s.id; o.textContent = s.name; sel2tt.appendChild(o); });
   document.getElementById('addTimetableModal').classList.add('open');
 }
 
@@ -6291,6 +6334,12 @@ function editTimetableSession(id) {
   document.getElementById('ttCoach').value = s.coach_name  || '';
   document.getElementById('ttCap').value   = s.max_capacity || '';
   document.getElementById('ttNotes').value = s.notes       || '';
+  document.getElementById('ttCustomName').value = s.custom_name || '';
+  document.getElementById('ttIsMultisquad').checked = !!s.is_multisquad;
+  document.getElementById('ttSecondarySquadGroup').style.display = s.is_multisquad ? '' : 'none';
+  const sel2tt = document.getElementById('ttSecondarySquad');
+  sel2tt.innerHTML = '<option value="">— none —</option>';
+  allSquads.forEach(sq => { const o = document.createElement('option'); o.value = sq.id; o.textContent = sq.name; if (sq.id === s.secondary_squad_id) o.selected = true; sel2tt.appendChild(o); });
   document.getElementById('addTimetableModal').classList.add('open');
 }
 
@@ -6304,12 +6353,15 @@ async function submitAddTimetable() {
 
   const payload = {
     squad_id,
-    day_of_week:  parseInt(document.getElementById('ttDay').value),
-    start_time:   start,
-    end_time:     document.getElementById('ttEnd').value.trim()   || null,
-    coach_name:   document.getElementById('ttCoach').value.trim() || null,
-    max_capacity: parseInt(document.getElementById('ttCap').value)   || null,
-    notes:        document.getElementById('ttNotes').value.trim()    || null,
+    day_of_week:        parseInt(document.getElementById('ttDay').value),
+    start_time:         start,
+    end_time:           document.getElementById('ttEnd').value.trim()   || null,
+    coach_name:         document.getElementById('ttCoach').value.trim() || null,
+    max_capacity:       parseInt(document.getElementById('ttCap').value)   || null,
+    notes:              document.getElementById('ttNotes').value.trim()    || null,
+    custom_name:        document.getElementById('ttCustomName').value.trim() || null,
+    is_multisquad:      document.getElementById('ttIsMultisquad').checked,
+    secondary_squad_id: document.getElementById('ttIsMultisquad').checked ? (document.getElementById('ttSecondarySquad').value || null) : null,
   };
 
   if (ttEditId) {
@@ -6359,16 +6411,29 @@ async function openSessionAssignModal(sessionId) {
   (existing || []).forEach(a => { timeSlotMap[a.roster_id] = a.time_slot; });
 
   // allRosterFull may be empty if Settings was opened before Overview loaded
-  let rosterSource = allRosterFull.filter(r => r.squad_id === session.squad_id);
+  let rosterSource = session.is_multisquad
+    ? allRosterFull.filter(r => r.is_active !== false)
+    : allRosterFull.filter(r => r.squad_id === session.squad_id || r.secondary_squad_id === session.squad_id);
   if (!rosterSource.length) {
     const { data: fetched } = await sb.from('club_roster')
-      .select('id, member_number, display_name, squad_id')
+      .select('id, member_number, display_name, squad_id, secondary_squad_id')
       .eq('club_id', currentClub.id)
       .eq('squad_id', session.squad_id)
       .order('display_name');
     rosterSource = fetched || [];
   }
-  const squadMembers = [...rosterSource].sort((a, b) => (a.display_name || '').localeCompare(b.display_name || ''));
+  if (session.is_multisquad && session.secondary_squad_id) {
+    const primaryId = session.squad_id;
+    const secondaryId = session.secondary_squad_id;
+    rosterSource = [...rosterSource].sort((a, b) => {
+      const rankA = a.squad_id === primaryId ? 0 : a.squad_id === secondaryId ? 1 : 2;
+      const rankB = b.squad_id === primaryId ? 0 : b.squad_id === secondaryId ? 1 : 2;
+      return rankA - rankB || (a.display_name || '').localeCompare(b.display_name || '');
+    });
+  }
+  const squadMembers = session.is_multisquad && session.secondary_squad_id
+    ? rosterSource
+    : [...rosterSource].sort((a, b) => (a.display_name || '').localeCompare(b.display_name || ''));
 
   // Check if this is an LTS session (contains "learn to swim" in name)
   const isLTS = (squad?.name || '').toLowerCase().includes('learn to swim');
@@ -7428,7 +7493,7 @@ async function openRosterEditModal(id) {
   const r = allRoster.find(r => r.id === id);
   if (!r) return;
   rosterEditTargetId = id;
-  document.getElementById('rosterEditName').textContent    = r.display_name || '—';
+  document.getElementById('rosterEditDisplayName').value   = r.display_name || '';
   document.getElementById('rosterEditNum').value           = r.member_number ?? '';
   document.getElementById('rosterEditPhone').value         = r.phone ?? '';
   document.getElementById('rosterEditDob').value           = r.date_of_birth ?? '';
@@ -7452,6 +7517,16 @@ async function openRosterEditModal(id) {
     o.textContent = s.name;
     if (s.id === r.squad_id) o.selected = true;
     sel.appendChild(o);
+  });
+
+  const sel2 = document.getElementById('rosterEditSecondarySquad');
+  sel2.innerHTML = '<option value="">— none —</option>';
+  allSquads.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s.id;
+    o.textContent = s.name;
+    if (s.id === r.secondary_squad_id) o.selected = true;
+    sel2.appendChild(o);
   });
 
   // LTS lesson time field — show only for LTS squad members
@@ -7500,7 +7575,7 @@ async function openRosterEditModal(id) {
   }
 
   document.getElementById('rosterEditModal').classList.add('open');
-  document.getElementById('rosterEditNum').focus();
+  document.getElementById('rosterEditDisplayName').focus();
 }
 
 function closeRosterEditModal() {
@@ -7519,6 +7594,8 @@ function onRosterEditFeeToggle(cb) {
 async function saveRosterEdit() {
   if (!rosterEditTargetId) return;
   const id       = rosterEditTargetId;
+  const display_name = document.getElementById('rosterEditDisplayName').value.trim();
+  if (!display_name) { showToast('Name cannot be empty', 'error'); return; }
   const num      = document.getElementById('rosterEditNum').value.trim();
   const cat         = document.getElementById('rosterEditCat').value.trim();
   const member_type = document.getElementById('rosterEditMemberType').value || 'member';
@@ -7526,6 +7603,7 @@ async function saveRosterEdit() {
   const dob      = document.getElementById('rosterEditDob').value || null;
   const gender   = document.getElementById('rosterEditGender').value || null;
   const squad_id = document.getElementById('rosterEditSquad').value || null;
+  const secondary_squad_id = document.getElementById('rosterEditSecondarySquad').value || null;
   const is_trial = document.getElementById('rosterEditTrial').checked;
   const fee_paid = document.getElementById('rosterEditFeePaid').checked;
 
@@ -7534,6 +7612,7 @@ async function saveRosterEdit() {
   const fee_due_date     = fee_paid ? null : (document.getElementById('rosterEditFeeDue').value || null);
 
   const { error } = await sb.from('club_roster').update({
+    display_name,
     member_number: num    || null,
     category:      cat    || null,
     member_type,
@@ -7541,6 +7620,7 @@ async function saveRosterEdit() {
     date_of_birth: dob,
     gender,
     squad_id,
+    secondary_squad_id,
     is_trial,
     fee_paid,
     trial_start_date,
@@ -7551,7 +7631,9 @@ async function saveRosterEdit() {
   if (error) { showToast('Save failed: ' + error.message, 'error'); return; }
 
   const row = allRoster.find(r => r.id === id);
-  if (row) Object.assign(row, { member_number: num||null, category: cat||null, phone: phone||null, date_of_birth: dob, gender, squad_id, is_trial, fee_paid, trial_start_date, trial_end_date, fee_due_date });
+  if (row) Object.assign(row, { display_name, member_number: num||null, category: cat||null, phone: phone||null, date_of_birth: dob, gender, squad_id, secondary_squad_id, is_trial, fee_paid, trial_start_date, trial_end_date, fee_due_date });
+  const fullRow = allRosterFull.find(r => r.id === id);
+  if (fullRow) { fullRow.display_name = display_name; fullRow.squad_id = squad_id; fullRow.secondary_squad_id = secondary_squad_id; }
 
   // Save LTS lesson time if this is an LTS squad member
   const editedSquad = allSquads.find(s => s.id === (squad_id || row?.squad_id));
@@ -9017,8 +9099,13 @@ async function openSessionDetail(squadSessionId) {
         const isPreAbsent = preAbsentSet.has(r.id);
         return `
         <div style="display:flex;align-items:center;gap:8px;padding:9px 20px;border-bottom:1px solid var(--border);${isPreAbsent?'opacity:0.6;':''}">
-          ${hasTimeSlots && timeSlotMap[r.id]
-            ? `<div style="font-size:12px;font-weight:700;color:var(--cyan);min-width:42px;">${timeSlotMap[r.id]}</div>`
+          ${hasTimeSlots
+            ? `<div style="min-width:52px;">
+                <input type="time" value="${timeSlotMap[r.id] ? timeSlotMap[r.id].slice(0,5) : ''}"
+                  style="font-size:12px;font-weight:700;color:var(--cyan);background:transparent;border:none;border-bottom:1px solid rgba(56,189,248,0.3);width:52px;cursor:pointer;padding:1px 0;"
+                  onchange="updateSwimmerLessonTime('${r.id}', '${s.id}', this.value)"
+                  title="Change lesson time">
+              </div>`
             : ''}
           <div style="flex:1;font-size:13px;font-weight:500;${isPreAbsent?'text-decoration:line-through;color:var(--text-sec);':''}">${r.display_name || r.id}</div>
           <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
@@ -9113,6 +9200,19 @@ async function openSessionDetail(squadSessionId) {
 function closeSessionDetail() {
   const modal = document.getElementById('sessionDetailModal');
   if (modal) modal.style.display = 'none';
+}
+
+async function updateSwimmerLessonTime(rosterId, sessionId, newTime) {
+  const { error } = await sb.from('club_session_assignments')
+    .update({ time_slot: newTime || null })
+    .eq('roster_id', rosterId)
+    .eq('session_id', sessionId)
+    .eq('club_id', currentClub.id);
+  if (error) { showToast('Could not update lesson time', 'error'); return; }
+  if (!allWeekTimeSlots[sessionId]) allWeekTimeSlots[sessionId] = [];
+  const entry = allWeekTimeSlots[sessionId].find(e => e.roster_id === rosterId);
+  if (entry) entry.time_slot = newTime;
+  showToast('Lesson time updated', 'success');
 }
 
 async function togglePreAbsent(rosterId) {
