@@ -566,6 +566,9 @@
       <button class="nav-item" onclick="showPage('team')" id="nav-team">
         <i data-lucide="shield-check"></i> Team
       </button>
+      <button class="nav-item" onclick="showPage('audit')" id="nav-audit" style="display:none;">
+        <i data-lucide="bar-chart-2"></i> Audit
+      </button>
       <button class="nav-item" onclick="showPage('parents')" id="nav-parents">
         <i data-lucide="heart-handshake"></i> Parents
       </button>
@@ -899,6 +902,41 @@
             </button>
           </div>
           <div id="coachesContent"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+
+      <!-- ── AUDIT ── -->
+      <div id="page-audit" class="page">
+        <div class="page-header">
+          <div class="page-title">Audit</div>
+          <div class="page-sub">Coach activity, session coverage and data quality</div>
+        </div>
+
+        <!-- Coach activity summary -->
+        <div class="card" style="margin-bottom:14px;">
+          <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
+            <div class="card-title">Coach Activity — last 90 days</div>
+            <button class="btn-sm" onclick="loadAudit()" style="color:var(--cyan);border-color:rgba(56,189,248,0.25);">
+              <i data-lucide="refresh-cw" style="width:12px;height:12px;"></i> Refresh
+            </button>
+          </div>
+          <div id="auditCoachTable"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+
+        <!-- Recent sessions feed -->
+        <div class="card" style="margin-bottom:14px;">
+          <div class="card-header">
+            <div class="card-title">Recent Sessions</div>
+          </div>
+          <div id="auditSessionFeed"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+
+        <!-- Data quality flags -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Data Flags</div>
+          </div>
+          <div id="auditFlags"><div class="loading"><div class="spinner"></div></div></div>
         </div>
       </div>
 
@@ -2152,6 +2190,7 @@ async function loadClubContext() {
     ? 'Active health issues across your squads'
     : 'Active health issues across your members';
   document.getElementById('nav-entries').style.display          = hasGalaEntries   ? '' : 'none';
+  document.getElementById('nav-audit').style.display            = (hasCoachingStaff && isClubAdmin()) ? '' : 'none';
   document.getElementById('nav-attendance').style.display       = hasAttendance    ? '' : 'none';
   document.getElementById('nav-parents').style.display          = hasParentLanguage ? '' : 'none';
   document.getElementById('settings-squads-card').style.display    = hasSquads    ? '' : 'none';
@@ -2233,6 +2272,7 @@ function showPage(name) {
   if (name === 'timetable')     loadTimetablePage();
   if (name === 'settings')      loadSettingsPage();
   if (name === 'team')          loadTeam();
+  if (name === 'audit')         loadAudit();
   if (name === 'announcements') loadAnnouncements();
   if (name === 'tracker')       loadSquadTracker();
   if (name === 'parents')       loadParentsPage();
@@ -6983,6 +7023,223 @@ function renderCoaches() {
   }
 
   el.innerHTML = html;
+}
+
+// ── AUDIT ─────────────────────────────────────────────────────────
+
+async function loadAudit() {
+  ['auditCoachTable','auditSessionFeed','auditFlags'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  });
+
+  const since90 = new Date();
+  since90.setDate(since90.getDate() - 90);
+  const since90str = since90.toISOString().slice(0,10);
+
+  const [sessRes, attendRes, coachRes] = await Promise.all([
+    sb.from('club_sessions')
+      .select('id, session_date, start_time, coach_name, squad_id')
+      .eq('club_id', currentClub.id)
+      .gte('session_date', since90str)
+      .order('session_date', { ascending: false }),
+    sb.from('club_attendance')
+      .select('session_id, status')
+      .in('session_id',
+        (await sb.from('club_sessions').select('id').eq('club_id', currentClub.id).gte('session_date', since90str)).data?.map(r => r.id) || []
+      ),
+    sb.from('club_coaches').select('id, name, email, is_active').eq('club_id', currentClub.id),
+  ]);
+
+  const sessions  = sessRes.data  || [];
+  const attend    = attendRes.data || [];
+  const coaches   = coachRes.data  || [];
+
+  // Build attendance count per session
+  const attendBySession = {};
+  attend.forEach(a => {
+    if (!attendBySession[a.session_id]) attendBySession[a.session_id] = { total: 0, present: 0 };
+    attendBySession[a.session_id].total++;
+    if (a.status === 'present') attendBySession[a.session_id].present++;
+  });
+
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+
+  // Aggregate per coach_name
+  const coachStats = {};
+  sessions.forEach(s => {
+    const key = s.coach_name || '__null__';
+    if (!coachStats[key]) coachStats[key] = { name: s.coach_name, sessTotal: 0, sessMth: 0, lastDate: null, totalMarks: 0, totalPresent: 0 };
+    const cs = coachStats[key];
+    cs.sessTotal++;
+    if (s.session_date >= monthStart) cs.sessMth++;
+    if (!cs.lastDate || s.session_date > cs.lastDate) cs.lastDate = s.session_date;
+    const a = attendBySession[s.id] || { total: 0, present: 0 };
+    cs.totalMarks   += a.total;
+    cs.totalPresent += a.present;
+  });
+
+  renderAuditCoachTable(coachStats, coaches);
+  renderAuditSessionFeed(sessions.slice(0,25), attendBySession);
+  renderAuditFlags(sessions, coachStats, coaches);
+}
+
+function renderAuditCoachTable(stats, coaches) {
+  const el = document.getElementById('auditCoachTable');
+  if (!el) return;
+
+  // Merge known coaches with session stats
+  const knownNames = new Set(coaches.map(c => (c.name || '').toLowerCase()));
+  const rows = Object.values(stats).sort((a,b) => (b.sessMth - a.sessMth) || (b.sessTotal - a.sessTotal));
+
+  const today = new Date().toISOString().slice(0,10);
+  const daysAgo = date => {
+    if (!date) return null;
+    return Math.round((new Date(today) - new Date(date)) / 86400000);
+  };
+
+  const statusBadge = d => {
+    if (d === null) return `<span style="font-size:11px;color:var(--text-dim);">—</span>`;
+    if (d <= 7)  return `<span style="font-size:11px;padding:2px 7px;border-radius:20px;background:rgba(16,185,129,0.1);color:var(--green);border:1px solid rgba(16,185,129,0.2);font-weight:600;">Active</span>`;
+    if (d <= 21) return `<span style="font-size:11px;padding:2px 7px;border-radius:20px;background:rgba(245,158,11,0.1);color:var(--amber);border:1px solid rgba(245,158,11,0.2);font-weight:600;">${d}d ago</span>`;
+    return `<span style="font-size:11px;padding:2px 7px;border-radius:20px;background:rgba(239,68,68,0.08);color:var(--danger);border:1px solid rgba(239,68,68,0.15);font-weight:600;">${d}d ago</span>`;
+  };
+
+  let html = `<div style="overflow-x:auto;"><table style="font-size:13px;">
+    <thead><tr>
+      <th style="text-align:left;">Coach</th>
+      <th style="text-align:center;">This month</th>
+      <th style="text-align:center;">90-day total</th>
+      <th style="text-align:center;">Avg swimmers</th>
+      <th style="text-align:center;">Last session</th>
+      <th style="text-align:left;">Status</th>
+    </tr></thead><tbody>`;
+
+  rows.forEach(r => {
+    const isNull = r.name === null;
+    const avg = r.sessTotal > 0 ? (r.totalMarks / r.sessTotal).toFixed(1) : '—';
+    const d = daysAgo(r.lastDate);
+    html += `<tr>
+      <td style="font-weight:${isNull ? '400' : '600'};color:${isNull ? 'var(--text-dim)' : 'var(--text)'};">
+        ${isNull ? '<span style="font-style:italic;">No coach assigned</span>' : r.name}
+      </td>
+      <td style="text-align:center;font-weight:700;color:${r.sessMth > 0 ? 'var(--text)' : 'var(--text-dim)'};">${r.sessMth}</td>
+      <td style="text-align:center;color:var(--text-sec);">${r.sessTotal}</td>
+      <td style="text-align:center;color:var(--text-sec);">${avg}</td>
+      <td style="text-align:center;color:var(--text-sec);font-size:12px;">${r.lastDate || '—'}</td>
+      <td>${isNull ? '' : statusBadge(d)}</td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  el.innerHTML = html;
+  lucide.createIcons();
+}
+
+function renderAuditSessionFeed(sessions, attendBySession) {
+  const el = document.getElementById('auditSessionFeed');
+  if (!el) return;
+  if (!sessions.length) { el.innerHTML = '<div style="padding:12px;font-size:13px;color:var(--text-sec);">No sessions in the last 90 days.</div>'; return; }
+
+  const squadMap = {};
+  allSquads.forEach(s => { squadMap[s.id] = s.name; });
+
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  const rows = sessions.map(s => {
+    const a = attendBySession[s.id] || { total: 0, present: 0 };
+    const d = new Date(s.session_date + 'T12:00:00');
+    const dateStr = `${dayNames[d.getDay()]} ${s.session_date}`;
+    const time = s.start_time ? s.start_time.slice(0,5) : '';
+    const squadName = squadMap[s.squad_id] || '—';
+    const coachLabel = s.coach_name || '<span style="color:var(--text-dim);font-style:italic;">unassigned</span>';
+    const attendBadge = a.total === 0
+      ? `<span style="font-size:11px;color:var(--text-dim);">no marks</span>`
+      : `<span style="font-size:11px;font-weight:600;color:var(--green);">${a.present}/${a.total} present</span>`;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+      <div style="font-size:12px;color:var(--text-sec);min-width:110px;">${dateStr} ${time}</div>
+      <div style="flex:1;min-width:120px;font-size:13px;font-weight:600;color:var(--text);">${squadName}</div>
+      <div style="font-size:12px;color:var(--text-sec);min-width:80px;">${coachLabel}</div>
+      <div>${attendBadge}</div>
+    </div>`;
+  });
+
+  el.innerHTML = rows.join('');
+}
+
+function renderAuditFlags(sessions, stats, coaches) {
+  const el = document.getElementById('auditFlags');
+  if (!el) return;
+  const flags = [];
+
+  // Null coach sessions
+  const nullSessions = sessions.filter(s => !s.coach_name);
+  if (nullSessions.length) {
+    flags.push({
+      icon: 'alert-triangle',
+      color: 'var(--amber)',
+      bg: 'rgba(245,158,11,0.08)',
+      border: 'rgba(245,158,11,0.2)',
+      title: `${nullSessions.length} sessions with no coach name`,
+      detail: `Most recent: ${nullSessions[0].session_date}. These appear in attendance records but can't be attributed to a coach.`,
+    });
+  }
+
+  // Name variants (same first name, different full name)
+  const firstNames = {};
+  Object.values(stats).forEach(r => {
+    if (!r.name) return;
+    const first = r.name.split(' ')[0].toLowerCase();
+    if (!firstNames[first]) firstNames[first] = [];
+    firstNames[first].push(r.name);
+  });
+  Object.entries(firstNames).forEach(([first, names]) => {
+    if (names.length > 1) {
+      flags.push({
+        icon: 'git-merge',
+        color: 'var(--cyan)',
+        bg: 'rgba(56,189,248,0.06)',
+        border: 'rgba(56,189,248,0.2)',
+        title: `Name variant: "${names.join('" and "')}"`,
+        detail: `These are counted separately. To merge, update one coach's timetable sessions so coach_name is consistent.`,
+      });
+    }
+  });
+
+  // Coaches with access but zero sessions in 90 days
+  coaches.filter(c => c.is_active).forEach(c => {
+    const firstName = (c.name || '').split(' ')[0].toLowerCase();
+    const hasActivity = Object.values(stats).some(r => r.name && r.name.split(' ')[0].toLowerCase() === firstName);
+    if (!hasActivity) {
+      flags.push({
+        icon: 'user-x',
+        color: 'var(--text-dim)',
+        bg: 'rgba(255,255,255,0.03)',
+        border: 'var(--border)',
+        title: `${c.name} — no sessions marked in 90 days`,
+        detail: `Has coach access but no session records found. They may not be using the coach register.`,
+      });
+    }
+  });
+
+  if (!flags.length) {
+    el.innerHTML = `<div style="padding:14px;font-size:13px;color:var(--green);display:flex;align-items:center;gap:8px;">
+      <i data-lucide="check-circle" style="width:15px;height:15px;"></i> No data quality issues found.
+    </div>`;
+    lucide.createIcons();
+    return;
+  }
+
+  el.innerHTML = flags.map(f => `
+    <div style="display:flex;gap:12px;padding:12px;border-radius:8px;background:${f.bg};border:1px solid ${f.border};margin-bottom:10px;">
+      <i data-lucide="${f.icon}" style="width:15px;height:15px;color:${f.color};flex-shrink:0;margin-top:2px;"></i>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;">${f.title}</div>
+        <div style="font-size:12px;color:var(--text-sec);line-height:1.5;">${f.detail}</div>
+      </div>
+    </div>`).join('');
+  lucide.createIcons();
 }
 
 function openAddCoachModal() {
