@@ -513,6 +513,21 @@ async function submitStravaLog() {
         dismissStravaBanner();
         _stravaActivitiesCache = null; // Invalidate cache
 
+        // Award June Challenge points — only for same-day imports (not historical backdates)
+        const activityDateUTC = activity.start_date_local
+            ? new Date(activity.start_date_local).toISOString().slice(0, 10)
+            : null;
+        const todayUTC = new Date().toISOString().slice(0, 10);
+        const isSameDay = !activityDateUTC || activityDateUTC === todayUTC;
+        if (isSameDay && typeof jcAwardPoints === 'function') {
+            jcAwardPoints('temp_log', {
+                spotId,
+                spotName: selectedSpot ? selectedSpot.name : null,
+                temp: parseFloat(temp),
+                refId: data.log_id || null,
+            });
+        }
+
         // Mark the activity as imported in cached list
         showStravaSuccessModal();
 
