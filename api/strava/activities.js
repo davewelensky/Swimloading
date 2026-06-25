@@ -40,11 +40,22 @@ export default async function handler(req, res) {
     const token = await getValidStravaToken(userId);
     if (!token) return res.status(400).json({ error: 'strava_not_connected' });
 
-    // Fetch recent activities from Strava
-    const stravaRes = await fetch(
-        'https://www.strava.com/api/v3/athlete/activities?per_page=30',
-        { headers: { 'Authorization': `Bearer ${token}` } }
-    );
+    // Fetch recent swim activities from Strava — two pages of 100 to cast a wide net
+    // No sport_type filter param exists on the v3 endpoint; we filter client-side.
+    // per_page=100 ensures swims aren't buried behind runs/rides in a mixed-activity feed.
+    const [page1Res, page2Res] = await Promise.all([
+        fetch('https://www.strava.com/api/v3/athlete/activities?per_page=100&page=1', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('https://www.strava.com/api/v3/athlete/activities?per_page=100&page=2', { headers: { 'Authorization': `Bearer ${token}` } }),
+    ]);
+
+    if (page1Res.status === 429) {
+        return res.status(429).json({ error: 'strava_rate_limited' });
+    }
+    if (!page1Res.ok) {
+        console.error('[strava/activities] Strava fetch failed:', await page1Res.text());
+        return res.status(502).json({ error: 'strava_fetch_failed' });
+    }
+    const stravaRes = page1Res; // kept for error-handling compat below
 
     if (stravaRes.status === 429) {
         return res.status(429).json({ error: 'strava_rate_limited' });
@@ -54,7 +65,9 @@ export default async function handler(req, res) {
         return res.status(502).json({ error: 'strava_fetch_failed' });
     }
 
-    const all = await stravaRes.json();
+    const page1 = await stravaRes.json();
+    const page2 = page2Res.ok ? await page2Res.json() : [];
+    const all = [...page1, ...page2];
     console.log('[strava/activities] total activities:', all.length,
         '| types:', [...new Set(all.map(a => a.sport_type || a.type))].join(', '),
         '| athlete:', all[0]?.athlete?.id ?? 'unknown');
