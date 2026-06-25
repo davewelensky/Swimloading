@@ -287,7 +287,7 @@
       <div class="card">
         <div class="card-title">Crossing details</div>
         <label>Crossing</label>
-        <select id="crossing-name">
+        <select id="crossing-name" onchange="updateCrossingDefaults()">
           <option>Robben Island</option><option>Cape Point</option><option>Dassen Island</option>
           <option>Preekstoel</option><option>West Angle</option><option>English Channel</option><option>Custom</option>
         </select>
@@ -303,7 +303,7 @@
         <label>Athlete or attempt (optional)</label>
         <input type="text" id="crossing-athlete" placeholder="e.g. Dave completes his 3rd Robben Island solo">
         <label>Intel angle</label>
-        <textarea id="crossing-intel">July is statistically the coldest month in False Bay. Conditions this week are right on the qualification threshold for solo attempts.</textarea>
+        <textarea id="crossing-intel">July is statistically the coldest month in Table Bay. Atlantic-fed water at this time of year sits sub-14°C — right on the threshold for solo qualification attempts.</textarea>
         <label>Call to action</label>
         <select id="crossing-cta">
           <option value="intel">Read the full intel at swimloading.com</option>
@@ -675,6 +675,29 @@ function getActiveHazards() {
 }
 
 // ─── PARTNER & CLUB DEFAULTS ───
+function updateCrossingDefaults() {
+  const crossing = document.getElementById('crossing-name').value;
+  const intelMap = {
+    'Robben Island':   'Table Bay, Atlantic Ocean — cold, upwelling-driven water that sits sub-14°C through winter. The 7.5km route from Blouberg is the benchmark solo crossing in South Africa. Tidal windows are narrow and must be timed precisely.',
+    'Cape Point':      'A serious ocean crossing at the southwestern tip of Africa where the Atlantic meets the Indian Ocean. Unpredictable current shifts and 20°C+ temperature variance between sides of the headland make it one of the most technically demanding crossings in SA waters.',
+    'Dassen Island':   'Atlantic Ocean, West Coast. Dassen sits 10km off the coast near Yzerfontein — cold Atlantic water, strong NW swells in winter, and a wildlife-protected approach. One of the least-attempted but most respected crossings in SA open water.',
+    'Preekstoel':      'False Bay, Indian Ocean side. The Preekstoel (Pulpit Rock) crossing is a False Bay challenge — warmer than the Atlantic but with significant current, boat traffic in the bay, and exposed approach sections. A proving ground for False Bay swimmers.',
+    'West Angle':      'Atlantic Ocean, West Coast. A remote open water route along the Cape West Coast — cold upwelling water, no crowds, demanding conditions. A niche challenge for serious ocean swimmers comfortable with self-supported logistics.',
+    'English Channel': 'The English Channel separates England from France at its narrowest point — 33.8km at the Strait of Dover. Water temperatures average 15–18°C in the July–September window. Tidal streams run at up to 4 knots; pilots guide all solo and relay swims. The benchmark of marathon open water swimming worldwide.'
+  };
+  const conditionsMap = {
+    'Robben Island':   'Table Bay conditions: Atlantic upwelling, 13–14°C, 0.8m SW swell, light SE wind. Tidal window favourable for early morning start from Blouberg.',
+    'Cape Point':      'Atlantic side sitting at 15°C, Indian Ocean side 19°C. Current shift expected mid-crossing. Light swell, moderate SE wind forecast.',
+    'Dassen Island':   'Cold Atlantic upwelling — 12°C at the island, 13°C on the Yzerfontein side. NW swell at 1.2m, easing by midday. Conditions borderline for an attempt.',
+    'Preekstoel':      'False Bay, 17°C. Moderate current running east across the bay. Light wind, good visibility. Boat traffic window is 06:00–09:00 before recreational traffic picks up.',
+    'West Angle':      'Atlantic West Coast, 13°C. Exposed conditions — 1.5m NW swell, 20 knot offshore wind. Not suitable for an attempt this window.',
+    'English Channel': 'Strait of Dover, 16°C. Tidal stream running NE at 2.5 knots. Neap tide window — best 6-hour tide window opens at 05:30 from Samphire Hoe. Light winds forecast, 0.5m sea state.'
+  };
+
+  if (intelMap[crossing]) document.getElementById('crossing-intel').value = intelMap[crossing];
+  if (conditionsMap[crossing]) document.getElementById('crossing-conditions').value = conditionsMap[crossing];
+}
+
 function updatePartnerDefaults() {
   const partner = document.getElementById('partner-name').value;
   const featureMap = {
