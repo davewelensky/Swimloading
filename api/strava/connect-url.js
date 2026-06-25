@@ -50,7 +50,7 @@ export default async function handler(req, res) {
             redirect_uri:    redirectUri,
             response_type:   'code',
             approval_prompt: 'auto',
-            scope:           'activity:read',
+            scope:           'activity:read_all',
             state,
         });
 
