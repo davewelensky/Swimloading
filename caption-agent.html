@@ -542,6 +542,29 @@
     <div class="form-grid">
       <div class="card">
         <div class="card-title">The swimmer / achievement</div>
+        <label>Quick-load a swimmer profile</label>
+        <select id="comm-profile" onchange="loadSwimmerProfile()">
+          <option value="">— Select to pre-fill, or write your own below —</option>
+          <optgroup label="SwimLoading community">
+            <option value="yolanda">Yolanda Carstens — double Robben Island + prediction</option>
+            <option value="lindi">Lindi Mitchell — English Channel prep</option>
+            <option value="james">James — English Channel prep</option>
+          </optgroup>
+          <optgroup label="World-class swimmers">
+            <option value="carina">Carina Bruwer</option>
+            <option value="ryan">Ryan Stramrood</option>
+            <option value="cameron">Cameron Bellamy</option>
+            <option value="sarah">Sarah Ferguson</option>
+            <option value="andy">Andy Donaldson</option>
+          </optgroup>
+          <optgroup label="Big 5 crossings">
+            <option value="big5-falsebay">Big 5 — False Bay Crossing (33km)</option>
+            <option value="big5-preekstoel">Big 5 — Double Preekstoel (24km)</option>
+            <option value="big5-capepoint">Big 5 — Cape Point (8km)</option>
+            <option value="big5-dassen">Big 5 — Dassen Island (8.7km)</option>
+            <option value="big5-westangle">Big 5 — West Coast Angle via Robben Island (18km)</option>
+          </optgroup>
+        </select>
         <label>Swimmer name (leave blank to keep anonymous)</label>
         <input type="text" id="comm-name" placeholder="First name, or leave blank for anonymous">
         <label>Achievement type</label>
@@ -549,15 +572,15 @@
           <option>First open water swim</option><option>Crossing completed</option>
           <option>Cold water personal best</option><option>Challenge winner</option>
           <option>Milestone log count</option><option>Comeback after injury / illness</option>
-          <option>Long-time swimmer joins SwimLoading</option><option>Other</option>
+          <option>Long-time swimmer joins SwimLoading</option><option>Big 5 attempt</option><option>Other</option>
         </select>
         <label>The full story — be specific and accurate</label>
-        <textarea id="comm-story" placeholder="e.g. Distance, temp, time, how long they've been swimming, what this crossing / moment means to them. SwimLoading launched March 2026 — keep any logging references to within that window."></textarea>
+        <textarea id="comm-story" placeholder="e.g. Distance, temp, time, how long they have been swimming, what this moment means. SwimLoading launched March 2026 — keep any logging references within that window."></textarea>
       </div>
       <div class="card">
         <div class="card-title">The bigger angle</div>
         <label>What does this represent for the community?</label>
-        <textarea id="comm-angle" placeholder="e.g. 25 years of open water swimming, now logging conditions so the next generation of swimmers knows what the water is doing. Experience meets data."></textarea>
+        <textarea id="comm-angle" placeholder="e.g. 25 years of open water swimming, now logging conditions so the next generation knows what the water is doing. Experience meets data."></textarea>
         <label>Call to action</label>
         <select id="comm-cta">
           <option value="join">Join the community — your story starts at swimloading.com</option>
@@ -689,6 +712,100 @@ function getActiveHazards() {
 }
 
 // ─── PARTNER & CLUB DEFAULTS ───
+function loadSwimmerProfile() {
+  const profile = document.getElementById('comm-profile').value;
+  if (!profile) return;
+
+  const profiles = {
+    yolanda: {
+      name: 'Yolanda',
+      type: 'Crossing completed',
+      story: 'Yolanda Carstens completed a double Robben Island crossing — 15km in 14.5°C water. SwimLoading\'s prediction intel called her time at 5h23. She swam it in 5h21. We were 90 seconds out over a 15km ocean swim. That\'s the kind of data accuracy that matters when you\'re planning a crossing.',
+      angle: 'This is what SwimLoading\'s crossing prediction intel is built for — not just logging temps, but giving swimmers and their teams real, verified data to plan against. Yolanda\'s double RI is the benchmark that proves it works.'
+    },
+    lindi: {
+      name: 'Lindi',
+      type: 'Crossing completed',
+      story: 'Lindi Mitchell is using SwimLoading\'s English Channel crossing intel to prepare for her Channel attempt. She\'s logging conditions, tracking cold acclimation, and using the tidal window data to plan her feed strategy and crossing window. The intel page at swimloading.com/crossings/english-channel is built around exactly this kind of preparation.',
+      angle: 'The Channel prep journey is 12–24 months of training, cold exposure, and data. SwimLoading is building the tool that makes that journey trackable and informed — Lindi is testing it from the inside.'
+    },
+    james: {
+      name: 'James',
+      type: 'Crossing completed',
+      story: 'James is using SwimLoading\'s English Channel crossing intel to prepare for his Channel attempt — logging conditions, tracking qualifying swims, and using the tidal data to plan his crossing window. James and Lindi are our first Channel prep community members.',
+      angle: 'Two South African swimmers using a South African platform to prepare for the world\'s most iconic open water crossing. SwimLoading\'s Channel intel is being tested by the people who need it most.'
+    },
+    carina: {
+      name: 'Carina',
+      type: 'Long-time swimmer joins SwimLoading',
+      story: 'Carina Bruwer has been swimming open water for 25 years — 5km every single day. She is one of the most respected and experienced open water swimmers in South Africa. [ADD: specific crossing, achievement, or SwimLoading moment here]',
+      angle: '25 years of open water knowledge, now contributing to the SwimLoading community. When someone with Carina\'s experience logs a temperature, that reading carries weight. This is what community data looks like.'
+    },
+    ryan: {
+      name: 'Ryan',
+      type: 'Crossing completed',
+      story: 'Ryan Stramrood is one of the world\'s most accomplished open water and cold water swimmers. [ADD: specific achievement, crossing, or SwimLoading moment — ask Dave for the accurate detail to include here]',
+      angle: '[ADD: what Ryan\'s connection to SwimLoading represents for the community]'
+    },
+    cameron: {
+      name: 'Cameron',
+      type: 'Crossing completed',
+      story: 'Cameron Bellamy is a world-class extreme open water swimmer. [ADD: specific achievement, crossing, or SwimLoading moment — ask Dave for the accurate detail to include here]',
+      angle: '[ADD: what Cameron\'s connection to SwimLoading represents for the community]'
+    },
+    sarah: {
+      name: 'Sarah',
+      type: 'Crossing completed',
+      story: 'Sarah Ferguson is a world-class open water swimmer. [ADD: specific achievement, crossing, or SwimLoading moment — ask Dave for the accurate detail to include here]',
+      angle: '[ADD: what Sarah\'s connection to SwimLoading represents for the community]'
+    },
+    andy: {
+      name: 'Andy',
+      type: 'Crossing completed',
+      story: 'Andy Donaldson is a world-class open water swimmer. [ADD: specific achievement, crossing, or SwimLoading moment — ask Dave for the accurate detail to include here]',
+      angle: '[ADD: what Andy\'s connection to SwimLoading represents for the community]'
+    },
+    'big5-falsebay': {
+      name: '',
+      type: 'Big 5 attempt',
+      story: 'The False Bay Crossing — 33km from Miller\'s Point to Strand, estimated 10–14 hours in the water. The longest of SwimLoading\'s Big 5. Cold Atlantic-fed water on the western approach, warmer Indian Ocean influence on the eastern reach. A full-day commitment in open ocean.',
+      angle: 'SwimLoading tracks real-time conditions for every Big 5 crossing — wind, swell, water temp — so swimmers and their guides can make informed go / no-go calls. The False Bay Crossing is the ultimate Big 5 test.'
+    },
+    'big5-preekstoel': {
+      name: '',
+      type: 'Big 5 attempt',
+      story: 'The Double Preekstoel — 24km return through Langebaan Lagoon, estimated 8–12 hours. Preekstoel (Pulpit Rock) sits in a sheltered lagoon on the West Coast, but the open water crossing demands respect: tidal current, wind across the lagoon, and a long return leg with no shelter.',
+      angle: 'The Double Preekstoel is one of the most underrated Big 5 challenges — no ocean swell, but a relentless 24km in a body of water that tests pacing and navigation. SwimLoading logs conditions in Langebaan so swimmers go in prepared.'
+    },
+    'big5-capepoint': {
+      name: '',
+      type: 'Big 5 attempt',
+      story: 'Cape Point — 8km from Diaz Beach around Cape Point to Miller\'s Point. The southwestern tip of Africa, where Atlantic and Indian Ocean currents collide. Short distance, but one of the most technically demanding crossings on the list: unpredictable current shifts and exposed conditions around the headland.',
+      angle: 'Eight kilometres that cover two oceans and one of the most dramatic headlands in the world. SwimLoading\'s Cape Point intel gives swimmers the current and swell data they need before committing to the approach.'
+    },
+    'big5-dassen': {
+      name: '',
+      type: 'Big 5 attempt',
+      story: 'Dassen Island — 8.7km from the island to Yzerfontein, estimated 2.5–4 hours. Cold Atlantic water, strong NW swells in winter, and a wildlife-protected approach make this one of the most remote and least-attempted Big 5 crossings. Few verified completions exist.',
+      angle: 'Dassen Island is the quiet one on the Big 5 list — rarely attempted, never easy. SwimLoading is building the verified conditions history that will help the next wave of swimmers plan their approach properly.'
+    },
+    'big5-westangle': {
+      name: '',
+      type: 'Big 5 attempt',
+      story: 'The West Coast Angle — 18km from Big Bay to Robben Island then on to Melkbosstrand, estimated 6–8 hours. Cold Benguela upwelling water at 13–14°C. The route crosses Table Bay and passes Robben Island — two iconic SA open water landmarks in a single swim.',
+      angle: 'The West Coast Angle is SwimLoading territory — cold water, Table Bay, Robben Island. The kind of swim that needs real conditions data, not guesswork. This is why SwimLoading exists.'
+    }
+  };
+
+  const p = profiles[profile];
+  if (!p) return;
+
+  document.getElementById('comm-name').value = p.name;
+  document.getElementById('comm-type').value = p.type;
+  document.getElementById('comm-story').value = p.story;
+  document.getElementById('comm-angle').value = p.angle;
+}
+
 function updateChallengeDefaults() {
   const challenge = document.getElementById('challenge-name').value;
   const prizesMap = {
