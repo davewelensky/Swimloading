@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SwimLoading — Caption Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  :root {
+    --bg:        #080f1a;
+    --bg-card:   #0d1728;
+    --bg-input:  #091220;
+    --cyan:      #38bdf8;
+    --cyan-mid:  #0ea5e9;
+    --cyan-deep: #0284c7;
+    --text:      #f1f5f9;
+    --text-sec:  #64748b;
+    --border:    rgba(255,255,255,0.07);
+    --border-hi: rgba(56,189,248,0.3);
+    --amber:     #f59e0b;
+    --green:     #10b981;
+    --danger:    #ef4444;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+  body::before {
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:9999;
+    background:
+      radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px), rgba(56,189,248,.55), transparent 100%),
+      radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px), rgba(56,189,248,.07), transparent 70%);
+  }
+
+  /* PASSWORD GATE */
+  .gate-overlay {
+    position:fixed; inset:0; background:var(--bg); z-index:1000;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .gate-overlay.hidden { display:none; }
+  .gate-box {
+    background:var(--bg-card); border:1px solid var(--border); border-radius:16px;
+    padding:36px 32px; max-width:380px; width:100%; text-align:center;
+  }
+  .gate-box img { height:28px; margin-bottom:20px; }
+  .gate-title { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:.04em;
+    background:linear-gradient(135deg,#38bdf8,#0284c7); -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:6px; }
+  .gate-sub { font-size:13px; color:var(--text-sec); margin-bottom:24px; }
+  .gate-input {
+    width:100%; padding:11px 14px; border:1px solid var(--border); border-radius:10px;
+    font-family:'DM Sans',sans-serif; font-size:14px; color:var(--text);
+    background:var(--bg-input); outline:none; margin-bottom:12px;
+    transition:border-color .15s; text-align:center; letter-spacing:.08em;
+  }
+  .gate-input:focus { border-color:var(--border-hi); }
+  .gate-btn {
+    width:100%; padding:13px; background:linear-gradient(135deg,#38bdf8,#0284c7);
+    color:#080f1a; border:none; border-radius:50px; font-family:'DM Sans',sans-serif;
+    font-size:14px; font-weight:700; cursor:pointer; transition:opacity .15s;
+  }
+  .gate-btn:hover { opacity:.9; }
+  .gate-error { font-size:12px; color:#fca5a5; margin-top:10px; display:none; }
+  .gate-error.visible { display:block; }
+
+  .app { max-width:900px; margin:0 auto; padding:32px 24px 64px; }
+
+  /* NAV */
+  header { margin-bottom:32px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+  .logo-link {
+    display:flex; align-items:center; gap:8px; text-decoration:none;
+    font-size:20px; font-weight:800; letter-spacing:-0.5px;
+    background:linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  }
+  .logo-link img { height:22px; width:auto; }
+  .badge {
+    padding:5px 14px; border-radius:100px;
+    background:rgba(56,189,248,.08); border:1px solid rgba(56,189,248,.2);
+    font-size:11px; font-weight:600; color:var(--cyan); letter-spacing:.06em; text-transform:uppercase;
+  }
+
+  /* TITLES */
+  .page-title { font-family:'Bebas Neue',sans-serif; font-size:42px; letter-spacing:.04em; line-height:1; margin-bottom:6px;
+    background:linear-gradient(135deg,#38bdf8,#0284c7); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .page-sub { font-size:14px; color:var(--text-sec); margin-bottom:28px; }
+
+  /* TYPE SELECTOR */
+  .type-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:var(--text-sec); margin-bottom:10px; }
+  .type-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:24px; }
+  @media(max-width:640px){ .type-grid { grid-template-columns:repeat(2,1fr); } }
+  .type-btn {
+    padding:12px 10px; border:1px solid var(--border); border-radius:12px;
+    background:none; font-family:'DM Sans',sans-serif; font-size:12px; font-weight:500;
+    color:var(--text-sec); cursor:pointer; text-align:center; transition:all .15s;
+    display:flex; flex-direction:column; align-items:center; gap:7px;
+  }
+  .type-btn svg { width:18px; height:18px; opacity:.6; }
+  .type-btn.active { border-color:var(--border-hi); background:rgba(56,189,248,.06); color:var(--cyan); font-weight:600; }
+  .type-btn.active svg { opacity:1; color:var(--cyan); }
+
+  /* LAYOUT */
+  .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+  @media(max-width:640px){ .form-grid { grid-template-columns:1fr; } }
+
+  /* CARDS */
+  .card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:20px; }
+  .card-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:var(--text-sec); margin-bottom:16px; }
+
+  /* FORM */
+  label { font-size:11px; font-weight:600; color:var(--text-sec); display:block; margin-bottom:5px; margin-top:14px; text-transform:uppercase; letter-spacing:.06em; }
+  label:first-of-type { margin-top:0; }
+  input, select, textarea {
+    width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:8px;
+    font-family:'DM Sans',sans-serif; font-size:13px; color:var(--text);
+    background:var(--bg-input); outline:none; transition:border-color .15s; -webkit-appearance:none;
+  }
+  input:focus, select:focus, textarea:focus { border-color:var(--border-hi); }
+  textarea { resize:vertical; min-height:80px; }
+  select option { background:#0d1728; }
+
+  /* SPOT ROWS */
+  .spot-rows { display:flex; flex-direction:column; gap:8px; }
+  .spot-row { display:grid; grid-template-columns:1fr 70px 68px 28px; gap:8px; align-items:center; }
+  .spot-row input, .spot-row select { padding:8px 10px; font-size:12px; }
+  .remove-btn { width:28px; height:28px; border:1px solid var(--border); background:none; border-radius:6px; cursor:pointer; color:var(--text-sec); display:flex; align-items:center; justify-content:center; transition:all .15s; flex-shrink:0; }
+  .remove-btn:hover { border-color:var(--danger); color:var(--danger); background:rgba(239,68,68,.08); }
+  .remove-btn svg { width:13px; height:13px; }
+  .add-spot-btn { margin-top:10px; padding:8px 14px; background:none; border:1px dashed rgba(255,255,255,.08); border-radius:8px; font-family:'DM Sans',sans-serif; font-size:12px; font-weight:500; color:var(--text-sec); cursor:pointer; width:100%; transition:all .15s; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .add-spot-btn:hover { border-color:var(--border-hi); color:var(--cyan); background:rgba(56,189,248,.04); }
+
+  /* HAZARD CHIPS */
+  .hazard-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .hazard-chip { padding:5px 12px; border:1px solid var(--border); border-radius:100px; font-family:'DM Sans',sans-serif; font-size:12px; color:var(--text-sec); cursor:pointer; transition:all .15s; background:none; }
+  .hazard-chip.active { border-color:rgba(245,158,11,.4); background:rgba(245,158,11,.08); color:var(--amber); }
+
+  /* TONE */
+  .tone-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .tone-btn { padding:9px 10px; border:1px solid var(--border); border-radius:8px; background:none; font-family:'DM Sans',sans-serif; font-size:12px; font-weight:500; color:var(--text-sec); cursor:pointer; text-align:center; transition:all .15s; }
+  .tone-btn.selected { border-color:var(--border-hi); background:rgba(56,189,248,.07); color:var(--cyan); font-weight:600; }
+
+  /* GENERATE */
+  .generate-btn { width:100%; padding:15px; background:linear-gradient(135deg,#38bdf8,#0284c7); color:#080f1a; border:none; border-radius:50px; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:700; cursor:pointer; transition:all .2s; margin-top:8px; display:flex; align-items:center; justify-content:center; gap:10px; }
+  .generate-btn:hover { opacity:.9; transform:translateY(-1px); box-shadow:0 8px 24px rgba(56,189,248,.2); }
+  .generate-btn:disabled { opacity:.4; cursor:not-allowed; transform:none; box-shadow:none; }
+  .generate-btn .spinner { width:18px; height:18px; border:2px solid rgba(8,15,26,.3); border-top-color:#080f1a; border-radius:50%; animation:spin .7s linear infinite; display:none; }
+  .generate-btn.loading .spinner { display:block; }
+  .generate-btn.loading .btn-text { display:none; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* OUTPUT */
+  .output-area { display:none; }
+  .output-area.visible { display:block; }
+  .output-heading { margin:32px 0 16px; font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:.04em; background:linear-gradient(135deg,#38bdf8,#0284c7); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .captions-grid { display:grid; grid-template-columns:1fr; gap:14px; margin-bottom:16px; }
+  .caption-card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; overflow:hidden; transition:border-color .15s; }
+  .caption-card.selected-cap { border-color:var(--border-hi); box-shadow:0 0 0 1px rgba(56,189,248,.15); }
+  .caption-header { padding:12px 16px; background:rgba(255,255,255,.02); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .cap-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:var(--text-sec); }
+  .cap-tone-badge { font-size:11px; padding:3px 10px; border-radius:100px; font-weight:600; }
+  .tone-c { background:rgba(56,189,248,.1); color:var(--cyan); }
+  .tone-w { background:rgba(245,158,11,.1); color:var(--amber); }
+  .tone-i { background:rgba(16,185,129,.1); color:var(--green); }
+  .caption-body { padding:18px 16px; font-size:14px; line-height:1.85; color:var(--text); white-space:pre-wrap; font-family:'DM Sans',sans-serif; }
+  .caption-footer { padding:10px 16px; border-top:1px solid var(--border); display:flex; gap:8px; }
+  .copy-btn { padding:7px 16px; border:1px solid var(--border); border-radius:50px; background:none; font-family:'DM Sans',sans-serif; font-size:12px; font-weight:600; color:var(--text-sec); cursor:pointer; transition:all .15s; }
+  .copy-btn:hover { border-color:var(--border-hi); color:var(--cyan); }
+  .copy-btn.copied { border-color:var(--green); color:var(--green); }
+  .select-btn { padding:7px 16px; border:1px solid var(--border-hi); border-radius:50px; background:rgba(56,189,248,.07); font-family:'DM Sans',sans-serif; font-size:12px; font-weight:600; color:var(--cyan); cursor:pointer; transition:all .15s; }
+  .select-btn:hover { background:var(--cyan); color:#080f1a; }
+
+  /* HASHTAGS */
+  .hashtag-section { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:18px 20px; margin-bottom:14px; }
+  .hashtag-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:var(--text-sec); margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; }
+  .hashtag-note { font-size:11px; color:var(--text-sec); margin-bottom:10px; }
+  .hashtag-text { font-size:14px; color:var(--cyan); line-height:2; font-family:monospace; }
+  .copy-hash-btn { padding:5px 14px; border:1px solid var(--border); border-radius:50px; background:none; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:600; color:var(--text-sec); cursor:pointer; transition:all .15s; white-space:nowrap; }
+  .copy-hash-btn:hover { border-color:var(--border-hi); color:var(--cyan); }
+
+  /* STORY TIPS */
+  .story-tips { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:18px 20px; }
+  .tip-row { display:flex; gap:14px; align-items:flex-start; padding:10px 0; border-bottom:1px solid var(--border); font-size:13px; line-height:1.65; color:var(--text); }
+  .tip-row:last-child { border-bottom:none; }
+  .tip-icon { width:32px; height:32px; border-radius:8px; background:rgba(56,189,248,.08); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--cyan); }
+  .tip-icon svg { width:15px; height:15px; }
+
+  /* ERROR */
+  .error-box { background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.25); border-radius:10px; padding:14px 16px; color:#fca5a5; font-size:13px; margin-top:16px; display:none; }
+  .error-box.visible { display:block; }
+
+  /* SECTION SHOW/HIDE */
+  .type-section { display:none; }
+  .type-section.active { display:contents; }
+</style>
+</head>
+<body>
+
+<!-- PASSWORD GATE -->
+<div class="gate-overlay" id="gate">
+  <div class="gate-box">
+    <img src="/icons/logo-wave.png" alt="SwimLoading">
+    <div class="gate-title">Caption Agent</div>
+    <div class="gate-sub">SwimLoading internal tool — enter the access code to continue.</div>
+    <input class="gate-input" id="gate-input" type="password" placeholder="Access code" autocomplete="off">
+    <button class="gate-btn" onclick="checkPassword()">Enter</button>
+    <div class="gate-error" id="gate-error">Incorrect code — try again.</div>
+  </div>
+</div>
+
+<div class="app">
+  <header>
+    <a href="https://swimloading.com" class="logo-link">
+      <img src="/icons/logo-wave.png" alt="">SwimLoading
+    </a>
+    <div class="badge">Caption Agent</div>
+  </header>
+
+  <div class="page-title">Caption Generator</div>
+  <div class="page-sub">Cover every part of SwimLoading — conditions, crossings, clubs, challenges, partners and community.</div>
+
+  <!-- TYPE SELECTOR -->
+  <div class="type-label">What are you posting about?</div>
+  <div class="type-grid">
+    <button class="type-btn active" onclick="setType('conditions',this)"><i data-lucide="thermometer"></i>Weekly Conditions</button>
+    <button class="type-btn" onclick="setType('crossing',this)"><i data-lucide="navigation"></i>Crossing Intel</button>
+    <button class="type-btn" onclick="setType('challenge',this)"><i data-lucide="zap"></i>Challenge Update</button>
+    <button class="type-btn" onclick="setType('partner',this)"><i data-lucide="handshake"></i>Partner Feature</button>
+    <button class="type-btn" onclick="setType('club',this)"><i data-lucide="users"></i>Club Life</button>
+    <button class="type-btn" onclick="setType('hazard',this)"><i data-lucide="alert-triangle"></i>Hazard Alert</button>
+    <button class="type-btn" onclick="setType('strava',this)"><i data-lucide="activity"></i>Strava Feature</button>
+    <button class="type-btn" onclick="setType('community',this)"><i data-lucide="award"></i>Community Story</button>
+  </div>
+
+  <!-- CONDITIONS -->
+  <div class="type-section active" id="section-conditions">
+    <div class="form-grid">
+      <div class="card">
+        <div class="card-title">Water conditions this week</div>
+        <div id="spot-rows" class="spot-rows">
+          <div class="spot-row">
+            <input type="text" placeholder="Spot name" class="spot-name" value="False Bay">
+            <input type="number" placeholder="°C" class="spot-temp" value="14" min="-2" max="35" step="0.5">
+            <select class="spot-region"><option value="SA" selected>SA</option><option value="UK">UK</option><option value="AUS">AUS</option><option value="NAM">NAM</option><option value="FR">FR</option><option value="CH">CH</option><option value="Other">Other</option></select>
+            <button class="remove-btn" onclick="removeSpot(this)"><i data-lucide="x"></i></button>
+          </div>
+          <div class="spot-row">
+            <input type="text" placeholder="Spot name" class="spot-name" value="Big Bay">
+            <input type="number" placeholder="°C" class="spot-temp" value="14.5" min="-2" max="35" step="0.5">
+            <select class="spot-region"><option value="SA" selected>SA</option><option value="UK">UK</option><option value="AUS">AUS</option><option value="NAM">NAM</option><option value="FR">FR</option><option value="CH">CH</option><option value="Other">Other</option></select>
+            <button class="remove-btn" onclick="removeSpot(this)"><i data-lucide="x"></i></button>
+          </div>
+          <div class="spot-row">
+            <input type="text" placeholder="Spot name" class="spot-name" value="Serpentine, London">
+            <input type="number" placeholder="°C" class="spot-temp" value="18" min="-2" max="35" step="0.5">
+            <select class="spot-region"><option value="SA">SA</option><option value="UK" selected>UK</option><option value="AUS">AUS</option><option value="NAM">NAM</option><option value="FR">FR</option><option value="CH">CH</option><option value="Other">Other</option></select>
+            <button class="remove-btn" onclick="removeSpot(this)"><i data-lucide="x"></i></button>
+          </div>
+        </div>
+        <button class="add-spot-btn" onclick="addSpot()"><i data-lucide="plus" style="width:14px;height:14px;"></i>Add another spot</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Post context</div>
+        <label>Post date / week</label>
+        <input type="text" id="cond-date" value="Week of 7 July 2026">
+        <label>Anything notable?</label>
+        <textarea id="cond-notable">Winter setting in — coldest week so far across the Cape.</textarea>
+        <label>Call to action</label>
+        <select id="cond-cta">
+          <option value="log">Log your swim on SwimLoading</option>
+          <option value="join">Join swimloading.com — link in bio</option>
+          <option value="download">Download SwimLoading — link in bio</option>
+          <option value="poll">Answer our Stories poll</option>
+        </select>
+        <label>Tone</label>
+        <div class="tone-row">
+          <button class="tone-btn selected" onclick="selectTone(this,'community')">Community</button>
+          <button class="tone-btn" onclick="selectTone(this,'witty')">Witty</button>
+          <button class="tone-btn" onclick="selectTone(this,'inspiring')">Inspiring</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CROSSING INTEL -->
+  <div class="type-section" id="section-crossing">
+    <div class="form-grid">
+      <div class="card">
+        <div class="card-title">Crossing details</div>
+        <label>Crossing</label>
+        <select id="crossing-name">
+          <option>Robben Island</option><option>Cape Point</option><option>Dassen Island</option>
+          <option>Preekstoel</option><option>West Angle</option><option>English Channel</option><option>Custom</option>
+        </select>
+        <label>Custom name (if above is Custom)</label>
+        <input type="text" id="crossing-custom" placeholder="e.g. Alcatraz crossing">
+        <label>Water temp at crossing</label>
+        <input type="number" id="crossing-temp" value="14" min="-2" max="35" step="0.5">
+        <label>Conditions snapshot</label>
+        <textarea id="crossing-conditions">Conditions looking favourable — 0.8m swell, light NW wind, tidal window opens early morning.</textarea>
+      </div>
+      <div class="card">
+        <div class="card-title">Story context</div>
+        <label>Athlete or attempt (optional)</label>
+        <input type="text" id="crossing-athlete" placeholder="e.g. Dave completes his 3rd Robben Island solo">
+        <label>Intel angle</label>
+        <textarea id="crossing-intel">July is statistically the coldest month in False Bay. Conditions this week are right on the qualification threshold for solo attempts.</textarea>
+        <label>Call to action</label>
+        <select id="crossing-cta">
+          <option value="intel">Read the full intel at swimloading.com</option>
+          <option value="log">Log your attempt on SwimLoading</option>
+          <option value="join">Join the SwimLoading community — link in bio</option>
+        </select>
+        <label>Tone</label>
+        <div class="tone-row">
+          <button class="tone-btn selected" onclick="selectTone(this,'community')">Data-forward</button>
+          <button class="tone-btn" onclick="selectTone(this,'witty')">Raw / gritty</button>
+          <button class="tone-btn" onclick="selectTone(this,'inspiring')">Aspirational</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHALLENGE -->
+  <div class="type-section" id="section-challenge">
+    <div class="form-grid">
+      <div class="card">
+        <div class="card-title">Challenge details</div>
+        <label>Challenge name</label>
+        <select id="challenge-name">
+          <option>June Challenge</option><option>Monthly Temp Challenge</option><option>Winter Streak</option><option>Custom</option>
+        </select>
+        <label>Custom challenge name (if Custom)</label>
+        <input type="text" id="challenge-custom" placeholder="e.g. Tri Hard Recovery Challenge">
+        <label>Prizes</label>
+        <input type="text" id="challenge-prizes" value="THEMAGIC5 custom goggles · Maurten nutrition pack · Blu Smooth wetsuit">
+        <label>Current leader / standings</label>
+        <textarea id="challenge-standings">Top of the leaderboard is neck and neck — 3 swimmers within 2 logs of each other with a week to go.</textarea>
+      </div>
+      <div class="card">
+        <div class="card-title">Post context</div>
+        <label>Phase / days remaining</label>
+        <input type="text" id="challenge-phase" value="Final 7 days">
+        <label>Swimmers entered</label>
+        <input type="text" id="challenge-count" value="47">
+        <label>Anything notable?</label>
+        <textarea id="challenge-notable">Two swimmers set personal-best monthly log counts this week while chasing the lead.</textarea>
+        <label>Call to action</label>
+        <select id="challenge-cta">
+          <option value="enter">Enter the challenge — link in bio</option>
+          <option value="log">Log a swim today — every log counts</option>
+          <option value="leaderboard">Check the leaderboard on SwimLoading</option>
+        </select>
+        <label>Tone</label>
+        <div class="tone-row">
+          <button class="tone-btn selected" onclick="selectTone(this,'community')">FOMO / energy</button>
+          <button class="tone-btn" onclick="selectTone(this,'witty')">Competitive</button>
+          <button class="tone-btn" onclick="selectTone(this,'inspiring')">Motivating</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PARTNER -->
+  <div class="type-section" id="section-partner">
+    <div class="form-grid">
+      <div class="card">
+        <div class="card-title">Partner details</div>
+        <label>Partner</label>
+        <select id="partner-name" onchange="updatePartnerDefaults()">
+          <option value="THEMAGIC5">THEMAGIC5</option>
+          <option value="SiS">Science in Sport (SiS)</option>
+          <option value="Maurten">Maurten</option>
+          <option value="Blu Smooth">Blu Smooth</option>
+          <option value="EOLab">EOLab</option>
+        </select>
+        <label>What is being featured</label>
+        <textarea id="partner-feature">Custom-fit goggles — swimmers map their face with the THEMAGIC5 app for a 3D-printed fit.</textarea>
+        <label>Why it matters for open water swimmers</label>
+        <textarea id="partner-why">No more goggle squeeze mid-crossing. A custom fit means zero pressure points even on a 2-hour swim.</textarea>
+      </div>
+      <div class="card">
+        <div class="card-title">Post context</div>
+        <label>Offer / link detail</label>
+        <input type="text" id="partner-link" value="Link in bio for the SwimLoading community offer">
+        <label>Community connection</label>
+        <textarea id="partner-community">THEMAGIC5 are prize partners for the June Challenge — winner gets a custom-fit pair.</textarea>
+        <label>Call to action</label>
+        <select id="partner-cta">
+          <option value="shop">Shop via link in bio</option>
+          <option value="challenge">Enter the challenge to win — link in bio</option>
+          <option value="learn">Learn more at swimloading.com</option>
+        </select>
+        <label>Tone</label>
+        <div class="tone-row">
+          <button class="tone-btn selected" onclick="selectTone(this,'community')">Authentic</button>
+          <button class="tone-btn" onclick="selectTone(this,'witty')">Product-led</button>
+          <button class="tone-btn" onclick="selectTone(this,'inspiring')">Story-driven</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLUB LIFE -->
+  <div class="type-section" id="section-club">
+    <div class="form-grid">
+      <div class="card">
+        <div class="card-title">Club details</div>
+        <label>Club</label>
+        <select id="club-name" onchange="updateClubDefaults()">
+          <option value="DUC">DUC — Durban Underwater Club (open water racing)</option>
+          <option value="Aquasharks">Aquasharks Atlantic (competitive squad, Cape Town)</option>
+          <option value="K8">K8 Coaching (open water Masters, Cape Town)</option>
+        </select>
+        <label>Event type</label>
+        <select id="club-event">
+          <option>League race day</option><option>Squad session</option><option>Club meetup</option>
+          <option>New members milestone</option><option>Swimmer achievement</option><option>General club life</option>
+        </select>
+        <label>What happened</label>
+        <textarea id="club-details">Record turnout — 37 members raced in 13°C conditions. Three swimmers set personal bests on the league course.</textarea>
+      </div>
+      <div class="card">
+        <div class="card-title">Post context</div>
+        <label>Water temp (optional)</label>
+        <input type="number" id="club-temp" placeholder="°C" min="-2" max="35" step="0.5">
+        <label>Anything notable?</label>
+        <textarea id="club-notable">Coldest race of the season — and still the biggest field.</textarea>
+        <label>Call to action</label>
+        <select id="club-cta">
+          <option value="join-club">Join the club — link in bio</option>
+          <option value="learn">Learn more at swimloading.com</option>
+          <option value="log">Log your club swim on SwimLoading</option>
+          <option value="follow">Follow for weekly club updates</option>
+        </select>
+        <label>Tone</label>
+        <div class="tone-row">
+          <button class="tone-btn selected" onclick="selectTone(this,'community')">Warm / proud</button>
+          <button class="tone-btn" onclick="selectTone(this,'witty')">Playful</button>
+          <button class="tone-btn" onclick="selectTone(this,'inspiring')">Inspiring</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HAZARD ALERT -->
+  <div class="type-section" id="section-hazard">
+    <div class="form-grid">
+      <div class="card">
+        <div class="card-title">Hazard report</div>
+        <label>Spot / area</label>
+        <input type="text" id="hazard-spot" value="False Bay">
+        <label>Water temp</label>
+        <input type="number" id="hazard-temp" value="14" min="-2" max="35" step="0.5">
+        <label>Active hazards</label>
+        <div class="hazard-chips">
+          <button class="hazard-chip active" onclick="toggleHazard(this)">Bluebottle / Man o' War</button>
+          <button class="hazard-chip" onclick="toggleHazard(this)">Jellyfish bloom</button>
+          <button class="hazard-chip" onclick="toggleHazard(this)">Shark alert</button>
+          <button class="hazard-chip" onclick="toggleHazard(this)">Strong current</button>
+          <button class="hazard-chip" onclick="toggleHazard(this)">Big swell</button>
+          <button class="hazard-chip" onclick="toggleHazard(this)">Low visibility</button>
+          <button class="hazard-chip" onclick="toggleHazard(this)">Rip tide</button>
+          <button class="hazard-chip" onclick="toggleHazard(this)">Kelp forest</button>
+          <button class="hazard-chip" onclick="toggleHazard(this)">Boat traffic</button>
+        </div>
+        <label style="margin-top:14px;">Extra detail</label>
+        <textarea id="hazard-detail">Dense bluebottle bloom after a 3-day NW wind. Avoid shore break zone — deeper water is clear.</textarea>
+      </div>
+      <div class="card">
+        <div class="card-title">Post context</div>
+        <label>Safety / mitigation advice</label>
+        <textarea id="hazard-advice">Head out beyond the break before turning — most bluebottles are concentrated in the shoreward 50m. Buddy system on for all swims today.</textarea>
+        <label>Call to action</label>
+        <select id="hazard-cta">
+          <option value="check">Check live conditions on SwimLoading — link in bio</option>
+          <option value="log">Log hazard sightings on SwimLoading to help the community</option>
+          <option value="follow">Follow for real-time hazard updates</option>
+        </select>
+        <label>Tone</label>
+        <div class="tone-row">
+          <button class="tone-btn selected" onclick="selectTone(this,'community')">Informative</button>
+          <button class="tone-btn" onclick="selectTone(this,'witty')">Deadpan / dry</button>
+          <button class="tone-btn" onclick="selectTone(this,'inspiring')">Still swim, stay safe</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STRAVA -->
+  <div class="type-section" id="section-strava">
+    <div class="form-grid">
+      <div class="card">
+        <div class="card-title">Strava integration angle</div>
+        <label>Feature focus</label>
+        <select id="strava-focus">
+          <option>Connect Strava to log swims automatically</option>
+          <option>Import a Strava activity and add water temp + conditions</option>
+          <option>Strava tracks the swim — SwimLoading tracks the water</option>
+          <option>Community activity — swims imported this week</option>
+        </select>
+        <label>Community stat (optional)</label>
+        <input type="text" id="strava-stat" placeholder="e.g. 147 swims imported via Strava this week">
+        <label>Swimmer story or example</label>
+        <textarea id="strava-story">Connect once and every swim you log on Strava automatically pulls into SwimLoading with GPS, distance, and duration — you just add the water temp.</textarea>
+      </div>
+      <div class="card">
+        <div class="card-title">Post context</div>
+        <label>Anything notable this week?</label>
+        <textarea id="strava-notable">Biggest week of Strava imports so far — 200+ swims logged across 9 countries without a single manual entry.</textarea>
+        <label>Call to action</label>
+        <select id="strava-cta">
+          <option value="connect">Connect your Strava at swimloading.com — link in bio</option>
+          <option value="join">Join SwimLoading and link your Strava — link in bio</option>
+          <option value="log">Log your next swim via Strava — link in bio</option>
+        </select>
+        <label>Tone</label>
+        <div class="tone-row">
+          <button class="tone-btn selected" onclick="selectTone(this,'community')">Practical / helpful</button>
+          <button class="tone-btn" onclick="selectTone(this,'witty')">Light and clever</button>
+          <button class="tone-btn" onclick="selectTone(this,'inspiring')">Data meets soul</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMMUNITY STORY -->
+  <div class="type-section" id="section-community">
+    <div class="form-grid">
+      <div class="card">
+        <div class="card-title">The swimmer / achievement</div>
+        <label>Swimmer name (leave blank to keep anonymous)</label>
+        <input type="text" id="comm-name" placeholder="e.g. Carina, or leave blank">
+        <label>Achievement type</label>
+        <select id="comm-type">
+          <option>First open water swim</option><option>Crossing completed</option>
+          <option>Cold water personal best</option><option>Challenge winner</option>
+          <option>Milestone log count</option><option>Comeback after injury / illness</option>
+          <option>Year of swimming</option><option>Other</option>
+        </select>
+        <label>The full story</label>
+        <textarea id="comm-story">Carina completed her 5th solo Robben Island crossing — 7.5km in 14°C, 2hr 18min. She started swimming two years ago. First crossing was her 6-month milestone.</textarea>
+      </div>
+      <div class="card">
+        <div class="card-title">The bigger angle</div>
+        <label>What does this represent for the community?</label>
+        <textarea id="comm-angle">Shows what consistency looks like. Two years of logging every swim, every temp — and now a fifth solo crossing.</textarea>
+        <label>Call to action</label>
+        <select id="comm-cta">
+          <option value="join">Join the community — your story starts at swimloading.com</option>
+          <option value="share">Share your swim this week — tag us</option>
+          <option value="log">Log your swim on SwimLoading — link in bio</option>
+        </select>
+        <label>Tone</label>
+        <div class="tone-row">
+          <button class="tone-btn selected" onclick="selectTone(this,'community')">Celebratory</button>
+          <button class="tone-btn" onclick="selectTone(this,'witty')">Understated</button>
+          <button class="tone-btn" onclick="selectTone(this,'inspiring')">Aspirational</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="generate-btn" id="gen-btn" onclick="generateCaptions()">
+    <div class="spinner"></div>
+    <span class="btn-text">Generate 3 caption options</span>
+  </button>
+  <div class="error-box" id="error-box"></div>
+
+  <!-- OUTPUT -->
+  <div class="output-area" id="output">
+    <div class="output-heading">Choose your caption</div>
+    <div class="captions-grid" id="captions-grid"></div>
+    <div class="hashtag-section">
+      <div class="hashtag-label">Hashtags <button class="copy-hash-btn" onclick="copyHashtags()">Copy all</button></div>
+      <div class="hashtag-note">3–5 specific tags per post (Meta's confirmed best practice). Keyword-rich caption text does more discovery work than stacking hashtags.</div>
+      <div class="hashtag-text" id="hashtag-output"></div>
+    </div>
+    <div class="story-tips" id="story-tips-container"></div>
+  </div>
+</div>
+
+<script>
+lucide.createIcons();
+document.addEventListener('mousemove', e => {
+  document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+  document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+});
+
+// ─── PASSWORD GATE ───
+let SESSION_PASSWORD = '';
+const STORAGE_KEY = 'sl_caption_pw';
+
+function checkPassword() {
+  const entered = document.getElementById('gate-input').value.trim();
+  // Verify against API — if correct the API call will succeed
+  fetch('/api/caption-generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: entered, prompt: '__ping__' })
+  }).then(r => {
+    if (r.status === 401) {
+      document.getElementById('gate-error').classList.add('visible');
+    } else {
+      SESSION_PASSWORD = entered;
+      sessionStorage.setItem(STORAGE_KEY, entered);
+      document.getElementById('gate').classList.add('hidden');
+    }
+  }).catch(() => {
+    // If network error, allow through (dev mode / offline)
+    SESSION_PASSWORD = entered;
+    document.getElementById('gate').classList.add('hidden');
+  });
+}
+
+document.getElementById('gate-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkPassword();
+  document.getElementById('gate-error').classList.remove('visible');
+});
+
+// Auto-unlock if password stored in session
+const storedPw = sessionStorage.getItem(STORAGE_KEY);
+if (storedPw) { SESSION_PASSWORD = storedPw; document.getElementById('gate').classList.add('hidden'); }
+
+// ─── TYPE SWITCHER ───
+let currentType = 'conditions';
+let selectedTone = 'community';
+
+function setType(type, btn) {
+  currentType = type;
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.type-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('section-' + type).classList.add('active');
+  document.getElementById('output').classList.remove('visible');
+  document.getElementById('error-box').classList.remove('visible');
+  selectedTone = 'community';
+  lucide.createIcons();
+}
+
+function selectTone(btn, tone) {
+  btn.closest('.tone-row').querySelectorAll('.tone-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedTone = tone;
+}
+
+// ─── SPOTS ───
+function addSpot() {
+  const container = document.getElementById('spot-rows');
+  const row = document.createElement('div');
+  row.className = 'spot-row';
+  row.innerHTML = `
+    <input type="text" placeholder="Spot name" class="spot-name">
+    <input type="number" placeholder="°C" class="spot-temp" min="-2" max="35" step="0.5">
+    <select class="spot-region"><option value="SA">SA</option><option value="UK">UK</option><option value="AUS">AUS</option><option value="NAM">NAM</option><option value="FR">FR</option><option value="CH">CH</option><option value="Other">Other</option></select>
+    <button class="remove-btn" onclick="removeSpot(this)"><i data-lucide="x"></i></button>`;
+  container.appendChild(row);
+  lucide.createIcons();
+}
+function removeSpot(btn) {
+  if (document.querySelectorAll('.spot-row').length <= 1) return;
+  btn.closest('.spot-row').remove();
+}
+function getSpots() {
+  return Array.from(document.querySelectorAll('.spot-row')).map(r => ({
+    name: r.querySelector('.spot-name').value.trim(),
+    temp: r.querySelector('.spot-temp').value,
+    region: r.querySelector('.spot-region').value
+  })).filter(s => s.name && s.temp);
+}
+
+// ─── HAZARDS ───
+function toggleHazard(btn) { btn.classList.toggle('active'); }
+function getActiveHazards() {
+  return Array.from(document.querySelectorAll('.hazard-chip.active')).map(b => b.textContent.trim());
+}
+
+// ─── PARTNER & CLUB DEFAULTS ───
+function updatePartnerDefaults() {
+  const partner = document.getElementById('partner-name').value;
+  const featureMap = {
+    'THEMAGIC5': 'Custom-fit goggles — swimmers scan their face with the THEMAGIC5 app for a 3D-printed fit. Zero pressure points on long swims.',
+    'SiS': 'Science in Sport (SiS) — science-backed nutrition for endurance athletes. Gels, electrolytes, and protein formulated for swim performance.',
+    'Maurten': 'Maurten hydrogel sports nutrition — engineered for cold water athletes. High carbohydrate delivery without GI issues during long swims.',
+    'Blu Smooth': 'Blu Smooth wetsuits — designed for open water swimming in South African conditions. Buoyancy-optimised cut for ocean swims.',
+    'EOLab': 'EOLab performance coaching and analysis — data-driven training plans for open water swimmers targeting crossings and time trials.'
+  };
+  const whyMap = {
+    'THEMAGIC5': 'No more goggle squeeze mid-crossing. A custom fit means zero pressure points even on a 2-hour swim.',
+    'SiS': 'Cold water burns calories fast. SiS fuelling strategy keeps swimmers going past the point where most pull out.',
+    'Maurten': 'Maurten hydrogel technology is clinically tested for high-intensity endurance — critical for channel and crossing prep.',
+    'Blu Smooth': 'A well-fitted wetsuit at 14°C is the difference between a 2-hour swim and a 45-minute one. Blu Smooth make suits for our water.',
+    'EOLab': 'Open water performance is more than fitness. EOLab bring the data to help swimmers understand what the ocean demands of their bodies.'
+  };
+  if (featureMap[partner]) document.getElementById('partner-feature').value = featureMap[partner];
+  if (whyMap[partner]) document.getElementById('partner-why').value = whyMap[partner];
+}
+
+function updateClubDefaults() {
+  const club = document.getElementById('club-name').value;
+  const detailMap = {
+    'DUC': 'Monthly league race — 637 adult members competing on the open water course off Durban.',
+    'Aquasharks': 'Tuesday morning squad session — 42 swimmers, youth through to Masters, in the 50m pool at Aquasharks Atlantic.',
+    'K8': 'Monday 06:00 open water squad — Britt coaching 18 swimmers in the kelp, 14°C, glassy conditions at K8 Coaching.'
+  };
+  if (detailMap[club]) document.getElementById('club-details').value = detailMap[club];
+}
+
+// ─── BRAND CONTEXT ───
+const BRAND_CONTEXT = `You are the social media voice for SwimLoading — an open water swimming platform tracking verified water temperatures and conditions across 12+ countries, used by 600+ logged swimmers.
+
+SwimLoading covers:
+- Real-time water temperatures and conditions from community-logged spots worldwide
+- Ocean crossing intelligence: Robben Island, Cape Point, Dassen Island, Preekstoel, West Angle, English Channel, and more
+- Strava integration — import Strava swims and add the water data Strava doesn't capture (temp, conditions, hazards)
+- Monthly challenges with prizes from THEMAGIC5, Maurten, SiS, Blu Smooth, and EOLab
+- Hazard tracking: bluebottles, jellyfish, sharks, currents, swell — logged by the community in real time
+- Three clubs: DUC (637-member open water racing club, Durban), Aquasharks Atlantic (competitive squad, Cape Town), K8 Coaching (open water Masters coaching, Cape Town)
+- Swimmer profiles, crossing prep logs, personal records, and milestone tracking
+
+Brand voice: authentic, community-first, data-driven, ocean-obsessed. Not corporate. Not influencer-y. Built by a swimmer, for swimmers.`;
+
+// Research-validated caption rules (confirmed findings from adversarial verification):
+// 1. First ~125 chars are critical — Instagram truncates there; hook must land before "more"
+// 2. Hook → Value → CTA structure consistently outperforms other structures
+// 3. 3–5 specific hashtags per post (Meta's December 2025 guidance); caption keyword SEO does more discovery work
+const CAPTION_RULES = `
+CAPTION RULES — follow precisely:
+- HOOK: The very first sentence must work as a standalone within 125 characters — Instagram truncates there. Lead with a specific number, a sharp contrast, a surprising fact, or a single punchy question. Never open with "SwimLoading", "This week", or "We".
+- VALUE: The body explains why this matters to a swimmer — context, meaning, or implication.
+- CTA: End with the call to action. One clear direction only.
+- Length: 80–140 words per caption total.
+- No emojis — the writing carries the emotion.
+- No hashtags in the caption body (they are listed separately).
+- Each of the 3 options must take a genuinely different angle — different opening structure, different emotional register, different emphasis. Not rewording.
+- Sound like a human who swims, not a brand manager.
+
+Return ONLY valid JSON, no markdown, no explanation:
+{"captions": [{"label": "Option A", "tone_tag": "Community", "text": "..."}, {"label": "Option B", "tone_tag": "Witty", "text": "..."}, {"label": "Option C", "tone_tag": "Inspiring", "text": "..."}]}`;
+
+const TONE_DESCS = {
+  community:            'warm, inclusive, community-first — a trusted friend who swims. Celebrate the shared experience.',
+  witty:                'light and clever — one well-placed observation or subverted expectation. Understated, never forced.',
+  inspiring:            'evocative and motivational — the ocean as a practice, cold water as a calling.',
+  'data-forward':       'precise and authoritative — lead with real numbers. Something a serious athlete would screenshot.',
+  'raw / gritty':       'honest and unglamorous — open water is hard. No polish. Respect that.',
+  aspirational:         'cinematic — the pull of something bigger than a lap pool.',
+  'fomo / energy':      'urgency — something is happening right now and your audience is not in it yet.',
+  competitive:          'lean into the race — standings, gaps, who is hunting who.',
+  authentic:            'genuine endorsement — not promotional. A swimmer explaining a product to another swimmer.',
+  'product-led':        'specific about the product benefit — make the feature tangible.',
+  'story-driven':       'a swimmer discovers a product and it changes something small but meaningful.',
+  'warm / proud':       'pride in your people. The club feels like home.',
+  playful:              'light energy, banter — the kind of post that makes members tag each other.',
+  informative:          'clear and practical — safety first, panic never. Give swimmers the facts to decide.',
+  'deadpan / dry':      'matter-of-fact about something objectively alarming. The ocean has bluebottles. Again.',
+  'still swim, stay safe': 'acknowledges the hazard, celebrates the courage of swimming anyway.',
+  'practical / helpful':'remove friction — show how easy it is and why it matters.',
+  'light and clever':   'technology meets swimming — there is irony here worth mining.',
+  'data meets soul':    'numbers tell a human story. Strava distance + water temp = a life lived outside.',
+  celebratory:          'genuine congratulation — specific to this swimmer and this achievement.',
+  understated:          'the achievement speaks for itself. Say less, mean more.',
+  motivating:           'one swimmer\'s story makes the reader want to get in the water.'
+};
+
+// ─── PROMPT BUILDERS ───
+function buildPrompt() {
+  const tone = TONE_DESCS[selectedTone] || TONE_DESCS.community;
+
+  if (currentType === 'conditions') {
+    const spots = getSpots();
+    const spotLines = spots.map(s => `${s.name} (${s.region}): ${s.temp}°C`).join('\n');
+    const notable = document.getElementById('cond-notable').value;
+    const ctaMap = { log:'Log your swim on SwimLoading — link in bio.', join:'Join swimloading.com — link in bio.', download:'Download SwimLoading — link in bio.', poll:'Answer this week\'s poll in our Stories.' };
+    const cta = ctaMap[document.getElementById('cond-cta').value];
+    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a weekly water temperature conditions post. This is SwimLoading's signature content — verifying what the water is actually doing across spots in multiple countries.\n\nCONDITIONS THIS WEEK:\n${spotLines}\n\nNOTABLE: ${notable || 'Standard week.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+  }
+
+  if (currentType === 'crossing') {
+    const crossing = document.getElementById('crossing-name').value === 'Custom' ? document.getElementById('crossing-custom').value : document.getElementById('crossing-name').value;
+    const temp = document.getElementById('crossing-temp').value;
+    const conditions = document.getElementById('crossing-conditions').value;
+    const athlete = document.getElementById('crossing-athlete').value;
+    const intel = document.getElementById('crossing-intel').value;
+    const ctaMap = { intel:'Read the full crossing intel at swimloading.com — link in bio.', log:'Log your crossing attempt on SwimLoading — link in bio.', join:'Join the SwimLoading community — link in bio.' };
+    const cta = ctaMap[document.getElementById('crossing-cta').value];
+    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a crossing intelligence post. SwimLoading publishes verified conditions and historical intel for the major open water crossings — Robben Island, Cape Point, Dassen Island, Preekstoel, West Angle, English Channel. This content positions SwimLoading as the authoritative source for serious ocean swimmers.\n\nCROSSING: ${crossing}\nWATER TEMP: ${temp}°C\nCONDITIONS: ${conditions}\nATHLETE / ATTEMPT: ${athlete || 'No specific athlete — conditions and intel focus.'}\nINTEL ANGLE: ${intel}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+  }
+
+  if (currentType === 'challenge') {
+    const challenge = document.getElementById('challenge-name').value === 'Custom' ? document.getElementById('challenge-custom').value : document.getElementById('challenge-name').value;
+    const prizes = document.getElementById('challenge-prizes').value;
+    const standings = document.getElementById('challenge-standings').value;
+    const phase = document.getElementById('challenge-phase').value;
+    const count = document.getElementById('challenge-count').value;
+    const notable = document.getElementById('challenge-notable').value;
+    const ctaMap = { enter:'Enter the challenge — link in bio.', log:'Log a swim today — every log counts.', leaderboard:'Check the leaderboard on SwimLoading — link in bio.' };
+    const cta = ctaMap[document.getElementById('challenge-cta').value];
+    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a challenge update post. Challenges are SwimLoading's primary community-building tool — they drive logging behaviour and create a shared experience across 12 countries.\n\nCHALLENGE: ${challenge}\nPRIZES: ${prizes}\nSTANDINGS: ${standings}\nPHASE: ${phase}\nSWIMMERS ENTERED: ${count}\nNOTABLE: ${notable || 'Standard update.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+  }
+
+  if (currentType === 'partner') {
+    const partner = document.getElementById('partner-name').value;
+    const feature = document.getElementById('partner-feature').value;
+    const why = document.getElementById('partner-why').value;
+    const link = document.getElementById('partner-link').value;
+    const community = document.getElementById('partner-community').value;
+    const ctaMap = { shop:'Shop via link in bio.', challenge:'Enter the challenge to win — link in bio.', learn:'Learn more at swimloading.com — link in bio.' };
+    const cta = ctaMap[document.getElementById('partner-cta').value];
+    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a partner feature post. SwimLoading's partners — THEMAGIC5, Maurten, SiS, Blu Smooth, EOLab — are brands that genuinely serve open water swimmers. These captions must feel like a genuine recommendation from a fellow swimmer, not advertising copy.\n\nPARTNER: ${partner}\nWHAT IS BEING FEATURED: ${feature}\nWHY IT MATTERS FOR SWIMMERS: ${why}\nCOMMUNITY CONNECTION: ${community || 'Official SwimLoading partner.'}\nOFFER / LINK: ${link}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+  }
+
+  if (currentType === 'club') {
+    const clubRaw = document.getElementById('club-name').value;
+    const clubName = clubRaw.split('—')[0].trim();
+    const event = document.getElementById('club-event').value;
+    const details = document.getElementById('club-details').value;
+    const temp = document.getElementById('club-temp').value;
+    const notable = document.getElementById('club-notable').value;
+    const ctaMap = { 'join-club':'Join the club — link in bio.', learn:'Learn more at swimloading.com — link in bio.', log:'Log your club swim on SwimLoading.', follow:'Follow for weekly club updates.' };
+    const cta = ctaMap[document.getElementById('club-cta').value];
+    const clubContext = {
+      DUC: 'DUC (Durban Underwater Club) — open water racing club, 637 adult members in Durban, KZN. Monthly league races on the ocean. Adult swimmers who race, no squads or parents programme.',
+      Aquasharks: 'Aquasharks Atlantic — competitive pool and open water squad club in Cape Town. Youth through Masters swimmers. Coach-led squads, attendance tracking, gala entries.',
+      K8: 'K8 Coaching — Britt\'s open water and Masters coaching business in Cape Town. Small-group squads at 06:00 / 07:00 / 08:00, Monday / Wednesday / Friday. Focused, serious coaching for dedicated swimmers.'
+    };
+    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a club life post. SwimLoading hosts three clubs. These captions should celebrate the community, attract new members, and show what club swimming actually feels like.\n\nCLUB: ${clubName}\nCLUB CONTEXT: ${clubContext[clubName] || ''}\nEVENT TYPE: ${event}\nDETAILS: ${details}\n${temp ? 'WATER TEMP: ' + temp + '°C\n' : ''}NOTABLE: ${notable || 'Standard session.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+  }
+
+  if (currentType === 'hazard') {
+    const spot = document.getElementById('hazard-spot').value;
+    const temp = document.getElementById('hazard-temp').value;
+    const hazards = getActiveHazards();
+    const detail = document.getElementById('hazard-detail').value;
+    const advice = document.getElementById('hazard-advice').value;
+    const ctaMap = { check:'Check live conditions on SwimLoading — link in bio.', log:'Log hazard sightings on SwimLoading to help the community.', follow:'Follow for real-time hazard updates.' };
+    const cta = ctaMap[document.getElementById('hazard-cta').value];
+    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a hazard alert post. SwimLoading tracks community-reported hazards — bluebottles, jellyfish, sharks, strong currents, swell. These posts are important safety content that also demonstrate SwimLoading's value as a real-time community tool.\n\nSPOT: ${spot}\nWATER TEMP: ${temp}°C\nACTIVE HAZARDS: ${hazards.join(', ')}\nDETAIL: ${detail}\nSAFETY ADVICE: ${advice}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+  }
+
+  if (currentType === 'strava') {
+    const focus = document.getElementById('strava-focus').value;
+    const stat = document.getElementById('strava-stat').value;
+    const story = document.getElementById('strava-story').value;
+    const notable = document.getElementById('strava-notable').value;
+    const ctaMap = { connect:'Connect your Strava at swimloading.com — link in bio.', join:'Join SwimLoading and link your Strava — link in bio.', log:'Log your next swim via Strava — link in bio.' };
+    const cta = ctaMap[document.getElementById('strava-cta').value];
+    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a Strava integration post. SwimLoading integrates with Strava — swimmers import activities and add the water data Strava doesn't capture: temperature, conditions, hazards. The core tagline: "Strava tracks the swim. SwimLoading tracks the water."\n\nFEATURE FOCUS: ${focus}\n${stat ? 'COMMUNITY STAT: ' + stat + '\n' : ''}SWIMMER STORY: ${story}\nNOTABLE: ${notable || 'Standard week.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+  }
+
+  if (currentType === 'community') {
+    const name = document.getElementById('comm-name').value;
+    const type = document.getElementById('comm-type').value;
+    const story = document.getElementById('comm-story').value;
+    const angle = document.getElementById('comm-angle').value;
+    const ctaMap = { join:'Join the community — your story starts at swimloading.com.', share:'Share your swim this week — tag us.', log:'Log your swim on SwimLoading — link in bio.' };
+    const cta = ctaMap[document.getElementById('comm-cta').value];
+    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a community story post. SwimLoading's most powerful content is real stories from real swimmers — crossings completed, first cold swims, comebacks, milestones. These captions should make the reader feel like they are missing something real.\n\n${name ? 'SWIMMER: ' + name + '\n' : 'SWIMMER: Anonymous\n'}ACHIEVEMENT TYPE: ${type}\nSTORY: ${story}\nBROADER ANGLE: ${angle}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+  }
+
+  return '';
+}
+
+// ─── HASHTAGS (3–5 specific per type — Meta December 2025 guidance) ───
+const HASHTAG_SETS = {
+  conditions: '#openwaterswimming #wildswimming #swimloading #coldwaterswimming #watertemperature',
+  crossing:   '#openwaterswimming #swimloading #robbenisland #oceancrossing #wildswimming',
+  challenge:  '#openwaterswimming #swimloading #swimchallenge #wildswimming #coldwaterswimming',
+  partner:    '#openwaterswimming #swimloading #wildswimming #openwater #swimgear',
+  club:       '#openwaterswimming #swimloading #swimclub #wildswimming #outdoorswimming',
+  hazard:     '#openwaterswimming #swimloading #wildswimming #beachsafety #oceansafety',
+  strava:     '#openwaterswimming #swimloading #strava #wildswimming #swimtracking',
+  community:  '#openwaterswimming #swimloading #wildswimming #swimstory #openwater'
+};
+
+// ─── STORY TIPS ───
+const STORY_TIPS = {
+  conditions: [
+    { icon:'bar-chart-2', text:'Poll — "Did you swim this week?" Yes / Not yet — drives the highest response rate of any Stories format in niche communities.' },
+    { icon:'thermometer', text:'Screenshot the coldest or most active spot from the SwimLoading app — shows the product in real context and makes the data tangible.' },
+    { icon:'help-circle', text:'Quiz — "Guess this week\'s False Bay temp" — reveal tomorrow to pull viewers back for a second Story session.' },
+    { icon:'link', text:'Link sticker to swimloading.com on the final Story — convert engaged viewers into signups while intent is highest.' }
+  ],
+  crossing: [
+    { icon:'map', text:'Story map showing the crossing route over a satellite image — visual scale makes the distance land before a word is read.' },
+    { icon:'thermometer', text:'Temperature comparison card: this week vs. the coldest crossing on record. Data that stops the scroll.' },
+    { icon:'help-circle', text:'"Could you swim this?" poll with a time estimate — gets swimmers imagining themselves in the water.' },
+    { icon:'link', text:'Link sticker to the crossing intel page on swimloading.com — the page does the conversion work for you.' }
+  ],
+  challenge: [
+    { icon:'bar-chart-2', text:'Leaderboard screenshot from the app — real names, real gaps. Nothing drives entries like visible competition.' },
+    { icon:'clock', text:'Countdown sticker — days remaining. Urgency is the single biggest driver of late-challenge entries.' },
+    { icon:'users', text:'Re-share a participant\'s swim photo and name them. Recognition loop: they share your Story, their followers see the challenge.' },
+    { icon:'trophy', text:'Prize showcase slide — photo of each item separately. Tangible prizes consistently outperform vouchers for engagement.' }
+  ],
+  partner: [
+    { icon:'camera', text:'Product-in-context shot — the item at a swim spot, not a white background. Open water community does not respond to studio photos.' },
+    { icon:'users', text:'Community testimonial slider — 2–3 short quotes from swimmers who use the product. Peer proof beats brand copy every time.' },
+    { icon:'link', text:'Link sticker to the offer — add a 48-hour window to create urgency without being pushy.' },
+    { icon:'bar-chart-2', text:'Poll: "Have you tried [partner product]?" — builds social proof and surfaces authentic feedback you can reshare.' }
+  ],
+  club: [
+    { icon:'camera', text:'Behind-the-scenes Story from the session — towel pile on the beach, someone dripping post-swim. Authentic beats polished.' },
+    { icon:'users', text:'Member re-share — repost a tagged swimmer\'s photo from the session. Social proof that the club is active and worth joining.' },
+    { icon:'bar-chart-2', text:'Poll: "Would you do this?" with the session photo — low-effort engagement that seeds future member enquiries.' },
+    { icon:'link', text:'Link sticker to the club page — give interested swimmers a clear next step before the Story disappears.' }
+  ],
+  hazard: [
+    { icon:'alert-triangle', text:'Simple graphic: spot name + hazard type + brief advice. Clarity over design — this is safety content, not aesthetic content.' },
+    { icon:'bar-chart-2', text:'Poll: "Are you still swimming today?" — tells you who your most committed community members are.' },
+    { icon:'thermometer', text:'Temperature + conditions card alongside the hazard — give swimmers the full picture to make their own call.' },
+    { icon:'link', text:'Link sticker to the SwimLoading spot page — show that the community is logging hazards in real time.' }
+  ],
+  strava: [
+    { icon:'activity', text:'Screen recording of the Strava import flow — 15 seconds showing how fast it works. Removes the friction before it forms.' },
+    { icon:'bar-chart-2', text:'Poll: "Do you use Strava for your swims?" — qualifies your audience and makes the next Strava post more targeted.' },
+    { icon:'users', text:'Community stat slide — "X swims imported this week across Y countries." Scale creates credibility for new users.' },
+    { icon:'link', text:'Link sticker to swimloading.com — one tap from the Story to the connection flow.' }
+  ],
+  community: [
+    { icon:'camera', text:'Photo of the swimmer (with permission) or their swim route on a map — make the story visual before they read a word.' },
+    { icon:'users', text:'Tag the swimmer directly — they will share your Story, multiplying reach to a warm, relevant audience.' },
+    { icon:'bar-chart-2', text:'Poll: "What is your next big swim goal?" — turns one swimmer\'s story into a community conversation.' },
+    { icon:'link', text:'Link sticker to swimloading.com — "Start your story here." The best CTA after an achievement post is an easy first step.' }
+  ]
+};
+
+// ─── GENERATE ───
+async function generateCaptions() {
+  const prompt = buildPrompt();
+  if (!prompt) return;
+
+  const btn = document.getElementById('gen-btn');
+  const errorBox = document.getElementById('error-box');
+  btn.classList.add('loading');
+  btn.disabled = true;
+  errorBox.classList.remove('visible');
+
+  try {
+    const response = await fetch('/api/caption-generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, password: SESSION_PASSWORD })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        sessionStorage.removeItem(STORAGE_KEY);
+        SESSION_PASSWORD = '';
+        document.getElementById('gate').classList.remove('hidden');
+        throw new Error('Session expired — please re-enter the access code.');
+      }
+      throw new Error(data.error || 'API error — please try again.');
+    }
+
+    if (!data.content) throw new Error('Unexpected response format. Please try again.');
+    const rawText = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+
+    let parsed;
+    try { parsed = JSON.parse(rawText.replace(/```json|```/g, '').trim()); }
+    catch(e) { throw new Error('Could not parse the response. Please try again.'); }
+
+    renderOutput(parsed.captions);
+    document.getElementById('output').classList.add('visible');
+    document.getElementById('output').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  } catch(err) {
+    errorBox.textContent = err.message || 'Something went wrong. Please try again.';
+    errorBox.classList.add('visible');
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+function renderOutput(captions) {
+  const grid = document.getElementById('captions-grid');
+  grid.innerHTML = '';
+  const toneColors = { Community:'tone-c', Witty:'tone-w', Inspiring:'tone-i', 'Data-forward':'tone-c', 'Raw / gritty':'tone-w', Aspirational:'tone-i', 'FOMO / energy':'tone-w', Competitive:'tone-w', Authentic:'tone-c', 'Product-led':'tone-c', 'Story-driven':'tone-i', 'Warm / proud':'tone-c', Playful:'tone-w', Informative:'tone-c', 'Deadpan / dry':'tone-w', 'Still swim, stay safe':'tone-i', 'Practical / helpful':'tone-c', 'Light and clever':'tone-w', 'Data meets soul':'tone-i', Celebratory:'tone-c', Understated:'tone-w', Motivating:'tone-i' };
+
+  captions.forEach((cap, i) => {
+    const card = document.createElement('div');
+    card.className = 'caption-card';
+    card.innerHTML = `
+      <div class="caption-header">
+        <span class="cap-label">${cap.label}</span>
+        <span class="cap-tone-badge ${toneColors[cap.tone_tag] || 'tone-c'}">${cap.tone_tag}</span>
+      </div>
+      <div class="caption-body">${cap.text}</div>
+      <div class="caption-footer">
+        <button class="copy-btn" onclick="copyCaption(this,${i})">Copy caption + hashtags</button>
+        <button class="select-btn" onclick="selectCaption(this)">Use this one</button>
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  document.getElementById('hashtag-output').textContent = HASHTAG_SETS[currentType] || HASHTAG_SETS.conditions;
+
+  const tips = STORY_TIPS[currentType] || STORY_TIPS.conditions;
+  const container = document.getElementById('story-tips-container');
+  container.innerHTML = '<div class="card-title" style="margin-bottom:14px;">Stories to post alongside this</div>';
+  tips.forEach(t => {
+    const row = document.createElement('div');
+    row.className = 'tip-row';
+    row.innerHTML = `<div class="tip-icon"><i data-lucide="${t.icon}"></i></div><span>${t.text}</span>`;
+    container.appendChild(row);
+  });
+  lucide.createIcons();
+}
+
+function copyCaption(btn, idx) {
+  const bodies = document.querySelectorAll('.caption-body');
+  const hashtags = document.getElementById('hashtag-output').textContent;
+  const fullText = bodies[idx].textContent.trim() + '\n\n' + hashtags;
+  navigator.clipboard.writeText(fullText).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy caption + hashtags'; btn.classList.remove('copied'); }, 2200);
+  });
+}
+
+function selectCaption(btn) {
+  document.querySelectorAll('.caption-card').forEach(c => c.classList.remove('selected-cap'));
+  btn.closest('.caption-card').classList.add('selected-cap');
+}
+
+function copyHashtags() {
+  navigator.clipboard.writeText(document.getElementById('hashtag-output').textContent).then(() => {
+    const btn = document.querySelector('.copy-hash-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy all'; }, 2000);
+  });
+}
+</script>
+</body>
+</html>
