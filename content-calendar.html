@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Content Calendar — SwimLoading</title>
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#080f1a;--bg-card:#0d1728;--bg-card2:#111e35;
+  --cyan:#38bdf8;--text:#f1f5f9;--text-sec:#64748b;
+  --border:rgba(255,255,255,0.06);--border-hover:rgba(56,189,248,0.25);
+  --amber:#f59e0b;--green:#10b981;--danger:#ef4444;--purple:#a78bfa;
+  --pink:#f472b6;
+}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;min-height:100vh;padding-bottom:60px;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;background:radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,0.55),transparent 100%),radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,0.07),transparent 70%);}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:100;background:rgba(8,15,26,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 20px;height:52px;display:flex;align-items:center;justify-content:space-between;}
+.nav-brand{display:flex;align-items:center;gap:7px;text-decoration:none;font-size:15px;font-weight:800;letter-spacing:-0.5px;background:linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.nav-brand img{height:22px;width:auto;}
+.nav-right{display:flex;gap:8px;align-items:center;}
+.nav-link{font-size:12px;font-weight:600;color:var(--text-sec);text-decoration:none;padding:5px 10px;border-radius:8px;transition:color .15s;}
+.nav-link:hover{color:var(--text);}
+
+/* HEADER */
+.header{padding:36px 20px 24px;max-width:1100px;margin:0 auto;}
+.header-eyebrow{font-size:11px;font-weight:700;letter-spacing:2px;color:var(--cyan);text-transform:uppercase;margin-bottom:8px;}
+.header-title{font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:1px;line-height:1;margin-bottom:6px;}
+.header-sub{color:var(--text-sec);font-size:13px;}
+.stats-row{display:flex;gap:24px;margin-top:24px;flex-wrap:wrap;}
+.stat{display:flex;flex-direction:column;gap:2px;}
+.stat-num{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--cyan);line-height:1;}
+.stat-label{font-size:11px;color:var(--text-sec);font-weight:600;text-transform:uppercase;letter-spacing:1px;}
+
+/* FILTERS */
+.filters{max-width:1100px;margin:0 auto;padding:0 20px 20px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.filter-btn{font-size:12px;font-weight:700;padding:6px 14px;border-radius:50px;border:1px solid var(--border);background:transparent;color:var(--text-sec);cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif;}
+.filter-btn:hover{color:var(--text);border-color:rgba(255,255,255,0.15);}
+.filter-btn.active{color:var(--bg);border-color:transparent;}
+.filter-btn[data-pillar="all"].active{background:var(--cyan);}
+.filter-btn[data-pillar="Conditions"].active{background:#0ea5e9;}
+.filter-btn[data-pillar="Community"].active{background:var(--green);}
+.filter-btn[data-pillar="Education"].active{background:var(--purple);}
+.filter-btn[data-pillar="Sponsor"].active{background:var(--amber);color:#0a0a0a;}
+.filter-sep{width:1px;height:20px;background:var(--border);}
+.assignee-btn{font-size:12px;font-weight:700;padding:6px 14px;border-radius:50px;border:1px solid var(--border);background:transparent;color:var(--text-sec);cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif;}
+.assignee-btn:hover{color:var(--text);}
+.assignee-btn.active{background:var(--bg-card2);color:var(--text);border-color:rgba(255,255,255,0.15);}
+
+/* WEEK */
+.week{max-width:1100px;margin:0 auto 32px;padding:0 20px;}
+.week-header{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+.week-label{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--text);}
+.week-theme{font-size:12px;color:var(--text-sec);font-style:italic;}
+.posts{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;}
+
+/* POST CARD */
+.post-card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;transition:border-color .15s,transform .15s;position:relative;}
+.post-card:hover{border-color:var(--border-hover);transform:translateY(-1px);}
+.post-card[data-pending]{opacity:.75;}
+.post-card[data-pending]::after{content:'DETAILS PENDING';position:absolute;top:10px;right:10px;font-size:9px;font-weight:700;letter-spacing:1px;padding:2px 7px;border-radius:4px;background:rgba(245,158,11,0.15);color:var(--amber);}
+.post-meta{display:flex;align-items:center;gap:8px;}
+.post-date{font-size:11px;font-weight:700;color:var(--text-sec);}
+.post-pillar{font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;letter-spacing:0.5px;}
+.pillar-Conditions{background:rgba(14,165,233,0.12);color:#38bdf8;}
+.pillar-Community{background:rgba(16,185,129,0.12);color:var(--green);}
+.pillar-Education{background:rgba(167,139,250,0.12);color:var(--purple);}
+.pillar-Sponsor{background:rgba(245,158,11,0.12);color:var(--amber);}
+.post-title{font-size:14px;font-weight:700;line-height:1.3;color:var(--text);}
+.post-desc{font-size:12px;color:var(--text-sec);line-height:1.55;}
+.post-tags{display:flex;gap:6px;flex-wrap:wrap;}
+.tag{font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;background:rgba(255,255,255,0.05);color:var(--text-sec);}
+.tag.reel{background:rgba(244,114,182,0.1);color:var(--pink);}
+.tag.effort-high{background:rgba(239,68,68,0.1);color:var(--danger);}
+.tag.effort-med{background:rgba(245,158,11,0.08);color:var(--amber);}
+.post-footer{display:flex;align-items:center;justify-content:space-between;margin-top:2px;}
+.assignee{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--text-sec);}
+.assignee-dot{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex-shrink:0;}
+.dot-dave{background:rgba(56,189,248,0.15);color:var(--cyan);}
+.dot-bella{background:rgba(167,139,250,0.15);color:var(--purple);}
+.gen-btn{font-size:11px;font-weight:700;padding:5px 12px;border-radius:50px;border:1px solid var(--border);background:transparent;color:var(--cyan);cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif;text-decoration:none;display:inline-block;}
+.gen-btn:hover{background:rgba(56,189,248,0.08);border-color:rgba(56,189,248,0.3);}
+
+/* HASHTAGS */
+.hashtags{max-width:1100px;margin:0 auto;padding:0 20px;}
+.section-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:0.5px;margin-bottom:14px;}
+.hash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;}
+.hash-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
+.hash-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;}
+.hash-tags{font-size:12px;color:var(--cyan);line-height:1.8;}
+.hash-note{font-size:11px;color:var(--text-sec);margin-top:6px;}
+.hash-copy{margin-top:8px;font-size:11px;font-weight:700;padding:4px 10px;border-radius:50px;border:1px solid var(--border);background:transparent;color:var(--text-sec);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.hash-copy:hover{color:var(--text);border-color:rgba(255,255,255,0.2);}
+
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-brand"><img src="/icons/logo-wave.png" alt="">SwimLoading</a>
+  <div class="nav-right">
+    <a href="/caption-agent" class="nav-link">Caption Agent</a>
+    <a href="/dave" class="nav-link">Control Centre</a>
+  </div>
+</nav>
+
+<div class="header">
+  <div class="header-eyebrow">Social Media</div>
+  <div class="header-title">July 2026 Content Calendar</div>
+  <div class="header-sub">@swimloading &middot; Instagram + Facebook &middot; 4 posts/week</div>
+  <div class="stats-row">
+    <div class="stat"><span class="stat-num" id="stat-posts">17</span><span class="stat-label">Posts planned</span></div>
+    <div class="stat"><span class="stat-num">4</span><span class="stat-label">Pillars</span></div>
+    <div class="stat"><span class="stat-num">4</span><span class="stat-label">Reels included</span></div>
+    <div class="stat"><span class="stat-num">5</span><span class="stat-label">Stories / week</span></div>
+  </div>
+</div>
+
+<div class="filters">
+  <button class="filter-btn active" data-pillar="all" onclick="filterPillar('all',this)">All</button>
+  <button class="filter-btn" data-pillar="Conditions" onclick="filterPillar('Conditions',this)">Conditions</button>
+  <button class="filter-btn" data-pillar="Community" onclick="filterPillar('Community',this)">Community</button>
+  <button class="filter-btn" data-pillar="Education" onclick="filterPillar('Education',this)">Education</button>
+  <button class="filter-btn" data-pillar="Sponsor" onclick="filterPillar('Sponsor',this)">Sponsor / Challenge</button>
+  <div class="filter-sep"></div>
+  <button class="assignee-btn active" data-assignee="all" onclick="filterAssignee('all',this)">All</button>
+  <button class="assignee-btn" data-assignee="Dave" onclick="filterAssignee('Dave',this)">Dave</button>
+  <button class="assignee-btn" data-assignee="Bella" onclick="filterAssignee('Bella',this)">Bella</button>
+</div>
+
+<!-- WEEK 1 -->
+<div class="week" data-week="1">
+  <div class="week-header">
+    <span class="week-label">Week 1 &mdash; 30 Jun / 1&ndash;4 Jul</span>
+    <span class="week-theme">Launch week &middot; Set the tone</span>
+  </div>
+  <div class="posts">
+
+    <div class="post-card" data-pillar="Conditions" data-assignee="Dave">
+      <div class="post-meta">
+        <span class="post-date">Mon 30 Jun</span>
+        <span class="post-pillar pillar-Conditions">Conditions</span>
+      </div>
+      <div class="post-title">Winter water temp roundup — Cape Town + UK</div>
+      <div class="post-desc">Weekly graphic: SA spots vs UK spots side by side. "False Bay: 14°C vs Serpentine: 18°C — where are you swimming this week?" Poll sticker in Stories.</div>
+      <div class="post-tags">
+        <span class="tag">Graphic</span>
+        <span class="tag">Poll in Stories</span>
+        <span class="tag">Tag locations</span>
+      </div>
+      <div class="post-footer">
+        <div class="assignee"><div class="assignee-dot dot-dave">D</div>Dave</div>
+        <a href="/caption-agent" class="gen-btn">Generate caption</a>
+      </div>
+    </div>
+
+    <div class="post-card" data-pillar="Community" data-assignee="Bella">
+      <div class="post-meta">
+        <span class="post-date">Wed 2 Jul</span>
+        <span class="post-pillar pillar-Community">Community</span>
+      </div>
+      <div class="post-title">Platform milestone — 603 swimmers, 12 countries</div>
+      <div class="post-desc">"A year ago SwimLoading was a Cape Town temperature checker. Today: 603 swimmers across 12 countries." Carousel — 5 slides of community stats and swimmer photos.</div>
+      <div class="post-tags">
+        <span class="tag">Carousel (5 slides)</span>
+        <span class="tag effort-high">High effort</span>
+      </div>
+      <div class="post-footer">
+        <div class="assignee"><div class="assignee-dot dot-bella">B</div>Bella</div>
+        <a href="/caption-agent" class="gen-btn">Generate caption</a>
+      </div>
+    </div>
+
+    <div class="post-card" data-pillar="Education" data-assignee="Dave">
+      <div class="post-meta">
+        <span class="post-date">Fri 4 Jul</span>
+        <span class="post-pillar pillar-Education">Education</span>
+      </div>
+      <div class="post-title">What water temperature actually means for your swim</div>
+      <div class="post-desc">"14°C — how long can you safely swim without a wetsuit?" Carousel: temp ranges mapped to wetsuit/no wetsuit, acclimatisation time, cold shock signs. Save-bait evergreen content.</div>
+      <div class="post-tags">
+        <span class="tag">Carousel (6 slides)</span>
+        <span class="tag">Save-bait</span>
+        <span class="tag">Evergreen</span>
+      </div>
+      <div class="post-footer">
+        <div class="assignee"><div class="assignee-dot dot-dave">D</div>Dave</div>
+        <a href="/caption-agent" class="gen-btn">Generate caption</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- WEEK 2 -->
+<div class="week" data-week="2">
+  <div class="week-header">
+    <span class="week-label">Week 2 &mdash; 7&ndash;11 Jul</span>
+    <span class="week-theme">Carina week &middot; Amplification play</span>
+  </div>
+  <div class="posts">
+
+    <div class="post-card" data-pillar="Conditions" data-assignee="Dave">
+      <div class="post-meta">
+        <span class="post-date">Mon 7 Jul</span>
+        <span class="post-pillar pillar-Conditions">Conditions</span>
+      </div>
+      <div class="post-title">Weekly temp drop — False Bay hits winter low</div>
+      <div class="post-desc">"Cape Town's coldest week of 2026 — False Bay logged at [X]°C. The brave ones are still out there. Who swam this week?" Tag swimmers from the app. Stories: screenshot of the coldest log.</div>
+      <div class="post-tags">
+        <span class="tag">Graphic + photo</span>
+        <span class="tag">Tag community</span>
+      </div>
+      <div class="post-footer">
+        <div class="assignee"><div class="assignee-dot dot-dave">D</div>Dave</div>
+        <a href="/caption-agent" class="gen-btn">Generate caption</a>
+      </div>
+    </div>
+
+    <div class="post-card" data-pillar="Community" data-assignee="Bella">
+      <div class="post-meta">
+        <span class="post-date">Wed 9 Jul</span>
+        <span class="post-pillar pillar-Community">Community</span>
+      </div>
+      <div class="post-title">Carina Brüwer — 20th anniversary False Bay crossing</div>
+      <div class="post-desc">Carina swam False Bay in April 2026 on her 20th anniversary of the crossing — 9h53 in tough conditions. She logs every swim on SwimLoading. Tag @carinabruwer — she reposts to 15K followers.</div>
+      <div class="post-tags">
+        <span class="tag reel">Reel or carousel</span>
+        <span class="tag">Tag @carinabruwer</span>
+        <span class="tag effort-high">Amplification play</span>
+      </div>
+      <div class="post-footer">
+        <div class="assignee"><div class="assignee-dot dot-bella">B</div>Bella</div>
+        <a href="/caption-agent" class="gen-btn">Generate caption</a>
+      </div>
+    </div>
+
+    <div class="post-card" data-pillar="Sponsor" data-assignee="Dave" data-pending>
+      <div class="post-meta">
+        <span class="post-date">Fri 11 Jul</span>
+        <span class="post-pillar pillar-Sponsor">Sponsor / Challenge</span>
+      </div>
+      <div class="post-title">Trihard partnership — announcement post</div>
+      <div class="post-desc">Trihard skin and hair care built for swimmers. Partnership verbally agreed — details confirmed this week. Launch post to go live once brief is finalised. Tag @trihard.</div>
+      <div class="post-tags">
+        <span class="tag">Partnership launch</span>
+        <span class="tag">Tag @trihard</span>
+        <span class="tag">Stories swipe-up</span>
+      </div>
+      <div class="post-footer">
+        <div class="assignee"><div class="assignee-dot dot-dave">D</div>Dave</div>
+        <a href="/caption-agent" class="gen-btn">Generate caption</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- WEEK 3 -->
+<div class="week" data-week="3">
+  <div class="week-header">
+    <span class="week-label">Week 3 &mdash; 14&ndash;18 Jul</span>
+    <span class="week-theme">Education + Ryan week</span>
+  </div>
+  <div class="posts">
+
+    <div class="post-card" data-pillar="Conditions" data-assignee="Dave">
+      <div class="post-meta">
+        <span class="post-date">Mon 14 Jul</span>
+        <span class="post-pillar pillar-Conditions">Conditions</span>
+      </div>
+      <div class="post-title">Weekly conditions — mid-winter check</div>
+      <div class="post-desc">Graphic: this week's logged temps across top SA and UK spots. "Mid-winter and [X] swims logged this week. Who's keeping the streak alive?" Stories poll: "Did you swim this week?"</div>
+      <div class="post-tags">
+        <span class="tag">Graphic</span>
+        <span class="tag">Stories poll</span>
+      </div>
+      <div class="post-footer">
+        <div class="assignee"><div class="assignee-dot dot-dave">D</div>Dave</div>
+        <a href="/caption-agent" class="gen-btn">Generate caption</a>
+      </div>
+    </div>
+
+    <div class="post-card" data-pillar="Education" data-assignee="Bella">
+      <div class="post-meta">
+        <span class="post-date">Wed 16 Jul</span>
+        <span class="post-pillar pillar-Education">Education</span>
+      </div>
+      <div class="post-title">How to read open water conditions before you swim</div>
+      <div class="post-desc">"Before you get in — what to check. Swell, wind, current, temperature, visibility. SwimLoading tells you 3 of these in 30 seconds." Reel: 45-second walkthrough of the conditions page.</div>
+      <div class="post-tags">
+        <span class="tag reel">Reel (45 sec)</span>
+        <span class="tag">App demo</span>
+        <span class="tag">CTA: download</span>
+      </div>
+      <div class="post-footer">
+        <div class="assignee"><div class="assignee-dot dot-bella">B</div>Bella</div>
+        <a href="/caption-agent" class="gen-btn">Generate caption</a>
+      </div>
+    </div>
+
+    <div class="post-card" data-pillar="Community" data-assignee="Bella">
+      <div class="post-meta">
+        <span class="post-date">Fri 18 Jul</span>
+        <span class="post-pillar pillar-Community">Community</span>
+      </div>
+      <div class="post-title">Ryan Stramrood — swimmer spotlight</div>
+      <div class="post-desc">146 Robben Island crossings. First around Cape Horn. World records. Ryan Stramrood is on SwimLoading. Tag @ryanstramrood — his followers see the platform.</div>
+      <div class="post-tags">
+        <span class="tag">Carousel</span>
+        <span class="tag">Tag @ryanstramrood</span>
+        <span class="tag effort-high">Amplification play</span>
+      </div>
+      <div class="post-footer">
+        <div class="assignee"><div class="assignee-dot dot-bella">B</div>Bella</div>
+        <a href="/caption-agent" class="gen-btn">Generate caption</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- WEEK 4 -->
+<div class="week" data-week="4">
+  <div class="week-header">
+    <span class="week-label">Week 4 &mdash; 21&ndash;25 Jul</span>
+    <span class="week-theme">Club spotlight + challenge mid-point</span>
+  </div>
+  <div class="posts">
+
+    <div class="post-card" data-pillar="Conditions" data-assignee="Dave">
+      <div class="post-meta">
+        <span class="post-date">Mon 21 Jul</span>
+        <span class="post-pillar pillar-Conditions">Conditions</span>
+      </div>
+      <div class="post-title">Weekly temps — any sign of spring yet?</div>
+      <div class="post-desc">"Week 4 of July — any sign of spring? This week's temps across your favourite spots." Running comparison vs same time last year if data is available. Stories quiz: "Guess this week's False Bay temp."</div>
+      <div class="post-tags">
+        <span class="tag">Graphic</span>
+        <span class="tag">Stories quiz</span>
+      </div>
+      <div class="post-footer">
+        <div class="assignee"><div class="assignee-dot dot-dave">D</div>Dave</div>
+        <a href="/caption-agent" class="gen-btn">Generate caption</a>
+      </div>
+    </div>
+
+    <div class="post-card" data-pillar="Community" data-assignee="Bella">
+      <div class="post-meta">
+        <span class="post-date">Wed 23 Jul</span>
+        <span class="post-pillar pillar-Community">Community</span>
+      </div>
+      <div class="post-title">Club spotlight — DUC or Aquasharks</div>
+      <div class="post-desc">"Meet [Club Name] — one of the first clubs on SwimLoading. [X] members, [location], in the water every [day] together." Contact the club beforehand — they will repost to their own followers.</div>
+      <div class="post-tags">
+        <span class="tag">Carousel</span>
+        <span class="tag">Club to repost</span>
+        <span class="tag">Tag members</span>
+      </div>
+      <div class="post-footer">
+        <div class="assignee"><div class="assignee-dot dot-bella">B</div>Bella</div>
+        <a href="/caption-agent" class="gen-btn">Generate caption</a>
+      </div>
+    </div>
+
+    <div class="post-card" data-pillar="Sponsor" data-assignee="Dave" data-pending>
+      <div class="post-meta">
+        <span class="post-date">Fri 25 Jul</span>
+        <span class="post-pillar pillar-Sponsor">Sponsor / Challenge</span>
+      </div>
+      <div class="post-title">Trihard challenge — mid-month progress update</div>
+      <div class="post-desc">"Halfway through July — [X] swimmers in. You've got 2 weeks left." Stories: leaderboard screenshot. Tag @trihard. FOMO mechanic to push late entries.</div>
+      <div class="post-tags">
+        <span class="tag">Progress update</span>
+        <span class="tag">Tag @trihard</span>
+        <span class="tag">FOMO mechanic</span>
+      </div>
+      <div class="post-footer">
+        <div class="assignee"><div class="assignee-dot dot-dave">D</div>Dave</div>
+        <a href="/caption-agent" class="gen-btn">Generate caption</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- WEEK 5 -->
+<div class="week" data-week="5">
+  <div class="week-header">
+    <span class="week-label">Week 5 &mdash; 28&ndash;31 Jul</span>
+    <span class="week-theme">Month close &middot; Sarah + winner reveal</span>
+  </div>
+  <div class="posts">
+
+    <div class="post-card" data-pillar="Community" data-assignee="Bella">
+      <div class="post-meta">
+        <span class="post-date">Mon 28 Jul</span>
+        <span class="post-pillar pillar-Community">Community</span>
+      </div>
+      <div class="post-title">Sarah Ferguson — swimmer spotlight</div>
+      <div class="post-desc">First African woman across the Ka'iwi Channel. First around Easter Island. Founder of Breathe Conservation. Sarah Ferguson is on SwimLoading. Tag Sarah — her followers see the platform.</div>
+      <div class="post-tags">
+        <span class="tag">Carousel</span>
+        <span class="tag">Tag Sarah</span>
+        <span class="tag effort-high">Amplification play</span>
+      </div>
+      <div class="post-footer">
+        <div class="assignee"><div class="assignee-dot dot-bella">B</div>Bella</div>
+        <a href="/caption-agent" class="gen-btn">Generate caption</a>
+      </div>
+    </div>
+
+    <div class="post-card" data-pillar="Education" data-assignee="Dave">
+      <div class="post-meta">
+        <span class="post-date">Wed 30 Jul</span>
+        <span class="post-pillar pillar-Education">Education</span>
+      </div>
+      <div class="post-title">Post-swim recovery — what actually works</div>
+      <div class="post-desc">"You just got out of 14°C water. Here's what your body needs in the next 30 minutes." Carousel: warm up, nutrition (Maurten / SiS angle), skin care (Trihard angle — organic integration). Save-bait that works for sponsors without feeling like an ad.</div>
+      <div class="post-tags">
+        <span class="tag">Carousel (6 slides)</span>
+        <span class="tag">Organic sponsor mention</span>
+        <span class="tag">Save-bait</span>
+      </div>
+      <div class="post-footer">
+        <div class="assignee"><div class="assignee-dot dot-dave">D</div>Dave</div>
+        <a href="/caption-agent" class="gen-btn">Generate caption</a>
+      </div>
+    </div>
+
+    <div class="post-card" data-pillar="Sponsor" data-assignee="Dave" data-pending>
+      <div class="post-meta">
+        <span class="post-date">Fri 1 Aug</span>
+        <span class="post-pillar pillar-Sponsor">Sponsor / Challenge</span>
+      </div>
+      <div class="post-title">Trihard challenge — winner reveal</div>
+      <div class="post-desc">"July is done. Our Trihard Post-Swim Recovery Challenge winner is [name, city]. [X] swims in 31 days. Your kit is on its way." Tag @trihard and the winner. Stories: winner DM screenshot (with permission).</div>
+      <div class="post-tags">
+        <span class="tag">Winner reveal</span>
+        <span class="tag">Tag @trihard + winner</span>
+        <span class="tag">Community celebration</span>
+      </div>
+      <div class="post-footer">
+        <div class="assignee"><div class="assignee-dot dot-dave">D</div>Dave</div>
+        <a href="/caption-agent" class="gen-btn">Generate caption</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- HASHTAGS -->
+<div class="hashtags">
+  <div class="section-title">Hashtag Sets — Rotate, never repeat back-to-back</div>
+  <div class="hash-grid">
+
+    <div class="hash-card">
+      <div class="hash-label" style="color:#38bdf8;">Set A — Conditions</div>
+      <div class="hash-tags">#openwater #coldwaterswimming #swimloading #falsebay #winterswimming</div>
+      <div class="hash-note">Use on weekly temp graphics and conditions posts.</div>
+      <button class="hash-copy" onclick="copyHash(this,'#openwater #coldwaterswimming #swimloading #falsebay #winterswimming')">Copy</button>
+    </div>
+
+    <div class="hash-card">
+      <div class="hash-label" style="color:var(--green);">Set B — Community</div>
+      <div class="hash-tags">#swimloading #openwaterswimmer #southafricanswimming #swimcommunity #openwaterchallenge</div>
+      <div class="hash-note">Use on swimmer spotlights and milestone posts.</div>
+      <button class="hash-copy" onclick="copyHash(this,'#swimloading #openwaterswimmer #southafricanswimming #swimcommunity #openwaterchallenge')">Copy</button>
+    </div>
+
+    <div class="hash-card">
+      <div class="hash-label" style="color:var(--purple);">Set C — Education</div>
+      <div class="hash-tags">#coldwaterimmersion #swimsafety #openwatertraining #swimloading #coldwatertherapy</div>
+      <div class="hash-note">Use on tip carousels and safety content. High save-rate tags.</div>
+      <button class="hash-copy" onclick="copyHash(this,'#coldwaterimmersion #swimsafety #openwatertraining #swimloading #coldwatertherapy')">Copy</button>
+    </div>
+
+    <div class="hash-card">
+      <div class="hash-label" style="color:var(--amber);">Set D — Sponsor / Challenge</div>
+      <div class="hash-tags">#swimchallenge #swimloading #openwaterchallenge #swimcommunity #giveaway</div>
+      <div class="hash-note">Use on partner and challenge posts. Keep giveaway only when there is an actual prize.</div>
+      <button class="hash-copy" onclick="copyHash(this,'#swimchallenge #swimloading #openwaterchallenge #swimcommunity #giveaway')">Copy</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+document.addEventListener('mousemove', e => {
+  document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+  document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+});
+
+let activePillar = 'all';
+let activeAssignee = 'all';
+
+function filterPillar(pillar, btn) {
+  activePillar = pillar;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
+
+function filterAssignee(assignee, btn) {
+  activeAssignee = assignee;
+  document.querySelectorAll('.assignee-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
+
+function applyFilters() {
+  let visible = 0;
+  document.querySelectorAll('.post-card').forEach(card => {
+    const pillarMatch = activePillar === 'all' || card.dataset.pillar === activePillar;
+    const assigneeMatch = activeAssignee === 'all' || card.dataset.assignee === activeAssignee;
+    const show = pillarMatch && assigneeMatch;
+    card.classList.toggle('hidden', !show);
+    if (show) visible++;
+  });
+  document.getElementById('stat-posts').textContent = visible;
+  // hide empty weeks
+  document.querySelectorAll('.week').forEach(week => {
+    const hasVisible = [...week.querySelectorAll('.post-card')].some(c => !c.classList.contains('hidden'));
+    week.classList.toggle('hidden', !hasVisible);
+  });
+}
+
+function copyHash(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+
+lucide.createIcons();
+</script>
+</body>
+</html>
