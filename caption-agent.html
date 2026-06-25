@@ -326,20 +326,20 @@
       <div class="card">
         <div class="card-title">Challenge details</div>
         <label>Challenge name</label>
-        <select id="challenge-name">
-          <option>June Challenge</option><option>Monthly Temp Challenge</option><option>Winter Streak</option><option>Custom</option>
+        <select id="challenge-name" onchange="updateChallengeDefaults()">
+          <option>June Challenge</option><option>July Challenge</option><option>Monthly Temp Challenge</option><option>Winter Streak</option><option>Custom</option>
         </select>
         <label>Custom challenge name (if Custom)</label>
         <input type="text" id="challenge-custom" placeholder="e.g. Tri Hard Recovery Challenge">
         <label>Prizes</label>
-        <input type="text" id="challenge-prizes" value="THEMAGIC5 custom goggles · Maurten nutrition pack · Blu Smooth wetsuit">
+        <input type="text" id="challenge-prizes" value="THEMAGIC5 custom goggles (grand prize)">
         <label>Current leader / standings</label>
-        <textarea id="challenge-standings">Top of the leaderboard is neck and neck — 3 swimmers within 2 logs of each other with a week to go.</textarea>
+        <textarea id="challenge-standings">Tunnam leads the June Challenge by a significant margin heading into the final stretch.</textarea>
       </div>
       <div class="card">
         <div class="card-title">Post context</div>
         <label>Phase / days remaining</label>
-        <input type="text" id="challenge-phase" value="Final 7 days">
+        <input type="text" id="challenge-phase" value="Final 6 days">
         <label>Swimmers entered</label>
         <input type="text" id="challenge-count" value="47">
         <label>Anything notable?</label>
@@ -675,6 +675,31 @@ function getActiveHazards() {
 }
 
 // ─── PARTNER & CLUB DEFAULTS ───
+function updateChallengeDefaults() {
+  const challenge = document.getElementById('challenge-name').value;
+  const prizesMap = {
+    'June Challenge':        'THEMAGIC5 custom-fit goggles (grand prize)',
+    'July Challenge':        'Blu Smooth wetsuit (grand prize)',
+    'Monthly Temp Challenge':'Maurten nutrition pack — ongoing monthly prize',
+    'Winter Streak':         'SiS nutrition bundle — random draw from all participants'
+  };
+  const standingsMap = {
+    'June Challenge':        'Tunnam leads the June Challenge by a significant margin heading into the final stretch.',
+    'July Challenge':        'July Challenge just opened — early movers are already on the board.',
+    'Monthly Temp Challenge':'Leaderboard is tight — top 3 swimmers separated by a single log.',
+    'Winter Streak':         'Streak challenge underway — consistent loggers are pulling ahead of the pack.'
+  };
+  const phaseMap = {
+    'June Challenge':        'Final 6 days',
+    'July Challenge':        'Just launched',
+    'Monthly Temp Challenge':'Mid-month',
+    'Winter Streak':         'Week 2'
+  };
+  if (prizesMap[challenge]) document.getElementById('challenge-prizes').value = prizesMap[challenge];
+  if (standingsMap[challenge]) document.getElementById('challenge-standings').value = standingsMap[challenge];
+  if (phaseMap[challenge]) document.getElementById('challenge-phase').value = phaseMap[challenge];
+}
+
 function updateCrossingDefaults() {
   const crossing = document.getElementById('crossing-name').value;
   const intelMap = {
