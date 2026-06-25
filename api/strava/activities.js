@@ -6,7 +6,7 @@ import { getUserId, getValidStravaToken } from './token-helper.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://szgkzuswelntnevobnoh.supabase.co';
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY;
-const SWIM_TYPES   = new Set(['Swim', 'OpenWaterSwim', 'VirtualSwim']);
+const SWIM_TYPES   = new Set(['swim', 'openWaterSwim', 'openwater', 'virtualSwim', 'pool_swim', 'open_water_swim']);
 const MATCH_RADIUS_KM = 1.5;
 
 function haversineKm(lat1, lng1, lat2, lng2) {
@@ -71,7 +71,7 @@ export default async function handler(req, res) {
     console.log('[strava/activities] total activities:', all.length,
         '| types:', [...new Set(all.map(a => a.sport_type || a.type))].join(', '),
         '| athlete:', all[0]?.athlete?.id ?? 'unknown');
-    const swims = all.filter(a => SWIM_TYPES.has(a.sport_type || a.type));
+    const swims = all.filter(a => SWIM_TYPES.has((a.sport_type || a.type || '').toLowerCase()));
     console.log('[strava/activities] swims after filter:', swims.length);
 
     if (swims.length === 0) {
@@ -138,7 +138,7 @@ export default async function handler(req, res) {
             average_temp:        a.average_temp ?? null,
             device_name:         a.device_name ?? null,
             average_heartrate:   a.average_heartrate ?? null,
-            is_open_water:       (a.sport_type || a.type) === 'OpenWaterSwim',
+            is_open_water:       ['openwaterswim', 'openwater', 'open_water_swim'].includes((a.sport_type || a.type || '').toLowerCase()),
         });
     }
 
