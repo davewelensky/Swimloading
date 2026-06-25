@@ -372,6 +372,16 @@
           <option value="Maurten">Maurten</option>
           <option value="Blu Smooth">Blu Smooth</option>
           <option value="EOLab">EOLab</option>
+          <option value="Trihard">Trihard</option>
+          <option value="Upcoming">Upcoming Partnership (teaser)</option>
+        </select>
+        <label>Post type</label>
+        <select id="partner-post-type" onchange="updatePartnerDefaults()">
+          <option value="feature">Product feature</option>
+          <option value="announce">Partnership announcement</option>
+          <option value="teaser">Upcoming / teaser — build excitement</option>
+          <option value="prize">Challenge prize partner</option>
+          <option value="collab">Collab or campaign</option>
         </select>
         <label>What is being featured</label>
         <textarea id="partner-feature">Custom-fit goggles — swimmers map their face with the THEMAGIC5 app for a 3D-printed fit.</textarea>
@@ -384,17 +394,21 @@
         <input type="text" id="partner-link" value="Link in bio for the SwimLoading community offer">
         <label>Community connection</label>
         <textarea id="partner-community">THEMAGIC5 are prize partners for the June Challenge — winner gets a custom-fit pair.</textarea>
+        <label>Teaser / what to keep vague (for upcoming partners)</label>
+        <textarea id="partner-teaser" placeholder="e.g. Big name dropping next week — all we can say is it changes how you fuel your swim">Leave blank for confirmed partners. For teasers: describe the category or hint without naming the brand.</textarea>
         <label>Call to action</label>
         <select id="partner-cta">
           <option value="shop">Shop via link in bio</option>
           <option value="challenge">Enter the challenge to win — link in bio</option>
           <option value="learn">Learn more at swimloading.com</option>
+          <option value="watch">Watch this space — follow for the reveal</option>
+          <option value="tag">Tag a swimmer who needs this</option>
         </select>
         <label>Tone</label>
         <div class="tone-row">
           <button class="tone-btn selected" onclick="selectTone(this,'community')">Authentic</button>
-          <button class="tone-btn" onclick="selectTone(this,'witty')">Product-led</button>
-          <button class="tone-btn" onclick="selectTone(this,'inspiring')">Story-driven</button>
+          <button class="tone-btn" onclick="selectTone(this,'witty')">Witty / playful</button>
+          <button class="tone-btn" onclick="selectTone(this,'inspiring')">Exciting / bold</button>
         </div>
       </div>
     </div>
@@ -725,22 +739,53 @@ function updateCrossingDefaults() {
 
 function updatePartnerDefaults() {
   const partner = document.getElementById('partner-name').value;
+  const postType = document.getElementById('partner-post-type').value;
+
   const featureMap = {
     'THEMAGIC5': 'Custom-fit goggles — swimmers scan their face with the THEMAGIC5 app for a 3D-printed fit. Zero pressure points on long swims.',
-    'SiS': 'Science in Sport (SiS) — science-backed nutrition for endurance athletes. Gels, electrolytes, and protein formulated for swim performance.',
-    'Maurten': 'Maurten hydrogel sports nutrition — engineered for cold water athletes. High carbohydrate delivery without GI issues during long swims.',
-    'Blu Smooth': 'Blu Smooth wetsuits — designed for open water swimming in South African conditions. Buoyancy-optimised cut for ocean swims.',
-    'EOLab': 'EOLab performance coaching and analysis — data-driven training plans for open water swimmers targeting crossings and time trials.'
+    'SiS':       'Science in Sport (SiS) — science-backed nutrition for endurance athletes. Gels, electrolytes, and protein formulated for swim performance.',
+    'Maurten':   'Maurten hydrogel sports nutrition — engineered for cold water athletes. High carbohydrate delivery without GI issues during long swims.',
+    'Blu Smooth':'Blu Smooth wetsuits — designed for open water swimming in South African conditions. Buoyancy-optimised cut for ocean swims.',
+    'EOLab':     'EOLab performance coaching and analysis — data-driven training plans for open water swimmers targeting crossings and time trials.',
+    'Trihard':   'Trihard skin and hair care formulated specifically for swimmers — protects against chlorine, salt, and sun exposure without stripping skin.',
+    'Upcoming':  'Details to be confirmed — partnership not yet announced publicly.'
   };
   const whyMap = {
     'THEMAGIC5': 'No more goggle squeeze mid-crossing. A custom fit means zero pressure points even on a 2-hour swim.',
-    'SiS': 'Cold water burns calories fast. SiS fuelling strategy keeps swimmers going past the point where most pull out.',
-    'Maurten': 'Maurten hydrogel technology is clinically tested for high-intensity endurance — critical for channel and crossing prep.',
-    'Blu Smooth': 'A well-fitted wetsuit at 14°C is the difference between a 2-hour swim and a 45-minute one. Blu Smooth make suits for our water.',
-    'EOLab': 'Open water performance is more than fitness. EOLab bring the data to help swimmers understand what the ocean demands of their bodies.'
+    'SiS':       'Cold water burns calories fast. SiS fuelling strategy keeps swimmers going past the point where most pull out.',
+    'Maurten':   'Hydrogel technology tested for high-intensity endurance — critical for channel and crossing prep.',
+    'Blu Smooth':'A well-fitted wetsuit at 14°C is the difference between a 2-hour swim and a 45-minute one. Blu Smooth make suits built for our water.',
+    'EOLab':     'Open water performance is more than fitness. EOLab bring the data to help swimmers understand what the ocean demands of their bodies.',
+    'Trihard':   'Salt water, sun, and cold take a toll. Trihard is the only skin care range built specifically around what swimmers put their bodies through every session.',
+    'Upcoming':  'Something that solves a real problem for open water swimmers — details dropping soon.'
   };
+  const communityMap = {
+    'THEMAGIC5': 'THEMAGIC5 are prize partners for the June Challenge — grand prize winner gets a custom-fit pair.',
+    'SiS':       'SiS are supporting SwimLoading swimmers with exclusive community offers and random prize draws.',
+    'Maurten':   'Maurten are an ongoing prize partner — monthly draws from the SwimLoading community.',
+    'Blu Smooth':'Blu Smooth are official wetsuit partners of the SwimLoading community.',
+    'EOLab':     'EOLab are joining the SwimLoading ecosystem to bring structured coaching to our open water swimmers.',
+    'Trihard':   'Trihard are a new SwimLoading partner — built for swimmers, by swimmers.',
+    'Upcoming':  'This partnership has not been announced yet. Build the excitement without naming the brand.'
+  };
+  const teaserMap = {
+    'Upcoming':  'Something big is coming to SwimLoading. We can\'t name names yet — but it changes how swimmers take care of themselves in and out of the water. Follow to be first to know.',
+    'Trihard':   'New partner incoming — and this one is for your skin as much as your swim.',
+    'EOLab':     'Data-driven coaching is coming to SwimLoading. Big announcement dropping this week.'
+  };
+  const ctaMap = {
+    'teaser':    'watch',
+    'announce':  'learn',
+    'feature':   'shop',
+    'prize':     'challenge',
+    'collab':    'tag'
+  };
+
   if (featureMap[partner]) document.getElementById('partner-feature').value = featureMap[partner];
   if (whyMap[partner]) document.getElementById('partner-why').value = whyMap[partner];
+  if (communityMap[partner]) document.getElementById('partner-community').value = communityMap[partner];
+  if (teaserMap[partner]) document.getElementById('partner-teaser').value = teaserMap[partner];
+  if (ctaMap[postType]) document.getElementById('partner-cta').value = ctaMap[postType];
 }
 
 function updateClubDefaults() {
@@ -848,13 +893,29 @@ function buildPrompt() {
 
   if (currentType === 'partner') {
     const partner = document.getElementById('partner-name').value;
+    const postType = document.getElementById('partner-post-type').value;
     const feature = document.getElementById('partner-feature').value;
     const why = document.getElementById('partner-why').value;
     const link = document.getElementById('partner-link').value;
     const community = document.getElementById('partner-community').value;
-    const ctaMap = { shop:'Shop via link in bio.', challenge:'Enter the challenge to win — link in bio.', learn:'Learn more at swimloading.com — link in bio.' };
+    const teaser = document.getElementById('partner-teaser').value;
+    const ctaMap = {
+      shop:      'Shop via link in bio.',
+      challenge: 'Enter the challenge to win — link in bio.',
+      learn:     'Learn more at swimloading.com — link in bio.',
+      watch:     'Follow SwimLoading — big reveal coming this week.',
+      tag:       'Tag a swimmer who needs this.'
+    };
     const cta = ctaMap[document.getElementById('partner-cta').value];
-    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a partner feature post. SwimLoading's partners — THEMAGIC5, Maurten, SiS, Blu Smooth, EOLab — are brands that genuinely serve open water swimmers. These captions must feel like a genuine recommendation from a fellow swimmer, not advertising copy.\n\nPARTNER: ${partner}\nWHAT IS BEING FEATURED: ${feature}\nWHY IT MATTERS FOR SWIMMERS: ${why}\nCOMMUNITY CONNECTION: ${community || 'Official SwimLoading partner.'}\nOFFER / LINK: ${link}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+    const postTypeDescs = {
+      feature:  'a product feature post — focus on what the product does for a swimmer in real conditions. Genuine recommendation, not advertising copy.',
+      announce: 'a partnership announcement — this brand is now officially part of the SwimLoading ecosystem. Warm, excited, community-first.',
+      teaser:   'a teaser / hype post — do NOT name the partner. Build anticipation and curiosity. Make the community feel something exciting is about to land. Leave them wanting to know more.',
+      prize:    'a challenge prize partner post — the brand is providing prizes for a SwimLoading challenge. Connect the product to the prize to the motivation to enter.',
+      collab:   'a collab or campaign post — SwimLoading and the brand are doing something together. Community benefit is the lead angle.'
+    };
+    const isTeaser = postType === 'teaser' || partner === 'Upcoming';
+    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for ${postTypeDescs[postType] || postTypeDescs.feature}\n\nPARTNER: ${isTeaser ? '[NOT TO BE NAMED IN CAPTION]' : partner}\nWHAT IS BEING FEATURED: ${feature}\nWHY IT MATTERS FOR SWIMMERS: ${why}\nCOMMUNITY CONNECTION: ${community}\n${teaser && isTeaser ? 'TEASER HINT (weave in subtly, do not over-explain): ' + teaser + '\n' : ''}${!isTeaser && link ? 'OFFER / LINK: ' + link + '\n' : ''}CALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
   }
 
   if (currentType === 'club') {
