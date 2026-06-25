@@ -261,7 +261,7 @@
       <div class="card">
         <div class="card-title">Post context</div>
         <label>Post date / week</label>
-        <input type="text" id="cond-date" value="Week of 7 July 2026">
+        <input type="text" id="cond-date">
         <label>Anything notable?</label>
         <textarea id="cond-notable">Winter setting in — coldest week so far across the Cape.</textarea>
         <label>Call to action</label>
@@ -1258,6 +1258,19 @@ function copyHashtags() {
     setTimeout(() => { btn.textContent = 'Copy all'; }, 2000);
   });
 }
+
+// Set weekly conditions date to current week's Monday on load
+(function() {
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun
+  const diff = day === 0 ? -6 : 1 - day; // Monday of current week
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diff);
+  const label = 'Week of ' + monday.getDate() + ' ' + MONTHS[monday.getMonth()] + ' ' + monday.getFullYear();
+  const el = document.getElementById('cond-date');
+  if (el) el.value = label;
+})();
 </script>
 </body>
 </html>
