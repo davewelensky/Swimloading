@@ -499,20 +499,31 @@
            STATS BAR
         ═══════════════════════════════════════ */
         .stats-bar {
-            display: flex; justify-content: center; gap: 60px;
-            flex-wrap: wrap; padding: 60px 24px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
             position: relative; z-index: 1;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
         }
-        .stat-item { text-align: center; }
+        @media (max-width: 640px) {
+            .stats-bar { grid-template-columns: repeat(2, 1fr); }
+        }
+        .stat-item {
+            text-align: center;
+            padding: 52px 24px;
+            border-right: 1px solid rgba(255,255,255,0.05);
+        }
+        .stat-item:last-child { border-right: none; }
         .stat-item .num {
             font-family: 'Bebas Neue', sans-serif;
-            font-size: 64px; letter-spacing: 1px;
-            background: linear-gradient(135deg, var(--ocean-light), var(--cyan-glow));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            font-size: clamp(52px, 7vw, 88px);
+            letter-spacing: 0px; line-height: 1;
+            color: #f1f5f9;
         }
+        .stat-item .num span { color: var(--ocean-light); font-size: 0.6em; vertical-align: top; margin-top: 8px; display: inline-block; }
         .stat-item .label {
-            font-size: 14px; color: var(--text-secondary); font-weight: 500;
-            margin-top: 4px;
+            font-size: 13px; color: var(--text-secondary); font-weight: 500;
+            margin-top: 8px; text-transform: uppercase; letter-spacing: 0.1em;
         }
 
         /* ═══════════════════════════════════════
@@ -831,8 +842,9 @@
             .btn-primary, .btn-secondary {
                 width: 100%; justify-content: center; padding: 16px 24px;
             }
-            .stats-bar { gap: 32px; }
-            .stat-item .num { font-size: 36px; }
+            .stats-bar { grid-template-columns: repeat(2,1fr); }
+            .stat-item { padding: 36px 16px; }
+            .stat-item:nth-child(2) { border-right: none; }
             .phone-frame { width: 220px; }
             .cta-box { padding: 40px 24px; }
             .feature-showcase { padding: 40px 24px; }
@@ -1094,20 +1106,20 @@
     <!-- ═══════════════ STATS ═══════════════ -->
     <div class="stats-bar">
         <div class="stat-item">
-            <div class="num">600+</div>
-            <div class="label">Swimmers</div>
-        </div>
-        <div class="stat-item">
-            <div class="num">140+</div>
+            <div class="num">140<span>+</span></div>
             <div class="label">Swim Spots</div>
         </div>
         <div class="stat-item">
-            <div class="num"><span id="stat-countries">10</span></div>
+            <div class="num"><span id="stat-countries">11</span></div>
             <div class="label">Countries</div>
         </div>
         <div class="stat-item">
-            <div class="num">Free</div>
-            <div class="label">No App Store Needed</div>
+            <div class="num">2,400<span>+</span></div>
+            <div class="label">Temps Logged</div>
+        </div>
+        <div class="stat-item">
+            <div class="num">6</div>
+            <div class="label">Brand Partners</div>
         </div>
     </div>
 
@@ -1118,7 +1130,7 @@
         <div class="feature-showcase">
             <div class="feature-showcase-phone">
                 <div class="phone-frame">
-                    <img src="screenshots/Hero.webp" alt="SwimLoading Dashboard" width="500" height="789" loading="lazy" decoding="async">
+                    <img src="screenshots/home-tab.png" alt="SwimLoading Home — June Challenge and live temps" width="456" height="985" loading="lazy" decoding="async" onerror="this.src='screenshots/Hero.webp'">
                 </div>
             </div>
             <div class="feature-showcase-text">
@@ -1153,7 +1165,7 @@
         <div class="feature-showcase reverse">
             <div class="feature-showcase-phone">
                 <div class="phone-frame">
-                    <img src="screenshots/TempsLogging.webp" alt="Log Temperature" width="486" height="929" loading="lazy" decoding="async">
+                    <img src="screenshots/temps-tab.png" alt="Log water temperature — SwimLoading" width="456" height="985" loading="lazy" decoding="async" onerror="this.src='screenshots/TempsLogging.webp'">
                 </div>
             </div>
             <div class="feature-showcase-text">
@@ -1188,7 +1200,7 @@
         <div class="feature-showcase">
             <div class="feature-showcase-phone">
                 <div class="phone-frame">
-                    <img src="screenshots/GroupSwims.webp" alt="Group Swims" width="479" height="1005" loading="lazy" decoding="async">
+                    <img src="screenshots/swims-tab.png" alt="Group Swims — SwimLoading" width="456" height="985" loading="lazy" decoding="async" onerror="this.src='screenshots/GroupSwims.webp'">
                 </div>
             </div>
             <div class="feature-showcase-text">
@@ -1261,7 +1273,7 @@
         <div class="feature-showcase reverse">
             <div class="feature-showcase-phone">
                 <div class="phone-frame">
-                    <img src="screenshots/TempsTrends.webp" alt="Temperature Trends" width="476" height="895" loading="lazy" decoding="async">
+                    <img src="screenshots/trends-tab.png" alt="Temperature Trends by Region — SwimLoading" width="456" height="985" loading="lazy" decoding="async" onerror="this.src='screenshots/TempsTrends.webp'">
                 </div>
             </div>
             <div class="feature-showcase-text">
@@ -2571,6 +2583,33 @@
             canvas.style.cursor = 'grab';
         });
         window.addEventListener('resize', () => { w = canvas.offsetWidth; });
+    })();
+    </script>
+
+    <!-- ═══ TEXT SCRAMBLE ═══ -->
+    <script>
+    (function() {
+        const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·–';
+        function scramble(el) {
+            const final = el.dataset.scramble || el.textContent.trim();
+            el.dataset.scramble = final;
+            let frame = 0;
+            const total = final.length * 4;
+            const id = setInterval(() => {
+                el.textContent = final.split('').map((ch, i) => {
+                    if (ch === ' ') return ' ';
+                    if (frame / 4 > i) return ch;
+                    return CHARS[Math.floor(Math.random() * CHARS.length)];
+                }).join('');
+                if (++frame > total) { el.textContent = final; clearInterval(id); }
+            }, 28);
+        }
+        const io = new IntersectionObserver(entries => {
+            entries.forEach(e => {
+                if (e.isIntersecting) { scramble(e.target); io.unobserve(e.target); }
+            });
+        }, { threshold: 0.6 });
+        document.querySelectorAll('.section-label, .feature-showcase-label').forEach(el => io.observe(el));
     })();
     </script>
 </body>
