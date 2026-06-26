@@ -6,7 +6,7 @@ import { getUserId, getValidStravaToken } from './token-helper.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://szgkzuswelntnevobnoh.supabase.co';
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY;
-const SWIM_TYPES   = new Set(['swim', 'openWaterSwim', 'openwater', 'virtualSwim', 'pool_swim', 'open_water_swim']);
+const SWIM_TYPES   = new Set(['swim', 'openwaterswim', 'openwater', 'virtualswim', 'pool_swim', 'open_water_swim']);
 const MATCH_RADIUS_KM = 1.5;
 
 function haversineKm(lat1, lng1, lat2, lng2) {
