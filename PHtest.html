@@ -2069,7 +2069,7 @@
 
         try {
             const payload = {
-                user_id:          currentUser.id,
+                user_id:          CARINA_ID,
                 test_date:        document.getElementById('sweatDate').value,
                 session_type:     document.getElementById('sweatSessionType').value,
                 duration_mins:    parseInt(document.getElementById('sweatDuration').value) || null,
@@ -2102,6 +2102,7 @@
         const { data, error } = await supabaseClient
             .from('sweat_tests')
             .select('*')
+            .eq('user_id', CARINA_ID)
             .order('test_date', { ascending: false });
 
         if (error || !data?.length) {
