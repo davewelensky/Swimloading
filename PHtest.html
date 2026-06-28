@@ -205,6 +205,10 @@
                 style="flex:1;padding:8px 12px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:6px;">
                 <i data-lucide="calendar" style="width:14px;height:14px;"></i> Race
             </button>
+            <button id="tabSweatBtn" onclick="switchTab('sweat')"
+                style="flex:1;padding:8px 12px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:6px;">
+                <i data-lucide="droplets" style="width:14px;height:14px;"></i> Sweat
+            </button>
         </div>
     </div>
 
@@ -400,6 +404,95 @@
         </div>
     </div><!-- /container -->
     </div><!-- /tabLog -->
+    <!-- ── SWEAT TEST TAB ────────────────────────────────────────────────── -->
+    <div id="tabSweat" style="display:none;">
+        <div class="container">
+
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <div>
+                    <div style="font-size:16px;font-weight:800;">Sweat Tests</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Weigh in · weigh out · track losses</div>
+                </div>
+                <button class="btn-sm" onclick="showSweatForm()"><i data-lucide="plus" style="width:14px;height:14px;"></i> New Test</button>
+            </div>
+
+            <!-- FORM -->
+            <div id="sweatForm" style="display:none;">
+                <div class="card">
+                    <div class="section-label"><i data-lucide="calendar" style="width:13px;height:13px;"></i> Session</div>
+                    <div class="grid-2" style="margin-bottom:10px;">
+                        <div><div class="field-label">Date</div><input type="date" id="sweatDate"></div>
+                        <div><div class="field-label">Duration (min)</div><input type="number" id="sweatDuration" placeholder="e.g. 80" min="5" max="600" step="5"></div>
+                    </div>
+                    <div class="grid-2" style="margin-bottom:10px;">
+                        <div><div class="field-label">Water temp (°C)</div><input type="number" id="sweatWaterTemp" placeholder="e.g. 18" min="8" max="35" step="0.5"></div>
+                        <div><div class="field-label">Session type</div>
+                            <select id="sweatSessionType">
+                                <option value="pool">Pool</option>
+                                <option value="sea">Sea</option>
+                                <option value="open_water">Open water</option>
+                                <option value="race">Race</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-label"><i data-lucide="scale" style="width:13px;height:13px;"></i> Weight</div>
+                    <div class="grid-2" style="margin-bottom:10px;">
+                        <div>
+                            <div class="field-label">Before (kg)</div>
+                            <input type="number" id="sweatBefore" placeholder="e.g. 63.5" min="30" max="120" step="0.1" oninput="updateSweatCalc()">
+                        </div>
+                        <div>
+                            <div class="field-label">After (kg)</div>
+                            <input type="number" id="sweatAfter" placeholder="e.g. 63.2" min="30" max="120" step="0.1" oninput="updateSweatCalc()">
+                        </div>
+                    </div>
+
+                    <!-- Live calc preview -->
+                    <div id="sweatCalcPreview" style="display:none;background:rgba(14,165,233,0.07);border:1px solid rgba(14,165,233,0.2);border-radius:10px;padding:12px 14px;">
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;">
+                            <div class="stat-cell"><div class="stat-num" id="calcLossKg" style="font-size:20px;">—</div><div class="stat-lbl">Loss (kg)</div></div>
+                            <div class="stat-cell"><div class="stat-num" id="calcTotalMl" style="font-size:20px;">—</div><div class="stat-lbl">Total sweat (ml)</div></div>
+                            <div class="stat-cell"><div class="stat-num green" id="calcRateHr" style="font-size:20px;">—</div><div class="stat-lbl">ml/hr</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-label"><i data-lucide="cup-soda" style="width:13px;height:13px;"></i> Drink Intake</div>
+                    <div style="margin-bottom:10px;">
+                        <div class="field-label">Total fluid consumed (ml)</div>
+                        <input type="number" id="sweatDrinkMl" placeholder="e.g. 500" min="0" max="5000" step="50" value="0" oninput="updateSweatCalc()">
+                        <div style="font-size:11px;color:var(--text-secondary);margin-top:5px;">Include everything — water, PH500, gels (count as ~60ml each)</div>
+                    </div>
+                    <div>
+                        <div class="field-label">What you drank (optional)</div>
+                        <textarea id="sweatDrinkNotes" placeholder="e.g. 500ml PH500, 1 PF30 gel" rows="2"></textarea>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-label"><i data-lucide="file-text" style="width:13px;height:13px;"></i> Notes (optional)</div>
+                    <textarea id="sweatNotes" placeholder="Conditions, how you felt, anything unusual" rows="2"></textarea>
+                </div>
+
+                <div class="flex-row" style="margin-bottom:24px;">
+                    <button class="btn-ghost" onclick="cancelSweatForm()">Cancel</button>
+                    <button id="sweatSaveBtn" class="btn-primary" onclick="saveSweatTest()" style="flex:2;"><i data-lucide="save" style="width:16px;height:16px;"></i> Save Test</button>
+                </div>
+            </div>
+
+            <!-- HISTORY -->
+            <div id="sweatHistory">
+                <div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:40px 0;">
+                    <i data-lucide="loader" style="width:20px;height:20px;display:block;margin:0 auto 10px;opacity:0.4;"></i>Loading…
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div><!-- /appView -->
 
 <div class="toast" id="toast"></div>
@@ -623,10 +716,10 @@
     }
 
     function switchTab(tab) {
-        ['tabResults','tabLog','tabRace'].forEach(id => {
+        ['tabResults','tabLog','tabRace','tabSweat'].forEach(id => {
             document.getElementById(id).style.display = 'none';
         });
-        ['tabResultsBtn','tabLogBtn','tabRaceBtn'].forEach(id => {
+        ['tabResultsBtn','tabLogBtn','tabRaceBtn','tabSweatBtn'].forEach(id => {
             const btn = document.getElementById(id);
             btn.style.background = 'transparent';
             btn.style.color = 'var(--text-secondary)';
@@ -647,6 +740,11 @@
             document.getElementById('tabRaceBtn').style.background = '#0284c7';
             document.getElementById('tabRaceBtn').style.color = 'white';
             generateRaceProtocol();
+        } else if (tab === 'sweat') {
+            document.getElementById('tabSweat').style.display = 'block';
+            document.getElementById('tabSweatBtn').style.background = '#0284c7';
+            document.getElementById('tabSweatBtn').style.color = 'white';
+            loadSweatTests();
         }
         initIcons();
     }
@@ -1912,6 +2010,136 @@
         renderTestingSchedule(data);
 
         el.innerHTML = data.map(t => buildTestCard(t, true)).join('');
+        initIcons();
+    }
+
+    // ─────────────────────────────────────────── SWEAT TESTS ─────────────────
+
+    function showSweatForm() {
+        document.getElementById('sweatDate').value = new Date().toISOString().slice(0,10);
+        document.getElementById('sweatDrinkMl').value = '0';
+        document.getElementById('sweatBefore').value = '';
+        document.getElementById('sweatAfter').value = '';
+        document.getElementById('sweatDuration').value = '';
+        document.getElementById('sweatWaterTemp').value = '';
+        document.getElementById('sweatDrinkNotes').value = '';
+        document.getElementById('sweatNotes').value = '';
+        document.getElementById('sweatCalcPreview').style.display = 'none';
+        document.getElementById('sweatForm').style.display = 'block';
+        document.getElementById('sweatHistory').style.display = 'none';
+        window.scrollTo({top:0, behavior:'smooth'});
+        initIcons();
+    }
+
+    function cancelSweatForm() {
+        document.getElementById('sweatForm').style.display = 'none';
+        document.getElementById('sweatHistory').style.display = 'block';
+        loadSweatTests();
+    }
+
+    function updateSweatCalc() {
+        const before   = parseFloat(document.getElementById('sweatBefore').value);
+        const after    = parseFloat(document.getElementById('sweatAfter').value);
+        const drinkMl  = parseInt(document.getElementById('sweatDrinkMl').value) || 0;
+        const duration = parseInt(document.getElementById('sweatDuration').value) || 0;
+        const preview  = document.getElementById('sweatCalcPreview');
+
+        if (isNaN(before) || isNaN(after)) { preview.style.display = 'none'; return; }
+
+        const lossKg    = before - after;
+        const totalSweat = Math.round(lossKg * 1000 + drinkMl);
+        const rateHr    = duration > 0 ? Math.round(totalSweat / duration * 60) : null;
+
+        document.getElementById('calcLossKg').textContent  = lossKg.toFixed(2) + ' kg';
+        document.getElementById('calcTotalMl').textContent = totalSweat + ' ml';
+        document.getElementById('calcRateHr').textContent  = rateHr ? rateHr + ' ml/hr' : '—';
+        preview.style.display = 'block';
+    }
+
+    async function saveSweatTest() {
+        const btn = document.getElementById('sweatSaveBtn');
+        const before  = parseFloat(document.getElementById('sweatBefore').value);
+        const after   = parseFloat(document.getElementById('sweatAfter').value);
+        if (isNaN(before) || isNaN(after)) { showToast('Enter weight before and after', 'error'); return; }
+        if (after > before) { showToast('After weight is higher than before — check values', 'error'); return; }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader" style="width:15px;height:15px;"></i> Saving…';
+        initIcons();
+
+        try {
+            const payload = {
+                user_id:          currentUser.id,
+                test_date:        document.getElementById('sweatDate').value,
+                session_type:     document.getElementById('sweatSessionType').value,
+                duration_mins:    parseInt(document.getElementById('sweatDuration').value) || null,
+                water_temp_c:     parseFloat(document.getElementById('sweatWaterTemp').value) || null,
+                weight_before_kg: before,
+                weight_after_kg:  after,
+                drink_ml:         parseInt(document.getElementById('sweatDrinkMl').value) || 0,
+                drink_notes:      document.getElementById('sweatDrinkNotes').value || null,
+                notes:            document.getElementById('sweatNotes').value || null,
+            };
+            const { error } = await supabaseClient.from('sweat_tests').insert(payload);
+            if (error) throw error;
+            showToast('Sweat test saved', 'success');
+            cancelSweatForm();
+        } catch(e) {
+            showToast('Could not save: ' + e.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="save" style="width:16px;height:16px;"></i> Save Test';
+            initIcons();
+        }
+    }
+
+    async function loadSweatTests() {
+        const el = document.getElementById('sweatHistory');
+        el.innerHTML = `<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:32px 0;">
+            <i data-lucide="loader" style="width:20px;height:20px;display:block;margin:0 auto 10px;opacity:0.4;"></i>Loading…</div>`;
+        initIcons();
+
+        const { data, error } = await supabaseClient
+            .from('sweat_tests')
+            .select('*')
+            .eq('user_id', CARINA_ID)
+            .order('test_date', { ascending: false });
+
+        if (error || !data?.length) {
+            el.innerHTML = `<div style="text-align:center;color:var(--text-secondary);font-size:13px;padding:40px 0;">
+                <i data-lucide="droplets" style="width:28px;height:28px;display:block;margin:0 auto 12px;opacity:0.3;"></i>
+                No sweat tests yet.<br>Log your first one above.
+            </div>`;
+            initIcons(); return;
+        }
+
+        const SESSION_LABELS = { pool:'Pool', sea:'Sea', open_water:'Open water', race:'Race' };
+
+        el.innerHTML = data.map(t => {
+            const duration = t.duration_mins;
+            const rateHr   = duration ? Math.round(t.total_sweat_ml / duration * 60) : null;
+            const dateStr  = new Date(t.test_date).toLocaleDateString('en-ZA', {day:'numeric',month:'short',year:'numeric'});
+            const pctLoss  = ((t.weight_loss_kg / t.weight_before_kg) * 100).toFixed(2);
+
+            return `<div class="test-card">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+                    <div>
+                        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px;">${dateStr}</div>
+                        <div style="font-size:11px;color:var(--text-secondary);">${SESSION_LABELS[t.session_type]||t.session_type||''}${t.water_temp_c?' · '+t.water_temp_c+'°C':''}${duration?' · '+duration+' min':''}</div>
+                    </div>
+                    <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(14,165,233,0.12);color:var(--ocean-light);">${pctLoss}% loss</span>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-bottom:10px;background:rgba(255,255,255,0.03);border-radius:8px;padding:8px 0;">
+                    <div class="stat-cell"><div class="stat-num" style="font-size:18px;">${t.weight_before_kg}</div><div class="stat-lbl">Before (kg)</div></div>
+                    <div class="stat-cell"><div class="stat-num" style="font-size:18px;">${t.weight_after_kg}</div><div class="stat-lbl">After (kg)</div></div>
+                    <div class="stat-cell"><div class="stat-num" style="font-size:18px;color:var(--warning);">${t.total_sweat_ml}</div><div class="stat-lbl">Sweat (ml)</div></div>
+                    <div class="stat-cell"><div class="stat-num green" style="font-size:18px;">${rateHr||'—'}</div><div class="stat-lbl">ml/hr</div></div>
+                </div>
+                ${t.drink_ml > 0 ? `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;">Drank: <strong style="color:var(--text);">${t.drink_ml} ml</strong>${t.drink_notes?' — '+t.drink_notes:''}</div>` : ''}
+                ${t.notes ? `<div style="font-size:12px;color:var(--text-secondary);border-top:1px solid var(--border);margin-top:8px;padding-top:8px;">${t.notes}</div>` : ''}
+            </div>`;
+        }).join('');
+
         initIcons();
     }
 
