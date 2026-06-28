@@ -1171,7 +1171,7 @@ async function shiftDate(days) {
   d.setDate(d.getDate() + days);
   const todayStr = localDateStr();
   const shifted  = localDateStr(d);
-  if (shifted > todayStr) return;
+  // allow future dates — coaches need to pre-mark registers for the week ahead
   selectedDate = shifted;
   await loadCoverStatus();
   renderHome();
@@ -1216,7 +1216,7 @@ function renderHome() {
   document.getElementById('homeDate').innerHTML =
     `<span onclick="shiftDate(-1)" style="cursor:pointer;padding:2px 8px;border-radius:6px;background:rgba(255,255,255,0.06);font-size:18px;line-height:1;user-select:none;">‹</span>
      <span style="flex:1;">${dateLabel}</span>
-     <span onclick="shiftDate(1)" style="cursor:pointer;padding:2px 8px;border-radius:6px;background:${isToday?'rgba(255,255,255,0.02)':'rgba(255,255,255,0.06)'};font-size:18px;line-height:1;user-select:none;color:${isToday?'var(--text-dim)':'inherit'};">›</span>`;
+     <span onclick="shiftDate(1)" style="cursor:pointer;padding:2px 8px;border-radius:6px;background:rgba(255,255,255,0.06);font-size:18px;line-height:1;user-select:none;">›</span>`;
   document.getElementById('homeDate').style.cssText = 'display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-sec);margin-top:3px;';
 
   const selDow  = selDate.getDay();
