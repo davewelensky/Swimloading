@@ -9548,13 +9548,20 @@ async function addCatchupSwimmer() {
   const sqSessionId = window._detailSquadSessionId;
   if (!rosterId)  { showToast('Select a swimmer first', 'error'); return; }
   if (!nextDate)  return;
-  const { error } = await sb.from('club_session_attendance').upsert({
+  // Delete any existing record for this swimmer/date/time first, then insert fresh
+  await sb.from('club_session_attendance')
+    .delete()
+    .eq('club_id', currentClub.id)
+    .eq('session_date', nextDate)
+    .eq('session_start', startTime)
+    .eq('roster_id', rosterId);
+  const { error } = await sb.from('club_session_attendance').insert({
     club_id:       currentClub.id,
     session_date:  nextDate,
     session_start: startTime,
     roster_id:     rosterId,
     status:        'catch_up',
-  }, { onConflict: 'club_id,roster_id,session_date,session_start' });
+  });
   if (error) { showToast('Could not add: ' + error.message, 'error'); return; }
   showToast('Catch-up swimmer added', 'success');
   await openSessionDetail(sqSessionId);
