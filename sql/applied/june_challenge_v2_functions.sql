@@ -91,8 +91,30 @@ BEGIN
 
   -- 6. Anti-gaming rules per action type ──────────────────────────────────────
 
-  -- One rewarded per user per calendar day (UTC) for these actions
-  IF p_action_type IN ('temp_log', 'create_swim', 'whatsapp_share') THEN
+  -- temp_log: one per SPOT per calendar day — logging multiple spots on the same day all score
+  IF p_action_type = 'temp_log' THEN
+    SELECT COUNT(*) INTO v_count
+    FROM challenge_points_audit
+    WHERE challenge_id = 1
+      AND user_id = p_user_id
+      AND action_type = 'temp_log'
+      AND points_status = 'awarded'
+      AND (awarded_at AT TIME ZONE 'UTC')::date = (now() AT TIME ZONE 'UTC')::date
+      AND COALESCE(metadata->>'spot_id', '') = COALESCE(p_metadata->>'spot_id', '');
+
+    IF v_count > 0 THEN
+      INSERT INTO challenge_points_audit
+        (challenge_id, user_id, action_type, source_table, source_record_id,
+         points_awarded, points_status, rejection_reason, metadata)
+      VALUES
+        (1, p_user_id, p_action_type, p_source_table, p_source_record_id,
+         0, 'rejected', 'already_earned_today_this_spot', p_metadata);
+      RETURN jsonb_build_object('awarded', false, 'reason', 'already_earned_today_this_spot');
+    END IF;
+  END IF;
+
+  -- create_swim and whatsapp_share: one per day
+  IF p_action_type IN ('create_swim', 'whatsapp_share') THEN
     SELECT COUNT(*) INTO v_count
     FROM challenge_points_audit
     WHERE challenge_id = 1
