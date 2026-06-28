@@ -71,11 +71,17 @@ export default async function handler(req, res) {
     console.log('[strava/activities] total activities:', all.length,
         '| types:', [...new Set(all.map(a => a.sport_type || a.type))].join(', '),
         '| athlete:', all[0]?.athlete?.id ?? 'unknown');
-    const swims = all.filter(a => SWIM_TYPES.has((a.sport_type || a.type || '').toLowerCase()));
+    // Check sport_type AND type independently — if sport_type is e.g. "Workout" from a
+    // Garmin sync it would otherwise shadow a valid "Swim" in the type field.
+    const swims = all.filter(a =>
+        SWIM_TYPES.has((a.sport_type || '').toLowerCase()) ||
+        SWIM_TYPES.has((a.type || '').toLowerCase())
+    );
     console.log('[strava/activities] swims after filter:', swims.length);
 
     if (swims.length === 0) {
-        return res.status(200).json({ activities: [] });
+        const typesSeenList = [...new Set(all.map(a => a.sport_type || a.type).filter(Boolean))];
+        return res.status(200).json({ activities: [], debug_types_seen: typesSeenList, debug_total: all.length });
     }
 
     // Load all active spots (with GPS) for matching
