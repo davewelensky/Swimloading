@@ -1092,17 +1092,17 @@
                 category: 'Medium Race',
                 description: `${distance}km in ~${duration} minutes - light fueling recommended`,
                 pre: {
-                    timing: '90 min before',
-                    what: 'PH1500 preload (500ml) + light breakfast',
-                    why: status.ph1500_preload.tested 
-                        ? 'PH1500 tested - reserved for races'
-                        : '⚠️ PH1500 not race-tested yet - use cautiously'
+                    timing: '90 min before · 15 min before start',
+                    what: status.ph1500_preload.tested
+                        ? 'PH1500 preload (500ml) 90 min before · 30g carb gel 15 min before start ✓'
+                        : '⚠️ PH1500 not race-tested · 30g carb gel 15 min before start',
+                    why: '15 min timing is key — blood sugar rises then evens out at race start. Don\'t take at 30 min (still peaking). 10 min swim activation warm-up before start (cold water — can\'t do proper warm-up at race).'
                 },
                 during: {
                     what: fuelProven
                         ? `1 PF30 ${fuelFormat} at halfway (in costume) ✓ Proven format`
                         : `1 PF30 gel at halfway ⚠️ NOT TESTED - uncertain tolerance`,
-                    why: fuelProven 
+                    why: fuelProven
                         ? `${fuelFormat.charAt(0).toUpperCase() + fuelFormat.slice(1)} format tested and works well`
                         : 'No fuel products tested yet - this is theoretical'
                 },
@@ -1123,17 +1123,17 @@
                 category: 'Long Race',
                 description: `${distance}km in ~${duration} minutes - proper fueling required`,
                 pre: {
-                    timing: '90 min before',
-                    what: 'PH1500 preload + proper breakfast (2-3hr before)',
-                    why: 'Long effort needs sodium preload'
+                    timing: '90 min before · 15 min before start',
+                    what: 'PH1500 preload + proper breakfast (2-3hr before) · 30g carb gel 15 min before start',
+                    why: '15 min gel timing key — blood sugar rises then evens out at gun. 10 min swim activation before start. Days before: don\'t overload carbs/food — top up with 30g carb chews only if needed.'
                 },
                 during: {
                     what: fuelProven
-                        ? `2-3 PF30 ${fuelFormat}s in costume (every 40-50 min) ✓ Proven`
-                        : '2-3 PF30 gels in costume ⚠️ NOT TESTED - risky for race',
+                        ? `Liquid carbs 60g/hr (or 30g every 30 min) — ${fuelFormat} ✓ Proven. Experiment with adding protein or fats if needed.`
+                        : 'Liquid carbs 60g/hr (or 30g every 30 min) ⚠️ Format NOT TESTED - risky for race',
                     why: fuelProven
-                        ? `${fuelFormat.charAt(0).toUpperCase() + fuelFormat.slice(1)} format tested well`
-                        : 'No fuel testing done - this is unproven for you'
+                        ? `Liquid form preferred for long efforts. ${fuelFormat.charAt(0).toUpperCase() + fuelFormat.slice(1)} tested well. Heavy seas: if swallowing sea water, reduce extra electrolytes — you\'re already getting them.`
+                        : 'No fuel testing done - this is unproven for you. Heavy seas: watch electrolyte intake if swallowing sea water.'
                 },
                 post: {
                     timing: 'Immediately',
@@ -1253,9 +1253,55 @@
                 
                 <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
                     <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">
-                        <strong style="color:var(--text);">Note:</strong> This protocol improves as you complete more tests. 
+                        <strong style="color:var(--text);">Note:</strong> This protocol improves as you complete more tests.
                         Currently based on ${allTestData.length} completed test${allTestData.length !== 1 ? 's' : ''}.
                     </div>
+                </div>
+            </div>
+        `;
+
+        // John (Carbon Endurance) coaching notes
+        html += `
+            <div class="card" style="border-color:rgba(167,139,250,0.25);">
+                <div class="section-label" style="color:var(--purple);"><i data-lucide="message-circle" style="width:13px;height:13px;"></i> Coaching Notes — John, Carbon Endurance</div>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <div style="padding:10px 12px;background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.15);border-radius:10px;">
+                        <div style="font-size:12px;font-weight:700;color:var(--purple);margin-bottom:3px;">30g Carb Gel — 15 min before start</div>
+                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">Blood sugar rises then evens out by gun. Taking it at 30 min means you're still on the spike — 15 min is the sweet spot.</div>
+                    </div>
+                    <div style="padding:10px 12px;background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.15);border-radius:10px;">
+                        <div style="font-size:12px;font-weight:700;color:var(--purple);margin-bottom:3px;">10 min swim activation before start</div>
+                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">Cold water means you can't do a proper warm-up at most SA races. Get 10 min of swim muscle activation in regardless.</div>
+                    </div>
+                    <div style="padding:10px 12px;background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.15);border-radius:10px;">
+                        <div style="font-size:12px;font-weight:700;color:var(--purple);margin-bottom:3px;">Days before a long swim</div>
+                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">Don't overdo the volume of carbs/food. Rather just top up with 30g carb chews if needed — no carb-loading excess.</div>
+                    </div>
+                    <div style="padding:10px 12px;background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.15);border-radius:10px;">
+                        <div style="font-size:12px;font-weight:700;color:var(--purple);margin-bottom:3px;">During long swims — liquid carbs</div>
+                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">60g carbs/hour OR 30g every 30 min — your call on timing. Experiment with adding protein or fats if needed for very long efforts.</div>
+                    </div>
+                    <div style="padding:10px 12px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:10px;">
+                        <div style="font-size:12px;font-weight:700;color:var(--warning);margin-bottom:3px;">Heavy seas — electrolyte caution</div>
+                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">If swallowing sea water in rough conditions, watch your extra electrolyte intake — you're already getting sodium from the water.</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Carina's sweat test result
+        html += `
+            <div class="card" style="border-color:rgba(14,165,233,0.25);">
+                <div class="section-label"><i data-lucide="droplets" style="width:13px;height:13px;"></i> Carina's Sweat Test Result</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">5 × 100m · 28°C pool · 1h20 min · no intake</div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-bottom:12px;">
+                    <div class="stat-cell"><div class="stat-num" style="font-size:22px;">63.5</div><div class="stat-lbl">Start (kg)</div></div>
+                    <div class="stat-cell"><div class="stat-num" style="font-size:22px;">63.3</div><div class="stat-lbl">Finish (kg)</div></div>
+                    <div class="stat-cell"><div class="stat-num green" style="font-size:22px;">200</div><div class="stat-lbl">Loss (ml)</div></div>
+                </div>
+                <div style="padding:10px 12px;background:rgba(14,165,233,0.06);border:1px solid rgba(14,165,233,0.15);border-radius:10px;">
+                    <div style="font-size:12px;font-weight:700;color:var(--ocean-light);margin-bottom:3px;">~150 ml/hr sweat rate</div>
+                    <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">Very low loss — expected for a structured pool session with short stops at 28°C. Open water and race conditions will be higher. Repeat in sea / race-pace effort for a race-specific number.</div>
                 </div>
             </div>
         `;
