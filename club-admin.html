@@ -9458,7 +9458,7 @@ async function openSessionDetail(squadSessionId) {
         }).join('');
         // Roster members not already in this session or already a catch-up
         const takenIds = new Set([...assignedIds, ...catchupIds]);
-        const available = allRosterFull.filter(r => r.club_id === currentClub.id && !takenIds.has(r.id) && r.is_active !== false)
+        const available = allRosterFull.filter(r => !takenIds.has(r.id) && r.is_active !== false)
           .sort((a,b) => (a.display_name||'').localeCompare(b.display_name||''));
         const opts = available.map(r => `<option value="${r.id}">${r.display_name}</option>`).join('');
         return `<div style="border-top:1px solid var(--border);padding-top:4px;">
