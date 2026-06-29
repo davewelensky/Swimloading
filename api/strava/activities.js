@@ -118,14 +118,14 @@ export default async function handler(req, res) {
             elapsed_time_seconds:  a.elapsed_time,
             moving_time_seconds:   a.moving_time,
             average_speed:         a.average_speed,
-            start_latlng:          a.start_latlng ? JSON.stringify(a.start_latlng) : null,
-            end_latlng:            a.end_latlng   ? JSON.stringify(a.end_latlng)   : null,
+            start_latlng:          a.start_latlng || null,
+            end_latlng:            a.end_latlng   || null,
             map_summary_polyline:  a.map?.summary_polyline || null,
             matched_spot_id:       matchedSpot?.id || null,
             average_temp:          a.average_temp ?? null,
             device_name:           a.device_name ?? null,
             average_heartrate:     a.average_heartrate ?? null,
-            raw_payload:           JSON.stringify(a),
+            raw_payload:           a,
         });
 
         activities.push({
@@ -148,8 +148,8 @@ export default async function handler(req, res) {
         });
     }
 
-    // Upsert into strava_imports (fire-and-forget, don't block response)
-    fetch(`${SUPABASE_URL}/rest/v1/strava_imports?on_conflict=user_id,strava_activity_id`, {
+    // Upsert into strava_imports — awaited so Vercel doesn't kill the fetch before it completes
+    const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/strava_imports?on_conflict=user_id,strava_activity_id`, {
         method:  'POST',
         headers: {
             'Content-Type':  'application/json',
@@ -158,7 +158,12 @@ export default async function handler(req, res) {
             'Prefer':        'resolution=merge-duplicates,return=minimal',
         },
         body: JSON.stringify(upsertRows),
-    }).catch(err => console.error('[strava/activities] upsert error:', err.message));
+    });
+    if (!upsertRes.ok) {
+        console.error('[strava/activities] upsert failed:', upsertRes.status, await upsertRes.text());
+    } else {
+        console.log('[strava/activities] upsert ok, rows:', upsertRows.length);
+    }
 
     res.status(200).json({ activities });
 }
