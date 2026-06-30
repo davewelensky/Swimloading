@@ -2705,7 +2705,7 @@ async function saveK8Attendance() {
     .eq('session_date', selectedDate)
     .eq('squad_id', session.squad_id)
     .eq('session_type', 'K8 Register')
-    .single();
+    .maybeSingle();
 
   let sessionId;
   if (existing) {
@@ -2726,16 +2726,16 @@ async function saveK8Attendance() {
     sessionId = created.id;
   }
 
-  // Save attendance records
+  // Save attendance records to club_attendance (keyed by session_id + roster_id)
   const attendanceRecords = Object.entries(k8Attendance).map(([rosterId, status]) => ({
     session_id: sessionId,
     roster_id: rosterId,
     status: status === 'present' ? 'present' : 'no_contact',
-    marked_at: new Date().toISOString(),
+    marked_by: currentUser.id,
   }));
 
   if (attendanceRecords.length > 0) {
-    const { error } = await sb.from('club_session_attendance').upsert(attendanceRecords, {
+    const { error } = await sb.from('club_attendance').upsert(attendanceRecords, {
       onConflict: 'session_id,roster_id',
     });
 
