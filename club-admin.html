@@ -9452,17 +9452,24 @@ async function openSessionDetail(squadSessionId) {
         const takenIds = new Set([...assignedIds, ...catchupIds]);
         const available = allRosterFull.filter(r => !takenIds.has(r.id) && r.is_active !== false)
           .sort((a,b) => (a.display_name||'').localeCompare(b.display_name||''));
-        const opts = available.map(r => `<option value="${r.id}">${r.display_name}</option>`).join('');
+        const checkRows = available.map(r => `
+          <label style="display:flex;align-items:center;gap:10px;padding:9px 20px;border-bottom:1px solid var(--border);cursor:pointer;" data-catchup-name="${(r.display_name||'').toLowerCase()}">
+            <input type="checkbox" class="catchup-check" value="${r.id}" onchange="updateCatchupAddBtn()" style="width:17px;height:17px;accent-color:var(--green,#10b981);flex-shrink:0;cursor:pointer;">
+            <span style="flex:1;font-size:13px;font-weight:500;color:var(--text);">${r.display_name}</span>
+          </label>`).join('');
         const catchupHtml = `<div style="border-top:1px solid var(--border);padding-top:4px;">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-sec);padding:10px 20px 4px;">Catch-up / Replacement</div>
           ${catchupRows}
-          <div style="padding:10px 20px 14px;display:flex;gap:8px;align-items:center;">
-            <select id="catchupSwimmerSelect" style="flex:1;background:var(--bg,#080f1a);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;">
-              <option value="">Select swimmer…</option>
-              ${opts}
-            </select>
-            <button onclick="addCatchupSwimmer()" style="padding:8px 16px;background:var(--green,#10b981);color:#080f1a;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">+ Add</button>
+          ${available.length ? `
+          <div style="padding:8px 20px 4px;">
+            <input id="catchupFilter" type="text" placeholder="Search swimmers…" oninput="filterCatchupList(this.value)" style="width:100%;background:var(--bg,#080f1a);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 12px;font-size:13px;box-sizing:border-box;">
           </div>
+          <div id="catchupCheckList" style="max-height:220px;overflow-y:auto;border-top:1px solid var(--border);">
+            ${checkRows}
+          </div>
+          <div style="padding:12px 20px 14px;">
+            <button id="catchupAddBtn" onclick="addCatchupSwimmer()" disabled style="width:100%;padding:11px;background:var(--green,#10b981);color:#080f1a;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;opacity:0.45;">Select swimmers to add</button>
+          </div>` : `<div style="padding:10px 20px 16px;font-size:12px;color:var(--text-sec);">Everyone is already in this session.</div>`}
         </div>`;
         const markHtml = markDate ? `<div style="padding:12px 20px 16px;border-top:1px solid var(--border);">
           <button onclick="closeSessionDetail();openMarkFromSchedule('${s.id}','${markDate}')" style="width:100%;padding:13px;background:${canMarkPast?'var(--amber,#f59e0b)':'var(--cyan,#38bdf8)'};color:#080f1a;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">
@@ -9539,29 +9546,60 @@ async function togglePreAbsent(rosterId) {
   await openSessionDetail(sqSessionId);
 }
 
+// Live-filter the catch-up checkbox list as the coach types
+function filterCatchupList(term) {
+  const q = (term || '').toLowerCase().trim();
+  document.querySelectorAll('#catchupCheckList label[data-catchup-name]').forEach(row => {
+    row.style.display = !q || row.getAttribute('data-catchup-name').includes(q) ? '' : 'none';
+  });
+}
+
+// Enable/label the Add button based on how many are ticked
+function updateCatchupAddBtn() {
+  const n = document.querySelectorAll('.catchup-check:checked').length;
+  const btn = document.getElementById('catchupAddBtn');
+  if (!btn) return;
+  btn.disabled = n === 0;
+  btn.style.opacity = n === 0 ? '0.45' : '1';
+  btn.style.cursor  = n === 0 ? 'default' : 'pointer';
+  btn.textContent   = n === 0 ? 'Select swimmers to add'
+                    : n === 1 ? 'Add 1 swimmer'
+                    : `Add ${n} swimmers`;
+}
+
 async function addCatchupSwimmer() {
-  const rosterId    = document.getElementById('catchupSwimmerSelect')?.value;
+  const ids = Array.from(document.querySelectorAll('.catchup-check:checked')).map(c => c.value);
   const nextDate    = window._detailNextDate;
   const startTime   = window._detailSessionStart;
   const sqSessionId = window._detailSquadSessionId;
-  if (!rosterId)  { showToast('Select a swimmer first', 'error'); return; }
-  if (!nextDate)  return;
-  // Delete any existing record for this swimmer/date/time first, then insert fresh
+  if (!ids.length)      { showToast('Select at least one swimmer', 'error'); return; }
+  if (!nextDate || !startTime) { showToast('Could not read session date — reopen the session', 'error'); return; }
+
+  const btn = document.getElementById('catchupAddBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Adding…'; }
+
+  // Clear any existing rows for these swimmers on this date/time, then insert fresh
   await sb.from('club_session_attendance')
     .delete()
     .eq('club_id', currentClub.id)
     .eq('session_date', nextDate)
     .eq('session_start', startTime)
-    .eq('roster_id', rosterId);
-  const { error } = await sb.from('club_session_attendance').insert({
+    .in('roster_id', ids);
+
+  const rows = ids.map(roster_id => ({
     club_id:       currentClub.id,
     session_date:  nextDate,
     session_start: startTime,
-    roster_id:     rosterId,
+    roster_id,
     status:        'catch_up',
-  });
-  if (error) { showToast('Could not add: ' + error.message, 'error'); return; }
-  showToast('Catch-up swimmer added', 'success');
+  }));
+  const { error } = await sb.from('club_session_attendance').insert(rows);
+  if (error) {
+    showToast('Could not add: ' + error.message, 'error');
+    if (btn) { btn.disabled = false; updateCatchupAddBtn(); }
+    return;
+  }
+  showToast(ids.length === 1 ? 'Catch-up swimmer added' : `${ids.length} swimmers added`, 'success');
   await openSessionDetail(sqSessionId);
 }
 
