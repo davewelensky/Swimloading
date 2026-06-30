@@ -3432,11 +3432,12 @@ async function createAnnouncement() {
   const title = document.getElementById('annTitle').value.trim();
   if (!title) { showToast('Title is required', 'error'); return; }
   const body     = document.getElementById('annBody').value.trim();
-  const category = document.getElementById('annCategory').value;
   const pinned   = document.getElementById('annPinned').checked;
+  // club_announcements columns: id, club_id, title, body, is_pinned, created_by, created_at
+  // (no `category` column — do not send it or the insert is rejected)
   const { error } = await sb.from('club_announcements').insert({
     club_id: currentClub.id,
-    title, body, category, pinned,
+    title, body, is_pinned: pinned,
     created_by: (await sb.auth.getUser()).data.user?.id,
   });
   if (error) { showToast('Failed: ' + error.message, 'error'); return; }
@@ -6388,14 +6389,16 @@ function closeAddTimetableModal() { document.getElementById('addTimetableModal')
 async function submitAddTimetable() {
   const squad_id = document.getElementById('ttSquad').value;
   const start    = document.getElementById('ttStart').value;
+  const end      = document.getElementById('ttEnd').value.trim();
   if (!squad_id) { showToast('Select a squad', 'error'); return; }
   if (!start)    { showToast('Start time is required', 'error'); return; }
+  if (!end)      { showToast('End time is required', 'error'); return; }  // end_time is NOT NULL in DB
 
   const payload = {
     squad_id,
     day_of_week:        parseInt(document.getElementById('ttDay').value),
     start_time:         start,
-    end_time:           document.getElementById('ttEnd').value.trim()   || null,
+    end_time:           end,
     coach_name:         document.getElementById('ttCoach').value.trim() || null,
     max_capacity:       parseInt(document.getElementById('ttCap').value)   || null,
     notes:              document.getElementById('ttNotes').value.trim()    || null,
@@ -8408,7 +8411,6 @@ async function submitQuickAdd() {
     is_active: true,
     fee_paid: false,
     member_number: memberNumber,
-    join_date: localISO(new Date()),
   }).select().single();
 
   if (error) { showToast('Could not add swimmer: ' + error.message, 'error'); return; }
@@ -10799,6 +10801,11 @@ async function executeCsvImport() {
   };
 
   let added = 0, updated = 0, errors = 0;
+  let firstError = null;   // must live OUTSIDE the loop — referenced in the completion handler below
+
+  // member_number is integer NOT NULL with no default. If the CSV omits it (or a row is
+  // blank), auto-assign from a running counter so the import never fails on a missing number.
+  let _seqNum = nextMemberNumber();
 
   for (const item of csvPreviewData) {
     const m = item.mapped;
@@ -10830,7 +10837,15 @@ async function executeCsvImport() {
     // so we don't null-out member_number/gender/etc. for existing members
     const mappedCsvFields = new Set(Object.values(csvMapping).filter(Boolean));
     const rosterPayload = { club_id: currentClub.id, display_name: m.display_name, squad_id: squadId };
-    if (mappedCsvFields.has('member_number')) rosterPayload.member_number = m.member_number || null;
+    // member_number: use the CSV value if it's a valid integer; otherwise auto-assign.
+    // Only set on NEW members (don't overwrite an existing member's number on update).
+    if (!item.existing) {
+      const csvNum = parseInt((m.member_number || '').toString().trim(), 10);
+      rosterPayload.member_number = Number.isFinite(csvNum) ? csvNum : _seqNum++;
+    } else if (mappedCsvFields.has('member_number')) {
+      const csvNum = parseInt((m.member_number || '').toString().trim(), 10);
+      if (Number.isFinite(csvNum)) rosterPayload.member_number = csvNum;  // skip blank → keep existing
+    }
     if (mappedCsvFields.has('gender'))        rosterPayload.gender        = m.gender        || null;
     if (mappedCsvFields.has('date_of_birth')) rosterPayload.date_of_birth = parseDate(m.date_of_birth);
     if (mappedCsvFields.has('phone'))         rosterPayload.phone         = m.phone         || null;
@@ -10839,7 +10854,6 @@ async function executeCsvImport() {
     if (mappedCsvFields.has('fee_paid') && m.fee_paid !== undefined && m.fee_paid !== '') rosterPayload.fee_paid = parseBool(m.fee_paid);
 
     let rosterId = item.existing?.id;
-    let firstError = null;
 
     if (item.existing) {
       const { error } = await sb.from('club_roster').update(rosterPayload).eq('id', rosterId);
