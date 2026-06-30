@@ -1950,22 +1950,24 @@ async function saveAttendance() {
 
   const sessionNote = (document.getElementById('sessionNoteInput')?.value || '').trim();
 
-  const [{ error }, ] = await Promise.all([
+  const [attRes, noteRes] = await Promise.all([
     sb.from('club_attendance').upsert(upserts, { onConflict: 'session_id,roster_id' }),
     sessionNote
       ? sb.from('club_sessions').update({ notes: sessionNote }).eq('id', activeSession.id)
-      : Promise.resolve(),
+      : Promise.resolve({ error: null }),
   ]);
 
   btn.disabled = false; label.textContent = 'Save attendance';
 
-  if (error) { toast('Error saving: ' + error.message, 'error'); return; }
+  // Surface BOTH errors — a swallowed note error silently lost the coach's typed note
+  if (attRes.error)  { toast('Error saving: ' + attRes.error.message, 'error'); return; }
+  if (noteRes?.error) { toast('Attendance saved, but the note failed: ' + noteRes.error.message, 'error'); }
 
+  // Status vocabulary is present | no_contact | notice | away (see MOBILE_STATUSES)
   const presentCount  = upserts.filter(u => u.status === 'present').length;
-  const ncCount       = upserts.filter(u => u.status === 'nc').length;
+  const ncCount       = upserts.filter(u => u.status === 'no_contact').length;
   const noticeCount   = upserts.filter(u => u.status === 'notice').length;
   const awayCount     = upserts.filter(u => u.status === 'away').length;
-  const noShowCount   = upserts.filter(u => u.status === 'no_show').length;
   const totalRoster   = getSessionRoster().length;
 
   document.getElementById('doneSummary').textContent =
@@ -1987,7 +1989,6 @@ async function saveAttendance() {
   if (ncCount)     lines.push(`NC:       ${ncCount}`);
   if (noticeCount) lines.push(`Notice:   ${noticeCount}`);
   if (awayCount)   lines.push(`Away:     ${awayCount}`);
-  if (noShowCount) lines.push(`No show:  ${noShowCount}`);
   lines.push('', 'Logged on SwimLoading');
 
   const msgText = lines.join('\n');
@@ -2478,6 +2479,9 @@ async function markLTSSlot(rosterId, attended) {
   const sqSessionId = activeSqSession?.id;
   if (!sqSessionId) return;
 
+  // Remember previous state so we can roll back if the DB write fails
+  const _prev = ltsAttendance[rosterId];
+
   // Optimistic update
   if (attended === null) {
     delete ltsAttendance[rosterId];
@@ -2488,11 +2492,17 @@ async function markLTSSlot(rosterId, attended) {
 
   // Persist
   if (attended === null) {
-    await sb.from('club_lts_attendance')
+    const { error } = await sb.from('club_lts_attendance')
       .delete()
       .eq('roster_id', rosterId)
       .eq('squad_session_id', sqSessionId)
       .eq('session_date', selectedDate);
+    if (error) {
+      // Roll back — the slot is still marked in the DB, so restore the UI
+      toast('Could not un-mark — try again', 'error');
+      if (_prev) ltsAttendance[rosterId] = _prev;
+      renderLTSView();
+    }
   } else {
     const { data, error } = await sb.from('club_lts_attendance')
       .upsert(
