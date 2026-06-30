@@ -195,9 +195,9 @@ async function renderSwimClub(container, club, roster, membership) {
 
     supabaseClient
       .from('club_announcements')
-      .select('id, title, body, pinned, created_at')
+      .select('id, title, body, is_pinned, created_at')
       .eq('club_id', club.id)
-      .order('pinned', { ascending: false })
+      .order('is_pinned', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(5),
 
@@ -570,7 +570,7 @@ function renderAnnouncements(announcements) {
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;cursor:pointer;" onclick="toggleAnnouncement('ann_${i}')">
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
-            ${a.pinned ? `<i data-lucide="pin" style="width:11px;height:11px;color:var(--amber);flex-shrink:0;"></i>` : ''}
+            ${a.is_pinned ? `<i data-lucide="pin" style="width:11px;height:11px;color:var(--amber);flex-shrink:0;"></i>` : ''}
             <span style="font-size:13px;font-weight:700;color:var(--text);">${a.title}</span>
           </div>
           <div id="ann_${i}_preview" style="font-size:12px;color:var(--text-secondary);line-height:1.4;">${bodyPreview}${hasMore ? '…' : ''}</div>
@@ -2061,8 +2061,8 @@ async function renderActiveParentSwimmer() {
     supabaseClient.from('club_swimmer_times')
       .select('event, course, time_seconds, time_text, meet_date, is_pb').eq('roster_id', roster.id),
     supabaseClient.from('club_announcements')
-      .select('id, title, body, pinned, created_at').eq('club_id', club.id)
-      .order('pinned', { ascending: false }).order('created_at', { ascending: false }).limit(5),
+      .select('id, title, body, is_pinned, created_at').eq('club_id', club.id)
+      .order('is_pinned', { ascending: false }).order('created_at', { ascending: false }).limit(5),
     supabaseClient.from('club_session_attendance')
       .select('session_date, session_start, status').eq('roster_id', roster.id)
       .gte('session_date', fourWeeksAgo.toISOString().slice(0,10))
