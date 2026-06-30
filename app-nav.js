@@ -1868,11 +1868,14 @@
                         const { data: _eids } = await supabaseClient.from('swim_events')
                             .select('id').gte('date', _c.start_date).lte('date', _c.end_date);
                         if (_eids && _eids.length > 0) {
+                            // RSVP intent lives in the `rsvp` column (going/maybe); `status` is
+                            // requested/approved/left. Count swims they're going to and haven't left.
                             const { count: _jc } = await supabaseClient.from('swim_participants')
                                 .select('*', { count: 'exact', head: true })
                                 .eq('user_id', currentUser.id)
                                 .in('swim_event_id', _eids.map(e => e.id))
-                                .in('status', ['rsvp', 'going']);
+                                .eq('rsvp', 'going')
+                                .neq('status', 'left');
                             _pts += (_jc || 0) * _ja.points;
                         }
                     }
