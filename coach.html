@@ -2348,15 +2348,42 @@ async function loadLTSSlots() {
   ltsAttendance = {};
   (att || []).forEach(a => { if (a.roster_id) ltsAttendance[a.roster_id] = a; });
 
-  // Load pre-absence intents ("not coming" notices)
+  // Load intents AND catch-ups for this session in one query (status + time_slot)
   const { data: intents } = await sb.from('club_session_attendance')
-    .select('roster_id, status')
+    .select('roster_id, status, time_slot')
     .eq('club_id', currentClub.id)
     .eq('session_date', selectedDate)
-    .eq('session_start', sessionStart)
-    .in('roster_id', rosterIds);
+    .eq('session_start', sessionStart);
   ltsIntents = {};
   (intents || []).forEach(i => { ltsIntents[i.roster_id] = i.status; });
+
+  // Append catch-up swimmers (added by admin) as extra slots — they aren't in assignments
+  const catchups = (intents || []).filter(i => i.status === 'catch_up');
+  catchups.forEach(c => {
+    if (ltsSlots.some(sl => sl.roster_id === c.roster_id)) return; // already present
+    const member = allRoster.find(r => r.id === c.roster_id);
+    if (!member) return;
+    ltsSlots.push({
+      id:          c.roster_id,
+      roster_id:   c.roster_id,
+      slot_time:   c.time_slot || sessionStart,
+      client_name: member.display_name || '—',
+      is_trial:    member.is_trial,
+      is_catch_up: true,
+    });
+  });
+  ltsSlots.sort((a, b) => (a.slot_time || '').localeCompare(b.slot_time || ''));
+
+  // Pull attendance for any newly-added catch-up swimmers too
+  const catchupIds = catchups.map(c => c.roster_id).filter(id => !rosterIds.includes(id));
+  if (catchupIds.length) {
+    const { data: extraAtt } = await sb.from('club_lts_attendance')
+      .select('*')
+      .eq('squad_session_id', daySession.id)
+      .eq('session_date', selectedDate)
+      .in('roster_id', catchupIds);
+    (extraAtt || []).forEach(a => { if (a.roster_id) ltsAttendance[a.roster_id] = a; });
+  }
 
   renderLTSView();
 }
@@ -2416,6 +2443,10 @@ function ltsCardHTML(slot, isNext) {
     ? `<span style="font-size:9px;font-weight:700;background:rgba(239,68,68,0.15);color:var(--danger);padding:1px 6px;border-radius:4px;letter-spacing:0.04em;">TRIAL</span>`
     : '';
 
+  const catchupBadge = slot.is_catch_up
+    ? `<span style="font-size:9px;font-weight:700;background:rgba(16,185,129,0.15);color:var(--green,#10b981);padding:1px 6px;border-radius:4px;letter-spacing:0.04em;">CATCH-UP</span>`
+    : '';
+
   const topBadge = isMarked
     ? `<span class="lts-status-badge ${attended ? 'here' : 'away'}">${attended ? 'Attended' : 'Away'}</span>`
     : notComing
@@ -2438,7 +2469,7 @@ function ltsCardHTML(slot, isNext) {
       <span class="lts-time-pill">${timePill}</span>
       ${topBadge}
     </div>
-    <div class="lts-client-name">${displayName} ${trialBadge}</div>
+    <div class="lts-client-name">${displayName} ${trialBadge} ${catchupBadge}</div>
     ${actionsHtml}
   </div>`;
 }
@@ -2488,7 +2519,7 @@ function ltsSummaryLines() {
   ltsSlots.forEach(slot => {
     const a      = ltsAttendance[slot.roster_id];
     const intent = ltsIntents[slot.roster_id];
-    const name   = (slot.client_name || '').split(' ')[0].padEnd(12);
+    const name   = ((slot.client_name || '').split(' ')[0] + (slot.is_catch_up ? '*' : '')).padEnd(12);
     const time   = (slot.slot_time || '').slice(0, 5);
     const status = a?.attended === true  ? 'Here'
                  : a?.attended === false ? 'Away'
@@ -2496,6 +2527,7 @@ function ltsSummaryLines() {
                  : '-';
     lines.push(`${time}  ${name}  ${status}`);
   });
+  if (ltsSlots.some(sl => sl.is_catch_up)) lines.push('', '* catch-up / replacement');
   lines.push('', 'Logged on SwimLoading');
   return lines.filter(Boolean).join('\n');
 }
