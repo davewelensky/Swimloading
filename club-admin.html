@@ -1538,7 +1538,7 @@
     </div>
     <div class="form-row" id="rosterEditLtsSlotRow" style="display:none;">
       <div class="form-group">
-        <div class="form-label">Lesson time <span style="font-weight:400;color:var(--text-dim);">LTS slot</span></div>
+        <div class="form-label">Default lesson time <span style="font-weight:400;color:var(--text-dim);">pre-fills LTS sessions</span></div>
         <input type="time" class="form-input" id="rosterEditLtsSlot">
       </div>
       <div class="form-group"></div>
@@ -2307,7 +2307,7 @@ async function loadMembers() {
       .eq('club_id', currentClub.id)
       .not('user_id', 'is', null),
     sb.from('club_roster')
-      .select('id, member_number, display_name, category, user_id, squad_id, secondary_squad_id, is_trial, fee_paid, trial_end_date, fee_due_date, is_active')
+      .select('id, member_number, display_name, category, user_id, squad_id, secondary_squad_id, is_trial, fee_paid, trial_end_date, fee_due_date, is_active, lts_default_slot')
       .eq('club_id', currentClub.id)
       .eq('is_active', true)
       .order('member_number'),
@@ -6459,7 +6459,7 @@ async function openSessionAssignModal(sessionId) {
     : allRosterFull.filter(r => r.squad_id === session.squad_id || r.secondary_squad_id === session.squad_id);
   if (!rosterSource.length) {
     const { data: fetched } = await sb.from('club_roster')
-      .select('id, member_number, display_name, squad_id, secondary_squad_id')
+      .select('id, member_number, display_name, squad_id, secondary_squad_id, lts_default_slot')
       .eq('club_id', currentClub.id)
       .eq('squad_id', session.squad_id)
       .order('display_name');
@@ -6486,7 +6486,12 @@ async function openSessionAssignModal(sessionId) {
   list.innerHTML = squadMembers.length
     ? squadMembers.map(m => {
         const isAssigned = assignedIds.has(m.id);
-        const slot = timeSlotMap[m.id];
+        // Prefer the slot already set on this session; otherwise fall back to the
+        // swimmer's default LTS time from their roster record so it pre-fills.
+        const rosterDefault = (m.lts_default_slot || '').slice(0, 5);
+        const slot = (timeSlotMap[m.id] || rosterDefault || '').slice(0, 5);
+        // Make sure the current value is always an option (handles custom times)
+        const opts = [...new Set([...ltsTimeSlots, slot].filter(Boolean))].sort();
         return `
         <div class="assign-swimmer-row" style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.03);">
           <input type="checkbox" id="assign_${m.id}" value="${m.id}" ${isAssigned ? 'checked' : ''} onchange="updateAssignCount()" style="cursor:pointer;">
@@ -6494,10 +6499,10 @@ async function openSessionAssignModal(sessionId) {
             <span class="assign-num" style="font-size:11px;color:var(--text-sec);margin-right:8px;">#${m.member_number || '—'}</span>
             ${m.display_name}
           </label>
-          ${isLTS && isAssigned ? `
-            <select id="slot_${m.id}" data-member-id="${m.id}" style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);color:var(--text);font-size:12px;padding:4px 8px;border-radius:5px;cursor:pointer;" onchange="updateTimeSlot('${m.id}', this.value)">
+          ${isLTS ? `
+            <select id="slot_${m.id}" data-member-id="${m.id}" style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);color:var(--text);font-size:12px;padding:4px 8px;border-radius:5px;cursor:pointer;" onchange="updateTimeSlot('${m.id}', this.value)" title="${rosterDefault && slot === rosterDefault && !timeSlotMap[m.id] ? 'Default from roster' : 'Lesson time'}">
               <option value="">— No slot —</option>
-              ${ltsTimeSlots.map(ts => `<option value="${ts}" ${slot === ts ? 'selected' : ''}>${ts}</option>`).join('')}
+              ${opts.map(ts => `<option value="${ts}" ${slot === ts ? 'selected' : ''}>${ts}</option>`).join('')}
             </select>
           ` : ''}
         </div>`;
@@ -7365,7 +7370,7 @@ let rosterLinkSearchTimer = null;
 async function loadRoster() {
   const { data: roster } = await sb
     .from('club_roster')
-    .select('id, member_number, display_name, category, gender, user_id, phone, squad_id, date_of_birth, is_trial, fee_paid, trial_start_date, trial_end_date, is_active')
+    .select('id, member_number, display_name, category, gender, user_id, phone, squad_id, secondary_squad_id, date_of_birth, is_trial, fee_paid, trial_start_date, trial_end_date, fee_due_date, is_active, lts_default_slot')
     .eq('club_id', currentClub.id)
     .order('member_number', { ascending: true, nullsFirst: false });
 
@@ -7796,15 +7801,15 @@ async function openRosterEditModal(id) {
   const ltsInput = document.getElementById('rosterEditLtsSlot');
   if (ltsRow) ltsRow.style.display = isLTS ? '' : 'none';
   if (isLTS && ltsInput) {
-    ltsInput.value = '';
-    // Find their current slot from the in-memory cache first
-    let currentSlot = null;
-    for (const sid of Object.keys(allWeekTimeSlots)) {
-      const entry = allWeekTimeSlots[sid]?.find(e => e.roster_id === r.id);
-      if (entry?.time_slot) { currentSlot = entry.time_slot.slice(0, 5); break; }
+    // Prefer the swimmer's saved default; otherwise seed from an existing assignment
+    let currentSlot = (r.lts_default_slot || '').slice(0, 5);
+    if (!currentSlot) {
+      for (const sid of Object.keys(allWeekTimeSlots)) {
+        const entry = allWeekTimeSlots[sid]?.find(e => e.roster_id === r.id);
+        if (entry?.time_slot) { currentSlot = entry.time_slot.slice(0, 5); break; }
+      }
     }
     if (!currentSlot) {
-      // Fall back to DB query
       const { data } = await sb.from('club_session_assignments')
         .select('time_slot')
         .eq('roster_id', r.id)
@@ -7901,11 +7906,16 @@ async function saveRosterEdit() {
   if (editedIsLTS) {
     const ltsInput = document.getElementById('rosterEditLtsSlot');
     const newSlot = ltsInput?.value || null;
+    // 1. Persist as the swimmer's DEFAULT slot on the roster (pre-fills future assignments)
+    await sb.from('club_roster').update({ lts_default_slot: newSlot }).eq('id', id);
+    if (row) row.lts_default_slot = newSlot;
+    const fr = allRosterFull.find(x => x.id === id);
+    if (fr) fr.lts_default_slot = newSlot;
+    // 2. Also propagate to their existing session assignments
     await sb.from('club_session_assignments')
       .update({ time_slot: newSlot })
       .eq('roster_id', id)
       .eq('club_id', currentClub.id);
-    // Update in-memory cache
     Object.keys(allWeekTimeSlots).forEach(sid => {
       const entry = allWeekTimeSlots[sid]?.find(e => e.roster_id === id);
       if (entry) entry.time_slot = newSlot;
