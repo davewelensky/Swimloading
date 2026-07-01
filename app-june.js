@@ -300,7 +300,7 @@
             } else {
                 rankBlock = `
                 <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:13px 16px;margin-bottom:12px;">
-                  <div style="font-size:13px;color:#475569;line-height:1.5;">Log a temp or join a swim to get on the board and enter the prize draw</div>
+                  <div style="font-size:13px;color:#475569;line-height:1.5;">Log 10 swims this month to enter the draw — every 10 logs is another entry</div>
                 </div>`;
             }
 
@@ -341,7 +341,7 @@
                       <div>
                         <div style="font-size:13px;font-weight:900;color:#7dd3fc;letter-spacing:-0.2px;text-shadow:0 1px 4px rgba(0,0,0,0.9);">Blu Smooth MK2 Comp</div>
                         <div style="font-size:11px;color:#bae6fd;font-weight:600;margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">R5,999 · Not in shops yet · Grand prize</div>
-                        <div style="font-size:10px;color:rgba(186,230,253,0.75);margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">Every valid point = 1 prize draw entry</div>
+                        <div style="font-size:10px;color:rgba(186,230,253,0.75);margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">Log 10 to enter · every 10 logs = another entry</div>
                       </div>
                       <i data-lucide="trophy" style="width:22px;height:22px;color:#38bdf8;flex-shrink:0;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.9));margin-bottom:2px;"></i>
                     </div>
@@ -395,16 +395,24 @@
                     const gapLine = above
                         ? `${above.total_points - myData.total_points} pts behind ${above.display_name}`
                         : "You're leading!";
-                    const qualBadge = myData.qualified_for_draw
-                        ? `<span style="font-size:10px;color:#10b981;font-weight:700;margin-left:6px;">Draw eligible</span>`
-                        : '';
+                    const myLogs   = myData.temp_logs_rewarded || 0;
+                    const inDraw   = myData.qualified_for_draw;
+                    const toGo     = Math.max(0, 10 - myLogs);
+                    const entries  = myData.draw_entries || 0;
+                    const drawBlock = inDraw
+                        ? `<div style="font-size:12px;"><span style="color:#10b981;font-weight:800;">✓ You're in the draw</span> <span style="color:var(--text-secondary);">— ${entries} ${entries===1?'entry':'entries'} for the MK2</span></div>`
+                        : `<div style="font-size:12px;color:var(--text);font-weight:600;margin-bottom:6px;">${myLogs}/10 logs — <span style="color:#38bdf8;">${toGo} more to enter the draw</span></div>
+                           <div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${Math.min(100, myLogs*10)}%;background:linear-gradient(90deg,#0284c7,#38bdf8);border-radius:3px;"></div></div>`;
                     myPositionCard = `
-                    <div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
-                      <div>
-                        <div style="font-size:13px;font-weight:700;color:var(--text);">You're #${myIdx+1} &middot; ${myData.total_points} pts${qualBadge}</div>
-                        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${gapLine} &middot; ${myData.draw_entries} draw entries</div>
+                    <div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+                      <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                          <div style="font-size:13px;font-weight:700;color:var(--text);">You're #${myIdx+1} &middot; ${myData.total_points} pts</div>
+                          <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${gapLine}</div>
+                        </div>
+                        <div style="font-size:15px;font-weight:800;color:${myIdx<3?'#fbbf24':'var(--text-secondary)'};">#${myIdx+1}</div>
                       </div>
-                      <div style="font-size:15px;font-weight:800;color:${myIdx<3?'#fbbf24':'var(--text-secondary)'};">#${myIdx+1}</div>
+                      <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);">${drawBlock}</div>
                     </div>`;
                 }
 
@@ -414,7 +422,7 @@
                     <div>
                       <div style="font-size:10px;color:#7dd3fc;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:3px;">July Challenge · Winter Warrior${testBadge}</div>
                       <div style="font-weight:800;font-size:17px;color:var(--text);line-height:1.2;">Log. Swim. Share. Win.</div>
-                      <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.4;">Every valid point becomes a prize draw entry. The more you participate, the better your odds.</div>
+                      <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.4;">Log 10 swims to enter the draw. Every 10 logs, group swim, and 7-day streak earns another entry — the more you swim, the better your odds.</div>
                     </div>
                     <div style="background:rgba(125,211,252,0.15);color:#7dd3fc;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;">${daysLeft}d left</div>
                   </div>
@@ -453,8 +461,8 @@
                           <span style="font-size:13px;font-weight:700;color:var(--ocean-light);white-space:nowrap;margin-left:12px;">+${JC_POINTS[k]}</span>
                         </div>`).join('')}
                       <div style="margin-top:10px;font-size:11px;color:var(--text-secondary);line-height:1.6;">
-                        The Blu Smooth MK2 winner will be drawn from qualified participants.<br>
-                        <span style="color:rgba(100,116,139,0.7);">Fair play rules apply. Prize draw eligibility requires genuine participation.</span>
+                        <span style="color:#7dd3fc;font-weight:700;">Winning the MK2:</span> points set your rank here — but the prize is a draw. Log 10 swims to enter, then every 10 logs, group swim, and 7-day streak adds another entry. Winner drawn 1 August.<br>
+                        <span style="color:rgba(100,116,139,0.7);">Fair play rules apply. Draw eligibility requires genuine participation.</span>
                       </div>
                     </div>
                   </div>
