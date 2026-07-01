@@ -172,27 +172,45 @@
         }
 
         /* ═══════════════════════════════════════
-           HERO
+           HERO — rotating photo background
         ═══════════════════════════════════════ */
         .hero {
             position: relative; z-index: 1;
-            display: flex; align-items: center;
-            justify-content: center; padding: 100px 24px 90px;
+            min-height: 100vh;
+            display: flex; flex-direction: column; justify-content: center;
+            padding: 140px 24px 64px;
+            overflow: hidden;
         }
-        .hero-inner {
-            max-width: 1200px; margin: 0 auto; width: 100%;
-            display: grid; grid-template-columns: 1fr 1fr;
-            gap: 60px; align-items: center;
+        .hero-bg { position: absolute; inset: 0; z-index: 0; }
+        .hero-bg img {
+            position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+            opacity: 0; animation: hero-kenburns 36s infinite;
         }
-        .hero-text { max-width: 560px; }
+        .hero-bg img:nth-child(1) { animation-delay: 0s; }
+        .hero-bg img:nth-child(2) { animation-delay: 6s; }
+        .hero-bg img:nth-child(3) { animation-delay: 12s; }
+        .hero-bg img:nth-child(4) { animation-delay: 18s; }
+        .hero-bg img:nth-child(5) { animation-delay: 24s; }
+        .hero-bg img:nth-child(6) { animation-delay: 30s; }
+        @keyframes hero-kenburns {
+            0%      { opacity: 0; transform: scale(1.0); }
+            3%      { opacity: 1; }
+            15%     { opacity: 1; transform: scale(1.08); }
+            16.67%  { opacity: 0; transform: scale(1.1); }
+            100%    { opacity: 0; }
+        }
+        .hero-overlay {
+            position: absolute; inset: 0; z-index: 1;
+            background: linear-gradient(180deg, rgba(10,22,40,0.6) 0%, rgba(10,22,40,0.25) 32%, rgba(10,22,40,0.55) 70%, rgba(10,22,40,0.95) 100%);
+        }
+        .hero-inner { position: relative; z-index: 2; max-width: 700px; margin: 0 auto; width: 100%; }
         .hero-badge {
             display: inline-flex; align-items: center; gap: 8px;
-            background: rgba(34, 211, 238, 0.1);
-            border: 1px solid rgba(34, 211, 238, 0.25);
+            background: rgba(10, 22, 40, 0.55); backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.2);
             border-radius: 100px; padding: 8px 20px;
-            font-size: 13px; font-weight: 600; color: var(--cyan-glow);
+            font-size: 13px; font-weight: 600; color: #fff;
             margin-bottom: 28px;
-            animation: fade-in-up 0.8s ease-out;
         }
         .hero-badge .pulse-dot {
             width: 8px; height: 8px; background: var(--cyan-glow);
@@ -204,11 +222,11 @@
         }
         .hero h1 {
             font-family: 'Bebas Neue', sans-serif;
-            font-size: clamp(64px, 10vw, 108px);
-            line-height: 0.93; letter-spacing: 2px; margin-bottom: 20px;
-            animation: fade-in-up 0.8s ease-out 0.1s both;
+            font-size: clamp(52px, 9vw, 100px);
+            line-height: 0.95; letter-spacing: 2px; margin-bottom: 20px;
+            color: #fff; text-shadow: 0 4px 40px rgba(0,0,0,0.45);
         }
-        .hero h1 .gradient-text {
+        .gradient-text {
             background: linear-gradient(135deg, var(--ocean-light) 0%, var(--cyan-glow) 50%, var(--ocean-light) 100%);
             background-size: 200% auto;
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
@@ -219,14 +237,11 @@
             100% { background-position: 200% center; }
         }
         .hero-sub {
-            font-size: 18px; color: var(--text-secondary);
-            line-height: 1.7; margin-bottom: 36px;
-            animation: fade-in-up 0.8s ease-out 0.2s both;
+            font-size: 18px; color: #e2e8f0;
+            line-height: 1.7; margin-bottom: 36px; max-width: 520px;
+            text-shadow: 0 2px 12px rgba(0,0,0,0.5);
         }
-        .hero-actions {
-            display: flex; gap: 14px; flex-wrap: wrap;
-            animation: fade-in-up 0.8s ease-out 0.3s both;
-        }
+        .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; }
         .btn-primary {
             background: linear-gradient(135deg, var(--ocean-blue), var(--ocean-light));
             color: white; border: none; padding: 16px 36px; border-radius: 16px;
@@ -246,92 +261,20 @@
             box-shadow: 0 12px 35px rgba(2, 132, 199, 0.4);
         }
         .btn-secondary {
-            background: rgba(30, 41, 59, 0.8); color: var(--text-primary);
-            border: 1px solid var(--border); padding: 16px 36px; border-radius: 16px;
+            background: rgba(255,255,255,0.1); color: #fff;
+            border: 1px solid rgba(255,255,255,0.25); padding: 16px 36px; border-radius: 16px;
             font-size: 17px; font-weight: 600; cursor: pointer; text-decoration: none;
             display: inline-flex; align-items: center; gap: 10px;
             transition: all 0.2s; backdrop-filter: blur(10px);
         }
         .btn-secondary:hover {
-            background: rgba(30, 41, 59, 1);
+            background: rgba(255,255,255,0.18);
             border-color: var(--ocean-light); transform: translateY(-2px);
         }
-
-        /* Hero phone — single phone, screenshots cross-fade */
-        .hero-phones {
-            position: relative;
-            display: flex; align-items: center; justify-content: center;
-            animation: fade-in-up 0.8s ease-out 0.4s both;
-            padding: 30px 0;
-        }
-        .phone-screen { position: relative; }
-        .phone-screen img {
-            width: 100%; height: auto; border-radius: 26px; display: block;
-        }
-        .phone-screen img.phone-overlay {
-            position: absolute; inset: 0; opacity: 0;
-            height: 100%; object-fit: cover; object-position: top;
-        }
-        .phone-screen img.phone-overlay-a { animation: phone-fade-a 12s ease-in-out infinite; }
-        .phone-screen img.phone-overlay-b { animation: phone-fade-b 12s ease-in-out infinite; }
-        @keyframes phone-fade-a {
-            0%, 30% { opacity: 0; }
-            36%, 63% { opacity: 1; }
-            69%, 100% { opacity: 0; }
-        }
-        @keyframes phone-fade-b {
-            0%, 63% { opacity: 0; }
-            69%, 96% { opacity: 1; }
-            100% { opacity: 0; }
-        }
-
-        /* Floating live temp chips around the phone */
-        .hero-chip {
-            position: absolute; z-index: 4;
-            display: inline-flex; align-items: center; gap: 7px;
-            background: rgba(13, 23, 40, 0.92);
-            border: 1px solid rgba(56, 189, 248, 0.3);
-            border-radius: 100px; padding: 7px 14px;
-            font-size: 13px; font-weight: 700; color: var(--text-primary);
-            white-space: nowrap; backdrop-filter: blur(8px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-            animation: chip-bob 4.5s ease-in-out infinite;
-        }
-        .hero-chip.intl { border-color: rgba(217, 119, 6, 0.5); }
-        .hero-chip .chip-name {
-            max-width: 140px; overflow: hidden;
-            text-overflow: ellipsis; white-space: nowrap;
-        }
-        .hero-chip .chip-temp { font-weight: 800; }
-        .hero-chip .chip-flag {
-            font-size: 10px; color: var(--text-secondary); font-weight: 600;
-            background: rgba(217, 119, 6, 0.15); border-radius: 4px; padding: 1px 5px;
-        }
-        .hero-chip-1 { left: -4%; top: 12%; }
-        .hero-chip-2 { right: -6%; top: 4%; animation-delay: 1.2s; }
-        .hero-chip-3 { right: -8%; top: 64%; animation-delay: 0.6s; }
-        .hero-chip-4 { left: -8%; top: 74%; animation-delay: 1.8s; }
-        @keyframes chip-bob {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-9px); }
-        }
-
-        /* Animated waves at the bottom of the hero */
-        .hero-waves {
-            position: absolute; bottom: -1px; left: 0; right: 0;
-            height: 90px; z-index: 0; pointer-events: none; overflow: hidden;
-        }
-        .hero-waves svg { position: absolute; bottom: 0; left: 0; width: 200%; height: 100%; }
-        .hero-waves .wave-back { animation: wave-drift 14s linear infinite; }
-        .hero-waves .wave-front { animation: wave-drift 9s linear infinite reverse; }
-        @keyframes wave-drift {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-50%); }
-        }
-
-        @keyframes fade-in-up {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
+        .hero-photo-credit {
+            position: absolute; z-index: 2; right: 20px; bottom: 14px;
+            font-size: 11px; color: rgba(255,255,255,0.55);
+            text-shadow: 0 1px 4px rgba(0,0,0,0.6);
         }
 
         /* ═══════════════════════════════════════
@@ -415,6 +358,12 @@
         }
         .partner-card.coming-soon {
             opacity: 0.55; cursor: default; pointer-events: none;
+        }
+        a.partner-card.coming-soon {
+            opacity: 0.75; cursor: pointer; pointer-events: auto;
+        }
+        a.partner-card.coming-soon:hover {
+            opacity: 1;
         }
         .partner-logo-wrap {
             height: 44px; display: flex; align-items: center;
@@ -795,16 +744,9 @@
            RESPONSIVE
         ═══════════════════════════════════════ */
         @media (max-width: 900px) {
-            .hero-inner {
-                grid-template-columns: 1fr; text-align: center;
-            }
-            .hero-text { max-width: 100%; }
+            .hero-inner { text-align: center; }
             .hero-actions { justify-content: center; }
-            .hero-phones { margin-top: 12px; }
-            .hero-chip-1 { left: 4%; }
-            .hero-chip-2 { right: 4%; }
-            .hero-chip-3 { right: 2%; }
-            .hero-chip-4 { left: 2%; }
+            .hero-sub { margin-left: auto; margin-right: auto; }
             .feature-showcase {
                 grid-template-columns: 1fr; gap: 40px; text-align: center;
             }
@@ -820,7 +762,9 @@
             .nav { padding: 12px 16px; }
             .nav-logo-text { font-size: 17px; }
             .nav-cta { padding: 8px 16px; font-size: 13px; }
-            .hero { padding: 80px 16px 24px; }
+            .hero { padding: 100px 20px 40px; min-height: 92vh; }
+            .hero h1 { font-size: clamp(40px, 11vw, 56px); }
+            .hero-badge { font-size: 12px; padding: 6px 14px; margin-bottom: 20px; }
             .btn-primary, .btn-secondary {
                 width: 100%; justify-content: center; padding: 16px 24px;
             }
@@ -832,7 +776,6 @@
             .feature-showcase { padding: 40px 24px; }
             .global-grid { grid-template-columns: 1fr !important; grid-template-rows: auto !important; }
             .global-sa { grid-row: auto !important; }
-            .hero-chip-3, .hero-chip-4 { display: none; }
         }
 
         /* Accessibility: stop all decorative motion for users who ask for it */
@@ -843,7 +786,8 @@
                 transition-duration: 0.01ms !important;
             }
             html { scroll-behavior: auto; }
-            .phone-screen img.phone-overlay { display: none; }
+            .hero-bg img { animation: none !important; opacity: 1 !important; }
+            .hero-bg img:not(:first-child) { display: none; }
             .ticker-inner { animation: none !important; }
         }
     </style>
@@ -879,49 +823,36 @@
 
     <!-- ═══════════════ HERO ═══════════════ -->
     <section class="hero">
+        <div class="hero-bg">
+            <img src="screenshots/hero-photo-whale.jpg" alt="SwimLoading swimmer alongside a whale, Cape Town" fetchpriority="high" decoding="async">
+            <img src="screenshots/hero-photo-underwater.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+            <img src="screenshots/hero-photo-tablemountain.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+            <img src="screenshots/hero-photo-campsbay.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+            <img src="screenshots/hero-photo-povswell.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+            <img src="screenshots/hero-photo-misty.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+        </div>
+        <div class="hero-overlay"></div>
         <div class="hero-inner">
-            <div class="hero-text">
-                <div class="hero-badge">
-                    <span class="pulse-dot"></span>
-                    Live now · 140+ spots · <span id="hero-country-count">11</span> countries
-                </div>
-                <h1>Know the water<br><span class="gradient-text">before you dive in</span></h1>
-                <p class="hero-sub">
-                    Real water temps, logged by real swimmers — ocean, pool, dam and lagoon, wherever you swim.
-                </p>
-                <div class="hero-actions" style="margin-top:32px;">
-                    <a href="/app" class="btn-primary">
-                        <i data-lucide="waves" style="width:20px;height:20px;"></i>
-                        See Live Temps Free
-                    </a>
-                    <a href="#features" class="btn-secondary">
-                        <i data-lucide="chevron-down" style="width:20px;height:20px;"></i>
-                        See Features
-                    </a>
-                </div>
+            <div class="hero-badge">
+                <span class="pulse-dot"></span>
+                Live now · 140+ spots · <span id="hero-country-count">11</span> countries
             </div>
-            <div class="hero-phones">
-                <div class="hero-chip hero-chip-1" id="heroChip1"><span class="chip-name">Big Bay</span><span class="chip-temp" style="color:#38bdf8">14°C</span></div>
-                <div class="hero-chip hero-chip-2" id="heroChip2"><span class="chip-name">Umhlanga Rocks</span><span class="chip-temp" style="color:#10b981">25°C</span></div>
-                <div class="hero-chip intl hero-chip-3" id="heroChip3"><span class="chip-name">Tooting Bec Lido</span><span class="chip-flag">UK</span><span class="chip-temp" style="color:#22d3ee">16°C</span></div>
-                <div class="hero-chip intl hero-chip-4" id="heroChip4"><span class="chip-name">Cottesloe Beach</span><span class="chip-flag">AU</span><span class="chip-temp" style="color:#22d3ee">18°C</span></div>
-                <div class="phone-frame">
-                    <div class="phone-screen">
-                        <img src="screenshots/home-tab.png" alt="SwimLoading app — home screen" width="456" height="985" fetchpriority="high" decoding="async" onerror="this.src='screenshots/Hero.webp'">
-                        <img src="screenshots/temps-tab.png" alt="" aria-hidden="true" class="phone-overlay phone-overlay-a" width="456" height="985" loading="lazy" decoding="async" onerror="this.src='screenshots/TempsLogging.webp'">
-                        <img src="screenshots/board-tab.png" alt="" aria-hidden="true" class="phone-overlay phone-overlay-b" width="456" height="985" loading="lazy" decoding="async" onerror="this.src='screenshots/MonthlyChallenges.webp'">
-                    </div>
-                </div>
+            <h1>Know the water<br><span class="gradient-text">before you dive in</span></h1>
+            <p class="hero-sub">
+                Real water temps, logged by real swimmers — ocean, pool, dam and lagoon, wherever you swim.
+            </p>
+            <div class="hero-actions" style="margin-top:32px;">
+                <a href="/app" class="btn-primary">
+                    <i data-lucide="waves" style="width:20px;height:20px;"></i>
+                    See Live Temps Free
+                </a>
+                <a href="#features" class="btn-secondary">
+                    <i data-lucide="chevron-down" style="width:20px;height:20px;"></i>
+                    See Features
+                </a>
             </div>
         </div>
-        <div class="hero-waves" aria-hidden="true">
-            <svg class="wave-back" viewBox="0 0 2880 90" preserveAspectRatio="none">
-                <path d="M0,52 C160,28 320,76 480,52 C640,28 800,76 960,52 C1120,28 1280,76 1440,52 C1600,28 1760,76 1920,52 C2080,28 2240,76 2400,52 C2560,28 2720,76 2880,52 L2880,90 L0,90 Z" fill="rgba(56,189,248,0.08)"/>
-            </svg>
-            <svg class="wave-front" viewBox="0 0 2880 90" preserveAspectRatio="none">
-                <path d="M0,62 C160,46 320,80 480,62 C640,46 800,80 960,62 C1120,46 1280,80 1440,62 C1600,46 1760,80 1920,62 C2080,46 2240,80 2400,62 C2560,46 2720,80 2880,62 L2880,90 L0,90 Z" fill="rgba(14,165,233,0.13)"/>
-            </svg>
-        </div>
+        <div class="hero-photo-credit">Table Mountain crossing photo: Carina Bruwer</div>
     </section>
 
     <!-- ═══════════════ LIVE TICKER ═══════════════ -->
@@ -1039,28 +970,6 @@
                 const t2 = document.getElementById('tickerTrack2');
                 if (t1) t1.innerHTML = html;
                 if (t2) t2.innerHTML = html;
-
-                // Hero chips — freshest domestic + international logs
-                const isIntlLog = l => !!(l.spots.country_code && COUNTRY_FLAGS[l.spots.country_code]);
-                const domestic = unique.filter(l => !isIntlLog(l));
-                const intl = unique.filter(isIntlLog);
-                const picks = [domestic[0], domestic[1], intl[0], intl[1]].filter(Boolean);
-                const used = new Set(picks.map(p => p.spots.name));
-                for (const l of unique) {
-                    if (picks.length >= 4) break;
-                    if (!used.has(l.spots.name)) { picks.push(l); used.add(l.spots.name); }
-                }
-                picks.forEach((l, i) => {
-                    const el = document.getElementById('heroChip' + (i + 1));
-                    if (!el) return;
-                    const t = Math.round(l.temp_c);
-                    const cc = l.spots.country_code;
-                    const label = (cc && COUNTRY_FLAGS[cc]) ? COUNTRY_FLAGS[cc] : null;
-                    el.classList.toggle('intl', !!label);
-                    el.innerHTML = '<span class="chip-name">' + l.spots.name + '</span>' +
-                        (label ? '<span class="chip-flag">' + label + '</span>' : '') +
-                        '<span class="chip-temp" style="color:' + tempColor(t) + '">' + t + '&deg;C</span>';
-                });
             } catch (e) {
                 console.warn('Ticker error:', e);
                 // static fallback stays in place
@@ -2404,17 +2313,10 @@
             observer.observe(el);
         });
 
-        // Mouse: spotlight + subtle hero phone parallax
-        const heroPhoneFrame = document.querySelector('.hero-phones .phone-frame');
-        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        // Mouse spotlight
         document.addEventListener('mousemove', (e) => {
             document.body.style.setProperty('--mouse-x', e.clientX + 'px');
             document.body.style.setProperty('--mouse-y', e.clientY + 'px');
-            if (heroPhoneFrame && !reduceMotion && window.innerWidth > 900) {
-                const x = (e.clientX / window.innerWidth - 0.5) * 10;
-                const y = (e.clientY / window.innerHeight - 0.5) * 7;
-                heroPhoneFrame.style.transform = `translate(${x}px, ${y}px)`;
-            }
         });
 
     </script>
