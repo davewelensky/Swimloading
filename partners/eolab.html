@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>eo SwimBETTER × SwimLoading — Swim Smarter</title>
+  <meta name="description" content="eo SwimBETTER reveals the technique inefficiencies holding you back. Used by Kyle Chalmers, 14 national federations, and 50+ NCAA colleges. Win one through SwimLoading.">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:            #080f1a;
+      --bg-card:       #0d1728;
+      --bg-deep:       #050d1a;
+      --cyan:          #38bdf8;
+      --orange:        #f97316;
+      --orange-dim:    rgba(249,115,22,0.12);
+      --orange-border: rgba(249,115,22,0.3);
+      --text:          #f1f5f9;
+      --text-sec:      #64748b;
+      --border:        rgba(255,255,255,0.06);
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+    }
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 9999;
+      background:
+        radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px), rgba(249,115,22,0.4), transparent 100%),
+        radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px), rgba(249,115,22,0.06), transparent 70%);
+    }
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(8,15,26,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 7px;
+      text-decoration: none; font-size: 15px; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .partner-badge { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--orange); letter-spacing: 2px; background: var(--orange-dim); border: 1px solid var(--orange-border); border-radius: 20px; padding: 4px 12px; }
+    .nav-cta {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--orange); color: #fff;
+      font-size: 13px; font-weight: 700;
+      padding: 9px 20px; border-radius: 50px;
+      text-decoration: none; white-space: nowrap;
+    }
+
+    .container { max-width: 780px; margin: 0 auto; padding: 0 24px; }
+
+    /* HERO */
+    .hero {
+      position: relative;
+      min-height: 480px;
+      overflow: hidden;
+      display: flex; align-items: flex-end;
+    }
+    .hero-img {
+      position: absolute; inset: 0;
+      background: url('/partners/eo-kyle.jpg') center/cover no-repeat;
+      background-position: center 30%;
+    }
+    .hero-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(to top, #080f1a 0%, rgba(8,15,26,0.7) 50%, rgba(8,15,26,0.2) 100%);
+    }
+    .hero-content {
+      position: relative; z-index: 2;
+      padding: 48px 24px;
+      max-width: 780px; margin: 0 auto; width: 100%;
+    }
+    .hero-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--orange); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 16px; }
+    .hero-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(44px, 8vw, 72px); line-height: 0.95; color: var(--text); margin-bottom: 12px; }
+    .hero-title span { color: var(--orange); }
+    .hero-sub { font-size: 18px; color: rgba(241,245,249,0.8); max-width: 520px; line-height: 1.6; margin-bottom: 28px; }
+    .hero-stats { display: flex; gap: 32px; flex-wrap: wrap; }
+    .hero-stat-val { font-family: 'Bebas Neue', sans-serif; font-size: 36px; color: var(--orange); line-height: 1; }
+    .hero-stat-lbl { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--text-sec); letter-spacing: 2px; margin-top: 2px; }
+
+    /* SECTIONS */
+    section { padding: 56px 0; border-top: 1px solid var(--border); }
+    .section-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--orange); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 16px; }
+    .section-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(32px, 5vw, 48px); line-height: 1; color: var(--text); margin-bottom: 20px; }
+    .section-title span { color: var(--orange); }
+    .body-text { font-size: 15px; color: #cbd5e1; line-height: 1.9; }
+
+    /* CARDS */
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    .stat-big { font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: var(--orange); line-height: 1; }
+    .stat-lbl { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--text-sec); letter-spacing: 2px; margin-top: 4px; }
+
+    /* QUOTE */
+    .quote { border-left: 3px solid var(--orange); padding-left: 20px; margin: 24px 0; }
+    .quote-text { font-size: 17px; color: #fed7aa; font-style: italic; line-height: 1.7; }
+    .quote-attr { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-sec); letter-spacing: 1px; margin-top: 8px; }
+
+    /* IMAGE */
+    .img-full { width: 100%; border-radius: 12px; display: block; object-fit: cover; }
+
+    /* PRIZE BLOCK */
+    .prize-block { background: linear-gradient(135deg, #0d1a0a, #071208); border: 1px solid rgba(16,185,129,0.35); border-radius: 16px; padding: 32px; }
+    .prize-val { font-family: 'Bebas Neue', sans-serif; font-size: 56px; color: #10b981; line-height: 1; }
+    .prize-lbl { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--text-sec); letter-spacing: 2px; margin-top: 4px; margin-bottom: 20px; }
+    .prize-item { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+    .prize-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; margin-top: 7px; flex-shrink: 0; }
+    .prize-text { font-size: 14px; color: #cbd5e1; line-height: 1.7; }
+
+    /* CHALLENGE TEASER */
+    .challenge-block { background: linear-gradient(135deg, #020d1a, #030e1f); border: 2px solid rgba(56,189,248,0.4); border-radius: 16px; padding: 32px; }
+
+    /* LOGOS */
+    .eo-logo { height: 36px; }
+
+    /* CTA */
+    .cta-btn { display: inline-flex; align-items: center; gap: 8px; background: var(--orange); color: #fff; font-size: 14px; font-weight: 700; padding: 13px 28px; border-radius: 50px; text-decoration: none; letter-spacing: 0.3px; transition: opacity 0.2s; }
+    .cta-btn:hover { opacity: 0.88; }
+    .cta-ghost { display: inline-flex; align-items: center; gap: 8px; background: transparent; border: 1px solid var(--orange-border); color: var(--orange); font-size: 14px; font-weight: 600; padding: 12px 24px; border-radius: 50px; text-decoration: none; transition: background 0.2s; }
+    .cta-ghost:hover { background: var(--orange-dim); }
+
+    /* FEDERATIONS */
+    .fed-strip { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+    .fed-tag { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--text-sec); letter-spacing: 1px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; }
+
+    footer { border-top: 1px solid var(--border); padding: 24px; text-align: center; font-size: 12px; color: var(--text-sec); }
+    footer a { color: var(--text-sec); text-decoration: none; }
+    footer a:hover { color: var(--cyan); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="https://swimloading.com" class="nav-brand">
+    <img src="../icons/logo-wave.png" alt="" style="height:22px;width:auto;">SwimLoading
+  </a>
+  <div style="display:flex;align-items:center;gap:14px;">
+    <span class="partner-badge">PARTNER</span>
+    <a href="https://swimloading.com/app" class="nav-cta">
+      <i data-lucide="waves" style="width:14px;height:14px;"></i>Open app
+    </a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-img"></div>
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <div class="hero-label">SwimLoading Partner · Performance Technology</div>
+    <div class="hero-title">
+      Swim harder<br>or swim <span>smarter.</span>
+    </div>
+    <div class="hero-sub">
+      The missing link between swimming harder and swimming faster is knowing what to change.
+    </div>
+    <div class="hero-stats">
+      <div>
+        <div class="hero-stat-val">14</div>
+        <div class="hero-stat-lbl">NATIONAL FEDERATIONS</div>
+      </div>
+      <div>
+        <div class="hero-stat-val">50+</div>
+        <div class="hero-stat-lbl">NCAA COLLEGES</div>
+      </div>
+      <div>
+        <div class="hero-stat-val">US$1,349</div>
+        <div class="hero-stat-lbl">PRIZE VALUE</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- WHAT IS IT -->
+  <section>
+    <div class="section-label">What is eo SwimBETTER</div>
+    <div class="section-title">Most swimmers don't need to<br>work harder. They need to<br><span>understand why.</span></div>
+
+    <div class="body-text" style="margin-bottom:24px;">
+      eo SwimBETTER reveals the technique inefficiencies holding you back and replaces guesswork with objective feedback throughout your training. So you know what to change. Whether it worked. And what to improve next.
+    </div>
+
+    <div class="quote">
+      <div class="quote-text">"The missing link between swimming harder and swimming faster is knowing what to change."</div>
+      <div class="quote-attr">— eo SwimBETTER</div>
+    </div>
+
+    <img src="/partners/eo-inge.jpg" alt="eo SwimBETTER in action" class="img-full" style="margin-top:28px;max-height:420px;" />
+  </section>
+
+  <!-- WHO USES IT -->
+  <section>
+    <div class="section-label">Trusted by the best</div>
+    <div class="section-title">Kyle Chalmers.<br><span>Olympic medallists.</span><br>14 national federations.</div>
+
+    <div class="body-text" style="margin-bottom:28px;">
+      eo SwimBETTER is used by 14 national swimming federations, 50+ NCAA colleges, and Olympic medallists including Kyle Chalmers and Paige Madden. The same technology trusted at the highest level of the sport is now available to every serious swimmer.
+    </div>
+
+    <div class="fed-strip">
+      <span class="fed-tag">14 NATIONAL FEDERATIONS</span>
+      <span class="fed-tag">50+ NCAA COLLEGES</span>
+      <span class="fed-tag">KYLE CHALMERS</span>
+      <span class="fed-tag">PAIGE MADDEN</span>
+      <span class="fed-tag">OLYMPIC MEDALLISTS</span>
+    </div>
+
+    <img src="/partners/eo-kyle.jpg" alt="Kyle Chalmers with eo SwimBETTER" class="img-full" style="margin-top:28px;max-height:420px;object-position:center 30%;" />
+    <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-sec);letter-spacing:1px;margin-top:8px;text-align:center;">Kyle Chalmers · Olympic Medallist · eo SwimBETTER athlete</div>
+  </section>
+
+  <!-- THE PRIZE -->
+  <section>
+    <div class="section-label">SwimLoading Challenge Prize · August–October 2026</div>
+    <div class="section-title">Win the tool that<br><span>tells you what to fix.</span></div>
+
+    <div class="body-text" style="margin-bottom:28px;">
+      SwimLoading is running a three-month performance challenge starting August 2026. The prize is a full eo SwimBETTER90 package — the same kit used by Kyle Chalmers — going to one SwimLoading member who demonstrates the kind of consistent training commitment that makes this tool genuinely useful.
+    </div>
+
+    <div class="prize-block">
+      <div class="prize-val">US$1,349</div>
+      <div class="prize-lbl">TOTAL PRIZE VALUE · SHIPS ANYWHERE IN THE WORLD</div>
+
+      <div class="prize-item">
+        <div class="prize-dot"></div>
+        <div class="prize-text"><strong style="color:#f1f5f9;">eo SwimBETTER90</strong> — the device itself, worn on your wrist during every swim</div>
+      </div>
+      <div class="prize-item">
+        <div class="prize-dot"></div>
+        <div class="prize-text"><strong style="color:#f1f5f9;">One-year Gold Membership</strong> — full platform access, all analytics, all insights</div>
+      </div>
+      <div class="prize-item">
+        <div class="prize-dot"></div>
+        <div class="prize-text"><strong style="color:#f1f5f9;">One-hour 1-on-1 online data session</strong> with an eo expert — your technique, your data, your improvement plan</div>
+      </div>
+
+      <div style="margin-top:20px;padding-top:20px;border-top:1px solid rgba(16,185,129,0.2);font-family:'DM Mono',monospace;font-size:10px;color:#10b981;letter-spacing:2px;">
+        SHIPS TO ANY COUNTRY · NO IMPORT RESTRICTIONS
+      </div>
+    </div>
+  </section>
+
+  <!-- CHALLENGE TEASER -->
+  <section>
+    <div class="section-label">The Challenge</div>
+    <div class="challenge-block">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--cyan);letter-spacing:3px;margin-bottom:16px;">AUGUST · SEPTEMBER · OCTOBER 2026</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:42px;color:var(--text);line-height:1;margin-bottom:8px;">The Performance Challenge.</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:42px;color:var(--cyan);line-height:1;margin-bottom:24px;">Three months. One winner.</div>
+
+      <div class="body-text" style="margin-bottom:20px;">
+        This challenge is designed for serious swimmers. The full brief drops in the August newsletter — but the mechanic rewards consistent training through three months rather than a single-month points race. Because the swimmer who wins the eo SwimBETTER should be the swimmer who will actually use it.
+      </div>
+
+      <div style="background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.2);border-radius:10px;padding:16px 20px;margin-bottom:20px;">
+        <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--cyan);letter-spacing:2px;margin-bottom:10px;">WHAT WE CAN TELL YOU NOW</div>
+        <div style="font-size:13px;color:#cbd5e1;line-height:2.1;">
+          · Open to all SwimLoading members — ocean or pool, any country<br>
+          · Three-month commitment required to qualify<br>
+          · Designed to reward training consistency, not social engagement<br>
+          · Full brief and qualification criteria in the August newsletter
+        </div>
+      </div>
+
+      <a href="https://swimloading.com/app" class="cta-btn" style="margin-right:12px;">Log your first swim →</a>
+      <a href="https://www.eolab.com/swimbetter" target="_blank" rel="noopener" class="cta-ghost">Learn about eo SwimBETTER →</a>
+    </div>
+  </section>
+
+  <!-- ABOUT EO SWIMBETTER -->
+  <section>
+    <div class="section-label">About eo SwimBETTER</div>
+    <div class="grid-2" style="margin-bottom:24px;">
+      <div class="card">
+        <div class="stat-big">14</div>
+        <div class="stat-lbl">NATIONAL FEDERATIONS</div>
+        <div style="font-size:13px;color:var(--text-sec);margin-top:10px;line-height:1.7;">Trusted by national swimming bodies across multiple continents for athlete development and performance analysis.</div>
+      </div>
+      <div class="card">
+        <div class="stat-big">50+</div>
+        <div class="stat-lbl">NCAA COLLEGES</div>
+        <div style="font-size:13px;color:var(--text-sec);margin-top:10px;line-height:1.7;">The standard for collegiate swimming performance analysis across the United States.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+        <img src="/partners/eo-logo-white.png" alt="eo SwimBETTER" class="eo-logo" />
+        <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--text-sec);letter-spacing:2px;">@eosportslab</div>
+      </div>
+      <div class="body-text">
+        eo SwimBETTER is developed by eoLab — a sports performance technology company dedicated to making elite-level swim analysis accessible to every serious swimmer. The same objective technique feedback used by Olympic medallists is now available to the SwimLoading community.
+      </div>
+      <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap;">
+        <a href="https://www.eolab.com/swimbetter" target="_blank" rel="noopener" class="cta-ghost" style="font-size:12px;padding:8px 16px;">Website →</a>
+        <a href="https://www.instagram.com/eosportslab/" target="_blank" rel="noopener" class="cta-ghost" style="font-size:12px;padding:8px 16px;">Instagram →</a>
+        <a href="https://www.facebook.com/eosportslab" target="_blank" rel="noopener" class="cta-ghost" style="font-size:12px;padding:8px 16px;">Facebook →</a>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /container -->
+
+<footer>
+  <a href="https://swimloading.com">swimloading.com</a> &nbsp;·&nbsp;
+  <a href="https://www.eolab.com/swimbetter" target="_blank" rel="noopener">eolab.com/swimbetter</a> &nbsp;·&nbsp;
+  &copy; 2026 SwimLoading &nbsp;·&nbsp; Partnership enquiries: <a href="mailto:support@swimloading.com">support@swimloading.com</a>
+</footer>
+
+<script>
+  document.addEventListener('mousemove', e => {
+    document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+    document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+  });
+  lucide.createIcons();
+</script>
+</body>
+</html>
