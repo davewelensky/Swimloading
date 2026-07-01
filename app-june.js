@@ -136,7 +136,7 @@
 
         function jcShowPostActionFeedback(actionType, pts, drawEntries, score, opts) {
             const parts = [`+${pts} pts`];
-            if (score?.inDraw)            parts.push(`✓ in the draw · ${score.entries} ${score.entries === 1 ? 'ticket' : 'tickets'}`);
+            if (score?.inDraw)            parts.push(`In the draw · ${score.entries} ${score.entries === 1 ? 'ticket' : 'tickets'}`);
             else if (score?.logs != null) parts.push(`${score.logs}/10 logs to enter`);
             showToast(parts.join(' · '), 'success');
 
@@ -278,7 +278,7 @@
                 rankBlock = `
                 <div style="background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(6,95,70,0.06));border:1px solid rgba(16,185,129,0.3);border-radius:12px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">
                   <div style="flex:1;">
-                    <div style="font-size:17px;font-weight:900;color:#10b981;line-height:1.1;">✓ You're in the draw</div>
+                    <div style="font-size:17px;font-weight:900;color:#10b981;line-height:1.1;display:flex;align-items:center;gap:5px;"><i data-lucide="check-circle" style="width:16px;height:16px;"></i>You're in the draw</div>
                     <div style="font-size:12px;color:#64748b;margin-top:4px;">Keep logging to add tickets</div>
                   </div>
                   <div style="text-align:right;">
@@ -472,7 +472,7 @@
             let mine = '';
             if (iAmIn) {
                 mine = `<div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);border-radius:12px;padding:14px 16px;margin-bottom:14px;">
-                  <div style="font-size:15px;font-weight:800;color:#10b981;">✓ You're in the July draw</div>
+                  <div style="font-size:15px;font-weight:800;color:#10b981;display:flex;align-items:center;gap:5px;"><i data-lucide="check-circle" style="width:15px;height:15px;"></i>You're in the July draw</div>
                   <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.5;">You have <strong style="color:var(--text);">${myTix} ${myTix === 1 ? 'ticket' : 'tickets'}</strong> in the hat. Every 10 more logs, group swim, or 7-day streak adds another.</div>
                 </div>`;
             } else if (currentUser) {
@@ -761,10 +761,10 @@
                   ${leaders.slice(0, 10).map((r, i) => `
                   <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12px;">
                     <span style="color:var(--text-secondary);width:16px;">${i+1}</span>
-                    <span style="flex:1;color:${r.disqualified ? '#ef4444' : 'var(--text)'};">${r.display_name || '?'}${r.disqualified ? ' [DQ]' : ''}${r.qualified_for_draw ? ' ✓' : ''}</span>
+                    <span style="flex:1;color:${r.disqualified ? '#ef4444' : 'var(--text)'};">${r.display_name || '?'}${r.disqualified ? ' [DQ]' : ''}${r.qualified_for_draw ? ' [in]' : ''}</span>
                     <span style="color:var(--ocean-light);font-weight:700;">${r.total_points}</span>
                     <span style="color:rgba(100,116,139,0.7);">${r.draw_entries}e</span>
-                    ${r.suspicious_flags > 0 ? `<span style="color:#f59e0b;">⚑${r.suspicious_flags}</span>` : ''}
+                    ${r.suspicious_flags > 0 ? `<span style="color:#f59e0b;">${r.suspicious_flags} flag</span>` : ''}
                   </div>`).join('')}
                 </div>
 
