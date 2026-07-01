@@ -438,13 +438,11 @@
                     </div>
                   </div>
 
-                  ${myPositionCard}
-
                   <div style="display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:8px;">
-                    <i data-lucide="trophy" style="width:12px;height:12px;color:#7dd3fc;"></i>Leaderboard
+                    <i data-lucide="ticket" style="width:12px;height:12px;color:#7dd3fc;"></i>The Draw
                   </div>
-                  <div style="background:rgba(15,23,42,0.5);border-radius:10px;padding:10px;">
-                    ${jcRenderLeaderboard(sorted.slice(0, 20), myIdx, myData?.total_points || 0)}
+                  <div style="background:rgba(15,23,42,0.5);border-radius:10px;padding:12px;">
+                    ${jcRenderLeaderboard(sorted)}
                   </div>
 
                   <!-- How to earn (collapsible) -->
@@ -483,81 +481,61 @@
         // ── Leaderboard renderer ─────────────────────────────────────────────────────
         // Accepts array from get_challenge_leaders (objects) or old sorted array
 
-        function jcRenderLeaderboard(sorted, myIdx, myPts) {
-            if (!sorted.length) {
-                return `<div style="padding:36px 16px;text-align:center;">
-                  <div style="width:52px;height:52px;border-radius:50%;background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.15);margin:0 auto 14px;display:flex;align-items:center;justify-content:center;">
-                    <i data-lucide="trophy" style="width:22px;height:22px;color:rgba(251,191,36,0.45);"></i>
-                  </div>
-                  <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px;">No entries yet</div>
-                  <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">Log a temp or join a swim<br>to get on the board.</div>
+        // The prize is a random DRAW, not a top-scorer race — so this view shows the
+        // swimmer's own progress, the size of the draw pool, and who's in (as an avatar
+        // wall), never a competitive ranking. Nobody should look at it and feel they've
+        // already lost. (sorted = get_challenge_leaders rows.)
+        function jcRenderDrawView(sorted) {
+            const rows    = sorted || [];
+            const inDraw  = rows.filter(r => r.qualified_for_draw && !r.disqualified);
+            const tickets = inDraw.reduce((s, r) => s + (r.draw_entries || 0), 0);
+            const me      = currentUser ? rows.find(r => r.user_id === currentUser.id) : null;
+            const myLogs  = me?.temp_logs_rewarded || 0;
+            const myTix   = me?.draw_entries || 0;
+            const iAmIn   = !!(me && me.qualified_for_draw && !me.disqualified);
+
+            // 1. Your own status — the reachable personal goal
+            let mine = '';
+            if (iAmIn) {
+                mine = `<div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+                  <div style="font-size:15px;font-weight:800;color:#10b981;">✓ You're in the July draw</div>
+                  <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.5;">You have <strong style="color:var(--text);">${myTix} ${myTix === 1 ? 'ticket' : 'tickets'}</strong> in the hat. Every 10 more logs, group swim, or 7-day streak adds another.</div>
+                </div>`;
+            } else if (currentUser) {
+                const toGo = Math.max(0, 10 - myLogs);
+                const pct  = Math.min(100, myLogs * 10);
+                mine = `<div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.28);border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+                  <div style="font-size:14px;font-weight:800;color:var(--text);">${myLogs}/10 logs to enter the draw</div>
+                  <div style="height:7px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;margin:8px 0 6px;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#0284c7,#38bdf8);border-radius:4px;"></div></div>
+                  <div style="font-size:12px;color:#38bdf8;font-weight:600;">${toGo > 0 ? toGo + ' more ' + (toGo === 1 ? 'log' : 'logs') + " and you're in — everyone in the draw has a real shot" : "You're in!"}</div>
                 </div>`;
             }
 
-            // Normalise: supports both {user_id, display_name, total_points} objects
-            // and legacy [[uid, {display_name, points}]] tuples
-            const rows = sorted.map((item, i) => {
-                let uid, name, pts, drawEntries, qualified, isDisq;
-                if (Array.isArray(item)) {
-                    uid = item[0]; name = item[1].display_name; pts = item[1].points;
-                    drawEntries = null; qualified = null; isDisq = false;
-                } else {
-                    uid = item.user_id; name = item.display_name; pts = item.total_points;
-                    drawEntries = item.draw_entries; qualified = item.qualified_for_draw; isDisq = item.disqualified;
-                }
+            // 2. The pool — belonging, not hierarchy
+            const pool = `<div style="text-align:center;padding:2px 0 12px;">
+              <div style="font-size:13px;color:var(--text);"><strong style="color:#7dd3fc;font-size:16px;">${inDraw.length}</strong> ${inDraw.length === 1 ? 'swimmer' : 'swimmers'} in the draw &middot; <strong style="color:#7dd3fc;">${tickets}</strong> ${tickets === 1 ? 'ticket' : 'tickets'} in the hat</div>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;line-height:1.5;">It's a random draw for the MK2 — every ticket has an equal shot at each pick.</div>
+            </div>`;
 
-                const isMe   = currentUser && uid === currentUser.id;
-                const maxPts = (Array.isArray(sorted[0]) ? sorted[0][1].points : sorted[0].total_points) || 1;
-                const pct    = Math.max(4, Math.round((pts / maxPts) * 100));
-                const aColor = jcFeedAvatarColor(uid);
-                const ini    = jcInitials(name);
+            // 3. Who's in — avatar wall, no ranking
+            let wall;
+            if (inDraw.length) {
+                const avatars = inDraw.slice(0, 40).map(r => {
+                    const c    = jcFeedAvatarColor(r.user_id);
+                    const isMe = currentUser && r.user_id === currentUser.id;
+                    return `<div title="${(r.display_name || 'Swimmer').replace(/"/g, '')}" style="width:36px;height:36px;border-radius:50%;background:rgba(${c},0.16);border:${isMe ? '2px solid #38bdf8' : '1px solid rgba(' + c + ',0.3)'};display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:rgb(${c});">${jcInitials(r.display_name).toUpperCase()}</div>`;
+                }).join('');
+                wall = `<div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.7px;margin:4px 0 10px;">In the draw</div>
+                  <div style="display:flex;flex-wrap:wrap;gap:7px;">${avatars}</div>`;
+            } else {
+                wall = `<div style="padding:20px 16px;text-align:center;font-size:13px;color:var(--text-secondary);line-height:1.6;">No one's crossed 10 logs yet.<br>Be the first swimmer in the July draw.</div>`;
+            }
 
-                const PODIUM = [
-                    { border:'rgba(251,191,36,0.5)',  bg:'linear-gradient(135deg,rgba(251,191,36,0.12),rgba(180,83,9,0.07))',   color:'#fbbf24', icon:'crown', nameSize:'15px' },
-                    { border:'rgba(148,163,184,0.4)', bg:'linear-gradient(135deg,rgba(148,163,184,0.09),rgba(100,116,139,0.05))', color:'#94a3b8', icon:'medal', nameSize:'14px' },
-                    { border:'rgba(205,124,47,0.4)',  bg:'linear-gradient(135deg,rgba(205,124,47,0.09),rgba(154,88,22,0.05))',   color:'#cd7c2f', icon:'award', nameSize:'14px' },
-                ];
-
-                if (i < 3) {
-                    const p = PODIUM[i];
-                    const above = i > 0 ? (Array.isArray(sorted[i-1]) ? sorted[i-1][1].points : sorted[i-1].total_points) - pts : 0;
-                    return `<div style="background:${p.bg};border:1px solid ${p.border};border-radius:13px;padding:13px 14px;margin-bottom:8px;${isDisq?'opacity:0.4;':''}">
-                      <div style="display:flex;align-items:center;gap:11px;">
-                        <div style="width:40px;height:40px;border-radius:50%;background:rgba(${aColor},0.15);border:2px solid ${p.border};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;font-weight:800;color:rgb(${aColor});">${ini.toUpperCase()}</div>
-                        <div style="flex:1;min-width:0;">
-                          <div style="font-size:${p.nameSize};font-weight:800;color:${isMe ? 'var(--ocean-light)' : 'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name || 'Swimmer'}${isMe ? ' <span style="font-size:10px;color:' + p.color + ';font-weight:600;">(you)</span>' : ''}${qualified ? ' <span style="font-size:9px;color:#10b981;">✓</span>' : ''}</div>
-                          <div style="margin-top:6px;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;">
-                            <div style="height:100%;width:${pct}%;background:${p.color};border-radius:2px;"></div>
-                          </div>
-                          ${above > 0 ? `<div style="font-size:10px;color:var(--text-secondary);margin-top:3px;">${above} pts to move up</div>` : i === 0 ? '<div style="font-size:10px;color:' + p.color + ';font-weight:700;margin-top:3px;">Leading</div>' : ''}
-                        </div>
-                        <div style="text-align:right;flex-shrink:0;">
-                          <div style="font-size:${i === 0 ? '26px' : '20px'};font-weight:900;color:${p.color};line-height:1;letter-spacing:-1px;">${pts}</div>
-                          <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">pts</div>
-                        </div>
-                        <i data-lucide="${p.icon}" style="width:${i === 0 ? '20px' : '17px'};height:${i === 0 ? '20px' : '17px'};color:${p.color};flex-shrink:0;"></i>
-                      </div>
-                    </div>`;
-                }
-
-                return `<div style="display:flex;align-items:center;gap:9px;padding:8px 10px;background:${isMe ? 'rgba(56,189,248,0.07)' : 'transparent'};border:1px solid ${isMe ? 'rgba(56,189,248,0.2)' : 'transparent'};border-radius:9px;margin-bottom:3px;${isDisq?'opacity:0.4;':''}">
-                  <span style="font-size:11px;font-weight:700;color:var(--text-secondary);width:18px;text-align:center;flex-shrink:0;">${i + 1}</span>
-                  <div style="width:30px;height:30px;border-radius:50%;background:rgba(${aColor},0.12);border:1px solid rgba(${aColor},0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:800;color:rgb(${aColor});">${ini.toUpperCase()}</div>
-                  <div style="flex:1;min-width:0;">
-                    <div style="font-size:13px;font-weight:${isMe ? '700' : '500'};color:${isMe ? 'var(--ocean-light)' : 'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name || 'Swimmer'}${isMe ? ' <span style="font-size:10px;color:var(--text-secondary);font-weight:400;">(you)</span>' : ''}</div>
-                    <div style="margin-top:3px;height:2px;background:rgba(255,255,255,0.05);border-radius:1px;overflow:hidden;">
-                      <div style="height:100%;width:${pct}%;background:rgba(${aColor},0.45);border-radius:1px;"></div>
-                    </div>
-                  </div>
-                  <span style="font-size:13px;font-weight:700;color:${isMe ? 'var(--ocean-light)' : '#64748b'};flex-shrink:0;">${pts}</span>
-                </div>`;
-            }).join('');
-
-            const fallback = myIdx < 0 && currentUser
-                ? `<div style="padding:12px 10px;background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.14);border-radius:9px;margin-top:6px;font-size:13px;color:var(--text-secondary);">${myPts > 0 ? `You have ${myPts} pts` : 'Log conditions to get on the board!'}</div>`
-                : '';
-            return rows + fallback;
+            return mine + pool + wall;
         }
+
+        // Kept name for existing call sites — now renders the draw view, not a ranking.
+        function jcRenderLeaderboard(sorted) { return jcRenderDrawView(sorted); }
 
         // ── Overlay ──────────────────────────────────────────────────────────────────
 
@@ -597,10 +575,8 @@
                 ]);
 
                 const leaders = lbResult.data || [];
-                const myIdx   = leaders.findIndex(r => r.user_id === currentUser?.id);
-                const myPts   = leaders[myIdx]?.total_points || 0;
 
-                lbEl.innerHTML   = jcRenderLeaderboard(leaders.slice(0, 20), myIdx, myPts);
+                lbEl.innerHTML   = jcRenderLeaderboard(leaders);
                 feedEl.innerHTML = jcRenderFeed(feedRes.data || []);
                 initIcons();
             } catch (e) {
