@@ -389,32 +389,6 @@
                     ? `<span style="background:rgba(245,158,11,0.2);color:#f59e0b;font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;margin-left:6px;">TEST</span>`
                     : '';
 
-                let myPositionCard = '';
-                if (myData && myData.total_points > 0) {
-                    const above = myIdx > 0 ? sorted[myIdx - 1] : null;
-                    const gapLine = above
-                        ? `${above.total_points - myData.total_points} pts behind ${above.display_name}`
-                        : "You're leading!";
-                    const myLogs   = myData.temp_logs_rewarded || 0;
-                    const inDraw   = myData.qualified_for_draw;
-                    const toGo     = Math.max(0, 10 - myLogs);
-                    const entries  = myData.draw_entries || 0;
-                    const drawBlock = inDraw
-                        ? `<div style="font-size:12px;"><span style="color:#10b981;font-weight:800;">✓ You're in the draw</span> <span style="color:var(--text-secondary);">— ${entries} ${entries===1?'entry':'entries'} for the MK2</span></div>`
-                        : `<div style="font-size:12px;color:var(--text);font-weight:600;margin-bottom:6px;">${myLogs}/10 logs — <span style="color:#38bdf8;">${toGo} more to enter the draw</span></div>
-                           <div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${Math.min(100, myLogs*10)}%;background:linear-gradient(90deg,#0284c7,#38bdf8);border-radius:3px;"></div></div>`;
-                    myPositionCard = `
-                    <div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:10px;padding:12px 14px;margin-bottom:14px;">
-                      <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <div>
-                          <div style="font-size:13px;font-weight:700;color:var(--text);">You're #${myIdx+1} &middot; ${myData.total_points} pts</div>
-                          <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${gapLine}</div>
-                        </div>
-                        <div style="font-size:15px;font-weight:800;color:${myIdx<3?'#fbbf24':'var(--text-secondary)'};">#${myIdx+1}</div>
-                      </div>
-                      <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);">${drawBlock}</div>
-                    </div>`;
-                }
 
                 el.innerHTML = `
                 <div style="background:linear-gradient(135deg,rgba(14,116,144,0.1),rgba(125,211,252,0.06));border:1px solid rgba(125,211,252,0.3);border-radius:14px;padding:18px;margin-bottom:4px;">
