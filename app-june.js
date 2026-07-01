@@ -136,8 +136,8 @@
 
         function jcShowPostActionFeedback(actionType, pts, drawEntries, score, opts) {
             const parts = [`+${pts} pts`];
-            if (drawEntries != null) parts.push(`${drawEntries} draw entries`);
-            if (score?.rank)         parts.push(`#${score.rank}`);
+            if (score?.inDraw)            parts.push(`✓ in the draw · ${score.entries} ${score.entries === 1 ? 'ticket' : 'tickets'}`);
+            else if (score?.logs != null) parts.push(`${score.logs}/10 logs to enter`);
             showToast(parts.join(' · '), 'success');
 
             if (['temp_log', 'create_swim', 'join_swim'].includes(actionType)) {
@@ -159,9 +159,9 @@
                 case 'join_swim':
                     return `I joined a community swim${opts.spotName ? ' at ' + opts.spotName : ''} on SwimLoading. Join the July Challenge! ${base}`;
                 default:
-                    return score?.rank && score.rank <= 10
-                        ? `I'm #${score.rank} on the July Challenge leaderboard on SwimLoading! ${base}`
-                        : `July Challenge is live on SwimLoading! Log. Swim. Share. Win a Blu Smooth MK2. ${base}`;
+                    return score?.inDraw
+                        ? `I'm in the July draw for a Blu Smooth MK2 on SwimLoading! Log 10 swims and you're in too. ${base}`
+                        : `July Challenge is live on SwimLoading! Log. Swim. Win a Blu Smooth MK2. ${base}`;
             }
         }
 
@@ -193,36 +193,24 @@
             await jcAwardPoints('whatsapp_share', {});
         }
 
-        // ── My score (quick rank from june_challenge_events) ─────────────────────────
+        // ── My draw status (logs, entries, pool) ─────────────────────────────────────
+        // Draw-focused, not a rank — the prize is a random draw, not a top-scorer race.
 
         async function jcGetMyScore() {
             if (!currentUser || !jcIsActive()) return null;
             try {
-                const { start, end } = jcDateRange();
+                const { data } = await supabaseClient.rpc('get_challenge_leaders');
+                const rows = data || [];
+                const me   = rows.find(r => r.user_id === currentUser.id) || null;
+                const pool = rows.filter(r => r.qualified_for_draw && !r.disqualified).length;
 
-                const { data: all } = await supabaseClient
-                    .from('june_challenge_events')
-                    .select('user_id, display_name, points')
-                    .gte('created_at', start.toISOString())
-                    .lte('created_at', end.toISOString());
-
-                const byUser = {};
-                for (const row of (all || [])) {
-                    if (!byUser[row.user_id]) byUser[row.user_id] = { display_name: row.display_name, points: 0 };
-                    byUser[row.user_id].points += row.points;
-                }
-                const sorted = Object.entries(byUser).sort((a, b) => b[1].points - a[1].points);
-                const myIdx  = sorted.findIndex(([uid]) => uid === currentUser.id);
-                const myPts  = myIdx >= 0 ? sorted[myIdx][1].points : 0;
-                const myRank = myIdx >= 0 ? myIdx + 1 : null;
-
-                let personAboveName = null, personAbovePts = null;
-                if (myIdx > 0) {
-                    personAboveName = sorted[myIdx - 1][1].display_name;
-                    personAbovePts  = sorted[myIdx - 1][1].points;
-                }
-
-                jcMyScore = { points: myPts, rank: myRank, personAboveName, personAbovePts };
+                jcMyScore = {
+                    points:    me?.total_points || 0,
+                    logs:      me?.temp_logs_rewarded || 0,
+                    entries:   me?.draw_entries || 0,
+                    inDraw:    !!(me && me.qualified_for_draw && !me.disqualified),
+                    poolCount: pool,
+                };
                 return jcMyScore;
             } catch (e) { return null; }
         }
@@ -282,20 +270,32 @@
                 ? `<span style="background:rgba(245,158,11,0.25);color:#f59e0b;font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;margin-left:6px;vertical-align:middle;">TEST</span>`
                 : '';
 
+            // Draw status — your reachable goal, never a rank
             let rankBlock;
-            if (score?.rank && score.points > 0) {
-                const isLeading = !score.personAboveName;
-                const gap = isLeading ? 0 : score.personAbovePts - score.points;
+            const myLogs = score?.logs || 0;
+            if (score?.inDraw) {
+                const tix = score.entries || 0;
                 rankBlock = `
-                <div style="background:linear-gradient(135deg,rgba(56,189,248,0.08),rgba(14,116,144,0.06));border:1px solid rgba(56,189,248,0.22);border-radius:12px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">
+                <div style="background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(6,95,70,0.06));border:1px solid rgba(16,185,129,0.3);border-radius:12px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">
                   <div style="flex:1;">
-                    <div style="font-size:34px;font-weight:900;color:#f1f5f9;line-height:1;letter-spacing:-1px;">#${score.rank}</div>
-                    <div style="font-size:13px;color:#64748b;margin-top:4px;">${isLeading ? '<span style="color:#10b981;font-weight:700;">You\'re leading</span>' : `<span style="color:#f59e0b;font-weight:600;">${gap} pts behind ${score.personAboveName}</span>`}</div>
+                    <div style="font-size:17px;font-weight:900;color:#10b981;line-height:1.1;">✓ You're in the draw</div>
+                    <div style="font-size:12px;color:#64748b;margin-top:4px;">Keep logging to add tickets</div>
                   </div>
                   <div style="text-align:right;">
-                    <div style="font-size:24px;font-weight:900;color:#38bdf8;line-height:1;">${score.points}</div>
-                    <div style="font-size:11px;color:#475569;margin-top:2px;">points</div>
+                    <div style="font-size:26px;font-weight:900;color:#38bdf8;line-height:1;">${tix}</div>
+                    <div style="font-size:11px;color:#475569;margin-top:2px;">${tix === 1 ? 'ticket' : 'tickets'}</div>
                   </div>
+                </div>`;
+            } else if (myLogs > 0) {
+                const toGo = Math.max(0, 10 - myLogs);
+                const pct  = Math.min(100, myLogs * 10);
+                rankBlock = `
+                <div style="background:linear-gradient(135deg,rgba(56,189,248,0.08),rgba(14,116,144,0.06));border:1px solid rgba(56,189,248,0.22);border-radius:12px;padding:14px 16px;margin-bottom:12px;">
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+                    <div style="font-size:15px;font-weight:800;color:#f1f5f9;">${myLogs}/10 logs</div>
+                    <div style="font-size:12px;color:#38bdf8;font-weight:700;">${toGo} to enter the draw</div>
+                  </div>
+                  <div style="height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#0284c7,#38bdf8);border-radius:4px;"></div></div>
                 </div>`;
             } else {
                 rankBlock = `
