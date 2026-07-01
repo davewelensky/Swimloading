@@ -152,16 +152,16 @@
             switch (actionType) {
                 case 'temp_log':
                     return opts.spotName
-                        ? `I just logged ${opts.temp ? opts.temp + '°C at ' : 'conditions at '}${opts.spotName} on SwimLoading. June Challenge is live! ${base}`
-                        : `Just shared swim conditions on SwimLoading. June Challenge is live! ${base}`;
+                        ? `I just logged ${opts.temp ? opts.temp + '°C at ' : 'conditions at '}${opts.spotName} on SwimLoading. July Challenge is live! ${base}`
+                        : `Just shared swim conditions on SwimLoading. July Challenge is live! ${base}`;
                 case 'create_swim':
                     return `I just created a community swim${opts.spotName ? ' at ' + opts.spotName : ''} on SwimLoading. Join me! ${base}`;
                 case 'join_swim':
-                    return `I joined a community swim${opts.spotName ? ' at ' + opts.spotName : ''} on SwimLoading. Join the June Challenge! ${base}`;
+                    return `I joined a community swim${opts.spotName ? ' at ' + opts.spotName : ''} on SwimLoading. Join the July Challenge! ${base}`;
                 default:
                     return score?.rank && score.rank <= 10
-                        ? `I'm #${score.rank} on the June Challenge leaderboard on SwimLoading! ${base}`
-                        : `June Community Challenge is live on SwimLoading! Log. Swim. Share. Win. ${base}`;
+                        ? `I'm #${score.rank} on the July Challenge leaderboard on SwimLoading! ${base}`
+                        : `July Challenge is live on SwimLoading! Log. Swim. Share. Win a Blu Smooth MK2. ${base}`;
             }
         }
 
@@ -242,12 +242,12 @@
                 const daysAway = Math.ceil((juneStart - now) / 86400000);
                 if (daysAway > 0 && daysAway <= 14) {
                     el.innerHTML = `
-                    <div onclick="showPage('leaderboard')" style="cursor:pointer;background:linear-gradient(135deg,#0c1520,#080f1a);border:1px solid rgba(251,191,36,0.3);border-radius:16px;overflow:hidden;">
-                      <div style="height:3px;background:linear-gradient(90deg,#f59e0b,#fbbf24,#38bdf8);"></div>
+                    <div onclick="showPage('leaderboard')" style="cursor:pointer;background:linear-gradient(135deg,#0c1520,#080f1a);border:1px solid rgba(56,189,248,0.3);border-radius:16px;overflow:hidden;">
+                      <div style="height:3px;background:linear-gradient(90deg,#0284c7,#38bdf8,#7dd3fc);"></div>
                       <div style="padding:16px;">
-                        <div style="font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">June Community Challenge</div>
+                        <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">July Challenge · Winter Warrior</div>
                         <div style="font-weight:800;font-size:18px;color:#f1f5f9;">Starts in ${daysAway} day${daysAway !== 1 ? 's' : ''}</div>
-                        <div style="font-size:12px;color:#64748b;margin-top:4px;">Custom THEMAGIC5 goggles · R3,000 value</div>
+                        <div style="font-size:12px;color:#64748b;margin-top:4px;">Blu Smooth MK2 Comp wetsuit · R5,999 value</div>
                       </div>
                     </div>`;
                     initIcons();
@@ -322,28 +322,28 @@
                 : '';
 
             return `
-            <div onclick="jcOpenOverlay()" style="cursor:pointer;background:linear-gradient(160deg,#0c1520 0%,#070e18 100%);border:1px solid rgba(251,191,36,0.28);border-radius:16px;overflow:hidden;position:relative;">
-              <div style="height:3px;background:linear-gradient(90deg,#b45309 0%,#f59e0b 40%,#fbbf24 60%,#38bdf8 100%);"></div>
+            <div onclick="jcOpenOverlay()" style="cursor:pointer;background:linear-gradient(160deg,#0c1520 0%,#070e18 100%);border:1px solid rgba(56,189,248,0.28);border-radius:16px;overflow:hidden;position:relative;">
+              <div style="height:3px;background:linear-gradient(90deg,#0284c7 0%,#38bdf8 50%,#7dd3fc 100%);"></div>
 
               <div style="padding:16px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
                   <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.8px;">
-                    <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:5px;vertical-align:middle;box-shadow:0 0 6px rgba(16,185,129,0.6);"></span>June Challenge · Live${testBadge}
+                    <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:5px;vertical-align:middle;box-shadow:0 0 6px rgba(16,185,129,0.6);"></span>July Challenge · Live${testBadge}
                   </div>
-                  <div style="font-size:12px;font-weight:700;color:#f59e0b;">${daysLeft}d left</div>
+                  <div style="font-size:12px;font-weight:700;color:#38bdf8;">${daysLeft}d left</div>
                 </div>
 
-                <div style="border:1px solid rgba(251,191,36,0.3);border-radius:12px;overflow:hidden;margin-bottom:14px;">
+                <div style="border:1px solid rgba(56,189,248,0.3);border-radius:12px;overflow:hidden;margin-bottom:14px;">
                   <div style="position:relative;height:130px;overflow:hidden;">
-                    <img src="/icons/tm5-hero.jpg" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center 55%;display:block;" onerror="this.parentElement.style.background='linear-gradient(135deg,#1a0a00,#0d1728)'">
+                    <img src="/partners/Blusmooth%20MK2.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center 45%;display:block;" onerror="this.parentElement.style.background='linear-gradient(135deg,#04263b,#0d1728)'">
                     <div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.35) 55%,rgba(0,0,0,0) 100%);"></div>
                     <div style="position:absolute;inset:0;padding:10px 14px;display:flex;align-items:flex-end;justify-content:space-between;">
                       <div>
-                        <div style="font-size:13px;font-weight:900;color:#fbbf24;letter-spacing:-0.2px;text-shadow:0 1px 4px rgba(0,0,0,0.9);">THEMAGIC5 Custom Goggles</div>
-                        <div style="font-size:11px;color:#fde68a;font-weight:600;margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">AI-fitted · R3,000 value · Grand prize</div>
-                        <div style="font-size:10px;color:rgba(253,230,138,0.7);margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">Every valid point = 1 prize draw entry</div>
+                        <div style="font-size:13px;font-weight:900;color:#7dd3fc;letter-spacing:-0.2px;text-shadow:0 1px 4px rgba(0,0,0,0.9);">Blu Smooth MK2 Comp</div>
+                        <div style="font-size:11px;color:#bae6fd;font-weight:600;margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">R5,999 · Not in shops yet · Grand prize</div>
+                        <div style="font-size:10px;color:rgba(186,230,253,0.75);margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">Every valid point = 1 prize draw entry</div>
                       </div>
-                      <i data-lucide="trophy" style="width:22px;height:22px;color:#f59e0b;flex-shrink:0;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.9));margin-bottom:2px;"></i>
+                      <i data-lucide="trophy" style="width:22px;height:22px;color:#38bdf8;flex-shrink:0;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.9));margin-bottom:2px;"></i>
                     </div>
                   </div>
                 </div>
@@ -352,10 +352,10 @@
 
                 ${liveRow}
 
-                <div style="display:flex;align-items:center;gap:8px;padding:11px 14px;border-radius:10px;background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.25);">
-                  <i data-lucide="activity" style="width:15px;height:15px;color:#f59e0b;"></i>
-                  <span style="font-size:13px;font-weight:700;color:#f59e0b;">View live feed + leaderboard</span>
-                  <i data-lucide="chevron-right" style="width:14px;height:14px;color:#f59e0b;margin-left:auto;"></i>
+                <div style="display:flex;align-items:center;gap:8px;padding:11px 14px;border-radius:10px;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.25);">
+                  <i data-lucide="activity" style="width:15px;height:15px;color:#38bdf8;"></i>
+                  <span style="font-size:13px;font-weight:700;color:#38bdf8;">View live feed + leaderboard</span>
+                  <i data-lucide="chevron-right" style="width:14px;height:14px;color:#38bdf8;margin-left:auto;"></i>
                 </div>
               </div>
             </div>
@@ -370,7 +370,7 @@
             await jcInit();
             if (!jcIsActive()) return;
 
-            el.innerHTML = `<div style="text-align:center;padding:14px;color:var(--text-secondary);font-size:13px;">Loading June Challenge…</div>`;
+            el.innerHTML = `<div style="text-align:center;padding:14px;color:var(--text-secondary);font-size:13px;">Loading July Challenge…</div>`;
 
             try {
                 const { start, end } = jcDateRange();
@@ -412,7 +412,7 @@
                 <div style="background:linear-gradient(135deg,rgba(14,116,144,0.1),rgba(125,211,252,0.06));border:1px solid rgba(125,211,252,0.3);border-radius:14px;padding:18px;margin-bottom:4px;">
                   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
                     <div>
-                      <div style="font-size:10px;color:#7dd3fc;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:3px;">June Community Challenge${testBadge}</div>
+                      <div style="font-size:10px;color:#7dd3fc;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:3px;">July Challenge · Winter Warrior${testBadge}</div>
                       <div style="font-weight:800;font-size:17px;color:var(--text);line-height:1.2;">Log. Swim. Share. Win.</div>
                       <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.4;">Every valid point becomes a prize draw entry. The more you participate, the better your odds.</div>
                     </div>
@@ -421,12 +421,12 @@
 
                   <!-- Prize -->
                   <div style="margin-bottom:14px;">
-                    <div style="background:linear-gradient(135deg,rgba(251,191,36,0.12),rgba(180,83,9,0.07));border:1px solid rgba(251,191,36,0.3);border-radius:8px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">
+                    <div style="background:linear-gradient(135deg,rgba(56,189,248,0.12),rgba(2,132,199,0.07));border:1px solid rgba(56,189,248,0.3);border-radius:8px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">
                       <div>
-                        <div style="font-size:12px;font-weight:700;color:#fbbf24;">Grand Prize — THEMAGIC5</div>
-                        <div style="font-size:11px;color:#d97706;margin-top:2px;">Custom Vector goggles · AI-fitted to your face · R3,000 value</div>
+                        <div style="font-size:12px;font-weight:700;color:#7dd3fc;">Grand Prize — Blu Smooth MK2</div>
+                        <div style="font-size:11px;color:#38bdf8;margin-top:2px;">MK2 Comp wetsuit · not yet in shops · R5,999 value</div>
                       </div>
-                      <div style="font-size:11px;font-weight:700;color:#fbbf24;white-space:nowrap;margin-left:12px;">1 winner</div>
+                      <div style="font-size:11px;font-weight:700;color:#7dd3fc;white-space:nowrap;margin-left:12px;">1 winner</div>
                     </div>
                   </div>
 
@@ -453,7 +453,7 @@
                           <span style="font-size:13px;font-weight:700;color:var(--ocean-light);white-space:nowrap;margin-left:12px;">+${JC_POINTS[k]}</span>
                         </div>`).join('')}
                       <div style="margin-top:10px;font-size:11px;color:var(--text-secondary);line-height:1.6;">
-                        The Magic5 winner will be drawn from qualified participants.<br>
+                        The Blu Smooth MK2 winner will be drawn from qualified participants.<br>
                         <span style="color:rgba(100,116,139,0.7);">Fair play rules apply. Prize draw eligibility requires genuine participation.</span>
                       </div>
                     </div>
@@ -468,7 +468,7 @@
                 initIcons();
             } catch (e) {
                 console.warn('jcLoadBoardSection error:', e);
-                el.innerHTML = `<div style="text-align:center;color:var(--text-secondary);padding:16px;">Could not load June Challenge</div>`;
+                el.innerHTML = `<div style="text-align:center;color:var(--text-secondary);padding:16px;">Could not load July Challenge</div>`;
             }
         }
 
