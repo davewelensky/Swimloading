@@ -7727,7 +7727,11 @@ function renderRosterTable() {
       ? `<span onclick="toggleRosterFeePaid('${r.id}',false)" title="Mark fee as paid" style="cursor:pointer;font-size:10px;font-weight:700;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.35);color:#f59e0b;padding:1px 7px;border-radius:4px;">UNPAID ×</span>`
       : `<span onclick="toggleRosterFeePaid('${r.id}',true)" title="Mark fee as unpaid" style="cursor:pointer;font-size:10px;color:var(--text-dim);padding:1px 7px;border-radius:4px;border:1px solid var(--border);">+ unpaid</span>`;
 
-    const subLine = [squadName, trialPill, feePill].filter(Boolean);
+    // Default LTS lesson-time badge — only for Learn-to-Swim swimmers who have one set
+    const isLtsSwimmer = (squadName || '').toLowerCase().includes('learn to swim');
+    const ltsSlotBadge = (isLtsSwimmer && r.lts_default_slot)
+      ? `<span title="Default Learn-to-Swim lesson time" style="font-size:10px;font-weight:700;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.3);color:var(--cyan);padding:1px 7px;border-radius:4px;display:inline-flex;align-items:center;gap:3px;"><i data-lucide="clock" style="width:10px;height:10px;"></i>${r.lts_default_slot.slice(0,5)}</span>`
+      : '';
 
     return `<tr data-roster-id="${r.id}">
       <td><span class="member-num">${r.member_number ?? '—'}</span></td>
@@ -7735,7 +7739,7 @@ function renderRosterTable() {
         <div>${r.display_name || '—'}${ageTxt}</div>
         <div style="display:flex;align-items:center;gap:5px;margin-top:3px;flex-wrap:wrap;">
           ${squadName ? `<span style="font-size:11px;color:var(--text-sec);">${squadName}</span>` : ''}
-          ${trialPill}${feePill}
+          ${ltsSlotBadge}${trialPill}${feePill}
         </div>
       </td>
       <td><span class="cat-badge ${catClass(r.category)}">${r.category || '—'}</span></td>
