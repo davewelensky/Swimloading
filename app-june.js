@@ -747,12 +747,14 @@
                   ${anomalies.map(a => {
                     const t = new Date(a.logged_at).toLocaleString('en-ZA', { timeZone:'Africa/Johannesburg', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
                     return `<div style="padding:8px 10px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;margin-bottom:4px;font-size:12px;">
-                      <div style="color:var(--text);font-weight:600;">${a.display_name || '?'}</div>
-                      <div style="color:var(--text-secondary);margin-top:2px;">${a.prev_spot} → <strong style="color:var(--text);">${a.spot}</strong> · ${Math.round(a.km_from_prev)}km in ${Math.round(a.mins_gap)} min <span style="color:#ef4444;">(${Math.round(a.implied_kmh).toLocaleString()} km/h)</span></div>
-                      <div style="color:rgba(100,116,139,0.7);margin-top:1px;">${t} · ${a.temp_c}°C</div>
+                      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                        <span style="color:var(--text);font-weight:600;">${a.display_name || '?'} · ${a.spot} · ${a.temp_c}°C</span>
+                        <button onclick="jcVoidLog('${a.log_id}', '${(a.spot || '').replace(/'/g,'')}', '${containerId || 'jcAdminDebug'}')" style="flex-shrink:0;padding:4px 12px;border-radius:6px;border:1px solid rgba(239,68,68,0.35);background:rgba(239,68,68,0.12);color:#ef4444;font-size:11px;font-weight:700;cursor:pointer;">Void</button>
+                      </div>
+                      <div style="color:var(--text-secondary);margin-top:3px;">${a.prev_spot} → <strong style="color:var(--text);">${a.spot}</strong> · ${Math.round(a.km_from_prev)}km in ${Math.round(a.mins_gap)} min <span style="color:#ef4444;">(${Math.round(a.implied_kmh).toLocaleString()} km/h)</span> · ${t}</div>
                     </div>`;
                   }).join('')}
-                  <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">Impossible travel between consecutive logs — check for wrong spot / bogus log, then void or flag.</div>
+                  <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">Impossible travel between consecutive logs. Void removes that log's challenge points/entry (keeps the log).</div>
                 </div>` : ''}
 
                 ${openFlags.length > 0 ? `
@@ -834,5 +836,18 @@
                 jcLoadAdminDebug(containerId);
             } catch (e) {
                 showToast('Failed: ' + e.message, 'error');
+            }
+        }
+
+        // Void one anomalous log's challenge points/entry (keeps the temp_log itself)
+        async function jcVoidLog(logId, spotName, containerId) {
+            if (!confirm(`Void the challenge points for this log${spotName ? ' at ' + spotName : ''}?\n\nThe log stays, but it stops counting toward points and draw entries.`)) return;
+            try {
+                const { data, error } = await supabaseClient.rpc('void_challenge_log', { p_log_id: logId });
+                if (error) throw error;
+                showToast(data > 0 ? 'Log voided — points removed' : 'Nothing to void (already cleared)', 'success');
+                jcLoadAdminDebug(containerId);
+            } catch (e) {
+                showToast('Could not void: ' + e.message, 'error');
             }
         }
