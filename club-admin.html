@@ -1120,16 +1120,21 @@
           <div class="page-sub">Recurring sessions — drives Today's Schedule and attendance sheets</div>
         </div>
         <div class="card" style="padding:24px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <div style="flex:1;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+            <div style="flex:1;min-width:200px;">
               <div style="font-size:13px;color:var(--text-sec);">Add or manage your club's weekly training schedule</div>
             </div>
-            <div style="display:flex;gap:8px;">
+            <div style="display:flex;gap:8px;align-items:center;">
+              <div style="display:flex;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:2px;">
+                <button id="ttViewScheduleBtn" onclick="setTimetableView('schedule')" style="background:var(--cyan);color:#0a1628;border:none;cursor:pointer;font-size:12px;font-weight:700;padding:6px 12px;border-radius:6px;">Schedule</button>
+                <button id="ttViewCapacityBtn" onclick="setTimetableView('capacity')" style="background:none;color:var(--text-sec);border:none;cursor:pointer;font-size:12px;font-weight:700;padding:6px 12px;border-radius:6px;">Capacity</button>
+              </div>
               <button style="background:none;border:1px solid var(--border);color:var(--text-sec);cursor:pointer;font-size:13px;padding:8px 14px;border-radius:8px;" onclick="openScheduleImport()" onmouseover="this.style.borderColor='var(--cyan)';this.style.color='var(--cyan)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-sec)'">Import schedule</button>
               <button class="btn-primary" style="width:auto;padding:8px 16px;border-radius:8px;font-size:13px;" onclick="openAddTimetableModal()">Add session</button>
             </div>
           </div>
           <div id="timetablePageList"><div style="color:var(--text-sec);font-size:13px;">Loading…</div></div>
+          <div id="timetableCapacityList" style="display:none;"></div>
         </div>
       </div>
 
@@ -6263,6 +6268,95 @@ function renderSettingsTimetable(sessions) {
   if (pageEl) pageEl.innerHTML = html;
 }
 
+// ── TIMETABLE: SCHEDULE / CAPACITY TOGGLE ───────────────────────────
+
+function setTimetableView(view) {
+  const scheduleBtn = document.getElementById('ttViewScheduleBtn');
+  const capacityBtn = document.getElementById('ttViewCapacityBtn');
+  const scheduleList = document.getElementById('timetablePageList');
+  const capacityList = document.getElementById('timetableCapacityList');
+  if (!scheduleBtn || !capacityBtn || !scheduleList || !capacityList) return;
+
+  const isCapacity = view === 'capacity';
+  scheduleList.style.display = isCapacity ? 'none' : '';
+  capacityList.style.display = isCapacity ? '' : 'none';
+  scheduleBtn.style.background = isCapacity ? 'none' : 'var(--cyan)';
+  scheduleBtn.style.color = isCapacity ? 'var(--text-sec)' : '#0a1628';
+  capacityBtn.style.background = isCapacity ? 'var(--cyan)' : 'none';
+  capacityBtn.style.color = isCapacity ? '#0a1628' : 'var(--text-sec)';
+
+  if (isCapacity) renderTimetableCapacityView();
+}
+
+function renderTimetableCapacityView() {
+  const el = document.getElementById('timetableCapacityList');
+  if (!el) return;
+  const sessions = (allTimetableSessions || []).filter(s => s.is_active !== false);
+  if (!sessions.length) {
+    el.innerHTML = `<div style="color:var(--text-sec);font-size:13px;text-align:center;padding:12px 0;">No sessions yet.</div>`;
+    return;
+  }
+
+  const squadMap = {};
+  allSquads.forEach(s => { squadMap[s.id] = s; });
+  const squadRosterSize = {};
+  (allRosterFull || []).forEach(r => {
+    if (r.squad_id) squadRosterSize[r.squad_id] = (squadRosterSize[r.squad_id] || 0) + 1;
+  });
+
+  const byDay = {};
+  sessions.forEach(s => { (byDay[s.day_of_week] = byDay[s.day_of_week] || []).push(s); });
+  const sortedDays = [1,2,3,4,5,6,0].filter(d => byDay[d]);
+
+  const html = sortedDays.map(dow => {
+    const rows = byDay[dow]
+      .sort((a,b) => (a.start_time||'').localeCompare(b.start_time||''))
+      .map(s => {
+        const squad = squadMap[s.squad_id];
+        const isLTS = (squad?.name || '').toLowerCase().includes('learn to swim');
+        const label = s.custom_name || squad?.name || '—';
+        const start = s.start_time?.slice(0,5) || '';
+        const end   = s.end_time?.slice(0,5)   || '';
+        const assigned = sessionAssignmentCounts[s.id] || 0;
+        const rosterSize = squadRosterSize[s.squad_id] || 0;
+
+        let capacityBadge;
+        if (isLTS) {
+          capacityBadge = `<span style="font-size:12px;color:var(--text-sec);">see Slots</span>`;
+        } else if (s.max_capacity) {
+          const pct = assigned / s.max_capacity;
+          const color = pct >= 1 ? 'var(--danger)' : pct >= 0.8 ? 'var(--amber)' : 'var(--green)';
+          capacityBadge = `<span style="font-size:13px;font-weight:700;color:${color};">${assigned} / ${s.max_capacity}</span>`;
+        } else if (assigned > 0) {
+          capacityBadge = `<span style="font-size:13px;font-weight:700;color:var(--cyan);">${assigned} assigned</span>`;
+        } else {
+          capacityBadge = `<span style="font-size:12px;color:var(--amber);">not assigned yet${rosterSize ? ` · squad has ${rosterSize}` : ''}</span>`;
+        }
+
+        return `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:4px;border:1px solid var(--border);">
+            <div style="font-size:13px;min-width:0;">
+              <span style="font-weight:600;color:var(--text);">${label}</span>
+              <span style="color:var(--text-sec);margin-left:10px;">${start}${end ? '–' + end : ''}</span>
+              ${s.coach_name ? `<span style="color:var(--text-sec);margin-left:8px;">· ${s.coach_name}</span>` : ''}
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+              ${capacityBadge}
+              ${!isLTS ? `<button onclick="openSessionAssignModal('${s.id}')" style="background:none;border:1px solid var(--border);color:var(--text-sec);cursor:pointer;font-size:12px;padding:4px 10px;border-radius:6px;" onmouseover="this.style.borderColor='var(--cyan-border)';this.style.color='var(--cyan)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-sec)'">Manage</button>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+
+    return `
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">${DAYS[dow]}</div>
+      ${rows}
+    </div>`;
+  }).join('');
+
+  el.innerHTML = html;
+}
+
 // ── SQUAD CRUD ─────────────────────────────────────────────────────
 
 function openAddSquadModal() {
@@ -6568,6 +6662,7 @@ async function saveSessionAssignments() {
   showToast(`${checked.length} swimmers assigned`);
   closeSessionAssignModal();
   renderSettingsTimetable(allTimetableSessions);
+  if (document.getElementById('timetableCapacityList')?.style.display !== 'none') renderTimetableCapacityView();
 }
 
 // ── SCHEDULE IMPORT ────────────────────────────────────────────────
@@ -8275,7 +8370,7 @@ async function loadSquads() {
     const todayDow = new Date().getDay();
     const squadIds = allSquads.map(s => s.id);
     const { data: weekData } = await sb.from('club_squad_sessions')
-      .select('id, squad_id, day_of_week, start_time, end_time, coach_name, max_capacity, notes, is_active')
+      .select('id, squad_id, day_of_week, start_time, end_time, coach_name, max_capacity, notes, is_active, custom_name')
       .in('squad_id', squadIds).eq('is_active', true).order('day_of_week').order('start_time');
     allWeekSessions      = weekData || [];
     allTimetableSessions = allWeekSessions;
@@ -8569,6 +8664,7 @@ const ATTENDANCE_STATUSES = [
   { key: 'away',       label: 'Away',   title: 'Away'         },
   { key: 'dnp',        label: 'DNP',    title: 'Did Not Pay'  },
   { key: 'catch_up',   label: 'C/U',   title: 'Catch-up'     },
+  { key: 'cxl',        label: 'CXL',    title: 'Session Cancelled' },
 ];
 
 let allSessions          = [];
@@ -9023,7 +9119,7 @@ function renderSessionsList() {
     const s = recorded;
     const sched = scheduled;
     const squadId = s?.squad_id || sched?.squad_id;
-    const squadName = squadId ? (allSquads.find(sq => sq.id === squadId)?.name || '') : '';
+    const squadName = sched?.custom_name || (squadId ? (allSquads.find(sq => sq.id === squadId)?.name || '') : '');
     const squadRosterSize = squadId ? allRosterFull.filter(r => r.squad_id === squadId).length : rosterTotal;
     const startTime = (s?.start_time || sched?.start_time || '').slice(0, 5);
     const endTime = (s?.end_time || sched?.end_time || '').slice(0, 5);
@@ -9861,7 +9957,8 @@ function renderMarkModal(session) {
   const walkinRoster = walkins.map(id => allRosterFull.find(r => r.id === id)).filter(Boolean);
 
   const attended   = Object.values(attendanceMarks).filter(s => s === 'present' || s === 'late' || s === 'catch_up').length;
-  const sessionLabel = squad ? squad.name : `${session.session_type} Session`;
+  const tplForLabel = activeSquadSessionId ? (allWeekSessions || []).find(s => s.id === activeSquadSessionId) : null;
+  const sessionLabel = tplForLabel?.custom_name || (squad ? squad.name : `${session.session_type} Session`);
   const existingNote = session.notes || '';
 
   // Walk-in search: show all non-assigned roster members
@@ -9966,6 +10063,7 @@ function markActiveStyle(status) {
     no_show:    'background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;',
     away:       'background:rgba(100,116,139,0.15);border:1px solid rgba(100,116,139,0.4);color:#94a3b8;',
     dnp:        'background:rgba(249,115,22,0.15);border:1px solid rgba(249,115,22,0.4);color:#f97316;',
+    cxl:        'background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.4);color:#8b5cf6;',
     late:       'background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.4);color:#38bdf8;',
     absent:     'background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;',
     excused:    'background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);color:#f59e0b;',
