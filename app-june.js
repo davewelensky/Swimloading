@@ -702,7 +702,7 @@
             const { start, end } = jcDateRange();
 
             try {
-                const [feedRes, leadersRes, flagsRes, anomRes] = await Promise.all([
+                const [feedRes, leadersRes, flagsRes, anomRes, tempRes] = await Promise.all([
                     supabaseClient
                         .from('june_challenge_events')
                         .select('action_type, points, user_id, display_name, created_at, spot_name')
@@ -717,12 +717,14 @@
                         .eq('challenge_id', 1)
                         .order('created_at', { ascending: false }),
                     supabaseClient.rpc('get_challenge_anomalies'),
+                    supabaseClient.rpc('get_challenge_temp_outliers'),
                 ]);
 
                 const data      = feedRes.data || [];
                 const leaders   = leadersRes.data || [];
                 const flags     = flagsRes.data || [];
                 const anomalies = anomRes.data || [];
+                const tempOut   = tempRes.data || [];
                 const totalPts  = data.reduce((s, r) => s + r.points, 0);
                 const uniqueUsers = new Set(data.map(r => r.user_id)).size;
                 const byAction  = {};
@@ -755,6 +757,23 @@
                     </div>`;
                   }).join('')}
                   <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">Impossible travel between consecutive logs. Void removes that log's challenge points/entry (keeps the log).</div>
+                </div>` : ''}
+
+                ${tempOut.length > 0 ? `
+                <div style="margin-bottom:12px;">
+                  <div style="font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;margin-bottom:6px;">Temperature outliers to review (${tempOut.length})</div>
+                  ${tempOut.map(o => {
+                    const t = new Date(o.logged_at).toLocaleString('en-ZA', { timeZone:'Africa/Johannesburg', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+                    const dev = Number(o.deviation);
+                    return `<div style="padding:8px 10px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:8px;margin-bottom:4px;font-size:12px;">
+                      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                        <span style="color:var(--text);font-weight:600;">${o.display_name || '?'} · ${o.spot}</span>
+                        <button onclick="jcVoidLog('${o.log_id}', '${(o.spot || '').replace(/'/g,'')}', '${containerId || 'jcAdminDebug'}')" style="flex-shrink:0;padding:4px 12px;border-radius:6px;border:1px solid rgba(245,158,11,0.4);background:rgba(245,158,11,0.12);color:#f59e0b;font-size:11px;font-weight:700;cursor:pointer;">Void</button>
+                      </div>
+                      <div style="color:var(--text-secondary);margin-top:3px;">Logged <strong style="color:var(--text);">${o.temp_c}°C</strong> · spot usually ~${o.spot_median}°C <span style="color:#f59e0b;">(${dev > 0 ? '+' : ''}${dev}°)</span> · ${o.baseline_logs} readings · ${t}</div>
+                    </div>`;
+                  }).join('')}
+                  <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">Reading far off the spot's recent norm — could be a wrong spot or a typo. Check before voiding (some spots genuinely vary).</div>
                 </div>` : ''}
 
                 ${openFlags.length > 0 ? `
