@@ -112,6 +112,13 @@ export default async function handler(req, res) {
     const { ok, body: logRows } = await supabasePost('temp_logs', logData);
     if (!ok || !logRows || logRows.length === 0) {
         console.error('[strava/import-activity] temp_log insert failed:', logRows);
+        const dbMessage = logRows?.message || '';
+        if (/48 hours/i.test(dbMessage)) {
+            return res.status(400).json({
+                error: 'too_old_to_import',
+                message: 'This swim is more than 48 hours old and can no longer be imported. Log it manually instead.',
+            });
+        }
         return res.status(500).json({ error: 'log_insert_failed' });
     }
 

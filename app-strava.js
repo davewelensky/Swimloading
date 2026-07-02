@@ -288,6 +288,20 @@ function renderActivityRow(a) {
             </div>`;
     }
 
+    // Backend rejects logs more than 48h old (anti-backdating) — warn upfront
+    // instead of letting the swimmer tap Log and hit a generic save error.
+    const isTooOld = a.start_date_local && (Date.now() - new Date(a.start_date_local).getTime()) > 48 * 60 * 60 * 1000;
+    if (isTooOld) {
+        return `
+            <div style="padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:12px;opacity:0.55;">
+                <div style="flex:1;min-width:0;">
+                    <div style="font-weight:600;font-size:14px;color:var(--text-primary);margin-bottom:2px;">${escapeHtml(a.name || 'Swim')}</div>
+                    <div style="font-size:12px;color:var(--text-secondary);">${date} · ${distKm} · ${duration}</div>
+                    <div style="margin-top:3px;font-size:11px;color:#f59e0b;">Too old to import — log manually instead</div>
+                </div>
+            </div>`;
+    }
+
     return `
         <div style="padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:12px;">
             <div style="flex:1;min-width:0;">
@@ -503,6 +517,11 @@ async function submitStravaLog() {
             if (data.error === 'already_imported') {
                 showToast('This swim has already been imported.', 'info');
                 closeStravaLogModal();
+                return;
+            }
+            if (data.error === 'too_old_to_import') {
+                showToast(data.message || 'This swim is more than 48 hours old and can no longer be imported.', 'error');
+                if (btn) { btn.textContent = 'Save SwimLoading Log'; btn.disabled = false; }
                 return;
             }
             throw new Error(data.error || 'import_failed');
