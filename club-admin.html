@@ -10141,7 +10141,7 @@ async function openMarkSession(sessionId) {
 
   // Load intents, LTS assignments, and health events in parallel
   const fetches = [
-    sb.from('club_session_attendance').select('roster_id, session_start, status').eq('club_id', currentClub.id).eq('session_date', session.session_date),
+    sb.from('club_session_attendance').select('roster_id, session_start, status, time_slot').eq('club_id', currentClub.id).eq('session_date', session.session_date),
   ];
   if (isLTS && activeSquadSessionId) {
     fetches.push(sb.from('club_session_assignments').select('roster_id, time_slot').eq('session_id', activeSquadSessionId).eq('club_id', currentClub.id));
@@ -10160,6 +10160,16 @@ async function openMarkSession(sessionId) {
 
   // Build LTS slot map and ordered swimmer id list
   const slots = slotRes.data || [];
+  if (isLTS) {
+    // Append catch-up swimmers (added via the session detail view) — they aren't in club_session_assignments
+    const sessionStartShort = (session.start_time || '').slice(0,5);
+    (intentRes.data || [])
+      .filter(i => i.status === 'catch_up' && i.session_start === sessionStartShort)
+      .forEach(c => {
+        if (slots.some(s => s.roster_id === c.roster_id)) return;
+        slots.push({ roster_id: c.roster_id, time_slot: c.time_slot || sessionStartShort });
+      });
+  }
   if (slots.length) {
     slots.sort((a,b) => (a.time_slot||'99:99').localeCompare(b.time_slot||'99:99'));
     slots.forEach(a => { if (a.time_slot) ltsSlotMap[a.roster_id] = a.time_slot; });
@@ -10225,6 +10235,8 @@ function renderSwimmerRow(r, isWalkin) {
     ? `<span style="font-size:9px;font-weight:800;color:#10b981;background:rgba(16,185,129,0.1);border-radius:6px;padding:1px 6px;white-space:nowrap;">Confirmed</span>`
     : intent === 'absent'
     ? `<span style="font-size:9px;font-weight:800;color:#ef4444;background:rgba(239,68,68,0.08);border-radius:6px;padding:1px 6px;white-space:nowrap;">Not coming</span>`
+    : intent === 'catch_up'
+    ? `<span style="font-size:9px;font-weight:800;color:#10b981;background:rgba(16,185,129,0.1);border-radius:6px;padding:1px 6px;white-space:nowrap;">Catch-up</span>`
     : '';
   const trialBadge = r.is_trial
     ? `<span style="font-size:9px;font-weight:800;color:#ef4444;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:6px;padding:1px 6px;white-space:nowrap;">TRIAL</span>`
