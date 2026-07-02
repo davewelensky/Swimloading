@@ -990,11 +990,20 @@ async function loadUsers() {
 
     if (pErr) { console.error('profiles error:', pErr); return; }
 
-    // Fetch temp_logs summary per user
-    const { data: tempLogs, error: tErr } = await supabaseClient
-        .from('temp_logs')
-        .select('user_id, created_at')
-        .order('created_at', { ascending: false });
+    // Fetch temp_logs summary per user — paginate past PostgREST's 1000-row cap
+    // so the total + per-user counts are accurate (was maxing out at 1000).
+    let tempLogs = [];
+    let tErr = null;
+    for (let from = 0; ; from += 1000) {
+        const { data, error } = await supabaseClient
+            .from('temp_logs')
+            .select('user_id, created_at')
+            .order('created_at', { ascending: false })
+            .range(from, from + 999);
+        if (error) { tErr = error; break; }
+        tempLogs = tempLogs.concat(data || []);
+        if (!data || data.length < 1000) break;
+    }
 
     // Fetch swim_participants per user (swims JOINED)
     const { data: swimParts, error: sErr } = await supabaseClient
@@ -1202,12 +1211,17 @@ function renderUserTable(users) {
 
 // ── Spot activity ──────────────────────────────────────────────────────────────
 async function loadSpotActivity() {
-    // Fetch temp_logs with spot names
-    const { data: logs, error } = await supabaseClient
-        .from('temp_logs')
-        .select('user_id, spot_id, created_at, spots!temp_logs_spot_id_fkey(name)');
-
-    if (error || !logs) { console.error('spot logs error:', error); return; }
+    // Fetch temp_logs with spot names — paginate past the 1000-row cap for accurate counts
+    let logs = [];
+    for (let from = 0; ; from += 1000) {
+        const { data, error } = await supabaseClient
+            .from('temp_logs')
+            .select('user_id, spot_id, created_at, spots!temp_logs_spot_id_fkey(name)')
+            .range(from, from + 999);
+        if (error) { console.error('spot logs error:', error); if (!logs.length) return; break; }
+        logs = logs.concat(data || []);
+        if (!data || data.length < 1000) break;
+    }
 
     // Group by spot
     const spotMap = {};
