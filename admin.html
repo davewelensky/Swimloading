@@ -481,6 +481,16 @@
             </div>
         </div>
 
+        <!-- Challenge Anti-Cheat -->
+        <div class="section-title">Challenge — Anti-Cheat</div>
+        <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                <div style="font-size:13px;color:var(--text-secondary);">Suspicious logs in the current challenge month. Void removes a log's points/draw-entry (keeps the log).</div>
+                <button onclick="loadAntiCheat()" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);color:var(--ocean);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;">↻ Refresh</button>
+            </div>
+            <div id="antiCheatBody"><div style="color:var(--text-secondary);font-size:13px;">Loading…</div></div>
+        </div>
+
         <!-- Spot Suggestions -->
         <div class="section-title">📍 Spot Suggestions</div>
         <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
@@ -808,8 +818,58 @@ async function showDashboard(user) {
     document.getElementById('loadingScreen').style.display = 'none';
     document.getElementById('adminEmail').textContent = user.email;
     document.getElementById('dashboard').style.display = 'block';
-    await Promise.all([loadAdminDomains(), loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement(), loadSpotlights(), loadSpotSuggestions(), loadRecentLogs()]);
+    await Promise.all([loadAdminDomains(), loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement(), loadSpotlights(), loadSpotSuggestions(), loadRecentLogs(), loadAntiCheat()]);
     loadAnalytics(7);
+}
+
+// ── Challenge anti-cheat ───────────────────────────────────────────────────────
+async function loadAntiCheat() {
+    const el = document.getElementById('antiCheatBody');
+    if (!el) return;
+    el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Loading…</div>';
+    try {
+        const [travelRes, tempRes] = await Promise.all([
+            supabaseClient.rpc('get_challenge_anomalies'),
+            supabaseClient.rpc('get_challenge_temp_outliers'),
+        ]);
+        const anomalies = travelRes.data || [];
+        const outliers  = tempRes.data  || [];
+        if (!anomalies.length && !outliers.length) {
+            el.innerHTML = '<div style="color:#10b981;font-size:13px;font-weight:600;">No anomalies — all clear.</div>';
+            return;
+        }
+        const fmt = ts => new Date(ts).toLocaleString('en-ZA', { timeZone:'Africa/Johannesburg', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+        const voidBtn = (id, spot, color) => `<button onclick="voidChallengeLog('${id}','${(spot||'').replace(/'/g,'')}')" style="flex-shrink:0;padding:4px 12px;border-radius:6px;border:1px solid ${color};background:${color.replace('1)','0.12)')};color:${color.replace(',0.4)',',1)')};font-size:11px;font-weight:700;cursor:pointer;">Void</button>`;
+        let html = '';
+        if (anomalies.length) {
+            html += `<div style="font-size:12px;font-weight:700;color:#ef4444;text-transform:uppercase;margin-bottom:8px;">Impossible travel (${anomalies.length})</div>`;
+            html += anomalies.map(a => `<div style="padding:9px 12px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;margin-bottom:5px;font-size:12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><span style="color:var(--text);font-weight:600;">${a.display_name || '?'} · ${a.spot} · ${a.temp_c}°C</span>${voidBtn(a.log_id, a.spot, 'rgba(239,68,68,0.4)')}</div>
+                <div style="color:var(--text-secondary);margin-top:3px;">${a.prev_spot} → <strong style="color:var(--text);">${a.spot}</strong> · ${Math.round(a.km_from_prev)}km in ${Math.round(a.mins_gap)} min <span style="color:#ef4444;">(${Math.round(a.implied_kmh).toLocaleString()} km/h)</span> · ${fmt(a.logged_at)}</div>
+            </div>`).join('');
+        }
+        if (outliers.length) {
+            html += `<div style="font-size:12px;font-weight:700;color:#f59e0b;text-transform:uppercase;margin:12px 0 8px;">Temperature outliers (${outliers.length}) — check before voiding</div>`;
+            html += outliers.map(o => `<div style="padding:9px 12px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:8px;margin-bottom:5px;font-size:12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><span style="color:var(--text);font-weight:600;">${o.display_name || '?'} · ${o.spot}</span>${voidBtn(o.log_id, o.spot, 'rgba(245,158,11,0.4)')}</div>
+                <div style="color:var(--text-secondary);margin-top:3px;">Logged <strong style="color:var(--text);">${o.temp_c}°C</strong> · spot usually ~${o.spot_median}°C <span style="color:#f59e0b;">(${Number(o.deviation) > 0 ? '+' : ''}${o.deviation}°)</span> · ${o.baseline_logs} readings · ${fmt(o.logged_at)}</div>
+            </div>`).join('');
+        }
+        el.innerHTML = html;
+    } catch (e) {
+        el.innerHTML = '<div style="color:var(--red);font-size:13px;">Could not load anti-cheat: ' + e.message + '</div>';
+    }
+}
+
+async function voidChallengeLog(logId, spot) {
+    if (!confirm(`Void this log${spot ? ' at ' + spot : ''}?\n\nRemoves its challenge points and draw-entry contribution. The log itself stays.`)) return;
+    try {
+        const { data, error } = await supabaseClient.rpc('void_challenge_log', { p_log_id: logId });
+        if (error) throw error;
+        await loadAntiCheat();
+    } catch (e) {
+        alert('Could not void: ' + e.message);
+    }
 }
 
 
@@ -1214,7 +1274,9 @@ function renderSpotChart(spots) {
 function renderSpotTable(spots) {
     const tbody = document.getElementById('spotTableBody');
     if (!spots.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-secondary);">No data</td></tr>'; return; }
-    tbody.innerHTML = spots.map((s, i) => `
+    const shown = spots.slice(0, 10);
+    const moreRow = spots.length > 10 ? `<tr><td colspan="5" style="text-align:center;padding:10px;color:var(--text-secondary);font-size:12px;">Showing top 10 of ${spots.length} spots</td></tr>` : '';
+    tbody.innerHTML = shown.map((s, i) => `
         <tr>
             <td class="spot-rank">${i + 1}</td>
             <td class="spot-name">${s.name}</td>
@@ -1222,7 +1284,7 @@ function renderSpotTable(spots) {
             <td class="spot-loggers">${s.loggers}</td>
             <td class="spot-last">${s.lastDate ? relativeDate(s.lastDate) : '—'}</td>
         </tr>
-    `).join('');
+    `).join('') + moreRow;
 }
 
 // ── Spot management ───────────────────────────────────────────────────────────
@@ -1456,14 +1518,15 @@ function renderCityChart(cities) {
 function renderCityTable(cities, total) {
     const tbody = document.getElementById('cityTableBody');
     if (!cities.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-secondary);">No data</td></tr>'; return; }
-    tbody.innerHTML = cities.map((c, i) => `
+    const moreRow = cities.length > 10 ? `<tr><td colspan="4" style="text-align:center;padding:10px;color:var(--text-secondary);font-size:12px;">Showing top 10 of ${cities.length} cities</td></tr>` : '';
+    tbody.innerHTML = cities.slice(0, 10).map((c, i) => `
         <tr>
             <td class="spot-rank">${i + 1}</td>
             <td class="spot-name" style="${c.city === 'Unknown' ? 'color:var(--text-secondary);' : ''}">${c.city}</td>
             <td class="spot-count">${c.count}</td>
             <td class="spot-loggers">${Math.round((c.count / total) * 100)}%</td>
         </tr>
-    `).join('');
+    `).join('') + moreRow;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
