@@ -702,7 +702,7 @@
             const { start, end } = jcDateRange();
 
             try {
-                const [feedRes, leadersRes, flagsRes] = await Promise.all([
+                const [feedRes, leadersRes, flagsRes, anomRes] = await Promise.all([
                     supabaseClient
                         .from('june_challenge_events')
                         .select('action_type, points, user_id, display_name, created_at, spot_name')
@@ -716,11 +716,13 @@
                         .select('*')
                         .eq('challenge_id', 1)
                         .order('created_at', { ascending: false }),
+                    supabaseClient.rpc('get_challenge_anomalies'),
                 ]);
 
                 const data      = feedRes.data || [];
                 const leaders   = leadersRes.data || [];
                 const flags     = flagsRes.data || [];
+                const anomalies = anomRes.data || [];
                 const totalPts  = data.reduce((s, r) => s + r.points, 0);
                 const uniqueUsers = new Set(data.map(r => r.user_id)).size;
                 const byAction  = {};
@@ -738,6 +740,20 @@
                 <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;">
                   ${Object.entries(byAction).map(([k,v]) => `<span style="background:rgba(56,189,248,0.1);color:var(--ocean-light);font-size:11px;padding:3px 8px;border-radius:6px;">${k}: ${v}</span>`).join('')}
                 </div>
+
+                ${anomalies.length > 0 ? `
+                <div style="margin-bottom:12px;">
+                  <div style="font-size:11px;font-weight:700;color:#ef4444;text-transform:uppercase;margin-bottom:6px;">Travel anomalies to review (${anomalies.length})</div>
+                  ${anomalies.map(a => {
+                    const t = new Date(a.logged_at).toLocaleString('en-ZA', { timeZone:'Africa/Johannesburg', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+                    return `<div style="padding:8px 10px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;margin-bottom:4px;font-size:12px;">
+                      <div style="color:var(--text);font-weight:600;">${a.display_name || '?'}</div>
+                      <div style="color:var(--text-secondary);margin-top:2px;">${a.prev_spot} → <strong style="color:var(--text);">${a.spot}</strong> · ${Math.round(a.km_from_prev)}km in ${Math.round(a.mins_gap)} min <span style="color:#ef4444;">(${Math.round(a.implied_kmh).toLocaleString()} km/h)</span></div>
+                      <div style="color:rgba(100,116,139,0.7);margin-top:1px;">${t} · ${a.temp_c}°C</div>
+                    </div>`;
+                  }).join('')}
+                  <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">Impossible travel between consecutive logs — check for wrong spot / bogus log, then void or flag.</div>
+                </div>` : ''}
 
                 ${openFlags.length > 0 ? `
                 <div style="margin-bottom:12px;">
