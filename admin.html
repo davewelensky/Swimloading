@@ -481,6 +481,16 @@
             </div>
         </div>
 
+        <!-- Challenge Stats -->
+        <div class="section-title">Challenge — This Month</div>
+        <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                <div style="font-size:13px;color:var(--text-secondary);">Same-day-count comparison to last month — a fair pace check early in the month.</div>
+                <button onclick="loadChallengeStats()" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);color:var(--ocean);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;">↻ Refresh</button>
+            </div>
+            <div id="challengeStatsBody"><div style="color:var(--text-secondary);font-size:13px;">Loading…</div></div>
+        </div>
+
         <!-- Challenge Anti-Cheat -->
         <div class="section-title">Challenge — Anti-Cheat</div>
         <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
@@ -818,8 +828,64 @@ async function showDashboard(user) {
     document.getElementById('loadingScreen').style.display = 'none';
     document.getElementById('adminEmail').textContent = user.email;
     document.getElementById('dashboard').style.display = 'block';
-    await Promise.all([loadAdminDomains(), loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement(), loadSpotlights(), loadSpotSuggestions(), loadRecentLogs(), loadAntiCheat()]);
+    await Promise.all([loadAdminDomains(), loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement(), loadSpotlights(), loadSpotSuggestions(), loadRecentLogs(), loadAntiCheat(), loadChallengeStats()]);
     loadAnalytics(7);
+}
+
+// ── Challenge stats (this month vs same window last month) ─────────────────────
+async function loadChallengeStats() {
+    const el = document.getElementById('challengeStatsBody');
+    if (!el) return;
+    el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Loading…</div>';
+    try {
+        const { data, error } = await supabaseClient.rpc('get_challenge_month_stats');
+        if (error) throw error;
+        const s = (data || [])[0];
+        if (!s) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No data.</div>'; return; }
+
+        const monthName = d => new Date(d + 'T00:00:00').toLocaleDateString('en-ZA', { month: 'long', year: 'numeric' });
+        const pctDelta = (cur, prev) => prev === 0 ? null : Math.round(((cur - prev) / prev) * 100);
+        const deltaBadge = (cur, prev) => {
+            const d = pctDelta(cur, prev);
+            if (d === null) return '';
+            const up = d >= 0;
+            return `<span style="font-size:11px;font-weight:700;color:${up ? '#10b981' : '#ef4444'};margin-left:6px;">${up ? '+' : ''}${d}%</span>`;
+        };
+
+        el.innerHTML = `
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">
+            Day ${s.elapsed_days} of ${monthName(s.cur_launch)} vs the same first ${s.elapsed_days} day${s.elapsed_days === 1 ? '' : 's'} of ${monthName(s.prev_launch)}
+        </div>
+        <div class="kpi-row">
+            <div class="kpi-card blue">
+                <div class="kpi-label">Temp Logs</div>
+                <div class="kpi-value">${s.cur_logs}${deltaBadge(s.cur_logs, s.prev_logs_same_window)}</div>
+                <div class="kpi-sub">was ${s.prev_logs_same_window} by this point</div>
+            </div>
+            <div class="kpi-card green">
+                <div class="kpi-label">Swimmers Logging</div>
+                <div class="kpi-value">${s.cur_swimmers}${deltaBadge(s.cur_swimmers, s.prev_swimmers_same_window)}</div>
+                <div class="kpi-sub">was ${s.prev_swimmers_same_window} by this point</div>
+            </div>
+            <div class="kpi-card blue">
+                <div class="kpi-label">Group Swims</div>
+                <div class="kpi-value">${s.cur_group_swims}</div>
+                <div class="kpi-sub">created this month</div>
+            </div>
+            <div class="kpi-card amber">
+                <div class="kpi-label">Already Qualified</div>
+                <div class="kpi-value">${s.cur_qualified}</div>
+                <div class="kpi-sub">10+ logs — in the draw</div>
+            </div>
+            <div class="kpi-card green">
+                <div class="kpi-label">Active Participants</div>
+                <div class="kpi-value">${s.cur_active_participants}</div>
+                <div class="kpi-sub">have logged at least once</div>
+            </div>
+        </div>`;
+    } catch (e) {
+        el.innerHTML = '<div style="color:var(--red);font-size:13px;">Could not load: ' + e.message + '</div>';
+    }
 }
 
 // ── Challenge anti-cheat ───────────────────────────────────────────────────────
