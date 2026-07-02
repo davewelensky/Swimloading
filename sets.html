@@ -492,7 +492,7 @@
         <i data-lucide="search"></i>
         <input class="input-field" id="libSearch" type="text" placeholder="Search sets…" oninput="renderLibrary()">
       </div>
-      <button class="btn-primary" onclick="switchTab('builder');resetBuilder()">
+      <button class="btn-primary" id="libNewSetBtn" onclick="switchTab('builder');resetBuilder()">
         <i data-lucide="plus"></i>New set
       </button>
     </div>
@@ -732,6 +732,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ══ STATE ════════════════════════════════════════════════════════════
 let currentUser  = null;
 let currentClub  = null;
+let coachRole    = null; // 'admin' | 'moderator' | 'coach' — coaches get Planner + Library (view/assign), no Builder/Insights
 let squads       = [];
 let squadSessions= [];   // club_squad_sessions — know which days each squad trains
 let sets         = [];   // club_swim_sets
@@ -838,6 +839,7 @@ async function boot() {
     if (adminErr || !admin) { showAuthWall('No coach access', 'Ask Britt to add you to the coaching team.'); return; }
 
     currentClub = club;
+    coachRole = admin.role || null;
   } catch (e) {
     console.error('[sets] boot error', e);
     showAuthWall('Error loading club', 'Please refresh and try again.');
@@ -845,9 +847,19 @@ async function boot() {
   }
   console.log('[sets] auth OK, loading UI');
   document.getElementById('navClubName').textContent = currentClub.name || '';
-  document.getElementById('adminLink').href = `/club-admin/${slug}`;
   document.getElementById('screenLoading').style.display = 'none';
   document.getElementById('mainNav').style.display = '';
+
+  if (coachRole === 'coach') {
+    // Coach access — Planner + Library (view and assign sets), no Builder/AI Insights/Admin link
+    document.getElementById('tab-builder').style.display = 'none';
+    document.getElementById('tab-insights').style.display = 'none';
+    document.getElementById('adminLink').style.display = 'none';
+    const newSetBtn = document.getElementById('libNewSetBtn');
+    if (newSetBtn) newSetBtn.style.display = 'none';
+  } else {
+    document.getElementById('adminLink').href = `/club-admin/${slug}`;
+  }
 
   lucide.createIcons();
   await loadAll();
@@ -898,6 +910,7 @@ async function loadWeekAssignments() {
 
 // ══ TAB SWITCH ══════════════════════════════════════════════════════
 function switchTab(name) {
+  if (coachRole === 'coach' && (name === 'builder' || name === 'insights')) return;
   ['planner','library','builder','insights'].forEach(t => {
     document.getElementById('tab-' + t).classList.toggle('active', t === name);
     document.getElementById('screen' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === name);

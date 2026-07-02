@@ -408,13 +408,15 @@
                         .eq('role', 'admin'),
                     supabaseClient
                         .from('club_admins')
-                        .select('role, clubs(name, slug)')
+                        .select('role, clubs(name, slug, features)')
                         .eq('user_id', currentUser.id)
                         .eq('role', 'coach'),
                 ]);
 
                 const adminClubs = (adminRes.data || []).map(a => a.clubs).filter(Boolean);
                 const coachClubs = (coachRes.data || []).map(a => a.clubs).filter(Boolean);
+                // Coaches also get a Sets Planner link for clubs with the sets feature (hasSquads)
+                const coachSetsClubs = coachClubs.filter(c => c.features?.hasSquads);
 
                 if (!adminClubs.length && !coachClubs.length) return;
 
@@ -455,6 +457,24 @@
                             </div>
                         </div>
                         <i data-lucide="arrow-right" style="width:16px;height:16px;color:#38bdf8;flex-shrink:0;"></i>
+                    </a>`),
+                    ...coachSetsClubs.map(c => `
+                    <a href="/sets/${c.slug}"
+                       style="display:flex;align-items:center;justify-content:space-between;gap:12px;
+                              background:linear-gradient(135deg,rgba(168,85,247,0.1),rgba(168,85,247,0.04));
+                              border:1px solid rgba(168,85,247,0.25);border-radius:14px;
+                              padding:13px 16px;text-decoration:none;margin-bottom:8px;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div style="width:36px;height:36px;border-radius:10px;background:rgba(168,85,247,0.15);
+                                        display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <i data-lucide="calendar-days" style="width:18px;height:18px;color:#a855f7;"></i>
+                            </div>
+                            <div>
+                                <div style="font-size:13px;font-weight:700;color:var(--text-primary);">${c.name}</div>
+                                <div style="font-size:11px;color:#a855f7;margin-top:1px;font-weight:600;">Sets Planner</div>
+                            </div>
+                        </div>
+                        <i data-lucide="arrow-right" style="width:16px;height:16px;color:#a855f7;flex-shrink:0;"></i>
                     </a>`),
                 ].join('');
                 initIcons();
