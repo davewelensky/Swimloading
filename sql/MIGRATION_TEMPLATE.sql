@@ -28,7 +28,44 @@ BEGIN
 END $$;
 
 -- ================================================================
--- Migration: description_here.sql
+-- Migration: YYYY-MM-DD_short-description.sql
+-- Process:   see MIGRATIONS.md — no section below may be left empty
 -- ================================================================
 
+-- Purpose:
+--   (one line — what this changes and why)
+
+-- Requested by:
+--   (Dave / Britt / Steve / ...)
+
+-- ----------------------------------------------------------------
+-- PRE-CHECKS — run on the READ-ONLY connection BEFORE applying.
+-- Must include affected-row counts for any UPDATE/DELETE.
+-- ----------------------------------------------------------------
+-- SELECT count(*) FROM ... WHERE ...;
+
+-- ----------------------------------------------------------------
+-- BACKUP — required before any DELETE / UPDATE / DROP / TRUNCATE.
+-- ----------------------------------------------------------------
+-- CREATE TABLE _bak_YYYYMMDD_tablename AS SELECT * FROM tablename WHERE ...;
+
+-- ----------------------------------------------------------------
+-- MIGRATION — applied only after Dave types "apply".
+-- ----------------------------------------------------------------
+BEGIN;
+
 -- Your SQL here...
+
+COMMIT;
+
+-- ----------------------------------------------------------------
+-- ROLLBACK — exact SQL to undo, or state:
+-- "irreversible — restore from _bak_YYYYMMDD_tablename"
+-- ----------------------------------------------------------------
+-- ...
+
+-- ----------------------------------------------------------------
+-- VERIFY — run on the READ-ONLY connection AFTER applying.
+-- State the expected result next to each query.
+-- ----------------------------------------------------------------
+-- SELECT ...;   -- expect: ...

@@ -275,13 +275,13 @@ git push
 4. Commit + Push
 5. Hard refresh on live site
 
-### Adding a New Database Table
+### Adding a New Database Table (or any schema/data change)
 
-1. Create migration in Supabase (`supabase/migrations/`)
-2. Deploy via Supabase CLI
-3. Update `app.js` with fetch queries
-4. Test locally
-5. Commit + Push
+Follow **[MIGRATIONS.md](MIGRATIONS.md)** — the 7-step workflow: migration file
+from `sql/MIGRATION_TEMPLATE.sql` → read-only dry-run → backup if destructive →
+Dave types "apply" → apply via `supabase-admin` MCP → verify read-only → file
+into `sql/applied/` and ship. Never paste SQL into the dashboard except as the
+documented fallback.
 
 ## Mobile Optimization
 
