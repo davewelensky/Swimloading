@@ -9,7 +9,7 @@
 
 SwimLoading is a 6-tab PWA. Regions and spots are stored in Supabase (`domains` and `spots` tables). Most of the app is **DB-driven** — add a row and it appears everywhere. The exceptions are: international domains (need code changes), the Safety tab (regional content is hardcoded per safety group), and SEO pages (need seo-utils.js entries). Everything else is automatic.
 
-**8 countries live** (South Africa, Namibia, United Kingdom, Australia, Switzerland, Portugal, USA, Seychelles). welcome.html has a data-driven `INTL_COUNTRIES` array for pills and grid cards, but also has **8 hardcoded country count strings** that must be updated manually every time a country is added.
+**12 countries live** (South Africa, Namibia, United Kingdom, Australia, Switzerland, Portugal, USA, Seychelles, Italy, France, Croatia, Spain). welcome.html has a data-driven `INTL_COUNTRIES` array for pills, grid cards and computed counters, but also has **4 hardcoded country count strings** that must be updated manually every time a country is added (grep for the current number, e.g. `12 countries`, plus the spelled-out `Twelve countries` heading).
 
 ---
 

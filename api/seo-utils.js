@@ -61,6 +61,7 @@ export const DOMAIN_MAP = {
   SEYCHELLES:        { display: 'Seychelles',          region: 'seychelles' },
   DALMATIA:          { display: 'Dalmatia',            region: 'dalmatia' },
   FRANCE:            { display: 'France',              region: 'france' },
+  SPAIN:             { display: 'Spain',               region: 'spain' },
 };
 
 // Country-code filter for region slugs that are sub-regions of a shared domain (e.g. EUROPE)
@@ -69,6 +70,7 @@ export const REGION_COUNTRY_FILTER = {
   'switzerland': 'CH',
   'portugal':    'PT',
   'france': 'FR',
+  'spain':  'ES',
   'australia':   'AU',  // WESTERN_AUSTRALIA only has AU spots currently, but future-proof
 };
 
@@ -104,6 +106,7 @@ export const AREA_MAP = {
   LANGEBAAN_LAGOON:'Langebaan',
   KNYSNA_LAGOON:   'Knysna',
   PLETT:           'Plettenberg Bay',
+  MALLORCA:        'Mallorca',
 };
 
 export const REGION_DOMAINS = {
@@ -130,6 +133,7 @@ export const REGION_DOMAINS = {
   'dalmatia':          ['DALMATIA'],
   'croatia':           ['DALMATIA'],
   'france':            ['FRANCE'],
+  'spain':             ['SPAIN'],
 };
 
 export const REGION_NAMES = {
@@ -156,6 +160,7 @@ export const REGION_NAMES = {
   'dalmatia':          'Dalmatia, Croatia',
   'croatia':           'Dalmatia, Croatia',
   'france':            'France',
+  'spain':             'Spain',
 };
 
 export const REGION_INTROS = {
@@ -205,6 +210,8 @@ export const REGION_INTROS = {
     "Croatia's Dalmatian coast offers some of the clearest and warmest open water swimming in the Mediterranean. SwimLoading tracks temperatures at Hvar Town Beach, the Pakleni Islands, and Split's beaches. The Adriatic is warmest in July–August (24–27°C) and swimmable from May through October.",
 'france':
   "France's Mediterranean coastline offers some of Europe's finest open water swimming — warm, clear water, sheltered bays, and a year-round swimming culture rooted in the Côte d'Azur. Water temperatures along the French Riviera typically range from 13–14°C in winter to 24–26°C in summer, making it genuinely swimmable for most of the year.\n\nVillefranche-sur-Mer is one of the jewels of the coast — a deep natural harbour between Nice and Monaco with exceptionally clear water, minimal current, and a sheltered bay that stays calm even when the open sea is choppy. The old fishing village, colourful waterfront, and proximity to Nice make it one of the most picturesque open water venues in Europe.\n\nNice's Promenade des Anglais stretches 7 kilometres along the Baie des Anges — a pebble beach with easy water access and a strong local swimming tradition. The open water here is deeper and slightly more exposed than Villefranche but offers a spectacular urban swim backdrop year-round.\n\nSwimLoading is building its French community. If you swim along the Côte d'Azur, log your temperature and conditions — your data helps every swimmer planning a session on this coastline.",
+  'spain':
+    "Spain offers some of Europe's most varied open water swimming — from the sheltered Mediterranean bays of the Balearic Islands to the Atlantic surf of the north coast. SwimLoading's Spanish coverage starts in Mallorca at Santa Ponsa, a broad, sheltered sandy bay on the island's southwest coast with calm, clear water and easy access. The Balearic Sea is warmest in July–September (24–26°C), swimmable from May through October, and rarely drops below 14°C even in winter. Jellyfish are the main seasonal hazard — check local beach flags.\n\nSwimLoading is building its Spanish community. If you swim in Spain, log your temperature and conditions — your data helps every swimmer planning a session on this coastline.",
 };
 
 // Maps /countries/[slug] → the region slug that spots-handler should render.
@@ -220,6 +227,7 @@ export const COUNTRY_SLUGS = {
   'seychelles':     'seychelles',
   'croatia':        'dalmatia',
   'france':         'france',
+  'spain':          'spain',
 };
 
 export function getLocationLabel(domain, area, countryCode) {
