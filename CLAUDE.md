@@ -3,6 +3,8 @@
 > **Adding a region, spot, or international domain?** See [EXPANDING.md](EXPANDING.md) — it has the complete checklist, hardcode map, and cross-app consistency checks.
 >
 > **Onboarding a new club?** See [CLUB_ONBOARDING.md](CLUB_ONBOARDING.md) — 8-step process, feature flag SQL, club type rules. Do not improvise.
+>
+> **Adding a page, partner, club, or feature?** See [GROWTH_HUB.md](GROWTH_HUB.md) — /growth-hub (Master Index) MUST be updated in the same ship. Missing this loses track of effort and developments.
 
 ---
 
@@ -242,11 +244,12 @@ git push
 ### Deployment Checklist
 
 1. ✅ Change file (app.js, style.css, etc.)
-2. ✅ `git add <file>`
-3. ✅ `git commit -m "message"`
-4. ✅ `git push`
-5. ✅ Vercel redeploys automatically
-6. ✅ Hard refresh browser: **Cmd+Shift+R** (Mac) or **Ctrl+Shift+R** (Windows)
+2. ✅ **Growth Hub sync**: if the change adds/removes a page, partner, club, feature, email, or founding member — update `growth-hub.html` in the same commit (see [GROWTH_HUB.md](GROWTH_HUB.md))
+3. ✅ `git add <file>`
+4. ✅ `git commit -m "message"`
+5. ✅ `git push`
+6. ✅ Vercel redeploys automatically
+7. ✅ Hard refresh browser: **Cmd+Shift+R** (Mac) or **Ctrl+Shift+R** (Windows)
 
 **If changes don't appear**: Check Vercel dashboard for failed deployments, verify cache headers in vercel.json.
 
