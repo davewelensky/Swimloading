@@ -33,10 +33,10 @@
     <!-- Lucide Icons -->
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
 
-    <script src="app.js?v=50"></script>
-    <script src="app-june.js?v=20"></script>
+    <script src="app.js?v=51"></script>
+    <script src="app-june.js?v=21"></script>
 
-    <link rel="stylesheet" href="style.css?v=7">
+    <link rel="stylesheet" href="style.css?v=8">
 </head>
 
 <body>
@@ -573,33 +573,37 @@
     <div id="spotPickerOverlay" onclick="closeSpotPicker()">
         <div id="spotPickerSheet" role="dialog" aria-label="Select a spot" onclick="event.stopPropagation()">
             <div class="sp-handle"></div>
-            <!-- Recents strip — shown only when user has previous logs -->
-            <div id="spRecentsStrip" style="display:none;"></div>
-            <!-- Category tabs -->
-            <div class="sp-tabs" id="spTabs">
-                <div class="sp-tab active" onclick="setPickerCategory('OCEAN',this)">Ocean</div>
-                <div class="sp-tab" onclick="setPickerCategory('POOL',this)">Pools</div>
-                <div class="sp-tab" onclick="setPickerCategory('LAGOON',this)">Lagoons</div>
-                <div class="sp-tab" onclick="setPickerCategory('DAM',this)">Inland</div>
-                <div class="sp-tab" onclick="setPickerCategory('LAKE',this)">Lakes</div>
-                <div class="sp-tab sp-tab-intl" onclick="setPickerCategory('INTL',this)"><i data-lucide="globe" style="width:12px;height:12px;vertical-align:middle;margin-right:3px;margin-top:-1px;display:inline-block;"></i>Intl</div>
-            </div>
-            <!-- Brand sub-filter (Pool tab only) -->
-            <div id="spBrandStrip">
-                <div class="sp-brand-pill active" onclick="setPickerBrand(null,this)">All</div>
-                <div class="sp-brand-pill" onclick="setPickerBrand('VIRGIN_ACTIVE',this)">Virgin Active</div>
-                <div class="sp-brand-pill" onclick="setPickerBrand('PUBLIC',this)">Public Pools</div>
-            </div>
-            <!-- Region sub-filter (Ocean / Lagoon / Inland tabs) — pills rendered dynamically -->
-            <div id="spRegionStrip"></div>
-            <!-- Search -->
+            <!-- Search — primary way to find a spot, pinned to the top -->
             <div class="sp-search-wrap">
-                <input id="spSearchInput" type="text" placeholder="Search spots..."
+                <i data-lucide="search" class="sp-search-icon"></i>
+                <input id="spSearchInput" type="text" placeholder="Search spots by name…"
                     oninput="onSpPickerSearch(this.value)"
                     onfocus="_spSearchFocus()"
                     onblur="_spSearchBlur()"
-                    autocomplete="off" autocorrect="off" spellcheck="false">
+                    autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
                 <button id="spSearchClear" onclick="clearSpPickerSearch()" aria-label="Clear search">&times;</button>
+            </div>
+            <!-- Browse controls (recents + categories) — auto-hidden while a search is active -->
+            <div id="spBrowse">
+                <!-- Recents strip — shown only when user has previous logs -->
+                <div id="spRecentsStrip" style="display:none;"></div>
+                <!-- Category tabs -->
+                <div class="sp-tabs" id="spTabs">
+                    <div class="sp-tab active" onclick="setPickerCategory('OCEAN',this)">Ocean</div>
+                    <div class="sp-tab" onclick="setPickerCategory('POOL',this)">Pools</div>
+                    <div class="sp-tab" onclick="setPickerCategory('LAGOON',this)">Lagoons</div>
+                    <div class="sp-tab" onclick="setPickerCategory('DAM',this)">Inland</div>
+                    <div class="sp-tab" onclick="setPickerCategory('LAKE',this)">Lakes</div>
+                    <div class="sp-tab sp-tab-intl" onclick="setPickerCategory('INTL',this)"><i data-lucide="globe" style="width:12px;height:12px;vertical-align:middle;margin-right:3px;margin-top:-1px;display:inline-block;"></i>Intl</div>
+                </div>
+                <!-- Brand sub-filter (Pool tab only) -->
+                <div id="spBrandStrip">
+                    <div class="sp-brand-pill active" onclick="setPickerBrand(null,this)">All</div>
+                    <div class="sp-brand-pill" onclick="setPickerBrand('VIRGIN_ACTIVE',this)">Virgin Active</div>
+                    <div class="sp-brand-pill" onclick="setPickerBrand('PUBLIC',this)">Public Pools</div>
+                </div>
+                <!-- Region sub-filter (Ocean / Lagoon / Inland tabs) — pills rendered dynamically -->
+                <div id="spRegionStrip"></div>
             </div>
             <!-- Spot list -->
             <div id="spList"></div>

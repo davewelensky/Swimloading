@@ -1,14 +1,26 @@
-        // ── June Community Challenge v2 ──────────────────────────────────────────────
-        // Feature-flagged via june_challenge_config table (id=1)
-        // test_mode=true  → visible to tester_ids only, labelled TEST
-        // test_mode=false → live publicly, 1 Jun – 30 Jun 2026
+        // ══════════════════════════════════════════════════════════════════════════════
+        // MONTHLY CHALLENGE ENGINE  (⚠️ MISNAMED — this file is NOT June-only)
+        // ══════════════════════════════════════════════════════════════════════════════
+        // This is the GENERIC in-app challenge engine. It runs the CURRENT month's
+        // challenge — its copy (title/prize/share text/draw date) is edited IN PLACE
+        // each month. Do NOT create app-july.js / app-august.js. Do NOT assume the
+        // content is stale just because the month changed — read what it serves now.
+        //
+        //   CURRENTLY SERVING: July 2026 · "Winter Warrior" · Blu Smooth MK2 Comp draw
+        //   (June 2026 was THEMAGIC5 Vector goggles — winner: Tunnan The Swede)
+        //
+        // Live on/off + dates come from the DB row `june_challenge_config` (id=1):
+        //   test_mode=true  → visible to tester_ids only, labelled TEST
+        //   test_mode=false → live publicly, within [launch_date, end_date]
+        //
+        // The challenge lives in FOUR places that must stay in step every month —
+        // see CLAUDE.md → "Site Sync" → "the monthly challenge lives in FOUR places".
         //
         // All scoring goes through award_challenge_points RPC (Postgres SECURITY DEFINER).
         // The RPC inserts into challenge_points_audit (audit trail) and
         // june_challenge_events (live feed). No direct client inserts.
-        //
         // Hooks in app.js call jcAwardPoints() after each scoring action.
-        // ────────────────────────────────────────────────────────────────────────────
+        // ══════════════════════════════════════════════════════════════════════════════
 
         let jcConfig = null;
         let jcConfigLoaded = false;

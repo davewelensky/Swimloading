@@ -489,17 +489,37 @@
     </div>
   </div>
 
-  <!-- June Challenge -->
-  <div class="challenge-box">
+  <!-- Sponsored challenge — content & visibility driven by /site-config.js (see data-challenge). Hidden until site-sync.js resolves the correct state. -->
+  <div class="challenge-box" data-challenge="magic5" style="display:none;">
     <div class="challenge-icon-wrap">
       <i data-lucide="trophy" style="width:22px;height:22px;color:var(--cyan);"></i>
     </div>
     <div>
       <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:500;color:var(--cyan);text-transform:uppercase;letter-spacing:0.14em;margin-bottom:6px;">Sponsored Challenge</div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:0.04em;margin-bottom:8px;">June Challenge — Win THEMAGIC5 Vector Goggles</div>
-      <p style="font-size:14px;color:var(--text-sec);line-height:1.75;margin-bottom:0;">
-        SwimLoading is running a June challenge sponsored by THEMAGIC5. One pair of Vector goggles — custom-built for the winner's face — goes to first place. Details dropping in the June newsletter. <a href="https://swimloading.com/app" style="color:var(--cyan);text-decoration:none;font-weight:600;">Log your swims now</a> to be in contention.
-      </p>
+
+      <!-- ACTIVE: this sponsor's challenge is the current month -->
+      <div data-state="active" style="display:none;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:0.04em;margin-bottom:8px;"><span data-slot="title"></span> — Win <span data-slot="prize"></span></div>
+        <p style="font-size:14px;color:var(--text-sec);line-height:1.75;margin-bottom:0;">
+          SwimLoading is running a challenge sponsored by THEMAGIC5 — the prize goes to first place. <a href="https://swimloading.com/app" style="color:var(--cyan);text-decoration:none;font-weight:600;">Log your swims now</a> to be in contention.
+        </p>
+      </div>
+
+      <!-- RECAP: challenge ended and a verified winner is set in site-config.js -->
+      <div data-state="recap" style="display:none;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:0.04em;margin-bottom:8px;"><span data-slot="month"></span> Challenge — Complete</div>
+        <p style="font-size:14px;color:var(--text-sec);line-height:1.75;margin-bottom:0;">
+          Congratulations to <strong style="color:var(--text);"><span data-slot="winner"></span></strong> — winner of the <span data-slot="title"></span> sponsored by THEMAGIC5, taking home <span data-slot="prize"></span>. <a href="https://swimloading.com/app" style="color:var(--cyan);text-decoration:none;font-weight:600;">Join the current SwimLoading challenge</a>.
+        </p>
+      </div>
+
+      <!-- PENDING: challenge ended, winner not yet announced -->
+      <div data-state="pending" style="display:none;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:0.04em;margin-bottom:8px;"><span data-slot="month"></span> Challenge — Complete</div>
+        <p style="font-size:14px;color:var(--text-sec);line-height:1.75;margin-bottom:0;">
+          The <span data-slot="title"></span> sponsored by THEMAGIC5 has wrapped — the winner is being verified and will be announced shortly. <a href="https://swimloading.com/app" style="color:var(--cyan);text-decoration:none;font-weight:600;">Log your swims</a> to be in the next one.
+        </p>
+      </div>
     </div>
   </div>
 
@@ -549,6 +569,9 @@
   <a href="https://swimloading.com">swimloading.com</a> &nbsp;&middot;&nbsp; &copy; 2026 SwimLoading &nbsp;&middot;&nbsp; Partnership enquiries: <a href="mailto:support@swimloading.com">support@swimloading.com</a>
 </footer>
 
+<!-- Single source of truth for cross-page facts (country count, challenges). Edit /site-config.js only. -->
+<script src="/site-config.js?v=5"></script>
+<script src="/site-sync.js?v=5"></script>
 <script>
   document.addEventListener('mousemove', e => {
     document.body.style.setProperty('--mouse-x', e.clientX + 'px');

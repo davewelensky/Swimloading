@@ -319,6 +319,55 @@ Vercel provides Lighthouse scores in deployment preview. Monitor:
 - Cumulative Layout Shift (CLS) < 0.1
 - Largest Contentful Paint (LCP) < 2.5s
 
+## Site Sync — single source of truth for cross-page facts
+
+Facts that appear on many pages and used to drift at month-rollover / country-add
+(country count, the current month's challenge, per-sponsor challenge state) now live
+in ONE file. **Never hardcode these into individual pages again.**
+
+### Files
+- **`site-config.js`** — the single source of truth. Edit here only.
+  - `countries` — international list (drives welcome.html pills/grid AND every count; count = list + 1 for South Africa)
+  - `spots` / `swimmers` / `tempsLogged` — global stats
+  - `challenges['YYYY-MM']` — monthly challenge calendar; **auto-selected by SAST date, so a month's challenge goes live at 00:00 on the 1st with no code change** (just have the entry ready). Set `winner` (verified name only) to enable recap.
+  - `sponsorChallenges` — links a partner page's challenge box to its challenge month.
+- **`site-sync.js`** — runtime. Loaded AFTER site-config.js. Stamps `[data-sync="…"]` elements, and renders/recaps/hides `[data-challenge="…"]` sponsor boxes. API: `window.siteSync.currentChallenge()`, `.countryCount()`, `.sastMonth()`, `.refresh()`.
+
+### Using it on a page
+```html
+<script src="/site-config.js?v=1"></script>
+<script src="/site-sync.js?v=1"></script>
+...
+spots across <span data-sync="countries">12</span> countries      <!-- numeric -->
+<span data-sync="countries.word">Twelve</span> countries          <!-- spelled-out -->
+```
+Sponsor challenge box (auto active / recap / pending / hidden) — see the pattern in `partners/magic5.html` (`data-challenge`, inner `data-state` sections, `data-slot` fields).
+
+### ⚠️ CRITICAL — the monthly challenge lives in FOUR places. Update ALL of them, every month.
+
+> **The file `app-june.js` is NOT June-only. It is the GENERIC in-app challenge engine and it runs the CURRENT month's challenge.** As of July 2026 it runs the **July "Winter Warrior" / Blu Smooth** challenge. The filename is legacy from when the first challenge was June — **do NOT create `app-july.js`, `app-august.js`, etc., and do NOT assume "June" content is stale just because the month changed.** Its copy (titles, prize, share text, draw date) is edited in place each month, and its live on/off + dates come from the DB challenge-config row it loads (`enabled`, `launch_date`, `end_date`, `test_mode`). Before touching it, read what month it is currently serving.
+
+A challenge is only correct when **all four** are in step for the same month:
+
+| # | Where | What to change | Drives |
+|---|-------|----------------|--------|
+| 1 | **DB challenge-config row** (loaded by `app-june.js`) | `launch_date`, `end_date`, `enabled`, `test_mode` | Whether the in-app challenge is live, and its window |
+| 2 | **`app-june.js`** (the engine — misnamed, runs the current month) | In-place copy: title, prize, share strings, draw date, image | What logged-in users see in the app |
+| 3 | **`site-config.js` → `challenges['YYYY-MM']`** | title, sponsor, prize, start/end, winner | Marketing/partner pages via `data-sync` + sponsor boxes (auto-selects by SAST month on the 1st) |
+| 4 | **`site-config.js` → `sponsorChallenges`** | map the sponsor key → that month (e.g. `blusmooth: { challengeMonth: '2026-07' }`) | Which partner page shows the ACTIVE box vs a RECAP |
+
+### Monthly rollover checklist (do once per month, BEFORE the 1st)
+1. **DB config** — point the challenge-config row at the new month's `launch_date`/`end_date` (keep `test_mode` until launch, then flip live).
+2. **`app-june.js`** — update the in-place copy for the new month (title, sponsor, prize, share text, draw date). Bump `?v=N` in `index.html`.
+3. **`site-config.js`** — add the `challenges['YYYY-MM']` entry (appears on the marketing pages automatically on the 1st, SAST) and add/point the `sponsorChallenges` key to that month.
+4. **Close last month** — set the **verified** `winner` on the month that just ended (see winner-verification process); its sponsor recap flips on automatically. Confirm the previous sponsor's page no longer shows an active challenge.
+5. **Bump cache** — `?v=N` on `site-config.js` / `site-sync.js` wherever referenced (welcome.html + every partner page), plus `app-june.js` in index.html.
+6. **Verify live**, month-boundary aware: the new challenge shows in the app AND on the sponsor's partner page (active), the previous sponsor shows a recap, and no page still advertises the finished month.
+
+**Wired sponsor pages** (load `site-config.js` + `site-sync.js`, box = `data-challenge`): `partners/magic5.html` (June), `partners/blu-smooth.html` (July). Add the same block to any future sponsor's page.
+
+**This is separate from `promos.js`** below (banners/sale windows). Site-sync = facts & challenge calendar; promos = timed promotional banners.
+
 ## Promo & Challenge System
 
 Seasonal promos and challenges are managed through two files — **never hardcode promo HTML/banners directly in pages**.

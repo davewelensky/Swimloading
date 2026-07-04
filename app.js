@@ -6732,6 +6732,17 @@
             document.getElementById('spotPickerOverlay').classList.add('sp-open');
             document.body.style.overflow = 'hidden';
 
+            // Reset search + browse state, and set a placeholder with the live spot count
+            const inp = document.getElementById('spSearchInput');
+            if (inp) {
+                const count = spots.filter(s => s.active !== false).length;
+                inp.placeholder = count ? `Search ${count} spots by name…` : 'Search spots by name…';
+            }
+            const browse = document.getElementById('spBrowse');
+            if (browse) browse.classList.remove('sp-hidden');
+            const clearBtn = document.getElementById('spSearchClear');
+            if (clearBtn) clearBtn.style.display = 'none';
+
             // Track viewport changes (keyboard open/close on mobile)
             if (window.visualViewport) {
                 window.visualViewport.addEventListener('resize', _spViewportResize);
@@ -6926,15 +6937,21 @@
 
         function onSpPickerSearch(val) {
             pickerSearch = val;
-            document.getElementById('spSearchClear').style.display = val ? 'block' : 'none';
+            document.getElementById('spSearchClear').style.display = val ? 'flex' : 'none';
+            // While searching, results span all categories — collapse the browse
+            // controls (tabs/pills) so the matches are the whole focus.
+            const browse = document.getElementById('spBrowse');
+            if (browse) browse.classList.toggle('sp-hidden', !!val.trim());
             renderSpotPickerList();
         }
 
         function clearSpPickerSearch() {
             pickerSearch = '';
             const inp = document.getElementById('spSearchInput');
-            if (inp) inp.value = '';
+            if (inp) { inp.value = ''; inp.focus(); }
             document.getElementById('spSearchClear').style.display = 'none';
+            const browse = document.getElementById('spBrowse');
+            if (browse) browse.classList.remove('sp-hidden');
             renderSpotPickerList();
         }
 

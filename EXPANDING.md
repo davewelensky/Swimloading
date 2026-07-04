@@ -9,7 +9,7 @@
 
 SwimLoading is a 6-tab PWA. Regions and spots are stored in Supabase (`domains` and `spots` tables). Most of the app is **DB-driven** — add a row and it appears everywhere. The exceptions are: international domains (need code changes), the Safety tab (regional content is hardcoded per safety group), and SEO pages (need seo-utils.js entries). Everything else is automatic.
 
-**12 countries live** (South Africa, Namibia, United Kingdom, Australia, Switzerland, Portugal, USA, Seychelles, Italy, France, Croatia, Spain). welcome.html has a data-driven `INTL_COUNTRIES` array for pills, grid cards and computed counters, but also has **4 hardcoded country count strings** that must be updated manually every time a country is added (grep for the current number, e.g. `12 countries`, plus the spelled-out `Twelve countries` heading).
+**12 countries live** (South Africa, Namibia, United Kingdom, Australia, Switzerland, Portugal, USA, Seychelles, Italy, France, Croatia, Spain). The international country list is now the **single source of truth** in `site-config.js` (`window.SITE_CONFIG.countries`). welcome.html reads it for hero pills, grid cards, the origin sentence, and every country counter (via `data-sync` — see `site-sync.js`). **Add one object to `SITE_CONFIG.countries` and the count + list update on every page that loads the config.** The only count string NOT auto-driven is the globe `<canvas aria-label>` in welcome.html (an HTML attribute can't hold a span) — update that one by hand.
 
 ---
 
@@ -17,46 +17,35 @@ SwimLoading is a 6-tab PWA. Regions and spots are stored in Supabase (`domains` 
 
 This is now the fast path. Do these steps in order:
 
-### Step 1 — welcome.html: `INTL_COUNTRIES` array + hardcoded counts
+### Step 1 — `site-config.js`: add ONE object to `SITE_CONFIG.countries`
 
-**Part A — `INTL_COUNTRIES` array** (last `<script>` block of `welcome.html`):
+This is the single source of truth. Copy an existing entry and edit it:
 
 ```javascript
-{
-    name: 'France',           // Grid card heading (display name)
-    label: 'France',          // Hero pill label
-    color: '#a78bfa',         // Text + dot color
-    bg: 'rgba(167,139,250,0.1)',     // Pill background
-    border: 'rgba(217,119,6,0.5)',   // Pill border (gold for international)
-    gridBg: 'rgba(167,139,250,0.07)', // Grid card background
-    gridBorder: 'rgba(217,119,6,0.4)',// Grid card border (gold)
-    spots: 'Nice · Marseille · Côte d\'Azur',  // Subtitle on grid card
-    pillDelay: '3.2s',        // CSS animation delay for hero pill dot
-    dotDelay: '2.2s',         // CSS animation delay for grid card dot
-},
+{ name:'France', label:'France', color:'#a78bfa',
+  bg:'rgba(167,139,250,0.1)',      // Pill background
+  border:'rgba(217,119,6,0.5)',    // Pill border (gold for international)
+  gridBg:'rgba(167,139,250,0.07)', // Grid card background
+  gridBorder:'rgba(217,119,6,0.4)',// Grid card border (gold)
+  spots:"Nice · Marseille · Côte d'Azur", // Subtitle on grid card
+  pillDelay:'5.2s', dotDelay:'3.8s' },     // CSS animation delays (increment from the last entry)
 ```
 
-**Part B — Hardcoded country counts** (must be updated manually — these do NOT auto-update):
+That single edit updates, on every page that loads `site-config.js` + `site-sync.js`:
+- welcome.html hero pills, country grid cards, origin sentence
+- every country **count** (numeric `data-sync="countries"` → 13, and spelled-out `data-sync="countries.word"` → "Thirteen")
 
-Search welcome.html for the current number (e.g. `8`) and update ALL occurrences to the new count. There are currently **8 hardcoded strings** — grep for them:
+**Only manual count string left:** the globe `<canvas aria-label="… across 12 countries">` in welcome.html — bump it by hand (attributes can't hold a `<span>`).
 
-```bash
-grep -n "countries\|Seven\|Eight\|Nine\|[0-9] countries" welcome.html
+To surface the count on ANOTHER page, load the two scripts and drop in a tag:
+```html
+<script src="/site-config.js?v=1"></script>
+<script src="/site-sync.js?v=1"></script>
+...
+spots across <span data-sync="countries">12</span> countries
 ```
 
-The locations are:
-1. `<span id="stat-countries">8</span>` — stats bar counter
-2. `spots across 8 countries —` — dashboard feature description
-3. `<h2 ...>Eight countries.<br>See the data.</h2>` — Trends feature heading
-4. `Regional overviews across South Africa, Namibia, UK, Australia, Switzerland, Portugal, USA, and the Seychelles.` — Trends text (add the new country name here too)
-5. `8 countries and growing` — carousel slide description
-6. `live across eight countries` — Going Global section paragraph
-7. `100+ swim spots across 8 countries` — map pin callout
-8. `Swim spots across 8 countries` — SEO section heading
-
-Also add the new country's pill to the "International — live now" pills block in the Going Global section, **and** add a row to the International country list in the SEO footer section (~line 2092) — same file, different location.
-
-**⚠️ The INTL_COUNTRIES array does NOT drive these hardcoded strings. Both must be updated.**
+Then continue with the SEO + Safety steps below (those are still per-country code changes).
 
 ### Step 2 — api/seo-utils.js: Five entries
 
