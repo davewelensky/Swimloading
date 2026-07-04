@@ -1109,12 +1109,17 @@
             (async () => {
                 try {
                     const since96h = new Date(Date.now() - 96 * 60 * 60 * 1000).toISOString();
-                    const [conditionsResult, eventsResult, latestTempsResult, hazardsResult] = await Promise.all([
+                    const [conditionsResult, eventsResult, latestTempsResult, hazardsResult, estimateResult] = await Promise.all([
                         supabaseClient.from('temp_logs').select('spot_id, conditions, hazards, created_at, temp_c').gte('created_at', since96h).order('created_at', { ascending: false }).limit(200),
                         supabaseClient.from('swim_events').select('location_name, start_at, status').eq('status', 'active').gte('start_at', new Date().toISOString()).limit(50),
                         supabaseClient.from('latest_spot_temps').select('spot_id, spot_name, spot_code, temp_c, updated_at, water_type, domain').order('updated_at', { ascending: false }),
-                        supabaseClient.from('hazard_reports').select('spot_id, severity, title, hazard_type, active_until').is('resolved_at', null)
+                        supabaseClient.from('hazard_reports').select('spot_id, severity, title, hazard_type, active_until').is('resolved_at', null),
+                        // Water-temp intelligence: blended swimmer+model estimate + confidence (spot_temp_estimate view)
+                        supabaseClient.from('spot_temp_estimate').select('spot_id, best_c, best_source, confidence, model_c, swimmer_c, swimmer_age_h')
                     ]);
+                    // spot_id → { best_c, best_source, confidence, ... } for the spot picker + temp displays
+                    window.spotTempEstimate = {};
+                    (estimateResult?.data || []).forEach(e => { window.spotTempEstimate[e.spot_id] = e; });
                     conditionsCache = {};
                     (conditionsResult.data || []).forEach(log => {
                         if (!conditionsCache[log.spot_id]) conditionsCache[log.spot_id] = [];
@@ -7011,6 +7016,27 @@
             }
         }
 
+        // Water-temp chip for a spot picker row: blended best estimate + a
+        // colour-coded confidence dot (green=high, cyan=medium, amber=low).
+        // Hidden when there is no reading at all (confidence 'none').
+        function _spTempChip(est) {
+            if (!est || est.best_c === null || est.best_c === undefined || est.confidence === 'none') return '';
+            const conf = est.confidence; // high | medium | low
+            let label;
+            if (est.best_source === 'model') {
+                label = 'Model estimate (Open-Meteo)';
+            } else if (conf === 'high') {
+                label = 'Swimmer reading, confirmed by model';
+            } else {
+                const age = est.swimmer_age_h;
+                const ageTxt = age == null ? '' : age < 1 ? ' · just now'
+                    : age < 24 ? ` · ${Math.round(age)}h ago` : ` · ${Math.round(age / 24)}d ago`;
+                label = `Swimmer reading${ageTxt}`;
+            }
+            const t = Number(est.best_c).toFixed(1);
+            return `<span class="sp-row-temp sp-conf-${conf}" title="${label}"><span class="sp-conf-dot"></span>${t}°</span>`;
+        }
+
         // Build a single spot row HTML
         function _spRowHTML(s, currentVal, delay) {
             const isSelected = s.id === currentVal;
@@ -7036,6 +7062,7 @@
                         <div class="sp-row-type">${spAreaName(s.domain)} · ${SP_TYPE_LABELS[s.water_type] || s.water_type}</div>
                     </div>
                     <div class="sp-row-right">
+                        ${_spTempChip((window.spotTempEstimate || {})[s.id])}
                         ${distStr ? `<span class="sp-row-distance">${distStr}</span>` : ''}
                         ${isLogged ? '<div class="sp-logged-dot" title="Logged here before"></div>' : ''}
                     </div>
