@@ -6703,28 +6703,49 @@
             return d ? d.display_name : domainCode;
         }
 
-        // Keyboard-aware viewport handler.
-        // Sets padding-bottom on the overlay = keyboard height.
-        // The sheet (align-items:flex-end) naturally floats above the padding,
-        // which means it sits above the keyboard. No coordinate arithmetic needed.
+        // Keyboard-aware viewport handler (iOS Safari fix).
+        // On iOS, position:fixed is relative to the LAYOUT viewport, which does NOT
+        // shrink when the keyboard opens — only visualViewport does. So we must do two
+        // things, not one:
+        //   1. Lift the bottom-anchored sheet above the keyboard (padding-bottom = gap).
+        //   2. CAP the sheet height to the visible viewport, otherwise an 88vh sheet
+        //      lifted by ~300px pushes its TOP (the search input) off-screen. This was
+        //      the bug: list visible, keyboard open, input gone above the top edge.
+        // visualViewport.offsetTop is included so we track iOS's layout auto-scroll too.
         function _spViewportResize() {
             const overlay = document.getElementById('spotPickerOverlay');
             if (!overlay || !overlay.classList.contains('sp-open')) return;
-            const kbH = window.visualViewport
-                ? Math.max(0, window.innerHeight - window.visualViewport.height)
-                : 0;
+            const vv = window.visualViewport;
+            if (!vv) return; // no visualViewport → handled by scrollIntoView fallback on focus
+            const sheet = document.getElementById('spotPickerSheet');
+            // Gap between the layout-viewport bottom and the top of the keyboard.
+            const kbH = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
             overlay.style.paddingBottom = kbH + 'px';
+            // Keep the search input (pinned at the sheet top) inside the visible area;
+            // the list scrolls internally. 8px breathing gap at the top edge.
+            if (sheet) sheet.style.maxHeight = Math.max(240, vv.height - 8) + 'px';
         }
 
         function _spResetOverlaySize() {
             const overlay = document.getElementById('spotPickerOverlay');
-            if (!overlay) return;
-            overlay.style.paddingBottom = '';
+            if (overlay) overlay.style.paddingBottom = '';
+            // Restore the CSS max-height (88vh) by clearing the inline override.
+            const sheet = document.getElementById('spotPickerSheet');
+            if (sheet) sheet.style.maxHeight = '';
         }
 
         function _spSearchFocus() {
-            // Fire at staggered intervals — keyboard animation takes ~300ms on iOS
-            [50, 200, 400].forEach(d => setTimeout(_spViewportResize, d));
+            if (window.visualViewport) {
+                // Fire at staggered intervals — keyboard animation takes ~300ms on iOS
+                [50, 200, 400].forEach(d => setTimeout(_spViewportResize, d));
+            } else {
+                // Fallback for browsers without visualViewport: nudge the focused input
+                // into the centre of the layout once the keyboard has animated in.
+                setTimeout(() => {
+                    const inp = document.getElementById('spSearchInput');
+                    if (inp) inp.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                }, 300);
+            }
         }
 
         function _spSearchBlur() {
