@@ -1703,7 +1703,7 @@
                     <span class="partner-link">Explore THEMAGIC5 <i data-lucide="arrow-right" style="width:13px;height:13px;"></i></span>
                 </a>
                 <!-- BlueSeventy UK -->
-                <a href="/partners/blueseventy" class="partner-card" onclick="slTrackBlueseventy()">
+                <a href="/partners/blueseventy" class="partner-card">
                     <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
                         <div class="partner-logo-wrap">
                             <img src="/partners/BLUE70_FULLCOLOR.png" alt="BlueSeventy UK" style="height:38px;width:auto;">
@@ -1738,19 +1738,25 @@
         </div>
     </section>
     <script>
-    // Fire-and-forget insert into Supabase analytics_events (same pattern as app.js)
-    function slTrackBlueseventy() {
-        try {
-            const SB_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
-            const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
-            fetch(SB_URL + '/rest/v1/analytics_events', {
-                method: 'POST',
-                keepalive: true,
-                headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-                body: JSON.stringify({ event_name: 'partner_blueseventy_homepage_click', user_id: null, properties: null })
-            }).catch(() => {});
-        } catch (e) { /* never block navigation */ }
-    }
+    // Homepage partner-card clicks — fire-and-forget into Supabase analytics_events (same table as app.js / admin panel).
+    // Delegated so every partner card is tracked; event name derived from the /partners/<slug> href (hyphens stripped).
+    (function () {
+        var SB_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+        var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+        document.addEventListener('click', function (e) {
+            var card = e.target.closest && e.target.closest('a.partner-card[href^="/partners/"]');
+            if (!card) return;
+            var slug = card.getAttribute('href').split('/').pop().replace(/-/g, '');
+            if (!slug) return;
+            try {
+                fetch(SB_URL + '/rest/v1/analytics_events', {
+                    method: 'POST', keepalive: true,
+                    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+                    body: JSON.stringify({ event_name: 'partner_' + slug + '_homepage_click', user_id: null, properties: null })
+                }).catch(function () {});
+            } catch (err) { /* never block navigation */ }
+        });
+    })();
     </script>
 
     <!-- ═══════════════ EXPLORE MORE ═══════════════ -->

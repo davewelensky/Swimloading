@@ -335,6 +335,26 @@
     document.body.style.setProperty('--mouse-y', e.clientY + 'px');
   });
   lucide.createIcons();
+
+  // Partner analytics — fire-and-forget page view + outbound-click into Supabase analytics_events (same table as app.js / admin panel)
+  (function () {
+    var SB_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+    var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+    function track(name) {
+      try {
+        fetch(SB_URL + '/rest/v1/analytics_events', {
+          method: 'POST', keepalive: true,
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ event_name: name, user_id: null, properties: null })
+        }).catch(function () {});
+      } catch (e) {}
+    }
+    track('partner_eolab_page_view');
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a[href]');
+      if (a && /eolab\.com/i.test(a.href)) track('partner_eolab_shop_click');
+    });
+  })();
 </script>
 </body>
 </html>
