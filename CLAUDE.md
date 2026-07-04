@@ -157,11 +157,22 @@ All scripts are loaded sequentially in `index.html` **with global scope** (no ES
 - **spots** — swim locations (name, code, domain, type, latitude, longitude, country_code)
 - **domains** — regions (code, display_name, is_coastal, sort_order)
 - **countries** — ISO countries (iso_code, name, is_domestic) — source of truth for international classification
-- **temp_logs** — temperature readings (spot_id, temperature, created_at, created_by)
+- **temp_logs** — SWIMMER-reported temperature readings (spot_id, temp_c, created_at, user_id, location_source). Community/ground-truth data.
+- **spot_water_readings** — MODELLED water temp per spot (`source` = open_meteo | copernicus), kept SEPARATE from temp_logs so model data never pollutes the community feed/count/points. View `spot_water_latest` = latest per spot+source. Populated by `/api/cron/marine-temps.js` (Open-Meteo Marine SST, coastal spots only, every 3h). See "Water-temperature intelligence" below.
 - **swim_events** — upcoming group swims (title, date, domain, participants)
 - **leaderboard** — April 2026 challenge scores (user_id, points, rank)
 - **strava_connections** — OAuth tokens per user (service role writes; RLS enforced)
 - **strava_imports** — cached Strava activities; `imported_to_log_id` set once imported
+
+### Water-temperature intelligence (started Jul 2026)
+
+Goal: a trustworthy water temp on every spot, blending sources with a confidence score.
+
+- **Two sources, kept separate:** swimmer-reported (`temp_logs`, ground truth) + modelled (`spot_water_readings`). NEVER write model data into `temp_logs` — it would inflate the "temps logged" count and trip points/leaderboard triggers.
+- **#1 Open-Meteo Marine (LIVE):** `/api/cron/marine-temps.js`, every 3h (`0 */3 * * *`). Fetches sea-surface temp for the ~95 coastal spots (OCEAN + LAGOON) in bulk batches of ≤20 (Open-Meteo bulk 400s above ~20 coords, or if ONE coord is off the marine grid — hence per-spot fallback). No API key.
+- **Coverage reality:** marine model = oceans/seas only. Pools (69) + inland lake/dam/river (16) get NO model temp — they stay swimmer-reported (product decision: "swimmer-only + honest label"). ~2 coastal spots also lack grid coverage (e.g. Zinkwazi Lagoon up an estuary, Lake Lugano miscoded coastal).
+- **#4 Confidence score (Phase 2, TODO):** blend fresh swimmer report (preferred) + model; HIGH = both agree & recent, MEDIUM = one fresh source, LOW = stale/single. Surface a badge per spot.
+- **#5 Copernicus (Phase 3, later):** same `spot_water_readings` table, `source='copernicus'`, for history + forecast.
 
 ### Countries & International Classification
 
