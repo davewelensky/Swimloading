@@ -202,6 +202,44 @@ Every partner must have all of the following before going live:
 
 ---
 
+### FORM
+
+| Field | Value |
+|-------|-------|
+| **Status** | Partnership confirmed (Jul 2026) — details being finalised with Timmy |
+| **Hero page** | `/partners/form` (live in coming-soon state) |
+| **Welcome card** | Yes (coming soon badge — update once details are confirmed) |
+| **Geography** | `[UNCONFIRMED]` — confirm with Timmy which countries the discount/prize applies to before geo-targeting |
+| **Contact** | Timmy (surname + contact details `[TBD]` — store in local memory, not in public repo) |
+| **Partner URL** | https://www.formswim.com |
+
+**What SwimLoading offers them:**
+- Partner card + hero page at /partners/form
+- `[TBD — agree with Timmy]`
+
+**What they offer members:**
+- **Member discounts** on FORM goggles — percentage, code/portal, and geography `[TBD from Timmy]`
+- **Prize: a pair of FORM Smart Swim 2 goggles** — which challenge/month and mechanics `[TBD from Timmy]`
+
+**Product facts on hero page** (verified from formswim.com, Jul 7 2026):
+- Tagline: "YOUR SWIM. IN FOCUS."
+- Models: Smart Swim 2 LT / Smart Swim 2 / Smart Swim 2 PRO — do NOT publish prices (USD prices on site change)
+- "Augmented Reality Display" (patented Waveguide tech) — 9 real-time metrics incl. pace, stroke rate, heart rate, distance, splits
+- "SwimStraight™" — patented in-goggle digital compass for open water
+- Optical heart rate sensor built in (reads from the temple) — on Smart Swim 2 and PRO
+- GPS distance/pace in open water requires pairing with a Garmin or Apple watch — do NOT claim standalone GPS
+- HeadCoach™ and Script are Premium (subscription) features — don't present them as included
+- FORM ships worldwide (USD/CAD/AUD/EUR/GBP) — but OUR discount/prize geography is still unconfirmed
+
+**Outstanding actions:**
+- [ ] Get from Timmy: discount % / code or portal, geography, prize timing + mechanics, logo assets, preferred copy
+- [ ] Get FORM logo asset (page currently uses a text wordmark) — add to `/partners/`
+- [ ] Update hero page + welcome card from coming-soon to live once confirmed
+- [ ] Add FORM to the International Expansion assessment table once geography is confirmed
+- [ ] Store Timmy's contact details in local memory
+
+---
+
 ## Partner Pipeline
 
 Partners we should consider approaching as SwimLoading grows. No pages, no cards, no mentions until confirmed.
