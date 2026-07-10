@@ -240,6 +240,43 @@ Every partner must have all of the following before going live:
 
 ---
 
+### TRI HARD
+
+| Field | Value |
+|-------|-------|
+| **Status** | Partnership confirmed (Jul 2026) — presenting sponsor of The Great UK Swim Spot Challenge, details being finalised |
+| **Hero page** | `/partners/trihard` (live in coming-soon state) |
+| **Welcome card** | Yes (coming soon badge — update once details are confirmed) |
+| **Geography** | UK/EU (per existing welcome.html copy) — `[UNCONFIRMED]` exact country list; geo-gating is copy-only, matching every other partner page (no partner has real enforcement) |
+| **Contact** | `[TBD]` — store in local memory, not in public repo |
+| **Partner URL** | `[TBD]` |
+
+**What SwimLoading offers them:**
+- Partner card + hero page at /partners/trihard
+- Presenting-sponsor placement on `/uk-challenge` (The Great UK Swim Spot Challenge — MVP shipped Jul 2026, `enabled=false`/`test_mode=true` pending real dates)
+- `[TBD — agree remaining terms]`
+
+**What they offer members:**
+- **Member discount** on TRI HARD products — percentage, code/portal, and geography `[TBD]`
+- Presenting a UK-wide location-discovery challenge: 10 points per unique outdoor UK swim location logged
+
+**Product facts on hero page** (high-level only, from existing welcome.html copy — not independently re-verified this session):
+- Pre- and post-swim skincare for open water athletes: chlorine protection, sun defence, salt recovery
+- Do NOT publish prices, product names, or discount details until confirmed
+
+**Outstanding actions:**
+- [ ] Get from TRI HARD: discount % / code, geography, logo assets, preferred copy, contact name
+- [ ] Confirm real launch/end dates for The Great UK Swim Spot Challenge (DB currently seeded with placeholder Aug 1 – Sep 30 2026, `enabled=false`)
+- [ ] Get a TRI HARD logo asset (page currently uses a text wordmark)
+- [ ] Update hero page + welcome card from coming-soon to live once confirmed
+- [ ] Add TRI HARD to the International Expansion assessment table once geography is confirmed
+- [ ] Store contact details in local memory
+
+**Notes:**
+- The UK Swim Spot Challenge is its own campaign system (`campaigns`/`campaign_*` tables), entirely separate from the monthly draw challenge (`june_challenge_*`) — see the migration files under `sql/applied/2026-07-10_uk-challenge-*.sql`.
+
+---
+
 ## Partner Pipeline
 
 Partners we should consider approaching as SwimLoading grows. No pages, no cards, no mentions until confirmed.

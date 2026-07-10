@@ -511,6 +511,45 @@
             <div id="spotSuggestionsList" style="font-size:13px;color:var(--text-secondary);">Loading…</div>
         </div>
 
+        <!-- UK Challenge — Locations (entirely separate campaign from the monthly challenge above) -->
+        <div class="section-title">🇬🇧 UK Challenge — Locations</div>
+        <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <div style="font-size:13px;color:var(--text-secondary);">Pending UK swim spot proposals from The Great UK Swim Spot Challenge (TRI HARD). Approve creates a real spot; Merge links to an existing one; either retroactively awards credit for any qualifying logs the swimmer already has there.</div>
+                <button onclick="loadUkLocationProposals()" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);color:var(--ocean);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;">↻ Refresh</button>
+            </div>
+            <div id="ukLocationProposalsList" style="font-size:13px;color:var(--text-secondary);">Loading…</div>
+        </div>
+
+        <!-- UK Challenge — Moderation -->
+        <div class="section-title">🇬🇧 UK Challenge — Moderation</div>
+        <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:16px;">
+                <div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">Recalculate scores from qualifying logs (defensive — fixes any gaps, never removes existing credit).</div>
+                    <button onclick="ukRecalcScores()" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);color:var(--ocean);border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;font-weight:600;">Recalc Scores</button>
+                    <div id="ukRecalcMsg" style="font-size:12px;margin-top:8px;"></div>
+                </div>
+                <div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">Void a log's UK Challenge credit by temp_logs id (log stays, only the credit is removed).</div>
+                    <div style="display:flex;gap:8px;">
+                        <input id="ukVoidLogId" placeholder="temp_logs id" style="flex:1;background:rgba(15,23,42,0.6);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px;">
+                        <button onclick="ukVoidLog()" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;font-weight:600;">Void</button>
+                    </div>
+                    <div id="ukVoidMsg" style="font-size:12px;margin-top:8px;"></div>
+                </div>
+            </div>
+            <div style="border-top:1px solid var(--border);padding-top:16px;">
+                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">Disqualify / reinstate a swimmer by user id (copy from the Users table below).</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <input id="ukFlagUserId" placeholder="user id" style="flex:1;min-width:200px;background:rgba(15,23,42,0.6);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px;">
+                    <button onclick="ukDisqualifyUser()" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;font-weight:600;">Disqualify</button>
+                    <button onclick="ukReinstateUser()" style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:#22c55e;border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;font-weight:600;">Reinstate</button>
+                </div>
+                <div id="ukFlagMsg" style="font-size:12px;margin-top:8px;"></div>
+            </div>
+        </div>
+
         <!-- Spot Management -->
         <div class="section-title">Spot Management</div>
         <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
@@ -828,7 +867,7 @@ async function showDashboard(user) {
     document.getElementById('loadingScreen').style.display = 'none';
     document.getElementById('adminEmail').textContent = user.email;
     document.getElementById('dashboard').style.display = 'block';
-    await Promise.all([loadAdminDomains(), loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement(), loadSpotlights(), loadSpotSuggestions(), loadRecentLogs(), loadAntiCheat(), loadChallengeStats()]);
+    await Promise.all([loadAdminDomains(), loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement(), loadSpotlights(), loadSpotSuggestions(), loadRecentLogs(), loadAntiCheat(), loadChallengeStats(), loadUkLocationProposals()]);
     loadAnalytics(7);
 }
 
@@ -953,6 +992,11 @@ const EVENT_LABELS = {
     safety_viewed:    'Safety Viewed',
     leaderboard_viewed: 'Leaderboard Viewed',
     whatsapp_shared:  'WhatsApp Shared',
+    uk_challenge_joined:         'UK Challenge Joined',
+    uk_challenge_swim_logged:    'UK Challenge Swim Logged',
+    uk_challenge_location_earned: 'UK Challenge Location Earned',
+    trihard_page_view:  'TRI HARD Page View',
+    trihard_link_click: 'TRI HARD Link Click',
 };
 
 async function loadAnalytics(days = 7) {
@@ -1736,6 +1780,160 @@ async function rejectSpotSuggestion(id) {
     const reason = prompt('Reason for rejection (optional — will be sent to the swimmer):');
     if (reason === null) return; // cancelled
     await resolveSpotSuggestion(id, 'rejected', reason || null);
+}
+
+// ── UK Swim Spot Challenge — entirely separate from the monthly challenge above ─
+let ukAdminCampaignId = null;
+async function ukAdminGetCampaignId() {
+    if (ukAdminCampaignId) return ukAdminCampaignId;
+    const { data } = await supabaseClient.from('campaigns').select('id').eq('slug', 'uk_swim_spot_challenge').single();
+    ukAdminCampaignId = data?.id || null;
+    return ukAdminCampaignId;
+}
+
+async function loadUkLocationProposals() {
+    const el = document.getElementById('ukLocationProposalsList');
+    if (!el) return;
+    const campaignId = await ukAdminGetCampaignId();
+    if (!campaignId) { el.innerHTML = '<div style="color:#f87171;">UK campaign not found.</div>'; return; }
+
+    const { data, error } = await supabaseClient
+        .from('campaign_location_proposals')
+        .select('*, spot_suggestions(spot_name, water_type, region, description)')
+        .eq('campaign_id', campaignId)
+        .order('created_at', { ascending: false });
+
+    if (error) { el.innerHTML = `<div style="color:#f87171;">Error: ${error.message}</div>`; return; }
+    if (!data || data.length === 0) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No proposals yet.</div>'; return; }
+
+    const userIds = [...new Set(data.map(p => p.user_id))];
+    const { data: profileData } = await supabaseClient.from('profiles').select('id, display_name').in('id', userIds);
+    const profileMap = Object.fromEntries((profileData || []).map(p => [p.id, p.display_name]));
+
+    const statusBadge = s => s === 'pending'
+        ? `<span style="background:rgba(251,191,36,0.15);color:#fbbf24;border:1px solid rgba(251,191,36,0.3);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;">Pending</span>`
+        : s === 'approved' || s === 'merged_to_existing'
+        ? `<span style="background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;">${s === 'merged_to_existing' ? 'Merged' : 'Approved'}</span>`
+        : `<span style="background:rgba(248,113,113,0.15);color:#f87171;border:1px solid rgba(248,113,113,0.3);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;">Rejected</span>`;
+
+    el.innerHTML = data.map(p => {
+        const s = p.spot_suggestions || {};
+        return `
+        <div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:rgba(15,23,42,0.4);">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+                <div>
+                    <span style="font-weight:700;font-size:14px;color:var(--text);">${s.spot_name || '(unknown)'}</span>
+                    <span style="color:var(--text-secondary);font-size:12px;margin-left:8px;">${s.water_type || ''}${s.region ? ' · ' + s.region : ''}</span>
+                </div>
+                ${statusBadge(p.status)}
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5;">${s.description || ''}</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">
+                by <strong style="color:var(--text);">${profileMap[p.user_id] || 'Unknown'}</strong>
+                · ${new Date(p.created_at).toLocaleDateString('en-ZA', {day:'numeric',month:'short',year:'numeric'})}
+                ${p.claimed_lat && p.claimed_lng ? ` · <a href="https://www.google.com/maps?q=${p.claimed_lat},${p.claimed_lng}" target="_blank" style="color:var(--ocean);">view coords</a>` : ''}
+            </div>
+            ${p.status === 'pending' ? `
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button onclick="ukApproveNewSpot('${p.id}','${(s.spot_name||'').replace(/'/g,"\\'")}','${s.water_type||'OCEAN'}',${p.claimed_lat||'null'},${p.claimed_lng||'null'})"
+                    style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#22c55e;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:600;">✓ Approve as new spot</button>
+                <button onclick="ukMergeToExisting('${p.id}')"
+                    style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);color:var(--ocean);border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;">Merge to existing</button>
+                <button onclick="ukRejectProposal('${p.id}')"
+                    style="background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.25);color:#f87171;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;">✕ Reject</button>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+async function ukApproveNewSpot(proposalId, spotName, waterType, lat, lng) {
+    if (!spotName || lat === null || lng === null) { alert('Missing spot name or coordinates — cannot create spot.'); return; }
+    const code = spotName.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').slice(0, 40);
+    if (!confirm(`Create new UK spot "${spotName}" (${waterType}) and approve this proposal?`)) return;
+
+    const { data: newSpot, error: spotErr } = await supabaseClient
+        .from('spots')
+        .insert({ name: spotName, code, water_type: waterType, country_code: 'GB', latitude: lat, longitude: lng, active: true })
+        .select('id')
+        .single();
+    if (spotErr) { alert('Error creating spot: ' + spotErr.message); return; }
+
+    const { data, error } = await supabaseClient.rpc('resolve_campaign_location_proposal', {
+        p_proposal_id: proposalId, p_status: 'approved', p_resolved_spot_id: newSpot.id
+    });
+    if (error || data?.ok === false) { alert('Spot created, but could not resolve proposal: ' + (error?.message || data?.reason)); }
+    else { alert(`✓ "${spotName}" is now a live UK spot.${data.retroactive_credit ? ' Retroactive credit awarded.' : ''}`); }
+    loadUkLocationProposals();
+}
+
+async function ukMergeToExisting(proposalId) {
+    const spotName = prompt('Name (or part of name) of the existing GB spot to merge this proposal into:');
+    if (!spotName) return;
+    const { data: matches, error } = await supabaseClient.from('spots').select('id, name').eq('country_code', 'GB').ilike('name', `%${spotName}%`).limit(10);
+    if (error || !matches || matches.length === 0) { alert('No matching GB spot found.'); return; }
+    let targetId = matches[0].id;
+    if (matches.length > 1) {
+        const choice = prompt(`Multiple matches:\n${matches.map((m,i) => `${i+1}. ${m.name}`).join('\n')}\n\nEnter the number:`);
+        const idx = parseInt(choice, 10) - 1;
+        if (isNaN(idx) || !matches[idx]) return;
+        targetId = matches[idx].id;
+    }
+    const { data, error: rpcErr } = await supabaseClient.rpc('resolve_campaign_location_proposal', {
+        p_proposal_id: proposalId, p_status: 'merged_to_existing', p_resolved_spot_id: targetId
+    });
+    if (rpcErr || data?.ok === false) { alert('Could not merge: ' + (rpcErr?.message || data?.reason)); }
+    else { alert(`✓ Merged.${data.retroactive_credit ? ' Retroactive credit awarded.' : ''}`); }
+    loadUkLocationProposals();
+}
+
+async function ukRejectProposal(proposalId) {
+    if (!confirm('Reject this UK location proposal?')) return;
+    const { error } = await supabaseClient.rpc('resolve_campaign_location_proposal', { p_proposal_id: proposalId, p_status: 'rejected' });
+    if (error) { alert('Error: ' + error.message); return; }
+    loadUkLocationProposals();
+}
+
+async function ukRecalcScores() {
+    const msg = document.getElementById('ukRecalcMsg');
+    const campaignId = await ukAdminGetCampaignId();
+    if (!campaignId) { msg.style.color = '#ef4444'; msg.textContent = 'UK campaign not found.'; return; }
+    msg.style.color = 'var(--text-secondary)'; msg.textContent = 'Recalculating…';
+    const { data, error } = await supabaseClient.rpc('recalc_campaign_scores', { p_campaign_id: campaignId });
+    if (error || data?.ok === false) { msg.style.color = '#ef4444'; msg.textContent = 'Error: ' + (error?.message || data?.reason); return; }
+    msg.style.color = '#10b981'; msg.textContent = `✓ ${data.credits_added} credit(s) added.`;
+}
+
+async function ukVoidLog() {
+    const logId = document.getElementById('ukVoidLogId').value.trim();
+    const msg = document.getElementById('ukVoidMsg');
+    if (!logId) { msg.style.color = '#ef4444'; msg.textContent = 'Enter a temp_logs id.'; return; }
+    const campaignId = await ukAdminGetCampaignId();
+    const { data, error } = await supabaseClient.rpc('void_campaign_log', { p_campaign_id: campaignId, p_log_id: logId });
+    if (error || data?.ok === false) { msg.style.color = '#ef4444'; msg.textContent = 'Error: ' + (error?.message || data?.reason); return; }
+    msg.style.color = '#10b981'; msg.textContent = `✓ ${data.credits_removed} credit(s) removed.`;
+    document.getElementById('ukVoidLogId').value = '';
+}
+
+async function ukDisqualifyUser() {
+    const userId = document.getElementById('ukFlagUserId').value.trim();
+    const msg = document.getElementById('ukFlagMsg');
+    if (!userId) { msg.style.color = '#ef4444'; msg.textContent = 'Enter a user id.'; return; }
+    const reason = prompt('Reason for disqualification:');
+    if (reason === null) return;
+    const campaignId = await ukAdminGetCampaignId();
+    const { data, error } = await supabaseClient.rpc('admin_disqualify_campaign_user', { p_campaign_id: campaignId, p_user_id: userId, p_reason: reason || 'No reason given' });
+    if (error || data?.ok === false) { msg.style.color = '#ef4444'; msg.textContent = 'Error: ' + (error?.message || data?.reason); return; }
+    msg.style.color = '#10b981'; msg.textContent = '✓ Disqualified.';
+}
+
+async function ukReinstateUser() {
+    const userId = document.getElementById('ukFlagUserId').value.trim();
+    const msg = document.getElementById('ukFlagMsg');
+    if (!userId) { msg.style.color = '#ef4444'; msg.textContent = 'Enter a user id.'; return; }
+    const campaignId = await ukAdminGetCampaignId();
+    const { data, error } = await supabaseClient.rpc('admin_reinstate_campaign_user', { p_campaign_id: campaignId, p_user_id: userId });
+    if (error || data?.ok === false) { msg.style.color = '#ef4444'; msg.textContent = 'Error: ' + (error?.message || data?.reason); return; }
+    msg.style.color = '#10b981'; msg.textContent = '✓ Reinstated.';
 }
 
 // ── Spotlight ─────────────────────────────────────────────────────────────────

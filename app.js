@@ -1098,6 +1098,7 @@
         // Load dashboard
         async function loadDashboard() {
             loadMonthlyChallengeSummary();     // non-blocking
+            if (typeof ukLoadDashboardCard === 'function') ukLoadDashboardCard(); // non-blocking, independent campaign
             loadSpotlightBanner();             // non-blocking
             loadRaceDayBanner();               // non-blocking
             loadClubAdminBanner();             // non-blocking
@@ -7638,6 +7639,10 @@
                 if (!isTrueBackdate) {
                     const newLogId = data?.[0]?.id || null;
                     jcAwardPoints('temp_log', { spotId, spotName: spotNameForConfirm, temp, refId: newLogId });
+                    // UK Swim Spot Challenge — entirely independent scoring, same log event
+                    if (newLogId && typeof ukChallengeAwardLocation === 'function') {
+                        ukChallengeAwardLocation(newLogId);
+                    }
                 }
 
                 // Reset backdate picker

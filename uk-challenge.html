@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>The Great UK Swim Spot Challenge × TRI HARD | SwimLoading</title>
+  <meta name="description" content="Log a swim at any outdoor UK location and earn points for every unique spot you discover. Presented by TRI HARD on SwimLoading.">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #080f1a;
+      --bg-card:   #0d1728;
+      --bg-deep:   #050d1a;
+      --cyan:      #38bdf8;
+      --cyan-dim:  rgba(56,189,248,0.12);
+      --cyan-border: rgba(56,189,248,0.3);
+      --amber:     #f59e0b;
+      --green:     #10b981;
+      --text:      #f1f5f9;
+      --text-sec:  #64748b;
+      --border:    rgba(255,255,255,0.06);
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; line-height: 1.6; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+    body::before {
+      content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+      background:
+        radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px), rgba(56,189,248,0.55), transparent 100%),
+        radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px), rgba(56,189,248,0.07), transparent 70%);
+    }
+    nav { position: sticky; top: 0; z-index: 100; background: rgba(8,15,26,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 24px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-brand { display: flex; align-items: center; gap: 7px; text-decoration: none; font-size: 15px; font-weight: 800; letter-spacing: -0.5px; background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .nav-back { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-sec); letter-spacing: 1px; text-decoration: none; display: flex; align-items: center; gap: 6px; transition: color 0.2s; }
+    .nav-back:hover { color: var(--cyan); }
+    .status-badge { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px; border-radius: 20px; padding: 4px 12px; }
+    .status-badge.upcoming { color: var(--amber); background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3); }
+    .status-badge.active   { color: var(--green); background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); }
+    .status-badge.ended    { color: var(--text-sec); background: rgba(255,255,255,0.05); border: 1px solid var(--border); }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+    .hero { position: relative; overflow: hidden; padding: 64px 0 48px; background: radial-gradient(700px circle at 80% -10%, rgba(56,189,248,0.1), transparent 60%), var(--bg-deep); border-bottom: 1px solid var(--border); }
+    .hero-content { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+    .hero-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--cyan); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 16px; }
+    .hero-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(36px, 7vw, 60px); line-height: 0.95; color: var(--text); margin-bottom: 14px; }
+    .hero-title span { color: var(--cyan); }
+    .hero-sub { font-size: 16px; color: rgba(241,245,249,0.82); max-width: 560px; line-height: 1.6; margin-bottom: 24px; }
+    .hero-ctas { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+    .cta-btn { display: inline-flex; align-items: center; gap: 8px; background: var(--cyan); color: #080f1a; font-size: 14px; font-weight: 700; padding: 13px 28px; border-radius: 50px; text-decoration: none; }
+    .cta-ghost { display: inline-flex; align-items: center; gap: 8px; background: transparent; border: 1px solid rgba(255,255,255,0.15); color: var(--text); font-size: 14px; font-weight: 600; padding: 12px 24px; border-radius: 50px; text-decoration: none; }
+    .sponsor-line { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-sec); letter-spacing: 1px; }
+    .sponsor-line a { color: var(--cyan); text-decoration: none; }
+
+    section { padding: 44px 0; border-top: 1px solid var(--border); }
+    .section-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--cyan); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 16px; }
+    .section-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(26px, 4.5vw, 38px); line-height: 1; color: var(--text); margin-bottom: 20px; }
+    .section-title span { color: var(--cyan); }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    @media (max-width: 640px) { .stats-grid { grid-template-columns: 1fr; } }
+    .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; text-align: center; }
+    .stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 32px; color: var(--cyan); }
+    .stat-label { font-size: 12px; color: var(--text-sec); margin-top: 4px; }
+
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
+    .lb-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+    .lb-row:last-child { border-bottom: none; }
+    .lb-rank { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-sec); width: 22px; flex-shrink: 0; }
+    .lb-name { flex: 1; color: var(--text); font-weight: 600; }
+    .lb-metric { color: var(--cyan); font-weight: 700; font-size: 13px; }
+
+    .feed-row { padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: #cbd5e1; }
+    .feed-row:last-child { border-bottom: none; }
+    .feed-row .feed-time { color: var(--text-sec); font-size: 11px; margin-left: 6px; }
+
+    #ukMap { height: 340px; border-radius: 12px; overflow: hidden; }
+
+    .rules-list { list-style: none; }
+    .rules-item { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; font-size: 14px; color: #cbd5e1; line-height: 1.6; }
+    .rules-dot { width: 6px; height: 6px; background: var(--cyan); border-radius: 50%; margin-top: 7px; flex-shrink: 0; }
+    .empty-state { color: var(--text-sec); font-size: 13px; text-align: center; padding: 20px 0; }
+
+    footer { border-top: 1px solid var(--border); padding: 32px 24px; text-align: center; }
+    .footer-text { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-sec); letter-spacing: 1px; line-height: 2; }
+    .footer-text a { color: var(--text-sec); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-brand"><img src="/icons/logo-wave.png" alt="" style="height:22px;width:auto;">SwimLoading</a>
+  <span class="status-badge upcoming" id="statusBadge">LOADING</span>
+  <a href="/app" class="nav-back"><i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Back to app</a>
+</nav>
+
+<div class="hero">
+  <div class="hero-content">
+    <div class="hero-label">UK Growth Challenge</div>
+    <div class="hero-title">The Great UK<br>Swim Spot <span>Challenge.</span></div>
+    <div class="hero-sub">From a quick dip to a long open-water swim, every new UK swim spot counts. Log a swim at an outdoor UK location and earn 10 points for every unique spot you discover — no distance or speed required.</div>
+    <div class="hero-ctas">
+      <a href="/app" class="cta-btn">Join the Challenge →</a>
+      <a href="#map" class="cta-ghost">View the Map →</a>
+    </div>
+    <div class="sponsor-line">Presented by <a href="/partners/trihard">TRI HARD</a> · <span id="dateRangeText">dates TBC</span></div>
+  </div>
+</div>
+
+<div class="container">
+
+  <section id="stats">
+    <div class="section-label">Live Campaign Stats</div>
+    <div class="section-title">Where the <span>challenge</span> stands.</div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-value" id="statParticipants">–</div><div class="stat-label">Participants</div></div>
+      <div class="stat-card"><div class="stat-value" id="statLocations">–</div><div class="stat-label">Unique locations logged</div></div>
+      <div class="stat-card"><div class="stat-value" id="statSwims">–</div><div class="stat-label">Qualifying swims</div></div>
+    </div>
+  </section>
+
+  <section id="leaderboard">
+    <div class="section-label">Leaderboard</div>
+    <div class="section-title">Top <span>explorers.</span></div>
+    <div class="card"><div id="leaderboardList"><div class="empty-state">Loading…</div></div></div>
+  </section>
+
+  <section id="feed">
+    <div class="section-label">Live Activity</div>
+    <div class="section-title">Latest <span>swims.</span></div>
+    <div class="card"><div id="feedList"><div class="empty-state">Loading…</div></div></div>
+  </section>
+
+  <section id="map">
+    <div class="section-label">Spot Map</div>
+    <div class="section-title">UK swim spots <span>discovered.</span></div>
+    <div class="card"><div id="ukMap"></div></div>
+  </section>
+
+  <section id="rules">
+    <div class="section-label">Challenge Rules</div>
+    <div class="section-title">How it <span>works.</span></div>
+    <ul class="rules-list">
+      <li class="rules-item"><div class="rules-dot"></div><div>10 points for every <strong style="color:#f1f5f9;">unique</strong> outdoor UK swim location you log — logging the same spot again doesn't earn more points, but it still counts toward your total swims.</div></li>
+      <li class="rules-item"><div class="rules-dot"></div><div>Open to casual dippers, wild swimmers, sea/lake/river swimmers, lido swimmers, triathletes and Channel swimmers alike — a short dip qualifies the same as a long swim.</div></li>
+      <li class="rules-item"><div class="rules-dot"></div><div>Outdoor UK locations only — sea, lake, river, dam, lagoon and outdoor tidal pools count; indoor swimming pools do not.</div></li>
+      <li class="rules-item"><div class="rules-dot"></div><div>Don't see your spot? Propose it in the app — new locations are reviewed before they count toward the leaderboard.</div></li>
+      <li class="rules-item"><div class="rules-dot"></div><div>Prize and winner-selection details will be announced before the challenge ends.</div></li>
+      <li class="rules-item"><div class="rules-dot"></div><div>Conditions change rapidly — SwimLoading doesn't certify any location as safe. Always check local weather, tides, currents and access rules before swimming, and never swim alone where local guidance recommends otherwise.</div></li>
+    </ul>
+  </section>
+
+</div>
+
+<footer>
+  <div class="container">
+    <div style="margin-bottom:16px;display:flex;justify-content:center;">
+      <a href="/" class="nav-brand" style="font-size:14px;"><img src="/icons/logo-wave.png" alt="" style="height:18px;width:auto;">SwimLoading</a>
+    </div>
+    <div class="footer-text">
+      <a href="https://swimloading.com">swimloading.com</a> &nbsp;·&nbsp; <a href="/partners/trihard">TRI HARD partner page</a><br>
+      SwimLoading is the open water intelligence platform for swimmers who take the water seriously.
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.addEventListener('mousemove', e => {
+    document.documentElement.style.setProperty('--mouse-x', e.clientX + 'px');
+    document.documentElement.style.setProperty('--mouse-y', e.clientY + 'px');
+  });
+  lucide.createIcons();
+
+  const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function trackEvent(eventName, properties) {
+    try {
+      fetch(SUPABASE_URL + '/rest/v1/analytics_events', {
+        method: 'POST', keepalive: true,
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ event_name: eventName, user_id: null, properties: properties || null })
+      }).catch(() => {});
+    } catch (e) {}
+  }
+
+  function fmtDate(d) {
+    return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function timeAgo(ts) {
+    const secs = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+    if (secs < 60) return 'just now';
+    if (secs < 3600) return Math.floor(secs / 60) + 'm ago';
+    if (secs < 86400) return Math.floor(secs / 3600) + 'h ago';
+    return Math.floor(secs / 86400) + 'd ago';
+  }
+
+  async function init() {
+    trackEvent('uk_spot_challenge_viewed');
+
+    const { data: campaign } = await sb.from('campaigns').select('*').eq('slug', 'uk_swim_spot_challenge').single();
+    if (!campaign) {
+      document.getElementById('statusBadge').textContent = 'UNAVAILABLE';
+      return;
+    }
+
+    const badge = document.getElementById('statusBadge');
+    const today = new Date().toISOString().slice(0, 10);
+    let status = 'upcoming';
+    if (!campaign.enabled) {
+      badge.className = 'status-badge upcoming';
+      badge.textContent = 'COMING SOON';
+    } else if (today < campaign.launch_date) {
+      badge.className = 'status-badge upcoming';
+      badge.textContent = 'STARTS ' + fmtDate(campaign.launch_date).toUpperCase();
+    } else if (today > campaign.end_date) {
+      badge.className = 'status-badge ended';
+      badge.textContent = 'ENDED';
+      status = 'ended';
+    } else {
+      badge.className = 'status-badge active';
+      badge.textContent = 'LIVE NOW';
+      status = 'active';
+    }
+    document.getElementById('dateRangeText').textContent =
+      campaign.launch_date && campaign.end_date ? `${fmtDate(campaign.launch_date)} – ${fmtDate(campaign.end_date)}` : 'dates TBC';
+
+    if (!campaign.enabled) {
+      // Honest zero state pre-launch — no fabricated numbers.
+      ['statParticipants','statLocations','statSwims'].forEach(id => document.getElementById(id).textContent = '0');
+      document.getElementById('leaderboardList').innerHTML = '<div class="empty-state">The challenge hasn\'t launched yet — be the first on the board.</div>';
+      document.getElementById('feedList').innerHTML = '<div class="empty-state">No activity yet.</div>';
+      initMap([]);
+      return;
+    }
+
+    const [leadersRes, feedRes] = await Promise.all([
+      sb.rpc('get_campaign_leaders', { p_campaign_id: campaign.id }),
+      sb.from('campaign_events').select('*').eq('campaign_id', campaign.id).order('created_at', { ascending: false }).limit(20),
+    ]);
+
+    const leaders = leadersRes.data || [];
+    const events = feedRes.data || [];
+
+    document.getElementById('statParticipants').textContent = leaders.length;
+    document.getElementById('statLocations').textContent = leaders.reduce((s, r) => s + (r.unique_locations || 0), 0);
+    document.getElementById('statSwims').textContent = leaders.reduce((s, r) => s + (r.total_swims_logged || 0), 0);
+
+    const lbEl = document.getElementById('leaderboardList');
+    if (!leaders.length) {
+      lbEl.innerHTML = '<div class="empty-state">No one\'s logged a qualifying swim yet — be the first.</div>';
+    } else {
+      lbEl.innerHTML = leaders.filter(r => !r.disqualified).slice(0, 20).map((r, i) => `
+        <div class="lb-row">
+          <div class="lb-rank">${i + 1}</div>
+          <div class="lb-name">${(r.display_name || 'Swimmer').replace(/</g,'')}</div>
+          <div class="lb-metric">${r.unique_locations} spot${r.unique_locations !== 1 ? 's' : ''}</div>
+        </div>`).join('');
+    }
+
+    const feedEl = document.getElementById('feedList');
+    const feedRows = events.filter(e => e.action_type !== 'swim_logged_repeat');
+    if (!feedRows.length) {
+      feedEl.innerHTML = '<div class="empty-state">No activity yet.</div>';
+    } else {
+      feedEl.innerHTML = feedRows.map(e => {
+        const name = (e.display_name || 'A swimmer').replace(/</g,'');
+        let text;
+        if (e.action_type === 'joined') text = `${name} joined the challenge.`;
+        else if (e.action_type === 'location_earned') text = `${name} logged a swim at <strong style="color:#f1f5f9;">${e.spot_name || 'a UK spot'}</strong>.`;
+        else text = `${name} was active.`;
+        return `<div class="feed-row">${text}<span class="feed-time">${timeAgo(e.created_at)}</span></div>`;
+      }).join('');
+    }
+
+    // Map: one pin per distinct spot with at least one credit (via events since
+    // campaign_location_credits isn't publicly readable — events carry spot_id/name).
+    const spotMap = new Map();
+    events.filter(e => e.action_type === 'location_earned' && e.spot_id).forEach(e => {
+      if (!spotMap.has(e.spot_id)) spotMap.set(e.spot_id, { name: e.spot_name, count: 0 });
+      spotMap.get(e.spot_id).count++;
+    });
+    const spotIds = [...spotMap.keys()];
+    let spotCoords = [];
+    if (spotIds.length) {
+      const { data: spots } = await sb.from('spots').select('id, name, latitude, longitude').in('id', spotIds);
+      spotCoords = (spots || []).filter(s => s.latitude && s.longitude);
+    }
+    initMap(spotCoords);
+  }
+
+  function initMap(spots) {
+    const map = L.map('ukMap', { scrollWheelZoom: false }).setView([54.5, -3.5], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 18,
+    }).addTo(map);
+
+    spots.forEach(s => {
+      L.circleMarker([s.latitude, s.longitude], {
+        radius: 7, color: '#38bdf8', fillColor: '#38bdf8', fillOpacity: 0.7, weight: 2,
+      }).bindPopup(`<strong>${s.name}</strong>`).addTo(map);
+    });
+  }
+
+  init();
+</script>
+</body>
+</html>
