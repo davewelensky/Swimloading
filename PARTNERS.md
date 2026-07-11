@@ -248,7 +248,7 @@ Every partner must have all of the following before going live:
 | **Hero page** | `/partners/trihard` (live in coming-soon state) |
 | **Welcome card** | Yes (coming soon badge — update once details are confirmed) |
 | **Geography** | UK/EU (per existing welcome.html copy) — `[UNCONFIRMED]` exact country list; geo-gating is copy-only, matching every other partner page (no partner has real enforcement) |
-| **Contact** | `[TBD]` — store in local memory, not in public repo |
+| **Contact** | Allyson (email, Jul 2026) — surname/title TBD |
 | **Partner URL** | `[TBD]` |
 
 **What SwimLoading offers them:**
@@ -269,8 +269,11 @@ Every partner must have all of the following before going live:
 
 **Assets received (Jul 2026):** logo (white/purple/black + source .ai) and 3 product photos, in `/partners/` — optimized web copies: `trihard-logo-white.png`, `trihard-logo-purple.png`, `trihard-products.jpg`, `trihard-beach.jpg`, `trihard-shampoo-beach.jpg`. Originals were 2–19MB each (unusable on web, not committed to git) — resized/compressed to 28–350KB. Product shot + in-use shot are live on `/partners/trihard`; `trihard-beach.jpg` (couple on a palm-lined beach, US-looking location) not yet placed anywhere — note the location doesn't read as UK, worth asking TRIHARD if that's their only lifestyle asset.
 
+**Notes — SA angle (Jul 2026):** Allyson mentioned TRIHARD is parting ways with their current South Africa partner/distributor. Worth asking in the reply: (1) any leftover stock available — could be cheap/free prize or discount inventory, (2) whether they're looking for a new SA channel — SwimLoading's user base is SA-heavy, which could be a bigger opportunity than the UK/EU member-discount angle. Don't let this slow down closing the outstanding asks below.
+
 **Outstanding actions:**
-- [ ] Get from TRIHARD: discount % / code, geography confirmation, contact name (email received had no signature)
+- [ ] Get from TRIHARD: discount % / code, geography confirmation, Allyson's surname/title
+- [ ] Ask Allyson about leftover SA partner stock + interest in SwimLoading as new SA channel
 - [ ] Confirm real launch/end dates for The Great UK Swim Spot Challenge (DB currently seeded with placeholder Aug 1 – Sep 30 2026, `enabled=false`)
 - [x] Get a TRIHARD logo asset — received Jul 2026, now live on hero page + welcome card
 - [x] Confirm brand spelling — "TRIHARD" (one word), site-wide copy updated Jul 2026
