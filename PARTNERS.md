@@ -258,7 +258,8 @@ Every partner must have all of the following before going live:
 
 **What they offer members:**
 - **Member discount** on TRIHARD products — percentage, code/portal, and geography `[TBD]` (email confirmed a discount is available "if needed" — exact % not yet given)
-- **Challenge prize (confirmed Jul 2026 via email):** the challenge winner receives a bundle of 4 TRIHARD products
+- **Challenge prize (confirmed Jul 2026 via email, confirmed Jul 11 as a separate arrangement from the Lindi bundle below):** the UK Swim Spot Challenge leaderboard winner receives a bundle of 4 TRIHARD products
+- **Separately:** a product bundle shipped to Lindi Mitchell (SwimLoading's UK community lead, training for an English Channel crossing) — agreed Jul 1 2026, shipping address on file. This is personal to Lindi, not the challenge prize.
 - Presenting a UK-wide location-discovery challenge: 10 points per unique outdoor UK swim location logged
 
 **Product facts on hero page:**
@@ -269,11 +270,10 @@ Every partner must have all of the following before going live:
 
 **Assets received (Jul 2026):** logo (white/purple/black + source .ai) and 3 product photos, in `/partners/` — optimized web copies: `trihard-logo-white.png`, `trihard-logo-purple.png`, `trihard-products.jpg`, `trihard-beach.jpg`, `trihard-shampoo-beach.jpg`. Originals were 2–19MB each (unusable on web, not committed to git) — resized/compressed to 28–350KB. Product shot + in-use shot are live on `/partners/trihard`; `trihard-beach.jpg` (couple on a palm-lined beach, US-looking location) not yet placed anywhere — note the location doesn't read as UK, worth asking TRIHARD if that's their only lifestyle asset.
 
-**Notes — SA angle (Jul 2026):** Allyson mentioned TRIHARD is parting ways with their current South Africa partner/distributor. Worth asking in the reply: (1) any leftover stock available — could be cheap/free prize or discount inventory, (2) whether they're looking for a new SA channel — SwimLoading's user base is SA-heavy, which could be a bigger opportunity than the UK/EU member-discount angle. Don't let this slow down closing the outstanding asks below.
+**SA history — do not revisit distribution:** TRIHARD was ruled out for SA in the Jun 30–Jul 1 2026 email thread — shipping quotes from their UK warehouse were bad (PostNL ~$28/15+ days, DHL Express ~$101/2–5 days, plus ~$20 duties/taxes/brokerage) and import wasn't even guaranteed. Dave explicitly does not want to get into import/stock/inventory — no capital for it. Pivoted to the UK-specific Lindi Mitchell arrangement instead. **Do not suggest SwimLoading take on TRIHARD stock, distribution, or a leftover-inventory deal — this was already declined.**
 
 **Outstanding actions:**
 - [ ] Get from TRIHARD: discount % / code, geography confirmation, Allyson's surname/title
-- [ ] Ask Allyson about leftover SA partner stock + interest in SwimLoading as new SA channel
 - [ ] Confirm real launch/end dates for The Great UK Swim Spot Challenge (DB currently seeded with placeholder Aug 1 – Sep 30 2026, `enabled=false`)
 - [x] Get a TRIHARD logo asset — received Jul 2026, now live on hero page + welcome card
 - [x] Confirm brand spelling — "TRIHARD" (one word), site-wide copy updated Jul 2026
