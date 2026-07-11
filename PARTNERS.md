@@ -240,7 +240,7 @@ Every partner must have all of the following before going live:
 
 ---
 
-### TRI HARD
+### TRIHARD
 
 | Field | Value |
 |-------|-------|
@@ -257,20 +257,26 @@ Every partner must have all of the following before going live:
 - `[TBD — agree remaining terms]`
 
 **What they offer members:**
-- **Member discount** on TRI HARD products — percentage, code/portal, and geography `[TBD]`
+- **Member discount** on TRIHARD products — percentage, code/portal, and geography `[TBD]` (email confirmed a discount is available "if needed" — exact % not yet given)
+- **Challenge prize (confirmed Jul 2026 via email):** the challenge winner receives a bundle of 4 TRIHARD products
 - Presenting a UK-wide location-discovery challenge: 10 points per unique outdoor UK swim location logged
 
-**Product facts on hero page** (high-level only, from existing welcome.html copy — not independently re-verified this session):
+**Product facts on hero page:**
 - Pre- and post-swim skincare for open water athletes: chlorine protection, sun defence, salt recovery
-- Do NOT publish prices, product names, or discount details until confirmed
+- Real product line (confirmed Jul 2026 via product photography): Chlorine Removal Shampoo, Chlorine Protection Conditioner, Chlorine Removal Body Wash
+- Brand name is **"TRIHARD"** (one word, per logo — tagline: "Swim-Specialized Personal Care"). All site copy updated to match Jul 2026.
+- Do NOT publish prices or discount details until confirmed
+
+**Assets received (Jul 2026):** logo (white/purple/black + source .ai) and 3 product photos, in `/partners/` — optimized web copies: `trihard-logo-white.png`, `trihard-logo-purple.png`, `trihard-products.jpg`, `trihard-beach.jpg`, `trihard-shampoo-beach.jpg`. Originals were 2–19MB each (unusable on web, not committed to git) — resized/compressed to 28–350KB. Product shot + in-use shot are live on `/partners/trihard`; `trihard-beach.jpg` (couple on a palm-lined beach, US-looking location) not yet placed anywhere — note the location doesn't read as UK, worth asking TRIHARD if that's their only lifestyle asset.
 
 **Outstanding actions:**
-- [ ] Get from TRI HARD: discount % / code, geography, logo assets, preferred copy, contact name
+- [ ] Get from TRIHARD: discount % / code, geography confirmation, contact name (email received had no signature)
 - [ ] Confirm real launch/end dates for The Great UK Swim Spot Challenge (DB currently seeded with placeholder Aug 1 – Sep 30 2026, `enabled=false`)
-- [ ] Get a TRI HARD logo asset (page currently uses a text wordmark)
-- [ ] Update hero page + welcome card from coming-soon to live once confirmed
-- [ ] Add TRI HARD to the International Expansion assessment table once geography is confirmed
-- [ ] Store contact details in local memory
+- [x] Get a TRIHARD logo asset — received Jul 2026, now live on hero page + welcome card
+- [x] Confirm brand spelling — "TRIHARD" (one word), site-wide copy updated Jul 2026
+- [ ] Update hero page + welcome card from coming-soon to live once discount/geography/dates are confirmed
+- [ ] Add TRIHARD to the International Expansion assessment table once geography is confirmed
+- [ ] Store contact details in local memory once we have a name
 
 **Notes:**
 - The UK Swim Spot Challenge is its own campaign system (`campaigns`/`campaign_*` tables), entirely separate from the monthly draw challenge (`june_challenge_*`) — see the migration files under `sql/applied/2026-07-10_uk-challenge-*.sql`.

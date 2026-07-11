@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════════════════════
-// THE GREAT UK SWIM SPOT CHALLENGE  (× TRI HARD)
+// THE GREAT UK SWIM SPOT CHALLENGE  (× TRIHARD)
 // ══════════════════════════════════════════════════════════════════════════════
 // Entirely separate from the monthly draw challenge in app-june.js — different
 // tables (campaigns / campaign_participants / campaign_location_credits /
@@ -80,7 +80,7 @@ async function ukLoadDashboardCard() {
               <div style="padding:16px;">
                 <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">The Great UK Swim Spot Challenge</div>
                 <div style="font-weight:800;font-size:18px;color:#f1f5f9;">Starts in ${daysAway} day${daysAway !== 1 ? 's' : ''}</div>
-                <div style="font-size:12px;color:#64748b;margin-top:4px;">Presented by TRI HARD — 10 points per unique UK swim spot</div>
+                <div style="font-size:12px;color:#64748b;margin-top:4px;">Presented by TRIHARD — 10 points per unique UK swim spot</div>
               </div>
             </a>`;
             initIcons();
@@ -100,7 +100,7 @@ async function ukLoadDashboardCard() {
               <div style="padding:16px;">
                 <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">The Great UK Swim Spot Challenge</div>
                 <div style="font-weight:800;font-size:17px;color:#f1f5f9;margin-bottom:6px;">Explore UK swim spots. Earn points.</div>
-                <div style="font-size:12px;color:#64748b;margin-bottom:14px;">10 points per unique outdoor UK location — presented by TRI HARD</div>
+                <div style="font-size:12px;color:#64748b;margin-bottom:14px;">10 points per unique outdoor UK location — presented by TRIHARD</div>
                 <button class="btn" onclick="ukShowJoinModal()" style="width:100%;background:linear-gradient(135deg,#0284c7,#0ea5e9);color:white;font-weight:700;font-size:14px;padding:12px;border-radius:50px;border:none;">Join the Challenge</button>
               </div>
             </div>`;
