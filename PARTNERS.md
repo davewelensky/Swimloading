@@ -270,11 +270,12 @@ Every partner must have all of the following before going live:
 
 **Assets received (Jul 2026):** logo (white/purple/black + source .ai) and 3 product photos, in `/partners/` — optimized web copies: `trihard-logo-white.png`, `trihard-logo-purple.png`, `trihard-products.jpg`, `trihard-beach.jpg`, `trihard-shampoo-beach.jpg`. Originals were 2–19MB each (unusable on web, not committed to git) — resized/compressed to 28–350KB. Product shot + in-use shot are live on `/partners/trihard`; `trihard-beach.jpg` (couple on a palm-lined beach, US-looking location) not yet placed anywhere — note the location doesn't read as UK, worth asking TRIHARD if that's their only lifestyle asset.
 
-**SA history — do not revisit distribution:** TRIHARD was ruled out for SA in the Jun 30–Jul 1 2026 email thread — shipping quotes from their UK warehouse were bad (PostNL ~$28/15+ days, DHL Express ~$101/2–5 days, plus ~$20 duties/taxes/brokerage) and import wasn't even guaranteed. Dave explicitly does not want to get into import/stock/inventory — no capital for it. Pivoted to the UK-specific Lindi Mitchell arrangement instead. **Do not suggest SwimLoading take on TRIHARD stock, distribution, or a leftover-inventory deal — this was already declined.**
+**SA history — no distribution business, but leftover stock is fine to ask about:** TRIHARD was ruled out for SA-as-a-channel in the Jun 30–Jul 1 2026 email thread — shipping quotes from their UK warehouse were bad (PostNL ~$28/15+ days, DHL Express ~$101/2–5 days, plus ~$20 duties/taxes/brokerage) and import wasn't even guaranteed. Dave does not want SwimLoading to take on ongoing import/stock/inventory/distribution — no capital for it, and no interest in becoming their SA distributor. **That's distinct from asking Allyson (Jul 2026) whether there's leftover stock from their outgoing SA partner Dave could personally get some of** — small one-off quantity, same shape as prize bundles partners already ship directly (e.g. Maurten, Lindi Mitchell's bundle) — which is fine to ask for.
 
 **Outstanding actions:**
 - [ ] Get from TRIHARD: discount % / code, geography confirmation, Allyson's surname/title
 - [ ] Confirm real launch/end dates for The Great UK Swim Spot Challenge (DB currently seeded with placeholder Aug 1 – Sep 30 2026, `enabled=false`)
+- [ ] Ask Allyson if there's leftover stock from the outgoing SA partner Dave could get some of
 - [x] Get a TRIHARD logo asset — received Jul 2026, now live on hero page + welcome card
 - [x] Confirm brand spelling — "TRIHARD" (one word), site-wide copy updated Jul 2026
 - [ ] Update hero page + welcome card from coming-soon to live once discount/geography/dates are confirmed
