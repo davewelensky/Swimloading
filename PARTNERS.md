@@ -266,6 +266,7 @@ Every partner must have all of the following before going live:
 - Pre- and post-swim skincare for open water athletes: chlorine protection, sun defence, salt recovery
 - Real product line (confirmed Jul 2026 via product photography): Chlorine Removal Shampoo, Chlorine Protection Conditioner, Chlorine Removal Body Wash
 - Brand name is **"TRIHARD"** (one word, per logo — tagline: "Swim-Specialized Personal Care"). All site copy updated to match Jul 2026.
+- **Athlete endorsement (Jul 2026):** IRONMAN 70.3 World Champion Lucy Charles-Barclay uses TRIHARD, per TRIHARD's own Facebook page (wetrihard). Credibility badge added to hero page.
 - Do NOT publish prices or discount details until confirmed
 
 **Assets received (Jul 2026):** logo (white/purple/black + source .ai) and 3 product photos, in `/partners/` — optimized web copies: `trihard-logo-white.png`, `trihard-logo-purple.png`, `trihard-products.jpg`, `trihard-beach.jpg`, `trihard-shampoo-beach.jpg`. Originals were 2–19MB each (unusable on web, not committed to git) — resized/compressed to 28–350KB. Product shot + in-use shot are live on `/partners/trihard`; `trihard-beach.jpg` (couple on a palm-lined beach, US-looking location) not yet placed anywhere — note the location doesn't read as UK, worth asking TRIHARD if that's their only lifestyle asset.
