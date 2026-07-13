@@ -292,11 +292,88 @@ Every partner must have all of the following before going live:
 
 Partners we should consider approaching as SwimLoading grows. No pages, no cards, no mentions until confirmed.
 
+**Strategic framing (Jul 2026, from Carina's partnership advisor):** the better opportunities are often adjacent categories — Carina + SwimLoading give brands access to a niche audience they struggle to reach any other way. Carina's prospectus (`Carina-Bruwer-Partnership-2026.pdf`) is unusually strong because it combines elite athlete + female leadership + adventure travel + ocean conservation + documentary storytelling + SwimLoading's own analytics/ROI measurement — that combination is rare in athlete sponsorship decks.
+
+Also: swimmers buy goggles once a year, but travel/wellness/lifestyle products repeatedly — the bigger sponsorship pool may sit outside pure swim brands.
+
+### Uncategorised (from before this update)
+
 | Brand | Category | Geography | Notes |
 |-------|----------|-----------|-------|
 | `[TBD]` | Open water safety / tow floats | SA + international | — |
 | `[TBD]` | Swim cap brand | SA | — |
-| `[TBD]` | Swimwear | SA + international | — |
+
+### Carina Brüwer — swimwear sponsor targets (Tier 1, highest priority)
+
+Carina needs a primary swimwear sponsor first. **Top 5 right now: JOLYN, Funkita, Arena, Aquasphere, Therabody.**
+
+| Brand | Notes |
+|-------|-------|
+| Arena | Existing relationship history |
+| Funkita | Australian, female-focused, strong open-water positioning |
+| JOLYN | Massive female swimming audience, aggressive ambassador programme |
+| FINIS | Performance-first brand |
+| Aquasphere | Good fit for open-water |
+| Oceanus Swimwear | Luxury female swimwear — female-empowerment angle |
+| Roka | Not just wetsuits anymore |
+
+### Carina Brüwer — Crossing Africa: travel & adventure (Tier 2)
+
+Crossing Africa is closer to expedition sponsorship than swimming sponsorship — think airlines/hotels/tourism boards, not just swim brands. Travel support is often easier to secure than cash sponsorship.
+
+| Category | Brands |
+|----------|--------|
+| Airlines | Qatar Airways, Emirates, Ethiopian Airlines, Airlink, FlySafair |
+| Hotels | Protea Hotels, Southern Sun, Marriott Bonvoy, Radisson Blu |
+
+### Carina Brüwer — recovery & wellness (Tier 3)
+
+Massive overlap with endurance athletes generally.
+
+| Category | Brands |
+|----------|--------|
+| Massage guns | Therabody, Hyperice, Compex |
+| Recovery products | Normatec, Recoverite, TriggerPoint |
+
+### Carina Brüwer — skin, sun & hair (Tier 4)
+
+Almost ignored in swimming sponsorship, yet every swimmer has these problems. Swimming destroys hair — that's a credible story.
+
+| Category | Brands |
+|----------|--------|
+| Sun protection | Heliocare, Island Tribe, P20, La Roche-Posay |
+| Hair | Paul Mitchell, Moroccanoil, Olaplex |
+
+### Carina Brüwer — outdoor & lifestyle (Tier 5)
+
+Often easier to close than swim brands — dry bags, duffels, travel gear and adventure storytelling fit naturally.
+
+| Brands |
+|--------|
+| YETI, Stanley 1913, Patagonia, The North Face, Sealand Gear, Thule |
+
+### Carina Brüwer — women's leadership brands (Tier 6)
+
+Not swim sponsorship — leadership sponsorship. Most swimmers can't offer executive keynote speaking + founder story + female leadership + endurance sport. Carina can.
+
+| Brands |
+|--------|
+| Investec, Discovery, Santam, Old Mutual, Nedbank |
+
+### SwimLoading itself — target partners
+
+These align with actual swimmer buying behaviour: goggles once a year, but travel/wellness/lifestyle repeatedly — that's where the bigger pool sits.
+
+1. FORM — *already Coming Soon, see above, not a fresh target*
+2. Garmin
+3. Therabody
+4. Sealand
+5. Stanley
+6. Island Tribe
+7. Airlink
+8. Protea Hotels
+9. Heliocare
+10. Hyperice
 
 > Add candidates here before building any pages. Do not build until the partner relationship is confirmed.
 
