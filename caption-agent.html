@@ -6,6 +6,8 @@
 <title>SwimLoading — Caption Agent</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/lucide@latest"></script>
+<script src="/site-config.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <style>
   :root {
     --bg:        #080f1a;
@@ -218,6 +220,15 @@
   <div class="page-title">Caption Generator</div>
   <div class="page-sub">Cover every part of SwimLoading — conditions, crossings, clubs, challenges, partners and community.</div>
 
+  <!-- LIVE STATUS — fetched fresh on every page load, never hand-typed -->
+  <div id="live-status" class="card" style="margin-bottom:28px;">
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>Right now on SwimLoading</span>
+      <span style="font-size:10px;color:var(--text-sec);text-transform:none;letter-spacing:0;">live data — loads fresh every visit</span>
+    </div>
+    <div id="live-status-body" style="font-size:13px;color:var(--text-sec);">Loading live challenge data…</div>
+  </div>
+
   <!-- TYPE SELECTOR -->
   <div class="type-label">What are you posting about?</div>
   <div class="type-grid">
@@ -326,26 +337,24 @@
     <div class="form-grid">
       <div class="card">
         <div class="card-title">Challenge details</div>
-        <div style="font-size:11px;color:var(--amber);background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:8px;padding:8px 10px;margin-bottom:4px;">Defaults below are accurate as of 13 Jul 2026. Check /admin's "Challenge — This Month" panel before posting if it's been a while — never post about a challenge that's already ended.</div>
+        <div style="font-size:11px;color:var(--cyan);background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);border-radius:8px;padding:8px 10px;margin-bottom:4px;">Options and numbers below are fetched live on page load from site-config.js + the live DB — always current, never hand-typed. Just pick which challenge you're posting about.</div>
         <label>Challenge name</label>
-        <select id="challenge-name" onchange="updateChallengeDefaults()">
-          <option selected>July Challenge</option><option>June Challenge (recap only — challenge ended 30 Jun)</option><option>Monthly Temp Challenge</option><option>Winter Streak</option><option>The Great UK Swim Spot Challenge</option><option>Custom</option>
-        </select>
+        <select id="challenge-name"><option>Loading live challenges…</option></select>
         <label>Custom challenge name (if Custom)</label>
         <input type="text" id="challenge-custom" placeholder="e.g. Tri Hard Recovery Challenge">
         <label>Prizes</label>
-        <input type="text" id="challenge-prizes" value="Blu Smooth MK2 Comp wetsuit (R5,999 — grand prize, not yet in shops)">
+        <input type="text" id="challenge-prizes" placeholder="Auto-fills from the selection above">
         <label>Draw / participation update <span style="font-weight:400;color:var(--text-sec);text-transform:none;">(this is a draw, not a leaderboard — avoid "X is leading" framing)</span></label>
-        <textarea id="challenge-standings">Day 13 of 31. 150 temperature logs from 35 swimmers so far this month — and 3 swimmers have already logged 10+ times and locked in their entry to the draw.</textarea>
+        <textarea id="challenge-standings" placeholder="Auto-fills from the selection above"></textarea>
       </div>
       <div class="card">
         <div class="card-title">Post context</div>
         <label>Phase / days remaining</label>
-        <input type="text" id="challenge-phase" value="Day 13 of 31 — just over 2 weeks left">
+        <input type="text" id="challenge-phase" placeholder="Auto-fills from the selection above">
         <label>Swimmers entered</label>
-        <input type="text" id="challenge-count" value="35 active this month, 3 already qualified for the draw">
+        <input type="text" id="challenge-count" placeholder="Auto-fills from the selection above">
         <label>Anything notable?</label>
-        <textarea id="challenge-notable">Every swimmer who logs 10 times this month is in the draw for the MK2 — no leaderboard to climb, just 10 logs. Three swimmers are already in.</textarea>
+        <textarea id="challenge-notable">Every swimmer who logs 10 times this month is in the draw — no leaderboard to climb, just 10 logs.</textarea>
         <label>Call to action</label>
         <select id="challenge-cta">
           <option value="enter">Enter the challenge — link in bio</option>
@@ -373,7 +382,7 @@
           <option value="SiS">Science in Sport (SiS)</option>
           <option value="Maurten">Maurten</option>
           <option value="Blu Smooth">Blu Smooth</option>
-          <option value="EOLab">EOLab</option>
+          <option value="EOLab">eo SwimBETTER</option>
           <option value="Trihard">Trihard</option>
           <option value="Upcoming">Upcoming Partnership (teaser)</option>
         </select>
@@ -673,6 +682,156 @@ document.addEventListener('mousemove', e => {
   document.body.style.setProperty('--mouse-y', e.clientY + 'px');
 });
 
+// ─── LIVE CHALLENGE DATA ─────────────────────────────────────────────────────
+// Everything here is computed from the real clock and live DB on every page
+// load — nothing about "today" or "the current challenge" is hand-typed.
+// Editorial facts (challenge name/sponsor/prize) come from site-config.js —
+// SwimLoading's single source of truth. Update site-config.js each month;
+// this tool then reflects it automatically, no separate edit needed here.
+
+const SB_URL      = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+const sbClient = window.supabase ? window.supabase.createClient(SB_URL, SB_ANON_KEY) : null;
+
+// Confirmed-but-not-yet-live challenges. Verified facts only (PARTNERS.md /
+// partners/eolab.html). Add a `siteConfigKey` once a challenge has a
+// site-config.js entry — this list is for the PRE-launch teaser window.
+const UPCOMING_CHALLENGES = [
+  {
+    name: 'eo SwimBETTER Performance Challenge',
+    sponsor: 'eo (EOLab)',
+    prize: 'Full eo SwimBETTER90 package — the kit used by Olympic champions',
+    startDate: '2026-08-01',
+    endDate: '2026-10-31',
+    mechanic: '3-month challenge rewarding CONSISTENT training commitment across the full period — not a single-month points race. Full brief drops in the August newsletter.',
+    teaserNote: 'Do not over-specify the mechanic yet — the full brief is not public. Build anticipation for a challenge that rewards swimmers who actually show up, not just the loudest month.'
+  },
+  {
+    name: 'The Great UK Swim Spot Challenge',
+    sponsor: 'TRIHARD',
+    prize: 'Bundle of 4 TRIHARD products',
+    startDate: null,   // dates not yet confirmed — PARTNERS.md
+    endDate: null,
+    mechanic: '10 points for every UNIQUE outdoor UK swim spot logged — no distance, speed, or water temp requirement. A location-discovery challenge for the UK community.',
+    teaserNote: 'Dates are not yet confirmed. This is the anchor content for SwimLoading\'s UK growth push — safe to tease the mechanic and prize, do not name specific dates.'
+  }
+];
+
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const target = new Date(dateStr + 'T00:00:00');
+  return Math.round((target - today) / 86400000);
+}
+
+function monthKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+function prevMonthKey(d) { const p = new Date(d.getFullYear(), d.getMonth() - 1, 1); return monthKey(p); }
+
+let LIVE = { current: null, previous: null, stats: null };
+
+async function initLiveChallengeData() {
+  const banner = document.getElementById('live-status-body');
+  const today = new Date();
+  const curKey = monthKey(today);
+  const prevKey = prevMonthKey(today);
+  const cfg = window.SITE_CONFIG || { challenges: {} };
+
+  LIVE.current  = cfg.challenges[curKey]  || null;
+  LIVE.previous = cfg.challenges[prevKey] || null;
+
+  // Live participation numbers from the DB (real, computed server-side from NOW())
+  try {
+    if (sbClient) {
+      const { data, error } = await sbClient.rpc('get_challenge_month_stats');
+      if (!error && data && data[0]) LIVE.stats = data[0];
+    }
+  } catch (e) { console.warn('Live challenge stats unavailable:', e); }
+
+  renderLiveBanner(today);
+  populateChallengeDropdown();
+  applyCurrentChallengeDefaults();
+}
+
+function renderLiveBanner(today) {
+  const el = document.getElementById('live-status-body');
+  const parts = [];
+
+  if (LIVE.current) {
+    const s = LIVE.stats;
+    const dayText = s ? `Day ${s.elapsed_days} of ${new Date(LIVE.current.endDate).getDate()}` : '';
+    const statText = s ? ` &middot; ${s.cur_logs} logs from ${s.cur_swimmers} swimmers &middot; ${s.cur_qualified} already in the draw` : '';
+    parts.push(`<div style="margin-bottom:${UPCOMING_CHALLENGES.length ? '10px' : '0'};"><span style="color:#10b981;font-weight:700;">● LIVE</span> — <strong style="color:var(--text);">${LIVE.current.title}</strong> (${LIVE.current.sponsor}) &middot; ${dayText}${statText}</div>`);
+  } else {
+    parts.push(`<div style="margin-bottom:10px;color:#f59e0b;">No challenge configured in site-config.js for ${today.toLocaleDateString('en-ZA',{month:'long',year:'numeric'})} yet — add a <code>challenges['${monthKey(today)}']</code> entry.</div>`);
+  }
+
+  UPCOMING_CHALLENGES.forEach(c => {
+    const days = daysUntil(c.startDate);
+    const when = days === null ? 'dates TBD' : days > 0 ? `starts in ${days} day${days === 1 ? '' : 's'}` : days === 0 ? 'starts today' : 'underway';
+    parts.push(`<div style="margin-top:4px;"><span style="color:#38bdf8;font-weight:700;">↗ UPCOMING</span> — <strong style="color:var(--text);">${c.name}</strong> (${c.sponsor}) &middot; ${when}</div>`);
+  });
+
+  el.innerHTML = parts.join('');
+}
+
+function populateChallengeDropdown() {
+  const sel = document.getElementById('challenge-name');
+  if (!sel) return;
+  sel.innerHTML = '';
+
+  const addOpt = (label, value) => {
+    const o = document.createElement('option');
+    o.textContent = label;
+    o.value = value || label;
+    sel.appendChild(o);
+  };
+
+  if (LIVE.current) addOpt(`${LIVE.current.title} — LIVE NOW`, 'CURRENT');
+  if (LIVE.previous) addOpt(`${LIVE.previous.title} — recap only, ended`, 'PREVIOUS');
+  UPCOMING_CHALLENGES.forEach((c, i) => addOpt(`${c.name} — upcoming teaser`, 'UPCOMING_' + i));
+  addOpt('Monthly Temp Challenge (generic template)');
+  addOpt('Winter Streak (generic template)');
+  addOpt('Custom');
+
+  sel.onchange = applyCurrentChallengeDefaults;
+  if (LIVE.current) sel.value = 'CURRENT';
+}
+
+function applyCurrentChallengeDefaults() {
+  const sel = document.getElementById('challenge-name');
+  if (!sel) return;
+  const val = sel.value;
+  const today = new Date();
+
+  if (val === 'CURRENT' && LIVE.current) {
+    const s = LIVE.stats;
+    const totalDays = new Date(LIVE.current.endDate).getDate();
+    document.getElementById('challenge-prizes').value = LIVE.current.prize + ' (' + LIVE.current.sponsor + ')';
+    document.getElementById('challenge-phase').value = s ? `Day ${s.elapsed_days} of ${totalDays}` : 'In progress';
+    document.getElementById('challenge-standings').value = s
+      ? `Day ${s.elapsed_days} of ${totalDays}. ${s.cur_logs} temperature logs from ${s.cur_swimmers} swimmers so far this month — ${s.cur_qualified} swimmer${s.cur_qualified === 1 ? '' : 's'} already logged 10+ times and locked in their entry to the draw.`
+      : `${LIVE.current.title} is live now.`;
+    document.getElementById('challenge-count').value = s ? `${s.cur_active_participants} active this month, ${s.cur_qualified} already qualified for the draw` : 'Check /admin for current count';
+    document.getElementById('challenge-notable').value = 'Every swimmer who logs 10 times this month is in the draw — no leaderboard to climb, just 10 logs.';
+  } else if (val === 'PREVIOUS' && LIVE.previous) {
+    document.getElementById('challenge-prizes').value = LIVE.previous.prize + ' (winner: ' + (LIVE.previous.winner || 'to be announced') + ')';
+    document.getElementById('challenge-phase').value = 'Ended ' + LIVE.previous.endDate;
+    document.getElementById('challenge-standings').value = LIVE.previous.winner
+      ? `${LIVE.previous.title} has ended — ${LIVE.previous.winner} won ${LIVE.previous.prize}. Write this as a past-tense recap/thank you, never as a live update.`
+      : `${LIVE.previous.title} has ended — winner not yet announced. Do not name a winner.`;
+    document.getElementById('challenge-count').value = 'Challenge closed — final tally, not a live count';
+    document.getElementById('challenge-notable').value = 'Thank the community for a great month before moving attention to what\'s live now.';
+  } else if (val.startsWith('UPCOMING_')) {
+    const c = UPCOMING_CHALLENGES[parseInt(val.split('_')[1], 10)];
+    const days = daysUntil(c.startDate);
+    document.getElementById('challenge-prizes').value = c.prize + ' (' + c.sponsor + ')';
+    document.getElementById('challenge-phase').value = days === null ? 'Dates not yet confirmed' : days > 0 ? `Starts in ${days} days` : 'Starting soon';
+    document.getElementById('challenge-standings').value = c.mechanic + ' ' + c.teaserNote;
+    document.getElementById('challenge-count').value = 'Not launched — no participants yet';
+    document.getElementById('challenge-notable').value = 'This is a teaser post — build anticipation, do not overpromise details not yet public.';
+  }
+}
+
 // ─── PASSWORD GATE ───
 let SESSION_PASSWORD = '';
 const STORAGE_KEY = 'sl_caption_pw';
@@ -856,45 +1015,8 @@ function loadSwimmerProfile() {
   document.getElementById('comm-angle').value = p.angle;
 }
 
-// NOTE: keep these in sync with the current live challenge each month — this
-// tool exists so social posts never lag behind what's actually live in-app.
-// Check /admin "Challenge — This Month" panel for current numbers before a post.
-function updateChallengeDefaults() {
-  const challenge = document.getElementById('challenge-name').value;
-  const JUNE_KEY = 'June Challenge (recap only — challenge ended 30 Jun)';
-  const prizesMap = {
-    [JUNE_KEY]:              'THEMAGIC5 custom-fit goggles (winner: Tunnan)',
-    'July Challenge':        'Blu Smooth MK2 Comp wetsuit (R5,999 — grand prize, not yet in shops)',
-    'Monthly Temp Challenge':'Maurten nutrition pack — ongoing monthly prize',
-    'Winter Streak':         'SiS nutrition bundle — random draw from all participants',
-    'The Great UK Swim Spot Challenge': 'Bundle of 4 TRIHARD products (grand prize) — presented by TRIHARD'
-  };
-  const standingsMap = {
-    [JUNE_KEY]:              'June Challenge has ended — Tunnan won the THEMAGIC5 goggles. Write this as a past-tense recap/thank you, not a live update.',
-    'July Challenge':        'Day 13 of 31. 150 temperature logs from 35 swimmers so far this month — and 3 swimmers have already logged 10+ times and locked in their entry to the draw.',
-    'Monthly Temp Challenge':'Ongoing monthly draw — every log is a step toward qualifying.',
-    'Winter Streak':         'Streak challenge underway — consistent loggers are building toward their entries.',
-    'The Great UK Swim Spot Challenge': 'Coming soon — dates not yet confirmed. This post should build anticipation, not announce a live leaderboard.'
-  };
-  const phaseMap = {
-    [JUNE_KEY]:              'Ended 30 June',
-    'July Challenge':        'Day 13 of 31 — just over 2 weeks left',
-    'Monthly Temp Challenge':'Mid-month',
-    'Winter Streak':         'Week 2',
-    'The Great UK Swim Spot Challenge': 'Coming soon — not yet live'
-  };
-  const countMap = {
-    [JUNE_KEY]:              'Challenge closed — final tally, not a live count',
-    'July Challenge':        '35 active this month, 3 already qualified for the draw',
-    'Monthly Temp Challenge':'Check /admin for current count',
-    'Winter Streak':         'Check /admin for current count',
-    'The Great UK Swim Spot Challenge': 'Not launched — no participants yet'
-  };
-  if (prizesMap[challenge]) document.getElementById('challenge-prizes').value = prizesMap[challenge];
-  if (standingsMap[challenge]) document.getElementById('challenge-standings').value = standingsMap[challenge];
-  if (phaseMap[challenge]) document.getElementById('challenge-phase').value = phaseMap[challenge];
-  if (countMap[challenge]) document.getElementById('challenge-count').value = countMap[challenge];
-}
+// Live challenge defaults are handled by applyCurrentChallengeDefaults() —
+// see the LIVE CHALLENGE DATA block near the top of this script.
 
 function updateCrossingDefaults() {
   const crossing = document.getElementById('crossing-name').value;
@@ -928,7 +1050,7 @@ function updatePartnerDefaults() {
     'SiS':       'Science in Sport (SiS) — science-backed nutrition for endurance athletes. Gels, electrolytes, and protein formulated for swim performance.',
     'Maurten':   'Maurten hydrogel sports nutrition — engineered for cold water athletes. High carbohydrate delivery without GI issues during long swims.',
     'Blu Smooth':'Blu Smooth wetsuits — designed for open water swimming in South African conditions. Buoyancy-optimised cut for ocean swims.',
-    'EOLab':     'EOLab performance coaching and analysis — data-driven training plans for open water swimmers targeting crossings and time trials.',
+    'EOLab':     'eo SwimBETTER — a handset-based technique analysis tool used by Olympic medallists Kyle Chalmers and Paige Madden, 14 national federations, and 50+ NCAA colleges. Reveals the technique inefficiencies holding a swimmer back with objective feedback.',
     'Trihard':   'TRIHARD — swim-specialized personal care: Chlorine Removal Shampoo, Chlorine Protection Conditioner, and Chlorine Removal Body Wash, built specifically for swimmers.',
     'Upcoming':  'Details to be confirmed — partnership not yet announced publicly.'
   };
@@ -937,7 +1059,7 @@ function updatePartnerDefaults() {
     'SiS':       'Cold water burns calories fast. SiS fuelling strategy keeps swimmers going past the point where most pull out.',
     'Maurten':   'Hydrogel technology tested for high-intensity endurance — critical for channel and crossing prep.',
     'Blu Smooth':'A well-fitted wetsuit at 14°C is the difference between a 2-hour swim and a 45-minute one. Blu Smooth make suits built for our water.',
-    'EOLab':     'Open water performance is more than fitness. EOLab bring the data to help swimmers understand what the ocean demands of their bodies.',
+    'EOLab':     'Elite technology, no longer gatekept. The same objective technique feedback used by Olympic medallists is now available to every SwimLoading member serious about getting faster.',
     'Trihard':   'Chlorine, salt, sun, and cold all take a toll on swimmers\' skin and hair. TRIHARD is used by IRONMAN 70.3 World Champion Lucy Charles-Barclay — built specifically around what swimmers put their bodies through every session.',
     'Upcoming':  'Something that solves a real problem for open water swimmers — details dropping soon.'
   };
@@ -946,14 +1068,14 @@ function updatePartnerDefaults() {
     'SiS':       'SiS are supporting SwimLoading swimmers with exclusive community offers and random prize draws.',
     'Maurten':   'Maurten are an ongoing prize partner — monthly draws from the SwimLoading community.',
     'Blu Smooth':'Blu Smooth are official wetsuit partners of the SwimLoading community.',
-    'EOLab':     'EOLab are joining the SwimLoading ecosystem to bring structured coaching to our open water swimmers.',
+    'EOLab':     'eo SwimBETTER are the prize partner for the 3-month Performance Challenge, August–October 2026 — winner takes home the full SwimBETTER90 package (handsets, a year of Gold membership, and a 1-on-1 data session with an eo expert).',
     'Trihard':   'TRIHARD are the presenting sponsor of The Great UK Swim Spot Challenge — a UK-wide location-discovery challenge on SwimLoading. Winner takes home a bundle of 4 TRIHARD products.',
     'Upcoming':  'This partnership has not been announced yet. Build the excitement without naming the brand.'
   };
   const teaserMap = {
     'Upcoming':  'Something big is coming to SwimLoading. We can\'t name names yet — but it changes how swimmers take care of themselves in and out of the water. Follow to be first to know.',
     'Trihard':   'Something is coming for our UK swimmers — a brand-new way to explore open water spots across the UK, with a serious prize on the line. Details dropping soon.',
-    'EOLab':     'Data-driven coaching is coming to SwimLoading. Big announcement dropping this week.'
+    'EOLab':     'A 3-month challenge is coming that rewards swimmers for showing up consistently, not just having one big month. The prize is technology used by Olympic medallists. Full brief drops in August.'
   };
   const ctaMap = {
     'teaser':    'watch',
@@ -1077,7 +1199,18 @@ function buildPrompt() {
   }
 
   if (currentType === 'challenge') {
-    const challenge = document.getElementById('challenge-name').value === 'Custom' ? document.getElementById('challenge-custom').value : document.getElementById('challenge-name').value;
+    const selVal = document.getElementById('challenge-name').value;
+    const isCustom = selVal === 'Custom';
+    const isCurrent = selVal === 'CURRENT';
+    const isPrevious = selVal === 'PREVIOUS';
+    const isUpcoming = selVal.startsWith('UPCOMING_');
+    const challenge = isCustom
+      ? document.getElementById('challenge-custom').value
+      : isCurrent ? (LIVE.current ? LIVE.current.title : 'Current challenge')
+      : isPrevious ? (LIVE.previous ? LIVE.previous.title : 'Previous challenge')
+      : isUpcoming ? UPCOMING_CHALLENGES[parseInt(selVal.split('_')[1], 10)].name
+      : selVal; // generic templates (Monthly Temp Challenge / Winter Streak)
+
     const prizes = document.getElementById('challenge-prizes').value;
     const standings = document.getElementById('challenge-standings').value;
     const phase = document.getElementById('challenge-phase').value;
@@ -1085,15 +1218,15 @@ function buildPrompt() {
     const notable = document.getElementById('challenge-notable').value;
     const ctaMap = { enter:'Enter the challenge — link in bio.', log:'Log a swim today — every log counts.', draw:'See how the draw works on SwimLoading — link in bio.' };
     const cta = ctaMap[document.getElementById('challenge-cta').value];
-    const isUkSpot = challenge === 'The Great UK Swim Spot Challenge';
-    const isJuneRecap = challenge.startsWith('June Challenge');
+
     let mechanic = '';
-    if (isUkSpot) {
-      mechanic = 'MECHANIC (different from other challenges — do not confuse with temp-logging challenges): this is a UK-wide location-discovery challenge. Swimmers earn 10 points for every UNIQUE outdoor UK swim spot they log — no distance, speed, or water temperature requirement. Logging the same spot twice does not earn more points. Presented by TRIHARD.\nSTATUS: Not live yet — dates unconfirmed. This must read as upcoming / building anticipation, NOT as an active leaderboard update.\n';
-    } else if (isJuneRecap) {
-      mechanic = 'STATUS: This challenge is OVER (ended 30 June). This must be written entirely in PAST TENSE as a recap/celebration of the winner and stats — never present it as live, ongoing, or something to enter now.\n';
-    } else {
-      mechanic = 'MECHANIC — IMPORTANT: this is a DRAW, not a top-scorer leaderboard. Swimmers qualify for the prize draw by logging 10 swims — every additional 10 logs, plus each group swim joined/created and each 7-day streak, earns another entry. Do NOT frame this as "X is leading" or imply anyone is winning/losing — every entrant who has 1 or more entries has a genuine, equal-odds shot at the draw. The angle is "you\'re reachable distance from being in" and "look how many people are already in," not competition or ranking.\n';
+    if (isUpcoming) {
+      const c = UPCOMING_CHALLENGES[parseInt(selVal.split('_')[1], 10)];
+      mechanic = `MECHANIC: ${c.mechanic}\nSTATUS: Not live yet. This must read as upcoming / building anticipation, NOT as an active leaderboard or something to enter right now. ${c.teaserNote}\n`;
+    } else if (isPrevious) {
+      mechanic = `STATUS: This challenge has ENDED (${LIVE.previous ? LIVE.previous.endDate : 'recently'}). This must be written entirely in PAST TENSE as a recap/celebration — never present it as live, ongoing, or something to enter now.\n`;
+    } else if (isCurrent) {
+      mechanic = 'MECHANIC — IMPORTANT: this is a DRAW, not a top-scorer leaderboard. Swimmers qualify for the prize draw by logging 10 swims — every additional 10 logs, plus each group swim joined/created and each 7-day streak, earns another entry. Do NOT frame this as "X is leading" or imply anyone is winning/losing — every entrant with 1+ entries has a genuine, equal-odds shot at the draw. The angle is "you\'re reachable distance from being in" and "look how many people are already in," not competition or ranking.\n';
     }
     return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a challenge update post. Challenges are SwimLoading's primary community-building tool — they drive logging behaviour and create a shared experience across 12 countries.\n\nCHALLENGE: ${challenge}\n${mechanic}PRIZES: ${prizes}\nUPDATE: ${standings}\nPHASE: ${phase}\nPARTICIPATION: ${count}\nNOTABLE: ${notable || 'Standard update.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
   }
@@ -1384,6 +1517,9 @@ function copyHashtags() {
   const el = document.getElementById('cond-date');
   if (el) el.value = label;
 })();
+
+// Kick off the live challenge fetch (site-config.js + Supabase) as soon as the page loads
+initLiveChallengeData();
 </script>
 </body>
 </html>
