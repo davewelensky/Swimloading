@@ -326,30 +326,31 @@
     <div class="form-grid">
       <div class="card">
         <div class="card-title">Challenge details</div>
+        <div style="font-size:11px;color:var(--amber);background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:8px;padding:8px 10px;margin-bottom:4px;">Defaults below are accurate as of 13 Jul 2026. Check /admin's "Challenge — This Month" panel before posting if it's been a while — never post about a challenge that's already ended.</div>
         <label>Challenge name</label>
         <select id="challenge-name" onchange="updateChallengeDefaults()">
-          <option>June Challenge</option><option>July Challenge</option><option>Monthly Temp Challenge</option><option>Winter Streak</option><option>The Great UK Swim Spot Challenge</option><option>Custom</option>
+          <option selected>July Challenge</option><option>June Challenge (recap only — challenge ended 30 Jun)</option><option>Monthly Temp Challenge</option><option>Winter Streak</option><option>The Great UK Swim Spot Challenge</option><option>Custom</option>
         </select>
         <label>Custom challenge name (if Custom)</label>
         <input type="text" id="challenge-custom" placeholder="e.g. Tri Hard Recovery Challenge">
         <label>Prizes</label>
-        <input type="text" id="challenge-prizes" value="THEMAGIC5 custom goggles (grand prize)">
-        <label>Current leader / standings</label>
-        <textarea id="challenge-standings">Tunnam leads the June Challenge by a significant margin heading into the final stretch.</textarea>
+        <input type="text" id="challenge-prizes" value="Blu Smooth MK2 Comp wetsuit (R5,999 — grand prize, not yet in shops)">
+        <label>Draw / participation update <span style="font-weight:400;color:var(--text-sec);text-transform:none;">(this is a draw, not a leaderboard — avoid "X is leading" framing)</span></label>
+        <textarea id="challenge-standings">Day 13 of 31. 150 temperature logs from 35 swimmers so far this month — and 3 swimmers have already logged 10+ times and locked in their entry to the draw.</textarea>
       </div>
       <div class="card">
         <div class="card-title">Post context</div>
         <label>Phase / days remaining</label>
-        <input type="text" id="challenge-phase" value="Final 6 days">
+        <input type="text" id="challenge-phase" value="Day 13 of 31 — just over 2 weeks left">
         <label>Swimmers entered</label>
-        <input type="text" id="challenge-count" value="47">
+        <input type="text" id="challenge-count" value="35 active this month, 3 already qualified for the draw">
         <label>Anything notable?</label>
-        <textarea id="challenge-notable">Two swimmers set personal-best monthly log counts this week while chasing the lead.</textarea>
+        <textarea id="challenge-notable">Every swimmer who logs 10 times this month is in the draw for the MK2 — no leaderboard to climb, just 10 logs. Three swimmers are already in.</textarea>
         <label>Call to action</label>
         <select id="challenge-cta">
           <option value="enter">Enter the challenge — link in bio</option>
           <option value="log">Log a swim today — every log counts</option>
-          <option value="leaderboard">Check the leaderboard on SwimLoading</option>
+          <option value="draw">See how the draw works on SwimLoading</option>
         </select>
         <label>Tone</label>
         <div class="tone-row">
@@ -394,7 +395,7 @@
         <label>Offer / link detail</label>
         <input type="text" id="partner-link" value="Link in bio for the SwimLoading community offer">
         <label>Community connection</label>
-        <textarea id="partner-community">THEMAGIC5 are prize partners for the June Challenge — winner gets a custom-fit pair.</textarea>
+        <textarea id="partner-community">THEMAGIC5 were prize partners for the June Challenge — Tunnan won a custom-fit pair. They remain a SwimLoading community partner.</textarea>
         <label>Teaser / what to keep vague (for upcoming partners)</label>
         <textarea id="partner-teaser" placeholder="e.g. Big name dropping next week — all we can say is it changes how you fuel your swim">Leave blank for confirmed partners. For teasers: describe the category or hint without naming the brand.</textarea>
         <label>Call to action</label>
@@ -855,32 +856,44 @@ function loadSwimmerProfile() {
   document.getElementById('comm-angle').value = p.angle;
 }
 
+// NOTE: keep these in sync with the current live challenge each month — this
+// tool exists so social posts never lag behind what's actually live in-app.
+// Check /admin "Challenge — This Month" panel for current numbers before a post.
 function updateChallengeDefaults() {
   const challenge = document.getElementById('challenge-name').value;
+  const JUNE_KEY = 'June Challenge (recap only — challenge ended 30 Jun)';
   const prizesMap = {
-    'June Challenge':        'THEMAGIC5 custom-fit goggles (grand prize)',
-    'July Challenge':        'Blu Smooth wetsuit (grand prize)',
+    [JUNE_KEY]:              'THEMAGIC5 custom-fit goggles (winner: Tunnan)',
+    'July Challenge':        'Blu Smooth MK2 Comp wetsuit (R5,999 — grand prize, not yet in shops)',
     'Monthly Temp Challenge':'Maurten nutrition pack — ongoing monthly prize',
     'Winter Streak':         'SiS nutrition bundle — random draw from all participants',
     'The Great UK Swim Spot Challenge': 'Bundle of 4 TRIHARD products (grand prize) — presented by TRIHARD'
   };
   const standingsMap = {
-    'June Challenge':        'Tunnam leads the June Challenge by a significant margin heading into the final stretch.',
-    'July Challenge':        'July Challenge just opened — early movers are already on the board.',
-    'Monthly Temp Challenge':'Leaderboard is tight — top 3 swimmers separated by a single log.',
-    'Winter Streak':         'Streak challenge underway — consistent loggers are pulling ahead of the pack.',
+    [JUNE_KEY]:              'June Challenge has ended — Tunnan won the THEMAGIC5 goggles. Write this as a past-tense recap/thank you, not a live update.',
+    'July Challenge':        'Day 13 of 31. 150 temperature logs from 35 swimmers so far this month — and 3 swimmers have already logged 10+ times and locked in their entry to the draw.',
+    'Monthly Temp Challenge':'Ongoing monthly draw — every log is a step toward qualifying.',
+    'Winter Streak':         'Streak challenge underway — consistent loggers are building toward their entries.',
     'The Great UK Swim Spot Challenge': 'Coming soon — dates not yet confirmed. This post should build anticipation, not announce a live leaderboard.'
   };
   const phaseMap = {
-    'June Challenge':        'Final 6 days',
-    'July Challenge':        'Just launched',
+    [JUNE_KEY]:              'Ended 30 June',
+    'July Challenge':        'Day 13 of 31 — just over 2 weeks left',
     'Monthly Temp Challenge':'Mid-month',
     'Winter Streak':         'Week 2',
     'The Great UK Swim Spot Challenge': 'Coming soon — not yet live'
   };
+  const countMap = {
+    [JUNE_KEY]:              'Challenge closed — final tally, not a live count',
+    'July Challenge':        '35 active this month, 3 already qualified for the draw',
+    'Monthly Temp Challenge':'Check /admin for current count',
+    'Winter Streak':         'Check /admin for current count',
+    'The Great UK Swim Spot Challenge': 'Not launched — no participants yet'
+  };
   if (prizesMap[challenge]) document.getElementById('challenge-prizes').value = prizesMap[challenge];
   if (standingsMap[challenge]) document.getElementById('challenge-standings').value = standingsMap[challenge];
   if (phaseMap[challenge]) document.getElementById('challenge-phase').value = phaseMap[challenge];
+  if (countMap[challenge]) document.getElementById('challenge-count').value = countMap[challenge];
 }
 
 function updateCrossingDefaults() {
@@ -929,7 +942,7 @@ function updatePartnerDefaults() {
     'Upcoming':  'Something that solves a real problem for open water swimmers — details dropping soon.'
   };
   const communityMap = {
-    'THEMAGIC5': 'THEMAGIC5 are prize partners for the June Challenge — grand prize winner gets a custom-fit pair.',
+    'THEMAGIC5': 'THEMAGIC5 were prize partners for the June Challenge (won by Tunnan) and remain a SwimLoading community partner — 30–35% off permanently for members.',
     'SiS':       'SiS are supporting SwimLoading swimmers with exclusive community offers and random prize draws.',
     'Maurten':   'Maurten are an ongoing prize partner — monthly draws from the SwimLoading community.',
     'Blu Smooth':'Blu Smooth are official wetsuit partners of the SwimLoading community.',
@@ -1070,13 +1083,19 @@ function buildPrompt() {
     const phase = document.getElementById('challenge-phase').value;
     const count = document.getElementById('challenge-count').value;
     const notable = document.getElementById('challenge-notable').value;
-    const ctaMap = { enter:'Enter the challenge — link in bio.', log:'Log a swim today — every log counts.', leaderboard:'Check the leaderboard on SwimLoading — link in bio.' };
+    const ctaMap = { enter:'Enter the challenge — link in bio.', log:'Log a swim today — every log counts.', draw:'See how the draw works on SwimLoading — link in bio.' };
     const cta = ctaMap[document.getElementById('challenge-cta').value];
     const isUkSpot = challenge === 'The Great UK Swim Spot Challenge';
-    const mechanic = isUkSpot
-      ? 'MECHANIC (different from other challenges — do not confuse with temp-logging challenges): this is a UK-wide location-discovery challenge. Swimmers earn 10 points for every UNIQUE outdoor UK swim spot they log — no distance, speed, or water temperature requirement. Logging the same spot twice does not earn more points. Presented by TRIHARD.\nSTATUS: Not live yet — dates unconfirmed. This must read as upcoming / building anticipation, NOT as an active leaderboard update.\n'
-      : '';
-    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a challenge update post. Challenges are SwimLoading's primary community-building tool — they drive logging behaviour and create a shared experience across 12 countries.\n\nCHALLENGE: ${challenge}\n${mechanic}PRIZES: ${prizes}\nSTANDINGS: ${standings}\nPHASE: ${phase}\nSWIMMERS ENTERED: ${count}\nNOTABLE: ${notable || 'Standard update.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+    const isJuneRecap = challenge.startsWith('June Challenge');
+    let mechanic = '';
+    if (isUkSpot) {
+      mechanic = 'MECHANIC (different from other challenges — do not confuse with temp-logging challenges): this is a UK-wide location-discovery challenge. Swimmers earn 10 points for every UNIQUE outdoor UK swim spot they log — no distance, speed, or water temperature requirement. Logging the same spot twice does not earn more points. Presented by TRIHARD.\nSTATUS: Not live yet — dates unconfirmed. This must read as upcoming / building anticipation, NOT as an active leaderboard update.\n';
+    } else if (isJuneRecap) {
+      mechanic = 'STATUS: This challenge is OVER (ended 30 June). This must be written entirely in PAST TENSE as a recap/celebration of the winner and stats — never present it as live, ongoing, or something to enter now.\n';
+    } else {
+      mechanic = 'MECHANIC — IMPORTANT: this is a DRAW, not a top-scorer leaderboard. Swimmers qualify for the prize draw by logging 10 swims — every additional 10 logs, plus each group swim joined/created and each 7-day streak, earns another entry. Do NOT frame this as "X is leading" or imply anyone is winning/losing — every entrant who has 1 or more entries has a genuine, equal-odds shot at the draw. The angle is "you\'re reachable distance from being in" and "look how many people are already in," not competition or ranking.\n';
+    }
+    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a challenge update post. Challenges are SwimLoading's primary community-building tool — they drive logging behaviour and create a shared experience across 12 countries.\n\nCHALLENGE: ${challenge}\n${mechanic}PRIZES: ${prizes}\nUPDATE: ${standings}\nPHASE: ${phase}\nPARTICIPATION: ${count}\nNOTABLE: ${notable || 'Standard update.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
   }
 
   if (currentType === 'partner') {
