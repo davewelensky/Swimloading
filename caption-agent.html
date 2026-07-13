@@ -229,6 +229,7 @@
     <button class="type-btn" onclick="setType('hazard',this)"><i data-lucide="alert-triangle"></i>Hazard Alert</button>
     <button class="type-btn" onclick="setType('strava',this)"><i data-lucide="activity"></i>Strava Feature</button>
     <button class="type-btn" onclick="setType('community',this)"><i data-lucide="award"></i>Community Story</button>
+    <button class="type-btn" onclick="setType('growth',this)"><i data-lucide="trending-up"></i>Growth Milestone</button>
   </div>
 
   <!-- CONDITIONS -->
@@ -327,7 +328,7 @@
         <div class="card-title">Challenge details</div>
         <label>Challenge name</label>
         <select id="challenge-name" onchange="updateChallengeDefaults()">
-          <option>June Challenge</option><option>July Challenge</option><option>Monthly Temp Challenge</option><option>Winter Streak</option><option>Custom</option>
+          <option>June Challenge</option><option>July Challenge</option><option>Monthly Temp Challenge</option><option>Winter Streak</option><option>The Great UK Swim Spot Challenge</option><option>Custom</option>
         </select>
         <label>Custom challenge name (if Custom)</label>
         <input type="text" id="challenge-custom" placeholder="e.g. Tri Hard Recovery Challenge">
@@ -597,6 +598,54 @@
     </div>
   </div>
 
+  <!-- GROWTH MILESTONE -->
+  <div class="type-section" id="section-growth">
+    <div class="form-grid">
+      <div class="card">
+        <div class="card-title">The numbers</div>
+        <label>Milestone focus</label>
+        <select id="growth-focus" onchange="updateGrowthDefaults()">
+          <option>Community size — 635+ members</option>
+          <option>Global reach — 180+ locations, 12 countries</option>
+          <option>UK expansion — growing beyond South Africa</option>
+          <option>Seasonal contrast — SA winter meets UK community</option>
+          <option>New location added</option>
+          <option>New country added</option>
+          <option>Custom milestone</option>
+        </select>
+        <label>The stat / headline</label>
+        <textarea id="growth-stat">635+ members logging conditions across 180+ locations in 12 countries — and growing into the UK.</textarea>
+        <label>Custom milestone detail (if Custom)</label>
+        <input type="text" id="growth-custom" placeholder="e.g. Just passed our 2000th temperature log">
+      </div>
+      <div class="card">
+        <div class="card-title">Post context</div>
+        <label>UK expansion angle</label>
+        <select id="growth-uk-angle">
+          <option value="none">No UK-specific angle</option>
+          <option value="winter-contrast">SA is deep in winter — perfect timing to bring in UK swimmers who know cold water</option>
+          <option value="trihard">Building UK community ahead of The Great UK Swim Spot Challenge with TRIHARD</option>
+          <option value="invite">Direct invite — UK wild swimmers, come log your spots</option>
+        </select>
+        <label>Anything notable?</label>
+        <textarea id="growth-notable">Every new country started with one swimmer logging one spot. The UK is next.</textarea>
+        <label>Call to action</label>
+        <select id="growth-cta">
+          <option value="join">Join SwimLoading — link in bio</option>
+          <option value="uk-join">UK swimmers — add your spot at swimloading.com</option>
+          <option value="share">Tag a swimmer who should be logging with us</option>
+          <option value="explore">Explore all 180+ locations at swimloading.com</option>
+        </select>
+        <label>Tone</label>
+        <div class="tone-row">
+          <button class="tone-btn selected" onclick="selectTone(this,'community')">Proud / momentum</button>
+          <button class="tone-btn" onclick="selectTone(this,'witty')">Confident</button>
+          <button class="tone-btn" onclick="selectTone(this,'inspiring')">Big-picture</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <button class="generate-btn" id="gen-btn" onclick="generateCaptions()">
     <div class="spinner"></div>
     <span class="btn-text">Generate 3 caption options</span>
@@ -812,19 +861,22 @@ function updateChallengeDefaults() {
     'June Challenge':        'THEMAGIC5 custom-fit goggles (grand prize)',
     'July Challenge':        'Blu Smooth wetsuit (grand prize)',
     'Monthly Temp Challenge':'Maurten nutrition pack — ongoing monthly prize',
-    'Winter Streak':         'SiS nutrition bundle — random draw from all participants'
+    'Winter Streak':         'SiS nutrition bundle — random draw from all participants',
+    'The Great UK Swim Spot Challenge': 'Bundle of 4 TRIHARD products (grand prize) — presented by TRIHARD'
   };
   const standingsMap = {
     'June Challenge':        'Tunnam leads the June Challenge by a significant margin heading into the final stretch.',
     'July Challenge':        'July Challenge just opened — early movers are already on the board.',
     'Monthly Temp Challenge':'Leaderboard is tight — top 3 swimmers separated by a single log.',
-    'Winter Streak':         'Streak challenge underway — consistent loggers are pulling ahead of the pack.'
+    'Winter Streak':         'Streak challenge underway — consistent loggers are pulling ahead of the pack.',
+    'The Great UK Swim Spot Challenge': 'Coming soon — dates not yet confirmed. This post should build anticipation, not announce a live leaderboard.'
   };
   const phaseMap = {
     'June Challenge':        'Final 6 days',
     'July Challenge':        'Just launched',
     'Monthly Temp Challenge':'Mid-month',
-    'Winter Streak':         'Week 2'
+    'Winter Streak':         'Week 2',
+    'The Great UK Swim Spot Challenge': 'Coming soon — not yet live'
   };
   if (prizesMap[challenge]) document.getElementById('challenge-prizes').value = prizesMap[challenge];
   if (standingsMap[challenge]) document.getElementById('challenge-standings').value = standingsMap[challenge];
@@ -864,7 +916,7 @@ function updatePartnerDefaults() {
     'Maurten':   'Maurten hydrogel sports nutrition — engineered for cold water athletes. High carbohydrate delivery without GI issues during long swims.',
     'Blu Smooth':'Blu Smooth wetsuits — designed for open water swimming in South African conditions. Buoyancy-optimised cut for ocean swims.',
     'EOLab':     'EOLab performance coaching and analysis — data-driven training plans for open water swimmers targeting crossings and time trials.',
-    'Trihard':   'Trihard skin and hair care formulated specifically for swimmers — protects against chlorine, salt, and sun exposure without stripping skin.',
+    'Trihard':   'TRIHARD — swim-specialized personal care: Chlorine Removal Shampoo, Chlorine Protection Conditioner, and Chlorine Removal Body Wash, built specifically for swimmers.',
     'Upcoming':  'Details to be confirmed — partnership not yet announced publicly.'
   };
   const whyMap = {
@@ -873,7 +925,7 @@ function updatePartnerDefaults() {
     'Maurten':   'Hydrogel technology tested for high-intensity endurance — critical for channel and crossing prep.',
     'Blu Smooth':'A well-fitted wetsuit at 14°C is the difference between a 2-hour swim and a 45-minute one. Blu Smooth make suits built for our water.',
     'EOLab':     'Open water performance is more than fitness. EOLab bring the data to help swimmers understand what the ocean demands of their bodies.',
-    'Trihard':   'Salt water, sun, and cold take a toll. Trihard is the only skin care range built specifically around what swimmers put their bodies through every session.',
+    'Trihard':   'Chlorine, salt, sun, and cold all take a toll on swimmers\' skin and hair. TRIHARD is used by IRONMAN 70.3 World Champion Lucy Charles-Barclay — built specifically around what swimmers put their bodies through every session.',
     'Upcoming':  'Something that solves a real problem for open water swimmers — details dropping soon.'
   };
   const communityMap = {
@@ -882,12 +934,12 @@ function updatePartnerDefaults() {
     'Maurten':   'Maurten are an ongoing prize partner — monthly draws from the SwimLoading community.',
     'Blu Smooth':'Blu Smooth are official wetsuit partners of the SwimLoading community.',
     'EOLab':     'EOLab are joining the SwimLoading ecosystem to bring structured coaching to our open water swimmers.',
-    'Trihard':   'Trihard are a new SwimLoading partner — built for swimmers, by swimmers.',
+    'Trihard':   'TRIHARD are the presenting sponsor of The Great UK Swim Spot Challenge — a UK-wide location-discovery challenge on SwimLoading. Winner takes home a bundle of 4 TRIHARD products.',
     'Upcoming':  'This partnership has not been announced yet. Build the excitement without naming the brand.'
   };
   const teaserMap = {
     'Upcoming':  'Something big is coming to SwimLoading. We can\'t name names yet — but it changes how swimmers take care of themselves in and out of the water. Follow to be first to know.',
-    'Trihard':   'New partner incoming — and this one is for your skin as much as your swim.',
+    'Trihard':   'Something is coming for our UK swimmers — a brand-new way to explore open water spots across the UK, with a serious prize on the line. Details dropping soon.',
     'EOLab':     'Data-driven coaching is coming to SwimLoading. Big announcement dropping this week.'
   };
   const ctaMap = {
@@ -905,6 +957,19 @@ function updatePartnerDefaults() {
   if (ctaMap[postType]) document.getElementById('partner-cta').value = ctaMap[postType];
 }
 
+function updateGrowthDefaults() {
+  const focus = document.getElementById('growth-focus').value;
+  const statMap = {
+    'Community size — 635+ members':              '635+ members logging conditions across 180+ locations in 12 countries.',
+    'Global reach — 180+ locations, 12 countries': '180+ swim locations tracked across 12 countries — from Cape Town to Cascais to Cottesloe.',
+    'UK expansion — growing beyond South Africa':  'SwimLoading started in Cape Town. Now UK swimmers are logging conditions from Canford Cliffs to Tooting Bec.',
+    'Seasonal contrast — SA winter meets UK community': 'While South Africa swims through its coldest water of the year, SwimLoading is building its next community in the UK.',
+    'New location added':   'A new swim spot just joined SwimLoading — 180+ and counting.',
+    'New country added':    'SwimLoading just added its newest country — 12 and counting.'
+  };
+  if (statMap[focus]) document.getElementById('growth-stat').value = statMap[focus];
+}
+
 function updateClubDefaults() {
   const club = document.getElementById('club-name').value;
   const detailMap = {
@@ -916,16 +981,18 @@ function updateClubDefaults() {
 }
 
 // ─── BRAND CONTEXT ───
-const BRAND_CONTEXT = `You are the social media voice for SwimLoading — an open water swimming platform tracking verified water temperatures and conditions across 12+ countries, used by 600+ logged swimmers.
+const BRAND_CONTEXT = `You are the social media voice for SwimLoading — an open water swimming platform tracking verified water temperatures and conditions across 180+ locations in 12 countries, used by 635+ members.
 
 SwimLoading covers:
 - Real-time water temperatures and conditions from community-logged spots worldwide
 - Ocean crossing intelligence: Robben Island, Cape Point, Dassen Island, Preekstoel, West Angle, English Channel, and more
 - Strava integration — import Strava swims and add the water data Strava doesn't capture (temp, conditions, hazards)
 - Monthly challenges with prizes from THEMAGIC5, Maurten, SiS, Blu Smooth, and EOLab
+- The Great UK Swim Spot Challenge — presented by TRIHARD, a UK-focused location-discovery challenge (10 points per unique outdoor UK swim spot logged, no distance or speed required) driving SwimLoading's UK expansion
 - Hazard tracking: bluebottles, jellyfish, sharks, currents, swell — logged by the community in real time
 - Three clubs: DUC (637-member open water racing club, Durban), Aquasharks Atlantic (competitive squad, Cape Town), K8 Coaching (open water Masters coaching, Cape Town)
 - Swimmer profiles, crossing prep logs, personal records, and milestone tracking
+- Growing UK community — while South Africa is in winter, the platform is actively expanding into UK open water and wild swimming, connecting SA's peak cold-water season with the UK scene
 
 Brand voice: authentic, community-first, data-driven, ocean-obsessed. Not corporate. Not influencer-y. Built by a swimmer, for swimmers.`;
 
@@ -1005,7 +1072,11 @@ function buildPrompt() {
     const notable = document.getElementById('challenge-notable').value;
     const ctaMap = { enter:'Enter the challenge — link in bio.', log:'Log a swim today — every log counts.', leaderboard:'Check the leaderboard on SwimLoading — link in bio.' };
     const cta = ctaMap[document.getElementById('challenge-cta').value];
-    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a challenge update post. Challenges are SwimLoading's primary community-building tool — they drive logging behaviour and create a shared experience across 12 countries.\n\nCHALLENGE: ${challenge}\nPRIZES: ${prizes}\nSTANDINGS: ${standings}\nPHASE: ${phase}\nSWIMMERS ENTERED: ${count}\nNOTABLE: ${notable || 'Standard update.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+    const isUkSpot = challenge === 'The Great UK Swim Spot Challenge';
+    const mechanic = isUkSpot
+      ? 'MECHANIC (different from other challenges — do not confuse with temp-logging challenges): this is a UK-wide location-discovery challenge. Swimmers earn 10 points for every UNIQUE outdoor UK swim spot they log — no distance, speed, or water temperature requirement. Logging the same spot twice does not earn more points. Presented by TRIHARD.\nSTATUS: Not live yet — dates unconfirmed. This must read as upcoming / building anticipation, NOT as an active leaderboard update.\n'
+      : '';
+    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a challenge update post. Challenges are SwimLoading's primary community-building tool — they drive logging behaviour and create a shared experience across 12 countries.\n\nCHALLENGE: ${challenge}\n${mechanic}PRIZES: ${prizes}\nSTANDINGS: ${standings}\nPHASE: ${phase}\nSWIMMERS ENTERED: ${count}\nNOTABLE: ${notable || 'Standard update.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
   }
 
   if (currentType === 'partner') {
@@ -1083,6 +1154,22 @@ function buildPrompt() {
     return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a community story post. SwimLoading's most powerful content is real stories from real swimmers — crossings completed, first cold swims, comebacks, milestones. These captions should make the reader feel like they are missing something real.\n\n${name ? 'SWIMMER: ' + name + '\n' : 'SWIMMER: Anonymous\n'}ACHIEVEMENT TYPE: ${type}\nSTORY: ${story}\nBROADER ANGLE: ${angle}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
   }
 
+  if (currentType === 'growth') {
+    const focus = document.getElementById('growth-focus').value;
+    const stat = document.getElementById('growth-focus').value === 'Custom milestone' ? document.getElementById('growth-custom').value : document.getElementById('growth-stat').value;
+    const ukAngleMap = {
+      'none':           '',
+      'winter-contrast':'UK EXPANSION ANGLE: South Africa is currently deep in winter — peak cold-water season. This is the ideal moment to invite UK wild/open water swimmers (who swim through their own cold months) to join a community that already understands cold water. Draw the connection between SA\'s winter swimmers and UK swimmers without forcing it.',
+      'trihard':        'UK EXPANSION ANGLE: SwimLoading is building its UK community ahead of The Great UK Swim Spot Challenge, presented by TRIHARD — a location-discovery challenge launching soon. Do not announce challenge dates or mechanics in detail here; this post is about growing the UK community, the challenge is separate content.',
+      'invite':         'UK EXPANSION ANGLE: A direct, warm invitation to UK wild and open water swimmers to start logging their spots on SwimLoading — be part of the platform\'s first wave in the UK.'
+    };
+    const ukAngle = ukAngleMap[document.getElementById('growth-uk-angle').value] || '';
+    const notable = document.getElementById('growth-notable').value;
+    const ctaMap = { join:'Join SwimLoading — link in bio.', 'uk-join':'UK swimmers — add your spot at swimloading.com. Link in bio.', share:'Tag a swimmer who should be logging with us.', explore:'Explore all 180+ locations at swimloading.com — link in bio.' };
+    const cta = ctaMap[document.getElementById('growth-cta').value];
+    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a growth / milestone post. This content exists to build momentum and drive new signups — it should make SwimLoading feel like something growing fast that a swimmer wants to be part of, not a corporate stats announcement.\n\nMILESTONE FOCUS: ${focus}\nTHE STAT: ${stat}\n${ukAngle}\nNOTABLE: ${notable || 'Standard update.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+  }
+
   return '';
 }
 
@@ -1095,7 +1182,8 @@ const HASHTAG_SETS = {
   club:       '#openwaterswimming #swimloading #swimclub #wildswimming #outdoorswimming',
   hazard:     '#openwaterswimming #swimloading #wildswimming #beachsafety #oceansafety',
   strava:     '#openwaterswimming #swimloading #strava #wildswimming #swimtracking',
-  community:  '#openwaterswimming #swimloading #wildswimming #swimstory #openwater'
+  community:  '#openwaterswimming #swimloading #wildswimming #swimstory #openwater',
+  growth:     '#openwaterswimming #swimloading #wildswimming #wildswimminguk #openwatercommunity'
 };
 
 // ─── STORY TIPS ───
@@ -1147,6 +1235,12 @@ const STORY_TIPS = {
     { icon:'users', text:'Tag the swimmer directly — they will share your Story, multiplying reach to a warm, relevant audience.' },
     { icon:'bar-chart-2', text:'Poll: "What is your next big swim goal?" — turns one swimmer\'s story into a community conversation.' },
     { icon:'link', text:'Link sticker to swimloading.com — "Start your story here." The best CTA after an achievement post is an easy first step.' }
+  ],
+  growth: [
+    { icon:'map', text:'Animated map Story showing the 12 countries lighting up one by one — makes global reach feel earned, not stated.' },
+    { icon:'bar-chart-2', text:'Poll: "Do you swim outside SA?" — surfaces your international audience and primes them for the UK push.' },
+    { icon:'users', text:'Re-share a UK swimmer\'s log or photo — nothing sells UK expansion like a real UK swimmer already on the platform.' },
+    { icon:'link', text:'Link sticker straight to swimloading.com signup — growth posts should convert while the momentum feeling is highest.' }
   ]
 };
 

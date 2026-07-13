@@ -54,9 +54,9 @@ window.SITE_CONFIG = {
     { name:'Spain',          label:'Spain',          color:'#fbbf24', bg:'rgba(251,191,36,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(251,191,36,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Santa Ponsa · Mallorca',               pillDelay:'4.8s', dotDelay:'3.4s' },
   ],
 
-  spots:       140,   // rendered as "140+" where a page adds the plus
-  swimmers:    600,   // rendered as "600+"
-  tempsLogged: 2400,  // rendered as "2,400+"
+  spots:       180,   // rendered as "180+" where a page adds the plus — actual 181 (Jul 2026)
+  swimmers:    635,   // rendered as "635+" — actual 638 (Jul 2026)
+  tempsLogged: 1900,  // rendered as "1,900+" — actual 1921 (Jul 2026); was showing 2400 (overstated)
 
   /* ── MONTHLY CHALLENGE CALENDAR ────────────────────────────────────────
    * Keyed 'YYYY-MM'. site-sync auto-selects the entry for the current SAST
