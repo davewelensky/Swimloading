@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SwimLoading — Sponsor Pipeline</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #080f1a;
+  --bg-card: #0d1728;
+  --bg-card2: #111e35;
+  --cyan: #38bdf8;
+  --text: #f1f5f9;
+  --text-sec: #94a3b8;
+  --text-muted: #475569;
+  --border: rgba(255,255,255,0.07);
+  --border-strong: rgba(255,255,255,0.14);
+  --green: #10b981;
+  --amber: #f59e0b;
+  --danger: #ef4444;
+  --blue: #3b82f6;
+  --purple: #a78bfa;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background:
+    radial-gradient(18px circle at var(--mouse-x, -999px) var(--mouse-y, -999px), rgba(56,189,248,0.55), transparent 100%),
+    radial-gradient(500px circle at var(--mouse-x, -999px) var(--mouse-y, -999px), rgba(56,189,248,0.07), transparent 70%);
+}
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(8,15,26,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 50%, #0284c7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.nav-brand img { height: 22px; width: auto; }
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.nav-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-sec);
+}
+
+.nav-stat span { color: var(--text); font-weight: 600; }
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 50px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s;
+  font-family: inherit;
+}
+.btn:hover { opacity: 0.85; }
+.btn-primary { background: var(--cyan); color: #080f1a; }
+.btn-ghost { background: transparent; border: 1px solid var(--border-strong); color: var(--text-sec); }
+
+.container { max-width: 1400px; margin: 0 auto; padding: 32px 24px; }
+
+.page-header { margin-bottom: 32px; }
+.page-title { font-family: 'Bebas Neue', sans-serif; font-size: 42px; letter-spacing: 1px; line-height: 1; margin-bottom: 8px; }
+.page-sub { color: var(--text-sec); font-size: 14px; }
+
+.filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+  align-items: center;
+}
+
+.filter-btn {
+  padding: 6px 14px;
+  border-radius: 50px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-sec);
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.filter-btn:hover, .filter-btn.active {
+  background: var(--bg-card2);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.filter-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+
+.search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  padding: 0 14px;
+  height: 36px;
+  flex: 1;
+  max-width: 280px;
+}
+
+.search-wrap input {
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  width: 100%;
+}
+
+.search-wrap input::placeholder { color: var(--text-muted); }
+
+.section { margin-bottom: 40px; }
+
+.section-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-count {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  padding: 1px 8px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.brand-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+.brand-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  transition: border-color 0.15s;
+  position: relative;
+}
+
+.brand-card:hover { border-color: var(--border-strong); }
+.brand-card.verified { border-left: 2px solid var(--green); }
+.brand-card.sa-confirmed { border-left: 2px solid var(--cyan); }
+.brand-card.hot { border-left: 2px solid var(--amber); }
+.brand-card.done { opacity: 0.5; }
+
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.brand-name { font-size: 15px; font-weight: 700; color: var(--text); }
+
+.status-select {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 50px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-sec);
+  cursor: pointer;
+  font-family: inherit;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.status-select[data-status="not_contacted"] { border-color: var(--border); color: var(--text-muted); }
+.status-select[data-status="researching"]   { border-color: var(--purple); color: var(--purple); background: rgba(167,139,250,0.08); }
+.status-select[data-status="contacted"]     { border-color: var(--blue); color: var(--blue); background: rgba(59,130,246,0.08); }
+.status-select[data-status="replied"]       { border-color: var(--amber); color: var(--amber); background: rgba(245,158,11,0.08); }
+.status-select[data-status="deal_done"]     { border-color: var(--green); color: var(--green); background: rgba(16,185,129,0.08); }
+.status-select[data-status="passed"]        { border-color: var(--danger); color: var(--danger); background: rgba(239,68,68,0.08); }
+
+.badge-row { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+
+.badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.badge-sa       { background: rgba(56,189,248,0.15); color: var(--cyan); }
+.badge-verified { background: rgba(16,185,129,0.12); color: var(--green); }
+.badge-hot      { background: rgba(245,158,11,0.12); color: var(--amber); }
+.badge-new      { background: rgba(148,163,184,0.08); color: var(--text-muted); }
+
+.prize-line { font-size: 12px; color: var(--cyan); font-weight: 600; margin-bottom: 6px; }
+
+.brand-note { font-size: 12px; color: var(--text-sec); line-height: 1.5; margin-bottom: 10px; }
+
+.notes-area {
+  width: 100%;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text);
+  font-family: inherit;
+  resize: none;
+  min-height: 48px;
+  transition: border-color 0.15s, min-height 0.15s;
+  line-height: 1.5;
+}
+
+.notes-area:focus {
+  outline: none;
+  border-color: var(--border-strong);
+  min-height: 72px;
+}
+
+.notes-area::placeholder { color: var(--text-muted); }
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  gap: 8px;
+}
+
+.contact-link {
+  font-size: 11px;
+  color: var(--cyan);
+  text-decoration: none;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+.contact-link:hover { opacity: 1; }
+
+.priority-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.priority-toggle.on {
+  border-color: var(--amber);
+  color: var(--amber);
+  background: rgba(245,158,11,0.08);
+}
+
+.hidden { display: none !important; }
+
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.export-bar {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 200;
+  display: flex;
+  gap: 8px;
+}
+
+.toast {
+  position: fixed;
+  bottom: 80px;
+  right: 24px;
+  background: var(--bg-card2);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 13px;
+  color: var(--text);
+  z-index: 300;
+  transform: translateY(20px);
+  opacity: 0;
+  transition: all 0.2s;
+}
+
+.toast.show { transform: translateY(0); opacity: 1; }
+
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="../index.html">
+    <img src="../icons/logo-wave.png" alt="">SwimLoading
+  </a>
+  <div class="nav-right">
+    <div class="nav-stats">
+      <div id="stat-total">— brands</div>
+      <div id="stat-contacted"><span id="n-contacted">0</span> contacted</div>
+      <div id="stat-done"><span id="n-done">0</span> deals done</div>
+    </div>
+    <button class="btn btn-ghost" onclick="exportNotes()">Export notes</button>
+  </div>
+</nav>
+
+<div class="container">
+
+  <div class="page-header">
+    <div class="page-title">Sponsor Pipeline</div>
+    <div class="page-sub">91 brands · 59 research-verified + 32 new (unresearched, from Jul 2026 Carina advisor memo) · last updated July 2026</div>
+  </div>
+
+  <div class="filters">
+    <div class="search-wrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="search" placeholder="Search brands..." oninput="applyFilters()">
+    </div>
+    <div class="filter-sep"></div>
+    <button class="filter-btn active" data-filter="all" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" data-filter="hot" onclick="setFilter('hot', this)">Hot</button>
+    <button class="filter-btn" data-filter="sa" onclick="setFilter('sa', this)">SA confirmed</button>
+    <button class="filter-btn" data-filter="verified" onclick="setFilter('verified', this)">Research-verified</button>
+    <button class="filter-btn" data-filter="new" onclick="setFilter('new', this)">New — unresearched</button>
+    <div class="filter-sep"></div>
+    <button class="filter-btn" data-filter="not_contacted" onclick="setFilter('not_contacted', this)">Not contacted</button>
+    <button class="filter-btn" data-filter="contacted" onclick="setFilter('contacted', this)">Contacted</button>
+    <button class="filter-btn" data-filter="replied" onclick="setFilter('replied', this)">Replied</button>
+    <button class="filter-btn" data-filter="deal_done" onclick="setFilter('deal_done', this)">Done</button>
+  </div>
+
+  <div id="sections-container"></div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+document.addEventListener('mousemove', e => {
+  document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+  document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+});
+
+const BRANDS = [
+  // WETSUITS
+  { id: 'tyr-wetsuit', category: 'Wetsuits & open water kit', name: 'TYR', prize: 'Tracer X wetsuit · R8,000–R12,000', note: 'SA office confirmed (tyr.co.za, +27 21 702 0238). Ambassador Simon Ince holds world record for 33km False Bay crossing (Millers Point → Rooi Els, 10:42). Easiest warm approach — already in SA.', tags: ['sa', 'verified', 'hot'], contact: 'https://tyr.co.za' },
+  { id: 'orca', category: 'Wetsuits & open water kit', name: 'Orca', prize: 'Apex Flex OW wetsuit · R6,000–R9,000', note: 'SA distributor: Fluidlines, Greenpoint + Somerset West. Approach Fluidlines as the wholesale intro, not Orca directly.', tags: ['sa', 'verified'], contact: 'https://fluidlines.co.za' },
+  { id: 'blueseventy', category: 'Wetsuits & open water kit', name: 'Blue Seventy', prize: 'Reaction Wetsuit grand prize ~R12,500 / Hydra Vision goggles $28+ / thermal skull cap $55', note: 'Full range: wetsuits, goggles, thermal skull caps, practice swimwear, bags, accessories. Multi-category partner potential — not just a wetsuit brand.', tags: ['verified'], contact: 'https://blueseventy.com' },
+  { id: 'zone3', category: 'Wetsuits & open water kit', name: 'Zone3', prize: 'Advance wetsuit · ~R8,000', note: 'Has formal Club Affiliate Programme + Clubhouse Rewards loyalty scheme — community pitch angle already built in. Approach via zone3.com/pages/club-affiliate-program.', tags: [], contact: 'https://zone3.com/pages/club-affiliate-program' },
+  { id: 'huub', category: 'Wetsuits & open water kit', name: 'Huub', prize: 'Axiom wetsuit · ~R8,000', note: 'UK open water specialist. Sponsored Ironman Wales, Channel swimmers. Strong triathlon + OW crossover. Active ambassador programme.', tags: [], contact: 'https://www.huubdesign.com' },
+  { id: 'sailfish', category: 'Wetsuits & open water kit', name: 'Sailfish', prize: 'One wetsuit · ~R7,000', note: 'German brand, popular across European OW + triathlon circuit. Sponsors ÖTILLÖ swimrun events — community sponsorship history.', tags: [], contact: 'https://www.sailfish.com' },
+  { id: 'roka', category: 'Wetsuits & open water kit', name: 'Roka', prize: 'Maverick Pro wetsuit + goggles · ~R10,000', note: 'Premium US brand, goggles + wetsuits. Strong OW triathlon community. Active ambassador programme. Ships internationally.', tags: [], contact: 'https://www.roka.com/pages/ambassador-program' },
+  { id: 'yonda', category: 'Wetsuits & open water kit', name: 'Yonda', prize: 'Ghost wetsuit · ~R7,000', note: 'Small UK brand built exclusively for open water swimming. Very niche, very on-brand. Approachable as a smaller company — high chance of yes.', tags: [], contact: 'https://yondasport.com' },
+  { id: 'xterra', category: 'Wetsuits & open water kit', name: 'Xterra Wetsuits', prize: 'Vortex / Vector wetsuit · R5,000–R12,000', note: 'US brand, widely distributed SA + internationally. Strong OW and triathlon heritage. Good prize range from entry to grand. Widely stocked in SA triathlon retailers.', tags: [], contact: 'https://xterrawetsuits.com' },
+  { id: 'camaro', category: 'Wetsuits & open water kit', name: 'Camaro', prize: 'Open water wetsuit · R4,000–R9,000', note: 'German neoprene/cold water brand. Some SA presence via triathlon retailers. Strong cold water credentials — good fit for Channel + crossing prep swimmers.', tags: [], contact: 'https://www.camaro.eu' },
+
+  // GOGGLES & TRAINING
+  { id: 'form', category: 'Goggles & swim training tools', name: 'FORM Smart Swim 2 PRO', prize: 'AR heads-up display goggles · ~R5,000', note: 'Race-legal (World Triathlon + T100 approved Oct 2023). SwimStraight open water compass navigation. Formal "Team & Club Inquiries" contact form at formswim.com — use it.', tags: ['verified', 'hot'], contact: 'https://www.formswim.com/pages/work-with-us' },
+  { id: 'finis', category: 'Goggles & swim training tools', name: 'FINIS', prize: 'Tempo Trainer Pro + Agility Paddle bundle · R1,200–R2,000', note: 'Definitive swim training tool brand. Tempo Trainer is iconic — every coached swimmer knows it. Multiple prize tiers possible from their range.', tags: [], contact: 'https://finisinc.com' },
+  { id: 'vorgee', category: 'Goggles & swim training tools', name: 'Vorgee', prize: 'Missile Tinted goggles · R400–R800', note: 'Australian goggle brand, cult OW following. Tinted lenses for outdoor glare. Lower prize value = easier volume deal. Multiple winners per month possible.', tags: [], contact: 'https://vorgee.com' },
+  { id: 'aquasphere', category: 'Goggles & swim training tools', name: 'Aqua Sphere', prize: 'Vista Open Water goggle + fin bundle · R1,500', note: 'Vista Open Water goggle designed specifically for OW sighting. SA retail presence. Also makes fins, bags, accessories — multiple prize tiers.', tags: [], contact: 'https://www.aquasphereswim.com' },
+  { id: 'swimsmooth', category: 'Goggles & swim training tools', name: 'Swim Smooth', prize: 'Guru subscription + paddle set · ~R2,000', note: 'UK coaching platform + training tools. Pull buoys, paddles. Strong crossover with data-driven swimmers who use SwimLoading.', tags: [], contact: 'https://www.swimsmooth.com' },
+  { id: 'zoggs', category: 'Goggles & swim training tools', name: 'Zoggs', prize: 'Predator Flex goggles · R600–R900', note: 'UK brand, SA stocked at Sportsmans Warehouse. Accessible volume prize — run multiple winners per month. Good for lower-tier monthly prizes alongside bigger brand names.', tags: ['sa'], contact: 'https://www.zoggs.com' },
+  { id: 'mp', category: 'Goggles & swim training tools', name: 'MP Michael Phelps', prize: 'Xceed goggles + fin bundle · R800–R2,500', note: 'Arena-owned brand carrying Michael Phelps name. SA retail available. Goggles + fins bundle makes a strong aspirational prize with huge name recognition.', tags: ['sa'], contact: 'https://www.michaelphelps.com' },
+
+  // BAGS & SAFETY
+  { id: 'red-equipment', category: 'Bags, kit & safety', name: 'Red Equipment', prize: 'Tow Float Backpack · ~R1,800', note: 'ACTIVELY running prize giveaways with Outdoor Swimmer Magazine right now (closing Jun–Jul 2026). Pitch: "we are their digital equivalent." Directly relevant to SwimLoading safety focus.', tags: ['verified', 'hot'], contact: 'https://www.redequipment.co.uk' },
+  { id: 'kitbrix', category: 'Bags, kit & safety', name: 'Kitbrix', prize: 'Triathlon transition bag · R2,500–R3,500', note: 'UK brand built for triathlon/swim kit organisation. Modular compartments for wetsuit, goggles, nutrition. No competitor offers this in SA.', tags: [], contact: 'https://kitbrix.com' },
+  { id: 'bttlns', category: 'Bags, kit & safety', name: 'BTTLNS', prize: 'Open water kit bundle · R1,500–R2,500', note: 'Dutch OW accessories brand: tow floats, neoprene socks/gloves, swim caps. Full open water starter kit prize concept.', tags: [], contact: 'https://www.bttlns.com' },
+  { id: 'swimsecure', category: 'Bags, kit & safety', name: 'Swim Secure', prize: 'Dry bag + tow float bundle · R1,200–R2,000', note: 'UK OW safety brand. Actively sponsors OW events. Tow floats are safety gear — strong narrative for SwimLoading safety-first messaging.', tags: [], contact: 'https://www.swim-secure.co.uk' },
+
+  // ROBES & WARMTH
+  { id: 'dryrobe', category: 'Changing robes & warmth', name: 'Dryrobe', prize: 'Advance Long Sleeve · R4,000–R5,500', note: 'The #1 open water brand globally. Every swimmer wants one. Monthly prize that gets photographed and shared — free marketing. SA market growing fast.', tags: ['hot'], contact: 'https://www.dryrobe.com/pages/ambassador' },
+  { id: 'finisterre', category: 'Changing robes & warmth', name: 'Finisterre', prize: 'Ocean hoodie + beanie bundle · R2,000–R3,000', note: 'UK ocean sustainability brand. Aligns with SwimLoading ocean-conscious values. Hoodies + beanies are year-round winner gifts.', tags: [], contact: 'https://www.finisterre.com' },
+  { id: 'phocea', category: 'Changing robes & warmth', name: 'Phocea', prize: 'Changing poncho robe · R1,800–R2,500', note: 'French brand, Dryrobe alternative. If Dryrobe ignores outreach — similar product, more approachable as a smaller company.', tags: [], contact: 'https://phocea.fr' },
+  { id: 'fourthelement', category: 'Changing robes & warmth', name: 'Fourth Element', prize: 'Thermocline thermal range · R2,500–R5,000', note: 'UK cold water thermal wear brand. Thermocline top + shorts designed for cold open water swimming. Niche credibility — the brand serious cold water swimmers know. No SA retail but ships internationally.', tags: [], contact: 'https://www.fourthelement.com/pages/ambassadors' },
+
+  // ACTION CAMERAS
+  { id: 'dji', category: 'Action cameras', name: 'DJI Osmo Action 5 Pro', prize: 'Action cam + waterproof housing · R7,000–R9,000', note: '20m waterproof, clip-on cap mount available. SA retail via Incredible Connection, Takealot. Less saturated than GoPro for sponsorship.', tags: ['hot'], contact: 'https://www.dji.com' },
+  { id: 'gopro', category: 'Action cameras', name: 'GoPro', prize: 'Hero 13 Black + waterproof mount · R7,500–R9,000', note: 'Robben Island and Channel crossing footage. User-generated content that lands on SwimLoading + Instagram. SA retail widely available.', tags: [], contact: 'https://gopro.com/en/za/update/gopro' },
+  { id: 'insta360', category: 'Action cameras', name: 'Insta360', prize: 'Go 3S action cam · ~R5,000', note: 'Clips onto a swim cap. Tiny, lightweight, waterproof to 10m. Perfect for capturing OW footage without bulk. Growing fast in endurance sports.', tags: [], contact: 'https://www.insta360.com' },
+
+  // AUDIO & WEARABLES
+  { id: 'shokz', category: 'Audio & wearables', name: 'Shokz OpenSwim / Pro', prize: 'Standard ~R2,700 / Pro ~R4,500', note: 'Bone conduction, waterproof to 2m, IP68. Pro has 32GB + Bluetooth. Designed specifically for swimming. Novel prize — no other sponsor offers this.', tags: ['verified'], contact: 'https://shokz.com/pages/become-an-ambassador' },
+  { id: 'garmin', category: 'Audio & wearables', name: 'Garmin Swim 2', prize: 'Swim 2 GPS watch · R4,000–R6,500', note: 'Most SwimLoading members already wear Garmin. Pitch: "your device logs the swim, our platform tells the story." SA retail everywhere. Highest appeal of all tech prizes.', tags: ['hot'], contact: 'https://www.garmin.com' },
+  { id: 'coros', category: 'Audio & wearables', name: 'Coros', prize: 'Pace 3 with swim tracking · ~R5,500', note: 'Fast-growing Garmin rival. Less saturated for sponsorship. Open water swim tracking built in. SA availability improving.', tags: [], contact: 'https://coros.com' },
+  { id: 'whoop', category: 'Audio & wearables', name: 'WHOOP', prize: '6-month membership · ~R2,400', note: 'Subscription prize = ongoing community tie-in, not a one-time item. Recovery-focused, waterproof. Recurring revenue model means they love ongoing partnerships.', tags: [], contact: 'https://www.whoop.com/partnerships' },
+
+  // SWIMWEAR
+  { id: 'tyr-swim', category: 'Swimwear & kit', name: 'TYR Swimwear', prize: 'Tracer A+ Race suit · R1,500–R3,000', note: 'Same SA office (tyr.co.za). Separate from wetsuit — swimsuits, caps, accessories for lower-value monthly prizes.', tags: ['sa', 'verified'], contact: 'https://tyr.co.za' },
+  { id: 'funkita', category: 'Swimwear & kit', name: 'Funkita / Funky Trunks', prize: 'Kit bundle · R1,000–R2,000', note: 'Australian brand with massive SA following. Colourful, distinctive — photographed and shared constantly. Multiple SA stockists.', tags: [], contact: 'https://funkita.com/pages/ambassadors' },
+  { id: 'arena', category: 'Swimwear & kit', name: 'Arena', prize: 'Carbon Air³ tech suit · R2,500–R5,000', note: 'Global brand, SA presence. Sponsors major pool events but less active in OW — opportunity to be first mover for SA open water community outreach.', tags: [], contact: 'https://www.arenasport.com' },
+  { id: 'speedo', category: 'Swimwear & kit', name: 'Speedo', prize: 'Fastskin cap + goggle + suit bundle · R1,500–R3,000', note: 'SA distribution strong. Sponsors Cape Long Distance events. Prize familiarity = high appeal. Bundle works at any budget tier.', tags: [], contact: 'https://www.speedo.com' },
+  { id: '2xu', category: 'Swimwear & kit', name: '2XU', prize: 'Compression kit · R2,000–R4,000', note: 'Australian brand, SA presence. Compression tights + top — recovery wear that crosses training and everyday. Triathlon + OW community crossover.', tags: [], contact: 'https://za.2xu.com' },
+  { id: 'jaked', category: 'Swimwear & kit', name: 'Jaked', prize: 'J11 / J-Fly tech suit · R3,000–R8,000', note: 'Italian performance swimwear, worn at Olympic level. Prestige prize — the brand serious competitive swimmers aspire to. Limited SA distribution via specialist triathlon retailers. High aspirational value.', tags: [], contact: 'https://www.jaked.com' },
+  { id: 'deboer', category: 'Swimwear & kit', name: 'De Boer', prize: 'Competition + training suits · R1,500–R4,000', note: 'Dutch/European competitive swimwear brand. Strong in European markets. Limited SA presence — approach direct for international prize shipping. Good fit for the UK/Switzerland audience expansion.', tags: [], contact: 'https://www.deboer.eu' },
+  { id: 'turbo', category: 'Swimwear & kit', name: 'Turbo', prize: 'Tech suit + training bundle · R1,500–R5,000', note: 'Spanish competitive swimwear brand. Strong in Europe and LatAm, limited SA retail. Worth approaching for the growing international member base.', tags: [], contact: 'https://www.turbosport.com' },
+  { id: 'muzinto', category: 'SA-specific brands', name: 'Muzinto', prize: 'Swimwear + caps bundle · R300–R600', note: 'SA brand (muzinto.co.za). Affordable swimwear, caps, goggles for school/club level. Lower prize value but SA-first and easiest logistics. Good for volume prizes — multiple winners in one month.', tags: ['sa'], contact: 'https://muzinto.co.za' },
+
+  // RECOVERY
+  { id: 'hyperice', category: 'Recovery', name: 'Hyperice', prize: 'Hypervolt 2 Go · R4,000 / Normatec boots grand prize · ~R10,000', note: 'SA distribution confirmed: hyperice.co.za, Bash.com (TFG, 800+ collection points), Ace Sports. Approach local SA team directly.', tags: ['sa', 'verified', 'hot'], contact: 'https://hyperice.co.za' },
+  { id: 'therabody', category: 'Recovery', name: 'Therabody', prize: 'Theragun Mini 2.0 · R3,000–R4,000', note: 'SA retail via Takealot, Sportsmans Warehouse. High prize appeal across all sports. Every endurance athlete wants one.', tags: [], contact: 'https://www.therabody.com' },
+  { id: 'pfh', category: 'Recovery', name: 'Precision Fuel & Hydration', prize: 'Sweat test + 3-month fuel kit · R1,500–R2,500', note: 'UK brand dominant in OW + marathon swimming. Sweat testing offer is a killer hook — personalised fuelling plan as part of the prize.', tags: ['verified'], contact: 'https://www.precisionhydration.com/partner' },
+  { id: 'compex', category: 'Recovery', name: 'Compex', prize: 'SP 6.0 muscle stimulator · R5,000–R8,000', note: 'EMS recovery device. Less mainstream = more novelty appeal as a prize. Popular with serious endurance athletes and triathletes.', tags: [], contact: 'https://www.compex.com' },
+
+  // NUTRITION
+  { id: 'high5', category: 'Nutrition', name: 'High5', prize: 'Energy + electrolyte bundle · R800–R1,500', note: 'UK brand popular specifically with OW and marathon swimmers. Ships SA. Complements Maurten/SiS in a different price bracket.', tags: [], contact: 'https://www.high5sport.com/pages/sponsors' },
+  { id: 'tailwind', category: 'Nutrition', name: 'Tailwind Nutrition', prize: 'Endurance fuel + recovery bundle · R1,000–R2,000', note: 'US brand, all-in-one (carbs + electrolytes + amino acids). Cult following among long-distance and OW swimmers. Ships internationally.', tags: [], contact: 'https://www.tailwindnutrition.com' },
+  { id: 'saltstick', category: 'Nutrition', name: 'SaltStick', prize: 'Electrolyte capsule bundle · R500–R900', note: 'Electrolyte caps specifically for endurance sport. Trusted by marathon swimmers. Lower cost = easier gifting deal to close quickly.', tags: [], contact: 'https://saltstick.com' },
+  { id: 'usn', category: 'Nutrition', name: 'USN (SA)', prize: 'Endurance fuel + recovery bundle · R600–R1,500', note: 'SA brand (United Sports Nutrition). National retail presence. SA-first pitch = easiest deal to close. Ships same day, no logistics complexity.', tags: ['sa'], contact: 'https://www.usn.co.za' },
+
+  // SUNSCREEN & SKINCARE
+  { id: 'stream2sea', category: 'Sunscreen & skincare', name: 'Stream2Sea', prize: 'Swimmer SPF bundle · R600–R1,000', note: 'Active partner programme. Reef-safe, formulated for open water swimmers. Perfect story fit for SwimLoading ocean community.', tags: ['verified'], contact: 'https://stream2sea.com/pages/partner-with-us' },
+  { id: 'zealios', category: 'Sunscreen & skincare', name: 'Zealios', prize: 'V2 Triathlon sunscreen bundle · R700–R1,200', note: 'Stays on in water. Designed for triathletes and OW swimmers. Lower cost = high volume prize deal. US brand ships internationally.', tags: [], contact: 'https://www.zealios.com' },
+  { id: 'triswim', category: 'Sunscreen & skincare', name: 'Triswim', prize: 'Swimmer hair + skincare kit · R600–R900', note: 'Made to remove chlorine and salt from hair and skin. Every regular open water swimmer needs this. Easy gifting arrangement.', tags: [], contact: 'https://triswim.com' },
+
+  // SA BRANDS
+  { id: 'falke', category: 'SA-specific brands', name: 'Falke', prize: 'Performance compression + sock bundle · R800–R1,500', note: 'Iconic SA brand with strong endurance sport presence. SA-first = fastest deal to close. Practical, desirable prize.', tags: ['sa', 'hot'], contact: 'https://www.falke.com/za' },
+  { id: 'biogen', category: 'SA-specific brands', name: 'Biogen', prize: 'Sport nutrition bundle · R800–R1,500', note: 'SA brand, national retail. Endurance fuel + recovery stack. Easy SA logistics for lower-tier monthly prizes.', tags: ['sa'], contact: 'https://www.biogen.co.za' },
+  { id: 'capeunion', category: 'SA-specific brands', name: 'Cape Union Mart', prize: 'Outdoor adventure voucher · R1,000–R3,000', note: 'SA outdoor giant. Voucher prize = zero fulfilment complexity. Covers sunscreen, towels, beanies, wetsuits — everything swimmer-adjacent.', tags: ['sa'], contact: 'https://www.capeunionmart.co.za' },
+
+  // OUTSIDE THE BOX
+  { id: 'swimtrek', category: 'Outside the box', name: 'Swimtrek', prize: 'Open water swimming holiday · R8,000–R20,000', note: 'UK company running guided OW swim holidays (Greece, Croatia, Maldives). Experiential prize no one else offers. Huge aspirational value — perfect annual grand prize.', tags: ['hot'], contact: 'https://www.swimtrek.com' },
+  { id: 'h2open', category: 'Outside the box', name: 'H2Open Magazine', prize: 'Annual subscription + cross-promo', note: 'The definitive OW swimming publication. Cross-promotion: H2Open readers into SwimLoading; SwimLoading members into H2Open. Mutual audience, low cost to close.', tags: [], contact: 'https://www.h2openmagazine.com' },
+  { id: 'outdoorswimmer', category: 'Outside the box', name: 'Outdoor Swimmer Magazine', prize: 'Co-branded prize challenge', note: 'Red Equipment runs prize giveaways through them right now. Approach for co-branded prize: SwimLoading + Outdoor Swimmer joint monthly challenge. Bridges SA + UK audience.', tags: ['hot'], contact: 'https://outdoorswimmer.com' },
+  { id: 'coldplunge', category: 'Outside the box', name: 'SA Cold Plunge Facility', prize: 'Cold plunge session package · R1,500–R3,000', note: 'Cold water acclimation is central to OW training. Experiential prize at a local SA facility. Works especially well for the crossing-prep / Channel swimmer audience.', tags: [], contact: '' },
+
+  // ── Jul 2026 additions — Carina Brüwer advisor memo, unresearched (tagged 'new') ──
+  // SWIMWEAR (Carina Tier 1 — primary swimwear sponsor)
+  { id: 'jolyn', category: 'Swimwear & kit', name: 'JOLYN', prize: 'Carina swimwear sponsorship (not a monthly-challenge prize)', note: 'Massive female swimming audience, aggressive ambassador programme. Carina Tier 1 target — top 5 priority for her personal swimwear sponsor search.', tags: ['new'], contact: 'https://jolynswimwear.com' },
+  { id: 'oceanus', category: 'Swimwear & kit', name: 'Oceanus Swimwear', prize: 'Carina swimwear sponsorship (not a monthly-challenge prize)', note: 'Luxury female swimwear. Interesting angle around female empowerment — fits Carina\'s women\'s-leadership positioning.', tags: ['new'], contact: '' },
+
+  // TRAVEL & ADVENTURE (Crossing Africa — expedition sponsorship, not swim sponsorship)
+  { id: 'qatarairways', category: 'Travel & adventure (Crossing Africa)', name: 'Qatar Airways', prize: 'Flight support for Crossing Africa legs', note: 'Crossing Africa (Dakar/Ceuta/Aqaba/Gulf of Guinea/Walvis Bay/Maputo) is closer to expedition sponsorship than swim sponsorship. Travel support is often easier to secure than cash.', tags: ['new'], contact: '' },
+  { id: 'emirates', category: 'Travel & adventure (Crossing Africa)', name: 'Emirates', prize: 'Flight support for Crossing Africa legs', note: 'Same Crossing Africa expedition-sponsorship logic as Qatar Airways.', tags: ['new'], contact: '' },
+  { id: 'ethiopian', category: 'Travel & adventure (Crossing Africa)', name: 'Ethiopian Airlines', prize: 'Flight support for Crossing Africa legs', note: 'Strong pan-African route network — natural fit for a continent-spanning crossing project.', tags: ['new'], contact: '' },
+  { id: 'airlink', category: 'Travel & adventure (Crossing Africa)', name: 'Airlink', prize: 'Flight support for Crossing Africa legs', note: 'SA regional carrier, strong Southern/East Africa network. Also a SwimLoading-itself target (member travel behaviour).', tags: ['new', 'sa'], contact: 'https://www.flyairlink.com' },
+  { id: 'flysafair', category: 'Travel & adventure (Crossing Africa)', name: 'FlySafair', prize: 'Flight support for Crossing Africa legs', note: 'SA domestic carrier — easiest first conversation of the airline targets given local presence.', tags: ['new', 'sa'], contact: 'https://www.flysafair.co.za' },
+  { id: 'proteahotels', category: 'Travel & adventure (Crossing Africa)', name: 'Protea Hotels', prize: 'Accommodation support for Crossing Africa', note: 'SA-founded hotel brand (Marriott-owned) with strong African footprint — matches the Crossing Africa route.', tags: ['new', 'sa'], contact: '' },
+  { id: 'southernsun', category: 'Travel & adventure (Crossing Africa)', name: 'Southern Sun', prize: 'Accommodation support for Crossing Africa', note: 'SA hotel group. Travel/accommodation support often easier to close than cash sponsorship.', tags: ['new', 'sa'], contact: 'https://www.southernsun.com' },
+  { id: 'marriottbonvoy', category: 'Travel & adventure (Crossing Africa)', name: 'Marriott Bonvoy', prize: 'Accommodation support for Crossing Africa', note: 'Global footprint across Crossing Africa\'s route countries — one relationship could cover multiple legs.', tags: ['new'], contact: '' },
+  { id: 'radissonblu', category: 'Travel & adventure (Crossing Africa)', name: 'Radisson Blu', prize: 'Accommodation support for Crossing Africa', note: 'Strong African presence, same logic as Marriott Bonvoy.', tags: ['new'], contact: '' },
+
+  // RECOVERY (additions beyond existing Hyperice/Therabody/Compex)
+  { id: 'normatec', category: 'Recovery', name: 'Normatec', prize: 'Compression boots · check overlap with Hyperice entry above', note: 'NOTE: Normatec is a Hyperice product line — coordinate with the existing Hyperice entry rather than approaching separately.', tags: ['new'], contact: 'https://hyperice.com/normatec' },
+  { id: 'recoverite', category: 'Recovery', name: 'Recoverite', prize: 'Recovery nutrition bundle · R500–R900', note: 'Hammer Nutrition\'s recovery product. Massive overlap with endurance athletes generally.', tags: ['new'], contact: '' },
+  { id: 'triggerpoint', category: 'Recovery', name: 'TriggerPoint', prize: 'Foam roller / mobility kit · R800–R1,500', note: 'Self-myofascial release tools, strong endurance-athlete crossover.', tags: ['new'], contact: 'https://www.triggerpoint.com' },
+
+  // SKIN, SUN & HAIR (near-ignored category in swimming sponsorship — every swimmer has these problems)
+  { id: 'heliocare', category: 'Sunscreen & skincare', name: 'Heliocare', prize: 'SPF bundle · R500–R900', note: 'Near-ignored category in swim sponsorship despite every swimmer needing it.', tags: ['new'], contact: '' },
+  { id: 'islandtribe', category: 'Sunscreen & skincare', name: 'Island Tribe', prize: 'SPF bundle · R300–R600', note: 'SA sunscreen brand — easiest SA-first logistics of the sun-care targets. Also a SwimLoading-itself target.', tags: ['new', 'sa'], contact: '' },
+  { id: 'p20', category: 'Sunscreen & skincare', name: 'P20', prize: 'SPF bundle · R400–R700', note: 'Once-a-day SPF, popular with endurance/outdoor athletes for all-day water exposure.', tags: ['new'], contact: '' },
+  { id: 'larocheposay', category: 'Sunscreen & skincare', name: 'La Roche-Posay', prize: 'SPF + skin recovery bundle · R600–R1,000', note: 'Dermatologist-brand credibility — strong fit for the "swimming is hard on skin" story.', tags: ['new'], contact: '' },
+  { id: 'paulmitchell', category: 'Sunscreen & skincare', name: 'Paul Mitchell', prize: 'Swimmer hair-care bundle · R500–R900', note: 'Swimming destroys hair — a very credible, under-used story angle. Complements Triswim in this category.', tags: ['new'], contact: '' },
+  { id: 'moroccanoil', category: 'Sunscreen & skincare', name: 'Moroccanoil', prize: 'Swimmer hair-care bundle · R500–R900', note: 'Same hair-damage story angle as Paul Mitchell.', tags: ['new'], contact: '' },
+  { id: 'olaplex', category: 'Sunscreen & skincare', name: 'Olaplex', prize: 'Hair repair bundle · R800–R1,200', note: 'Premium hair-repair brand — strongest name recognition of the hair-care targets.', tags: ['new'], contact: '' },
+
+  // OUTDOOR & LIFESTYLE (often easier to close than pure swim brands — dry bags, duffels, travel gear)
+  { id: 'yeti', category: 'Outdoor & lifestyle', name: 'YETI', prize: 'Cooler / drinkware bundle · R2,000–R4,000', note: 'Dry bags, duffels, travel gear and adventure storytelling fit naturally — often an easier close than swim brands.', tags: ['new'], contact: '' },
+  { id: 'stanley1913', category: 'Outdoor & lifestyle', name: 'Stanley 1913', prize: 'Drinkware / travel gear bundle · R1,000–R2,000', note: 'Same lifestyle/adventure-storytelling logic as YETI.', tags: ['new'], contact: '' },
+  { id: 'patagonia', category: 'Outdoor & lifestyle', name: 'Patagonia', prize: 'Outdoor apparel bundle · R2,000–R4,000', note: 'Strong ocean-conservation brand values — good story fit for SwimLoading\'s ocean-conscious community.', tags: ['new'], contact: '' },
+  { id: 'thenorthface', category: 'Outdoor & lifestyle', name: 'The North Face', prize: 'Outdoor apparel bundle · R2,000–R4,000', note: 'Global outdoor/adventure brand, strong SA retail presence.', tags: ['new', 'sa'], contact: '' },
+  { id: 'sealandgear', category: 'Outdoor & lifestyle', name: 'Sealand Gear', prize: 'Recycled dry bag / duffel bundle · R1,500–R2,500', note: 'Upcycled sailcloth bags — sustainability story matches SwimLoading\'s ocean-conscious values. Also a SwimLoading-itself target.', tags: ['new'], contact: '' },
+  { id: 'thule', category: 'Outdoor & lifestyle', name: 'Thule', prize: 'Travel bag / storage bundle · R1,500–R3,000', note: 'Premium travel/storage gear — fits the "swimmer who also travels for crossings" story.', tags: ['new'], contact: '' },
+
+  // WOMEN'S LEADERSHIP (Carina-specific — leadership sponsorship, not swim sponsorship)
+  { id: 'investec', category: "Women's leadership (Carina only)", name: 'Investec', prize: 'Leadership/speaking sponsorship — not a SwimLoading challenge prize', note: 'Most swimmers can\'t offer executive keynote speaking + founder story + female leadership + endurance sport. Carina can. For Carina personally, not SwimLoading.', tags: ['new', 'sa'], contact: '' },
+  { id: 'discovery', category: "Women's leadership (Carina only)", name: 'Discovery', prize: 'Leadership/speaking sponsorship — not a SwimLoading challenge prize', note: 'Same women\'s-leadership sponsorship logic as Investec — for Carina personally.', tags: ['new', 'sa'], contact: '' },
+  { id: 'santam', category: "Women's leadership (Carina only)", name: 'Santam', prize: 'Leadership/speaking sponsorship — not a SwimLoading challenge prize', note: 'For Carina personally, not SwimLoading.', tags: ['new', 'sa'], contact: '' },
+  { id: 'oldmutual', category: "Women's leadership (Carina only)", name: 'Old Mutual', prize: 'Leadership/speaking sponsorship — not a SwimLoading challenge prize', note: 'For Carina personally, not SwimLoading.', tags: ['new', 'sa'], contact: '' },
+  { id: 'nedbank', category: "Women's leadership (Carina only)", name: 'Nedbank', prize: 'Leadership/speaking sponsorship — not a SwimLoading challenge prize', note: 'For Carina personally, not SwimLoading.', tags: ['new', 'sa'], contact: '' },
+];
+
+const STATUS_OPTIONS = [
+  { value: 'not_contacted', label: 'Not contacted' },
+  { value: 'researching',   label: 'Researching' },
+  { value: 'contacted',     label: 'Contacted' },
+  { value: 'replied',       label: 'Replied' },
+  { value: 'deal_done',     label: 'Deal done' },
+  { value: 'passed',        label: 'Passed' },
+];
+
+let activeFilter = 'all';
+
+function load() {
+  const saved = JSON.parse(localStorage.getItem('sl_sponsors') || '{}');
+  return saved;
+}
+
+function save(id, field, value) {
+  const data = load();
+  if (!data[id]) data[id] = {};
+  data[id][field] = value;
+  localStorage.setItem('sl_sponsors', JSON.stringify(data));
+}
+
+function get(id, field, def) {
+  const data = load();
+  return (data[id] && data[id][field] !== undefined) ? data[id][field] : def;
+}
+
+function buildCard(b) {
+  const status = get(b.id, 'status', 'not_contacted');
+  const notes = get(b.id, 'notes', '');
+  const priority = get(b.id, 'priority', false);
+
+  const badgeHtml = b.tags.map(t => {
+    if (t === 'sa') return '<span class="badge badge-sa">SA</span>';
+    if (t === 'verified') return '<span class="badge badge-verified">Verified</span>';
+    if (t === 'hot') return '<span class="badge badge-hot">Hot</span>';
+    if (t === 'new') return '<span class="badge badge-new">New — unresearched</span>';
+    return '';
+  }).join('');
+
+  const borderClass = b.tags.includes('hot') ? 'hot' : b.tags.includes('sa') ? 'sa-confirmed' : b.tags.includes('verified') ? 'verified' : '';
+  const doneClass = status === 'passed' ? 'done' : '';
+
+  const selectOptions = STATUS_OPTIONS.map(o =>
+    `<option value="${o.value}" ${status === o.value ? 'selected' : ''}>${o.label}</option>`
+  ).join('');
+
+  const contactBtn = b.contact
+    ? `<a class="contact-link" href="${b.contact}" target="_blank">Contact page</a>`
+    : '<span></span>';
+
+  return `
+<div class="brand-card ${borderClass} ${doneClass}" id="card-${b.id}" data-id="${b.id}" data-tags="${b.tags.join(',')}" data-status="${status}" data-name="${b.name.toLowerCase()}">
+  <div class="card-top">
+    <div class="brand-name">${b.name}</div>
+    <select class="status-select" data-status="${status}" onchange="updateStatus('${b.id}', this)">
+      ${selectOptions}
+    </select>
+  </div>
+  <div class="badge-row">${badgeHtml}</div>
+  <div class="prize-line">${b.prize}</div>
+  <div class="brand-note">${b.note}</div>
+  <textarea class="notes-area" placeholder="Add your notes, contact name, follow-up date..." oninput="updateNotes('${b.id}', this)">${notes}</textarea>
+  <div class="card-footer">
+    ${contactBtn}
+    <button class="priority-toggle ${priority ? 'on' : ''}" onclick="togglePriority('${b.id}', this)">
+      ${priority ? '★ Priority' : '☆ Priority'}
+    </button>
+  </div>
+</div>`;
+}
+
+function render() {
+  const container = document.getElementById('sections-container');
+  const categories = [...new Set(BRANDS.map(b => b.category))];
+
+  container.innerHTML = categories.map(cat => {
+    const brands = BRANDS.filter(b => b.category === cat);
+    return `
+<div class="section" data-category="${cat}">
+  <div class="section-title">
+    ${cat}
+    <span class="section-count">${brands.length}</span>
+  </div>
+  <div class="brand-grid">
+    ${brands.map(buildCard).join('')}
+  </div>
+</div>`;
+  }).join('');
+
+  updateStats();
+  applyFilters();
+}
+
+function updateStatus(id, sel) {
+  const status = sel.value;
+  save(id, 'status', status);
+  sel.dataset.status = status;
+  const card = document.getElementById('card-' + id);
+  card.dataset.status = status;
+  card.classList.toggle('done', status === 'passed');
+  updateStats();
+  applyFilters();
+}
+
+function updateNotes(id, ta) {
+  save(id, 'notes', ta.value);
+}
+
+function togglePriority(id, btn) {
+  const cur = get(id, 'priority', false);
+  const next = !cur;
+  save(id, 'priority', next);
+  btn.classList.toggle('on', next);
+  btn.textContent = next ? '★ Priority' : '☆ Priority';
+}
+
+function updateStats() {
+  const data = load();
+  const total = BRANDS.length;
+  const contacted = BRANDS.filter(b => {
+    const s = (data[b.id] && data[b.id].status) || 'not_contacted';
+    return ['contacted', 'replied', 'deal_done'].includes(s);
+  }).length;
+  const done = BRANDS.filter(b => (data[b.id] && data[b.id].status) === 'deal_done').length;
+
+  document.getElementById('stat-total').textContent = total + ' brands';
+  document.getElementById('n-contacted').textContent = contacted;
+  document.getElementById('n-done').textContent = done;
+}
+
+function setFilter(filter, btn) {
+  activeFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
+
+function applyFilters() {
+  const search = document.getElementById('search').value.toLowerCase();
+
+  document.querySelectorAll('.brand-card').forEach(card => {
+    const tags = card.dataset.tags.split(',');
+    const status = card.dataset.status;
+    const name = card.dataset.name;
+
+    let show = true;
+
+    if (search && !name.includes(search)) {
+      const note = card.querySelector('.brand-note').textContent.toLowerCase();
+      if (!note.includes(search)) show = false;
+    }
+
+    if (activeFilter === 'hot' && !tags.includes('hot')) show = false;
+    if (activeFilter === 'sa' && !tags.includes('sa')) show = false;
+    if (activeFilter === 'verified' && !tags.includes('verified')) show = false;
+    if (activeFilter === 'new' && !tags.includes('new')) show = false;
+    if (['not_contacted','contacted','replied','deal_done'].includes(activeFilter) && status !== activeFilter) show = false;
+
+    card.classList.toggle('hidden', !show);
+  });
+
+  document.querySelectorAll('.section').forEach(sec => {
+    const visible = sec.querySelectorAll('.brand-card:not(.hidden)').length;
+    sec.classList.toggle('hidden', visible === 0);
+  });
+}
+
+function exportNotes() {
+  const data = load();
+  let out = 'SwimLoading Sponsor Pipeline — Export\n';
+  out += `Generated: ${new Date().toLocaleDateString('en-ZA')}\n\n`;
+
+  BRANDS.forEach(b => {
+    const d = data[b.id] || {};
+    const status = d.status || 'not_contacted';
+    const notes = d.notes || '';
+    if (status !== 'not_contacted' || notes) {
+      out += `--- ${b.name} (${b.category}) ---\n`;
+      out += `Status: ${STATUS_OPTIONS.find(s => s.value === status)?.label}\n`;
+      out += `Prize: ${b.prize}\n`;
+      if (notes) out += `Notes: ${notes}\n`;
+      out += '\n';
+    }
+  });
+
+  const blob = new Blob([out], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `swimloading-sponsors-${new Date().toISOString().slice(0,10)}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  showToast('Notes exported');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+render();
+</script>
+</body>
+</html>
