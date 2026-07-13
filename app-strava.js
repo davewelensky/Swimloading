@@ -346,12 +346,6 @@ function renderStravaLogForm(a) {
     const distKm  = a.distance_m ? (a.distance_m / 1000).toFixed(1) : '';
     const dur     = a.elapsed_time_seconds ? formatDuration(a.elapsed_time_seconds) : '';
 
-    // Build spot options — prefer matched spot at top
-    const spotOptions = (spots || []).map(s => {
-        const selected = s.id === a.matched_spot_id ? 'selected' : '';
-        return `<option value="${s.id}" ${selected}>${escapeHtml(s.name)}</option>`;
-    }).join('');
-
     const CONDITIONS = ['Calm', 'Slight chop', 'Choppy', 'Rough', 'Dangerous'];
     const HAZARDS    = ['Jellyfish', 'Seaweed', 'Strong current', 'Poor visibility', 'Sharks', 'Boats'];
 
@@ -365,10 +359,12 @@ function renderStravaLogForm(a) {
         <!-- Spot -->
         <div class="form-group">
             <div class="form-label">Location <span style="color:var(--danger);">*</span></div>
-            <select id="stravaSpotId" onchange="stravaApplyPoolMode(this.value)">
-                <option value="">Select location…</option>
-                ${spotOptions}
-            </select>
+            <input type="hidden" id="stravaSpotId" value="${a.matched_spot_id || ''}">
+            <button type="button" id="stravaSpotPickerTrigger" class="sp-trigger-btn${a.matched_spot_id ? ' sp-has-value' : ''}" onclick="openSpotPicker('strava')">
+                <i data-lucide="map-pin" style="width:16px;height:16px;color:#7fa8c9;flex-shrink:0;"></i>
+                <span id="stravaSpTriggerText" class="sp-trigger-text">${a.matched_spot_name ? escapeHtml(a.matched_spot_name) : 'Select a spot...'}</span>
+                <i data-lucide="chevron-right" style="width:15px;height:15px;color:#4a7a9b;flex-shrink:0;margin-left:auto;"></i>
+            </button>
             ${a.matched_spot_name ? `<div style="font-size:11px;color:#fc4c02;margin-top:4px;">Matched from GPS: ${escapeHtml(a.matched_spot_name)}</div>` : ''}
         </div>
 
@@ -423,6 +419,20 @@ function renderStravaLogForm(a) {
 
 let _selectedCondition = null;
 const _selectedHazards = new Set();
+
+// Called by app.js's selectSpotFromPicker() when the shared spot-picker sheet
+// was opened from this form (openSpotPicker('strava')).
+function selectStravaSpotFromPicker(spotId, spotName) {
+    const hidden = document.getElementById('stravaSpotId');
+    if (hidden) hidden.value = spotId;
+
+    const trigger = document.getElementById('stravaSpotPickerTrigger');
+    const label   = document.getElementById('stravaSpTriggerText');
+    if (trigger) trigger.classList.add('sp-has-value');
+    if (label)   label.textContent = spotName;
+
+    stravaApplyPoolMode(spotId);
+}
 
 function stravaApplyPoolMode(spotId) {
     const spot = (spots || []).find(s => String(s.id) === String(spotId));

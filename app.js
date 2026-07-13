@@ -6685,6 +6685,7 @@
         let pickerRecentSpots  = [];        // [{id, name}] ordered by most recent log, max 5
         let pickerGpsCoords    = null;      // { lat, lng } once GPS resolves
         let pickerGpsLoaded    = false;
+        let pickerTarget       = 'logTemp'; // 'logTemp' (default) or 'strava' — which flow opened the sheet
 
         const SP_TYPE_LABELS = { OCEAN: 'Ocean', POOL: 'Pool', LAGOON: 'Lagoon', DAM: 'Inland', LAKE: 'Lake' };
         const SP_TYPE_ICONS  = { OCEAN: 'waves', POOL: 'droplets', LAGOON: 'anchor', DAM: 'mountain-snow', LAKE: 'waves' };
@@ -6753,8 +6754,10 @@
             setTimeout(_spResetOverlaySize, 50);
         }
 
-        // Open the picker sheet
-        async function openSpotPicker() {
+        // Open the picker sheet. target: 'logTemp' (default) or 'strava' — controls
+        // where selectSpotFromPicker() writes the result back to.
+        async function openSpotPicker(target) {
+            pickerTarget = target || 'logTemp';
             _spResetOverlaySize();
             document.getElementById('spotPickerOverlay').classList.add('sp-open');
             document.body.style.overflow = 'hidden';
@@ -6984,6 +6987,17 @@
 
         // Select a spot from the picker
         function selectSpotFromPicker(spotId, spotName) {
+            // Strava's log form opened this same sheet — hand off instead of touching
+            // the normal log-temp DOM.
+            if (pickerTarget === 'strava') {
+                if (typeof selectStravaSpotFromPicker === 'function') {
+                    selectStravaSpotFromPicker(spotId, spotName);
+                }
+                closeSpotPicker();
+                initIcons();
+                return;
+            }
+
             // Update hidden select (used by submitTempLog)
             const sel = document.getElementById('logTempSpotSelect');
             if (sel) sel.value = spotId;
