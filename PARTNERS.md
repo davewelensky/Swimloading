@@ -257,7 +257,7 @@ Every partner must have all of the following before going live:
 - `[TBD — agree remaining terms]`
 
 **What they offer members:**
-- **Member discount** on TRIHARD products — percentage, code/portal, and geography `[TBD]` (email confirmed a discount is available "if needed" — exact % not yet given)
+- **Member discount (confirmed Jul 14 2026 via email):** 15% off at checkout, code `LOADING`. Redeem at `https://trihard.co/?utm_source=swimloading&utm_campaign=partner`. Geography still `[UNCONFIRMED]` — link is trihard.co generally, no country restriction stated.
 - **Challenge prize (confirmed Jul 2026 via email, confirmed Jul 11 as a separate arrangement from the Lindi bundle below):** the UK Swim Spot Challenge leaderboard winner receives a bundle of 4 TRIHARD products
 - **Separately:** a product bundle shipped to Lindi Mitchell (SwimLoading's UK community lead, training for an English Channel crossing) — agreed Jul 1 2026, shipping address on file. This is personal to Lindi, not the challenge prize.
 - Presenting a UK-wide location-discovery challenge: 10 points per unique outdoor UK swim location logged
@@ -267,16 +267,19 @@ Every partner must have all of the following before going live:
 - Real product line (confirmed Jul 2026 via product photography): Chlorine Removal Shampoo, Chlorine Protection Conditioner, Chlorine Removal Body Wash
 - Brand name is **"TRIHARD"** (one word, per logo — tagline: "Swim-Specialized Personal Care"). All site copy updated to match Jul 2026.
 - **Athlete endorsement (Jul 2026):** IRONMAN 70.3 World Champion Lucy Charles-Barclay uses TRIHARD, per TRIHARD's own Facebook page (wetrihard). Credibility badge added to hero page.
-- Do NOT publish prices or discount details until confirmed
+- Discount confirmed (15% off, code `LOADING`) — safe to publish on hero page once Dave approves the copy
 
 **Assets received (Jul 2026):** logo (white/purple/black + source .ai) and 3 product photos, in `/partners/` — optimized web copies: `trihard-logo-white.png`, `trihard-logo-purple.png`, `trihard-products.jpg`, `trihard-beach.jpg`, `trihard-shampoo-beach.jpg`. Originals were 2–19MB each (unusable on web, not committed to git) — resized/compressed to 28–350KB. Product shot + in-use shot are live on `/partners/trihard`; `trihard-beach.jpg` (couple on a palm-lined beach, US-looking location) not yet placed anywhere — note the location doesn't read as UK, worth asking TRIHARD if that's their only lifestyle asset.
 
 **SA history — no distribution business, but leftover stock is fine to ask about:** TRIHARD was ruled out for SA-as-a-channel in the Jun 30–Jul 1 2026 email thread — shipping quotes from their UK warehouse were bad (PostNL ~$28/15+ days, DHL Express ~$101/2–5 days, plus ~$20 duties/taxes/brokerage) and import wasn't even guaranteed. Dave does not want SwimLoading to take on ongoing import/stock/inventory/distribution — no capital for it, and no interest in becoming their SA distributor. **That's distinct from asking Allyson (Jul 2026) whether there's leftover stock from their outgoing SA partner Dave could personally get some of** — small one-off quantity, same shape as prize bundles partners already ship directly (e.g. Maurten, Lindi Mitchell's bundle) — which is fine to ask for.
 
+**SA stock reply (Jul 14 2026 via email):** Allyson confirmed their outgoing SA partner "still has some stock left" but is "currently selling through it" — she's not sure what activations (sales/promo push) they have planned. No firm offer of leftover stock yet; open thread, not resolved.
+
 **Outstanding actions:**
-- [ ] Get from TRIHARD: discount % / code, geography confirmation, Allyson's surname/title
+- [x] Get from TRIHARD: discount % / code — 15% off, code `LOADING`, confirmed Jul 14 2026
+- [ ] Get from TRIHARD: geography confirmation, Allyson's surname/title
 - [ ] Confirm real launch/end dates for The Great UK Swim Spot Challenge (DB currently seeded with placeholder Aug 1 – Sep 30 2026, `enabled=false`)
-- [ ] Ask Allyson if there's leftover stock from the outgoing SA partner Dave could get some of
+- [ ] Follow up with Allyson on SA leftover stock — she confirmed some exists but no firm offer yet (Jul 14 2026)
 - [x] Get a TRIHARD logo asset — received Jul 2026, now live on hero page + welcome card
 - [x] Confirm brand spelling — "TRIHARD" (one word), site-wide copy updated Jul 2026
 - [ ] Update hero page + welcome card from coming-soon to live once discount/geography/dates are confirmed
