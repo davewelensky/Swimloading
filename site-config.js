@@ -52,6 +52,7 @@ window.SITE_CONFIG = {
     { name:'France',         label:'France',         color:'#f472b6', bg:'rgba(244,114,182,0.1)', border:'rgba(244,114,182,0.4)', gridBg:'rgba(244,114,182,0.07)', gridBorder:'rgba(217,119,6,0.4)', spots:'Promenade des Anglais · Nice',         pillDelay:'4.0s', dotDelay:'2.8s' },
     { name:'Croatia',        label:'Croatia',        color:'#38bdf8', bg:'rgba(56,189,248,0.1)',  border:'rgba(56,189,248,0.4)',  gridBg:'rgba(56,189,248,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Hvar · Split · Pakleni Islands',       pillDelay:'4.4s', dotDelay:'3.1s' },
     { name:'Spain',          label:'Spain',          color:'#fbbf24', bg:'rgba(251,191,36,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(251,191,36,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Santa Ponsa · Mallorca',               pillDelay:'4.8s', dotDelay:'3.4s' },
+    { name:'Thailand',       label:'Thailand',       color:'#fb923c', bg:'rgba(251,146,60,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(251,146,60,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Phuket',                               pillDelay:'5.2s', dotDelay:'3.7s' },
   ],
 
   spots:       180,   // rendered as "180+" where a page adds the plus — actual 181 (Jul 2026)

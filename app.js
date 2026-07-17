@@ -5295,10 +5295,11 @@
                 SEYCHELLES:        'seychelles',
                 DALMATIA:          'dalmatia',
                 SPAIN:             'spain',
+                THAILAND:          'thailand',
             };
             const group = SAFETY_GROUP[domain] || '';
 
-            const isIntlGroup = group === 'uk' || group === 'europe' || group === 'western_australia' || group === 'usa' || group === 'seychelles' || group === 'dalmatia' || group === 'spain';
+            const isIntlGroup = group === 'uk' || group === 'europe' || group === 'western_australia' || group === 'usa' || group === 'seychelles' || group === 'dalmatia' || group === 'spain' || group === 'thailand';
 
             // ── Show/hide sharks section — no sharks for UK/Europe (WA has sharks) ─
             const sharksSection = document.getElementById('sharksSection');
@@ -5327,6 +5328,10 @@
                         ? `<a href="tel:999" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
                             <div><div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="phone-call" style="width:14px;height:14px;flex-shrink:0;"></i> Emergency Services</div><div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">Police · Ambulance · Fire · Coast Guard</div></div>
                             <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">999</span></a>`
+                        : group === 'thailand'
+                        ? `<a href="tel:191" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
+                            <div><div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="phone-call" style="width:14px;height:14px;flex-shrink:0;"></i> Police</div><div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">General emergency</div></div>
+                            <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">191</span></a>`
                         : `<a href="tel:112" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
                             <div><div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="phone-call" style="width:14px;height:14px;flex-shrink:0;"></i> Emergency Services</div><div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">Police · Ambulance · Fire · Rescue</div></div>
                             <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">112</span></a>`;
@@ -5410,6 +5415,10 @@
                         color: '#f59e0b', icon: 'alert-triangle', title: 'Spain (Mediterranean) Open Water Hazards',
                         body: '<strong>Jellyfish</strong> (mauve stingers, occasionally Portuguese man o\' war) are the main seasonal hazard June–September — obey beach flag warnings (a jellyfish flag is white with two red jellyfish). <strong>Sea urchins</strong> on rocky entries. Afternoon sea breezes can build chop quickly in exposed bays. Swim at lifeguarded beaches (Jun–Sep season) where possible.',
                     },
+                    thailand: {
+                        color: '#f59e0b', icon: 'alert-triangle', title: 'Thailand (Andaman Sea) Open Water Hazards',
+                        body: '<strong>Monsoon swell</strong> (roughly May–October) brings stronger currents and rip tides on the west coast, and beach flag warnings should always be obeyed — a red flag means stay out. <strong>Boat traffic</strong> is heavy in popular bays around Phuket; swim well clear of longtail boat and ferry lanes. <strong>Jellyfish</strong> (including box jellyfish) are occasionally reported — check with local dive/swim operators before entering unfamiliar water.',
+                    },
                 };
                 const tip = ALERT_TIPS[group];
                 if (tip) {
@@ -5441,6 +5450,7 @@
                 seychelles:        `<strong>Seychelles:</strong> Shark attacks are very rare but have occurred historically at a small number of spots. Bull sharks are present in some deeper channels. Swim at beaches recommended by local operators and avoid areas with fishing activity or murky runoff water.`,
                 dalmatia:          null,
                 spain:             null,
+                thailand:          `<strong>Thailand:</strong> Shark encounters are extremely rare in Thai coastal waters. Occasional reef shark sightings in deeper channels around Phuket — not considered a swimming hazard. No shark nets or spotting programme in place.`,
             };
             const sharksNote = document.getElementById('sharksRegionalNote');
             if (sharksNote) {
@@ -5464,6 +5474,7 @@
                 seychelles:        `<strong>Seychelles temps:</strong> Indian Ocean water sits at 27–30°C year-round — no cold shock risk. Hypothermia is not a concern, but stay hydrated and use sun protection. Water is warmest and calmest during the southeast trade wind season (May–Oct).`,
                 dalmatia:          `<strong>Dalmatia (Adriatic) temps:</strong> Sea temperature peaks at 24–27°C in July–August — one of the warmest swimming destinations in Europe. Spring (May) runs 17–20°C and autumn (Oct) stays above 20°C. Cold shock is not a significant risk in summer, but spring/autumn swimmers should acclimatise gradually.`,
                 spain:             `<strong>Spain (Balearic/Mediterranean) temps:</strong> The Balearic Sea peaks at 24–26°C in July–September and rarely drops below 14°C in winter. Swimmable from May through October without a wetsuit for most swimmers. Cold shock is a low risk in summer; winter and early-spring swimmers should acclimatise gradually.`,
+                thailand:          `<strong>Thailand (Andaman Sea) temps:</strong> Water stays warm year-round, typically 27–30°C. Cold shock is not a concern. Focus on sun protection, hydration, and monsoon-season swell instead.`,
             };
             const coldNote = document.getElementById('coldWaterRegionalNote');
             if (coldNote) {
@@ -5521,6 +5532,12 @@
                 spain: [
                     ['tel:112','phone','Emergency Services','Police · Ambulance · Fire · English spoken','112'],
                     ['tel:900202202','anchor','Salvamento Marítimo (Sea Rescue)','Maritime rescue · Free · 24/7','900 202 202'],
+                ],
+                thailand: [
+                    ['tel:191','phone','Police','General emergency','191'],
+                    ['tel:1669','ambulance','Medical Emergency (EMS)','Ambulance · Medical emergency','1669'],
+                    ['tel:1554','anchor','Marine Police / Coastal Rescue','Maritime emergency · Search & rescue','1554'],
+                    ['tel:1155','shield','Tourist Police','English-speaking · Tourist assistance','1155'],
                 ],
             };
             const contactsEl = document.getElementById('safetyRegionalContacts');
@@ -5583,6 +5600,10 @@
                 spain: { title: 'Reporting (Spain)', contacts: [
                     ['tel:900202202','anchor','Salvamento Marítimo','Maritime emergency · Spanish coast','900 202 202'],
                     ['tel:112','phone','Emergency Services','Police · Ambulance · Fire','112'],
+                ]},
+                thailand: { title: 'Reporting (Thailand)', contacts: [
+                    ['tel:1554','anchor','Marine Police / Coastal Rescue','Maritime emergency · Phuket coastline','1554'],
+                    ['tel:1155','shield','Tourist Police','English-speaking · Incident reporting','1155'],
                 ]},
             };
             const reportingEl = document.getElementById('safetyRegionalReporting');
@@ -6689,7 +6710,7 @@
 
         const SP_TYPE_LABELS = { OCEAN: 'Ocean', POOL: 'Pool', LAGOON: 'Lagoon', DAM: 'Inland', LAKE: 'Lake' };
         const SP_TYPE_ICONS  = { OCEAN: 'waves', POOL: 'droplets', LAGOON: 'anchor', DAM: 'mountain-snow', LAKE: 'waves' };
-        const INTERNATIONAL_DOMAINS = new Set(['EUROPE', 'NAMIBIA', 'UK', 'WESTERN_AUSTRALIA', 'USA', 'SEYCHELLES', 'DALMATIA', 'SPAIN']);
+        const INTERNATIONAL_DOMAINS = new Set(['EUROPE', 'NAMIBIA', 'UK', 'WESTERN_AUSTRALIA', 'USA', 'SEYCHELLES', 'DALMATIA', 'SPAIN', 'THAILAND']);
         const COUNTRY_NAMES = { ZA: 'South Africa', NA: 'Namibia', CH: 'Switzerland', AU: 'Australia', GB: 'United Kingdom', FR: 'France', DE: 'Germany', IT: 'Italy', SC: 'Seychelles', ES: 'Spain' };
         const AREA_DISPLAY = {
             ATLANTIC: 'Atlantic Seaboard',
