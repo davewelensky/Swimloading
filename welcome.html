@@ -1375,11 +1375,56 @@
             </div>
 
             <!-- Live spot globe — every glowing dot is a real spot; bright dots logged in the last 48h -->
+            <style>
+                .globe-callout {
+                    width: 200px;
+                    max-width: 46vw;
+                    background: rgba(8,15,26,0.88);
+                    backdrop-filter: blur(10px);
+                    -webkit-backdrop-filter: blur(10px);
+                    border: 1px solid rgba(56,189,248,0.35);
+                    border-radius: 12px;
+                    padding: 10px 12px;
+                    box-shadow: 0 0 0 1px rgba(56,189,248,0.08), 0 8px 24px rgba(0,0,0,0.45), 0 0 20px rgba(56,189,248,0.12);
+                    transition: opacity 0.35s ease, transform 0.35s ease;
+                }
+                .globe-callout-name { font-size: 13px; font-weight: 700; color: #f1f5f9; line-height: 1.25; }
+                .globe-callout-region { font-size: 10.5px; color: #64748b; margin-top: 1px; }
+                .globe-callout-temp { font-family: 'Bebas Neue', sans-serif; font-size: 22px; font-weight: 700; color: #38bdf8; margin-top: 6px; line-height: 1; letter-spacing: 0.5px; }
+                .globe-callout-unit { font-size: 13px; font-weight: 700; color: #38bdf8; margin-left: 2px; }
+                .globe-callout-meta { font-size: 10px; color: #64748b; margin-top: 6px; }
+                .globe-callout-contributor { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+                .globe-callout-link { display: inline-block; margin-top: 8px; font-size: 10.5px; font-weight: 700; color: #38bdf8; text-decoration: none; }
+                .globe-callout-link:hover { text-decoration: underline; }
+                #globeMarkerPulse.pulsing { animation: globe-marker-pulse 1.6s ease-out infinite; }
+                @keyframes globe-marker-pulse {
+                    0%   { box-shadow: 0 0 0 0 rgba(56,189,248,0.55); }
+                    70%  { box-shadow: 0 0 0 14px rgba(56,189,248,0); }
+                    100% { box-shadow: 0 0 0 0 rgba(56,189,248,0); }
+                }
+                @media (max-width: 520px) {
+                    .globe-callout { width: 168px; padding: 8px 10px; }
+                    .globe-callout-temp { font-size: 19px; }
+                }
+            </style>
             <div style="position:relative;max-width:620px;margin:-16px auto 56px;">
                 <canvas id="globeCanvas" aria-label="Rotating globe showing live SwimLoading spots across 13 countries"
                     style="width:100%;aspect-ratio:1;display:block;cursor:grab;opacity:0;transition:opacity 1.2s ease;contain:layout paint size;"></canvas>
                 <div id="globeCaption" style="position:absolute;left:0;right:0;bottom:6px;text-align:center;font-size:12px;color:#64748b;opacity:0;transition:opacity 1.2s ease 0.4s;">
                     Every dot is a live spot — drag to spin
+                </div>
+                <!-- Temperature callout overlay — DOM layer above the WebGL canvas, positioned every frame -->
+                <div id="globeCalloutLayer" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;border-radius:50%;">
+                    <svg id="globeLeaderSvg" width="100%" height="100%" style="position:absolute;inset:0;overflow:visible;pointer-events:none;"></svg>
+                    <div id="globeMarkerPulse" style="position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:rgba(56,189,248,0.9);opacity:0;pointer-events:none;"></div>
+                    <div id="globeCallout" class="globe-callout" style="position:absolute;opacity:0;pointer-events:none;">
+                        <div class="globe-callout-name" id="gcName"></div>
+                        <div class="globe-callout-region" id="gcRegion"></div>
+                        <div class="globe-callout-temp"><span id="gcTemp"></span><span class="globe-callout-unit" id="gcUnit"></span></div>
+                        <div class="globe-callout-meta"><span id="gcTime"></span> · <span id="gcSource"></span></div>
+                        <div class="globe-callout-contributor" id="gcContributor" style="display:none;"></div>
+                        <a href="#" id="gcLink" class="globe-callout-link" style="display:none;">View spot →</a>
+                    </div>
                 </div>
             </div>
 
@@ -2304,6 +2349,16 @@
             return;
         }
 
+        function slugify(s) {
+            return (s || '').toString().toLowerCase().trim()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/-{2,}/g, '-')
+                .replace(/^-|-$/g, '');
+        }
+        function titleCase(s) {
+            return (s || '').replace(/_/g, ' ').replace(/\w\S*/g, t => t[0].toUpperCase() + t.slice(1).toLowerCase());
+        }
+
         // Markers: real spots from the DB; bright dots = logged in the last 48h.
         // Fallback list keeps the globe alive if the fetch fails.
         let markers = [
@@ -2321,23 +2376,36 @@
             { location: [-22.68, 14.53], size: 0.04 },  // Swakopmund
             { location: [43.17, 16.44], size: 0.04 },   // Hvar
         ];
+        // tempLocations: enriched marker data (name/region/country/temp/time/contributor)
+        // for markers that have an actual swimmer temp log — these get callouts.
+        let tempLocations = [];
         try {
             const SB_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
             const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
             const headers = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
-            const [spotsRes, logsRes] = await Promise.all([
-                fetch(SB_URL + '/rest/v1/spots?select=id,latitude,longitude&active=eq.true&latitude=not.is.null', { headers }),
-                fetch(SB_URL + '/rest/v1/temp_logs?select=spot_id,created_at&order=created_at.desc&limit=200', { headers }),
+            const [spotsRes, logsRes, domainsRes, countriesRes] = await Promise.all([
+                fetch(SB_URL + '/rest/v1/spots?select=id,name,latitude,longitude,domain,area,country_code&active=eq.true&latitude=not.is.null', { headers }),
+                fetch(SB_URL + '/rest/v1/temp_logs?select=spot_id,temp_c,created_at,user_id&order=created_at.desc&limit=400', { headers }),
+                fetch(SB_URL + '/rest/v1/domains?select=code,display_name', { headers }),
+                fetch(SB_URL + '/rest/v1/countries?select=iso_code,name', { headers }),
             ]);
             if (spotsRes.ok) {
                 const spots = await spotsRes.json();
+                const domains = domainsRes.ok ? await domainsRes.json() : [];
+                const countries = countriesRes.ok ? await countriesRes.json() : [];
+                const domainName = {}; domains.forEach(d => { domainName[d.code] = d.display_name; });
+                const countryName = {}; countries.forEach(c => { countryName[c.iso_code] = c.name; });
+
                 const recentSpotIds = new Set();
+                const latestBySpot = new Map(); // spot_id -> latest temp_log (logs arrive desc, so first wins)
                 if (logsRes.ok) {
                     const cutoff = Date.now() - 48 * 3600 * 1000;
                     (await logsRes.json()).forEach(l => {
                         if (new Date(l.created_at).getTime() >= cutoff) recentSpotIds.add(l.spot_id);
+                        if (!latestBySpot.has(l.spot_id)) latestBySpot.set(l.spot_id, l);
                     });
                 }
+
                 const live = spots
                     .filter(s => s.latitude != null && s.longitude != null)
                     .map(s => ({
@@ -2345,23 +2413,207 @@
                         size: recentSpotIds.has(s.id) ? 0.08 : 0.03,
                     }));
                 if (live.length > 5) markers = live;
+
+                // Contributor display names for the latest reading per spot (small lookup set)
+                const userIds = [...new Set([...latestBySpot.values()].map(l => l.user_id).filter(Boolean))];
+                let nameByUser = {};
+                if (userIds.length) {
+                    try {
+                        const pRes = await fetch(SB_URL + '/rest/v1/profiles?select=id,display_name&id=in.(' + userIds.join(',') + ')', { headers });
+                        if (pRes.ok) (await pRes.json()).forEach(p => { nameByUser[p.id] = p.display_name; });
+                    } catch (e) { /* contributor names optional */ }
+                }
+
+                tempLocations = spots
+                    .filter(s => latestBySpot.has(s.id))
+                    .map(s => {
+                        const log = latestBySpot.get(s.id);
+                        return {
+                            id: s.id,
+                            name: s.name,
+                            region: s.area ? titleCase(s.area) : (domainName[s.domain] || ''),
+                            country: countryName[s.country_code] || 'South Africa',
+                            latitude: s.latitude,
+                            longitude: s.longitude,
+                            temperature: log.temp_c,
+                            temperatureUnit: 'C',
+                            readingTime: log.created_at,
+                            sourceType: 'swimmer_log',
+                            contributorName: log.user_id ? (nameByUser[log.user_id] || null) : null,
+                            spotUrl: '/spots/' + slugify(s.name),
+                        };
+                    });
             }
-        } catch (e) { /* fallback markers stay */ }
+        } catch (e) { /* fallback markers stay; no callouts without live data */ }
 
         // Never initialise at zero width (hidden tab, collapsed viewport) — WebGL buffer would be 0x0
         while (!canvas.offsetWidth) await new Promise(r => setTimeout(r, 250));
 
         // Start centred on Cape Town: phi/theta from cobe's location-to-angles formula
+        const FIXED_THETA = -0.18; // constant camera tilt passed to createGlobe below — never changes
         let phi = Math.PI - ((18.42 * Math.PI) / 180 - Math.PI / 2);
-        let drag = 0, dragStart = null, dragBase = 0, pointerDown = false;
+        let drag = 0, dragStart = null, dragBase = 0, pointerDown = false, pointerMoved = 0;
         let w = canvas.offsetWidth;
+
+        // ── Temperature callouts: project markers to screen space using the SAME
+        // spherical math cobe uses internally (locationToAngles / angleToVector),
+        // then position an HTML overlay (leader line + card) above the untouched
+        // WebGL canvas. The globe's own render/markers/drag are not modified.
+        function locationToAngles(lat, lng) {
+            return [
+                Math.PI - ((lng * Math.PI) / 180 - Math.PI / 2), // marker phi (longitude)
+                (lat * Math.PI) / 180,                             // marker theta (latitude)
+            ];
+        }
+        function angleToVector(mPhi, mTheta) {
+            return [
+                Math.cos(mTheta) * Math.sin(mPhi),
+                Math.sin(mTheta),
+                Math.cos(mTheta) * Math.cos(mPhi),
+            ];
+        }
+        tempLocations.forEach(loc => {
+            const [mPhi, mTheta] = locationToAngles(loc.latitude, loc.longitude);
+            loc._vec = angleToVector(mPhi, mTheta);
+        });
+
+        const GLOBE_RADIUS_FUDGE = 0.92; // empirical: cobe's near-orthographic projection compresses slightly near the limb
+        const VISIBLE_Z = 0.15;          // hide markers past this point (rear-facing / grazing the edge)
+
+        function projectVec(vec, camPhi) {
+            const cy = Math.cos(camPhi), sy = Math.sin(camPhi);
+            const x1 = vec[0] * cy - vec[2] * sy;
+            const z1 = vec[0] * sy + vec[2] * cy;
+            const ct = Math.cos(FIXED_THETA), st = Math.sin(FIXED_THETA);
+            const y2 = vec[1] * ct - z1 * st;
+            const z2 = vec[1] * st + z1 * ct;
+            return { x: x1, y: y2, z: z2 };
+        }
+
+        const calloutLayer = document.getElementById('globeCalloutLayer');
+        const leaderSvg     = document.getElementById('globeLeaderSvg');
+        const markerPulse   = document.getElementById('globeMarkerPulse');
+        const calloutEl     = document.getElementById('globeCallout');
+        const gcName = document.getElementById('gcName'), gcRegion = document.getElementById('gcRegion'),
+              gcTemp = document.getElementById('gcTemp'), gcUnit = document.getElementById('gcUnit'),
+              gcTime = document.getElementById('gcTime'), gcSource = document.getElementById('gcSource'),
+              gcContributor = document.getElementById('gcContributor'), gcLink = document.getElementById('gcLink');
+
+        let leaderLine = null;
+        if (leaderSvg) {
+            leaderLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            leaderLine.setAttribute('stroke', 'rgba(56,189,248,0.55)');
+            leaderLine.setAttribute('stroke-width', '1');
+            leaderLine.setAttribute('opacity', '0');
+            leaderSvg.appendChild(leaderLine);
+        }
+
+        const SOURCE_LABEL = { swimmer_log: 'Swimmer log', buoy: 'Live buoy', lido_api: 'Lido API', manual: 'Manual reading' };
+
+        let activeLoc = null, lastCamPhi = phi, lastInteraction = 0, cycleTimer = null, cycleIndex = -1, easeAnim = null;
+
+        function timeAgo(iso) {
+            const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+            if (mins < 1) return 'Updated just now';
+            if (mins < 60) return `Updated ${mins}m ago`;
+            const hrs = Math.round(mins / 60);
+            if (hrs < 24) return `Updated ${hrs}h ago`;
+            return `Updated ${Math.round(hrs / 24)}d ago`;
+        }
+
+        function showCallout(loc) {
+            activeLoc = loc;
+            gcName.textContent = loc.name;
+            gcRegion.textContent = [loc.region, loc.country].filter(Boolean).join(', ');
+            gcTemp.textContent = loc.temperature != null ? (Math.round(loc.temperature * 10) / 10) + '°' : '—';
+            gcUnit.textContent = loc.temperatureUnit;
+            gcTime.textContent = timeAgo(loc.readingTime);
+            gcSource.textContent = SOURCE_LABEL[loc.sourceType] || 'Reading';
+            if (loc.contributorName) { gcContributor.textContent = 'Reported by ' + loc.contributorName; gcContributor.style.display = ''; }
+            else { gcContributor.style.display = 'none'; }
+            if (loc.spotUrl) { gcLink.href = loc.spotUrl; gcLink.style.display = ''; }
+            else { gcLink.style.display = 'none'; }
+            calloutEl.style.transition = reduceMotion ? 'none' : '';
+            calloutEl.style.opacity = '0';
+            calloutEl.style.transform = 'translateY(6px)';
+            void calloutEl.offsetWidth; // force reflow so the transition below actually animates
+            calloutEl.style.opacity = '1';
+            calloutEl.style.transform = 'translateY(0)';
+            calloutEl.style.pointerEvents = 'auto';
+        }
+        function hideCallout() {
+            if (!activeLoc) return;
+            activeLoc = null;
+            calloutEl.style.opacity = '0';
+            calloutEl.style.pointerEvents = 'none';
+            if (leaderLine) leaderLine.setAttribute('opacity', '0');
+            markerPulse.style.opacity = '0';
+            markerPulse.classList.remove('pulsing');
+        }
+        function positionOverlay() {
+            if (!activeLoc || !calloutLayer) return;
+            const view = projectVec(activeLoc._vec, lastCamPhi);
+            if (view.z < VISIBLE_Z) { hideCallout(); return; }
+
+            const rect = canvas.getBoundingClientRect();
+            const R = (rect.width / 2) * GLOBE_RADIUS_FUDGE;
+            const mx = rect.width / 2 + view.x * R;
+            const my = rect.height / 2 - view.y * R;
+
+            markerPulse.style.left = mx + 'px';
+            markerPulse.style.top = my + 'px';
+            markerPulse.style.opacity = '1';
+            markerPulse.classList.add('pulsing');
+
+            const cardWidth = calloutEl.offsetWidth || 200;
+            const cardHeight = calloutEl.offsetHeight || 90;
+            const placeRight = mx < rect.width - cardWidth - 24;
+            let cardX = placeRight ? mx + 20 : mx - cardWidth - 20;
+            cardX = Math.max(4, Math.min(cardX, rect.width - cardWidth - 4));
+            const cardY = Math.max(4, Math.min(my - 40, rect.height - cardHeight - 4));
+
+            calloutEl.style.left = cardX + 'px';
+            calloutEl.style.top = cardY + 'px';
+
+            if (leaderLine) {
+                leaderLine.setAttribute('x1', mx);
+                leaderLine.setAttribute('y1', my);
+                leaderLine.setAttribute('x2', placeRight ? cardX : cardX + cardWidth);
+                leaderLine.setAttribute('y2', cardY + cardHeight / 2);
+                leaderLine.setAttribute('opacity', '1');
+            }
+        }
+
+        // ── Ease the base rotation toward a target marker before showing it ────
+        function easeToward(loc) {
+            const [mPhi] = locationToAngles(loc.latitude, loc.longitude);
+            const delta = ((mPhi - (phi + drag) + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+            easeAnim = { from: phi, to: phi + delta, start: performance.now(), duration: reduceMotion ? 0 : 650 };
+        }
+
+        // ── Auto-cycle through active temperature locations ────────────────────
+        function scheduleCycle(delay) {
+            clearTimeout(cycleTimer);
+            if (reduceMotion || !tempLocations.length) return;
+            cycleTimer = setTimeout(runCycle, delay ?? (4000 + Math.random() * 2000));
+        }
+        function stopCycle() { clearTimeout(cycleTimer); }
+        function runCycle() {
+            if (pointerDown || Date.now() - lastInteraction < 4000) { scheduleCycle(1500); return; }
+            if (!tempLocations.length) return;
+            cycleIndex = (cycleIndex + 1) % tempLocations.length;
+            const loc = tempLocations[cycleIndex];
+            showCallout(loc);
+            easeToward(loc);
+            scheduleCycle();
+        }
 
         createGlobe(canvas, {
             devicePixelRatio: 2,
             width: w * 2,
             height: w * 2,
             phi: phi,
-            theta: -0.18,
+            theta: FIXED_THETA,
             dark: 1,
             diffuse: 1.3,
             mapSamples: 20000,
@@ -2371,29 +2623,72 @@
             glowColor: [0.13, 0.30, 0.45],
             markers: markers,
             onRender: (state) => {
-                if (!pointerDown && !reduceMotion) phi += 0.0028;
+                if (easeAnim) {
+                    const t = easeAnim.duration ? Math.min(1, (performance.now() - easeAnim.start) / easeAnim.duration) : 1;
+                    const eased = 1 - Math.pow(1 - t, 3);
+                    phi = easeAnim.from + (easeAnim.to - easeAnim.from) * eased;
+                    if (t >= 1) easeAnim = null;
+                } else if (!pointerDown && !reduceMotion) {
+                    phi += 0.0028;
+                }
                 state.phi = phi + drag;
                 state.width = w * 2;
                 state.height = w * 2;
+                lastCamPhi = state.phi;
+                positionOverlay();
             },
         });
         canvas.style.opacity = '1';
         const caption = document.getElementById('globeCaption');
         if (caption) caption.style.opacity = '1';
+        scheduleCycle(3500); // first callout appears a few seconds after the globe fades in
 
         // Drag to spin
         canvas.addEventListener('pointerdown', e => {
-            pointerDown = true; dragStart = e.clientX; dragBase = drag;
+            pointerDown = true; dragStart = e.clientX; dragBase = drag; pointerMoved = 0;
             canvas.style.cursor = 'grabbing';
+            lastInteraction = Date.now();
+            stopCycle();
         });
         window.addEventListener('pointermove', e => {
-            if (dragStart !== null) drag = dragBase + (e.clientX - dragStart) / 120;
+            if (dragStart !== null) { drag = dragBase + (e.clientX - dragStart) / 120; pointerMoved++; }
         });
         window.addEventListener('pointerup', () => {
             pointerDown = false; dragStart = null;
             canvas.style.cursor = 'grab';
+            lastInteraction = Date.now();
+            scheduleCycle(4500);
         });
         window.addEventListener('resize', () => { w = canvas.offsetWidth; });
+
+        // ── Click/tap a marker to show its callout immediately ─────────────────
+        canvas.addEventListener('click', e => {
+            lastInteraction = Date.now();
+            if (pointerMoved > 4 || !tempLocations.length) return; // was a drag, not a tap
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left, clickY = e.clientY - rect.top;
+            const R = (rect.width / 2) * GLOBE_RADIUS_FUDGE;
+            let best = null, bestDist = 22;
+            tempLocations.forEach(loc => {
+                const view = projectVec(loc._vec, lastCamPhi);
+                if (view.z < VISIBLE_Z) return;
+                const mx = rect.width / 2 + view.x * R, my = rect.height / 2 - view.y * R;
+                const d = Math.hypot(mx - clickX, my - clickY);
+                if (d < bestDist) { bestDist = d; best = loc; }
+            });
+            if (best) {
+                stopCycle();
+                showCallout(best);
+                easeToward(best);
+                scheduleCycle(6000);
+            }
+        });
+        // Clicking elsewhere closes the callout
+        document.addEventListener('click', e => {
+            if (!activeLoc) return;
+            if (canvas.contains(e.target) || calloutEl.contains(e.target)) return;
+            hideCallout();
+        });
     })();
     </script>
 
