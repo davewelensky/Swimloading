@@ -2455,39 +2455,41 @@
         let drag = 0, dragStart = null, dragBase = 0, pointerDown = false, pointerMoved = 0;
         let w = canvas.offsetWidth;
 
-        // ── Temperature callouts: project markers to screen space using the SAME
-        // spherical math cobe uses internally (locationToAngles / angleToVector),
-        // then position an HTML overlay (leader line + card) above the untouched
-        // WebGL canvas. The globe's own render/markers/drag are not modified.
-        function locationToAngles(lat, lng) {
-            return [
-                Math.PI - ((lng * Math.PI) / 180 - Math.PI / 2), // marker phi (longitude)
-                (lat * Math.PI) / 180,                             // marker theta (latitude)
-            ];
+        // ── Temperature callouts: project markers to screen space using cobe's
+        // OWN marker math and rotation, reverse-derived from its actual WebGL
+        // shader source (esm.sh/cobe@0.6.4) rather than approximated, so the
+        // leader line tracks the real rendered dot exactly as the globe spins:
+        //   marker world vector (fixed, unrotated):
+        //     s = [cos(lat)*cos(lng), sin(lat), -cos(lat)*sin(lng)]
+        //   camera-space ray for that marker (L = cobe's rotation matrix,
+        //   built from state.phi/state.theta — same values fed to createGlobe):
+        //     h.x = s.x*cosP + s.z*sinP
+        //     h.y = s.x*sinP*sinT + s.y*cosT - s.z*cosP*sinT
+        //     h.z = -s.x*sinP*cosT + s.y*sinT + s.z*cosP*cosT
+        //   ray-space -> screen: b = 0.8*[h.x,h.y] (0.8 = sqrt(0.64), the
+        //   sphere-radius constant baked into cobe's fragment shader), then
+        //   screenX = width*(b.x+1)/2, screenY = height*(1-b.y)/2 (flips
+        //   WebGL's bottom-up Y to DOM/CSS top-down Y). h.z > 0 = front-facing.
+        // The globe's own render/markers/drag are not modified — only read.
+        function markerVector(lat, lng) {
+            const latRad = lat * Math.PI / 180, lngRad = lng * Math.PI / 180;
+            const c = Math.cos(latRad);
+            return [c * Math.cos(lngRad), Math.sin(latRad), -c * Math.sin(lngRad)];
         }
-        function angleToVector(mPhi, mTheta) {
-            return [
-                Math.cos(mTheta) * Math.sin(mPhi),
-                Math.sin(mTheta),
-                Math.cos(mTheta) * Math.cos(mPhi),
-            ];
+        tempLocations.forEach(loc => { loc._vec = markerVector(loc.latitude, loc.longitude); });
+
+        const VISIBLE_Z = 0.02; // hide markers past this point (rear-facing / grazing the edge)
+
+        function projectVec(s, camPhi, camTheta) {
+            const cosP = Math.cos(camPhi), sinP = Math.sin(camPhi);
+            const cosT = Math.cos(camTheta), sinT = Math.sin(camTheta);
+            const hx = s[0] * cosP + s[2] * sinP;
+            const hy = s[0] * sinP * sinT + s[1] * cosT - s[2] * cosP * sinT;
+            const hz = -s[0] * sinP * cosT + s[1] * sinT + s[2] * cosP * cosT;
+            return { x: 0.8 * hx, y: 0.8 * hy, z: hz };
         }
-        tempLocations.forEach(loc => {
-            const [mPhi, mTheta] = locationToAngles(loc.latitude, loc.longitude);
-            loc._vec = angleToVector(mPhi, mTheta);
-        });
-
-        const GLOBE_RADIUS_FUDGE = 0.92; // empirical: cobe's near-orthographic projection compresses slightly near the limb
-        const VISIBLE_Z = 0.15;          // hide markers past this point (rear-facing / grazing the edge)
-
-        function projectVec(vec, camPhi) {
-            const cy = Math.cos(camPhi), sy = Math.sin(camPhi);
-            const x1 = vec[0] * cy - vec[2] * sy;
-            const z1 = vec[0] * sy + vec[2] * cy;
-            const ct = Math.cos(FIXED_THETA), st = Math.sin(FIXED_THETA);
-            const y2 = vec[1] * ct - z1 * st;
-            const z2 = vec[1] * st + z1 * ct;
-            return { x: x1, y: y2, z: z2 };
+        function viewToScreen(view, rect) {
+            return { x: rect.width * (view.x + 1) / 2, y: rect.height * (1 - view.y) / 2 };
         }
 
         const calloutLayer = document.getElementById('globeCalloutLayer');
@@ -2552,13 +2554,11 @@
         }
         function positionOverlay() {
             if (!activeLoc || !calloutLayer) return;
-            const view = projectVec(activeLoc._vec, lastCamPhi);
+            const view = projectVec(activeLoc._vec, lastCamPhi, FIXED_THETA);
             if (view.z < VISIBLE_Z) { hideCallout(); return; }
 
             const rect = canvas.getBoundingClientRect();
-            const R = (rect.width / 2) * GLOBE_RADIUS_FUDGE;
-            const mx = rect.width / 2 + view.x * R;
-            const my = rect.height / 2 - view.y * R;
+            const { x: mx, y: my } = viewToScreen(view, rect);
 
             markerPulse.style.left = mx + 'px';
             markerPulse.style.top = my + 'px';
@@ -2585,8 +2585,9 @@
         }
 
         // ── Ease the base rotation toward a target marker before showing it ────
+        // Same centering formula already used to init phi for Cape Town above.
         function easeToward(loc) {
-            const [mPhi] = locationToAngles(loc.latitude, loc.longitude);
+            const mPhi = Math.PI - ((loc.longitude * Math.PI) / 180 - Math.PI / 2);
             const delta = ((mPhi - (phi + drag) + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
             easeAnim = { from: phi, to: phi + delta, start: performance.now(), duration: reduceMotion ? 0 : 650 };
         }
@@ -2667,12 +2668,11 @@
             if (pointerMoved > 4 || !tempLocations.length) return; // was a drag, not a tap
             const rect = canvas.getBoundingClientRect();
             const clickX = e.clientX - rect.left, clickY = e.clientY - rect.top;
-            const R = (rect.width / 2) * GLOBE_RADIUS_FUDGE;
             let best = null, bestDist = 22;
             tempLocations.forEach(loc => {
-                const view = projectVec(loc._vec, lastCamPhi);
+                const view = projectVec(loc._vec, lastCamPhi, FIXED_THETA);
                 if (view.z < VISIBLE_Z) return;
-                const mx = rect.width / 2 + view.x * R, my = rect.height / 2 - view.y * R;
+                const { x: mx, y: my } = viewToScreen(view, rect);
                 const d = Math.hypot(mx - clickX, my - clickY);
                 if (d < bestDist) { bestDist = d; best = loc; }
             });
