@@ -2512,7 +2512,7 @@
 
         const SOURCE_LABEL = { swimmer_log: 'Swimmer log', buoy: 'Live buoy', lido_api: 'Lido API', manual: 'Manual reading' };
 
-        let activeLoc = null, lastCamPhi = phi, lastInteraction = 0, cycleTimer = null, cycleIndex = -1, easeAnim = null;
+        let activeLoc = null, lastCamPhi = phi, lastInteraction = 0, cycleTimer = null, cycleIndex = -1;
 
         function timeAgo(iso) {
             const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -2584,15 +2584,13 @@
             }
         }
 
-        // ── Ease the base rotation toward a target marker before showing it ────
-        // Same centering formula already used to init phi for Cape Town above.
-        function easeToward(loc) {
-            const mPhi = Math.PI - ((loc.longitude * Math.PI) / 180 - Math.PI / 2);
-            const delta = ((mPhi - (phi + drag) + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
-            easeAnim = { from: phi, to: phi + delta, start: performance.now(), duration: reduceMotion ? 0 : 650 };
-        }
-
         // ── Auto-cycle through active temperature locations ────────────────────
+        // The globe always keeps spinning the same direction (phi only ever
+        // increases) — we never rotate it to face a marker, we just pick from
+        // whichever markers are CURRENTLY front-facing at cycle time.
+        function currentlyVisibleLocations() {
+            return tempLocations.filter(loc => projectVec(loc._vec, lastCamPhi, FIXED_THETA).z > VISIBLE_Z);
+        }
         function scheduleCycle(delay) {
             clearTimeout(cycleTimer);
             if (reduceMotion || !tempLocations.length) return;
@@ -2601,11 +2599,10 @@
         function stopCycle() { clearTimeout(cycleTimer); }
         function runCycle() {
             if (pointerDown || Date.now() - lastInteraction < 4000) { scheduleCycle(1500); return; }
-            if (!tempLocations.length) return;
-            cycleIndex = (cycleIndex + 1) % tempLocations.length;
-            const loc = tempLocations[cycleIndex];
-            showCallout(loc);
-            easeToward(loc);
+            const visible = currentlyVisibleLocations();
+            if (!visible.length) { scheduleCycle(1500); return; } // nothing front-facing right now — check again shortly
+            cycleIndex = (cycleIndex + 1) % visible.length;
+            showCallout(visible[cycleIndex]);
             scheduleCycle();
         }
 
@@ -2624,14 +2621,9 @@
             glowColor: [0.13, 0.30, 0.45],
             markers: markers,
             onRender: (state) => {
-                if (easeAnim) {
-                    const t = easeAnim.duration ? Math.min(1, (performance.now() - easeAnim.start) / easeAnim.duration) : 1;
-                    const eased = 1 - Math.pow(1 - t, 3);
-                    phi = easeAnim.from + (easeAnim.to - easeAnim.from) * eased;
-                    if (t >= 1) easeAnim = null;
-                } else if (!pointerDown && !reduceMotion) {
-                    phi += 0.0028;
-                }
+                // Always keep spinning the same direction — never paused or reversed
+                // to face a marker (callouts instead pick whatever's front-facing).
+                if (!pointerDown && !reduceMotion) phi += 0.0028;
                 state.phi = phi + drag;
                 state.width = w * 2;
                 state.height = w * 2;
@@ -2679,7 +2671,6 @@
             if (best) {
                 stopCycle();
                 showCallout(best);
-                easeToward(best);
                 scheduleCycle(6000);
             }
         });
