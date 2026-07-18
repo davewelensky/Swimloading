@@ -60,9 +60,14 @@ window.SITE_CONFIG = {
     { name:'Thailand',       label:'Thailand',       slug:'thailand',       color:'#fb923c', bg:'rgba(251,146,60,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(251,146,60,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Phuket',                               pillDelay:'5.2s', dotDelay:'3.7s' },
   ],
 
-  spots:       180,   // rendered as "180+" where a page adds the plus — actual 181 (Jul 2026)
-  swimmers:    635,   // rendered as "635+" — actual 638 (Jul 2026)
-  tempsLogged: 1900,  // rendered as "1,900+" — actual 1921 (Jul 2026); was showing 2400 (overstated)
+  // NOTE: these three are a fast-paint FALLBACK ONLY — site-sync.js fetches the
+  // true, currently-climbing counts straight from Supabase on every page load
+  // (same numbers /admin shows) and overwrites these before the page settles.
+  // No longer worth hand-bumping precisely; keep them roughly current so the
+  // brief pre-fetch flash isn't wildly wrong.
+  spots:       185,
+  swimmers:    642,
+  tempsLogged: 1509,
 
   /* ── MONTHLY CHALLENGE CALENDAR ────────────────────────────────────────
    * Keyed 'YYYY-MM'. site-sync auto-selects the entry for the current SAST

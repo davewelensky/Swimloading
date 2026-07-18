@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="/site-config.js"></script>
+<script src="/site-sync.js"></script>
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <style>
   :root {
@@ -1130,7 +1131,7 @@ function updateClubDefaults() {
 }
 
 // ─── BRAND CONTEXT ───
-const BRAND_CONTEXT = `You are the social media voice for SwimLoading — an open water swimming platform tracking verified water temperatures and conditions across ${LIVE_STATS.spots}+ locations in ${LIVE_STATS.countries} countries, used by ${LIVE_STATS.swimmers}+ members.
+function brandContext() { return `You are the social media voice for SwimLoading — an open water swimming platform tracking verified water temperatures and conditions across ${LIVE_STATS.spots}+ locations in ${LIVE_STATS.countries} countries, used by ${LIVE_STATS.swimmers}+ members.
 
 SwimLoading covers:
 - Real-time water temperatures and conditions from community-logged spots worldwide
@@ -1143,7 +1144,7 @@ SwimLoading covers:
 - Swimmer profiles, crossing prep logs, personal records, and milestone tracking
 - Growing UK community — while South Africa is in winter, the platform is actively expanding into UK open water and wild swimming, connecting SA's peak cold-water season with the UK scene
 
-Brand voice: authentic, community-first, data-driven, ocean-obsessed. Not corporate. Not influencer-y. Built by a swimmer, for swimmers.`;
+Brand voice: authentic, community-first, data-driven, ocean-obsessed. Not corporate. Not influencer-y. Built by a swimmer, for swimmers.`; }
 
 // Research-validated caption rules (confirmed findings from adversarial verification):
 // 1. First ~125 chars are critical — Instagram truncates there; hook must land before "more"
@@ -1198,7 +1199,7 @@ function buildPrompt() {
     const notable = document.getElementById('cond-notable').value;
     const ctaMap = { log:'Log your swim on SwimLoading — link in bio.', join:'Join swimloading.com — link in bio.', download:'Download SwimLoading — link in bio.', poll:'Answer this week\'s poll in our Stories.' };
     const cta = ctaMap[document.getElementById('cond-cta').value];
-    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a weekly water temperature conditions post. This is SwimLoading's signature content — verifying what the water is actually doing across spots in multiple countries.\n\nCONDITIONS THIS WEEK:\n${spotLines}\n\nNOTABLE: ${notable || 'Standard week.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+    return `${brandContext()}\n\nGenerate 3 Instagram caption options for a weekly water temperature conditions post. This is SwimLoading's signature content — verifying what the water is actually doing across spots in multiple countries.\n\nCONDITIONS THIS WEEK:\n${spotLines}\n\nNOTABLE: ${notable || 'Standard week.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
   }
 
   if (currentType === 'crossing') {
@@ -1209,7 +1210,7 @@ function buildPrompt() {
     const intel = document.getElementById('crossing-intel').value;
     const ctaMap = { intel:'Read the full crossing intel at swimloading.com — link in bio.', log:'Log your crossing attempt on SwimLoading — link in bio.', join:'Join the SwimLoading community — link in bio.' };
     const cta = ctaMap[document.getElementById('crossing-cta').value];
-    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a crossing intelligence post. SwimLoading publishes verified conditions and historical intel for the major open water crossings — Robben Island, Cape Point, Dassen Island, Preekstoel, West Angle, English Channel. This content positions SwimLoading as the authoritative source for serious ocean swimmers.\n\nCROSSING: ${crossing}\nWATER TEMP: ${temp}°C\nCONDITIONS: ${conditions}\nATHLETE / ATTEMPT: ${athlete || 'No specific athlete — conditions and intel focus.'}\nINTEL ANGLE: ${intel}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+    return `${brandContext()}\n\nGenerate 3 Instagram caption options for a crossing intelligence post. SwimLoading publishes verified conditions and historical intel for the major open water crossings — Robben Island, Cape Point, Dassen Island, Preekstoel, West Angle, English Channel. This content positions SwimLoading as the authoritative source for serious ocean swimmers.\n\nCROSSING: ${crossing}\nWATER TEMP: ${temp}°C\nCONDITIONS: ${conditions}\nATHLETE / ATTEMPT: ${athlete || 'No specific athlete — conditions and intel focus.'}\nINTEL ANGLE: ${intel}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
   }
 
   if (currentType === 'challenge') {
@@ -1242,7 +1243,7 @@ function buildPrompt() {
     } else if (isCurrent) {
       mechanic = 'MECHANIC — IMPORTANT: this is a DRAW, not a top-scorer leaderboard. Swimmers qualify for the prize draw by logging 10 swims — every additional 10 logs, plus each group swim joined/created and each 7-day streak, earns another entry. Do NOT frame this as "X is leading" or imply anyone is winning/losing — every entrant with 1+ entries has a genuine, equal-odds shot at the draw. The angle is "you\'re reachable distance from being in" and "look how many people are already in," not competition or ranking.\n';
     }
-    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a challenge update post. Challenges are SwimLoading's primary community-building tool — they drive logging behaviour and create a shared experience across ${LIVE_STATS.countries} countries.\n\nCHALLENGE: ${challenge}\n${mechanic}PRIZES: ${prizes}\nUPDATE: ${standings}\nPHASE: ${phase}\nPARTICIPATION: ${count}\nNOTABLE: ${notable || 'Standard update.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+    return `${brandContext()}\n\nGenerate 3 Instagram caption options for a challenge update post. Challenges are SwimLoading's primary community-building tool — they drive logging behaviour and create a shared experience across ${LIVE_STATS.countries} countries.\n\nCHALLENGE: ${challenge}\n${mechanic}PRIZES: ${prizes}\nUPDATE: ${standings}\nPHASE: ${phase}\nPARTICIPATION: ${count}\nNOTABLE: ${notable || 'Standard update.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
   }
 
   if (currentType === 'partner') {
@@ -1269,7 +1270,7 @@ function buildPrompt() {
       collab:   'a collab or campaign post — SwimLoading and the brand are doing something together. Community benefit is the lead angle.'
     };
     const isTeaser = postType === 'teaser' || partner === 'Upcoming';
-    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for ${postTypeDescs[postType] || postTypeDescs.feature}\n\nPARTNER: ${isTeaser ? '[NOT TO BE NAMED IN CAPTION]' : partner}\nWHAT IS BEING FEATURED: ${feature}\nWHY IT MATTERS FOR SWIMMERS: ${why}\nCOMMUNITY CONNECTION: ${community}\n${teaser && isTeaser ? 'TEASER HINT (weave in subtly, do not over-explain): ' + teaser + '\n' : ''}${!isTeaser && link ? 'OFFER / LINK: ' + link + '\n' : ''}CALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+    return `${brandContext()}\n\nGenerate 3 Instagram caption options for ${postTypeDescs[postType] || postTypeDescs.feature}\n\nPARTNER: ${isTeaser ? '[NOT TO BE NAMED IN CAPTION]' : partner}\nWHAT IS BEING FEATURED: ${feature}\nWHY IT MATTERS FOR SWIMMERS: ${why}\nCOMMUNITY CONNECTION: ${community}\n${teaser && isTeaser ? 'TEASER HINT (weave in subtly, do not over-explain): ' + teaser + '\n' : ''}${!isTeaser && link ? 'OFFER / LINK: ' + link + '\n' : ''}CALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
   }
 
   if (currentType === 'club') {
@@ -1286,7 +1287,7 @@ function buildPrompt() {
       Aquasharks: 'Aquasharks Atlantic — competitive pool and open water squad club in Cape Town. Youth through Masters swimmers. Coach-led squads, attendance tracking, gala entries.',
       K8: 'K8 Coaching — Britt\'s open water and Masters coaching business in Cape Town. Small-group squads at 06:00 / 07:00 / 08:00, Monday / Wednesday / Friday. Focused, serious coaching for dedicated swimmers.'
     };
-    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a club life post. SwimLoading hosts three clubs. These captions should celebrate the community, attract new members, and show what club swimming actually feels like.\n\nCLUB: ${clubName}\nCLUB CONTEXT: ${clubContext[clubName] || ''}\nEVENT TYPE: ${event}\nDETAILS: ${details}\n${temp ? 'WATER TEMP: ' + temp + '°C\n' : ''}NOTABLE: ${notable || 'Standard session.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+    return `${brandContext()}\n\nGenerate 3 Instagram caption options for a club life post. SwimLoading hosts three clubs. These captions should celebrate the community, attract new members, and show what club swimming actually feels like.\n\nCLUB: ${clubName}\nCLUB CONTEXT: ${clubContext[clubName] || ''}\nEVENT TYPE: ${event}\nDETAILS: ${details}\n${temp ? 'WATER TEMP: ' + temp + '°C\n' : ''}NOTABLE: ${notable || 'Standard session.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
   }
 
   if (currentType === 'hazard') {
@@ -1297,7 +1298,7 @@ function buildPrompt() {
     const advice = document.getElementById('hazard-advice').value;
     const ctaMap = { check:'Check live conditions on SwimLoading — link in bio.', log:'Log hazard sightings on SwimLoading to help the community.', follow:'Follow for real-time hazard updates.' };
     const cta = ctaMap[document.getElementById('hazard-cta').value];
-    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a hazard alert post. SwimLoading tracks community-reported hazards — bluebottles, jellyfish, sharks, strong currents, swell. These posts are important safety content that also demonstrate SwimLoading's value as a real-time community tool.\n\nSPOT: ${spot}\nWATER TEMP: ${temp}°C\nACTIVE HAZARDS: ${hazards.join(', ')}\nDETAIL: ${detail}\nSAFETY ADVICE: ${advice}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+    return `${brandContext()}\n\nGenerate 3 Instagram caption options for a hazard alert post. SwimLoading tracks community-reported hazards — bluebottles, jellyfish, sharks, strong currents, swell. These posts are important safety content that also demonstrate SwimLoading's value as a real-time community tool.\n\nSPOT: ${spot}\nWATER TEMP: ${temp}°C\nACTIVE HAZARDS: ${hazards.join(', ')}\nDETAIL: ${detail}\nSAFETY ADVICE: ${advice}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
   }
 
   if (currentType === 'strava') {
@@ -1307,7 +1308,7 @@ function buildPrompt() {
     const notable = document.getElementById('strava-notable').value;
     const ctaMap = { connect:'Connect your Strava at swimloading.com — link in bio.', join:'Join SwimLoading and link your Strava — link in bio.', log:'Log your next swim via Strava — link in bio.' };
     const cta = ctaMap[document.getElementById('strava-cta').value];
-    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a Strava integration post. SwimLoading integrates with Strava — swimmers import activities and add the water data Strava doesn't capture: temperature, conditions, hazards. The core tagline: "Strava tracks the swim. SwimLoading tracks the water."\n\nFEATURE FOCUS: ${focus}\n${stat ? 'COMMUNITY STAT: ' + stat + '\n' : ''}SWIMMER STORY: ${story}\nNOTABLE: ${notable || 'Standard week.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+    return `${brandContext()}\n\nGenerate 3 Instagram caption options for a Strava integration post. SwimLoading integrates with Strava — swimmers import activities and add the water data Strava doesn't capture: temperature, conditions, hazards. The core tagline: "Strava tracks the swim. SwimLoading tracks the water."\n\nFEATURE FOCUS: ${focus}\n${stat ? 'COMMUNITY STAT: ' + stat + '\n' : ''}SWIMMER STORY: ${story}\nNOTABLE: ${notable || 'Standard week.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
   }
 
   if (currentType === 'community') {
@@ -1317,7 +1318,7 @@ function buildPrompt() {
     const angle = document.getElementById('comm-angle').value;
     const ctaMap = { join:'Join the community — your story starts at swimloading.com.', share:'Share your swim this week — tag us.', log:'Log your swim on SwimLoading — link in bio.' };
     const cta = ctaMap[document.getElementById('comm-cta').value];
-    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a community story post. SwimLoading's most powerful content is real stories from real swimmers — crossings completed, first cold swims, comebacks, milestones. These captions should make the reader feel like they are missing something real.\n\n${name ? 'SWIMMER: ' + name + '\n' : 'SWIMMER: Anonymous\n'}ACHIEVEMENT TYPE: ${type}\nSTORY: ${story}\nBROADER ANGLE: ${angle}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+    return `${brandContext()}\n\nGenerate 3 Instagram caption options for a community story post. SwimLoading's most powerful content is real stories from real swimmers — crossings completed, first cold swims, comebacks, milestones. These captions should make the reader feel like they are missing something real.\n\n${name ? 'SWIMMER: ' + name + '\n' : 'SWIMMER: Anonymous\n'}ACHIEVEMENT TYPE: ${type}\nSTORY: ${story}\nBROADER ANGLE: ${angle}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
   }
 
   if (currentType === 'growth') {
@@ -1333,7 +1334,7 @@ function buildPrompt() {
     const notable = document.getElementById('growth-notable').value;
     const ctaMap = { join:'Join SwimLoading — link in bio.', 'uk-join':'UK swimmers — add your spot at swimloading.com. Link in bio.', share:'Tag a swimmer who should be logging with us.', explore:`Explore all ${LIVE_STATS.spots}+ locations at swimloading.com — link in bio.` };
     const cta = ctaMap[document.getElementById('growth-cta').value];
-    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a growth / milestone post. This content exists to build momentum and drive new signups — it should make SwimLoading feel like something growing fast that a swimmer wants to be part of, not a corporate stats announcement.\n\nMILESTONE FOCUS: ${focus}\nTHE STAT: ${stat}\n${ukAngle}\nNOTABLE: ${notable || 'Standard update.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+    return `${brandContext()}\n\nGenerate 3 Instagram caption options for a growth / milestone post. This content exists to build momentum and drive new signups — it should make SwimLoading feel like something growing fast that a swimmer wants to be part of, not a corporate stats announcement.\n\nMILESTONE FOCUS: ${focus}\nTHE STAT: ${stat}\n${ukAngle}\nNOTABLE: ${notable || 'Standard update.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
   }
 
   return '';
@@ -1537,7 +1538,9 @@ initLiveChallengeData();
 
 // Stamp the live numbers into visible option labels + the default textarea,
 // so the tool shows correct figures even before anyone touches a dropdown.
-(function initLiveGrowthLabels() {
+// Callable again once the live DB counts (below) land, to upgrade past the
+// site-config.js fallback LIVE_STATS started with.
+function applyLiveGrowthLabels() {
   const S = LIVE_STATS;
   const focusSelect = document.getElementById('growth-focus');
   if (focusSelect) {
@@ -1549,10 +1552,24 @@ initLiveChallengeData();
   const exploreOpt = document.getElementById('cta-explore-option');
   if (exploreOpt) exploreOpt.textContent = `Explore all ${S.spots}+ locations at swimloading.com`;
   const growthStat = document.getElementById('growth-stat');
-  if (growthStat && !growthStat.value) {
+  if (growthStat && !growthStat.dataset.userEdited) {
     growthStat.value = `${S.swimmers}+ members logging conditions across ${S.spots}+ locations in ${S.countries} countries — and growing into the UK.`;
   }
-})();
+}
+applyLiveGrowthLabels();
+const growthStatEl = document.getElementById('growth-stat');
+if (growthStatEl) growthStatEl.addEventListener('input', () => { growthStatEl.dataset.userEdited = '1'; });
+
+// Upgrade LIVE_STATS from the site-config.js fallback to the true, currently-
+// climbing DB counts (same numbers /admin shows) once the fetch resolves.
+if (window.siteSync && window.siteSync.refreshLiveStats) {
+  window.siteSync.refreshLiveStats().then(function (live) {
+    LIVE_STATS.spots = live.spots;
+    LIVE_STATS.swimmers = live.swimmers;
+    LIVE_STATS.countries = (Array.isArray(live.countries) ? live.countries.length : 11) + 1;
+    applyLiveGrowthLabels();
+  }).catch(function () { /* LIVE_STATS fallback stands */ });
+}
 </script>
 </body>
 </html>

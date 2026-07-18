@@ -160,13 +160,53 @@
     renderSponsorChallenges();
   }
 
+  /* ── live global stats (spots / swimmers / tempsLogged) ─────────────────
+   * C.spots/swimmers/tempsLogged are a fast-paint FALLBACK only — real
+   * numbers climb daily (see /admin), so a static config number is always
+   * stale within days. On load we fetch the true counts straight from
+   * Supabase (same definitions /admin uses: all profiles, temp_logs with a
+   * real user_id) and re-stamp over the fallback. Never hand-bump these
+   * three site-config.js values again — this replaces that entirely.
+   */
+  var SB_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+  var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+
+  function fetchCount(table, filter) {
+    var url = SB_URL + '/rest/v1/' + table + '?select=id' + (filter ? '&' + filter : '') + '&limit=1';
+    return fetch(url, {
+      headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, Prefer: 'count=exact' },
+    }).then(function (res) {
+      var range = res.headers.get('content-range'); // "0-0/642"
+      var total = range ? parseInt(range.split('/')[1], 10) : NaN;
+      return isNaN(total) ? null : total;
+    }).catch(function () { return null; });
+  }
+
+  function refreshLiveStats() {
+    return Promise.all([
+      fetchCount('spots', 'active=eq.true'),
+      fetchCount('profiles'),
+      fetchCount('temp_logs', 'user_id=not.is.null'),
+    ]).then(function (results) {
+      if (results[0] != null) C.spots = results[0];
+      if (results[1] != null) C.swimmers = results[1];
+      if (results[2] != null) C.tempsLogged = results[2];
+      stampValues();
+      return C;
+    });
+  }
+
   window.siteSync = {
     countryCount: countryCount,
     sastMonth: sastMonth,
     currentChallenge: currentChallenge,
     refresh: refresh,
+    refreshLiveStats: refreshLiveStats,
   };
 
   if (document.readyState !== 'loading') refresh();
   else document.addEventListener('DOMContentLoaded', refresh);
+
+  // Fast-paint the static fallback first (above), then upgrade to live counts.
+  refreshLiveStats();
 })();
