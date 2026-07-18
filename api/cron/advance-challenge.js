@@ -18,12 +18,14 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUP
 const CRON_SECRET          = process.env.CRON_SECRET;
 
 export default async function handler(req, res) {
-  // Auth check
-  if (CRON_SECRET) {
-    const auth = req.headers['authorization'] || '';
-    if (auth !== `Bearer ${CRON_SECRET}`) {
-      return res.status(401).json({ error: 'Unauthorised' });
-    }
+  // Auth check — reject missing or invalid secret before any privileged work
+  if (!CRON_SECRET) {
+    console.error('advance-challenge: CRON_SECRET not configured — refusing to run');
+    return res.status(500).json({ error: 'CRON_SECRET not configured' });
+  }
+  const auth = req.headers['authorization'] || '';
+  if (auth !== `Bearer ${CRON_SECRET}`) {
+    return res.status(401).json({ error: 'Unauthorised' });
   }
 
   // Work out what "tomorrow SAST" looks like.

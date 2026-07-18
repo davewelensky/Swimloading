@@ -20,13 +20,15 @@ const BATCH_SIZE    = 20;   // coords per bulk request — Open-Meteo bulk 400s 
 const SOURCE        = 'open_meteo';
 
 export default async function handler(req, res) {
-  // ── Auth ──────────────────────────────────────────────────────────────────
+  // ── Auth — reject missing or invalid secret before any privileged work ──────
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const authHeader = req.headers['authorization'] || '';
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return res.status(401).json({ error: 'Unauthorised' });
-    }
+  if (!cronSecret) {
+    console.error('marine-temps: CRON_SECRET not configured — refusing to run');
+    return res.status(500).json({ error: 'CRON_SECRET not configured' });
+  }
+  const authHeader = req.headers['authorization'] || '';
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return res.status(401).json({ error: 'Unauthorised' });
   }
 
   const supabaseUrl = process.env.SUPABASE_URL || 'https://szgkzuswelntnevobnoh.supabase.co';

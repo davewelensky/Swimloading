@@ -21,13 +21,15 @@ const SPOT_IDS = {
 const MIN_INSERT_GAP_MINUTES = 50;
 
 export default async function handler(req, res) {
-  // ── Auth ────────────────────────────────────────────────────────────────────
+  // ── Auth — reject missing or invalid secret before any privileged work ──────
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const authHeader = req.headers['authorization'] || '';
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return res.status(401).json({ error: 'Unauthorised' });
-    }
+  if (!cronSecret) {
+    console.error('sensor-import: CRON_SECRET not configured — refusing to run');
+    return res.status(500).json({ error: 'CRON_SECRET not configured' });
+  }
+  const authHeader = req.headers['authorization'] || '';
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return res.status(401).json({ error: 'Unauthorised' });
   }
 
   const apiKey     = process.env.MYWATERLIVE_API_KEY;
