@@ -615,16 +615,16 @@
         <div class="card-title">The numbers</div>
         <label>Milestone focus</label>
         <select id="growth-focus" onchange="updateGrowthDefaults()">
-          <option>Community size — 635+ members</option>
-          <option>Global reach — 180+ locations, 12 countries</option>
-          <option>UK expansion — growing beyond South Africa</option>
-          <option>Seasonal contrast — SA winter meets UK community</option>
-          <option>New location added</option>
-          <option>New country added</option>
-          <option>Custom milestone</option>
+          <option value="community_size">Community size — members</option>
+          <option value="global_reach">Global reach — locations &amp; countries</option>
+          <option value="uk_expansion">UK expansion — growing beyond South Africa</option>
+          <option value="seasonal_contrast">Seasonal contrast — SA winter meets UK community</option>
+          <option value="new_location">New location added</option>
+          <option value="new_country">New country added</option>
+          <option value="custom">Custom milestone</option>
         </select>
         <label>The stat / headline</label>
-        <textarea id="growth-stat">635+ members logging conditions across 180+ locations in 12 countries — and growing into the UK.</textarea>
+        <textarea id="growth-stat"></textarea>
         <label>Custom milestone detail (if Custom)</label>
         <input type="text" id="growth-custom" placeholder="e.g. Just passed our 2000th temperature log">
       </div>
@@ -644,7 +644,7 @@
           <option value="join">Join SwimLoading — link in bio</option>
           <option value="uk-join">UK swimmers — add your spot at swimloading.com</option>
           <option value="share">Tag a swimmer who should be logging with us</option>
-          <option value="explore">Explore all 180+ locations at swimloading.com</option>
+          <option value="explore" id="cta-explore-option">Explore all locations at swimloading.com</option>
         </select>
         <label>Tone</label>
         <div class="tone-row">
@@ -681,6 +681,19 @@ document.addEventListener('mousemove', e => {
   document.body.style.setProperty('--mouse-x', e.clientX + 'px');
   document.body.style.setProperty('--mouse-y', e.clientY + 'px');
 });
+
+// ─── LIVE GLOBAL STATS ───────────────────────────────────────────────────────
+// Same formula as site-sync.js countryCount(). Every hardcoded "180 locations
+// / 12 countries / 635 members" string below used to silently drift from
+// site-config.js — now everything reads from this one object instead.
+const LIVE_STATS = (function () {
+  const cfg = window.SITE_CONFIG || {};
+  return {
+    spots: cfg.spots || 180,
+    swimmers: cfg.swimmers || 635,
+    countries: (Array.isArray(cfg.countries) ? cfg.countries.length : 11) + 1,
+  };
+})();
 
 // ─── LIVE CHALLENGE DATA ─────────────────────────────────────────────────────
 // Everything here is computed from the real clock and live DB on every page
@@ -1094,13 +1107,14 @@ function updatePartnerDefaults() {
 
 function updateGrowthDefaults() {
   const focus = document.getElementById('growth-focus').value;
+  const S = LIVE_STATS;
   const statMap = {
-    'Community size — 635+ members':              '635+ members logging conditions across 180+ locations in 12 countries.',
-    'Global reach — 180+ locations, 12 countries': '180+ swim locations tracked across 12 countries — from Cape Town to Cascais to Cottesloe.',
-    'UK expansion — growing beyond South Africa':  'SwimLoading started in Cape Town. Now UK swimmers are logging conditions from Canford Cliffs to Tooting Bec.',
-    'Seasonal contrast — SA winter meets UK community': 'While South Africa swims through its coldest water of the year, SwimLoading is building its next community in the UK.',
-    'New location added':   'A new swim spot just joined SwimLoading — 180+ and counting.',
-    'New country added':    'SwimLoading just added its newest country — 12 and counting.'
+    community_size:     `${S.swimmers}+ members logging conditions across ${S.spots}+ locations in ${S.countries} countries.`,
+    global_reach:        `${S.spots}+ swim locations tracked across ${S.countries} countries — from Cape Town to Cascais to Cottesloe.`,
+    uk_expansion:        'SwimLoading started in Cape Town. Now UK swimmers are logging conditions from Canford Cliffs to Tooting Bec.',
+    seasonal_contrast:   'While South Africa swims through its coldest water of the year, SwimLoading is building its next community in the UK.',
+    new_location:        `A new swim spot just joined SwimLoading — ${S.spots}+ and counting.`,
+    new_country:         `SwimLoading just added its newest country — ${S.countries} and counting.`,
   };
   if (statMap[focus]) document.getElementById('growth-stat').value = statMap[focus];
 }
@@ -1116,7 +1130,7 @@ function updateClubDefaults() {
 }
 
 // ─── BRAND CONTEXT ───
-const BRAND_CONTEXT = `You are the social media voice for SwimLoading — an open water swimming platform tracking verified water temperatures and conditions across 180+ locations in 12 countries, used by 635+ members.
+const BRAND_CONTEXT = `You are the social media voice for SwimLoading — an open water swimming platform tracking verified water temperatures and conditions across ${LIVE_STATS.spots}+ locations in ${LIVE_STATS.countries} countries, used by ${LIVE_STATS.swimmers}+ members.
 
 SwimLoading covers:
 - Real-time water temperatures and conditions from community-logged spots worldwide
@@ -1228,7 +1242,7 @@ function buildPrompt() {
     } else if (isCurrent) {
       mechanic = 'MECHANIC — IMPORTANT: this is a DRAW, not a top-scorer leaderboard. Swimmers qualify for the prize draw by logging 10 swims — every additional 10 logs, plus each group swim joined/created and each 7-day streak, earns another entry. Do NOT frame this as "X is leading" or imply anyone is winning/losing — every entrant with 1+ entries has a genuine, equal-odds shot at the draw. The angle is "you\'re reachable distance from being in" and "look how many people are already in," not competition or ranking.\n';
     }
-    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a challenge update post. Challenges are SwimLoading's primary community-building tool — they drive logging behaviour and create a shared experience across 12 countries.\n\nCHALLENGE: ${challenge}\n${mechanic}PRIZES: ${prizes}\nUPDATE: ${standings}\nPHASE: ${phase}\nPARTICIPATION: ${count}\nNOTABLE: ${notable || 'Standard update.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
+    return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a challenge update post. Challenges are SwimLoading's primary community-building tool — they drive logging behaviour and create a shared experience across ${LIVE_STATS.countries} countries.\n\nCHALLENGE: ${challenge}\n${mechanic}PRIZES: ${prizes}\nUPDATE: ${standings}\nPHASE: ${phase}\nPARTICIPATION: ${count}\nNOTABLE: ${notable || 'Standard update.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
   }
 
   if (currentType === 'partner') {
@@ -1317,7 +1331,7 @@ function buildPrompt() {
     };
     const ukAngle = ukAngleMap[document.getElementById('growth-uk-angle').value] || '';
     const notable = document.getElementById('growth-notable').value;
-    const ctaMap = { join:'Join SwimLoading — link in bio.', 'uk-join':'UK swimmers — add your spot at swimloading.com. Link in bio.', share:'Tag a swimmer who should be logging with us.', explore:'Explore all 180+ locations at swimloading.com — link in bio.' };
+    const ctaMap = { join:'Join SwimLoading — link in bio.', 'uk-join':'UK swimmers — add your spot at swimloading.com. Link in bio.', share:'Tag a swimmer who should be logging with us.', explore:`Explore all ${LIVE_STATS.spots}+ locations at swimloading.com — link in bio.` };
     const cta = ctaMap[document.getElementById('growth-cta').value];
     return `${BRAND_CONTEXT}\n\nGenerate 3 Instagram caption options for a growth / milestone post. This content exists to build momentum and drive new signups — it should make SwimLoading feel like something growing fast that a swimmer wants to be part of, not a corporate stats announcement.\n\nMILESTONE FOCUS: ${focus}\nTHE STAT: ${stat}\n${ukAngle}\nNOTABLE: ${notable || 'Standard update.'}\nCALL TO ACTION: ${cta}\nTONE: ${tone}${CAPTION_RULES}`;
   }
@@ -1389,7 +1403,7 @@ const STORY_TIPS = {
     { icon:'link', text:'Link sticker to swimloading.com — "Start your story here." The best CTA after an achievement post is an easy first step.' }
   ],
   growth: [
-    { icon:'map', text:'Animated map Story showing the 12 countries lighting up one by one — makes global reach feel earned, not stated.' },
+    { icon:'map', text:`Animated map Story showing the ${LIVE_STATS.countries} countries lighting up one by one — makes global reach feel earned, not stated.` },
     { icon:'bar-chart-2', text:'Poll: "Do you swim outside SA?" — surfaces your international audience and primes them for the UK push.' },
     { icon:'users', text:'Re-share a UK swimmer\'s log or photo — nothing sells UK expansion like a real UK swimmer already on the platform.' },
     { icon:'link', text:'Link sticker straight to swimloading.com signup — growth posts should convert while the momentum feeling is highest.' }
@@ -1520,6 +1534,25 @@ function copyHashtags() {
 
 // Kick off the live challenge fetch (site-config.js + Supabase) as soon as the page loads
 initLiveChallengeData();
+
+// Stamp the live numbers into visible option labels + the default textarea,
+// so the tool shows correct figures even before anyone touches a dropdown.
+(function initLiveGrowthLabels() {
+  const S = LIVE_STATS;
+  const focusSelect = document.getElementById('growth-focus');
+  if (focusSelect) {
+    const communityOpt = focusSelect.querySelector('option[value="community_size"]');
+    const reachOpt = focusSelect.querySelector('option[value="global_reach"]');
+    if (communityOpt) communityOpt.textContent = `Community size — ${S.swimmers}+ members`;
+    if (reachOpt) reachOpt.textContent = `Global reach — ${S.spots}+ locations, ${S.countries} countries`;
+  }
+  const exploreOpt = document.getElementById('cta-explore-option');
+  if (exploreOpt) exploreOpt.textContent = `Explore all ${S.spots}+ locations at swimloading.com`;
+  const growthStat = document.getElementById('growth-stat');
+  if (growthStat && !growthStat.value) {
+    growthStat.value = `${S.swimmers}+ members logging conditions across ${S.spots}+ locations in ${S.countries} countries — and growing into the UK.`;
+  }
+})();
 </script>
 </body>
 </html>
