@@ -1409,7 +1409,7 @@
             </style>
             <div style="position:relative;max-width:620px;margin:-16px auto 56px;">
                 <canvas id="globeCanvas" aria-label="Rotating globe showing live SwimLoading spots across 13 countries"
-                    style="width:100%;aspect-ratio:1;display:block;cursor:grab;opacity:0;transition:opacity 1.2s ease;contain:layout paint size;"></canvas>
+                    style="width:100%;aspect-ratio:1;display:block;cursor:grab;opacity:0;transition:opacity 1.2s ease;contain:layout paint size;touch-action:pan-y;"></canvas>
                 <div id="globeCaption" style="position:absolute;left:0;right:0;bottom:6px;text-align:center;font-size:12px;color:#64748b;opacity:0;transition:opacity 1.2s ease 0.4s;">
                     Every dot is a live spot — drag to spin
                 </div>
@@ -2646,12 +2646,17 @@
         window.addEventListener('pointermove', e => {
             if (dragStart !== null) { drag = dragBase + (e.clientX - dragStart) / 120; pointerMoved++; }
         });
-        window.addEventListener('pointerup', () => {
+        function releaseDrag() {
             pointerDown = false; dragStart = null;
             canvas.style.cursor = 'grab';
             lastInteraction = Date.now();
             scheduleCycle(4500);
-        });
+        }
+        window.addEventListener('pointerup', releaseDrag);
+        // Mobile: a touch that turns into a page-scroll gesture fires pointercancel,
+        // not pointerup — without this, pointerDown gets stuck true forever and the
+        // globe never auto-rotates again.
+        window.addEventListener('pointercancel', releaseDrag);
         window.addEventListener('resize', () => { w = canvas.offsetWidth; });
 
         // ── Click/tap a marker to show its callout immediately ─────────────────
