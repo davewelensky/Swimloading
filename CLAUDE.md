@@ -338,21 +338,42 @@ in ONE file. **Never hardcode these into individual pages again.**
 
 ### Files
 - **`site-config.js`** — the single source of truth. Edit here only.
-  - `countries` — international list (drives welcome.html pills/grid AND every count; count = list + 1 for South Africa)
+  - `countries` — international list (drives welcome.html pills/grid/footer AND every count; count = list + 1 for South Africa). Each entry has a `slug` — always build country hrefs from `c.slug` (`/spots/${c.slug}`), never guess one from the label. `slug: null` = no dedicated country page yet (link to its containing region instead, e.g. Italy → `/spots/europe`).
   - `spots` / `swimmers` / `tempsLogged` — global stats
   - `challenges['YYYY-MM']` — monthly challenge calendar; **auto-selected by SAST date, so a month's challenge goes live at 00:00 on the 1st with no code change** (just have the entry ready). Set `winner` (verified name only) to enable recap.
   - `sponsorChallenges` — links a partner page's challenge box to its challenge month.
-- **`site-sync.js`** — runtime. Loaded AFTER site-config.js. Stamps `[data-sync="…"]` elements, and renders/recaps/hides `[data-challenge="…"]` sponsor boxes. API: `window.siteSync.currentChallenge()`, `.countryCount()`, `.sastMonth()`, `.refresh()`.
+- **`site-sync.js`** — runtime. Loaded AFTER site-config.js. Stamps `[data-sync="…"]` elements (numbers are comma-formatted automatically), and renders/recaps/hides `[data-challenge="…"]` sponsor boxes. API: `window.siteSync.currentChallenge()`, `.countryCount()`, `.sastMonth()`, `.refresh()`.
 
 ### Using it on a page
 ```html
-<script src="/site-config.js?v=1"></script>
-<script src="/site-sync.js?v=1"></script>
+<script src="/site-config.js"></script>
+<script src="/site-sync.js"></script>
 ...
 spots across <span data-sync="countries">12</span> countries      <!-- numeric -->
 <span data-sync="countries.word">Twelve</span> countries          <!-- spelled-out -->
+<span data-sync="spots">140</span>+ spots                         <!-- comma-formatted -->
+<span data-sync="tempsLogged">2,400</span>+ temps logged
 ```
 Sponsor challenge box (auto active / recap / pending / hidden) — see the pattern in `partners/magic5.html` (`data-challenge`, inner `data-state` sections, `data-slot` fields).
+
+**⚠️ NEVER hand-type a country/spot/swimmer/temps-logged count, or hand-write a
+per-country list (pills, grid cards, footer link columns), on ANY page.** Always
+a `[data-sync]` span, or — for a repeated list like a country grid — a JS block
+that maps over `window.SITE_CONFIG.countries` at render time. A hand-written
+international footer list on welcome.html silently fell to 7 of 12 countries
+this way (Jul 2026) because nobody remembers to touch a hardcoded list when a
+country is added elsewhere — the fix was deleting the hardcoded list and
+rendering it from `SITE_CONFIG.countries`, not "updating the 7 to 12."
+
+**`site-config.js` and `site-sync.js` are served with `no-cache, no-store,
+must-revalidate`** (see `vercel.json`) specifically so they never need a `?v=N`
+cache-bust bump — editing the file is enough. Any page loading them plain
+(no `?v=`) always gets the latest content immediately.
+
+**Before shipping any change to `site-config.js`** (new country, new stat),
+grep the repo for stale copies of the old numbers/lists to catch anything not
+yet wired to `data-sync` — e.g. `grep -rn "12 countries\|140+" --include="*.html" .`
+— and wire whatever you find to `data-sync` rather than hand-editing the number.
 
 ### ⚠️ CRITICAL — the monthly challenge lives in FOUR places. Update ALL of them, every month.
 

@@ -52,6 +52,10 @@
     return ch ? assign({ month: m }, ch) : null;
   }
 
+  function fmt(n) {
+    return (typeof n === 'number') ? n.toLocaleString('en-US') : n;
+  }
+
   var WORDS = ['zero','one','two','three','four','five','six','seven','eight','nine','ten',
                'eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty'];
   function numberWord(n, cap) {
@@ -64,9 +68,9 @@
     'countries':          countryCount,
     'countries.word':     function () { return numberWord(countryCount(), true); },  // "Twelve"
     'countries.word.lc':  function () { return numberWord(countryCount(), false); }, // "twelve"
-    'spots':              function () { return C.spots; },
-    'swimmers':           function () { return C.swimmers; },
-    'tempsLogged':        function () { return C.tempsLogged; },
+    'spots':              function () { return fmt(C.spots); },
+    'swimmers':           function () { return fmt(C.swimmers); },
+    'tempsLogged':        function () { return fmt(C.tempsLogged); },
     'challenge.title':    function () { var c = currentChallenge(); return c ? c.title   : ''; },
     'challenge.sponsor':  function () { var c = currentChallenge(); return c ? c.sponsor : ''; },
     'challenge.prize':    function () { var c = currentChallenge(); return c ? c.prize   : ''; },

@@ -52,7 +52,7 @@
 
     <!-- Single source of truth for cross-page facts (country list/count, challenges). Edit /site-config.js only. -->
     <script src="/site-config.js?v=6"></script>
-    <script src="/site-sync.js?v=5"></script>
+    <script src="/site-sync.js?v=6"></script>
 
     <!-- Fonts: non-blocking link instead of render-blocking @import -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -851,7 +851,7 @@
         <div class="hero-inner">
             <div class="hero-badge">
                 <span class="pulse-dot"></span>
-                Live now · 140+ spots · <span id="hero-country-count" data-sync="countries">12</span> countries
+                Live now · <span data-sync="spots">140</span>+ spots · <span id="hero-country-count" data-sync="countries">12</span> countries
             </div>
             <h1>Know the water<br><span class="gradient-text">before you dive in</span></h1>
             <p class="hero-sub">
@@ -999,7 +999,7 @@
     <!-- ═══════════════ STATS ═══════════════ -->
     <div class="stats-bar">
         <div class="stat-item">
-            <div class="num">140<span>+</span></div>
+            <div class="num"><span data-sync="spots">140</span><span>+</span></div>
             <div class="label">Swim Spots</div>
         </div>
         <div class="stat-item">
@@ -1007,7 +1007,7 @@
             <div class="label">Countries</div>
         </div>
         <div class="stat-item">
-            <div class="num">2,400<span>+</span></div>
+            <div class="num"><span data-sync="tempsLogged">2,400</span><span>+</span></div>
             <div class="label">Temps Logged</div>
         </div>
         <div class="stat-item">
@@ -2024,35 +2024,16 @@
                     </div>
                 </div>
 
-                <!-- Col 3: International -->
+                <!-- Col 3: International — rendered from SITE_CONFIG.countries by
+                     renderCountries() below (step 5), never hand-maintained here.
+                     Was a hand-written list of 7 that silently fell 5 countries
+                     behind as new ones were added — see site-config.js. -->
                 <div>
                     <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#f59e0b;margin-bottom:16px;">International</p>
-                    <div style="display:flex;flex-direction:column;gap:8px;">
-                        <a href="/spots/namibia" style="display:inline-flex;align-items:center;gap:8px;color:#94a3b8;font-size:13px;font-weight:500;text-decoration:none;padding:7px 12px;border-radius:8px;border:1px solid rgba(217,119,6,0.2);background:rgba(217,119,6,0.04);transition:all 0.2s;" onmouseover="this.style.color='#f59e0b';this.style.borderColor='rgba(217,119,6,0.4)'" onmouseout="this.style.color='#94a3b8';this.style.borderColor='rgba(217,119,6,0.2)'">
-                            <span style="width:6px;height:6px;border-radius:50%;background:#fb923c;flex-shrink:0;"></span>Namibia — Walvis Bay &amp; Swakopmund
-                        </a>
-                        <a href="/spots/united-kingdom" style="display:inline-flex;align-items:center;gap:8px;color:#94a3b8;font-size:13px;font-weight:500;text-decoration:none;padding:7px 12px;border-radius:8px;border:1px solid rgba(217,119,6,0.2);background:rgba(217,119,6,0.04);transition:all 0.2s;" onmouseover="this.style.color='#818cf8';this.style.borderColor='rgba(217,119,6,0.4)'" onmouseout="this.style.color='#94a3b8';this.style.borderColor='rgba(217,119,6,0.2)'">
-                            <span style="width:6px;height:6px;border-radius:50%;background:#818cf8;flex-shrink:0;"></span>United Kingdom — Canford Cliffs, Heron Lake, Tooting Bec
-                        </a>
-                        <a href="/spots/australia" style="display:inline-flex;align-items:center;gap:8px;color:#94a3b8;font-size:13px;font-weight:500;text-decoration:none;padding:7px 12px;border-radius:8px;border:1px solid rgba(217,119,6,0.2);background:rgba(217,119,6,0.04);transition:all 0.2s;" onmouseover="this.style.color='#34d399';this.style.borderColor='rgba(217,119,6,0.4)'" onmouseout="this.style.color='#94a3b8';this.style.borderColor='rgba(217,119,6,0.2)'">
-                            <span style="width:6px;height:6px;border-radius:50%;background:#34d399;flex-shrink:0;"></span>Australia — Cottesloe Beach, Perth
-                        </a>
-                        <a href="/spots/switzerland" style="display:inline-flex;align-items:center;gap:8px;color:#94a3b8;font-size:13px;font-weight:500;text-decoration:none;padding:7px 12px;border-radius:8px;border:1px solid rgba(217,119,6,0.2);background:rgba(217,119,6,0.04);transition:all 0.2s;" onmouseover="this.style.color='#fb7185';this.style.borderColor='rgba(217,119,6,0.4)'" onmouseout="this.style.color='#94a3b8';this.style.borderColor='rgba(217,119,6,0.2)'">
-                            <span style="width:6px;height:6px;border-radius:50%;background:#fb7185;flex-shrink:0;"></span>Switzerland — Gland Plage, Promenthoux, Lake Geneva
-                        </a>
-                        <a href="/spots/portugal" style="display:inline-flex;align-items:center;gap:8px;color:#94a3b8;font-size:13px;font-weight:500;text-decoration:none;padding:7px 12px;border-radius:8px;border:1px solid rgba(217,119,6,0.2);background:rgba(217,119,6,0.04);transition:all 0.2s;" onmouseover="this.style.color='#fbbf24';this.style.borderColor='rgba(217,119,6,0.4)'" onmouseout="this.style.color='#94a3b8';this.style.borderColor='rgba(217,119,6,0.2)'">
-                            <span style="width:6px;height:6px;border-radius:50%;background:#fbbf24;flex-shrink:0;"></span>Portugal — Cascais, Atlantic Coast
-                        </a>
-                        <a href="/spots/usa" style="display:inline-flex;align-items:center;gap:8px;color:#94a3b8;font-size:13px;font-weight:500;text-decoration:none;padding:7px 12px;border-radius:8px;border:1px solid rgba(217,119,6,0.2);background:rgba(217,119,6,0.04);transition:all 0.2s;" onmouseover="this.style.color='#60a5fa';this.style.borderColor='rgba(217,119,6,0.4)'" onmouseout="this.style.color='#94a3b8';this.style.borderColor='rgba(217,119,6,0.2)'">
-                            <span style="width:6px;height:6px;border-radius:50%;background:#60a5fa;flex-shrink:0;"></span>USA — Aquatic Park, San Francisco
-                        </a>
-                        <a href="/spots/seychelles" style="display:inline-flex;align-items:center;gap:8px;color:#94a3b8;font-size:13px;font-weight:500;text-decoration:none;padding:7px 12px;border-radius:8px;border:1px solid rgba(217,119,6,0.2);background:rgba(217,119,6,0.04);transition:all 0.2s;" onmouseover="this.style.color='#2dd4bf';this.style.borderColor='rgba(217,119,6,0.4)'" onmouseout="this.style.color='#94a3b8';this.style.borderColor='rgba(217,119,6,0.2)'">
-                            <span style="width:6px;height:6px;border-radius:50%;background:#2dd4bf;flex-shrink:0;"></span>Seychelles — Mahé, Beau Vallon
-                        </a>
-                        <div style="margin-top:16px;padding:14px;border-radius:10px;background:rgba(217,119,6,0.06);border:1px solid rgba(217,119,6,0.15);">
-                            <div style="font-size:12px;font-weight:600;color:#f59e0b;margin-bottom:4px;">Your country not listed?</div>
-                            <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">Suggest a spot and we'll add it. SwimLoading grows where swimmers are.</div>
-                        </div>
+                    <div id="footer-intl-links" style="display:flex;flex-direction:column;gap:8px;"></div>
+                    <div style="margin-top:16px;padding:14px;border-radius:10px;background:rgba(217,119,6,0.06);border:1px solid rgba(217,119,6,0.15);">
+                        <div style="font-size:12px;font-weight:600;color:#f59e0b;margin-bottom:4px;">Your country not listed?</div>
+                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">Suggest a spot and we'll add it. SwimLoading grows where swimmers are.</div>
                     </div>
 
                     <p style="font-size:12px;color:#334155;margin-top:20px;">
@@ -2165,6 +2146,16 @@
                     `<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">${c.spots}</div>` +
                     `</div>`
                 ).join('');
+            }
+
+            // 5. Footer "International" link column
+            const footerEl = document.getElementById('footer-intl-links');
+            if (footerEl) {
+                footerEl.innerHTML = INTL_COUNTRIES.map(c => {
+                    const href = c.slug ? `/spots/${c.slug}` : '/spots/europe';
+                    return `<a href="${href}" style="display:inline-flex;align-items:center;gap:8px;color:#94a3b8;font-size:13px;font-weight:500;text-decoration:none;padding:7px 12px;border-radius:8px;border:1px solid rgba(217,119,6,0.2);background:rgba(217,119,6,0.04);transition:all 0.2s;" onmouseover="this.style.color='${c.color}';this.style.borderColor='rgba(217,119,6,0.4)'" onmouseout="this.style.color='#94a3b8';this.style.borderColor='rgba(217,119,6,0.2)'">` +
+                        `<span style="width:6px;height:6px;border-radius:50%;background:${c.color};flex-shrink:0;"></span>${c.name} — ${c.spots}</a>`;
+                }).join('');
             }
         }
 
