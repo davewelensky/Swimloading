@@ -9,6 +9,7 @@ records were dumped. Severity is my assessment.
 |---|---|---|
 | `profiles` | **Fixed 2026-07-19** — own-row-only SELECT/UPDATE, `public_profiles` view, 4 gated RPCs | `INCIDENT_PROFILES_PUBLIC_READ.md` |
 | `club_roster` | **Fixed 2026-07-19** — own-row/admin/coach-scoped SELECT (write-side already correct), `club_member_directory` view, 2 gated RPCs | `INCIDENT_CLUB_ROSTER_PUBLIC_READ.md` |
+| `club_join_links` | **Fixed 2026-07-19** — admin/organiser-scoped SELECT (write-side already correct), 3 gated RPCs (2 intentionally anon-callable), redemption audit table. Also fixed the underlying weak code-generation bug (`Math.random()` → `crypto.getRandomValues()`) | `INCIDENT_CLUB_JOIN_LINKS_PUBLIC_READ.md` |
 
 ## 🔴 CRITICAL — confirmed unrestricted public SELECT
 
@@ -112,18 +113,21 @@ permission for." Ranked #1 for the next remediation pass.
 (the migration safety-check table itself, no real data). All match the
 app's documented public/community-data concept from `CLAUDE.md`.
 
-## Ranked next priorities (per the task's criteria: unauthenticated access, personal data, minors/youth data, health/safety data, financial/commercial sensitivity, write exposure, row count, application criticality)
+## Ranked next priorities (re-ranked 2026-07-19 after the `club_join_links` fix)
 
-1. **`club_join_links`** — unauthenticated access ✅, write/access-control exposure (highest weight — enables unauthorized club enrollment, not just reading), youth-club-applicable (Aquasharks), small row count (6) but each row is high-criticality, application-critical (club membership integrity). **Recommended as the immediate next task.**
-2. **`club_gala_results` / `club_race_results`** — unauthenticated access ✅, personal data (performance tied to a specific swimmer via `roster_id`), youth-applicable (club results include youth squads), but likely intentional public data — needs a product decision (confirm intentional vs. restrict), not necessarily a "fix" in the same sense.
-3. **`user_stats` / `user_badges`** — unauthenticated access ✅, personal data (activity patterns per user), low sensitivity, likely intentional — lowest priority of the three flagged items, confirm intent only.
+1. **`club_gala_results` / `club_race_results`** — unauthenticated access ✅, personal data (performance tied to a specific swimmer via `roster_id`), youth-applicable (club results include youth squads), but likely intentional public data — needs a product decision (confirm intentional vs. restrict), not necessarily a "fix" in the same sense. **Now the top-ranked open item.**
+2. **`user_stats` / `user_badges`** — unauthenticated access ✅, personal data (activity patterns per user), low sensitivity, likely intentional — lowest priority of the flagged items, confirm intent only.
+3. **Residual, not row-severity-ranked:** `is_club_admin()` vs `is_club_admin_or_organiser()` — two different admin-check functions with slightly different semantics, found during the `club_join_links` investigation. Not a public-exposure issue, but a schema-consistency one worth reconciling.
 
 **Not applying any migration in this task, per the explicit instruction — this section is a ranked list for the next task, nothing here has been changed.**
 
 ## Bottom line
 
-**Both `profiles` and `club_roster` are now fixed** (2026-07-19). The
-broader schema-wide sweep found the pattern extends beyond the two
-originally-suspected tables — `club_join_links` is a new, higher-priority-
-in-a-different-way finding (access control, not just data privacy) that
-should be the next remediation task.
+**`profiles`, `club_roster`, and `club_join_links` are now all fixed**
+(2026-07-19). The broader schema-wide sweep found the pattern extended
+beyond the two originally-suspected tables — `club_join_links` was a
+different-shaped risk (access control / unauthorised enrolment, not just
+data privacy) and is now closed, including fixing the underlying weak
+code-generation bug, not just the RLS gap. `club_gala_results`/
+`club_race_results` is the next open item, pending a product decision on
+whether public race results are intentional.
