@@ -3,6 +3,13 @@
 Metadata-only audit (policy definitions, column names, RLS status) — no
 records were dumped. Severity is my assessment.
 
+## ✅ FIXED
+
+| Table | Status | Incident report |
+|---|---|---|
+| `profiles` | **Fixed 2026-07-19** — own-row-only SELECT/UPDATE, `public_profiles` view, 4 gated RPCs | `INCIDENT_PROFILES_PUBLIC_READ.md` |
+| `club_roster` | **Fixed 2026-07-19** — own-row/admin/coach-scoped SELECT (write-side already correct), `club_member_directory` view, 2 gated RPCs | `INCIDENT_CLUB_ROSTER_PUBLIC_READ.md` |
+
 ## 🔴 CRITICAL — confirmed unrestricted public SELECT
 
 | Table | RLS enabled | Anon SELECT | Sensitive fields present | Unsafe policy | Severity |
@@ -18,6 +25,7 @@ definition (`USING (true)`, no auth check, same shape as the confirmed
 `profiles` issue) is conclusive enough on its own — a `USING (true)` SELECT
 policy with RLS enabled and `anon` holding table-level SELECT grant behaves
 identically regardless of which table it's on. Treating this as confirmed
+**(Both rows above are now fixed — kept for the historical record; see the ✅ FIXED table.)**
 without a redundant live call, consistent with "minimum possible requests."
 
 **This table is out of this task's named scope (`profiles`) but was found
@@ -63,10 +71,59 @@ it in this pass — see "Decisions required" in the incident report.
 - `journey data` — `crossing_prep_notes`/`crossing_attempts` covered above; `crossing_targets`/`crossing_evidence` not individually checked (same table-family, same owner, reasonable to assume same pattern but not proven).
 - Sponsor/contact tables beyond `growth_sponsors` — the proposed (unapplied) `sponsor_partners`/`sponsor_partner_audit` tables from the prior session don't exist yet, nothing to audit.
 
+## Exhaustive schema-wide sweep (2026-07-19, post `club_roster` fix)
+
+With both `profiles` and `club_roster` fixed, ran a full-schema query for
+`USING (true)` SELECT policies across every table in `public` — not just
+the hand-picked list above. Found **28 tables** with at least one
+unrestricted SELECT policy. Most are intentional public/community data
+matching the app's core concept (temp readings, spots, domains,
+campaigns, historical crossing records, badges) — flagged only where the
+column list suggested otherwise.
+
+### 🔴 New highest-priority finding: `club_join_links`
+
+**Not a data-privacy issue — an access-control bypass.** The table's
+`code` column is the literal club join/invite code, publicly SELECT-able
+via `USING (true)`. Confirmed via anon count check (6 rows — small
+number, but each row is a live bypass for an entire club): anyone,
+unauthenticated, can enumerate every club's active join code and use it
+to self-enroll — including Aquasharks, a club with youth squads — without
+going through whatever vetting the club intends. This is arguably more
+operationally dangerous than a pure PII leak: it's not "someone can read
+data," it's "someone can gain club membership they weren't given
+permission for." Ranked #1 for the next remediation pass.
+
+### 🟡 Worth a closer look, not yet assessed in depth
+
+| Table | Why flagged |
+|---|---|
+| `club_gala_results`, `club_race_results` | Contain `roster_id` + performance data (times, placements). Now that `club_roster` is fixed, these can no longer be trivially joined to real names by an anonymous caller — reduces joint risk significantly. Public race results may well be intentional for a competitive swim club (normal for swim meets), but should be confirmed as a deliberate product decision, not assumed. |
+| `user_stats` | Per-user gamification stats (`total_logs`, `current_streak`, `points`, `rank`). Likely intentional (matches leaderboard features), not independently confirmed. |
+| `user_badges` | Per-user badge/achievement records. Same reasoning as `user_stats` — likely intentional gamification data. |
+
+### 🟢 High-confidence intentional public data (not re-flagged)
+
+`spots`, `domains`, `countries`, `clubs`, `club_categories`, `campaigns`,
+`campaign_events`, `crossings`, `channel_solo_swims`, `historical_swims`,
+`historical_swimmers`, `historical_routes`, `historical_weather`,
+`june_challenge_config`, `june_challenge_events`, `spot_water_readings`,
+`spotlight_updates`, `ssa_qualifying_times`, `badges`, `_project_identity`
+(the migration safety-check table itself, no real data). All match the
+app's documented public/community-data concept from `CLAUDE.md`.
+
+## Ranked next priorities (per the task's criteria: unauthenticated access, personal data, minors/youth data, health/safety data, financial/commercial sensitivity, write exposure, row count, application criticality)
+
+1. **`club_join_links`** — unauthenticated access ✅, write/access-control exposure (highest weight — enables unauthorized club enrollment, not just reading), youth-club-applicable (Aquasharks), small row count (6) but each row is high-criticality, application-critical (club membership integrity). **Recommended as the immediate next task.**
+2. **`club_gala_results` / `club_race_results`** — unauthenticated access ✅, personal data (performance tied to a specific swimmer via `roster_id`), youth-applicable (club results include youth squads), but likely intentional public data — needs a product decision (confirm intentional vs. restrict), not necessarily a "fix" in the same sense.
+3. **`user_stats` / `user_badges`** — unauthenticated access ✅, personal data (activity patterns per user), low sensitivity, likely intentional — lowest priority of the three flagged items, confirm intent only.
+
+**Not applying any migration in this task, per the explicit instruction — this section is a ranked list for the next task, nothing here has been changed.**
+
 ## Bottom line
 
-**The `profiles` exposure is not isolated.** `club_roster` has the identical
-policy shape and is at least as severe given youth-squad data. Recommend
-treating both as one remediation effort, or at minimum queuing
-`club_roster` as the immediate next task after `profiles` ships — not a
-"someday" item.
+**Both `profiles` and `club_roster` are now fixed** (2026-07-19). The
+broader schema-wide sweep found the pattern extends beyond the two
+originally-suspected tables — `club_join_links` is a new, higher-priority-
+in-a-different-way finding (access control, not just data privacy) that
+should be the next remediation task.
