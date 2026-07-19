@@ -3,6 +3,70 @@
 Architectural and process decisions made during Phase 0 / early Phase 1, and
 decisions explicitly deferred to Dave.
 
+## 2026-07-19 continuation session
+
+### D10 — `user_roles` design follows `is_club_manager()`, not a new pattern
+
+**Decision:** `has_role()` is `STABLE SQL SECURITY DEFINER`, reads
+`auth.uid()` internally, takes no user-id parameter from the caller — the
+exact shape of the existing `is_club_manager(club_id)` function already
+protecting `club_admins`. Writes go through `grant_role()`/`revoke_role()`
+(`SECURITY DEFINER`, explicit self-grant rejection, requires caller already
+hold `platform_admin`) rather than any direct table policy.
+
+**Why:** consistency with a pattern already proven in this codebase, rather
+than inventing a second convention. Also directly satisfies requirement 5
+("prevent users from granting themselves roles") at the database level, not
+just in a UI — even a direct API call to `grant_role()` with
+`p_user_id = auth.uid()` raises an exception.
+
+### D11 — Registry entries are keyed by unique `id`, not `path + method`
+
+**Decision:** `scripts/lib/endpoint-registry.mjs` looks up entries by a
+unique `id` string, not by `(path, method)`.
+
+**Why:** building the registry's first draft, two entries for
+`GET /api/cron/purge-audit` existed — one `AUTH_REJECTION` ("no auth
+header"), one `DESTRUCTIVE` ("valid credential success path"). Both share
+the same path and method. A `find by path+method` lookup silently returned
+whichever was registered first (the safe one), meaning `classifyCall()`
+would have reported the DESTRUCTIVE call as safe on production — the exact
+bug class the registry exists to prevent, caught by its own unit test suite
+(`scripts/test-endpoint-registry.mjs`) before it ever reached a script
+capable of calling production. Keying by `id` makes every distinct *kind*
+of call to a URL a genuinely distinct, independently-classified thing.
+
+### D12 — `profiles` public-read RLS finding: documented, not fixed
+
+**Decision:** found during TASK-10's RLS inspection (a `"Public profiles
+are viewable by everyone"` policy with `qual: true`, no role restriction,
+covering 645 users' names/phone/DOB/address/emergency contacts) but not
+fixed in this pass.
+
+**Why:** out of scope for "internal-tool access control" — this is a
+different table, a different exposure vector (Supabase REST API directly,
+not a web route), and pre-dates this entire refactor effort. Per the
+existing constraint ("do not change RLS policies without documenting
+existing and proposed behaviour"), a fix here deserves its own dedicated,
+carefully-scoped pass — not a rider on an already-large session. Flagged at
+the top of the final report specifically so it doesn't get lost in the
+volume of this phase's other work.
+
+### D13 — Sponsor CRM notes field: two-phase import, Phase B needs per-entry review
+
+**Decision:** `sponsor_partners.notes` stays `NULL` for all 91 rows in the
+first (Phase A) import; only populated in a later, separately-approved
+Phase B.
+
+**Why:** sampled `Sponsors/index.html` note strings mix pure sourcing facts
+("SA distributor: Fluidlines, Greenpoint + Somerset West") with strategic
+commentary ("Approach Fluidlines as the wholesale intro, not Orca
+directly") and content tied to Carina Brüwer's personal sponsor search.
+Requirement 6/8 say not to migrate this blindly — splitting the import into
+two phases makes "blindly" structurally impossible: Phase A literally
+cannot include notes because the column is left out of that phase's insert
+statement, not just policy-excluded.
+
 ## Decided and implemented
 
 ### D1 — Contain the repo-wide static-file exposure via routing block, not file moves

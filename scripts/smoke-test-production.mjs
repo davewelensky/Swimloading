@@ -1,20 +1,32 @@
 #!/usr/bin/env node
 // Refactor Phase 0/1 smoke test.
 //
-// SAFETY HISTORY: an earlier version of this script sent bare GET requests
-// to /api/cron/purge-audit assuming that was "read-only." purge-audit.js had
-// no method check at the time, so those requests actually executed the real
-// unauthenticated DELETE against production. See docs/refactor/CHANGELOG.md
-// "INCIDENT" section for the full writeup. This version is a rewrite of the
-// safety model, not a patch — every request is classified BEFORE it is sent,
-// and destructive-endpoint requests require explicit opt-in that is only
-// honoured on local/preview targets.
+// SAFETY HISTORY — read docs/refactor/CHANGELOG.md for full detail:
+//   INCIDENT #1: an early version sent bare GET requests to
+//   /api/cron/purge-audit assuming that was "read-only." The endpoint had
+//   no method check at the time, so those requests executed the real
+//   unauthenticated DELETE against production.
+//   INCIDENT #2: a rewritten, classification-based version still hit the
+//   same endpoint's AUTH_REJECTION calls against production BEFORE the fix
+//   was deployed — classification alone doesn't guarantee safety if the
+//   target hasn't deployed the protection yet.
+//
+// THE PERMANENT FIX: this script no longer decides classification inline.
+// Every request comes from scripts/lib/endpoint-registry.mjs, looked up by
+// a unique id, and classifyCall() is the single hard stop — it structurally
+// cannot be bypassed by a CLI flag, because production requests never reach
+// the branch that even looks at --allow-destructive. See that file's
+// comments and scripts/test-endpoint-registry.mjs for the proof.
 //
 // Usage:
 //   node scripts/smoke-test-production.mjs --target=production
 //   node scripts/smoke-test-production.mjs --target=preview --base=https://<preview>.vercel.app
 //   node scripts/smoke-test-production.mjs --target=local --base=http://localhost:3000
-//   node scripts/smoke-test-production.mjs --target=preview --allow-destructive   (opt-in, preview/local only)
+//
+// ⚠️ Only run the cron section against --target=production AFTER a deploy
+// that includes the auth fix — see docs/refactor/SMOKE_TESTS.md.
+
+import { classifyCall, lookup, REGISTRY } from './lib/endpoint-registry.mjs';
 
 // ── Arg parsing ───────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
@@ -27,10 +39,11 @@ function flag(name, fallback = undefined) {
 
 const TARGET = String(flag('target', 'production'));
 const ALLOW_DESTRUCTIVE = Boolean(flag('allow-destructive', false));
+const CONFIRM_TOKEN = flag('confirm-token', null);
 
 const DEFAULT_BASE = {
   production: 'https://www.swimloading.com',
-  preview: null,   // must be supplied via --base for a real preview deployment
+  preview: null,
   local: 'http://localhost:3000',
 };
 
@@ -45,174 +58,103 @@ if (!BASE) {
   process.exit(1);
 }
 
-if (ALLOW_DESTRUCTIVE && TARGET === 'production') {
-  console.error('Unsafe configuration: --allow-destructive is not permitted with --target=production. Aborting before sending any request.');
-  process.exit(1);
-}
-
-console.log(`Smoke testing [${TARGET}] ${BASE}${ALLOW_DESTRUCTIVE ? '  (destructive tests ENABLED — ' + TARGET + ' only)' : ''}\n`);
-
-// ── Endpoint classification — decided BEFORE any request is sent ──────────
-// READ_ONLY             — safe on any target, any time.
-// AUTH_REJECTION_TEST    — a request to a sensitive endpoint where the ONLY
-//                          acceptable response is a rejection (401/405/500).
-//                          Safe on any target because it proves the endpoint
-//                          is NOT executing privileged work — but the script
-//                          must verify that assumption on every single call
-//                          and abort loudly if it's ever violated.
-// DESTRUCTIVE_DO_NOT_CALL — a request that would trigger real privileged
-//                          work if accepted (i.e. a valid-credential request
-//                          to a mutating endpoint). Never sent to production.
-//                          Only sent on local/preview, and only with
-//                          --allow-destructive. purge-audit is EXCLUDED from
-//                          this entirely, on every target, per explicit
-//                          instruction — its destructive path is never
-//                          exercised by this script, full stop.
-
-const DESTRUCTIVE_CRON_PATHS = [
-  '/api/cron/purge-audit',
-  '/api/cron/sensor-import',
-  '/api/cron/marine-temps',
-  '/api/cron/advance-challenge',
-];
-// Safety net for any future endpoint not explicitly listed above.
-const DESTRUCTIVE_PATTERN = /purge|delete|archive|import|mutate|advance|admin-write/i;
-const NEVER_EXERCISE_SUCCESS_PATH = new Set(['/api/cron/purge-audit']);
-
-function isDestructivePath(path) {
-  if (DESTRUCTIVE_CRON_PATHS.includes(path)) return true;
-  // The keyword pattern is a safety net for future *API* endpoints only —
-  // scoped to /api/ so static content paths that happen to contain a
-  // matching word (e.g. /archive/index.html) aren't misclassified.
-  return path.startsWith('/api/') && DESTRUCTIVE_PATTERN.test(path);
-}
+console.log(`Smoke testing [${TARGET}] ${BASE}${ALLOW_DESTRUCTIVE ? '  (--allow-destructive set)' : ''}\n`);
 
 let pass = 0;
 let fail = 0;
-let abortedUnsafe = false;
 
 function report(ok, label, detail) {
   if (ok) { pass++; console.log(`  OK   ${label}`); }
   else { fail++; console.log(`  FAIL ${label}${detail ? ' — ' + detail : ''}`); }
 }
 
-async function request(path, { method = 'GET', headers = {} } = {}) {
+async function rawRequest(path, { method = 'GET', headers = {} } = {}) {
   const res = await fetch(BASE + path, { method, headers, redirect: 'manual' });
   const body = await res.text().catch(() => '');
   return { status: res.status, body };
 }
 
-// A READ_ONLY call — any endpoint not on the destructive list/pattern.
-async function readOnly(path) {
-  if (isDestructivePath(path)) {
-    throw new Error(`Internal error: readOnly() called on a destructive-classified path "${path}" — this is a bug in the test script, not the target.`);
+// The ONLY function in this script that sends a network request. It always
+// goes through classifyCall() first — there is no code path that calls
+// rawRequest() directly for anything in the registry.
+async function callRegisteredEndpoint(id) {
+  const decision = classifyCall(id, { target: TARGET, allowDestructive: ALLOW_DESTRUCTIVE, confirmToken: CONFIRM_TOKEN });
+  if (!decision.allowed) {
+    return { skipped: true, reason: decision.reason };
   }
-  return request(path);
-}
-
-// An AUTH_REJECTION_TEST call — only ever sends missing/invalid credentials
-// or a disallowed method to a sensitive endpoint. Verifies the response is
-// actually a rejection; treats an unexpected 200 as a critical failure, not
-// just a normal failed assertion.
-async function authRejectionTest(path, opts, expectLabel) {
-  const { status } = await request(path, opts);
-  const rejected = status === 401 || status === 405 || status === 500;
-  if (status === 200) {
-    fail++;
-    console.log(`  FAIL ${path} (${expectLabel}) -> 200 — CRITICAL: endpoint accepted an unauthorised/malformed request and likely ran privileged work`);
-  } else {
-    report(rejected, `${path} (${expectLabel}) -> ${status}`, rejected ? undefined : 'expected 401/405/500');
-  }
+  const { entry } = decision;
+  const { status, body } = await rawRequest(entry.path, { method: entry.method, headers: entry.headers || {} });
+  return { skipped: false, status, body, entry };
 }
 
 async function main() {
-  console.log('Public routes (expect 200 or 301):');
-  for (const path of ['/', '/app', '/clubs', '/crossings/english-channel']) {
-    const { status } = await readOnly(path);
-    report(status === 200 || status === 301, `GET ${path} -> ${status}`);
+  console.log('Public routes:');
+  for (const id of ['home', 'app-shell', 'clubs', 'english-channel']) {
+    const r = await callRegisteredEndpoint(id);
+    const entry = lookup(id);
+    report(!r.skipped && entry.expected_status.includes(r.status), `${entry.method} ${entry.path} -> ${r.skipped ? 'SKIPPED: ' + r.reason : r.status}`);
   }
 
-  console.log('\nRepo docs (expect 404 — must not be publicly servable):');
-  for (const path of ['/CLAUDE.md', '/PARTNERS.md', '/GROWTH_HUB.md', '/MIGRATIONS.md', '/EXPANDING.md', '/CLUB_ONBOARDING.md']) {
-    const { status } = await readOnly(path);
-    report(status === 404, `GET ${path} -> ${status}`, status !== 404 ? 'still publicly readable' : undefined);
+  console.log('\nRepo docs + expanded exposure sweep (expect 404):');
+  for (const entry of REGISTRY.filter(e => e.classification === 'PUBLIC_READ' && e.expected_status.includes(404))) {
+    const r = await callRegisteredEndpoint(entry.id);
+    report(!r.skipped && entry.expected_status.includes(r.status), `${entry.method} ${entry.path} -> ${r.skipped ? 'SKIPPED: ' + r.reason : r.status}`, (!r.skipped && r.status !== 404) ? 'still publicly readable' : undefined);
   }
 
-  console.log('\nExpanded exposure sweep (expect 404 — sql/, scripts/, docs/, 14files/, archive/, Sponsors/):');
-  for (const path of [
-    '/Sponsors/', '/Sponsors/index.html',
-    '/sql/MIGRATION_TEMPLATE.sql', '/sql/applied/rls_policies.sql',
-    '/scripts/ship.sh', '/scripts/smoke-test-production.mjs',
-    '/docs/refactor/README.md',
-    '/14files/ONBOARDING_SQL.md', '/14files/liability-waiver.txt',
-    '/archive/index.html', '/Deploy_SwimLoading/index.html',
-  ]) {
-    const { status } = await readOnly(path);
-    report(status === 404, `GET ${path} -> ${status}`, status !== 404 ? 'still publicly readable' : undefined);
-  }
-
-  console.log('\nTrailing-slash / case bypass checks on the .md block (expect 404):');
-  for (const path of ['/CLAUDE.md/', '/CLAUDE.MD']) {
-    const { status } = await readOnly(path);
-    // Note: /CLAUDE.MD is expected 404 regardless (no such file exists by that
-    // case), so this mainly re-confirms the trailing-slash fix specifically.
-    report(status === 404, `GET ${path} -> ${status}`);
-  }
-
-  console.log('\nInternal pages (expect to load, but with noindex present):');
-  for (const path of ['/dave', '/admin', '/PHtest', '/growth-hub', '/content-calendar', '/caption-agent']) {
-    const { status, body } = await readOnly(path);
-    const hasNoindex = /<meta[^>]+name=["']robots["'][^>]+noindex/i.test(body);
-    report(status === 200, `GET ${path} -> ${status}`);
-    report(hasNoindex, `  ${path} has noindex meta tag`, !hasNoindex ? 'missing robots noindex tag' : undefined);
-  }
-
-  console.log('\nSitemap must not list internal routes:');
-  const { status: smStatus, body: sitemap } = await readOnly('/sitemap.xml');
-  if (smStatus === 200) {
-    // Match the exact <loc> URL, not a substring — e.g. "/dave" is a
-    // substring of the legitimate public page
-    // "/english-channel/swim/dave-berry-2022", which is not an internal
-    // route and must not be flagged.
-    for (const route of ['/dave', '/admin', '/PHtest', '/growth-hub', '/content-calendar', '/caption-agent', '/Sponsors']) {
-      const exactMatch = new RegExp(`<loc>https?://[^<]*${route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(/)?</loc>`, 'i').test(sitemap);
-      report(!exactMatch, `sitemap.xml excludes ${route}`, exactMatch ? 'internal route present in sitemap' : undefined);
-    }
-  } else {
-    report(false, 'GET /sitemap.xml', `expected 200, got ${smStatus}`);
-  }
-
-  console.log('\nCron endpoints — AUTH_REJECTION_TEST only (missing/invalid credential, wrong method).');
-  console.log('The authorised success path is never called by this script for any of these.');
-  for (const path of DESTRUCTIVE_CRON_PATHS) {
-    await authRejectionTest(path, { method: 'GET', headers: {} }, 'no auth header');
-    await authRejectionTest(path, { method: 'GET', headers: { Authorization: 'Bearer definitely-not-the-real-secret' } }, 'wrong auth header');
-    await authRejectionTest(path, { method: 'POST', headers: { Authorization: 'Bearer definitely-not-the-real-secret' } }, 'unsupported method');
-  }
-
-  // ── Optional, gated destructive-path check ───────────────────────────────
-  if (ALLOW_DESTRUCTIVE) {
-    if (TARGET === 'production') {
-      // Belt-and-suspenders — already aborted above, this should be unreachable.
-      abortedUnsafe = true;
-    } else {
-      console.log(`\n--allow-destructive set on target "${TARGET}": would attempt authorised-path checks for non-excluded endpoints.`);
-      console.log('purge-audit is hard-excluded from this on every target and is never called with a valid credential by this script.');
-      for (const path of DESTRUCTIVE_CRON_PATHS) {
-        if (NEVER_EXERCISE_SUCCESS_PATH.has(path)) {
-          console.log(`  SKIP ${path} — permanently excluded from success-path testing`);
-          continue;
-        }
-        console.log(`  SKIP ${path} — this script does not implement a valid-secret call even under --allow-destructive; supply CRON_SECRET manually and call it directly if you specifically need to verify the success path on ${TARGET}.`);
+  console.log('\nSitemap:');
+  {
+    const r = await callRegisteredEndpoint('sitemap');
+    report(!r.skipped && r.status === 200, `GET /sitemap.xml -> ${r.skipped ? 'SKIPPED: ' + r.reason : r.status}`);
+    if (!r.skipped && r.status === 200) {
+      for (const route of ['/dave', '/admin', '/PHtest', '/growth-hub', '/content-calendar', '/caption-agent', '/Sponsors']) {
+        // Exact <loc> match — a loose substring match previously false-
+        // flagged the legitimate public page
+        // /english-channel/swim/dave-berry-2022 as if it were /dave.
+        const exactMatch = new RegExp(`<loc>https?://[^<]*${route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(/)?</loc>`, 'i').test(r.body);
+        report(!exactMatch, `sitemap.xml excludes ${route}`, exactMatch ? 'internal route present in sitemap' : undefined);
       }
     }
   }
 
-  console.log(`\n${pass} passed, ${fail} failed`);
-  if (abortedUnsafe) {
-    console.error('Aborted: unsafe destructive configuration detected mid-run.');
-    process.exit(1);
+  console.log('\nInternal pages (expect to load, but with noindex present):');
+  for (const name of ['dave', 'admin', 'PHtest', 'growth-hub', 'content-calendar', 'caption-agent']) {
+    const id = `internal-page:${name}`;
+    const r = await callRegisteredEndpoint(id);
+    const entry = lookup(id);
+    report(!r.skipped && r.status === 200, `GET ${entry.path} -> ${r.skipped ? 'SKIPPED: ' + r.reason : r.status}`);
+    if (!r.skipped && r.status === 200) {
+      const hasNoindex = /<meta[^>]+name=["']robots["'][^>]+noindex/i.test(r.body);
+      report(hasNoindex, `  ${entry.path} has noindex meta tag`, !hasNoindex ? 'missing robots noindex tag' : undefined);
+    }
   }
+
+  console.log('\nCron endpoints — AUTH_REJECTION calls only.');
+  console.log('The authorised success path ids exist in the registry but are never invoked by this script on production,');
+  console.log('and purge-audit-success is permanently excluded on every target regardless of any flag.');
+  for (const cron of ['purge-audit', 'sensor-import', 'marine-temps', 'advance-challenge']) {
+    for (const suffix of ['no-auth', 'wrong-auth', 'wrong-method']) {
+      const id = `${cron}-${suffix}`;
+      const entry = lookup(id);
+      const r = await callRegisteredEndpoint(id);
+      if (r.skipped) {
+        report(false, `${entry.method} ${entry.path} (${entry.description}) — SKIPPED`, r.reason);
+        continue;
+      }
+      if (r.status === 200) {
+        fail++;
+        console.log(`  FAIL ${entry.method} ${entry.path} (${entry.description}) -> 200 — CRITICAL: endpoint accepted an unauthorised/malformed request and likely ran privileged work`);
+        continue;
+      }
+      report(entry.expected_status.includes(r.status), `${entry.method} ${entry.path} (${entry.description}) -> ${r.status}`, !entry.expected_status.includes(r.status) ? `expected ${entry.expected_status.join('/')}` : undefined);
+    }
+  }
+
+  // Destructive/success-path ids exist in the registry for documentation,
+  // but this script never calls them — classifyCall() would refuse them on
+  // production unconditionally, and refuses purge-audit-success everywhere.
+  // No code path here even attempts it; nothing to gate at runtime.
+
+  console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail > 0 ? 1 : 0);
 }
 

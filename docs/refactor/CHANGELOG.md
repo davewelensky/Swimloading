@@ -1,8 +1,10 @@
-# Changelog — Phase 0 / Phase 1 (2026-07-18)
+# Changelog — Phase 0 / Phase 1
 
-Branch: `refactor/phase-0-production-baseline`. All entries below are commits
-on this branch, not yet merged to `main` — production is **unaffected** until
-merge + deploy.
+## 2026-07-18 — Phase 0 baseline + first critical containment
+
+Branch: `refactor/phase-0-production-baseline`, merged to `main` at commit
+`668cce6` and deployed. Entries below (TASK-01 through TASK-09, both
+incidents) are from that work.
 
 ---
 
@@ -199,10 +201,71 @@ caught.
 
 ---
 
+## 2026-07-19 — Phase 1 continuation: role model design, Sponsor CRM design, investigations, test-framework hardening
+
+Working directly on `main` per this session's instructions (no new branch —
+everything below is investigation + proposals; nothing was applied or
+merged that changes live behavior, except the test-tooling files which are
+local-only scripts with no production effect until run).
+
+### TASK-10 — Investigated current access-control mechanisms (prerequisite for Step 1)
+
+- Queried `information_schema.columns` for `profiles`, `growth_founders`, `growth_sponsors`, `club_admins`. **New finding not in the prior session's register:** `profiles.is_admin` (boolean) exists — used in exactly 2 places (`app-nav.js`, `app.js`), both narrow (a UI toggle visibility check, and a "which admins get notified about new signups" query). Not used by any of the 5 internal tools. Too narrow (binary, no scope/resource) for the new model — documented, not migrated.
+- Queried `pg_policies` for RLS on those same tables. **Found `club_admins`' `is_club_manager(club_id)` function** — a `STABLE SECURITY DEFINER` SQL function checking `auth.uid()` against `club_members`/`club_admins` for a specific resource ID. Used as the direct precedent for this session's `has_role()` design.
+- **Also found (out of scope, flagged not fixed):** `profiles` has a `"Public profiles are viewable by everyone"` RLS policy with `qual: true` and no role restriction — meaning the `profiles` table (containing `full_name`, `phone`, `date_of_birth`, `address_line1/2`, `emergency_contact_name/phone`, `email`, `last_known_lat/lng` for 645 users) is readable by **anyone with the anon key, unauthenticated**, via a second, broader policy stacked on top of the already-broad `"Authenticated users can view profiles"` policy. This predates this session's work and is unrelated to internal-tool access control, but is severe enough to flag prominently — see "Items requiring Dave's decision" in the final report. **Not fixed — changing RLS requires the same pause-and-approve process as everything else in this phase, and this deserves its own dedicated, careful pass.**
+- Re-confirmed the 5 weakest internal pages' current auth (unchanged from the prior session's findings, re-verified against current `main`).
+
+### TASK-11 — Designed `user_roles` schema, `has_role()`/`grant_role()`/`revoke_role()` functions, RLS (Step 1)
+
+- **File:** `sql/2026-07-19_create-user-roles.sql` — written from `sql/MIGRATION_TEMPLATE.sql` per the mandatory `MIGRATIONS.md` 7-step process. **Status: proposed, not applied.** Awaiting Dave's review and the literal word "apply."
+- Generic table (`user_roles`: `id, user_id, role, scope, resource_id, granted_at, granted_by, revoked_at, metadata`), 7 roles, 5 scopes, exactly as specified. `has_role()` follows the `is_club_manager()` precedent. `grant_role()`/`revoke_role()` are the only writable surface (no direct INSERT/UPDATE/DELETE policy for any client role) — `grant_role()` explicitly rejects self-grants (`p_user_id = auth.uid()` → exception) and requires the caller already hold `platform_admin`.
+- Does not touch, replace, or migrate `growth_founders`, `club_admins`, or `profiles.is_admin` — all three keep their current, working purpose.
+- **Database objects changed: none yet — this is a file on disk, not an applied migration.**
+
+### TASK-12 — Defined the initial access matrix (Step 2)
+
+- **File:** `docs/refactor/ACCESS_MATRIX.md`. Covers all 6 pages named in the task (`/dave`, `/admin`, `/PHtest`, `/caption-agent`, `/content-calendar`, `/Sponsors/`, `/growth-hub`) with allowed roles, scope, mutability, direct-navigation status, unauthorised behavior, and audit requirement per page.
+- Key decision: `/growth-hub` keeps its existing `growth_founders` mechanism (it already has real, working RLS) and only gains an *additional* `platform_admin` path — not a full migration. Documented why in the file itself.
+
+### TASK-13 — Designed the Sponsor CRM schema + field classification + import plan (Step 4, schema only)
+
+- **Files:** `sql/2026-07-19_create-sponsor-crm.sql` (schema — `sponsor_partners` + `sponsor_partner_audit` tables, an audit trigger that logs status/contact/value changes and creation automatically, RLS restricted to `platform_admin`/`partner_manager`, **no DELETE policy at all** — hard delete is structurally impossible via the API, only `archived_at`/`status='archived'`). **Status: proposed, not applied**, and depends on `user_roles` existing first.
+- `docs/refactor/SPONSOR_CRM_PLAN.md` — field-by-field classification of the source `Sponsors/index.html` `BRANDS` array (operational / commercial-sensitive / personal-sensitive), and a two-phase import plan: Phase A (brand/category/tags/website/value/campaign-relevance — no personal data) then Phase B (the freeform `note` field, only after your explicit per-entry review, since sampled notes include strategic commentary tied to Carina Brüwer's personal sponsor search).
+- **No sponsor data has been imported.** Confirmed `growth_sponsors` (9 rows, used by `growth-hub.html`, RLS-gated via `growth_founders` email lookup) is a separate, smaller, unrelated tool — not conflated with this new CRM.
+
+### TASK-14 — Investigated `swimmers.html` and `galas.html` (Step 5)
+
+- **File:** `docs/refactor/ROUTE_INVESTIGATION.md`.
+- Confirmed via `curl` that both non-canonical Supabase project refs (`dwetwxpkqfjwbgkbxgat`, `ykcgbknreftuymhpfwxd`) are **unreachable** — DNS does not resolve, connection fails (exit code 6). Both projects are gone, not just misconfigured.
+- `/swimmers`: degrades gracefully (the dead RPC call is wrapped in try/catch with an early return on non-OK), IS linked from the live homepage ("Meet all five swimmers"), no visible breakage. **Recommendation: KEEP** (static), clean up the dead fetch separately.
+- `/galas`: the bare route shows a clean "No club specified" message (checked before any Supabase call), but a real `/galas/<slug>` would fail its club lookup against the dead project — not live-tested (a mutating tool, "no destructive production tests" constraint). Not linked from anywhere. `club-admin.html` already has an overlapping `hasGalaEntries` feature using the same table names. **Recommendation: RETIRE**, pending your confirmation that `club-admin.html`'s Entries tab covers what this page did.
+- **Neither route was deleted, retired, or repointed** — recommendations only, per the explicit approval gate.
+
+### TASK-15 — Verified legal document routes (Step 6)
+
+- **File:** `docs/refactor/ROUTE_INVESTIGATION.md` (same file as above).
+- Traced the onboarding consent flow (`index.html`'s Terms/Privacy/Waiver checkboxes → `openConsentModal()` → `app.js`'s hardcoded `consentDocuments` object) — confirmed the real, live legal text is inline in `app.js`, not fetched from any route.
+- Confirmed `14files/liability-waiver.txt`, `14files/privacy-policy.txt`, `14files/terms-of-service.txt` are referenced **nowhere** in the app (full-repo grep, zero hits) — orphaned drafts.
+- **Confirmed the prior session's `.vercelignore`/`vercel.json` block of `14files/` broke nothing** — nothing pointed to those paths before the block existed.
+- Content diff between the drafts and `consentDocuments` not performed (out of scope — no legal content rewriting) — flagged as a quick manual check for Dave.
+
+### TASK-16 — Hardened the test framework with a code-level, registry-based hard stop (Step 7)
+
+- **Problem:** two prior incidents happened even with a classification-aware smoke test, because classification lived as inline logic in the script itself, keyed loosely by path+method.
+- **Files:** new `scripts/lib/endpoint-registry.mjs` (every known endpoint call registered by a **unique id**, not path+method — TASK-16 specifically found and fixed a bug where two different-risk calls to the same URL, e.g. "no auth" vs. "valid credential", collided under a path+method key and the lookup silently returned the wrong, more-permissive entry). `classifyCall(id, {target, allowDestructive, confirmToken})` is the single hard stop: production requests to `MUTATING`/`DESTRUCTIVE` entries are refused in a code branch that never even reads `allowDestructive`; `purge-audit-success` is refused on every target unconditionally via a second, independent exclusion list; unregistered ids are refused, not assumed safe; preview/local destructive calls require `--allow-destructive` AND a preview/local target AND `--confirm-token=CONFIRM-DESTRUCTIVE-TEST` (exact literal), all three.
+- New `scripts/test-endpoint-registry.mjs` — 126 local assertions, 0 network calls, proving the above (including "production refuses X even with every flag set to try to force it through").
+- `scripts/smoke-test-production.mjs` rewritten to route every request through `classifyCall()` — no code path constructs an ad-hoc request outside the registry. Re-run against production post-rewrite: 55/55 passed, zero destructive calls attempted (structurally impossible given the code path — `main()` never calls a `DESTRUCTIVE`/`MUTATING` id at all).
+- **No network call was made to any production mutation endpoint while building this** — all 126 registry-behavior assertions and the auth-helper's 6 assertions are pure in-process logic tests.
+
+### TASK-17 — Vercel manual checklist (Step 8)
+
+- **File:** `docs/refactor/VERCEL_MANUAL_CHECKLIST.md`. Production items (deploy source, branch, `CRON_SECRET`) confirmed via GitHub API / prior smoke-test evidence and marked verified. Preview/Development `CRON_SECRET`, cron execution history, `.vercelignore` isolation, and the dashboard rollback mechanism marked pending — genuinely require dashboard access this session doesn't have.
+
 ## Not yet done (see DECISIONS.md for why)
 
-- Shared role mechanism for internal pages (D4) — needs your sign-off, touches admin-role structure.
-- Real authenticated rebuild of `Sponsors/index.html` (D5) — needs D4 first.
-- Git remote / Vercel deploy-source confirmation (D6) — needs you to check the Vercel dashboard directly.
-- RLS review of admin-page-backing tables (D7) — not started.
-- `swimmers.html` / `galas.html` non-canonical Supabase project investigation (SECURITY_REGISTER.md §6) — not started.
+- Shared role mechanism for internal pages (D4) — schema designed (TASK-11), **not applied**, needs your sign-off + the literal word "apply."
+- Real authenticated rebuild of `Sponsors/index.html` (D5) — schema designed (TASK-13), **no data imported**, needs your sign-off on both the migration and the two-phase import plan.
+- Git remote / Vercel deploy-source confirmation (D6) — **RESOLVED** this session (see TASK-10-era investigation last session, confirmed again via `VERCEL_MANUAL_CHECKLIST.md`).
+- RLS review of admin-page-backing tables (D7) — partially done as a side effect of TASK-10 (found the `profiles` public-read issue); a full table-by-table review is still not done.
+- `swimmers.html` / `galas.html` investigation (SECURITY_REGISTER.md §9) — **RESOLVED** this session (TASK-14) — recommendations made (KEEP / RETIRE), neither route changed pending your approval.
+- **NEW: `profiles` table publicly readable by unauthenticated users** (found in TASK-10) — not fixed, needs its own pass.

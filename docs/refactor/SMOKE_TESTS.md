@@ -1,35 +1,63 @@
 # Smoke Tests
 
-Two scripts:
+Four scripts, in order of what they test:
 
+- **`scripts/lib/endpoint-registry.mjs`** — not a runnable script; the single
+  source of truth for every endpoint the test tooling is allowed to call,
+  its classification, and whether it mutates state. This is the actual
+  enforcement mechanism (see safety rule below) — not documentation of one.
+- **`scripts/test-endpoint-registry.mjs`** — local unit tests proving the
+  registry's production hard stop cannot be bypassed by any combination of
+  flags. No network calls.
 - **`scripts/test-cron-auth.mjs`** — local, in-process unit test of the
   shared cron auth helper (`api/cron/_auth.js`). No network calls, no
-  Supabase, doesn't import the actual cron handlers. Safe anywhere, anytime,
-  including with real production env vars loaded.
+  Supabase, doesn't import the actual cron handlers.
 - **`scripts/smoke-test-production.mjs`** — HTTP-level smoke test against a
-  real deployment (local/preview/production). Rewritten after two incidents
-  (see below) to classify every request before sending it.
+  real deployment (local/preview/production). Looks up every request in the
+  registry by id before sending it — there is no code path that constructs
+  an ad-hoc request.
 
 ## ⚠️ Safety rule, read before running
 
-**Never run the cron section of `smoke-test-production.mjs` against
-`--target=production` before a deploy that includes the auth fix.** The
-script classifies requests as `READ_ONLY`, `AUTH_REJECTION_TEST`, or a
-(never-implemented-for-production) destructive success path — but
-`AUTH_REJECTION_TEST` only stays safe if the target already rejects
-unauthenticated requests. Testing "does this reject" against an endpoint
-that currently accepts everything is not a safe operation, regardless of
-how the request is labeled — this caused two real unauthenticated
-`purge-audit` runs against production during this work (see
-`docs/refactor/CHANGELOG.md`, INCIDENT #1 and #2).
+Two production incidents happened during this work (both against
+`/api/cron/purge-audit` — full writeup in `docs/refactor/CHANGELOG.md`,
+INCIDENT #1 and #2). The lesson from both: **classification alone doesn't
+guarantee safety if the target hasn't deployed the protection yet.** Testing
+"does this reject" against an endpoint that currently accepts everything is
+not safe, no matter how the request is labeled client-side.
 
-Sequence:
-1. Before deploy: only run the plain 404/exposure checks (Section 1 style —
-   `curl` or the "Repo docs" / "Expanded exposure sweep" sections), never
-   the cron section, against production.
+**The permanent fix (this session) is a code-level hard stop, not a
+convention:** `classifyCall()` in `scripts/lib/endpoint-registry.mjs` decides
+whether a request is allowed, and it is the *only* function the smoke-test
+script uses to decide that — `--allow-destructive` is never even consulted
+when `target === 'production'` for a `MUTATING`/`DESTRUCTIVE` entry; the
+code branches away from that flag entirely. `scripts/test-endpoint-registry.mjs`
+proves this with 126 passing assertions, including "production refuses X
+even with every flag set to try to force it through."
+
+Sequence that still matters operationally (the registry prevents *destructive*
+mistakes, not *premature* ones):
+1. Before a deploy: only run checks whose registry entries are `PUBLIC_READ`
+   (plain 404/200 checks) against production.
 2. Deploy the fix.
-3. After deploy: the full script, including the cron section, is safe to
-   run against `--target=production`.
+3. After deploy: the full script, including `AUTH_REJECTION` cron checks, is
+   safe to run against `--target=production`.
+
+## `scripts/test-endpoint-registry.mjs`
+
+```bash
+node scripts/test-endpoint-registry.mjs
+```
+
+126 assertions, 0 network calls. Proves: every `DESTRUCTIVE`/`MUTATING`
+registry entry is refused on production regardless of flags; `purge-audit-success`
+is refused on *every* target (a second, independent exclusion beyond the
+general production rule, given its incident history); unregistered endpoint
+ids are refused rather than assumed safe; `AUTH_REJECTION` and `PUBLIC_READ`
+entries are allowed on production with no special flags; preview/local
+destructive calls require all three of `--allow-destructive` + a
+preview/local target + the exact `--confirm-token=CONFIRM-DESTRUCTIVE-TEST`
+literal, and refuse if any one of those three is missing or wrong.
 
 ## `scripts/test-cron-auth.mjs`
 
@@ -40,7 +68,9 @@ node scripts/test-cron-auth.mjs
 Covers: missing secret configuration, missing request credential, invalid
 request credential, unsupported method (DELETE and POST), valid credential
 in a local test environment. All 6 assertions pass against the current
-`api/cron/_auth.js`.
+`api/cron/_auth.js`. Tests the *server-side* auth helper directly — separate
+from, and complementary to, the registry (which governs the *test client's*
+behavior).
 
 ## `scripts/smoke-test-production.mjs`
 
@@ -48,30 +78,40 @@ in a local test environment. All 6 assertions pass against the current
 node scripts/smoke-test-production.mjs --target=production
 node scripts/smoke-test-production.mjs --target=preview --base=https://<preview>.vercel.app
 node scripts/smoke-test-production.mjs --target=local --base=http://localhost:3000
-node scripts/smoke-test-production.mjs --target=preview --allow-destructive   # opt-in, preview/local only
 ```
 
 `--target` is required (defaults to `production` if omitted — be deliberate
-about this). `--allow-destructive` combined with `--target=production`
-aborts immediately, before any request is sent, exit code 1.
+about this). This script does not currently attempt any `DESTRUCTIVE`/
+`MUTATING` registry entry at all — those ids exist in the registry for
+documentation, but `main()` never calls `callRegisteredEndpoint()` on them.
+If a future need arises to test a non-excluded endpoint's success path on
+preview/local, that would require adding a call in the script AND passing
+`--allow-destructive --confirm-token=CONFIRM-DESTRUCTIVE-TEST` on a
+preview/local target — `purge-audit-success` specifically can never be
+called by this script regardless, per its permanent exclusion in the
+registry.
 
-### Request classification
+### Classifications (from `scripts/lib/endpoint-registry.mjs`)
 
 | Class | Meaning | Where it can run |
 |---|---|---|
-| `READ_ONLY` | GET on a non-mutating path (public pages, doc-exposure checks, sitemap) | Any target, anytime |
-| `AUTH_REJECTION_TEST` | Missing/invalid credential or wrong method sent to a cron endpoint — the *only* acceptable response is 401/405/500. An unexpected 200 is flagged as **CRITICAL**, not a normal failed assertion. | Any target, **but only once the target's fix is deployed** — see safety rule above |
-| destructive success path | A valid-credential call to a mutating endpoint | Never implemented for `/api/cron/purge-audit` at all, on any target, under any flag. For the other three cron endpoints, this script does not send such a call even under `--allow-destructive` — it prints a `SKIP` line explaining that you'd need to call it manually with the real secret if you specifically need to verify the success path on local/preview. |
+| `PUBLIC_READ` | GET with no auth expectation — public pages, 404 exposure checks, sitemap | Any target, anytime |
+| `AUTH_READ` | Page loads for anyone, but protected content is client/RLS gated (the 6 internal page shells) | Any target, anytime |
+| `AUTH_REJECTION` | Missing/invalid credential or wrong method sent to a cron endpoint — only 401/405 is acceptable | Any target, **but only once the target's fix is deployed** |
+| `MUTATING` | Any endpoint that writes/updates without necessarily being catastrophic | Never on production; preview/local only with flag+target+token |
+| `DESTRUCTIVE` | A valid-credential call to a cron endpoint (the success path) | Never on production, ever, regardless of flags. `purge-audit-success` never, on any target. |
 
 ### What it checks
 
-- Public routes (`/`, `/app`, `/clubs`, `/crossings/english-channel`) → 200/301
-- Repo docs (`/CLAUDE.md`, `/PARTNERS.md`, `/GROWTH_HUB.md`, `/MIGRATIONS.md`, `/EXPANDING.md`, `/CLUB_ONBOARDING.md`) → 404
-- Expanded exposure sweep (`/Sponsors/`, `/sql/*`, `/scripts/*`, `/docs/*`, `/14files/*`, `/archive/*`, `/Deploy_SwimLoading/*`) → 404
-- Trailing-slash bypass on the `.md` block (`/CLAUDE.md/`) → 404
-- Internal pages (`/dave`, `/admin`, `/PHtest`, `/growth-hub`, `/content-calendar`, `/caption-agent`) → 200 + `noindex` present in the response body
-- Sitemap excludes all internal routes
-- All four cron endpoints reject missing credential, wrong credential, and wrong method
+Every check comes from the registry — see `scripts/lib/endpoint-registry.mjs`
+for the exhaustive list. Summary: public routes (200/301), repo-doc and
+expanded exposure sweep (`.md` files, `Sponsors/`, `sql/`, `scripts/`,
+`docs/`, `14files/`, `archive/`, `Deploy_SwimLoading/` — all 404), the
+`.md` trailing-slash/case bypass checks, 6 internal page shells (200 +
+`noindex`), sitemap exact-match exclusion of internal routes (fixed from an
+earlier loose substring match that false-flagged the legitimate public page
+`/english-channel/swim/dave-berry-2022`), and all 4 cron endpoints'
+`AUTH_REJECTION` behavior (missing/wrong credential, wrong method).
 
 ## Manual checks (not scripted)
 
@@ -82,9 +122,8 @@ aborts immediately, before any request is sent, exit code 1.
   any kind (see SECURITY_REGISTER.md §3), so "does it load" and "is data
   exposed" are the same question there.
 - Confirm `CRON_SECRET` is set in Vercel → Project Settings → Environment
-  Variables for **Preview** and **Development**, not just Production (this
-  session could only confirm Production — see README.md prerequisite
-  checks).
+  Variables for **Preview** and **Development** — see
+  `docs/refactor/VERCEL_MANUAL_CHECKLIST.md`.
 - To verify a cron endpoint's actual *authorised* success path, do it
   manually with the real `CRON_SECRET`, understanding it will actually
-  execute the job. This is intentionally not automated.
+  execute the job. This is intentionally not automated for any endpoint.
