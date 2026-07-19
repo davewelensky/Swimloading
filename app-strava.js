@@ -560,6 +560,19 @@ async function submitStravaLog() {
         // Mark the activity as imported in cached list
         showStravaSuccessModal();
 
+        // Identity Layer V1: show the Swim Card for the imported swim (flag-gated).
+        // No fallback modal here — the pre-existing Strava flow had none, and a
+        // card failure must never affect the already-saved log.
+        if (typeof identityPostLogShare === 'function' && data.log_id) {
+            await identityPostLogShare({
+                logId: data.log_id,
+                spotName: selectedSpot ? selectedSpot.name : 'Swim spot',
+                temp: parseFloat(temp),
+                conditions: conditions || null,
+                source: 'strava',
+            }, null);
+        }
+
         // Refresh dashboard so new log appears
         if (typeof loadDashboard === 'function') loadDashboard();
 

@@ -371,7 +371,7 @@
             // Check if user needs onboarding
             const { data: profile } = await supabaseClient
                 .from('profiles')
-                .select('terms_accepted_at, avatar_url, display_name, phone, onboarding_completed_at, home_domain')
+                .select('terms_accepted_at, avatar_url, display_name, phone, onboarding_completed_at, home_domain, date_of_birth, identity_public, identity_public_enabled_at')
                 .eq('id', currentUser.id)
                 .maybeSingle();
 
@@ -7774,9 +7774,20 @@
                 // Check for new badges after logging a temp
                 await checkAndAwardBadges();
 
-                // Phase 1: Show WhatsApp share sheet for live (non-backdated) logs
+                // Phase 1: Post-log share for live (non-backdated) logs.
+                // Identity Layer V1 (flag identity_layer_v1): ONE Swim Card panel
+                // replaces the share sheet; card failure falls back to the
+                // original share sheet. Flag off → original flow, unchanged.
                 if (!loggedAt) {
-                    await showShareSheet(spotNameForConfirm, temp, conditions);
+                    const shareLogId = data?.[0]?.id || null;
+                    if (typeof identityPostLogShare === 'function') {
+                        await identityPostLogShare(
+                            { logId: shareLogId, spotName: spotNameForConfirm, temp, conditions, source: 'native' },
+                            () => showShareSheet(spotNameForConfirm, temp, conditions)
+                        );
+                    } else {
+                        await showShareSheet(spotNameForConfirm, temp, conditions);
+                    }
                     // Broadcast push to subscribers at this location
                     const loggedSpot = spots.find(s => s.id === spotId);
                     if (loggedSpot?.domain) {
