@@ -106,6 +106,44 @@ Every partner must have all of the following before going live:
 
 ---
 
+### eo SwimBETTER
+
+| Field | Value |
+|-------|-------|
+| **Status** | Active partner — hero page live |
+| **Hero page** | `/partners/eolab` |
+| **Welcome card** | [UNCONFIRMED — verify against welcome.html] |
+| **Geography** | [UNCONFIRMED] |
+| **Contact** | [UNCONFIRMED] |
+
+**What they offer members (per their hero page copy):**
+- eo SwimBETTER technique analysis — "used by Kyle Chalmers, 14 national federations, and 50+ NCAA colleges"
+- Prize giveaway mechanic: "Win one through SwimLoading"
+
+**Outstanding actions:**
+- [ ] This entry was backfilled from the live hero page only (2026-07-19) — confirm full commercial terms, contact name, and geography with Dave before treating this section as complete.
+
+---
+
+### BlueSeventy UK
+
+| Field | Value |
+|-------|-------|
+| **Status** | Active partner — hero page live |
+| **Hero page** | `/partners/blueseventy` |
+| **Welcome card** | [UNCONFIRMED — verify against welcome.html] |
+| **Geography** | UK and Channel Islands (per hero page copy) |
+| **Contact** | [UNCONFIRMED] |
+
+**What they offer members (per their hero page copy):**
+- 15% off open water swim gear, goggles, and training wetsuits
+- Discount code exclusive to UK/Channel Islands members
+
+**Outstanding actions:**
+- [ ] This entry was backfilled from the live hero page only (2026-07-19) — confirm discount code, contact name, and full commercial terms with Dave before treating this section as complete.
+
+---
+
 ## Coming Soon Partners
 
 ---
@@ -313,7 +351,7 @@ Carina needs a primary swimwear sponsor first. **Top 5 right now: JOLYN, Funkita
 | Brand | Notes |
 |-------|-------|
 | Arena | Existing relationship history |
-| Funkita | Australian, female-focused, strong open-water positioning |
+| Funkita | Australian, female-focused, strong open-water positioning. **Contacted Jul 13 2026 — replied Jul 14 2026 (Jen, Customer Service): no budget for a sponsorship package, but offered Carina a product voucher if she wants to wear Funkita for training/racing. No SwimLoading community angle offered.** |
 | JOLYN | Massive female swimming audience, aggressive ambassador programme |
 | FINIS | Performance-first brand |
 | Aquasphere | Good fit for open-water |

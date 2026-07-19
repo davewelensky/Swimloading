@@ -78,47 +78,11 @@
         <p>Every page, panel and athlete dashboard — one place.</p>
     </div>
 
-    <!-- ATHLETES -->
+    <!-- ATHLETES — loaded live from dave_dashboard_athletes, see loadAthletes() -->
     <div class="section">
         <div class="section-label">Athletes</div>
-
-        <div class="athlete-card">
-            <div class="athlete-avatar">L</div>
-            <div class="athlete-info">
-                <div class="athlete-name">Lindi Mitchell</div>
-                <div class="athlete-meta">English Channel · lindi@mitchell.co.za</div>
-            </div>
-            <div class="athlete-links">
-                <a href="/journeys/lindi-english-channel" class="athlete-link al-cyan" target="_blank">Journey page</a>
-                <a href="/crossing-prep?uid=392a8281-3c91-4022-b6bb-1d8acf9e5ea0" class="athlete-link al-green" target="_blank">Her dashboard</a>
-            </div>
-        </div>
-
-        <div class="athlete-card">
-            <div class="athlete-avatar">J</div>
-            <div class="athlete-info">
-                <div class="athlete-name">James</div>
-                <div class="athlete-meta">English Channel · logging conditions</div>
-            </div>
-            <div class="athlete-links">
-                <a href="/journeys/james-english-channel" class="athlete-link al-cyan" target="_blank">Journey page</a>
-                <a href="/crossing-prep?uid=6f003f40-1919-4ea6-98b0-efd5013e48eb" class="athlete-link al-green" target="_blank">His dashboard</a>
-            </div>
-        </div>
-
-        <div class="athlete-card">
-            <div class="athlete-avatar">L</div>
-            <div class="athlete-info">
-                <div class="athlete-name">Lynne MacGregor</div>
-                <div class="athlete-meta">English Channel · lm0303@hotmail.com</div>
-            </div>
-            <div class="athlete-links">
-                <a href="/journeys/lynne-english-channel" class="athlete-link al-cyan" target="_blank">Journey page</a>
-                <a href="/crossing-prep?uid=3b871129-8d84-4b22-ab2f-f95449447e9f" class="athlete-link al-green" target="_blank">Her dashboard</a>
-            </div>
-        </div>
-
-        <div class="note">Dashboard admin view: you must be logged in as DaveW. Each "Her/His dashboard" link loads their data in read-only mode with an amber banner. Target date saving is disabled in admin view.</div>
+        <div id="athletesContainer"><div class="note">Loading athletes…</div></div>
+        <div class="note">Dashboard admin view: you must be logged in as DaveW. Each dashboard link loads their data in read-only mode with an amber banner. Target date saving is disabled in admin view. To add a new athlete, insert a row into <code>dave_dashboard_athletes</code> — see sql/applied/2026-07-19_dave-dashboard-athletes.sql.</div>
     </div>
 
     <!-- CLUBS -->
@@ -263,31 +227,11 @@
         </div>
     </div>
 
-    <!-- PARTNER PAGES -->
+    <!-- PARTNER PAGES — loaded live from partner_pages, see loadPartners() -->
     <div class="section">
         <div class="section-label">Partner Pages</div>
-        <div class="link-grid">
-            <a href="/partners/maurten" class="link-card" target="_blank">
-                <span class="card-tag tag-green">Partner</span>
-                <span class="card-title">Maurten</span>
-                <span class="card-sub">Partner hero page</span>
-            </a>
-            <a href="/partners/sis" class="link-card" target="_blank">
-                <span class="card-tag tag-green">Partner</span>
-                <span class="card-title">SiS</span>
-                <span class="card-sub">Partner hero page</span>
-            </a>
-            <a href="/partners/blu-smooth" class="link-card" target="_blank">
-                <span class="card-tag tag-green">Partner</span>
-                <span class="card-title">Blu Smooth</span>
-                <span class="card-sub">Partner hero page</span>
-            </a>
-            <a href="/partners/themagic5" class="link-card" target="_blank">
-                <span class="card-tag tag-green">Partner</span>
-                <span class="card-title">THEMAGIC5</span>
-                <span class="card-sub">Partner hero page</span>
-            </a>
-        </div>
+        <div id="partnersContainer" class="link-grid"><div class="note">Loading partners…</div></div>
+        <div class="note">Source of truth for full commercial detail is PARTNERS.md. This list is a queryable mirror (partner_pages table) because *.md files are excluded from deployment — update both when a partner is added, per PARTNERS.md's own process.</div>
     </div>
 
     <!-- CLUB GUIDES -->
@@ -324,6 +268,60 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: true, storageKey: 'sb-szgkzuswelntnevobnoh-auth-token' }
 });
 
+function escapeHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Athletes and partners are pulled live from Supabase (dave_dashboard_athletes,
+// partner_pages) instead of hardcoded HTML — see sql/applied/2026-07-19_*.sql.
+// RLS on both tables restricts reads to auth.email() = dave.welensky@gmail.com,
+// so this session (already gated by init() above) is the only one that can see them.
+async function loadAthletes() {
+    const container = document.getElementById('athletesContainer');
+    const { data, error } = await sb.from('dave_dashboard_athletes').select('*').order('sort_order');
+    if (error) {
+        container.innerHTML = `<div class="note">Could not load athletes: ${escapeHtml(error.message)}</div>`;
+        return;
+    }
+    if (!data || data.length === 0) {
+        container.innerHTML = '<div class="note">No athletes registered yet.</div>';
+        return;
+    }
+    container.innerHTML = data.map(a => `
+        <div class="athlete-card">
+            <div class="athlete-avatar">${escapeHtml(a.display_name.charAt(0))}</div>
+            <div class="athlete-info">
+                <div class="athlete-name">${escapeHtml(a.display_name)}</div>
+                <div class="athlete-meta">${escapeHtml(a.crossing_name)}${a.meta_note ? ' · ' + escapeHtml(a.meta_note) : ''}</div>
+            </div>
+            <div class="athlete-links">
+                <a href="/journeys/${encodeURIComponent(a.journey_slug)}" class="athlete-link al-cyan" target="_blank">Journey page</a>
+                <a href="/crossing-prep?uid=${encodeURIComponent(a.dashboard_uid)}" class="athlete-link al-green" target="_blank">Dashboard</a>
+            </div>
+        </div>`).join('');
+}
+
+async function loadPartners() {
+    const container = document.getElementById('partnersContainer');
+    const { data, error } = await sb.from('partner_pages').select('*').order('sort_order');
+    if (error) {
+        container.innerHTML = `<div class="note">Could not load partners: ${escapeHtml(error.message)}</div>`;
+        return;
+    }
+    if (!data || data.length === 0) {
+        container.innerHTML = '<div class="note">No partners registered yet.</div>';
+        return;
+    }
+    container.innerHTML = data.map(p => `
+        <a href="${escapeHtml(p.hero_page)}" class="link-card" target="_blank">
+            <span class="card-tag ${p.section === 'active' ? 'tag-green' : 'tag-amber'}">${p.section === 'active' ? 'Active' : 'Coming soon'}</span>
+            <span class="card-title">${escapeHtml(p.name)}</span>
+            <span class="card-sub">${escapeHtml(p.status_note || '')}</span>
+        </a>`).join('');
+}
+
 async function init() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session || session.user.id !== DAVE_ID) {
@@ -333,6 +331,7 @@ async function init() {
     const name = session.user.user_metadata?.display_name || 'Dave';
     document.getElementById('navLabel').textContent = `Logged in as ${name}`;
     document.getElementById('main').style.display = 'block';
+    await Promise.all([loadAthletes(), loadPartners()]);
 }
 
 init();
