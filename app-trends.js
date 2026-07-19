@@ -894,7 +894,7 @@
                         return `
                          <div id="templog-${log.id}" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05);">
                             <div style="flex: 1;">
-                                <span style="font-weight: 600; font-size: 13px;">${profileMap[log.user_id] || 'Anonymous'}</span>
+                                <span style="font-weight: 600; font-size: 13px;">${resolveCommunityDisplayName(profileMap[log.user_id])}</span>
                                 <div style="font-size: 11px; color: var(--text-secondary);">${new Date(log.logged_at || log.created_at).toLocaleString()}</div>
                                 ${log.logged_at && Math.abs(new Date(log.logged_at) - new Date(log.created_at)) > 300000 ? '<span style="font-size: 9px; background: rgba(245,158,11,0.15); color: var(--warning); padding: 1px 5px; border-radius: 4px;">backdated</span>' : ''}
                                 ${condLine}

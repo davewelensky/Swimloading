@@ -201,7 +201,7 @@
                     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:${isTop3?'12px 14px':'9px 12px'};background:${bg};border:1px solid ${border};border-radius:10px;margin-bottom:6px;">
                         <div style="display:flex;align-items:center;gap:10px;">
                             ${iconEl}
-                            <span style="color:var(--text);font-weight:${isTop3?'700':isMe?'600':'400'};font-size:${isTop3?'14px':'13px'};">${row.display_name || 'Anonymous'}${isMe?' <span style="font-size:11px;color:var(--ocean-light);font-weight:600;">(you)</span>':''}</span>
+                            <span style="color:var(--text);font-weight:${isTop3?'700':isMe?'600':'400'};font-size:${isTop3?'14px':'13px'};">${resolveCommunityDisplayName(row.display_name)}${isMe?' <span style="font-size:11px;color:var(--ocean-light);font-weight:600;">(you)</span>':''}</span>
                         </div>
                         <div style="text-align:right;">
                             <div style="color:${pts_color};font-weight:700;font-size:${isTop3?'14px':'13px'};">${row.total_points} pts</div>

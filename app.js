@@ -1,3 +1,18 @@
+        // Shared community-identity resolver (2026-07-19). Accepts either a
+        // raw display_name string or a profile-shaped object ({display_name}).
+        // A user's onboarding-set display_name IS their consented community
+        // identity — there's no separate per-field "show my name" toggle in
+        // this product (checked: only data_consent_at exists, a generic
+        // onboarding consent, not name-specific). Falls back to a neutral
+        // "Swimmer" label (not "Anonymous") for the small number of profiles
+        // with no usable name set. Global scope — used by app-nav.js and
+        // app-trends.js too (all plain <script> tags, no modules).
+        function resolveCommunityDisplayName(nameOrProfile) {
+            const raw = (typeof nameOrProfile === 'string') ? nameOrProfile : nameOrProfile?.display_name;
+            const trimmed = (raw || '').trim();
+            return trimmed || 'Swimmer';
+        }
+
         // CAPTURE the URL hash IMMEDIATELY before Supabase can consume it
         // Supabase's createClient() auto-detects #access_token=...&type=recovery
         // and processes + clears the hash before our code runs
@@ -1811,7 +1826,7 @@
                     const timeAgo = getTimeAgo(date);
                     const age = getAgeDisplay(log.created_at);
                     const spotName = log.spots?.name || 'Unknown';
-                    const userName = log.profiles?.display_name || 'Anonymous';
+                    const userName = resolveCommunityDisplayName(log.profiles);
 
                     return `
                     <div style="background: rgba(15, 23, 42, 0.6); border: 2px solid rgba(56, 189, 248, 0.2); border-radius: 12px; padding: 16px; margin-bottom: 12px;">
@@ -1869,7 +1884,7 @@
                     const timeAgo = getTimeAgo(date);
                     const age = getAgeDisplay(log.created_at);
                     const spotName = log.spots?.name || 'Unknown';
-                    const userName = log.profiles?.display_name || 'Anonymous';
+                    const userName = resolveCommunityDisplayName(log.profiles);
 
                     return `
                                     <div style="background: rgba(15, 23, 42, 0.4); border: 2px solid rgba(56, 189, 248, 0.1); border-radius: 12px; padding: 16px; margin-bottom: 12px; opacity: 0.6;">
@@ -2782,7 +2797,7 @@
                     const eventDate = new Date(event.start_at);
                     const dateStr = eventDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                     const timeStr = eventDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                    const creatorName = profileMap[event.created_by]?.display_name || 'Anonymous';
+                    const creatorName = resolveCommunityDisplayName(profileMap[event.created_by]);
                     const userStatus = statusMap[event.id];
                     const userNeedsReconfirm = reconfirmMap[event.id];
                     const isCancelled = event.status === 'cancelled';
@@ -3862,7 +3877,7 @@
                     console.error('Error loading creator:', creatorError);
                 }
 
-                event.creatorName = creatorProfile?.display_name || 'Anonymous';
+                event.creatorName = resolveCommunityDisplayName(creatorProfile);
                 console.log('Creator:', event.creatorName);
 
                 // Load participants - simple query without join
@@ -4051,7 +4066,7 @@
                                     <div style="width: 28px; height: 28px; border-radius: 50%; background: ${m.profiles?.avatar_url?.startsWith('http') ? 'transparent' : 'var(--warning)'}; display: flex; align-items: center; justify-content: center; color: black; font-weight: 700; font-size: 12px; overflow:hidden;">
                                         ${m.profiles?.avatar_url?.startsWith('http') ? `<img src="${m.profiles.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (m.profiles?.avatar_url ? `<i data-lucide="${m.profiles.avatar_url}" style="width: 14px; height: 14px;"></i>` : (m.profiles?.display_name?.charAt(0) || '?'))}
                                     </div>
-                                    <span style="font-size: 14px; color: var(--text-primary);">${m.profiles?.display_name || 'Anonymous'}</span>
+                                    <span style="font-size: 14px; color: var(--text-primary);">${resolveCommunityDisplayName(m.profiles)}</span>
                                 </div>
                                 <div style="display: flex; gap: 8px;">
                                     <button class="btn btn-success" style="padding: 6px 12px; font-size: 11px;" onclick="updateJoinStatus('${event.id}', '${m.id}', 'approved')">Approve</button>
@@ -4147,7 +4162,7 @@
                                     </div>
                                     <div style="flex: 1;">
                                         <div style="color: var(--text-primary); font-size: 14px;">
-                                            ${m.profiles?.display_name || 'Anonymous'}
+                                            ${resolveCommunityDisplayName(m.profiles)}
                                             ${m.status === 'requested' ? '<span style="color: var(--warning); font-size: 10px; font-weight: 800; margin-left: 4px; border: 1px solid var(--warning); padding: 1px 4px; border-radius: 4px;">PENDING</span>' : ''}
                                         </div>
                                         ${m.user_id === event.created_by ? '<div style="color: var(--ocean-light); font-size: 12px;">Swim Host</div>' : ''}
@@ -5697,7 +5712,7 @@
                         <span style="font-weight:700;font-size:14px;color:var(--text-primary);">${h.title}</span>
                     </div>
                     <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">
-                        <i data-lucide="map-pin" style="width:11px;height:11px;vertical-align:middle;margin-right:2px;"></i>${h._spotName || 'Unknown spot'} · ${when} · by ${h.profiles?.display_name || 'Anonymous'}
+                        <i data-lucide="map-pin" style="width:11px;height:11px;vertical-align:middle;margin-right:2px;"></i>${h._spotName || 'Unknown spot'} · ${when} · by ${resolveCommunityDisplayName(h.profiles)}
                     </div>
                     ${h.description ? `<div style="font-size:12px;color:var(--text-primary);margin-top:6px;opacity:0.85;">${h.description}</div>` : ''}
                     ${h.photo_url ? `<img src="${h.photo_url}" style="width:100%;max-height:120px;object-fit:cover;border-radius:6px;margin-top:8px;">` : ''}
