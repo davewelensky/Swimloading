@@ -27,10 +27,14 @@ affecting every file in the tree.
 - (by the same mechanism, every other `*.md` file in the repo: `CLUBS.md`, `DEVELOPER_GUIDE.md`, `ROADMAP.md`, `TODO.md`)
 
 **Confirmed NOT exposed (404):** `README.md`, `package.json`, `vercel.json`,
-`.env`, `sql/` (directory listing), `supabase/config.toml`. Vercel appears to
-exclude a small set of conventional/reserved filenames from static serving,
-but this is not a general protection — it does not extend to arbitrary
-content files.
+`.env`, `.env.example`, `.gitignore`, `supabase/config.toml`. Note `sql/`
+as a **bare directory listing** 404s (no directory index), but individual
+files inside it do not — see §7, this was an incomplete read of the evidence
+in the first pass of this register. `.gitattributes` (dotfile, no secrets)
+does return 200 — the dotfile exclusion isn't consistent enough to rely on
+either. Vercel appears to exclude a small set of conventional/reserved
+filenames from static serving, but this is not a general protection — it
+does not extend to arbitrary content files, directories, or most dotfiles.
 
 **Why this matters:** `CLAUDE.md` alone documents internal architecture,
 specific club UUIDs, a named user's Supabase user ID, business logic for
@@ -39,17 +43,25 @@ this same session) contains commercial terms, discount codes, and personal
 correspondence context (e.g. this session's TRIHARD/Funkita exchanges). None
 of this was ever meant to be public.
 
-**Fix applied:** Two deny-routes added to the top of `vercel.json`'s `routes`
-array:
+**Fix applied (updated — see §7 for the full expanded version):** originally
+two deny-routes; expanded to eight after a full tracked-file inventory found
+this was not scoped correctly the first time, plus a trailing-slash bypass
+of the original `.md` rule. Current rules, plus a `.vercelignore` structural
+layer — see §7 and DECISIONS.md D8:
 ```json
-{ "src": "^/(.*)\\.md$", "status": 404 },
-{ "src": "^/Sponsors(/.*)?$", "status": 404 }
+{ "src": "^/(.*)\\.md/?$", "status": 404 },
+{ "src": "^/Sponsors(/.*)?$", "status": 404 },
+{ "src": "^/sql(/.*)?$", "status": 404 },
+{ "src": "^/14files(/.*)?$", "status": 404 },
+{ "src": "^/scripts(/.*)?$", "status": 404 },
+{ "src": "^/docs(/.*)?$", "status": 404 },
+{ "src": "^/archive(/.*)?$", "status": 404 },
+{ "src": "^/Deploy_SwimLoading(/.*)?$", "status": 404 }
 ```
 Verified: no page in the site links to or fetches any `.md` file at runtime
 (`grep` for `fetch(...\.md` returned nothing), and nothing links to
-`/Sponsors/*` from any other page (`grep` for `/Sponsors/` outside
-`Sponsors/index.html` itself returned nothing) — so this block has no known
-functional blast radius.
+`/Sponsors/*`, `/sql/*`, `/scripts/*`, `/docs/*`, `/14files/*`, or `/archive/*`
+from any other page — so this block has no known functional blast radius.
 
 **Not yet fixed:** This is containment (block the route), not remediation
 (the confidential data still exists in the file). The .md-blocking approach
@@ -186,27 +198,94 @@ environment (`if (cronSecret) { check } ` — no `else`). Your spec explicitly
 requires "reject missing secret," which none of the four satisfied before
 this pass.
 
-**Fix applied to all four:** Every cron handler now does, as the first thing
-in the function, before any other work:
-```js
-if (!CRON_SECRET) return res.status(500).json({ error: 'CRON_SECRET not configured' });
-const authHeader = req.headers['authorization'] || '';
-if (authHeader !== `Bearer ${CRON_SECRET}`) return res.status(401).json({ error: 'Unauthorised' });
-```
-No service-role key is logged or returned in any response — confirmed by
-reading each file's error paths.
+**Fix applied to all four (updated — now via a shared helper, see §8):**
+every cron handler calls `requireCronAuth(req, res, label)` from
+`api/cron/_auth.js` as its first line, before any other work — validates
+method (GET only), then secret-configured, then credential, in that order.
+No service-role key, secret, or raw header is ever logged — confirmed by
+reading `_auth.js` and each handler's remaining error paths.
 
-**Not verified this pass:** whether `CRON_SECRET` is actually set in the
-Vercel production environment right now. If it is not set, all four cron
-jobs will now fail closed (return 500) instead of running — which is correct
-behavior, but means the crons will stop working until the env var is
-confirmed present. **This needs a production environment variable check
-before/immediately after merging** — see "Items requiring Dave's decision" in
-the final summary.
+**`CRON_SECRET` presence in Production — now confirmed (indirectly), not
+just assumed:** in this session's earlier smoke-test run against live
+production (before the fix was deployed), `sensor-import`, `marine-temps`,
+and `advance-challenge` — which already had the "skip check if unset"
+pattern — all returned 401 for both a missing and a wrong `Authorization`
+header. A 401 is only reachable if `process.env.CRON_SECRET` was truthy in
+that environment; if it were unset, those three would have proceeded past
+the `if (cronSecret)` block entirely. This confirms `CRON_SECRET` **is** set
+in Vercel Production. **Preview and Development were not checked** — no way
+to verify without dashboard/CLI access. See README.md prerequisite checks.
 
 ---
 
-## §6 — INVESTIGATE (not fixed, not confirmed as broken): Two pages on non-canonical Supabase projects
+## §7 — CRITICAL (fixed this pass): Exposure was far broader than `.md` + `Sponsors/`
+
+A full tracked-file inventory (`git ls-tree -r --name-only HEAD`, filtered to
+non-application extensions) plus live re-verification found the original §1
+fix significantly under-scoped:
+
+| Confirmed live 200 (before this fix) | What it is |
+|---|---|
+| `sql/MIGRATION_TEMPLATE.sql` | Migration template |
+| `sql/applied/rls_policies.sql`, `sql/applied/create_clubs_schema.sql`, and ~100 more `sql/applied/*.sql` | **Real applied migrations — actual RLS policy source and full DB schema DDL for the production database** |
+| `sql/debug/check_spots_and_view.sql`, `sql/debug/check_view_definition.sql` | Debug queries |
+| `scripts/ship.sh`, `scripts/import_swim_sets.py` | Operational/deploy scripts |
+| `14files/ONBOARDING_SQL.md`, `14files/ONBOARDING_TEST_GUIDE.md` | Internal onboarding docs |
+| `14files/liability-waiver.txt`, `14files/privacy-policy.txt`, `14files/terms-of-service.txt` | Legal doc drafts — **confirmed orphaned** (`grep` found zero references anywhere in the app; these are not the live ToS/privacy links users actually see) |
+| `archive/index.html` + 4 more `archive/*.html` | Old full-app HTML snapshots |
+| `Deploy_SwimLoading/index.html` | Unclear purpose, no route references it |
+
+**Also found:** the original `^/(.*)\.md$` rule had a real bypass —
+`/CLAUDE.md/` (trailing slash appended) still returned 200, because the
+pathname didn't end in exactly `.md`. Fixed to `^/(.*)\.md/?$`.
+
+**Bypass vectors checked and found NOT exploitable:** case variation
+(filesystem is case-sensitive — `/claude.md` already 404'd before any fix),
+URL-encoded trailing space, `/./CLAUDE.md` (normalized before routing,
+same as bare path), alternate extensions (`.markdown`, no-extension — no
+duplicate files exist), non-www host (307-redirects to www, same deployment
+and rules apply after redirect), the `*.vercel.app` fallback domain (same
+deployment/build output — confirmed `swimloading.vercel.app/CLAUDE.md` was
+also live 200 pre-fix, so it is covered by the same fix, not a separate
+bypass channel). **Not checked:** a genuine separate Preview deployment URL
+(none was available to test against in this session).
+
+**Fix applied:** See updated §1 fix block above — `vercel.json` expanded to
+8 deny-routes, plus a new `.vercelignore` as the structural layer (excludes
+these paths from the deployment bundle entirely, not just blocking the
+route after the fact). See DECISIONS.md D8 for why both layers are kept.
+
+**Not yet fixed / residual risk:** This was a full inventory of *currently
+tracked, non-standard-extension* files, not a guarantee against everything
+forever. A new sensitive file committed loose at the repo root (not inside
+one of the now-excluded directories) would still need its own rule. The
+`14files/*.txt` legal drafts are blocked along with everything else in that
+directory — confirm with Dave whether the app's actual live ToS/privacy
+pages (wherever they really are — not investigated in this pass) are
+unaffected.
+
+---
+
+## §8 — Cron hardening: shared auth helper + method rejection
+
+**Before this pass (post-§5 fix):** auth logic was duplicated near-identically
+across all four cron files, and none rejected non-`GET` methods.
+
+**Fix applied:** New `api/cron/_auth.js` exports `requireCronAuth(req, res,
+label)`, called as the first line of all four handlers. Order of checks:
+method (`GET` only, else 405) → secret configured (else 500) → credential
+matches (else 401). This is a stricter ordering than before: previously a
+non-GET request with a valid secret would have been accepted (no method
+check existed at all); now it's rejected before the secret is even compared.
+
+**Verification:** `scripts/test-cron-auth.mjs` — local unit test, 6/6
+scenarios pass (missing secret config, missing credential, invalid
+credential, unsupported method ×2, valid credential in a local test env).
+Never touches Supabase or the real handlers.
+
+---
+
+## §9 — INVESTIGATE (not fixed, not confirmed as broken): Two pages on non-canonical Supabase projects
 
 `swimmers.html` and `galas.html` each hardcode a different Supabase project
 URL than the other 51 HTML/JS files in the repo:
@@ -230,9 +309,12 @@ INVESTIGATE for the next phase; not touched.
 
 | # | Finding | Severity | Status |
 |---|---|---|---|
-| 1 | Repo-wide static file exposure (`.md` files) | Critical | Fixed (containment) |
+| 1 | Repo-wide static file exposure (`.md` + `Sponsors/`, later expanded) | Critical | Fixed (containment) |
 | 2 | Sponsor CRM full exposure | Critical | Contained; real fix pending your decision |
 | 3 | No shared internal-page role mechanism | High | Documented; not implemented, needs your sign-off |
 | 4 | Missing noindex / robots.txt gaps | Medium | Fixed |
-| 5 | Unauthenticated destructive cron endpoint | Critical | Fixed |
-| 6 | Two pages on non-canonical Supabase projects | Unknown (needs investigation) | Not touched |
+| 5 | Unauthenticated destructive cron endpoint | Critical | Fixed; `CRON_SECRET` confirmed set in Production |
+| 6 | (renumbered, see 9) | | |
+| 7 | Exposure broader than originally scoped (`sql/`, `scripts/`, `14files/`, `archive/`, `Deploy_SwimLoading/`) + `.md` trailing-slash bypass | Critical | Fixed (containment, dual-layer) |
+| 8 | Cron auth duplicated + no method rejection | Medium | Fixed (shared helper) |
+| 9 | Two pages on non-canonical Supabase projects | Unknown (needs investigation) | Not touched |

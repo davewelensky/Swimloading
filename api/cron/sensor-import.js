@@ -9,6 +9,7 @@
 
 import { VENUE_MAP, MW_API_BASE } from '../mywaterlive-config.js';
 import { createClient } from '@supabase/supabase-js';
+import { requireCronAuth } from './_auth.js';
 
 // Spot IDs in the SwimLoading Supabase DB (matches `spots` table)
 const SPOT_IDS = {
@@ -21,16 +22,7 @@ const SPOT_IDS = {
 const MIN_INSERT_GAP_MINUTES = 50;
 
 export default async function handler(req, res) {
-  // ── Auth — reject missing or invalid secret before any privileged work ──────
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    console.error('sensor-import: CRON_SECRET not configured — refusing to run');
-    return res.status(500).json({ error: 'CRON_SECRET not configured' });
-  }
-  const authHeader = req.headers['authorization'] || '';
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    return res.status(401).json({ error: 'Unauthorised' });
-  }
+  if (!requireCronAuth(req, res, 'sensor-import')) return;
 
   const apiKey     = process.env.MYWATERLIVE_API_KEY;
   const supabaseUrl = process.env.SUPABASE_URL || 'https://szgkzuswelntnevobnoh.supabase.co';

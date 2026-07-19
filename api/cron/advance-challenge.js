@@ -12,21 +12,13 @@
 // Security: Vercel injects Authorization: Bearer <CRON_SECRET> on cron calls.
 
 import { createClient } from '@supabase/supabase-js';
+import { requireCronAuth } from './_auth.js';
 
 const SUPABASE_URL         = process.env.SUPABASE_URL         || 'https://szgkzuswelntnevobnoh.supabase.co';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-const CRON_SECRET          = process.env.CRON_SECRET;
 
 export default async function handler(req, res) {
-  // Auth check — reject missing or invalid secret before any privileged work
-  if (!CRON_SECRET) {
-    console.error('advance-challenge: CRON_SECRET not configured — refusing to run');
-    return res.status(500).json({ error: 'CRON_SECRET not configured' });
-  }
-  const auth = req.headers['authorization'] || '';
-  if (auth !== `Bearer ${CRON_SECRET}`) {
-    return res.status(401).json({ error: 'Unauthorised' });
-  }
+  if (!requireCronAuth(req, res, 'advance-challenge')) return;
 
   // Work out what "tomorrow SAST" looks like.
   // At 22:00 UTC, SAST is already 00:00 the next day — so tomorrowUTC === tomorrowSAST.

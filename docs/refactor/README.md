@@ -16,10 +16,10 @@ continues in later phases.
 - **HEAD at start:** `d8f706b3d3dbd810b06cb2afa7209db086a9f043` — "Make spots/swimmers/tempsLogged live-fetched from Supabase, not static" (2026-07-18)
 - **Working branch created:** `refactor/phase-0-production-baseline` (off the above commit)
 - **Uncommitted changes present at start:** `PARTNERS.md` modified (tracked, from same-session partner work); a large number of untracked files (sponsor asset images, CSVs, JSON exports, `.bak` files, scratch scripts, a `.dump` file, `welcome-motion.html`, `index.html.bak`/`.bak2`, `api/sitemap-dynamic.js.save`). None of these were touched, discarded, or committed by this work — see "Untracked files" below.
-- **Two git remotes configured:**
-  - `origin` → `https://github.com/davewelensky/Swimloading.git`
-  - `vercel-repo` → `https://github.com/DaveW4153/SwimLoading.git`
-  - **Unresolved:** it was not possible to confirm from the repo alone which remote/branch Vercel's project (`prj_S2oKdYPA5WSgrDKYdg0HEY8B9e3h`, org `team_wp4JWcoIoDGw7Wm76R3t1kY5`, project `swimloading`) actually deploys from. CLAUDE.md documents `origin` as canonical, and prior-session pushes to `origin/main` were observed to take effect in production (TRIHARD page changes went live). Treat `origin/main` as the deploy branch unless Dave says otherwise. **Flagged as a "duplicated configuration" item requiring Dave's confirmation — not fixed in this pass.**
+- **Two git remotes configured — now RESOLVED via GitHub API:**
+  - `origin` → `https://github.com/davewelensky/Swimloading.git` — **confirmed the Vercel-connected repo.** `gh api repos/davewelensky/Swimloading/commits/<HEAD-sha>/status` returns a `"Vercel"` check, `state: "success"`, `"Deployment has completed"`, target URL `vercel.com/daves-projects-06dd6f95/swimloading/...` (matches `.vercel/project.json`'s `projectName: "swimloading"`). `gh api repos/davewelensky/Swimloading/deployments` confirms `environment: "Production"` on the same commit SHA as current `origin/main` HEAD.
+  - `vercel-repo` → `https://github.com/DaveW4153/SwimLoading.git` — **confirmed NOT connected.** The same commit SHA queried against this repo returns `total_count: 0` for status checks — no Vercel integration posting to it. Likely a stale/leftover remote from earlier setup.
+  - **Deploy target for this work: `origin/main`.** No longer a manual-check item.
 - **Archive/legacy directories present (not touched):** `archive/` (4 old `swimloading_v2_*` HTML snapshots + an `index.html`), `14files/` (legal text + onboarding docs, one of which — `ONBOARDING_SQL.md` — is publicly fetchable, see SECURITY_REGISTER.md), `Deploy_SwimLoading/` (a single `index.html`, purpose unclear — flagged as INVESTIGATE in ROUTE_REGISTER.md).
 
 ## What changed in this pass (summary — full detail in CHANGELOG.md)

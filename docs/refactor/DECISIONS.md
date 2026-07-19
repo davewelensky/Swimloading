@@ -45,6 +45,55 @@ applied alongside real fixes where they existed, and even where they didn't
 (`content-calendar.html`), because "the page is unauthenticated" is a
 separate, bigger problem this alone doesn't solve.
 
+### D8 — Dual-layer static containment: `.vercelignore` + expanded `vercel.json` deny-routes, not one replacing the other
+
+**Decision:** Keep both. Add `.vercelignore` (excludes `*.md`, `14files/`,
+`sql/`, `scripts/`, `docs/`, `archive/`, `Deploy_SwimLoading/`, `Sponsors/`
+from the deployment bundle entirely) as the structural fix you asked for
+("prefer excluding non-runtime files from deployment rather than
+maintaining an endless list of blocked URLs"), but also keep and expand the
+`vercel.json` deny-routes covering the same paths.
+
+**Why not just `.vercelignore` alone:** it could not be verified end-to-end
+without a live deploy (no Vercel CLI/dashboard access in this session — see
+Section 1 findings). If `.vercelignore` behaves differently than expected
+for this project's "Other" framework preset (e.g. it excludes files from
+static serving but not from being readable by some other path, or interacts
+unexpectedly with the existing `routes` array), the `vercel.json` rules are
+an independently-verified backstop — each one was checked against the
+actual discovered exposure with the same regex logic that already caught
+and fixed the `/CLAUDE.md/` trailing-slash bypass. Redundant protection here
+costs nothing and removes a single point of failure on a fix this severe.
+
+**Why not just `vercel.json` alone (the original approach):** it requires
+enumerating every sensitive path by hand, which is exactly how TASK-01's
+initial fix missed `sql/`, `scripts/`, `14files/`, and `archive/` — those
+weren't discovered until a full tracked-file inventory was run in this same
+session. `.vercelignore` protects by *pattern of directory*, so a new file
+added later under an already-covered directory (e.g. a new `sql/applied/*`
+migration) is automatically safe without a corresponding `vercel.json` edit.
+
+**Reversibility:** Fully reversible — delete `.vercelignore` and/or revert
+the `vercel.json` additions independently of each other.
+
+### D9 — Process lesson from INCIDENT #2: destructive-path smoke testing must be sequenced after deploy, not before
+
+**What happened:** Even with the rewritten, classification-based smoke test
+(TASK-09), running the cron section against `--target=production` **before**
+this branch was merged/deployed caused three more real, unauthenticated
+`purge-audit` executions — because `AUTH_REJECTION_TEST` classification only
+guarantees safety if the target already has the fix live. Testing "does this
+correctly reject" against something that doesn't yet reject anything is not
+a safe operation, no matter how the request itself is labeled.
+
+**Decision:** The smoke test's cron section is only to be run against
+`--target=production` **after** a deploy that includes the `_auth.js` fix.
+Section 1's "verify vercel.json rules" checks (plain `curl`/`GET` on
+non-mutating paths) remain safe to run pre-deploy at any time — the danger
+is specific to endpoints that are *currently* unauthenticated, not to
+production testing in general. This is now stated explicitly at the top of
+`scripts/smoke-test-production.mjs` and in `docs/refactor/SMOKE_TESTS.md`.
+
 ## Decided: explicitly NOT implemented this pass (deferred to you)
 
 ### D4 — Shared admin/internal-page role mechanism

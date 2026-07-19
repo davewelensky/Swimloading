@@ -13,6 +13,7 @@
 // Upserts use SUPABASE_SERVICE_KEY to bypass RLS (no user context).
 
 import { createClient } from '@supabase/supabase-js';
+import { requireCronAuth } from './_auth.js';
 
 const MARINE_BASE   = 'https://marine-api.open-meteo.com/v1/marine';
 const COASTAL_TYPES = ['OCEAN', 'LAGOON'];
@@ -20,16 +21,7 @@ const BATCH_SIZE    = 20;   // coords per bulk request — Open-Meteo bulk 400s 
 const SOURCE        = 'open_meteo';
 
 export default async function handler(req, res) {
-  // ── Auth — reject missing or invalid secret before any privileged work ──────
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    console.error('marine-temps: CRON_SECRET not configured — refusing to run');
-    return res.status(500).json({ error: 'CRON_SECRET not configured' });
-  }
-  const authHeader = req.headers['authorization'] || '';
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    return res.status(401).json({ error: 'Unauthorised' });
-  }
+  if (!requireCronAuth(req, res, 'marine-temps')) return;
 
   const supabaseUrl = process.env.SUPABASE_URL || 'https://szgkzuswelntnevobnoh.supabase.co';
   const serviceKey  = process.env.SUPABASE_SERVICE_KEY;

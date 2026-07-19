@@ -1,0 +1,34 @@
+# Non-runtime files excluded from deployment entirely — preferred over an
+# endless vercel.json deny-route list (see docs/refactor/DECISIONS.md D8).
+# Nothing in the app fetches any of these at runtime (verified via grep before
+# adding this file) — see docs/refactor/SECURITY_REGISTER.md §1/§6.
+#
+# This is a SECOND, independent layer alongside the vercel.json deny-routes
+# in the same commit — kept even though it overlaps, because .vercelignore
+# excludes files from the deployment bundle entirely (no path can reach them,
+# regardless of trailing slashes, case, or future new deny-route gaps),
+# whereas vercel.json routes only block specific matched paths after the
+# file is already present in the deployment.
+
+# Internal documentation — never meant to be served as web pages
+*.md
+14files/
+
+# Database schema, migrations, RLS source — not runtime code
+sql/
+
+# Operational/one-off scripts — not served to the browser
+scripts/
+
+# This refactor's own working docs
+docs/
+
+# Legacy/orphaned snapshots and folders (already gitignored for new files,
+# but earlier commits tracked files under these paths before that rule
+# existed — .gitignore does not retroactively exclude already-tracked files
+# from git, and Vercel deploys whatever git tracks)
+archive/
+Deploy_SwimLoading/
+
+# Sponsor CRM — contains commercial pipeline data, not a runtime page
+Sponsors/

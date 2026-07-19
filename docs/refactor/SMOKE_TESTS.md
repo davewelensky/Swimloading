@@ -1,67 +1,90 @@
 # Smoke Tests
 
-Executable script: `scripts/smoke-test-production.mjs`. Read-only — makes GET
-requests only, sends no `Authorization` header on the cron checks (verifying
-rejection), and never triggers a real cron run with a valid secret. Safe to
-run against production at any time.
+Two scripts:
+
+- **`scripts/test-cron-auth.mjs`** — local, in-process unit test of the
+  shared cron auth helper (`api/cron/_auth.js`). No network calls, no
+  Supabase, doesn't import the actual cron handlers. Safe anywhere, anytime,
+  including with real production env vars loaded.
+- **`scripts/smoke-test-production.mjs`** — HTTP-level smoke test against a
+  real deployment (local/preview/production). Rewritten after two incidents
+  (see below) to classify every request before sending it.
+
+## ⚠️ Safety rule, read before running
+
+**Never run the cron section of `smoke-test-production.mjs` against
+`--target=production` before a deploy that includes the auth fix.** The
+script classifies requests as `READ_ONLY`, `AUTH_REJECTION_TEST`, or a
+(never-implemented-for-production) destructive success path — but
+`AUTH_REJECTION_TEST` only stays safe if the target already rejects
+unauthenticated requests. Testing "does this reject" against an endpoint
+that currently accepts everything is not a safe operation, regardless of
+how the request is labeled — this caused two real unauthenticated
+`purge-audit` runs against production during this work (see
+`docs/refactor/CHANGELOG.md`, INCIDENT #1 and #2).
+
+Sequence:
+1. Before deploy: only run the plain 404/exposure checks (Section 1 style —
+   `curl` or the "Repo docs" / "Expanded exposure sweep" sections), never
+   the cron section, against production.
+2. Deploy the fix.
+3. After deploy: the full script, including the cron section, is safe to
+   run against `--target=production`.
+
+## `scripts/test-cron-auth.mjs`
 
 ```bash
-node scripts/smoke-test-production.mjs
-# or against a preview deployment:
-BASE_URL=https://your-preview-url.vercel.app node scripts/smoke-test-production.mjs
+node scripts/test-cron-auth.mjs
 ```
 
-## What it checks
+Covers: missing secret configuration, missing request credential, invalid
+request credential, unsupported method (DELETE and POST), valid credential
+in a local test environment. All 6 assertions pass against the current
+`api/cron/_auth.js`.
 
-**Public routes — expect 200 (or an intentional 301):**
-- `/`
-- `/app`
-- `/clubs`
-- `/english-channel/qualifying-swim` (the closest confirmable public route to `/english-channel` — there is no bare `/english-channel` route in `vercel.json`; the real page is `/crossings/english-channel`)
-- `/crossings/english-channel`
+## `scripts/smoke-test-production.mjs`
 
-**Internal routes — expect the page to load (200, since auth is client-side) but:**
-- Response body must contain `noindex` in a `<meta name="robots">` tag
-- Response body must **not** contain any of a small set of confidential marker strings (sponsor brand names / pipeline-specific phrases) — a weak but useful regression check
-- `/Sponsors/` and `/Sponsors/index.html` must return **404** (not 200 — this is the one internal route that should be fully blocked, not just noindexed)
+```bash
+node scripts/smoke-test-production.mjs --target=production
+node scripts/smoke-test-production.mjs --target=preview --base=https://<preview>.vercel.app
+node scripts/smoke-test-production.mjs --target=local --base=http://localhost:3000
+node scripts/smoke-test-production.mjs --target=preview --allow-destructive   # opt-in, preview/local only
+```
 
-**Repo docs — expect 404:**
-- `/CLAUDE.md`, `/PARTNERS.md`, `/GROWTH_HUB.md`, `/MIGRATIONS.md`, `/EXPANDING.md`, `/CLUB_ONBOARDING.md`
+`--target` is required (defaults to `production` if omitted — be deliberate
+about this). `--allow-destructive` combined with `--target=production`
+aborts immediately, before any request is sent, exit code 1.
 
-**Sitemap:**
-- `/sitemap.xml` must not contain `/dave`, `/admin`, `/PHtest`, `/growth-hub`, `/content-calendar`, `/caption-agent`, or `/Sponsors`
+### Request classification
 
-**Cron endpoints — expect 401 with no `Authorization` header, and 401 with a wrong one:**
-- `/api/cron/purge-audit`
-- `/api/cron/sensor-import`
-- `/api/cron/marine-temps`
-- `/api/cron/advance-challenge`
+| Class | Meaning | Where it can run |
+|---|---|---|
+| `READ_ONLY` | GET on a non-mutating path (public pages, doc-exposure checks, sitemap) | Any target, anytime |
+| `AUTH_REJECTION_TEST` | Missing/invalid credential or wrong method sent to a cron endpoint — the *only* acceptable response is 401/405/500. An unexpected 200 is flagged as **CRITICAL**, not a normal failed assertion. | Any target, **but only once the target's fix is deployed** — see safety rule above |
+| destructive success path | A valid-credential call to a mutating endpoint | Never implemented for `/api/cron/purge-audit` at all, on any target, under any flag. For the other three cron endpoints, this script does not send such a call even under `--allow-destructive` — it prints a `SKIP` line explaining that you'd need to call it manually with the real secret if you specifically need to verify the success path on local/preview. |
 
-The script does **not** send a correct `CRON_SECRET` at any point — that would
-actually run the jobs (including the audit purge). If you need to confirm the
-*positive* case (a correct secret is accepted), do that manually with the
-real production secret, understanding that it will actually execute the job.
+### What it checks
+
+- Public routes (`/`, `/app`, `/clubs`, `/crossings/english-channel`) → 200/301
+- Repo docs (`/CLAUDE.md`, `/PARTNERS.md`, `/GROWTH_HUB.md`, `/MIGRATIONS.md`, `/EXPANDING.md`, `/CLUB_ONBOARDING.md`) → 404
+- Expanded exposure sweep (`/Sponsors/`, `/sql/*`, `/scripts/*`, `/docs/*`, `/14files/*`, `/archive/*`, `/Deploy_SwimLoading/*`) → 404
+- Trailing-slash bypass on the `.md` block (`/CLAUDE.md/`) → 404
+- Internal pages (`/dave`, `/admin`, `/PHtest`, `/growth-hub`, `/content-calendar`, `/caption-agent`) → 200 + `noindex` present in the response body
+- Sitemap excludes all internal routes
+- All four cron endpoints reject missing credential, wrong credential, and wrong method
 
 ## Manual checks (not scripted)
 
 - Load `/dave`, `/admin`, `/PHtest`, `/growth-hub`, `/content-calendar`,
   `/caption-agent` in a **logged-out** browser and confirm each shows a
   login/access-denied state, not the protected content.
-- View-source (not just rendered DOM) on `/content-calendar` specifically —
-  it has no auth of any kind, so this is the one page where "does it load"
-  and "is data exposed" are the same question. Confirm you're comfortable
-  with what's currently visible there (a July 2026 social content calendar —
-  not customer or financial data, but still internal).
+- View-source on `/content-calendar` specifically — it still has no auth of
+  any kind (see SECURITY_REGISTER.md §3), so "does it load" and "is data
+  exposed" are the same question there.
 - Confirm `CRON_SECRET` is set in Vercel → Project Settings → Environment
-  Variables (Production) before relying on the cron fixes taking effect.
-
-## Known-good baseline (recorded before this pass' fixes, for comparison)
-
-| Check | Before | After (expected) |
-|---|---|---|
-| `GET /Sponsors/` | 200, full data | 404 |
-| `GET /CLAUDE.md` | 200, full file | 404 |
-| `GET /PARTNERS.md` | 200, full file | 404 |
-| `POST /api/cron/purge-audit` (no auth header) | 200, deletes rows | 401 |
-| `POST /api/cron/sensor-import` (no auth header, `CRON_SECRET` hypothetically unset) | 200, runs import | 500 (fails closed) |
-| `/dave` page source | no `noindex` | `noindex` present |
+  Variables for **Preview** and **Development**, not just Production (this
+  session could only confirm Production — see README.md prerequisite
+  checks).
+- To verify a cron endpoint's actual *authorised* success path, do it
+  manually with the real `CRON_SECRET`, understanding it will actually
+  execute the job. This is intentionally not automated.

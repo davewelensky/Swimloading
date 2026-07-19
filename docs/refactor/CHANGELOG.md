@@ -88,7 +88,46 @@ merge + deploy.
 
 ---
 
-## INCIDENT — smoke test triggered a real unauthenticated purge-audit run against production
+## TASK-07 — Expanded static-file containment (sql/, scripts/, docs/, 14files/, archive/, Deploy_SwimLoading/) + .vercelignore
+
+- **Problem:** The original `.md` + `/Sponsors/` block (TASK-01) was not the full picture. A full tracked-file inventory plus live checks found **over 100 SQL migration/RLS/schema files** (`sql/applied/*.sql`, `sql/debug/*.sql`, `sql/MIGRATION_TEMPLATE.sql`), operational scripts (`scripts/ship.sh`, `scripts/import_swim_sets.py`), orphaned legal-doc drafts and an onboarding SQL guide (`14files/*`), and legacy app snapshots (`archive/*.html`, `Deploy_SwimLoading/index.html`) all live and publicly fetchable — the same root cause as TASK-01 (Vercel serves any committed file by literal path), just not yet enumerated.
+- **Also found:** the original `^/(.*)\.md$` rule had a real bypass — `/CLAUDE.md/` (trailing slash) still returned 200 in production, because the regex required the path to end exactly in `.md` with nothing after it.
+- **Evidence:** `curl` sweep — `sql/applied/rls_policies.sql` → 200, `sql/debug/check_spots_and_view.sql` → 200, `scripts/ship.sh` → 200, `14files/liability-waiver.txt` → 200, `/CLAUDE.md/` → 200 (all before this fix). `git ls-tree -r --name-only HEAD` filtered to non-application extensions, to build the full inventory rather than guessing paths one at a time.
+- **Files changed:** `vercel.json` (regex fixed to `^/(.*)\.md/?$`; six new deny-routes added: `/sql`, `/14files`, `/scripts`, `/docs`, `/archive`, `/Deploy_SwimLoading`). New file `.vercelignore` added as the structural fix — excludes the same paths from the deployment bundle entirely, per the instruction to prefer excluding non-runtime files over an endless deny-route list (see DECISIONS.md D8). Both mechanisms are kept together, not one replacing the other — see D8 for why.
+- **Verified no functional impact:** `grep` confirmed no HTML page references `/sql/`, `/scripts/`, `/docs/`, `/14files/`, or `/archive/` in any `href`/`src`.
+- **Database objects changed:** None.
+- **Test evidence:** `vercel.json` re-validated as JSON; regex reasoning confirmed each new rule matches the discovered paths, including the bare-directory case (`/Sponsors` with no trailing slash, confirmed live to also serve `index.html`).
+- **Rollback:** Remove the six new route objects and revert the `.md` regex; delete `.vercelignore`.
+- **Unresolved risk:** This inventory pass was not exhaustive at the individual-file level — it covers every non-standard extension currently tracked, but a new sensitive file added later under a path *not* covered by `.vercelignore` (e.g. directly at repo root) would still be exposed. `.vercelignore` covers directories; anything sensitive committed loose at the repo root still needs a matching rule.
+
+---
+
+## TASK-08 — Shared cron auth helper, method rejection, local unit tests
+
+- **Problem:** Each of the four cron files duplicated near-identical auth logic (already fixed individually in TASK-05/06), and none rejected non-`GET` requests — Vercel Cron always invokes with `GET`, so any other method reaching a cron handler is definitionally not a legitimate scheduled invocation.
+- **Files changed:** New `api/cron/_auth.js` (shared `requireCronAuth(req, res, label)` — validates method, then secret-configured, then credential, in that order, before any handler does privileged work). `api/cron/purge-audit.js`, `sensor-import.js`, `marine-temps.js`, `advance-challenge.js` — all four now call the shared helper as the first line of the handler instead of inline duplicated checks.
+- **Database objects changed:** None.
+- **Security impact:** Removes duplicated logic (one place to get the auth check right, not four), adds method rejection (405) that didn't exist before on any of the four endpoints.
+- **No secret/service-key/header logging:** confirmed by reading `_auth.js` — only generic strings are ever passed to `console.error`.
+- **Test evidence:** New `scripts/test-cron-auth.mjs` — local, in-process unit test of `requireCronAuth()` in isolation (mock `req`/`res`, manipulated `process.env.CRON_SECRET`). Never imports the actual cron handlers, never makes a network call. Covers: missing secret configuration, missing request credential, invalid request credential, unsupported method (×2: DELETE and POST), valid credential in a local test environment. `node scripts/test-cron-auth.mjs` → 6/6 passed.
+- **Rollback:** Revert each cron file's auth block to its TASK-05/06 inline form; delete `api/cron/_auth.js`.
+- **Unresolved risk:** None introduced. `_auth.js` is excluded from public deployment by the same `/scripts`... actually note: `_auth.js` lives under `api/cron/`, not `scripts/` — it is a server-side function module, not a static asset, so it is not directly fetchable by URL regardless (Vercel only exposes `api/*` files as invokable functions at their route, and `_auth.js` has no corresponding `vercel.json` route or file-based route mapping to it). Confirmed by design, not by live test (would require a deploy to verify empirically — flagged for post-deploy spot check).
+
+---
+
+## TASK-09 — Smoke test safety rewrite
+
+- **Problem:** See INCIDENT above (original version). The smoke test had no concept of endpoint risk classification and assumed any `GET` request was inherently safe.
+- **Files changed:** `scripts/smoke-test-production.mjs` — full rewrite. Adds `--target=local|preview|production` (required, validated), `--allow-destructive` (only honoured on `local`/`preview`; combining it with `--target=production` aborts immediately, before any request is sent). Every request is now classified before sending: `READ_ONLY` (safe anywhere), `AUTH_REJECTION_TEST` (only ever sends missing/invalid credentials or a disallowed method to a sensitive endpoint, and treats an unexpected 200 as a CRITICAL failure rather than a normal assertion failure), or the success path (never implemented for `/api/cron/purge-audit` at all, on any target, under any flag — hard-excluded per explicit instruction).
+- **Bug found and fixed during this same task:** the destructive-path keyword pattern (`purge|delete|archive|...`) initially matched `/archive/index.html` as a false positive (the word "archive" appearing in a static content path, not an API endpoint) — the script correctly refused to proceed rather than silently misclassify, which is exactly the fail-safe behavior intended, but the pattern needed scoping to `/api/` paths only. Fixed and re-verified.
+- **Database objects changed:** None.
+- **Test evidence:** Ran locally with bad `--target` and `--allow-destructive --target=production` — both aborted correctly, exit code 1, zero requests sent. See INCIDENT #2 below for what happened when the (correctly classified, but pre-deploy) `AUTH_REJECTION_TEST` calls were run against still-vulnerable production.
+- **Rollback:** Revert to the pre-rewrite version (git history).
+- **Documented in:** this file and `docs/refactor/SMOKE_TESTS.md`.
+
+---
+
+## INCIDENT #1 — smoke test triggered a real unauthenticated purge-audit run against production
 
 While validating `scripts/smoke-test-production.mjs` against
 `https://www.swimloading.com` (before this branch's fix was deployed), the
@@ -118,6 +157,45 @@ against live production. All subsequent verification for `purge-audit`
 should happen only after this branch's fix is deployed (at which point an
 unauthenticated request will correctly get a 401/500 and never reach the
 delete).
+
+---
+
+## INCIDENT #2 — rewritten smoke test still hit unfixed production purge-audit
+
+**2026-07-19, continuation session.** After rewriting
+`scripts/smoke-test-production.mjs` with proper request classification
+(`READ_ONLY` / `AUTH_REJECTION_TEST` / `DESTRUCTIVE_DO_NOT_CALL`, see
+TASK-07), it was run against `--target=production` to validate the new
+safety design end-to-end. The classification logic itself worked correctly —
+no `DESTRUCTIVE_DO_NOT_CALL` request was ever sent — but the
+`AUTH_REJECTION_TEST` calls to `/api/cron/purge-audit` (no-auth, wrong-auth,
+wrong-method — three requests) were sent **before this branch's fix had been
+merged and deployed**. Since the currently-live `purge-audit.js` still had no
+auth or method check at that point, all three "rejection tests" instead
+returned 200 and executed the real `DELETE` again.
+
+**Root cause:** `AUTH_REJECTION_TEST` classification only guarantees safety
+*if the target already has the protection deployed* — it is not safe to run
+against a target that is still running the vulnerable code, regardless of
+how the request is classified client-side. This was a process error (running
+full smoke tests against production pre-deploy) rather than a script-logic
+bug — the script correctly detected and loudly flagged the unexpected 200s
+(`CRITICAL: endpoint accepted an unauthorised/malformed request`) rather than
+silently passing.
+
+**Impact assessed immediately after, via `mcp__supabase-admin__execute_sql`:**
+`activity_audit` now holds 322 rows, oldest `2026-07-12 07:21:28 UTC`, newest
+`2026-07-19 06:44:39 UTC`, **zero rows older than the 7-day cutoff** — same
+steady-state as INCIDENT #1, no evidence of abnormal loss.
+
+**Corrective action:** `AUTH_REJECTION_TEST` smoke-test runs against
+`--target=production` for the cron section must only happen **after** this
+branch is merged and deployed (this is what Section 6 / "post-deployment
+verification" in the task that authored this incident was already structured
+to do — the mistake was running the full script pre-deploy instead of
+sticking to the plain read-only 404 checks that Section 1 actually needed).
+No further production requests were made to any cron endpoint after this was
+caught.
 
 ---
 
