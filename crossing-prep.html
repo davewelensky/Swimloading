@@ -1980,7 +1980,17 @@ async function renderDashboard() {
     const attempt = _activeAttempt;
     const crossing = _crossing;
 
-    const { data: profData } = await sb.from('profiles').select('display_name, email').eq('id', _viewingId).maybeSingle();
+    // _isAdminView means _viewingId is someone OTHER than the caller (Dave's
+    // ?uid= override, gated above by DAVE_ID) — needs the admin-gated RPC.
+    // Otherwise _viewingId === own id, safe to read profiles directly.
+    let profData;
+    if (_isAdminView) {
+        const { data: directory } = await sb.rpc('get_admin_user_directory');
+        profData = (directory || []).find(p => p.id === _viewingId) || null;
+    } else {
+        const res = await sb.from('profiles').select('display_name, email').eq('id', _viewingId).maybeSingle();
+        profData = res.data;
+    }
     const name = profData?.display_name || profData?.email?.split('@')[0] || 'Swimmer';
 
     // Load capability profile if not already loaded
@@ -2604,7 +2614,8 @@ async function init() {
     _isAdminView = !!uidOverride;
 
     if (_isAdminView) {
-        const { data: prof } = await sb.from('profiles').select('display_name, email').eq('id', _viewingId).maybeSingle();
+        const { data: directory } = await sb.rpc('get_admin_user_directory');
+        const prof = (directory || []).find(p => p.id === _viewingId) || null;
         const adminName = prof?.display_name || prof?.email?.split('@')[0] || 'Athlete';
         const banner = document.createElement('div');
         banner.className = 'admin-banner';

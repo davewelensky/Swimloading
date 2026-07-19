@@ -2376,8 +2376,8 @@ async function loadMembers() {
   ].filter(Boolean))];
   let memberProfileMap = {};
   if (allUserIds.length) {
-    const { data: profs } = await sb.from('profiles').select('id, display_name, email, phone').in('id', allUserIds);
-    (profs || []).forEach(p => { memberProfileMap[p.id] = p; });
+    const { data: profs } = await sb.rpc('get_club_roster_profiles', { p_club_id: currentClub.id });
+    (profs || []).filter(p => allUserIds.includes(p.id)).forEach(p => { memberProfileMap[p.id] = p; });
   }
 
   // Normalise roster-only linked members to the same shape
@@ -5643,9 +5643,8 @@ async function loadTeam() {
   const userIds = (adminsRes.data || []).map(a => a.user_id).filter(Boolean);
   let profileMap = {};
   if (userIds.length) {
-    const { data: profs } = await sb.from('profiles')
-      .select('id, display_name, email').in('id', userIds);
-    (profs || []).forEach(p => { profileMap[p.id] = p; });
+    const { data: profs } = await sb.rpc('get_club_roster_profiles', { p_club_id: currentClub.id });
+    (profs || []).filter(p => userIds.includes(p.id)).forEach(p => { profileMap[p.id] = p; });
   }
 
   allTeam    = (adminsRes.data || []).map(a => ({ ...a, profile: profileMap[a.user_id] || null }));
@@ -5705,8 +5704,7 @@ async function submitAddAdmin() {
   const title = document.getElementById('addAdminTitle').value.trim();
   if (!email) { showToast('Email required', 'error'); return; }
 
-  const { data: profs } = await sb.from('profiles')
-    .select('id, display_name').ilike('email', email).limit(1);
+  const { data: profs } = await sb.rpc('search_profile_by_email', { p_email: email });
   if (!profs || !profs.length) {
     const joinUrl = `https://www.swimloading.com/join/${activeJoinCode || currentClub.slug}`;
     try { await navigator.clipboard.writeText(joinUrl); } catch(_) {}
@@ -5751,8 +5749,7 @@ async function grantCoachAccess(email, name, coachId) {
   const btn = document.getElementById(`grantBtn-${coachId}`);
   if (btn) { btn.disabled = true; btn.innerHTML = '<span style="width:11px;height:11px;border:2px solid var(--cyan);border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin 0.6s linear infinite;"></span>'; }
 
-  const { data: profs } = await sb.from('profiles')
-    .select('id, display_name').ilike('email', email).limit(1);
+  const { data: profs } = await sb.rpc('search_profile_by_email', { p_email: email });
 
   if (!profs?.length) {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="key" style="width:11px;height:11px;"></i> Grant access'; lucide.createIcons(); }
@@ -5794,8 +5791,8 @@ async function loadParentsPage() {
   const parentIds = (links || []).map(l => l.parent_user_id).filter(Boolean);
   let profileMap = {};
   if (parentIds.length) {
-    const { data: profs } = await sb.from('profiles').select('id, display_name, email').in('id', parentIds);
-    (profs || []).forEach(p => { profileMap[p.id] = p; });
+    const { data: profs } = await sb.rpc('get_club_roster_profiles', { p_club_id: currentClub.id });
+    (profs || []).filter(p => parentIds.includes(p.id)).forEach(p => { profileMap[p.id] = p; });
   }
   // Attach profile data to each link
   const linksWithProfiles = (links || []).map(l => ({
@@ -5989,8 +5986,9 @@ async function submitInviteParent() {
   btn.disabled = true;
   btn.innerHTML = '<span style="width:14px;height:14px;border:2px solid #080f1a;border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin 0.6s linear infinite;"></span> Sending…';
 
-  // Look up user by email via profiles table
-  const { data: profile } = await sb.from('profiles').select('id').eq('email', email).single();
+  // Look up user by email via the search RPC (2026-07-19 profiles RLS fix)
+  const { data: profileMatches } = await sb.rpc('search_profile_by_email', { p_email: email });
+  const profile = profileMatches?.[0] || null;
 
   if (profile) {
     // User exists — create approved link immediately
@@ -7791,7 +7789,7 @@ async function loadRoster() {
   let profileMap = {};
   if (linkedIds.length) {
     const { data: profs } = await sb
-      .from('profiles')
+      .from('public_profiles')
       .select('id, display_name')
       .in('id', linkedIds);
     (profs || []).forEach(p => { profileMap[p.id] = p.display_name; });
@@ -7884,10 +7882,8 @@ async function loadSuggestedMatches() {
   const alreadyParent = new Set((parentLinksRes?.data || []).map(l => l.parent_user_id));
 
   // Fetch profiles for these specific club members only
-  const { data: profileData } = await sb.from('profiles')
-    .select('id, display_name, email, created_at')
-    .in('id', unlinkedMemberIds)
-    .not('display_name', 'is', null);
+  const { data: rosterProfiles } = await sb.rpc('get_club_roster_profiles', { p_club_id: currentClub.id });
+  const profileData = (rosterProfiles || []).filter(p => unlinkedMemberIds.includes(p.id) && p.display_name != null);
 
   if (!profileData?.length) { banner.innerHTML = ''; return; }
 
@@ -8627,7 +8623,7 @@ async function rosterLinkSearchHandler() {
     if (q.length < 2) { el.innerHTML = ''; return; }
 
     const { data: profs } = await sb
-      .from('profiles')
+      .from('public_profiles')
       .select('id, display_name')
       .ilike('display_name', `%${q}%`)
       .limit(10);

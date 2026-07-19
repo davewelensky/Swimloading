@@ -753,7 +753,7 @@
 
                 const userIds = [...allUserIds];
                 const { data: profiles } = await supabaseClient
-                    .from('profiles')
+                    .from('public_profiles')
                     .select('id, display_name')
                     .in('id', userIds);
 

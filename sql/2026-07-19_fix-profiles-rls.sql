@@ -112,12 +112,16 @@ CREATE VIEW public_profiles AS
 
 COMMENT ON VIEW public_profiles IS
   'Minimal, safe-to-read-broadly subset of profiles — id + display_name '
-  'only. For leaderboard/attribution/roster-name use cases that do not '
-  'need any other field. Granted to authenticated only, not anon — '
-  'nothing in the current app needs anonymous access to member names.';
+  'only. For leaderboard/attribution/roster-name use cases. Granted to '
+  'anon as well as authenticated: welcome.html (the public homepage) '
+  'shows contributor names for the latest reading per spot to logged-out '
+  'visitors — found during the Step 1 app-code compatibility sweep, not '
+  'anticipated in the original design. display_name alone was never the '
+  'sensitive part of the profiles exposure (phone/DOB/address/emergency '
+  'contact were) — extending this specific, minimal view to anon carries '
+  'no meaningful risk.';
 
-GRANT SELECT ON public_profiles TO authenticated;
-REVOKE ALL ON public_profiles FROM anon;
+GRANT SELECT ON public_profiles TO authenticated, anon;
 
 -- ── Section 6: admin RPC — replaces admin.html's direct broad SELECT ──────
 CREATE OR REPLACE FUNCTION get_admin_user_directory()
@@ -143,24 +147,37 @@ COMMENT ON FUNCTION get_admin_user_directory IS
   'previously only checked in client-side JS.';
 
 -- ── Section 7: club-manager RPC ────────────────────────────────────────────
+-- Covers every category of person a club manager legitimately needs
+-- profile info for: swimmers on the roster, the club's own admins/coaches,
+-- and parents linked to that club's roster entries — not just the roster
+-- itself. Broadened from an earlier roster-only draft after the app-code
+-- migration (Step 1) found club-admin.html needs email for team management
+-- and parent-linking too, not only the swimmer roster. Same function name,
+-- same is_club_manager(p_club_id) gate — this is a refinement of the one
+-- approved primitive, not a new one.
 CREATE OR REPLACE FUNCTION get_club_roster_profiles(p_club_id uuid)
-RETURNS TABLE (id uuid, display_name text, email text, phone text)
+RETURNS TABLE (id uuid, display_name text, email text, phone text, created_at timestamptz)
 LANGUAGE sql
 STABLE SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT p.id, p.display_name, p.email, p.phone
+  SELECT DISTINCT p.id, p.display_name, p.email, p.phone, p.created_at
   FROM profiles p
-  JOIN club_roster cr ON cr.user_id = p.id
-  WHERE cr.club_id = p_club_id
-    AND is_club_manager(p_club_id);
+  WHERE is_club_manager(p_club_id)
+    AND (
+      EXISTS (SELECT 1 FROM club_roster cr WHERE cr.user_id = p.id AND cr.club_id = p_club_id)
+      OR EXISTS (SELECT 1 FROM club_admins ca WHERE ca.user_id = p.id AND ca.club_id = p_club_id)
+      OR EXISTS (SELECT 1 FROM club_coaches cc WHERE cc.user_id = p.id AND cc.club_id = p_club_id)
+      OR EXISTS (SELECT 1 FROM parent_roster_links prl WHERE prl.parent_user_id = p.id AND prl.club_id = p_club_id)
+    );
 $$;
 
 COMMENT ON FUNCTION get_club_roster_profiles IS
   'Replaces club-admin.html''s pattern of reading profiles by a client-'
-  'supplied id list. Joins against the actual club_roster membership '
-  'server-side and requires is_club_manager(p_club_id) — a tampered '
-  'client-side id list can no longer pull another club''s member data.';
+  'supplied id list. Covers roster swimmers, club admins/coaches, and '
+  'linked parents for the given club — server-side, gated on '
+  'is_club_manager(p_club_id) — a tampered client-side id list can no '
+  'longer pull another club''s member data.';
 
 -- ── Section 8: email-search RPC (narrow — name only, not a general lookup) ─
 CREATE OR REPLACE FUNCTION search_profile_by_email(p_email text)

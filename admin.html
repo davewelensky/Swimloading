@@ -1094,12 +1094,15 @@ async function loadAnalytics(days = 7) {
 
 // ── Load users ─────────────────────────────────────────────────────────────────
 async function loadUsers() {
-    // Fetch profiles with city for location breakdown
+    // Fetch profiles via the admin-gated RPC (server-side is_admin check —
+    // see sql/2026-07-19_fix-profiles-rls.sql). Returns the same column set
+    // the old direct select() used. If the RPC doesn't exist yet (migration
+    // not applied) or the caller isn't admin, this fails safely to an empty
+    // list rather than falling back to an unrestricted profiles read.
     const { data: profiles, error: pErr } = await supabaseClient
-        .from('profiles')
-        .select('id, email, display_name, phone, emergency_contact_name, onboarding_completed_at, created_at, address_line1, city, postal_code');
+        .rpc('get_admin_user_directory');
 
-    if (pErr) { console.error('profiles error:', pErr); return; }
+    if (pErr) { console.error('get_admin_user_directory error:', pErr.message); allUsers = []; return; }
 
     // Fetch temp_logs summary per user — paginate past PostgREST's 1000-row cap
     // so the total + per-user counts are accurate (was maxing out at 1000).
@@ -1578,10 +1581,11 @@ function normaliseCity(raw) {
 // ── Location breakdown ─────────────────────────────────────────────────────────
 async function loadLocationData() {
     // Uses city data already fetched in loadUsers — wait for allUsers to be populated
-    // Re-fetch if not ready (race condition safety)
-    const { data: profiles } = await supabaseClient
-        .from('profiles')
-        .select('city');
+    // Re-fetch if not ready (race condition safety). Same admin-gated RPC as
+    // loadUsers() — no direct profiles table access here either.
+    const { data: profiles, error: pErr } = await supabaseClient
+        .rpc('get_admin_user_directory');
+    if (pErr) { console.error('get_admin_user_directory error:', pErr.message); return; }
 
     const cityMap = {};
     for (const p of (profiles || [])) {
@@ -1717,7 +1721,7 @@ async function loadSpotSuggestions() {
 
     // Fetch display names separately (user_id references auth.users, not profiles directly)
     const userIds = [...new Set(data.map(s => s.user_id))];
-    const { data: profileData } = await supabaseClient.from('profiles').select('id, display_name').in('id', userIds);
+    const { data: profileData } = await supabaseClient.from('public_profiles').select('id, display_name').in('id', userIds);
     const profileMap = Object.fromEntries((profileData || []).map(p => [p.id, p.display_name]));
 
     const statusBadge = s => s === 'pending'
@@ -1808,7 +1812,7 @@ async function loadUkLocationProposals() {
     if (!data || data.length === 0) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No proposals yet.</div>'; return; }
 
     const userIds = [...new Set(data.map(p => p.user_id))];
-    const { data: profileData } = await supabaseClient.from('profiles').select('id, display_name').in('id', userIds);
+    const { data: profileData } = await supabaseClient.from('public_profiles').select('id, display_name').in('id', userIds);
     const profileMap = Object.fromEntries((profileData || []).map(p => [p.id, p.display_name]));
 
     const statusBadge = s => s === 'pending'
@@ -2138,7 +2142,7 @@ async function loadRecentLogs() {
     // Step 2: fetch display names for all unique users in this batch
     const userIds = [...new Set(data.map(l => l.user_id))];
     const { data: profilesData } = await supabaseClient
-        .from('profiles').select('id, display_name').in('id', userIds);
+        .from('public_profiles').select('id, display_name').in('id', userIds);
     const nameMap = Object.fromEntries((profilesData || []).map(p => [p.id, p.display_name]));
 
     container.innerHTML = data.map(log => {

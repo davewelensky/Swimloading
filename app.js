@@ -1143,6 +1143,16 @@
             try {
                 // ── Community Stats this week ─────────────────────────────────────────
                 const since7dStats = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+                // NOTE (2026-07-19, profiles RLS fix): under own-row-only RLS this
+                // head:true count no longer sees the whole table — it can only ever
+                // return 0 or 1 (whether the CALLER's own profile falls in the
+                // window), not the true site-wide weekly count. It fails safely
+                // (RLS filters, it doesn't error), just becomes an inaccurate
+                // "New Members" tile. None of the approved post-fix access paths
+                // provide a generic aggregate count — flagged as a follow-up
+                // (e.g. a small get_new_member_count() RPC) rather than forced
+                // through get_admin_user_directory(), which would break this for
+                // the non-admin users this dashboard stat is shown to.
                 const [newMembersRes, newSpotsRes, weekLogsRes] = await Promise.all([
                     supabaseClient.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', since7dStats),
                     supabaseClient.from('spots').select('*', { count: 'exact', head: true }).gte('created_at', since7dStats),
@@ -1217,7 +1227,7 @@
                 const allDisplaySpots = [...topSpots, ...intlSpots];
                 const spotUserIds = [...new Set(allDisplaySpots.flatMap(s => [s.latestLog.user_id, s.latestWithNote?.user_id].filter(Boolean)))];
                 const { data: spotProfiles } = spotUserIds.length
-                    ? await supabaseClient.from('profiles').select('id, display_name').in('id', spotUserIds)
+                    ? await supabaseClient.from('public_profiles').select('id, display_name').in('id', spotUserIds)
                     : { data: [] };
                 const spotNameMap = Object.fromEntries((spotProfiles || []).map(p => [p.id, p.display_name]));
 
@@ -1732,7 +1742,7 @@
 
                     // Load profiles
                     const { data: profilesData } = await supabaseClient
-                        .from('profiles')
+                        .from('public_profiles')
                         .select('id, display_name')
                         .in('id', userIds);
 
@@ -2247,7 +2257,7 @@
             // Fetch display names from profiles separately
             const userIds = [...new Set(allPosts.map(p => p.user_id))];
             const { data: profilesData } = userIds.length
-                ? await supabaseClient.from('profiles').select('id, display_name').in('id', userIds)
+                ? await supabaseClient.from('public_profiles').select('id, display_name').in('id', userIds)
                 : { data: [] };
             const profileMap = Object.fromEntries((profilesData || []).map(p => [p.id, p.display_name]));
 
@@ -2694,7 +2704,7 @@
                 // Load creator profiles
                 const creatorIds = [...new Set(upcomingEvents.map(e => e.created_by).filter(Boolean))];
                 const { data: profilesData } = await supabaseClient
-                    .from('profiles')
+                    .from('public_profiles')
                     .select('id, display_name')
                     .in('id', creatorIds);
 
@@ -3201,6 +3211,18 @@
             jcAwardPoints('create_swim', { spotName: locationName, refId: data?.[0]?.id });
 
             // Notify opted-in users about the new swim (once, using first event)
+            // NOTE (2026-07-19, profiles RLS fix): the optedInRes query below
+            // reads other users' ids filtered by notify_new_swims=true — under
+            // own-row-only RLS this now always returns empty (it can only ever
+            // see the caller's own row, which is then excluded by .neq(self)),
+            // so this notification silently stops sending rather than erroring
+            // or leaking data. get_signup_notification_targets() was
+            // deliberately NOT used here — it also includes is_admin users,
+            // which would spam admins with a notification on every swim
+            // creation, not just new signups. This needs its own small RPC
+            // (e.g. get_swim_notification_opt_ins()) as a follow-up — flagged
+            // in docs/refactor/INCIDENT_PROFILES_PUBLIC_READ.md, not silently
+            // left broken without a trace.
             if (data && data[0]) {
                 const newEventId = data[0].id;
                 try {
@@ -3476,7 +3498,7 @@
             // Fetch organiser names
             const creatorIds = [...new Set(overlappingSwims.map(s => s.created_by))];
             const { data: organisers } = await supabaseClient
-                .from('profiles')
+                .from('public_profiles')
                 .select('id, display_name')
                 .in('id', creatorIds);
             const organiserMap = {};
@@ -3831,7 +3853,7 @@
 
                 // Load creator profile
                 const { data: creatorProfile, error: creatorError } = await supabaseClient
-                    .from('profiles')
+                    .from('public_profiles')
                     .select('display_name')
                     .eq('id', event.created_by)
                     .maybeSingle();
@@ -3851,17 +3873,29 @@
 
                 console.log('Members loaded:', { members, membersError });
 
-                // Load profiles for these members separately
+                // Load profiles for these members separately.
+                // TEMPORARILY SCOPED TO NAMES ONLY (2026-07-19, profiles RLS fix):
+                // this used to also pull phone/emergency_contact_name/
+                // emergency_contact_phone for every participant, with no
+                // authorization check beyond "can view this event page."
+                // None of the approved post-fix access paths (public_profiles,
+                // get_admin_user_directory, get_club_roster_profiles,
+                // search_profile_by_email, get_signup_notification_targets)
+                // fit "emergency contacts for a specific event's participant
+                // list" — see docs/refactor/INCIDENT_PROFILES_PUBLIC_READ.md
+                // "Remaining security issues." A proper scoped RPC (checking
+                // the caller is themselves a participant/organiser of this
+                // event) is needed to restore this safety feature — flagged,
+                // not silently dropped.
                 if (members && members.length > 0) {
                     const userIds = members.map(m => m.user_id);
                     const { data: profiles } = await supabaseClient
-                        .from('profiles')
-                        .select('id, display_name, phone, emergency_contact_name, emergency_contact_phone')
+                        .from('public_profiles')
+                        .select('id, display_name')
                         .in('id', userIds);
 
-                    console.log('Profiles loaded:', profiles);
-
-                    // Attach profiles to members
+                    // Attach profiles to members (no PII in this log — only
+                    // id/display_name are ever fetched here now)
                     members.forEach(member => {
                         const profile = profiles?.find(p => p.id === member.user_id);
                         member.profiles = profile;
@@ -5196,10 +5230,14 @@
             if (!el) return;
             el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Loading…</div>';
             try {
-                // Fetch hazards + reporter name (avoid spots join — look up spot name from local spots array)
+                // Fetch hazards + reporter name (avoid spots join — look up spot name from local spots array).
+                // Reporter name is fetched separately via public_profiles (2026-07-19
+                // profiles RLS fix) — the old embedded profiles(display_name) join is
+                // subject to profiles' own RLS per-row, which under own-row-only RLS
+                // would silently return null for every reporter except the caller.
                 const { data: allHazards, error } = await supabaseClient
                     .from('hazard_reports')
-                    .select('id, spot_id, hazard_type, severity, title, description, photo_url, active_until, resolved_at, created_at, user_id, profiles(display_name)')
+                    .select('id, spot_id, hazard_type, severity, title, description, photo_url, active_until, resolved_at, created_at, user_id')
                     .is('resolved_at', null)
                     .order('created_at', { ascending: false });
 
@@ -5209,6 +5247,16 @@
                     console.error('loadHazards error:', error);
                     el.innerHTML = '<div style="color:var(--danger);font-size:13px;">Error loading hazards: ' + error.message + '</div>';
                     return;
+                }
+
+                const hazardReporterIds = [...new Set((allHazards || []).map(h => h.user_id).filter(Boolean))];
+                if (hazardReporterIds.length) {
+                    const { data: reporterProfiles } = await supabaseClient
+                        .from('public_profiles')
+                        .select('id, display_name')
+                        .in('id', hazardReporterIds);
+                    const reporterMap = Object.fromEntries((reporterProfiles || []).map(p => [p.id, p]));
+                    (allHazards || []).forEach(h => { h.profiles = reporterMap[h.user_id] || null; });
                 }
 
                 // Filter out expired hazards in JS
@@ -6549,12 +6597,17 @@
 
                 if (error) throw error;
 
-                // Notify admins (in-app) + push subscribers who want new member alerts
+                // Notify admins (in-app) + push subscribers who want new member alerts.
+                // Uses the signup-notification RPC (2026-07-19 profiles RLS fix) —
+                // note this also includes notify_new_swims=true opted-in users, not
+                // just is_admin, since the RPC unions both sets. Acceptable here
+                // (it's specifically a "new member joined" notice, a reasonable
+                // thing for swim-alert subscribers to also see), unlike the
+                // swim-creation fan-out above which deliberately does NOT use this
+                // RPC for the opposite reason.
                 try {
                     const { data: admins } = await supabaseClient
-                        .from('profiles')
-                        .select('id')
-                        .eq('is_admin', true);
+                        .rpc('get_signup_notification_targets');
                     for (const admin of (admins || [])) {
                         await notify(admin.id, null, 'new_signup',
                             'New swimmer joined!',
