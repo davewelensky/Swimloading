@@ -170,8 +170,13 @@ async function main() {
   console.log('\nSitemap must not list internal routes:');
   const { status: smStatus, body: sitemap } = await readOnly('/sitemap.xml');
   if (smStatus === 200) {
-    for (const needle of ['/dave', '/admin', '/PHtest', '/growth-hub', '/content-calendar', '/caption-agent', '/Sponsors']) {
-      report(!sitemap.includes(needle), `sitemap.xml excludes ${needle}`, sitemap.includes(needle) ? 'internal route present in sitemap' : undefined);
+    // Match the exact <loc> URL, not a substring — e.g. "/dave" is a
+    // substring of the legitimate public page
+    // "/english-channel/swim/dave-berry-2022", which is not an internal
+    // route and must not be flagged.
+    for (const route of ['/dave', '/admin', '/PHtest', '/growth-hub', '/content-calendar', '/caption-agent', '/Sponsors']) {
+      const exactMatch = new RegExp(`<loc>https?://[^<]*${route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(/)?</loc>`, 'i').test(sitemap);
+      report(!exactMatch, `sitemap.xml excludes ${route}`, exactMatch ? 'internal route present in sitemap' : undefined);
     }
   } else {
     report(false, 'GET /sitemap.xml', `expected 200, got ${smStatus}`);
