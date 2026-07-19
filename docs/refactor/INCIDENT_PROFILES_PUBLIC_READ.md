@@ -1,5 +1,15 @@
 # Incident: `profiles` table publicly readable, unauthenticated
 
+## ✅ RESOLVED — 2026-07-19
+
+- **App-code compatibility deployed:** commit `cd462bd`, Vercel deployment `91EanCfqeiokoSNkgo6qMq8Ls9B6` — verified success, zero console errors across homepage/`/app`/`/clubs`/`/admin`/`/club-admin/duc`.
+- **Migration applied:** `fix_profiles_rls` (via `supabase-admin` `apply_migration`), same session, immediately after compatibility code was confirmed live. Unsafe policy removed; own-row policies, `public_profiles` view, and 4 `SECURITY DEFINER` RPCs created.
+- **Follow-up hardening applied same session:** `revoke_public_execute_profiles_rpcs` — see "Residual risk, now closed" below.
+- **Post-fix verification:** `scripts/test-profiles-rls.mjs --mode=production-safe` — 4/4 pass. Anon confirmed unable to read `profiles` (0 rows, 0 count), `public_profiles` confirmed to expose only `id`/`display_name`, all 4 RPCs confirmed to reject anon outright (401/404).
+- **Data was technically exposed for an unknown duration (likely since project scaffolding — see "When the unsafe policy was introduced" below). Actual unauthorised third-party access has NOT been confirmed — no evidence of a breach exists or is claimed here. This distinction is deliberate: exposure existed and was technically possible (demonstrated by this session's own authorised verification); whether anyone else exploited it is unknown without Supabase access-log review, which remains outstanding — see "Decisions required."**
+
+---
+
 ## Issue description
 
 The `profiles` table has an active Row Level Security policy —
@@ -101,43 +111,80 @@ conversation):
 
 ## Containment status
 
-**Not contained yet.** This report intentionally stops short of applying any
-fix — per the explicit instruction, production RLS is not to be altered
-until access paths are fully understood (Step 2, this session) and Dave has
-reviewed the proposed replacement policies. The proposed migration
-(`sql/2026-07-19_fix-profiles-rls.sql`) is written and ready but **NOT
-applied**. **The exposure remains live in production right now.**
+**✅ Contained.** `fix_profiles_rls` applied 2026-07-19. The unsafe
+`USING (true)` policy is removed; `profiles` now permits `SELECT`/`UPDATE`
+only where `auth.uid() = id`. Anon confirmed unable to read any row (0
+rows, 0 count, all sensitive-field-presence checks negative). App code
+compatible with the new access model was deployed *before* the migration
+ran (commit `cd462bd`, verified live, zero console errors), per the
+required ordering.
 
-## Remediation plan
+## Remediation plan (implemented)
 
 See `docs/refactor/PROFILES_RLS_REMEDIATION.md` for the full field
-classification, dependency matrix, and policy design. Summary: replace both
-broad `SELECT` policies with `USING (auth.uid() = id)` (own-row only);
-add a `public_profiles` view exposing only `id, display_name` for the
-member-directory-style reads that don't need more; preserve `admin.html`'s
-full-roster read via a `SECURITY DEFINER` RPC gated on `profiles.is_admin`
-(the same flag `admin.html` already conceptually relies on, just not
-currently enforced at the data layer).
+classification and dependency matrix. Implemented: own-row-only
+`SELECT`/`UPDATE` policies; `public_profiles` view (`id, display_name`,
+granted to `anon` + `authenticated` — broadened from the original
+authenticated-only design after `welcome.html`'s public "contributor name"
+feature was found during the app-code compatibility sweep);
+`get_admin_user_directory()` (gated on `profiles.is_admin`, broadened
+scope for `admin.html`'s full directory read); `get_club_roster_profiles()`
+(gated on `is_club_manager()`, broadened during implementation to cover
+club admins/coaches/parents, not just roster swimmers, once club-admin.html's
+real dependencies were mapped); `search_profile_by_email()`;
+`get_signup_notification_targets()`.
 
 ## Residual risk
 
 - **`club_roster` has the identical policy shape** and is at least as
-  severe (includes minors' data) — see `docs/refactor/RLS_AUDIT.md`. Not
-  addressed by this incident's fix. Needs its own migration, recommended as
-  the immediate next priority.
-- Whether any external party actually harvested this data is unknown
-  without Supabase's access logs (see above) — this report does not claim
-  and cannot claim that occurred, only that it was possible and, by this
-  session's own verification, actively demonstrated (by an authorized
-  party, for the explicit purpose of confirming the report).
-- Once fixed, any client code that was silently relying on the broad read
-  (rather than a scoped query) will start receiving empty results instead
-  of an error — see `PROFILES_RLS_REMEDIATION.md`'s dependency matrix for
-  which pages need a code change alongside the policy change, not after it.
+  severe (includes minors' data) — see `docs/refactor/RLS_AUDIT.md`. **Not
+  addressed by this fix — explicitly out of scope for this task, prepared
+  only (see Step 8 below), not implemented.** Still the top recommended
+  next priority.
+- Whether any external party actually harvested this data before the fix
+  is unknown without Supabase's access logs — **this report does not claim
+  and cannot claim a breach occurred.** What is confirmed: the exposure
+  existed, and unauthenticated access was technically possible and was
+  actively demonstrated (by this session, for the explicit purpose of
+  confirming and then closing the report) — those are the only two claims
+  this document makes. Checking Supabase's access logs for the exposure
+  window remains outstanding and unactioned in this session (no dashboard
+  access) — see `docs/refactor/VERCEL_MANUAL_CHECKLIST.md`-style manual
+  follow-up.
+- Two intentional, documented feature degradations remain open (not
+  security issues — both fail safely to empty results): the swim-event
+  group participant list no longer shows other participants' phone/
+  emergency contact (needs a properly scoped RPC to restore, checking the
+  caller is themselves a participant/organiser); the "notify opted-in
+  users about a new swim" fan-out currently sends to nobody (needs its own
+  small RPC, deliberately not merged into `get_signup_notification_targets()`
+  since that would have caused admin-notification spam on every swim
+  creation). Both flagged in `app.js` code comments at the relevant sites.
+- The dashboard's "New Members this week" stat (`app.js:1147`) now
+  undercounts (0 or 1, not the true site-wide weekly figure) — not a
+  security issue (RLS filters, doesn't error), just an accuracy
+  regression, flagged in-code, needs a small aggregate-count RPC as a
+  follow-up if the accurate figure matters.
+- **Found and closed within this same session, not left open:** the
+  original migration granted `EXECUTE` on the 4 new RPCs to `authenticated`
+  and revoked from `anon` specifically, but Postgres grants `EXECUTE` to
+  `PUBLIC` by default on function creation — `REVOKE ... FROM anon` alone
+  doesn't remove access anon still has via the `PUBLIC` grant. Anon could
+  therefore *invoke* the functions (confirmed via live testing to receive
+  zero rows — no data leaked, the internal `auth.uid()`/`is_admin`/
+  `is_club_manager()` checks correctly returned nothing) rather than being
+  rejected outright. Closed via a same-session follow-up migration
+  (`revoke_public_execute_profiles_rpcs`) — re-verified anon now gets
+  401/404 on all 4 functions.
+- The repository is public (`github.com/davewelensky/Swimloading`) — this
+  incident report (including the confirmed exposure mechanism) is
+  published there now, after the fix was live. Noted for completeness;
+  not re-litigated here — see the prior session's flag on this and Dave's
+  explicit instruction to continue regardless.
 
 ## Decisions required
 
-1. Approve or amend the proposed replacement policies (`PROFILES_RLS_REMEDIATION.md` + `sql/2026-07-19_fix-profiles-rls.sql`).
-2. Whether to fix `club_roster` in the same pass or as an immediate follow-up.
-3. Whether to check Supabase's access logs for historical anomalies before or after applying the fix (fixing first stops ongoing exposure regardless of what the logs show).
-4. The literal approval phrase **"APPLY PROFILES RLS FIX"** to proceed with the migration once reviewed.
+1. ~~Approve or amend the proposed replacement policies~~ — **done, applied.**
+2. **`club_roster` fix — prepared (Step 8 below), not implemented. Needs your review and a separate approval phrase before applying, per the same process used here.**
+3. Whether to check Supabase's access logs for historical anomalies on the exposure window — still outstanding, needs dashboard access.
+4. Whether to prioritise the two documented feature-degradation follow-ups (group-swim emergency contacts, swim-notification fan-out) or leave them as-is for now.
