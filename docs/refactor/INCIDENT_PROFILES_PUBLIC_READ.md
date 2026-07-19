@@ -8,6 +8,38 @@
 - **Post-fix verification:** `scripts/test-profiles-rls.mjs --mode=production-safe` — 4/4 pass. Anon confirmed unable to read `profiles` (0 rows, 0 count), `public_profiles` confirmed to expose only `id`/`display_name`, all 4 RPCs confirmed to reject anon outright (401/404).
 - **Data was technically exposed for an unknown duration (likely since project scaffolding — see "When the unsafe policy was introduced" below). Actual unauthorised third-party access has NOT been confirmed — no evidence of a breach exists or is claimed here. This distinction is deliberate: exposure existed and was technically possible (demonstrated by this session's own authorised verification); whether anyone else exploited it is unknown without Supabase access-log review, which remains outstanding — see "Decisions required."**
 
+## ⚠️ Post-fix regression — community names showed "Anonymous" — RESOLVED 2026-07-19
+
+**The security remediation itself was never the problem.** After `cd462bd`
+deployed, community-facing names (temp-log attribution, event creators,
+group swim participant lists, hazard reporters, DUC leaderboard) started
+showing "Anonymous" for other users' entries.
+
+**Root cause: stale cached JavaScript, not a data or consent-model
+problem.** `cd462bd` edited `app.js`/`app-trends.js` to query the new
+`public_profiles` view instead of `profiles` directly, but did not bump
+their `?v=N` cache-busting query string in `index.html` — a step
+`CLAUDE.md` documents explicitly under "Common Errors & Fixes." Confirmed
+via `curl`: `app.js?v=57` carries `Cache-Control: public, max-age=14400`
+(4 hours). Since the URL string never changed, any browser or CDN edge
+that had cached it before the fix deployed kept serving the *old* code —
+which queried `profiles` directly for cross-user reads. Under the new
+own-row-only RLS, those old queries silently returned empty for every
+user except the caller, producing "Anonymous" wherever the stale JS was
+still being served.
+
+**Verified this was not a data problem before touching anything:**
+- `profiles`: 637/645 rows have a non-empty `display_name` (8 genuinely blank) — counted only, no names printed.
+- `public_profiles`: identical counts, confirmed correct at the database level (queried directly, independent of any application code).
+- All 4 leaderboard RPCs (`get_challenge_leaders`, `get_campaign_leaders`, `get_duc_june_leaders`, `get_monthly_temp_leaders`) confirmed `SECURITY DEFINER` — they bypass RLS entirely and join `profiles` directly, unaffected by the policy change.
+- No dedicated "consent to display my name publicly" column exists in this schema (checked deliberately, not assumed) — only `data_consent_at`, a generic onboarding-consent timestamp, not name-specific. The product's existing, already-shipped model is that an onboarded user's `display_name` **is** their community identity, unchanged from how it worked before this security work.
+
+**Correction (commit `6d2b111`):**
+- `index.html`: bumped `app.js?v=57→58`, `app-trends.js?v=12→13`, `app-nav.js?v=29→30` (this file's fallback also needed the same helper).
+- Added a shared `resolveCommunityDisplayName()` helper (global scope, `app.js`) that trims a name and falls back to a neutral **"Swimmer"** label — not "Anonymous" — for the 8 profiles with no usable name. Wired up at all 8 fallback sites across `app.js`/`app-nav.js`/`app-trends.js`.
+- **No new migration, view, or RLS change was needed or made.** `public_profiles` (already applied in the original fix) was already correct — the regression was purely a delivery problem, not a data-access-model problem. **The profiles RLS remediation itself was not touched, weakened, or altered in any way to fix this.**
+- Verified live post-deploy: `app.js?v=58` returns 200 with `x-vercel-cache: MISS` (genuinely fresh, not a stale cache hit), `/app`'s HTML now references all three bumped versions, zero console errors.
+
 ---
 
 ## Issue description
