@@ -448,11 +448,10 @@ async function lookupByNumber() {
   err.style.display = 'none';
   if (!num) { err.textContent = 'Enter a valid member number.'; err.style.display = 'block'; return; }
 
-  const { data } = await sb.from('club_roster')
-    .select('id, member_number, display_name, category, gender')
-    .eq('club_id', clubData.id)
-    .eq('member_number', num)
-    .single();
+  const { data: matches } = await sb.rpc('search_roster_entries_for_linking', {
+    p_club_id: clubData.id, p_member_number: num,
+  });
+  const data = matches?.[0] || null;
 
   if (!data) {
     err.textContent = `No member #${num} found. Try searching by name or choose "I'm a new member".`;
@@ -474,12 +473,9 @@ async function doNameSearch() {
   const resultsEl = document.getElementById('rosterResults');
   if (q.length < 2) { resultsEl.innerHTML = ''; return; }
 
-  const { data } = await sb.from('club_roster')
-    .select('id, member_number, display_name, category, gender')
-    .eq('club_id', clubData.id)
-    .ilike('display_name', `%${q}%`)
-    .order('member_number')
-    .limit(10);
+  const { data } = await sb.rpc('search_roster_entries_for_linking', {
+    p_club_id: clubData.id, p_query: q,
+  });
 
   if (!data?.length) {
     resultsEl.innerHTML = `<div style="font-size:13px;color:var(--text-sec);text-align:center;padding:12px;">No match — try a different spelling, or choose "I'm a new member".</div>`;
@@ -501,10 +497,10 @@ async function doNameSearch() {
 }
 
 async function selectRosterEntry(rosterId) {
-  const { data } = await sb.from('club_roster')
-    .select('id, member_number, display_name, category, gender')
-    .eq('id', rosterId)
-    .single();
+  const { data: matches } = await sb.rpc('search_roster_entries_for_linking', {
+    p_club_id: clubData.id, p_roster_id: rosterId,
+  });
+  const data = matches?.[0] || null;
   if (data) await checkAndConfirmRoster(data);
 }
 
@@ -710,12 +706,9 @@ async function doParentNameSearch() {
   const resultsEl = document.getElementById('parentRosterResults');
   if (q.length < 2) { resultsEl.innerHTML = ''; return; }
 
-  const { data } = await sb.from('club_roster')
-    .select('id, display_name, category, squad_id')
-    .eq('club_id', clubData.id)
-    .ilike('display_name', `%${q}%`)
-    .order('display_name')
-    .limit(10);
+  const { data } = await sb.rpc('search_roster_entries_for_linking', {
+    p_club_id: clubData.id, p_query: q,
+  });
 
   if (!data?.length) {
     resultsEl.innerHTML = `<div style="font-size:13px;color:var(--text-sec);text-align:center;padding:12px;">No match — check the spelling or ask your club admin.</div>`;
