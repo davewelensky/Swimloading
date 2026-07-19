@@ -1052,6 +1052,24 @@ tr:last-child td{border-bottom:none}tr:hover td{background:rgba(56,189,248,0.04)
 }
 `.trim();
 
+// International column built from COUNTRY_SLUGS (seo-utils.js) — the same
+// map that already correctly resolves /spots/[country-slug] for every live
+// country. This used to be a hand-typed 5-country HTML string that never
+// grew past Namibia/UK/Australia/Switzerland/Portugal — Seychelles, Italy,
+// France, Croatia, Spain and Thailand were all live but missing here. Never
+// hardcode this list again; add the country to COUNTRY_SLUGS and it appears
+// here automatically. Italy has no dedicated country page (see site-config.js
+// countries[].slug===null) so it's added separately, matching welcome.html's
+// own fallback of routing it to /spots/europe.
+function prettifyCountryKey(key) {
+  return key.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+const INTL_FOOTER_LINKS = Object.keys(COUNTRY_SLUGS)
+  .filter(key => key !== 'south-africa')
+  .map(key => `<a href="/spots/${COUNTRY_SLUGS[key]}">${prettifyCountryKey(key)}</a>`)
+  .concat('<a href="/spots/europe">Italy</a>')
+  .join('\n      ');
+
 const FOOTER_HTML = `
 <div class="f-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:32px 24px;margin-bottom:28px;">
   <div>
@@ -1072,11 +1090,7 @@ const FOOTER_HTML = `
   <div>
     <div class="f-label">International</div>
     <div class="f-links">
-      <a href="/spots/namibia">Namibia</a>
-      <a href="/spots/united-kingdom">United Kingdom</a>
-      <a href="/spots/australia">Australia</a>
-      <a href="/spots/switzerland">Switzerland</a>
-      <a href="/spots/portugal">Portugal</a>
+      ${INTL_FOOTER_LINKS}
     </div>
   </div>
 </div>

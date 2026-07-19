@@ -6778,7 +6778,7 @@
 
         const SP_TYPE_LABELS = { OCEAN: 'Ocean', POOL: 'Pool', LAGOON: 'Lagoon', DAM: 'Inland', LAKE: 'Lake' };
         const SP_TYPE_ICONS  = { OCEAN: 'waves', POOL: 'droplets', LAGOON: 'anchor', DAM: 'mountain-snow', LAKE: 'waves' };
-        const INTERNATIONAL_DOMAINS = new Set(['EUROPE', 'NAMIBIA', 'UK', 'WESTERN_AUSTRALIA', 'USA', 'SEYCHELLES', 'DALMATIA', 'SPAIN', 'THAILAND']);
+        const INTERNATIONAL_DOMAINS = new Set(['EUROPE', 'NAMIBIA', 'UK', 'WESTERN_AUSTRALIA', 'USA', 'SEYCHELLES', 'DALMATIA', 'FRANCE', 'SPAIN', 'THAILAND']);
         const COUNTRY_NAMES = { ZA: 'South Africa', NA: 'Namibia', CH: 'Switzerland', AU: 'Australia', GB: 'United Kingdom', FR: 'France', DE: 'Germany', IT: 'Italy', SC: 'Seychelles', ES: 'Spain' };
         const AREA_DISPLAY = {
             ATLANTIC: 'Atlantic Seaboard',

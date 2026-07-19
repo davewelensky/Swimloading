@@ -1,4 +1,4 @@
-const CACHE_NAME = 'swimloading-v10';
+const CACHE_NAME = 'swimloading-v11';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -49,6 +49,24 @@ self.addEventListener('fetch', (event) => {
 
     // Skip non-GET requests
     if (event.request.method !== 'GET') return;
+
+    // Never cache-first these — they're served with Cache-Control: no-cache
+    // specifically so an edit is live immediately, no ?v=N bump needed
+    // (see CLAUDE.md "Site Sync"). The generic cache-first fallback below
+    // ignores HTTP cache headers entirely (it matches Cache Storage, not
+    // the network), so without this bypass a returning visitor's first-ever
+    // fetch of e.g. site-config.js gets pinned forever — every future edit
+    // (a new country, a new challenge) becomes invisible to them until this
+    // service worker version changes. Confirmed root cause of a real report:
+    // Thailand added to site-config.js's countries list, footer routed a
+    // returning visitor to Europe anyway — their site-config.js was stale.
+    const NEVER_CACHE_FIRST = ['/site-config.js', '/site-sync.js', '/promos-config.js', '/promos.js'];
+    if (NEVER_CACHE_FIRST.includes(url.pathname)) {
+        event.respondWith(
+            fetch(event.request).catch(() => caches.match(event.request))
+        );
+        return;
+    }
 
     // Network-first for HTML pages (always get latest)
     if (event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/') {
