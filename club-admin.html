@@ -6052,8 +6052,21 @@ function renderJoinLink(link) {
   renderParentJoinLink();
 }
 
+// Cryptographically-secure random suffix (2026-07-19, club_join_links RLS
+// fix) — Math.random() is not cryptographically secure and the previous
+// 5-character suffix, combined with the public club slug prefix, made
+// codes practically brute-forceable. 10 chars over a 32-symbol alphabet
+// (no 0/O/1/I to avoid transcription errors) = 32^10 ≈ 1.1 * 10^15
+// combinations.
+function secureRandomSuffix(len) {
+  const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789'; // 32 symbols, no 0/O/1/I
+  const bytes = new Uint8Array(len);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, b => alphabet[b % alphabet.length]).join('');
+}
+
 async function generateNewLink() {
-  const code = currentClub.slug + '-' + Math.random().toString(36).slice(2,7);
+  const code = currentClub.slug + '-' + secureRandomSuffix(10);
   const { data, error } = await sb.from('club_join_links').insert({
     club_id: currentClub.id, code, created_by: currentUser.id, is_active: true,
   }).select().single();

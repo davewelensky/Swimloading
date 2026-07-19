@@ -277,7 +277,7 @@ const SUPABASE_URL      = 'https://szgkzuswelntnevobnoh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-let linkData       = null;
+let joinCode        = null;
 let clubData       = null;
 let currentUser    = null;
 let selectedRoster = null;   // club_roster row the user picked
@@ -305,17 +305,17 @@ async function init() {
   // Allow pre-fill of member number via query param ?m=527
   const prefilledNum = params.get('m');
 
-  const { data: link } = await sb.from('club_join_links')
-    .select('*, clubs(*)')
-    .eq('code', code)
-    .eq('is_active', true)
-    .single();
+  const { data: validation } = await sb.rpc('validate_join_code', { p_code: code });
 
-  if (!link?.clubs) { showScreen('invalid'); lucide.createIcons(); return; }
-  if (link.expires_at && new Date(link.expires_at) < new Date()) { showScreen('invalid'); lucide.createIcons(); return; }
+  if (!validation?.valid) { showScreen('invalid'); lucide.createIcons(); return; }
 
-  linkData = link;
-  clubData = link.clubs;
+  joinCode = code;
+  clubData = {
+    id: validation.club_id,
+    name: validation.club_name,
+    tagline: validation.club_tagline,
+    city: validation.club_city,
+  };
 
   const { data: { session } } = await sb.auth.getSession();
   if (!session) {
@@ -596,30 +596,28 @@ async function confirmJoin() {
   btn.innerHTML = '<span style="width:16px;height:16px;border:2px solid #080f1a;border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin 0.6s linear infinite;"></span>&nbsp;Joining…';
   err.style.display = 'none';
 
-  const payload = {
-    club_id:   clubData.id,
-    user_id:   currentUser.id,
-    role:      'member',
-    is_active: true,
-    roster_id: selectedRoster?.id || null,
-    member_number: selectedRoster ? String(selectedRoster.member_number) : null,
-  };
+  const { data: result, error } = await sb.rpc('redeem_club_join_code', {
+    p_code: joinCode,
+    p_roster_id: selectedRoster?.id || null,
+  });
 
-  const { error } = await sb.from('club_members').insert(payload);
-
-  if (error) {
+  if (error || !result?.success) {
     btn.disabled = false;
     btn.innerHTML = '<i data-lucide="user-check" style="width:15px;height:15px;"></i> Confirm — join the club';
     lucide.createIcons();
-    err.textContent = error.message;
+    const statusMessages = {
+      invalid_code: 'This invite link is no longer valid.',
+      expired: 'This invite link has expired.',
+      exhausted: 'This invite link has reached its usage limit.',
+      already_member: 'You\'re already a member of this club.',
+      roster_mismatch: 'That roster entry doesn\'t belong to this club.',
+      roster_already_claimed: 'That roster entry is already linked to another account.',
+      not_authenticated: 'Please sign in and try again.',
+    };
+    err.textContent = statusMessages[result?.status] || error?.message || 'Something went wrong — please try again.';
     err.style.display = 'block';
     return;
   }
-
-  // Increment use_count
-  await sb.from('club_join_links')
-    .update({ use_count: (linkData.use_count || 0) + 1 })
-    .eq('id', linkData.id);
 
   // Check if profile needs completing (DOB missing)
   const { data: profile } = await sb.from('profiles')

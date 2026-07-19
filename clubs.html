@@ -1904,12 +1904,10 @@
     document.getElementById('joinBannerTitle').textContent = `Join ${club.name}`;
 
     // Fetch the active join link so the button goes directly there
-    const { data: link } = await sb.from('club_join_links')
-      .select('code').eq('club_id', club.id).eq('is_active', true)
-      .order('created_at', { ascending: false }).limit(1).single();
+    const { data: code } = await sb.rpc('get_club_active_join_code', { p_club_id: club.id });
 
-    const joinUrl = link
-      ? `https://www.swimloading.com/join/${link.code}`
+    const joinUrl = code
+      ? `https://www.swimloading.com/join/${code}`
       : '/app';
 
     document.getElementById('joinBannerDesc').textContent =
