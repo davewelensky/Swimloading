@@ -635,9 +635,11 @@ function _icEnsureIdentityView() {
         </div>
         <!-- Story Timeline tab bar (Phase 2.2) — hidden entirely unless
              story_timeline_v1 is enabled for the current user; see
-             showIdentityView() and app-story-timeline.js. With only one
-             tab ever visible (the flag off case), no tab UI is shown at
-             all, matching the pre-Phase-2.2 single-view behaviour exactly. -->
+             showIdentityView() and app-story-timeline.js. Records (drafted
+             during Release 2.4 discovery) is explicitly OUT of this
+             release per Dave's scope correction — preserved separately in
+             app-records.js / sql/2026-07-20_records-v1.sql, not wired in
+             here, not committed with Overview V2. -->
         <div id="identityTabBar" role="tablist" aria-label="Profile sections" style="display:none; gap:18px; margin-bottom:16px; border-bottom:1px solid var(--border);">
           <button type="button" role="tab" id="identityTabOverview" aria-selected="true" aria-controls="identityPanelOverview"
             onclick="switchIdentityTab('overview')"
@@ -726,8 +728,9 @@ async function showIdentityView() {
     analytics.track('identity_view_opened');
 
     // Story Timeline tab (Phase 2.2) — flag-gated, independent of
-    // story_engine_v1. Always reset to the Overview tab on open so a
-    // previous session's Story tab selection never persists oddly.
+    // story_engine_v1 and of Overview V2. Always reset to the Overview
+    // tab on open so a previous session's Story tab selection never
+    // persists oddly.
     const tabBar = document.getElementById('identityTabBar');
     if (tabBar) {
         const showTabs = typeof storyTimelineEnabled === 'function' && await storyTimelineEnabled();
@@ -735,21 +738,17 @@ async function showIdentityView() {
         if (typeof switchIdentityTab === 'function') switchIdentityTab('overview');
     }
 
+    // Release 2.4 — Overview V2 is a full replacement of the panel's
+    // content, independently flag-gated (overview_v2), allow-listed to
+    // exactly three people (Dave, Carina, Johan). For every other user
+    // this whole block behaves EXACTLY as before Release 2.4 —
+    // overviewV2Enabled() resolves false, get_my_swimming_overview_v1 is
+    // never called, and _icRenderLegacyOverview runs unchanged.
     const body = document.getElementById('identityViewBody');
     try {
-        const [achRes, statsRes, countRes] = await Promise.all([
-            supabaseClient.from('swimmer_achievements')
-                .select('track_type, achievement_code, achievement_name, verification_status')
-                .eq('user_id', currentUser.id),
-            supabaseClient.from('temp_logs')
-                .select('temp_c')
-                .eq('user_id', currentUser.id)
-                .order('temp_c', { ascending: true })
-                .limit(1),
-            supabaseClient.from('temp_logs')
-                .select('id, created_at', { count: 'exact', head: true })
-                .eq('user_id', currentUser.id)
-        ]);
+        const achRes = await supabaseClient.from('swimmer_achievements')
+            .select('track_type, achievement_code, achievement_name, verification_status')
+            .eq('user_id', currentUser.id);
 
         const rows = achRes.data || [];
         const participationRows = rows.filter(r => r.track_type === 'participation' && r.verification_status === 'earned');
@@ -759,11 +758,53 @@ async function showIdentityView() {
         const topParticipation = participationRows.sort((a, b) =>
             partOrderIndex(b.achievement_code) - partOrderIndex(a.achievement_code))[0];
 
+        const showOverviewV2 = typeof overviewV2Enabled === 'function' && await overviewV2Enabled();
+
+        if (showOverviewV2 && typeof renderOverviewV2 === 'function') {
+            try {
+                const participationLabel = topParticipation
+                    ? _icParticipationLabel(topParticipation.achievement_code, topParticipation.achievement_name)
+                    : 'Swimmer';
+                await renderOverviewV2(body, { participationLabel });
+                return;
+            } catch (ovErr) {
+                // Fail-open per Dave's instruction: an allow-listed user
+                // whose Overview V2 load fails must still get a working
+                // modal, not an error card — fall through to the exact
+                // same legacy render every non-allow-listed user gets.
+                console.error('[identity] overview v2 failed, falling back to legacy overview', ovErr);
+                try { analytics.track('overview_v2_load_failed', { failure_stage: 'fallback_to_legacy' }); } catch (_) {}
+            }
+        }
+
+        await _icRenderLegacyOverview(body, { rows, topParticipation });
+    } catch (e) {
+        console.error('[identity] view failed', e);
+        body.innerHTML = '<div style="color:var(--text-secondary); font-size:13px; text-align:center; padding:24px;">Could not load your identity right now.</div>';
+    }
+}
+
+// Exactly the pre-Release-2.4 Overview render — extracted unchanged so it
+// can serve both as the default path for non-allow-listed users AND as
+// the fail-open fallback for an allow-listed user whose Overview V2 load
+// failed.
+async function _icRenderLegacyOverview(body, { rows, topParticipation }) {
         const coldRows = rows.filter(r => r.track_type === 'cold_water' &&
             (r.verification_status === 'earned' || r.verification_status === 'pending_verification'));
         const coldEntries = coldRows
             .sort((a, b) => IC_COLD_CODES.indexOf(a.achievement_code) - IC_COLD_CODES.indexOf(b.achievement_code))
             .map(r => ({ code: r.achievement_code, name: r.achievement_name, status: r.verification_status }));
+
+        const [statsRes, countRes] = await Promise.all([
+            supabaseClient.from('temp_logs')
+                .select('temp_c')
+                .eq('user_id', currentUser.id)
+                .order('temp_c', { ascending: true })
+                .limit(1),
+            supabaseClient.from('temp_logs')
+                .select('id, created_at', { count: 'exact', head: true })
+                .eq('user_id', currentUser.id)
+        ]);
 
         const coldest = (statsRes.data && statsRes.data[0]) ? parseFloat(statsRes.data[0].temp_c) : null;
         const totalLogs = countRes.count ?? 0;
@@ -792,10 +833,6 @@ async function showIdentityView() {
             identityPublic: !!(currentUserProfile && currentUserProfile.identity_public),
             currentUserId: currentUser.id
         });
-    } catch (e) {
-        console.error('[identity] view failed', e);
-        body.innerHTML = '<div style="color:var(--text-secondary); font-size:13px; text-align:center; padding:24px;">Could not load your identity right now.</div>';
-    }
 }
 
 function dismissIdentityView() {

@@ -334,6 +334,15 @@ function _scRenderCard({ leadEvent, extraCount, timelineEnabled, onContinue, onV
 }
 
 // ── Timeline deep link ──────────────────────────────────────────
+// Public setter (Release 2.4 added a second caller — Overview's own
+// "View Story" button on the Latest Story card, app-overview.js's
+// overviewViewStory() — reuses this exact mechanism rather than growing
+// a parallel one). _scOpenTimeline itself is Story Card's own private
+// entry point; callers outside this file always go through this setter.
+function _scSetPendingHighlight(eventId) {
+    _scPendingHighlightEventId = eventId;
+}
+
 function _scOpenTimeline(leadEventId) {
     try {
         analytics.track('story_card_view_story', { story_type: null });
@@ -341,7 +350,7 @@ function _scOpenTimeline(leadEventId) {
 
     if (typeof showIdentityView !== 'function' || typeof switchIdentityTab !== 'function') return;
 
-    _scPendingHighlightEventId = leadEventId;
+    _scSetPendingHighlight(leadEventId);
     showIdentityView().then(() => {
         switchIdentityTab('story');
     });
