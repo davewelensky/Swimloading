@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>TEST HARNESS — Swim Passport V1 render (Phase 2.5)</title>
+<!--
+  ============================================================
+  VISUAL REGRESSION TEST HARNESS — NOT A PRODUCT PAGE
+  ============================================================
+  Renders app-passport.js's _ppBuildHtml() against fixed fixture data so
+  the Passport panel can be reviewed at every breakpoint without an
+  authenticated session. Sits alongside test-overview.html,
+  test-identity.html and test-story-card.html.
+
+  Deliberately, and to be kept this way:
+    - NOT linked from any production navigation; noindex'd above.
+    - NO real user data. Every swimmer name, spot, country and
+      temperature below is invented.
+    - NO analytics. `analytics.track` is a local no-op stub, so opening
+      this page cannot emit a single production event.
+    - NO credentials, tokens or secrets, and no Supabase client — it
+      never talks to the database.
+    - NO authenticated session required; safe to open directly.
+
+  Loads the real style.css for the app's global box-sizing and CSS
+  variables; without it percentage widths resolve against content-box
+  and layouts read falsely.
+-->
+
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  body { margin:0; padding:24px 16px 60px; background:#080f1a; color:#f1f5f9; font-family:'DM Sans',sans-serif; }
+  h2 { font-family:'Bebas Neue',sans-serif; font-size:19px; letter-spacing:1px; color:#38bdf8; margin:30px 0 10px; text-align:center; }
+  /* Mirrors the real identity modal body so spacing reads true. */
+  .modal-sim { max-width:420px; margin:0 auto 8px; background:#0d1728; border:1px solid var(--border); border-radius:18px; padding:20px; }
+</style>
+</head>
+<body>
+
+<div style="max-width:420px; margin:0 auto 20px; border:1px solid rgba(245,158,11,0.35); background:rgba(245,158,11,0.07); border-radius:12px; padding:12px 14px; text-align:center;">
+  <div style="font-size:11px; font-weight:700; color:#f59e0b; text-transform:uppercase; letter-spacing:0.1em;">Test harness</div>
+  <div style="font-size:12px; color:#94a3b8; margin-top:5px; line-height:1.5;">Swim Passport V1 rendered against fixture data. Not a product page, not linked from the app, and not connected to any account.</div>
+</div>
+
+<h2>1 — Populated, multiple countries</h2>
+<div class="modal-sim"><div id="p-multi"></div></div>
+
+<h2>2 — Single country, single region</h2>
+<div class="modal-sim"><div id="p-single"></div></div>
+
+<h2>3 — Unknown country + unknown region (pinned last)</h2>
+<div class="modal-sim"><div id="p-unknown"></div></div>
+
+<h2>4 — Region name equals country (heading collapses)</h2>
+<div class="modal-sim"><div id="p-collapse"></div></div>
+
+<h2>5 — Long spot names / edge values</h2>
+<div class="modal-sim"><div id="p-long"></div></div>
+
+<h2>6 — Filter applied (Pool only)</h2>
+<div class="modal-sim"><div id="p-filter"></div></div>
+
+<h2>7 — Filter with no matches</h2>
+<div class="modal-sim"><div id="p-filter-empty"></div></div>
+
+<h2>8 — Empty passport</h2>
+<div class="modal-sim"><div id="p-empty"></div></div>
+
+<h2>9 — RPC failure state</h2>
+<div class="modal-sim"><div id="p-error"></div></div>
+
+<script>
+  // Fixture globals app-passport.js reads. No real swimmer.
+  var currentUser = { id: 'fixture-user' };
+  var currentUserProfile = { display_name: 'Test Swimmer' };
+  var analytics = { track: function () {} };   // no-op: never emits
+</script>
+<script src="app-passport.js?v=1"></script>
+<script>
+  // Helper: a spot row in the exact shape get_my_swim_passport_v1 returns.
+  function spot(o) {
+    return Object.assign({
+      spot_id: 'fixture-' + Math.floor(Math.random() * 1e6),
+      spot_name: 'Fixture Spot', country: 'South Africa', region: 'Atlantic',
+      water_type: 'OCEAN', first_swim_date: '2025-05-14', last_swim_date: '2026-07-18',
+      total_swims: 12, coldest_temp_c: 11.5, warmest_temp_c: 18.2
+    }, o);
+  }
+
+  // Server sorts; fixtures are written already-sorted to match.
+  var multi = {
+    summary: { total_spots_explored: 6, total_countries: 3, total_regions: 4, total_swims_at_spots: 41 },
+    countries: [], // client does not read this in V1
+    spots: [
+      spot({ spot_name: 'Fixture Bay Beach',   country: 'Croatia',      region: 'Dalmatia', water_type: 'OCEAN', total_swims: 3, coldest_temp_c: 19.0, warmest_temp_c: 24.5 }),
+      spot({ spot_name: 'Fixture Cove',        country: 'South Africa', region: 'Atlantic', water_type: 'OCEAN', total_swims: 12 }),
+      spot({ spot_name: 'Fixture Tidal Pool',  country: 'South Africa', region: 'Atlantic', water_type: 'POOL',  total_swims: 8, coldest_temp_c: 14.0, warmest_temp_c: 21.0 }),
+      spot({ spot_name: 'Fixture Harbour',     country: 'South Africa', region: 'False Bay', water_type: 'OCEAN', total_swims: 9, coldest_temp_c: 12.2, warmest_temp_c: 19.4 }),
+      spot({ spot_name: 'Fixture Lagoon',      country: 'South Africa', region: 'False Bay', water_type: 'LAGOON', total_swims: 5, coldest_temp_c: 16.0, warmest_temp_c: 22.8 }),
+      spot({ spot_name: 'Fixture Lake',        country: 'Switzerland',  region: 'Europe',   water_type: 'LAKE',  total_swims: 4, coldest_temp_c: 8.5, warmest_temp_c: 17.0 })
+    ]
+  };
+
+  var single = {
+    summary: { total_spots_explored: 2, total_countries: 1, total_regions: 1, total_swims_at_spots: 14 },
+    countries: [],
+    spots: [
+      spot({ spot_name: 'Fixture Cove', total_swims: 12 }),
+      spot({ spot_name: 'Fixture Point', total_swims: 2, coldest_temp_c: 13.0, warmest_temp_c: 13.0 })
+    ]
+  };
+
+  var unknown = {
+    summary: { total_spots_explored: 3, total_countries: 2, total_regions: 3, total_swims_at_spots: 9 },
+    countries: [],
+    spots: [
+      spot({ spot_name: 'Fixture Cove', total_swims: 5 }),
+      spot({ spot_name: 'Fixture Unplaced Pool', country: 'Unknown country', region: 'Pools & Inland', water_type: 'POOL', total_swims: 3, coldest_temp_c: 25.0, warmest_temp_c: 28.0 }),
+      spot({ spot_name: 'Fixture Nowhere', country: 'Unknown country', region: 'Unknown region', water_type: 'RIVER', total_swims: 1, coldest_temp_c: 9.0, warmest_temp_c: 9.0 })
+    ]
+  };
+
+  var collapse = {
+    summary: { total_spots_explored: 2, total_countries: 1, total_regions: 1, total_swims_at_spots: 6 },
+    countries: [],
+    spots: [
+      spot({ spot_name: 'Fixture Brighton Shore', country: 'United Kingdom', region: 'United Kingdom', water_type: 'OCEAN', total_swims: 4, coldest_temp_c: 7.5, warmest_temp_c: 16.0 }),
+      spot({ spot_name: 'Fixture Serpentine',     country: 'United Kingdom', region: 'United Kingdom', water_type: 'LAKE',  total_swims: 2, coldest_temp_c: 4.0, warmest_temp_c: 19.5 })
+    ]
+  };
+
+  var long = {
+    summary: { total_spots_explored: 3, total_countries: 1, total_regions: 1, total_swims_at_spots: 103 },
+    countries: [],
+    spots: [
+      spot({ spot_name: 'Fixture Sports Science Institute Aquatic Centre Newlands', water_type: 'POOL', total_swims: 100, coldest_temp_c: 26.0, warmest_temp_c: 29.5 }),
+      spot({ spot_name: 'Fixture Single Swim Spot', total_swims: 1, first_swim_date: '2026-07-20', last_swim_date: '2026-07-20', coldest_temp_c: 15.5, warmest_temp_c: 15.5 }),
+      spot({ spot_name: 'Fixture Dam', water_type: 'DAM', total_swims: 2, coldest_temp_c: 6.0, warmest_temp_c: 6.0 })
+    ]
+  };
+
+  var empty = {
+    summary: { total_spots_explored: 0, total_countries: 0, total_regions: 0, total_swims_at_spots: 0 },
+    countries: [], spots: []
+  };
+
+  document.getElementById('p-multi').innerHTML    = _ppBuildHtml(multi, 'ALL');
+  document.getElementById('p-single').innerHTML   = _ppBuildHtml(single, 'ALL');
+  document.getElementById('p-unknown').innerHTML  = _ppBuildHtml(unknown, 'ALL');
+  document.getElementById('p-collapse').innerHTML = _ppBuildHtml(collapse, 'ALL');
+  document.getElementById('p-long').innerHTML     = _ppBuildHtml(long, 'ALL');
+  document.getElementById('p-filter').innerHTML   = _ppBuildHtml(multi, 'POOL');
+  document.getElementById('p-filter-empty').innerHTML = _ppBuildHtml(multi, 'DAM');
+  document.getElementById('p-empty').innerHTML    = _ppBuildHtml(empty, 'ALL');
+
+  // Failure state: the same markup initPassportTab() writes when the RPC
+  // rejects. Reproduced here rather than triggering a real failure,
+  // since the harness has no Supabase client.
+  document.getElementById('p-error').innerHTML =
+    '<div role="alert" style="text-align:center; padding:32px 16px;">' +
+    '<div style="font-size:13px; color:var(--danger); margin-bottom:14px;">Could not load your passport right now.</div>' +
+    '<button type="button" style="padding:10px 22px; border-radius:50px; border:1px solid rgba(56,189,248,0.4); background:transparent; color:#38bdf8; font-size:13px; font-weight:700; cursor:pointer;">Retry</button></div>';
+</script>
+</body>
+</html>

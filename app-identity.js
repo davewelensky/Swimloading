@@ -647,6 +647,11 @@ function _icEnsureIdentityView() {
           <button type="button" role="tab" id="identityTabStory" aria-selected="false" aria-controls="identityPanelStory"
             onclick="switchIdentityTab('story')"
             style="background:none; border:none; border-bottom:2px solid transparent; color:var(--text-secondary); font-size:13px; font-weight:700; padding:0 0 10px; cursor:pointer;">Story</button>
+          <!-- Passport (Phase 2.5) — hidden unless passport_v1 is enabled
+               for this viewer; showIdentityView() sets its display. -->
+          <button type="button" role="tab" id="identityTabPassport" aria-selected="false" aria-controls="identityPanelPassport"
+            onclick="switchIdentityTab('passport')"
+            style="display:none; background:none; border:none; border-bottom:2px solid transparent; color:var(--text-secondary); font-size:13px; font-weight:700; padding:0 0 10px; cursor:pointer;">Passport</button>
         </div>
         <div id="identityPanelOverview" role="tabpanel" aria-labelledby="identityTabOverview">
           <div id="identityViewBody">
@@ -654,6 +659,7 @@ function _icEnsureIdentityView() {
           </div>
         </div>
         <div id="identityPanelStory" role="tabpanel" aria-labelledby="identityTabStory" hidden></div>
+        <div id="identityPanelPassport" role="tabpanel" aria-labelledby="identityTabPassport" tabindex="-1" hidden></div>
       </div>`;
     document.body.appendChild(div);
 }
@@ -731,10 +737,24 @@ async function showIdentityView() {
     // story_engine_v1 and of Overview V2. Always reset to the Overview
     // tab on open so a previous session's Story tab selection never
     // persists oddly.
+    // Two independently-flagged tabs. A swimmer may have either, both or
+    // neither: the bar shows if ANY optional tab is available, and each
+    // button is gated on its own flag. Passport (Phase 2.5) does not
+    // require Story, and vice versa.
     const tabBar = document.getElementById('identityTabBar');
     if (tabBar) {
-        const showTabs = typeof storyTimelineEnabled === 'function' && await storyTimelineEnabled();
-        tabBar.style.display = showTabs ? 'flex' : 'none';
+        const [showStory, showPassport] = await Promise.all([
+            typeof storyTimelineEnabled === 'function' ? storyTimelineEnabled() : false,
+            typeof passportEnabled === 'function' ? passportEnabled() : false
+        ]);
+        const storyBtn = document.getElementById('identityTabStory');
+        const passportBtn = document.getElementById('identityTabPassport');
+        if (storyBtn) storyBtn.style.display = showStory ? '' : 'none';
+        if (passportBtn) passportBtn.style.display = showPassport ? '' : 'none';
+        // With no optional tab there is nothing to switch between, so the
+        // bar (including the lone "Overview" label) stays hidden — the
+        // pre-2.2 appearance for everyone off both flags.
+        tabBar.style.display = (showStory || showPassport) ? 'flex' : 'none';
         if (typeof switchIdentityTab === 'function') switchIdentityTab('overview');
     }
 
@@ -842,6 +862,10 @@ function dismissIdentityView() {
     // highlight — closing the modal must not leave it pending for some
     // later, unrelated Story tab visit.
     if (typeof _scClearPendingHighlight === 'function') _scClearPendingHighlight();
+    // Passport caches its payload for client-side filtering; clear it so
+    // a swim logged later in the session shows up on the next open
+    // instead of serving a stale passport until reload.
+    if (typeof resetPassportTab === 'function') resetPassportTab();
 }
 
 async function toggleIdentityPublic() {

@@ -89,27 +89,80 @@ async function storyTimelineEnabled() {
 }
 
 // ── Tab switching (called from the tab bar app-identity.js renders) ──
+// Generalised to N tabs in Phase 2.5 (Overview / Story / Passport).
+// Overview is the one always-present anchor; Story and Passport are each
+// gated on their own feature flag and may be absent, so both are handled
+// defensively — a missing button or panel is skipped, and lazy init is
+// typeof-guarded in case the owning script is not loaded.
+const IC_TABS = ['overview', 'story', 'passport'];
+
 function switchIdentityTab(tab) {
-    const tabOverviewBtn = document.getElementById('identityTabOverview');
-    const tabStoryBtn = document.getElementById('identityTabStory');
-    const panelOverview = document.getElementById('identityPanelOverview');
-    const panelStory = document.getElementById('identityPanelStory');
-    if (!tabOverviewBtn || !tabStoryBtn || !panelOverview || !panelStory) return;
+    const btns = {
+        overview: document.getElementById('identityTabOverview'),
+        story:    document.getElementById('identityTabStory'),
+        passport: document.getElementById('identityTabPassport')
+    };
+    const panels = {
+        overview: document.getElementById('identityPanelOverview'),
+        story:    document.getElementById('identityPanelStory'),
+        passport: document.getElementById('identityPanelPassport')
+    };
+    if (!btns.overview || !panels.overview) return;
 
-    const showStory = tab === 'story';
-    tabOverviewBtn.setAttribute('aria-selected', showStory ? 'false' : 'true');
-    tabStoryBtn.setAttribute('aria-selected', showStory ? 'true' : 'false');
-    tabOverviewBtn.style.borderBottomColor = showStory ? 'transparent' : '#38bdf8';
-    tabOverviewBtn.style.color = showStory ? 'var(--text-secondary)' : '#38bdf8';
-    tabStoryBtn.style.borderBottomColor = showStory ? '#38bdf8' : 'transparent';
-    tabStoryBtn.style.color = showStory ? '#38bdf8' : 'var(--text-secondary)';
-    panelOverview.hidden = showStory;
-    panelStory.hidden = !showStory;
+    IC_TABS.forEach(t => {
+        const active = t === tab;
+        if (btns[t]) {
+            btns[t].setAttribute('aria-selected', active ? 'true' : 'false');
+            // Roving tabindex: only the selected tab sits in the Tab
+            // order, per the ARIA tabs pattern — arrows move between tabs.
+            btns[t].setAttribute('tabindex', active ? '0' : '-1');
+            btns[t].style.borderBottomColor = active ? '#38bdf8' : 'transparent';
+            btns[t].style.color = active ? '#38bdf8' : 'var(--text-secondary)';
+        }
+        if (panels[t]) panels[t].hidden = !active;
+    });
 
-    if (showStory && !(_st && _st.firstLoadTracked)) {
+    if (tab === 'story' && !(_st && _st.firstLoadTracked) && typeof initStoryTimeline === 'function') {
         initStoryTimeline();
     }
+    if (tab === 'passport' && typeof initPassportTab === 'function') {
+        initPassportTab();
+    }
 }
+
+// Arrow-key navigation across the tab bar. The buttons were reachable by
+// Tab before but not navigable with Left/Right, which the ARIA tabs
+// pattern expects; with the roving tabindex above, the bar is now a
+// single Tab stop and arrows move between tabs. Home/End jump to the
+// ends. Only VISIBLE tabs participate — a swimmer without the Passport
+// flag must not be able to arrow onto a hidden tab.
+function _icTabBarKeydown(e) {
+    if (['ArrowRight', 'ArrowLeft', 'Home', 'End'].indexOf(e.key) === -1) return;
+    const bar = document.getElementById('identityTabBar');
+    if (!bar || bar.style.display === 'none') return;
+
+    const visible = IC_TABS
+        .map(t => ({ t: t, el: document.getElementById('identityTab' + t.charAt(0).toUpperCase() + t.slice(1)) }))
+        .filter(x => x.el && x.el.style.display !== 'none');
+    if (visible.length < 2) return;
+
+    const current = visible.findIndex(x => x.el.getAttribute('aria-selected') === 'true');
+    if (current === -1) return;
+
+    let next;
+    if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = visible.length - 1;
+    else next = (current + (e.key === 'ArrowRight' ? 1 : -1) + visible.length) % visible.length;
+
+    e.preventDefault();
+    switchIdentityTab(visible[next].t);
+    visible[next].el.focus();
+}
+
+document.addEventListener('keydown', function (e) {
+    const bar = document.getElementById('identityTabBar');
+    if (bar && e.target && bar.contains(e.target)) _icTabBarKeydown(e);
+});
 
 // ── Entry point — called once per modal-open when the Story tab is first
 //    activated. Renders the filter bar + list container, then loads page 1.

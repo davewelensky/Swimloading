@@ -84,12 +84,16 @@ async function renderOverviewV2(container, { participationLabel }) {
 
     const latestStory = (stats && stats.latest_story) || null;
 
-    // Story Timeline is a SEPARATE flag: when it is off for this viewer we
-    // still show their latest story here, we just omit the button that
-    // would deep-link into a tab they cannot open.
-    const timelineEnabled = typeof storyTimelineEnabled === 'function' && await storyTimelineEnabled();
+    // Two SEPARATE flags, neither of which costs an extra query here:
+    // both helpers cache their flag read for the page. Story Timeline off
+    // -> still show the latest story, just omit the deep-link button.
+    // Passport off -> the Passport card stays "Coming soon".
+    const [timelineEnabled, passportOn] = await Promise.all([
+        typeof storyTimelineEnabled === 'function' ? storyTimelineEnabled() : false,
+        typeof passportEnabled === 'function' ? passportEnabled() : false
+    ]);
 
-    container.innerHTML = _ovBuildHtml({ participationLabel, stats, latestStory, timelineEnabled });
+    container.innerHTML = _ovBuildHtml({ participationLabel, stats, latestStory, timelineEnabled, passportOn });
     try {
         analytics.track('overview_v2_viewed', {
             has_latest_story: !!latestStory,
@@ -113,7 +117,7 @@ const _OV_SECTION_LABEL = '<h3 style="font-size:11px; font-weight:700; color:var
 // late. currentColor so it inherits the cyan set on its wrapper.
 const _OV_ICON_COMPASS = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>';
 
-function _ovBuildHtml({ participationLabel, stats, latestStory, timelineEnabled }) {
+function _ovBuildHtml({ participationLabel, stats, latestStory, timelineEnabled, passportOn }) {
     const s = stats || {};
     const month = s.current_month || {};
     const milestone = s.next_milestone;
@@ -220,7 +224,13 @@ function _ovBuildHtml({ participationLabel, stats, latestStory, timelineEnabled 
         <div style="flex:0 0 auto; margin-top:1px; color:#38bdf8;">${_OV_ICON_COMPASS}</div>
         <div style="flex:1; min-width:0;">
           <div style="font-size:14px; font-weight:800; color:#f1f5f9;">${s.spots_explored ?? 0} spots explored</div>
-          <div style="font-size:12px; color:var(--text-secondary); margin-top:8px;">Coming soon</div>
+          ${passportOn
+            ? `<button type="button" onclick="overviewOpenPassport()"
+                 onfocus="this.style.outline='2px solid #38bdf8'; this.style.outlineOffset='2px';"
+                 onblur="this.style.outline='none';"
+                 aria-label="View your Swim Passport"
+                 style="margin-top:10px; padding:8px 18px; border-radius:50px; border:1px solid rgba(56,189,248,0.4); background:transparent; color:#38bdf8; font-size:12px; font-weight:700; cursor:pointer;">View Passport &rarr;</button>`
+            : `<div style="font-size:12px; color:var(--text-secondary); margin-top:8px;">Coming soon</div>`}
         </div>
       </div>
 
