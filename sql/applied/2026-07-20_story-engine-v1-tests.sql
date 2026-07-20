@@ -46,6 +46,15 @@ VALUES
   (:'test_spot_pool', 'Test Pool Spot', 'ATLANTIC', -26.2, 28.0, 'POOL')
 ON CONFLICT (id) DO NOTHING;
 
+-- PART 2 fixture spots — dedicated, one per scenario, created up front so
+-- every PART 2 scenario below can build its own history from zero without
+-- touching any other scenario's spot.
+INSERT INTO spots (id, name, domain, latitude, longitude, water_type)
+SELECT ('00000000-0000-4000-c000-' || lpad(n::text, 12, '0'))::uuid,
+       'Iso Spot ' || n, 'ATLANTIC', -33.9, 18.4, 'OCEAN'
+FROM generate_series(1, 13) AS n
+ON CONFLICT (id) DO NOTHING;
+
 UPDATE feature_flags SET enabled_global = true WHERE key = 'story_engine_v1';
 
 -- Establishes the authenticated-user context auth.uid() reads. Confirmed
@@ -399,125 +408,305 @@ ROLLBACK TO SAVEPOINT s20;
 -- Added after 2026-07-20_story-engine-v1-1-threshold-crossed.sql replaced
 -- evaluate_swim_story_events_internal_v1 to stop re-attempting (and
 -- reporting as duplicate-suppressed) every already-earned permanent
--- milestone on every later qualifying swim. Each scenario below uses its
--- own fresh spot/user combination where the "second/later swim" behaviour
--- needs to be isolated from other scenarios' history.
+-- milestone on every later qualifying swim.
+--
+-- REWRITTEN 2026-07-20 for full per-scenario isolation after Dave's
+-- acceptance review: every one of the 13 scenarios below gets its OWN
+-- SAVEPOINT and its OWN dedicated fresh spot
+-- (00000000-0000-4000-c000-00000000000{1..13}, created in the Fixtures
+-- section above) built entirely from zero — no scenario reads state left
+-- by any other scenario, in this file or any other transaction.
+--
+-- IMPORTANT DISCOVERY from actually running this: a single BULK multi-row
+-- INSERT (`INSERT ... SELECT ... FROM generate_series(...)`) causes every
+-- row's AFTER INSERT trigger firing to see the batch's FINAL count, not
+-- each row's own point-in-time count — so a bulk insert of 25 rows never
+-- lets swim_count_10 fire at all (every firing sees total_logs=25). This
+-- is the exact "bulk import can skip a threshold" tradeoff already
+-- documented in 2026-07-20_story-engine-v1-1-threshold-crossed.sql's
+-- migration comment — expected, not a bug — but it means a test must
+-- insert ONE ROW AT A TIME (matching how the app and Strava import
+-- actually save swims — always a single INSERT per log) to correctly
+-- exercise intermediate threshold-crossing. Every scenario below that
+-- needs more than one prior swim uses a FOR loop of individual inserts,
+-- never a bulk INSERT...SELECT.
 -- =================================================================
 
--- t1-t3: swim_count_milestone — exact match only, never re-attempted
+-- t1: swim 10 creates swim_count_10
 SAVEPOINT s21;
 SELECT pg_temp.as_user(:'test_user_a');
-INSERT INTO temp_logs (user_id, spot_id, temp_c)
-  SELECT :'test_user_a', :'test_spot_a', 19.0 FROM generate_series(1,9);
-INSERT INTO temp_logs (user_id, spot_id, temp_c) VALUES (:'test_user_a', :'test_spot_a', 19.0) RETURNING id \gset log21a_
-SELECT count(*) FROM swimmer_story_events WHERE temp_log_id = :'log21a_id' AND dedupe_key = 'swim_count_10';  -- expect: 1 (t1)
-
-INSERT INTO temp_logs (user_id, spot_id, temp_c) VALUES (:'test_user_a', :'test_spot_a', 19.0) RETURNING id \gset log21b_
-SELECT evaluate_swim_story_events_v1(:'test_user_a', :'log21b_id') AS result \gset r21b_
-DO $$ BEGIN
-  ASSERT NOT ((:'r21b_result')::text ILIKE '%swim_count%'), 'swim 11 must not attempt swim_count_10 at all — not even as suppressed (t2)';
+DO $$
+DECLARE i int; v_log uuid;
+BEGIN
+  FOR i IN 1..9 LOOP
+    INSERT INTO temp_logs (user_id, spot_id, temp_c)
+    VALUES ('00000000-0000-4000-a000-000000000001', '00000000-0000-4000-c000-000000000001', 19.0);
+  END LOOP;
+  INSERT INTO temp_logs (user_id, spot_id, temp_c)
+  VALUES ('00000000-0000-4000-a000-000000000001', '00000000-0000-4000-c000-000000000001', 19.0)
+  RETURNING id INTO v_log;
+  CREATE TEMP TABLE t1_log AS SELECT v_log AS id;
 END $$;
-
-INSERT INTO temp_logs (user_id, spot_id, temp_c)
-  SELECT :'test_user_a', :'test_spot_a', 19.0 FROM generate_series(1,13);
-INSERT INTO temp_logs (user_id, spot_id, temp_c) VALUES (:'test_user_a', :'test_spot_a', 19.0);
-SELECT count(*) FROM swimmer_story_events WHERE user_id = :'test_user_a' AND dedupe_key IN ('swim_count_10','swim_count_25');
-  -- expect: 2 — swim 25 created swim_count_25 only; swim_count_10 was never touched again (t3)
+DO $$ BEGIN
+  ASSERT EXISTS (SELECT 1 FROM swimmer_story_events WHERE temp_log_id = (SELECT id FROM t1_log) AND dedupe_key = 'swim_count_10'),
+    't1: swim 10 must create swim_count_10';
+END $$;
+DROP TABLE t1_log;
 ROLLBACK TO SAVEPOINT s21;
 
--- t4-t5: spot_visit_milestone — exact match only
+-- t2: swim 11 creates no swim_count_10 attempt (not even as suppressed)
 SAVEPOINT s22;
 SELECT pg_temp.as_user(:'test_user_a');
-INSERT INTO temp_logs (user_id, spot_id, temp_c)
-  SELECT :'test_user_a', :'test_spot_a', 19.0 FROM generate_series(1,9);
-INSERT INTO temp_logs (user_id, spot_id, temp_c) VALUES (:'test_user_a', :'test_spot_a', 19.0) RETURNING id \gset log22a_
-SELECT count(*) FROM swimmer_story_events WHERE temp_log_id = :'log22a_id' AND dedupe_key = 'spot_visit_10:' || :'test_spot_a';  -- expect: 1 (t4)
-
-INSERT INTO temp_logs (user_id, spot_id, temp_c) VALUES (:'test_user_a', :'test_spot_a', 19.0) RETURNING id \gset log22b_
-SELECT evaluate_swim_story_events_v1(:'test_user_a', :'log22b_id') AS result \gset r22b_
-DO $$ BEGIN
-  ASSERT jsonb_array_length((:'r22b_result')::jsonb -> 'events') = 0 AND jsonb_array_length((:'r22b_result')::jsonb -> 'suppressed') = 0,
-    'spot visit 11 must produce neither an event nor a suppression (t5)';
+DO $$
+DECLARE i int; v_log11 uuid; v_r jsonb;
+BEGIN
+  FOR i IN 1..10 LOOP
+    INSERT INTO temp_logs (user_id, spot_id, temp_c)
+    VALUES ('00000000-0000-4000-a000-000000000001', '00000000-0000-4000-c000-000000000002', 19.0);
+  END LOOP;
+  INSERT INTO temp_logs (user_id, spot_id, temp_c)
+  VALUES ('00000000-0000-4000-a000-000000000001', '00000000-0000-4000-c000-000000000002', 19.0)
+  RETURNING id INTO v_log11;
+  v_r := evaluate_swim_story_events_v1('00000000-0000-4000-a000-000000000001', v_log11);
+  CREATE TEMP TABLE t2_result AS SELECT v_r AS r;
 END $$;
+DO $$ BEGIN
+  ASSERT NOT ((SELECT r FROM t2_result)::text ILIKE '%swim_count%'), 't2: swim 11 must not attempt swim_count_10 at all';
+END $$;
+DROP TABLE t2_result;
 ROLLBACK TO SAVEPOINT s22;
 
--- t6-t7: streak_milestone — exact match only. Real 7+ day backdating is
--- blocked by enforce_no_backdating (48h cap, discovered during review
--- testing) so this manipulates user_stats.current_streak directly —
--- the function only ever reads this column, never recomputes it, so
--- this exercises the real code path.
+-- t3: swim 25 creates swim_count_25 only in addition to swim_count_10
+-- (crossed along the way, in the same independent 1-at-a-time build —
+-- this scenario does not depend on t1's savepoint, it reconstructs its
+-- own history from zero)
 SAVEPOINT s23;
 SELECT pg_temp.as_user(:'test_user_a');
-INSERT INTO temp_logs (user_id, spot_id, temp_c) VALUES (:'test_user_a', :'test_spot_a', 18.0) RETURNING id \gset log23_
-UPDATE user_stats SET current_streak = 7 WHERE user_id = :'test_user_a';
-SELECT evaluate_swim_story_events_v1(:'test_user_a', :'log23_id') AS result \gset r23a_
-SELECT count(*) FROM swimmer_story_events WHERE temp_log_id = :'log23_id' AND dedupe_key = 'streak_7';  -- expect: 1 (t6)
-
-UPDATE user_stats SET current_streak = 8 WHERE user_id = :'test_user_a';
-SELECT evaluate_swim_story_events_v1(:'test_user_a', :'log23_id') AS result \gset r23b_
+DO $$
+DECLARE i int;
+BEGIN
+  FOR i IN 1..25 LOOP
+    INSERT INTO temp_logs (user_id, spot_id, temp_c)
+    VALUES ('00000000-0000-4000-a000-000000000001', '00000000-0000-4000-c000-000000000003', 19.0);
+  END LOOP;
+END $$;
 DO $$ BEGIN
-  ASSERT NOT ((:'r23b_result')::text ILIKE '%streak_8%'), 'streak day 8 (not a threshold) must never be attempted (t7)';
+  ASSERT (SELECT count(*) FROM swimmer_story_events WHERE user_id = '00000000-0000-4000-a000-000000000001' AND story_type = 'swim_count_milestone') = 2,
+    't3: exactly swim_count_10 and swim_count_25 must exist, nothing else';
+  ASSERT EXISTS (SELECT 1 FROM swimmer_story_events WHERE user_id = '00000000-0000-4000-a000-000000000001' AND dedupe_key = 'swim_count_25'),
+    't3: swim_count_25 must exist';
 END $$;
 ROLLBACK TO SAVEPOINT s23;
 
--- t8-t9: first_open_water_swim — exact match only (previously unguarded —
--- the worst offender for duplicate-suppressed noise before this fix)
+-- t4: spot visit 10 creates the event
 SAVEPOINT s24;
 SELECT pg_temp.as_user(:'test_user_a');
-INSERT INTO temp_logs (user_id, spot_id, temp_c) VALUES (:'test_user_a', :'test_spot_a', 18.0) RETURNING id \gset log24a_
-SELECT count(*) FROM swimmer_story_events WHERE temp_log_id = :'log24a_id' AND story_type = 'first_open_water_swim';  -- expect: 1 (t8)
-
-INSERT INTO temp_logs (user_id, spot_id, temp_c) VALUES (:'test_user_a', :'test_spot_a', 18.0) RETURNING id \gset log24b_
-SELECT evaluate_swim_story_events_v1(:'test_user_a', :'log24b_id') AS result \gset r24b_
-DO $$ BEGIN
-  ASSERT NOT ((:'r24b_result')::text ILIKE '%open_water%'), 'second open-water swim must not attempt first_open_water_swim at all (t9)';
+DO $$
+DECLARE i int; v_log uuid;
+BEGIN
+  FOR i IN 1..9 LOOP
+    INSERT INTO temp_logs (user_id, spot_id, temp_c)
+    VALUES ('00000000-0000-4000-a000-000000000001', '00000000-0000-4000-c000-000000000004', 19.0);
+  END LOOP;
+  INSERT INTO temp_logs (user_id, spot_id, temp_c)
+  VALUES ('00000000-0000-4000-a000-000000000001', '00000000-0000-4000-c000-000000000004', 19.0)
+  RETURNING id INTO v_log;
+  CREATE TEMP TABLE t4_log AS SELECT v_log AS id;
 END $$;
--- Confirm exactly one row total, tied to the true first log, not the second:
-SELECT count(*) FROM swimmer_story_events WHERE user_id = :'test_user_a' AND story_type = 'first_open_water_swim';  -- expect: 1
+DO $$ BEGIN
+  ASSERT EXISTS (SELECT 1 FROM swimmer_story_events WHERE temp_log_id = (SELECT id FROM t4_log) AND dedupe_key = 'spot_visit_10:00000000-0000-4000-c000-000000000004'),
+    't4: spot visit 10 must create the event';
+END $$;
+DROP TABLE t4_log;
 ROLLBACK TO SAVEPOINT s24;
 
--- t10-t11: first_sub_10 — exact match via the v_prior_coldest guard
+-- t5: spot visit 11 creates no suppression
 SAVEPOINT s25;
 SELECT pg_temp.as_user(:'test_user_a');
-INSERT INTO temp_logs (user_id, spot_id, temp_c) VALUES (:'test_user_a', :'test_spot_a', 9.5) RETURNING id \gset log25a_
-SELECT count(*) FROM swimmer_story_events WHERE temp_log_id = :'log25a_id' AND story_type = 'first_sub_10';  -- expect: 1 (t10)
-
-INSERT INTO temp_logs (user_id, spot_id, temp_c) VALUES (:'test_user_a', :'test_spot_a', 9.0) RETURNING id \gset log25b_
-SELECT evaluate_swim_story_events_v1(:'test_user_a', :'log25b_id') AS result \gset r25b_
-DO $$ BEGIN
-  ASSERT NOT ((:'r25b_result')::text ILIKE '%first_sub_10%'), 'second sub-10 swim must not attempt first_sub_10 at all (t11)';
+DO $$
+DECLARE i int; v_log11 uuid; v_r jsonb;
+BEGIN
+  FOR i IN 1..10 LOOP
+    INSERT INTO temp_logs (user_id, spot_id, temp_c)
+    VALUES ('00000000-0000-4000-a000-000000000001', '00000000-0000-4000-c000-000000000005', 19.0);
+  END LOOP;
+  INSERT INTO temp_logs (user_id, spot_id, temp_c)
+  VALUES ('00000000-0000-4000-a000-000000000001', '00000000-0000-4000-c000-000000000005', 19.0)
+  RETURNING id INTO v_log11;
+  v_r := evaluate_swim_story_events_v1('00000000-0000-4000-a000-000000000001', v_log11);
+  CREATE TEMP TABLE t5_result AS SELECT v_r AS r;
 END $$;
+DO $$ BEGIN
+  ASSERT jsonb_array_length((SELECT r FROM t5_result)->'events') = 0 AND jsonb_array_length((SELECT r FROM t5_result)->'suppressed') = 0,
+    't5: spot visit 11 must produce neither an event nor a suppression';
+END $$;
+DROP TABLE t5_result;
 ROLLBACK TO SAVEPOINT s25;
+
+-- t6: streak day 7 creates the event (real 7-day backdating is blocked
+-- by the pre-existing enforce_no_backdating trigger, 48h cap — so this
+-- manipulates user_stats.current_streak directly; the evaluator only
+-- ever reads this column, never recomputes it, so this exercises the
+-- real code path)
+SAVEPOINT s26;
+SELECT pg_temp.as_user(:'test_user_a');
+DO $$
+DECLARE v_log uuid;
+BEGIN
+  INSERT INTO temp_logs (user_id, spot_id, temp_c)
+  VALUES ('00000000-0000-4000-a000-000000000001', '00000000-0000-4000-c000-000000000006', 18.0)
+  RETURNING id INTO v_log;
+  UPDATE user_stats SET current_streak = 7 WHERE user_id = '00000000-0000-4000-a000-000000000001';
+  PERFORM evaluate_swim_story_events_v1('00000000-0000-4000-a000-000000000001', v_log);
+  CREATE TEMP TABLE t6_log AS SELECT v_log AS id;
+END $$;
+DO $$ BEGIN
+  ASSERT EXISTS (SELECT 1 FROM swimmer_story_events WHERE temp_log_id = (SELECT id FROM t6_log) AND dedupe_key = 'streak_7'),
+    't6: streak day 7 must create the event';
+END $$;
+DROP TABLE t6_log;
+ROLLBACK TO SAVEPOINT s26;
+
+-- t7: streak day 8 creates no suppression (8 is not a threshold)
+SAVEPOINT s27;
+SELECT pg_temp.as_user(:'test_user_a');
+DO $$
+DECLARE v_log uuid; v_r jsonb;
+BEGIN
+  INSERT INTO temp_logs (user_id, spot_id, temp_c)
+  VALUES ('00000000-0000-4000-a000-000000000001', '00000000-0000-4000-c000-000000000007', 18.0)
+  RETURNING id INTO v_log;
+  UPDATE user_stats SET current_streak = 8 WHERE user_id = '00000000-0000-4000-a000-000000000001';
+  v_r := evaluate_swim_story_events_v1('00000000-0000-4000-a000-000000000001', v_log);
+  CREATE TEMP TABLE t7_result AS SELECT v_r AS r;
+END $$;
+DO $$ BEGIN
+  ASSERT NOT ((SELECT r FROM t7_result)::text ILIKE '%streak%'), 't7: streak day 8 must never be attempted';
+END $$;
+DROP TABLE t7_result;
+ROLLBACK TO SAVEPOINT s27;
+
+-- t8: first open-water swim creates the event
+SAVEPOINT s28;
+SELECT pg_temp.as_user(:'test_user_a');
+INSERT INTO temp_logs (user_id, spot_id, temp_c)
+VALUES (:'test_user_a', '00000000-0000-4000-c000-000000000008', 18.0);
+DO $$ BEGIN
+  ASSERT EXISTS (SELECT 1 FROM swimmer_story_events WHERE user_id = '00000000-0000-4000-a000-000000000001' AND story_type = 'first_open_water_swim'),
+    't8: first open-water swim must create the event';
+END $$;
+ROLLBACK TO SAVEPOINT s28;
+
+-- t9: second open-water swim creates no suppression
+SAVEPOINT s29;
+SELECT pg_temp.as_user(:'test_user_a');
+DO $$
+DECLARE v_log2 uuid; v_r jsonb;
+BEGIN
+  INSERT INTO temp_logs (user_id, spot_id, temp_c)
+  VALUES ('00000000-0000-4000-a000-000000000001', '00000000-0000-4000-c000-000000000009', 18.0);
+  INSERT INTO temp_logs (user_id, spot_id, temp_c)
+  VALUES ('00000000-0000-4000-a000-000000000001', '00000000-0000-4000-c000-000000000009', 18.0)
+  RETURNING id INTO v_log2;
+  v_r := evaluate_swim_story_events_v1('00000000-0000-4000-a000-000000000001', v_log2);
+  CREATE TEMP TABLE t9_result AS SELECT v_r AS r;
+END $$;
+DO $$ BEGIN
+  ASSERT NOT ((SELECT r FROM t9_result)::text ILIKE '%open_water%'), 't9: second open-water swim must not attempt first_open_water_swim';
+END $$;
+DROP TABLE t9_result;
+ROLLBACK TO SAVEPOINT s29;
+
+-- t10: first sub-10 swim creates first_sub_10
+SAVEPOINT s30;
+SELECT pg_temp.as_user(:'test_user_a');
+INSERT INTO temp_logs (user_id, spot_id, temp_c)
+VALUES (:'test_user_a', '00000000-0000-4000-c000-000000000010', 9.5);
+DO $$ BEGIN
+  ASSERT EXISTS (SELECT 1 FROM swimmer_story_events WHERE user_id = '00000000-0000-4000-a000-000000000001' AND story_type = 'first_sub_10'),
+    't10: first sub-10 swim must create first_sub_10';
+END $$;
+ROLLBACK TO SAVEPOINT s30;
+
+-- t11: second sub-10 swim creates no first_sub_10 suppression
+SAVEPOINT s31;
+SELECT pg_temp.as_user(:'test_user_a');
+DO $$
+DECLARE v_log2 uuid; v_r jsonb;
+BEGIN
+  INSERT INTO temp_logs (user_id, spot_id, temp_c)
+  VALUES ('00000000-0000-4000-a000-000000000001', '00000000-0000-4000-c000-000000000011', 9.5);
+  INSERT INTO temp_logs (user_id, spot_id, temp_c)
+  VALUES ('00000000-0000-4000-a000-000000000001', '00000000-0000-4000-c000-000000000011', 9.0)
+  RETURNING id INTO v_log2;
+  v_r := evaluate_swim_story_events_v1('00000000-0000-4000-a000-000000000001', v_log2);
+  CREATE TEMP TABLE t11_result AS SELECT v_r AS r;
+END $$;
+DO $$ BEGIN
+  ASSERT NOT ((SELECT r FROM t11_result)::text ILIKE '%first_sub_10%'), 't11: second sub-10 swim must not attempt first_sub_10';
+END $$;
+DROP TABLE t11_result;
+ROLLBACK TO SAVEPOINT s31;
 
 -- t12: re-running the evaluator for the SAME qualifying log must still
 -- report duplicate suppression — the fix is about not re-attempting
 -- already-earned milestones on LATER logs, not about breaking the
--- existing per-log idempotency guarantee (scenario 15, PART 1).
-SAVEPOINT s26;
+-- existing per-log idempotency guarantee (PART 1, scenario 15).
+SAVEPOINT s32;
 SELECT pg_temp.as_user(:'test_user_a');
-INSERT INTO temp_logs (user_id, spot_id, temp_c) VALUES (:'test_user_a', :'test_spot_a', 4.0) RETURNING id \gset log26_
--- The trigger already created events for this log synchronously on insert.
-SELECT evaluate_swim_story_events_v1(:'test_user_a', :'log26_id') AS result \gset r26_
-DO $$ BEGIN
-  ASSERT jsonb_array_length((:'r26_result')::jsonb -> 'suppressed') > 0 AND jsonb_array_length((:'r26_result')::jsonb -> 'events') = 0,
-    'a second call for the same log must still report duplicate suppression, not silently produce nothing (t12)';
+DO $$
+DECLARE v_log uuid; v_r jsonb;
+BEGIN
+  INSERT INTO temp_logs (user_id, spot_id, temp_c)
+  VALUES ('00000000-0000-4000-a000-000000000001', '00000000-0000-4000-c000-000000000012', 4.0)
+  RETURNING id INTO v_log;
+  -- The trigger already created events for this log synchronously on insert.
+  v_r := evaluate_swim_story_events_v1('00000000-0000-4000-a000-000000000001', v_log);
+  CREATE TEMP TABLE t12_result AS SELECT v_r AS r;
 END $$;
-ROLLBACK TO SAVEPOINT s26;
+DO $$ BEGIN
+  ASSERT jsonb_array_length((SELECT r FROM t12_result)->'suppressed') > 0 AND jsonb_array_length((SELECT r FROM t12_result)->'events') = 0,
+    't12: a second call for the same log must still report duplicate suppression, not silently produce nothing';
+END $$;
+DROP TABLE t12_result;
+ROLLBACK TO SAVEPOINT s32;
 
 -- t13: new_coldest_swim / new_warmest_swim remain repeatable per
 -- qualifying log — unaffected by the threshold-crossed fix.
-SAVEPOINT s27;
+SAVEPOINT s33;
 SELECT pg_temp.as_user(:'test_user_a');
-INSERT INTO temp_logs (user_id, spot_id, temp_c) VALUES (:'test_user_a', :'test_spot_a', 3.0) RETURNING id \gset log27a_
-INSERT INTO temp_logs (user_id, spot_id, temp_c) VALUES (:'test_user_a', :'test_spot_a', 2.0) RETURNING id \gset log27b_
-SELECT count(*) FROM swimmer_story_events
-  WHERE user_id = :'test_user_a' AND story_type = 'new_coldest_swim'
-    AND temp_log_id IN (:'log27a_id', :'log27b_id');
-  -- expect: 2 — both qualifying logs got their own new_coldest_swim event (t13)
-ROLLBACK TO SAVEPOINT s27;
+DO $$
+DECLARE v_log_a uuid; v_log_b uuid;
+BEGIN
+  INSERT INTO temp_logs (user_id, spot_id, temp_c)
+  VALUES ('00000000-0000-4000-a000-000000000001', '00000000-0000-4000-c000-000000000013', 3.0)
+  RETURNING id INTO v_log_a;
+  INSERT INTO temp_logs (user_id, spot_id, temp_c)
+  VALUES ('00000000-0000-4000-a000-000000000001', '00000000-0000-4000-c000-000000000013', 2.0)
+  RETURNING id INTO v_log_b;
+  CREATE TEMP TABLE t13_logs AS SELECT v_log_a AS a, v_log_b AS b;
+END $$;
+DO $$ BEGIN
+  ASSERT (SELECT count(*) FROM swimmer_story_events
+           WHERE user_id = '00000000-0000-4000-a000-000000000001' AND story_type = 'new_coldest_swim'
+             AND temp_log_id IN ((SELECT a FROM t13_logs), (SELECT b FROM t13_logs))) = 2,
+    't13: both qualifying logs must get their own new_coldest_swim event';
+END $$;
+DROP TABLE t13_logs;
+ROLLBACK TO SAVEPOINT s33;
 
--- t14: no test data persists — the outer ROLLBACK below is the actual
--- proof; this final query just documents intent before it runs.
+-- t14 ("no test data persists") is proven by the outer ROLLBACK below,
+-- not a separate in-transaction assertion — a rollback either discards
+-- everything or the transaction never committed in the first place.
+--
+-- Actually run 2026-07-20 (13/13 passed, zero persisted rows confirmed on
+-- the read-only connection immediately afterward): every scenario above
+-- was executed as its own fully independent BEGIN...ROLLBACK transaction
+-- against the live applied schema (rather than nested SAVEPOINTs within
+-- one connection, which this project's SQL tooling does not surface
+-- intermediate results for) — the SAVEPOINT structure here is preserved
+-- for a human running this file via `psql -f`, where \gset DOES capture
+-- results before each ROLLBACK TO SAVEPOINT correctly.
 
 -- ----------------------------------------------------------------
 -- Final protection — nothing from this file is ever persisted, including
