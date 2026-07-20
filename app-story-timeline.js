@@ -245,6 +245,11 @@ async function _stLoadPage({ isLoadMore, source, preserveEvents }) {
 
         _stRenderLoadMore();
 
+        // Story Card deep link (Phase 2.3, app-story-card.js) — attempts a
+        // scroll+highlight if the requested event is on this loaded page.
+        // No-op if app-story-card.js isn't loaded or nothing is pending.
+        if (typeof _scTryHighlightPendingEvent === 'function') _scTryHighlightPendingEvent();
+
         if (!_st.firstLoadTracked) {
             _st.firstLoadTracked = true;
             const durationMs = Math.round(((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - startedAt);
@@ -260,6 +265,10 @@ async function _stLoadPage({ isLoadMore, source, preserveEvents }) {
     } catch (e) {
         if (token !== _st.requestToken) return;
         console.error('[story-timeline] load failed', e);
+        // A Story Card deep link (Phase 2.3) may have set a pending
+        // highlight before this load started — a failed load must not
+        // leave it pending for some later, unrelated Story tab visit.
+        if (typeof _scClearPendingHighlight === 'function') _scClearPendingHighlight();
         try {
             analytics.track('story_timeline_load_failed', { filter_category: _st ? _st.filter : null, source: source || null });
         } catch (_) {}
@@ -313,7 +322,7 @@ function _stRenderCard(evt) {
     const showVerification = evt.verification_status && evt.verification_status !== 'corroborated';
 
     return `
-      <article style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:10px;">
+      <article data-story-event-id="${evt.id}" style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:10px;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
           <span style="font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.06em;">${category}</span>
           <span style="font-size:11px; color:var(--text-secondary);">${dateStr}</span>

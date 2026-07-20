@@ -7780,13 +7780,22 @@
                 // original share sheet. Flag off → original flow, unchanged.
                 if (!loggedAt) {
                     const shareLogId = data?.[0]?.id || null;
-                    if (typeof identityPostLogShare === 'function') {
-                        await identityPostLogShare(
+                    const runIdentityShare = () => (typeof identityPostLogShare === 'function')
+                        ? identityPostLogShare(
                             { logId: shareLogId, spotName: spotNameForConfirm, temp, conditions, source: 'native' },
                             () => showShareSheet(spotNameForConfirm, temp, conditions)
-                        );
+                          )
+                        : showShareSheet(spotNameForConfirm, temp, conditions);
+
+                    // Story Cards V1 (flag story_cards_v1): when the just-saved
+                    // swim created a story event, show it first — Continue then
+                    // runs the existing identity Swim Card flow unchanged. No
+                    // story, flag off, or any failure → falls straight through
+                    // to runIdentityShare() exactly as before Phase 2.3.
+                    if (typeof storyCardPostLog === 'function' && shareLogId) {
+                        await storyCardPostLog({ logId: shareLogId, source: 'native', continueFn: runIdentityShare });
                     } else {
-                        await showShareSheet(spotNameForConfirm, temp, conditions);
+                        await runIdentityShare();
                     }
                     // Story Engine V1 (flag story_engine_v1): fire-and-forget, no UI.
                     // Evaluates + stores story events server-side for later reuse

@@ -801,6 +801,10 @@ async function showIdentityView() {
 function dismissIdentityView() {
     const m = document.getElementById('identityViewModal');
     if (m) m.style.display = 'none';
+    // A Story Card deep link (Phase 2.3) may have set a pending timeline
+    // highlight — closing the modal must not leave it pending for some
+    // later, unrelated Story tab visit.
+    if (typeof _scClearPendingHighlight === 'function') _scClearPendingHighlight();
 }
 
 async function toggleIdentityPublic() {

@@ -563,14 +563,23 @@ async function submitStravaLog() {
         // Identity Layer V1: show the Swim Card for the imported swim (flag-gated).
         // No fallback modal here — the pre-existing Strava flow had none, and a
         // card failure must never affect the already-saved log.
-        if (typeof identityPostLogShare === 'function' && data.log_id) {
-            await identityPostLogShare({
+        const runIdentityShare = () => (typeof identityPostLogShare === 'function' && data.log_id)
+            ? identityPostLogShare({
                 logId: data.log_id,
                 spotName: selectedSpot ? selectedSpot.name : 'Swim spot',
                 temp: parseFloat(temp),
                 conditions: conditions || null,
                 source: 'strava',
-            }, null);
+              }, null)
+            : Promise.resolve();
+
+        // Story Cards V1 (flag story_cards_v1): same module, same priority
+        // logic as the native flow — see app-story-card.js. Continue runs
+        // the identity Swim Card flow above unchanged.
+        if (typeof storyCardPostLog === 'function' && data.log_id) {
+            await storyCardPostLog({ logId: data.log_id, source: 'strava', continueFn: runIdentityShare });
+        } else {
+            await runIdentityShare();
         }
 
         // Story Engine V1 (flag story_engine_v1): fire-and-forget, no UI.
