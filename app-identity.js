@@ -633,9 +633,25 @@ function _icEnsureIdentityView() {
           </div>
           <button onclick="dismissIdentityView()" style="background:none; border:none; color:#64748b; font-size:22px; cursor:pointer; line-height:1;">&times;</button>
         </div>
-        <div id="identityViewBody">
-          <div style="color:var(--text-secondary); font-size:13px; text-align:center; padding:24px;">Loading…</div>
+        <!-- Story Timeline tab bar (Phase 2.2) — hidden entirely unless
+             story_timeline_v1 is enabled for the current user; see
+             showIdentityView() and app-story-timeline.js. With only one
+             tab ever visible (the flag off case), no tab UI is shown at
+             all, matching the pre-Phase-2.2 single-view behaviour exactly. -->
+        <div id="identityTabBar" role="tablist" aria-label="Profile sections" style="display:none; gap:18px; margin-bottom:16px; border-bottom:1px solid var(--border);">
+          <button type="button" role="tab" id="identityTabOverview" aria-selected="true" aria-controls="identityPanelOverview"
+            onclick="switchIdentityTab('overview')"
+            style="background:none; border:none; border-bottom:2px solid #38bdf8; color:#38bdf8; font-size:13px; font-weight:700; padding:0 0 10px; cursor:pointer;">Overview</button>
+          <button type="button" role="tab" id="identityTabStory" aria-selected="false" aria-controls="identityPanelStory"
+            onclick="switchIdentityTab('story')"
+            style="background:none; border:none; border-bottom:2px solid transparent; color:var(--text-secondary); font-size:13px; font-weight:700; padding:0 0 10px; cursor:pointer;">Story</button>
         </div>
+        <div id="identityPanelOverview" role="tabpanel" aria-labelledby="identityTabOverview">
+          <div id="identityViewBody">
+            <div style="color:var(--text-secondary); font-size:13px; text-align:center; padding:24px;">Loading…</div>
+          </div>
+        </div>
+        <div id="identityPanelStory" role="tabpanel" aria-labelledby="identityTabStory" hidden></div>
       </div>`;
     document.body.appendChild(div);
 }
@@ -708,6 +724,16 @@ async function showIdentityView() {
     document.getElementById('identityViewName').textContent =
         (currentUserProfile && currentUserProfile.display_name) || 'Swimmer';
     analytics.track('identity_view_opened');
+
+    // Story Timeline tab (Phase 2.2) — flag-gated, independent of
+    // story_engine_v1. Always reset to the Overview tab on open so a
+    // previous session's Story tab selection never persists oddly.
+    const tabBar = document.getElementById('identityTabBar');
+    if (tabBar) {
+        const showTabs = typeof storyTimelineEnabled === 'function' && await storyTimelineEnabled();
+        tabBar.style.display = showTabs ? 'flex' : 'none';
+        if (typeof switchIdentityTab === 'function') switchIdentityTab('overview');
+    }
 
     const body = document.getElementById('identityViewBody');
     try {
