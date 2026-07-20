@@ -7788,6 +7788,13 @@
                     } else {
                         await showShareSheet(spotNameForConfirm, temp, conditions);
                     }
+                    // Story Engine V1 (flag story_engine_v1): fire-and-forget, no UI.
+                    // Evaluates + stores story events server-side for later reuse
+                    // (timeline, recaps, public profile — not built yet). Never
+                    // awaited so it cannot delay the dashboard transition below.
+                    if (typeof storyEnginePostLog === 'function' && shareLogId) {
+                        storyEnginePostLog({ logId: shareLogId, source: 'native' });
+                    }
                     // Broadcast push to subscribers at this location
                     const loggedSpot = spots.find(s => s.id === spotId);
                     if (loggedSpot?.domain) {

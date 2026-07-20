@@ -573,6 +573,11 @@ async function submitStravaLog() {
             }, null);
         }
 
+        // Story Engine V1 (flag story_engine_v1): fire-and-forget, no UI.
+        if (typeof storyEnginePostLog === 'function' && data.log_id) {
+            storyEnginePostLog({ logId: data.log_id, source: 'strava' });
+        }
+
         // Refresh dashboard so new log appears
         if (typeof loadDashboard === 'function') loadDashboard();
 
