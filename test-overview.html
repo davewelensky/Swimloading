@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>TEST HARNESS — Overview V2 render (Phase 2.4.1)</title>
+<!--
+  ============================================================
+  VISUAL REGRESSION TEST HARNESS — NOT A PRODUCT PAGE
+  ============================================================
+  Renders app-overview.js's _ovBuildHtml() against fixed fixture
+  data so the Overview V2 panel can be reviewed at every breakpoint
+  without an authenticated session. Sits alongside test-identity.html
+  and test-story-card.html.
+
+  Deliberately, and to be kept this way:
+    - NOT linked from any production navigation — reachable only by
+      typing the URL, and noindex'd above.
+    - NO real user data. Every value below is invented. The swimmer
+      name, spot and temperatures are fixtures, not anyone's records.
+    - NO analytics. `analytics.track` is a local no-op stub, so
+      opening this page cannot emit a single production event.
+    - NO credentials, tokens or secrets, and no Supabase client — it
+      never talks to the database.
+    - NO authenticated session required; safe to open directly.
+
+  It loads the real style.css so the app's global
+  `* { box-sizing: border-box }` and CSS variables apply — without
+  that, percentage min-widths resolve against content-box and the
+  Journey tiles falsely stack one-per-row on mobile.
+-->
+
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+<!-- The real stylesheet, so the harness inherits the app's global
+     `* { box-sizing: border-box }` and CSS variables. Without it the
+     Journey tiles' percentage min-width resolves against content-box and
+     they falsely stack one-per-row on mobile. -->
+<link rel="stylesheet" href="style.css">
+<style>
+  body {
+    margin: 0; padding: 24px 16px 60px;
+    background: #080f1a; color: #f1f5f9;
+    font-family: 'DM Sans', sans-serif;
+  }
+  h2 {
+    font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1px;
+    color: #38bdf8; margin: 32px 0 10px; text-align: center;
+  }
+  /* Mirrors the real identity modal body: same max-width and padding the
+     panel gets inside #identityViewBody, so spacing reads true. */
+  .modal-sim {
+    max-width: 420px; margin: 0 auto 8px;
+    background: #0d1728; border: 1px solid var(--border);
+    border-radius: 18px; padding: 20px;
+  }
+</style>
+</head>
+<body>
+
+<div style="max-width:420px; margin:0 auto 20px; border:1px solid rgba(245,158,11,0.35); background:rgba(245,158,11,0.07); border-radius:12px; padding:12px 14px; text-align:center;">
+  <div style="font-size:11px; font-weight:700; color:#f59e0b; text-transform:uppercase; letter-spacing:0.1em;">Test harness</div>
+  <div style="font-size:12px; color:#94a3b8; margin-top:5px; line-height:1.5;">Overview V2 rendered against fixture data. Not a product page, not linked from the app, and not connected to any account.</div>
+</div>
+
+<h2>Populated — story with spot + value</h2>
+<div class="modal-sim"><div id="a"></div></div>
+
+<h2>Empty state — no story yet</h2>
+<div class="modal-sim"><div id="b"></div></div>
+
+<h2>Story Timeline flag OFF — story shows, button hidden</h2>
+<div class="modal-sim"><div id="c"></div></div>
+
+<script>
+  // Globals app-overview.js reads. All fixtures — no real swimmer.
+  // currentUser.created_at drives the "Member since" header fallback.
+  var currentUserProfile = { display_name: 'Test Swimmer' };
+  var currentUser = { id: 'fixture-user', created_at: '2026-07-02T08:00:00Z' };
+  // No-op stub: this page must never emit a production analytics event.
+  var analytics = { track: function () {} };
+</script>
+<!-- Same ?v= as index.html so the harness reviews exactly the build
+     production serves. Bump both together. -->
+<script src="app-overview.js?v=2"></script>
+<script>
+  var populated = {
+    total_swims: 114, current_streak: 4, spots_explored: 34, avg_temp_c: 15.8,
+    current_month: { swims: 6, avg_temp_c: 14.2, coldest: 11.5, warmest: 17.0 },
+    next_milestone: { type: 'streak', target: 7, remaining: 3, progress: 0.571 },
+    latest_story: {
+      id: 'mock-1', story_type: 'new_coldest_swim', story_date: '2026-07-18',
+      title: 'A new coldest swim', summary: 'Colder than anything you had logged before.',
+      // Invented spot name, deliberately not a real SwimLoading spot —
+      // similar length to a real one so text wrapping reviews true.
+      primary_value: 11.5, unit: 'C', spot_name: 'Fixture Bay Beach'
+    }
+  };
+
+  var empty = {
+    total_swims: 0, current_streak: 0, spots_explored: 0, avg_temp_c: null,
+    current_month: { swims: 0, avg_temp_c: null, coldest: null, warmest: null },
+    next_milestone: { type: 'spots_explored', target: 5, remaining: 5, progress: 0.000 },
+    latest_story: null
+  };
+
+  document.getElementById('a').innerHTML = _ovBuildHtml({
+    participationLabel: 'Centurion Swimmer', stats: populated,
+    latestStory: populated.latest_story, timelineEnabled: true
+  });
+
+  document.getElementById('b').innerHTML = _ovBuildHtml({
+    participationLabel: 'Swimmer', stats: empty,
+    latestStory: null, timelineEnabled: true
+  });
+
+  document.getElementById('c').innerHTML = _ovBuildHtml({
+    participationLabel: 'Centurion Swimmer', stats: populated,
+    latestStory: populated.latest_story, timelineEnabled: false
+  });
+</script>
+</body>
+</html>

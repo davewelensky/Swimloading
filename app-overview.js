@@ -76,20 +76,47 @@ async function renderOverviewV2(container, { participationLabel }) {
     } catch (_) {}
 }
 
+// Shared section-label opening tag — every section header in the panel
+// uses identical type and rhythm, so it lives in one place rather than
+// being retyped (and drifting) six times. Callers append their own text
+// plus the closing </div>.
+const _OV_SECTION_LABEL = '<div style="font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.1em; margin:0 0 10px;">';
+
+// Lucide "compass" (no emoji, per brand guidelines). Inlined rather than
+// pulled from the Lucide CDN because the Overview renders inside an
+// already-open modal — a network round trip here would pop the icon in
+// late. currentColor so it inherits the cyan set on its wrapper.
+const _OV_ICON_COMPASS = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>';
+
 function _ovBuildHtml({ participationLabel, stats, latestStory, timelineEnabled }) {
     const s = stats || {};
     const month = s.current_month || {};
     const milestone = s.next_milestone;
 
+    // Meta line under the story title: spot and primary value, whichever
+    // the event actually carries. Threshold milestones store the crossed
+    // threshold in primary_value; temperature events store the recorded
+    // temp — the unit comes from the event itself, so nothing is inferred
+    // or recomputed here.
+    const storyMeta = latestStory ? [
+        latestStory.spot_name ? _ovEscape(latestStory.spot_name) : null,
+        (latestStory.primary_value !== null && latestStory.primary_value !== undefined)
+            ? _ovEscape(latestStory.primary_value + (latestStory.unit ? (latestStory.unit === 'C' ? '°C' : ' ' + latestStory.unit) : ''))
+            : null
+    ].filter(Boolean).join(' · ') : '';
+
     const latestStorySection = latestStory ? `
-      <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:14px;">
-        <div style="font-size:11px; font-weight:700; color:#38bdf8; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px;">Latest Story</div>
+      <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:22px;">
+        <div style="font-size:11px; font-weight:700; color:#38bdf8; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:10px;">Latest Story</div>
         <div style="font-size:16px; font-weight:800; color:#f1f5f9; margin-bottom:4px;">${_ovEscape(latestStory.title)}</div>
-        ${latestStory.summary ? `<div style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">${_ovEscape(latestStory.summary)}</div>` : ''}
-        ${timelineEnabled ? `<button type="button" onclick="overviewViewStory('${latestStory.id}')" style="padding:10px 20px; border-radius:50px; border:1px solid rgba(56,189,248,0.4); background:transparent; color:#38bdf8; font-size:12px; font-weight:700; cursor:pointer;">View Story</button>` : ''}
+        ${latestStory.summary ? `<div style="font-size:13px; color:var(--text-secondary); line-height:1.5;">${_ovEscape(latestStory.summary)}</div>` : ''}
+        ${storyMeta ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:8px;">${storyMeta}</div>` : ''}
+        ${timelineEnabled ? `<button type="button" onclick="overviewViewStory('${latestStory.id}')" style="margin-top:14px; padding:10px 20px; border-radius:50px; border:1px solid rgba(56,189,248,0.4); background:transparent; color:#38bdf8; font-size:12px; font-weight:700; cursor:pointer;">View Story &rarr;</button>` : ''}
       </div>` : `
-      <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:14px; text-align:center;">
-        <div style="font-size:13px; color:var(--text-secondary);">Your swimming story has started.</div>
+      <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:22px;">
+        <div style="font-size:11px; font-weight:700; color:#38bdf8; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:10px;">Latest Story</div>
+        <div style="font-size:16px; font-weight:800; color:#f1f5f9; margin-bottom:6px;">Your story is ready to begin.</div>
+        <div style="font-size:13px; color:var(--text-secondary); line-height:1.5;">Story events will appear here as you achieve milestones, discover new places and experience memorable swims.</div>
       </div>`;
 
     const journeyTile = (label, value) => `
@@ -97,6 +124,28 @@ function _ovBuildHtml({ participationLabel, stats, latestStory, timelineEnabled 
         <div style="font-size:22px; font-weight:800; color:#f1f5f9;">${value}</div>
         <div style="font-size:10px; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; margin-top:2px;">${label}</div>
       </div>`;
+
+    // Supporting stat lines under the participation label, below a rule.
+    // Uses only data already in memory — total_swims / spots_explored from
+    // the overview response, and currentUser.created_at from the auth
+    // session — so it costs no extra query. A swimmer with neither yet
+    // gets "Member since …" rather than a deflating pair of zeroes.
+    const headerSupportLines = (() => {
+        const lines = [];
+        if (s.total_swims) {
+            lines.push(s.total_swims + (s.total_swims === 1 ? ' Lifetime Swim' : ' Lifetime Swims'));
+        }
+        if (s.spots_explored) {
+            lines.push(s.spots_explored + (s.spots_explored === 1 ? ' Spot Explored' : ' Spots Explored'));
+        }
+        if (lines.length) return lines;
+
+        const joined = (typeof currentUser !== 'undefined' && currentUser && currentUser.created_at) || null;
+        if (!joined) return [];
+        const d = new Date(joined);
+        if (isNaN(d.getTime())) return [];
+        return ['Member since ' + d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })];
+    })();
 
     const milestoneLabel = milestone ? ({
         swim_count: `${milestone.target} Swims`,
@@ -106,42 +155,51 @@ function _ovBuildHtml({ participationLabel, stats, latestStory, timelineEnabled 
 
     // "3 swims to go" / "1 spot to go" / "12 days to go". Unit follows the
     // milestone TYPE, singular/plural follows the remaining count.
-    const milestoneRemaining = (() => {
-        if (!milestone) return '';
-        const n = milestone.remaining;
+    const milestoneUnit = (n) => {
         const one = n === 1;
-        const unit = milestone.type === 'streak' ? (one ? 'day' : 'days')
-                   : milestone.type === 'spots_explored' ? (one ? 'spot' : 'spots')
-                   : (one ? 'swim' : 'swims');
-        return `${n} ${unit} to go`;
-    })();
+        return milestone.type === 'streak' ? (one ? 'day' : 'days')
+             : milestone.type === 'spots_explored' ? (one ? 'spot' : 'spots')
+             : (one ? 'swim' : 'swims');
+    };
+    const milestoneRemaining = milestone ? `${milestone.remaining} ${milestoneUnit(milestone.remaining)} to go` : '';
+
+    // "4 / 7 days" — the numerator is derived from the values the RPC
+    // already returned (target minus remaining), NOT recalculated from
+    // the raw stats, so this line can never disagree with the bar.
+    const milestoneProgressLine = milestone
+        ? `${milestone.target - milestone.remaining} / ${milestone.target} ${milestoneUnit(milestone.target)}`
+        : '';
 
     return `
-      <div style="text-align:center; margin-bottom:18px;">
+      <div style="text-align:center; margin-bottom:24px;">
         <div style="font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:4px;">Swimmer</div>
         <div style="font-size:24px; font-weight:800; color:#38bdf8;">${_ovEscape((typeof currentUserProfile !== 'undefined' && currentUserProfile && currentUserProfile.display_name) || 'Swimmer')}</div>
         <div style="font-size:13px; color:var(--text-secondary); margin-top:2px;">${_ovEscape(participationLabel || 'Swimmer')}</div>
+        <div style="height:1px; background:var(--border); margin:14px auto 12px; max-width:220px;"></div>
+        ${headerSupportLines.map(l => `<div style="font-size:13px; color:var(--text-secondary); line-height:1.6;">${l}</div>`).join('')}
       </div>
 
       ${latestStorySection}
 
-      <div style="font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.1em; margin:18px 0 8px;">Journey</div>
-      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;">
+      ${_OV_SECTION_LABEL}Journey</div>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:22px;">
         ${journeyTile('Swims', s.total_swims ?? '—')}
         ${journeyTile('Current Streak', (s.current_streak ?? 0) + (s.current_streak === 1 ? ' day' : ' days'))}
-        ${journeyTile('Spots', s.spots_explored ?? '—')}
+        ${journeyTile('Spots Explored', s.spots_explored ?? '—')}
         ${journeyTile('Avg Temp', s.avg_temp_c !== null && s.avg_temp_c !== undefined ? s.avg_temp_c + '°C' : '—')}
       </div>
 
-      <div style="font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.1em; margin:18px 0 8px;">Passport Preview</div>
-      <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:14px;">
-        <div style="font-size:14px; font-weight:800; color:#f1f5f9;">Swim Passport</div>
-        <div style="font-size:13px; color:var(--text-secondary); margin-top:4px;">${s.spots_explored ?? 0} spots explored</div>
-        <div style="font-size:12px; color:var(--text-secondary); margin-top:10px;">Coming soon</div>
+      ${_OV_SECTION_LABEL}Swim Passport</div>
+      <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; padding:18px 18px 18px 20px; margin-bottom:22px; display:flex; gap:14px; align-items:flex-start;">
+        <div style="flex:0 0 auto; margin-top:1px; color:#38bdf8;">${_OV_ICON_COMPASS}</div>
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:14px; font-weight:800; color:#f1f5f9;">${s.spots_explored ?? 0} spots explored</div>
+          <div style="font-size:12px; color:var(--text-secondary); margin-top:8px;">Coming soon</div>
+        </div>
       </div>
 
-      <div style="font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.1em; margin:18px 0 8px;">Current Month</div>
-      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;">
+      ${_OV_SECTION_LABEL}Current Month</div>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:22px;">
         ${journeyTile('Swims', month.swims ?? 0)}
         ${journeyTile('Avg Temp', month.avg_temp_c !== null && month.avg_temp_c !== undefined ? month.avg_temp_c + '°C' : '—')}
         ${journeyTile('Coldest', month.coldest !== null && month.coldest !== undefined ? month.coldest + '°C' : '—')}
@@ -149,9 +207,10 @@ function _ovBuildHtml({ participationLabel, stats, latestStory, timelineEnabled 
       </div>
 
       ${milestone ? `
-      <div style="font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.1em; margin:18px 0 8px;">Next Milestone</div>
-      <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:14px;">
-        <div style="font-size:14px; font-weight:700; color:#f1f5f9; margin-bottom:8px;">${milestoneLabel}</div>
+      ${_OV_SECTION_LABEL}Next Milestone</div>
+      <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:22px;">
+        <div style="font-size:14px; font-weight:700; color:#f1f5f9; margin-bottom:4px;">${milestoneLabel}</div>
+        <div style="font-size:12px; color:var(--text-secondary); margin-bottom:10px;">${milestoneProgressLine}</div>
         <div style="height:6px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; margin-bottom:8px;">
           <div style="height:100%; width:${Math.round((milestone.progress || 0) * 100)}%; background:#38bdf8;"></div>
         </div>
