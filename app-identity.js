@@ -692,7 +692,7 @@ function _icBuildIdentityViewHtml({ participationCode, participationName, totalL
           </div>
           <div style="font-size:12px; color:var(--text-secondary); line-height:1.5;">
             ${identityPublic
-                ? `Your identity is shareable at<br><span style="color:#38bdf8;">swimloading.com/swimmer/${currentUserId}</span>`
+                ? `Your identity is shareable at<br><a href="/swimmer/${encodeURIComponent(currentUserId)}" target="_blank" rel="noopener" style="color:#38bdf8; word-break:break-all;">swimloading.com/swimmer/${currentUserId}</a>`
                 : 'Off by default. Turn on to get a shareable link showing your name and earned identities. You can turn it off any time.'}
           </div>
         </div>`);
