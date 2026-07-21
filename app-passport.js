@@ -259,6 +259,228 @@ function _ppSpotCard(s) {
       </div>`;
 }
 
+// ============================================================
+// PASSPORT MOMENT + DOOR (Phase 2.5.1)
+// Separately flag-gated: passport_moment_v1. Turns the post-log tail
+// (points toast -> story/swim card -> share sheet) into ONE screen that
+// stamps the swim into the passport, coloured by water temperature, and
+// makes "Open my Passport" the primary action. Also renders a persistent
+// dashboard door so the passport is reachable without logging first.
+//
+// Reuses get_my_swim_passport_v1 for the moment's numbers — no new RPC.
+// Describing, not gamifying: real facts (total spots, Nth swim here,
+// coldest here), never badges or completion bars.
+// ============================================================
+
+let _ppMomentFlagPromise = null;
+let _ppMomentResolve = null;
+let _ppMomentCtx = null;   // last moment's context, for the Share button
+
+async function passportMomentEnabled() {
+    if (typeof currentUser === 'undefined' || !currentUser) return false;
+    if (_ppMomentFlagPromise) return _ppMomentFlagPromise;
+    _ppMomentFlagPromise = (async () => {
+        try {
+            const { data, error } = await supabaseClient
+                .from('feature_flags')
+                .select('enabled_global, allowed_user_ids')
+                .eq('key', 'passport_moment_v1')
+                .maybeSingle();
+            if (error || !data) return false;
+            return !!data.enabled_global || (data.allowed_user_ids || []).includes(currentUser.id);
+        } catch (e) { return false; }
+    })();
+    return _ppMomentFlagPromise;
+}
+
+// Water temperature -> colour. Cold reads deep/violet, warm reads amber.
+// Bands chosen for South African + cold-water swimming: a 15C Cape winter
+// sea and a 26C pool should look obviously different. temp is the value
+// the swimmer just logged.
+const _PP_TEMP_BANDS = [
+    { below: 8,        colour: '#7c3aed' }, // ice violet
+    { below: 12,       colour: '#2563eb' }, // deep blue
+    { below: 16,       colour: '#0891b2' }, // cold cyan
+    { below: 20,       colour: '#0d9488' }, // teal
+    { below: 24,       colour: '#16a34a' }, // mild green
+    { below: Infinity, colour: '#f59e0b' }  // warm amber
+];
+function _ppTempColour(t) {
+    if (t === null || t === undefined || isNaN(t)) return '#38bdf8';
+    for (let i = 0; i < _PP_TEMP_BANDS.length; i++) {
+        if (t < _PP_TEMP_BANDS[i].below) return _PP_TEMP_BANDS[i].colour;
+    }
+    return '#f59e0b';
+}
+
+// A lighter tint of the band colour for text on the dark stamp.
+function _ppTempTextColour(t) {
+    const map = { '#7c3aed':'#c4b5fd','#2563eb':'#93c5fd','#0891b2':'#67e8f9','#0d9488':'#5eead4','#16a34a':'#86efac','#f59e0b':'#fcd34d','#38bdf8':'#7dd3fc' };
+    return map[_ppTempColour(t)] || '#7dd3fc';
+}
+
+// Compass icon, defined here rather than borrowed from app-overview.js —
+// the door must not depend on another file's constant or its load order.
+const _PP_ICON_COMPASS = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>';
+
+function _ppOrdinal(n) {
+    if (n === null || n === undefined) return '';
+    const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+// Open the Passport tab in the Identity modal from anywhere. showIdentityView
+// resets to the Overview tab as it opens, so switch to Passport once it has.
+function openMyPassport(source) {
+    try { analytics.track('overview_passport_clicked', { source: source || 'door' }); } catch (_) {}
+    if (typeof showIdentityView !== 'function' || typeof switchIdentityTab !== 'function') return;
+    const p = showIdentityView();
+    if (p && typeof p.then === 'function') p.then(() => switchIdentityTab('passport'));
+    else switchIdentityTab('passport');
+}
+
+// ── The post-log moment ──────────────────────────────────────────
+// Resolves when dismissed (like showShareSheet), so submitTempLog can
+// continue to the dashboard transition afterwards.
+async function showPassportMoment(ctx) {
+    return new Promise(resolve => {
+        _ppMomentResolve = resolve;
+        _ppMomentCtx = ctx;
+
+        let ov = document.getElementById('passportMomentOverlay');
+        if (!ov) {
+            ov = document.createElement('div');
+            ov.id = 'passportMomentOverlay';
+            ov.style.cssText = 'position:fixed; inset:0; z-index:10050; background:rgba(3,8,16,0.86); display:flex; align-items:center; justify-content:center; padding:20px;';
+            document.body.appendChild(ov);
+        }
+        ov.innerHTML = '<div role="status" style="color:var(--text-secondary); font-size:13px;">Stamping your swim…</div>';
+        ov.style.display = 'flex';
+
+        (async () => {
+            let spot = null, totalSpots = null;
+            try {
+                const { data, error } = await supabaseClient.rpc('get_my_swim_passport_v1');
+                if (!error && data) {
+                    totalSpots = (data.summary || {}).total_spots_explored ?? null;
+                    spot = (data.spots || []).find(s => s.spot_id === ctx.spotId) || null;
+                }
+            } catch (_) { /* fall through to a simpler moment */ }
+
+            ov.innerHTML = _ppMomentHtml(ctx, spot, totalSpots);
+        })();
+    });
+}
+
+function _ppMomentHtml(ctx, spot, totalSpots) {
+    const colour = _ppTempColour(ctx.temp);
+    const textColour = _ppTempTextColour(ctx.temp);
+    const nthHere = spot ? spot.total_swims : null;
+    const coldestHere = spot ? spot.coldest_temp_c : null;
+    const region = spot ? spot.region : null;
+    const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    const cond = ctx.conditions ? ctx.conditions.charAt(0).toUpperCase() + ctx.conditions.slice(1) : '';
+
+    // "Coldest here yet" only when this swim set (or tied) the minimum and
+    // it isn't their first visit — coldestHere already includes this swim.
+    const newColdest = (nthHere && nthHere > 1 && coldestHere !== null && ctx.temp <= coldestHere);
+
+    const sub = [region, today, cond].filter(Boolean).join(' · ');
+
+    const chips = [];
+    if (totalSpots !== null) chips.push({ n: totalSpots, k: totalSpots === 1 ? 'Spot' : 'Spots' });
+    if (nthHere !== null) chips.push({ n: _ppOrdinal(nthHere), k: 'Here' });
+    if (coldestHere !== null) chips.push({ n: coldestHere + '&deg;', k: 'Coldest here', colour: textColour });
+
+    const chipHtml = chips.length ? `
+      <div style="display:flex; gap:8px; margin-top:16px;">
+        ${chips.map(c => `
+          <div style="flex:1; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:12px; padding:10px 8px; text-align:center;">
+            <div style="font-size:19px; font-weight:800; ${c.colour ? 'color:' + c.colour + ';' : ''}">${c.n}</div>
+            <div style="font-size:9px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:var(--text-secondary); margin-top:3px;">${c.k}</div>
+          </div>`).join('')}
+      </div>` : '';
+
+    return `
+      <div style="width:100%; max-width:400px; background:#0d1728; border:1px solid var(--border); border-radius:22px; padding:22px 20px;">
+        <div style="display:flex; align-items:center; gap:7px; font-size:12px; font-weight:700; color:#16a34a; margin-bottom:16px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Swim logged
+        </div>
+        <div style="border-radius:18px; padding:22px 20px; position:relative; overflow:hidden; border:1px solid var(--border);
+             background:radial-gradient(120% 120% at 20% 0%, ${colour}33, transparent 60%), #0d1728;">
+          ${newColdest ? `<div style="position:absolute; top:16px; right:16px; font-size:10px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:${textColour}; border:1px solid ${colour}88; border-radius:50px; padding:4px 10px;">Coldest here yet</div>` : ''}
+          <div style="font-size:46px; font-weight:800; line-height:1; letter-spacing:-1px; color:${textColour};">${_ovEscapeMoment(ctx.temp)}<span style="font-size:20px; color:var(--text-secondary); font-weight:700;">&deg;C</span></div>
+          <div style="font-size:17px; font-weight:800; color:#f1f5f9; margin-top:8px;">${_ppEscape(ctx.spotName)}</div>
+          ${sub ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:3px;">${_ppEscape(sub)}</div>` : ''}
+          ${chipHtml}
+        </div>
+        <button type="button" onclick="_ppMomentOpenPassport()"
+          onfocus="this.style.outline='2px solid #38bdf8'; this.style.outlineOffset='2px';" onblur="this.style.outline='none';"
+          style="width:100%; padding:14px; border-radius:50px; border:none; background:#38bdf8; color:#08131f; font-size:14px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; margin-top:16px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#08131f" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Open my Passport
+        </button>
+        <button type="button" onclick="_ppMomentShare()"
+          onfocus="this.style.outline='2px solid #38bdf8'; this.style.outlineOffset='2px';" onblur="this.style.outline='none';"
+          style="width:100%; padding:12px; border-radius:50px; background:transparent; border:1px solid var(--border); color:var(--text-secondary); font-size:13px; font-weight:700; cursor:pointer; margin-top:8px;">Share this swim</button>
+        <button type="button" onclick="_ppMomentDismiss()"
+          style="width:100%; padding:10px; background:transparent; border:none; color:var(--text-secondary); font-size:12px; font-weight:600; cursor:pointer; margin-top:6px;">Done</button>
+      </div>`;
+}
+
+// Small numeric passthrough so a stray non-number can't inject markup.
+function _ovEscapeMoment(v) { const n = Number(v); return isNaN(n) ? '' : String(n); }
+
+function _ppMomentDismiss() {
+    const ov = document.getElementById('passportMomentOverlay');
+    if (ov) ov.style.display = 'none';
+    if (_ppMomentResolve) { _ppMomentResolve(); _ppMomentResolve = null; }
+}
+
+function _ppMomentOpenPassport() {
+    _ppMomentDismiss();
+    openMyPassport('post_log_moment');
+}
+
+function _ppMomentShare() {
+    const c = _ppMomentCtx;
+    if (!c) return;
+    const cond = c.conditions ? c.conditions.charAt(0).toUpperCase() + c.conditions.slice(1) : '';
+    const msg = `${c.spotName}: ${c.temp}°C${cond ? ' • ' + cond : ''}\nLogged on SwimLoading — swimloading.com`;
+    try { window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank'); } catch (_) {}
+    try { analytics.track('whatsapp_shared', { source: 'passport_moment' }); } catch (_) {}
+}
+
+// ── The persistent dashboard door ────────────────────────────────
+// Self-initialising, mirroring the identity entry-point pattern: waits
+// for currentUser, renders the door when passport_moment_v1 is on.
+(function _ppInitDoor() {
+    let tries = 0;
+    const timer = setInterval(async () => {
+        tries++;
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            clearInterval(timer);
+            try {
+                if (!(await passportMomentEnabled())) return;
+                const el = document.getElementById('passportDoor');
+                if (!el) return;
+                el.style.display = 'block';
+                el.innerHTML = `
+                  <button type="button" onclick="openMyPassport('dashboard_door')"
+                    style="width:100%; text-align:left; background:linear-gradient(135deg, rgba(56,189,248,0.10), rgba(13,148,136,0.10)); border:1px solid rgba(56,189,248,0.28); border-radius:16px; padding:16px 18px; cursor:pointer; display:flex; align-items:center; gap:14px; color:#f1f5f9;">
+                    <span style="flex:0 0 auto; color:#38bdf8;">${_PP_ICON_COMPASS}</span>
+                    <span style="flex:1; min-width:0;">
+                      <span style="display:block; font-size:15px; font-weight:800;">Swim Passport</span>
+                      <span style="display:block; font-size:12px; color:var(--text-secondary); margin-top:2px;">Every place you've swum, coloured by the water</span>
+                    </span>
+                    <span style="flex:0 0 auto; color:#38bdf8; font-size:18px; font-weight:800;">&rarr;</span>
+                  </button>`;
+            } catch (e) { /* door is optional */ }
+        } else if (tries > 120) {
+            clearInterval(timer);
+        }
+    }, 500);
+})();
+
 // ── Overview -> Passport deep link ───────────────────────────────
 // Called by the Overview card's "View Passport" button. Switching the
 // tab is all that is needed; initPassportTab runs off the switch and
