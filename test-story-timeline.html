@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>TEST HARNESS — Story Timeline card render</title>
+<!-- Visual-regression harness for _stRenderCard (app-story-timeline.js).
+     Fixture events only, no auth, no data, not linked. Exercises all 5
+     story categories, including the temperature scale reused from the
+     Passport (cold/mid/warm), to confirm each renders with a distinct,
+     correct colour. -->
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--border:rgba(255,255,255,.08);--text-secondary:#8ba0b8;}
+  body{margin:0;padding:24px;background:#080f1a;color:#f1f5f9;font-family:'DM Sans',sans-serif;max-width:460px;margin:0 auto;}
+  h2{font-size:13px;color:#38bdf8;margin:22px 0 8px;text-transform:uppercase;letter-spacing:0.06em;}
+</style></head><body>
+<div style="border:1px solid rgba(245,158,11,0.35);background:rgba(245,158,11,0.07);border-radius:12px;padding:12px 14px;text-align:center;margin-bottom:20px;">
+  <div style="font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:0.1em;">Test harness</div>
+  <div style="font-size:12px;color:#94a3b8;margin-top:5px;">Story Timeline cards rendered against fixture events. Not connected to any account.</div>
+</div>
+<h2>All 5 categories + temperature scale</h2>
+<div id="cards"></div>
+<script src="app-story-timeline.js?v=5"></script>
+<script>
+  const fixtures = [
+    { id:'1', story_type:'first_swim', story_date:'2026-07-01', title:'Your first swim', summary:'Welcome to your swimming story.', primary_value:null, unit:null, spot_name:'Fixture Cove', verification_status:'corroborated' },
+    { id:'2', story_type:'spots_explored_milestone', story_date:'2026-07-05', title:'10 spots explored', summary:'A new personal best for exploration.', primary_value:10, unit:'spots', spot_name:null, verification_status:'corroborated' },
+    { id:'3', story_type:'new_coldest_swim', story_date:'2026-07-10', title:'Your coldest recorded swim', summary:'You recorded 6.5°C at Deep Winter Dam.', primary_value:6.5, unit:'°C', spot_name:'Deep Winter Dam', verification_status:'corroborated' },
+    { id:'4', story_type:'new_warmest_swim', story_date:'2026-07-12', title:'Your warmest recorded swim', summary:'You recorded 25°C at Newlands Pool.', primary_value:25, unit:'°C', spot_name:'Newlands Pool', verification_status:'corroborated' },
+    { id:'5', story_type:'first_sub_16', story_date:'2026-07-14', title:'First swim under 16°C', summary:null, primary_value:15.2, unit:'°C', spot_name:'Clifton 4th Beach', verification_status:'corroborated' },
+    { id:'6', story_type:'first_pool_swim', story_date:'2026-07-16', title:'Your first pool swim', summary:'A new environment for your swimming.', primary_value:null, unit:null, spot_name:'Virgin Active Gateway', verification_status:'corroborated' },
+    { id:'7', story_type:'streak_milestone', story_date:'2026-07-18', title:'7-day streak', summary:'Seven days of consecutive swimming.', primary_value:7, unit:'days', spot_name:null, verification_status:'pending_verification' },
+  ];
+  document.getElementById('cards').innerHTML = fixtures.map(_stRenderCard).join('');
+</script>
+</body></html>

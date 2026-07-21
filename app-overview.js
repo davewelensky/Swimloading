@@ -1,8 +1,8 @@
 // ============================================================
 // MY SWIMMING OVERVIEW V2 (Release 2.4)
-// Feature-flagged: overview_v2 (Dave, Johan "tunnan", Carina — off
-// globally). Separate flag from story_engine_v1 / story_timeline_v1 /
-// story_cards_v1 / identity_layer_v1.
+// Feature-flagged: overview_v2 — enabled_global since 2026-07-21.
+// Separate flag from story_engine_v1 / story_timeline_v1 /
+// story_cards_v1 / identity_layer_v1, all also global as of the same date.
 //
 // Renders the NEW Overview panel content when enabled; app-identity.js
 // falls back to its existing statistics-first render when disabled — no
@@ -15,6 +15,26 @@
 // or story fact client-side — EVERY number, latest story included, comes
 // from the single get_my_swimming_overview_v1 call.
 // ============================================================
+
+// Local copy of the Passport's temperature colour scale (_ppTempColour in
+// app-passport.js). Duplicated rather than depended on: this file loads
+// before app-passport.js in index.html. Keep in sync if the Passport's
+// scale changes.
+const _OV_TEMP_BANDS = [
+    { below: 8,        colour: '#7c3aed' },
+    { below: 12,       colour: '#2563eb' },
+    { below: 16,       colour: '#0891b2' },
+    { below: 20,       colour: '#0d9488' },
+    { below: 24,       colour: '#16a34a' },
+    { below: Infinity, colour: '#f59e0b' }
+];
+function _ovTempColour(t) {
+    if (t === null || t === undefined || isNaN(t)) return '#f1f5f9';
+    for (let i = 0; i < _OV_TEMP_BANDS.length; i++) {
+        if (t < _OV_TEMP_BANDS[i].below) return _OV_TEMP_BANDS[i].colour;
+    }
+    return '#f59e0b';
+}
 
 async function overviewV2Enabled() {
     if (typeof currentUser === 'undefined' || !currentUser) return false;
@@ -125,12 +145,15 @@ function _ovBuildHtml({ participationLabel, stats, latestStory, timelineEnabled,
     // Featured-content hierarchy for a populated card: label, title,
     // optional summary, then spot / primary value / date as three
     // distinct rows rather than one run-on meta line. Threshold
-    // milestones store the crossed threshold in primary_value;
-    // temperature events store the recorded temp — the unit comes from
-    // the event itself, so nothing is inferred or recomputed here.
+    // milestones store the crossed threshold in primary_value; unit is
+    // whatever the story engine stored verbatim — '°C' for temperature
+    // events, 'swims'/'days' for milestone/streak ones. A word unit gets
+    // a leading space ("50 swims"); '°C' doesn't ("11.5°C").
     const storyValue = latestStory && latestStory.primary_value !== null && latestStory.primary_value !== undefined
-        ? _ovEscape(latestStory.primary_value + (latestStory.unit ? (latestStory.unit === 'C' ? '°C' : ' ' + latestStory.unit) : ''))
+        ? _ovEscape(latestStory.primary_value + (latestStory.unit ? (/^[a-z]/i.test(latestStory.unit) ? ' ' + latestStory.unit : latestStory.unit) : ''))
         : '';
+    const storyIsTemp = latestStory && latestStory.unit === '°C';
+    const storyValueColour = storyIsTemp ? _ovTempColour(latestStory.primary_value) : '#f1f5f9';
 
     const latestStorySection = latestStory ? `
       <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:22px;">
@@ -138,7 +161,7 @@ function _ovBuildHtml({ participationLabel, stats, latestStory, timelineEnabled,
         <div style="font-size:16px; font-weight:800; color:#f1f5f9;">${_ovEscape(latestStory.title)}</div>
         ${latestStory.summary ? `<div style="font-size:13px; color:var(--text-secondary); line-height:1.5; margin-top:4px;">${_ovEscape(latestStory.summary)}</div>` : ''}
         ${latestStory.spot_name ? `<div style="font-size:13px; color:#cbd5e1; margin-top:8px;">${_ovEscape(latestStory.spot_name)}</div>` : ''}
-        ${storyValue ? `<div style="font-size:15px; font-weight:700; color:#f1f5f9; margin-top:2px;">${storyValue}</div>` : ''}
+        ${storyValue ? `<div style="font-size:15px; font-weight:700; color:${storyValueColour}; margin-top:2px;">${storyValue}</div>` : ''}
         ${latestStory.story_date ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:6px;">${_ovEscape(_ovRelativeDate(latestStory.story_date))}</div>` : ''}
         ${timelineEnabled ? `<button type="button" onclick="overviewViewStory('${latestStory.id}')" onfocus="this.style.outline='2px solid #38bdf8'; this.style.outlineOffset='2px';" onblur="this.style.outline='none';" aria-label="View ${_ovEscape(latestStory.title)} in your story timeline" style="margin-top:14px; padding:10px 20px; border-radius:50px; border:1px solid rgba(56,189,248,0.4); background:transparent; color:#38bdf8; font-size:12px; font-weight:700; cursor:pointer;">View Story &rarr;</button>` : ''}
       </div>` : `
@@ -149,9 +172,11 @@ function _ovBuildHtml({ participationLabel, stats, latestStory, timelineEnabled,
         <div style="font-size:13px; color:var(--text-secondary); line-height:1.5; margin-top:8px;">Story events begin from today.</div>
       </div>`;
 
-    const journeyTile = (label, value) => `
+    // colour is optional — only temperature tiles pass one; everything
+    // else (Swims, Streak, Spots) keeps the plain white value it always had.
+    const journeyTile = (label, value, colour) => `
       <div style="flex:1; min-width:44%; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; padding:14px; text-align:center;">
-        <div style="font-size:22px; font-weight:800; color:#f1f5f9;">${value}</div>
+        <div style="font-size:22px; font-weight:800; color:${colour || '#f1f5f9'};">${value}</div>
         <div style="font-size:10px; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; margin-top:2px;">${label}</div>
       </div>`;
 
@@ -216,7 +241,7 @@ function _ovBuildHtml({ participationLabel, stats, latestStory, timelineEnabled,
         ${journeyTile('Swims', s.total_swims ?? '—')}
         ${journeyTile('Current Streak', (s.current_streak ?? 0) + (s.current_streak === 1 ? ' day' : ' days'))}
         ${journeyTile('Spots Explored', s.spots_explored ?? '—')}
-        ${journeyTile('Avg Temp', s.avg_temp_c !== null && s.avg_temp_c !== undefined ? s.avg_temp_c + '°C' : '—')}
+        ${journeyTile('Avg Temp', s.avg_temp_c !== null && s.avg_temp_c !== undefined ? s.avg_temp_c + '°C' : '—', _ovTempColour(s.avg_temp_c))}
       </div>
 
       ${_OV_SECTION_LABEL}Swim Passport</h3>
@@ -237,9 +262,9 @@ function _ovBuildHtml({ participationLabel, stats, latestStory, timelineEnabled,
       ${_OV_SECTION_LABEL}Current Month</h3>
       <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:22px;">
         ${journeyTile('Swims', month.swims ?? 0)}
-        ${journeyTile('Avg Temp', month.avg_temp_c !== null && month.avg_temp_c !== undefined ? month.avg_temp_c + '°C' : '—')}
-        ${journeyTile('Coldest', month.coldest !== null && month.coldest !== undefined ? month.coldest + '°C' : '—')}
-        ${journeyTile('Warmest', month.warmest !== null && month.warmest !== undefined ? month.warmest + '°C' : '—')}
+        ${journeyTile('Avg Temp', month.avg_temp_c !== null && month.avg_temp_c !== undefined ? month.avg_temp_c + '°C' : '—', _ovTempColour(month.avg_temp_c))}
+        ${journeyTile('Coldest', month.coldest !== null && month.coldest !== undefined ? month.coldest + '°C' : '—', _ovTempColour(month.coldest))}
+        ${journeyTile('Warmest', month.warmest !== null && month.warmest !== undefined ? month.warmest + '°C' : '—', _ovTempColour(month.warmest))}
       </div>
 
       ${milestone ? `

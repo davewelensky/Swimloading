@@ -49,6 +49,49 @@ ST_CATEGORY_FILTERS.forEach(f => {
     f.types.forEach(t => { ST_CATEGORY_LABEL_BY_TYPE[t] = f.label; });
 });
 
+// story_type -> category KEY (as opposed to the label above) — used only
+// to decide a card's colour treatment below.
+const ST_CATEGORY_KEY_BY_TYPE = {};
+ST_CATEGORY_FILTERS.forEach(f => {
+    if (!f.types) return;
+    f.types.forEach(t => { ST_CATEGORY_KEY_BY_TYPE[t] = f.key; });
+});
+
+// Local copy of the Passport's temperature colour scale (app-passport.js's
+// _ppTempColour). Duplicated rather than depended on: this file loads
+// before app-passport.js in index.html, and per this project's own
+// convention (see _PP_ICON_COMPASS in app-passport.js) a module shouldn't
+// rely on another optional module's constant existing. Keep the bands in
+// sync if the Passport's scale ever changes.
+const _ST_TEMP_BANDS = [
+    { below: 8,        colour: '#7c3aed' },
+    { below: 12,       colour: '#2563eb' },
+    { below: 16,       colour: '#0891b2' },
+    { below: 20,       colour: '#0d9488' },
+    { below: 24,       colour: '#16a34a' },
+    { below: Infinity, colour: '#f59e0b' }
+];
+function _stTempColour(t) {
+    if (t === null || t === undefined || isNaN(t)) return '#38bdf8';
+    for (let i = 0; i < _ST_TEMP_BANDS.length; i++) {
+        if (t < _ST_TEMP_BANDS[i].below) return _ST_TEMP_BANDS[i].colour;
+    }
+    return '#f59e0b';
+}
+const _ST_TEMP_TEXT = { '#7c3aed':'#c4b5fd','#2563eb':'#93c5fd','#0891b2':'#67e8f9','#0d9488':'#5eead4','#16a34a':'#86efac','#f59e0b':'#fcd34d','#38bdf8':'#7dd3fc' };
+function _stTempTextColour(t) { return _ST_TEMP_TEXT[_stTempColour(t)] || '#7dd3fc'; }
+
+// Non-temperature category accents. 'temperature' is deliberately absent —
+// those events colour by their own recorded value via _stTempColour
+// instead, so a sub-7C badge reads the same violet-cold as a Passport
+// stamp rather than a generic category colour.
+const ST_CATEGORY_ACCENT = {
+    milestones:  '#38bdf8',
+    exploration: '#10b981',
+    environment: '#f59e0b',
+    consistency: '#a78bfa'
+};
+
 const ST_PAGE_SIZE = 20;
 
 let _stFlagPromise = null;
@@ -370,22 +413,31 @@ function _stFormatDate(dateStr) {
 
 function _stRenderCard(evt) {
     const category = ST_CATEGORY_LABEL_BY_TYPE[evt.story_type] || '';
+    const categoryKey = ST_CATEGORY_KEY_BY_TYPE[evt.story_type];
     const dateStr = _stFormatDate(evt.story_date);
     const hasValue = evt.primary_value !== null && evt.primary_value !== undefined && evt.unit;
     const showVerification = evt.verification_status && evt.verification_status !== 'corroborated';
 
+    // Temperature-category events colour by their OWN recorded value
+    // (same scale as the Passport); every other category gets a fixed
+    // accent. Falls back to muted grey for anything unmapped rather than
+    // guessing a colour for a story_type this file doesn't recognise.
+    const isTemp = categoryKey === 'temperature' && hasValue;
+    const accent = isTemp ? _stTempColour(evt.primary_value) : (ST_CATEGORY_ACCENT[categoryKey] || '#64748b');
+    const valueColour = isTemp ? _stTempTextColour(evt.primary_value) : accent;
+
     return `
-      <article data-story-event-id="${evt.id}" style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:10px;">
+      <article data-story-event-id="${evt.id}" style="background:${accent}14; border:1px solid var(--border); border-left:3px solid ${accent}; border-radius:14px; padding:16px; margin-bottom:10px;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-          <span style="font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.06em;">${category}</span>
+          <span style="font-size:11px; font-weight:700; color:${accent}; text-transform:uppercase; letter-spacing:0.06em;">${category}</span>
           <span style="font-size:11px; color:var(--text-secondary);">${dateStr}</span>
         </div>
         <div style="font-size:15px; font-weight:700; color:#f1f5f9; margin-bottom:${evt.summary ? '4px' : '0'};">${_stEscape(evt.title)}</div>
         ${evt.summary ? `<div style="font-size:13px; color:var(--text-secondary); line-height:1.5;">${_stEscape(evt.summary)}</div>` : ''}
         ${(hasValue || evt.spot_name || showVerification) ? `
-        <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; font-size:12px; color:var(--text-secondary);">
-          ${hasValue ? `<span>${evt.primary_value}${evt.unit}</span>` : ''}
-          ${evt.spot_name ? `<span>${_stEscape(evt.spot_name)}</span>` : ''}
+        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:10px; font-size:12px;">
+          ${hasValue ? `<span style="font-weight:700; font-size:13px; color:${valueColour};">${evt.primary_value}${/^[a-z]/i.test(evt.unit) ? ' ' + evt.unit : evt.unit}</span>` : ''}
+          ${evt.spot_name ? `<span style="color:var(--text-secondary);">${_stEscape(evt.spot_name)}</span>` : ''}
           ${showVerification ? `<span style="color:#f59e0b;">${evt.verification_status === 'pending_verification' ? 'Pending verification' : ''}</span>` : ''}
         </div>` : ''}
       </article>`;
