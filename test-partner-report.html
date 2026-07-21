@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>TEST HARNESS — Partner Report card</title>
+<!-- Visual-regression harness for the admin Partner Report card. Fixture
+     numbers, no auth, no data, not linked. Renders _prCardHtml exactly as
+     admin.html defines it (kept in sync manually). -->
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--card-bg:#0d1728;--border:rgba(255,255,255,.08);--text-secondary:#8ba0b8;--red:#ef4444;}
+  body{margin:0;padding:24px;background:#080f1a;color:#f1f5f9;font-family:'DM Sans',sans-serif;}
+  h2{font-size:15px;color:#38bdf8;margin:24px 0 10px;}
+  img{display:none;} /* logo-wave.png not present in harness path */
+</style></head><body>
+<h2>eo SwimBETTER — 30 days (real numbers)</h2>
+<div id="a"></div>
+<h2>TRIHARD — with challenge-views extra row</h2>
+<div id="b"></div>
+<h2>Maurten — small numbers, negative trend</h2>
+<div id="c"></div>
+<script>
+let _partnerDays = 30;
+function _prFmtDate(d){return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
+</script>
+<script>
+// ↓ copied verbatim from admin.html _prCardHtml (keep in sync)
+function _prCardHtml(partner, s) {
+    const funnelMax = Math.max(s.homeCur || 0, s.pageCur, s.shopCur, 1);
+    const bar = (val, colour, label, sub) => {
+        if (val === null || val === undefined) return '';
+        const w = Math.max(10, Math.round(val / funnelMax * 58));
+        return `<div style="display:flex;align-items:center;gap:12px;">
+            <div style="height:34px;border-radius:8px;display:flex;align-items:center;padding:0 12px;font-weight:800;font-size:15px;color:#08131f;min-width:44px;width:${w}%;background:${colour};">${val}</div>
+            <div style="font-size:12px;color:#f1f5f9;flex:1;">${label}<span style="display:block;font-size:11px;color:var(--text-secondary);">${sub}</span></div>
+        </div>`;
+    };
+    const pctColour = s.pct >= 0 ? '#10b981' : '#ef4444';
+    const pctStr = (s.pct >= 0 ? '+' : '') + s.pct + '%';
+    const winLabel = 'Last ' + _partnerDays + ' days · to ' + _prFmtDate(new Date());
+    const extraRow = (partner.extraEvent && s.extraCur !== null)
+        ? `<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-top:8px;">
+             <div style="font-size:12px;color:var(--text-secondary);">${partner.extraLabel}</div>
+             <div style="font-size:18px;font-weight:800;color:#38bdf8;">${s.extraCur}</div>
+           </div>` : '';
+    return `
+      <div id="prShot" style="background:linear-gradient(135deg,#0a1a2e,#0d1728);border:1px solid rgba(56,189,248,0.22);border-radius:18px;padding:22px;max-width:520px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div style="font-size:11px;font-weight:800;color:#38bdf8;letter-spacing:-0.3px;display:flex;align-items:center;gap:5px;">
+            <img src="icons/logo-wave.png" alt="" style="height:13px;">SwimLoading</div>
+          <div style="font-size:10px;color:var(--text-secondary);">${winLabel}</div>
+        </div>
+        <div style="font-size:24px;font-weight:800;letter-spacing:-0.5px;margin:6px 0 2px;color:#f1f5f9;">${partner.name}</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:18px;">Your reach across the SwimLoading community</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:${extraRow ? '8' : '16'}px;">
+          ${bar(s.homeCur, '#38bdf8', 'Seen on the SwimLoading homepage', 'homepage partner clicks')}
+          ${bar(s.pageCur, '#0ea5e9', 'Visited your partner page', 'page views')}
+          ${bar(s.shopCur, '#10b981', 'Clicked through to shop', 'shop / discount-code clicks')}
+        </div>
+        ${extraRow}
+        <div style="display:flex;gap:8px;margin-top:16px;">
+          <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;">
+            <div style="font-size:20px;font-weight:800;color:#f1f5f9;">${s.totalCur}</div>
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary);margin-top:4px;">Total touches</div></div>
+          <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;">
+            <div style="font-size:20px;font-weight:800;color:#10b981;">${s.conv}%</div>
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary);margin-top:4px;">Page → shop</div></div>
+          <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;">
+            <div style="font-size:20px;font-weight:800;color:${pctColour};">${pctStr}</div>
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary);margin-top:4px;">vs prev ${_partnerDays}d</div></div>
+        </div>
+        <div style="font-size:11px;color:var(--text-secondary);text-align:center;padding-top:14px;">swimloading.com · partner report</div>
+      </div>`;
+}
+document.getElementById('a').innerHTML = _prCardHtml({name:'eo SwimBETTER'}, {homeCur:5,pageCur:10,shopCur:1,extraCur:null,totalCur:16,pct:100,conv:10});
+document.getElementById('b').innerHTML = _prCardHtml({name:'TRIHARD',extraEvent:'uk_spot_challenge_viewed',extraLabel:'UK Spot Challenge views'}, {homeCur:null,pageCur:26,shopCur:3,extraCur:45,totalCur:74,pct:34,conv:12});
+document.getElementById('c').innerHTML = _prCardHtml({name:'Maurten'}, {homeCur:1,pageCur:6,shopCur:1,extraCur:null,totalCur:8,pct:-20,conv:17});
+</script>
+</body></html>

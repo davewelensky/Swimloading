@@ -447,6 +447,21 @@
             </div>
         </div>
 
+        <!-- Partner Report -->
+        <div class="section-title">Partner Report</div>
+        <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+                <div style="font-size:13px;color:var(--text-secondary);">Pick a partner — screenshot the card and send it to them.</div>
+                <div style="display:flex;gap:8px;">
+                    <button onclick="setPartnerDays(7)"  id="prBtn7"  class="pr-win-btn">7 days</button>
+                    <button onclick="setPartnerDays(30)" id="prBtn30" class="pr-win-btn">30 days</button>
+                    <button onclick="setPartnerDays(90)" id="prBtn90" class="pr-win-btn">90 days</button>
+                </div>
+            </div>
+            <div id="partnerTabs" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;"></div>
+            <div id="partnerReportCard"></div>
+        </div>
+
         <!-- KPI Cards -->
         <div class="section-title">Overview</div>
         <div class="kpi-row">
@@ -870,6 +885,7 @@ async function showDashboard(user) {
     document.getElementById('dashboard').style.display = 'block';
     await Promise.all([loadAdminDomains(), loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement(), loadSpotlights(), loadSpotSuggestions(), loadRecentLogs(), loadAntiCheat(), loadChallengeStats(), loadUkLocationProposals()]);
     loadAnalytics(7);
+    loadPartnerReport();
 }
 
 // ── Challenge stats (this month vs same window last month) ─────────────────────
@@ -1090,6 +1106,141 @@ async function loadAnalytics(days = 7) {
             animation: false
         }
     });
+}
+
+// ── Partner Report ─────────────────────────────────────────────────────────────
+// Per-partner funnel from the analytics_events already tracked:
+//   homepage click  → partner page view → shop / discount-code click.
+// Each partner's events follow partner_<key>_<action>; TRIHARD predates
+// that convention (trihard_page_view / trihard_link_click) and also has
+// the UK Spot Challenge, so it carries an extra line.
+const PARTNER_REPORTS = [
+    { key:'eolab',       name:'eo SwimBETTER',   homepage:'partner_eolab_homepage_click',       page:'partner_eolab_page_view',       shop:['partner_eolab_shop_click'] },
+    { key:'blusmooth',   name:'Blu Smooth',      homepage:'partner_blusmooth_homepage_click',   page:'partner_blusmooth_page_view',   shop:['partner_blusmooth_shop_click'] },
+    { key:'magic5',      name:'Magic5',          homepage:'partner_magic5_homepage_click',      page:'partner_magic5_page_view',      shop:['partner_magic5_shop_click'] },
+    { key:'blueseventy', name:'Blue Seventy',    homepage:'partner_blueseventy_homepage_click', page:'partner_blueseventy_page_view', shop:['partner_blueseventy_shop_click','partner_blueseventy_code_copy'] },
+    { key:'maurten',     name:'Maurten',         homepage:'partner_maurten_homepage_click',     page:'partner_maurten_page_view',     shop:['partner_maurten_shop_click'] },
+    { key:'sis',         name:'Science in Sport',homepage:'partner_sis_homepage_click',         page:'partner_sis_page_view',         shop:['partner_sis_shop_click'] },
+    { key:'trihard',     name:'TRIHARD',         homepage:null,                                 page:'trihard_page_view',             shop:['trihard_link_click'], extraLabel:'UK Spot Challenge views', extraEvent:'uk_spot_challenge_viewed' },
+];
+let _partnerDays = 30;
+let _partnerKey = 'eolab';
+
+function setPartnerDays(d) { _partnerDays = d; loadPartnerReport(); }
+function selectPartner(k) { _partnerKey = k; loadPartnerReport(); }
+
+function _prFmtDate(d) { return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }); }
+
+async function loadPartnerReport() {
+    // Window buttons
+    [7,30,90].forEach(d => {
+        const b = document.getElementById('prBtn'+d);
+        if (!b) return;
+        const on = d === _partnerDays;
+        b.style.background = on ? 'rgba(56,189,248,0.15)' : 'rgba(255,255,255,0.05)';
+        b.style.border = '1px solid ' + (on ? 'rgba(56,189,248,0.4)' : 'var(--border)');
+        b.style.color = on ? '#38bdf8' : 'var(--text-secondary)';
+        b.style.borderRadius = '8px'; b.style.padding = '5px 12px'; b.style.fontSize = '12px'; b.style.cursor = 'pointer';
+    });
+
+    // Partner tabs
+    document.getElementById('partnerTabs').innerHTML = PARTNER_REPORTS.map(p => {
+        const on = p.key === _partnerKey;
+        return `<button onclick="selectPartner('${p.key}')" style="font-size:12px;font-weight:700;padding:6px 12px;border-radius:50px;cursor:pointer;
+            background:${on ? 'rgba(56,189,248,0.12)' : 'transparent'};border:1px solid ${on ? '#38bdf8' : 'var(--border)'};color:${on ? '#38bdf8' : 'var(--text-secondary)'};">${p.name}</button>`;
+    }).join('');
+
+    const partner = PARTNER_REPORTS.find(p => p.key === _partnerKey);
+    const card = document.getElementById('partnerReportCard');
+    card.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:24px;text-align:center;">Loading…</div>';
+
+    const evNames = [partner.homepage, partner.page, ...(partner.shop||[]), partner.extraEvent].filter(Boolean);
+    const windowStartMs = Date.now() - _partnerDays * 86400000;
+    const since2x = new Date(Date.now() - 2 * _partnerDays * 86400000).toISOString();
+
+    const { data, error } = await supabaseClient
+        .from('analytics_events')
+        .select('event_name, created_at')
+        .in('event_name', evNames)
+        .gte('created_at', since2x);
+
+    if (error) {
+        card.innerHTML = `<div style="color:var(--red);font-size:13px;padding:16px;">Error loading partner data: ${error.message}</div>`;
+        return;
+    }
+
+    // Bucket into current window vs the equal-length window before it (MoM).
+    const cur = {}, prev = {};
+    (data || []).forEach(e => {
+        const t = new Date(e.created_at).getTime();
+        const b = t >= windowStartMs ? cur : prev;
+        b[e.event_name] = (b[e.event_name] || 0) + 1;
+    });
+    const sum = (obj, names) => (names || []).filter(Boolean).reduce((a, n) => a + (obj[n] || 0), 0);
+
+    const homeCur  = partner.homepage ? (cur[partner.homepage] || 0) : null;
+    const pageCur  = cur[partner.page] || 0;
+    const shopCur  = sum(cur, partner.shop);
+    const extraCur = partner.extraEvent ? (cur[partner.extraEvent] || 0) : null;
+    const totalCur = (homeCur || 0) + pageCur + shopCur + (extraCur || 0);
+    const totalPrev = (partner.homepage ? (prev[partner.homepage] || 0) : 0) + (prev[partner.page] || 0)
+                    + sum(prev, partner.shop) + (partner.extraEvent ? (prev[partner.extraEvent] || 0) : 0);
+    const pct = totalPrev > 0 ? Math.round((totalCur - totalPrev) / totalPrev * 100) : (totalCur > 0 ? 100 : 0);
+    const conv = pageCur > 0 ? Math.round(shopCur / pageCur * 100) : 0;
+
+    card.innerHTML = _prCardHtml(partner, { homeCur, pageCur, shopCur, extraCur, totalCur, pct, conv });
+}
+
+function _prCardHtml(partner, s) {
+    const funnelMax = Math.max(s.homeCur || 0, s.pageCur, s.shopCur, 1);
+    const bar = (val, colour, label, sub) => {
+        if (val === null || val === undefined) return '';
+        const w = Math.max(10, Math.round(val / funnelMax * 58));
+        return `<div style="display:flex;align-items:center;gap:12px;">
+            <div style="height:34px;border-radius:8px;display:flex;align-items:center;padding:0 12px;font-weight:800;font-size:15px;color:#08131f;min-width:44px;width:${w}%;background:${colour};">${val}</div>
+            <div style="font-size:12px;color:#f1f5f9;flex:1;">${label}<span style="display:block;font-size:11px;color:var(--text-secondary);">${sub}</span></div>
+        </div>`;
+    };
+    const pctColour = s.pct >= 0 ? '#10b981' : '#ef4444';
+    const pctStr = (s.pct >= 0 ? '+' : '') + s.pct + '%';
+    const winLabel = 'Last ' + _partnerDays + ' days · to ' + _prFmtDate(new Date());
+    const extraRow = (partner.extraEvent && s.extraCur !== null)
+        ? `<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-top:8px;">
+             <div style="font-size:12px;color:var(--text-secondary);">${partner.extraLabel}</div>
+             <div style="font-size:18px;font-weight:800;color:#38bdf8;">${s.extraCur}</div>
+           </div>` : '';
+
+    return `
+      <div id="prShot" style="background:linear-gradient(135deg,#0a1a2e,#0d1728);border:1px solid rgba(56,189,248,0.22);border-radius:18px;padding:22px;max-width:520px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div style="font-size:11px;font-weight:800;color:#38bdf8;letter-spacing:-0.3px;display:flex;align-items:center;gap:5px;">
+            <img src="icons/logo-wave.png" alt="" style="height:13px;">SwimLoading</div>
+          <div style="font-size:10px;color:var(--text-secondary);">${winLabel}</div>
+        </div>
+        <div style="font-size:24px;font-weight:800;letter-spacing:-0.5px;margin:6px 0 2px;color:#f1f5f9;">${partner.name}</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:18px;">Your reach across the SwimLoading community</div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:${extraRow ? '8' : '16'}px;">
+          ${bar(s.homeCur, '#38bdf8', 'Seen on the SwimLoading homepage', 'homepage partner clicks')}
+          ${bar(s.pageCur, '#0ea5e9', 'Visited your partner page', 'page views')}
+          ${bar(s.shopCur, '#10b981', 'Clicked through to shop', 'shop / discount-code clicks')}
+        </div>
+        ${extraRow}
+
+        <div style="display:flex;gap:8px;margin-top:16px;">
+          <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;">
+            <div style="font-size:20px;font-weight:800;color:#f1f5f9;">${s.totalCur}</div>
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary);margin-top:4px;">Total touches</div></div>
+          <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;">
+            <div style="font-size:20px;font-weight:800;color:#10b981;">${s.conv}%</div>
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary);margin-top:4px;">Page → shop</div></div>
+          <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;">
+            <div style="font-size:20px;font-weight:800;color:${pctColour};">${pctStr}</div>
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary);margin-top:4px;">vs prev ${_partnerDays}d</div></div>
+        </div>
+        <div style="font-size:11px;color:var(--text-secondary);text-align:center;padding-top:14px;">swimloading.com · partner report</div>
+      </div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-top:12px;">Screenshot the card above and send it to ${partner.name}. Numbers are live from tracked events.</div>`;
 }
 
 // ── Load users ─────────────────────────────────────────────────────────────────
