@@ -1205,27 +1205,26 @@
             try {
                 // ── Community Stats this week ─────────────────────────────────────────
                 const since7dStats = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-                // NOTE (2026-07-19, profiles RLS fix): under own-row-only RLS this
-                // head:true count no longer sees the whole table — it can only ever
-                // return 0 or 1 (whether the CALLER's own profile falls in the
-                // window), not the true site-wide weekly count. It fails safely
-                // (RLS filters, it doesn't error), just becomes an inaccurate
-                // "New Members" tile. None of the approved post-fix access paths
-                // provide a generic aggregate count — flagged as a follow-up
-                // (e.g. a small get_new_member_count() RPC) rather than forced
-                // through get_admin_user_directory(), which would break this for
-                // the non-admin users this dashboard stat is shown to.
+                // New Members comes from get_new_member_count_v1() (SECURITY
+                // DEFINER, added 2026-07-21). profiles has an own-row-only SELECT
+                // policy, so a client-side count could only ever see the caller's
+                // own row — the tile always showed 0/1. The RPC counts the true
+                // site-wide 7-day total server-side and returns just an integer.
+                // Spots and Logs stay client-side: spots/temp_logs RLS let the
+                // client read all rows, so their counts are already correct.
                 const [newMembersRes, newSpotsRes, weekLogsRes] = await Promise.all([
-                    supabaseClient.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', since7dStats),
+                    supabaseClient.rpc('get_new_member_count_v1'),
                     supabaseClient.from('spots').select('*', { count: 'exact', head: true }).gte('created_at', since7dStats),
                     supabaseClient.from('temp_logs').select('*', { count: 'exact', head: true }).gte('created_at', since7dStats)
                 ]);
+                // RPC returns the count in .data; the two table queries use .count.
+                const newMembersCount = (newMembersRes && newMembersRes.data) || 0;
 
                 document.getElementById('dashStats').innerHTML = `
                     <div class="dash-label"><i data-lucide="activity" style="width:13px;height:13px;color:var(--text-secondary);"></i>This week</div>
                     <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
                         <div style="text-align:center; background:rgba(56,189,248,0.08); border-radius:10px; padding:10px 6px; border:1px solid rgba(56,189,248,0.12);">
-                            <div style="font-size:22px; font-weight:800; color:var(--ocean-light); line-height:1;">${newMembersRes.count || 0}</div>
+                            <div style="font-size:22px; font-weight:800; color:var(--ocean-light); line-height:1;">${newMembersCount}</div>
                             <div style="font-size:10px; color:var(--text-secondary); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; font-weight:600;">New Members</div>
                         </div>
                         <div style="text-align:center; background:rgba(16,185,129,0.08); border-radius:10px; padding:10px 6px; border:1px solid rgba(16,185,129,0.12);">
