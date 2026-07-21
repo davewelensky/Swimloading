@@ -495,6 +495,31 @@
         }
 
         // Sign up
+        // Redirect a returning user from the Sign Up form to Login when their
+        // email already has an account. Switches tabs explicitly rather than
+        // via showAuthTab() — that helper keys off window.event, which during
+        // a signup-button click would light up the wrong tab.
+        function authNudgeExistingEmail(email) {
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+            const loginTab = Array.from(document.querySelectorAll('.auth-tab'))
+                .find(t => t.innerText.toLowerCase().includes('login'));
+            if (loginTab) loginTab.classList.add('active');
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) loginForm.classList.add('active');
+
+            const emailInput = document.getElementById('loginEmail');
+            if (emailInput && email) emailInput.value = email;
+
+            const notice = document.getElementById('loginNotice');
+            if (notice) {
+                notice.innerHTML = 'You already have an account with this email. Log in below — or tap <a href="#" onclick="showForgotPassword(); return false;" style="color:var(--ocean-light); font-weight:700; text-decoration:none;">Forgot your password?</a> if you need to reset it.';
+                notice.style.display = 'block';
+            }
+            const pw = document.getElementById('loginPassword');
+            if (pw && typeof pw.focus === 'function') pw.focus();
+        }
+
         async function signUp() {
             const email = document.getElementById('signupEmail').value;
             const password = document.getElementById('signupPassword').value;
@@ -523,6 +548,28 @@
                     emailRedirectTo: window.location.origin + '/app'
                 }
             });
+
+            // Existing-account paths. Supabase reports an already-registered
+            // email in TWO ways depending on config, and both used to dead-end
+            // a returning user (raw error alert, or a "check your email" that
+            // never arrives). Steve Evans hit exactly this — a returning admin
+            // trying to Sign Up instead of Log In. Catch both and send them to
+            // the login form with their email prefilled.
+            const alreadyRegistered = error &&
+                /already\s*(registered|exists|in use)|user_repeated_signup/i.test(error.message || '');
+            // Obfuscated case: email-confirmation configs return NO error for
+            // an existing confirmed email, instead a user with an empty
+            // identities array and no session.
+            const obfuscatedExisting = !error && data && data.user &&
+                Array.isArray(data.user.identities) && data.user.identities.length === 0 &&
+                !data.session;
+
+            if (alreadyRegistered || obfuscatedExisting) {
+                signupBtn.disabled = false;
+                signupBtn.textContent = 'Sign Up';
+                authNudgeExistingEmail(email);
+                return;
+            }
 
             if (error) {
                 signupBtn.disabled = false;

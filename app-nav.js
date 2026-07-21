@@ -1,4 +1,8 @@
         function showAuthTab(tab) {
+            // Clear the "you already have an account" nudge on any manual
+            // tab switch so it never lingers into an unrelated view.
+            var _ln = document.getElementById('loginNotice');
+            if (_ln) _ln.style.display = 'none';
             document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
 
