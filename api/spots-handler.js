@@ -558,7 +558,7 @@ function renderAppTeaser(spot) {
       <h2>Track ${escapeHtml(spot.name)} before every swim</h2>
       <p>SwimLoading is free. Open water swimmers log water temperatures, conditions, and hazards so the whole community swims smarter.</p>
       <ul class="teaser-list">
-        <li>Real-time temperatures at 90+ spots</li>
+        <li>Real-time temperatures at 180+ spots</li>
         <li>Group swim coordination</li>
         <li>Community leaderboards</li>
         <li>Safety & hazard alerts</li>

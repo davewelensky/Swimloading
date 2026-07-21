@@ -68,6 +68,7 @@ window.SITE_CONFIG = {
   spots:       185,
   swimmers:    642,
   tempsLogged: 1509,
+  saSpots:     120,   // South African spots (active, country_code=ZA) — fast-paint fallback; site-sync fetches the live count
 
   /* ── MONTHLY CHALLENGE CALENDAR ────────────────────────────────────────
    * Keyed 'YYYY-MM'. site-sync auto-selects the entry for the current SAST

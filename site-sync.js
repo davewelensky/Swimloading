@@ -69,6 +69,7 @@
     'countries.word':     function () { return numberWord(countryCount(), true); },  // "Twelve"
     'countries.word.lc':  function () { return numberWord(countryCount(), false); }, // "twelve"
     'spots':              function () { return fmt(C.spots); },
+    'saSpots':            function () { return fmt(C.saSpots); },
     'swimmers':           function () { return fmt(C.swimmers); },
     'tempsLogged':        function () { return fmt(C.tempsLogged); },
     'challenge.title':    function () { var c = currentChallenge(); return c ? c.title   : ''; },
@@ -187,10 +188,16 @@
       fetchCount('spots', 'active=eq.true'),
       fetchCount('profiles'),
       fetchCount('temp_logs', 'user_id=not.is.null'),
+      // South African spots — active + country_code=ZA. Undercounts any SA
+      // spot still missing a country_code, but only ever climbs toward the
+      // true figure as those get backfilled, and stays well above the
+      // fallback. anon-readable (active spots are public).
+      fetchCount('spots', 'active=eq.true&country_code=eq.ZA'),
     ]).then(function (results) {
       if (results[0] != null) C.spots = results[0];
       if (results[1] != null) C.swimmers = results[1];
       if (results[2] != null) C.tempsLogged = results[2];
+      if (results[3] != null) C.saSpots = results[3];
       stampValues();
       return C;
     });
