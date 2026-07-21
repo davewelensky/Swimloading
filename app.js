@@ -7549,6 +7549,22 @@
             showPage('dashboard');
         }
 
+        // Branded temperature-outlier check — replaces the native confirm().
+        // Same promise shape as confirmLocationBeforeSubmit: resolves true to
+        // proceed, false to go back and fix the reading.
+        let _tempCheckResolve = null;
+        function confirmTempCheck(message) {
+            return new Promise(resolve => {
+                _tempCheckResolve = resolve;
+                document.getElementById('tempCheckMessage').textContent = message;
+                document.getElementById('tempCheckModal').style.display = 'flex';
+            });
+        }
+        function resolveTempCheck(confirmed) {
+            document.getElementById('tempCheckModal').style.display = 'none';
+            if (_tempCheckResolve) { _tempCheckResolve(confirmed); _tempCheckResolve = null; }
+        }
+
         // ── Phase 1: Share conditions after logging ──────────────────────────────
         let _shareSheetResolve = null;
         let _shareSheetMessage = '';
@@ -7600,13 +7616,20 @@
                 return;
             }
 
-            // Location confirmation — show before any validation
+            // Location confirmation — only when the spot was NOT deliberately
+            // chosen. selectedSpotLocked is true only on an explicit pick from
+            // the spot picker (GPS auto-select at findNearestSpot sets the
+            // hidden <select>.value without dispatching change, so it never
+            // trips the lock). A swimmer who picked their own spot doesn't need
+            // to re-confirm it; a GPS/fallback guess still asks.
             const spotSelectEl = document.getElementById('logTempSpotSelect');
             const spotId = spotSelectEl?.value || '';
             const spotForConfirm = spots.find(s => s.id === spotId);
             const spotNameForConfirm = spotForConfirm?.name || document.getElementById('spTriggerText')?.textContent || 'Unknown spot';
-            const locationConfirmed = await confirmLocationBeforeSubmit(spotNameForConfirm);
-            if (!locationConfirmed) return;
+            if (!selectedSpotLocked) {
+                const locationConfirmed = await confirmLocationBeforeSubmit(spotNameForConfirm);
+                if (!locationConfirmed) return;
+            }
 
             submitBtn.disabled = true;
             submitBtn.textContent = 'Sharing...';
@@ -7718,7 +7741,7 @@
             }
 
             if (warning) {
-                const proceed = confirm(`Temperature Check\n\n${warning}\n\nAre you sure this is correct?`);
+                const proceed = await confirmTempCheck(`${warning} Is that right?`);
                 if (!proceed) {
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Share Conditions';
