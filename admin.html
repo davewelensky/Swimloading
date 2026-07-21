@@ -1115,13 +1115,13 @@ async function loadAnalytics(days = 7) {
 // that convention (trihard_page_view / trihard_link_click) and also has
 // the UK Spot Challenge, so it carries an extra line.
 const PARTNER_REPORTS = [
-    { key:'eolab',       name:'eo SwimBETTER',   homepage:'partner_eolab_homepage_click',       page:'partner_eolab_page_view',       shop:['partner_eolab_shop_click'] },
-    { key:'blusmooth',   name:'Blu Smooth',      homepage:'partner_blusmooth_homepage_click',   page:'partner_blusmooth_page_view',   shop:['partner_blusmooth_shop_click'] },
-    { key:'magic5',      name:'Magic5',          homepage:'partner_magic5_homepage_click',      page:'partner_magic5_page_view',      shop:['partner_magic5_shop_click'] },
-    { key:'blueseventy', name:'Blue Seventy',    homepage:'partner_blueseventy_homepage_click', page:'partner_blueseventy_page_view', shop:['partner_blueseventy_shop_click','partner_blueseventy_code_copy'] },
-    { key:'maurten',     name:'Maurten',         homepage:'partner_maurten_homepage_click',     page:'partner_maurten_page_view',     shop:['partner_maurten_shop_click'] },
-    { key:'sis',         name:'Science in Sport',homepage:'partner_sis_homepage_click',         page:'partner_sis_page_view',         shop:['partner_sis_shop_click'] },
-    { key:'trihard',     name:'TRIHARD',         homepage:null,                                 page:'trihard_page_view',             shop:['trihard_link_click'], extraLabel:'UK Spot Challenge views', extraEvent:'uk_spot_challenge_viewed' },
+    { key:'eolab',       name:'eo SwimBETTER',   homepage:'partner_eolab_homepage_click',       page:'partner_eolab_page_view',       shop:['partner_eolab_shop_click'], newsletter:'partner_eolab_newsletter_view' },
+    { key:'blusmooth',   name:'Blu Smooth',      homepage:'partner_blusmooth_homepage_click',   page:'partner_blusmooth_page_view',   shop:['partner_blusmooth_shop_click'], newsletter:'partner_blusmooth_newsletter_view' },
+    { key:'magic5',      name:'Magic5',          homepage:'partner_magic5_homepage_click',      page:'partner_magic5_page_view',      shop:['partner_magic5_shop_click'], newsletter:'partner_magic5_newsletter_view' },
+    { key:'blueseventy', name:'Blue Seventy',    homepage:'partner_blueseventy_homepage_click', page:'partner_blueseventy_page_view', shop:['partner_blueseventy_shop_click','partner_blueseventy_code_copy'], newsletter:'partner_blueseventy_newsletter_view' },
+    { key:'maurten',     name:'Maurten',         homepage:'partner_maurten_homepage_click',     page:'partner_maurten_page_view',     shop:['partner_maurten_shop_click'], newsletter:'partner_maurten_newsletter_view' },
+    { key:'sis',         name:'Science in Sport',homepage:'partner_sis_homepage_click',         page:'partner_sis_page_view',         shop:['partner_sis_shop_click'], newsletter:'partner_sis_newsletter_view' },
+    { key:'trihard',     name:'TRIHARD',         homepage:null,                                 page:'trihard_page_view',             shop:['trihard_link_click'], newsletter:'trihard_newsletter_view', extraLabel:'UK Spot Challenge views', extraEvent:'uk_spot_challenge_viewed' },
 ];
 let _partnerDays = 30;
 let _partnerKey = 'eolab';
@@ -1154,7 +1154,7 @@ async function loadPartnerReport() {
     const card = document.getElementById('partnerReportCard');
     card.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:24px;text-align:center;">Loading…</div>';
 
-    const evNames = [partner.homepage, partner.page, ...(partner.shop||[]), partner.extraEvent].filter(Boolean);
+    const evNames = [partner.homepage, partner.page, ...(partner.shop||[]), partner.extraEvent, partner.newsletter].filter(Boolean);
     const windowStartMs = Date.now() - _partnerDays * 86400000;
     const since2x = new Date(Date.now() - 2 * _partnerDays * 86400000).toISOString();
 
@@ -1182,13 +1182,14 @@ async function loadPartnerReport() {
     const pageCur  = cur[partner.page] || 0;
     const shopCur  = sum(cur, partner.shop);
     const extraCur = partner.extraEvent ? (cur[partner.extraEvent] || 0) : null;
+    const nlCur    = partner.newsletter ? (cur[partner.newsletter] || 0) : 0;
     const totalCur = (homeCur || 0) + pageCur + shopCur + (extraCur || 0);
     const totalPrev = (partner.homepage ? (prev[partner.homepage] || 0) : 0) + (prev[partner.page] || 0)
                     + sum(prev, partner.shop) + (partner.extraEvent ? (prev[partner.extraEvent] || 0) : 0);
     const pct = totalPrev > 0 ? Math.round((totalCur - totalPrev) / totalPrev * 100) : (totalCur > 0 ? 100 : 0);
     const conv = pageCur > 0 ? Math.round(shopCur / pageCur * 100) : 0;
 
-    card.innerHTML = _prCardHtml(partner, { homeCur, pageCur, shopCur, extraCur, totalCur, pct, conv });
+    card.innerHTML = _prCardHtml(partner, { homeCur, pageCur, shopCur, extraCur, nlCur, totalCur, pct, conv });
 }
 
 function _prCardHtml(partner, s) {
@@ -1225,6 +1226,10 @@ function _prCardHtml(partner, s) {
           ${bar(s.pageCur, '#0ea5e9', 'Visited your partner page', 'page views')}
           ${bar(s.shopCur, '#10b981', 'Clicked through to shop', 'shop / discount-code clicks')}
         </div>
+        ${s.nlCur > 0 ? `<div style="display:flex;align-items:center;gap:8px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:12px;padding:11px 14px;margin-bottom:${extraRow ? '8' : '16'}px;">
+          <div style="font-size:13px;font-weight:800;color:#38bdf8;">${s.nlCur}</div>
+          <div style="font-size:12px;color:var(--text-secondary);">${s.nlCur === 1 ? 'visit came' : 'visits came'} straight from a SwimLoading newsletter</div>
+        </div>` : ''}
         ${extraRow}
 
         <div style="display:flex;gap:8px;margin-top:16px;">
