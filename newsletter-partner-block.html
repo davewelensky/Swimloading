@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Featured Partner — newsletter block builder</title>
+<!--
+  ============================================================
+  INTERNAL TOOL — NOT A PUBLIC PAGE, NOT A NEWSLETTER ITSELF
+  ============================================================
+  Builds a paste-ready "Featured Partner" block for a SwimLoading
+  newsletter (Brevo). Pick a partner, fill in this month's offer, copy
+  the HTML, paste it into the email. The block's CTA links to that
+  partner's SwimLoading page with ?src=newsletter, so the click shows up
+  as a page view in the admin Partner Report — closing the loop between
+  the newsletter (50% open rate) and the numbers you send the partner.
+
+  noindex, not linked from anywhere. Copy is EDITABLE and defaults are
+  neutral: never publish a partner offer/discount/price that the partner
+  hasn't confirmed (PARTNERS.md rule #1). Fill the real, confirmed offer
+  before sending.
+-->
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#080f1a;--panel:#0d1728;--border:rgba(255,255,255,.10);--cyan:#38bdf8;--txt:#f1f5f9;--mut:#8ba0b8;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:'DM Sans',sans-serif;padding:24px;}
+  h1{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:1px;color:var(--cyan);margin:0 0 4px;}
+  .sub{font-size:13px;color:var(--mut);margin-bottom:22px;}
+  .wrap{display:grid;grid-template-columns:340px 1fr;gap:22px;max-width:1100px;}
+  @media(max-width:820px){.wrap{grid-template-columns:1fr;}}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px;}
+  label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin:14px 0 5px;}
+  label:first-child{margin-top:0;}
+  input,textarea,select{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:9px;color:var(--txt);font-family:'DM Sans',sans-serif;font-size:13px;padding:9px 11px;}
+  textarea{resize:vertical;min-height:60px;line-height:1.5;}
+  .row{display:flex;gap:10px;}
+  .row>div{flex:1;}
+  .swatch{display:flex;align-items:center;gap:8px;}
+  .swatch input[type=color]{width:38px;height:34px;padding:2px;flex:0 0 auto;}
+  .copybtn{width:100%;margin-top:16px;padding:12px;border-radius:50px;border:none;background:var(--cyan);color:#08131f;font-size:14px;font-weight:800;cursor:pointer;}
+  .copied{background:#10b981 !important;}
+  .prev-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin-bottom:8px;}
+  .email-frame{background:#050c18;border:1px solid var(--border);border-radius:14px;padding:14px;}
+  .hint{font-size:11px;color:var(--mut);margin-top:6px;line-height:1.5;}
+  .warn{font-size:12px;color:#f59e0b;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.28);border-radius:10px;padding:9px 12px;margin-top:14px;line-height:1.5;}
+  details{margin-top:14px;}summary{font-size:12px;color:var(--cyan);cursor:pointer;}
+  textarea#html{margin-top:8px;font-family:'DM Mono',monospace;font-size:11px;min-height:120px;}
+</style>
+</head>
+<body>
+<h1>Featured Partner — newsletter block</h1>
+<div class="sub">Pick a partner, set this month's offer, copy the block into the newsletter. The CTA is tracked, so clicks show in the admin Partner Report.</div>
+
+<div class="wrap">
+  <div class="panel">
+    <label>Partner</label>
+    <select id="partner"></select>
+
+    <label>Accent colour</label>
+    <div class="swatch"><input type="color" id="accent" value="#38bdf8"><input type="text" id="accentHex" value="#38bdf8"></div>
+
+    <label>Eyebrow</label>
+    <input id="eyebrow" value="Featured Partner">
+
+    <label>Headline (Bebas — keep it punchy)</label>
+    <textarea id="headline"></textarea>
+
+    <label>Pitch line</label>
+    <textarea id="pitch"></textarea>
+
+    <label>Offer / mechanic (optional — leave blank to omit)</label>
+    <textarea id="offer" placeholder="e.g. a CONFIRMED discount code or prize. Leave blank if none."></textarea>
+
+    <label>Button text</label>
+    <input id="cta" value="Visit our partner">
+
+    <div class="warn">Only publish an offer, code or price the partner has confirmed (PARTNERS.md rule #1). Defaults here are neutral — fill the real one.</div>
+
+    <button class="copybtn" id="copy">Copy newsletter HTML</button>
+
+    <details>
+      <summary>Show / edit raw HTML</summary>
+      <textarea id="html" spellcheck="false"></textarea>
+    </details>
+  </div>
+
+  <div class="panel">
+    <div class="prev-label">Live preview (how it renders in the email)</div>
+    <div class="email-frame"><div id="preview"></div></div>
+    <div class="hint">Links to <span id="linkPreview"></span> — a page view there shows up in the Partner Report.</div>
+  </div>
+</div>
+
+<script>
+  // Partner registry — slug is the /partners/<slug> page that fires the
+  // partner_<key>_page_view analytics event. Names/accents only; NO
+  // offers baked in (those are per-month, confirmed, and typed by Dave).
+  const PARTNERS = [
+    { key:'eolab',      slug:'eolab',      name:'eo SwimBETTER',    accent:'#38bdf8' },
+    { key:'blusmooth',  slug:'blu-smooth', name:'Blu Smooth',       accent:'#38bdf8' },
+    { key:'magic5',     slug:'magic5',     name:'Magic5',           accent:'#38bdf8' },
+    { key:'blueseventy',slug:'blueseventy',name:'Blue Seventy',     accent:'#38bdf8' },
+    { key:'maurten',    slug:'maurten',    name:'Maurten',          accent:'#c8b99a' },
+    { key:'sis',        slug:'sis',        name:'Science in Sport', accent:'#38bdf8' },
+    { key:'trihard',    slug:'trihard',    name:'TRIHARD',          accent:'#38bdf8' },
+  ];
+  const BASE = 'https://www.swimloading.com';
+
+  const $ = id => document.getElementById(id);
+  const sel = $('partner');
+  PARTNERS.forEach((p,i) => sel.add(new Option(p.name, i)));
+
+  function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+  // Neutral defaults — safe to send, but Dave should tailor them.
+  function applyDefaults(p){
+    $('accent').value = p.accent; $('accentHex').value = p.accent;
+    $('headline').value = p.name.toUpperCase() + ' ARE BACKING SWIMLOADING.';
+    $('pitch').value = 'One of the brands supporting the SwimLoading community. Take a look at what they offer swimmers.';
+    $('offer').value = '';
+    $('cta').value = 'Visit ' + p.name;
+  }
+
+  function buildHtml(){
+    const p = PARTNERS[+sel.value];
+    const accent = $('accentHex').value.trim() || '#38bdf8';
+    const eyebrow = esc($('eyebrow').value);
+    const headline = esc($('headline').value);
+    const pitch = esc($('pitch').value);
+    const offer = $('offer').value.trim();
+    const cta = esc($('cta').value);
+    const url = BASE + '/partners/' + p.slug + '?src=newsletter';
+
+    const offerBlock = offer ? `
+        <div style="background:#050c18;border:1px solid ${accent}33;border-radius:12px;padding:18px 20px;margin-bottom:24px;">
+          <div style="font-size:15px;font-weight:700;color:#f1f5f9;line-height:1.6;">${esc(offer)}</div>
+        </div>` : '';
+
+    return `<!-- ===================== FEATURED PARTNER: ${esc(p.name)} ===================== -->
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td style="padding:16px 40px 0;" class="sp">
+      <div style="background:#0d1728;border:1px solid ${accent}40;border-radius:16px;overflow:hidden;">
+        <div style="background:${accent};height:4px;"></div>
+        <div style="padding:32px;">
+          <span style="font-family:'DM Mono',monospace;font-size:10px;color:${accent};letter-spacing:3px;text-transform:uppercase;">${eyebrow}</span>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:#f1f5f9;letter-spacing:1px;line-height:1;margin:10px 0 6px;">${headline}</div>
+          <div style="font-size:15px;color:#64748b;line-height:1.8;margin-bottom:24px;">${pitch}</div>${offerBlock}
+          <a href="${url}" style="display:inline-block;background:${accent};color:#050c18;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;padding:14px 32px;border-radius:50px;text-decoration:none;">${cta}</a>
+        </div>
+      </div>
+    </td>
+  </tr>
+</table>`;
+  }
+
+  function render(){
+    const html = buildHtml();
+    $('html').value = html;
+    $('preview').innerHTML = html;
+    const p = PARTNERS[+sel.value];
+    $('linkPreview').textContent = '/partners/' + p.slug + '?src=newsletter';
+  }
+
+  // Wire inputs
+  ['eyebrow','headline','pitch','offer','cta','accentHex'].forEach(id => $(id).addEventListener('input', render));
+  $('accent').addEventListener('input', () => { $('accentHex').value = $('accent').value; render(); });
+  $('accentHex').addEventListener('input', () => { const v=$('accentHex').value.trim(); if(/^#([0-9a-f]{6})$/i.test(v)) $('accent').value=v; });
+  sel.addEventListener('change', () => { applyDefaults(PARTNERS[+sel.value]); render(); });
+  $('html').addEventListener('input', () => { $('preview').innerHTML = $('html').value; });
+
+  $('copy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('html').value); }
+    catch(_) { $('html').select(); document.execCommand('copy'); }
+    const b=$('copy'); b.textContent='Copied — paste into the newsletter'; b.classList.add('copied');
+    setTimeout(()=>{ b.textContent='Copy newsletter HTML'; b.classList.remove('copied'); }, 1800);
+  });
+
+  applyDefaults(PARTNERS[0]);
+  render();
+</script>
+</body>
+</html>
