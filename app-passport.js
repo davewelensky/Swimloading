@@ -217,7 +217,7 @@ function _ppBuildHtml(data, filter) {
     // international swimmer reads "United Kingdom / United Kingdom /
     // Brighton Beach". Genuine sub-regions (Croatia / Dalmatia, and all
     // the South African ones) still show.
-    let html = header + summaryLine + filterBar;
+    let html = header + summaryLine + _ppHero(allSpots) + filterBar;
     let lastCountry = null;
     let lastRegion = null;
 
@@ -241,21 +241,78 @@ function _ppBuildHtml(data, filter) {
     return html;
 }
 
-function _ppSpotCard(s) {
-    const temps = [];
-    if (s.coldest_temp_c !== null && s.coldest_temp_c !== undefined) temps.push(s.coldest_temp_c + '&deg;C coldest');
-    if (s.warmest_temp_c !== null && s.warmest_temp_c !== undefined) temps.push(s.warmest_temp_c + '&deg;C warmest');
+// "Your water" hero — the swimmer's whole temperature range as a
+// spectrum bar (violet-cold → amber-warm), with the coldest and warmest
+// spots named. This is what makes the passport feel like a temperature
+// map of your swimming rather than a list. Computed from the swimmer's
+// own spots (already loaded); omitted only if no spot has a temperature.
+function _ppHero(allSpots) {
+    const withTemp = (allSpots || []).filter(s => s.coldest_temp_c !== null && s.coldest_temp_c !== undefined);
+    if (!withTemp.length) return '';
+
+    let coldSpot = withTemp[0], warmSpot = withTemp[0];
+    const warmOf = s => (s.warmest_temp_c !== null && s.warmest_temp_c !== undefined) ? s.warmest_temp_c : s.coldest_temp_c;
+    withTemp.forEach(s => {
+        if (s.coldest_temp_c < coldSpot.coldest_temp_c) coldSpot = s;
+        if (warmOf(s) > warmOf(warmSpot)) warmSpot = s;
+    });
+    const gCold = coldSpot.coldest_temp_c;
+    const gWarm = warmOf(warmSpot);
+    const spanTxt = (gWarm - gCold).toFixed(1).replace(/\.0$/, '');
 
     return `
-      <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; padding:14px 16px; margin-bottom:8px;">
+      <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:20px;">
+        <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-secondary); margin-bottom:12px;">Your water</div>
+        <div style="height:10px; border-radius:5px; background:linear-gradient(90deg, ${_ppTempColour(gCold)}, ${_ppTempColour((gCold + gWarm) / 2)}, ${_ppTempColour(gWarm)});"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+          <span style="font-size:17px; font-weight:800; color:${_ppTempTextColour(gCold)};">${gCold}&deg;C</span>
+          ${gWarm > gCold ? `<span style="font-size:12px; color:var(--text-secondary);">${spanTxt}&deg; range</span>` : ''}
+          <span style="font-size:17px; font-weight:800; color:${_ppTempTextColour(gWarm)};">${gWarm}&deg;C</span>
+        </div>
+        <div style="font-size:12px; color:var(--text-secondary); margin-top:12px; line-height:1.6;">
+          Coldest at <span style="color:#f1f5f9; font-weight:600;">${_ppEscape(coldSpot.spot_name)}</span> &middot; warmest at <span style="color:#f1f5f9; font-weight:600;">${_ppEscape(warmSpot.spot_name)}</span>
+        </div>
+      </div>`;
+}
+
+function _ppSpotCard(s) {
+    const cold = s.coldest_temp_c;
+    const warm = s.warmest_temp_c;
+    const hasTemp = cold !== null && cold !== undefined;
+    // Left edge + faint wash in the coldest temp's colour, so a cold spot
+    // reads cold and a warm spot reads warm at a glance.
+    const edge = hasTemp ? _ppTempColour(cold) : 'var(--border)';
+    const wash = hasTemp ? _ppTempColour(cold) + '14' : 'rgba(255,255,255,0.03)'; // ~8% alpha
+
+    let tempRow = '';
+    if (hasTemp && warm !== null && warm !== undefined && warm > cold) {
+        // A gradient range bar from coldest colour to warmest colour, with
+        // the two values coloured to match — "colours on the temps" + range.
+        tempRow = `
+        <div style="margin-top:10px;">
+          <div style="height:6px; border-radius:3px; background:linear-gradient(90deg, ${_ppTempColour(cold)}, ${_ppTempColour(warm)});"></div>
+          <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:12px; font-weight:700;">
+            <span style="color:${_ppTempTextColour(cold)};">${cold}&deg;C coldest</span>
+            <span style="color:${_ppTempTextColour(warm)};">${warm}&deg;C warmest</span>
+          </div>
+        </div>`;
+    } else if (hasTemp) {
+        // Single recorded temperature (or coldest === warmest): one dot + value.
+        tempRow = `
+        <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
+          <span style="width:9px; height:9px; border-radius:50%; background:${_ppTempColour(cold)};"></span>
+          <span style="font-size:13px; font-weight:700; color:${_ppTempTextColour(cold)};">${cold}&deg;C</span>
+        </div>`;
+    }
+
+    return `
+      <div style="background:${wash}; border:1px solid var(--border); border-left:3px solid ${edge}; border-radius:14px; padding:14px 16px; margin-bottom:8px;">
         <div style="display:flex; justify-content:space-between; align-items:baseline; gap:12px;">
           <div style="font-size:14px; font-weight:800; color:#f1f5f9; min-width:0;">${_ppEscape(s.spot_name)}</div>
           <div style="font-size:12px; color:var(--text-secondary); white-space:nowrap;">${s.total_swims}${s.total_swims === 1 ? ' swim' : ' swims'}</div>
         </div>
-        <div style="font-size:12px; color:var(--text-secondary); margin-top:6px; line-height:1.6;">
-          First: ${_ppDate(s.first_swim_date)}<br>Last: ${_ppDate(s.last_swim_date)}
-        </div>
-        ${temps.length ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">${temps.join(' &middot; ')}</div>` : ''}
+        <div style="font-size:12px; color:var(--text-secondary); margin-top:6px;">${_ppDate(s.first_swim_date)} &ndash; ${_ppDate(s.last_swim_date)}</div>
+        ${tempRow}
       </div>`;
 }
 
