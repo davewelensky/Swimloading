@@ -5407,16 +5407,17 @@
                 SEYCHELLES:        'seychelles',
                 DALMATIA:          'dalmatia',
                 SPAIN:             'spain',
+                FRANCE:            'france',
                 THAILAND:          'thailand',
             };
             const group = SAFETY_GROUP[domain] || '';
 
-            const isIntlGroup = group === 'uk' || group === 'europe' || group === 'western_australia' || group === 'usa' || group === 'seychelles' || group === 'dalmatia' || group === 'spain' || group === 'thailand';
+            const isIntlGroup = group === 'uk' || group === 'europe' || group === 'western_australia' || group === 'usa' || group === 'seychelles' || group === 'dalmatia' || group === 'spain' || group === 'france' || group === 'thailand';
 
             // ── Show/hide sharks section — no sharks for UK/Europe (WA has sharks) ─
             const sharksSection = document.getElementById('sharksSection');
             if (sharksSection) {
-                const noSharks = group === 'uk' || group === 'europe' || group === 'dalmatia' || group === 'spain';
+                const noSharks = group === 'uk' || group === 'europe' || group === 'dalmatia' || group === 'spain' || group === 'france';
                 sharksSection.style.display = noSharks ? 'none' : '';
             }
 
@@ -5527,6 +5528,10 @@
                         color: '#f59e0b', icon: 'alert-triangle', title: 'Spain (Mediterranean) Open Water Hazards',
                         body: '<strong>Jellyfish</strong> (mauve stingers, occasionally Portuguese man o\' war) are the main seasonal hazard June–September — obey beach flag warnings (a jellyfish flag is white with two red jellyfish). <strong>Sea urchins</strong> on rocky entries. Afternoon sea breezes can build chop quickly in exposed bays. Swim at lifeguarded beaches (Jun–Sep season) where possible.',
                     },
+                    france: {
+                        color: '#f59e0b', icon: 'alert-triangle', title: 'France (Côte d\'Azur) Open Water Hazards',
+                        body: '<strong>Jellyfish</strong> (mauve stingers, <em>Pelagia noctiluca</em>) are the main seasonal hazard, most common June–September — obey beach flag warnings. <strong>Sea urchins</strong> on rocky entries around Cap Ferrat and Èze; reef shoes are recommended. <strong>Boat traffic</strong> is heavy in Riviera bays in summer — stay inside marked swim zones and use a tow float. Check local bathing water status on <a href="https://baignades.sante.gouv.fr" target="_blank" style="color:#38bdf8;">baignades.sante.gouv.fr</a>.',
+                    },
                     thailand: {
                         color: '#f59e0b', icon: 'alert-triangle', title: 'Thailand (Andaman Sea) Open Water Hazards',
                         body: '<strong>Monsoon swell</strong> (roughly May–October) brings stronger currents and rip tides on the west coast, and beach flag warnings should always be obeyed — a red flag means stay out. <strong>Boat traffic</strong> is heavy in popular bays around Phuket; swim well clear of longtail boat and ferry lanes. <strong>Jellyfish</strong> (including box jellyfish) are occasionally reported — check with local dive/swim operators before entering unfamiliar water.',
@@ -5562,6 +5567,7 @@
                 seychelles:        `<strong>Seychelles:</strong> Shark attacks are very rare but have occurred historically at a small number of spots. Bull sharks are present in some deeper channels. Swim at beaches recommended by local operators and avoid areas with fishing activity or murky runoff water.`,
                 dalmatia:          null,
                 spain:             null,
+                france:            null,
                 thailand:          `<strong>Thailand:</strong> Shark encounters are extremely rare in Thai coastal waters. Occasional reef shark sightings in deeper channels around Phuket — not considered a swimming hazard. No shark nets or spotting programme in place.`,
             };
             const sharksNote = document.getElementById('sharksRegionalNote');
@@ -5586,6 +5592,7 @@
                 seychelles:        `<strong>Seychelles temps:</strong> Indian Ocean water sits at 27–30°C year-round — no cold shock risk. Hypothermia is not a concern, but stay hydrated and use sun protection. Water is warmest and calmest during the southeast trade wind season (May–Oct).`,
                 dalmatia:          `<strong>Dalmatia (Adriatic) temps:</strong> Sea temperature peaks at 24–27°C in July–August — one of the warmest swimming destinations in Europe. Spring (May) runs 17–20°C and autumn (Oct) stays above 20°C. Cold shock is not a significant risk in summer, but spring/autumn swimmers should acclimatise gradually.`,
                 spain:             `<strong>Spain (Balearic/Mediterranean) temps:</strong> The Balearic Sea peaks at 24–26°C in July–September and rarely drops below 14°C in winter. Swimmable from May through October without a wetsuit for most swimmers. Cold shock is a low risk in summer; winter and early-spring swimmers should acclimatise gradually.`,
+                france:            `<strong>France (Côte d'Azur) temps:</strong> The Mediterranean along the French Riviera runs 13–14°C in winter and 24–26°C in July–September, making it swimmable for most of the year. Cold shock is a low risk in summer; winter and early-spring swimmers should acclimatise gradually and have warm layers ready on exit.`,
                 thailand:          `<strong>Thailand (Andaman Sea) temps:</strong> Water stays warm year-round, typically 27–30°C. Cold shock is not a concern. Focus on sun protection, hydration, and monsoon-season swell instead.`,
             };
             const coldNote = document.getElementById('coldWaterRegionalNote');
@@ -5644,6 +5651,11 @@
                 spain: [
                     ['tel:112','phone','Emergency Services','Police · Ambulance · Fire · English spoken','112'],
                     ['tel:900202202','anchor','Salvamento Marítimo (Sea Rescue)','Maritime rescue · Free · 24/7','900 202 202'],
+                ],
+                france: [
+                    ['tel:15','ambulance','SAMU (Medical Emergency)','Ambulance · Medical emergency','15'],
+                    ['tel:196','anchor','CROSS (Sea Rescue)','Maritime rescue coordination · French coast','196'],
+                    ['tel:18','flame','Sapeurs-Pompiers','Fire · Rescue · First response','18'],
                 ],
                 thailand: [
                     ['tel:191','phone','Police','General emergency','191'],
@@ -5712,6 +5724,11 @@
                 spain: { title: 'Reporting (Spain)', contacts: [
                     ['tel:900202202','anchor','Salvamento Marítimo','Maritime emergency · Spanish coast','900 202 202'],
                     ['tel:112','phone','Emergency Services','Police · Ambulance · Fire','112'],
+                ]},
+                france: { title: 'Reporting (France)', contacts: [
+                    ['tel:196','anchor','CROSS — Sea Rescue','Maritime emergency · French coastline','196'],
+                    ['tel:112','phone','Emergency Services','Police · Ambulance · Fire','112'],
+                    ['https://baignades.sante.gouv.fr','droplets','Ministry of Health — Bathing Water','Official beach water quality results','baignades.sante.gouv.fr'],
                 ]},
                 thailand: { title: 'Reporting (Thailand)', contacts: [
                     ['tel:1554','anchor','Marine Police / Coastal Rescue','Maritime emergency · Phuket coastline','1554'],

@@ -119,9 +119,15 @@ france: [
 // 5. REGIONAL_REPORTING — object with title and contacts array
 france: { title: 'Reporting (France)', contacts: [
     ['tel:196','anchor','CROSS Maritime Rescue','Sea rescue · Marine incident reporting','196'],
-    ['tel:3939','droplets','Water Quality Hotline','Pollution · Beach closure · Water quality','39 39'],
+    ['https://baignades.sante.gouv.fr','droplets','Ministry of Health — Bathing Water','Official beach water quality results','baignades.sante.gouv.fr'],
 ]},
 ```
+
+> **Emergency numbers are a safety surface — verify every one before shipping.**
+> An earlier version of this example listed `3939` as a "Water Quality Hotline".
+> 3939 is *Allô Service Public*, France's general government information line —
+> not a water-quality or emergency number. Never copy a number out of a template
+> without checking it: this is content real swimmers may dial in trouble.
 
 **After adding all 5:** switch Safety → select the new country → verify each section renders correctly.
 
