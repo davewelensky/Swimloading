@@ -1,0 +1,31 @@
+-- Migration: 2026-07-21_domain-moves-and-passport-region.sql (Option B — see session)
+-- Applied 2026-07-21. Backup: spots_bak_20260721_domainmoves (7 rows).
+--
+-- Purpose: tidy the multi-country EUROPE catch-all WITHOUT a risky SEO rewire.
+--   1. Consolidate France/Spain: EUROPE's FR(4)/ES(1) spots were split from the
+--      real FRANCE/SPAIN domains, so /spots/france listed only 2 of 6. Moved
+--      them home. No seo-utils change — those region slugs already map to the
+--      FRANCE/SPAIN domains.
+--   2. Lac de Joux (Swiss) was mis-parked in the ZA INLAND domain — moved to
+--      EUROPE (the multi-country domain that resolves CH via country_code).
+--   3. Zinkwazi Lagoon moved FALSE_BAY -> KZN (its true region).
+--   4. get_my_swim_passport_v1: for MULTI-country domains (EUROPE) the region
+--      now resolves to the spot's COUNTRY, which the client collapses — so a
+--      Swiss spot reads "Switzerland -> Lake Zurich", not "Switzerland ->
+--      Europe -> Lake Zurich". Single-country domains keep their region name.
+--      (dom_country CTE gains n_countries; region CASE keys off it.)
+--
+-- EUROPE remains the deliberate multi-country domain for CH/IT/PT (8 spots),
+-- resolved per-country by seo-utils' EUROPE_COUNTRY_MAP as before.
+--
+-- DATA MOVES (backed up in spots_bak_20260721_domainmoves):
+-- UPDATE spots SET domain='FRANCE' WHERE domain='EUROPE' AND country_code='FR';  -- 4
+-- UPDATE spots SET domain='SPAIN'  WHERE domain='EUROPE' AND country_code='ES';  -- 1
+-- UPDATE spots SET domain='EUROPE' WHERE id='1f1f2cd8-5fea-4674-b921-0931f783d273'; -- Lac de Joux
+-- UPDATE spots SET domain='KZN'    WHERE id='507afe1a-f5d9-4c87-9c4e-0a1b1660d4e7'; -- Zinkwazi Lagoon
+--
+-- ROLLBACK: UPDATE spots s SET domain=b.domain FROM spots_bak_20260721_domainmoves b WHERE s.id=b.id;
+--   (RPC region change is cosmetic; prior version in sql/applied/2026-07-20_passport-v1.sql.)
+--
+-- The get_my_swim_passport_v1 body as applied is in the session log; region
+-- CASE = WHEN x.n_countries > 1 THEN country ELSE domain.display_name END.
