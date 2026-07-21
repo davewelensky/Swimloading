@@ -208,6 +208,29 @@ International domains (`INTERNATIONAL_DOMAINS` Set in `app.js:6186`) get special
 
 **If it's an international domain: INSERT + code changes (see checklist below).**
 
+### ⚠️ `EUROPE` is a DELIBERATE multi-country domain — do not "fix" it
+
+Every other domain resolves to exactly one country. `EUROPE` holds CH, IT and PT
+spots by design, and `domains.country_code` for it is `CH` — so **never infer a
+spot's country from its domain.** Always read `spots.country_code`.
+
+`api/seo-utils.js` already resolves EUROPE per-country: `REGION_COUNTRY_FILTER`
+(`switzerland`→CH, `portugal`→PT), `EUROPE_COUNTRY_MAP`, and
+`getLocationLabel()`. `/spots/switzerland` and `/spots/portugal` are defined as
+`REGION_DOMAINS[slug] = ['EUROPE']` filtered by country code — **splitting or
+renaming the EUROPE domain breaks both live SEO pages.** A split was proposed
+and rejected on 2026-07-21 for exactly this reason.
+
+To give a EUROPE country its own page, don't move the spots — add
+`REGION_COUNTRY_FILTER['italy']='IT'`, `REGION_DOMAINS['italy']=['EUROPE']`, a
+`REGION_NAMES`/`REGION_INTROS` entry and a `site-config.js` slug. (Italy is the
+outstanding case: 2 spots, correctly tagged `IT`, no dedicated page yet.)
+
+**The domain-fallback trap:** `Lac de Joux` is a Swiss lake that sat in the
+`INLAND` domain, whose `country_code` is `ZA`. Backfilling country from
+`domains.country_code` would have labelled it South African. Derive country from
+the spot's own GPS, never from its domain.
+
 ---
 
 ## Adding a New South African Domain
