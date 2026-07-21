@@ -3287,33 +3287,36 @@
             if (data && data[0]) {
                 const newEventId = data[0].id;
                 try {
-                    const [creatorRes, optedInRes] = await Promise.all([
-                        supabaseClient.from('profiles').select('display_name').eq('id', currentUser.id).single(),
-                        supabaseClient.from('profiles').select('id').eq('notify_new_swims', true).neq('id', currentUser.id)
-                    ]);
-
+                    // Fan out the "new swim posted" in-app notification via
+                    // notify_new_swim_v1 (SECURITY DEFINER). The old client-side
+                    // path — read all notify_new_swims profiles, then insert a
+                    // notification per user — was doubly blocked by RLS (profiles
+                    // is own-row-only, notifications INSERT is own-or-service), so
+                    // it silently notified nobody. The RPC crosses both boundaries
+                    // server-side, guarded to this OPEN swim's own creator, and
+                    // returns how many were notified.
+                    const creatorRes = await supabaseClient.from('profiles')
+                        .select('display_name').eq('id', currentUser.id).single();
                     const hostName = creatorRes.data?.display_name || 'Someone';
-                    const optedIn = optedInRes.data || [];
 
-                    if (optedIn.length > 0) {
-                        const distStr = baseEvent.distance_km ? `${baseEvent.distance_km}km · ` : '';
-                        const timeStr = new Date(data[0].start_at).toLocaleString('en-ZA', {
-                            weekday: 'short', month: 'short', day: 'numeric',
-                            hour: '2-digit', minute: '2-digit'
-                        });
-                        const spotsStr = data[0].max_participants ? ` · ${data[0].max_participants} spots` : '';
-                        const recurStr = data[0]?.recurrence_type ? ` · ${data[0].recurrence_type}` : '';
-                        const notifMessage = `${baseEvent.location_name} · ${distStr}${timeStr}${spotsStr}${recurStr}`;
+                    const distStr = baseEvent.distance_km ? `${baseEvent.distance_km}km · ` : '';
+                    const timeStr = new Date(data[0].start_at).toLocaleString('en-ZA', {
+                        weekday: 'short', month: 'short', day: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    });
+                    const spotsStr = data[0].max_participants ? ` · ${data[0].max_participants} spots` : '';
+                    const recurStr = data[0]?.recurrence_type ? ` · ${data[0].recurrence_type}` : '';
+                    const notifMessage = `${baseEvent.location_name} · ${distStr}${timeStr}${spotsStr}${recurStr}`;
 
-                        for (const user of optedIn) {
-                            await notify(
-                                user.id, newEventId, 'new_swim',
-                                `${hostName} posted a new swim!`,
-                                notifMessage,
-                                { swim_event_id: newEventId }
-                            );
-                        }
-                        showToast(`${optedIn.length} swimmer${optedIn.length!==1?'s':''} notified`, 'success');
+                    const { data: notifiedCount, error: notifyErr } = await supabaseClient.rpc('notify_new_swim_v1', {
+                        p_event_id: newEventId,
+                        p_title: `${hostName} posted a new swim!`,
+                        p_message: notifMessage,
+                        p_payload: { swim_event_id: newEventId }
+                    });
+                    if (notifyErr) throw notifyErr;
+                    if (notifiedCount > 0) {
+                        showToast(`${notifiedCount} swimmer${notifiedCount !== 1 ? 's' : ''} notified`, 'success');
                     }
                 } catch (err) {
                     console.error('Error sending new swim notifications:', err);
