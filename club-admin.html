@@ -6131,7 +6131,9 @@ function renderProgressReportsTable() {
     } else if (parentInfo?.status === 'pending') {
       parentCell = `<span style="font-size:11px;font-weight:700;color:var(--amber);background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:20px;padding:2px 8px;white-space:nowrap;">Pending approval</span>`;
     } else {
-      parentCell = `<button class="action-btn" onclick="copyProgressInviteLink('${r.display_name.replace(/'/g,"\\'")}')" title="Copy the parent join link to send this parent">
+      const catAttr = (r.category || '').replace(/'/g,"\\'");
+      const nameAttr = (r.display_name || '').replace(/'/g,"\\'");
+      parentCell = `<button class="action-btn" onclick="openProgressInviteParent('${r.id}','${nameAttr}','${catAttr}')" title="Invite this swimmer's parent">
         <i data-lucide="link" style="width:11px;height:11px;"></i> Invite parent
       </button>`;
     }
@@ -6147,11 +6149,13 @@ function renderProgressReportsTable() {
   lucide.createIcons();
 }
 
-function copyProgressInviteLink(swimmerName) {
-  const link = `https://www.swimloading.com/join/${activeJoinCode || currentClub.slug}?role=parent`;
-  navigator.clipboard.writeText(link).then(() => {
-    showToast(`Invite link copied — send it to ${swimmerName}'s parent`, 'success');
-  });
+// Opens the existing Invite Parent modal with the swimmer pre-selected — skips the
+// search step and, crucially, uses submitInviteParent()'s auto-approve path when the
+// parent already has a SwimLoading account (vs. a raw join-link copy, which always
+// lands as 'pending' and needs manual approval before the parent sees anything).
+function openProgressInviteParent(rosterId, displayName, category) {
+  openInviteParentModal();
+  selectInviteRoster(rosterId, displayName, category);
 }
 
 function openProgressReportModal(rosterId) {
