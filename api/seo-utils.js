@@ -33,6 +33,10 @@ export async function dbRpc(fn, params) {
 export function generateSlug(name) {
   return name
     .toLowerCase()
+    // Strip diacritics so accented names yield ASCII URLs. Without this,
+    // 'Santa Ponça' → 'santa-ponça', which the handler (which does not
+    // percent-decode the path) can never match — a guaranteed 404.
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/\s*[—–]\s*/g, '-')
     .replace(/\s+/g, '-')
     .replace(/['''()[\]/]/g, '')
