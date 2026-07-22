@@ -1015,9 +1015,15 @@
             <div class="page-title">Progress Reports</div>
             <div class="page-sub">A short written progress paragraph per swimmer, per term. Parents and swimmers see it as soon as it's saved.</div>
           </div>
-          <div class="form-group" style="margin:0;width:220px;">
-            <div class="form-label">Term</div>
-            <input type="text" class="form-input" id="progressTermFilter" placeholder="e.g. Mid-year 2026" oninput="renderProgressReportsTable()">
+          <div style="display:flex;gap:10px;align-items:flex-end;">
+            <div class="form-group" style="margin:0;width:200px;">
+              <div class="form-label">Term</div>
+              <select class="form-input" id="progressTermFilter" onchange="onProgressTermChange()"></select>
+            </div>
+            <div class="form-group" style="margin:0;width:200px;display:none;" id="progressTermCustomWrap">
+              <div class="form-label">Custom term</div>
+              <input type="text" class="form-input" id="progressTermCustom" placeholder="e.g. January Intensive" oninput="renderProgressReportsTable()">
+            </div>
           </div>
         </div>
         <div class="card" id="progressReportsCard">
@@ -1031,12 +1037,13 @@
                 <tr>
                   <th>Swimmer</th>
                   <th>Squad</th>
+                  <th>Parent</th>
                   <th>Report for this term</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody id="progressReportsTableBody">
-                <tr><td colspan="4"><div class="loading"><div class="spinner"></div></div></td></tr>
+                <tr><td colspan="5"><div class="loading"><div class="spinner"></div></div></td></tr>
               </tbody>
             </table>
           </div>
@@ -5992,27 +5999,107 @@ async function revokeParentLink(id) {
 
 // ── PROGRESS REPORTS ──────────────────────────────────────────────
 let allProgressReports = [];
+let progressParentMap  = {}; // roster_id -> { status: 'approved'|'pending', parentName }
+
+// SA school-year quarters. "Mid-year" covers the Term 1+2 report (written Jun/Jul),
+// "End-of-year" covers Term 3+4 (written Nov/Dec) — matches how clubs actually report.
+function progressTermOptions() {
+  const year = new Date().getFullYear();
+  return [`Term 1 ${year}`, `Mid-year ${year}`, `Term 3 ${year}`, `End-of-year ${year}`];
+}
 
 function defaultProgressTerm() {
   const now = new Date();
-  return (now.getMonth() < 6 ? 'Mid-year ' : 'End-of-year ') + now.getFullYear();
+  const m = now.getMonth(); // 0-indexed
+  const year = now.getFullYear();
+  if (m <= 2)  return `Term 1 ${year}`;        // Jan–Mar
+  if (m <= 6)  return `Mid-year ${year}`;      // Apr–Jul
+  if (m <= 9)  return `Term 3 ${year}`;        // Aug–Oct
+  return `End-of-year ${year}`;                 // Nov–Dec
+}
+
+function populateProgressTermSelect() {
+  const sel = document.getElementById('progressTermFilter');
+  if (!sel) return;
+  const wasCustomText = sel.options.length ? (document.getElementById('progressTermCustom')?.value || '').trim() : '';
+  const prevValue = sel.options.length ? (sel.value === '__custom' ? wasCustomText : sel.value) : null;
+
+  const options = progressTermOptions();
+  sel.innerHTML = options.map(o => `<option value="${o}">${o}</option>`).join('')
+    + `<option value="__custom">Custom…</option>`;
+
+  if (prevValue && options.includes(prevValue)) {
+    sel.value = prevValue;
+    document.getElementById('progressTermCustomWrap').style.display = 'none';
+  } else if (prevValue) {
+    sel.value = '__custom';
+    document.getElementById('progressTermCustomWrap').style.display = '';
+    document.getElementById('progressTermCustom').value = prevValue;
+  } else {
+    sel.value = defaultProgressTerm();
+  }
+}
+
+function onProgressTermChange() {
+  const sel = document.getElementById('progressTermFilter');
+  const customWrap = document.getElementById('progressTermCustomWrap');
+  const isCustom = sel.value === '__custom';
+  customWrap.style.display = isCustom ? '' : 'none';
+  if (!isCustom) renderProgressReportsTable();
+  else renderProgressReportsTable();
+}
+
+function currentProgressTerm() {
+  const sel = document.getElementById('progressTermFilter');
+  if (!sel) return '';
+  if (sel.value === '__custom') return (document.getElementById('progressTermCustom')?.value || '').trim();
+  return sel.value;
 }
 
 async function loadProgressReportsPage() {
-  const { data } = await sb.from('club_progress_reports')
-    .select('id, roster_id, term_label, body, coach_name, updated_at')
-    .eq('club_id', currentClub.id)
-    .order('updated_at', { ascending: false });
-  allProgressReports = data || [];
+  populateProgressTermSelect();
 
-  const termInput = document.getElementById('progressTermFilter');
-  if (termInput && !termInput.value) termInput.value = defaultProgressTerm();
+  const [reportsRes, linksRes] = await Promise.all([
+    sb.from('club_progress_reports')
+      .select('id, roster_id, term_label, body, coach_name, updated_at')
+      .eq('club_id', currentClub.id)
+      .order('updated_at', { ascending: false }),
+    sb.from('parent_roster_links')
+      .select('roster_id, status, parent_user_id')
+      .eq('club_id', currentClub.id)
+      .in('status', ['approved', 'pending']),
+  ]);
+  allProgressReports = reportsRes.data || [];
+
+  // Resolve parent display names via the same RPC the Parents page uses
+  const links = linksRes.data || [];
+  const parentIds = [...new Set(links.map(l => l.parent_user_id).filter(Boolean))];
+  let profileMap = {};
+  if (parentIds.length) {
+    const { data: profs } = await sb.rpc('get_club_roster_profiles', { p_club_id: currentClub.id });
+    (profs || []).filter(p => parentIds.includes(p.id)).forEach(p => { profileMap[p.id] = p; });
+  }
+  progressParentMap = {};
+  links.forEach(l => {
+    // Prefer an approved link over a pending one if a swimmer somehow has both
+    if (progressParentMap[l.roster_id]?.status === 'approved') return;
+    const profile = profileMap[l.parent_user_id];
+    progressParentMap[l.roster_id] = { status: l.status, parentName: profile?.display_name || profile?.email || 'Parent' };
+  });
+
+  if (!activeJoinCode) {
+    const { data: lnk } = await sb.from('club_join_links')
+      .select('code').eq('club_id', currentClub.id).eq('is_active', true)
+      .order('created_at', { ascending: false }).limit(1).single();
+    if (lnk) activeJoinCode = lnk.code;
+  }
 
   renderProgressReportsTable();
+  lucide.createIcons();
 }
 
 function renderProgressReportsTable() {
-  const term = (document.getElementById('progressTermFilter')?.value || '').trim();
+  const term = currentProgressTerm();
   const tbody = document.getElementById('progressReportsTableBody');
   if (!tbody) return;
 
@@ -6020,7 +6107,7 @@ function renderProgressReportsTable() {
     .sort((a, b) => (a.display_name || '').localeCompare(b.display_name || ''));
 
   if (!roster.length) {
-    tbody.innerHTML = `<tr><td colspan="4"><div class="empty"><div class="empty-title">No swimmers yet</div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty"><div class="empty-title">No swimmers yet</div></div></td></tr>`;
     return;
   }
 
@@ -6028,24 +6115,48 @@ function renderProgressReportsTable() {
   const countEl = document.getElementById('progressReportsCount');
   if (countEl) countEl.textContent = term ? `${writtenCount} of ${roster.length} written for "${term}"` : '';
 
+  const joinLink = `https://www.swimloading.com/join/${activeJoinCode || currentClub.slug}?role=parent`;
+
   tbody.innerHTML = roster.map(r => {
     const squad = (allSquads || []).find(s => s.id === r.squad_id);
     const report = allProgressReports.find(p => p.roster_id === r.id && p.term_label === term);
     const preview = report
-      ? `<div style="font-size:12px;color:var(--text-sec);max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(report.body || '').replace(/</g,'&lt;')}</div>`
+      ? `<div style="font-size:12px;color:var(--text-sec);max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(report.body || '').replace(/</g,'&lt;')}</div>`
       : `<span style="font-size:12px;color:var(--text-dim);">Not written yet</span>`;
+
+    const parentInfo = progressParentMap[r.id];
+    let parentCell;
+    if (parentInfo?.status === 'approved') {
+      parentCell = `<span style="font-size:11px;font-weight:700;color:#10b981;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:20px;padding:2px 8px;white-space:nowrap;">Linked · ${parentInfo.parentName}</span>`;
+    } else if (parentInfo?.status === 'pending') {
+      parentCell = `<span style="font-size:11px;font-weight:700;color:var(--amber);background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:20px;padding:2px 8px;white-space:nowrap;">Pending approval</span>`;
+    } else {
+      parentCell = `<button class="action-btn" onclick="copyProgressInviteLink('${r.display_name.replace(/'/g,"\\'")}')" title="Copy the parent join link to send this parent">
+        <i data-lucide="link" style="width:11px;height:11px;"></i> Invite parent
+      </button>`;
+    }
+
     return `<tr>
       <td><div class="member-name">${r.display_name}</div></td>
       <td>${squad ? squad.name : (r.category || '—')}</td>
+      <td>${parentCell}</td>
       <td>${preview}</td>
       <td><button class="action-btn" onclick="openProgressReportModal('${r.id}')">${report ? 'Edit' : 'Add'}</button></td>
     </tr>`;
   }).join('');
+  lucide.createIcons();
+}
+
+function copyProgressInviteLink(swimmerName) {
+  const link = `https://www.swimloading.com/join/${activeJoinCode || currentClub.slug}?role=parent`;
+  navigator.clipboard.writeText(link).then(() => {
+    showToast(`Invite link copied — send it to ${swimmerName}'s parent`, 'success');
+  });
 }
 
 function openProgressReportModal(rosterId) {
-  const term = (document.getElementById('progressTermFilter')?.value || '').trim();
-  if (!term) { showToast('Enter a term first (e.g. "Mid-year 2026")', 'error'); return; }
+  const term = currentProgressTerm();
+  if (!term) { showToast('Choose or enter a term first', 'error'); return; }
   const roster = (allRosterFull || []).find(r => r.id === rosterId);
   const existing = allProgressReports.find(p => p.roster_id === rosterId && p.term_label === term);
 
@@ -6092,8 +6203,18 @@ async function saveProgressReport() {
 
   if (error) { errEl.textContent = 'Failed: ' + error.message; errEl.style.display = 'block'; return; }
 
-  const termFilterInput = document.getElementById('progressTermFilter');
-  if (termFilterInput) termFilterInput.value = term;
+  const sel = document.getElementById('progressTermFilter');
+  if (sel) {
+    const isPreset = [...sel.options].some(o => o.value === term);
+    if (isPreset) {
+      sel.value = term;
+      document.getElementById('progressTermCustomWrap').style.display = 'none';
+    } else {
+      sel.value = '__custom';
+      document.getElementById('progressTermCustomWrap').style.display = '';
+      document.getElementById('progressTermCustom').value = term;
+    }
+  }
   closeProgressReportModal();
   showToast('Report saved', 'success');
   loadProgressReportsPage();

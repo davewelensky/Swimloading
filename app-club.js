@@ -250,7 +250,7 @@ async function renderSwimClub(container, club, roster, membership) {
     </div>
     <div id="clubSubHome">
       ${renderSwimmerHero(club, roster, allResults, timeTrial, qtsByEvent)}
-      ${renderProgressReports(progressReports)}
+      ${renderProgressReports(progressReports, roster.display_name, rosterCat, attendance.filter(a => a.status === 'present').length)}
       ${renderPlanningCard(club, rosterCat, attendance, upcoming, roster.id, club.id)}
       <div id="clubHealthCard" style="margin-bottom:12px;"></div>
       ${renderAnnouncements(announcements)}
@@ -605,28 +605,45 @@ function renderAnnouncements(announcements) {
 }
 
 // ─── Progress Reports (Aquasharks — gated by clubs.features.progress_reports) ──
-function renderProgressReports(reports) {
+function renderProgressReports(reports, swimmerName, category, sessionsAttended) {
   if (!reports || !reports.length) return '';
 
-  const cards = reports.map(r => {
-    const bodyHtml = (r.body || '').replace(/\n/g, '<br>');
+  const catChip = category
+    ? `<span style="font-size:11px;font-weight:700;color:var(--text-primary);background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);border-radius:20px;padding:3px 10px;">${category}</span>`
+    : '';
+  const attendanceChip = (sessionsAttended != null && sessionsAttended > 0)
+    ? `<span style="font-size:11px;font-weight:700;color:#f59e0b;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:20px;padding:3px 10px;">${sessionsAttended} session${sessionsAttended === 1 ? '' : 's'} attended recently</span>`
+    : '';
+
+  const cards = reports.map((r, i) => {
+    const bodyHtml = (r.body || '').replace(/</g, '&lt;').replace(/\n/g, '<br>');
     return `
-    <div style="padding:16px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+    <div style="padding:16px 0;${i < reports.length - 1 ? 'border-bottom:1px solid rgba(255,255,255,0.06);' : ''}">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
-        <span style="font-size:13px;font-weight:800;color:#f59e0b;text-transform:uppercase;letter-spacing:0.06em;">${r.term_label}</span>
-        ${r.coach_name ? `<span style="font-size:11px;color:var(--text-secondary);">Written by ${r.coach_name}</span>` : ''}
+        <span style="font-size:12px;font-weight:800;color:#f59e0b;text-transform:uppercase;letter-spacing:0.08em;">${r.term_label}</span>
+        ${r.coach_name ? `<span style="font-size:11px;color:var(--text-secondary);">— Coach ${r.coach_name}</span>` : ''}
       </div>
-      <div style="font-size:13px;color:var(--text-primary);line-height:1.7;">${bodyHtml}</div>
+      <div style="font-size:13.5px;color:var(--text-primary);line-height:1.75;">${bodyHtml}</div>
     </div>`;
   }).join('');
 
   return `
-  <div class="card" style="margin-bottom:12px;border-color:rgba(245,158,11,0.2);background:rgba(245,158,11,0.03);">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
-      <i data-lucide="file-text" style="width:15px;height:15px;color:#f59e0b;"></i>
-      <span style="font-size:15px;font-weight:700;">Progress Report</span>
+  <div class="card" style="margin-bottom:12px;padding:0;overflow:hidden;border-color:rgba(245,158,11,0.28);">
+    <div style="background:linear-gradient(135deg, rgba(245,158,11,0.16), rgba(245,158,11,0.03) 75%);padding:18px 20px 14px;border-bottom:1px solid rgba(245,158,11,0.18);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="width:34px;height:34px;border-radius:10px;background:rgba(245,158,11,0.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i data-lucide="award" style="width:17px;height:17px;color:#f59e0b;"></i>
+        </div>
+        <div style="min-width:0;">
+          <div style="font-size:10px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#f59e0b;">Progress Report</div>
+          <div style="font-size:16px;font-weight:800;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${swimmerName || ''}</div>
+        </div>
+      </div>
+      ${(catChip || attendanceChip) ? `<div style="display:flex;gap:6px;flex-wrap:wrap;">${catChip}${attendanceChip}</div>` : ''}
     </div>
-    ${cards}
+    <div style="padding:2px 20px 4px;">
+      ${cards}
+    </div>
   </div>`;
 }
 
@@ -2141,7 +2158,7 @@ async function renderActiveParentSwimmer() {
   container.innerHTML =
     parentBanner +
     renderSwimmerHero(club, roster, allResults, timeTrial, qtsByEvent) +
-    renderProgressReports(progressReports) +
+    renderProgressReports(progressReports, roster.display_name, rosterCat, attendance.filter(a => a.status === 'present').length) +
     renderPlanningCard(club, rosterCat, attendance, upcoming, roster.id, club.id) +
     renderAnnouncements(announcements) +
     renderQTProgressBars(allResults, timeTrial, qtsByEvent) +
