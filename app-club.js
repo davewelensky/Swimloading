@@ -30,7 +30,7 @@ async function loadUserClubs() {
       const [clubsRes, rosterRes] = await Promise.all([
         supabaseClient
           .from('clubs')
-          .select('id, name, code, slug, city, tagline, logo_url, club_type, contact_email, training_schedule')
+          .select('id, name, code, slug, city, tagline, logo_url, club_type, contact_email, training_schedule, features')
           .in('id', clubIds),
         supabaseClient
           .from('club_roster')
@@ -168,7 +168,7 @@ async function renderSwimClub(container, club, roster, membership) {
   const fourWeeksAgo = new Date(); fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
   const fourWeeksFwd = new Date(); fourWeeksFwd.setDate(fourWeeksFwd.getDate() + 28);
 
-  const [resultsRes, upcomingRes, profileRes, trialsRes, announcementsRes, attendanceRes] = await Promise.all([
+  const [resultsRes, upcomingRes, profileRes, trialsRes, announcementsRes, attendanceRes, progressRes] = await Promise.all([
     supabaseClient
       .from('club_gala_results')
       .select('id, stroke, distance, course, time_seconds, time_text, is_pb, club_events(id, title, event_date)')
@@ -207,6 +207,14 @@ async function renderSwimClub(container, club, roster, membership) {
       .eq('roster_id', roster.id)
       .gte('session_date', fourWeeksAgo.toISOString().slice(0,10))
       .lte('session_date', fourWeeksFwd.toISOString().slice(0,10)),
+
+    club.features?.progress_reports
+      ? supabaseClient
+          .from('club_progress_reports')
+          .select('term_label, body, coach_name, created_at')
+          .eq('roster_id', roster.id)
+          .order('created_at', { ascending: false })
+      : Promise.resolve({ data: [] }),
   ]);
 
   const allResults    = resultsRes.data       || [];
@@ -216,6 +224,7 @@ async function renderSwimClub(container, club, roster, membership) {
   const timeTrial     = trialsRes.data        || [];
   const announcements = announcementsRes.data || [];
   const attendance    = attendanceRes.data    || [];
+  const progressReports = progressRes.data    || [];
   // Health fetched separately — non-blocking, never crashes main render
   const healthEvents  = [];
   const qtsByEvent    = getAgeGroupQTs(profile?.date_of_birth, profile?.gender);
@@ -241,6 +250,7 @@ async function renderSwimClub(container, club, roster, membership) {
     </div>
     <div id="clubSubHome">
       ${renderSwimmerHero(club, roster, allResults, timeTrial, qtsByEvent)}
+      ${renderProgressReports(progressReports)}
       ${renderPlanningCard(club, rosterCat, attendance, upcoming, roster.id, club.id)}
       <div id="clubHealthCard" style="margin-bottom:12px;"></div>
       ${renderAnnouncements(announcements)}
@@ -591,6 +601,32 @@ function renderAnnouncements(announcements) {
       <span style="font-size:15px;font-weight:700;">From the coach</span>
     </div>
     ${items}
+  </div>`;
+}
+
+// ─── Progress Reports (Aquasharks — gated by clubs.features.progress_reports) ──
+function renderProgressReports(reports) {
+  if (!reports || !reports.length) return '';
+
+  const cards = reports.map(r => {
+    const bodyHtml = (r.body || '').replace(/\n/g, '<br>');
+    return `
+    <div style="padding:16px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+        <span style="font-size:13px;font-weight:800;color:#f59e0b;text-transform:uppercase;letter-spacing:0.06em;">${r.term_label}</span>
+        ${r.coach_name ? `<span style="font-size:11px;color:var(--text-secondary);">Written by ${r.coach_name}</span>` : ''}
+      </div>
+      <div style="font-size:13px;color:var(--text-primary);line-height:1.7;">${bodyHtml}</div>
+    </div>`;
+  }).join('');
+
+  return `
+  <div class="card" style="margin-bottom:12px;border-color:rgba(245,158,11,0.2);background:rgba(245,158,11,0.03);">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+      <i data-lucide="file-text" style="width:15px;height:15px;color:#f59e0b;"></i>
+      <span style="font-size:15px;font-weight:700;">Progress Report</span>
+    </div>
+    ${cards}
   </div>`;
 }
 
@@ -1959,7 +1995,7 @@ async function loadParentLinks() {
     .from('parent_roster_links')
     .select(`
       id, relationship, status,
-      clubs ( id, name, slug, club_type ),
+      clubs ( id, name, slug, club_type, features ),
       club_roster ( id, member_number, display_name, category, gender )
     `)
     .eq('parent_user_id', currentUser.id)
@@ -2049,7 +2085,7 @@ async function renderActiveParentSwimmer() {
   const fourWeeksAgo = new Date(); fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
   const fourWeeksFwd = new Date(); fourWeeksFwd.setDate(fourWeeksFwd.getDate() + 28);
 
-  const [resultsRes, upcomingRes, profileRes, trialsRes, announcementsRes, attendanceRes] = await Promise.all([
+  const [resultsRes, upcomingRes, profileRes, trialsRes, announcementsRes, attendanceRes, progressRes] = await Promise.all([
     supabaseClient.from('club_gala_results')
       .select('id, stroke, distance, course, time_seconds, time_text, is_pb, club_events(id, title, event_date)')
       .eq('roster_id', roster.id),
@@ -2067,6 +2103,12 @@ async function renderActiveParentSwimmer() {
       .select('session_date, session_start, status').eq('roster_id', roster.id)
       .gte('session_date', fourWeeksAgo.toISOString().slice(0,10))
       .lte('session_date', fourWeeksFwd.toISOString().slice(0,10)),
+    club.features?.progress_reports
+      ? supabaseClient.from('club_progress_reports')
+          .select('term_label, body, coach_name, created_at')
+          .eq('roster_id', roster.id)
+          .order('created_at', { ascending: false })
+      : Promise.resolve({ data: [] }),
   ]);
 
   const allResults    = resultsRes.data    || [];
@@ -2075,6 +2117,7 @@ async function renderActiveParentSwimmer() {
   const timeTrial     = trialsRes.data     || [];
   const announcements = announcementsRes.data || [];
   const attendance    = attendanceRes.data || [];
+  const progressReports = progressRes.data || [];
   const mergedProfile2 = {
     date_of_birth: profile?.date_of_birth || roster?.date_of_birth || null,
     gender:        profile?.gender        || roster?.gender        || null,
@@ -2098,6 +2141,7 @@ async function renderActiveParentSwimmer() {
   container.innerHTML =
     parentBanner +
     renderSwimmerHero(club, roster, allResults, timeTrial, qtsByEvent) +
+    renderProgressReports(progressReports) +
     renderPlanningCard(club, rosterCat, attendance, upcoming, roster.id, club.id) +
     renderAnnouncements(announcements) +
     renderQTProgressBars(allResults, timeTrial, qtsByEvent) +
