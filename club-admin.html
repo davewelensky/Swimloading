@@ -2929,7 +2929,7 @@ async function renderOverview() {
     // Per-squad health with trend
     const attBarColor = pct => pct >= 70 ? 'var(--green)' : pct >= 45 ? 'var(--amber)' : 'var(--danger)';
     const squadStats = allSquads.map(sq => {
-      const members = roster.filter(r => r.squad_id === sq.id);
+      const members = roster.filter(r => r.squad_id === sq.id || r.secondary_squad_id === sq.id);
       if (!members.length) return null;
       const curr = members.filter(r => attendedLast30.has(r.id)).length;
       const prev = members.filter(r => attendedPrev30.has(r.id)).length;
@@ -6200,7 +6200,7 @@ function renderProgressCoverageStrip(roster, term) {
   const currentSquadFilter = document.getElementById('progressSquadFilter')?.value || 'all';
   el.innerHTML = squadIds.map(sqId => {
     const squad = allSquads.find(s => s.id === sqId);
-    const members = roster.filter(r => r.squad_id === sqId);
+    const members = roster.filter(r => r.squad_id === sqId || r.secondary_squad_id === sqId);
     const written = members.filter(r => allProgressReports.some(p => p.roster_id === r.id && p.term_label === term)).length;
     const complete = written === members.length;
     const active = currentSquadFilter === sqId;
@@ -9833,7 +9833,7 @@ async function renderAttendanceReport() {
     return;
   }
 
-  const roster = (squadVal ? allRosterFull.filter(r => r.squad_id === squadVal) : allRosterFull)
+  const roster = (squadVal ? allRosterFull.filter(r => r.squad_id === squadVal || r.secondary_squad_id === squadVal) : allRosterFull)
     .slice().sort((a, b) => (a.member_number || 9999) - (b.member_number || 9999) || a.display_name.localeCompare(b.display_name));
 
   // Build status lookup: rosterId → sessionId → status
@@ -9913,7 +9913,7 @@ async function renderAttendanceReport() {
             <td style="padding:8px 10px;font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.05em;position:sticky;left:0;background:var(--bg-card);">Total present</td>
             ${sessions.map(s => {
               const present   = (s.club_attendance || []).filter(a => a.status === 'present' || a.status === 'catch_up').length;
-              const squadSize = s.squad_id ? allRosterFull.filter(r => r.squad_id === s.squad_id).length : roster.length;
+              const squadSize = s.squad_id ? allRosterFull.filter(r => r.squad_id === s.squad_id || r.secondary_squad_id === s.squad_id).length : roster.length;
               const pct       = squadSize ? Math.round(present / squadSize * 100) : 0;
               return `<td style="text-align:center;padding:6px 2px;font-size:11px;font-weight:800;color:${pct >= 80 ? 'var(--green)' : pct >= 60 ? 'var(--amber)' : present > 0 ? 'var(--danger)' : 'var(--text-sec)'};">${present || '—'}</td>`;
             }).join('')}
@@ -9952,7 +9952,7 @@ async function exportAttendanceCSV() {
   const { data: sessions } = await q;
   if (!sessions?.length) { showToast('No data to export'); return; }
 
-  const roster = (squadVal ? allRosterFull.filter(r => r.squad_id === squadVal) : allRosterFull)
+  const roster = (squadVal ? allRosterFull.filter(r => r.squad_id === squadVal || r.secondary_squad_id === squadVal) : allRosterFull)
     .slice().sort((a, b) => (a.member_number || 9999) - (b.member_number || 9999));
 
   const abbr = { present: 'P', catch_up: 'CU', no_contact: 'NC', no_show: 'NS', notice: 'N', away: 'A', dnp: 'DNP' };
@@ -10184,7 +10184,7 @@ function renderSessionsList() {
     const sched = scheduled;
     const squadId = s?.squad_id || sched?.squad_id;
     const squadName = sched?.custom_name || (squadId ? (allSquads.find(sq => sq.id === squadId)?.name || '') : '');
-    const squadRosterSize = squadId ? allRosterFull.filter(r => r.squad_id === squadId).length : rosterTotal;
+    const squadRosterSize = squadId ? allRosterFull.filter(r => r.squad_id === squadId || r.secondary_squad_id === squadId).length : rosterTotal;
     const startTime = (s?.start_time || sched?.start_time || '').slice(0, 5);
     const endTime = (s?.end_time || sched?.end_time || '').slice(0, 5);
     const coach = s?.coach_name || sched?.coach_name || '';
@@ -10936,8 +10936,8 @@ async function openMarkSession(sessionId) {
       sessionHealthMap[h.roster_id].push(h);
     });
   } else {
-    // Non-LTS: load health for all squad members
-    const squadRoster = allRosterFull.filter(r => r.squad_id === session.squad_id);
+    // Non-LTS: load health for all squad members (incl. those who carry it as a secondary squad)
+    const squadRoster = allRosterFull.filter(r => r.squad_id === session.squad_id || r.secondary_squad_id === session.squad_id);
     if (squadRoster.length) {
       const rids = squadRoster.map(r => r.id);
       const { data: health } = await sb.from('club_health_events').select('roster_id, type, body_part, notes, severity').in('roster_id', rids).is('resolved_at', null);
@@ -10974,8 +10974,11 @@ function getSessionRoster(session) {
     const walkinRoster = walkins.map(id => allRosterFull.find(r => r.id === id)).filter(Boolean);
     return [...base, ...walkinRoster];
   }
+  // Include secondary_squad_id too — a swimmer who trains this squad only as their SECOND
+  // squad (e.g. a Bronze swimmer who also does Nippers) must still appear on this squad's
+  // own register, not just their primary squad's.
   const base = session.squad_id
-    ? allRosterFull.filter(r => r.squad_id === session.squad_id)
+    ? allRosterFull.filter(r => r.squad_id === session.squad_id || r.secondary_squad_id === session.squad_id)
     : allRosterFull;
   const walkinRoster = walkins.map(id => allRosterFull.find(r => r.id === id)).filter(Boolean);
   return [...base, ...walkinRoster];
@@ -11040,7 +11043,7 @@ function renderMarkModal(session) {
   const roster = getSessionRoster(session);
   const baseRoster = usesAssignments
     ? ltsSwimmerIds.map(id => allRosterFull.find(r => r.id === id)).filter(Boolean)
-    : (session.squad_id ? allRosterFull.filter(r => r.squad_id === session.squad_id) : allRosterFull);
+    : (session.squad_id ? allRosterFull.filter(r => r.squad_id === session.squad_id || r.secondary_squad_id === session.squad_id) : allRosterFull);
   const walkinRoster = walkins.map(id => allRosterFull.find(r => r.id === id)).filter(Boolean);
 
   const attended   = Object.values(attendanceMarks).filter(s => s === 'present' || s === 'late' || s === 'catch_up').length;
