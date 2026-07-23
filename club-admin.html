@@ -2323,11 +2323,12 @@ async function loadClubContext() {
   const hasHealth         = F.health         === true || hasSquads; // squads clubs always have health
   const hasGroups         = F.groups         === true;
   const hasProgressReports = F.progress_reports === true;
+  const hasDaySlotScheduling = F.day_slot_scheduling === true;
 
   // Store on window so renderOverview() and other functions can read them
   window._clubFeatures = { hasLeague, hasTempChallenge, hasSquads, hasTimetable,
     hasAttendance, hasGalaEntries, hasCoachingStaff, hasParentLanguage, hasChallenges,
-    hasHealth, hasGroups, hasProgressReports };
+    hasHealth, hasGroups, hasProgressReports, hasDaySlotScheduling };
 
   document.getElementById('nav-league').style.display           = hasLeague        ? '' : 'none';
   document.getElementById('nav-tempchallenge').style.display    = hasTempChallenge ? '' : 'none';
@@ -2335,6 +2336,8 @@ async function loadClubContext() {
   document.getElementById('nav-challenges').style.display       = hasChallenges    ? '' : 'none';
   document.getElementById('nav-tracker').style.display          = hasSquads        ? '' : 'none';
   document.getElementById('nav-timetable').style.display        = hasTimetable      ? '' : 'none';
+  const namesBtnEl = document.getElementById('ttViewNamesBtn');
+  if (namesBtnEl) namesBtnEl.style.display = hasDaySlotScheduling ? '' : 'none';
   document.getElementById('nav-weeklyreport').style.display     = (hasTimetable && hasAttendance) ? '' : 'none';
   document.getElementById('nav-sets').style.display             = hasSquads        ? '' : 'none';
   document.getElementById('nav-health').style.display           = hasHealth        ? '' : 'none';
@@ -8736,6 +8739,8 @@ async function renderRosterEditAttends(r) {
   const list  = document.getElementById('rosterEditAttendsList');
   if (!group || !list) return;
 
+  if (!window._clubFeatures?.hasDaySlotScheduling) { group.style.display = 'none'; return; }
+
   const squadIds = [r.squad_id, r.secondary_squad_id].filter(Boolean);
   if (!squadIds.length) { group.style.display = 'none'; return; }
 
@@ -11141,6 +11146,7 @@ async function saveAttendance() {
 // "Attends: Mon 15:30 (Ellen)" etc, from club_session_assignments — falls back to
 // "all scheduled <squad> sessions" when the swimmer has no explicit day/slot set yet.
 function swimmerAttendsSummary(r) {
+  if (!window._clubFeatures?.hasDaySlotScheduling) return '';
   const squadIds = [r.squad_id, r.secondary_squad_id].filter(Boolean);
   if (!squadIds.length) return '';
 
