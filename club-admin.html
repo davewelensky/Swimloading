@@ -1026,6 +1026,39 @@
             </div>
           </div>
         </div>
+
+        <!-- Coverage by squad — which squads are behind, at a glance. Click a chip to filter. -->
+        <div id="progressCoverageStrip" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;"></div>
+
+        <div class="card" style="padding:16px 20px;margin-bottom:16px;">
+          <div style="display:flex;gap:14px;flex-wrap:wrap;">
+            <div class="form-group" style="margin:0;width:200px;">
+              <div class="form-label">Squad</div>
+              <select class="form-input" id="progressSquadFilter" onchange="renderProgressReportsTable()">
+                <option value="all">All squads</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0;width:200px;">
+              <div class="form-label">Report status</div>
+              <select class="form-input" id="progressStatusFilter" onchange="renderProgressReportsTable()">
+                <option value="all">All</option>
+                <option value="not-written">Not written yet</option>
+                <option value="draft">Draft (needs review)</option>
+                <option value="published">Published</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0;width:200px;">
+              <div class="form-label">Parent</div>
+              <select class="form-input" id="progressParentFilter" onchange="renderProgressReportsTable()">
+                <option value="all">All</option>
+                <option value="not-invited">Not sent a join link</option>
+                <option value="pending">Pending approval</option>
+                <option value="linked">Linked</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
         <div class="card" id="progressReportsCard">
           <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
             <div class="card-title">Swimmers</div>
@@ -6101,8 +6134,48 @@ async function loadProgressReportsPage() {
     if (lnk) activeJoinCode = lnk.code;
   }
 
+  populateProgressSquadFilter();
   renderProgressReportsTable();
   lucide.createIcons();
+}
+
+function populateProgressSquadFilter() {
+  const sel = document.getElementById('progressSquadFilter');
+  if (!sel) return;
+  const prev = sel.value || 'all';
+  sel.innerHTML = '<option value="all">All squads</option>'
+    + (allSquads || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  sel.value = [...sel.options].some(o => o.value === prev) ? prev : 'all';
+}
+
+// Per-squad "who's behind" strip — click a chip to filter the table to that squad.
+function renderProgressCoverageStrip(roster, term) {
+  const el = document.getElementById('progressCoverageStrip');
+  if (!el) return;
+  const squadIds = [...new Set(roster.map(r => r.squad_id).filter(Boolean))];
+  if (!squadIds.length) { el.innerHTML = ''; return; }
+
+  const currentSquadFilter = document.getElementById('progressSquadFilter')?.value || 'all';
+  el.innerHTML = squadIds.map(sqId => {
+    const squad = allSquads.find(s => s.id === sqId);
+    const members = roster.filter(r => r.squad_id === sqId);
+    const written = members.filter(r => allProgressReports.some(p => p.roster_id === r.id && p.term_label === term)).length;
+    const complete = written === members.length;
+    const active = currentSquadFilter === sqId;
+    return `<button onclick="setProgressSquadFilter('${sqId}')" style="
+      font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;cursor:pointer;white-space:nowrap;
+      border:1px solid ${active ? 'rgba(56,189,248,0.5)' : complete ? 'rgba(16,185,129,0.25)' : 'rgba(245,158,11,0.3)'};
+      background:${active ? 'rgba(56,189,248,0.12)' : complete ? 'rgba(16,185,129,0.08)' : 'rgba(245,158,11,0.08)'};
+      color:${active ? 'var(--cyan)' : complete ? '#10b981' : 'var(--amber)'};">
+      ${squad?.name || 'Squad'} · ${written}/${members.length}
+    </button>`;
+  }).join('');
+}
+
+function setProgressSquadFilter(squadId) {
+  const sel = document.getElementById('progressSquadFilter');
+  if (sel) sel.value = squadId;
+  renderProgressReportsTable();
 }
 
 function renderProgressReportsTable() {
@@ -6110,17 +6183,45 @@ function renderProgressReportsTable() {
   const tbody = document.getElementById('progressReportsTableBody');
   if (!tbody) return;
 
-  const roster = (allRosterFull || []).filter(r => r.is_active !== false)
+  const allActive = (allRosterFull || []).filter(r => r.is_active !== false)
     .sort((a, b) => (a.display_name || '').localeCompare(b.display_name || ''));
 
+  renderProgressCoverageStrip(allActive, term);
+
+  const squadFilter  = document.getElementById('progressSquadFilter')?.value  || 'all';
+  const statusFilter = document.getElementById('progressStatusFilter')?.value || 'all';
+  const parentFilter = document.getElementById('progressParentFilter')?.value || 'all';
+
+  const roster = allActive.filter(r => {
+    if (squadFilter !== 'all' && r.squad_id !== squadFilter) return false;
+
+    if (statusFilter !== 'all') {
+      const report = allProgressReports.find(p => p.roster_id === r.id && p.term_label === term);
+      if (statusFilter === 'not-written' && report) return false;
+      if (statusFilter === 'draft' && (!report || report.is_published)) return false;
+      if (statusFilter === 'published' && (!report || !report.is_published)) return false;
+    }
+
+    if (parentFilter !== 'all') {
+      const status = progressParentMap[r.id]?.status || 'none';
+      if (parentFilter === 'not-invited' && status !== 'none') return false;
+      if (parentFilter === 'pending' && status !== 'pending') return false;
+      if (parentFilter === 'linked' && status !== 'approved') return false;
+    }
+
+    return true;
+  });
+
   if (!roster.length) {
-    tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-title">No swimmers yet</div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-title">No swimmers match this filter</div></div></td></tr>`;
+    const countEl0 = document.getElementById('progressReportsCount');
+    if (countEl0) countEl0.textContent = '0 shown';
     return;
   }
 
   const writtenCount = roster.filter(r => allProgressReports.some(p => p.roster_id === r.id && p.term_label === term)).length;
   const countEl = document.getElementById('progressReportsCount');
-  if (countEl) countEl.textContent = term ? `${writtenCount} of ${roster.length} written for "${term}"` : '';
+  if (countEl) countEl.textContent = term ? `${writtenCount} of ${roster.length} shown written for "${term}"` : '';
 
   const joinLink = `https://www.swimloading.com/join/${activeJoinCode || currentClub.slug}?role=parent`;
 
