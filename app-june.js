@@ -59,10 +59,13 @@
                     .eq('id', 1)
                     .single();
                 jcConfig = data;
+                // Only latch "loaded" on success — a transient fetch failure (network
+                // blip, auth-token race right after page load) must not permanently
+                // blank the whole challenge board for the rest of the session.
+                jcConfigLoaded = true;
             } catch (e) {
                 jcConfig = null;
             }
-            jcConfigLoaded = true;
             return jcConfig;
         }
 
