@@ -1194,7 +1194,7 @@ async function loadClubData() {
 
   // All this week's sessions
   const { data: sessData } = await sb.from('club_squad_sessions')
-    .select('id, squad_id, day_of_week, start_time, end_time, coach_name, max_capacity, is_active')
+    .select('id, squad_id, day_of_week, start_time, end_time, coach_name, max_capacity, is_active, is_multisquad')
     .in('squad_id', squadIds).eq('is_active', true)
     .order('day_of_week').order('start_time');
   allWeekSessions = sessData || [];
@@ -1779,7 +1779,15 @@ function filterAttendanceSearch(query) {
 
 function getSessionRoster() {
   const s = activeSqSession;
-  return s ? allRoster.filter(r => r.squad_id === s.squad_id) : [];
+  if (!s) return [];
+  // Cross-squad (is_multisquad) sessions — like Nippers — pull from explicit
+  // club_session_assignments: swimmers usually carry it as a SECONDARY squad, so a
+  // primary-squad_id-only filter would show nobody.
+  if (s.is_multisquad) {
+    const assignedIds = allWeekAssign[s.id] || [];
+    return assignedIds.map(id => allRoster.find(r => r.id === id)).filter(Boolean);
+  }
+  return allRoster.filter(r => r.squad_id === s.squad_id);
 }
 
 function renderBriefing(roster) {

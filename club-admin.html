@@ -10808,11 +10808,17 @@ async function openMarkSession(sessionId) {
     if (tmpl) activeSquadSessionId = tmpl.id;
   }
 
-  // Load intents, LTS assignments, and health events in parallel
+  // Cross-squad (is_multisquad) sessions — like Nippers — need their roster built from explicit
+  // club_session_assignments, same as LTS: swimmers here mostly carry it as a SECONDARY squad,
+  // so a primary-squad_id-only filter would show nobody.
+  const activeTmpl = activeSquadSessionId ? (allWeekSessions || []).find(t => t.id === activeSquadSessionId) : null;
+  const usesAssignments = isLTS || !!activeTmpl?.is_multisquad;
+
+  // Load intents, assignments, and health events in parallel
   const fetches = [
     sb.from('club_session_attendance').select('roster_id, session_start, status, time_slot').eq('club_id', currentClub.id).eq('session_date', session.session_date),
   ];
-  if (isLTS && activeSquadSessionId) {
+  if (usesAssignments && activeSquadSessionId) {
     fetches.push(sb.from('club_session_assignments').select('roster_id, time_slot').eq('session_id', activeSquadSessionId).eq('club_id', currentClub.id));
   } else {
     fetches.push(Promise.resolve({ data: [] }));
@@ -10829,7 +10835,7 @@ async function openMarkSession(sessionId) {
 
   // Build LTS slot map and ordered swimmer id list
   const slots = slotRes.data || [];
-  if (isLTS) {
+  if (usesAssignments) {
     // Append catch-up swimmers (added via the session detail view) — they aren't in club_session_assignments
     const sessionStartShort = (session.start_time || '').slice(0,5);
     (intentRes.data || [])
@@ -10946,14 +10952,18 @@ function renderMarkModal(session) {
 
   const squad = session.squad_id ? allSquads.find(s => s.id === session.squad_id) : null;
   const isLTS = (squad?.name || '').toLowerCase().includes('learn to swim');
+  const tplForLabel = activeSquadSessionId ? (allWeekSessions || []).find(s => s.id === activeSquadSessionId) : null;
+  // Cross-squad (is_multisquad) sessions — like Nippers — build their roster from explicit
+  // assignments too, same as LTS: swimmers usually carry it as a SECONDARY squad, so a
+  // primary-squad_id-only filter would show nobody.
+  const usesAssignments = isLTS || !!tplForLabel?.is_multisquad;
   const roster = getSessionRoster(session);
-  const baseRoster = isLTS
+  const baseRoster = usesAssignments
     ? ltsSwimmerIds.map(id => allRosterFull.find(r => r.id === id)).filter(Boolean)
     : (session.squad_id ? allRosterFull.filter(r => r.squad_id === session.squad_id) : allRosterFull);
   const walkinRoster = walkins.map(id => allRosterFull.find(r => r.id === id)).filter(Boolean);
 
   const attended   = Object.values(attendanceMarks).filter(s => s === 'present' || s === 'late' || s === 'catch_up').length;
-  const tplForLabel = activeSquadSessionId ? (allWeekSessions || []).find(s => s.id === activeSquadSessionId) : null;
   const sessionLabel = tplForLabel?.custom_name || (squad ? squad.name : `${session.session_type} Session`);
   const existingNote = session.notes || '';
 
@@ -10963,7 +10973,7 @@ function renderMarkModal(session) {
     .sort((a,b) => (a.display_name||'').localeCompare(b.display_name||''));
 
   let swimmerRows;
-  if (isLTS) {
+  if (usesAssignments) {
     swimmerRows = baseRoster.map(r => renderSwimmerRow(r, false)).join('');
     if (walkinRoster.length) {
       swimmerRows += `<div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin:14px 0 8px;">Walk-ins</div>`;
