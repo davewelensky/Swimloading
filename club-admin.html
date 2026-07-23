@@ -1857,14 +1857,27 @@
     <div class="form-row">
       <div class="form-group">
         <div class="form-label">Squad</div>
-        <select class="form-input" id="newRosterSquad" onchange="onSquadChange(this.value)">
+        <select class="form-input" id="newRosterSquad" onchange="onSquadChange(this.value); onAddRosterSquadOrSecondaryChange();">
           <option value="">— select —</option>
         </select>
       </div>
       <div class="form-group">
+        <div class="form-label">Also in squad <span style="font-weight:400;color:var(--text-dim);">optional second squad</span></div>
+        <select class="form-input" id="newRosterSecondarySquad" onchange="onAddRosterSquadOrSecondaryChange()">
+          <option value="">— none —</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" id="addRosterAttendsGroup" style="display:none;">
+      <div class="form-label">Attends <span style="font-weight:400;color:var(--text-dim);">tick the day/session(s) they train — required for Learn to Swim and cross-squad sessions like Nippers</span></div>
+      <div id="addRosterAttendsList" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;padding:2px;"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
         <div class="form-label">Category <span style="font-weight:400;color:var(--text-dim);">gala level</span></div>
         <input type="text" class="form-input" id="newRosterCat" placeholder="e.g. Level 2, SANJ">
       </div>
+      <div class="form-group"></div>
     </div>
     <div class="form-row" id="rosterSchoolSasaRow">
       <div class="form-group">
@@ -8762,9 +8775,9 @@ let rosterEditTargetId = null;
 // Lists the swimmer's squad's scheduled sessions with a checkbox each — ticking one
 // writes a permanent club_session_assignments row (vs. the one-off catch-up mechanism
 // in the session detail popup, which resets after its date passes).
-async function renderRosterEditAttends(r) {
-  const group = document.getElementById('rosterEditAttendsGroup');
-  const list  = document.getElementById('rosterEditAttendsList');
+async function renderRosterEditAttends(r, groupId, listId) {
+  const group = document.getElementById(groupId || 'rosterEditAttendsGroup');
+  const list  = document.getElementById(listId  || 'rosterEditAttendsList');
   if (!group || !list) return;
 
   if (!window._clubFeatures?.hasDaySlotScheduling) { group.style.display = 'none'; return; }
@@ -8940,8 +8953,8 @@ function onRosterEditFeeToggle(cb) {
 
 // Diffs the Attends checklist against club_session_assignments — only touches sessions
 // actually shown in the modal, so it never disturbs assignments for other squads/kids.
-async function saveRosterEditAttends(rosterId) {
-  const checkboxes = [...document.querySelectorAll('#rosterEditAttendsList .attends-check')];
+async function saveRosterEditAttends(rosterId, listId) {
+  const checkboxes = [...document.querySelectorAll(`#${listId || 'rosterEditAttendsList'} .attends-check`)];
   if (!checkboxes.length) return;
 
   const toUpsert = [];
@@ -9467,6 +9480,15 @@ function onSquadChange(squadId) {
   // simpler: just hide the section headers; fields remain but aren't required
 }
 
+// Live-refreshes the Attends checklist as squad/secondary squad change — same behaviour
+// as the roster Edit modal's onRosterEditSquadChange, but for a member that doesn't
+// exist yet (no roster id, so nothing shows pre-checked).
+async function onAddRosterSquadOrSecondaryChange() {
+  const squadId     = document.getElementById('newRosterSquad').value || null;
+  const secondaryId = document.getElementById('newRosterSecondarySquad').value || null;
+  await renderRosterEditAttends({ squad_id: squadId, secondary_squad_id: secondaryId }, 'addRosterAttendsGroup', 'addRosterAttendsList');
+}
+
 // Next member number for the current club = highest existing in this club's roster + 1.
 // member_number is a per-club unique integer; this guarantees no collision and no guessing.
 function nextMemberNumber() {
@@ -9493,10 +9515,17 @@ function openAddRosterModal() {
   });
   document.getElementById('newG1Relation').value = 'Mother';
 
-  // Populate squad dropdown
+  // Populate squad + secondary squad dropdowns
   const sel = document.getElementById('newRosterSquad');
   sel.innerHTML = '<option value="">— select squad —</option>' +
     allSquads.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  const sel2 = document.getElementById('newRosterSecondarySquad');
+  sel2.innerHTML = '<option value="">— none —</option>' +
+    allSquads.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+
+  // Reset the Attends checklist (no squad selected yet)
+  document.getElementById('addRosterAttendsGroup').style.display = 'none';
+  document.getElementById('addRosterAttendsList').innerHTML = '';
 
   // Pre-fill the next member number (Britt can override; blank also auto-assigns on save)
   document.getElementById('newRosterNum').value = nextMemberNumber();
@@ -9597,6 +9626,7 @@ async function submitAddRosterMember() {
   const gender = document.getElementById('newRosterGender').value;
   const dob    = document.getElementById('newRosterDob').value || null;
   const squadId = document.getElementById('newRosterSquad').value || null;
+  const secondarySquadId = document.getElementById('newRosterSecondarySquad').value || null;
 
   if (!name) { showToast('Name is required', 'error'); return; }
 
@@ -9614,6 +9644,7 @@ async function submitAddRosterMember() {
       category:       cat    || null,
       gender:         gender || null,
       squad_id:       squadId,
+      secondary_squad_id: secondarySquadId,
       date_of_birth:  dob    || null,
       is_trial:       document.getElementById('newIsTrial').checked,
       fee_paid:       document.getElementById('newFeePaid').checked,
@@ -9627,6 +9658,11 @@ async function submitAddRosterMember() {
   }
 
   if (rErr) { showToast('Failed: ' + rErr.message, 'error'); return; }
+
+  // Save which specific session(s) they attend (required for LTS + cross-squad sessions
+  // like Nippers — see renderRosterEditAttends) so they land on the right register without
+  // a separate trip to Timetable → Swimmers.
+  await saveRosterEditAttends(roster.id, 'addRosterAttendsList');
 
   // 2. Build collection contacts
   const coll1Name = document.getElementById('newColl1Name').value.trim();
