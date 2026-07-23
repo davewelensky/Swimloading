@@ -1204,6 +1204,7 @@
               <div style="display:flex;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:2px;">
                 <button id="ttViewScheduleBtn" onclick="setTimetableView('schedule')" style="background:var(--cyan);color:#0a1628;border:none;cursor:pointer;font-size:12px;font-weight:700;padding:6px 12px;border-radius:6px;">Schedule</button>
                 <button id="ttViewCapacityBtn" onclick="setTimetableView('capacity')" style="background:none;color:var(--text-sec);border:none;cursor:pointer;font-size:12px;font-weight:700;padding:6px 12px;border-radius:6px;">Capacity</button>
+                <button id="ttViewNamesBtn" onclick="setTimetableView('names')" style="background:none;color:var(--text-sec);border:none;cursor:pointer;font-size:12px;font-weight:700;padding:6px 12px;border-radius:6px;">Names</button>
               </div>
               <button style="background:none;border:1px solid var(--border);color:var(--text-sec);cursor:pointer;font-size:13px;padding:8px 14px;border-radius:8px;" onclick="openScheduleImport()" onmouseover="this.style.borderColor='var(--cyan)';this.style.color='var(--cyan)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-sec)'">Import schedule</button>
               <button class="btn-primary" style="width:auto;padding:8px 16px;border-radius:8px;font-size:13px;" onclick="openAddTimetableModal()">Add session</button>
@@ -1211,6 +1212,7 @@
           </div>
           <div id="timetablePageList"><div style="color:var(--text-sec);font-size:13px;">Loading…</div></div>
           <div id="timetableCapacityList" style="display:none;"></div>
+          <div id="timetableNamesList" style="display:none;"></div>
         </div>
       </div>
 
@@ -1597,7 +1599,7 @@
       </div>
       <div class="form-group">
         <div class="form-label">Squad</div>
-        <select class="form-input" id="rosterEditSquad">
+        <select class="form-input" id="rosterEditSquad" onchange="onRosterEditSquadChange()">
           <option value="">— none —</option>
         </select>
       </div>
@@ -1605,7 +1607,7 @@
     <div class="form-row">
       <div class="form-group">
         <div class="form-label">Also in squad <span style="font-weight:400;color:var(--text-dim);">optional second squad</span></div>
-        <select class="form-input" id="rosterEditSecondarySquad">
+        <select class="form-input" id="rosterEditSecondarySquad" onchange="onRosterEditSquadChange()">
           <option value="">— none —</option>
         </select>
       </div>
@@ -1654,6 +1656,10 @@
         <input type="time" class="form-input" id="rosterEditLtsSlot">
       </div>
       <div class="form-group"></div>
+    </div>
+    <div class="form-group" id="rosterEditAttendsGroup" style="display:none;">
+      <div class="form-label">Attends <span style="font-weight:400;color:var(--text-dim);">tick the day/session(s) they train — sticks permanently, unlike a one-off catch-up</span></div>
+      <div id="rosterEditAttendsList" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;padding:2px;"></div>
     </div>
     <div style="display:flex;gap:24px;margin:4px 0 16px;">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text);">
@@ -6623,19 +6629,97 @@ function renderSettingsTimetable(sessions) {
 function setTimetableView(view) {
   const scheduleBtn = document.getElementById('ttViewScheduleBtn');
   const capacityBtn = document.getElementById('ttViewCapacityBtn');
+  const namesBtn     = document.getElementById('ttViewNamesBtn');
   const scheduleList = document.getElementById('timetablePageList');
   const capacityList = document.getElementById('timetableCapacityList');
-  if (!scheduleBtn || !capacityBtn || !scheduleList || !capacityList) return;
+  const namesList    = document.getElementById('timetableNamesList');
+  if (!scheduleBtn || !capacityBtn || !namesBtn || !scheduleList || !capacityList || !namesList) return;
 
-  const isCapacity = view === 'capacity';
-  scheduleList.style.display = isCapacity ? 'none' : '';
-  capacityList.style.display = isCapacity ? '' : 'none';
-  scheduleBtn.style.background = isCapacity ? 'none' : 'var(--cyan)';
-  scheduleBtn.style.color = isCapacity ? 'var(--text-sec)' : '#0a1628';
-  capacityBtn.style.background = isCapacity ? 'var(--cyan)' : 'none';
-  capacityBtn.style.color = isCapacity ? '#0a1628' : 'var(--text-sec)';
+  scheduleList.style.display = view === 'schedule' ? '' : 'none';
+  capacityList.style.display = view === 'capacity' ? '' : 'none';
+  namesList.style.display    = view === 'names'    ? '' : 'none';
 
-  if (isCapacity) renderTimetableCapacityView();
+  [[scheduleBtn, 'schedule'], [capacityBtn, 'capacity'], [namesBtn, 'names']].forEach(([btn, key]) => {
+    const active = key === view;
+    btn.style.background = active ? 'var(--cyan)' : 'none';
+    btn.style.color      = active ? '#0a1628' : 'var(--text-sec)';
+  });
+
+  if (view === 'capacity') renderTimetableCapacityView();
+  if (view === 'names') renderTimetableNamesView();
+}
+
+// True if this swimmer has ANY explicit day/slot assignment for ANY session of this squad —
+// used to decide whether "no assignment" should still mean "shows on every day" (unmigrated)
+// or "not on this day" (they've been explicitly scheduled elsewhere in the squad).
+function hasAnyAssignmentForSquad(rosterId, squadId, sessions) {
+  return sessions.some(s => s.squad_id === squadId && (allWeekAssignments[s.id] || []).includes(rosterId));
+}
+
+// Quick-reference grid: which swimmers are in which day/slot, across all squads —
+// an in-app version of the spreadsheet clubs keep externally today.
+function renderTimetableNamesView() {
+  const el = document.getElementById('timetableNamesList');
+  if (!el) return;
+  const sessions = (allTimetableSessions || []).filter(s => s.is_active !== false);
+  if (!sessions.length) {
+    el.innerHTML = `<div style="color:var(--text-sec);font-size:13px;text-align:center;padding:12px 0;">No sessions yet.</div>`;
+    return;
+  }
+
+  const squadMap = {};
+  allSquads.forEach(s => { squadMap[s.id] = s; });
+
+  const byDay = {};
+  sessions.forEach(s => { (byDay[s.day_of_week] = byDay[s.day_of_week] || []).push(s); });
+  const sortedDays = [1, 2, 3, 4, 5, 6, 0].filter(d => byDay[d]);
+
+  el.innerHTML = sortedDays.map(dow => {
+    const rows = byDay[dow]
+      .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
+      .map(s => {
+        const squad = squadMap[s.squad_id];
+        const isLTS = (squad?.name || '').toLowerCase().includes('learn to swim');
+        const label = s.custom_name || squad?.name || '—';
+        const start = s.start_time?.slice(0, 5) || '';
+        const end   = s.end_time?.slice(0, 5)   || '';
+        const squadMembers = (allRosterFull || []).filter(r => r.squad_id === s.squad_id || r.secondary_squad_id === s.squad_id);
+        const assignedIds = new Set(allWeekAssignments[s.id] || []);
+
+        let names;
+        if (isLTS) {
+          const slots = (allWeekTimeSlots[s.id] || []).slice().sort((a, b) => (a.time_slot || '99:99').localeCompare(b.time_slot || '99:99'));
+          names = slots.map(e => {
+            const m = allRosterFull.find(r => r.id === e.roster_id);
+            return m ? `${m.display_name}${e.time_slot ? ` · ${e.time_slot.slice(0, 5)}` : ''}` : null;
+          }).filter(Boolean);
+        } else {
+          names = squadMembers
+            .filter(m => assignedIds.has(m.id) || !hasAnyAssignmentForSquad(m.id, s.squad_id, sessions))
+            .map(m => m.display_name);
+        }
+
+        const namesHtml = names.length
+          ? names.map(n => `<span style="display:inline-block;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:20px;padding:2px 9px;font-size:12px;margin:2px 4px 2px 0;">${n}</span>`).join('')
+          : `<span style="font-size:12px;color:var(--text-dim);">No swimmers</span>`;
+
+        return `
+          <div style="padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:4px;border:1px solid var(--border);">
+            <div style="font-size:13px;margin-bottom:6px;">
+              <span style="font-weight:600;color:var(--text);">${label}</span>
+              <span style="color:var(--text-sec);margin-left:10px;">${start}${end ? '–' + end : ''}</span>
+              ${s.coach_name ? `<span style="color:var(--text-sec);margin-left:8px;">· ${s.coach_name}</span>` : ''}
+            </div>
+            <div>${namesHtml}</div>
+          </div>`;
+      }).join('');
+
+    return `
+      <div style="margin-bottom:18px;">
+        <div style="font-size:12px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">${DAYS[dow]}</div>
+        ${rows}
+      </div>`;
+  }).join('');
 }
 
 function renderTimetableCapacityView() {
@@ -8480,6 +8564,63 @@ function renderRosterTable() {
 
 let rosterEditTargetId = null;
 
+// Lists the swimmer's squad's scheduled sessions with a checkbox each — ticking one
+// writes a permanent club_session_assignments row (vs. the one-off catch-up mechanism
+// in the session detail popup, which resets after its date passes).
+async function renderRosterEditAttends(r) {
+  const group = document.getElementById('rosterEditAttendsGroup');
+  const list  = document.getElementById('rosterEditAttendsList');
+  if (!group || !list) return;
+
+  const squadIds = [r.squad_id, r.secondary_squad_id].filter(Boolean);
+  if (!squadIds.length) { group.style.display = 'none'; return; }
+
+  if (!allWeekSessions.length) await loadSquads();
+
+  const sessions = allWeekSessions
+    .filter(s => squadIds.includes(s.squad_id))
+    .sort((a, b) => a.day_of_week - b.day_of_week || (a.start_time || '').localeCompare(b.start_time || ''));
+
+  if (!sessions.length) {
+    group.style.display = '';
+    list.innerHTML = `<div style="font-size:12px;color:var(--text-dim);">No sessions scheduled yet for this squad — set them up in Settings → Timetable first.</div>`;
+    return;
+  }
+
+  group.style.display = '';
+  list.innerHTML = sessions.map(s => {
+    const squad = allSquads.find(q => q.id === s.squad_id);
+    const isLTS = (squad?.name || '').toLowerCase().includes('learn to swim');
+    const dayShort = DAYS[s.day_of_week]?.slice(0, 3) || '';
+    const label = s.custom_name || squad?.name || 'Session';
+    const checked = (allWeekAssignments[s.id] || []).includes(r.id);
+    const existingSlot = (allWeekTimeSlots[s.id] || []).find(e => e.roster_id === r.id)?.time_slot?.slice(0, 5) || s.start_time?.slice(0, 5) || '';
+    return `
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer;padding:4px 0;">
+        <input type="checkbox" class="attends-check" data-session-id="${s.id}" ${checked ? 'checked' : ''}
+          onchange="onAttendsCheckToggle(this)" style="width:16px;height:16px;accent-color:var(--cyan);flex-shrink:0;">
+        <span style="flex:1;min-width:0;">${dayShort} ${(s.start_time||'').slice(0,5)}–${(s.end_time||'').slice(0,5)} · ${label}${s.coach_name ? ` (${s.coach_name})` : ''}</span>
+        ${isLTS ? `<input type="time" class="attends-slot" data-session-id="${s.id}" value="${existingSlot}" style="width:88px;padding:5px 6px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;" ${checked ? '' : 'disabled'}>` : ''}
+      </label>`;
+  }).join('');
+}
+
+function onAttendsCheckToggle(cb) {
+  const slot = document.querySelector(`.attends-slot[data-session-id="${cb.dataset.sessionId}"]`);
+  if (slot) slot.disabled = !cb.checked;
+}
+
+// Re-renders the LTS slot row + Attends list live when the admin changes squad in the modal
+async function onRosterEditSquadChange() {
+  const squadId    = document.getElementById('rosterEditSquad').value || null;
+  const secondaryId = document.getElementById('rosterEditSecondarySquad').value || null;
+  const squad = allSquads.find(s => s.id === squadId);
+  const isLTS = (squad?.name || '').toLowerCase().includes('learn to swim');
+  const ltsRow = document.getElementById('rosterEditLtsSlotRow');
+  if (ltsRow) ltsRow.style.display = isLTS ? '' : 'none';
+  await renderRosterEditAttends({ id: rosterEditTargetId, squad_id: squadId, secondary_squad_id: secondaryId });
+}
+
 async function openRosterEditModal(id) {
   const r = allRoster.find(r => r.id === id);
   if (!r) return;
@@ -8548,6 +8689,8 @@ async function openRosterEditModal(id) {
     ltsInput.value = currentSlot || '';
   }
 
+  await renderRosterEditAttends(r);
+
   // Hide youth/parent fields for non-swim-club (K8, DUC are adult open water clubs)
   const showYouthFields = !!window._clubFeatures?.hasParentLanguage;
   ['rosterSchoolSasaRow','guardianSection','guardianG1Row','guardian2Header','guardianG2Row'].forEach(id => {
@@ -8580,6 +8723,49 @@ function onRosterEditTrialToggle(cb) {
 
 function onRosterEditFeeToggle(cb) {
   document.getElementById('rosterEditFeeDueDateGroup').style.display = cb.checked ? 'none' : '';
+}
+
+// Diffs the Attends checklist against club_session_assignments — only touches sessions
+// actually shown in the modal, so it never disturbs assignments for other squads/kids.
+async function saveRosterEditAttends(rosterId) {
+  const checkboxes = [...document.querySelectorAll('#rosterEditAttendsList .attends-check')];
+  if (!checkboxes.length) return;
+
+  const toUpsert = [];
+  const toDeleteSessionIds = [];
+
+  checkboxes.forEach(cb => {
+    const sessionId = cb.dataset.sessionId;
+    if (cb.checked) {
+      const slotInput = document.querySelector(`.attends-slot[data-session-id="${sessionId}"]`);
+      const row = { club_id: currentClub.id, session_id: sessionId, roster_id: rosterId };
+      if (slotInput && slotInput.value) row.time_slot = slotInput.value;
+      toUpsert.push(row);
+    } else {
+      toDeleteSessionIds.push(sessionId);
+    }
+  });
+
+  const ops = [];
+  if (toUpsert.length) ops.push(sb.from('club_session_assignments').upsert(toUpsert, { onConflict: 'roster_id,session_id' }));
+  if (toDeleteSessionIds.length) ops.push(sb.from('club_session_assignments').delete().eq('roster_id', rosterId).in('session_id', toDeleteSessionIds));
+  const results = await Promise.all(ops);
+  const err = results.find(r => r.error);
+  if (err) { showToast('Attends save failed: ' + err.error.message, 'error'); return; }
+
+  // Keep in-memory globals consistent so other open views don't need a full reload
+  toUpsert.forEach(row => {
+    if (!allWeekAssignments[row.session_id]) allWeekAssignments[row.session_id] = [];
+    if (!allWeekAssignments[row.session_id].includes(rosterId)) allWeekAssignments[row.session_id].push(rosterId);
+    if (!allWeekTimeSlots[row.session_id]) allWeekTimeSlots[row.session_id] = [];
+    let entry = allWeekTimeSlots[row.session_id].find(e => e.roster_id === rosterId);
+    if (!entry) { entry = { roster_id: rosterId, time_slot: null }; allWeekTimeSlots[row.session_id].push(entry); }
+    if (row.time_slot) entry.time_slot = row.time_slot;
+  });
+  toDeleteSessionIds.forEach(sessionId => {
+    if (allWeekAssignments[sessionId]) allWeekAssignments[sessionId] = allWeekAssignments[sessionId].filter(rid => rid !== rosterId);
+    if (allWeekTimeSlots[sessionId]) allWeekTimeSlots[sessionId] = allWeekTimeSlots[sessionId].filter(e => e.roster_id !== rosterId);
+  });
 }
 
 async function saveRosterEdit() {
@@ -8648,6 +8834,8 @@ async function saveRosterEdit() {
       if (allWeekTimeSlots[sid]) allWeekTimeSlots[sid].sort((a,b) => (a.time_slot||'99:99').localeCompare(b.time_slot||'99:99'));
     });
   }
+
+  await saveRosterEditAttends(id);
 
   closeRosterEditModal();
   renderRosterTable();
@@ -10786,6 +10974,31 @@ async function saveAttendance() {
 }
 
 // ── PER-SWIMMER DETAIL ────────────────────────────────────────────
+// "Attends: Mon 15:30 (Ellen)" etc, from club_session_assignments — falls back to
+// "all scheduled <squad> sessions" when the swimmer has no explicit day/slot set yet.
+function swimmerAttendsSummary(r) {
+  const squadIds = [r.squad_id, r.secondary_squad_id].filter(Boolean);
+  if (!squadIds.length) return '';
+
+  const sessions = (allWeekSessions || [])
+    .filter(s => squadIds.includes(s.squad_id))
+    .sort((a, b) => a.day_of_week - b.day_of_week || (a.start_time || '').localeCompare(b.start_time || ''));
+  if (!sessions.length) return '';
+
+  const assigned = sessions.filter(s => (allWeekAssignments[s.id] || []).includes(r.id));
+  if (assigned.length) {
+    const parts = assigned.map(s => {
+      const dayShort = DAYS[s.day_of_week]?.slice(0, 3) || '';
+      const slot = (allWeekTimeSlots[s.id] || []).find(e => e.roster_id === r.id)?.time_slot?.slice(0, 5) || s.start_time?.slice(0, 5) || '';
+      return `${dayShort} ${slot}${s.coach_name ? ` (${s.coach_name})` : ''}`;
+    });
+    return `<i data-lucide="calendar-check" style="width:11px;height:11px;vertical-align:-1px;"></i> Attends: ${parts.join(', ')}`;
+  }
+
+  const squadNames = squadIds.map(id => allSquads.find(s => s.id === id)?.name).filter(Boolean);
+  return squadNames.length ? `Attends: all scheduled ${squadNames.join(' & ')} sessions` : '';
+}
+
 function openSwimmerDetail(rosterId) {
   const r = allRosterFull.find(r => r.id === rosterId);
   if (!r) return;
@@ -10850,6 +11063,7 @@ function openSwimmerDetail(rosterId) {
 
   document.getElementById('swimmerDetailName').textContent = r.display_name;
   document.getElementById('swimmerDetailSub').textContent  = `${r.category || ''}${r.member_number ? ' · #' + r.member_number : ''}`;
+  document.getElementById('swimmerDetailAttends').innerHTML = swimmerAttendsSummary(r);
   document.getElementById('swimmerDetailStats').innerHTML = `
     <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px;">
       <div><div style="font-size:22px;font-weight:900;color:${pctColour(rate)};font-family:'Bebas Neue',sans-serif;">${rate != null ? rate + '%' : '—'}</div><div style="font-size:10px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.08em;">Attendance rate</div></div>
@@ -13214,6 +13428,7 @@ async function saveGroupMembers(groupId) {
         <div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px;">Swimmer Profile</div>
         <div style="font-size:18px;font-weight:800;color:var(--text);" id="swimmerDetailName">—</div>
         <div style="font-size:12px;color:var(--text-sec);margin-top:2px;" id="swimmerDetailSub"></div>
+        <div style="font-size:12px;color:var(--text-sec);margin-top:4px;" id="swimmerDetailAttends"></div>
       </div>
       <button class="modal-close" onclick="closeSwimmerDetail()">&times;</button>
     </div>
