@@ -3951,11 +3951,15 @@ function renderTrackerGrid(swimmers) {
       }
     }
 
+    const primarySquad   = allSquads.find(q => q.id === s.squad_id);
+    const secondarySquad = s.secondary_squad_id ? allSquads.find(q => q.id === s.secondary_squad_id) : null;
+    const squadDot = c => c ? `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${c};margin-right:4px;flex-shrink:0;"></span>` : '';
+
     return `<div class="tracker-card" onclick="openTrackerDetail('${s.id}')">
       <div class="tracker-card-header">
         <div>
           <div class="tracker-name">${s.display_name || '—'}</div>
-          <div class="tracker-meta">#${s.member_number || '—'} · ${allSquads.find(q => q.id === s.squad_id)?.name || '<span style="color:var(--amber);font-size:11px;">No squad</span>'}${s.secondary_squad_id ? ` <span style="color:var(--cyan);">+ ${allSquads.find(q => q.id === s.secondary_squad_id)?.name || ''}</span>` : ''}${s.secondarySessionLabel ? ` <span style="color:var(--text-dim);">· ${s.secondarySessionLabel}</span>` : ''}${s.date_of_birth ? ' · age ' + Math.floor((Date.now() - new Date(s.date_of_birth)) / 31557600000) : ''}${ageUp ? ` <span style="font-size:10px;font-weight:700;color:#f59e0b;padding:1px 5px;border-radius:4px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);margin-left:2px;" title="Ages up to ${_ssaAgeGroup(s.date_of_birth, trackerChampsYear)} at ${trackerChampsYear} champs — harder QT applies">age-up ${trackerChampsYear}</span>` : ''}</div>
+          <div class="tracker-meta" style="display:flex;align-items:center;flex-wrap:wrap;">#${s.member_number || '—'} · ${squadDot(primarySquad?.color)}${primarySquad?.name || '<span style="color:var(--amber);font-size:11px;">No squad</span>'}${secondarySquad ? ` <span style="color:var(--cyan);display:inline-flex;align-items:center;margin-left:4px;">+ ${squadDot(secondarySquad.color)}${secondarySquad.name}</span>` : ''}${s.secondarySessionLabel ? ` <span style="color:var(--text-dim);">· ${s.secondarySessionLabel}</span>` : ''}${s.date_of_birth ? ' · age ' + Math.floor((Date.now() - new Date(s.date_of_birth)) / 31557600000) : ''}${ageUp ? ` <span style="font-size:10px;font-weight:700;color:#f59e0b;padding:1px 5px;border-radius:4px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);margin-left:2px;" title="Ages up to ${_ssaAgeGroup(s.date_of_birth, trackerChampsYear)} at ${trackerChampsYear} champs — harder QT applies">age-up ${trackerChampsYear}</span>` : ''}</div>
         </div>
       </div>
       <div class="tracker-stat-row">
@@ -6610,7 +6614,7 @@ async function loadSettingsPage() {
 
     // Load all squads for this club (all, including inactive — needed for timetable)
     const { data: squads } = await sb.from('club_squads')
-      .select('id, name, type, sort_order, max_members, is_active')
+      .select('id, name, type, sort_order, max_members, is_active, color')
       .eq('club_id', currentClub.id)
       .order('sort_order');
     // allSquads = active squads only (used for dropdowns, assignments, stats)
@@ -6703,7 +6707,7 @@ async function loadTimetablePage() {
 
   try {
     const { data: squads } = await sb.from('club_squads')
-      .select('id, name, type, is_active')
+      .select('id, name, type, is_active, color')
       .eq('club_id', currentClub.id)
       .order('sort_order');
 
@@ -6808,8 +6812,9 @@ function renderSettingsTimetable(sessions) {
             </div>`;
         } else {
           // Regular session row
+          const rowBorder = g.squad?.color ? `border-left:3px solid ${g.squad.color};` : '';
           return `
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:4px;border:1px solid var(--border);">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:4px;border:1px solid var(--border);${rowBorder}">
               <div style="font-size:13px;">
                 <span style="font-weight:600;color:var(--text);">${s.custom_name || g.squad?.name||'—'}</span>
                 <span style="color:var(--text-sec);margin-left:10px;">${start}${end?'–'+end:''}</span>
@@ -8723,8 +8728,11 @@ function renderRosterTable() {
            onclick="unlinkRosterMember('${r.id}')">Unlink</button>`
       : `<button class="btn-sm" onclick="openRosterLinkModal('${r.id}','${(r.display_name||'').replace(/'/g,"\\'")}')">Link</button>`;
 
-    const squadName = allSquads.find(s => s.id === r.squad_id)?.name || '';
-    const secondarySquadName = allSquads.find(s => s.id === r.secondary_squad_id)?.name || '';
+    const primarySq = allSquads.find(s => s.id === r.squad_id);
+    const secondarySq = allSquads.find(s => s.id === r.secondary_squad_id);
+    const squadName = primarySq?.name || '';
+    const secondarySquadName = secondarySq?.name || '';
+    const rowSquadDot = c => c ? `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${c};margin-right:4px;"></span>` : '';
 
     const ageTxt = r.date_of_birth ? (() => {
       const dob = new Date(r.date_of_birth);
@@ -8751,8 +8759,8 @@ function renderRosterTable() {
       <td class="member-name">
         <div>${r.display_name || '—'}${ageTxt}</div>
         <div style="display:flex;align-items:center;gap:5px;margin-top:3px;flex-wrap:wrap;">
-          ${squadName ? `<span style="font-size:11px;color:var(--text-sec);">${squadName}</span>` : ''}
-          ${secondarySquadName ? `<span style="font-size:11px;color:var(--cyan);">+ ${secondarySquadName}</span>` : ''}
+          ${squadName ? `<span style="font-size:11px;color:var(--text-sec);display:inline-flex;align-items:center;">${rowSquadDot(primarySq?.color)}${squadName}</span>` : ''}
+          ${secondarySquadName ? `<span style="font-size:11px;color:var(--cyan);display:inline-flex;align-items:center;">+ ${rowSquadDot(secondarySq?.color)}${secondarySquadName}</span>` : ''}
           ${ltsSlotBadge}${trialPill}${feePill}
         </div>
       </td>
@@ -9400,7 +9408,7 @@ async function unlinkRosterMember(rosterId) {
 // ── ADD ROSTER MEMBER ─────────────────────────────────────────────
 async function loadSquads() {
   const { data: squadsData } = await sb.from('club_squads')
-    .select('id, name, type, sort_order, max_members')
+    .select('id, name, type, sort_order, max_members, color')
     .eq('club_id', currentClub.id)
     .eq('is_active', true)
     .order('sort_order');
@@ -11741,8 +11749,10 @@ function renderSquadCapacityStrip(rosterData) {
       ? `<span class="squad-cap-status" style="color:var(--cyan);">${perSession}/session</span>`
       : `<span class="squad-cap-status" style="color:var(--text-sec);">no limit set</span>`;
 
-    return `<div class="squad-cap-card" onclick="document.getElementById('trackerCatFilter').value='${sq.id}';applyTrackerFilter();" style="cursor:pointer;">
-      <div class="squad-cap-name">${sq.name}</div>
+    const borderStyle = sq.color ? `border-left:3px solid ${sq.color};` : '';
+    const dot = sq.color ? `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${sq.color};margin-right:7px;flex-shrink:0;"></span>` : '';
+    return `<div class="squad-cap-card" onclick="document.getElementById('trackerCatFilter').value='${sq.id}';applyTrackerFilter();" style="cursor:pointer;${borderStyle}">
+      <div class="squad-cap-name" style="display:flex;align-items:center;">${dot}${sq.name}</div>
       <div><span class="squad-cap-count" style="color:var(--cyan);">${count}</span><span style="font-size:13px;color:var(--text-sec);"> enrolled</span></div>
       <div style="height:4px;margin:8px 0 6px;"></div>
       ${sessionTxt}
