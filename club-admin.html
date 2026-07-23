@@ -1038,12 +1038,13 @@
                   <th>Swimmer</th>
                   <th>Squad</th>
                   <th>Parent</th>
+                  <th>Status</th>
                   <th>Report for this term</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody id="progressReportsTableBody">
-                <tr><td colspan="5"><div class="loading"><div class="spinner"></div></div></td></tr>
+                <tr><td colspan="6"><div class="loading"><div class="spinner"></div></div></td></tr>
               </tbody>
             </table>
           </div>
@@ -6067,7 +6068,7 @@ async function loadProgressReportsPage() {
 
   const [reportsRes, linksRes] = await Promise.all([
     sb.from('club_progress_reports')
-      .select('id, roster_id, term_label, body, coach_name, updated_at')
+      .select('id, roster_id, term_label, body, coach_name, updated_at, is_published')
       .eq('club_id', currentClub.id)
       .order('updated_at', { ascending: false }),
     sb.from('parent_roster_links')
@@ -6113,7 +6114,7 @@ function renderProgressReportsTable() {
     .sort((a, b) => (a.display_name || '').localeCompare(b.display_name || ''));
 
   if (!roster.length) {
-    tbody.innerHTML = `<tr><td colspan="5"><div class="empty"><div class="empty-title">No swimmers yet</div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-title">No swimmers yet</div></div></td></tr>`;
     return;
   }
 
@@ -6146,15 +6147,47 @@ function renderProgressReportsTable() {
       </button>`;
     }
 
+    let statusCell = '';
+    if (report) {
+      statusCell = report.is_published
+        ? `<span style="font-size:11px;font-weight:700;color:#10b981;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:20px;padding:2px 8px;white-space:nowrap;">Published</span>`
+        : `<div style="display:flex;align-items:center;gap:6px;">
+             <span style="font-size:11px;font-weight:700;color:var(--amber);background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:20px;padding:2px 8px;white-space:nowrap;">Draft</span>
+             <button class="action-btn" onclick="publishProgressReport('${r.id}')" title="Make visible to parents/swimmers">Publish</button>
+           </div>`;
+    }
+
     return `<tr>
       <td><div class="member-name">${r.display_name}</div></td>
       <td>${squad ? squad.name : (r.category || '—')}</td>
       <td>${parentCell}</td>
+      <td>${statusCell}</td>
       <td>${preview}</td>
       <td><button class="action-btn" onclick="openProgressReportModal('${r.id}')">${report ? 'Edit' : 'Add'}</button></td>
     </tr>`;
   }).join('');
   lucide.createIcons();
+}
+
+// Coach-written reports start unpublished — this makes them visible to parents/swimmers
+// without needing to open Edit (which would also count as admin review, since saving
+// from this panel always publishes).
+async function publishProgressReport(rosterId) {
+  const term = currentProgressTerm();
+  const report = allProgressReports.find(p => p.roster_id === rosterId && p.term_label === term);
+  if (!report) return;
+
+  const { error } = await sb.from('club_progress_reports').update({
+    is_published: true,
+    published_by: currentUser.id,
+    published_at: new Date().toISOString(),
+  }).eq('id', report.id);
+
+  if (error) { showToast('Publish failed: ' + error.message, 'error'); return; }
+
+  report.is_published = true;
+  showToast('Report published — visible to swimmer/parent now', 'success');
+  renderProgressReportsTable();
 }
 
 // Click-to-expand read-only preview — lets Dave/Britt browse full reports without
@@ -6225,6 +6258,7 @@ async function saveProgressReport() {
   const btn = document.getElementById('progressModalSaveBtn');
   btn.disabled = true; btn.textContent = 'Saving…';
 
+  // Saving from the admin panel is itself the review step — always publishes.
   const { error } = await sb.from('club_progress_reports').upsert({
     club_id: currentClub.id,
     roster_id: rosterId,
@@ -6233,6 +6267,9 @@ async function saveProgressReport() {
     coach_name: coachName || null,
     created_by: currentUser.id,
     updated_at: new Date().toISOString(),
+    is_published: true,
+    published_by: currentUser.id,
+    published_at: new Date().toISOString(),
   }, { onConflict: 'roster_id,term_label' });
 
   btn.disabled = false; btn.textContent = 'Save report';

@@ -2871,7 +2871,7 @@ async function openProgressReportsScreen() {
   document.getElementById('prTermCustomWrap').style.display = 'none';
 
   const { data } = await sb.from('club_progress_reports')
-    .select('id, roster_id, term_label, body, coach_name, updated_at')
+    .select('id, roster_id, term_label, body, coach_name, updated_at, is_published')
     .eq('club_id', currentClub.id);
   prReports = data || [];
 
@@ -2919,11 +2919,16 @@ function renderProgressSwimmerList() {
 
   el.innerHTML = swimmers.map(r => {
     const report = prReports.find(p => p.roster_id === r.id && p.term_label === term);
-    const status = report
-      ? `<span style="font-size:11px;font-weight:700;color:var(--green);">Written${report.coach_name ? ' · ' + report.coach_name : ''}</span>`
-      : `<span style="font-size:11px;color:var(--text-sec);">Not written yet</span>`;
+    let status;
+    if (!report) {
+      status = `<span style="font-size:11px;color:var(--text-sec);">Not written yet</span>`;
+    } else if (report.is_published) {
+      status = `<span style="font-size:11px;font-weight:700;color:var(--green);">Published${report.coach_name ? ' · ' + report.coach_name : ''}</span>`;
+    } else {
+      status = `<span style="font-size:11px;font-weight:700;color:var(--amber);">Draft — waiting for Britt to review${report.coach_name ? ' · ' + report.coach_name : ''}</span>`;
+    }
     return `<div class="session-tile" onclick="openProgressEditScreen('${r.id}')" style="cursor:pointer;">
-      <div class="tile-accent" style="background:${report ? '#10b981' : 'rgba(255,255,255,0.15)'};"></div>
+      <div class="tile-accent" style="background:${!report ? 'rgba(255,255,255,0.15)' : report.is_published ? '#10b981' : 'var(--amber)'};"></div>
       <div class="tile-body">
         <div class="tile-squad">${r.display_name}</div>
         <div class="tile-time">${status}</div>
@@ -2965,6 +2970,8 @@ async function saveProgressReport_coach() {
   const btn = document.getElementById('prEditSaveBtn');
   btn.disabled = true; btn.textContent = 'Saving…';
 
+  // Coach saves always go back to draft — even editing an already-published report —
+  // so Britt reviews anything a coach has touched before it's visible to parents again.
   const { error } = await sb.from('club_progress_reports').upsert({
     club_id: currentClub.id,
     roster_id: prEditRosterId,
@@ -2973,6 +2980,7 @@ async function saveProgressReport_coach() {
     coach_name: coach_name || null,
     created_by: currentUser.id,
     updated_at: new Date().toISOString(),
+    is_published: false,
   }, { onConflict: 'roster_id,term_label' });
 
   btn.disabled = false; btn.textContent = 'Save report';
@@ -2980,10 +2988,10 @@ async function saveProgressReport_coach() {
   if (error) { errEl.textContent = 'Failed: ' + error.message; errEl.style.display = 'block'; return; }
 
   const idx = prReports.findIndex(p => p.roster_id === prEditRosterId && p.term_label === term);
-  const newRow = { roster_id: prEditRosterId, term_label: term, body, coach_name: coach_name || null };
+  const newRow = { roster_id: prEditRosterId, term_label: term, body, coach_name: coach_name || null, is_published: false };
   if (idx >= 0) prReports[idx] = { ...prReports[idx], ...newRow }; else prReports.push(newRow);
 
-  toast('Report saved', 'success');
+  toast('Saved — Britt will review before it goes to the parent', 'success');
   showScreen('progress');
   renderProgressSwimmerList();
 }
