@@ -711,7 +711,7 @@
                 <tr>
                   <th>#</th>
                   <th>Name</th>
-                  <th>Squad</th>
+                  <th>Category</th>
                   <th>SwimLoading Account</th>
                   <th></th>
                 </tr>
@@ -8685,6 +8685,7 @@ function renderRosterTable() {
       : `<button class="btn-sm" onclick="openRosterLinkModal('${r.id}','${(r.display_name||'').replace(/'/g,"\\'")}')">Link</button>`;
 
     const squadName = allSquads.find(s => s.id === r.squad_id)?.name || '';
+    const secondarySquadName = allSquads.find(s => s.id === r.secondary_squad_id)?.name || '';
 
     const ageTxt = r.date_of_birth ? (() => {
       const dob = new Date(r.date_of_birth);
@@ -8712,6 +8713,7 @@ function renderRosterTable() {
         <div>${r.display_name || '—'}${ageTxt}</div>
         <div style="display:flex;align-items:center;gap:5px;margin-top:3px;flex-wrap:wrap;">
           ${squadName ? `<span style="font-size:11px;color:var(--text-sec);">${squadName}</span>` : ''}
+          ${secondarySquadName ? `<span style="font-size:11px;color:var(--cyan);">+ ${secondarySquadName}</span>` : ''}
           ${ltsSlotBadge}${trialPill}${feePill}
         </div>
       </td>
