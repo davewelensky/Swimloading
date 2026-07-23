@@ -922,6 +922,17 @@
       </div>
       <div style="font-size:12px;font-weight:600;color:var(--text-sec);margin-bottom:6px;">Squad</div>
       <div id="prSquadTabs" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;"></div>
+      <div id="prTeacherRow" style="display:none;">
+        <div style="font-size:12px;font-weight:600;color:var(--text-sec);margin-bottom:6px;">Teacher</div>
+        <div id="prTeacherTabs" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;"></div>
+      </div>
+      <div style="font-size:12px;font-weight:600;color:var(--text-sec);margin-bottom:6px;">Status</div>
+      <select class="input-field" id="prStatusFilter" onchange="renderProgressSwimmerList()" style="margin-bottom:6px;">
+        <option value="all">All</option>
+        <option value="not-written">Not written yet</option>
+        <option value="draft">Draft (needs review)</option>
+        <option value="published">Published</option>
+      </select>
     </div>
     <div id="prSwimmerList" style="padding:0 16px;"></div>
     <div class="safe-bottom" style="height:24px;"></div>
@@ -2829,6 +2840,7 @@ async function saveK8Attendance() {
 // squad(s) for convenience.
 let prReports = [];
 let prSelectedSquadId = null;
+let prSelectedCoachName = null; // null = "All"; '__unassigned' = no session assignment yet
 let prEditRosterId = null;
 
 function progressTermOptions_coach() {
@@ -2864,11 +2876,34 @@ function myProgressSquadIds() {
   return [...new Set(mySessions.map(s => s.squad_id))];
 }
 
+// Distinct coach_name values across a squad's sessions — e.g. Learn to Swim has
+// Ellen's sessions and Kaisea's sessions sharing one squad_id. When there's more
+// than one, the Teacher row lets each coach see just their own pupils.
+function progressSquadCoaches(squadId) {
+  const names = (allWeekSessions || [])
+    .filter(s => s.squad_id === squadId && s.coach_name)
+    .map(s => s.coach_name);
+  return [...new Set(names)];
+}
+
+function progressAssignedRosterIds(squadId, coachName_) {
+  const sessions = (allWeekSessions || []).filter(s => s.squad_id === squadId && (!coachName_ || s.coach_name === coachName_));
+  const ids = new Set();
+  sessions.forEach(s => (allWeekAssign[s.id] || []).forEach(rid => ids.add(rid)));
+  return ids;
+}
+
+function progressAssignedAnywhereInSquad(squadId) {
+  return progressAssignedRosterIds(squadId, null);
+}
+
 async function openProgressReportsScreen() {
   const sel = document.getElementById('prTermSelect');
   sel.innerHTML = progressTermOptions_coach().map(o => `<option value="${o}">${o}</option>`).join('') + `<option value="__custom">Custom…</option>`;
   sel.value = defaultProgressTerm_coach();
   document.getElementById('prTermCustomWrap').style.display = 'none';
+  const statusFilter = document.getElementById('prStatusFilter');
+  if (statusFilter) statusFilter.value = 'all';
 
   const { data } = await sb.from('club_progress_reports')
     .select('id, roster_id, term_label, body, coach_name, updated_at, is_published')
@@ -2877,9 +2912,21 @@ async function openProgressReportsScreen() {
 
   const mine = myProgressSquadIds();
   prSelectedSquadId = mine[0] || allSquads[0]?.id || null;
+  setDefaultProgressTeacher();
   renderProgressSquadTabs();
+  renderProgressTeacherTabs();
   renderProgressSwimmerList();
   showScreen('progress');
+}
+
+// Default the Teacher row to whichever coach matches the logged-in user, if the
+// squad has more than one teacher — same fuzzy first-name match as isMySession().
+function setDefaultProgressTeacher() {
+  const coaches = progressSquadCoaches(prSelectedSquadId);
+  if (coaches.length <= 1) { prSelectedCoachName = null; return; }
+  const my = (coachName || '').toLowerCase().split(' ')[0];
+  const match = coaches.find(c => c.toLowerCase().includes(my) || my.includes(c.toLowerCase().split(' ')[0]));
+  prSelectedCoachName = match || null;
 }
 
 function renderProgressSquadTabs() {
@@ -2901,7 +2948,38 @@ function renderProgressSquadTabs() {
 
 function selectProgressSquad(squadId) {
   prSelectedSquadId = squadId;
+  setDefaultProgressTeacher();
   renderProgressSquadTabs();
+  renderProgressTeacherTabs();
+  renderProgressSwimmerList();
+}
+
+function renderProgressTeacherTabs() {
+  const row = document.getElementById('prTeacherRow');
+  const el  = document.getElementById('prTeacherTabs');
+  if (!row || !el) return;
+
+  const coaches = progressSquadCoaches(prSelectedSquadId);
+  if (coaches.length <= 1) { row.style.display = 'none'; return; }
+  row.style.display = '';
+
+  const tabs = ['__all', ...coaches, '__unassigned'];
+  el.innerHTML = tabs.map(t => {
+    const active = t === (prSelectedCoachName || '__all');
+    const label = t === '__all' ? 'All' : t === '__unassigned' ? 'Not yet assigned' : t;
+    return `<button onclick="selectProgressTeacher('${t}')" style="
+      flex-shrink:0;padding:7px 14px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;
+      border:1px solid ${active ? 'rgba(56,189,248,0.5)' : 'var(--border)'};
+      background:${active ? 'rgba(56,189,248,0.12)' : 'transparent'};
+      color:${active ? 'var(--cyan)' : 'var(--text-sec)'};cursor:pointer;">
+      ${label}
+    </button>`;
+  }).join('');
+}
+
+function selectProgressTeacher(value) {
+  prSelectedCoachName = value === '__all' ? null : value;
+  renderProgressTeacherTabs();
   renderProgressSwimmerList();
 }
 
@@ -2909,11 +2987,32 @@ function renderProgressSwimmerList() {
   const el = document.getElementById('prSwimmerList');
   if (!el) return;
   const term = currentProgressTerm_coach();
-  const swimmers = (allRoster || []).filter(r => r.squad_id === prSelectedSquadId)
-    .sort((a, b) => (a.display_name || '').localeCompare(b.display_name || ''));
+  const statusFilter = document.getElementById('prStatusFilter')?.value || 'all';
+
+  let swimmers = (allRoster || []).filter(r => r.squad_id === prSelectedSquadId);
+
+  if (prSelectedCoachName === '__unassigned') {
+    const assignedAnywhere = progressAssignedAnywhereInSquad(prSelectedSquadId);
+    swimmers = swimmers.filter(r => !assignedAnywhere.has(r.id));
+  } else if (prSelectedCoachName) {
+    const assignedToCoach = progressAssignedRosterIds(prSelectedSquadId, prSelectedCoachName);
+    swimmers = swimmers.filter(r => assignedToCoach.has(r.id));
+  }
+
+  if (statusFilter !== 'all') {
+    swimmers = swimmers.filter(r => {
+      const report = prReports.find(p => p.roster_id === r.id && p.term_label === term);
+      if (statusFilter === 'not-written') return !report;
+      if (statusFilter === 'draft') return report && !report.is_published;
+      if (statusFilter === 'published') return report && report.is_published;
+      return true;
+    });
+  }
+
+  swimmers.sort((a, b) => (a.display_name || '').localeCompare(b.display_name || ''));
 
   if (!swimmers.length) {
-    el.innerHTML = `<div style="padding:20px;text-align:center;font-size:13px;color:var(--text-sec);">No swimmers in this squad.</div>`;
+    el.innerHTML = `<div style="padding:20px;text-align:center;font-size:13px;color:var(--text-sec);">No swimmers match this filter.</div>`;
     return;
   }
 
