@@ -3672,8 +3672,8 @@ async function loadSquadTracker() {
 
   // Fetch roster + both time tables + attendance in parallel
   const clubId = currentClub.id;
-  const [rosterRes, swimTimesRes, galaTimesRes, attendRes] = await Promise.all([
-    sb.from('club_roster').select('id, display_name, member_number, category, squad_id, date_of_birth, gender, is_trial, fee_paid')
+  const [rosterRes, swimTimesRes, galaTimesRes, attendRes, multisquadSessionsRes, sessionAssignRes] = await Promise.all([
+    sb.from('club_roster').select('id, display_name, member_number, category, squad_id, secondary_squad_id, date_of_birth, gender, is_trial, fee_paid')
       .eq('club_id', clubId).order('display_name'),
     sb.from('club_swimmer_times').select('roster_id, event, course, time_seconds, time_text, is_pb, meet_date')
       .eq('club_id', clubId).order('meet_date', { ascending: true }),
@@ -3681,12 +3681,29 @@ async function loadSquadTracker() {
       .eq('club_id', clubId).order('created_at', { ascending: true }),
     sb.from('club_session_attendance').select('roster_id, session_date, session_start')
       .eq('status', 'attending'),
+    // Cross-squad (is_multisquad) sessions — e.g. Nippers' 3 age-group slots — so tracker
+    // cards can show WHICH specific session a member attends, not just the squad name.
+    sb.from('club_squad_sessions').select('id, squad_id, custom_name, day_of_week, start_time')
+      .eq('is_multisquad', true).eq('is_active', true),
+    sb.from('club_session_assignments').select('roster_id, session_id').eq('club_id', clubId),
   ]);
 
   const roster     = rosterRes.data     || [];
   const swimTimes  = swimTimesRes.data  || [];
   const galaTimes  = galaTimesRes.data  || [];
   const attend     = attendRes.data     || [];
+
+  // roster_id → label for their specific multisquad session (e.g. "Under 9s (09:00)")
+  const multisquadSessionsById = {};
+  (multisquadSessionsRes.data || []).forEach(s => { multisquadSessionsById[s.id] = s; });
+  const secondarySessionLabel = {};
+  (sessionAssignRes.data || []).forEach(a => {
+    const s = multisquadSessionsById[a.session_id];
+    if (!s) return; // not a multisquad session — not relevant to this label
+    const time = (s.start_time || '').slice(0, 5);
+    const namePart = s.custom_name ? s.custom_name.replace(/^.*[—-]\s*/, '') : DAYS[s.day_of_week]; // "Nippers — Under 9s" → "Under 9s"
+    secondarySessionLabel[a.roster_id] = `${namePart} (${time})`;
+  });
 
   // Normalise both sources into a unified shape and build per-roster lookup
   const timesByRoster = {};
@@ -3727,6 +3744,7 @@ async function loadSquadTracker() {
       ...r,
       times: timesByRoster[r.id] || [],
       sessions: sessionsByRoster[r.id]?.size || 0,
+      secondarySessionLabel: secondarySessionLabel[r.id] || null,
     }));
 
   // Fetch SSA qualifying times — load all age groups for relevant genders so champs year
@@ -3746,8 +3764,16 @@ async function loadSquadTracker() {
   }
 
   // Populate squad filter — all squads, show member count
+  // Counts BOTH primary and secondary squad membership (e.g. a Bronze swimmer who also
+  // trains Nippers on Saturdays counts toward both) — matches how squad eligibility is
+  // read everywhere else in this file (session-assign modal, roster "+ Squad" tag).
   const countBySquad = {};
-  trackerData.forEach(r => { if (r.squad_id) countBySquad[r.squad_id] = (countBySquad[r.squad_id]||0)+1; });
+  trackerData.forEach(r => {
+    if (r.squad_id) countBySquad[r.squad_id] = (countBySquad[r.squad_id]||0)+1;
+    if (r.secondary_squad_id && r.secondary_squad_id !== r.squad_id) {
+      countBySquad[r.secondary_squad_id] = (countBySquad[r.secondary_squad_id]||0)+1;
+    }
+  });
   const sel = document.getElementById('trackerCatFilter');
   sel.innerHTML = '<option value="">All squads</option>' +
     allSquads.map(s => {
@@ -3791,7 +3817,7 @@ function applyTrackerFilter() {
   let filtered;
   if (!val) filtered = trackerData;
   else if (val === '__unassigned__') filtered = trackerData.filter(r => !r.squad_id);
-  else filtered = trackerData.filter(r => r.squad_id === val);
+  else filtered = trackerData.filter(r => r.squad_id === val || r.secondary_squad_id === val);
   if (trackerViewMode === 'matrix')   renderTrackerMatrix(filtered);
   else if (trackerViewMode === 'pipeline') renderTrackerPipeline(filtered);
   else renderTrackerGrid(filtered);
@@ -3916,7 +3942,7 @@ function renderTrackerGrid(swimmers) {
       <div class="tracker-card-header">
         <div>
           <div class="tracker-name">${s.display_name || '—'}</div>
-          <div class="tracker-meta">#${s.member_number || '—'} · ${allSquads.find(q => q.id === s.squad_id)?.name || '<span style="color:var(--amber);font-size:11px;">No squad</span>'}${s.date_of_birth ? ' · age ' + Math.floor((Date.now() - new Date(s.date_of_birth)) / 31557600000) : ''}${ageUp ? ` <span style="font-size:10px;font-weight:700;color:#f59e0b;padding:1px 5px;border-radius:4px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);margin-left:2px;" title="Ages up to ${_ssaAgeGroup(s.date_of_birth, trackerChampsYear)} at ${trackerChampsYear} champs — harder QT applies">age-up ${trackerChampsYear}</span>` : ''}</div>
+          <div class="tracker-meta">#${s.member_number || '—'} · ${allSquads.find(q => q.id === s.squad_id)?.name || '<span style="color:var(--amber);font-size:11px;">No squad</span>'}${s.secondary_squad_id ? ` <span style="color:var(--cyan);">+ ${allSquads.find(q => q.id === s.secondary_squad_id)?.name || ''}</span>` : ''}${s.secondarySessionLabel ? ` <span style="color:var(--text-dim);">· ${s.secondarySessionLabel}</span>` : ''}${s.date_of_birth ? ' · age ' + Math.floor((Date.now() - new Date(s.date_of_birth)) / 31557600000) : ''}${ageUp ? ` <span style="font-size:10px;font-weight:700;color:#f59e0b;padding:1px 5px;border-radius:4px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);margin-left:2px;" title="Ages up to ${_ssaAgeGroup(s.date_of_birth, trackerChampsYear)} at ${trackerChampsYear} champs — harder QT applies">age-up ${trackerChampsYear}</span>` : ''}</div>
         </div>
       </div>
       <div class="tracker-stat-row">
@@ -8759,9 +8785,25 @@ async function renderRosterEditAttends(r) {
   }
 
   group.style.display = '';
-  list.innerHTML = sessions.map(s => {
+
+  // Ticking here only GATES who appears on the register for Learn to Swim (individual
+  // time slots) and cross-squad sessions like Nippers (is_multisquad) — those build their
+  // roster from these explicit assignments. A regular single-squad session (e.g. Bronze
+  // Mon–Fri) already puts every squad member on that register automatically; ticking it
+  // just records "this is one of their real days" for the swimmer profile/Timetable Names
+  // view, it doesn't add or remove them from Mark Attendance.
+  const isLoadBearing = s => {
+    const squad = allSquads.find(q => q.id === s.squad_id);
+    return (squad?.name || '').toLowerCase().includes('learn to swim') || !!s.is_multisquad;
+  };
+  const hasCosmeticRows = sessions.some(s => !isLoadBearing(s));
+
+  list.innerHTML =
+    (hasCosmeticRows ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;">Ticking is required for Learn to Swim and cross-squad sessions (e.g. Nippers) — those build their register from this list. For a regular squad session, everyone in the squad already appears on the register; ticking just records their real day here.</div>` : '') +
+    sessions.map(s => {
     const squad = allSquads.find(q => q.id === s.squad_id);
     const isLTS = (squad?.name || '').toLowerCase().includes('learn to swim');
+    const cosmetic = !isLoadBearing(s);
     const dayShort = DAYS[s.day_of_week]?.slice(0, 3) || '';
     const label = s.custom_name || squad?.name || 'Session';
     const checked = (allWeekAssignments[s.id] || []).includes(r.id);
@@ -8770,7 +8812,7 @@ async function renderRosterEditAttends(r) {
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer;padding:4px 0;">
         <input type="checkbox" class="attends-check" data-session-id="${s.id}" ${checked ? 'checked' : ''}
           onchange="onAttendsCheckToggle(this)" style="width:16px;height:16px;accent-color:var(--cyan);flex-shrink:0;">
-        <span style="flex:1;min-width:0;">${dayShort} ${(s.start_time||'').slice(0,5)}–${(s.end_time||'').slice(0,5)} · ${label}${s.coach_name ? ` (${s.coach_name})` : ''}</span>
+        <span style="flex:1;min-width:0;">${dayShort} ${(s.start_time||'').slice(0,5)}–${(s.end_time||'').slice(0,5)} · ${label}${s.coach_name ? ` (${s.coach_name})` : ''}${cosmetic ? ` <span style="color:var(--text-dim);font-size:11px;">· auto-included</span>` : ''}</span>
         ${isLTS ? `<input type="time" class="attends-slot" data-session-id="${s.id}" value="${existingSlot}" style="width:88px;padding:5px 6px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;" ${checked ? '' : 'disabled'}>` : ''}
       </label>`;
   }).join('');
@@ -9356,7 +9398,7 @@ async function loadSquads() {
     const todayDow = new Date().getDay();
     const squadIds = allSquads.map(s => s.id);
     const { data: weekData } = await sb.from('club_squad_sessions')
-      .select('id, squad_id, day_of_week, start_time, end_time, coach_name, max_capacity, notes, is_active, custom_name')
+      .select('id, squad_id, day_of_week, start_time, end_time, coach_name, max_capacity, notes, is_active, custom_name, is_multisquad, secondary_squad_id')
       .in('squad_id', squadIds).eq('is_active', true).order('day_of_week').order('start_time');
     allWeekSessions      = weekData || [];
     allTimetableSessions = allWeekSessions;
@@ -11641,10 +11683,15 @@ function renderSquadCapacityStrip(rosterData) {
   const strip = document.getElementById('squadCapacityStrip');
   if (!strip || !allSquads.length) return;
 
-  // Count members per squad from the live tracker roster
+  // Count members per squad from the live tracker roster — includes secondary squad
+  // membership so cross-squad programmes (e.g. Nippers) show real enrolled numbers,
+  // not 0, when members carry it as a second squad rather than their primary one.
   const countBySquad = {};
   rosterData.forEach(r => {
     if (r.squad_id) countBySquad[r.squad_id] = (countBySquad[r.squad_id] || 0) + 1;
+    if (r.secondary_squad_id && r.secondary_squad_id !== r.squad_id) {
+      countBySquad[r.secondary_squad_id] = (countBySquad[r.secondary_squad_id] || 0) + 1;
+    }
   });
   const unassigned = rosterData.filter(r => !r.squad_id).length;
 
