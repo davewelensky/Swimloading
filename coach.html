@@ -1588,11 +1588,12 @@ async function cantMakeIt() {
   const btn = document.getElementById('cantMakeItBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Notifying coaches…'; }
 
-  // Find or create the club_sessions record and mark cover_needed
+  // Find or create the club_sessions record and mark cover_needed — scoped by coach_name
+  // too, same reason as startSession(): shared LTS slots have 2 coaches at once.
   const { data: existing } = await sb.from('club_sessions')
     .select('id').eq('club_id', currentClub.id)
     .eq('session_date', selectedDate).eq('squad_id', s.squad_id)
-    .eq('start_time', s.start_time).maybeSingle();
+    .eq('start_time', s.start_time).eq('coach_name', coachName).maybeSingle();
 
   if (existing) {
     await sb.from('club_sessions').update({ cover_needed: true }).eq('id', existing.id);
@@ -1705,13 +1706,19 @@ async function startSession() {
   const nameVal = document.getElementById('confirmCoachName').value.trim() || coachName;
   const sq      = allSquads.find(q => q.id === s.squad_id);
 
-  // Find or create club_sessions record for today
+  // Find or create club_sessions record for today. MUST scope by coach_name too —
+  // some LTS slots are shared by 2 coaches at the same day/time (e.g. Ellen + Kaisea,
+  // Mon & Thu 15:30). Without this, the second coach to open that slot silently reuses
+  // the first coach's session row instead of getting their own, merging both classes
+  // into one ambiguous register (found live 24 Jul 2026 — Ellen's kids never landed
+  // anywhere because her session got merged into Kaisea's/an admin's).
   const { data: existing } = await sb.from('club_sessions')
     .select('*, club_attendance(id, roster_id, status)')
     .eq('club_id', currentClub.id)
     .eq('session_date', today)
     .eq('squad_id', s.squad_id)
     .eq('start_time', s.start_time)
+    .eq('coach_name', nameVal)
     .maybeSingle();
 
   let session = existing;

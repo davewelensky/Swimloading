@@ -10105,7 +10105,7 @@ function renderTodayBanner() {
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
           ${statusBadge}
-          <button onclick="checkInSession('${ss.squad_id}','${ss.start_time || ''}','${ss.session_type || 'PM'}')"
+          <button onclick="checkInSession('${ss.squad_id}','${ss.start_time || ''}','${ss.session_type || 'PM'}','${(ss.coach_name || '').replace(/'/g,"\\'")}')"
             style="padding:8px 16px;border-radius:20px;font-size:12px;font-weight:800;border:none;cursor:pointer;background:${btnBg};color:${btnColor};">
             ${btnLabel}
           </button>
@@ -10128,21 +10128,31 @@ function localISO(d) {
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
-async function checkInSession(squadId, startTime, sessionType) {
+async function checkInSession(squadId, startTime, sessionType, coachName) {
   const now = new Date();
   const todayStr = localISO(now);
   const todayDow = now.getDay();
+  coachName = coachName || null;
 
-  // Set activeSquadSessionId by matching the recurring template — needed for LTS slot lookup
+  // Set activeSquadSessionId by matching the recurring template — needed for LTS slot lookup.
+  // MUST include coach_name — some LTS slots have 2 coaches at the same day/time (e.g. Ellen +
+  // Kaisea, Mon & Thu 15:30), and without this the wrong coach's roster/assignments get used.
   const matchingTemplate = (allWeekSessions || []).find(s =>
     s.squad_id === squadId &&
     s.day_of_week === todayDow &&
-    (s.start_time || '').slice(0,5) === (startTime || '').slice(0,5)
+    (s.start_time || '').slice(0,5) === (startTime || '').slice(0,5) &&
+    (!coachName || !s.coach_name || s.coach_name === coachName)
   );
   activeSquadSessionId = matchingTemplate?.id || null;
 
-  // Find or create today's session for this squad + start time
-  let session = allSessions.find(s => s.session_date === todayStr && s.squad_id === squadId && s.start_time === startTime);
+  // Find or create today's session for this squad + start time + coach. Same reason —
+  // two coaches sharing a slot must never collide into one shared club_sessions row
+  // (found live 24 Jul 2026: this exact "Check In" button dropped coach_name entirely,
+  // merging Ellen's and Kaisea's Thursday LTS registers into one ambiguous session).
+  let session = allSessions.find(s =>
+    s.session_date === todayStr && s.squad_id === squadId && s.start_time === startTime &&
+    (coachName ? s.coach_name === coachName : !s.coach_name)
+  );
   if (!session) {
     const { data, error } = await sb.from('club_sessions').insert({
       club_id: currentClub.id,
@@ -10150,6 +10160,7 @@ async function checkInSession(squadId, startTime, sessionType) {
       session_type: sessionType,
       start_time: startTime || null,
       squad_id: squadId,
+      coach_name: coachName,
       created_by: currentUser.id,
     }).select('*, club_attendance(id, roster_id, status)').single();
     if (error) { showToast('Error: ' + error.message); return; }
