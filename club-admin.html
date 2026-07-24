@@ -3687,7 +3687,7 @@ async function loadSquadTracker() {
   const clubId = currentClub.id;
   const [rosterRes, swimTimesRes, galaTimesRes, attendRes, multisquadSessionsRes, sessionAssignRes] = await Promise.all([
     sb.from('club_roster').select('id, display_name, member_number, category, squad_id, secondary_squad_id, date_of_birth, gender, is_trial, fee_paid')
-      .eq('club_id', clubId).order('display_name'),
+      .eq('club_id', clubId).eq('is_active', true).order('display_name'),
     sb.from('club_swimmer_times').select('roster_id, event, course, time_seconds, time_text, is_pb, meet_date')
       .eq('club_id', clubId).order('meet_date', { ascending: true }),
     sb.from('club_gala_results').select('roster_id, stroke, distance, course, time_seconds, time_text, is_pb, created_at')
@@ -6472,6 +6472,7 @@ async function doInviteRosterSearch() {
   const { data } = await sb.from('club_roster')
     .select('id, display_name, category')
     .eq('club_id', currentClub.id)
+    .eq('is_active', true)
     .ilike('display_name', `%${q}%`)
     .order('display_name').limit(8);
   if (!data?.length) { el.innerHTML = `<div style="font-size:12px;color:var(--text-sec);padding:8px 0;">No match found.</div>`; return; }
@@ -7480,6 +7481,7 @@ async function openSessionAssignModal(sessionId) {
       .select('id, member_number, display_name, squad_id, secondary_squad_id, lts_default_slot')
       .eq('club_id', currentClub.id)
       .eq('squad_id', session.squad_id)
+      .eq('is_active', true)
       .order('display_name');
     rosterSource = fetched || [];
   }
@@ -7665,7 +7667,7 @@ async function handleScheduleFile(file) {
   // Ensure roster + sessions loaded
   let roster = allRosterFull.length ? allRosterFull : [];
   if (!roster.length) {
-    const { data } = await sb.from('club_roster').select('id, display_name, squad_id').eq('club_id', currentClub.id);
+    const { data } = await sb.from('club_roster').select('id, display_name, squad_id').eq('club_id', currentClub.id).eq('is_active', true);
     roster = data || [];
   }
 
