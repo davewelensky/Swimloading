@@ -7155,6 +7155,7 @@ function renderWeeklyReportGrid() {
 
   const rows = squads.map(sq => {
     const enrolled = squadRosterCount[sq.id] || 0;
+    const isLTS = (sq.name || '').toLowerCase().includes('learn to swim');
     const cells = info.dayOrder.map((dow, i) => {
       const date = info.dates[i];
       const daySessions = sessions
@@ -7166,9 +7167,16 @@ function renderWeeklyReportGrid() {
       const entries = daySessions.map(s => {
         const start = s.start_time?.slice(0,5) || '';
         const label = s.custom_name && s.custom_name !== sq.name ? ` <span style="color:var(--text-sec);">(${s.custom_name})</span>` : '';
+        // "Booked" only means anything for LTS/cross-squad sessions, which actually gate
+        // who's on the register via explicit booking. A regular squad session already
+        // includes every enrolled member automatically — showing "not booked yet" there
+        // is misleading, not informative, so skip the badge entirely for those.
+        const usesAssignments = isLTS || !!s.is_multisquad;
         const badge = info.isPast
           ? actualAttendanceBadge(weeklyReportByExactDate[`${localISO(date)}_${s.squad_id}_${start}`], s.max_capacity, enrolled)
-          : capacityGapBadge(sessionAssignmentCounts[s.id] || 0, s.max_capacity, enrolled);
+          : usesAssignments
+            ? capacityGapBadge(sessionAssignmentCounts[s.id] || 0, s.max_capacity, enrolled)
+            : `<span style="font-size:11px;color:var(--text-dim);">${enrolled} enrolled</span>`;
         return `<div style="margin-bottom:6px;">
           <div style="font-size:11px;color:var(--text-sec);">${start}${label}</div>
           ${badge}
@@ -7228,13 +7236,17 @@ function renderWeeklyReport() {
       .map(s => {
         const squad = squadMap[s.squad_id];
         const isLTS = (squad?.name || '').toLowerCase().includes('learn to swim');
+        const usesAssignments = isLTS || !!s.is_multisquad;
         const label = s.custom_name || squad?.name || '—';
         const enrolled = squadRosterCount[s.squad_id] || 0;
         const start = s.start_time?.slice(0,5) || '';
         const end   = s.end_time?.slice(0,5)   || '';
         const booked = sessionAssignmentCounts[s.id] || 0;
 
-        const bookedBadge = capacityGapBadge(booked, s.max_capacity, enrolled);
+        // "Booked" only means anything for LTS/cross-squad sessions that actually gate the
+        // register via explicit booking — a regular squad already auto-includes everyone
+        // enrolled, so there's nothing meaningful to show here.
+        const bookedBadge = usesAssignments ? capacityGapBadge(booked, s.max_capacity, enrolled) : null;
 
         let actualBadge, actualHeading;
         if (info.isPast) {
@@ -7248,7 +7260,10 @@ function renderWeeklyReport() {
           if (actualCounts.length) {
             const avg = actualCounts.reduce((a,b) => a+b, 0) / actualCounts.length;
             const avgRounded = Math.round(avg * 10) / 10;
-            const vsBooked = booked ? (avg / booked) * 100 : null;
+            // Compare against booked when that's a real gate, otherwise against enrolled —
+            // for a regular squad "booked" is just stray ticks, not a meaningful denominator.
+            const denom = usesAssignments ? booked : enrolled;
+            const vsBooked = denom ? (avg / denom) * 100 : null;
             const color = vsBooked === null ? 'var(--text-sec)' : vsBooked >= 80 ? 'var(--green)' : vsBooked >= 50 ? 'var(--amber)' : 'var(--danger)';
             actualBadge = `<span style="font-size:13px;font-weight:700;color:${color};">${avgRounded} avg</span> <span style="font-size:11px;color:var(--text-sec);">(${actualCounts.length} wk${actualCounts.length>1?'s':''})</span>`;
           } else {
@@ -7265,10 +7280,10 @@ function renderWeeklyReport() {
               ${s.coach_name ? `<span style="color:var(--text-sec);margin-left:8px;">· ${s.coach_name}</span>` : ''}
             </div>
             <div style="display:flex;align-items:center;gap:20px;flex-shrink:0;">
-              <div style="text-align:right;min-width:70px;">
+              ${bookedBadge ? `<div style="text-align:right;min-width:70px;">
                 <div style="font-size:9px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.06em;">Booked</div>
                 ${bookedBadge}
-              </div>
+              </div>` : ''}
               <div style="text-align:right;min-width:90px;">
                 <div style="font-size:9px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.06em;">${actualHeading}</div>
                 ${actualBadge}
