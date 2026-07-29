@@ -110,9 +110,9 @@ Every partner must have all of the following before going live:
 
 | Field | Value |
 |-------|-------|
-| **Status** | Active partner — hero page live |
+| **Status** | Active partner — hero page live. Performance Challenge dates confirmed by Dave 2026-07-29: **Aug 1 – Oct 31 2026**, US$1,349 prize (handset + 1-year Gold Membership + expert session) |
 | **Hero page** | `/partners/eolab` |
-| **Welcome card** | [UNCONFIRMED — verify against welcome.html] |
+| **Welcome card** | Yes — confirmed live on welcome.html (2026-07-29), badge flips from "Aug 2026" to "Live Now" automatically once the date window opens |
 | **Geography** | [UNCONFIRMED] |
 | **Contact** | [UNCONFIRMED] |
 

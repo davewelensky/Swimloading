@@ -1763,24 +1763,24 @@
                     <p class="partner-desc">Member Benefit Partner — 15% off goggles, training wetsuits and open water gear for members in the UK &amp; Channel Islands.</p>
                     <span class="partner-link">Explore BlueSeventy <i data-lucide="arrow-right" style="width:13px;height:13px;"></i></span>
                 </a>
-                <!-- TRIHARD — coming soon, UK/EU only -->
-                <a href="/partners/trihard" class="partner-card coming-soon">
+                <!-- TRIHARD — UK/EU challenge, live status set at runtime (see script below) from campaigns.launch_date/end_date -->
+                <a href="/partners/trihard" class="partner-card coming-soon" id="trihardPartnerCard">
                     <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
                         <div class="partner-logo-wrap">
                             <img src="/partners/trihard-logo-white.png" alt="TRIHARD" style="height:26px;width:auto;">
                         </div>
-                        <span class="partner-chip soon">UK/EU · Soon</span>
+                        <span class="partner-chip soon" id="trihardPartnerChip">UK/EU · Soon</span>
                     </div>
                     <p class="partner-desc">Pre- and post-swim skincare built for open water athletes — chlorine protection, sun defence and salt recovery. Presenting sponsor of The Great UK Swim Spot Challenge.</p>
                     <span class="partner-link">Preview TRIHARD <i data-lucide="arrow-right" style="width:13px;height:13px;"></i></span>
                 </a>
-                <!-- eo SwimBETTER — coming soon -->
-                <a href="/partners/eolab" class="partner-card coming-soon">
+                <!-- eo SwimBETTER — live status set at runtime (see script below); dates (Aug 1 – Oct 31 2026) confirmed by Dave, no DB campaign row for this one -->
+                <a href="/partners/eolab" class="partner-card coming-soon" id="eoPartnerCard">
                     <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
                         <div class="partner-logo-wrap">
                             <img src="/partners/eo-logo-white.png" alt="eo SwimBETTER" style="height:28px;width:auto;">
                         </div>
-                        <span class="partner-chip soon">Aug 2026</span>
+                        <span class="partner-chip soon" id="eoPartnerChip">Aug 2026</span>
                     </div>
                     <p class="partner-desc">"The missing link between swimming harder and swimming faster is knowing what to change." Used by Kyle Chalmers, 14 national federations and 50+ NCAA colleges.</p>
                     <span class="partner-link">Preview eo SwimBETTER <i data-lucide="arrow-right" style="width:13px;height:13px;"></i></span>
@@ -1818,6 +1818,39 @@
                 }).catch(function () {});
             } catch (err) { /* never block navigation */ }
         });
+    })();
+
+    // Partner-card live/soon status — same date logic as uk-challenge.html's
+    // init() and partners/trihard.html's updateChallengeDatesCopy(), so this
+    // card flips on its own on launch day without a manual edit here again.
+    (async function updatePartnerCardStatuses() {
+        var SB_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+        var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+        var today = new Date().toISOString().slice(0, 10);
+
+        function makeLive(cardId, chipId, chipText) {
+            var card = document.getElementById(cardId);
+            var chip = document.getElementById(chipId);
+            if (card) card.classList.remove('coming-soon');
+            if (chip) { chip.classList.remove('soon'); chip.classList.add('live'); chip.textContent = chipText; }
+        }
+
+        // TRIHARD — DB-backed campaign (campaigns.slug = 'uk_swim_spot_challenge')
+        try {
+            var res = await fetch(SB_URL + '/rest/v1/campaigns?slug=eq.uk_swim_spot_challenge&select=enabled,launch_date,end_date', {
+                headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+            });
+            var rows = await res.json();
+            var campaign = rows && rows[0];
+            if (campaign && campaign.enabled && today >= campaign.launch_date && today <= campaign.end_date) {
+                makeLive('trihardPartnerCard', 'trihardPartnerChip', 'UK/EU · Live Now');
+            }
+        } catch (e) { /* keep "Soon" badge on any failure */ }
+
+        // eo SwimBETTER — no DB campaign row; dates confirmed by Dave 2026-07-29 (Aug 1 – Oct 31 2026)
+        if (today >= '2026-08-01' && today <= '2026-10-31') {
+            makeLive('eoPartnerCard', 'eoPartnerChip', 'Live Now');
+        }
     })();
     </script>
 

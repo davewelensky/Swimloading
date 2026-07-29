@@ -166,7 +166,7 @@
       <i data-lucide="tag" style="width:20px;height:20px;color:var(--cyan);"></i>
       <div class="soon-block-text">
         <strong style="color:#f1f5f9;">15% off TRIHARD — code <span style="font-family:'DM Mono',monospace;letter-spacing:1px;">LOADING</span> at checkout.</strong><br>
-        Open to every SwimLoading member, worldwide. Challenge prize dates still TBC.
+        <span id="challengeDatesText">Open to every SwimLoading member, worldwide. Challenge prize dates still TBC.</span>
       </div>
     </div>
 
@@ -228,7 +228,7 @@
       <ul class="benefit-list">
         <li class="benefit-item"><div class="benefit-dot"></div><div><strong style="color:#f1f5f9;">10 points</strong> per unique outdoor UK swim location logged</div></li>
         <li class="benefit-item"><div class="benefit-dot"></div><div>Open to casual dippers, wild swimmers, triathletes and Channel swimmers alike</div></li>
-        <li class="benefit-item"><div class="benefit-dot"></div><div><strong style="color:#f1f5f9;">Prize:</strong> the challenge winner receives a bundle of 4 TRIHARD products. Winner-selection details and exact dates announced before the challenge ends</div></li>
+        <li class="benefit-item"><div class="benefit-dot"></div><div><strong style="color:#f1f5f9;">Prize:</strong> the challenge winner receives a bundle of 4 TRIHARD products. <span id="challengePrizeDatesText">Winner-selection details and exact dates announced before the challenge ends.</span></div></li>
       </ul>
     </div>
 
@@ -318,6 +318,38 @@
   document.getElementById('shopBtn2').addEventListener('click', () => {
     trackEvent('trihard_discount_click', { location: 'benefit_section' });
   });
+  // Challenge date-state — same read + comparison logic as uk-challenge.html's
+  // init(), so this page auto-flips wording on launch_date/end_date without
+  // needing a manual edit here again. Fetches the single 'uk_swim_spot_challenge'
+  // campaigns row read-only via the public anon key (same as the analytics call above).
+  (async function updateChallengeDatesCopy() {
+    try {
+      const res = await fetch(SB_URL + '/rest/v1/campaigns?slug=eq.uk_swim_spot_challenge&select=enabled,launch_date,end_date', {
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+      });
+      const rows = await res.json();
+      const campaign = rows && rows[0];
+      if (!campaign) return;
+
+      const fmt = d => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      const today = new Date().toISOString().slice(0, 10);
+      const datesEl = document.getElementById('challengeDatesText');
+      const prizeEl = document.getElementById('challengePrizeDatesText');
+
+      if (!campaign.enabled) return; // keep the static "still TBC" copy until it's actually enabled
+      if (today < campaign.launch_date) {
+        if (datesEl) datesEl.textContent = `Open to every SwimLoading member, worldwide. Challenge starts ${fmt(campaign.launch_date)}.`;
+        if (prizeEl) prizeEl.textContent = `Winner announced after the challenge closes on ${fmt(campaign.end_date)}.`;
+      } else if (today > campaign.end_date) {
+        if (datesEl) datesEl.textContent = 'This challenge has ended — winner announced soon.';
+        if (prizeEl) prizeEl.textContent = 'Winner will be announced soon.';
+      } else {
+        if (datesEl) datesEl.textContent = `Live now through ${fmt(campaign.end_date)} — log a UK swim spot to enter.`;
+        if (prizeEl) prizeEl.textContent = `Winner announced after the challenge closes on ${fmt(campaign.end_date)}.`;
+      }
+    } catch (e) { /* keep static fallback copy on any failure */ }
+  })();
+
   document.getElementById('appBtn').addEventListener('click', () => {
     trackEvent('trihard_link_click', { location: 'footer_cta' });
   });
