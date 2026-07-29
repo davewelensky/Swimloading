@@ -1556,6 +1556,7 @@ async function generateJulyNewsletter() {
             heroHeading: 'July on SwimLoading',
             heroCopy: 'Another month of swims, changing water temperatures, new stories and a very competitive July challenge.',
             closingNote: 'Thank you for continuing to log your swims and help build a clearer picture of open-water conditions around the world.',
+            channelStory: 'Two of our own are taking on the English Channel. Lynne Macgregor and Tracey Steyn — both regulars on the July challenge board — are heading to the UK this August, each swimming solo. We\'ll be following both crossings closely and sharing how they go.',
         };
     }
 
@@ -1599,6 +1600,8 @@ function renderNewsletterBuilder() {
         <textarea id="nlHeroCopy" rows="2" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#f1f5f9;font-size:13px;font-family:inherit;">${_nlInputs.heroCopy}</textarea>
         <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;">Closing note</label>
         <textarea id="nlClosingNote" rows="2" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#f1f5f9;font-size:13px;font-family:inherit;">${_nlInputs.closingNote}</textarea>
+        <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;">Channel story (Lynne &amp; Tracey)</label>
+        <textarea id="nlChannelStory" rows="3" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#f1f5f9;font-size:13px;font-family:inherit;">${_nlInputs.channelStory}</textarea>
       </div>
 
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
@@ -1625,6 +1628,7 @@ function _nlUpdateInputsAndPreview() {
     _nlInputs.heroHeading = document.getElementById('nlHeroHeading').value;
     _nlInputs.heroCopy = document.getElementById('nlHeroCopy').value;
     _nlInputs.closingNote = document.getElementById('nlClosingNote').value;
+    _nlInputs.channelStory = document.getElementById('nlChannelStory').value;
     _nlRenderPreview();
 }
 
@@ -1641,6 +1645,12 @@ function _nlRenderPreview() {
 
 // Builds the full newsletter HTML per the Part 6 structure. Pure function of
 // (metrics, inputs) — same brand tokens as blog/*.html newsletters.
+// Richer version (2026-07-29): real product photo, June's confirmed winner as
+// a "last month" recap (site-config.js challenges['2026-06'].winner — verified
+// by Dave 2026-07-04), the Lynne/Tracey Channel story (editable), and a
+// factual eo SwimBETTER August teaser sourced from /partners/eolab's live copy.
+// July's own winner stays gated on an approved challenge_draw_results row —
+// never shown early, never conflated with June's already-decided winner.
 function buildJulyNewsletterHtml(m, inputs) {
     const winnerBlock = m.winnerRow
         ? `<div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#f1f5f9;margin-bottom:6px;">Congratulations, ${escapeHtml(m.winnerRow.winner_display_name)}</div>
@@ -1648,7 +1658,7 @@ function buildJulyNewsletterHtml(m, inputs) {
            <div style="font-size:12px;color:#64748b;margin-bottom:18px;">Winning entry: ${escapeHtml(m.winnerRow.winning_entry_description || '')}</div>
            <a href="https://www.swimloading.com/app" style="display:inline-block;background:#38bdf8;color:#080f1a;font-size:13px;font-weight:700;padding:12px 24px;border-radius:50px;text-decoration:none;">View the July Draw</a>`
         : `<div style="font-size:15px;color:#f1f5f9;font-weight:700;margin-bottom:8px;">The July draw is being finalised.</div>
-           <div style="font-size:13px;color:#94a3b8;line-height:1.7;">The final result will be published once all July swims and entries have been validated.</div>`;
+           <div style="font-size:13px;color:#94a3b8;line-height:1.7;">The draw runs on 31 July, once all July swims and entries have been validated. We'll announce the winner as soon as it's confirmed.</div>`;
 
     const highlights = [];
     if (m.mostActiveSpot) highlights.push(`Most active spot: <strong style="color:#f1f5f9;">${escapeHtml(m.mostActiveSpot.name)}</strong> (${m.mostActiveSpot.logs} logs)`);
@@ -1670,6 +1680,11 @@ function buildJulyNewsletterHtml(m, inputs) {
         <a href="https://www.swimloading.com/app" style="display:inline-block;background:#38bdf8;color:#080f1a;font-size:14px;font-weight:700;padding:14px 26px;border-radius:50px;text-decoration:none;">Open SwimLoading</a>
       </div>
 
+      <!-- Prize hero photo — real asset, partners/Blusmooth MK2.png -->
+      <div style="padding:0;">
+        <img src="https://www.swimloading.com/partners/Blusmooth%20MK2.png" width="600" style="display:block;width:100%;height:auto;" alt="Blu Smooth MK2 Comp wetsuit">
+      </div>
+
       <div style="padding:0 32px 20px;">
         <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:16px;padding:24px;">
           <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;">July by the numbers</div>
@@ -1686,11 +1701,24 @@ function buildJulyNewsletterHtml(m, inputs) {
 
       <div style="padding:0 32px 20px;">
         <div style="background:linear-gradient(135deg,#0f2038,#0a1628);border:1px solid rgba(56,189,248,0.3);border-radius:16px;padding:24px;">
-          <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;">July Blu Smooth MK2 Challenge</div>
+          <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:12px;"><tr>
+            <td style="background:#0c1a30;border-radius:4px;padding:6px 10px;">
+              <img src="https://www.swimloading.com/icons/blu-smooth-logo.png" alt="Blu Smooth" style="height:20px;width:auto;display:block;">
+            </td>
+          </tr></table>
+          <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;">July Challenge · This Month</div>
           <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#f1f5f9;margin-bottom:2px;">Blu Smooth MK2 Comp wetsuit</div>
-          <div style="font-size:13px;color:#64748b;margin-bottom:16px;">R5,999 value &middot; thank you to Blu Smooth for supporting July's challenge</div>
+          <div style="font-size:13px;color:#64748b;margin-bottom:16px;">R5,999 value &middot; launching in South Africa this month &middot; thank you to Blu Smooth for supporting July's challenge</div>
           <div style="font-size:13px;color:#94a3b8;line-height:1.8;margin-bottom:18px;">Every 10 temperature logs earns one ticket in the draw. It's a random draw — every ticket has an equal shot, weighted by how many you earned.</div>
           ${winnerBlock}
+        </div>
+      </div>
+
+      <!-- Last month's winner — verified fact, site-config.js challenges['2026-06'] -->
+      <div style="padding:0 32px 20px;">
+        <div style="background:#0a1628;border:1px solid rgba(245,158,11,0.3);border-radius:16px;padding:22px 24px;">
+          <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#f59e0b;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">Last Month · June Winner</div>
+          <div style="font-size:14px;color:#94a3b8;line-height:1.7;">Congratulations to <strong style="color:#f1f5f9;">Tunnan The Swede</strong>, winner of June's THEMAGIC5 custom Vector goggles.</div>
         </div>
       </div>
 
@@ -1699,6 +1727,26 @@ function buildJulyNewsletterHtml(m, inputs) {
           <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#f1f5f9;margin-bottom:12px;">Your swims now tell a story</div>
           <div style="font-size:14px;color:#94a3b8;line-height:1.8;margin-bottom:16px;">Your SwimLoading profile is becoming more than a list of logs. Your Overview, Passport and Story now bring together the places you swim, the conditions you face and the milestones you have reached.</div>
           <a href="https://www.swimloading.com/app" style="display:inline-block;background:transparent;border:1px solid rgba(255,255,255,0.15);color:#f1f5f9;font-size:13px;font-weight:600;padding:12px 24px;border-radius:50px;text-decoration:none;">View My Story</a>
+        </div>
+      </div>
+
+      <!-- Community story — Lynne & Tracey, editable via the builder -->
+      <div style="padding:0 32px 20px;">
+        <div style="background:linear-gradient(135deg,#0a1628,#0d1e35);border-left:3px solid #10b981;border-radius:0 16px 16px 0;padding:24px;">
+          <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#10b981;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;">Community · Taking On The Channel</div>
+          <div style="font-size:14px;color:#94a3b8;line-height:1.8;">${escapeHtml(inputs.channelStory)}</div>
+        </div>
+      </div>
+
+      <!-- eo SwimBETTER — August teaser, facts sourced from the live /partners/eolab page -->
+      <div style="padding:0 32px 20px;">
+        <div style="background:linear-gradient(160deg,#0d1400,#0a1000);border:1px dashed #1e3a5f;border-radius:16px;padding:24px;">
+          <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#64748b;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;">Coming In August · A 3-Month Challenge</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#f1f5f9;line-height:1;margin-bottom:4px;">eo SwimBETTER90 — the tech</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#94a3b8;line-height:1;margin-bottom:14px;">that tells you what to fix.</div>
+          <div style="font-size:13px;color:#94a3b8;line-height:1.8;margin-bottom:14px;">Starting August, we're running a three-month Performance Challenge with eo SwimBETTER — the same technique-analysis tool used by 14 national swimming federations and Olympic medallists. One winner takes home the full package: the eo SwimBETTER90 handset, a one-year Gold Membership, and a 1-on-1 data session with an eo expert.</div>
+          <div style="font-size:13px;color:#f1f5f9;font-weight:700;margin-bottom:4px;">US$1,349 total prize value &middot; ships to any country</div>
+          <div style="font-size:12px;color:#64748b;line-height:1.7;">Open to all members, ocean or pool. It rewards three months of consistent training, not a single-month points race — full brief and qualification criteria in the August newsletter.</div>
         </div>
       </div>
 
