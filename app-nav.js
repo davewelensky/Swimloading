@@ -2072,7 +2072,7 @@
                             <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Since ${connectedDate}</div>
                         </div>
                     </div>
-                    <div style="display:flex;gap:8px;">
+                    <div style="display:flex;gap:8px;margin-bottom:10px;">
                         <button onclick="openStravaImportModal()"
                             style="flex:1;background:#fc4c02;color:white;border:none;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;">
                             View &amp; import swims
@@ -2082,6 +2082,10 @@
                             Disconnect
                         </button>
                     </div>
+                    <a href="https://strava.app.link/fIlO1rhHa5b" target="_blank" rel="noopener"
+                        style="display:block;text-align:center;font-size:12px;color:#fc4c02;text-decoration:none;padding-top:2px;border-top:1px solid rgba(252,76,2,0.15);">
+                        Join the SwimLoading Strava Club →
+                    </a>
                 </div>`;
         }
 
