@@ -462,6 +462,37 @@
             <div id="partnerReportCard"></div>
         </div>
 
+        <!-- App Installation Funnel -->
+        <div class="section-title">App Installation Funnel</div>
+        <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+                <div style="font-size:13px;color:var(--text-secondary);">Welcome email &rarr; install page &rarr; confirmed install. Numbers are live from analytics_events.</div>
+                <div style="display:flex;gap:8px;">
+                    <button onclick="setInstallFunnelDays(7)"  id="ifBtn7"  class="pr-win-btn">7 days</button>
+                    <button onclick="setInstallFunnelDays(30)" id="ifBtn30" class="pr-win-btn">30 days</button>
+                    <button onclick="setInstallFunnelDays(90)" id="ifBtn90" class="pr-win-btn">90 days</button>
+                </div>
+            </div>
+            <div id="installFunnelCard"><div style="color:var(--text-secondary);font-size:13px;padding:24px;text-align:center;">Loading…</div></div>
+        </div>
+
+        <!-- July Challenge Draw Approval -->
+        <div class="section-title">Challenge Draw Approval</div>
+        <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;">
+            <div style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">Rows here come from <code>scripts/draw-monthly-winner.mjs</code> — never announce or newsletter a winner until it's approved here.</div>
+            <div id="challengeDrawCard"><div style="color:var(--text-secondary);font-size:13px;padding:24px;text-align:center;">Loading…</div></div>
+        </div>
+
+        <!-- July 2026 Newsletter Builder -->
+        <div class="section-title">July 2026 Newsletter Builder</div>
+        <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+                <div style="font-size:13px;color:var(--text-secondary);">Pulls live July data. No stat is hardcoded — figures are queried fresh every time you click Generate.</div>
+                <button onclick="generateJulyNewsletter()" style="background:#38bdf8;color:#08131f;border:none;font-weight:700;font-size:12px;padding:9px 16px;border-radius:8px;cursor:pointer;">Generate from live data</button>
+            </div>
+            <div id="newsletterBuilder"><div style="color:var(--text-secondary);font-size:13px;padding:24px;text-align:center;">Click "Generate from live data" to start.</div></div>
+        </div>
+
         <!-- KPI Cards -->
         <div class="section-title">Overview</div>
         <div class="kpi-row">
@@ -886,6 +917,8 @@ async function showDashboard(user) {
     await Promise.all([loadAdminDomains(), loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement(), loadSpotlights(), loadSpotSuggestions(), loadRecentLogs(), loadAntiCheat(), loadChallengeStats(), loadUkLocationProposals()]);
     loadAnalytics(7);
     loadPartnerReport();
+    loadInstallFunnel();
+    loadChallengeDraws();
 }
 
 // ── Challenge stats (this month vs same window last month) ─────────────────────
@@ -1246,6 +1279,524 @@ function _prCardHtml(partner, s) {
         <div style="font-size:11px;color:var(--text-secondary);text-align:center;padding-top:14px;">swimloading.com · partner report</div>
       </div>
       <div style="font-size:12px;color:var(--text-secondary);margin-top:12px;">Screenshot the card above and send it to ${partner.name}. Numbers are live from tracked events.</div>`;
+}
+
+// ── App Installation Funnel ─────────────────────────────────────────────────────
+// Pipeline: welcome email sent → its install-CTA clicked → /install viewed →
+// in-app prompt shown/clicked → confirmed install (appinstalled or standalone open).
+// "Verified users" is approximated as profiles created in the window — a profiles
+// row only exists after a confirmed session in this app's signup flow (app.js
+// signUp()/onboarding), there's no separate email_confirmed_at exposed via PostgREST.
+let _installFunnelDays = 30;
+
+function setInstallFunnelDays(d) { _installFunnelDays = d; loadInstallFunnel(); }
+
+async function loadInstallFunnel() {
+    [7,30,90].forEach(d => {
+        const b = document.getElementById('ifBtn'+d);
+        if (!b) return;
+        const on = d === _installFunnelDays;
+        b.style.background = on ? 'rgba(56,189,248,0.15)' : 'rgba(255,255,255,0.05)';
+        b.style.border = '1px solid ' + (on ? 'rgba(56,189,248,0.4)' : 'var(--border)');
+        b.style.color = on ? '#38bdf8' : 'var(--text-secondary)';
+        b.style.borderRadius = '8px'; b.style.padding = '5px 12px'; b.style.fontSize = '12px'; b.style.cursor = 'pointer';
+    });
+
+    const card = document.getElementById('installFunnelCard');
+    card.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:24px;text-align:center;">Loading…</div>';
+
+    const sinceIso = new Date(Date.now() - _installFunnelDays * 86400000).toISOString();
+    const evNames = [
+        'welcome_email_sent', 'welcome_email_failed', 'welcome_email_install_clicked',
+        'install_page_viewed', 'install_prompt_eligible', 'install_prompt_shown',
+        'install_prompt_clicked', 'install_prompt_dismissed',
+        'native_install_prompt_accepted', 'native_install_prompt_dismissed',
+        'ios_install_instructions_viewed', 'app_installed', 'app_opened_standalone'
+    ];
+
+    const [{ count: verifiedUsers }, { data: events, error }] = await Promise.all([
+        supabaseClient.from('profiles').select('id', { count: 'exact', head: true }).gte('created_at', sinceIso),
+        supabaseClient.from('analytics_events').select('event_name, properties, created_at').in('event_name', evNames).gte('created_at', sinceIso)
+    ]);
+
+    if (error) {
+        card.innerHTML = `<div style="color:var(--red);font-size:13px;padding:16px;">Error loading install funnel: ${error.message}</div>`;
+        return;
+    }
+
+    const counts = {};
+    const byPlatform = {};
+    (events || []).forEach(e => {
+        counts[e.event_name] = (counts[e.event_name] || 0) + 1;
+        const platform = e.properties?.platform;
+        if (platform && (e.event_name === 'install_page_viewed' || e.event_name === 'app_installed')) {
+            byPlatform[platform] = byPlatform[platform] || { views: 0, installs: 0 };
+            if (e.event_name === 'install_page_viewed') byPlatform[platform].views++;
+            if (e.event_name === 'app_installed') byPlatform[platform].installs++;
+        }
+    });
+
+    const welcomeSent   = counts['welcome_email_sent'] || 0;
+    const welcomeClicks = counts['welcome_email_install_clicked'] || 0;
+    const pageViews     = counts['install_page_viewed'] || 0;
+    const promptsShown  = counts['install_prompt_shown'] || 0;
+    const promptClicks  = counts['install_prompt_clicked'] || 0;
+    const installed     = counts['app_installed'] || 0;
+    const standaloneOpens = counts['app_opened_standalone'] || 0;
+    const conv = (verifiedUsers || 0) > 0 ? Math.round((installed / verifiedUsers) * 100) : 0;
+
+    card.innerHTML = _ifCardHtml({
+        verifiedUsers: verifiedUsers || 0, welcomeSent, welcomeClicks, pageViews,
+        promptsShown, promptClicks, installed, standaloneOpens, conv, byPlatform
+    });
+}
+
+function _ifCardHtml(s) {
+    const funnelMax = Math.max(s.verifiedUsers, s.welcomeSent, s.pageViews, s.promptsShown, s.installed, 1);
+    const bar = (val, colour, label) => {
+        const w = Math.max(6, Math.round(val / funnelMax * 100));
+        return `<div style="display:flex;align-items:center;gap:12px;">
+            <div style="height:30px;border-radius:8px;display:flex;align-items:center;padding:0 12px;font-weight:800;font-size:14px;color:#08131f;min-width:40px;width:${w}%;background:${colour};">${val}</div>
+            <div style="font-size:12px;color:#f1f5f9;flex:1;">${label}</div>
+        </div>`;
+    };
+    const platformRows = Object.entries(s.byPlatform).map(([platform, d]) => {
+        const pconv = d.views > 0 ? Math.round(d.installs / d.views * 100) : 0;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:10px 14px;">
+            <div style="font-size:12px;color:#f1f5f9;text-transform:capitalize;">${platform}</div>
+            <div style="font-size:12px;color:var(--text-secondary);">${d.views} views &middot; ${d.installs} installs &middot; <strong style="color:#10b981;">${pconv}%</strong></div>
+        </div>`;
+    }).join('') || '<div style="font-size:12px;color:var(--text-secondary);">No platform data in this window yet.</div>';
+
+    return `
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px;">
+        ${bar(s.verifiedUsers, '#64748b', 'Verified users (new profiles this window)')}
+        ${bar(s.welcomeSent, '#38bdf8', 'Welcome emails sent')}
+        ${bar(s.welcomeClicks, '#0ea5e9', 'Install-email CTA clicks')}
+        ${bar(s.pageViews, '#a78bfa', '/install page views')}
+        ${bar(s.promptsShown, '#f59e0b', 'In-app install prompts shown')}
+        ${bar(s.promptClicks, '#fb923c', 'In-app install prompt clicks')}
+        ${bar(s.installed, '#10b981', 'Confirmed installations')}
+        ${bar(s.standaloneOpens, '#22d3ee', 'Standalone (installed) opens')}
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:18px;">
+        <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:20px;font-weight:800;color:#10b981;">${s.conv}%</div>
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary);margin-top:4px;">Verified &rarr; installed</div>
+        </div>
+      </div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary);margin-bottom:8px;">By platform</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">${platformRows}</div>`;
+}
+
+// ── July Challenge Draw Approval ─────────────────────────────────────────────────
+// Consumes scripts/draw-monthly-winner.mjs's stored output (challenge_draw_results).
+// Does NOT re-run or alter the draw itself — only approves/rejects what it already computed.
+async function loadChallengeDraws() {
+    const card = document.getElementById('challengeDrawCard');
+    const { data, error } = await supabaseClient
+        .from('challenge_draw_results')
+        .select('*')
+        .order('drawn_at', { ascending: false })
+        .limit(5);
+
+    if (error) {
+        card.innerHTML = `<div style="color:var(--text-secondary);font-size:13px;padding:16px;">No draw results yet (or table not migrated: ${error.message}).</div>`;
+        return;
+    }
+    if (!data || data.length === 0) {
+        card.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:16px;">No draws recorded yet. Run scripts/draw-monthly-winner.mjs after the challenge month closes.</div>';
+        return;
+    }
+
+    card.innerHTML = data.map(row => {
+        const statusBadge = row.ineligible
+            ? `<span style="color:#ef4444;font-weight:700;">Marked ineligible</span>`
+            : row.approved_at
+                ? `<span style="color:#10b981;font-weight:700;">Approved ${_prFmtDate(new Date(row.approved_at))}</span>`
+                : `<span style="color:#f59e0b;font-weight:700;">Pending approval</span>`;
+        return `<div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+                <div>
+                    <div style="font-size:13px;color:var(--text-secondary);">${row.challenge_name}</div>
+                    <div style="font-size:18px;font-weight:800;color:#f1f5f9;">${row.winner_display_name || 'Unknown'}</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">${row.winning_entry_description || ''}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:6px;">${row.participant_count} participants &middot; ${row.ticket_count} tickets &middot; drawn ${_prFmtDate(new Date(row.drawn_at))}</div>
+                </div>
+                <div style="text-align:right;">${statusBadge}</div>
+            </div>
+            ${!row.approved_at && !row.ineligible ? `
+            <div style="display:flex;gap:8px;margin-top:12px;">
+                <button onclick="approveChallengeDraw('${row.id}')" style="flex:1;background:#10b981;color:#08131f;border:none;font-weight:700;font-size:12px;padding:9px 14px;border-radius:8px;cursor:pointer;">Approve</button>
+                <button onclick="markChallengeDrawIneligible('${row.id}')" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text-secondary);font-size:12px;padding:9px 14px;border-radius:8px;cursor:pointer;">Mark ineligible</button>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+async function approveChallengeDraw(id) {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    const { error } = await supabaseClient
+        .from('challenge_draw_results')
+        .update({ approved_at: new Date().toISOString(), approved_by: user?.id || null })
+        .eq('id', id);
+    if (error) { alert('Error approving: ' + error.message); return; }
+    loadChallengeDraws();
+}
+
+async function markChallengeDrawIneligible(id) {
+    const reason = prompt('Reason this winner is ineligible (e.g. declined the prize)?');
+    if (reason === null) return;
+    const { error } = await supabaseClient
+        .from('challenge_draw_results')
+        .update({ ineligible: true, ineligible_reason: reason || 'Marked ineligible by admin' })
+        .eq('id', id);
+    if (error) { alert('Error updating: ' + error.message); return; }
+    loadChallengeDraws();
+}
+
+// ── July 2026 Newsletter Builder ─────────────────────────────────────────────────
+// Every figure below is queried live — nothing is hardcoded. Metrics that
+// can't be reliably derived from existing schema/RLS (most active CLUB,
+// Swimmer Stories created, Passport/Overview opens — swimmer_story_events is
+// own-row-RLS only with no admin bypass, and there's no view-tracking event
+// for Passport/Overview) are deliberately omitted rather than guessed.
+const JULY_2026_START_UTC = '2026-06-30T22:00:00.000Z'; // 2026-07-01 00:00 SAST
+const JULY_2026_END_UTC   = '2026-07-31T22:00:00.000Z'; // 2026-08-01 00:00 SAST
+const JULY_ORGANISER_ID   = 'df137255-3add-4153-b368-32e06e2be188';
+let _nlDraftId = null;
+let _nlMetrics = null;
+let _nlInputs = null;
+
+async function generateJulyNewsletter() {
+    const el = document.getElementById('newsletterBuilder');
+    el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:24px;text-align:center;">Querying live July data…</div>';
+
+    const safe = async (fn, fallback) => { try { return await fn(); } catch (e) { console.warn('[newsletter metric failed]', e); return fallback; } };
+
+    const totalSwimmers = await safe(async () => (await supabaseClient.from('profiles').select('id', { count: 'exact', head: true })).count, null);
+    const newSwimmers   = await safe(async () => (await supabaseClient.from('profiles').select('id', { count: 'exact', head: true }).gte('created_at', JULY_2026_START_UTC).lt('created_at', JULY_2026_END_UTC)).count, null);
+    const julyLogsCount = await safe(async () => (await supabaseClient.from('temp_logs').select('id', { count: 'exact', head: true }).gte('created_at', JULY_2026_START_UTC).lt('created_at', JULY_2026_END_UTC)).count, null);
+
+    const julyLogRows = await safe(async () => {
+        const { data, error } = await supabaseClient.from('temp_logs')
+            .select('user_id, temp_c, spot_id, spots!temp_logs_spot_id_fkey(name, country_code)')
+            .gte('created_at', JULY_2026_START_UTC).lt('created_at', JULY_2026_END_UTC);
+        if (error) throw error;
+        return data || [];
+    }, []);
+
+    const uniqueLoggers = new Set(julyLogRows.map(r => r.user_id)).size;
+    const countriesSet = new Set(julyLogRows.map(r => r.spots?.country_code).filter(Boolean));
+
+    let coldest = null, warmest = null;
+    const spotCounts = {};
+    julyLogRows.forEach(r => {
+        if (typeof r.temp_c === 'number') {
+            if (!coldest || r.temp_c < coldest.temp_c) coldest = r;
+            if (!warmest || r.temp_c > warmest.temp_c) warmest = r;
+        }
+        const name = r.spots?.name;
+        if (name) spotCounts[name] = (spotCounts[name] || 0) + 1;
+    });
+    const mostActiveSpot = Object.entries(spotCounts).sort((a, b) => b[1] - a[1])[0] || null;
+
+    const totalClubs = await safe(async () => (await supabaseClient.from('clubs').select('id', { count: 'exact', head: true })).count, null);
+    const newClubs   = await safe(async () => (await supabaseClient.from('clubs').select('id', { count: 'exact', head: true }).gte('created_at', JULY_2026_START_UTC).lt('created_at', JULY_2026_END_UTC)).count, null);
+
+    const streak7Bonuses = await safe(async () => (await supabaseClient.from('june_challenge_events').select('id', { count: 'exact', head: true }).eq('action_type', 'streak_7day').gte('created_at', JULY_2026_START_UTC).lt('created_at', JULY_2026_END_UTC)).count, null);
+
+    let challengeParticipants = null, challengeTickets = null;
+    await safe(async () => {
+        const { data, error } = await supabaseClient.rpc('get_challenge_leaders', { p_month_start: JULY_2026_START_UTC, p_month_end: JULY_2026_END_UTC });
+        if (error) throw error;
+        const eligible = (data || []).filter(r => r.user_id !== JULY_ORGANISER_ID && r.qualified_for_draw && !r.disqualified);
+        challengeParticipants = eligible.length;
+        challengeTickets = eligible.reduce((sum, r) => sum + (r.draw_entries || 0), 0);
+    }, null);
+
+    // Group swims: best-effort — swim_events created in July with 2+ approved participants.
+    // Degrades to null (hidden in the newsletter) if the schema doesn't match, per
+    // "do not display a statistic if it cannot be reliably derived."
+    const groupSwims = await safe(async () => {
+        const { data: events, error: evErr } = await supabaseClient.from('swim_events').select('id').gte('created_at', JULY_2026_START_UTC).lt('created_at', JULY_2026_END_UTC);
+        if (evErr) throw evErr;
+        if (!events || !events.length) return 0;
+        const ids = events.map(e => e.id);
+        const { data: parts, error: pErr } = await supabaseClient.from('swim_participants').select('event_id').in('event_id', ids);
+        if (pErr) throw pErr;
+        const perEvent = {};
+        (parts || []).forEach(p => { perEvent[p.event_id] = (perEvent[p.event_id] || 0) + 1; });
+        return Object.values(perEvent).filter(n => n >= 2).length;
+    }, null);
+
+    // Winner — ONLY an approved, non-ineligible row. Never derived from script console output.
+    const winnerRow = await safe(async () => {
+        const { data, error } = await supabaseClient.from('challenge_draw_results')
+            .select('*').eq('challenge_id', '2026-07').eq('ineligible', false)
+            .not('approved_at', 'is', null).order('approved_at', { ascending: false }).limit(1);
+        if (error) throw error;
+        return (data && data[0]) || null;
+    }, null);
+
+    _nlMetrics = {
+        totalSwimmers, newSwimmers, julyLogsCount, uniqueLoggers,
+        countriesRepresented: countriesSet.size,
+        challengeParticipants, challengeTickets,
+        totalClubs, newClubs,
+        mostActiveSpot: mostActiveSpot ? { name: mostActiveSpot[0], logs: mostActiveSpot[1] } : null,
+        coldest: coldest ? { temp_c: coldest.temp_c, spot: coldest.spots?.name } : null,
+        warmest: warmest ? { temp_c: warmest.temp_c, spot: warmest.spots?.name } : null,
+        groupSwims, streak7Bonuses,
+        winnerRow,
+    };
+
+    if (!_nlInputs) {
+        _nlInputs = {
+            heroHeading: 'July on SwimLoading',
+            heroCopy: 'Another month of swims, changing water temperatures, new stories and a very competitive July challenge.',
+            closingNote: 'Thank you for continuing to log your swims and help build a clearer picture of open-water conditions around the world.',
+        };
+    }
+
+    renderNewsletterBuilder();
+}
+
+function renderNewsletterBuilder() {
+    const m = _nlMetrics;
+    const el = document.getElementById('newsletterBuilder');
+
+    const metricRow = (label, val) => val === null || val === undefined
+        ? '' : `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;"><span style="color:var(--text-secondary);">${label}</span><span style="color:#f1f5f9;font-weight:700;">${val}</span></div>`;
+
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px;">
+        ${metricRow('Total registered swimmers', m.totalSwimmers)}
+        ${metricRow('New swimmers in July', m.newSwimmers)}
+        ${metricRow('Swim logs in July', m.julyLogsCount)}
+        ${metricRow('Unique swimmers who logged', m.uniqueLoggers)}
+        ${metricRow('Countries represented', m.countriesRepresented)}
+        ${metricRow('July challenge participants', m.challengeParticipants)}
+        ${metricRow('July challenge tickets', m.challengeTickets)}
+        ${metricRow('Total clubs', m.totalClubs)}
+        ${metricRow('New clubs in July', m.newClubs)}
+        ${metricRow('7-day streak bonuses', m.streak7Bonuses)}
+        ${metricRow('Qualifying group swims (2+ swimmers)', m.groupSwims)}
+        ${metricRow('Most active spot', m.mostActiveSpot ? `${m.mostActiveSpot.name} (${m.mostActiveSpot.logs})` : null)}
+        ${metricRow('Coldest July swim', m.coldest ? `${m.coldest.temp_c}°C — ${m.coldest.spot || 'unknown spot'}` : null)}
+        ${metricRow('Warmest July swim', m.warmest ? `${m.warmest.temp_c}°C — ${m.warmest.spot || 'unknown spot'}` : null)}
+      </div>
+      <div style="font-size:11px;color:var(--text-secondary);margin:10px 0 18px;">Skipped (not reliably derivable): most active club, Swimmer Stories created, Passport/Overview opens — see implementation notes.</div>
+
+      <div style="background:${m.winnerRow ? 'rgba(16,185,129,0.08)' : 'rgba(245,158,11,0.08)'};border:1px solid ${m.winnerRow ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'};border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:12px;color:${m.winnerRow ? '#10b981' : '#f59e0b'};">
+        ${m.winnerRow ? `Winner ready to publish: <strong>${m.winnerRow.winner_display_name}</strong> (approved)` : 'No approved winner yet — newsletter will show "the July draw is being finalised."'}
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px;">
+        <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;">Hero heading</label>
+        <input id="nlHeroHeading" value="${_nlInputs.heroHeading}" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#f1f5f9;font-size:13px;">
+        <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;">Hero copy</label>
+        <textarea id="nlHeroCopy" rows="2" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#f1f5f9;font-size:13px;font-family:inherit;">${_nlInputs.heroCopy}</textarea>
+        <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;">Closing note</label>
+        <textarea id="nlClosingNote" rows="2" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#f1f5f9;font-size:13px;font-family:inherit;">${_nlInputs.closingNote}</textarea>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        <button onclick="_nlUpdateInputsAndPreview()" style="background:#38bdf8;color:#08131f;border:none;font-weight:700;font-size:12px;padding:9px 14px;border-radius:8px;cursor:pointer;">Refresh preview</button>
+        <button onclick="setNewsletterPreviewWidth(375)" style="background:transparent;border:1px solid var(--border);color:var(--text-secondary);font-size:12px;padding:9px 14px;border-radius:8px;cursor:pointer;">Mobile</button>
+        <button onclick="setNewsletterPreviewWidth(620)" style="background:transparent;border:1px solid var(--border);color:var(--text-secondary);font-size:12px;padding:9px 14px;border-radius:8px;cursor:pointer;">Desktop</button>
+        <button onclick="saveNewsletterDraft()" style="background:transparent;border:1px solid var(--border);color:var(--text-secondary);font-size:12px;padding:9px 14px;border-radius:8px;cursor:pointer;">Save draft</button>
+        <button onclick="sendTestNewsletter()" style="background:transparent;border:1px solid var(--border);color:var(--text-secondary);font-size:12px;padding:9px 14px;border-radius:8px;cursor:pointer;">Send test to me</button>
+        <button onclick="approveNewsletterDraft()" style="background:transparent;border:1px solid rgba(16,185,129,0.4);color:#10b981;font-size:12px;padding:9px 14px;border-radius:8px;cursor:pointer;">Approve</button>
+        <button onclick="copyNewsletterHtml()" style="background:transparent;border:1px solid var(--border);color:var(--text-secondary);font-size:12px;padding:9px 14px;border-radius:8px;cursor:pointer;">Copy HTML</button>
+        <button onclick="markNewsletterSent()" style="background:transparent;border:1px solid var(--border);color:var(--text-secondary);font-size:12px;padding:9px 14px;border-radius:8px;cursor:pointer;">Mark as sent (via Brevo)</button>
+      </div>
+      <div id="nlDraftStatus" style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;"></div>
+
+      <div style="display:flex;justify-content:center;background:#050c18;border-radius:12px;padding:16px;overflow-x:auto;">
+        <iframe id="newsletterPreviewFrame" style="width:620px;height:900px;border:0;border-radius:8px;background:#080f1a;"></iframe>
+      </div>
+    `;
+
+    _nlRenderPreview();
+}
+
+function _nlUpdateInputsAndPreview() {
+    _nlInputs.heroHeading = document.getElementById('nlHeroHeading').value;
+    _nlInputs.heroCopy = document.getElementById('nlHeroCopy').value;
+    _nlInputs.closingNote = document.getElementById('nlClosingNote').value;
+    _nlRenderPreview();
+}
+
+function setNewsletterPreviewWidth(px) {
+    const frame = document.getElementById('newsletterPreviewFrame');
+    if (frame) frame.style.width = px + 'px';
+}
+
+function _nlRenderPreview() {
+    const frame = document.getElementById('newsletterPreviewFrame');
+    if (!frame) return;
+    frame.srcdoc = buildJulyNewsletterHtml(_nlMetrics, _nlInputs);
+}
+
+// Builds the full newsletter HTML per the Part 6 structure. Pure function of
+// (metrics, inputs) — same brand tokens as blog/*.html newsletters.
+function buildJulyNewsletterHtml(m, inputs) {
+    const winnerBlock = m.winnerRow
+        ? `<div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#f1f5f9;margin-bottom:6px;">Congratulations, ${escapeHtml(m.winnerRow.winner_display_name)}</div>
+           <div style="font-size:14px;color:#94a3b8;line-height:1.8;margin-bottom:14px;">${escapeHtml(m.winnerRow.winner_display_name)} was selected from ${m.winnerRow.ticket_count} qualifying entries held by ${m.winnerRow.participant_count} swimmers.</div>
+           <div style="font-size:12px;color:#64748b;margin-bottom:18px;">Winning entry: ${escapeHtml(m.winnerRow.winning_entry_description || '')}</div>
+           <a href="https://www.swimloading.com/app" style="display:inline-block;background:#38bdf8;color:#080f1a;font-size:13px;font-weight:700;padding:12px 24px;border-radius:50px;text-decoration:none;">View the July Draw</a>`
+        : `<div style="font-size:15px;color:#f1f5f9;font-weight:700;margin-bottom:8px;">The July draw is being finalised.</div>
+           <div style="font-size:13px;color:#94a3b8;line-height:1.7;">The final result will be published once all July swims and entries have been validated.</div>`;
+
+    const highlights = [];
+    if (m.mostActiveSpot) highlights.push(`Most active spot: <strong style="color:#f1f5f9;">${escapeHtml(m.mostActiveSpot.name)}</strong> (${m.mostActiveSpot.logs} logs)`);
+    if (m.coldest) highlights.push(`Coldest July swim: <strong style="color:#f1f5f9;">${m.coldest.temp_c}°C</strong> at ${escapeHtml(m.coldest.spot || 'an unnamed spot')}`);
+    if (m.warmest) highlights.push(`Warmest July swim: <strong style="color:#f1f5f9;">${m.warmest.temp_c}°C</strong> at ${escapeHtml(m.warmest.spot || 'an unnamed spot')}`);
+
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap');
+      body{margin:0;padding:0;background:#080f1a;font-family:'DM Sans',Arial,sans-serif;}
+      .wrap{max-width:600px;margin:0 auto;}
+      a{color:#38bdf8;}
+    </style></head><body><div class="wrap">
+      <div style="background:#050c18;border-bottom:1px solid #0f2240;padding:18px 32px;"><span style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:#38bdf8;letter-spacing:3px;">SWIMLOADING</span></div>
+
+      <div style="padding:40px 32px 20px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:44px;color:#f1f5f9;line-height:1.02;margin-bottom:14px;">${escapeHtml(inputs.heroHeading)}</div>
+        <div style="font-size:15px;color:#94a3b8;line-height:1.8;margin-bottom:20px;">${escapeHtml(inputs.heroCopy)}</div>
+        <a href="https://www.swimloading.com/app" style="display:inline-block;background:#38bdf8;color:#080f1a;font-size:14px;font-weight:700;padding:14px 26px;border-radius:50px;text-decoration:none;">Open SwimLoading</a>
+      </div>
+
+      <div style="padding:0 32px 20px;">
+        <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:16px;padding:24px;">
+          <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;">July by the numbers</div>
+          <div style="display:flex;flex-wrap:wrap;gap:16px;">
+            ${m.julyLogsCount !== null ? `<div style="flex:1;min-width:110px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#38bdf8;">${m.julyLogsCount}</div><div style="font-size:11px;color:#64748b;">swims logged</div></div>` : ''}
+            ${m.uniqueLoggers !== null ? `<div style="flex:1;min-width:110px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#38bdf8;">${m.uniqueLoggers}</div><div style="font-size:11px;color:#64748b;">active swimmers</div></div>` : ''}
+            ${m.countriesRepresented !== null ? `<div style="flex:1;min-width:110px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#38bdf8;">${m.countriesRepresented}</div><div style="font-size:11px;color:#64748b;">countries represented</div></div>` : ''}
+            ${m.challengeParticipants !== null ? `<div style="flex:1;min-width:110px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#38bdf8;">${m.challengeParticipants}</div><div style="font-size:11px;color:#64748b;">challenge swimmers</div></div>` : ''}
+            ${m.challengeTickets !== null ? `<div style="flex:1;min-width:110px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#38bdf8;">${m.challengeTickets}</div><div style="font-size:11px;color:#64748b;">entries in the draw</div></div>` : ''}
+            ${m.newSwimmers !== null ? `<div style="flex:1;min-width:110px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#38bdf8;">${m.newSwimmers}</div><div style="font-size:11px;color:#64748b;">new swimmers joined</div></div>` : ''}
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:0 32px 20px;">
+        <div style="background:linear-gradient(135deg,#0f2038,#0a1628);border:1px solid rgba(56,189,248,0.3);border-radius:16px;padding:24px;">
+          <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;">July Blu Smooth MK2 Challenge</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#f1f5f9;margin-bottom:2px;">Blu Smooth MK2 Comp wetsuit</div>
+          <div style="font-size:13px;color:#64748b;margin-bottom:16px;">R5,999 value &middot; thank you to Blu Smooth for supporting July's challenge</div>
+          <div style="font-size:13px;color:#94a3b8;line-height:1.8;margin-bottom:18px;">Every 10 temperature logs earns one ticket in the draw. It's a random draw — every ticket has an equal shot, weighted by how many you earned.</div>
+          ${winnerBlock}
+        </div>
+      </div>
+
+      <div style="padding:0 32px 20px;">
+        <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:16px;padding:24px;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#f1f5f9;margin-bottom:12px;">Your swims now tell a story</div>
+          <div style="font-size:14px;color:#94a3b8;line-height:1.8;margin-bottom:16px;">Your SwimLoading profile is becoming more than a list of logs. Your Overview, Passport and Story now bring together the places you swim, the conditions you face and the milestones you have reached.</div>
+          <a href="https://www.swimloading.com/app" style="display:inline-block;background:transparent;border:1px solid rgba(255,255,255,0.15);color:#f1f5f9;font-size:13px;font-weight:600;padding:12px 24px;border-radius:50px;text-decoration:none;">View My Story</a>
+        </div>
+      </div>
+
+      <div style="padding:0 32px 20px;">
+        <div style="border-left:3px solid #38bdf8;background:#080f1a;border-radius:0 12px 12px 0;padding:18px 20px;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#f1f5f9;margin-bottom:8px;">Stop searching for SwimLoading</div>
+          <div style="font-size:13px;color:#94a3b8;line-height:1.8;margin-bottom:16px;">Add SwimLoading to your phone's home screen and open it like any other app. It takes about 20 seconds and makes logging a swim much easier.</div>
+          <a href="https://www.swimloading.com/install" style="display:inline-block;background:#38bdf8;color:#080f1a;font-size:13px;font-weight:700;padding:12px 24px;border-radius:50px;text-decoration:none;">Add SwimLoading to Your Home Screen</a>
+        </div>
+      </div>
+
+      ${highlights.length ? `<div style="padding:0 32px 20px;">
+        <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:16px;padding:24px;">
+          <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">Community highlights</div>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;color:#94a3b8;line-height:1.7;">${highlights.slice(0, 3).map(h => `<div>${h}</div>`).join('')}</div>
+        </div>
+      </div>` : ''}
+
+      <div style="padding:0 32px 40px;">
+        <div style="font-size:14px;color:#64748b;line-height:1.8;">${escapeHtml(inputs.closingNote)}</div>
+        <div style="font-size:14px;color:#64748b;line-height:1.8;margin-top:16px;">See you in the water,<br><strong style="color:#f1f5f9;">Dave</strong><br>SwimLoading</div>
+      </div>
+
+      <div style="background:#050c18;border-top:1px solid #0f2240;padding:20px 32px;"><div style="font-size:11px;color:#1e3a5f;">SwimLoading &middot; <a href="https://swimloading.com" style="color:#1e3a5f;">swimloading.com</a></div></div>
+    </div></body></html>`;
+}
+
+function escapeHtml(str) {
+    return String(str == null ? '' : str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function saveNewsletterDraft() {
+    _nlUpdateInputsAndPreview();
+    const html = buildJulyNewsletterHtml(_nlMetrics, _nlInputs);
+    const row = { month: '2026-07', inputs: _nlInputs, metrics_snapshot: _nlMetrics, html, updated_at: new Date().toISOString() };
+    const status = document.getElementById('nlDraftStatus');
+
+    let error;
+    if (_nlDraftId) {
+        ({ error } = await supabaseClient.from('newsletter_drafts').update(row).eq('id', _nlDraftId));
+    } else {
+        const { data, error: insErr } = await supabaseClient.from('newsletter_drafts').insert(row).select('id').single();
+        error = insErr;
+        if (data) _nlDraftId = data.id;
+    }
+    if (status) status.textContent = error ? `Save failed: ${error.message}` : `Draft saved ${new Date().toLocaleTimeString()}`;
+}
+
+async function sendTestNewsletter() {
+    _nlUpdateInputsAndPreview();
+    const html = buildJulyNewsletterHtml(_nlMetrics, _nlInputs);
+    const status = document.getElementById('nlDraftStatus');
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) { if (status) status.textContent = 'Not authenticated'; return; }
+
+    if (status) status.textContent = 'Sending test…';
+    const res = await fetch('/api/send-test-newsletter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({ subject: _nlInputs.heroHeading, html }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (status) status.textContent = res.ok ? 'Test email sent to your inbox' : `Test send failed: ${body.error || res.status}`;
+    if (_nlDraftId && res.ok) {
+        await supabaseClient.from('newsletter_drafts').update({ test_sent_at: new Date().toISOString() }).eq('id', _nlDraftId);
+    }
+}
+
+async function approveNewsletterDraft() {
+    if (!_nlDraftId) { await saveNewsletterDraft(); }
+    if (!_nlDraftId) return;
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    const { error } = await supabaseClient.from('newsletter_drafts')
+        .update({ status: 'approved', approved_at: new Date().toISOString(), approved_by: user?.id || null })
+        .eq('id', _nlDraftId);
+    const status = document.getElementById('nlDraftStatus');
+    if (status) status.textContent = error ? `Approve failed: ${error.message}` : 'Approved — ready to copy into Brevo';
+}
+
+function copyNewsletterHtml() {
+    _nlUpdateInputsAndPreview();
+    const html = buildJulyNewsletterHtml(_nlMetrics, _nlInputs);
+    navigator.clipboard.writeText(html).then(() => {
+        const status = document.getElementById('nlDraftStatus');
+        if (status) status.textContent = 'HTML copied — paste into Brevo\'s campaign editor.';
+    });
+}
+
+async function markNewsletterSent() {
+    if (!_nlDraftId) { alert('Save the draft first.'); return; }
+    const countStr = prompt('How many recipients did Brevo send this to?');
+    if (countStr === null) return;
+    const recipientCount = parseInt(countStr, 10);
+    const { error } = await supabaseClient.from('newsletter_drafts')
+        .update({ status: 'sent', sent_at: new Date().toISOString(), recipient_count: Number.isFinite(recipientCount) ? recipientCount : null })
+        .eq('id', _nlDraftId);
+    const status = document.getElementById('nlDraftStatus');
+    if (status) status.textContent = error ? `Update failed: ${error.message}` : `Recorded as sent to ${recipientCount} recipients`;
 }
 
 // ── Load users ─────────────────────────────────────────────────────────────────

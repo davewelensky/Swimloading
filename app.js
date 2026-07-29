@@ -399,8 +399,11 @@
                 showIncompleteProfileBanner();
             }
 
-            // Show PWA install prompt if not dismissed
-            showPwaInstallPrompt();
+            // Old immediate-on-load PWA banner replaced by app-install-prompt.js, which
+            // gates on real eligibility (30s usage / first swim / 2nd session / onboarding
+            // done) instead of firing on every login — showPwaInstallPrompt() is left
+            // defined below, unused, rather than deleted.
+            // showPwaInstallPrompt();
 
             // Load user avatar into header
             if (profile.avatar_url) {
@@ -6705,6 +6708,23 @@
                     console.warn('Admin notification failed (non-blocking):', notifErr);
                 }
 
+                // Fire-and-forget: server-side, send-once welcome email (home-screen install CTA).
+                // Endpoint re-checks eligibility itself (terms_accepted_at, onboarding_completed_at,
+                // welcome_email_sent_at) — safe to call speculatively, and will no-op if already sent.
+                try {
+                    const { data: { session } } = await supabaseClient.auth.getSession();
+                    if (session?.access_token) {
+                        fetch('/api/send-welcome-email', {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${session.access_token}` }
+                        }).catch(() => {});
+                    }
+                } catch (welcomeErr) {
+                    console.warn('Welcome email trigger failed (non-blocking):', welcomeErr);
+                }
+
+                window.dispatchEvent(new CustomEvent('swimloading:onboarding_completed'));
+
                 // If swimmer arrived via a club join link, send them back to finish linking
                 try {
                     const _pj = localStorage.getItem('_pendingJoin');
@@ -7824,6 +7844,7 @@
                 }
                 analytics.track('temp_logged', { spot: spotNameForConfirm, temp, conditions });
                 if (hazards.length > 0) analytics.track('hazard_reported', { hazards });
+                window.dispatchEvent(new CustomEvent('swimloading:temp_logged'));
                 auditLog('temp_log', { spot: spotNameForConfirm, spotId, temp, conditions, backdated: !!isTrueBackdate });
 
                 // June Challenge — award points for live logs AND same-day picker logs
