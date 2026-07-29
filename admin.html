@@ -483,6 +483,16 @@
             <div id="challengeDrawCard"><div style="color:var(--text-secondary);font-size:13px;padding:24px;text-align:center;">Loading…</div></div>
         </div>
 
+        <!-- eo SwimBETTER Standings (Aug-Oct Performance Challenge) -->
+        <div class="section-title">eo SwimBETTER Standings</div>
+        <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+                <div style="font-size:13px;color:var(--text-secondary);">Aug 1 &ndash; Oct 31 2026 &middot; ranked by total active days, longest streak as tiebreaker. Screenshot this each month-end before revealing it in the newsletter.</div>
+                <button onclick="loadEoStandings()" style="background:#f97316;color:#1a0f05;border:none;font-weight:700;font-size:12px;padding:9px 16px;border-radius:8px;cursor:pointer;">Load standings</button>
+            </div>
+            <div id="eoStandingsCard"><div style="color:var(--text-secondary);font-size:13px;padding:24px;text-align:center;">Click "Load standings" to query live data.</div></div>
+        </div>
+
         <!-- July 2026 Newsletter Builder -->
         <div class="section-title">July 2026 Newsletter Builder</div>
         <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;">
@@ -1392,6 +1402,49 @@ function _ifCardHtml(s) {
 // ── July Challenge Draw Approval ─────────────────────────────────────────────────
 // Consumes scripts/draw-monthly-winner.mjs's stored output (challenge_draw_results).
 // Does NOT re-run or alter the draw itself — only approves/rejects what it already computed.
+// ── eo SwimBETTER Standings ──────────────────────────────────────────────────
+// Read-only view onto get_eo_challenge_leaders() — total active days (primary
+// rank) + longest streak (tiebreaker), per Dave's confirmed scoring rule
+// (2026-07-29). No admin action here beyond viewing/screenshotting for the
+// monthly newsletter reveal — the winner itself is only decided at the end
+// of October, manually, same review-before-announcing discipline as the
+// July draw.
+async function loadEoStandings() {
+    const card = document.getElementById('eoStandingsCard');
+    card.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:24px;text-align:center;">Loading…</div>';
+
+    const { data, error } = await supabaseClient.rpc('get_eo_challenge_leaders');
+    if (error) {
+        card.innerHTML = `<div style="color:var(--text-secondary);font-size:13px;padding:16px;">No standings yet (or not migrated: ${error.message}).</div>`;
+        return;
+    }
+    if (!data || !data.length) {
+        card.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:16px;">No active days recorded yet — nobody has logged since the challenge opened.</div>';
+        return;
+    }
+
+    const rows = data.map((r, i) => `
+        <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:8px 10px;font-size:12px;color:var(--text-secondary);">${i + 1}</td>
+            <td style="padding:8px 10px;font-size:13px;color:#f1f5f9;font-weight:700;">${r.display_name || 'Unknown'}</td>
+            <td style="padding:8px 10px;font-size:13px;color:#f97316;font-weight:700;text-align:right;">${r.total_active_days}</td>
+            <td style="padding:8px 10px;font-size:13px;color:var(--text-secondary);text-align:right;">${r.longest_streak}</td>
+            <td style="padding:8px 10px;font-size:11px;color:var(--text-secondary);">${r.first_active_date} &rarr; ${r.last_active_date}</td>
+        </tr>`).join('');
+
+    card.innerHTML = `
+        <table style="width:100%;border-collapse:collapse;">
+            <thead><tr style="border-bottom:1px solid var(--border);">
+                <th style="padding:8px 10px;font-size:11px;color:var(--text-secondary);text-align:left;">#</th>
+                <th style="padding:8px 10px;font-size:11px;color:var(--text-secondary);text-align:left;">Swimmer</th>
+                <th style="padding:8px 10px;font-size:11px;color:var(--text-secondary);text-align:right;">Active Days</th>
+                <th style="padding:8px 10px;font-size:11px;color:var(--text-secondary);text-align:right;">Longest Streak</th>
+                <th style="padding:8px 10px;font-size:11px;color:var(--text-secondary);text-align:left;">Range</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table>`;
+}
+
 async function loadChallengeDraws() {
     const card = document.getElementById('challengeDrawCard');
     const { data, error } = await supabaseClient

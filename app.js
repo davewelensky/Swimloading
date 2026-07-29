@@ -7856,6 +7856,15 @@
                     if (newLogId && typeof ukChallengeAwardLocation === 'function') {
                         ukChallengeAwardLocation(newLogId);
                     }
+                    // eo SwimBETTER Performance Challenge (Aug-Oct) — records today as an
+                    // "active day" for the streak/consistency leaderboard. Backdates excluded
+                    // here too, same anti-gaming reason as the June Challenge line above —
+                    // a streak system is exactly what backdating would otherwise let you game.
+                    if (newLogId) {
+                        supabaseClient.rpc('record_eo_active_day', { p_user_id: currentUser.id, p_log_id: newLogId })
+                            .then(({ error }) => { if (error) console.warn('record_eo_active_day error:', error); })
+                            .catch(() => {});
+                    }
                 }
 
                 // Reset backdate picker
