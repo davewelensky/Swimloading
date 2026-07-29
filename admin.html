@@ -1474,17 +1474,34 @@ async function generateJulyNewsletter() {
 
     const safe = async (fn, fallback) => { try { return await fn(); } catch (e) { console.warn('[newsletter metric failed]', e); return fallback; } };
 
-    const totalSwimmers = await safe(async () => (await supabaseClient.from('profiles').select('id', { count: 'exact', head: true })).count, null);
-    const newSwimmers   = await safe(async () => (await supabaseClient.from('profiles').select('id', { count: 'exact', head: true }).gte('created_at', JULY_2026_START_UTC).lt('created_at', JULY_2026_END_UTC)).count, null);
-    const julyLogsCount = await safe(async () => (await supabaseClient.from('temp_logs').select('id', { count: 'exact', head: true }).gte('created_at', JULY_2026_START_UTC).lt('created_at', JULY_2026_END_UTC)).count, null);
-
-    const julyLogRows = await safe(async () => {
-        const { data, error } = await supabaseClient.from('temp_logs')
-            .select('user_id, temp_c, spot_id, spots!temp_logs_spot_id_fkey(name, country_code)')
-            .gte('created_at', JULY_2026_START_UTC).lt('created_at', JULY_2026_END_UTC);
+    // profiles has RLS `auth.uid() = id` (own-row only) — a direct client count
+    // only ever sees the admin's own row. get_admin_user_directory() is the
+    // existing SECURITY DEFINER RPC admin.html already uses elsewhere (loadUsers())
+    // to bypass that for is_admin callers — reused here rather than re-deriving.
+    const allProfiles = await safe(async () => {
+        const { data, error } = await supabaseClient.rpc('get_admin_user_directory');
         if (error) throw error;
         return data || [];
     }, []);
+    const totalSwimmers = allProfiles.length || null;
+    const newSwimmers = allProfiles.filter(p => p.created_at >= JULY_2026_START_UTC && p.created_at < JULY_2026_END_UTC).length;
+
+    // Excludes location_source='sensor' rows (user_id IS NULL) — the hourly UK
+    // lido sensor-import cron (api/cron/sensor-import.js) writes automated
+    // telemetry straight into temp_logs, not community-submitted swims. Confirmed
+    // 2026-07-29: Tooting Bec + Brockwell Lido were showing 623 logs each (79% of
+    // all "July logs") purely from that cron, before this filter was added.
+    const julyLogRows = await safe(async () => {
+        const { data, error } = await supabaseClient.from('temp_logs')
+            .select('user_id, temp_c, spot_id, spots!temp_logs_spot_id_fkey(name, country_code)')
+            .gte('created_at', JULY_2026_START_UTC).lt('created_at', JULY_2026_END_UTC)
+            .not('user_id', 'is', null)
+            .limit(5000); // guard against Supabase's default 1000-row cap silently truncating as volume grows
+        if (error) throw error;
+        return data || [];
+    }, []);
+
+    const julyLogsCount = julyLogRows.length || null;
 
     const uniqueLoggers = new Set(julyLogRows.map(r => r.user_id)).size;
     const countriesSet = new Set(julyLogRows.map(r => r.spots?.country_code).filter(Boolean));
