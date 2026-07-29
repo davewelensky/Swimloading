@@ -282,7 +282,7 @@ Every partner must have all of the following before going live:
 
 | Field | Value |
 |-------|-------|
-| **Status** | Partnership confirmed (Jul 2026) — presenting sponsor of The Great UK Swim Spot Challenge, details being finalised |
+| **Status** | Partnership confirmed (Jul 2026) — presenting sponsor of The Great UK Swim Spot Challenge. Dates confirmed by Dave 2026-07-29: **August 2026 only** (not the DB's placeholder Aug–Sep window — the campaign config still needs updating to match) |
 | **Hero page** | `/partners/trihard` (live in coming-soon state) |
 | **Welcome card** | Yes (coming soon badge — update once details are confirmed) |
 | **Geography** | UK/EU (per existing welcome.html copy) — `[UNCONFIRMED]` exact country list; geo-gating is copy-only, matching every other partner page (no partner has real enforcement) |
@@ -316,7 +316,8 @@ Every partner must have all of the following before going live:
 **Outstanding actions:**
 - [x] Get from TRIHARD: discount % / code — 15% off, code `LOADING`, confirmed Jul 14 2026
 - [ ] Get from TRIHARD: geography confirmation, Allyson's surname/title
-- [ ] Confirm real launch/end dates for The Great UK Swim Spot Challenge (DB currently seeded with placeholder Aug 1 – Sep 30 2026, `enabled=false`)
+- [x] Confirm real launch/end dates for The Great UK Swim Spot Challenge — **August 2026 only**, confirmed by Dave 2026-07-29 (in the July newsletter build)
+- [ ] Update the campaign DB config (`enabled`, `test_mode`, `launch_date`/`end_date`) to August 1–31 2026 — currently still seeded with the old placeholder Aug 1–Sep 30 window and `enabled=false`
 - [ ] Follow up with Allyson on SA leftover stock — she confirmed some exists but no firm offer yet (Jul 14 2026)
 - [x] Get a TRIHARD logo asset — received Jul 2026, now live on hero page + welcome card
 - [x] Confirm brand spelling — "TRIHARD" (one word), site-wide copy updated Jul 2026
