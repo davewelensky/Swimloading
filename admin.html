@@ -1734,10 +1734,10 @@ function _nlRenderPreview() {
 // never shown early, never conflated with June's already-decided winner.
 function buildJulyNewsletterHtml(m, inputs) {
     const winnerBlock = m.winnerRow
-        ? `<div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#f1f5f9;margin-bottom:6px;">Congratulations, ${escapeHtml(m.winnerRow.winner_display_name)}</div>
-           <div style="font-size:14px;color:#94a3b8;line-height:1.8;margin-bottom:14px;">${escapeHtml(m.winnerRow.winner_display_name)} was selected from ${m.winnerRow.ticket_count} qualifying entries held by ${m.winnerRow.participant_count} swimmers.</div>
-           <div style="font-size:12px;color:#64748b;margin-bottom:18px;">Winning entry: ${escapeHtml(m.winnerRow.winning_entry_description || '')}</div>
-           <a href="https://www.swimloading.com/app" style="display:inline-block;background:#38bdf8;color:#080f1a;font-size:13px;font-weight:700;padding:12px 24px;border-radius:50px;text-decoration:none;">View the July Draw</a>`
+        ? `<div style="display:inline-block;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.35);border-radius:20px;padding:4px 12px;font-size:10px;font-weight:700;color:#fbbf24;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;">Winner Announced</div>
+           <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#f1f5f9;margin-bottom:6px;">Congratulations, ${escapeHtml(m.winnerRow.winner_display_name)}!</div>
+           <div style="font-size:14px;color:#94a3b8;line-height:1.8;margin-bottom:18px;">Drawn from ${m.winnerRow.ticket_count} tickets held by ${m.winnerRow.participant_count} qualifying swimmers — every ticket had an equal shot. The MK2 is on its way.</div>
+           <a href="https://www.swimloading.com/app" style="display:inline-block;background:#38bdf8;color:#080f1a;font-size:13px;font-weight:700;padding:12px 24px;border-radius:50px;text-decoration:none;">See the Full Results</a>`
         : `<div style="font-size:15px;color:#f1f5f9;font-weight:700;margin-bottom:8px;">The July draw is being finalised.</div>
            <div style="font-size:13px;color:#94a3b8;line-height:1.7;">The draw runs on 31 July, once all July swims and entries have been validated. We'll announce the winner as soon as it's confirmed.</div>`;
 
@@ -1780,6 +1780,20 @@ function buildJulyNewsletterHtml(m, inputs) {
         </div>
       </div>
 
+      <!-- Add to Home Screen — moved up from the bottom of the email and given
+           real visual weight per Dave (1 Aug 2026): adoption is low and this was
+           getting buried after a wall of content. High-attention slot, right
+           after the community stats and before challenge content, so it lands
+           while people are still reading rather than competing with challenge
+           fatigue near the bottom. /install returns 200, confirmed live. -->
+      <div style="padding:0 32px 20px;">
+        <div style="background:linear-gradient(135deg,rgba(56,189,248,0.14),rgba(56,189,248,0.04));border:2px solid rgba(56,189,248,0.4);border-radius:16px;padding:26px;text-align:center;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#f1f5f9;margin-bottom:8px;">Stop searching for SwimLoading</div>
+          <div style="font-size:13px;color:#94a3b8;line-height:1.8;margin-bottom:18px;max-width:440px;margin-left:auto;margin-right:auto;">20 seconds now saves you every time after. Add SwimLoading to your home screen and it opens instantly, like any other app — no browser, no bookmarks, no searching mid-swim.</div>
+          <a href="https://www.swimloading.com/install" style="display:inline-block;background:#38bdf8;color:#080f1a;font-size:14px;font-weight:700;padding:14px 28px;border-radius:50px;text-decoration:none;">Add to Home Screen — Takes 20 Seconds</a>
+        </div>
+      </div>
+
       <div style="padding:0 32px 20px;">
         <div style="background:linear-gradient(135deg,#0f2038,#0a1628);border:1px solid rgba(56,189,248,0.3);border-radius:16px;padding:24px;">
           <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:12px;"><tr>
@@ -1787,10 +1801,10 @@ function buildJulyNewsletterHtml(m, inputs) {
               <img src="https://www.swimloading.com/icons/blu-smooth-logo.png" alt="Blu Smooth" style="height:20px;width:auto;display:block;">
             </td>
           </tr></table>
-          <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;">July Challenge · This Month</div>
+          <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;">July Challenge · Final Results</div>
           <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#f1f5f9;margin-bottom:2px;">Blu Smooth MK2 Comp wetsuit</div>
           <div style="font-size:13px;color:#64748b;margin-bottom:16px;">R5,999 value &middot; launching in South Africa this month &middot; thank you to Blu Smooth for supporting July's challenge</div>
-          <div style="font-size:13px;color:#94a3b8;line-height:1.8;margin-bottom:18px;">Every 10 temperature logs earns one ticket in the draw. It's a random draw — every ticket has an equal shot, weighted by how many you earned.</div>
+          <div style="font-size:13px;color:#94a3b8;line-height:1.8;margin-bottom:18px;">Every 10 temperature logs earned one ticket in the draw. It was a random draw — every ticket had an equal shot, weighted by how many you earned.</div>
           ${winnerBlock}
         </div>
       </div>
@@ -1803,27 +1817,36 @@ function buildJulyNewsletterHtml(m, inputs) {
         </div>
       </div>
 
-      <!-- More challenges — kept deliberately tight (one line each) so the email
-           stays scannable with 4 concurrent challenges. This newsletter is sent
-           1 August — the exact day eo SwimBETTER (Aug 1–Oct 31) and TRIHARD's UK
-           challenge (August only) both go live, so both are framed as starting
-           today, not "coming soon". eo's mechanic (active days/streaks, monthly
-           leaderboard reveal) and TRIHARD's firm August-only window were
-           confirmed directly by Dave — not on the partner pages verbatim, so
-           don't re-derive this copy from those pages without checking with him
-           first if either date/mechanic changes. -->
+      <!-- eo SwimBETTER — pulled out as its own featured section (not bundled with
+           TRIHARD/Maurten below) because at US$1,349 it's the single biggest prize
+           ever run on SwimLoading and deserves hero-level real estate, not a
+           one-of-three list item. Brand-matched orange, from partners/eolab.html.
+           This newsletter is sent 1 August — the exact day eo (Aug 1–Oct 31) goes
+           live, so it's framed as starting today, not "coming soon". Mechanic
+           (active days/streaks, monthly leaderboard reveal) confirmed directly by
+           Dave — don't re-derive from the partner page without checking with him
+           first if the mechanic changes. -->
       <div style="padding:0 32px 20px;">
-        <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#64748b;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">Two New Challenges Start Today</div>
-
-        <!-- eo SwimBETTER — brand-matched orange, from partners/eolab.html --><div style="background:#1a0f05;border:1px solid rgba(249,115,22,0.3);border-radius:14px;padding:20px;margin-bottom:12px;">
-          <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#f97316;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">Starting Today · Aug 1 – Oct 31 · 3-Month Challenge</div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:#f1f5f9;line-height:1;margin-bottom:6px;">eo SwimBETTER90</div>
-          <div style="font-size:13px;color:#fed7aa;font-weight:700;margin-bottom:8px;">US$1,349 total value — handset + 1-year Gold Membership + a 1-on-1 expert session</div>
-          <div style="font-size:13px;color:#94a3b8;line-height:1.7;margin-bottom:8px;">This one rewards showing up, not piling up. Every real swim you log counts as an active day — log at least <strong style="color:#f1f5f9;">30 active days</strong> across the three months (roughly 2-3 a week) to qualify.</div>
-          <div style="font-size:13px;color:#94a3b8;line-height:1.7;margin-bottom:8px;">Up to <strong style="color:#f1f5f9;">20 most-consistent swimmers</strong> who clear that bar go into the final draw, and every finalist gets an equal shot — that's the fair part. We'll publish a leaderboard preview at the end of August and September, and draw the winner after 31 October.</div>
+        <div style="background:linear-gradient(135deg,#1a0f05,#0d0803);border:2px solid rgba(249,115,22,0.45);border-radius:16px;padding:26px;">
+          <div style="display:inline-block;background:rgba(249,115,22,0.15);border:1px solid rgba(249,115,22,0.4);border-radius:20px;padding:4px 12px;font-size:10px;font-weight:700;color:#f97316;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;">Starting Today · Our Biggest Prize Yet</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:34px;color:#f1f5f9;line-height:1;margin-bottom:8px;">eo SwimBETTER90</div>
+          <div style="font-size:16px;color:#fed7aa;font-weight:700;margin-bottom:4px;">US$1,349 total value</div>
+          <div style="font-size:13px;color:#94a3b8;margin-bottom:16px;">The handset + 1-year Gold Membership + a 1-on-1 expert session — the same technology used by Olympic swimmers, now on offer to one SwimLoading member.</div>
+          <div style="font-size:13px;color:#cbd5e1;line-height:1.8;margin-bottom:10px;">This one rewards showing up, not piling up. Every real swim you log between now and 31 October counts as an active day — log at least <strong style="color:#f1f5f9;">30 active days</strong> across the three months (roughly 2-3 a week) to qualify.</div>
+          <div style="font-size:13px;color:#cbd5e1;line-height:1.8;margin-bottom:20px;">Up to <strong style="color:#f1f5f9;">20 most-consistent swimmers</strong> who clear that bar go into the final draw, and every finalist gets an equal shot — that's the fair part. We'll publish a leaderboard preview at the end of August and September, and draw the winner after 31 October.</div>
+          <a href="https://www.swimloading.com/partners/eolab" style="display:inline-block;background:#f97316;color:#1a0f05;font-size:13px;font-weight:700;padding:12px 24px;border-radius:50px;text-decoration:none;">Start Your Streak Today</a>
         </div>
+      </div>
 
-        <!-- TRIHARD — mechanic sourced from partners/trihard.html, dates confirmed by Dave (Aug only) -->
+      <!-- TRIHARD + Maurten — kept deliberately tight (one line each) so the email
+           stays scannable. TRIHARD's mechanic/dates (Aug only) confirmed by Dave.
+           Maurten's mechanic corrected 1 Aug 2026: it's a weighted random draw
+           (log 10 swims = 1 ticket, same mechanic as July's Blu Smooth draw), NOT
+           "most active swimmer wins" — that was wrong and contradicted the live
+           app/partner page, which both already say "draw". Don't revert this. -->
+      <div style="padding:0 32px 20px;">
+        <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#64748b;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">Also Live This Month</div>
+
         <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:14px;padding:20px;margin-bottom:12px;">
           <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">Live Now · August Only · UK Members</div>
           <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:#f1f5f9;line-height:1;margin-bottom:6px;">The Great UK Swim Spot Challenge</div>
@@ -1831,11 +1854,10 @@ function buildJulyNewsletterHtml(m, inputs) {
           <div style="font-size:12px;color:#64748b;">Everyone worldwide already gets 15% off TRIHARD, code <strong style="color:#94a3b8;">LOADING</strong>.</div>
         </div>
 
-        <!-- Maurten — ongoing monthly, established amber accent from the April/June newsletters -->
         <div style="background:#0a1628;border:1px solid rgba(245,158,11,0.25);border-radius:14px;padding:20px;">
-          <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#f59e0b;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">Every Month · Apr–Dec 2026</div>
+          <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#f59e0b;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">August Challenge · Live Now</div>
           <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:#f1f5f9;line-height:1;margin-bottom:6px;">The Maurten Giveaway</div>
-          <div style="font-size:13px;color:#94a3b8;line-height:1.7;">The most active swimmer on the leaderboard each month wins a Maurten nutrition bundle, supplied by Art of Endurance. No separate entry — just keep logging.</div>
+          <div style="font-size:13px;color:#94a3b8;line-height:1.7;">Log 10 swims this month to enter the draw for a box of Maurten Gel 100s, supplied by Art of Endurance — every entry gets an equal shot, and every 10 logs, group swim, or streak earns another ticket.</div>
         </div>
       </div>
 
@@ -1862,14 +1884,6 @@ function buildJulyNewsletterHtml(m, inputs) {
         <div style="background:linear-gradient(135deg,#0a1628,#0d1e35);border-left:3px solid #10b981;border-radius:0 16px 16px 0;padding:24px;">
           <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#10b981;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;">Community · Taking On The Channel</div>
           <div style="font-size:14px;color:#94a3b8;line-height:1.8;">${escapeHtml(inputs.channelStory)}</div>
-        </div>
-      </div>
-
-      <div style="padding:0 32px 20px;">
-        <div style="border-left:3px solid #38bdf8;background:#080f1a;border-radius:0 12px 12px 0;padding:18px 20px;">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#f1f5f9;margin-bottom:8px;">Stop searching for SwimLoading</div>
-          <div style="font-size:13px;color:#94a3b8;line-height:1.8;margin-bottom:16px;">Add SwimLoading to your phone's home screen and open it like any other app. It takes about 20 seconds and makes logging a swim much easier.</div>
-          <a href="https://www.swimloading.com/install" style="display:inline-block;background:#38bdf8;color:#080f1a;font-size:13px;font-weight:700;padding:12px 24px;border-radius:50px;text-decoration:none;">Add SwimLoading to Your Home Screen</a>
         </div>
       </div>
 
