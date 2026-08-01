@@ -349,16 +349,17 @@
                   <div style="font-size:12px;font-weight:700;color:#38bdf8;">${daysLeft}d left</div>
                 </div>
 
-                <div style="border:1px solid rgba(56,189,248,0.3);border-radius:12px;overflow:hidden;margin-bottom:14px;">
-                  <div style="position:relative;height:130px;overflow:hidden;background:linear-gradient(135deg,#04263b,#0d1728);">
-                    <div style="position:absolute;inset:0;padding:10px 14px;display:flex;align-items:flex-end;justify-content:space-between;">
-                      <div>
-                        <div style="font-size:13px;font-weight:900;color:#7dd3fc;letter-spacing:-0.2px;text-shadow:0 1px 4px rgba(0,0,0,0.9);">Maurten Gel 100 3-pack</div>
-                        <div style="font-size:11px;color:#bae6fd;font-weight:600;margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">Supplied by Art of Endurance · Grand prize</div>
-                        <div style="font-size:10px;color:rgba(186,230,253,0.75);margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">Log 10 to enter · every 10 logs = another entry</div>
-                      </div>
-                      <i data-lucide="trophy" style="width:22px;height:22px;color:#38bdf8;flex-shrink:0;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.9));margin-bottom:2px;"></i>
+                <div style="border:1px solid rgba(56,189,248,0.3);border-radius:12px;overflow:hidden;margin-bottom:14px;background:linear-gradient(135deg,#04263b,#0d1728);">
+                  <div style="padding:14px;display:flex;align-items:center;gap:14px;">
+                    <div style="flex-shrink:0;width:52px;height:52px;border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:center;padding:8px;">
+                      <img src="/icons/Maurten%20logo.jpg" alt="Maurten" style="max-width:100%;max-height:100%;object-fit:contain;display:block;">
                     </div>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:13px;font-weight:900;color:#7dd3fc;letter-spacing:-0.2px;">Maurten Gel 100 3-pack</div>
+                      <div style="font-size:11px;color:#bae6fd;font-weight:600;margin-top:2px;">Supplied by Art of Endurance · Grand prize</div>
+                      <div style="font-size:10px;color:rgba(186,230,253,0.75);margin-top:2px;">Log 10 to enter · every 10 logs = another entry</div>
+                    </div>
+                    <i data-lucide="trophy" style="width:20px;height:20px;color:#38bdf8;flex-shrink:0;"></i>
                   </div>
                 </div>
 
