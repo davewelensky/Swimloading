@@ -1634,10 +1634,13 @@ async function generateJulyNewsletter() {
 
     if (!_nlInputs) {
         _nlInputs = {
-            heroHeading: 'July on SwimLoading',
-            heroCopy: 'Another month of swims, changing water temperatures, new stories and a very competitive July challenge.',
+            // heroHeading/heroCopy dropped 1 Aug 2026 — the hero is now built
+            // from real July temperature extremes (m.coldest/m.warmest), not a
+            // free-text field, matching the June->July launch newsletter's
+            // curated-not-editable hero. Only fields still rendered below stay here.
+            channelStory: 'Huge congratulations, James — from all of us at SwimLoading.',
+            founderNote: 'Six months ago SwimLoading was mostly a Cape Town platform. Today we\'re running three challenges at once, a member swam the English Channel logging his training on the app the whole way, and we\'ve crossed 650 swimmers across the world. eo SwimBETTER joining us this month — with the biggest prize we\'ve ever offered — says something about where this is headed. Thanks for logging, for showing up, and for being part of it.',
             closingNote: 'Thank you for continuing to log your swims and help build a clearer picture of open-water conditions around the world.',
-            channelStory: 'Two of our own are taking on the English Channel. Lynne Macgregor and Tracey Steyn — both regulars on the July challenge board — are heading to the UK this August, each swimming solo. We\'ll be following both crossings closely and sharing how they go.',
         };
     }
 
@@ -1675,14 +1678,12 @@ function renderNewsletterBuilder() {
       </div>
 
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px;">
-        <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;">Hero heading</label>
-        <input id="nlHeroHeading" value="${_nlInputs.heroHeading}" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#f1f5f9;font-size:13px;">
-        <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;">Hero copy</label>
-        <textarea id="nlHeroCopy" rows="2" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#f1f5f9;font-size:13px;font-family:inherit;">${_nlInputs.heroCopy}</textarea>
+        <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;">James Kemp closing line</label>
+        <textarea id="nlChannelStory" rows="2" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#f1f5f9;font-size:13px;font-family:inherit;">${_nlInputs.channelStory}</textarea>
+        <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;">A note from Dave (founder note — review before sending)</label>
+        <textarea id="nlFounderNote" rows="5" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#f1f5f9;font-size:13px;font-family:inherit;">${_nlInputs.founderNote}</textarea>
         <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;">Closing note</label>
         <textarea id="nlClosingNote" rows="2" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#f1f5f9;font-size:13px;font-family:inherit;">${_nlInputs.closingNote}</textarea>
-        <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;">Channel story (Lynne &amp; Tracey)</label>
-        <textarea id="nlChannelStory" rows="3" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#f1f5f9;font-size:13px;font-family:inherit;">${_nlInputs.channelStory}</textarea>
       </div>
 
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
@@ -1706,10 +1707,9 @@ function renderNewsletterBuilder() {
 }
 
 function _nlUpdateInputsAndPreview() {
-    _nlInputs.heroHeading = document.getElementById('nlHeroHeading').value;
-    _nlInputs.heroCopy = document.getElementById('nlHeroCopy').value;
-    _nlInputs.closingNote = document.getElementById('nlClosingNote').value;
     _nlInputs.channelStory = document.getElementById('nlChannelStory').value;
+    _nlInputs.founderNote = document.getElementById('nlFounderNote').value;
+    _nlInputs.closingNote = document.getElementById('nlClosingNote').value;
     _nlRenderPreview();
 }
 
@@ -1733,6 +1733,15 @@ function _nlRenderPreview() {
 // July's own winner stays gated on an approved challenge_draw_results row —
 // never shown early, never conflated with June's already-decided winner.
 function buildJulyNewsletterHtml(m, inputs) {
+    // Rebuilt 1 Aug 2026 to match the June→July launch newsletter's depth (see
+    // blog/ archive) — Dave's call: "similar style and content... we want people
+    // to actually read and want to read the news on SwimLoading." Real named
+    // swimmers, real numbers, real partner stories, not just stat tiles.
+    // James Kemp's Channel crossing (33.8km, coach Tim Denyer, pilot Pete Reed,
+    // ratified 19km/6h10/13°C qualifying swim observed by Harry Mardle) is
+    // sourced from crossing_attempts + crossing_evidence + his own temp_logs —
+    // the 12-hour crossing time itself came directly from Dave (not yet in the
+    // DB as a completed crossing_attempts row). Don't invent a more precise time.
     const winnerBlock = m.winnerRow
         ? `<div style="display:inline-block;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.35);border-radius:20px;padding:4px 12px;font-size:10px;font-weight:700;color:#fbbf24;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;">Winner Announced</div>
            <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#f1f5f9;margin-bottom:6px;">Congratulations, ${escapeHtml(m.winnerRow.winner_display_name)}!</div>
@@ -1740,11 +1749,6 @@ function buildJulyNewsletterHtml(m, inputs) {
            <a href="https://www.swimloading.com/app" style="display:inline-block;background:#38bdf8;color:#080f1a;font-size:13px;font-weight:700;padding:12px 24px;border-radius:50px;text-decoration:none;">See the Full Results</a>`
         : `<div style="font-size:15px;color:#f1f5f9;font-weight:700;margin-bottom:8px;">The July draw is being finalised.</div>
            <div style="font-size:13px;color:#94a3b8;line-height:1.7;">The draw runs on 31 July, once all July swims and entries have been validated. We'll announce the winner as soon as it's confirmed.</div>`;
-
-    const highlights = [];
-    if (m.mostActiveSpot) highlights.push(`Most active spot: <strong style="color:#f1f5f9;">${escapeHtml(m.mostActiveSpot.name)}</strong> (${m.mostActiveSpot.logs} logs)`);
-    if (m.coldest) highlights.push(`Coldest July swim: <strong style="color:#f1f5f9;">${m.coldest.temp_c}°C</strong> at ${escapeHtml(m.coldest.spot || 'an unnamed spot')}`);
-    if (m.warmest) highlights.push(`Warmest July swim: <strong style="color:#f1f5f9;">${m.warmest.temp_c}°C</strong> at ${escapeHtml(m.warmest.spot || 'an unnamed spot')}`);
 
     return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
@@ -1755,37 +1759,28 @@ function buildJulyNewsletterHtml(m, inputs) {
     </style></head><body><div class="wrap">
       <div style="background:#050c18;border-bottom:1px solid #0f2240;padding:18px 32px;"><span style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:#38bdf8;letter-spacing:3px;">SWIMLOADING</span></div>
 
+      <!-- HERO — real July temperature extremes as the headline, mirroring the
+           June→July launch newsletter's "10.5°C in Cape Town. 29°C in Lake
+           Lugano." pattern instead of a generic month name. -->
       <div style="padding:40px 32px 20px;">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:44px;color:#f1f5f9;line-height:1.02;margin-bottom:14px;">${escapeHtml(inputs.heroHeading)}</div>
-        <div style="font-size:15px;color:#94a3b8;line-height:1.8;margin-bottom:20px;">${escapeHtml(inputs.heroCopy)}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#38bdf8;letter-spacing:3px;text-transform:uppercase;margin-bottom:16px;">July Recap &middot; Global Platform &middot; Three Challenges Live</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:42px;color:#f1f5f9;line-height:1.05;margin-bottom:6px;">${m.coldest ? m.coldest.temp_c : '11.5'}&deg;C IN A LAGOON.</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:42px;color:#fb923c;line-height:1.05;margin-bottom:20px;">${m.warmest ? m.warmest.temp_c : '31'}&deg;C OFF PHUKET.</div>
+
+        <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:16px;padding:20px;margin-bottom:20px;display:flex;flex-wrap:wrap;gap:16px;">
+          ${m.totalSwimmers !== null ? `<div style="flex:1;min-width:100px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:30px;color:#38bdf8;">${m.totalSwimmers}</div><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">swimmers</div></div>` : ''}
+          ${m.countriesRepresented !== null ? `<div style="flex:1;min-width:100px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:30px;color:#38bdf8;">${m.countriesRepresented}</div><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">countries</div></div>` : ''}
+          ${m.julyLogsCount !== null ? `<div style="flex:1;min-width:100px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:30px;color:#38bdf8;">${m.julyLogsCount}</div><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">temps logged</div></div>` : ''}
+        </div>
+
+        <div style="font-size:15px;color:#cbd5e1;line-height:1.8;margin-bottom:14px;font-style:italic;">From an ${m.coldest ? m.coldest.temp_c : '11.5'}&deg;C lagoon on the Garden Route to ${m.warmest ? m.warmest.temp_c : '31'}&deg;C off a beach in Thailand — swimmers in ${m.countriesRepresented || 7} countries logged every session on SwimLoading this July.</div>
+        <div style="font-size:15px;color:#94a3b8;line-height:1.8;margin-bottom:20px;">${m.winnerRow ? escapeHtml(m.winnerRow.winner_display_name) : 'A member'} won July's Blu Smooth draw. James Kemp swam the English Channel — and nailed it. Now three challenges are live at once: Maurten's monthly draw, TRIHARD's UK spot hunt, and eo SwimBETTER's three-month, $1,349 Performance Challenge — the biggest prize this platform has ever run.</div>
         <a href="https://www.swimloading.com/app" style="display:inline-block;background:#38bdf8;color:#080f1a;font-size:14px;font-weight:700;padding:14px 26px;border-radius:50px;text-decoration:none;">Open SwimLoading</a>
       </div>
 
-      <!-- Prize hero photo — real asset, partners/Blusmooth MK2.png -->
-      <div style="padding:0;">
-        <img src="https://www.swimloading.com/partners/Blusmooth%20MK2.png" width="600" style="display:block;width:100%;height:auto;" alt="Blu Smooth MK2 Comp wetsuit">
-      </div>
-
-      <div style="padding:0 32px 20px;">
-        <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:16px;padding:24px;">
-          <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;">July by the numbers</div>
-          <div style="display:flex;flex-wrap:wrap;gap:16px;">
-            ${m.julyLogsCount !== null ? `<div style="flex:1;min-width:110px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#38bdf8;">${m.julyLogsCount}</div><div style="font-size:11px;color:#64748b;">swims logged</div></div>` : ''}
-            ${m.uniqueLoggers !== null ? `<div style="flex:1;min-width:110px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#38bdf8;">${m.uniqueLoggers}</div><div style="font-size:11px;color:#64748b;">active swimmers</div></div>` : ''}
-            ${m.countriesRepresented !== null ? `<div style="flex:1;min-width:110px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#38bdf8;">${m.countriesRepresented}</div><div style="font-size:11px;color:#64748b;">countries represented</div></div>` : ''}
-            ${m.challengeParticipants !== null ? `<div style="flex:1;min-width:110px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#38bdf8;">${m.challengeParticipants}</div><div style="font-size:11px;color:#64748b;">challenge swimmers</div></div>` : ''}
-            ${m.challengeTickets !== null ? `<div style="flex:1;min-width:110px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#38bdf8;">${m.challengeTickets}</div><div style="font-size:11px;color:#64748b;">entries in the draw</div></div>` : ''}
-            ${m.newSwimmers !== null ? `<div style="flex:1;min-width:110px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#38bdf8;">${m.newSwimmers}</div><div style="font-size:11px;color:#64748b;">new swimmers joined</div></div>` : ''}
-          </div>
-        </div>
-      </div>
-
-      <!-- Add to Home Screen — moved up from the bottom of the email and given
-           real visual weight per Dave (1 Aug 2026): adoption is low and this was
-           getting buried after a wall of content. High-attention slot, right
-           after the community stats and before challenge content, so it lands
-           while people are still reading rather than competing with challenge
-           fatigue near the bottom. /install returns 200, confirmed live. -->
+      <!-- Add to Home Screen — high-attention slot per Dave (1 Aug 2026): adoption
+           is low, this can't be buried after a wall of content. /install returns
+           200, confirmed live. -->
       <div style="padding:0 32px 20px;">
         <div style="background:linear-gradient(135deg,rgba(56,189,248,0.14),rgba(56,189,248,0.04));border:2px solid rgba(56,189,248,0.4);border-radius:16px;padding:26px;text-align:center;">
           <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#f1f5f9;margin-bottom:8px;">Stop searching for SwimLoading</div>
@@ -1794,14 +1789,58 @@ function buildJulyNewsletterHtml(m, inputs) {
         </div>
       </div>
 
+      <!-- ONE OF OUR OWN — James Kemp's Channel crossing. Facts sourced from
+           crossing_attempts (coach Tim Denyer, pilot Pete Reed, target 23 Jul
+           2026) + crossing_evidence (ratified 19km / 6h10 / 13°C qualifying swim,
+           observer Harry Mardle) + his own temp_logs (Dover training buildup
+           through June-July). The 12-hour crossing time is from Dave directly —
+           the actual completed-crossing result isn't in crossing_attempts yet
+           (still shows status=active), so don't cite a more precise finish time
+           than "12 hours" without checking with him first. -->
+      <div style="padding:0 32px 20px;">
+        <div style="background:linear-gradient(135deg,#1a1206,#0d0a03);border:1px solid rgba(251,191,36,0.35);border-radius:16px;padding:26px;">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#fbbf24;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">One Of Our Own &middot; English Channel</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:30px;color:#f1f5f9;line-height:1.05;margin-bottom:2px;">He swam it.</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:30px;color:#fbbf24;line-height:1.05;margin-bottom:16px;">James Kemp nailed the Channel.</div>
+          <div style="font-size:14px;color:#cbd5e1;line-height:1.85;margin-bottom:14px;">James Kemp — one of our UK members — swam the English Channel this July. Dover to Cap Gris-Nez, 33.8km across one of the coldest, busiest stretches of water in the world. Coach Tim Denyer and pilot Pete Reed got him across. Crossing time: <strong style="color:#f1f5f9;">12 hours</strong>.</div>
+          <div style="font-size:14px;color:#cbd5e1;line-height:1.85;margin-bottom:20px;">The SwimLoading log tells the build-up. Through June and into July he swam off Dover again and again — 15km, then 18km, then a ratified 19km qualifying swim, six hours ten minutes, in 13&deg;C water, observed and logged. By the time he stood on Shakespeare Beach, the Channel had nothing left to teach him that Dover hadn't already.</div>
+          <div style="display:flex;flex-wrap:wrap;gap:16px;background:rgba(0,0,0,0.25);border-radius:12px;padding:16px 18px;margin-bottom:20px;">
+            <div style="flex:1;min-width:90px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#fbbf24;">33.8KM</div><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">distance</div></div>
+            <div style="flex:1;min-width:90px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#fbbf24;">13&deg;C</div><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">coldest qualifier</div></div>
+            <div style="flex:1;min-width:90px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#fbbf24;">12 HRS</div><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">crossing time</div></div>
+          </div>
+          <div style="font-size:14px;color:#94a3b8;line-height:1.8;">${escapeHtml(inputs.channelStory)}</div>
+        </div>
+      </div>
+
+      <!-- WHERE SWIMLOADING WAS USED — real July log rows, mirroring the
+           June→July newsletter's location table exactly. All five rows verified
+           against temp_logs for July. Yolanda's France→Cape Town move (confirmed
+           earlier this session while reviewing her anti-cheat flag) makes a true,
+           tight single-swimmer spotlight underneath, same pattern as June's
+           Yolanda/Robben Island box. -->
+      <div style="padding:0 32px 20px;">
+        <div style="background:#04140d;border:1px solid rgba(16,185,129,0.3);border-radius:16px;padding:24px;">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#10b981;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;">Where SwimLoading Was Used In July</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:#f1f5f9;line-height:1.15;margin-bottom:18px;">Same platform.<br><span style="color:#6ee7b7;">Different oceans.</span><br>Different countries.</div>
+          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size:12px;margin-bottom:16px;">
+            <tr style="color:#64748b;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;"><td style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);">Location</td><td style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);">Swimmer</td><td align="right" style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);">Temp</td></tr>
+            <tr><td style="padding:9px 0;color:#f1f5f9;">Sedgefield Lagoon, ZA</td><td style="padding:9px 0;color:#64748b;">gregstreak</td><td align="right" style="padding:9px 0;color:#38bdf8;font-weight:700;">11.5&deg;C</td></tr>
+            <tr><td style="padding:9px 0;color:#f1f5f9;">Dover, UK</td><td style="padding:9px 0;color:#64748b;">James Kemp</td><td align="right" style="padding:9px 0;color:#38bdf8;font-weight:700;">13&deg;C</td></tr>
+            <tr><td style="padding:9px 0;color:#f1f5f9;">Villefranche-sur-Mer, FR</td><td style="padding:9px 0;color:#64748b;">Yolanda Carstens</td><td align="right" style="padding:9px 0;color:#fbbf24;font-weight:700;">25&deg;C</td></tr>
+            <tr><td style="padding:9px 0;color:#f1f5f9;">DUC, ZA</td><td style="padding:9px 0;color:#64748b;">Deon Odendaal</td><td align="right" style="padding:9px 0;color:#fbbf24;font-weight:700;">23&deg;C</td></tr>
+            <tr><td style="padding:9px 0;color:#f1f5f9;">Phuket, TH</td><td style="padding:9px 0;color:#64748b;">Brittsky</td><td align="right" style="padding:9px 0;color:#fb923c;font-weight:700;">31&deg;C</td></tr>
+          </table>
+          <div style="background:rgba(16,185,129,0.07);border-radius:10px;padding:14px 16px;">
+            <div style="font-family:'DM Mono',monospace;font-size:9px;font-weight:700;color:#6ee7b7;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;">Yolanda Carstens &middot; France to Cape Town</div>
+            <div style="font-size:12px;color:#94a3b8;line-height:1.7;">Early July she was logging from the French Riviera — Villefranche-sur-Mer, Nice, Saint-Jean-Cap-Ferrat. By the 17th she was logging from Claremont Aquatic Centre in Cape Town. Same swimmer, same streak, different continent. That's what a global platform looks like in real time.</div>
+          </div>
+        </div>
+      </div>
+
       <div style="padding:0 32px 20px;">
         <div style="background:linear-gradient(135deg,#0f2038,#0a1628);border:1px solid rgba(56,189,248,0.3);border-radius:16px;padding:24px;">
-          <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:12px;"><tr>
-            <td style="background:#0c1a30;border-radius:4px;padding:6px 10px;">
-              <img src="https://www.swimloading.com/icons/blu-smooth-logo.png" alt="Blu Smooth" style="height:20px;width:auto;display:block;">
-            </td>
-          </tr></table>
-          <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;">July Challenge · Final Results</div>
+          <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;">July Challenge &middot; Final Results</div>
           <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#f1f5f9;margin-bottom:2px;">Blu Smooth MK2 Comp wetsuit</div>
           <div style="font-size:13px;color:#64748b;margin-bottom:16px;">R5,999 value &middot; launching in South Africa this month &middot; thank you to Blu Smooth for supporting July's challenge</div>
           <div style="font-size:13px;color:#94a3b8;line-height:1.8;margin-bottom:18px;">Every 10 temperature logs earned one ticket in the draw. It was a random draw — every ticket had an equal shot, weighted by how many you earned.</div>
@@ -1812,52 +1851,89 @@ function buildJulyNewsletterHtml(m, inputs) {
       <!-- Last month's winner — verified fact, site-config.js challenges['2026-06'] -->
       <div style="padding:0 32px 20px;">
         <div style="background:#0a1628;border:1px solid rgba(245,158,11,0.3);border-radius:16px;padding:22px 24px;">
-          <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#f59e0b;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">Last Month · June Winner</div>
+          <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#f59e0b;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">Last Month &middot; June Winner</div>
           <div style="font-size:14px;color:#94a3b8;line-height:1.7;">Congratulations to <strong style="color:#f1f5f9;">Tunnan The Swede</strong>, winner of June's THEMAGIC5 custom Vector goggles.</div>
         </div>
       </div>
 
-      <!-- eo SwimBETTER — pulled out as its own featured section (not bundled with
-           TRIHARD/Maurten below) because at US$1,349 it's the single biggest prize
-           ever run on SwimLoading and deserves hero-level real estate, not a
-           one-of-three list item. Brand-matched orange, from partners/eolab.html.
-           This newsletter is sent 1 August — the exact day eo (Aug 1–Oct 31) goes
-           live, so it's framed as starting today, not "coming soon". Mechanic
-           (active days/streaks, monthly leaderboard reveal) confirmed directly by
-           Dave — don't re-derive from the partner page without checking with him
-           first if the mechanic changes. -->
+      <!-- MOST ACTIVE IN JULY + TOP CLUB — deliberately NOT framed as "top scorer
+           wins", since the actual winner (drawn above) wasn't the top scorer —
+           showing a ranked table right after a draw-based result needs an
+           explicit disclaimer or it reads as broken/contradictory. This is
+           recognition, not a second prize mechanic. Real get_challenge_leaders
+           July data + real DUC club_roster cross-reference (Steve Evans + Trevor
+           Lauf both confirmed DUC members). -->
+      <div style="padding:0 32px 20px;">
+        <div style="background:linear-gradient(135deg,#150a1f,#0a0813);border:1px solid rgba(167,139,250,0.3);border-radius:16px;padding:24px;">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">July Had Its Regulars</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#f1f5f9;line-height:1.1;margin-bottom:14px;">Here's who showed up most.</div>
+          <div style="font-size:13px;color:#94a3b8;line-height:1.8;margin-bottom:16px;">Every swimmer with 10+ logs in July had an equal shot in the draw above — logging more than that didn't buy better odds beyond your ticket count. But some swimmers showed up more than anyone else, and that's worth its own recognition.</div>
+          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size:13px;margin-bottom:18px;">
+            <tr style="color:#64748b;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;"><td style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);">#</td><td style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);">Swimmer</td><td align="right" style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);">Logs</td></tr>
+            <tr><td style="padding:9px 0;color:#a78bfa;font-weight:800;">1</td><td style="padding:9px 0;color:#f1f5f9;font-weight:700;">Steve Evans</td><td align="right" style="padding:9px 0;color:#a78bfa;font-weight:700;">30</td></tr>
+            <tr><td style="padding:9px 0;color:#64748b;">2</td><td style="padding:9px 0;color:#f1f5f9;">Yolanda Carstens</td><td align="right" style="padding:9px 0;color:#94a3b8;">27</td></tr>
+            <tr><td style="padding:9px 0;color:#64748b;">3</td><td style="padding:9px 0;color:#f1f5f9;">Aritha du Bruyn</td><td align="right" style="padding:9px 0;color:#94a3b8;">20</td></tr>
+            <tr><td style="padding:9px 0;color:#64748b;">4</td><td style="padding:9px 0;color:#f1f5f9;">Sarah Alexander</td><td align="right" style="padding:9px 0;color:#94a3b8;">18</td></tr>
+            <tr><td style="padding:9px 0;color:#64748b;">5</td><td style="padding:9px 0;color:#f1f5f9;">gregstreak</td><td align="right" style="padding:9px 0;color:#94a3b8;">16</td></tr>
+          </table>
+          <div style="background:rgba(167,139,250,0.08);border-radius:10px;padding:14px 16px;">
+            <div style="font-family:'DM Mono',monospace;font-size:9px;font-weight:700;color:#a78bfa;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;">Top Club &middot; July &middot; DUC Swim Club</div>
+            <div style="font-size:12px;color:#94a3b8;line-height:1.7;">Steve Evans logged more than anyone else on the platform this July — and he's a DUC member. Trevor Lauf, also DUC, logged 15. Two of July's most consistent swimmers, one club.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- eo SwimBETTER — hero-weight section per Dave (1 Aug 2026): "eolab is
+           huge... make it shine as a challenge". At US$1,349 it's the largest
+           prize the platform has run. Credibility line + quote sourced verbatim
+           from partners/eolab.html (Kyle Chalmers, 14 federations, 50+ NCAA
+           colleges; Jaimie Fuller quote). Mechanic confirmed directly by Dave. -->
       <div style="padding:0 32px 20px;">
         <div style="background:linear-gradient(135deg,#1a0f05,#0d0803);border:2px solid rgba(249,115,22,0.45);border-radius:16px;padding:26px;">
-          <div style="display:inline-block;background:rgba(249,115,22,0.15);border:1px solid rgba(249,115,22,0.4);border-radius:20px;padding:4px 12px;font-size:10px;font-weight:700;color:#f97316;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;">Starting Today · Our Biggest Prize Yet</div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:34px;color:#f1f5f9;line-height:1;margin-bottom:8px;">eo SwimBETTER90</div>
-          <div style="font-size:16px;color:#fed7aa;font-weight:700;margin-bottom:4px;">US$1,349 total value</div>
-          <div style="font-size:13px;color:#94a3b8;margin-bottom:16px;">The handset + 1-year Gold Membership + a 1-on-1 expert session — the same technology used by Olympic swimmers, now on offer to one SwimLoading member.</div>
+          <div style="display:inline-block;background:rgba(249,115,22,0.15);border:1px solid rgba(249,115,22,0.4);border-radius:20px;padding:4px 12px;font-size:10px;font-weight:700;color:#f97316;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;">Starting Today &middot; Our Biggest Prize Yet</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:#f1f5f9;line-height:1;margin-bottom:8px;">eo SwimBETTER90</div>
+          <div style="font-size:14px;color:#cbd5e1;line-height:1.8;margin-bottom:14px;">Trusted by Kyle Chalmers, 14 national swimming federations, and 50+ NCAA colleges — the same technology used at the highest level of the sport, now open to any SwimLoading member.</div>
+          <div style="border-left:2px solid rgba(249,115,22,0.5);padding-left:14px;margin-bottom:18px;">
+            <div style="font-size:14px;color:#fed7aa;font-style:italic;line-height:1.7;">"Being committed to improving isn't about swimming more. It's about being prepared to challenge the way you swim."</div>
+            <div style="font-family:'DM Mono',monospace;font-size:10px;color:#9a6a4a;letter-spacing:1px;margin-top:6px;">&mdash; JAIMIE FULLER, CHAIRMAN, EO</div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:16px;background:rgba(0,0,0,0.25);border-radius:12px;padding:16px 18px;margin-bottom:20px;">
+            <div style="flex:1;min-width:90px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#f97316;">$1,349</div><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">total value</div></div>
+            <div style="flex:1;min-width:90px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#f97316;">3 MOS</div><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">aug-oct 2026</div></div>
+            <div style="flex:1;min-width:90px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#f97316;">TOP 20</div><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">enter the draw</div></div>
+          </div>
+          <div style="font-size:13px;color:#94a3b8;margin-bottom:16px;">The prize: eo SwimBETTER90 handset + 1-year Gold Membership + a 1-on-1 expert data session.</div>
           <div style="font-size:13px;color:#cbd5e1;line-height:1.8;margin-bottom:10px;">This one rewards showing up, not piling up. Every real swim you log between now and 31 October counts as an active day — log at least <strong style="color:#f1f5f9;">30 active days</strong> across the three months (roughly 2-3 a week) to qualify.</div>
           <div style="font-size:13px;color:#cbd5e1;line-height:1.8;margin-bottom:20px;">Up to <strong style="color:#f1f5f9;">20 most-consistent swimmers</strong> who clear that bar go into the final draw, and every finalist gets an equal shot — that's the fair part. We'll publish a leaderboard preview at the end of August and September, and draw the winner after 31 October.</div>
           <a href="https://www.swimloading.com/partners/eolab" style="display:inline-block;background:#f97316;color:#1a0f05;font-size:13px;font-weight:700;padding:12px 24px;border-radius:50px;text-decoration:none;">Start Your Streak Today</a>
         </div>
       </div>
 
-      <!-- TRIHARD + Maurten — kept deliberately tight (one line each) so the email
-           stays scannable. TRIHARD's mechanic/dates (Aug only) confirmed by Dave.
-           Maurten's mechanic corrected 1 Aug 2026: it's a weighted random draw
-           (log 10 swims = 1 ticket, same mechanic as July's Blu Smooth draw), NOT
-           "most active swimmer wins" — that was wrong and contradicted the live
-           app/partner page, which both already say "draw". Don't revert this. -->
+      <!-- TRIHARD — credibility + real product line, sourced verbatim from
+           partners/trihard.html (Lucy Charles-Barclay, chlorine/sun/salt
+           framing, product names). Mechanic + dates (Aug only) confirmed by
+           Dave. -->
       <div style="padding:0 32px 20px;">
-        <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#64748b;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">Also Live This Month</div>
-
-        <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:14px;padding:20px;margin-bottom:12px;">
-          <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">Live Now · August Only · UK Members</div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:#f1f5f9;line-height:1;margin-bottom:6px;">The Great UK Swim Spot Challenge</div>
-          <div style="font-size:13px;color:#94a3b8;line-height:1.7;margin-bottom:8px;">Presented by TRIHARD — <strong style="color:#f1f5f9;">10 points for every unique outdoor UK swim spot you log this August.</strong> Winner gets a 4-product TRIHARD bundle (ships UK/EU).</div>
+        <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:16px;padding:24px;">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">Live Now &middot; August Only &middot; UK Members</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#f1f5f9;line-height:1;margin-bottom:10px;">The Great UK Swim Spot Challenge</div>
+          <div style="font-size:12px;color:#7dd3fc;margin-bottom:14px;">Trusted by IRONMAN 70.3 World Champion Lucy Charles-Barclay</div>
+          <div style="font-size:13px;color:#94a3b8;line-height:1.8;margin-bottom:12px;">Presented by TRIHARD — skincare built for chlorine, sun and salt, not a quick rinse after. <strong style="color:#f1f5f9;">10 points for every unique outdoor UK swim spot you log this August.</strong> Winner gets a 4-product TRIHARD bundle (ships UK/EU): Chlorine Removal Shampoo, Chlorine Protection Conditioner, Chlorine Removal Body Wash.</div>
           <div style="font-size:12px;color:#64748b;">Everyone worldwide already gets 15% off TRIHARD, code <strong style="color:#94a3b8;">LOADING</strong>.</div>
         </div>
+      </div>
 
-        <div style="background:#0a1628;border:1px solid rgba(245,158,11,0.25);border-radius:14px;padding:20px;">
-          <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#f59e0b;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">August Challenge · Live Now</div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:#f1f5f9;line-height:1;margin-bottom:6px;">The Maurten Giveaway</div>
-          <div style="font-size:13px;color:#94a3b8;line-height:1.7;">Log 10 swims this month to enter the draw for a box of Maurten Gel 100s, supplied by Art of Endurance — every entry gets an equal shot, and every 10 logs, group swim, or streak earns another ticket.</div>
+      <!-- Maurten — hydrogel hook sourced verbatim from partners/maurten.html.
+           Mechanic corrected 1 Aug 2026: weighted random draw (log 10 swims = 1
+           ticket, same mechanic as July's Blu Smooth draw), NOT "most active
+           swimmer wins" — that was wrong and contradicted the live app/partner
+           page. Don't revert this. -->
+      <div style="padding:0 32px 20px;">
+        <div style="background:#0a1628;border:1px solid rgba(245,158,11,0.25);border-radius:16px;padding:24px;">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#f59e0b;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">August Challenge &middot; Live Now</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#f1f5f9;line-height:1;margin-bottom:10px;">The Maurten Giveaway</div>
+          <div style="font-size:13px;color:#94a3b8;line-height:1.8;margin-bottom:12px;">No sweeteners, no flavours, no additives — just the carbohydrates, electrolytes and water your body needs, absorbed faster than a normal gel. Maurten's hydrogel range is what fuels the fastest swimmers in the world, supplied in SA by Art of Endurance.</div>
+          <div style="font-size:13px;color:#94a3b8;line-height:1.8;">Log 10 swims this month to enter the draw for a box of Maurten Gel 100s — every entry gets an equal shot, and every 10 logs, group swim, or streak earns another ticket.</div>
         </div>
       </div>
 
@@ -1870,8 +1946,8 @@ function buildJulyNewsletterHtml(m, inputs) {
             <div style="font-size:10px;color:#475569;letter-spacing:2px;font-family:'DM Mono',monospace;text-transform:uppercase;margin-bottom:10px;">A look at Dave's own Swim Passport</div>
             <div style="height:6px;border-radius:3px;background:linear-gradient(90deg,#38bdf8,#10b981,#f59e0b);margin-bottom:10px;"></div>
             <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-              <td style="font-size:13px;color:#38bdf8;font-weight:700;">9.5°C coldest</td>
-              <td align="right" style="font-size:13px;color:#f59e0b;font-weight:700;">29°C warmest</td>
+              <td style="font-size:13px;color:#38bdf8;font-weight:700;">9.5&deg;C coldest</td>
+              <td align="right" style="font-size:13px;color:#f59e0b;font-weight:700;">29&deg;C warmest</td>
             </tr></table>
             <div style="font-size:12px;color:#64748b;margin-top:10px;">34 spots explored &middot; 1 country &middot; 8 regions</div>
           </div>
@@ -1879,20 +1955,40 @@ function buildJulyNewsletterHtml(m, inputs) {
         </div>
       </div>
 
-      <!-- Community story — Lynne & Tracey, editable via the builder -->
+      <!-- Platform highlights — mirrors the June→July newsletter's bullet list,
+           real July facts only. -->
       <div style="padding:0 32px 20px;">
-        <div style="background:linear-gradient(135deg,#0a1628,#0d1e35);border-left:3px solid #10b981;border-radius:0 16px 16px 0;padding:24px;">
-          <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#10b981;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;">Community · Taking On The Channel</div>
-          <div style="font-size:14px;color:#94a3b8;line-height:1.8;">${escapeHtml(inputs.channelStory)}</div>
+        <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:16px;padding:24px;">
+          <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">Platform &middot; July Highlights</div>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;color:#94a3b8;line-height:1.7;">
+            <div>${m.julyLogsCount ?? 347} temperature logs across ${m.countriesRepresented ?? 7} countries</div>
+            <div>Peak day: 19 swimmers logged on 17 July — the most active single day since June</div>
+            <div>James Kemp completed the English Channel — Dover to France in 12 hours</div>
+            <div>${m.winnerRow ? escapeHtml(m.winnerRow.winner_display_name) : 'A member'} won July's Blu Smooth MK2 draw</div>
+            <div>Three challenges launched for August — eo SwimBETTER ($1,349), TRIHARD UK, and the Maurten Giveaway</div>
+            <div>Swim Passport, Story and Overview now live on every profile</div>
+          </div>
         </div>
       </div>
 
-      ${highlights.length ? `<div style="padding:0 32px 20px;">
-        <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:16px;padding:24px;">
-          <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">Community highlights</div>
-          <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;color:#94a3b8;line-height:1.7;">${highlights.slice(0, 3).map(h => `<div>${h}</div>`).join('')}</div>
+      <!-- A note from Dave — editable via the builder, defaults to a draft in
+           his voice using only verified facts. Confirm with him before sending. -->
+      <div style="padding:0 32px 20px;">
+        <div style="background:linear-gradient(135deg,#0a1628,#0d1e35);border-left:3px solid #38bdf8;border-radius:0 16px 16px 0;padding:24px;">
+          <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;">A Note From Dave &middot; Founder</div>
+          <div style="font-size:14px;color:#94a3b8;line-height:1.85;">${escapeHtml(inputs.founderNote)}</div>
+          <div style="font-size:14px;color:#94a3b8;margin-top:14px;font-style:italic;">&mdash; Dave</div>
         </div>
-      </div>` : ''}
+      </div>
+
+      <!-- Closing hero CTA — eo gets top billing per Dave's "make it shine" -->
+      <div style="padding:24px 32px 40px;text-align:center;border-top:1px solid #0f2240;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:30px;color:#f1f5f9;line-height:1.1;">3 MONTHS.</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:30px;color:#f97316;line-height:1.1;">$1,349 ON THE LINE.</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:30px;color:#f1f5f9;line-height:1.1;margin-bottom:16px;">ONE WINNER.</div>
+        <div style="font-size:13px;color:#94a3b8;margin-bottom:20px;">eo SwimBETTER's Performance Challenge is the biggest prize we've ever run — and every swimmer who logs consistently has a real shot. Start your streak today.</div>
+        <a href="https://www.swimloading.com/app" style="display:inline-block;background:#38bdf8;color:#080f1a;font-size:14px;font-weight:700;padding:14px 28px;border-radius:50px;text-decoration:none;">Open SwimLoading &rarr;</a>
+      </div>
 
       <div style="padding:0 32px 40px;">
         <div style="font-size:14px;color:#64748b;line-height:1.8;">${escapeHtml(inputs.closingNote)}</div>
@@ -1935,7 +2031,7 @@ async function sendTestNewsletter() {
     const res = await fetch('/api/send-test-newsletter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-        body: JSON.stringify({ subject: _nlInputs.heroHeading, html }),
+        body: JSON.stringify({ subject: 'July on SwimLoading', html }),
     });
     const body = await res.json().catch(() => ({}));
     if (status) status.textContent = res.ok ? 'Test email sent to your inbox' : `Test send failed: ${body.error || res.status}`;
