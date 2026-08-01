@@ -92,7 +92,7 @@ window.SITE_CONFIG = {
       prize:     'Blu Smooth MK2 Comp wetsuit (R5,999 value)',
       startDate: '2026-07-01',
       endDate:   '2026-07-31',
-      winner:    'rodhols',   // drawn + approved 1 Aug 2026 — see challenge_draw_results id b68bbbd5-...
+      winner:    'Rod Holshausen',   // drawn + approved 1 Aug 2026 — see challenge_draw_results id b68bbbd5-...
     },
     '2026-08': {
       title:     'August Challenge',
