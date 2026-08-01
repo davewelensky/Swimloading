@@ -6,8 +6,9 @@
         // each month. Do NOT create app-july.js / app-august.js. Do NOT assume the
         // content is stale just because the month changed — read what it serves now.
         //
-        //   CURRENTLY SERVING: July 2026 · "Winter Warrior" · Blu Smooth MK2 Comp draw
-        //   (June 2026 was THEMAGIC5 Vector goggles — winner: Tunnan The Swede)
+        //   CURRENTLY SERVING: August 2026 · Maurten Gel 100 3-pack draw
+        //   (July 2026 was Blu Smooth MK2 Comp — winner: rodhols. June 2026 was
+        //   THEMAGIC5 Vector goggles — winner: Tunnan The Swede)
         //
         // Live on/off + dates come from the DB row `june_challenge_config` (id=1):
         //   test_mode=true  → visible to tester_ids only, labelled TEST
@@ -167,16 +168,16 @@
             switch (actionType) {
                 case 'temp_log':
                     return opts.spotName
-                        ? `I just logged ${opts.temp ? opts.temp + '°C at ' : 'conditions at '}${opts.spotName} on SwimLoading. July Challenge is live! ${base}`
-                        : `Just shared swim conditions on SwimLoading. July Challenge is live! ${base}`;
+                        ? `I just logged ${opts.temp ? opts.temp + '°C at ' : 'conditions at '}${opts.spotName} on SwimLoading. August Challenge is live! ${base}`
+                        : `Just shared swim conditions on SwimLoading. August Challenge is live! ${base}`;
                 case 'create_swim':
                     return `I just created a community swim${opts.spotName ? ' at ' + opts.spotName : ''} on SwimLoading. Join me! ${base}`;
                 case 'join_swim':
-                    return `I joined a community swim${opts.spotName ? ' at ' + opts.spotName : ''} on SwimLoading. Join the July Challenge! ${base}`;
+                    return `I joined a community swim${opts.spotName ? ' at ' + opts.spotName : ''} on SwimLoading. Join the August Challenge! ${base}`;
                 default:
                     return score?.inDraw
-                        ? `I'm in the July draw for a Blu Smooth MK2 on SwimLoading! Log 10 swims and you're in too. ${base}`
-                        : `July Challenge is live on SwimLoading! Log. Swim. Win a Blu Smooth MK2. ${base}`;
+                        ? `I'm in the August draw for Maurten Gel 100s on SwimLoading! Log 10 swims and you're in too. ${base}`
+                        : `August Challenge is live on SwimLoading! Log. Swim. Win Maurten Gel 100s. ${base}`;
             }
         }
 
@@ -248,9 +249,9 @@
                     <div onclick="showPage('leaderboard')" style="cursor:pointer;background:linear-gradient(135deg,#0c1520,#080f1a);border:1px solid rgba(56,189,248,0.3);border-radius:16px;overflow:hidden;">
                       <div style="height:3px;background:linear-gradient(90deg,#0284c7,#38bdf8,#7dd3fc);"></div>
                       <div style="padding:16px;">
-                        <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">July Challenge · Winter Warrior</div>
+                        <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">August Challenge</div>
                         <div style="font-weight:800;font-size:18px;color:#f1f5f9;">Starts in ${daysAway} day${daysAway !== 1 ? 's' : ''}</div>
-                        <div style="font-size:12px;color:#64748b;margin-top:4px;">Blu Smooth MK2 Comp wetsuit · R5,999 value</div>
+                        <div style="font-size:12px;color:#64748b;margin-top:4px;">Box of Maurten Gel 100s · supplied by Art of Endurance</div>
                       </div>
                     </div>`;
                     initIcons();
@@ -343,19 +344,17 @@
               <div style="padding:16px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
                   <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.8px;">
-                    <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:5px;vertical-align:middle;box-shadow:0 0 6px rgba(16,185,129,0.6);"></span>July Challenge · Live${testBadge}
+                    <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:5px;vertical-align:middle;box-shadow:0 0 6px rgba(16,185,129,0.6);"></span>August Challenge · Live${testBadge}
                   </div>
                   <div style="font-size:12px;font-weight:700;color:#38bdf8;">${daysLeft}d left</div>
                 </div>
 
                 <div style="border:1px solid rgba(56,189,248,0.3);border-radius:12px;overflow:hidden;margin-bottom:14px;">
-                  <div style="position:relative;height:130px;overflow:hidden;">
-                    <img src="/partners/Blusmooth%20MK2.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center 45%;display:block;" onerror="this.parentElement.style.background='linear-gradient(135deg,#04263b,#0d1728)'">
-                    <div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.35) 55%,rgba(0,0,0,0) 100%);"></div>
+                  <div style="position:relative;height:130px;overflow:hidden;background:linear-gradient(135deg,#04263b,#0d1728);">
                     <div style="position:absolute;inset:0;padding:10px 14px;display:flex;align-items:flex-end;justify-content:space-between;">
                       <div>
-                        <div style="font-size:13px;font-weight:900;color:#7dd3fc;letter-spacing:-0.2px;text-shadow:0 1px 4px rgba(0,0,0,0.9);">Blu Smooth MK2 Comp</div>
-                        <div style="font-size:11px;color:#bae6fd;font-weight:600;margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">R5,999 · Not in shops yet · Grand prize</div>
+                        <div style="font-size:13px;font-weight:900;color:#7dd3fc;letter-spacing:-0.2px;text-shadow:0 1px 4px rgba(0,0,0,0.9);">Maurten Gel 100 3-pack</div>
+                        <div style="font-size:11px;color:#bae6fd;font-weight:600;margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">Supplied by Art of Endurance · Grand prize</div>
                         <div style="font-size:10px;color:rgba(186,230,253,0.75);margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,0.9);">Log 10 to enter · every 10 logs = another entry</div>
                       </div>
                       <i data-lucide="trophy" style="width:22px;height:22px;color:#38bdf8;flex-shrink:0;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.9));margin-bottom:2px;"></i>
@@ -385,7 +384,7 @@
             await jcInit();
             if (!jcIsActive()) return;
 
-            el.innerHTML = `<div style="text-align:center;padding:14px;color:var(--text-secondary);font-size:13px;">Loading July Challenge…</div>`;
+            el.innerHTML = `<div style="text-align:center;padding:14px;color:var(--text-secondary);font-size:13px;">Loading August Challenge…</div>`;
 
             try {
                 const { start, end } = jcDateRange();
@@ -409,7 +408,7 @@
                 <div style="background:linear-gradient(135deg,rgba(14,116,144,0.1),rgba(125,211,252,0.06));border:1px solid rgba(125,211,252,0.3);border-radius:14px;padding:18px;margin-bottom:4px;">
                   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
                     <div>
-                      <div style="font-size:10px;color:#7dd3fc;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:3px;">July Challenge · Winter Warrior${testBadge}</div>
+                      <div style="font-size:10px;color:#7dd3fc;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:3px;">August Challenge${testBadge}</div>
                       <div style="font-weight:800;font-size:17px;color:var(--text);line-height:1.2;">Log. Swim. Share. Win.</div>
                       <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.4;">Log 10 swims to enter the draw. Every 10 logs, group swim, and 7-day streak earns another entry — the more you swim, the better your odds.</div>
                     </div>
@@ -420,8 +419,8 @@
                   <div style="margin-bottom:14px;">
                     <div style="background:linear-gradient(135deg,rgba(56,189,248,0.12),rgba(2,132,199,0.07));border:1px solid rgba(56,189,248,0.3);border-radius:8px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">
                       <div>
-                        <div style="font-size:12px;font-weight:700;color:#7dd3fc;">Grand Prize — Blu Smooth MK2</div>
-                        <div style="font-size:11px;color:#38bdf8;margin-top:2px;">MK2 Comp wetsuit · not yet in shops · R5,999 value</div>
+                        <div style="font-size:12px;font-weight:700;color:#7dd3fc;">Grand Prize — Maurten Gel 100s</div>
+                        <div style="font-size:11px;color:#38bdf8;margin-top:2px;">Box of Gel 100s · supplied by Art of Endurance</div>
                       </div>
                       <div style="font-size:11px;font-weight:700;color:#7dd3fc;white-space:nowrap;margin-left:12px;">1 winner</div>
                     </div>
@@ -448,7 +447,7 @@
                           <span style="font-size:13px;font-weight:700;color:var(--ocean-light);white-space:nowrap;margin-left:12px;">+${JC_POINTS[k]}</span>
                         </div>`).join('')}
                       <div style="margin-top:10px;font-size:11px;color:var(--text-secondary);line-height:1.6;">
-                        <span style="color:#7dd3fc;font-weight:700;">Winning the MK2:</span> points set your rank here — but the prize is a draw. Log 10 swims to enter, then every 10 logs, group swim, and 7-day streak adds another entry. Winner drawn 1 August.<br>
+                        <span style="color:#7dd3fc;font-weight:700;">Winning the Gel 100s:</span> points set your rank here — but the prize is a draw. Log 10 swims to enter, then every 10 logs, group swim, and 7-day streak adds another entry. Winner drawn 1 September.<br>
                         <span style="color:rgba(100,116,139,0.7);">Fair play rules apply. Draw eligibility requires genuine participation.</span>
                       </div>
                     </div>
@@ -463,7 +462,7 @@
                 initIcons();
             } catch (e) {
                 console.warn('jcLoadBoardSection error:', e);
-                el.innerHTML = `<div style="text-align:center;color:var(--text-secondary);padding:16px;">Could not load July Challenge</div>`;
+                el.innerHTML = `<div style="text-align:center;color:var(--text-secondary);padding:16px;">Could not load August Challenge</div>`;
             }
         }
 
@@ -487,7 +486,7 @@
             let mine = '';
             if (iAmIn) {
                 mine = `<div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);border-radius:12px;padding:14px 16px;margin-bottom:14px;">
-                  <div style="font-size:15px;font-weight:800;color:#10b981;display:flex;align-items:center;gap:5px;"><i data-lucide="check-circle" style="width:15px;height:15px;"></i>You're in the July draw</div>
+                  <div style="font-size:15px;font-weight:800;color:#10b981;display:flex;align-items:center;gap:5px;"><i data-lucide="check-circle" style="width:15px;height:15px;"></i>You're in the August draw</div>
                   <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.5;">You have <strong style="color:var(--text);">${myTix} ${myTix === 1 ? 'ticket' : 'tickets'}</strong> in the hat. Every 10 more logs, group swim, or 7-day streak adds another.</div>
                 </div>`;
             } else if (currentUser) {
@@ -503,7 +502,7 @@
             // 2. The pool — belonging, not hierarchy
             const pool = `<div style="text-align:center;padding:2px 0 12px;">
               <div style="font-size:13px;color:var(--text);"><strong style="color:#7dd3fc;font-size:16px;">${inDraw.length}</strong> ${inDraw.length === 1 ? 'swimmer' : 'swimmers'} in the draw &middot; <strong style="color:#7dd3fc;">${tickets}</strong> ${tickets === 1 ? 'ticket' : 'tickets'} in the hat</div>
-              <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;line-height:1.5;">It's a random draw for the MK2 — every ticket has an equal shot at each pick.</div>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;line-height:1.5;">It's a random draw for the Gel 100s — every ticket has an equal shot at each pick.</div>
             </div>`;
 
             // 3. Who's in — avatar wall, no ranking
@@ -517,7 +516,7 @@
                 wall = `<div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.7px;margin:4px 0 10px;">In the draw</div>
                   <div style="display:flex;flex-wrap:wrap;gap:7px;">${avatars}</div>`;
             } else {
-                wall = `<div style="padding:20px 16px;text-align:center;font-size:13px;color:var(--text-secondary);line-height:1.6;">No one's crossed 10 logs yet.<br>Be the first swimmer in the July draw.</div>`;
+                wall = `<div style="padding:20px 16px;text-align:center;font-size:13px;color:var(--text-secondary);line-height:1.6;">No one's crossed 10 logs yet.<br>Be the first swimmer in the August draw.</div>`;
             }
 
             return mine + pool + wall;

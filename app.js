@@ -1163,6 +1163,7 @@
         // Load dashboard
         async function loadDashboard() {
             loadMonthlyChallengeSummary();     // non-blocking
+            if (typeof eoLoadDashboardCard === 'function') eoLoadDashboardCard(); // non-blocking, independent 3-month campaign
             if (typeof ukLoadDashboardCard === 'function') ukLoadDashboardCard(); // non-blocking, independent campaign
             loadSpotlightBanner();             // non-blocking
             loadRaceDayBanner();               // non-blocking

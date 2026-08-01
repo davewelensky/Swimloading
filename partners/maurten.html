@@ -245,18 +245,37 @@
     </div>
   </div>
 
-  <!-- Prize -->
-  <div class="prize-box">
-    <div class="prize-label">Monthly leaderboard prize</div>
-    <div class="prize-value">Box of Maurten Gel 100s</div>
-    <p style="font-size:14px;color:var(--text-sec);line-height:1.65;">
-      Every month, SwimLoading's leaderboard leader wins a full box of Maurten Gel 100s — supplied directly by Art of Endurance and shipped anywhere in South Africa. Log your swims, track your temperatures, and climb the leaderboard.
-    </p>
-    <div style="display:flex;gap:12px;flex-wrap:wrap;">
-      <a href="https://swimloading.com/app" class="btn-primary" style="font-size:13px;">
-        <i data-lucide="waves" style="width:14px;height:14px;"></i>Open SwimLoading
-      </a>
-      <a href="https://swimloading.com#sponsors" class="btn-ghost" style="font-size:13px;">How it works</a>
+  <!-- Sponsored challenge — content & visibility driven by /site-config.js (data-challenge). Hidden until site-sync.js resolves the correct state. -->
+  <div data-challenge="maurten" data-display="flex" style="display:none;background:linear-gradient(135deg,rgba(56,189,248,0.06),rgba(2,132,199,0.05));border:1px solid rgba(56,189,248,0.22);border-radius:16px;padding:24px 28px;margin-bottom:36px;align-items:flex-start;gap:18px;">
+    <div style="width:46px;height:46px;border-radius:12px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      <i data-lucide="trophy" style="width:22px;height:22px;color:var(--cyan);"></i>
+    </div>
+    <div>
+      <div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.14em;margin-bottom:6px;">Sponsored Challenge</div>
+
+      <!-- ACTIVE: this sponsor's challenge is the current month -->
+      <div data-state="active" style="display:none;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:0.04em;margin-bottom:8px;color:var(--text);"><span data-slot="title"></span></div>
+        <p style="font-size:14px;color:var(--text-sec);line-height:1.75;margin-bottom:0;">
+          Log 10 swims this month on SwimLoading to enter the draw for a <span data-slot="prize"></span>, sponsored by Maurten. Every entry has an equal shot — log more, group swim, or hit a streak, and you earn extra tickets. <a href="https://swimloading.com/app" style="color:var(--cyan);text-decoration:none;font-weight:600;">Log your swims now</a>.
+        </p>
+      </div>
+
+      <!-- RECAP: challenge ended and a verified winner is set in site-config.js -->
+      <div data-state="recap" style="display:none;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:0.04em;margin-bottom:8px;color:var(--text);"><span data-slot="month"></span> Challenge — Complete</div>
+        <p style="font-size:14px;color:var(--text-sec);line-height:1.75;margin-bottom:0;">
+          Congratulations to <strong style="color:var(--text);"><span data-slot="winner"></span></strong> — winner of the <span data-slot="title"></span> sponsored by Maurten, taking home the <span data-slot="prize"></span>. <a href="https://swimloading.com/app" style="color:var(--cyan);text-decoration:none;font-weight:600;">Join the current SwimLoading challenge</a>.
+        </p>
+      </div>
+
+      <!-- PENDING: challenge ended, winner not yet drawn -->
+      <div data-state="pending" style="display:none;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:0.04em;margin-bottom:8px;color:var(--text);"><span data-slot="month"></span> Challenge — Complete</div>
+        <p style="font-size:14px;color:var(--text-sec);line-height:1.75;margin-bottom:0;">
+          The <span data-slot="title"></span> sponsored by Maurten has wrapped — the <span data-slot="prize"></span> winner is drawn shortly. <a href="https://swimloading.com/app" style="color:var(--cyan);text-decoration:none;font-weight:600;">Log your swims</a> to be in the next one.
+        </p>
+      </div>
     </div>
   </div>
 
@@ -289,6 +308,10 @@
 <footer>
   <a href="https://swimloading.com">swimloading.com</a> &nbsp;&middot;&nbsp; &copy; 2026 SwimLoading &nbsp;&middot;&nbsp; Partnership enquiries: <a href="mailto:support@swimloading.com">support@swimloading.com</a>
 </footer>
+
+<!-- Single source of truth for cross-page facts (challenges). Edit /site-config.js only. -->
+<script src="/site-config.js?v=6"></script>
+<script src="/site-sync.js?v=6"></script>
 
 <script>
   document.addEventListener('mousemove', e => {

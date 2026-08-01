@@ -396,7 +396,7 @@ A challenge is only correct when **all four** are in step for the same month:
 5. **Bump cache** — `?v=N` on `site-config.js` / `site-sync.js` wherever referenced (welcome.html + every partner page), plus `app-june.js` in index.html.
 6. **Verify live**, month-boundary aware: the new challenge shows in the app AND on the sponsor's partner page (active), the previous sponsor shows a recap, and no page still advertises the finished month.
 
-**Wired sponsor pages** (load `site-config.js` + `site-sync.js`, box = `data-challenge`): `partners/magic5.html` (June), `partners/blu-smooth.html` (July). Add the same block to any future sponsor's page.
+**Wired sponsor pages** (load `site-config.js` + `site-sync.js`, box = `data-challenge`): `partners/magic5.html` (June), `partners/blu-smooth.html` (July), `partners/maurten.html` (August). Add the same block to any future sponsor's page.
 
 **This is separate from `promos.js`** below (banners/sale windows). Site-sync = facts & challenge calendar; promos = timed promotional banners.
 
@@ -712,3 +712,13 @@ If code size becomes an issue again:
 
 **Last Updated:** May 18, 2026  
 **Maintained by:** Dave Welensky & Claude
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

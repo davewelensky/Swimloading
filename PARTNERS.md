@@ -45,7 +45,7 @@ Every partner must have all of the following before going live:
 - Tag/mention @artofendurance on social posts
 
 **What they offer members:**
-- **Monthly prize: Maurten gels + merchandise (caps/t-shirts)** — Charl ships prize packs to Dave for distribution. First batch = 4 equal giveaway boxes. `[Clarify: is it 1 winner/month or multiple? Update hero page copy once confirmed.]`
+- **Monthly prize: Maurten gels + merchandise (caps/t-shirts)** — Charl ships prize packs to Dave for distribution. First batch = 4 equal giveaway boxes. **Resolved 1 Aug 2026:** 1 winner/month, picked by the same weighted random draw as Blu Smooth/eo (log 10 swims to enter, every ticket an equal shot) — not a straight top-scorer race. Dave's reasoning: a pure leaderboard race risks discouraging swimmers who fall behind early.
 - 9-month commitment from Art of Endurance
 - Supplied by Art of Endurance (SA Maurten distributor)
 
@@ -58,7 +58,7 @@ Every partner must have all of the following before going live:
 - Solid 160
 
 **Outstanding actions:**
-- [ ] Clarify prize structure: 1 monthly leaderboard winner, or multiple giveaway entries? Update hero page copy to match.
+- [x] Clarify prize structure — resolved 1 Aug 2026: 1 winner/month via weighted random draw (see above); hero page (`partners/maurten.html`) now wired to `site-config.js`/`site-sync.js`, same pattern as blu-smooth.html
 - [ ] Tag @artofendurance on social posts (Dave confirmed he'll do this)
 - [ ] Hero page links use www.artofendurance.co.za — update to artofendurance.co.za
 

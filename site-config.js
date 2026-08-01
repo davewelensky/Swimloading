@@ -92,7 +92,15 @@ window.SITE_CONFIG = {
       prize:     'Blu Smooth MK2 Comp wetsuit (R5,999 value)',
       startDate: '2026-07-01',
       endDate:   '2026-07-31',
-      winner:    null,   // random draw on 1 August — leave null until drawn
+      winner:    'rodhols',   // drawn + approved 1 Aug 2026 — see challenge_draw_results id b68bbbd5-...
+    },
+    '2026-08': {
+      title:     'August Challenge',
+      sponsor:   'Maurten',
+      prize:     'Box of Maurten Gel 100s',
+      startDate: '2026-08-01',
+      endDate:   '2026-08-31',
+      winner:    null,   // random draw on 1 September — leave null until drawn
     },
   },
 
@@ -106,7 +114,8 @@ window.SITE_CONFIG = {
    */
   sponsorChallenges: {
     magic5:    { challengeMonth: '2026-06' },   // THEMAGIC5 sponsored June
-    blusmooth: { challengeMonth: '2026-07' },   // Blu Smooth sponsors July (Winter Warrior)
+    blusmooth: { challengeMonth: '2026-07' },   // Blu Smooth sponsored July (Winter Warrior)
+    maurten:   { challengeMonth: '2026-08' },   // Maurten sponsors August
   },
 
 };
