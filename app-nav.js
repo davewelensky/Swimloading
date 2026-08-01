@@ -455,6 +455,7 @@
         // ─── End Monthly Challenge ──────────────────────────────────────────────
 
         async function loadLeaderboard() {
+            if (typeof renderChallengesHub === 'function') renderChallengesHub('boardChallengesHub'); // non-blocking
             loadDUCChallenge();
             loadMonthlyChallenge();
             if (typeof eoLoadBoardSection === 'function') eoLoadBoardSection(); // non-blocking, independent 3-month campaign

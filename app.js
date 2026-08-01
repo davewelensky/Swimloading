@@ -1160,8 +1160,48 @@
             }
         }
 
+        // ── Challenges hub banner ────────────────────────────────────────────────────
+        // Ties the monthly (app-june.js), eo (app-eo.js), and UK (app-uk-challenge.js)
+        // challenge cards together as one set instead of three unrelated boxes —
+        // each card keeps its own sponsor styling, this just frames them as a group.
+        // Renders nothing if fewer than 2 are actually live (no point "unifying" one).
+        async function renderChallengesHub(targetId) {
+            const el = document.getElementById(targetId);
+            if (!el) return;
+            try {
+                await Promise.all([
+                    typeof jcInit === 'function' ? jcInit() : null,
+                    typeof eoInit === 'function' ? eoInit() : null,
+                    typeof ukInit === 'function' ? ukInit() : null,
+                ]);
+                const active = [
+                    (typeof jcIsActive === 'function' && jcIsActive()) ? 'Maurten' : null,
+                    (typeof eoIsActive === 'function' && eoIsActive()) ? 'eo SwimBETTER' : null,
+                    (typeof ukIsActive === 'function' && ukIsActive()) ? 'TRIHARD UK' : null,
+                ].filter(Boolean);
+
+                if (active.length < 2) { el.innerHTML = ''; return; }
+
+                el.innerHTML = `
+                <div style="background:linear-gradient(135deg,rgba(56,189,248,0.1),rgba(249,115,22,0.08));border:1px solid rgba(255,255,255,0.14);border-radius:14px;padding:16px 18px;margin-bottom:20px;">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                    <i data-lucide="flag" style="width:15px;height:15px;color:#fbbf24;flex-shrink:0;"></i>
+                    <div style="font-size:13px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:0.4px;">${active.length} Challenges Live Right Now</div>
+                  </div>
+                  <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Get onboard now — log your conditions to enter every one you qualify for.</div>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    ${active.map(name => `<span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:rgba(255,255,255,0.06);color:var(--text-secondary);border:1px solid rgba(255,255,255,0.12);">${name}</span>`).join('')}
+                  </div>
+                </div>`;
+                initIcons();
+            } catch (e) {
+                console.warn('renderChallengesHub error:', e);
+            }
+        }
+
         // Load dashboard
         async function loadDashboard() {
+            renderChallengesHub('dashChallengesHub'); // non-blocking
             loadMonthlyChallengeSummary();     // non-blocking
             if (typeof eoLoadDashboardCard === 'function') eoLoadDashboardCard(); // non-blocking, independent 3-month campaign
             if (typeof ukLoadDashboardCard === 'function') ukLoadDashboardCard(); // non-blocking, independent campaign
