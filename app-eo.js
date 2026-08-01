@@ -169,7 +169,7 @@ async function eoLoadBoardSection() {
                 <div style="font-size:12px;color:#f97316;font-weight:700;">${myDays}/${qualifyAt} active days</div>
               </div>
               <div style="height:7px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;margin-bottom:6px;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#f97316,#10b981);border-radius:4px;"></div></div>
-              <div style="font-size:12px;color:#f97316;font-weight:600;">${toGo > 0 ? toGo + ' more active ' + (toGo === 1 ? 'day' : 'days') + ' and you\\'re locked in' : "You're in!"}</div>
+              <div style="font-size:12px;color:#f97316;font-weight:600;">${toGo > 0 ? toGo + ' more active ' + (toGo === 1 ? 'day' : 'days') + " and you're locked in" : "You're in!"}</div>
             </div>`;
         }
 
