@@ -247,9 +247,14 @@ Implemented 2026-08-03. Every network request goes through
   This is the change-monitoring loop: `content_hash` comparison feeds
   `last_changed_at` and `discovery_runs.pages_changed`.
 
-Pages DISCOVERED from a listing must extract a name plus a date or
-distances to earn a candidate row (`shouldPersistDiscoveredPage`); known
-event URLs always re-persist (same `candidate_key` → idempotent update).
+Every page — discovered or known — must extract a name plus a date or
+distances to earn a candidate row (`shouldPersistDiscoveredPage`). A
+known event URL whose extraction finds no event shape (a marketing
+homepage with no JSON-LD — most of the researched umbrella URLs, per the
+2026-08-03 shakedown) still gets its page hash tracked for change
+monitoring, but writes no candidate: it would only duplicate an
+already-reviewed event as queue noise. Pages that do extract re-persist
+idempotently (same `candidate_key` → in-place update).
 After writing, each new candidate is scored against everything the source
 already has (`dedupe/match.ts`) and unresolved duplicate links are
 written — these block approval until reviewed.

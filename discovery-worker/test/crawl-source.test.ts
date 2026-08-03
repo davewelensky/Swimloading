@@ -265,6 +265,23 @@ test('cross-run dedupe writes links against similar existing candidates', async 
   assert.equal(recorded.dedupeCalls[0]!.links[0]!.matchingCandidateId, 'existing-1');
 });
 
+test('a known URL with no extractable event shape tracks its hash but writes no candidate', async () => {
+  const { ports, recorded } = makePorts(
+    { 'https://example.com/': okFetch('https://example.com/', JUNK_PAGE) },
+    { knownUrls: ['https://example.com/'] }
+  );
+  const source = makeSource({ parser_type: 'manual', base_url: 'https://swimloading.com/research' });
+  const summary = await crawlSource(source, ports, { maxPagesPerRun: 10, runType: 'scheduled' });
+
+  assert.equal(summary.candidatesPersisted, 0);
+  assert.equal(summary.pagesSkippedByGate, 1);
+  // The page fetch is still recorded (change monitoring), and a known
+  // URL keeps its event_detail page type even when extraction was thin.
+  assert.equal(recorded.pageRecords.length, 1);
+  assert.equal(recorded.pageRecords[0]!.pageType, 'event_detail');
+  assert.notEqual(recorded.pageRecords[0]!.contentHash, null);
+});
+
 test('non-English pages are annotated with their language and a reviewer warning', async () => {
   const italian = `<html lang="it"><head><script type="application/ld+json">
     {"@type":"SportsEvent","name":"Traversata del Lago","startDate":"2027-07-20"}

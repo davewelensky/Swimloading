@@ -216,12 +216,25 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
 
       summary.pagesFetched++;
       const processed = processPage(source.id, url, fetched.html);
-      const gate = isKnown ? { persist: true, reason: 'known event URL' } : shouldPersistDiscoveredPage(processed);
+      // The extraction gate applies to known URLs too: change monitoring
+      // lives at the page-hash level (recordPageFetch, just below), so a
+      // known page whose extraction found no event shape — a marketing
+      // homepage with no JSON-LD — updates its hash and nothing else.
+      // Persisting a dateless name-only candidate would only duplicate an
+      // already-reviewed event as review-queue noise. The moment the
+      // organiser publishes structured data or a date, the same URL
+      // starts producing a real candidate again.
+      const gate = shouldPersistDiscoveredPage(processed);
+      if (!gate.persist && isKnown) {
+        gate.reason = `known URL, ${gate.reason} — page hash tracked, no candidate written`;
+      }
 
       const outcome = await ports.recordPageFetch({
         url,
         canonicalUrl: fetched.finalUrl ?? url,
-        pageType: gate.persist ? 'event_detail' : 'unknown',
+        // A known URL is a known event page even when this fetch's
+        // extraction was thin; only discovered pages can be 'unknown'.
+        pageType: gate.persist || isKnown ? 'event_detail' : 'unknown',
         ok: true,
         httpStatus: fetched.status,
         contentHash: contentHash(fetched.html),
