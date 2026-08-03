@@ -2629,7 +2629,7 @@ async function init() {
     // Load crossings, attempts, logs in parallel
     const [crossingsRes, attemptsRes, logsRes] = await Promise.all([
         sb.from('crossings').select('*').eq('is_active', true).order('name'),
-        sb.from('crossing_attempts').select('*, crossings(*)').eq('user_id', _viewingId).in('status', ['active','qualifying','taper','planning']).order('created_at', { ascending: false }),
+        sb.from('crossing_attempts').select('*, crossings(*)').eq('user_id', _viewingId).in('status', ['active','qualifying','taper','planning','completed']).order('created_at', { ascending: false }),
         sb.from('temp_logs').select('id, temp_c, conditions, notes, created_at, distance_km, duration_minutes, location_type, spots!temp_logs_spot_id_fkey(name, domain)').eq('user_id', _viewingId).order('created_at', { ascending: false }).limit(200)
     ]);
 
