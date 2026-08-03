@@ -44,10 +44,14 @@ export async function ensureFixtureSource(db: SupabaseClient): Promise<string> {
   return FIXTURE_SOURCE_ID;
 }
 
-export async function startRun(db: SupabaseClient, sourceId: string): Promise<string> {
+export async function startRun(
+  db: SupabaseClient,
+  sourceId: string,
+  runType: 'scheduled' | 'manual' | 'backfill' | 'verification' = 'manual'
+): Promise<string> {
   const { data, error } = await db
     .from('discovery_runs')
-    .insert({ source_id: sourceId, run_type: 'manual', status: 'running' })
+    .insert({ source_id: sourceId, run_type: runType, status: 'running' })
     .select('id')
     .single();
   fail('startRun', error);
@@ -57,20 +61,30 @@ export async function startRun(db: SupabaseClient, sourceId: string): Promise<st
 export async function finishRun(
   db: SupabaseClient,
   runId: string,
-  counters: { pagesFetched: number; candidatesFound: number; status: 'succeeded' | 'failed' | 'partial'; errorMessage?: string }
+  counters: {
+    pagesFetched: number;
+    candidatesFound: number;
+    status: 'succeeded' | 'failed' | 'partial';
+    errorMessage?: string;
+    // Live-crawl counters. Fixture runs omit them: fixtures are read from
+    // disk, not requested over HTTP, so requested === fetched there and
+    // no change tracking applies.
+    pagesRequested?: number;
+    pagesChanged?: number;
+    metrics?: Record<string, unknown>;
+  }
 ): Promise<void> {
   const { error } = await db
     .from('discovery_runs')
     .update({
       status: counters.status,
       finished_at: new Date().toISOString(),
-      // Fixtures are read from disk, not requested over HTTP. Counting
-      // them as "requested" as well as "fetched" keeps the two columns
-      // honest and equal rather than implying network traffic happened.
-      pages_requested: counters.pagesFetched,
+      pages_requested: counters.pagesRequested ?? counters.pagesFetched,
       pages_fetched: counters.pagesFetched,
+      pages_changed: counters.pagesChanged ?? 0,
       candidates_found: counters.candidatesFound,
       error_message: counters.errorMessage ?? null,
+      ...(counters.metrics ? { metrics: counters.metrics } : {}),
     })
     .eq('id', runId);
   fail('finishRun', error);
@@ -90,6 +104,76 @@ export async function upsertSourcePage(
     .single();
   fail('upsertSourcePage', error);
   return data!.id as string;
+}
+
+export interface PageFetchRecord {
+  url: string;
+  canonicalUrl: string;
+  pageType: 'listing' | 'event_detail' | 'calendar' | 'results' | 'unknown';
+  ok: boolean;
+  httpStatus: number | null;
+  contentHash: string | null;
+  etag: string | null;
+  lastModified: string | null;
+  errorMessage: string | null;
+}
+
+export interface PageFetchOutcome {
+  pageId: string;
+  // True when this fetch's content hash differs from the stored one (or
+  // the page is brand new) — the primitive the verification loop counts.
+  changed: boolean;
+}
+
+// Records one live fetch against discovery_source_pages, maintaining the
+// counters the schema promises: fetch_count, failure_count, last_error,
+// and last_changed_at when the content hash moves. Read-modify-write
+// rather than a blind upsert because the counters accumulate; at
+// crawler request rates (one page per host per several seconds) there is
+// no concurrent writer for the same row.
+export async function recordPageFetch(
+  db: SupabaseClient,
+  sourceId: string,
+  record: PageFetchRecord
+): Promise<PageFetchOutcome> {
+  const { data: existing, error: readErr } = await db
+    .from('discovery_source_pages')
+    .select('id, content_hash, fetch_count, failure_count, page_type')
+    .eq('source_id', sourceId)
+    .eq('canonical_url', record.canonicalUrl)
+    .maybeSingle();
+  fail('recordPageFetch/read', readErr);
+
+  const now = new Date().toISOString();
+  const changed = record.ok && record.contentHash !== null && record.contentHash !== (existing?.content_hash ?? null);
+
+  const row: Record<string, unknown> = {
+    source_id: sourceId,
+    url: record.url,
+    canonical_url: record.canonicalUrl,
+    // Never demote a known page type to 'unknown' on a later fetch.
+    page_type: existing && existing.page_type !== 'unknown' && record.pageType === 'unknown' ? existing.page_type : record.pageType,
+    http_status: record.httpStatus,
+    etag: record.etag,
+    last_modified_header: record.lastModified,
+    last_fetched_at: now,
+    fetch_count: (existing?.fetch_count ?? 0) + 1,
+    failure_count: (existing?.failure_count ?? 0) + (record.ok ? 0 : 1),
+    last_error: record.ok ? null : record.errorMessage,
+    updated_at: now,
+  };
+  if (record.ok && record.contentHash !== null) {
+    row.content_hash = record.contentHash;
+    if (changed) row.last_changed_at = now;
+  }
+
+  const { data, error } = await db
+    .from('discovery_source_pages')
+    .upsert(row, { onConflict: 'source_id,canonical_url' })
+    .select('id')
+    .single();
+  fail('recordPageFetch/upsert', error);
+  return { pageId: data!.id as string, changed };
 }
 
 export interface PersistResult {

@@ -5,11 +5,18 @@
 // a duplicate check should do.
 const STOPWORDS = new Set(['the', 'a', 'an', 'official', 'annual', 'race', 'day', 'event', 'festival']);
 
+// Unicode-aware: names arrive in any script, and the duplicate check must
+// not treat "Traversée du Lac" vs "Traversee du Lac" (or a fully Greek or
+// Thai name vs itself) as having zero tokens in common. Diacritics are
+// folded via NFKD so accented and unaccented spellings of the same name
+// tokenize identically; ASCII input behaves exactly as before.
 export function normalizeName(name: string | null): string {
   if (!name) return '';
   return name
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
+    .normalize('NFKD')
+    .replace(/\p{M}+/gu, '')
+    .replace(/[^\p{L}\p{N}\s]+/gu, ' ')
     .split(/\s+/)
     .filter((token) => token.length > 0 && !STOPWORDS.has(token))
     .join(' ');

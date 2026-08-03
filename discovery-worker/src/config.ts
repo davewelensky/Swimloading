@@ -5,6 +5,16 @@ export interface DiscoveryConfig {
   aiEnabled: boolean;
   maxPagesPerRun: number;
   maxAiCallsPerRun: number;
+  // Live-crawl behaviour. All defaults are deliberately conservative —
+  // this bot's reputation is a product asset.
+  userAgent: string;
+  fetchTimeoutMs: number;
+  fetchMaxRetries: number;
+  minHostDelayMs: number;
+  maxCrawlDelayMs: number;
+  maxResponseBytes: number;
+  maxSourcesPerPass: number;
+  schedulerIntervalSeconds: number;
 }
 
 function parseBoolEnv(name: string, defaultValue: boolean): boolean {
@@ -20,6 +30,9 @@ function parseIntEnv(name: string, defaultValue: number): number {
   return Number.isFinite(n) ? n : defaultValue;
 }
 
+export const DEFAULT_USER_AGENT =
+  'SwimLoadingDiscoveryBot/1.0 (+https://www.swimloading.com/explore; contact: dave.welensky@gmail.com)';
+
 export function loadConfig(): DiscoveryConfig {
   return {
     writeEnabled: parseBoolEnv('DISCOVERY_WRITE_ENABLED', false),
@@ -28,20 +41,28 @@ export function loadConfig(): DiscoveryConfig {
     aiEnabled: parseBoolEnv('DISCOVERY_AI_ENABLED', false),
     maxPagesPerRun: parseIntEnv('DISCOVERY_MAX_PAGES_PER_RUN', 5),
     maxAiCallsPerRun: parseIntEnv('DISCOVERY_MAX_AI_CALLS_PER_RUN', 0),
+    userAgent: process.env.DISCOVERY_USER_AGENT?.trim() || DEFAULT_USER_AGENT,
+    fetchTimeoutMs: parseIntEnv('DISCOVERY_FETCH_TIMEOUT_MS', 20_000),
+    fetchMaxRetries: parseIntEnv('DISCOVERY_FETCH_MAX_RETRIES', 3),
+    minHostDelayMs: parseIntEnv('DISCOVERY_MIN_HOST_DELAY_MS', 5_000),
+    maxCrawlDelayMs: parseIntEnv('DISCOVERY_MAX_CRAWL_DELAY_MS', 30_000),
+    maxResponseBytes: parseIntEnv('DISCOVERY_MAX_RESPONSE_BYTES', 5 * 1024 * 1024),
+    maxSourcesPerPass: parseIntEnv('DISCOVERY_MAX_SOURCES_PER_PASS', 10),
+    schedulerIntervalSeconds: parseIntEnv('DISCOVERY_SCHEDULER_INTERVAL_SECONDS', 900),
   };
 }
 
-// Safety gate. Fixture-only extraction and (as of the write-path phase)
-// database writes are implemented; live fetch, Playwright and AI are NOT,
-// and enabling them refuses to start rather than silently no-op'ing.
+// Safety gate. Fixture extraction, database writes and live HTTP fetching
+// are implemented; Playwright and AI extraction are NOT, and enabling
+// them refuses to start rather than silently no-op'ing.
 //
-// DISCOVERY_WRITE_ENABLED is now SUPPORTED, but still defaults to false —
-// the default run remains a pure dry-run that touches nothing but out/.
-export function assertPhaseOneSafe(config: DiscoveryConfig): void {
+// Every capability flag still defaults to false — the default run remains
+// a pure dry-run that touches nothing but out/.
+export function assertConfigSafe(config: DiscoveryConfig): void {
   const problems: string[] = [];
-  // Write mode is implemented, but fails closed without credentials:
-  // better to refuse at startup than to process every fixture and only
-  // then discover there was nowhere to write them.
+  // Implemented modes fail closed without their prerequisites: better to
+  // refuse at startup than to process everything and only then discover
+  // there was nowhere to write.
   if (config.writeEnabled) {
     const missing: string[] = [];
     if (!process.env.SUPABASE_URL) missing.push('SUPABASE_URL');
@@ -51,9 +72,6 @@ export function assertPhaseOneSafe(config: DiscoveryConfig): void {
         `DISCOVERY_WRITE_ENABLED=true but ${missing.join(' and ')} not set — refusing to start in write mode without credentials.`
       );
     }
-  }
-  if (config.liveFetchEnabled) {
-    problems.push('DISCOVERY_LIVE_FETCH_ENABLED=true — live network fetching is not implemented in this phase.');
   }
   if (config.playwrightEnabled) {
     problems.push('DISCOVERY_PLAYWRIGHT_ENABLED=true — Playwright extraction is not implemented in this phase.');
@@ -72,3 +90,7 @@ export function assertPhaseOneSafe(config: DiscoveryConfig): void {
     );
   }
 }
+
+// Backwards-compatible alias — the fixtures entry point predates live
+// fetch being implemented.
+export const assertPhaseOneSafe = assertConfigSafe;

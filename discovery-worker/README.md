@@ -46,9 +46,20 @@ Node 22.
 ```bash
 npm run dev -- --fixture fixtures/valid-single-event.html   # process one fixture
 npm run process:fixtures                                    # process every fixture in fixtures/
-npm test                                                     # run the node:test suite
+npm run crawl                                               # one live-crawl pass over due sources, then exit
+npm run crawl -- --source <uuid>                            # crawl one source now, ignoring next_run_at
+npm run crawl:loop                                          # long-running scheduler (Railway start command)
+npm run crawl:url -- https://…                              # ad-hoc single page -> out/, never the DB
+npm test                                                     # run the node:test suite (141 tests)
 npm run typecheck                                            # tsc --noEmit
 ```
+
+All `crawl*` commands require `DISCOVERY_LIVE_FETCH_ENABLED=true` and
+refuse to make any network request without it. The scheduler modes also
+need `SUPABASE_URL`/`SUPABASE_SERVICE_KEY` (they read
+`discovery_sources` even in dry-run); with `DISCOVERY_WRITE_ENABLED=false`
+they fetch politely but write extraction output to `out/` instead of the
+database — a full shakedown mode.
 
 Output is written to `out/<fixture-name>.json` (gitignored — regenerated
 by running the commands above).
@@ -205,6 +216,83 @@ defaulted. `confidenceReasons`/`confidence.reasons` and `evidence` make
 every point on the score, and every extracted fact, traceable back to
 where it came from (a specific JSON-LD field or a specific CSS selector).
 
+## The live crawler (src/crawl.ts)
+
+Implemented 2026-08-03. Every network request goes through
+`fetch/http-client.ts` (`PoliteHttpClient`), which guarantees:
+
+- **robots.txt checked before every page request** (parsed per RFC 9309:
+  group selection, longest-match, wildcards, `$` anchors; cached per
+  origin per process). No robots.txt (404) = allowed; robots.txt
+  *unreachable* (5xx/network) = the whole host is skipped this run —
+  conservative on purpose. `discovery_sources.robots_checked_at` is
+  stamped on every run that consulted robots.
+- **One request at a time per host**, minimum 5s apart (configurable),
+  honouring the site's `Crawl-delay` up to a 30s cap.
+- **An identifiable UA** — `SwimLoadingDiscoveryBot/1.0 (+https://www.swimloading.com/explore; contact: dave.welensky@gmail.com)`
+  — never a disguised browser string.
+- **Bounded retries** (3, exponential backoff, `Retry-After` honoured) on
+  429/5xx/network only. A 403/404 is a fact and is never retried.
+- **Bounded bodies** (5MB cap) and HTML-only content types.
+
+### Crawl modes (per source, decided by `parser_type`)
+
+- **Listing mode** (`jsonld`/`html`/`jsonld_html`): fetch `base_url`,
+  discover same-registrable-domain links (structural filtering only —
+  never English keywords, so non-English sites work), then fetch known
+  event URLs first (verification) and new links after, within
+  `DISCOVERY_MAX_PAGES_PER_RUN`. Overflow defers to the next run.
+- **Verification mode** (`manual`, e.g. the researched umbrella sources):
+  only re-fetch the URLs of pages/candidates the source already has.
+  This is the change-monitoring loop: `content_hash` comparison feeds
+  `last_changed_at` and `discovery_runs.pages_changed`.
+
+Pages DISCOVERED from a listing must extract a name plus a date or
+distances to earn a candidate row (`shouldPersistDiscoveredPage`); known
+event URLs always re-persist (same `candidate_key` → idempotent update).
+After writing, each new candidate is scored against everything the source
+already has (`dedupe/match.ts`) and unresolved duplicate links are
+written — these block approval until reviewed.
+
+Source health is maintained on every run: `last_run_at`,
+`last_success_at`, `consecutive_failure_count`,
+`health_status` (healthy/degraded/failing/blocked), and `next_run_at`
+from `crawl_frequency` with exponential backoff (capped 4×) on repeated
+failure.
+
+### Multilingual behaviour ("check all languages")
+
+- Bodies are decoded by their **declared charset** (BOM → Content-Type →
+  `<meta charset>` → UTF-8), so ISO-8859-x / Windows-125x organiser pages
+  don't mangle names. (`fetch/decode.ts`)
+- `Accept-Language` is negotiated from the source's `language_codes`
+  column, English as fallback.
+- The page's declared language (`<html lang>`, `og:locale`,
+  Content-Language) is recorded on every candidate
+  (`raw_source_values.pageLanguage`), and non-English pages carry an
+  explicit reviewer warning that deterministic extraction is
+  English-tuned beyond JSON-LD.
+- JSON-LD extraction (the primary path) is language-agnostic.
+- `candidate_key` and dedupe name normalisation are **Unicode-aware**
+  (NFKD, diacritics folded, all scripts preserved). The old ASCII-only
+  rule collapsed a fully non-Latin name to `''` — every such event on a
+  page would have shared one key. ASCII names produce byte-identical
+  output to the old rule, so existing keys are unchanged
+  (`test/i18n-normalisation.test.ts` pins both properties).
+- Link discovery and the persistence gate use **no language-specific
+  keywords** anywhere.
+
+### Deploying to Railway
+
+The repo ships `railway.json` (Nixpacks, `npm run crawl:loop`,
+restart-on-failure). In the Railway service settings set **Root
+Directory: `discovery-worker`**, and set environment variables:
+`DISCOVERY_LIVE_FETCH_ENABLED=true`, `DISCOVERY_WRITE_ENABLED=true`,
+`SUPABASE_URL`, `SUPABASE_SERVICE_KEY` (plus any politeness overrides).
+The scheduler wakes every `DISCOVERY_SCHEDULER_INTERVAL_SECONDS` (900)
+and crawls whatever `next_run_at` says is due, so the process is idle
+almost always. SIGTERM finishes the current pass before exiting.
+
 ## Safety flags
 
 ```
@@ -212,30 +300,26 @@ DISCOVERY_WRITE_ENABLED=false
 DISCOVERY_LIVE_FETCH_ENABLED=false
 DISCOVERY_PLAYWRIGHT_ENABLED=false
 DISCOVERY_AI_ENABLED=false
-DISCOVERY_MAX_PAGES_PER_RUN=5
+DISCOVERY_MAX_PAGES_PER_RUN=25
 DISCOVERY_MAX_AI_CALLS_PER_RUN=0
 ```
 
-All four capability flags **must** stay `false` in this phase — none of
-the corresponding capability is implemented yet. `src/config.ts`'s
-`assertPhaseOneSafe()` refuses to start (exits non-zero with a clear
-message naming every offending flag) if any is set to `true`. This is not
-a soft warning — verified by running the process with each flag flipped.
+Write mode and live fetch are implemented but default **off** — the
+default run remains a pure dry run. Playwright and AI extraction are NOT
+implemented, and `assertConfigSafe()` refuses to start (exits non-zero
+with a clear message) if either is set to `true`. `.env.example`
+documents every politeness/budget knob.
 
 ## What is deliberately not implemented
 
-- **Live network fetching.** Every `SourceRecord` comes from a fixture
-  file read off disk (`jobs/process-fixture.ts`).
 - **Playwright extraction.** No headless browser dependency at all.
+  (Rottnest's organiser site 403s automated fetches — a headless browser
+  wouldn't change that; it needs a different sourcing strategy anyway.)
 - **AI-assisted extraction fallback.** No LLM call, no API key read for
   this purpose. Confidence scoring is 100% deterministic rule-based
   arithmetic (`confidence/rules.ts`) — never an LLM-generated score.
 - **Duplicate merging.** `dedupe/match.ts` only ever scores a pair and
   reports signals — it never merges, updates, or deletes a record.
-- **Source health tracking, retry/backoff, change monitoring.** These
-  belong to the (not-yet-built) `discovery_sources`/`discovery_runs`
-  tables and a real scheduler — out of scope while everything is
-  fixture-only.
 - **Status-aware confidence scoring.** A cancelled event (see
   `fixtures/cancelled-event.html`) is correctly captured with
   `status: "cancelled"`, but the confidence scorer does not currently
@@ -248,28 +332,22 @@ a soft warning — verified by running the process with each flag flipped.
 
 ## Next implementation phase
 
-Per the approved architecture, the next task is **not** live scraping —
-it's proving the write path safely:
-
-1. ~~Stand up the additive `discovery_*` schema~~ — ✅ **DONE**. Applied
-   to production 2026-08-03 as
-   `sql/applied/2026-08-03_discovery-schema-v1.sql`. All 13 tables + the
-   `public_organisers` view exist and are empty.
-2. ~~Add `DISCOVERY_WRITE_ENABLED=true` support~~ — ✅ **DONE**. Service-role
-   client, `candidate_key`, and the upsert path into
-   `discovery_candidate_events` / `discovery_candidate_distances` /
-   `discovery_event_evidence` / `discovery_source_pages` /
-   `discovery_runs`. Row shapes verified against the live schema
-   (including the idempotency guarantee) in a rolled-back transaction.
-   **A real end-to-end write run has not been executed yet** — it needs
-   `SUPABASE_SERVICE_KEY` in `discovery-worker/.env`.
-3. **Next:** run the worker once for real in write mode, confirm the 11
-   fixture candidates land, then run it a second time and confirm the row
-   count is unchanged (idempotency in practice, not just in a test).
-4. Then: one real, approved source, `DISCOVERY_LIVE_FETCH_ENABLED=true`,
-   with the page/cost budgets in `.env` actually enforced (they're read
-   but not yet enforced against anything real in this phase).
+1. ~~Stand up the additive `discovery_*` schema~~ — ✅ **DONE** (applied
+   2026-08-03, `sql/applied/2026-08-03_discovery-schema-v1.sql`).
+2. ~~`DISCOVERY_WRITE_ENABLED=true` write path~~ — ✅ **DONE**.
+3. ~~Live crawler~~ — ✅ **DONE 2026-08-03**: polite HTTP client,
+   robots.txt, listing/verification crawl modes, scheduler,
+   change monitoring, source health, multilingual decoding — see "The
+   live crawler" above. Page budgets are now actually enforced.
+4. **Next:** apply `sql/2026-08-03_enable-live-discovery-sources.sql`
+   (MIGRATIONS.md gate), run `npm run crawl` locally in dry-run to
+   shake down the three sources, flip `DISCOVERY_WRITE_ENABLED=true`,
+   then deploy to Railway (see "Deploying to Railway").
 
 Playwright and AI-assisted extraction remain later still, gated behind
 their own flags, only once deterministic extraction has proven
-insufficient against real, approved sources.
+insufficient against real, approved sources. AI-assisted extraction is
+also the planned answer for non-English pages without JSON-LD — the
+deterministic HTML selectors are English-tuned and non-English pages are
+already flagged per-candidate (`pageLanguage` warning) so reviewers can
+see exactly where that gap bites.

@@ -117,9 +117,21 @@ DISCOVERY_WRITE_ENABLED=true npm run process:fixtures
 and must never be committed or pasted anywhere. The worker refuses to
 start in write mode without it.
 
+**Live crawling is now implemented** (2026-08-03) behind
+`DISCOVERY_LIVE_FETCH_ENABLED` — polite HTTP client (robots.txt per RFC
+9309, per-host rate limiting, identifiable UA, bounded retries/bodies),
+listing + verification crawl modes, scheduler loop, change monitoring,
+source health, and charset/language-correct multilingual handling. See
+`discovery-worker/README.md` → "The live crawler".
+
+```bash
+npm run crawl                    # one pass over due sources
+npm run crawl:loop               # Railway mode
+npm run crawl:url -- https://…   # ad-hoc page -> out/, never the DB
+```
+
 Still **unimplemented and refusing to start if enabled**:
-`DISCOVERY_LIVE_FETCH_ENABLED`, `DISCOVERY_PLAYWRIGHT_ENABLED`,
-`DISCOVERY_AI_ENABLED`.
+`DISCOVERY_PLAYWRIGHT_ENABLED`, `DISCOVERY_AI_ENABLED`.
 
 ### candidate_key
 `sha256(normalised source URL | normalised name | edition YEAR)`.
@@ -162,16 +174,22 @@ gates *publishing*, not just reading. Fix is written and pre-checked:
 |---|---|
 | `sql/2026-08-03_protect-profiles-is-admin.sql` | Closes the `is_admin` hole. Pre-checked clean. Only blocker is that it has no bypass, so any future manual admin grant needs a documented `DISABLE TRIGGER` bracket (explained in the file). |
 | `sql/2026-08-03_auto-publish-high-confidence.sql` | Auto-publishes the high_confidence tier so review doesn't gate scale. Pre-checked. Worth revisiting: research showed ~⅓ of real events have no published date, so a human stays in the loop regardless. |
+| `sql/2026-08-03_enable-live-discovery-sources.sql` | Flips the 3 real sources to `enabled=true` for the now-built crawler (Oceanman → listing mode weekly; both umbrella sources → verification-only weekly). Apply via the MIGRATIONS.md gate before the first crawl. |
 
 ---
 
 ## 7. Not built yet
 
-1. **Live crawling.** Every event so far was *researched* and seeded
-   through the pipeline with real provenance — but nothing was
-   discovered automatically. The `discovery_sources` rows for Oceanman,
-   Chillswim, Go Swim etc. exist with `enabled=false`, ready to point a
-   worker at. **This is the real next phase.**
+1. ~~**Live crawling.**~~ ✅ **BUILT 2026-08-03** (code complete, tests
+   green — 141). Not yet live: needs (a)
+   `sql/2026-08-03_enable-live-discovery-sources.sql` applied via the
+   MIGRATIONS.md gate (enables Oceanman in listing mode + the two
+   umbrella sources in verification-only mode), and (b) the Railway
+   deploy (`discovery-worker/README.md` → "Deploying to Railway").
+   Note the seeded reality differs from what this doc previously said:
+   only Oceanman has a crawlable `base_url`; Chillswim/Go Swim/etc. live
+   as candidate `source_url`s under two umbrella sources, which the
+   crawler re-verifies URL-by-URL rather than listing-crawls.
 2. **Geocoding.** `explore.html` uses a hardcoded city list plus browser
    geolocation. Typing an arbitrary place name ("I'm going to Galway")
    needs a real geocoder.
@@ -188,9 +206,11 @@ gates *publishing*, not just reading. Fix is written and pre-checked:
    has no column for it (`candidate_status` is the *review* state). The
    approve RPC reads it correctly, but you can't filter the queue on it.
    Small additive migration.
-6. **Verification loop.** `content_hash` and `last_verified_at` are
-   populated but nothing re-checks them. That's the mechanism for
-   "has this event changed / is it still on".
+6. ~~**Verification loop.**~~ ✅ Built into the crawler: known event URLs
+   are re-fetched every run, `content_hash` compared,
+   `last_changed_at`/`pages_changed` maintained, and re-extraction
+   upserts the same `candidate_key` in place. What remains is surfacing
+   "changed since approval" in the review UI.
 
 ---
 
@@ -198,6 +218,10 @@ gates *publishing*, not just reading. Fix is written and pre-checked:
 
 ```
 discovery-worker/                     the worker (see its own README)
+discovery-worker/src/crawl.ts         live-crawler CLI (once/loop/source/url)
+discovery-worker/src/fetch/           http-client, robots, links, decode
+discovery-worker/src/schedule/        due-source + health + backoff logic
+discovery-worker/railway.json         Railway deploy config (root dir: discovery-worker)
 explore.html                          public search      -> /explore
 discovery-review.html                 admin review       -> /discovery-review
 docs/global-swim-discovery/
@@ -206,6 +230,7 @@ docs/global-swim-discovery/
 sql/applied/2026-08-03_*.sql          everything applied 2026-08-03
 sql/2026-08-03_protect-profiles-is-admin.sql        NOT applied
 sql/2026-08-03_auto-publish-high-confidence.sql     NOT applied
+sql/2026-08-03_enable-live-discovery-sources.sql    NOT applied — enables the crawler's sources
 sql/debug/discovery-review-queue.sql  paste-into-SQL-editor queries
 scripts/test-discovery-schema-rls.mjs RLS probe (readonly-safe by default)
 ```

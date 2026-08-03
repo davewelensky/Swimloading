@@ -38,11 +38,21 @@ export interface CandidateKeyInput {
 // near-miss names match; doing the same here would let two genuinely
 // different events on one page ("The Sprint" vs "Sprint") share a key and
 // silently overwrite each other. A key wants stability, not fuzziness.
+//
+// Unicode-aware on purpose: sources span every script (Turkish, Italian,
+// Spanish, Greek, Thai…). The old ASCII-only rule collapsed a fully
+// non-Latin name to '' — every such event on one page would share a key
+// and overwrite each other. Diacritics are folded (NFKD, strip combining
+// marks) so "Gijón" and "Gijon" key identically; for pure-ASCII input the
+// output is byte-for-byte what the old rule produced, so existing keys of
+// ASCII-named candidates are unchanged.
 export function normaliseForKey(value: string | null): string {
   if (!value) return '';
   return value
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
+    .normalize('NFKD')
+    .replace(/\p{M}+/gu, '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim()
     .replace(/\s+/g, ' ');
 }
