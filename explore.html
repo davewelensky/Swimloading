@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find a Swim — SwimLoading</title>
+<meta name="description" content="Find open water swims anywhere — the big ones worth travelling for, or something local while you're away.">
+<!-- noindex while the catalogue is still being seeded. Remove this once the
+     listings are real, verified events rather than development fixtures —
+     an indexed page of invented swims would be worse than no page. -->
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#080f1a;--card:#0d1728;--cyan:#38bdf8;--text:#f1f5f9;--sec:#64748b;
+        --border:rgba(255,255,255,0.08);--amber:#f59e0b;--green:#10b981}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh}
+  body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+    background:radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,.55),transparent 100%),
+               radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,.07),transparent 70%)}
+  nav{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;
+      border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;
+      background:rgba(8,15,26,.9);backdrop-filter:blur(8px)}
+  .brand{display:flex;align-items:center;gap:7px;text-decoration:none}
+  .brand img{height:22px}
+  .brand span{font-size:20px;font-weight:800;letter-spacing:-.5px;
+    background:linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  nav a.cta{background:var(--cyan);color:#080f1a;text-decoration:none;border-radius:50px;
+            padding:9px 20px;font-weight:700;font-size:13px}
+  .wrap{max-width:1080px;margin:0 auto;padding:26px 22px 60px}
+  h1{font-family:'Bebas Neue',sans-serif;font-size:46px;letter-spacing:.5px;line-height:1}
+  .lede{color:var(--sec);font-size:15px;margin:6px 0 22px;max-width:640px}
+
+  .modes{display:flex;gap:9px;margin-bottom:16px;flex-wrap:wrap}
+  .modes button{background:transparent;border:1px solid var(--border);color:var(--sec);
+    border-radius:50px;padding:10px 20px;font-family:inherit;font-size:14px;cursor:pointer}
+  .modes button.on{background:var(--cyan);border-color:var(--cyan);color:#080f1a;font-weight:700}
+
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:22px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+  label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--sec);margin-bottom:6px}
+  input,select{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);
+    border-radius:9px;padding:11px;color:var(--text);font-family:inherit;font-size:14px}
+  input[type=range]{padding:0}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .chk{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--text);cursor:pointer}
+  .chk input{width:auto}
+  button.go{background:var(--cyan);color:#080f1a;border:none;border-radius:50px;
+    padding:12px 28px;font-weight:700;font-family:inherit;font-size:15px;cursor:pointer}
+  button.ghost{background:transparent;border:1px solid var(--border);color:var(--text);
+    border-radius:50px;padding:11px 18px;font-family:inherit;font-size:13px;cursor:pointer}
+
+  .result{background:var(--card);border:1px solid var(--border);border-radius:14px;
+          padding:18px;margin-bottom:12px;display:flex;gap:18px;flex-wrap:wrap}
+  .result-main{flex:1;min-width:260px}
+  .result h3{font-size:19px;font-weight:600;margin-bottom:4px}
+  .result .where{color:var(--sec);font-size:14px;margin-bottom:10px}
+  .when{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--cyan);line-height:1.05}
+  .when small{display:block;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--sec);letter-spacing:0}
+  .aside{text-align:right;min-width:120px}
+  .badge{display:inline-block;font-size:10px;text-transform:uppercase;letter-spacing:.6px;
+         padding:3px 10px;border-radius:50px;font-weight:700;margin-right:5px}
+  .b-iconic{background:rgba(56,189,248,.18);color:var(--cyan)}
+  .b-major{background:rgba(16,185,129,.15);color:var(--green)}
+  .b-regional{background:rgba(245,158,11,.13);color:var(--amber)}
+  .b-local{background:rgba(100,116,139,.2);color:var(--sec)}
+  .dists{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .dist{background:rgba(255,255,255,.05);border-radius:7px;padding:5px 11px;font-size:13px}
+  .verify{margin-top:12px;padding-top:11px;border-top:1px solid var(--border);
+          font-size:12px;color:var(--sec);display:flex;align-items:flex-start;gap:7px}
+  .verify a{color:var(--cyan)}
+  .empty{color:var(--sec);text-align:center;padding:50px 20px}
+  .count{color:var(--sec);font-size:13px;margin-bottom:12px}
+  [data-lucide]{width:13px;height:13px;stroke-width:2;flex-shrink:0}
+  @media(max-width:600px){
+    h1{font-size:36px}
+    .aside{text-align:left}
+    /* Stop the CTA overlapping the wordmark on narrow screens. */
+    nav{padding:12px 14px;gap:10px}
+    .brand span{font-size:16px}
+    .brand img{height:18px}
+    nav a.cta{padding:8px 14px;font-size:12px;white-space:nowrap}
+  }
+</style>
+</head>
+<body>
+<nav>
+  <a class="brand" href="/"><img src="/icons/logo-wave.png" alt=""><span>SwimLoading</span></a>
+  <a class="cta" href="/app">Open the app</a>
+</nav>
+
+<div class="wrap">
+  <h1>Find a swim</h1>
+  <p class="lede">Open water events worldwide — the big ones worth booking a flight for, or something local to sample while you're away for the weekend.</p>
+
+  <div class="modes">
+    <button id="mBig"   class="on" onclick="setMode('big')">Big swims worth travelling for</button>
+    <button id="mLocal"          onclick="setMode('local')">What's on near me</button>
+  </div>
+
+  <div class="panel">
+    <div class="grid">
+      <div id="whereWrap">
+        <label for="where">Where</label>
+        <select id="where" onchange="onWhereChange()"></select>
+      </div>
+      <div><label for="from">From</label><input type="date" id="from"></div>
+      <div><label for="to">To</label><input type="date" id="to"></div>
+      <div>
+        <label for="minDist">Shortest swim you'd enter</label>
+        <select id="minDist">
+          <option value="">Any distance</option>
+          <option value="1000">1 km +</option>
+          <option value="3000">3 km +</option>
+          <option value="5000">5 km +</option>
+          <option value="10000">10 km +</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="radiusWrap" style="margin-top:14px;display:none">
+      <label for="radius">How far you'd travel — <span id="radiusLabel">150 km</span></label>
+      <input type="range" id="radius" min="10" max="800" step="10" value="150"
+             oninput="document.getElementById('radiusLabel').textContent=this.value+' km'">
+    </div>
+
+    <div class="row">
+      <label class="chk"><input type="checkbox" id="weekend"> Weekends only</label>
+      <button class="ghost" onclick="useMyLocation()"><i data-lucide="crosshair"></i> Use my location</button>
+      <button class="go" style="margin-left:auto" onclick="search()">Search</button>
+    </div>
+  </div>
+
+  <div id="count" class="count"></div>
+  <div id="results"></div>
+</div>
+
+<script>
+const SUPABASE_URL='https://szgkzuswelntnevobnoh.supabase.co';
+const ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+const sb = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+document.addEventListener('mousemove',e=>{
+  document.body.style.setProperty('--mouse-x',e.clientX+'px');
+  document.body.style.setProperty('--mouse-y',e.clientY+'px');
+});
+
+// There is no geocoder in this project yet, so origins come from a curated
+// list plus the browser's own location. Typing an arbitrary place name is
+// the next step — see docs/global-swim-discovery/database-schema.md.
+const PLACES = [
+  { label:'Anywhere in the world', lat:null, lng:null },
+  { label:'— United Kingdom —', disabled:true },
+  { label:'Manchester',  lat:53.4808, lng:-2.2426 },
+  { label:'London',      lat:51.5072, lng:-0.1276 },
+  { label:'Windermere',  lat:54.3667, lng:-2.9167 },
+  { label:'Edinburgh',   lat:55.9533, lng:-3.1883 },
+  { label:'Brighton',    lat:50.8195, lng:-0.1372 },
+  { label:'Plymouth',    lat:50.3714, lng:-4.1422 },
+  { label:'— South Africa —', disabled:true },
+  { label:'Cape Town',   lat:-33.9249, lng:18.4241 },
+  { label:'Durban',      lat:-29.8587, lng:31.0218 },
+  { label:'Johannesburg',lat:-26.2041, lng:28.0473 },
+  { label:'— Elsewhere —', disabled:true },
+  { label:'Dublin',      lat:53.3498, lng:-6.2603 },
+  { label:'Sydney',      lat:-33.8688, lng:151.2093 },
+  { label:'New York',    lat:40.7128, lng:-74.0060 }
+];
+
+let MODE='big', myLoc=null;
+
+function esc(s){ return s==null?'':String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function icons(){ if(window.lucide) lucide.createIcons(); }
+
+function initPlaces(){
+  document.getElementById('where').innerHTML = PLACES.map((p,i)=>
+    p.disabled ? `<option disabled>${esc(p.label)}</option>`
+               : `<option value="${i}">${esc(p.label)}</option>`).join('');
+}
+
+function setMode(m){
+  MODE = m;
+  document.getElementById('mBig').classList.toggle('on', m==='big');
+  document.getElementById('mLocal').classList.toggle('on', m==='local');
+  // Destination mode searches the world and ranks by significance, so a
+  // radius makes no sense there. Local mode is all about the radius.
+  document.getElementById('radiusWrap').style.display = m==='local' ? 'block' : 'none';
+  if (m==='local' && document.getElementById('where').value === '0') {
+    document.getElementById('where').value = '2'; // default to Manchester rather than "anywhere"
+  }
+  search();
+}
+
+function onWhereChange(){ myLoc = null; }
+
+function useMyLocation(){
+  if (!navigator.geolocation) { alert('Your browser cannot share a location.'); return; }
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      myLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      if (MODE !== 'local') setMode('local'); else search();
+    },
+    () => alert('Could not get your location. Pick a city from the list instead.')
+  );
+}
+
+function origin(){
+  if (myLoc) return myLoc;
+  const p = PLACES[parseInt(document.getElementById('where').value,10)];
+  return p && p.lat != null ? { lat:p.lat, lng:p.lng } : null;
+}
+
+function fmtDate(d, precision, confirmed){
+  if (!confirmed || !d) return { big:'Date TBC', small:'not yet confirmed' };
+  const dt = new Date(d+'T12:00:00');
+  if (precision === 'month') return { big: dt.toLocaleDateString('en-GB',{month:'long'}), small: dt.getFullYear() };
+  if (precision === 'year')  return { big: String(dt.getFullYear()), small:'exact date TBC' };
+  return {
+    big: dt.toLocaleDateString('en-GB',{day:'numeric',month:'short'}),
+    small: dt.toLocaleDateString('en-GB',{weekday:'long'}) + ' ' + dt.getFullYear()
+  };
+}
+
+async function search(){
+  const o = origin();
+  const args = {
+    p_date_from: document.getElementById('from').value || null,
+    p_date_to:   document.getElementById('to').value   || null,
+    p_weekend_only: document.getElementById('weekend').checked,
+    p_min_distance_m: parseInt(document.getElementById('minDist').value,10) || null,
+    p_sort: MODE === 'big' ? 'prominence' : 'distance'
+  };
+  if (MODE === 'local' && o) {
+    args.p_lat = o.lat; args.p_lng = o.lng;
+    args.p_radius_km = parseInt(document.getElementById('radius').value,10);
+  } else if (o) {
+    // Destination mode still reports how far each event is from you, it
+    // just does not filter on it — you said you'd fly.
+    args.p_lat = o.lat; args.p_lng = o.lng;
+  }
+
+  document.getElementById('results').innerHTML = '<div class="empty">Searching…</div>';
+  const { data, error } = await sb.rpc('search_event_editions', args);
+  if (error) {
+    document.getElementById('results').innerHTML = `<div class="empty">Could not search: ${esc(error.message)}</div>`;
+    return;
+  }
+  renderResults(data || []);
+}
+
+function renderResults(rows){
+  document.getElementById('count').textContent =
+    rows.length === 0 ? '' : `${rows.length} swim${rows.length>1?'s':''} found`;
+
+  if (rows.length === 0) {
+    document.getElementById('results').innerHTML =
+      `<div class="empty"><p style="font-size:16px;margin-bottom:6px">Nothing matches yet.</p>
+       <p>Try widening the dates, the distance you'd travel, or the shortest swim you'd enter.</p></div>`;
+    return;
+  }
+
+  document.getElementById('results').innerHTML = rows.map(r => {
+    const d = fmtDate(r.start_date, r.date_precision, r.date_confirmed);
+    const dists = Array.isArray(r.distances) ? r.distances : [];
+    const place = [r.venue_name || r.city, r.region, r.country_code].filter(Boolean).join(', ');
+    return `
+    <div class="result">
+      <div class="result-main">
+        <div style="margin-bottom:7px">
+          <span class="badge b-${esc(r.prominence)}">${esc(r.prominence)}</span>
+          ${r.participant_estimate ? `<span style="color:var(--sec);font-size:12px">~${Number(r.participant_estimate).toLocaleString()} swimmers</span>` : ''}
+        </div>
+        <h3>${esc(r.title || r.series_name)}</h3>
+        <div class="where">
+          ${esc(place || 'location to be confirmed')}
+          ${r.distance_km != null ? ` · <b style="color:var(--cyan)">${r.distance_km} km away</b>` : ''}
+          ${r.organiser_name ? ` · ${esc(r.organiser_name)}` : ''}
+        </div>
+        ${dists.length ? `<div class="dists">${dists.map(x =>
+          `<span class="dist">${esc(x.label)}${x.metres ? '' : ''}</span>`).join('')}</div>` : ''}
+        <div class="verify">
+          <i data-lucide="alert-circle"></i>
+          <span>Listings are gathered automatically. <b>Always confirm with the organiser before you travel</b> — dates and entries change.
+          ${r.official_url ? ` <a href="${esc(r.official_url)}" target="_blank" rel="noopener noreferrer">Official page</a>` : ''}
+          ${r.registration_url ? ` · <a href="${esc(r.registration_url)}" target="_blank" rel="noopener noreferrer">Enter</a>` : ''}
+          </span>
+        </div>
+      </div>
+      <div class="aside">
+        <div class="when">${esc(d.big)}<small>${esc(d.small)}</small></div>
+      </div>
+    </div>`;
+  }).join('');
+  icons();
+}
+
+initPlaces();
+// Default window: the next TWO years. Open water calendars are published
+// far ahead and people plan destination swims a season or more out — a
+// twelve-month default silently hid over half the catalogue.
+const today = new Date();
+document.getElementById('from').value = today.toISOString().slice(0,10);
+document.getElementById('to').value =
+  new Date(today.getFullYear()+2, today.getMonth(), today.getDate()).toISOString().slice(0,10);
+icons();
+search();
+</script>
+</body>
+</html>

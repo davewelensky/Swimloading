@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Discovery Review — SwimLoading</title>
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#080f1a; --card:#0d1728; --cyan:#38bdf8; --text:#f1f5f9;
+    --sec:#64748b; --border:rgba(255,255,255,0.08);
+    --amber:#f59e0b; --green:#10b981; --danger:#ef4444;
+  }
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh}
+  body::before{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+    background:
+      radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,0.55),transparent 100%),
+      radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,0.07),transparent 70%);
+  }
+  nav{
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    padding:14px 22px;border-bottom:1px solid var(--border);
+    background:rgba(8,15,26,0.9);backdrop-filter:blur(8px);position:sticky;top:0;z-index:50;
+  }
+  .brand{display:flex;align-items:center;gap:7px;text-decoration:none}
+  .brand img{height:22px;width:auto}
+  .brand span{
+    font-size:20px;font-weight:800;letter-spacing:-0.5px;
+    background:linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  }
+  .nav-title{font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:1px;color:var(--sec)}
+  .wrap{max-width:1400px;margin:0 auto;padding:22px}
+
+  .stats{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 18px;min-width:120px}
+  .stat b{display:block;font-family:'Bebas Neue',sans-serif;font-size:30px;line-height:1;color:var(--cyan)}
+  .stat small{color:var(--sec);font-size:11px;text-transform:uppercase;letter-spacing:.6px}
+
+  .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+  .filters button{
+    background:transparent;border:1px solid var(--border);color:var(--sec);
+    border-radius:50px;padding:7px 16px;font-family:inherit;font-size:13px;cursor:pointer;
+  }
+  .filters button.on{background:var(--cyan);border-color:var(--cyan);color:#080f1a;font-weight:700}
+
+  .cols{display:grid;grid-template-columns:minmax(320px,420px) 1fr;gap:18px;align-items:start}
+  @media(max-width:900px){.cols{grid-template-columns:1fr}}
+
+  .card{
+    background:var(--card);border:1px solid var(--border);border-radius:12px;
+    padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color .15s;
+  }
+  .card:hover{border-color:rgba(56,189,248,.4)}
+  .card.sel{border-color:var(--cyan)}
+  .card-top{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+  .score{
+    font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;
+    min-width:34px;text-align:center;
+  }
+  .card h3{font-size:14px;font-weight:600;flex:1}
+  .card .meta{color:var(--sec);font-size:12px;display:flex;flex-wrap:wrap;gap:10px}
+
+  .pill{
+    display:inline-block;font-size:10px;text-transform:uppercase;letter-spacing:.5px;
+    padding:3px 9px;border-radius:50px;font-weight:700;white-space:nowrap;
+  }
+  .p-high{background:rgba(16,185,129,.15);color:var(--green)}
+  .p-review{background:rgba(245,158,11,.15);color:var(--amber)}
+  .p-insuf{background:rgba(100,116,139,.2);color:var(--sec)}
+  .p-rej{background:rgba(239,68,68,.15);color:var(--danger)}
+  .p-dupe{background:rgba(245,158,11,.2);color:var(--amber)}
+  .p-pub{background:rgba(56,189,248,.15);color:var(--cyan)}
+
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;position:sticky;top:80px}
+  .panel h2{font-family:'Bebas Neue',sans-serif;font-size:27px;letter-spacing:.5px;margin-bottom:3px}
+  .panel .sub{color:var(--sec);font-size:13px;margin-bottom:16px}
+  .sect{margin-top:18px}
+  .sect h4{
+    font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--sec);
+    margin-bottom:8px;display:flex;align-items:center;gap:6px;
+  }
+  .kv{display:grid;grid-template-columns:132px 1fr;gap:5px 12px;font-size:13px}
+  .kv dt{color:var(--sec)}
+  .kv dd{word-break:break-word}
+  .reasons li{font-size:12px;color:var(--sec);margin-bottom:3px;list-style:none;font-variant-numeric:tabular-nums}
+  .reasons li.pos{color:var(--green)}
+  .reasons li.neg{color:var(--danger)}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{text-align:left;color:var(--sec);font-weight:500;padding:5px 8px 5px 0;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+  td{padding:5px 8px 5px 0;border-top:1px solid var(--border);vertical-align:top}
+  code{background:rgba(255,255,255,.05);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--cyan)}
+
+  .warn{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:9px;padding:12px;margin-bottom:9px}
+  .warn p{font-size:13px;margin-bottom:9px}
+  .actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:20px;padding-top:18px;border-top:1px solid var(--border)}
+  button.act{border-radius:50px;padding:11px 22px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;border:none}
+  button.act:disabled{opacity:.4;cursor:not-allowed}
+  .b-approve{background:var(--green);color:#04231a}
+  .b-reject{background:transparent;border:1px solid rgba(239,68,68,.5)!important;color:var(--danger)}
+  .b-small{background:transparent;border:1px solid var(--border)!important;color:var(--text);border-radius:50px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:inherit}
+  .b-small:hover{border-color:var(--cyan)!important}
+
+  .empty{color:var(--sec);text-align:center;padding:50px 20px;font-size:14px}
+  .login{max-width:380px;margin:80px auto;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:28px}
+  .login h1{font-family:'Bebas Neue',sans-serif;font-size:32px;margin-bottom:4px}
+  .login p{color:var(--sec);font-size:13px;margin-bottom:18px}
+  .login input{
+    width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);
+    border-radius:9px;padding:12px;color:var(--text);font-family:inherit;font-size:14px;margin-bottom:10px;
+  }
+  .login button{width:100%;background:var(--cyan);color:#080f1a;border:none;border-radius:50px;padding:12px;font-weight:700;font-family:inherit;font-size:14px;cursor:pointer}
+  .err{color:var(--danger);font-size:13px;margin-top:10px}
+  .toast{
+    position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+    background:var(--card);border:1px solid var(--cyan);border-radius:50px;
+    padding:12px 24px;font-size:14px;z-index:99999;box-shadow:0 8px 30px rgba(0,0,0,.5);
+  }
+  .toast.bad{border-color:var(--danger)}
+  [data-lucide]{width:14px;height:14px;stroke-width:2}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="brand" href="https://swimloading.com">
+    <img src="/icons/logo-wave.png" alt=""><span>SwimLoading</span>
+  </a>
+  <div class="nav-title">Discovery Review</div>
+  <button class="b-small" id="signOutBtn" onclick="signOut()" style="display:none">Sign out</button>
+</nav>
+
+<div id="loginView" class="login" style="display:none">
+  <h1>Discovery Review</h1>
+  <p>Admin access only. Sign in with your SwimLoading account.</p>
+  <input type="email" id="email" placeholder="Email" autocomplete="username">
+  <input type="password" id="password" placeholder="Password" autocomplete="current-password"
+         onkeydown="if(event.key==='Enter')doLogin()">
+  <button onclick="doLogin()">Sign in</button>
+  <div class="err" id="loginErr"></div>
+</div>
+
+<div id="deniedView" class="empty" style="display:none">
+  <p style="font-size:16px;margin-bottom:8px">Not authorised</p>
+  <p>This page is restricted to platform administrators.</p>
+  <button class="b-small" style="margin-top:16px" onclick="signOut()">Sign out</button>
+</div>
+
+<div id="appView" class="wrap" style="display:none">
+  <div class="stats" id="stats"></div>
+  <div class="filters" id="filters"></div>
+  <div class="cols">
+    <div id="list"></div>
+    <div id="detail"><div class="panel"><div class="empty">Select a candidate to review.</div></div></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+const sb = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+document.addEventListener('mousemove', e => {
+  document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+  document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+});
+
+// XSS-safe interpolation — every value below comes from scraped third-party
+// pages, so nothing is ever inserted into the DOM unescaped.
+function esc(s){
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function toast(msg, bad){
+  const t = document.createElement('div');
+  t.className = 'toast' + (bad ? ' bad' : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), bad ? 6500 : 3200);
+}
+function icons(){ if (window.lucide) lucide.createIcons(); }
+
+let CANDIDATES = [], LINKS = [], EDITIONS = [], SELECTED = null, FILTER = 'actionable';
+
+const REC_PILL = {
+  high_confidence:      ['p-high','high confidence'],
+  manual_review:        ['p-review','manual review'],
+  insufficient_evidence:['p-insuf','insufficient evidence'],
+  rejected:             ['p-rej','rejected']
+};
+const SCORE_COLOUR = s => s >= 75 ? 'var(--green)' : s >= 50 ? 'var(--amber)' : 'var(--sec)';
+
+async function doLogin(){
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const errEl = document.getElementById('loginErr');
+  errEl.textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) { errEl.textContent = error.message; return; }
+  boot();
+}
+async function signOut(){ await sb.auth.signOut(); location.reload(); }
+
+function show(view){
+  ['loginView','deniedView','appView'].forEach(v => {
+    document.getElementById(v).style.display = v === view ? (v === 'appView' ? 'block' : 'block') : 'none';
+  });
+  document.getElementById('signOutBtn').style.display = view === 'appView' ? 'block' : 'none';
+}
+
+async function boot(){
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { show('loginView'); return; }
+
+  // Client-side gate is for UX only. Real enforcement is server-side: the
+  // discovery tables' RLS returns zero rows to a non-admin, and all three
+  // RPCs re-check is_admin internally.
+  const { data: me } = await sb.from('profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
+  if (!me || !me.is_admin) { show('deniedView'); return; }
+
+  show('appView');
+  await loadAll();
+}
+
+async function loadAll(){
+  const [c, l, e] = await Promise.all([
+    sb.from('discovery_candidate_events')
+      .select('id,canonical_name,original_name,candidate_status,publication_recommendation,confidence_score,confidence_reasons,warnings,start_date,end_date,date_precision,date_confirmed,city,region,country_code,latitude,longitude,venue_name,organiser_name,official_url,registration_url,source_url,water_body_type,event_type,description_summary,extraction_method,raw_source_values,promoted_edition_id,extracted_at'),
+    sb.from('discovery_dedupe_links').select('id,candidate_id,matching_candidate_id,similarity_score,matching_signals,conflicting_signals,resolution'),
+    sb.from('event_editions').select('id,title,edition_year,start_date,status,source_candidate_id')
+  ]);
+  if (c.error) { toast('Could not load candidates: ' + c.error.message, true); return; }
+  CANDIDATES = c.data || [];
+  LINKS = l.data || [];
+  EDITIONS = e.data || [];
+  render();
+}
+
+const unresolvedFor = id => LINKS.filter(l => l.candidate_id === id && l.resolution === 'unresolved');
+
+function render(){
+  const pending   = CANDIDATES.filter(c => ['pending','needs_review'].includes(c.candidate_status));
+  const published = CANDIDATES.filter(c => c.candidate_status === 'approved');
+  const blocked   = pending.filter(c => unresolvedFor(c.id).length > 0);
+
+  document.getElementById('stats').innerHTML = [
+    ['Awaiting review', pending.length],
+    ['High confidence', pending.filter(c => c.publication_recommendation === 'high_confidence').length],
+    ['Blocked by duplicates', blocked.length],
+    ['Published', published.length]
+  ].map(([label, n]) => `<div class="stat"><b>${n}</b><small>${esc(label)}</small></div>`).join('');
+
+  const counts = {
+    actionable: pending.length,
+    all: CANDIDATES.length,
+    approved: published.length,
+    rejected: CANDIDATES.filter(c => ['rejected','duplicate'].includes(c.candidate_status)).length
+  };
+  document.getElementById('filters').innerHTML = [
+    ['actionable','Awaiting review'], ['all','All'], ['approved','Published'], ['rejected','Rejected / duplicate']
+  ].map(([k, label]) =>
+    `<button class="${FILTER === k ? 'on' : ''}" onclick="setFilter('${k}')">${esc(label)} (${counts[k]})</button>`
+  ).join('');
+
+  let rows = CANDIDATES;
+  if (FILTER === 'actionable') rows = rows.filter(c => ['pending','needs_review'].includes(c.candidate_status));
+  if (FILTER === 'approved')   rows = rows.filter(c => c.candidate_status === 'approved');
+  if (FILTER === 'rejected')   rows = rows.filter(c => ['rejected','duplicate'].includes(c.candidate_status));
+
+  const order = ['high_confidence','manual_review','insufficient_evidence','rejected'];
+  rows.sort((a, b) =>
+    order.indexOf(a.publication_recommendation) - order.indexOf(b.publication_recommendation) ||
+    b.confidence_score - a.confidence_score);
+
+  document.getElementById('list').innerHTML = rows.length === 0
+    ? '<div class="panel"><div class="empty">Nothing here.</div></div>'
+    : rows.map(cardHtml).join('');
+
+  if (SELECTED && !CANDIDATES.find(c => c.id === SELECTED)) SELECTED = null;
+  if (SELECTED) renderDetail(SELECTED);
+  icons();
+}
+
+function setFilter(f){ FILTER = f; render(); }
+
+function cardHtml(c){
+  const [cls, label] = REC_PILL[c.publication_recommendation] || ['p-insuf','—'];
+  const dupes = unresolvedFor(c.id).length;
+  const bits = [];
+  if (c.start_date) bits.push(new Date(c.start_date + 'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}));
+  else bits.push('date unconfirmed');
+  if (c.city) bits.push(c.city);
+  return `
+    <div class="card ${SELECTED === c.id ? 'sel' : ''}" onclick="select('${c.id}')">
+      <div class="card-top">
+        <span class="score" style="color:${SCORE_COLOUR(c.confidence_score)}">${c.confidence_score}</span>
+        <h3>${esc(c.canonical_name || c.original_name || 'Untitled')}</h3>
+      </div>
+      <div class="meta">
+        <span class="pill ${cls}">${esc(label)}</span>
+        ${c.candidate_status === 'approved' ? '<span class="pill p-pub">published</span>' : ''}
+        ${dupes ? `<span class="pill p-dupe">${dupes} duplicate warning${dupes > 1 ? 's' : ''}</span>` : ''}
+        <span>${esc(bits.join(' · '))}</span>
+      </div>
+    </div>`;
+}
+
+function select(id){ SELECTED = id; render(); renderDetail(id); }
+
+async function renderDetail(id){
+  const c = CANDIDATES.find(x => x.id === id);
+  if (!c) return;
+  const el = document.getElementById('detail');
+  el.innerHTML = '<div class="panel"><div class="empty">Loading…</div></div>';
+
+  const [d, ev] = await Promise.all([
+    sb.from('discovery_candidate_distances').select('*').eq('candidate_id', id).order('distance_metres'),
+    sb.from('discovery_event_evidence').select('field_name,evidence_type,raw_snippet,selector_or_path').eq('candidate_id', id).order('field_name')
+  ]);
+  const distances = d.data || [], evidence = ev.data || [];
+  const dupes = unresolvedFor(id);
+  const edition = EDITIONS.find(e => e.source_candidate_id === id);
+  const reasons = Array.isArray(c.confidence_reasons) ? c.confidence_reasons : [];
+  const warnings = Array.isArray(c.warnings) ? c.warnings : [];
+  const eventStatus = c.raw_source_values && c.raw_source_values.eventStatus;
+  const isOpen = ['pending','needs_review'].includes(c.candidate_status);
+
+  const dateLabel = c.date_confirmed && c.start_date
+    ? new Date(c.start_date + 'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})
+      + (c.end_date ? ' – ' + new Date(c.end_date + 'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}) : '')
+      + ` <span style="color:var(--sec)">(${esc(c.date_precision)})</span>`
+    : '<span style="color:var(--amber)">unconfirmed — year was never stated on the page</span>';
+
+  el.innerHTML = `
+  <div class="panel">
+    <h2>${esc(c.canonical_name || 'Untitled')}</h2>
+    <div class="sub">
+      ${esc(c.organiser_name || 'organiser unknown')} ·
+      score <b style="color:${SCORE_COLOUR(c.confidence_score)}">${c.confidence_score}</b> ·
+      <span class="pill ${(REC_PILL[c.publication_recommendation]||['p-insuf','—'])[0]}">${esc((REC_PILL[c.publication_recommendation]||['','—'])[1])}</span>
+      ${eventStatus === 'cancelled' ? ' <span class="pill p-rej">event cancelled</span>' : ''}
+    </div>
+
+    ${edition ? `<div class="warn" style="background:rgba(56,189,248,.08);border-color:rgba(56,189,248,.3)">
+      <p style="margin:0"><i data-lucide="check-circle"></i> Published as <b>${esc(c.canonical_name)} ${edition.edition_year}</b> — status ${esc(edition.status)}.</p>
+    </div>` : ''}
+
+    ${dupes.map(l => {
+      const other = CANDIDATES.find(x => x.id === l.matching_candidate_id);
+      return `<div class="warn">
+        <p><i data-lucide="copy"></i> <b>Possible duplicate (${l.similarity_score}% similar)</b> of
+        “${esc(other ? other.canonical_name : 'another candidate')}”.
+        ${Array.isArray(l.matching_signals) && l.matching_signals.length ? '<br><span style="color:var(--sec);font-size:12px">Matching: ' + esc(l.matching_signals.join('; ')) + '</span>' : ''}
+        ${Array.isArray(l.conflicting_signals) && l.conflicting_signals.length ? '<br><span style="color:var(--sec);font-size:12px">Conflicting: ' + esc(l.conflicting_signals.join('; ')) + '</span>' : ''}
+        <br><span style="color:var(--sec);font-size:12px">Approval is blocked until this is resolved.</span></p>
+        <button class="b-small" onclick="resolveLink('${l.id}','confirmed_distinct',false)">Different events</button>
+        <button class="b-small" onclick="resolveLink('${l.id}','confirmed_duplicate',true)">Same event — retire this one</button>
+      </div>`;
+    }).join('')}
+
+    <div class="sect">
+      <h4><i data-lucide="info"></i> Facts</h4>
+      <dl class="kv">
+        <dt>Date</dt><dd>${dateLabel}</dd>
+        <dt>Venue</dt><dd>${esc(c.venue_name || '—')}</dd>
+        <dt>Location</dt><dd>${esc([c.city, c.region, c.country_code].filter(Boolean).join(', ') || '—')}</dd>
+        <dt>Coordinates</dt><dd>${c.latitude != null ? esc(c.latitude + ', ' + c.longitude) : '—'}</dd>
+        <dt>Water</dt><dd>${esc(c.water_body_type || '—')}</dd>
+        <dt>Type</dt><dd>${esc(c.event_type || '—')}</dd>
+        <dt>Official page</dt><dd>${c.official_url ? `<a href="${esc(c.official_url)}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan)">${esc(c.official_url)}</a>` : '—'}</dd>
+        <dt>Registration</dt><dd>${c.registration_url ? `<a href="${esc(c.registration_url)}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan)">${esc(c.registration_url)}</a>` : '—'}</dd>
+        <dt>Extraction</dt><dd><code>${esc(c.extraction_method)}</code></dd>
+      </dl>
+    </div>
+
+    ${distances.length ? `<div class="sect">
+      <h4><i data-lucide="waves"></i> Distances (${distances.length})</h4>
+      <table><thead><tr><th>Label</th><th>Metres</th><th>Start</th><th>Wetsuit</th><th>Qual.</th></tr></thead><tbody>
+      ${distances.map(x => `<tr>
+        <td>${esc(x.original_label)}</td>
+        <td>${x.distance_metres != null ? esc(x.distance_metres) : '—'}</td>
+        <td>${esc(x.start_time || '—')}</td>
+        <td>${esc(x.wetsuit_policy || '—')}</td>
+        <td>${x.qualification_required === true ? 'yes' : x.qualification_required === false ? 'no' : '—'}</td>
+      </tr>`).join('')}
+      </tbody></table>
+    </div>` : ''}
+
+    <div class="sect">
+      <h4><i data-lucide="calculator"></i> How it scored ${c.confidence_score}</h4>
+      <ul class="reasons">${reasons.map(r =>
+        `<li class="${String(r).startsWith('+') ? 'pos' : String(r).startsWith('-') ? 'neg' : ''}">${esc(r)}</li>`).join('') || '<li>No scoring reasons recorded.</li>'}</ul>
+    </div>
+
+    ${warnings.length ? `<div class="sect">
+      <h4><i data-lucide="alert-triangle"></i> Extraction warnings</h4>
+      <ul class="reasons">${warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul>
+    </div>` : ''}
+
+    <div class="sect">
+      <h4><i data-lucide="file-search"></i> Evidence (${evidence.length}) — where each value came from</h4>
+      <table><thead><tr><th>Field</th><th>Source</th><th>Value found</th></tr></thead><tbody>
+      ${evidence.map(x => `<tr>
+        <td><code>${esc(x.field_name)}</code></td>
+        <td>${esc(x.evidence_type)}${x.selector_or_path ? `<br><span style="color:var(--sec);font-size:10px">${esc(x.selector_or_path)}</span>` : ''}</td>
+        <td style="color:var(--sec)">${esc((x.raw_snippet || '').slice(0, 110))}${(x.raw_snippet || '').length > 110 ? '…' : ''}</td>
+      </tr>`).join('')}
+      </tbody></table>
+    </div>
+
+    <div class="actions">
+      ${isOpen ? `
+        <button class="act b-approve" onclick="approve('${c.id}')" ${dupes.length ? 'disabled title="Resolve the duplicate warning first"' : ''}>
+          ${c.date_confirmed ? 'Approve &amp; publish' : 'Approve — you&#39;ll be asked for the year'}
+        </button>
+        <button class="act b-reject" onclick="reject('${c.id}')">Reject</button>
+      ` : `<span style="color:var(--sec);font-size:13px">Already reviewed — status <b>${esc(c.candidate_status)}</b>.</span>`}
+      <a class="b-small" style="text-decoration:none;display:inline-block;padding:11px 18px"
+         href="${esc(c.source_url)}" target="_blank" rel="noopener noreferrer">View source page</a>
+    </div>
+  </div>`;
+  icons();
+}
+
+async function approve(id){
+  const c = CANDIDATES.find(x => x.id === id);
+  const args = { p_candidate_id: id };
+
+  // An event whose year was never stated on the source page has no edition
+  // year, and the worker refuses to guess one. Rather than let the reviewer
+  // hit that as a wall-of-text error, ask for the year up front — the only
+  // person who can supply it is a human who actually knows.
+  if (c && !c.date_confirmed) {
+    const raw = prompt(
+      'This page never stated a year, so the event year is unknown.\n\n' +
+      'Enter the year you want to publish this edition under, or Cancel to leave it unapproved:',
+      String(new Date().getFullYear())
+    );
+    if (raw === null) return;
+    const year = parseInt(raw, 10);
+    if (!Number.isInteger(year) || year < 1900 || year > 2100) {
+      toast('That is not a valid year (1900–2100).', true);
+      return;
+    }
+    args.p_edition_year = year;
+    if (!confirm(`Publish under ${year}? The date itself stays unconfirmed — only the year is being set.`)) return;
+  } else if (!confirm('Publish this event to the public catalogue?')) {
+    return;
+  }
+
+  const { data, error } = await sb.rpc('approve_discovery_candidate', args);
+  if (error) { toast(error.message, true); return; }
+  toast('Published — edition ' + String(data).slice(0, 8));
+  await loadAll();
+  renderDetail(id);
+}
+
+async function reject(id){
+  const reason = prompt('Reason for rejecting (optional):');
+  if (reason === null) return;
+  const { error } = await sb.rpc('reject_discovery_candidate', { p_candidate_id: id, p_reason: reason || null });
+  if (error) { toast(error.message, true); return; }
+  toast('Rejected');
+  await loadAll();
+  renderDetail(id);
+}
+
+async function resolveLink(linkId, resolution, markDuplicate){
+  const { error } = await sb.rpc('resolve_dedupe_link', {
+    p_link_id: linkId,
+    p_resolution: resolution,
+    p_mark_candidate_duplicate: markDuplicate
+  });
+  if (error) { toast(error.message, true); return; }
+  toast(resolution === 'confirmed_duplicate' ? 'Marked as duplicate' : 'Marked as separate events');
+  await loadAll();
+  if (SELECTED) renderDetail(SELECTED);
+}
+
+boot();
+</script>
+</body>
+</html>

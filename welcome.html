@@ -1415,7 +1415,14 @@
                     Every dot is a live spot — drag to spin
                 </div>
                 <!-- Temperature callout overlay — DOM layer above the WebGL canvas, positioned every frame -->
-                <div id="globeCalloutLayer" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;border-radius:50%;">
+                <!-- No overflow:hidden/border-radius here. A circular clip the size of
+                     the globe sliced the callout card whenever it sat inside the
+                     620px box but outside the inscribed circle (i.e. any marker
+                     near an edge). The card is already kept in bounds by the
+                     clamping in updateCallout(), and markers rotating behind the
+                     globe are hidden by the view.z < VISIBLE_Z check — so nothing
+                     needed this clip. -->
+                <div id="globeCalloutLayer" style="position:absolute;inset:0;pointer-events:none;">
                     <svg id="globeLeaderSvg" width="100%" height="100%" style="position:absolute;inset:0;overflow:visible;pointer-events:none;"></svg>
                     <div id="globeMarkerPulse" style="position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:rgba(56,189,248,0.9);opacity:0;pointer-events:none;"></div>
                     <div id="globeCallout" class="globe-callout" style="position:absolute;opacity:0;pointer-events:none;">
