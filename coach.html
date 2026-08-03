@@ -986,6 +986,9 @@ function localDateStr(d = new Date()) {
 let selectedDate    = localDateStr(); // YYYY-MM-DD, defaults to today (local time, not UTC)
 
 let activeSqSession = null; // the club_squad_sessions template being opened
+let ltsAnchorCoachName = null; // coach_name of whichever LTS session was originally opened (mine or a cover) —
+                                // stays fixed while shifting days with ‹ › so day-navigation can never drift onto
+                                // a different coach's register (real bug, Jul 2026 — see ltsShiftDate/loadLTSSlots)
 let activeSession   = null; // the club_sessions instance (created/found)
 let attendanceMarks = {};   // roster_id → status
 let recentSessionDates = []; // last 6 session dates for active squad (newest first)
@@ -2347,6 +2350,7 @@ async function startLTSSession() {
   // Aquasharks only
   if (currentClub?.slug !== 'aqua-sharks-atlantic') return;
   const s  = activeSqSession;
+  ltsAnchorCoachName = s.coach_name || null;
   const sq = allSquads.find(q => q.id === s.squad_id);
 
   // Update nav labels
@@ -2373,16 +2377,31 @@ async function loadLTSSlots() {
   document.getElementById('ltsDateStrip').textContent =
     dayFull[dateObj.getDay()] + ' · ' + dateObj.toLocaleDateString('en-ZA', { day:'numeric', month:'long', year:'numeric' });
 
-  // Find the matching squad_session for selectedDate's day of week — match by squad + day + coach
+  // Find the matching squad_session for selectedDate's day of week — match by squad + day +
+  // the coach this view is anchored to. Real bug (Jul 2026): this used to fall back to "any
+  // session for this squad/day" when no coach match was found, which silently showed a
+  // DIFFERENT coach's swimmers (with full mark-attendance access) on days the current coach
+  // has none of their own — e.g. Ellen seeing and being able to mark Kaisea's Tue/Thu
+  // register. Never fall back across coaches — show the empty state instead.
   const dow = dateObj.getDay();
   const daySession = allWeekSessions.find(ws =>
     ws.squad_id === s.squad_id &&
     ws.day_of_week === dow &&
     ws.is_active !== false &&
-    (ws.coach_name || '') === (s.coach_name || '')
-  ) || allWeekSessions.find(ws =>
-    ws.squad_id === s.squad_id && ws.day_of_week === dow && ws.is_active !== false
-  ) || s;
+    (ws.coach_name || '') === (ltsAnchorCoachName || '')
+  );
+  if (!daySession) {
+    container.innerHTML = `<div class="lts-empty-state">
+      <div class="lts-empty-title">No session today</div>
+      <div>${ltsAnchorCoachName ? ltsAnchorCoachName + ' has' : 'There is'} no Learn to Swim session scheduled this day.</div>
+    </div>`;
+    ltsSlots = [];
+    document.getElementById('ltsProgressFill').style.width = '0%';
+    document.getElementById('ltsCountLabel').textContent   = '0 swimmers';
+    document.getElementById('ltsWaBtn').style.display      = 'none';
+    document.getElementById('ltsCopyBtn').style.display    = 'none';
+    return;
+  }
   activeSqSession = daySession;
 
   // Load assignments for THIS coach's session with time slots
@@ -2643,17 +2662,23 @@ function ltsShiftDate(delta) {
   d.setDate(d.getDate() + delta);
   selectedDate = localDateStr(d);
 
-  // Update nav sub text for the new day's session
+  // Update nav sub text for the new day's session — must match the coach this view is
+  // anchored to (ltsAnchorCoachName), never just "any session for this squad/day" (that
+  // was the bug: shifting to a day with no session of your own silently picked up a
+  // different coach's session instead).
   const newDow     = d.getDay();
   const squadId    = activeSqSession?.squad_id;
   const daySession = allWeekSessions.find(ws =>
-    ws.squad_id === squadId && ws.day_of_week === newDow && ws.is_active !== false
+    ws.squad_id === squadId && ws.day_of_week === newDow && ws.is_active !== false &&
+    (ws.coach_name || '') === (ltsAnchorCoachName || '')
   );
   if (daySession) {
     activeSqSession = daySession;
     document.getElementById('ltsNavSub').textContent =
       fmtTime(daySession.start_time) + (daySession.end_time ? ' – ' + fmtTime(daySession.end_time) : '');
   } else {
+    // Keep squad_id (for loadLTSSlots' own matching) but drop the id so nothing stale renders.
+    activeSqSession = { ...activeSqSession, id: null, day_of_week: newDow, coach_name: ltsAnchorCoachName };
     document.getElementById('ltsNavSub').textContent = 'No session';
   }
 
