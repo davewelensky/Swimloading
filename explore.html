@@ -13,6 +13,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   :root{
@@ -56,41 +58,36 @@
   .tally b{font-family:'Bebas Neue',sans-serif;font-size:34px;line-height:1;letter-spacing:.5px}
   .tally span{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--sec);margin-top:4px}
 
-  /* ── The season chart: the page's signature ───────────────────────── */
-  .season{margin-top:44px;background:var(--card);border:1px solid var(--border);border-radius:18px;
-          padding:22px 20px 14px;position:relative;overflow:hidden}
-  .season::after{content:'';position:absolute;inset:0;pointer-events:none;
-    background:radial-gradient(700px 220px at 20% -10%,rgba(56,189,248,.09),transparent 70%)}
-  .season-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;
-               flex-wrap:wrap;margin-bottom:6px;position:relative;z-index:1}
-  .season-title{font-family:'Bebas Neue',sans-serif;font-size:23px;letter-spacing:.7px}
-  .season-sub{color:var(--sec);font-size:12.5px;max-width:430px}
-  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--sec)}
-  .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
-  .chart-scroll{overflow-x:auto;overflow-y:hidden;position:relative;z-index:1;
-                scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.14) transparent}
-  svg.chart{display:block;min-width:620px;width:100%;height:266px}
-  .chart .grid-line{stroke:rgba(255,255,255,.055)}
-  .chart .axis-label{fill:var(--sec);font-size:10px;font-family:'DM Sans',sans-serif;letter-spacing:.5px}
-  .chart .equator{stroke:rgba(255,255,255,.2);stroke-dasharray:3 4}
-  .chart .mcol{fill:transparent;cursor:pointer}
-  .chart .mcol:hover{fill:rgba(56,189,248,.06)}
-  .chart .mcol.sel{fill:rgba(56,189,248,.13)}
-  .chart .dot{cursor:pointer;transition:r .12s ease,opacity .12s ease}
-  .chart .dot:hover{r:7}
-  .chart .dot.dim{opacity:.16}
-  .chart .mlabel{fill:var(--sec);font-size:10.5px;letter-spacing:.6px;text-anchor:middle;
-                 cursor:pointer;font-family:'DM Sans',sans-serif}
-  .chart .mlabel.sel{fill:var(--cyan);font-weight:700}
-  .tip{position:fixed;z-index:200;pointer-events:none;background:#0a1424;border:1px solid rgba(56,189,248,.3);
-       border-radius:10px;padding:9px 12px;font-size:12.5px;max-width:250px;opacity:0;transition:opacity .12s;
-       box-shadow:0 10px 30px rgba(0,0,0,.5)}
-  .tip b{display:block;font-size:13.5px;margin-bottom:2px}
-  .tip span{color:var(--sec)}
-  .season-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
-               margin-top:2px;position:relative;z-index:1}
-  .clearsel{background:none;border:none;color:var(--cyan);font-family:inherit;font-size:12px;
-            cursor:pointer;padding:4px 0;text-decoration:underline;text-underline-offset:3px}
+  /* ── The map: the page's signature ────────────────────────────────── */
+  .mapwrap{margin-top:40px;border:1px solid var(--border);border-radius:18px;overflow:hidden;
+           position:relative;background:var(--card)}
+  #map{height:clamp(340px,52vh,540px);width:100%;background:#0a1220}
+  .leaflet-container{background:#0a1220;font-family:'DM Sans',sans-serif}
+  /* The default OSM attribution is unreadable on a dark basemap and must
+     stay legible — it is a licence condition, not decoration. */
+  .leaflet-control-attribution{background:rgba(8,15,26,.82)!important;color:#64748b!important;
+    font-size:10px!important;border-radius:6px 0 0 0}
+  .leaflet-control-attribution a{color:#94a3b8!important}
+  .leaflet-bar a{background:#0d1728!important;color:#f1f5f9!important;border-color:var(--border)!important}
+  .leaflet-bar a:hover{background:#16233a!important}
+  .leaflet-popup-content-wrapper{background:#0b1524;color:var(--text);border-radius:12px;
+    border:1px solid rgba(56,189,248,.3);box-shadow:0 14px 36px rgba(0,0,0,.6)}
+  .leaflet-popup-tip{background:#0b1524;border:1px solid rgba(56,189,248,.3)}
+  .leaflet-popup-content{margin:12px 14px;font-size:13px;line-height:1.5}
+  .leaflet-popup-content b{font-size:14.5px;display:block;margin-bottom:3px}
+  .leaflet-popup-content .pdate{color:var(--cyan);font-weight:600}
+  .leaflet-popup-content .pplace{color:var(--sec)}
+  .leaflet-popup-content a{color:var(--cyan);display:inline-block;margin-top:7px;font-weight:600}
+  .leaflet-popup-close-button{color:var(--sec)!important}
+  .mapbar{position:absolute;top:12px;left:12px;z-index:500;display:flex;gap:8px;flex-wrap:wrap;
+          max-width:calc(100% - 24px)}
+  .mapbar button{background:rgba(11,21,36,.92);border:1px solid var(--border);color:#cbd5e1;
+    backdrop-filter:blur(8px);border-radius:50px;padding:8px 14px;font-size:12.5px;cursor:pointer;
+    font-family:inherit;display:flex;align-items:center;gap:6px}
+  .mapbar button:hover{border-color:rgba(56,189,248,.5);color:#fff}
+  .mapbar button i{width:14px;height:14px}
+  .maphint{position:absolute;bottom:10px;left:12px;z-index:500;color:var(--sec);font-size:11px;
+           background:rgba(8,15,26,.75);padding:5px 10px;border-radius:50px;backdrop-filter:blur(6px)}
 
   /* ── Search ───────────────────────────────────────────────────────── */
   .finder{margin-top:34px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
@@ -188,27 +185,13 @@
     </div>
   </header>
 
-  <section class="season" aria-labelledby="seasonTitle">
-    <div class="season-head">
-      <div>
-        <div class="season-title" id="seasonTitle">Every swim, by latitude and month</div>
-        <div class="season-sub">Each dot is one swim. Follow a band across and you are following its summer.
-          Click a month to filter.</div>
-      </div>
-      <div class="legend">
-        <span><i style="background:var(--far-north)"></i>Above 45°N</span>
-        <span><i style="background:var(--temperate)"></i>23–45°</span>
-        <span><i style="background:var(--tropics)"></i>Tropics</span>
-        <span><i style="background:var(--southern)"></i>Below 23°S</span>
-      </div>
+  <section class="mapwrap" aria-label="Map of every listed swim">
+    <div id="map"></div>
+    <div class="mapbar">
+      <button onclick="useMyLocation()"><i data-lucide="crosshair"></i> Swims near me</button>
+      <button onclick="fitAll()"><i data-lucide="globe"></i> Whole world</button>
     </div>
-    <div class="chart-scroll">
-      <svg class="chart" id="chart" role="img" aria-label="Swims plotted by latitude and month"></svg>
-    </div>
-    <div class="season-foot">
-      <span style="color:var(--sec);font-size:11.5px">Latitude is where on the planet a swim is — not its water temperature.</span>
-      <button class="clearsel" id="clearMonth" style="display:none" onclick="selectMonth(null)">Show every month</button>
-    </div>
+    <div class="maphint" id="mapHint">Drag or zoom the map — the list below follows</div>
   </section>
 
   <div class="finder">
@@ -241,7 +224,6 @@
   <div id="results"></div>
 </div>
 
-<div class="tip" id="tip"></div>
 
 <script>
 const SUPABASE_URL='https://szgkzuswelntnevobnoh.supabase.co';
@@ -260,7 +242,7 @@ document.addEventListener('mousemove',e=>{
 // disagreed with the dropdown.
 const LIMIT = 200;
 let ALL = [], VIEW = [], PLACES = [];
-let SEL = { place:null, month:null };
+let SEL = { place:null };
 let acIndex = -1;
 
 const esc = s => s==null ? '' : String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -330,7 +312,8 @@ async function load(){
   }
   ALL = data || [];
   buildPlaces();
-  drawChart();
+  plotMarkers();
+  fitAll();
   renderTally();
   renderChips();
   applyFilters();
@@ -361,98 +344,69 @@ function buildPlaces(){
   PLACES = [...map.values()].sort((a,b)=> a.sort-b.sort || b.n-a.n || a.label.localeCompare(b.label));
 }
 
-// ── The season chart ────────────────────────────────────────────────────
-function drawChart(){
-  const svg = document.getElementById('chart');
-  const W = 980, H = 266, L = 44, R = 14, T = 16, B = 30;
-  const plotW = W-L-R, plotH = H-T-B;
+// ── The map ─────────────────────────────────────────────────────────────
+// The list follows the map. That is the whole interaction: pan to where
+// you are going and the swims below are the ones there. It is what a
+// search engine cannot do — "any swims in New York" gets you links; this
+// gets you the coast, and everything on it, in date order.
+let MAP = null, LAYER = null, MARKERS = [], followMap = true;
 
-  const dated = ALL.filter(r=>r.start_date && r.latitude!=null);
-  if(!dated.length){ svg.innerHTML=''; return; }
-
-  // Twelve months forward from this month — the planning window a swimmer
-  // actually has.
-  const start = new Date(); start.setDate(1);
-  const cols = [];
-  for(let i=0;i<12;i++){
-    const d = new Date(start.getFullYear(), start.getMonth()+i, 1);
-    cols.push({ key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,
-                label:MONTHS[d.getMonth()], year:d.getFullYear(), month:d.getMonth() });
-  }
-  const colW = plotW/12;
-  const latToY = lat => T + ((70 - Math.max(-55, Math.min(70, lat))) / 125) * plotH;
-
-  let s = '';
-  // Latitude grid
-  for(const lat of [60,30,0,-30]){
-    const y = latToY(lat);
-    s += `<line class="${lat===0?'equator':'grid-line'}" x1="${L}" y1="${y}" x2="${W-R}" y2="${y}"/>`;
-    s += `<text class="axis-label" x="6" y="${y+3.5}">${lat===0?'Equator':(lat>0?lat+'°N':Math.abs(lat)+'°S')}</text>`;
-  }
-  // Month columns — clickable filter targets
-  cols.forEach((c,i)=>{
-    const x = L + i*colW;
-    s += `<rect class="mcol${SEL.month===c.key?' sel':''}" data-month="${c.key}" x="${x}" y="${T}" width="${colW}" height="${plotH}" rx="6"/>`;
-    s += `<text class="mlabel${SEL.month===c.key?' sel':''}" data-month="${c.key}" x="${x+colW/2}" y="${H-9}">${c.label}${c.month===0?' '+String(c.year).slice(2):''}</text>`;
-  });
-
-  // Dots. Deterministic jitter within the month band keeps same-month,
-  // same-latitude swims from hiding behind one another without moving any
-  // of them somewhere untrue.
-  dated.forEach((r,idx)=>{
-    const key = monthKey(r.start_date);
-    const ci = cols.findIndex(c=>c.key===key);
-    if(ci<0) return;
-    const day = Number(r.start_date.slice(8,10));
-    const x = L + ci*colW + (day/32)*colW*0.86 + colW*0.07;
-    const y = latToY(r.latitude) + ((idx*37)%9 - 4);
-    const band = latBand(r.latitude);
-    const dim = (SEL.month && SEL.month!==key) ? ' dim' : '';
-    s += `<circle class="dot${dim}" data-i="${idx}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.4"
-            fill="${BAND_COLOUR[band]}" fill-opacity=".82"/>`;
-  });
-
-  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
-  svg.innerHTML = s;
-
-  // Interaction
-  svg.querySelectorAll('.mcol,.mlabel').forEach(el=>{
-    el.addEventListener('click',()=>{
-      const m = el.getAttribute('data-month');
-      selectMonth(SEL.month===m ? null : m);
-    });
-  });
-  const tip = document.getElementById('tip');
-  svg.querySelectorAll('.dot').forEach(el=>{
-    el.addEventListener('mouseenter',ev=>{
-      const r = dated[Number(el.getAttribute('data-i'))];
-      const d = fmtDate(r.start_date, r.date_precision, r.date_confirmed);
-      tip.innerHTML = `<b>${esc(r.title||r.series_name)}</b><span>${esc(placeOf(r))} · ${esc(d.big)}</span>`;
-      tip.style.opacity = 1;
-      moveTip(ev);
-    });
-    el.addEventListener('mousemove',moveTip);
-    el.addEventListener('mouseleave',()=>{ tip.style.opacity=0; });
-    el.addEventListener('click',()=>{
-      const r = dated[Number(el.getAttribute('data-i'))];
-      selectMonth(monthKey(r.start_date));
-      document.getElementById('count').scrollIntoView({block:'start'});
-    });
-  });
-}
-function moveTip(ev){
-  const tip = document.getElementById('tip');
-  const x = Math.min(ev.clientX+14, window.innerWidth-262);
-  tip.style.left = x+'px';
-  tip.style.top  = Math.max(8, ev.clientY-52)+'px';
+function initMap(){
+  MAP = L.map('map', { worldCopyJump:true, scrollWheelZoom:false, zoomControl:true })
+         .setView([25, -20], 2);
+  // Dark basemap so the page keeps its own identity rather than turning
+  // into a bright rectangle in the middle of a dark site.
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution:'&copy; OpenStreetMap &copy; CARTO', subdomains:'abcd', maxZoom:18
+  }).addTo(MAP);
+  // Scroll-wheel zoom only once the map has been clicked, so scrolling the
+  // page past a full-width map does not trap the reader inside it.
+  MAP.on('click', ()=> MAP.scrollWheelZoom.enable());
+  MAP.on('moveend', ()=>{ if(followMap) applyFilters(); });
+  LAYER = L.layerGroup().addTo(MAP);
 }
 
-function selectMonth(m){
-  SEL.month = m;
-  document.getElementById('clearMonth').style.display = m ? '' : 'none';
-  drawChart();
-  renderChips();
-  applyFilters();
+const TIER_COLOUR = { confirmed:'#10b981', listed:'#38bdf8', unverified:'#f59e0b' };
+
+function plotMarkers(){
+  if(!LAYER) return;
+  LAYER.clearLayers();
+  MARKERS = [];
+  for(const r of ALL){
+    if(r.latitude==null || r.longitude==null) continue;
+    const d = fmtDate(r.start_date, r.date_precision, r.date_confirmed);
+    const m = L.circleMarker([r.latitude, r.longitude], {
+      radius:6, weight:2, color:TIER_COLOUR[r.verification_tier]||'#38bdf8',
+      fillColor:TIER_COLOUR[r.verification_tier]||'#38bdf8', fillOpacity:.45
+    }).bindPopup(
+      `<b>${esc(r.title||r.series_name)}</b>
+       <span class="pdate">${esc(d.big)}${d.small?' · '+esc(d.small):''}</span><br>
+       <span class="pplace">${esc(placeOf(r))}</span>
+       ${r.registration_url ? `<br><a href="${esc(r.registration_url)}" target="_blank" rel="noopener noreferrer">Enter this swim →</a>`
+        : r.official_url ? `<br><a href="${esc(r.official_url)}" target="_blank" rel="noopener noreferrer">Official page →</a>` : ''}`
+    );
+    m.addTo(LAYER);
+    MARKERS.push(m);
+  }
+}
+
+function fitAll(){
+  if(!MAP || !MARKERS.length) return;
+  followMap = false;                       // fitBounds fires moveend
+  MAP.fitBounds(L.featureGroup(MARKERS).getBounds().pad(0.12));
+  setTimeout(()=>{ followMap = true; applyFilters(); }, 350);
+}
+
+function useMyLocation(){
+  const hint = document.getElementById('mapHint');
+  if(!navigator.geolocation){ hint.textContent = 'This browser will not share a location'; return; }
+  hint.textContent = 'Finding you…';
+  navigator.geolocation.getCurrentPosition(
+    p => { MAP.setView([p.coords.latitude, p.coords.longitude], 7);
+           hint.textContent = 'Drag or zoom the map — the list below follows'; },
+    () => { hint.textContent = 'Could not get your location — drag the map instead'; },
+    { timeout:8000 }
+  );
 }
 
 // ── Search ──────────────────────────────────────────────────────────────
@@ -487,6 +441,13 @@ function pickPlace(i){
   document.getElementById('ac').classList.remove('open');
   renderChips();
   applyFilters();
+  // Move the map to what was chosen, so the two views always agree.
+  const pts = VIEW.filter(r=>r.latitude!=null).map(r=>[r.latitude,r.longitude]);
+  if(MAP && pts.length){
+    followMap = false;
+    MAP.fitBounds(L.latLngBounds(pts).pad(0.25), {maxZoom:9});
+    setTimeout(()=>{ followMap = true; }, 350);
+  }
 }
 document.addEventListener('click',e=>{
   if(!e.target.closest('.field')) document.getElementById('ac').classList.remove('open');
@@ -495,20 +456,16 @@ document.addEventListener('click',e=>{
 function renderChips(){
   const bits = [];
   if(SEL.place) bits.push(`<button class="chip on" onclick="clearPlace()">${esc(SEL.place.label)} ✕</button>`);
-  if(SEL.month){
-    const [y,m] = SEL.month.split('-');
-    bits.push(`<button class="chip on" onclick="selectMonth(null)">${MONTHS_LONG[Number(m)-1]} ${y} ✕</button>`);
-  }
-  if(!bits.length){
-    // Shortcuts worth offering: the soonest swims, and the countries we
-    // actually have depth in.
-    bits.push(`<button class="chip" onclick="selectMonth('${new Date().toISOString().slice(0,7)}')">This month</button>`);
-    PLACES.filter(p=>p.kind==='country').slice(0,5).forEach(p=>{
+  if(!SEL.place){
+    // Shortcuts fly the map rather than filtering behind its back, so what
+    // you see and what you get never disagree.
+    PLACES.filter(p=>p.kind==='country').slice(0,6).forEach(p=>{
       bits.push(`<button class="chip" onclick="pickPlace(${PLACES.indexOf(p)})">${esc(p.label)} <span style="color:var(--sec)">${p.n}</span></button>`);
     });
   }
   document.getElementById('chips').innerHTML = bits.join('');
 }
+
 function clearPlace(){
   SEL.place = null;
   document.getElementById('q').value = '';
@@ -520,6 +477,7 @@ function clearPlace(){
 function applyFilters(){
   const minD = parseInt(document.getElementById('minDist').value,10) || null;
   const before = document.getElementById('to').value || null;
+  const bounds = (MAP && followMap) ? MAP.getBounds() : null;
 
   VIEW = ALL.filter(r=>{
     if(SEL.place){
@@ -527,8 +485,10 @@ function applyFilters(){
       if(m.country && r.country_code !== m.country) return false;
       if(m.region  && r.region !== m.region) return false;
       if(m.city    && r.city !== m.city) return false;
+    } else if(bounds && r.latitude!=null && r.longitude!=null){
+      // No explicit place chosen: the map viewport IS the filter.
+      if(!bounds.contains([r.latitude, r.longitude])) return false;
     }
-    if(SEL.month && monthKey(r.start_date) !== SEL.month) return false;
     if(before && r.start_date > before) return false;
     if(minD && !(r.max_distance_m >= minD)) return false;
     return true;
@@ -582,7 +542,7 @@ function render(){
       return `<div class="result">
         <div class="result-main">
           <div style="margin-bottom:7px">
-            <span class="badge b-${esc(r.prominence)}">${esc(r.prominence)}</span>
+            ${r.prominence && r.prominence!=='unknown' ? `<span class="badge b-${esc(r.prominence)}">${esc(r.prominence)}</span>` : ''}
             ${vtierBadge(r)}
             ${r.participant_estimate ? `<span style="color:var(--sec);font-size:12px">~${Number(r.participant_estimate).toLocaleString()} swimmers</span>`:''}
           </div>
@@ -607,6 +567,7 @@ function render(){
 }
 
 icons();
+initMap();
 load();
 </script>
 </body>
