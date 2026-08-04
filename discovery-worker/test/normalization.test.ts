@@ -150,6 +150,9 @@ test('a wave, an age bracket or a numbered placeholder is not an event name', ()
     'EVENT 3 – RACE/ENTRY INFORMATION',
     'Wave 2',
     'Heat 4',
+    // Entry classifications — who you enter AS, not what you enter.
+    'Non-Company Teams',
+    'Company Teams',
   ];
   for (const n of notNames) {
     assert.ok(rejectAsEventName(n), `"${n}" should be rejected as a name`);
@@ -171,6 +174,12 @@ test('real swim names are never rejected — precision matters more than recall 
     '9ème Coupe Volcanique de Nage en Eau Libre',
     'Swim the Suck',
     'Great North Swim',
+    'Havkraft – Årøsund til Assens',
+    '54th aQuelle Midmar Mile',
+    // Deliberate near-misses for the entry-classification rule, which is
+    // anchored to the whole string precisely so these survive.
+    'Team Relay Swim',
+    'Cape Town Corporate Challenge',
   ];
   for (const n of realNames) {
     assert.equal(rejectAsEventName(n), null, `"${n}" must be kept`);

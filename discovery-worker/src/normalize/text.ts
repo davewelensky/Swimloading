@@ -65,6 +65,14 @@ const NOT_A_NAME: { test: RegExp; why: string }[] = [
     ),
     why: 'an age category, which describes who starts in a wave rather than a swim',
   },
+  {
+    // Entry classifications: "Company Teams", "Non-Company Teams",
+    // "Corporate Teams". Who you enter AS, not what you enter. Anchored to
+    // the whole string on purpose — a real race called "Team Relay Swim"
+    // or "Cape Town Corporate Challenge" must survive.
+    test: /^(?:non[-\s]?)?(?:company|corporate|club|school|social)\s+teams?$/i,
+    why: 'an entry classification rather than a swim',
+  },
 ];
 
 export function rejectAsEventName(name: string | null): string | null {
