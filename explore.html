@@ -247,7 +247,17 @@ document.addEventListener('mousemove',e=>{
 // place list is built from swims that actually exist, and there is no way
 // to pick a filter that silently returns nothing because the server
 // disagreed with the dropdown.
-const LIMIT = 200;
+// Every upcoming swim is loaded once and filtered client-side, because the
+// map's list follows the viewport and a server round-trip per pan would be
+// unusable. So this must stay ABOVE the real catalogue size: at 200 it was
+// already truncating (208 events, and the cut dropped 2 countries from the
+// header count, which is worse than showing fewer cards — it reported the
+// wrong number). search_event_editions clamps to the same ceiling, so both
+// move together or the lower one wins silently.
+//
+// This is a stopgap with a real limit. Past a few thousand events the page
+// needs server-side bounding-box queries instead of loading everything.
+const LIMIT = 1000;
 let ALL = [], VIEW = [], PLACES = [];
 let SEL = { place:null };
 let acIndex = -1;
