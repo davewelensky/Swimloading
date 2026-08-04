@@ -1,4 +1,5 @@
 import { EVENT_TYPES, type Classification, type Discipline, type EventType } from '../domain/enums.js';
+import { standardTriathlonSwimDistances } from '../normalize/distance.js';
 
 export interface ClassificationInput {
   categoryHint: string | null;
@@ -120,6 +121,10 @@ function foldedText(input: ClassificationInput): string {
     .join(' ');
 }
 
+// A standard format name states the swim leg as surely as printing the
+// metres does — World Triathlon defines them. Only consulted once a page
+// is already known to be multisport, so "Sprint" on an open-water listing
+// is never read as 750 m.
 function statedSwimLeg(text: string): string | null {
   for (const re of SWIM_LEG_PATTERNS) {
     const m = re.exec(text);
@@ -194,7 +199,10 @@ export function classifyEvent(input: ClassificationInput): ClassificationResult 
       reasons.push('triathlon with a separately enterable swim leg — eligible as a standalone race entry');
       return { classification: 'official_race', eligible: true, discipline: 'open_water', reasons, warnings };
     }
-    const legFromHint = statedSwimLeg(foldedText(input));
+    const hintText = foldedText(input);
+    const legFromHint =
+      statedSwimLeg(hintText) ??
+      (standardTriathlonSwimDistances(hintText).length > 0 ? 'a standard triathlon distance' : null);
     if (legFromHint) {
       reasons.push(`triathlon page stating its swim leg ("${legFromHint}") — the swim is catalogued, the race is not`);
       // Same caveat whichever branch identified the leg. A reviewer must
@@ -257,7 +265,9 @@ export function classifyEvent(input: ClassificationInput): ClassificationResult 
       // organiser's own words — enough to catalogue the SWIM, which is
       // what a triathlete is choosing between and the part that decides
       // whether they finish.
-      const leg = statedSwimLeg(foldedText(input));
+      const legText = foldedText(input);
+      const standard = standardTriathlonSwimDistances(legText);
+      const leg = statedSwimLeg(legText) ?? (standard.length > 0 ? standard.map((d) => d.label).join(', ') : null);
       if (leg) {
         reasons.push(`multisport event stating its swim leg ("${leg}") — catalogued as a swim, flagged as a multisport leg`);
         warnings.push(

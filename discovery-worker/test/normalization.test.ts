@@ -1,3 +1,4 @@
+import { standardTriathlonSwimDistances } from '../src/normalize/distance.js';
 import { rejectAsEventName } from '../src/normalize/text.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -184,4 +185,26 @@ test('real swim names are never rejected — precision matters more than recall 
   for (const n of realNames) {
     assert.equal(rejectAsEventName(n), null, `"${n}" must be kept`);
   }
+});
+
+test('standard triathlon formats state their swim leg by definition', () => {
+  // Not inference: World Triathlon defines these. Greek, Spanish and
+  // Portuguese calendars list formats rather than metres, and requiring
+  // the number discarded every one of them.
+  assert.deepEqual(standardTriathlonSwimDistances('Olympic Distance').map(d => d.metres), [1500]);
+  assert.deepEqual(standardTriathlonSwimDistances('Sprint').map(d => d.metres), [750]);
+  assert.deepEqual(standardTriathlonSwimDistances('Ironman 70.3').map(d => d.metres), [1900, 3800]);
+  assert.deepEqual(standardTriathlonSwimDistances('Ολυμπιακή απόσταση').map(d => d.metres), [1500]);
+  assert.deepEqual(standardTriathlonSwimDistances('distancia olímpica').map(d => d.metres), [1500]);
+
+  // Every format a race offers, not just the first — a swimmer choosing
+  // between 750 m and 1.9 km needs both.
+  assert.deepEqual(
+    standardTriathlonSwimDistances('Triathlon: Middle, Olympic, Sprint Distance').map(d => d.metres),
+    [750, 1500, 1900]
+  );
+
+  // An open-water listing states its own distances; nothing to map.
+  assert.deepEqual(standardTriathlonSwimDistances('Open Water Swimming (1K, 2.5K, 5K)'), []);
+  assert.deepEqual(standardTriathlonSwimDistances('5 km'), []);
 });

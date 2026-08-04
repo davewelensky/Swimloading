@@ -41,7 +41,20 @@ test('open-water wording is recognised across languages', () => {
 
 test('pool and triathlon pages are still vetoed', () => {
   assert.equal(classifyEvent(noHints({ titleText: 'Winter Gala — 25m indoor pool' })).classification, 'pool_only');
-  assert.equal(classifyEvent(noHints({ titleText: 'Ironman 70.3 Durban' })).classification, 'triathlon_only');
+  // A multisport page with NO swim signal at all is still vetoed — there
+  // is nothing to catalogue.
+  assert.equal(
+    classifyEvent(noHints({ titleText: 'City Triathlon', descriptionText: 'Bike 40km, Run 10km' })).classification,
+    'triathlon_only'
+  );
+  // But "70.3" is not a vague label — World Triathlon defines it as a
+  // 1.9 km swim, so the leg IS stated and the swim is catalogued. This
+  // assertion used to expect a veto; the change is deliberate (Dave,
+  // 2026-08-04: "a standard distance and olympic distance are the same in
+  // triathlon, the swim is always 1.5km").
+  const ironman = classifyEvent(noHints({ titleText: 'Ironman 70.3 Durban' }));
+  assert.equal(ironman.classification, 'official_race');
+  assert.equal(ironman.discipline, 'multisport_swim_leg');
   // ...but a triathlon with a separately enterable swim is eligible.
   assert.equal(
     classifyEvent(noHints({ titleText: 'Cotswold Triathlon', hasSeparateSwimEntry: true })).classification,

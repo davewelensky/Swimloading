@@ -101,3 +101,52 @@ export function normaliseDistance(raw: HtmlDistanceRaw): DistanceOption {
 export function normaliseDistances(rawDistances: HtmlDistanceRaw[]): DistanceOption[] {
   return rawDistances.map(normaliseDistance);
 }
+
+// ── Standard triathlon distances ──────────────────────────────────────
+//
+// These are DEFINED, not inferred. World Triathlon standardises the swim
+// leg of each format, so "Olympic Distance" states 1.5 km as surely as
+// printing "1.5 km" does — the organiser simply used the name every
+// athlete already knows. Greek, Spanish and Portuguese calendars in
+// particular list formats rather than metres ("Triathlon: Middle, Olympic,
+// Sprint Distance"), and requiring the number discarded them all.
+//
+// Guarded by context at the call site: these names mean a swim leg only on
+// a page already identified as multisport. "Sprint" on an open-water
+// listing means a short swim of the organiser's choosing, not 750 m.
+const STANDARD_SWIM_METRES: { metres: number; names: string[] }[] = [
+  { metres: 750,  names: ['sprint'] },
+  { metres: 1500, names: ['olympic', 'olimpica', 'olimpico', 'olympique', 'olympische', 'olimpica', 'ολυμπιακη', 'standard', 'standaard'] },
+  { metres: 1900, names: ['middle', 'half', '70.3', '70,3', 'medio', 'mezza', 'mitteldistanz', 'media'] },
+  { metres: 3800, names: ['full', 'ironman', 'long distance', '140.6', '140,6', 'langdistanz', 'completo'] },
+];
+
+// EVERY standard format the text names, not just the first. A race
+// advertising "Middle, Olympic, Sprint Distance" offers three different
+// swims, and recording one of them would be picking a winner arbitrarily
+// — the swimmer choosing between 750 m and 1.9 km needs both.
+export function standardTriathlonSwimDistances(
+  raw: string | null
+): { label: string; metres: number }[] {
+  if (!raw) return [];
+  const folded = raw.toLowerCase().normalize('NFKD').replace(/\p{M}+/gu, '');
+  const found = new Map<number, string>();
+  for (const entry of STANDARD_SWIM_METRES) {
+    for (const n of entry.names) {
+      // Word-boundary-ish so "sprint" does not fire inside another word,
+      // while still matching "Sprint Distance" and "70.3".
+      const re = new RegExp(
+        `(?:^|[^\\p{L}\\p{N}])${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:[^\\p{L}\\p{N}]|$)`,
+        'iu'
+      );
+      if (re.test(folded) && !found.has(entry.metres)) {
+        // The organiser's own word for it, so the label a reviewer sees is
+        // the one printed on the page.
+        found.set(entry.metres, `${n.charAt(0).toUpperCase()}${n.slice(1)} (swim leg)`);
+      }
+    }
+  }
+  return [...found.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([metres, label]) => ({ label, metres }));
+}

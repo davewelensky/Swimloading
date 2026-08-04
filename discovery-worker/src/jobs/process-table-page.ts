@@ -4,7 +4,7 @@ import { blankCandidateEvent, type CandidateEvent } from '../domain/candidate-ev
 import { buildCandidateKey } from '../domain/candidate-key.js';
 import { evidence } from '../domain/evidence.js';
 import { parseYearlessDate, parseFreeTextDate } from '../normalize/date.js';
-import { parseDistanceToMetres } from '../normalize/distance.js';
+import { parseDistanceToMetres, standardTriathlonSwimDistances } from '../normalize/distance.js';
 import { parseLocationText } from '../normalize/location.js';
 import { deriveCanonicalName, cleanText, rejectAsEventName } from '../normalize/text.js';
 import { scoreCandidate } from '../confidence/score.js';
@@ -188,6 +188,28 @@ export function buildFromRow(
   });
 
   candidate.discipline = classification.discipline;
+  // A multisport row that printed no metres still states its swim leg if
+  // it named a standard format. Only for multisport — on an open-water
+  // listing "Sprint" is the organiser's own short swim, not 750 m.
+  if (classification.discipline === 'multisport_swim_leg' && candidate.distances.length === 0) {
+    const standard = standardTriathlonSwimDistances([row.name, row.distanceText].filter(Boolean).join(' '));
+    candidate.distances = standard.map((d) => ({
+      originalLabel: d.label,
+      distanceMetres: d.metres,
+      category: null,
+      startTime: row.timeText,
+      registrationUrl: null,
+      wetsuitPolicy: null,
+      qualificationRequired: null,
+    }));
+    if (standard.length > 0) {
+      candidate.evidence.push(
+        evidence('distances', origin.evidenceType, standard.map((d) => d.label).join(', '),
+          `${origin.label}, standard triathlon format`,
+          'Distance defined by the format name, not printed on the page')
+      );
+    }
+  }
   if (classification.discipline === 'multisport_swim_leg') {
     candidate.warnings.push(...classification.warnings);
   }
