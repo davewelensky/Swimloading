@@ -145,6 +145,91 @@ export function parseFreeTextDate(text: string | null): ParsedDate {
   return unknownDate([`Could not parse any date from text: "${cleaned}"`]);
 }
 
+const WEEKDAY_NAMES: Record<string, number> = {
+  sunday: 0, sun: 0, monday: 1, mon: 1, tuesday: 2, tue: 2, tues: 2,
+  wednesday: 3, wed: 3, thursday: 4, thu: 4, thur: 4, thurs: 4,
+  friday: 5, fri: 5, saturday: 6, sat: 6,
+};
+const WEEKDAY_PATTERN = Object.keys(WEEKDAY_NAMES).sort((a, b) => b.length - a.length).join('|');
+
+// Parses a yearless calendar-row date such as "Feb 14, Sat", "14 Feb Sat"
+// or "Feb 14", against a year taken from the page's own context (a
+// schedule headed "Open Water Swims 2026", say).
+//
+// The weekday is what makes this honest rather than a guess. "Feb 14" plus
+// a year hint is an assumption; "Feb 14, Sat" plus that year is a
+// CHECKABLE claim — 14 Feb falls on a Saturday in exactly one year of any
+// nearby span. So:
+//   * weekday present and it matches the hinted year  -> confirmed
+//   * weekday present and it matches a NEIGHBOURING year (a schedule
+//     spilling past New Year) -> confirmed on that year instead
+//   * weekday present and it matches nothing nearby   -> left unconfirmed
+//   * no weekday at all -> date returned but NOT confirmed, because a
+//     bare year hint is inference, and this pipeline does not publish
+//     inferred dates as fact
+export function parseYearlessDate(text: string | null, yearHint: number | null): ParsedDate {
+  if (!text || !text.trim()) return unknownDate();
+  const cleaned = text.trim();
+
+  // "Feb 14" (month first) or "14 Feb" (day first).
+  const monthFirst = new RegExp(`\\b(${MONTH_PATTERN})\\s+(\\d{1,2})\\b`, 'i').exec(cleaned);
+  const dayFirst = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_PATTERN})\\b`, 'i').exec(cleaned);
+
+  let month: number | undefined;
+  let day: number | undefined;
+  if (monthFirst?.[1] && monthFirst[2]) {
+    month = MONTH_NAMES[monthFirst[1].toLowerCase()];
+    day = Number(monthFirst[2]);
+  } else if (dayFirst?.[1] && dayFirst[2]) {
+    day = Number(dayFirst[1]);
+    month = MONTH_NAMES[dayFirst[2].toLowerCase()];
+  }
+  if (!month || !day || day < 1 || day > daysInMonth(2024, month)) {
+    return unknownDate([`Could not parse a day and month from "${cleaned}"`]);
+  }
+
+  const weekdayMatch = new RegExp(`\\b(${WEEKDAY_PATTERN})\\b`, 'i').exec(cleaned);
+  const weekday = weekdayMatch?.[1] ? WEEKDAY_NAMES[weekdayMatch[1].toLowerCase()] : undefined;
+
+  if (yearHint === null) {
+    return unknownDate([`Date "${cleaned}" has no year and the page gave no year context`]);
+  }
+
+  if (weekday === undefined) {
+    // Usable, but not something we will call confirmed.
+    return {
+      startDate: isoDate(yearHint, month, day),
+      endDate: null,
+      datePrecision: 'exact',
+      dateConfirmed: false,
+      warnings: [`Year ${yearHint} assumed from page context for "${cleaned}"; no weekday to verify it against`],
+    };
+  }
+
+  // Check the hinted year first, then its neighbours — a season schedule
+  // published in one year routinely runs into the next.
+  for (const year of [yearHint, yearHint + 1, yearHint - 1]) {
+    if (day > daysInMonth(year, month)) continue; // 29 Feb in a non-leap year
+    const actual = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+    if (actual === weekday) {
+      return {
+        startDate: isoDate(year, month, day),
+        endDate: null,
+        datePrecision: 'exact',
+        dateConfirmed: true,
+        warnings:
+          year === yearHint
+            ? []
+            : [`Year resolved to ${year} rather than the page's ${yearHint}: only ${year} puts ${cleaned} on the stated weekday`],
+      };
+    }
+  }
+
+  return unknownDate([
+    `"${cleaned}" does not fall on the stated weekday in ${yearHint - 1}, ${yearHint} or ${yearHint + 1} — left unconfirmed rather than guessed`,
+  ]);
+}
+
 // Reconciles a structured (JSON-LD) date with a free-text (HTML) date.
 // Structured data is trusted first; if both are confirmed but disagree,
 // the result is explicitly marked unconfirmed with a conflict warning

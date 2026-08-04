@@ -101,6 +101,28 @@ export function parseJsonLdPlace(place: unknown): ParsedLocation {
 // text content). Deliberately simple comma-segmented heuristic — city,
 // then region, then country, from the last segment inward. Never invents
 // a value for a segment that isn't present.
+// US states / DC / territories and Canadian provinces, by their postal
+// abbreviation. A closed lookup, so resolving "FL" to the United States
+// is a fact rather than a guess. Deliberately abbreviation-only: full
+// names like "Georgia" or "Washington" are ambiguous against countries
+// and city names, and countryTextToCode already handles real country
+// words before this is consulted.
+const US_STATES = new Set([
+  'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME',
+  'MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA',
+  'RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC','PR','VI','GU','AS','MP',
+]);
+const CA_PROVINCES = new Set(['AB','BC','MB','NB','NL','NS','NT','NU','ON','PE','QC','SK','YT']);
+
+function subdivisionToCountry(value: string | undefined): { country: string; code: string } | null {
+  if (!value) return null;
+  const code = value.trim().toUpperCase();
+  if (code.length !== 2) return null;
+  if (US_STATES.has(code)) return { country: 'US', code };
+  if (CA_PROVINCES.has(code)) return { country: 'CA', code };
+  return null;
+}
+
 export function parseLocationText(text: string | null): ParsedLocation {
   const result = blankLocation();
   if (!text || !text.trim()) return result;
@@ -114,14 +136,36 @@ export function parseLocationText(text: string | null): ParsedLocation {
   if (segments.length === 0) return result;
 
   const last = segments[segments.length - 1];
-  const countryCode = countryTextToCode(last);
-  if (countryCode) {
-    result.countryCode = countryCode;
+  // Subdivisions are checked FIRST, because many US state abbreviations
+  // are also ISO country codes and the country reading is nearly always
+  // wrong in practice: "South Boston, MA" is Massachusetts, not Morocco,
+  // and "Newport, VT" is Vermont, not Vanuatu. North American calendars
+  // write "City, ST" constantly and never spell the country out.
+  //
+  // A genuinely foreign listing written as a bare ISO code ("Casablanca,
+  // MA") is misread by this, so the ambiguity is recorded as a warning
+  // for the reviewer rather than hidden. Spelled-out country names are
+  // unaffected — countryTextToCode still handles those below.
+  const sub = subdivisionToCountry(last);
+  if (sub) {
+    result.countryCode = sub.country;
+    result.region = sub.code;
     segments.pop();
+    if (countryTextToCode(last)) {
+      result.warnings.push(
+        `"${last}" read as a ${sub.country} subdivision, but it is also an ISO country code — confirm the country if this event is not in ${sub.country}`
+      );
+    }
+  } else {
+    const countryCode = countryTextToCode(last);
+    if (countryCode) {
+      result.countryCode = countryCode;
+      segments.pop();
+    }
   }
 
   if (segments.length > 0) result.city = segments[0] ?? null;
-  if (segments.length > 1) result.region = segments[segments.length - 1] ?? null;
+  if (!result.region && segments.length > 1) result.region = segments[segments.length - 1] ?? null;
 
   if (!result.countryCode) {
     result.warnings.push(`Could not resolve a country from location text: "${text.trim()}"`);

@@ -10,6 +10,7 @@ import { computeNextRunAt, deriveHealthStatus } from '../schedule/scheduler.js';
 import { computeDuplicateScore } from '../dedupe/match.js';
 import type { CandidateEvent } from '../domain/candidate-event.js';
 import { processPage, shouldPersistDiscoveredPage, type ProcessedPage } from './process-page.js';
+import { processTablePage } from './process-table-page.js';
 
 // Everything crawlSource needs from the outside world, as an injectable
 // port set — the crawl decision flow (worklists, budgets, gating, health
@@ -62,6 +63,9 @@ export interface CrawlOptions {
   // so a source full of unreadable pages spends a bounded amount of time
   // and memory on them rather than stalling the whole pass.
   maxRenderedPagesPerRun?: number;
+  // Cap on rows taken from one tabular calendar per run. Ray's Notebook
+  // alone is 338 rows; the rest carry over to the next run.
+  maxTableRowsPerPage?: number;
 }
 
 export interface CrawlSummary {
@@ -92,6 +96,9 @@ export interface CrawlSummary {
   // rescues is one to reconsider rather than keep paying for.
   pagesRendered: number;
   pagesRescuedByRendering: number;
+  // Candidates produced from tabular calendars, which the
+  // single-candidate path cannot reach at all.
+  tableRowsExtracted: number;
 }
 
 function urlKey(url: string): string {
@@ -156,6 +163,7 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
     sitemapFetched: 0,
     pagesRendered: 0,
     pagesRescuedByRendering: 0,
+    tableRowsExtracted: 0,
   };
   let robotsSeen = 0;
   let robotsBlocked = 0;
@@ -317,6 +325,46 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
 
       summary.pagesFetched++;
       const sourceContext = { sourceType: source.source_type, countryCode: source.country_code };
+
+      // Tabular calendars first. A season table is many events on one
+      // page, which the single-candidate path cannot see at all — Ray's
+      // Notebook is 338 swims in one table, with coordinates and start
+      // times per row. Only treated as a table when it yields at least
+      // two rows, so a one-row layout table never hijacks a normal
+      // organiser page.
+      const table = processTablePage(source.id, url, fetched.html, sourceContext, options.maxTableRowsPerPage ?? 400);
+      if (table.pages.length >= 2) {
+        for (const w of table.warnings) ports.log(`  ${url}: ${w}`);
+        const outcome = await ports.recordPageFetch({
+          url,
+          canonicalUrl: fetched.finalUrl ?? url,
+          pageType: 'calendar',
+          ok: true,
+          httpStatus: fetched.status,
+          contentHash: contentHash(fetched.html),
+          etag: fetched.etag,
+          lastModified: fetched.lastModified,
+          errorMessage: null,
+        });
+        if (outcome?.changed) summary.pagesChanged++;
+
+        let written = 0;
+        for (const entry of table.pages) {
+          const persisted = await ports.persistCandidate(entry, outcome?.pageId ?? null);
+          if (persisted) {
+            written++;
+            newlyPersisted.push({ candidateId: persisted.candidateId, candidate: entry.candidate });
+          }
+        }
+        summary.candidatesPersisted += written;
+        summary.tableRowsExtracted += table.rowsUsable;
+        ports.log(
+          `  ${url}: tabular calendar — ${table.rowsFound} row(s), ${table.rowsUsable} candidate(s)` +
+            (written === table.pages.length ? '' : `, ${written} written`)
+        );
+        continue;
+      }
+
       let processed = processPage(source.id, url, fetched.html, sourceContext);
 
       // Headless-render fallback. Only for pages whose fetched HTML
@@ -444,6 +492,7 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
         sitemapFetched: summary.sitemapFetched,
         pagesRendered: summary.pagesRendered,
         pagesRescuedByRendering: summary.pagesRescuedByRendering,
+        tableRowsExtracted: summary.tableRowsExtracted,
       },
     });
 

@@ -77,11 +77,19 @@ const NEGATIVE_RULES: ScoringRule[] = [
     evaluate: (c) => (!c.dateConfirmed ? { points: -20, reason: 'date year is missing or unconfirmed' } : null),
   },
   {
+    // Compares DATES, not timestamps. The old form measured the event's
+    // midnight against the current instant, so anything happening TODAY
+    // was scored as historical from 00:00 onwards — a swim you could
+    // still go to this afternoon was docked 30 points. An event is only
+    // past once the whole day (or its end date, for multi-day events)
+    // has gone by.
     id: 'historical_page',
     evaluate: (c, _cl, ctx) => {
       if (!c.dateConfirmed || !c.startDate) return null;
-      const startsInPast = new Date(`${c.startDate}T00:00:00Z`).getTime() < ctx.now.getTime();
-      return startsInPast ? { points: -30, reason: 'event date is in the past — historical page' } : null;
+      const today = ctx.now.toISOString().slice(0, 10);
+      const lastDay = c.endDate && c.endDate > c.startDate ? c.endDate : c.startDate;
+      // ISO dates are fixed-width, so string comparison is date comparison.
+      return lastDay < today ? { points: -30, reason: 'event date is in the past — historical page' } : null;
     },
   },
   {
