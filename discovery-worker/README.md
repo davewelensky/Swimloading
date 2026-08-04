@@ -325,6 +325,80 @@ headroom before enabling it in production, or leave
 `DISCOVERY_PLAYWRIGHT_ENABLED=false` on Railway and run rendering crawls
 locally on demand.
 
+### AI-assisted extraction
+
+Implemented 2026-08-04, behind `DISCOVERY_AI_ENABLED`, default off. It is
+the **last** resort — tried only after JSON-LD, tabular-calendar parsing,
+CSS selectors and a headless render have all found nothing on a page.
+
+It exists because of a measurement. Of the 36 sources seeded on
+2026-08-04, **32 produced zero candidates** while fetching perfectly —
+HTTP 200, real content, every time. Their calendars are simply ordinary
+HTML: one `<div>` per race, dates in prose, no schema.org, no `<table>`.
+Nothing deterministic can read that shape, and it is the most common
+shape in the world's swim calendars.
+
+**What the model is allowed to do: read.** It copies what a page prints
+into six columns — name, date, place, distances, time, link — verbatim,
+in whatever language the page is written in. It is explicitly told not to
+translate, not to add a year the page does not print, and not to judge
+whether an event qualifies. Its output is coerced into exactly the
+`TableEventRow` the tabular parser produces and handed to the **same**
+`buildFromRow`, so the weekday-verified year resolver, the
+subdivision-aware location parser, the multilingual distance parser, the
+classifier and the deterministic confidence arithmetic all run unchanged.
+
+**What it is not allowed to do:** supply coordinates (a plausible
+latitude is indistinguishable from a correct one and would put a swim in
+the wrong sea), resolve a year, or influence a score.
+
+**Provenance is total.** Candidates get `extraction_method =
+'ai_fallback'`, every evidence row gets `evidence_type = 'ai_fallback'`,
+and each candidate carries an explicit warning telling a reviewer to
+check the name, date and place against the source. So
+`WHERE extraction_method = 'ai_fallback'` is always a complete and honest
+answer to "what did a model give us?" — which matters most at exactly the
+moment something has gone wrong.
+
+**Cost control** — the only part of the pipeline that costs money per
+page, so it is bounded three ways:
+
+- **Condensing.** Raw HTML is mostly not content: measured across ten of
+  the silent sources, median 109 KB of markup carrying 6 KB of readable
+  text. `condenseForAi` strips it to text plus link targets — median
+  **7.4 KB**, about a twelfth the cost for the same information.
+- **A thin-page floor.** Under 400 condensed characters, no call is made
+  at all. KNZB condenses to 357 characters and Swimming NZ to 991: those
+  are JavaScript shells, they need the renderer, and paying a model to
+  confirm the page is empty is pure waste.
+- **Unchanged pages are never re-read.** A page already AI-read is
+  skipped unless its content hash changed, so a weekly crawl of a static
+  calendar costs nothing after the first pass.
+- **A hard per-run ceiling**, `DISCOVERY_MAX_AI_CALLS_PER_RUN`, enforced
+  inside `crawlSource` rather than trusted to the caller.
+
+Rough scale at the current 37 sources: **~$6–10 one-off** to open the 32
+silent sources, then **~$13/month** steady state, with a per-run ceiling
+of 25 calls (~$2.50). Those figures are derived from measured character
+counts, so treat them as ±30% until the first real run — the worker logs
+**actual** token usage per source (`ai: N call(s), … X in / Y out
+tokens`) and stores it in `discovery_runs.metrics`, so measurement
+replaces the estimate immediately. No price is hardcoded anywhere;
+multiply the logged tokens by the model's published rate.
+
+Settings: `DISCOVERY_AI_MODEL` (default `claude-opus-5`),
+`DISCOVERY_AI_EFFORT` (default `low` — this is transcription, not
+reasoning), `DISCOVERY_AI_MAX_INPUT_CHARS` (60,000; truncation is always
+reported, never silent).
+
+**Try it on one page first:** `npm run crawl:url -- <url>` runs the whole
+ladder including AI on a single page, writes to `out/` only, and prints
+every event the model read plus the exact token usage. One call, nothing
+written to the database.
+
+Requires the `2026-08-04_extraction-method-ai-fallback.sql` migration —
+without it the `extraction_method` CHECK rejects every AI candidate.
+
 ### Deploying to Railway
 
 The repo ships `railway.json` (Nixpacks, `npm run crawl:loop`,
@@ -347,20 +421,23 @@ DISCOVERY_MAX_PAGES_PER_RUN=25
 DISCOVERY_MAX_AI_CALLS_PER_RUN=0
 ```
 
-Write mode and live fetch are implemented but default **off** — the
-default run remains a pure dry run. Playwright and AI extraction are NOT
-implemented, and `assertConfigSafe()` refuses to start (exits non-zero
-with a clear message) if either is set to `true`. `.env.example`
-documents every politeness/budget knob.
+Every capability is implemented, and every flag defaults **off** — the
+default run remains a pure dry run that touches nothing but `out/`. Each
+mode fails **closed**: `assertConfigSafe()` exits non-zero with a specific
+message rather than starting without its prerequisites (write mode with
+no Supabase credentials, AI mode with no `ANTHROPIC_API_KEY`, or AI mode
+with a call cap of 0 — which would silently make every call a no-op).
+`.env.example` documents every politeness/budget knob.
 
 ## What is deliberately not implemented
 
-- **Playwright extraction.** No headless browser dependency at all.
-  (Rottnest's organiser site 403s automated fetches — a headless browser
-  wouldn't change that; it needs a different sourcing strategy anyway.)
-- **AI-assisted extraction fallback.** No LLM call, no API key read for
-  this purpose. Confidence scoring is 100% deterministic rule-based
-  arithmetic (`confidence/rules.ts`) — never an LLM-generated score.
+- **AI-generated confidence, classification or facts.** AI extraction
+  exists (see below), but the model's entire job is transcription: read
+  what a page prints into columns. It never resolves a year, parses a
+  distance, decides whether something is an open-water swim, supplies
+  coordinates, or produces a score. Confidence scoring remains 100%
+  deterministic rule-based arithmetic (`confidence/rules.ts`) — never an
+  LLM-generated score.
 - **Duplicate merging.** `dedupe/match.ts` only ever scores a pair and
   reports signals — it never merges, updates, or deletes a record.
 - **Status-aware confidence scoring.** A cancelled event (see

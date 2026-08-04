@@ -24,6 +24,13 @@ export interface DiscoveryConfig {
   maxRenderedPagesPerRun: number;
   renderTimeoutMs: number;
   renderSettleMs: number;
+  // AI-assisted extraction. The only part of the pipeline that costs
+  // money per page, so it is capped per run and never the first thing
+  // tried — see extract/ai.ts for why it exists and what it is allowed
+  // to do.
+  aiModel: string;
+  aiEffort: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+  aiMaxInputChars: number;
 }
 
 function parseBoolEnv(name: string, defaultValue: boolean): boolean {
@@ -37,6 +44,15 @@ function parseIntEnv(name: string, defaultValue: number): number {
   if (raw === undefined) return defaultValue;
   const n = Number(raw);
   return Number.isFinite(n) ? n : defaultValue;
+}
+
+const EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+type Effort = (typeof EFFORT_LEVELS)[number];
+
+function parseEffortEnv(name: string, defaultValue: Effort): Effort {
+  const raw = process.env[name]?.trim().toLowerCase();
+  if (!raw) return defaultValue;
+  return (EFFORT_LEVELS as readonly string[]).includes(raw) ? (raw as Effort) : defaultValue;
 }
 
 export const DEFAULT_USER_AGENT =
@@ -63,15 +79,23 @@ export function loadConfig(): DiscoveryConfig {
     maxRenderedPagesPerRun: parseIntEnv('DISCOVERY_MAX_RENDERED_PAGES_PER_RUN', 10),
     renderTimeoutMs: parseIntEnv('DISCOVERY_RENDER_TIMEOUT_MS', 30_000),
     renderSettleMs: parseIntEnv('DISCOVERY_RENDER_SETTLE_MS', 1_500),
+    aiModel: process.env.DISCOVERY_AI_MODEL?.trim() || 'claude-opus-5',
+    aiEffort: parseEffortEnv('DISCOVERY_AI_EFFORT', 'low'),
+    // ~60k characters is roughly four times the largest page measured
+    // across the seeded sources (17k), so truncation should be rare —
+    // and when it happens it is reported rather than hidden.
+    aiMaxInputChars: parseIntEnv('DISCOVERY_AI_MAX_INPUT_CHARS', 60_000),
   };
 }
 
-// Safety gate. Fixture extraction, database writes, live HTTP fetching
-// and headless rendering are implemented; AI extraction is NOT, and
-// enabling it refuses to start rather than silently no-op'ing.
+// Safety gate. Every capability — fixture extraction, database writes,
+// live HTTP fetching, headless rendering and AI-assisted extraction — is
+// implemented, and every flag still defaults to false, so the default run
+// remains a pure dry-run that touches nothing but out/.
 //
-// Every capability flag still defaults to false — the default run remains
-// a pure dry-run that touches nothing but out/.
+// Each mode fails CLOSED without its prerequisites. Refusing at startup
+// beats discovering mid-pass that there was no API key, having already
+// spent an hour politely crawling.
 export function assertConfigSafe(config: DiscoveryConfig): void {
   const problems: string[] = [];
   // Implemented modes fail closed without their prerequisites: better to
@@ -88,7 +112,21 @@ export function assertConfigSafe(config: DiscoveryConfig): void {
     }
   }
   if (config.aiEnabled) {
-    problems.push('DISCOVERY_AI_ENABLED=true — AI-assisted extraction is not implemented in this phase.');
+    if (!process.env.ANTHROPIC_API_KEY) {
+      problems.push(
+        'DISCOVERY_AI_ENABLED=true but ANTHROPIC_API_KEY not set — refusing to start with AI extraction enabled and no key.'
+      );
+    }
+    // A cap of 0 with AI enabled is the single most expensive kind of
+    // silent no-op: the operator believes AI extraction is running, every
+    // call is skipped, and the sources stay empty for another week. Say so.
+    if (config.maxAiCallsPerRun <= 0) {
+      problems.push(
+        'DISCOVERY_AI_ENABLED=true but DISCOVERY_MAX_AI_CALLS_PER_RUN=' +
+          `${config.maxAiCallsPerRun} — that disables every AI call. Set a positive cap (25 is a sensible start, ` +
+          'roughly $2.50 per run) or set DISCOVERY_AI_ENABLED=false.'
+      );
+    }
   }
 
   if (problems.length > 0) {

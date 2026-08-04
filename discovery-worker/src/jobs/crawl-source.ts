@@ -11,6 +11,7 @@ import { computeDuplicateScore } from '../dedupe/match.js';
 import type { CandidateEvent } from '../domain/candidate-event.js';
 import { processPage, shouldPersistDiscoveredPage, type ProcessedPage } from './process-page.js';
 import { processTablePage } from './process-table-page.js';
+import type { AiPageResult } from './process-ai-page.js';
 
 // Everything crawlSource needs from the outside world, as an injectable
 // port set — the crawl decision flow (worklists, budgets, gating, health
@@ -44,6 +45,15 @@ export interface CrawlPorts {
   // HTML. Null when rendering is disabled or unavailable — the crawl then
   // proceeds exactly as it did before rendering existed.
   renderPage?(url: string): Promise<{ html: string | null; errorMessage: string | null }>;
+  // Reads an unstructured page with a language model, as the last resort
+  // after JSON-LD, tables, selectors and rendering have all found nothing.
+  // Absent when AI extraction is disabled, which is the default — the
+  // crawl then behaves exactly as it did before this existed.
+  extractWithAi?(url: string, html: string): Promise<AiPageResult>;
+  // URLs this source has already had read by the model. Without this a
+  // page deferred by the per-run AI cap would be recorded as fetched,
+  // count as unchanged on the next run, and never be read at all.
+  fetchAiExtractedUrls?(): Promise<string[]>;
   persistCandidate(processed: ProcessedPage, sourcePageId: string | null): Promise<{ candidateId: string } | null>;
   fetchExistingCandidatesForDedupe(): Promise<ExistingCandidateForDedupe[]>;
   persistDedupeLinks(candidateId: string, links: DedupeLinkInput[]): Promise<number>;
@@ -66,6 +76,10 @@ export interface CrawlOptions {
   // Cap on rows taken from one tabular calendar per run. Ray's Notebook
   // alone is 338 rows; the rest carry over to the next run.
   maxTableRowsPerPage?: number;
+  // Hard per-run ceiling on AI calls. This is the only part of the
+  // pipeline that costs money per page, so the budget is enforced here
+  // rather than trusted to the caller. Zero disables AI for the run.
+  maxAiCallsPerRun?: number;
 }
 
 export interface CrawlSummary {
@@ -99,6 +113,15 @@ export interface CrawlSummary {
   // Candidates produced from tabular calendars, which the
   // single-candidate path cannot reach at all.
   tableRowsExtracted: number;
+  // AI telemetry. Token counts are the ACTUAL usage reported by the API,
+  // not an estimate — multiply by the model's per-token price for the
+  // run's spend. Kept per-run so a source that quietly starts costing
+  // more is visible before the invoice is.
+  aiCallsMade: number;
+  aiPagesRescued: number;
+  aiCandidates: number;
+  aiInputTokens: number;
+  aiOutputTokens: number;
 }
 
 function urlKey(url: string): string {
@@ -164,6 +187,11 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
     pagesRendered: 0,
     pagesRescuedByRendering: 0,
     tableRowsExtracted: 0,
+    aiCallsMade: 0,
+    aiPagesRescued: 0,
+    aiCandidates: 0,
+    aiInputTokens: 0,
+    aiOutputTokens: 0,
   };
   let robotsSeen = 0;
   let robotsBlocked = 0;
@@ -179,6 +207,57 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
     // Declared before the listing fetch: the listing page can itself be a
     // tabular calendar that produces candidates, and dedupe needs them all.
     const newlyPersisted: { candidateId: string; candidate: CandidateEvent }[] = [];
+
+    // AI-extraction budget and history. The budget is a hard per-run
+    // ceiling because this is the only step that costs money per page;
+    // the history stops an unchanged page being re-read (and re-billed)
+    // every week for an answer we already have.
+    const aiBudget = options.maxAiCallsPerRun ?? 0;
+    const aiExtractedKeys = new Set(
+      ports.fetchAiExtractedUrls ? (await ports.fetchAiExtractedUrls()).map(urlKey) : []
+    );
+
+    // Last resort for a page nothing deterministic could read. Returns the
+    // number of candidates written, so the caller can tell a rescue from a
+    // genuine "there is nothing on this page".
+    async function runAiFallback(
+      url: string,
+      html: string,
+      sourcePageId: string | null,
+      changed: boolean
+    ): Promise<number> {
+      if (!ports.extractWithAi || summary.aiCallsMade >= aiBudget) return 0;
+      if (!changed && aiExtractedKeys.has(urlKey(url))) return 0;
+
+      const result = await ports.extractWithAi(url, html);
+      for (const w of result.warnings) ports.log(`  ${url}: ${w}`);
+      // A page too thin to be worth reading never reaches the API, so it
+      // must not count against the budget or the token totals.
+      if (!result.called) return 0;
+
+      summary.aiCallsMade++;
+      summary.aiInputTokens += result.usage?.inputTokens ?? 0;
+      summary.aiOutputTokens += result.usage?.outputTokens ?? 0;
+      aiExtractedKeys.add(urlKey(url));
+
+      let written = 0;
+      for (const entry of result.pages) {
+        const persisted = await ports.persistCandidate(entry, sourcePageId);
+        if (persisted) {
+          written++;
+          newlyPersisted.push({ candidateId: persisted.candidateId, candidate: entry.candidate });
+        }
+      }
+      summary.aiCandidates += written;
+      summary.candidatesPersisted += written;
+      if (written > 0) summary.aiPagesRescued++;
+
+      ports.log(
+        `  ${url}: AI read ${result.rowsReturned} event(s), ${result.rowsUsable} usable, ${written} written ` +
+          `(${result.usage?.inputTokens ?? 0} in / ${result.usage?.outputTokens ?? 0} out tokens, ${result.model ?? 'unknown model'})`
+      );
+      return written;
+    }
 
     let listingMode = source.parser_type !== 'manual';
     if (listingMode) {
@@ -238,6 +317,19 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
           summary.tableRowsExtracted += listingTable.rowsUsable;
           ports.log(
             `  listing is a tabular calendar — ${listingTable.rowsFound} row(s), ${written} candidate(s) written`
+          );
+        } else {
+          // The highest-value AI target on the whole site. A federation
+          // calendar is usually ONE page listing the season as <div>s —
+          // no JSON-LD, no <table>, and often no per-event pages to crawl
+          // afterwards. If this page is unreadable, the source yields
+          // nothing at all, which is exactly what 32 of the 36 sources
+          // seeded on 2026-08-04 did.
+          await runAiFallback(
+            listing.finalUrl ?? source.base_url,
+            listing.html,
+            outcome?.pageId ?? null,
+            outcome?.changed ?? true
           );
         }
 
@@ -459,6 +551,16 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
       if (outcome?.changed) summary.pagesChanged++;
 
       if (!gate.persist) {
+        // Everything deterministic has now been tried on this page, plus
+        // rendering. This is the point where a model earns its cost — and
+        // the only point, so a page the pipeline could already read never
+        // generates a call. The page_type recorded above stays 'unknown'
+        // for a rescued discovered page, which is harmless: writing a
+        // candidate makes the URL known via fetchKnownEventUrls, so it is
+        // re-verified on later runs regardless.
+        const aiWritten = await runAiFallback(url, fetched.html, outcome?.pageId ?? null, outcome?.changed ?? true);
+        if (aiWritten > 0) continue;
+
         summary.pagesSkippedByGate++;
         ports.log(`  ${url}: skipped (${gate.reason})`);
         continue;
@@ -524,6 +626,11 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
         pagesRendered: summary.pagesRendered,
         pagesRescuedByRendering: summary.pagesRescuedByRendering,
         tableRowsExtracted: summary.tableRowsExtracted,
+        aiCallsMade: summary.aiCallsMade,
+        aiPagesRescued: summary.aiPagesRescued,
+        aiCandidates: summary.aiCandidates,
+        aiInputTokens: summary.aiInputTokens,
+        aiOutputTokens: summary.aiOutputTokens,
       },
     });
 

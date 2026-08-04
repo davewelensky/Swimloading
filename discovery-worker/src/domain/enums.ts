@@ -43,7 +43,14 @@ export type EventStatus = (typeof EVENT_STATUSES)[number];
 export const DATE_PRECISIONS = ['exact', 'range', 'month', 'year', 'unknown'] as const;
 export type DatePrecision = (typeof DATE_PRECISIONS)[number];
 
-export const EXTRACTION_METHODS = ['jsonld', 'html', 'jsonld+html', 'none'] as const;
+// 'ai_fallback' means a language model read the page's text into columns
+// because JSON-LD, table and selector extraction all found nothing. It is
+// a separate value precisely so a reviewer can always tell, at a glance
+// and in SQL, which candidates came from a model rather than from
+// structured data. Everything downstream of the reading — dates,
+// locations, distances, classification, scoring — is deterministic
+// regardless of which method produced the raw text.
+export const EXTRACTION_METHODS = ['jsonld', 'html', 'jsonld+html', 'ai_fallback', 'none'] as const;
 export type ExtractionMethod = (typeof EXTRACTION_METHODS)[number];
 
 export const WATER_BODY_TYPES = ['sea', 'lake', 'river', 'reservoir', 'pool', 'unknown'] as const;
@@ -66,5 +73,5 @@ export const PUBLICATION_RECOMMENDATIONS = [
 ] as const;
 export type PublicationRecommendation = (typeof PUBLICATION_RECOMMENDATIONS)[number];
 
-export const EVIDENCE_TYPES = ['jsonld', 'html_selector', 'meta_tag'] as const;
+export const EVIDENCE_TYPES = ['jsonld', 'html_selector', 'meta_tag', 'ai_fallback'] as const;
 export type EvidenceType = (typeof EVIDENCE_TYPES)[number];

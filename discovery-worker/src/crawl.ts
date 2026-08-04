@@ -7,8 +7,10 @@ import { PoliteHttpClient } from './fetch/http-client.js';
 import { extractSameSiteLinks } from './fetch/links.js';
 import { discoverUrlsFromSitemaps, scoreEventUrl } from './fetch/sitemap.js';
 import { PageRenderer } from './fetch/renderer.js';
+import { createAnthropicExtractor, type AiModelPort } from './extract/ai.js';
 import { crawlSource, type CrawlPorts, type CrawlSummary } from './jobs/crawl-source.js';
 import { processPage, shouldPersistDiscoveredPage } from './jobs/process-page.js';
+import { processAiPage } from './jobs/process-ai-page.js';
 import { selectDueSources, type SchedulableSource } from './schedule/scheduler.js';
 import { createServiceRoleClient } from './db/supabaseClient.js';
 import {
@@ -20,6 +22,7 @@ import {
 } from './db/persist.js';
 import { completePastEditions, publishEligibleCandidates, retirePastCandidates } from './db/publish.js';
 import {
+  fetchAiExtractedUrls,
   fetchEnabledSources,
   fetchExistingCandidatesForDedupe,
   fetchKnownEventUrls,
@@ -75,6 +78,14 @@ function buildRenderer(config: DiscoveryConfig): PageRenderer | null {
   });
 }
 
+// Null unless AI extraction is switched on, so the Anthropic SDK is never
+// even imported on a worker that does not use it — same pattern as the
+// Playwright renderer above.
+function buildAiExtractor(config: DiscoveryConfig): AiModelPort | null {
+  if (!config.aiEnabled) return null;
+  return createAnthropicExtractor({ model: config.aiModel, effort: config.aiEffort });
+}
+
 function buildHttpClient(config: DiscoveryConfig): PoliteHttpClient {
   return new PoliteHttpClient({
     userAgent: config.userAgent,
@@ -103,11 +114,28 @@ function buildPorts(
   config: DiscoveryConfig,
   db: SupabaseClient,
   runType: 'scheduled' | 'manual',
-  renderer: PageRenderer | null
+  renderer: PageRenderer | null,
+  aiExtractor: AiModelPort | null
 ): CrawlPorts {
   const write = config.writeEnabled;
   return {
     ...(renderer ? { renderPage: (url: string) => renderer.render(url) } : {}),
+    ...(aiExtractor
+      ? {
+          extractWithAi: (url: string, html: string) =>
+            processAiPage(
+              source.id,
+              url,
+              html,
+              { sourceType: source.source_type, countryCode: source.country_code },
+              aiExtractor
+            ),
+          // Dry runs have no candidate history to read, so nothing is
+          // suppressed and every eligible page is read — which is what
+          // you want when shaking the extractor down.
+          fetchAiExtractedUrls: write ? () => fetchAiExtractedUrls(db, source.id) : async () => [],
+        }
+      : {}),
     fetchPage: (url, acceptLanguage) => http.fetchPage(url, acceptLanguage),
     startRun: write ? () => startRun(db, source.id, runType) : async () => null,
     finishRun: write
@@ -155,6 +183,15 @@ function printSummary(summary: CrawlSummary): void {
         `${summary.urlsDeferredByBudget} deferred to next run`
     );
   }
+  if (summary.aiCallsMade > 0) {
+    // Actual usage, not an estimate. Multiply by the model's published
+    // per-token price for this run's spend — no price is hardcoded here,
+    // because a stale number in the logs is worse than no number.
+    console.log(
+      `  ai: ${summary.aiCallsMade} call(s), ${summary.aiPagesRescued} page(s) rescued, ` +
+        `${summary.aiCandidates} candidate(s), ${summary.aiInputTokens} in / ${summary.aiOutputTokens} out tokens`
+    );
+  }
 }
 
 async function runAdhocUrl(url: string, config: DiscoveryConfig): Promise<void> {
@@ -188,6 +225,25 @@ async function runAdhocUrl(url: string, config: DiscoveryConfig): Promise<void> 
     }
     await renderer.close();
   }
+
+  // Last resort, same order as a real crawl. This is the cheap way to see
+  // what AI extraction would do to one page — one call, nothing written
+  // to the database — before enabling it across every source.
+  let aiPages: typeof processed[] = [];
+  const aiExtractor = buildAiExtractor(config);
+  if (aiExtractor && !shouldPersistDiscoveredPage(processed).persist) {
+    console.log('  still nothing deterministic — trying AI extraction...');
+    const result = await processAiPage('adhoc', url, fetched.html, {}, aiExtractor);
+    for (const w of result.warnings) console.log(`  ${w}`);
+    console.log(
+      `  ai: ${result.rowsReturned} row(s) returned, ${result.rowsUsable} usable, ` +
+        `${result.condensedChars} chars sent, ${result.usage?.inputTokens ?? 0} in / ${result.usage?.outputTokens ?? 0} out tokens`
+    );
+    aiPages = result.pages;
+    const first = aiPages[0];
+    if (first) processed = first;
+  }
+
   const outPath = await writeCrawlOutput(url, {
     url,
     charset: fetched.charset,
@@ -196,6 +252,22 @@ async function runAdhocUrl(url: string, config: DiscoveryConfig): Promise<void> 
     classification: processed.classification,
     confidence: processed.confidence,
     validation: processed.validation,
+    // Every event the model read, not just the first — a calendar page
+    // produces many, and seeing all of them is the whole point of this
+    // check.
+    ...(aiPages.length > 0
+      ? {
+          aiCandidates: aiPages.map((p) => ({
+            name: p.candidate.canonicalName,
+            startDate: p.candidate.startDate,
+            dateConfirmed: p.candidate.dateConfirmed,
+            location: p.candidate.locationText,
+            distances: p.candidate.distances.map((d) => d.originalLabel),
+            confidence: p.confidence.totalScore,
+            recommendation: p.confidence.recommendation,
+          })),
+        }
+      : {}),
   });
   console.log(
     `  -> ${path.relative(process.cwd(), outPath)}  (confidence ${processed.confidence.totalScore}, ` +
@@ -281,6 +353,7 @@ async function runProbe(baseUrl: string, config: DiscoveryConfig): Promise<void>
 async function runPass(config: DiscoveryConfig, db: SupabaseClient, onlySourceId: string | null): Promise<void> {
   const http = buildHttpClient(config);
   const renderer = buildRenderer(config);
+  const aiExtractor = buildAiExtractor(config);
 
   let sources: SchedulableSource[];
   let runType: 'scheduled' | 'manual';
@@ -305,12 +378,13 @@ async function runPass(config: DiscoveryConfig, db: SupabaseClient, onlySourceId
     for (const source of sources) {
       console.log(`\nCrawling "${source.name}" (${source.parser_type === 'manual' ? 'verification-only' : 'listing + verification'})...`);
       try {
-        const summary = await crawlSource(source, buildPorts(source, http, config, db, runType, renderer), {
+        const summary = await crawlSource(source, buildPorts(source, http, config, db, runType, renderer, aiExtractor), {
           maxPagesPerRun: config.maxPagesPerRun,
           runType,
           maxSitemapsToFollow: config.maxSitemapsToFollow,
           maxSitemapUrls: config.maxSitemapUrls,
           maxRenderedPagesPerRun: config.maxRenderedPagesPerRun,
+          maxAiCallsPerRun: config.aiEnabled ? config.maxAiCallsPerRun : 0,
         });
         printSummary(summary);
       } catch (err) {

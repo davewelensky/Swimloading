@@ -5,39 +5,67 @@ import type { HtmlDistanceRaw } from '../extract/html.js';
 
 const MILE_IN_METRES = 1609.344;
 
-// Parses a distance value into metres. Accepts metres, kilometres, and
-// miles, in whichever form the source used (a bare data attribute like
-// "10km"/"3800", or free text like "Sprint (750m)" / "1.2 miles").
-// Returns null rather than guessing when nothing recognisable is found.
+// Unit words, folded and accent-stripped before matching. The old
+// English-only version failed on real pages in ways that were invisible
+// until an event had no distances at all: the French federation prints
+// "1 Kms" and "2.4 Kms", and `k(?:ilo)?m\b` cannot match either, because
+// the trailing 's' means there is no word boundary after the 'm'.
+//
+// Order matters and is load-bearing: kilometres must be tried before
+// metres, or "5 km" reads as 5 metres.
+const KM_WORDS = 'km|kms|kilomet(?:er|re)s?|kilometr\\w*|chilometr\\w*|quilometr\\w*|キロ|公里';
+const MILE_WORDS = 'mi|mile|miles|miglia|milja|milje|mijl';
+const METRE_WORDS = 'm|ms|mtr|met(?:er|re)s?|metr\\w*|メートル|米';
+
+// A number written the European way ("2,4") or the English way ("2.4").
+// Thousands separators are deliberately NOT handled: "1,500" is 1.5 km in
+// half of Europe and 1500 m in the other half, and there is no way to tell
+// from the string alone. Guessing there would be a factor-of-1000 error.
+const NUMBER = '(\\d+(?:[.,]\\d+)?)';
+
+function toNumber(raw: string): number | null {
+  const n = Number(raw.replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+}
+
+function foldUnits(text: string): string {
+  return text.toLowerCase().normalize('NFKD').replace(/\p{M}+/gu, '');
+}
+
+// Parses a distance value into metres, in whichever language and form the
+// source used — a bare data attribute ("10km" / "3800"), English free text
+// ("Sprint (750m)" / "1.2 miles"), or a localised label ("2,4 Kms",
+// "5 kilómetros", "1500 mètres", "3 キロ"). Returns null rather than
+// guessing when nothing recognisable is found.
 export function parseDistanceToMetres(raw: string | null): number | null {
   if (!raw) return null;
-  const text = raw.trim();
+  const text = foldUnits(raw.trim());
 
-  const kmMatch = /([\d.]+)\s*k(?:ilo)?m\b/i.exec(text);
-  if (kmMatch && kmMatch[1]) {
-    const km = Number(kmMatch[1]);
-    return Number.isFinite(km) ? Math.round(km * 1000) : null;
+  const kmMatch = new RegExp(`${NUMBER}\\s*(?:${KM_WORDS})(?![a-z])`, 'i').exec(text);
+  if (kmMatch?.[1]) {
+    const km = toNumber(kmMatch[1]);
+    return km === null ? null : Math.round(km * 1000);
   }
 
-  const mileMatch = /([\d.]+)\s*mi(?:les?)?\b/i.exec(text);
-  if (mileMatch && mileMatch[1]) {
-    const miles = Number(mileMatch[1]);
-    return Number.isFinite(miles) ? Math.round(miles * MILE_IN_METRES) : null;
+  const mileMatch = new RegExp(`${NUMBER}\\s*(?:${MILE_WORDS})(?![a-z])`, 'i').exec(text);
+  if (mileMatch?.[1]) {
+    const miles = toNumber(mileMatch[1]);
+    return miles === null ? null : Math.round(miles * MILE_IN_METRES);
   }
 
-  const metreMatch = /([\d.]+)\s*m\b/i.exec(text);
-  if (metreMatch && metreMatch[1]) {
-    const metres = Number(metreMatch[1]);
-    return Number.isFinite(metres) ? Math.round(metres) : null;
+  const metreMatch = new RegExp(`${NUMBER}\\s*(?:${METRE_WORDS})(?![a-z])`, 'i').exec(text);
+  if (metreMatch?.[1]) {
+    const metres = toNumber(metreMatch[1]);
+    return metres === null ? null : Math.round(metres);
   }
 
   // A bare number with no unit at all (e.g. data-distance="3800") is
   // assumed to already be metres, matching how most organiser CMSs emit
   // this attribute — but only when it's genuinely unit-less.
-  const bareNumber = /^[\d.]+$/.exec(text);
+  const bareNumber = /^\d+(?:[.,]\d+)?$/.exec(text);
   if (bareNumber) {
-    const n = Number(text);
-    return Number.isFinite(n) ? Math.round(n) : null;
+    const n = toNumber(text);
+    return n === null ? null : Math.round(n);
   }
 
   return null;

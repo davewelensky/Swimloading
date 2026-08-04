@@ -69,6 +69,20 @@ export async function fetchKnownEventUrls(db: SupabaseClient, sourceId: string):
   return [...urls].filter(isCrawlableUrl);
 }
 
+// URLs this source already has AI-read candidates for. Used to stop an
+// unchanged page being sent to the model — and billed — a second time.
+// Reads the candidates rather than a dedicated bookkeeping table, so the
+// answer can never drift from what was actually written.
+export async function fetchAiExtractedUrls(db: SupabaseClient, sourceId: string): Promise<string[]> {
+  const { data, error } = await db
+    .from('discovery_candidate_events')
+    .select('source_url')
+    .eq('source_id', sourceId)
+    .eq('extraction_method', 'ai_fallback');
+  fail('fetchAiExtractedUrls', error);
+  return (data ?? []).map((row) => row.source_url as string);
+}
+
 // Every URL this source has EVER been fetched at, whatever the outcome.
 // Used to subtract already-seen pages from freshly discovered ones, so a
 // site's dead ends are not rediscovered and re-fetched on every run —

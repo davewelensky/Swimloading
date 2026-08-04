@@ -10,6 +10,7 @@ import { deriveCanonicalName, cleanText } from '../normalize/text.js';
 import { scoreCandidate } from '../confidence/score.js';
 import { validateCandidateEvent } from '../domain/validation.js';
 import { detectPageLanguage } from '../fetch/decode.js';
+import type { EvidenceType, ExtractionMethod } from '../domain/enums.js';
 import type { SourceContext } from './extract-pipeline.js';
 import type { ProcessedPage } from './process-page.js';
 
@@ -58,13 +59,38 @@ function distancesFrom(row: TableEventRow) {
     .filter((d) => d.originalLabel.length > 0);
 }
 
-function buildFromRow(
+// Where a row came from. Rows read out of a real <table> and rows a model
+// transcribed off an unstructured page follow the SAME normalisation,
+// classification and scoring path — that is the whole design — but they
+// must never be indistinguishable afterwards, so the origin sets the
+// candidate's extraction_method and the wording of every evidence row.
+export interface RowOrigin {
+  extractionMethod: ExtractionMethod;
+  evidenceType: EvidenceType;
+  // Human-readable provenance, e.g. 'table row' or 'AI-read page block'.
+  label: string;
+}
+
+export const TABLE_ORIGIN: RowOrigin = {
+  extractionMethod: 'html',
+  evidenceType: 'html_selector',
+  label: 'table row',
+};
+
+export const AI_ORIGIN: RowOrigin = {
+  extractionMethod: 'ai_fallback',
+  evidenceType: 'ai_fallback',
+  label: 'AI-read page block',
+};
+
+export function buildFromRow(
   sourceId: string,
   sourceUrl: string,
   row: TableEventRow,
   pageYear: number | null,
   pageLanguage: string | null,
-  context: SourceContext
+  context: SourceContext,
+  origin: RowOrigin = TABLE_ORIGIN
 ): ProcessedPage | null {
   const name = deriveCanonicalName(row.name);
   if (!name) return null;
@@ -72,7 +98,7 @@ function buildFromRow(
   const candidate: CandidateEvent = blankCandidateEvent(sourceId, sourceUrl);
   candidate.originalName = row.name;
   candidate.canonicalName = name;
-  candidate.evidence.push(evidence('originalName', 'html_selector', row.name, 'table row, name column'));
+  candidate.evidence.push(evidence('originalName', origin.evidenceType, row.name, `${origin.label}, name`));
 
   // Dates: try the row text with a year first (some tables state one),
   // then fall back to the yearless resolver using the page's own year.
@@ -84,7 +110,7 @@ function buildFromRow(
   candidate.dateConfirmed = resolved.dateConfirmed;
   candidate.warnings.push(...resolved.warnings);
   if (row.dateText) {
-    candidate.evidence.push(evidence('startDate', 'html_selector', row.dateText, 'table row, date column'));
+    candidate.evidence.push(evidence('startDate', origin.evidenceType, row.dateText, `${origin.label}, date`));
   }
 
   const location = parseLocationText(row.locationText);
@@ -103,7 +129,7 @@ function buildFromRow(
   // the whole location string.
   candidate.venueName = location.city ?? cleanText(row.locationText);
   if (row.locationText) {
-    candidate.evidence.push(evidence('locationText', 'html_selector', row.locationText, 'table row, location column'));
+    candidate.evidence.push(evidence('locationText', origin.evidenceType, row.locationText, `${origin.label}, location`));
   }
 
   // Coordinates from the row's own map data are a fact, not a geocode —
@@ -112,13 +138,13 @@ function buildFromRow(
     candidate.latitude = row.latitude;
     candidate.longitude = row.longitude;
     candidate.evidence.push(
-      evidence('latitude', 'html_selector', `${row.latitude},${row.longitude}`, 'table row, map link/coordinates')
+      evidence('latitude', origin.evidenceType, `${row.latitude},${row.longitude}`, `${origin.label}, map link/coordinates`)
     );
   }
 
   candidate.distances = distancesFrom(row);
   if (row.distanceText) {
-    candidate.evidence.push(evidence('distances', 'html_selector', row.distanceText, 'table row, distance column'));
+    candidate.evidence.push(evidence('distances', origin.evidenceType, row.distanceText, `${origin.label}, distance`));
   }
 
   if (row.url) {
@@ -126,19 +152,23 @@ function buildFromRow(
       const abs = new URL(row.url, sourceUrl).toString();
       candidate.officialUrl = abs;
       candidate.registrationUrl = abs;
-      candidate.evidence.push(evidence('officialUrl', 'html_selector', abs, 'table row, event link'));
+      candidate.evidence.push(evidence('officialUrl', origin.evidenceType, abs, `${origin.label}, event link`));
     } catch {
       /* unparseable href — leave the URLs null rather than store a broken one */
     }
   }
 
-  candidate.extractionMethod = 'html';
+  candidate.extractionMethod = origin.extractionMethod;
   candidate.rawSourceValues = {
-    tableRow: row.rawCells,
+    // Named by origin rather than always "tableRow": an AI-read row never
+    // came out of a <table>, and a rawSourceValues key that says it did
+    // would mislead exactly the reviewer this trail exists to inform.
+    [origin.extractionMethod === 'ai_fallback' ? 'aiRow' : 'tableRow']: row.rawCells,
     htmlDateText: row.dateText,
     pageYear,
     pageLanguage,
-    extractedFromTable: true,
+    extractedFromTable: origin.extractionMethod !== 'ai_fallback',
+    extractedByAi: origin.extractionMethod === 'ai_fallback',
   };
 
   const classification = classifyEvent({

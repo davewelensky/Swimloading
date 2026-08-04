@@ -108,9 +108,26 @@ test('an unmappable evidence type throws rather than writing an invalid row', as
   const r = await processFixture(fixture('valid-single-event.html'));
   const tampered = {
     ...r.candidate,
-    evidence: [{ field: 'x', evidenceType: 'ai_fallback' as never, rawValue: null, selector: null, note: null }],
+    evidence: [{ field: 'x', evidenceType: 'psychic' as never, rawValue: null, selector: null, note: null }],
   };
   assert.throws(() => toEvidenceRows(tampered, CANDIDATE_ID, null), /Unmappable evidence type/);
+});
+
+// 'ai_fallback' was the example of an unmappable type until AI extraction
+// existed. It is now a real, writable value — the schema's CHECK has
+// permitted it since discovery-schema-v1 — and this asserts the mapping
+// rather than leaving the change to be inferred from the test above no
+// longer using it.
+test('ai_fallback evidence maps and writes, so AI provenance survives to the database', async () => {
+  const r = await processFixture(fixture('valid-single-event.html'));
+  const aiRead = {
+    ...r.candidate,
+    evidence: [{ field: 'originalName', evidenceType: 'ai_fallback' as const, rawValue: 'Bay Swim', selector: 'AI-read page block, name', note: null }],
+  };
+  const rows = toEvidenceRows(aiRead, CANDIDATE_ID, null);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]?.evidence_type, 'ai_fallback');
+  assert.equal(rows[0]?.raw_snippet, 'Bay Swim');
 });
 
 test('source page row hashes content and does not fabricate an HTTP status', () => {

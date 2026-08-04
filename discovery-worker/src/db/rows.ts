@@ -90,6 +90,9 @@ const EVIDENCE_TYPE_MAP: Record<string, string> = {
   jsonld: 'jsonld',
   html_selector: 'html_selector',
   meta_tag: 'meta_tag',
+  // Already permitted by the schema's CHECK since discovery-schema-v1 —
+  // the column was designed for this before the extractor existed.
+  ai_fallback: 'ai_fallback',
 };
 
 export function toCandidateEventRow(
