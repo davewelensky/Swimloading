@@ -31,6 +31,10 @@ export interface DiscoveryConfig {
   aiModel: string;
   aiEffort: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
   aiMaxInputChars: number;
+  // Minimum scoreEventUrl() a DISCOVERED page must reach before it is
+  // worth paying a model to read. Gates spend only — a page below the bar
+  // is still fetched and still extracted deterministically, for free.
+  minAiUrlScore: number;
 }
 
 function parseBoolEnv(name: string, defaultValue: boolean): boolean {
@@ -85,6 +89,11 @@ export function loadConfig(): DiscoveryConfig {
     // across the seeded sources (17k), so truncation should be rare —
     // and when it happens it is reported rather than hidden.
     aiMaxInputChars: parseIntEnv('DISCOVERY_AI_MAX_INPUT_CHARS', 60_000),
+    // 2 clears homepages (0) and shallow generic paths (1) while keeping
+    // anything carrying an event word (+3 in any of 14 languages) or a
+    // year plus depth (+3). Tunable from the environment so a threshold
+    // that turns out too strict is a variable change, not a deploy.
+    minAiUrlScore: parseIntEnv('DISCOVERY_MIN_AI_URL_SCORE', 2),
   };
 }
 

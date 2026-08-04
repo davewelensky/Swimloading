@@ -376,6 +376,16 @@ page, so it is bounded three ways:
   calendar costs nothing after the first pass.
 - **A hard per-run ceiling**, `DISCOVERY_MAX_AI_CALLS_PER_RUN`, enforced
   inside `crawlSource` rather than trusted to the caller.
+- **A URL-score floor**, `DISCOVERY_MIN_AI_URL_SCORE` (2). A discovered
+  page whose own URL says it is not an event never costs a call. In the
+  first sweep Japan's source spent 18 calls and 86,459 tokens — 62% of the
+  run's entire input — for **zero** candidates, because its calendar is a
+  `<table>` the deterministic parser already handled and every call landed
+  on a same-site page that was never a race. Listing pages and URLs that
+  already hold a candidate are exempt: the listing IS the calendar, and a
+  known URL has already proved what it holds whatever its path looks like.
+  Skips are counted (`aiSkippedByUrlScore`), because a threshold set too
+  high otherwise looks exactly like "AI found nothing".
 
 **Measured cost, first production call (2026-08-04, FFN calendar,
 `claude-opus-5`):** 14,488 characters condensed → **9,851 input / 6,751

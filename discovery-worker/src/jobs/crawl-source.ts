@@ -80,6 +80,10 @@ export interface CrawlOptions {
   // pipeline that costs money per page, so the budget is enforced here
   // rather than trusted to the caller. Zero disables AI for the run.
   maxAiCallsPerRun?: number;
+  // Minimum scoreEventUrl() a DISCOVERED page must reach before an AI call
+  // is spent on it. Listing pages and known event URLs bypass it — see
+  // runAiFallback. Undefined means no filter.
+  minAiUrlScore?: number;
 }
 
 export interface CrawlSummary {
@@ -122,6 +126,10 @@ export interface CrawlSummary {
   aiCandidates: number;
   aiInputTokens: number;
   aiOutputTokens: number;
+  // Pages the URL-score filter kept away from the model. Counted, not
+  // silent: a threshold set too high looks exactly like "AI found nothing"
+  // unless the skips are visible.
+  aiSkippedByUrlScore: number;
 }
 
 function urlKey(url: string): string {
@@ -192,6 +200,7 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
     aiCandidates: 0,
     aiInputTokens: 0,
     aiOutputTokens: 0,
+    aiSkippedByUrlScore: 0,
   };
   let robotsSeen = 0;
   let robotsBlocked = 0;
@@ -224,10 +233,34 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
       url: string,
       html: string,
       sourcePageId: string | null,
-      changed: boolean
+      changed: boolean,
+      // True for the listing page and for URLs this source already has a
+      // candidate for. Both are exempt from the URL-score filter: the
+      // listing IS the calendar and is the single highest-value page on
+      // any source, and a known URL has already proved it holds an event
+      // whatever its path happens to look like.
+      alwaysWorthReading = false
     ): Promise<number> {
       if (!ports.extractWithAi || summary.aiCallsMade >= aiBudget) return 0;
       if (!changed && aiExtractedKeys.has(urlKey(url))) return 0;
+
+      // Don't pay a model to read a page whose own URL says it is not an
+      // event. Japan's source made 18 calls for 0 candidates on 2026-08-04
+      // — 62% of that sweep's entire token spend — because its calendar is
+      // a table the deterministic parser already handled, so every AI call
+      // went on a same-site page that was never going to be a race.
+      //
+      // This gates SPEND ONLY. A page below the bar has already been
+      // fetched and extracted deterministically for free; all that is
+      // withheld is the paid second opinion.
+      const minScore = options.minAiUrlScore;
+      if (!alwaysWorthReading && minScore !== undefined) {
+        const score = scoreEventUrl(url);
+        if (score < minScore) {
+          summary.aiSkippedByUrlScore++;
+          return 0;
+        }
+      }
 
       const result = await ports.extractWithAi(url, html);
       for (const w of result.warnings) ports.log(`  ${url}: ${w}`);
@@ -329,7 +362,8 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
             listing.finalUrl ?? source.base_url,
             listing.html,
             outcome?.pageId ?? null,
-            outcome?.changed ?? true
+            outcome?.changed ?? true,
+            true // the listing is the calendar — never filtered out
           );
         }
 
@@ -558,7 +592,7 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
         // for a rescued discovered page, which is harmless: writing a
         // candidate makes the URL known via fetchKnownEventUrls, so it is
         // re-verified on later runs regardless.
-        const aiWritten = await runAiFallback(url, fetched.html, outcome?.pageId ?? null, outcome?.changed ?? true);
+        const aiWritten = await runAiFallback(url, fetched.html, outcome?.pageId ?? null, outcome?.changed ?? true, isKnown);
         if (aiWritten > 0) continue;
 
         summary.pagesSkippedByGate++;
@@ -631,6 +665,7 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
         aiCandidates: summary.aiCandidates,
         aiInputTokens: summary.aiInputTokens,
         aiOutputTokens: summary.aiOutputTokens,
+        aiSkippedByUrlScore: summary.aiSkippedByUrlScore,
       },
     });
 
@@ -687,6 +722,7 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
           aiCandidates: summary.aiCandidates,
           aiInputTokens: summary.aiInputTokens,
           aiOutputTokens: summary.aiOutputTokens,
+          aiSkippedByUrlScore: summary.aiSkippedByUrlScore,
         },
       })
       .catch(() => {});

@@ -406,3 +406,133 @@ test('non-English pages are annotated with their language and a reviewer warning
     true
   );
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// The URL-score filter on AI spend, added 2026-08-04.
+//
+// Japan's source made 18 AI calls for 0 candidates in the first sweep —
+// 62% of that run's entire token spend. Its calendar is a <table> the
+// deterministic parser already handled, so every call landed on a same-site
+// page that was never going to be a race. This gates the paid step by the
+// page's own URL, which the sitemap ranker already scores.
+// ─────────────────────────────────────────────────────────────────────────
+
+// An empty shell: no JSON-LD, no table, no selectors — so extraction always
+// fails and the AI fallback is always reached, which is what we want to
+// observe here.
+const UNREADABLE_HTML = '<html><body><div id="app"></div></body></html>';
+
+function aiSpyPorts(
+  pages: Record<string, PageFetchResult>,
+  opts: { knownUrls?: string[] } = {}
+): { ports: CrawlPorts; recorded: Recorded; aiUrls: string[] } {
+  const { ports, recorded } = makePorts(pages, opts);
+  const aiUrls: string[] = [];
+  ports.extractWithAi = async (url) => {
+    aiUrls.push(url);
+    return {
+      pages: [],
+      rowsReturned: 0,
+      rowsUsable: 0,
+      usage: { inputTokens: 100, outputTokens: 10, cacheReadInputTokens: 0, cacheCreationInputTokens: 0 },
+      model: 'test',
+      condensedChars: 5000,
+      called: true,
+      warnings: [],
+    };
+  };
+  ports.fetchAiExtractedUrls = async () => [];
+  return { ports, recorded, aiUrls };
+}
+
+test('a page whose own URL says it is not an event never costs an AI call', async () => {
+  const { ports, aiUrls } = aiSpyPorts({
+    'https://example.com/races': okFetch(
+      'https://example.com/races',
+      '<html><body><a href="https://example.com/about">About</a>' +
+        '<a href="https://example.com/evenements/2026/lac">Une course</a></body></html>'
+    ),
+    'https://example.com/about': okFetch('https://example.com/about', UNREADABLE_HTML),
+    'https://example.com/evenements/2026/lac': okFetch('https://example.com/evenements/2026/lac', UNREADABLE_HTML),
+  });
+
+  const summary = await crawlSource(makeSource({}), ports, {
+    maxPagesPerRun: 10,
+    runType: 'manual',
+    maxAiCallsPerRun: 10,
+    minAiUrlScore: 2,
+  });
+
+  // /about scores 1 (one generic segment); /evenements/2026/lac scores 6
+  // (event word +3, year +2, depth +1).
+  assert.ok(aiUrls.includes('https://example.com/evenements/2026/lac'), 'the event-like page must be read');
+  assert.ok(!aiUrls.includes('https://example.com/about'), '/about must not cost a call');
+  assert.equal(summary.aiSkippedByUrlScore, 1);
+});
+
+test('the listing page is never filtered out — it is the calendar', async () => {
+  // The threshold is set absurdly high on purpose: a source whose calendar
+  // lives at a generic URL must still be read, because it is the single
+  // highest-value page on the site.
+  const { ports, aiUrls } = aiSpyPorts({
+    'https://example.com/races': okFetch('https://example.com/races', UNREADABLE_HTML),
+  });
+
+  await crawlSource(makeSource({}), ports, {
+    maxPagesPerRun: 5,
+    runType: 'manual',
+    maxAiCallsPerRun: 10,
+    minAiUrlScore: 99,
+  });
+
+  assert.deepEqual(aiUrls, ['https://example.com/races']);
+});
+
+test('a URL already known to hold an event bypasses the filter', async () => {
+  // Path shape is not evidence when we already have proof.
+  const known = 'https://example.com/x/y';
+  const { ports, aiUrls } = aiSpyPorts(
+    {
+      'https://example.com/races': okFetch('https://example.com/races', '<html><body>no links</body></html>'),
+      [known]: okFetch(known, UNREADABLE_HTML),
+    },
+    { knownUrls: [known] }
+  );
+
+  await crawlSource(makeSource({}), ports, {
+    maxPagesPerRun: 5,
+    runType: 'manual',
+    maxAiCallsPerRun: 10,
+    minAiUrlScore: 99,
+  });
+
+  assert.ok(aiUrls.includes(known));
+});
+
+test('the filter withholds spend only — the page is still fetched and extracted for free', async () => {
+  const { ports, recorded, aiUrls } = aiSpyPorts({
+    'https://example.com/races': okFetch(
+      'https://example.com/races',
+      '<html><body><a href="https://example.com/about">About</a></body></html>'
+    ),
+    'https://example.com/about': okFetch('https://example.com/about', UNREADABLE_HTML),
+  });
+
+  const summary = await crawlSource(makeSource({}), ports, {
+    maxPagesPerRun: 5,
+    runType: 'manual',
+    maxAiCallsPerRun: 10,
+    minAiUrlScore: 2,
+  });
+
+  // The listing still gets its call — it is exempt, and it is the page
+  // worth paying for. Only the discovered /about page is withheld.
+  assert.deepEqual(aiUrls, ['https://example.com/races']);
+  assert.equal(summary.aiSkippedByUrlScore, 1);
+
+  // Withheld from the MODEL, not from the pipeline: still fetched, still
+  // hashed for change monitoring, still run through deterministic
+  // extraction. The filter costs coverage nothing, only spend.
+  assert.ok(recorded.fetched.includes('https://example.com/about'));
+  assert.ok(recorded.pageRecords.some((r) => r.url === 'https://example.com/about' && r.ok));
+});

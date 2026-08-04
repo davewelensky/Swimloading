@@ -189,7 +189,10 @@ function printSummary(summary: CrawlSummary): void {
     // because a stale number in the logs is worse than no number.
     console.log(
       `  ai: ${summary.aiCallsMade} call(s), ${summary.aiPagesRescued} page(s) rescued, ` +
-        `${summary.aiCandidates} candidate(s), ${summary.aiInputTokens} in / ${summary.aiOutputTokens} out tokens`
+        `${summary.aiCandidates} candidate(s), ${summary.aiInputTokens} in / ${summary.aiOutputTokens} out tokens` +
+        (summary.aiSkippedByUrlScore > 0
+          ? `, ${summary.aiSkippedByUrlScore} page(s) skipped as not event-like`
+          : '')
     );
   }
 }
@@ -385,6 +388,7 @@ async function runPass(config: DiscoveryConfig, db: SupabaseClient, onlySourceId
           maxSitemapUrls: config.maxSitemapUrls,
           maxRenderedPagesPerRun: config.maxRenderedPagesPerRun,
           maxAiCallsPerRun: config.aiEnabled ? config.maxAiCallsPerRun : 0,
+          minAiUrlScore: config.minAiUrlScore,
         });
         printSummary(summary);
       } catch (err) {
