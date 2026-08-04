@@ -377,14 +377,32 @@ page, so it is bounded three ways:
 - **A hard per-run ceiling**, `DISCOVERY_MAX_AI_CALLS_PER_RUN`, enforced
   inside `crawlSource` rather than trusted to the caller.
 
-Rough scale at the current 37 sources: **~$6–10 one-off** to open the 32
-silent sources, then **~$13/month** steady state, with a per-run ceiling
-of 25 calls (~$2.50). Those figures are derived from measured character
-counts, so treat them as ±30% until the first real run — the worker logs
-**actual** token usage per source (`ai: N call(s), … X in / Y out
-tokens`) and stores it in `discovery_runs.metrics`, so measurement
-replaces the estimate immediately. No price is hardcoded anywhere;
-multiply the logged tokens by the model's published rate.
+**Measured cost, first production call (2026-08-04, FFN calendar,
+`claude-opus-5`):** 14,488 characters condensed → **9,851 input / 6,751
+output tokens** = **$0.22 per page**. 37 events returned, 36 usable.
+
+That is 2.2x an earlier estimate derived from character counts, and the
+two reasons are worth carrying forward:
+
+- **Non-English text tokenizes about twice as densely as English.** French
+  ran 1.47 chars/token against the ~3 assumed. Polish, Greek and Japanese
+  will be similar or worse — do not size a budget from character counts.
+- **Output dominates at ~77% of the bill**, ~182 tokens per event. Each row
+  carries a long event URL (~25 tokens alone) plus six JSON field names.
+
+Scale at 37 sources: **~$13–22 one-off** to open the silent sources, then
+**~$29/month** steady state, per-run ceiling 25 calls (~$5.45).
+
+`DISCOVERY_AI_MODEL` makes the model a deployment decision, not a code
+change. This job is transcription rather than reasoning, so a cheaper
+model is a reasonable trade: the same page costs ~$0.13 on
+`claude-sonnet-5`. Opus remains the default because model choice is the
+operator's call, not the worker's.
+
+No price is hardcoded anywhere — the worker logs **actual** usage per run
+(`ai: N call(s), … X in / Y out tokens`) into `discovery_runs.metrics`.
+Multiply by the model's published rate; never trust a figure in this
+README over one from the table.
 
 Settings: `DISCOVERY_AI_MODEL` (default `claude-opus-5`),
 `DISCOVERY_AI_EFFORT` (default `low` — this is transcription, not
