@@ -51,10 +51,18 @@ test('a yearless date is CONFIRMED only when its weekday verifies the year', () 
   assert.equal(bad.dateConfirmed, false);
   assert.equal(bad.startDate, null);
 
-  // No weekday at all -> usable but explicitly unconfirmed.
+  // No weekday at all -> NO date. This assertion used to expect a usable
+  // but unconfirmed date, and that expectation was wrong in a way that
+  // took a production crawl down on 2026-08-04: the schema enforces
+  // dce_unconfirmed_has_no_dates (`date_confirmed OR (start_date IS NULL
+  // AND end_date IS NULL)`), so an unconfirmed date does not produce a
+  // weak candidate — it throws on INSERT and aborts the whole source.
+  // The day and month still reach the reviewer via the warning.
   const noDay = parseYearlessDate('Feb 14', 2026);
-  assert.equal(noDay.startDate, '2026-02-14');
+  assert.equal(noDay.startDate, null);
+  assert.equal(noDay.endDate, null);
   assert.equal(noDay.dateConfirmed, false);
+  assert.match(noDay.warnings.join(' '), /no weekday to verify the year/);
 
   // A schedule spilling into the next year resolves onto it.
   const spill = parseYearlessDate('Jan 2, Fri', 2025); // 2 Jan 2026 is a Friday

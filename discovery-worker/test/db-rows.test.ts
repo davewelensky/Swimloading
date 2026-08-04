@@ -144,3 +144,37 @@ test('content hashing is stable and detects change (the change-monitoring primit
   assert.equal(contentHash('<p>same</p>'), contentHash('<p>same</p>'));
   assert.notEqual(contentHash('<p>a</p>'), contentHash('<p>b</p>'));
 });
+
+// Regression, 2026-08-04. The schema enforces dce_unconfirmed_has_no_dates
+// (`date_confirmed OR (start_date IS NULL AND end_date IS NULL)`). A
+// candidate that broke it did NOT produce a bad row — it threw on INSERT
+// and aborted the entire source's crawl mid-run, taking 16 already-written
+// candidates' run record and all its AI token telemetry with it.
+test('an unconfirmed date is never written, so one bad candidate cannot abort a crawl', async () => {
+  const r = await processFixture(fixture('valid-single-event.html'));
+  const unconfirmed = {
+    ...r.candidate,
+    startDate: '2026-02-14',
+    endDate: null,
+    dateConfirmed: false,
+    datePrecision: 'exact' as const,
+  };
+
+  const row = toCandidateEventRow(unconfirmed, r.confidence, SOURCE_ID, null);
+  assert.equal(row.start_date, null, 'the constraint would reject a date here');
+  assert.equal(row.end_date, null);
+  assert.equal(row.date_confirmed, false);
+  assert.equal(row.date_precision, 'unknown');
+
+  // Dropped, not lost: the value survives for a reviewer, with a warning.
+  assert.equal(row.raw_source_values.droppedUnconfirmedStartDate, '2026-02-14');
+  assert.match(row.warnings.join(' '), /Unconfirmed date .* dropped before writing/);
+});
+
+test('a confirmed date passes through untouched', async () => {
+  const r = await processFixture(fixture('valid-single-event.html'));
+  const confirmed = { ...r.candidate, startDate: '2026-02-14', dateConfirmed: true, datePrecision: 'exact' as const };
+  const row = toCandidateEventRow(confirmed, r.confidence, SOURCE_ID, null);
+  assert.equal(row.start_date, '2026-02-14');
+  assert.equal(row.date_precision, 'exact');
+});

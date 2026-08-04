@@ -310,9 +310,16 @@ const WEEKDAY_PATTERN = toPattern(Object.keys(WEEKDAY_NAMES));
 //   * weekday present and it matches a NEIGHBOURING year (a schedule
 //     spilling past New Year) -> confirmed on that year instead
 //   * weekday present and it matches nothing nearby   -> left unconfirmed
-//   * no weekday at all -> date returned but NOT confirmed, because a
-//     bare year hint is inference, and this pipeline does not publish
-//     inferred dates as fact
+//   * no weekday at all -> NO date, because a bare year hint is inference
+//     and this pipeline does not publish inferred dates as fact. The
+//     schema agrees and enforces it: dce_unconfirmed_has_no_dates is
+//     `date_confirmed OR (start_date IS NULL AND end_date IS NULL)`, so
+//     returning an unconfirmed date here does not merely produce a weak
+//     candidate — it throws on INSERT and aborts the whole source's crawl.
+//     (That is exactly what happened to Vansbrosimningen on 2026-08-04:
+//     16 candidates written, then the run died and its AI telemetry with
+//     it. Ray's Notebook always prints weekdays, which is why the table
+//     path never surfaced this.)
 export function parseYearlessDate(text: string | null, yearHint: number | null): ParsedDate {
   if (!text || !text.trim()) return unknownDate();
   const cleaned = text.trim();
@@ -348,14 +355,14 @@ export function parseYearlessDate(text: string | null, yearHint: number | null):
   }
 
   if (weekday === undefined) {
-    // Usable, but not something we will call confirmed.
-    return {
-      startDate: isoDate(yearHint, month, day),
-      endDate: null,
-      datePrecision: 'exact',
-      dateConfirmed: false,
-      warnings: [`Year ${yearHint} assumed from page context for "${cleaned}"; no weekday to verify it against`],
-    };
+    // The day and month are known; only the year is guesswork, and a
+    // guessed year is how a past event becomes a fabricated future one.
+    // The month/day still reach the reviewer in the warning, so nothing
+    // is lost that a human could not act on.
+    return unknownDate([
+      `Day and month read as ${pad(day)}/${pad(month)} from "${cleaned}", but the page gives no weekday to verify the year ` +
+        `against ${yearHint} — date left unset rather than assumed`,
+    ]);
   }
 
   // Check the hinted year first, then its neighbours — a season schedule

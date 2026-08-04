@@ -95,62 +95,94 @@ const EVIDENCE_TYPE_MAP: Record<string, string> = {
   ai_fallback: 'ai_fallback',
 };
 
+// Mirrors the schema's dce_unconfirmed_has_no_dates constraint
+// (`date_confirmed OR (start_date IS NULL AND end_date IS NULL)`).
+//
+// The extractors are supposed to uphold this themselves, and normalize/
+// date.ts now does. This is the backstop: a violation here is not a bad
+// row, it is an exception that aborts the entire source's crawl mid-run
+// and loses every counter with it — which is exactly what happened to
+// Vansbrosimningen on 2026-08-04, taking its AI token telemetry down too.
+// Dropping the date costs one field on one candidate; throwing costs the
+// crawl. The dropped value is preserved in raw_source_values so nothing
+// is silently lost.
+function enforceUnconfirmedHasNoDates(candidate: CandidateEvent): CandidateEvent {
+  if (candidate.dateConfirmed) return candidate;
+  if (candidate.startDate === null && candidate.endDate === null) return candidate;
+  return {
+    ...candidate,
+    startDate: null,
+    endDate: null,
+    datePrecision: 'unknown',
+    warnings: [
+      ...candidate.warnings,
+      `Unconfirmed date (${candidate.startDate ?? '—'}) dropped before writing: the schema stores dates only when they are verified`,
+    ],
+    rawSourceValues: {
+      ...candidate.rawSourceValues,
+      droppedUnconfirmedStartDate: candidate.startDate,
+      droppedUnconfirmedEndDate: candidate.endDate,
+    },
+  };
+}
+
 export function toCandidateEventRow(
   candidate: CandidateEvent,
   confidence: ConfidenceBreakdown,
   sourceId: string,
   sourcePageId: string | null
 ): CandidateEventRow {
+  const safe = enforceUnconfirmedHasNoDates(candidate);
   return {
-    candidate_key: candidate.candidateKey,
+    candidate_key: safe.candidateKey,
     source_id: sourceId,
     source_page_id: sourcePageId,
-    source_url: candidate.sourceUrl,
-    official_url: candidate.officialUrl,
-    registration_url: candidate.registrationUrl,
-    canonical_name: candidate.canonicalName,
-    original_name: candidate.originalName,
-    event_type: candidate.eventType,
-    organiser_name: candidate.organiserName,
-    venue_name: candidate.venueName,
-    location_text: candidate.locationText,
-    city: candidate.city,
-    region: candidate.region,
-    country_code: candidate.countryCode,
-    latitude: candidate.latitude,
-    longitude: candidate.longitude,
-    start_date: candidate.startDate,
-    end_date: candidate.endDate,
+    source_url: safe.sourceUrl,
+    official_url: safe.officialUrl,
+    registration_url: safe.registrationUrl,
+    canonical_name: safe.canonicalName,
+    original_name: safe.originalName,
+    event_type: safe.eventType,
+    organiser_name: safe.organiserName,
+    venue_name: safe.venueName,
+    location_text: safe.locationText,
+    city: safe.city,
+    region: safe.region,
+    country_code: safe.countryCode,
+    latitude: safe.latitude,
+    longitude: safe.longitude,
+    start_date: safe.startDate,
+    end_date: safe.endDate,
     // Promoted out of rawSourceValues into a real column — the schema has
     // a dedicated home for the organiser's own date wording.
     original_date_text:
-      typeof candidate.rawSourceValues.htmlDateText === 'string'
-        ? candidate.rawSourceValues.htmlDateText
+      typeof safe.rawSourceValues.htmlDateText === 'string'
+        ? safe.rawSourceValues.htmlDateText
         : null,
-    date_precision: candidate.datePrecision,
-    date_confirmed: candidate.dateConfirmed,
-    timezone: candidate.timezone,
-    water_body_type: candidate.waterBodyType,
-    wetsuit_policy: candidate.wetsuitPolicy,
-    description_summary: candidate.descriptionSummary,
-    extraction_method: candidate.extractionMethod,
-    confidence_score: candidate.confidenceScore,
+    date_precision: safe.datePrecision,
+    date_confirmed: safe.dateConfirmed,
+    timezone: safe.timezone,
+    water_body_type: safe.waterBodyType,
+    wetsuit_policy: safe.wetsuitPolicy,
+    description_summary: safe.descriptionSummary,
+    extraction_method: safe.extractionMethod,
+    confidence_score: safe.confidenceScore,
     publication_recommendation: confidence.recommendation,
-    confidence_reasons: candidate.confidenceReasons,
-    warnings: candidate.warnings,
+    confidence_reasons: safe.confidenceReasons,
+    warnings: safe.warnings,
     // KNOWN GAP: discovery_candidate_events has no column for the event's
     // own status (scheduled/cancelled/postponed) — only candidate_status,
     // which is the REVIEW state. Rather than drop the fact, it is carried
     // here under an explicit key. A follow-up additive migration should
     // give it a real column; see discovery-worker/README.md.
-    raw_source_values: { ...candidate.rawSourceValues, eventStatus: candidate.status },
+    raw_source_values: { ...safe.rawSourceValues, eventStatus: safe.status },
     raw_payload: {
-      candidateId: candidate.candidateId,
-      classificationEventType: candidate.eventType,
-      status: candidate.status,
-      distances: candidate.distances,
+      candidateId: safe.candidateId,
+      classificationEventType: safe.eventType,
+      status: safe.status,
+      distances: safe.distances,
     },
-    extracted_at: candidate.extractedAt,
+    extracted_at: safe.extractedAt,
   };
 }
 

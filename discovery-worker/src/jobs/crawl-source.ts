@@ -665,6 +665,29 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
         candidatesFound: summary.candidatesPersisted,
         status: summary.candidatesPersisted > 0 ? 'partial' : 'failed',
         errorMessage: message,
+        // Metrics on the FAILURE path too. Without this a crash silently
+        // discards every counter the run accumulated — including the AI
+        // token usage, which is the only record of what the run actually
+        // cost. A run that spends money and then dies is precisely the one
+        // whose spend you need to see.
+        metrics: {
+          pagesSkippedByGate: summary.pagesSkippedByGate,
+          fetchFailures: summary.fetchFailures,
+          dedupeLinksWritten: summary.dedupeLinksWritten,
+          urlsFromLinks: summary.urlsFromLinks,
+          urlsFromSitemap: summary.urlsFromSitemap,
+          urlsDeferredByBudget: summary.urlsDeferredByBudget,
+          sitemapRequests: summary.sitemapRequests,
+          sitemapFetched: summary.sitemapFetched,
+          pagesRendered: summary.pagesRendered,
+          pagesRescuedByRendering: summary.pagesRescuedByRendering,
+          tableRowsExtracted: summary.tableRowsExtracted,
+          aiCallsMade: summary.aiCallsMade,
+          aiPagesRescued: summary.aiPagesRescued,
+          aiCandidates: summary.aiCandidates,
+          aiInputTokens: summary.aiInputTokens,
+          aiOutputTokens: summary.aiOutputTokens,
+        },
       })
       .catch(() => {});
     const newFailureCount = source.consecutive_failure_count + 1;
