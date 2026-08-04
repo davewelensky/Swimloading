@@ -1,4 +1,4 @@
-import { EVENT_TYPES, type Classification, type EventType } from '../domain/enums.js';
+import { EVENT_TYPES, type Classification, type Discipline, type EventType } from '../domain/enums.js';
 
 export interface ClassificationInput {
   categoryHint: string | null;
@@ -21,6 +21,9 @@ export interface ClassificationInput {
 export interface ClassificationResult {
   classification: Classification;
   eligible: boolean;
+  // 'open_water' unless the page is a multisport race whose swim leg we
+  // could actually identify. Never inferred from the event's name alone.
+  discipline: Discipline;
   reasons: string[];
   warnings: string[];
 }
@@ -67,6 +70,63 @@ const POOL_PHRASES = [
   'zwembad', 'simhall', 'uimahalli', 'basen', 'bazen', 'kapali havuz',
   'short course', 'long course', '25m pool', '50m pool', 'scm', 'lcm',
 ];
+
+// A multisport page states its swim leg explicitly or it does not. This
+// looks for a distance sitting next to a swim word — "1.9 km swim",
+// "natation : 1,9 km", "水泳 1.5km" — which is the page telling us how far
+// the swim is, in its own words.
+//
+// The old gate for this was `hasSeparateSwimEntry`, read from a
+// `.category-hint[data-separate-swim-entry]` attribute that exists only in
+// the test fixtures. On every real page it is null, so the include path
+// was unreachable and 94 of 787 candidates — 12% of everything crawled —
+// were discarded by a rule that had never once evaluated real evidence.
+//
+// Requiring the distance is deliberate. A triathlon page lists bike and
+// run distances too, so "any number on the page" would file a 90km bike
+// leg as a swim. The swim word has to be adjacent.
+const SWIM_WORDS =
+  'swim|swimming|nage|natation|nuoto|nado|natacao|natacion|schwimmen|zwemmen|simning|svomming|uinti|plywanie|plivanje|yuzme|kolympi|水泳|スイム';
+const DISTANCE_UNIT = '(?:km|k|m|mi|miles?|metres?|meters?|kms)';
+
+const SWIM_LEG_PATTERNS: RegExp[] = [
+  // "1.9 km swim", "3,8km natation"
+  new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*${DISTANCE_UNIT}\\s*(?:of\\s+)?(?:${SWIM_WORDS})\\b`, 'i'),
+  // "swim: 1.9 km", "natation 1,9 km", "Schwimmen – 3.8 km"
+  new RegExp(`(?:${SWIM_WORDS})\\s*[:\\-–—]?\\s*(\\d+(?:[.,]\\d+)?)\\s*${DISTANCE_UNIT}\\b`, 'i'),
+];
+
+// fold() replaces every non-alphanumeric run with a space, which is right
+// for phrase matching and fatal for distances: "1.9km" becomes "1 9km" and
+// "3,8 km" becomes "3 8 km", so Ironman 70.3 and every European decimal
+// silently failed to register a swim leg. This keeps the separators.
+function foldKeepingNumbers(text: string | null | undefined): string {
+  if (!text) return '';
+  return text
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/\p{M}+/gu, '')
+    .replace(/[^\p{L}\p{N}.,:–—-]+/gu, ' ')
+    .trim();
+}
+
+function foldedText(input: ClassificationInput): string {
+  return [
+    foldKeepingNumbers(input.titleText),
+    foldKeepingNumbers(input.descriptionText),
+    foldKeepingNumbers(input.urlPath),
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+function statedSwimLeg(text: string): string | null {
+  for (const re of SWIM_LEG_PATTERNS) {
+    const m = re.exec(text);
+    if (m) return m[0].trim();
+  }
+  return null;
+}
 
 const TRIATHLON_PHRASES = [
   'triathlon', 'triatlon', 'triathlete', 'aquathlon', 'aquabike', 'swimrun',
@@ -126,37 +186,48 @@ export function classifyEvent(input: ClassificationInput): ClassificationResult 
   // ── 1. Explicit fixture-style hints keep top priority ──
   if (input.waterBodyHint === 'pool') {
     reasons.push('waterBodyHint is "pool" — indoor/pool events are not open-water swim opportunities');
-    return { classification: 'pool_only', eligible: false, reasons, warnings };
+    return { classification: 'pool_only', eligible: false, discipline: 'open_water', reasons, warnings };
   }
 
   if (input.categoryHint === 'triathlon') {
     if (input.hasSeparateSwimEntry === true) {
       reasons.push('triathlon with a separately enterable swim leg — eligible as a standalone race entry');
-      return { classification: 'official_race', eligible: true, reasons, warnings };
+      return { classification: 'official_race', eligible: true, discipline: 'open_water', reasons, warnings };
     }
-    if (input.hasSeparateSwimEntry === null) {
-      warnings.push('triathlon page did not declare whether the swim leg is separately enterable — treated as ineligible pending clarification');
+    const legFromHint = statedSwimLeg(foldedText(input));
+    if (legFromHint) {
+      reasons.push(`triathlon page stating its swim leg ("${legFromHint}") — the swim is catalogued, the race is not`);
+      // Same caveat whichever branch identified the leg. A reviewer must
+      // never have to know which code path ran to learn that entry is
+      // normally for the whole race.
+      warnings.push(
+        'This is the swim leg of a multisport race, not a standalone open-water swim — entry is normally for the whole race'
+      );
+      return { classification: 'official_race', eligible: true, discipline: 'multisport_swim_leg', reasons, warnings };
     }
-    reasons.push('triathlon page with no separately enterable swim leg');
-    return { classification: 'triathlon_only', eligible: false, reasons, warnings };
+    warnings.push(
+      'Multisport page that never states its swim distance — nothing to catalogue as a swim, so it is excluded rather than guessed at'
+    );
+    reasons.push('triathlon page with no separately enterable swim leg and no stated swim distance');
+    return { classification: 'triathlon_only', eligible: false, discipline: 'open_water', reasons, warnings };
   }
 
   if (input.categoryHint === 'historical_result') {
     reasons.push('page is a historical race-result article, not a listing for an upcoming opportunity');
-    return { classification: 'historical_result', eligible: false, reasons, warnings };
+    return { classification: 'historical_result', eligible: false, discipline: 'open_water', reasons, warnings };
   }
   if (input.categoryHint === 'tourism') {
     reasons.push('page is general beach/tourism content with no specific swim opportunity');
-    return { classification: 'general_tourism_page', eligible: false, reasons, warnings };
+    return { classification: 'general_tourism_page', eligible: false, discipline: 'open_water', reasons, warnings };
   }
   if (input.categoryHint === 'no_opportunity') {
     reasons.push('page mentions swimming but offers no actual bookable/enterable opportunity');
-    return { classification: 'no_actual_opportunity', eligible: false, reasons, warnings };
+    return { classification: 'no_actual_opportunity', eligible: false, discipline: 'open_water', reasons, warnings };
   }
   if (input.categoryHint !== null && EVENT_TYPE_SET.has(input.categoryHint)) {
     const eventType = input.categoryHint as EventType;
     reasons.push(`categoryHint matched a known event type: ${eventType}`);
-    return { classification: eventType, eligible: true, reasons, warnings };
+    return { classification: eventType, eligible: true, discipline: 'open_water', reasons, warnings };
   }
 
   // ── 2. Real-world text signals ──
@@ -173,17 +244,29 @@ export function classifyEvent(input: ClassificationInput): ClassificationResult 
     // qualifying times).
     if (pool && !openWater && input.waterBodyHint !== 'sea' && input.waterBodyHint !== 'lake') {
       reasons.push(`pool indicator "${pool}" found and no open-water signal — treated as a pool event`);
-      return { classification: 'pool_only', eligible: false, reasons, warnings };
+      return { classification: 'pool_only', eligible: false, discipline: 'open_water', reasons, warnings };
     }
 
     const triathlon = matchAny(text, TRIATHLON_PHRASES);
     if (triathlon && !openWater) {
       if (input.hasSeparateSwimEntry === true) {
         reasons.push(`multisport indicator "${triathlon}" but a separately enterable swim is declared`);
-        return { classification: 'official_race', eligible: true, reasons, warnings };
+        return { classification: 'official_race', eligible: true, discipline: 'open_water', reasons, warnings };
       }
-      reasons.push(`multisport indicator "${triathlon}" with no separately enterable swim leg`);
-      return { classification: 'triathlon_only', eligible: false, reasons, warnings };
+      // The page states how far the swim is. That is the swim leg, in the
+      // organiser's own words — enough to catalogue the SWIM, which is
+      // what a triathlete is choosing between and the part that decides
+      // whether they finish.
+      const leg = statedSwimLeg(foldedText(input));
+      if (leg) {
+        reasons.push(`multisport event stating its swim leg ("${leg}") — catalogued as a swim, flagged as a multisport leg`);
+        warnings.push(
+          'This is the swim leg of a multisport race, not a standalone open-water swim — entry is normally for the whole race'
+        );
+        return { classification: 'official_race', eligible: true, discipline: 'multisport_swim_leg', reasons, warnings };
+      }
+      reasons.push(`multisport indicator "${triathlon}" and no stated swim distance to catalogue`);
+      return { classification: 'triathlon_only', eligible: false, discipline: 'open_water', reasons, warnings };
     }
 
     const resultish = matchAny(text, RESULT_PHRASES);
@@ -198,16 +281,16 @@ export function classifyEvent(input: ClassificationInput): ClassificationResult 
         const hit = matchAny(text, phrases);
         if (hit) {
           reasons.push(`open-water signal "${openWater}" plus "${hit}" — classified as ${type}`);
-          return { classification: type, eligible: true, reasons, warnings };
+          return { classification: type, eligible: true, discipline: 'open_water', reasons, warnings };
         }
       }
       reasons.push(`open-water signal "${openWater}" found in the page text`);
-      return { classification: 'official_race', eligible: true, reasons, warnings };
+      return { classification: 'official_race', eligible: true, discipline: 'open_water', reasons, warnings };
     }
 
     if (resultish) {
       reasons.push(`page reads as a results/report page ("${resultish}") rather than an upcoming opportunity`);
-      return { classification: 'historical_result', eligible: false, reasons, warnings };
+      return { classification: 'historical_result', eligible: false, discipline: 'open_water', reasons, warnings };
     }
   }
 
@@ -222,10 +305,10 @@ export function classifyEvent(input: ClassificationInput): ClassificationResult 
       `no explicit open-water wording, but the source is a curated ${input.sourceType} — classified provisionally for review`
     );
     warnings.push('classification rests on the source type alone, not on anything the page itself says');
-    return { classification: 'official_race', eligible: true, reasons, warnings };
+    return { classification: 'official_race', eligible: true, discipline: 'open_water', reasons, warnings };
   }
 
   warnings.push(input.categoryHint === null ? 'no category hint found on page' : `unrecognized category hint: "${input.categoryHint}"`);
   reasons.push('insufficient signal to classify this page');
-  return { classification: 'unclassified', eligible: false, reasons, warnings };
+  return { classification: 'unclassified', eligible: false, discipline: 'open_water', reasons, warnings };
 }

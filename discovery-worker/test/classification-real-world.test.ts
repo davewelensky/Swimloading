@@ -88,12 +88,12 @@ test('unclassified is no longer a hard veto — it reaches a reviewer', () => {
   c.organiserName = 'Some Club';
   c.countryCode = 'ZA';
 
-  const unclassified = { classification: 'unclassified' as const, eligible: false, reasons: [], warnings: [] };
+  const unclassified = { classification: 'unclassified' as const, eligible: false, discipline: 'open_water' as const, reasons: [], warnings: [] };
   const scored = scoreCandidate(c, unclassified, NOW);
   assert.notEqual(scored.recommendation, 'rejected');
 
   // A POSITIVE ineligibility signal still vetoes outright, whatever the score.
-  const pool = { classification: 'pool_only' as const, eligible: false, reasons: [], warnings: [] };
+  const pool = { classification: 'pool_only' as const, eligible: false, discipline: 'open_water' as const, reasons: [], warnings: [] };
   assert.equal(scoreCandidate(c, pool, NOW).recommendation, 'rejected');
 });
 

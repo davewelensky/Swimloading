@@ -7,11 +7,11 @@ import { scoreCandidate } from '../src/confidence/score.js';
 const FIXED_NOW = new Date('2026-08-03T00:00:00Z');
 
 function eligibleClassification(classification: ClassificationResult['classification'] = 'official_race'): ClassificationResult {
-  return { classification, eligible: true, reasons: [], warnings: [] };
+  return { classification, eligible: true, discipline: 'open_water' as const, reasons: [], warnings: [] };
 }
 
 function ineligibleClassification(classification: ClassificationResult['classification']): ClassificationResult {
-  return { classification, eligible: false, reasons: [], warnings: [] };
+  return { classification, eligible: false, discipline: 'open_water' as const, reasons: [], warnings: [] };
 }
 
 function candidate(overrides: Partial<CandidateEvent> = {}): CandidateEvent {

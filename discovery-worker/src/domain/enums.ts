@@ -31,6 +31,15 @@ export type IneligibleReason = (typeof INELIGIBLE_REASONS)[number];
 // signal either way (never silently guessed into a real EventType).
 export type Classification = EventType | IneligibleReason | 'unclassified';
 
+// Which sport the swim belongs to. Deliberately SEPARATE from EventType:
+// a triathlon's swim leg is a real official race — the event type is not
+// what differs, the discipline is. Keeping them apart is what lets
+// /explore show open water only by default while a triathlete can opt the
+// swim legs in, without either group seeing a catalogue that is not for
+// them.
+export const DISCIPLINES = ['open_water', 'multisport_swim_leg'] as const;
+export type Discipline = (typeof DISCIPLINES)[number];
+
 export const EVENT_STATUSES = [
   'scheduled',
   'cancelled',
