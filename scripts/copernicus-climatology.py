@@ -45,8 +45,9 @@ SETUP
 
 USAGE
 -----
-    # 0. Read the real dataset id / variable name off the catalogue rather
-    #    than trusting anything hardcoded here. Do this FIRST.
+    # 0. Optional — the dataset id and variable below were read off the
+    #    catalogue on 2026-08-04. Re-run this if a new version appears.
+    #    Needs no credentials: the catalogue is public.
     python scripts/copernicus-climatology.py --describe
 
     # 1. One venue, nothing written — proves the whole chain cheaply.
@@ -83,10 +84,20 @@ from typing import Iterable
 # DATASET_ID from what it prints. Deliberately left as the product id so a
 # wrong guess fails loudly instead of silently fetching something else.
 PRODUCT_ID = "SST_GLO_SST_L4_REP_OBSERVATIONS_010_011"
-DATASET_ID = os.environ.get("COPERNICUS_DATASET_ID", "")
+
+# Read off the live catalogue with --describe on 2026-08-04, not guessed:
+#   dataset_id  METOFFICE-GLO-SST-L4-REP-OBS-SST   (version 202003)
+#   analysed_sst  units='kelvin'  sea_surface_foundation_temperature
+#   time  1981-10-01 .. 2026-03-31, daily
+# The units line is why to_celsius() exists — this product really does
+# publish Kelvin, so a naive read would put every swim at ~290 degrees.
+# Re-run --describe if a new product version appears; both are overridable
+# from the environment so that never needs a code change.
+DATASET_ID = os.environ.get("COPERNICUS_DATASET_ID", "METOFFICE-GLO-SST-L4-REP-OBS-SST")
 VARIABLE = os.environ.get("COPERNICUS_SST_VARIABLE", "analysed_sst")
 
-# The most recent 20 full years, not a 1981-2010 normal. The ocean has warmed
+# The most recent 20 full years, not a 1981-2010 normal. Comfortably inside
+# the product's 1981-10-01..2026-03-31 range. The ocean has warmed
 # measurably over the record, so an older baseline would systematically
 # understate what a swimmer will actually meet. Twenty years is long enough
 # for the seasonal shape and recent enough to still describe today's sea.
@@ -286,9 +297,6 @@ def main() -> None:
     except ImportError:
         sys.exit("copernicusmarine is not installed.  pip install copernicusmarine")
 
-    env("COPERNICUSMARINE_SERVICE_USERNAME")
-    env("COPERNICUSMARINE_SERVICE_PASSWORD")
-
     if args.describe:
         # The dataset id passed to subset() is NOT the product id, and the
         # variable name is not guessable either. Read both off the
@@ -299,13 +307,10 @@ def main() -> None:
               "is not 'analysed_sst') from the output above.")
         return
 
-    if not DATASET_ID:
-        sys.exit(
-            "COPERNICUS_DATASET_ID is not set.\n"
-            f"  Run:  python {sys.argv[0]} --describe\n"
-            "  then export the dataset id it prints. Refusing to guess it — a wrong\n"
-            "  id would quietly fetch the wrong ocean product rather than fail."
-        )
+    # Credentials are needed to DOWNLOAD, not to read the catalogue — so
+    # --describe above works with nothing set up at all.
+    env("COPERNICUSMARINE_SERVICE_USERNAME")
+    env("COPERNICUSMARINE_SERVICE_PASSWORD")
 
     venues = fetch_venues(args.limit)
     print(f"{len(venues)} venue(s) with coordinates; baseline {BASELINE_START}-{BASELINE_END}\n")
