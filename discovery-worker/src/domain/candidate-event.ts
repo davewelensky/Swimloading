@@ -1,5 +1,6 @@
 import type {
   DatePrecision,
+  Discipline,
   EventStatus,
   EventType,
   ExtractionMethod,
@@ -36,6 +37,10 @@ export interface CandidateEvent {
   canonicalName: string | null;
   originalName: string | null;
   eventType: EventType | null;
+  // Which sport this swim belongs to. Never null: an unclassifiable page
+  // is 'open_water', because that is the safe answer for a catalogue that
+  // shows open water by default.
+  discipline: Discipline;
   status: EventStatus | null;
   organiserName: string | null;
   venueName: string | null;
@@ -79,6 +84,7 @@ export function blankCandidateEvent(sourceId: string, sourceUrl: string): Candid
     canonicalName: null,
     originalName: null,
     eventType: null,
+    discipline: 'open_water',
     status: null,
     organiserName: null,
     venueName: null,

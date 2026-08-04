@@ -101,6 +101,23 @@
     box-shadow:0 0 0 3px rgba(56,189,248,.14)}
   .field .pin{position:absolute;left:14px;top:38px;color:var(--sec);width:17px;height:17px}
   .mini{min-width:150px}
+  /* The toggle's own label is wider than 150px. Without this it either
+     wraps (breaking the row height against its sibling selects) or
+     overflows the row — and body has overflow-x:hidden, so overflow would
+     silently CLIP the control rather than show a scrollbar. */
+  .mini-wide{min-width:208px}
+  /* `.mini label` above is (0,1,1) and would beat a bare `.tritoggle`
+     (0,1,0), stamping this control with the 11px uppercase treatment meant
+     for the little field CAPTIONS. Qualifying it to `.mini label.tritoggle`
+     wins on specificity and keeps the caption rule intact for its actual
+     purpose. */
+  .mini label.tritoggle{display:flex;align-items:center;gap:9px;background:#0b1524;border:1px solid var(--border);
+             border-radius:11px;padding:13px 15px;cursor:pointer;font-size:14px;color:#94a3b8;
+             text-transform:none;letter-spacing:0;margin:0;font-weight:400;white-space:nowrap;
+             line-height:22px}
+  .mini label.tritoggle:hover{border-color:rgba(56,189,248,.4)}
+  .tritoggle input{width:16px;height:16px;accent-color:var(--cyan);cursor:pointer;flex-shrink:0}
+  .tritoggle input:checked + span{color:var(--text)}
   .ac{position:absolute;top:100%;left:0;right:0;margin-top:6px;background:#0b1524;
       border:1px solid rgba(56,189,248,.24);border-radius:12px;overflow:hidden;z-index:70;
       max-height:290px;overflow-y:auto;box-shadow:0 18px 40px rgba(0,0,0,.55);display:none}
@@ -231,6 +248,17 @@
     <div class="mini">
       <label for="to">Before</label>
       <input type="date" id="to" onchange="applyFilters()">
+    </div>
+    <!-- Off by default, deliberately. A triathlon's swim leg is a real
+         swim and worth finding, but a swimmer looking for an open-water
+         race should not have to wade through Ironman entries to reach it.
+         The database defaults to open_water for the same reason. -->
+    <div class="mini mini-wide">
+      <label for="tri">Triathlon swims</label>
+      <label class="tritoggle" title="Show the swim leg of triathlons and swimruns. Entry is normally for the whole race, not the swim alone.">
+        <input type="checkbox" id="tri" onchange="applyFilters()">
+        <span>Include swim legs</span>
+      </label>
     </div>
   </div>
 
@@ -516,8 +544,13 @@ function applyFilters(){
   const minD = parseInt(document.getElementById('minDist').value,10) || null;
   const before = document.getElementById('to').value || null;
   const bounds = (MAP && followMap) ? MAP.getBounds() : null;
+  const includeTri = document.getElementById('tri')?.checked === true;
 
   VIEW = ALL.filter(r=>{
+    // Default to open water. A row with no discipline at all is treated as
+    // open water rather than hidden — an older row, or a client running
+    // ahead of the migration, must never silently vanish from the map.
+    if(!includeTri && r.discipline === 'multisport_swim_leg') return false;
     if(SEL.place){
       const m = SEL.place.match;
       if(m.country && r.country_code !== m.country) return false;

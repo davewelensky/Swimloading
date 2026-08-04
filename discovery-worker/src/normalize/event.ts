@@ -226,6 +226,9 @@ export function buildCandidateEvent(params: BuildCandidateParams): CandidateEven
 
   // ── classification -> eventType ──
   candidate.eventType = classification.eligible ? (classification.classification as EventType) : null;
+  // Discipline is a separate axis from event type: a triathlon's swim leg
+  // IS an official_race, so eventType alone cannot tell them apart.
+  candidate.discipline = classification.discipline;
 
   // ── raw source values — preserve originals verbatim, per the date rule
   // "preserve the original date text" and generally for auditability ──

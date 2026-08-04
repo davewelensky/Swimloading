@@ -19,6 +19,7 @@ export interface CandidateEventRow {
   canonical_name: string | null;
   original_name: string | null;
   event_type: string | null;
+  discipline: string;
   organiser_name: string | null;
   venue_name: string | null;
   location_text: string | null;
@@ -143,6 +144,7 @@ export function toCandidateEventRow(
     canonical_name: safe.canonicalName,
     original_name: safe.originalName,
     event_type: safe.eventType,
+    discipline: safe.discipline,
     organiser_name: safe.organiserName,
     venue_name: safe.venueName,
     location_text: safe.locationText,

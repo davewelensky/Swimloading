@@ -1,3 +1,4 @@
+import { rejectAsEventName } from '../src/normalize/text.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseFreeTextDate, parseStructuredDates, reconcileDates } from '../src/normalize/date.js';
@@ -126,4 +127,52 @@ test('location text with an unrecognised country segment warns rather than guess
   const result = parseLocationText('Somewhere, Nowhereland');
   assert.equal(result.countryCode, null);
   assert.ok(result.warnings.length > 0);
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// Regression, 2026-08-04, found on the live page.
+//
+// The Midmar Mile publishes its start-wave schedule on one page. The AI
+// extractor faithfully transcribed each wave as an event, and five reached
+// the public catalogue — including "Disabled, Pope-Ellis and 71yr/over",
+// a disability start category presented as a swim you could enter.
+//
+// The prompt now says a wave is not an event. This is the half that does
+// not depend on a model agreeing.
+// ─────────────────────────────────────────────────────────────────────────
+
+test('a wave, an age bracket or a numbered placeholder is not an event name', () => {
+  const notNames = [
+    'Disabled, Pope-Ellis and 71yr/over',
+    'Boys 13 Years and Under & Men 31 Years and Older',
+    'Boys/Men 14 Years to 30 Years',
+    'Event 1',
+    'EVENT 3 – RACE/ENTRY INFORMATION',
+    'Wave 2',
+    'Heat 4',
+  ];
+  for (const n of notNames) {
+    assert.ok(rejectAsEventName(n), `"${n}" should be rejected as a name`);
+  }
+});
+
+test('real swim names are never rejected — precision matters more than recall here', () => {
+  // A false positive silently deletes a real swim from the catalogue,
+  // which is worse than a wave slipping through to review.
+  const realNames = [
+    'aQuellé Midmar Mile',
+    'Midmar Mile 2027',
+    'Robben Island Crossing',
+    'Boston Light Swim',
+    "Traversée du lac d'Annecy",
+    'Vansbro 10K',
+    '105ème TRAVERSEE DE SETE',
+    'Kingdom Swim',
+    '9ème Coupe Volcanique de Nage en Eau Libre',
+    'Swim the Suck',
+    'Great North Swim',
+  ];
+  for (const n of realNames) {
+    assert.equal(rejectAsEventName(n), null, `"${n}" must be kept`);
+  }
 });

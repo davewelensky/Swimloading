@@ -6,7 +6,7 @@ import { evidence } from '../domain/evidence.js';
 import { parseYearlessDate, parseFreeTextDate } from '../normalize/date.js';
 import { parseDistanceToMetres } from '../normalize/distance.js';
 import { parseLocationText } from '../normalize/location.js';
-import { deriveCanonicalName, cleanText } from '../normalize/text.js';
+import { deriveCanonicalName, cleanText, rejectAsEventName } from '../normalize/text.js';
 import { scoreCandidate } from '../confidence/score.js';
 import { validateCandidateEvent } from '../domain/validation.js';
 import { detectPageLanguage } from '../fetch/decode.js';
@@ -94,6 +94,12 @@ export function buildFromRow(
 ): ProcessedPage | null {
   const name = deriveCanonicalName(row.name);
   if (!name) return null;
+  // A wave, an age bracket or a numbered placeholder is not a swim. Dropped
+  // here rather than scored low, because a low score still reaches the
+  // review queue and — as Midmar proved — can still be auto-approved onto
+  // the public page.
+  const notAName = rejectAsEventName(row.name);
+  if (notAName) return null;
 
   const candidate: CandidateEvent = blankCandidateEvent(sourceId, sourceUrl);
   candidate.originalName = row.name;
@@ -180,6 +186,11 @@ export function buildFromRow(
     urlPath: row.url,
     sourceType: context.sourceType ?? null,
   });
+
+  candidate.discipline = classification.discipline;
+  if (classification.discipline === 'multisport_swim_leg') {
+    candidate.warnings.push(...classification.warnings);
+  }
 
   if (!candidate.countryCode && context.countryCode) {
     candidate.countryCode = context.countryCode;
