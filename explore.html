@@ -359,6 +359,16 @@ function buildPlaces(){
 let MAP = null, LAYER = null, MARKERS = [], followMap = true;
 
 function initMap(){
+  // The map is an enhancement, never a dependency. Leaflet comes from a
+  // third-party CDN, so a blocked script, an ad blocker or a slow unpkg
+  // must not be able to take the swim list down with it — before this
+  // guard, L being undefined threw at the top level and rendered a blank
+  // page with no results at all.
+  if (typeof L === 'undefined') {
+    const el = document.querySelector('.mapwrap');
+    if (el) el.style.display = 'none';
+    return;
+  }
   MAP = L.map('map', { worldCopyJump:true, scrollWheelZoom:false, zoomControl:true })
          .setView([25, -20], 2);
   // Dark basemap so the page keeps its own identity rather than turning
@@ -376,7 +386,7 @@ function initMap(){
 const TIER_COLOUR = { confirmed:'#10b981', listed:'#38bdf8', unverified:'#f59e0b' };
 
 function plotMarkers(){
-  if(!LAYER) return;
+  if(!MAP || !LAYER) return;
   LAYER.clearLayers();
   MARKERS = [];
   for(const r of ALL){
@@ -407,6 +417,7 @@ function fitAll(){
 
 function useMyLocation(){
   const hint = document.getElementById('mapHint');
+  if(!MAP){ return; }
   if(!navigator.geolocation){ hint.textContent = 'This browser will not share a location'; return; }
   hint.textContent = 'Finding you…';
   navigator.geolocation.getCurrentPosition(
@@ -451,7 +462,7 @@ function pickPlace(i){
   applyFilters();
   // Move the map to what was chosen, so the two views always agree.
   const pts = VIEW.filter(r=>r.latitude!=null).map(r=>[r.latitude,r.longitude]);
-  if(MAP && pts.length){
+  if(MAP && typeof L !== 'undefined' && pts.length){
     followMap = false;
     MAP.fitBounds(L.latLngBounds(pts).pad(0.25), {maxZoom:9});
     setTimeout(()=>{ followMap = true; }, 350);
@@ -580,7 +591,13 @@ function render(){
 }
 
 icons();
-initMap();
+try { initMap(); } catch (e) {
+  // Never let a map problem stop the swims from loading.
+  console.warn('Map unavailable, continuing with the list:', e);
+  const el = document.querySelector('.mapwrap');
+  if (el) el.style.display = 'none';
+  MAP = null;
+}
 load();
 </script>
 </body>
