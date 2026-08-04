@@ -295,6 +295,95 @@ test('a known URL with no extractable event shape tracks its hash but writes no 
   assert.notEqual(recorded.pageRecords[0]!.contentHash, null);
 });
 
+test('headless rendering rescues a JS-shell page that plain fetch could not read', async () => {
+  // The Swimming South Africa / Oceanman shape: server sends a shell, the
+  // events arrive by XHR.
+  const shell = '<html lang="en"><body><div id="app">Fetching batch 1... (0 events loaded)</div></body></html>';
+  const { ports, recorded } = makePorts(
+    { 'https://example.com/events': okFetch('https://example.com/events', shell) },
+    { knownUrls: ['https://example.com/events'] }
+  );
+  const rendered: string[] = [];
+  ports.renderPage = async (url) => {
+    rendered.push(url);
+    return { html: eventPage('Rendered Lake Swim', '2027-08-14'), errorMessage: null };
+  };
+
+  const source = makeSource({ parser_type: 'manual', base_url: 'https://swimloading.com/research' });
+  const summary = await crawlSource(source, ports, { maxPagesPerRun: 10, runType: 'scheduled' });
+
+  assert.deepEqual(rendered, ['https://example.com/events']);
+  assert.equal(summary.pagesRendered, 1);
+  assert.equal(summary.pagesRescuedByRendering, 1);
+  assert.equal(summary.candidatesPersisted, 1);
+  assert.equal(recorded.persisted[0]!.candidate.canonicalName, 'Rendered Lake Swim');
+  // The reviewer must be able to see this candidate only exists because
+  // of rendering.
+  assert.equal(recorded.persisted[0]!.candidate.rawSourceValues.renderedWithHeadlessBrowser, true);
+});
+
+test('rendering is NOT attempted when plain extraction already worked', async () => {
+  const { ports } = makePorts(
+    { 'https://example.com/ok': okFetch('https://example.com/ok', eventPage('Readable Swim', '2027-04-04')) },
+    { knownUrls: ['https://example.com/ok'] }
+  );
+  let renderCalls = 0;
+  ports.renderPage = async () => {
+    renderCalls++;
+    return { html: null, errorMessage: null };
+  };
+
+  const source = makeSource({ parser_type: 'manual', base_url: 'https://swimloading.com/research' });
+  const summary = await crawlSource(source, ports, { maxPagesPerRun: 10, runType: 'scheduled' });
+
+  assert.equal(renderCalls, 0);
+  assert.equal(summary.pagesRendered, 0);
+  assert.equal(summary.candidatesPersisted, 1);
+});
+
+test('the render budget is enforced, and a render failure is not fatal', async () => {
+  const shell = '<html lang="en"><body>nothing here</body></html>';
+  const pages: Record<string, ReturnType<typeof okFetch>> = {};
+  const known: string[] = [];
+  for (let i = 0; i < 5; i++) {
+    const url = `https://example.com/shell-${i}`;
+    known.push(url);
+    pages[url] = okFetch(url, shell);
+  }
+  const { ports } = makePorts(pages, { knownUrls: known });
+  let renderCalls = 0;
+  ports.renderPage = async () => {
+    renderCalls++;
+    return { html: null, errorMessage: 'Timeout exceeded' };
+  };
+
+  const source = makeSource({ parser_type: 'manual', base_url: 'https://swimloading.com/research' });
+  const summary = await crawlSource(source, ports, {
+    maxPagesPerRun: 10,
+    runType: 'scheduled',
+    maxRenderedPagesPerRun: 2,
+  });
+
+  assert.equal(renderCalls, 2);
+  assert.equal(summary.pagesRendered, 2);
+  assert.equal(summary.pagesRescuedByRendering, 0);
+  // Every page still fetched and hash-tracked despite the render failures.
+  assert.equal(summary.pagesFetched, 5);
+  assert.equal(summary.fetchFailures, 0);
+});
+
+test('a crawl works unchanged when no renderer is wired at all', async () => {
+  const { ports } = makePorts(
+    { 'https://example.com/ok': okFetch('https://example.com/ok', eventPage('Plain Swim', '2027-05-05')) },
+    { knownUrls: ['https://example.com/ok'] }
+  );
+  assert.equal(ports.renderPage, undefined);
+  const source = makeSource({ parser_type: 'manual', base_url: 'https://swimloading.com/research' });
+  const summary = await crawlSource(source, ports, { maxPagesPerRun: 10, runType: 'scheduled' });
+  assert.equal(summary.candidatesPersisted, 1);
+  assert.equal(summary.pagesRendered, 0);
+});
+
 test('non-English pages are annotated with their language and a reviewer warning', async () => {
   const italian = `<html lang="it"><head><script type="application/ld+json">
     {"@type":"SportsEvent","name":"Traversata del Lago","startDate":"2027-07-20"}

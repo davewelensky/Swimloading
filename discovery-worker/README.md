@@ -287,6 +287,44 @@ failure.
 - Link discovery and the persistence gate use **no language-specific
   keywords** anywhere.
 
+### Headless rendering (Playwright)
+
+Implemented 2026-08-04, behind `DISCOVERY_PLAYWRIGHT_ENABLED`, default
+off. It exists because the modern race site is a JavaScript app:
+Swimming South Africa's calendar literally serves *"Fetching batch 1...
+(0 events loaded)"*, and Oceanman's race pages are a 5KB shell with zero
+body text. Both are findable and neither is readable without a browser.
+
+It is strictly a **fallback**. `crawl-source.ts` renders a page only when
+plain extraction on the fetched HTML already failed
+(`shouldPersistDiscoveredPage` says no), so the common path stays a
+millisecond-scale fetch and rendering is reserved for pages that would
+otherwise be lost. Rescued candidates carry
+`raw_source_values.renderedWithHeadlessBrowser = true`, so a reviewer can
+see the candidate only exists because of rendering.
+
+Measured on swimsa.org: visible text 2,280 → 5,383 chars, same-site links
+60 → 78, and the loading placeholder replaced by 37 dated event entries.
+
+- Requires the browser binary: `npx playwright install chromium`
+- Playwright is imported **lazily** and treated as optional — a worker
+  without the binaries logs that rendering is unavailable and keeps
+  running, rather than failing to boot
+- Images, fonts and media are blocked (memory, bandwidth, and politeness)
+- Budgeted per run via `DISCOVERY_MAX_RENDERED_PAGES_PER_RUN` (10)
+- The browser is launched once per pass and always closed in a `finally`,
+  so loop mode cannot accumulate one Chromium per pass
+
+`npm run probe -- <url>` reports plain-vs-rendered link and text counts
+side by side, which is how to decide whether a source needs rendering at
+all before committing it to a weekly crawl.
+
+**Memory:** Chromium needs roughly 1GB. The Railway trial container caps
+at 1GB, so rendering there will be OOM-killed — confirm the plan's
+headroom before enabling it in production, or leave
+`DISCOVERY_PLAYWRIGHT_ENABLED=false` on Railway and run rendering crawls
+locally on demand.
+
 ### Deploying to Railway
 
 The repo ships `railway.json` (Nixpacks, `npm run crawl:loop`,

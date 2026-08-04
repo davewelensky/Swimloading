@@ -39,6 +39,10 @@ export interface CrawlPorts {
   sitemapsFor(url: string): Promise<string[]>;
   // Fetches an XML document, transparently handling gzipped sitemaps.
   fetchXml(url: string): Promise<PageFetchResult>;
+  // Renders a page in a headless browser, returning the post-JavaScript
+  // HTML. Null when rendering is disabled or unavailable — the crawl then
+  // proceeds exactly as it did before rendering existed.
+  renderPage?(url: string): Promise<{ html: string | null; errorMessage: string | null }>;
   persistCandidate(processed: ProcessedPage, sourcePageId: string | null): Promise<{ candidateId: string } | null>;
   fetchExistingCandidatesForDedupe(): Promise<ExistingCandidateForDedupe[]>;
   persistDedupeLinks(candidateId: string, links: DedupeLinkInput[]): Promise<number>;
@@ -54,6 +58,10 @@ export interface CrawlOptions {
   // a large site's sitemap index must not become an unbounded crawl.
   maxSitemapsToFollow?: number;
   maxSitemapUrls?: number;
+  // Per-run cap on headless renders. Rendering is the expensive fallback,
+  // so a source full of unreadable pages spends a bounded amount of time
+  // and memory on them rather than stalling the whole pass.
+  maxRenderedPagesPerRun?: number;
 }
 
 export interface CrawlSummary {
@@ -79,6 +87,11 @@ export interface CrawlSummary {
   // probe returning 404 says nothing about whether the source is working.
   sitemapRequests: number;
   sitemapFetched: number;
+  // Rendering telemetry: how often the fallback was needed, and how often
+  // it actually rescued a page. A source with high attempts and low
+  // rescues is one to reconsider rather than keep paying for.
+  pagesRendered: number;
+  pagesRescuedByRendering: number;
 }
 
 function urlKey(url: string): string {
@@ -141,6 +154,8 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
     urlsDeferredByBudget: 0,
     sitemapRequests: 0,
     sitemapFetched: 0,
+    pagesRendered: 0,
+    pagesRescuedByRendering: 0,
   };
   let robotsSeen = 0;
   let robotsBlocked = 0;
@@ -301,7 +316,40 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
       }
 
       summary.pagesFetched++;
-      const processed = processPage(source.id, url, fetched.html);
+      let processed = processPage(source.id, url, fetched.html);
+
+      // Headless-render fallback. Only for pages whose fetched HTML
+      // yielded nothing extractable — the modern SPA case, where the
+      // server sends a shell and the events arrive by XHR (Swimming
+      // South Africa literally serves "Fetching batch 1... (0 events
+      // loaded)"). Never used when plain extraction already worked, so
+      // the common path stays fast and cheap.
+      const renderBudget = options.maxRenderedPagesPerRun ?? 10;
+      if (
+        ports.renderPage &&
+        summary.pagesRendered < renderBudget &&
+        !shouldPersistDiscoveredPage(processed).persist
+      ) {
+        summary.pagesRendered++;
+        const rendered = await ports.renderPage(url);
+        if (rendered.html) {
+          const reprocessed = processPage(source.id, url, rendered.html);
+          if (shouldPersistDiscoveredPage(reprocessed).persist) {
+            // Record HOW the content was obtained, so a reviewer can see
+            // that this candidate only exists because of rendering, and
+            // so a later regression is attributable.
+            reprocessed.candidate.rawSourceValues = {
+              ...reprocessed.candidate.rawSourceValues,
+              renderedWithHeadlessBrowser: true,
+            };
+            processed = reprocessed;
+            summary.pagesRescuedByRendering++;
+            ports.log(`  ${url}: rescued by headless rendering`);
+          }
+        } else if (rendered.errorMessage) {
+          ports.log(`  ${url}: render failed (${rendered.errorMessage})`);
+        }
+      }
       // The extraction gate applies to known URLs too: change monitoring
       // lives at the page-hash level (recordPageFetch, just below), so a
       // known page whose extraction found no event shape — a marketing
@@ -393,6 +441,8 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
         urlsDeferredByBudget: summary.urlsDeferredByBudget,
         sitemapRequests: summary.sitemapRequests,
         sitemapFetched: summary.sitemapFetched,
+        pagesRendered: summary.pagesRendered,
+        pagesRescuedByRendering: summary.pagesRescuedByRendering,
       },
     });
 

@@ -17,6 +17,13 @@ export interface DiscoveryConfig {
   schedulerIntervalSeconds: number;
   maxSitemapsToFollow: number;
   maxSitemapUrls: number;
+  // Headless rendering. Deliberately small by default: rendering costs
+  // ~1s and ~200MB per page against milliseconds for a plain fetch, so
+  // it is a fallback for pages deterministic extraction already failed
+  // on, not a default path.
+  maxRenderedPagesPerRun: number;
+  renderTimeoutMs: number;
+  renderSettleMs: number;
 }
 
 function parseBoolEnv(name: string, defaultValue: boolean): boolean {
@@ -53,12 +60,15 @@ export function loadConfig(): DiscoveryConfig {
     schedulerIntervalSeconds: parseIntEnv('DISCOVERY_SCHEDULER_INTERVAL_SECONDS', 900),
     maxSitemapsToFollow: parseIntEnv('DISCOVERY_MAX_SITEMAPS_TO_FOLLOW', 5),
     maxSitemapUrls: parseIntEnv('DISCOVERY_MAX_SITEMAP_URLS', 500),
+    maxRenderedPagesPerRun: parseIntEnv('DISCOVERY_MAX_RENDERED_PAGES_PER_RUN', 10),
+    renderTimeoutMs: parseIntEnv('DISCOVERY_RENDER_TIMEOUT_MS', 30_000),
+    renderSettleMs: parseIntEnv('DISCOVERY_RENDER_SETTLE_MS', 1_500),
   };
 }
 
-// Safety gate. Fixture extraction, database writes and live HTTP fetching
-// are implemented; Playwright and AI extraction are NOT, and enabling
-// them refuses to start rather than silently no-op'ing.
+// Safety gate. Fixture extraction, database writes, live HTTP fetching
+// and headless rendering are implemented; AI extraction is NOT, and
+// enabling it refuses to start rather than silently no-op'ing.
 //
 // Every capability flag still defaults to false — the default run remains
 // a pure dry-run that touches nothing but out/.
@@ -76,9 +86,6 @@ export function assertConfigSafe(config: DiscoveryConfig): void {
         `DISCOVERY_WRITE_ENABLED=true but ${missing.join(' and ')} not set — refusing to start in write mode without credentials.`
       );
     }
-  }
-  if (config.playwrightEnabled) {
-    problems.push('DISCOVERY_PLAYWRIGHT_ENABLED=true — Playwright extraction is not implemented in this phase.');
   }
   if (config.aiEnabled) {
     problems.push('DISCOVERY_AI_ENABLED=true — AI-assisted extraction is not implemented in this phase.');

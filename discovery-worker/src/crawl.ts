@@ -6,8 +6,9 @@ import { assertConfigSafe, loadConfig, type DiscoveryConfig } from './config.js'
 import { PoliteHttpClient } from './fetch/http-client.js';
 import { extractSameSiteLinks } from './fetch/links.js';
 import { discoverUrlsFromSitemaps, scoreEventUrl } from './fetch/sitemap.js';
+import { PageRenderer } from './fetch/renderer.js';
 import { crawlSource, type CrawlPorts, type CrawlSummary } from './jobs/crawl-source.js';
-import { processPage } from './jobs/process-page.js';
+import { processPage, shouldPersistDiscoveredPage } from './jobs/process-page.js';
 import { selectDueSources, type SchedulableSource } from './schedule/scheduler.js';
 import { createServiceRoleClient } from './db/supabaseClient.js';
 import {
@@ -61,6 +62,18 @@ function parseArgs(argv: string[]): CliArgs {
   return args;
 }
 
+// Null when rendering is switched off, so the whole feature — including
+// the Playwright import — stays inert unless explicitly enabled.
+function buildRenderer(config: DiscoveryConfig): PageRenderer | null {
+  if (!config.playwrightEnabled) return null;
+  return new PageRenderer({
+    userAgent: config.userAgent,
+    timeoutMs: config.renderTimeoutMs,
+    maxBytes: config.maxResponseBytes,
+    settleMs: config.renderSettleMs,
+  });
+}
+
 function buildHttpClient(config: DiscoveryConfig): PoliteHttpClient {
   return new PoliteHttpClient({
     userAgent: config.userAgent,
@@ -88,10 +101,12 @@ function buildPorts(
   http: PoliteHttpClient,
   config: DiscoveryConfig,
   db: SupabaseClient,
-  runType: 'scheduled' | 'manual'
+  runType: 'scheduled' | 'manual',
+  renderer: PageRenderer | null
 ): CrawlPorts {
   const write = config.writeEnabled;
   return {
+    ...(renderer ? { renderPage: (url: string) => renderer.render(url) } : {}),
     fetchPage: (url, acceptLanguage) => http.fetchPage(url, acceptLanguage),
     startRun: write ? () => startRun(db, source.id, runType) : async () => null,
     finishRun: write
@@ -148,7 +163,30 @@ async function runAdhocUrl(url: string, config: DiscoveryConfig): Promise<void> 
   if (!fetched.ok || fetched.html === null) {
     throw new Error(`Fetch failed: ${fetched.errorCode}: ${fetched.errorMessage}`);
   }
-  const processed = processPage('adhoc', url, fetched.html);
+  let processed = processPage('adhoc', url, fetched.html);
+
+  // Same fallback the crawler uses, so an ad-hoc check reflects what a
+  // real crawl would actually get from this page.
+  const renderer = buildRenderer(config);
+  if (renderer && !shouldPersistDiscoveredPage(processed).persist) {
+    console.log('  plain fetch yielded no event shape — retrying with headless rendering...');
+    const rendered = await renderer.render(url);
+    if (rendered.html) {
+      const reprocessed = processPage('adhoc', url, rendered.html);
+      const before = fetched.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().length;
+      const after = rendered.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().length;
+      console.log(`  rendered: visible text ${before} -> ${after} chars`);
+      if (shouldPersistDiscoveredPage(reprocessed).persist) {
+        console.log('  rendering RESCUED this page');
+        processed = reprocessed;
+      } else {
+        console.log('  still no event shape after rendering');
+      }
+    } else {
+      console.log(`  render failed: ${rendered.errorMessage}`);
+    }
+    await renderer.close();
+  }
   const outPath = await writeCrawlOutput(url, {
     url,
     charset: fetched.charset,
@@ -182,10 +220,30 @@ async function runProbe(baseUrl: string, config: DiscoveryConfig): Promise<void>
   if (listing.ok && listing.html !== null) {
     linkCount = extractSameSiteLinks(listing.html, listing.finalUrl ?? baseUrl).links.length;
     const hasJsonLd = /application\/ld\+json/i.test(listing.html);
+    const textLen = listing.html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().length;
     console.log(
       `\nlisting page: HTTP ${listing.status}, ${linkCount} same-site link(s), ` +
-        `JSON-LD ${hasJsonLd ? 'PRESENT' : 'absent'}, charset ${listing.charset}`
+        `JSON-LD ${hasJsonLd ? 'PRESENT' : 'absent'}, ${textLen} chars of visible text, charset ${listing.charset}`
     );
+
+    // Rendering comparison: the number that decides whether a source is
+    // reachable deterministically or needs the browser every time.
+    const renderer = buildRenderer(config);
+    if (renderer) {
+      const rendered = await renderer.render(baseUrl);
+      if (rendered.html) {
+        const renderedLinks = extractSameSiteLinks(rendered.html, baseUrl).links.length;
+        const renderedText = rendered.html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().length;
+        console.log(
+          `rendered:     ${renderedLinks} same-site link(s), ${renderedText} chars of visible text` +
+            (renderedLinks > linkCount || renderedText > textLen * 1.5 ? '  <-- rendering REQUIRED for this source' : '')
+        );
+        linkCount = Math.max(linkCount, renderedLinks);
+      } else {
+        console.log(`rendered:     FAILED (${rendered.errorMessage})`);
+      }
+      await renderer.close();
+    }
   } else {
     console.log(`\nlisting page: FAILED (${listing.errorCode}: ${listing.errorMessage})`);
   }
@@ -221,6 +279,7 @@ async function runProbe(baseUrl: string, config: DiscoveryConfig): Promise<void>
 
 async function runPass(config: DiscoveryConfig, db: SupabaseClient, onlySourceId: string | null): Promise<void> {
   const http = buildHttpClient(config);
+  const renderer = buildRenderer(config);
 
   let sources: SchedulableSource[];
   let runType: 'scheduled' | 'manual';
@@ -241,21 +300,29 @@ async function runPass(config: DiscoveryConfig, db: SupabaseClient, onlySourceId
   }
   console.log(`${sources.length} source(s) due${config.writeEnabled ? '' : ' — DRY RUN, writing to out/ only'}:`);
 
-  for (const source of sources) {
-    console.log(`\nCrawling "${source.name}" (${source.parser_type === 'manual' ? 'verification-only' : 'listing + verification'})...`);
-    try {
-      const summary = await crawlSource(source, buildPorts(source, http, config, db, runType), {
-        maxPagesPerRun: config.maxPagesPerRun,
-        runType,
-        maxSitemapsToFollow: config.maxSitemapsToFollow,
-        maxSitemapUrls: config.maxSitemapUrls,
-      });
-      printSummary(summary);
-    } catch (err) {
-      // One broken source must not stop the pass — its failure is already
-      // recorded in discovery_runs and its health/backoff updated.
-      console.error(`  crawl failed: ${err instanceof Error ? err.message : String(err)}`);
+  try {
+    for (const source of sources) {
+      console.log(`\nCrawling "${source.name}" (${source.parser_type === 'manual' ? 'verification-only' : 'listing + verification'})...`);
+      try {
+        const summary = await crawlSource(source, buildPorts(source, http, config, db, runType, renderer), {
+          maxPagesPerRun: config.maxPagesPerRun,
+          runType,
+          maxSitemapsToFollow: config.maxSitemapsToFollow,
+          maxSitemapUrls: config.maxSitemapUrls,
+          maxRenderedPagesPerRun: config.maxRenderedPagesPerRun,
+        });
+        printSummary(summary);
+      } catch (err) {
+        // One broken source must not stop the pass — its failure is already
+        // recorded in discovery_runs and its health/backoff updated.
+        console.error(`  crawl failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
+  } finally {
+    // Always release the browser: a leaked Chromium would survive the
+    // pass and, in loop mode, accumulate one per pass until the container
+    // is killed for memory.
+    if (renderer) await renderer.close();
   }
 }
 

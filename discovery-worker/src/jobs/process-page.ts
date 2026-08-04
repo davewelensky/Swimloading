@@ -21,6 +21,9 @@ export interface ProcessedPage {
 // deterministic extraction is English-tuned, so a thin result on an
 // Italian or Turkish page is expected and must be visible as such rather
 // than looking like a bad source.
+// Pure: same HTML in, same result out. Safe to call twice on one URL —
+// once on the fetched HTML and again on the rendered HTML — which is
+// exactly what the headless-render fallback in crawl-source.ts does.
 export function processPage(sourceId: string, url: string, html: string): ProcessedPage {
   const source = makeLiveSourceRecord(sourceId, url, html);
   const { candidate, classification, confidence, validation } = runExtractionPipeline(source);
