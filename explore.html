@@ -142,6 +142,13 @@
   .v-confirmed{color:var(--green)} .v-listed{color:var(--cyan)} .v-unverified{color:var(--amber)}
   .dists{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
   .dist{background:rgba(255,255,255,.05);border-radius:7px;padding:5px 11px;font-size:13px}
+  .dist.water,.dist.going{display:inline-flex;align-items:center;gap:5px}
+  .dist.water i,.dist.going i{width:13px;height:13px}
+  /* Temperature is the reason someone travels, so it leads the row and is
+     the only chip allowed to carry colour. */
+  .dist.water{background:rgba(56,189,248,.13);color:var(--cyan);font-weight:600}
+  .dist.going{background:rgba(16,185,129,.12);color:var(--green)}
+  .leaflet-popup-content .ptemp{color:var(--cyan);font-weight:600}
   .verify{margin-top:12px;padding-top:11px;border-top:1px solid var(--border);font-size:12px;
           color:var(--sec);display:flex;align-items:flex-start;gap:7px}
   .verify i{width:14px;height:14px;flex-shrink:0;margin-top:2px}
@@ -382,6 +389,7 @@ function plotMarkers(){
       `<b>${esc(r.title||r.series_name)}</b>
        <span class="pdate">${esc(d.big)}${d.small?' · '+esc(d.small):''}</span><br>
        <span class="pplace">${esc(placeOf(r))}</span>
+       ${r.water_temp_c!=null ? `<br><span class="ptemp">${esc(r.water_temp_c)}°C in the water now</span>`:''}
        ${r.registration_url ? `<br><a href="${esc(r.registration_url)}" target="_blank" rel="noopener noreferrer">Enter this swim →</a>`
         : r.official_url ? `<br><a href="${esc(r.official_url)}" target="_blank" rel="noopener noreferrer">Official page →</a>` : ''}`
     );
@@ -549,7 +557,12 @@ function render(){
           <h3>${esc(r.title || r.series_name)}</h3>
           <div class="where">${esc(placeOf(r) || 'Location to be confirmed')}
             ${r.organiser_name ? ` · ${esc(r.organiser_name)}`:''}</div>
-          ${dists.length ? `<div class="dists">${dists.map(x=>`<span class="dist">${esc(x.label)}</span>`).join('')}</div>`:''}
+          ${dists.length || r.water_temp_c!=null || r.interested_count>0 ? `<div class="dists">
+            ${r.water_temp_c!=null ? `<span class="dist water" title="Modelled sea temperature for this venue today. It is a guide to a swim in the next fortnight, not a forecast for the day.">
+                <i data-lucide="thermometer"></i>${esc(r.water_temp_c)}°C now</span>`:''}
+            ${dists.map(x=>`<span class="dist">${esc(x.label)}</span>`).join('')}
+            ${r.interested_count>0 ? `<span class="dist going"><i data-lucide="users"></i>${r.interested_count} interested</span>`:''}
+          </div>`:''}
           <div class="verify">
             <i data-lucide="alert-circle"></i>
             <span>Gathered automatically. <b>Confirm with the organiser before you travel</b> — dates and entries change.
