@@ -60,6 +60,22 @@ test('condensing keeps the readable text and drops the markup around it', () => 
   assert.ok(out.condensedChars < html.length);
 });
 
+// Regression, 2026-08-04. cheerio's .text() concatenates descendants with
+// no separator, so the first production run returned every French venue as
+// "Lieu : ANNECYVille : ANNECY (74000)" — two facts fused into one
+// unreadable token, faithfully transcribed by the model because that is
+// genuinely what the condensed page said. Real listing markup puts
+// venue/city/organiser in adjacent inline spans, so this affected every
+// language, not just French.
+test('adjacent inline elements keep the word boundary their markup implies', () => {
+  const html =
+    '<body><div class="e"><span>Lieu : ANNECY</span><span>Ville : ANNECY (74000)</span>' +
+    '<span>Organise par : LES DAUPHINS</span></div></body>';
+  const out = condenseForAi(html);
+  assert.match(out.text, /ANNECY Ville/);
+  assert.doesNotMatch(out.text, /ANNECYVille/);
+});
+
 test('a nested layout is not repeated once per wrapper div', () => {
   const html = `<body><div><div><div><p>One line only</p></div></div></div></body>`;
   const out = condenseForAi(html);

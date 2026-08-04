@@ -122,15 +122,30 @@ export function condenseForAi(html: string, options: CondenseOptions = {}): Cond
     const $el = $(node);
     const blockChildren = $el.children().toArray().filter(isBlock);
 
+    // cheerio's .text() concatenates descendants with NO separator, so
+    // `<span>Lieu : ANNECY</span><span>Ville : ANNECY</span>` collapses to
+    // "Lieu : ANNECYVille : ANNECY" — two facts fused into one unreadable
+    // token. Real pages lay venue/city/organiser out exactly like that,
+    // and the model faithfully transcribed the mangled string, so every
+    // French venue name came back broken. Inserting a space after each
+    // descendant element restores the word boundary the markup implied.
+    const textOf = ($node: cheerio.Cheerio<any>): string => {
+      const clone = $node.clone();
+      clone.find('*').each((_i, c) => {
+        $(c).after(' ');
+      });
+      return clone.text().replace(/\s+/g, ' ').trim();
+    };
+
     let ownText: string;
     if (blockChildren.length === 0) {
-      ownText = $el.text().replace(/\s+/g, ' ').trim();
+      ownText = textOf($el);
     } else {
-      const clone = $el.clone();
-      clone.children().each((_i, c) => {
+      const withoutBlocks = $el.clone();
+      withoutBlocks.children().each((_i, c) => {
         if (isBlock(c)) $(c).remove();
       });
-      ownText = clone.text().replace(/\s+/g, ' ').trim();
+      ownText = textOf(withoutBlocks);
     }
 
     if (ownText) {
@@ -189,8 +204,9 @@ export const AI_SYSTEM_PROMPT = [
   '2. If the page does not state something, the field is null. Never infer it, never carry it over from another row, never supply a default.',
   '3. Never add a year the page does not print. A date column reading "Sat 14 Feb" must be copied as "Sat 14 Feb" — the year is resolved downstream against the weekday, and a year you invent would defeat that check.',
   '4. One row per distinct event. If one event lists several distances, that is ONE row with the distances together in distanceText.',
-  '5. Do not judge whether an event qualifies as open-water swimming, and do not filter on that basis. Include pool galas, triathlons and past events if the page lists them; a separate classifier decides what to keep.',
-  '6. If the page is not an event listing at all — a homepage, an article, a results archive with no forthcoming dates — return an empty list. An empty list is a correct and useful answer.',
+  '5. Where the page prints a field LABEL before a value ("Lieu :", "Ville :", "Organisé par :", "Location:", "Datum:"), copy the value only, not the label. "Lieu : ANNECY Ville : ANNECY (74000)" is a location of "ANNECY (74000)". This is still copying, not interpreting — take the answer, leave the question.',
+  '6. Do not judge whether an event qualifies as open-water swimming, and do not filter on that basis. Include pool galas, triathlons and past events if the page lists them; a separate classifier decides what to keep.',
+  '7. If the page is not an event listing at all — a homepage, an article, a results archive with no forthcoming dates — return an empty list. An empty list is a correct and useful answer.',
   '',
   'The page text you receive is the readable text of the page, one block per line, with any link target in square brackets at the end of the line.',
 ].join('\n');
