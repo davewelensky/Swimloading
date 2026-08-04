@@ -18,6 +18,7 @@ import {
   recordPageFetch,
   startRun,
 } from './db/persist.js';
+import { publishEligibleCandidates } from './db/publish.js';
 import {
   fetchEnabledSources,
   fetchExistingCandidatesForDedupe,
@@ -323,6 +324,25 @@ async function runPass(config: DiscoveryConfig, db: SupabaseClient, onlySourceId
     // pass and, in loop mode, accumulate one per pass until the container
     // is killed for memory.
     if (renderer) await renderer.close();
+  }
+
+  // Publish whatever became eligible. Eligibility is decided in SQL (see
+  // auto_publish_eligible_candidates) so a worker bug cannot widen what
+  // reaches the public site; this only invokes it. Never fatal — a crawl
+  // that found events is still a success if publishing hiccups.
+  if (config.writeEnabled) {
+    try {
+      const published = await publishEligibleCandidates(db);
+      if (published.length > 0) {
+        console.log(`\nPublished ${published.length} event(s) to the public catalogue:`);
+        for (const p of published.slice(0, 10)) console.log(`  ${p.event_name}`);
+        if (published.length > 10) console.log(`  … and ${published.length - 10} more`);
+      } else {
+        console.log('\nNothing newly eligible to publish.');
+      }
+    } catch (err) {
+      console.error(`Publish sweep failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 }
 
