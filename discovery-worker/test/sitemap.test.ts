@@ -58,6 +58,24 @@ test('scoreEventUrl ranks event-looking paths above generic pages, in any langua
   assert.equal(scoreEventUrl('https://example.jp/2027/oyogi') >= 0, true);
 });
 
+test('documents are excluded, and past-results paths rank below upcoming events', async () => {
+  // Real case: swimsa.org's sitemap is dominated by results PDFs, entry
+  // spreadsheets and meet-file ZIPs, which outranked actual event pages.
+  assert.equal(scoreEventUrl('https://swimsa.org/events-results/all-events/champs/entries.pdf'), -1);
+  assert.equal(scoreEventUrl('https://swimsa.org/events/champs/meet-files.zip'), -1);
+  assert.equal(scoreEventUrl('https://swimsa.org/events/programme.xlsx'), -1);
+
+  const upcoming = scoreEventUrl('https://example.com/events/2027/lake-swim');
+  const archived = scoreEventUrl('https://example.com/events/results/2019/lake-swim');
+  assert.equal(archived < upcoming, true);
+  // Multilingual result markers behave the same way.
+  assert.equal(
+    scoreEventUrl('https://ejemplo.es/eventos/resultados/2019/travesia') <
+      scoreEventUrl('https://ejemplo.es/eventos/2027/travesia'),
+    true
+  );
+});
+
 test('discoverUrlsFromSitemaps follows an index, filters off-domain, ranks by event-likeness', async () => {
   const fetched: string[] = [];
   const urls = await discoverUrlsFromSitemaps('https://example.com/races', ['https://example.com/sitemap.xml'], {

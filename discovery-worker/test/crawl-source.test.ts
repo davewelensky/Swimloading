@@ -94,6 +94,12 @@ function makePorts(
     fetchKnownEventUrls: async () => options.knownUrls ?? [],
     fetchSeenUrls: async () => options.seenUrls ?? [],
     sitemapsFor: async () => options.sitemaps ?? [],
+    fetchXml: async (url) => {
+      recorded.fetched.push(url);
+      const entry = pages[url];
+      if (!entry) return failFetch(url, 'http_error', 404);
+      return typeof entry === 'function' ? entry(url) : entry;
+    },
     persistCandidate: async (processed) => {
       recorded.persisted.push(processed);
       return { candidateId: `cand-${nextId++}` };

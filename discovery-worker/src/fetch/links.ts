@@ -37,6 +37,18 @@ export function registrableDomain(host: string): string {
 
 const ASSET_EXTENSIONS = /\.(?:jpe?g|png|gif|webp|avif|svg|ico|css|js|mjs|json|xml|rss|atom|pdf|docx?|xlsx?|pptx?|zip|gz|rar|7z|mp3|mp4|mov|avi|webm|woff2?|ttf|eot|gpx|kml)$/i;
 
+// Exported so sitemap discovery applies the same rule. Sitemaps happily
+// list every PDF, spreadsheet and results ZIP a federation has ever
+// published — swimsa.org's is dominated by them — and fetching those
+// burns the page budget on documents the extractor cannot read.
+export function isAssetUrl(url: string): boolean {
+  try {
+    return ASSET_EXTENSIONS.test(new URL(url).pathname);
+  } catch {
+    return ASSET_EXTENSIONS.test(url);
+  }
+}
+
 // Utility paths that are never an event page, matched as path segments.
 // Kept structural/universal (login, cart, legal) — NOT content words.
 const UTILITY_SEGMENTS = new Set([

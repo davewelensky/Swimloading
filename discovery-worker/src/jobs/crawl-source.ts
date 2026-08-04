@@ -37,6 +37,8 @@ export interface CrawlPorts {
   fetchSeenUrls(): Promise<string[]>;
   // Sitemap URLs declared in the origin's robots.txt.
   sitemapsFor(url: string): Promise<string[]>;
+  // Fetches an XML document, transparently handling gzipped sitemaps.
+  fetchXml(url: string): Promise<PageFetchResult>;
   persistCandidate(processed: ProcessedPage, sourcePageId: string | null): Promise<{ candidateId: string } | null>;
   fetchExistingCandidatesForDedupe(): Promise<ExistingCandidateForDedupe[]>;
   persistDedupeLinks(candidateId: string, links: DedupeLinkInput[]): Promise<number>;
@@ -222,7 +224,7 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
         const sitemapUrls = await discoverUrlsFromSitemaps(source.base_url, declared, {
           fetchXml: async (url) => {
             summary.sitemapRequests++;
-            const res = await ports.fetchPage(url, acceptLanguage);
+            const res = await ports.fetchXml(url);
             if (res.ok && res.html !== null) {
               summary.sitemapFetched++;
               return res.html;

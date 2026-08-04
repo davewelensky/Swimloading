@@ -172,6 +172,49 @@ test('a redirect to a robots-disallowed host discards the body', async () => {
   assert.equal(result.html, null);
 });
 
+test('fetchXml transparently decompresses a gzipped sitemap', async () => {
+  // Real case: swimsa.org declares sitemap1.xml.gz. Served as
+  // application/gzip, which the HTML path rejects outright.
+  const { gzipSync } = await import('node:zlib');
+  const xml = '<urlset><url><loc>https://example.com/races/one</loc></url></urlset>';
+  const gz = new Uint8Array(gzipSync(Buffer.from(xml)));
+
+  const { client } = makeClient(async (url) =>
+    NO_ROBOTS(url) ?? makeResponse({ body: gz, headers: { 'content-type': 'application/gzip' } })
+  );
+  const result = await client.fetchXml('https://example.com/sitemap1.xml.gz');
+  assert.equal(result.ok, true);
+  assert.equal(result.html, xml);
+});
+
+test('a gzipped body that expands past the cap is rejected', async () => {
+  const { gzipSync } = await import('node:zlib');
+  // Highly compressible: small on the wire, large once inflated.
+  const huge = new Uint8Array(gzipSync(Buffer.from('x'.repeat(100_000))));
+  const { client } = makeClient(
+    async (url) => NO_ROBOTS(url) ?? makeResponse({ body: huge, headers: { 'content-type': 'application/gzip' } }),
+    { maxResponseBytes: 1024 }
+  );
+  const result = await client.fetchXml('https://example.com/sitemap.xml.gz');
+  assert.equal(result.ok, false);
+  assert.equal(result.errorCode, 'too_large');
+});
+
+test('plain XML sitemaps still work, and HTML fetches still reject gzip content types', async () => {
+  const xml = '<urlset><url><loc>https://example.com/a</loc></url></urlset>';
+  const { client } = makeClient(async (url) => {
+    const robots = NO_ROBOTS(url);
+    if (robots) return robots;
+    return makeResponse({ body: xml, headers: { 'content-type': 'application/xml' } });
+  });
+  assert.equal((await client.fetchXml('https://example.com/sitemap.xml')).html, xml);
+
+  const { client: htmlClient } = makeClient(async (url) =>
+    NO_ROBOTS(url) ?? makeResponse({ body: 'x', headers: { 'content-type': 'application/gzip' } })
+  );
+  assert.equal((await htmlClient.fetchPage('https://example.com/page', 'en')).errorCode, 'not_html');
+});
+
 test('decodes a non-UTF-8 page via its Content-Type charset', async () => {
   const iso = new Uint8Array([...new TextEncoder().encode('<h1>Gij'), 0xf3, ...new TextEncoder().encode('n</h1>')]);
   const { client } = makeClient(async (url) =>

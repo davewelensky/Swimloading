@@ -101,6 +101,7 @@ function buildPorts(
     fetchKnownEventUrls: () => fetchKnownEventUrls(db, source.id),
     fetchSeenUrls: () => fetchSeenUrls(db, source.id),
     sitemapsFor: (url) => http.sitemapsFor(url),
+    fetchXml: (url) => http.fetchXml(url),
     persistCandidate: write
       ? async (processed, sourcePageId) => {
           const result = await persistCandidate(db, processed.candidate, processed.confidence, source.id, sourcePageId);
@@ -191,7 +192,8 @@ async function runProbe(baseUrl: string, config: DiscoveryConfig): Promise<void>
 
   const sitemapUrls = await discoverUrlsFromSitemaps(baseUrl, declared, {
     fetchXml: async (url) => {
-      const res = await http.fetchPage(url, 'en');
+      const res = await http.fetchXml(url);
+      if (!res.ok) console.log(`  sitemap ${url}: unavailable (${res.errorCode}: ${res.errorMessage})`);
       return res.ok ? res.html : null;
     },
     maxSitemapsToFollow: config.maxSitemapsToFollow,

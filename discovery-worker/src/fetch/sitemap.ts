@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-import { registrableDomain } from './links.js';
+import { isAssetUrl, registrableDomain } from './links.js';
 
 // Sitemap-based page discovery.
 //
@@ -82,6 +82,22 @@ const EVENT_PATH_TOKENS = new Set([
   'acara', 'lomba', 'renang', 'kalendar', 'paligsahan',
 ]);
 
+// Tokens marking a page as a PAST-results archive rather than an upcoming
+// event. Federation sites carry years of these and they outnumber live
+// listings; the classifier would reject them downstream anyway, so it is
+// cheaper to rank them below real candidates than to spend fetches on
+// them. Multilingual for the same reason as EVENT_PATH_TOKENS.
+const RESULT_PATH_TOKENS = new Set([
+  'results', 'result', 'resultados', 'resultado', 'resultats', 'resultat', 'resultater', 'resultat',
+  'ergebnisse', 'risultati', 'uitslagen', 'wyniki', 'sonuclar', 'arkiv', 'archive', 'archives',
+  'classifica', 'classement', 'rangliste',
+  // News/blog archives are the other great time-sink on federation sites:
+  // swimsa.org's sitemap is mostly a decade of articles, many of which
+  // mention events in their slug and would otherwise rank as candidates.
+  'news', 'noticias', 'noticia', 'nouvelles', 'actualites', 'nachrichten', 'notizie', 'nieuws',
+  'nyheder', 'nyheter', 'uutiset', 'aktualnosci', 'haberler', 'blog', 'blogs', 'press', 'media',
+]);
+
 function foldForMatch(text: string): string {
   return text
     .toLowerCase()
@@ -115,11 +131,15 @@ export function scoreEventUrl(url: string): number {
   const segments = pathname.split('/').filter(Boolean);
   if (segments.length === 0) return 0; // the homepage itself
 
+  // Documents are never extractable event pages, whatever their path says.
+  if (isAssetUrl(url)) return -1;
+
   let score = 0;
   for (const segment of segments) {
     const folded = foldForMatch(segment);
     for (const word of folded.split(' ')) {
       if (EVENT_PATH_TOKENS.has(word)) score += 3;
+      else if (RESULT_PATH_TOKENS.has(word)) score -= 4;
     }
   }
   // A four-digit year in the path is a strong event-page signal in every
@@ -204,6 +224,9 @@ export async function discoverUrlsFromSitemaps(
         }
         if (seen.has(entry.url)) continue;
         seen.add(entry.url);
+        // Assets score -1 and are dropped here rather than ranked, so a
+        // document-heavy sitemap does not crowd out real event pages.
+        if (isAssetUrl(entry.url)) continue;
         pages.push(entry.url);
         kept++;
       }

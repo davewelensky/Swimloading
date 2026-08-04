@@ -1,3 +1,4 @@
+import { gunzipSync } from 'node:zlib';
 import { decodeBody, type DecodedBody } from './decode.js';
 import { RobotsCache, type RobotsDecision } from './robots.js';
 
@@ -56,6 +57,17 @@ export interface PageFetchResult {
 }
 
 const HTML_CONTENT_TYPES = /^(text\/html|application\/xhtml\+xml|text\/xml|application\/xml)\b/i;
+// Sitemaps are frequently served gzipped (the sitemap protocol explicitly
+// allows it, and large sites nearly always do). Servers label them
+// inconsistently — application/gzip, application/x-gzip, or even
+// octet-stream — so the content type is treated permissively here and
+// the gzip magic bytes are the real test.
+const XML_CONTENT_TYPES =
+  /^(text\/xml|application\/xml|text\/html|application\/(x-)?gzip|application\/octet-stream|binary\/octet-stream)\b/i;
+
+function isGzip(bytes: Uint8Array): boolean {
+  return bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
+}
 
 function defaultSleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -117,7 +129,15 @@ export class PoliteHttpClient {
     }
   }
 
-  async fetchPage(url: string, acceptLanguage: string): Promise<PageFetchResult> {
+  // Fetches an XML document (sitemaps), transparently decompressing a
+  // gzipped body. Shares the same robots, rate-limit and retry machinery
+  // as fetchPage — a sitemap request is still a request to someone's
+  // server and gets the same courtesy.
+  async fetchXml(url: string): Promise<PageFetchResult> {
+    return this.fetchPage(url, 'en', 'xml');
+  }
+
+  async fetchPage(url: string, acceptLanguage: string, kind: 'html' | 'xml' = 'html'): Promise<PageFetchResult> {
     let parsed: URL;
     try {
       parsed = new URL(url);
@@ -138,7 +158,7 @@ export class PoliteHttpClient {
       }
 
       await this.respectHostDelay(parsed.host, robots.crawlDelaySeconds);
-      const result = await this.fetchWithRetries(url, acceptLanguage);
+      const result = await this.fetchWithRetries(url, acceptLanguage, kind);
       result.robots = robots;
 
       // A redirect can land on a different host whose robots we never
@@ -182,7 +202,7 @@ export class PoliteHttpClient {
     }
   }
 
-  private async fetchWithRetries(url: string, acceptLanguage: string): Promise<PageFetchResult> {
+  private async fetchWithRetries(url: string, acceptLanguage: string, kind: 'html' | 'xml' = 'html'): Promise<PageFetchResult> {
     let lastError: PageFetchResult | null = null;
     for (let attempt = 0; attempt <= this.options.maxRetries; attempt++) {
       if (attempt > 0) {
@@ -224,8 +244,9 @@ export class PoliteHttpClient {
       }
 
       const contentType = response.headers.get('content-type');
-      if (contentType && !HTML_CONTENT_TYPES.test(contentType)) {
-        return failure(url, 'not_html', `Content-Type ${contentType} is not an HTML type`, {
+      const allowedTypes = kind === 'xml' ? XML_CONTENT_TYPES : HTML_CONTENT_TYPES;
+      if (contentType && !allowedTypes.test(contentType)) {
+        return failure(url, 'not_html', `Content-Type ${contentType} is not a ${kind.toUpperCase()} type`, {
           status: response.status,
           finalUrl: response.url || url,
           contentType,
@@ -242,7 +263,28 @@ export class PoliteHttpClient {
         });
       }
 
-      const bytes = new Uint8Array(await response.arrayBuffer());
+      let bytes = new Uint8Array(await response.arrayBuffer());
+      if (isGzip(bytes)) {
+        try {
+          const inflated = gunzipSync(bytes);
+          // Guard the DECOMPRESSED size too: a small gzip body can expand
+          // to an enormous document, and the byte cap must survive that.
+          if (inflated.byteLength > this.options.maxResponseBytes) {
+            return failure(url, 'too_large', `Decompressed body of ${inflated.byteLength} bytes exceeds cap`, {
+              status: response.status,
+              finalUrl: response.url || url,
+              retries: attempt,
+            });
+          }
+          bytes = new Uint8Array(inflated);
+        } catch (err) {
+          return failure(url, 'not_html', `Body is gzipped but could not be decompressed: ${err instanceof Error ? err.message : String(err)}`, {
+            status: response.status,
+            finalUrl: response.url || url,
+            retries: attempt,
+          });
+        }
+      }
       if (bytes.byteLength > this.options.maxResponseBytes) {
         return failure(url, 'too_large', `Body of ${bytes.byteLength} bytes exceeds cap ${this.options.maxResponseBytes}`, {
           status: response.status,
