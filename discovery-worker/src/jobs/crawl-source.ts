@@ -316,7 +316,8 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
       }
 
       summary.pagesFetched++;
-      let processed = processPage(source.id, url, fetched.html);
+      const sourceContext = { sourceType: source.source_type, countryCode: source.country_code };
+      let processed = processPage(source.id, url, fetched.html, sourceContext);
 
       // Headless-render fallback. Only for pages whose fetched HTML
       // yielded nothing extractable — the modern SPA case, where the
@@ -333,7 +334,7 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
         summary.pagesRendered++;
         const rendered = await ports.renderPage(url);
         if (rendered.html) {
-          const reprocessed = processPage(source.id, url, rendered.html);
+          const reprocessed = processPage(source.id, url, rendered.html, sourceContext);
           if (shouldPersistDiscoveredPage(reprocessed).persist) {
             // Record HOW the content was obtained, so a reviewer can see
             // that this candidate only exists because of rendering, and

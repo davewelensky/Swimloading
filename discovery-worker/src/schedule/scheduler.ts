@@ -11,6 +11,11 @@ export interface SchedulableSource {
   next_run_at: string | null;
   language_codes: string[] | null;
   consecutive_failure_count: number;
+  // Curated context passed into extraction: source_type corroborates
+  // classification when a page's own wording is inconclusive, and
+  // country_code fills in a location the page never stated.
+  source_type: string | null;
+  country_code: string | null;
 }
 
 // Parser types this worker can actually execute today. 'manual' sources

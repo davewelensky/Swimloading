@@ -4,7 +4,7 @@ import type { CandidateEvent } from '../domain/candidate-event.js';
 import type { ClassificationResult } from '../extract/classify.js';
 import type { ConfidenceBreakdown } from '../confidence/score.js';
 import type { ValidationResult } from '../domain/validation.js';
-import { runExtractionPipeline } from './extract-pipeline.js';
+import { runExtractionPipeline, type SourceContext } from './extract-pipeline.js';
 
 export interface ProcessedPage {
   url: string;
@@ -24,9 +24,9 @@ export interface ProcessedPage {
 // Pure: same HTML in, same result out. Safe to call twice on one URL —
 // once on the fetched HTML and again on the rendered HTML — which is
 // exactly what the headless-render fallback in crawl-source.ts does.
-export function processPage(sourceId: string, url: string, html: string): ProcessedPage {
+export function processPage(sourceId: string, url: string, html: string, context: SourceContext = {}): ProcessedPage {
   const source = makeLiveSourceRecord(sourceId, url, html);
-  const { candidate, classification, confidence, validation } = runExtractionPipeline(source);
+  const { candidate, classification, confidence, validation } = runExtractionPipeline(source, context);
 
   const pageLanguage = detectPageLanguage(html);
   candidate.rawSourceValues = { ...candidate.rawSourceValues, pageLanguage };

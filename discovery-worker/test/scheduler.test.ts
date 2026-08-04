@@ -21,6 +21,8 @@ function source(overrides: Partial<SchedulableSource>): SchedulableSource {
     next_run_at: null,
     language_codes: ['en'],
     consecutive_failure_count: 0,
+    source_type: 'club',
+    country_code: 'ZA',
     ...overrides,
   };
 }

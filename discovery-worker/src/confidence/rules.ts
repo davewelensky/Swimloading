@@ -100,8 +100,12 @@ const NEGATIVE_RULES: ScoringRule[] = [
     evaluate: (c) => (!c.city && !c.countryCode ? { points: -10, reason: 'no city or country could be resolved' } : null),
   },
   {
+    // -10 rather than -20: this is "we could not tell what kind of swim
+    // this is", not "this is the wrong kind of thing". The hard vetoes in
+    // score.ts handle actual evidence of ineligibility; an unclear page
+    // with otherwise strong facts should still reach a reviewer.
     id: 'classification_uncertainty',
-    evaluate: (_c, cl) => (cl.classification === 'unclassified' ? { points: -20, reason: 'classification could not be determined' } : null),
+    evaluate: (_c, cl) => (cl.classification === 'unclassified' ? { points: -10, reason: 'classification could not be determined' } : null),
   },
   {
     id: 'triathlon_only_page',

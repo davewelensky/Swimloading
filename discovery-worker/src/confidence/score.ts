@@ -1,7 +1,25 @@
 import type { CandidateEvent } from '../domain/candidate-event.js';
-import type { PublicationRecommendation } from '../domain/enums.js';
+import type { Classification, PublicationRecommendation } from '../domain/enums.js';
 import type { ClassificationResult } from '../extract/classify.js';
 import { ALL_RULES, type ConfidenceContext } from './rules.js';
+
+// Classifications that are POSITIVE evidence the page is not an
+// open-water opportunity. These veto publication whatever the score.
+//
+// 'unclassified' is deliberately NOT in this list. It means "we could not
+// tell", which is absence of evidence rather than evidence of absence —
+// treating it as a veto force-rejected genuine events that had a name, an
+// exact date, a registration URL and JSON-LD, purely because the page did
+// not spell out what kind of swim it was. Those now fall through to the
+// numeric score and reach a human, which is the whole point of a review
+// queue.
+const HARD_VETO_CLASSIFICATIONS = new Set<Classification>([
+  'pool_only',
+  'triathlon_only',
+  'historical_result',
+  'general_tourism_page',
+  'no_actual_opportunity',
+]);
 
 export interface ConfidenceBreakdown {
   totalScore: number;
@@ -11,9 +29,14 @@ export interface ConfidenceBreakdown {
 
 // Deterministic rule-based scoring — every point on the score is
 // traceable to a named rule in confidence/rules.ts. No LLM involvement.
-// Ineligible classifications (pool_only, triathlon_only, historical_result,
-// etc.) are always forced to "rejected" regardless of the numeric score —
-// eligibility is a hard gate, not something a high score can override.
+//
+// Thresholds lean towards putting things IN FRONT OF A REVIEWER rather
+// than silently discarding them (product decision, 2026-08-04): the
+// catalogue carries an explicit "confirm with the organiser before you
+// travel" disclaimer, a listing is not a warranty, and a missed real
+// swim costs more than a candidate a human takes five seconds to reject.
+// Only positive evidence of ineligibility (see HARD_VETO_CLASSIFICATIONS)
+// rejects outright.
 export function scoreCandidate(
   candidate: CandidateEvent,
   classification: ClassificationResult,
@@ -39,13 +62,13 @@ export function scoreCandidate(
   // is "insufficient_evidence", not "rejected" — it needs more/better
   // source data, not outright dismissal.
   let recommendation: PublicationRecommendation;
-  if (!classification.eligible) {
+  if (HARD_VETO_CLASSIFICATIONS.has(classification.classification)) {
     recommendation = 'rejected';
   } else if (totalScore >= 75) {
     recommendation = 'high_confidence';
-  } else if (totalScore >= 50) {
+  } else if (totalScore >= 40) {
     recommendation = 'manual_review';
-  } else if (totalScore >= 15) {
+  } else if (totalScore >= 10) {
     recommendation = 'insufficient_evidence';
   } else {
     recommendation = 'rejected';
