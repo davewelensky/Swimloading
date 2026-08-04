@@ -310,20 +310,56 @@ const WEEKDAY_PATTERN = toPattern(Object.keys(WEEKDAY_NAMES));
 //   * weekday present and it matches a NEIGHBOURING year (a schedule
 //     spilling past New Year) -> confirmed on that year instead
 //   * weekday present and it matches nothing nearby   -> left unconfirmed
-//   * no weekday at all -> NO date, because a bare year hint is inference
-//     and this pipeline does not publish inferred dates as fact. The
-//     schema agrees and enforces it: dce_unconfirmed_has_no_dates is
-//     `date_confirmed OR (start_date IS NULL AND end_date IS NULL)`, so
-//     returning an unconfirmed date here does not merely produce a weak
-//     candidate — it throws on INSERT and aborts the whole source's crawl.
-//     (That is exactly what happened to Vansbrosimningen on 2026-08-04:
-//     16 candidates written, then the run died and its AI telemetry with
-//     it. Ray's Notebook always prints weekdays, which is why the table
-//     path never surfaced this.)
+//   * no weekday, but the PAGE ITSELF states a year -> accepted, with a
+//     warning naming where the year came from. This is the season-schedule
+//     case: a table headed "2026 全国OWS大会一覧" whose rows read "6月28日"
+//     has stated both halves of the date, just in different places.
+//     pageYearFrom reads the year off the page's own title or heading — it
+//     does not invent one — so reading the two together is reading the
+//     page, not inferring from it.
+//
+//     Requiring a weekday here cost more than it protected: 98 of 103
+//     review-queue items were dateless season-schedule rows (75 Brazilian,
+//     14 Japanese), unactionable because there was no date to check, while
+//     two whole countries produced nothing publishable. The residual risk
+//     — a heading year that does not match the rows, e.g. an archive page
+//     — is caught downstream rather than trusted: `historical_page` docks
+//     30 points from any past date and retire_past_candidates clears them.
+//
+//     A weekday, where a page prints one, is still strictly better and is
+//     still tried first: it VERIFIES the year rather than accepting it,
+//     and can override the page's year outright when a schedule spills
+//     into the next one.
+//
+//   * no weekday and no page year -> NO date. Nothing has been stated and
+//     nothing is guessed. The schema enforces this too:
+//     dce_unconfirmed_has_no_dates is `date_confirmed OR (start_date IS
+//     NULL AND end_date IS NULL)`, so an unconfirmed date does not merely
+//     produce a weak candidate — it throws on INSERT and aborts the whole
+//     source's crawl, as it did to Vansbrosimningen on 2026-08-04.
 export function parseYearlessDate(text: string | null, yearHint: number | null): ParsedDate {
   if (!text || !text.trim()) return unknownDate();
   const cleaned = text.trim();
   const folded = foldForMatching(cleaned);
+
+  // East Asian rows are numeric — "6月28日" carries no month word for the
+  // name table to match, which is why 14 Japanese events sat dateless.
+  const cjk = CJK_MONTH_DAY.exec(cleaned);
+  if (cjk?.[1] && cjk[2] && yearHint !== null) {
+    const cjkMonth = Number(cjk[1]);
+    const cjkDay = Number(cjk[2]);
+    if (cjkMonth >= 1 && cjkMonth <= 12 && cjkDay >= 1 && cjkDay <= daysInMonth(yearHint, cjkMonth)) {
+      return {
+        startDate: isoDate(yearHint, cjkMonth, cjkDay),
+        endDate: null,
+        datePrecision: 'exact',
+        dateConfirmed: true,
+        warnings: [
+          `Year ${yearHint} taken from the page's own heading, not from "${cleaned}", which states only the month and day`,
+        ],
+      };
+    }
+  }
 
   // "Feb 14" (month first) or "14 Feb" (day first).
   const monthFirst = new RegExp(`\\b(${MONTH_PATTERN})\\s+(\\d{1,2})\\b`, 'i').exec(folded);
@@ -355,14 +391,20 @@ export function parseYearlessDate(text: string | null, yearHint: number | null):
   }
 
   if (weekday === undefined) {
-    // The day and month are known; only the year is guesswork, and a
-    // guessed year is how a past event becomes a fabricated future one.
-    // The month/day still reach the reviewer in the warning, so nothing
-    // is lost that a human could not act on.
-    return unknownDate([
-      `Day and month read as ${pad(day)}/${pad(month)} from "${cleaned}", but the page gives no weekday to verify the year ` +
-        `against ${yearHint} — date left unset rather than assumed`,
-    ]);
+    // The page stated the year in its heading and the row stated the day
+    // and month. Both halves are read, neither is guessed — but the
+    // warning names the split so a reviewer knows the year did not come
+    // from the same line as the date.
+    return {
+      startDate: isoDate(yearHint, month, day),
+      endDate: null,
+      datePrecision: 'exact',
+      dateConfirmed: true,
+      warnings: [
+        `Year ${yearHint} taken from the page's own heading, not from "${cleaned}", which states only the day and month — ` +
+          `no weekday was printed to verify it against`,
+      ],
+    };
   }
 
   // Check the hinted year first, then its neighbours — a season schedule

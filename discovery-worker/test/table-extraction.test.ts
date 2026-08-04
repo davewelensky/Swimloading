@@ -51,18 +51,31 @@ test('a yearless date is CONFIRMED only when its weekday verifies the year', () 
   assert.equal(bad.dateConfirmed, false);
   assert.equal(bad.startDate, null);
 
-  // No weekday at all -> NO date. This assertion used to expect a usable
-  // but unconfirmed date, and that expectation was wrong in a way that
-  // took a production crawl down on 2026-08-04: the schema enforces
-  // dce_unconfirmed_has_no_dates (`date_confirmed OR (start_date IS NULL
-  // AND end_date IS NULL)`), so an unconfirmed date does not produce a
-  // weak candidate — it throws on INSERT and aborts the whole source.
-  // The day and month still reach the reviewer via the warning.
+  // No weekday, but the page states a year -> accepted, with the split
+  // named in the warning. The row states day and month, the page heading
+  // states the year; both halves are read off the page, neither guessed.
+  // Requiring a weekday here left 98 of 103 review-queue items dateless
+  // and unactionable (75 Brazilian, 14 Japanese season-schedule rows).
   const noDay = parseYearlessDate('Feb 14', 2026);
-  assert.equal(noDay.startDate, null);
-  assert.equal(noDay.endDate, null);
-  assert.equal(noDay.dateConfirmed, false);
-  assert.match(noDay.warnings.join(' '), /no weekday to verify the year/);
+  assert.equal(noDay.startDate, '2026-02-14');
+  assert.equal(noDay.dateConfirmed, true);
+  assert.match(noDay.warnings.join(' '), /taken from the page's own heading/);
+
+  // No weekday AND no page year -> still nothing. Neither half was stated,
+  // and the schema forbids storing an unconfirmed date anyway.
+  const nothing = parseYearlessDate('Feb 14', null);
+  assert.equal(nothing.startDate, null);
+  assert.equal(nothing.dateConfirmed, false);
+
+  // A weekday still WINS over the page's year — it verifies rather than
+  // accepts, and can override the heading outright (see the spill case).
+  const contradicts = parseYearlessDate('Feb 14, Wed', 2026);
+  assert.equal(contradicts.startDate, null);
+
+  // East Asian rows are numeric and carry no month word to look up.
+  const jp = parseYearlessDate('6月28日', 2026);
+  assert.equal(jp.startDate, '2026-06-28');
+  assert.equal(jp.dateConfirmed, true);
 
   // A schedule spilling into the next year resolves onto it.
   const spill = parseYearlessDate('Jan 2, Fri', 2025); // 2 Jan 2026 is a Friday
