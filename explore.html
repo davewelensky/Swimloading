@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Find a Swim — SwimLoading</title>
-<meta name="description" content="Find open water swims anywhere — the big ones worth travelling for, or something local while you're away.">
-<!-- noindex while the catalogue is still being seeded. Remove this once the
-     listings are real, verified events rather than development fixtures —
-     an indexed page of invented swims would be worse than no page. -->
+<title>Where to swim — SwimLoading</title>
+<meta name="description" content="Every open water swim worth travelling for, plotted by where and when. The season never ends — it moves.">
+<!-- noindex while the catalogue is still filling out. Remove once coverage
+     outside North America is representative — an indexed page that answers
+     "swims in South Africa" with Florida is worse than no page. -->
 <meta name="robots" content="noindex,nofollow">
 <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
@@ -15,85 +15,157 @@
 <script src="https://unpkg.com/lucide@latest"></script>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  :root{--bg:#080f1a;--card:#0d1728;--cyan:#38bdf8;--text:#f1f5f9;--sec:#64748b;
-        --border:rgba(255,255,255,0.08);--amber:#f59e0b;--green:#10b981}
-  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh}
+  :root{
+    --bg:#080f1a; --card:#0d1728; --cyan:#38bdf8; --text:#f1f5f9; --sec:#64748b;
+    --border:rgba(255,255,255,.07); --amber:#f59e0b; --green:#10b981;
+    /* Latitude bands. These are a geographic fact — where on the planet the
+       swim is — not a claim about water temperature, which we do not have
+       per event. Labelled as latitude everywhere they appear. */
+    --far-north:#7dd3fc; --temperate:#2dd4bf; --tropics:#fbbf24; --southern:#c084fc;
+  }
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.55;overflow-x:hidden}
   body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
-    background:radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,.55),transparent 100%),
-               radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,.07),transparent 70%)}
-  nav{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;
-      border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;
-      background:rgba(8,15,26,.9);backdrop-filter:blur(8px)}
-  .brand{display:flex;align-items:center;gap:7px;text-decoration:none}
-  .brand img{height:22px}
-  .brand span{font-size:20px;font-weight:800;letter-spacing:-.5px;
-    background:linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
-    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-  nav a.cta{background:var(--cyan);color:#080f1a;text-decoration:none;border-radius:50px;
-            padding:9px 20px;font-weight:700;font-size:13px}
-  .wrap{max-width:1080px;margin:0 auto;padding:26px 22px 60px}
-  h1{font-family:'Bebas Neue',sans-serif;font-size:46px;letter-spacing:.5px;line-height:1}
-  .lede{color:var(--sec);font-size:15px;margin:6px 0 22px;max-width:640px}
+    background:
+      radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,.55),transparent 100%),
+      radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,.07),transparent 70%)}
+  a{color:inherit}
 
-  .modes{display:flex;gap:9px;margin-bottom:16px;flex-wrap:wrap}
-  .modes button{background:transparent;border:1px solid var(--border);color:var(--sec);
-    border-radius:50px;padding:10px 20px;font-family:inherit;font-size:14px;cursor:pointer}
-  .modes button.on{background:var(--cyan);border-color:var(--cyan);color:#080f1a;font-weight:700}
+  nav{position:sticky;top:0;z-index:60;display:flex;align-items:center;justify-content:space-between;
+      padding:14px 22px;background:rgba(8,15,26,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+  .brand{display:flex;align-items:center;gap:7px;text-decoration:none;font-size:20px;font-weight:800;
+         letter-spacing:-.5px;background:linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+         -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .brand img{height:22px;width:auto}
+  nav .cta{text-decoration:none;background:var(--cyan);color:#080f1a;padding:9px 20px;border-radius:50px;
+           font-weight:700;font-size:13px}
 
-  .panel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:22px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
-  label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--sec);margin-bottom:6px}
-  input,select{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);
-    border-radius:9px;padding:11px;color:var(--text);font-family:inherit;font-size:14px}
-  input[type=range]{padding:0}
-  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
-  .chk{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--text);cursor:pointer}
-  .chk input{width:auto}
-  button.go{background:var(--cyan);color:#080f1a;border:none;border-radius:50px;
-    padding:12px 28px;font-weight:700;font-family:inherit;font-size:15px;cursor:pointer}
-  button.ghost{background:transparent;border:1px solid var(--border);color:var(--text);
-    border-radius:50px;padding:11px 18px;font-family:inherit;font-size:13px;cursor:pointer}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 22px 90px}
 
-  .result{background:var(--card);border:1px solid var(--border);border-radius:14px;
-          padding:18px;margin-bottom:12px;display:flex;gap:18px;flex-wrap:wrap}
-  .result-main{flex:1;min-width:260px}
-  .result h3{font-size:19px;font-weight:600;margin-bottom:4px}
-  .result .where{color:var(--sec);font-size:14px;margin-bottom:10px}
-  .when{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--cyan);line-height:1.05}
-  .when small{display:block;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--sec);letter-spacing:0}
-  .aside{text-align:right;min-width:120px}
+  /* ── Hero ─────────────────────────────────────────────────────────── */
+  .hero{padding:64px 0 30px;max-width:760px}
+  .eyebrow{font-size:11px;letter-spacing:2.4px;text-transform:uppercase;color:var(--cyan);
+           font-weight:700;margin-bottom:16px}
+  h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(46px,8.5vw,92px);line-height:.92;
+     letter-spacing:.5px;margin-bottom:18px}
+  h1 em{font-style:normal;color:var(--cyan)}
+  .lede{color:#94a3b8;font-size:17px;max-width:600px}
+  .tally{display:flex;gap:30px;flex-wrap:wrap;margin-top:26px}
+  .tally div{display:flex;flex-direction:column}
+  .tally b{font-family:'Bebas Neue',sans-serif;font-size:34px;line-height:1;letter-spacing:.5px}
+  .tally span{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--sec);margin-top:4px}
+
+  /* ── The season chart: the page's signature ───────────────────────── */
+  .season{margin-top:44px;background:var(--card);border:1px solid var(--border);border-radius:18px;
+          padding:22px 20px 14px;position:relative;overflow:hidden}
+  .season::after{content:'';position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(700px 220px at 20% -10%,rgba(56,189,248,.09),transparent 70%)}
+  .season-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;
+               flex-wrap:wrap;margin-bottom:6px;position:relative;z-index:1}
+  .season-title{font-family:'Bebas Neue',sans-serif;font-size:23px;letter-spacing:.7px}
+  .season-sub{color:var(--sec);font-size:12.5px;max-width:430px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--sec)}
+  .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
+  .chart-scroll{overflow-x:auto;overflow-y:hidden;position:relative;z-index:1;
+                scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.14) transparent}
+  svg.chart{display:block;min-width:620px;width:100%;height:266px}
+  .chart .grid-line{stroke:rgba(255,255,255,.055)}
+  .chart .axis-label{fill:var(--sec);font-size:10px;font-family:'DM Sans',sans-serif;letter-spacing:.5px}
+  .chart .equator{stroke:rgba(255,255,255,.2);stroke-dasharray:3 4}
+  .chart .mcol{fill:transparent;cursor:pointer}
+  .chart .mcol:hover{fill:rgba(56,189,248,.06)}
+  .chart .mcol.sel{fill:rgba(56,189,248,.13)}
+  .chart .dot{cursor:pointer;transition:r .12s ease,opacity .12s ease}
+  .chart .dot:hover{r:7}
+  .chart .dot.dim{opacity:.16}
+  .chart .mlabel{fill:var(--sec);font-size:10.5px;letter-spacing:.6px;text-anchor:middle;
+                 cursor:pointer;font-family:'DM Sans',sans-serif}
+  .chart .mlabel.sel{fill:var(--cyan);font-weight:700}
+  .tip{position:fixed;z-index:200;pointer-events:none;background:#0a1424;border:1px solid rgba(56,189,248,.3);
+       border-radius:10px;padding:9px 12px;font-size:12.5px;max-width:250px;opacity:0;transition:opacity .12s;
+       box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  .tip b{display:block;font-size:13.5px;margin-bottom:2px}
+  .tip span{color:var(--sec)}
+  .season-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+               margin-top:2px;position:relative;z-index:1}
+  .clearsel{background:none;border:none;color:var(--cyan);font-family:inherit;font-size:12px;
+            cursor:pointer;padding:4px 0;text-decoration:underline;text-underline-offset:3px}
+
+  /* ── Search ───────────────────────────────────────────────────────── */
+  .finder{margin-top:34px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+  .field{position:relative;flex:1;min-width:250px}
+  .field label,.mini label{display:block;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;
+                           color:var(--sec);margin-bottom:7px;font-weight:600}
+  .field input,.mini select,.mini input{width:100%;background:#0b1524;border:1px solid var(--border);
+    color:var(--text);padding:13px 15px;border-radius:11px;font-family:inherit;font-size:15px}
+  .field input{padding-left:42px}
+  .field input:focus,.mini select:focus,.mini input:focus{outline:none;border-color:var(--cyan);
+    box-shadow:0 0 0 3px rgba(56,189,248,.14)}
+  .field .pin{position:absolute;left:14px;top:38px;color:var(--sec);width:17px;height:17px}
+  .mini{min-width:150px}
+  .ac{position:absolute;top:100%;left:0;right:0;margin-top:6px;background:#0b1524;
+      border:1px solid rgba(56,189,248,.24);border-radius:12px;overflow:hidden;z-index:70;
+      max-height:290px;overflow-y:auto;box-shadow:0 18px 40px rgba(0,0,0,.55);display:none}
+  .ac.open{display:block}
+  .ac button{width:100%;text-align:left;background:none;border:none;color:var(--text);
+             font-family:inherit;font-size:14px;padding:11px 15px;cursor:pointer;display:flex;
+             justify-content:space-between;gap:10px;align-items:center}
+  .ac button:hover,.ac button.hi{background:rgba(56,189,248,.12)}
+  .ac .kind{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--sec)}
+  .ac .n{color:var(--cyan);font-weight:700;font-size:12.5px}
+
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;align-items:center}
+  .chip{background:rgba(255,255,255,.05);border:1px solid var(--border);color:#cbd5e1;
+        border-radius:50px;padding:7px 14px;font-size:12.5px;cursor:pointer;font-family:inherit}
+  .chip:hover{border-color:rgba(56,189,248,.45);color:#fff}
+  .chip.on{background:var(--cyan);color:#080f1a;border-color:var(--cyan);font-weight:700}
+
+  /* ── Results ──────────────────────────────────────────────────────── */
+  .count{margin:26px 0 14px;color:var(--sec);font-size:13.5px}
+  .month-head{font-family:'Bebas Neue',sans-serif;font-size:21px;letter-spacing:1.2px;color:var(--cyan);
+              margin:26px 0 11px;display:flex;align-items:center;gap:12px}
+  .month-head::after{content:'';flex:1;height:1px;background:var(--border)}
+  .result{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:17px 18px;
+          margin-bottom:10px;display:flex;gap:18px;flex-wrap:wrap;transition:border-color .15s,transform .15s}
+  .result:hover{border-color:rgba(56,189,248,.35);transform:translateY(-1px)}
+  .result-main{flex:1;min-width:250px}
+  .result h3{font-size:18px;font-weight:600;margin-bottom:5px;line-height:1.28}
+  .where{color:var(--sec);font-size:13.5px;margin-bottom:10px}
   .badge{display:inline-block;font-size:10px;text-transform:uppercase;letter-spacing:.6px;
          padding:3px 10px;border-radius:50px;font-weight:700;margin-right:5px}
   .b-iconic{background:rgba(56,189,248,.18);color:var(--cyan)}
   .b-major{background:rgba(16,185,129,.15);color:var(--green)}
   .b-regional{background:rgba(245,158,11,.13);color:var(--amber)}
   .b-local{background:rgba(100,116,139,.2);color:var(--sec)}
-  /* How well we verified this listing. Distinct from the prominence
-     badges above (how big the swim is) — outlined rather than filled, so
-     the two never read as one scale. */
   .vtier{display:inline-flex;align-items:center;gap:4px;font-size:10px;text-transform:uppercase;
          letter-spacing:.6px;padding:3px 9px;border-radius:50px;font-weight:700;
          border:1px solid currentColor;background:transparent}
   .vtier i{width:11px;height:11px}
-  .v-confirmed{color:var(--green)}
-  .v-listed{color:var(--cyan)}
-  .v-unverified{color:var(--amber)}
+  .v-confirmed{color:var(--green)} .v-listed{color:var(--cyan)} .v-unverified{color:var(--amber)}
   .dists{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
   .dist{background:rgba(255,255,255,.05);border-radius:7px;padding:5px 11px;font-size:13px}
-  .verify{margin-top:12px;padding-top:11px;border-top:1px solid var(--border);
-          font-size:12px;color:var(--sec);display:flex;align-items:flex-start;gap:7px}
+  .verify{margin-top:12px;padding-top:11px;border-top:1px solid var(--border);font-size:12px;
+          color:var(--sec);display:flex;align-items:flex-start;gap:7px}
+  .verify i{width:14px;height:14px;flex-shrink:0;margin-top:2px}
   .verify a{color:var(--cyan)}
-  .empty{color:var(--sec);text-align:center;padding:50px 20px}
-  .count{color:var(--sec);font-size:13px;margin-bottom:12px}
-  [data-lucide]{width:13px;height:13px;stroke-width:2;flex-shrink:0}
-  @media(max-width:600px){
-    h1{font-size:36px}
-    .aside{text-align:left}
-    /* Stop the CTA overlapping the wordmark on narrow screens. */
-    nav{padding:12px 14px;gap:10px}
-    .brand span{font-size:16px}
-    .brand img{height:18px}
-    nav a.cta{padding:8px 14px;font-size:12px;white-space:nowrap}
+  .aside{text-align:right;min-width:112px}
+  .when{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--cyan);line-height:1.05}
+  .when small{display:block;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--sec);letter-spacing:0}
+  .empty{text-align:center;color:var(--sec);padding:52px 20px;background:var(--card);
+         border:1px dashed var(--border);border-radius:14px}
+  .empty b{color:var(--text);display:block;font-size:16px;margin-bottom:6px}
+
+  @media (max-width:640px){
+    .hero{padding:40px 0 22px}
+    .tally{gap:22px}
+    .season{padding:18px 14px 10px}
+    .aside{text-align:left;min-width:0}
+    .when{font-size:22px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none!important;animation:none!important}
+    html{scroll-behavior:auto}
   }
 </style>
 </head>
@@ -104,50 +176,72 @@
 </nav>
 
 <div class="wrap">
-  <h1>Find a swim</h1>
-  <p class="lede">Open water events worldwide — the big ones worth booking a flight for, or something local to sample while you're away for the weekend.</p>
+  <header class="hero">
+    <div class="eyebrow">Open water, worldwide</div>
+    <h1>The season never ends.<br><em>It moves.</em></h1>
+    <p class="lede">Somewhere on the planet the water is right today. Here is every swim we can find, plotted by
+       where it is and when it happens — so you can see the season migrate, and go and meet it.</p>
+    <div class="tally">
+      <div><b id="tEvents">—</b><span>swims listed</span></div>
+      <div><b id="tCountries">—</b><span>countries</span></div>
+      <div><b id="tSoon">—</b><span>in the next 30 days</span></div>
+    </div>
+  </header>
 
-  <div class="modes">
-    <button id="mBig"   class="on" onclick="setMode('big')">Big swims worth travelling for</button>
-    <button id="mLocal"          onclick="setMode('local')">What's on near me</button>
-  </div>
-
-  <div class="panel">
-    <div class="grid">
-      <div id="whereWrap">
-        <label for="where">Where</label>
-        <select id="where" onchange="onWhereChange()"></select>
-      </div>
-      <div><label for="from">From</label><input type="date" id="from"></div>
-      <div><label for="to">To</label><input type="date" id="to"></div>
+  <section class="season" aria-labelledby="seasonTitle">
+    <div class="season-head">
       <div>
-        <label for="minDist">Shortest swim you'd enter</label>
-        <select id="minDist">
-          <option value="">Any distance</option>
-          <option value="1000">1 km +</option>
-          <option value="3000">3 km +</option>
-          <option value="5000">5 km +</option>
-          <option value="10000">10 km +</option>
-        </select>
+        <div class="season-title" id="seasonTitle">Every swim, by latitude and month</div>
+        <div class="season-sub">Each dot is one swim. Follow a band across and you are following its summer.
+          Click a month to filter.</div>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--far-north)"></i>Above 45°N</span>
+        <span><i style="background:var(--temperate)"></i>23–45°</span>
+        <span><i style="background:var(--tropics)"></i>Tropics</span>
+        <span><i style="background:var(--southern)"></i>Below 23°S</span>
       </div>
     </div>
-
-    <div id="radiusWrap" style="margin-top:14px;display:none">
-      <label for="radius">How far you'd travel — <span id="radiusLabel">150 km</span></label>
-      <input type="range" id="radius" min="10" max="800" step="10" value="150"
-             oninput="document.getElementById('radiusLabel').textContent=this.value+' km'">
+    <div class="chart-scroll">
+      <svg class="chart" id="chart" role="img" aria-label="Swims plotted by latitude and month"></svg>
     </div>
+    <div class="season-foot">
+      <span style="color:var(--sec);font-size:11.5px">Latitude is where on the planet a swim is — not its water temperature.</span>
+      <button class="clearsel" id="clearMonth" style="display:none" onclick="selectMonth(null)">Show every month</button>
+    </div>
+  </section>
 
-    <div class="row">
-      <label class="chk"><input type="checkbox" id="weekend"> Weekends only</label>
-      <button class="ghost" onclick="useMyLocation()"><i data-lucide="crosshair"></i> Use my location</button>
-      <button class="go" style="margin-left:auto" onclick="search()">Search</button>
+  <div class="finder">
+    <div class="field">
+      <label for="q">Where do you want to swim?</label>
+      <i class="pin" data-lucide="map-pin"></i>
+      <input id="q" type="text" autocomplete="off" placeholder="Country, state or town — try Vermont, or Cape Town"
+             oninput="onQuery()" onkeydown="onQueryKey(event)" onfocus="onQuery()">
+      <div class="ac" id="ac"></div>
+    </div>
+    <div class="mini">
+      <label for="minDist">Shortest swim</label>
+      <select id="minDist" onchange="applyFilters()">
+        <option value="">Any distance</option>
+        <option value="1000">1 km +</option>
+        <option value="3000">3 km +</option>
+        <option value="5000">5 km +</option>
+        <option value="10000">10 km +</option>
+      </select>
+    </div>
+    <div class="mini">
+      <label for="to">Before</label>
+      <input type="date" id="to" onchange="applyFilters()">
     </div>
   </div>
+
+  <div class="chips" id="chips"></div>
 
   <div id="count" class="count"></div>
   <div id="results"></div>
 </div>
+
+<div class="tip" id="tip"></div>
 
 <script>
 const SUPABASE_URL='https://szgkzuswelntnevobnoh.supabase.co';
@@ -159,199 +253,361 @@ document.addEventListener('mousemove',e=>{
   document.body.style.setProperty('--mouse-y',e.clientY+'px');
 });
 
-// There is no geocoder in this project yet, so origins come from a curated
-// list plus the browser's own location. Typing an arbitrary place name is
-// the next step — see docs/global-swim-discovery/database-schema.md.
-const PLACES = [
-  { label:'Anywhere in the world', lat:null, lng:null },
-  { label:'— United Kingdom —', disabled:true },
-  { label:'Manchester',  lat:53.4808, lng:-2.2426 },
-  { label:'London',      lat:51.5072, lng:-0.1276 },
-  { label:'Windermere',  lat:54.3667, lng:-2.9167 },
-  { label:'Edinburgh',   lat:55.9533, lng:-3.1883 },
-  { label:'Brighton',    lat:50.8195, lng:-0.1372 },
-  { label:'Plymouth',    lat:50.3714, lng:-4.1422 },
-  { label:'— South Africa —', disabled:true },
-  { label:'Cape Town',   lat:-33.9249, lng:18.4241 },
-  { label:'Durban',      lat:-29.8587, lng:31.0218 },
-  { label:'Johannesburg',lat:-26.2041, lng:28.0473 },
-  { label:'— Elsewhere —', disabled:true },
-  { label:'Dublin',      lat:53.3498, lng:-6.2603 },
-  { label:'Sydney',      lat:-33.8688, lng:151.2093 },
-  { label:'New York',    lat:40.7128, lng:-74.0060 }
-];
+// The whole forward catalogue is fetched once and filtered in the browser.
+// It is a couple of hundred rows, so every interaction is instant, the
+// place list is built from swims that actually exist, and there is no way
+// to pick a filter that silently returns nothing because the server
+// disagreed with the dropdown.
+const LIMIT = 200;
+let ALL = [], VIEW = [], PLACES = [];
+let SEL = { place:null, month:null };
+let acIndex = -1;
 
-let MODE='big', myLoc=null;
+const esc = s => s==null ? '' : String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const icons = () => { if(window.lucide) lucide.createIcons(); };
 
-function esc(s){ return s==null?'':String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function icons(){ if(window.lucide) lucide.createIcons(); }
+const COUNTRY_NAMES = {
+  US:'United States', CA:'Canada', GB:'United Kingdom', IE:'Ireland', ZA:'South Africa',
+  AU:'Australia', NZ:'New Zealand', ES:'Spain', IT:'Italy', FR:'France', DE:'Germany',
+  GR:'Greece', MT:'Malta', TR:'Türkiye', UA:'Ukraine', KZ:'Kazakhstan', TH:'Thailand',
+  AE:'United Arab Emirates', EG:'Egypt', CO:'Colombia', CR:'Costa Rica', EC:'Ecuador',
+  DO:'Dominican Republic', BB:'Barbados', BM:'Bermuda', CY:'Cyprus', MX:'Mexico',
+  BR:'Brazil', AR:'Argentina', PT:'Portugal', NL:'Netherlands', DK:'Denmark',
+  NO:'Norway', SE:'Sweden', FI:'Finland', PL:'Poland', HR:'Croatia', JP:'Japan',
+  IN:'India', HK:'Hong Kong', SG:'Singapore', PH:'Philippines', AT:'Austria', CH:'Switzerland'
+};
+const countryName = c => COUNTRY_NAMES[c] || c || 'Unknown';
 
-function initPlaces(){
-  document.getElementById('where').innerHTML = PLACES.map((p,i)=>
-    p.disabled ? `<option disabled>${esc(p.label)}</option>`
-               : `<option value="${i}">${esc(p.label)}</option>`).join('');
+// US state / Canadian province codes, so a region reads as a place rather
+// than an abbreviation nobody outside that country recognises.
+const SUBDIVISIONS = {
+  AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',
+  DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',
+  KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',
+  MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',
+  NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',
+  OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',
+  TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',
+  WI:'Wisconsin',WY:'Wyoming',DC:'Washington DC',
+  AB:'Alberta',BC:'British Columbia',MB:'Manitoba',NB:'New Brunswick',NS:'Nova Scotia',
+  ON:'Ontario',PE:'Prince Edward Island',QC:'Quebec',SK:'Saskatchewan'
+};
+const regionName = r => SUBDIVISIONS[r] || r;
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const monthKey = d => d ? d.slice(0,7) : null;
+
+function latBand(lat){
+  if (lat == null) return 'temperate';
+  if (lat > 45)  return 'far-north';
+  if (lat > 23)  return 'temperate';
+  if (lat > -23) return 'tropics';
+  return 'southern';
+}
+const BAND_COLOUR = {'far-north':'#7dd3fc', temperate:'#2dd4bf', tropics:'#fbbf24', southern:'#c084fc'};
+
+function fmtDate(iso, precision, confirmed){
+  if(!iso) return {big:'Date TBC', small:''};
+  const d = new Date(iso+'T00:00:00Z');
+  const day = d.getUTCDate(), mon = MONTHS[d.getUTCMonth()], yr = d.getUTCFullYear();
+  if(precision === 'month' || !confirmed) return {big:`${mon} ${yr}`, small: confirmed?'':'unconfirmed'};
+  const wd = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getUTCDay()];
+  return {big:`${day} ${mon}`, small:`${wd} · ${yr}`};
 }
 
-function setMode(m){
-  MODE = m;
-  document.getElementById('mBig').classList.toggle('on', m==='big');
-  document.getElementById('mLocal').classList.toggle('on', m==='local');
-  // Destination mode searches the world and ranks by significance, so a
-  // radius makes no sense there. Local mode is all about the radius.
-  document.getElementById('radiusWrap').style.display = m==='local' ? 'block' : 'none';
-  if (m==='local' && document.getElementById('where').value === '0') {
-    document.getElementById('where').value = '2'; // default to Manchester rather than "anywhere"
-  }
-  search();
-}
+const placeOf = r => [r.city, r.region ? regionName(r.region) : null, countryName(r.country_code)]
+  .filter(Boolean).join(', ');
 
-function onWhereChange(){ myLoc = null; }
-
-function useMyLocation(){
-  if (!navigator.geolocation) { alert('Your browser cannot share a location.'); return; }
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      myLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      if (MODE !== 'local') setMode('local'); else search();
-    },
-    () => alert('Could not get your location. Pick a city from the list instead.')
-  );
-}
-
-function origin(){
-  if (myLoc) return myLoc;
-  const p = PLACES[parseInt(document.getElementById('where').value,10)];
-  return p && p.lat != null ? { lat:p.lat, lng:p.lng } : null;
-}
-
-function fmtDate(d, precision, confirmed){
-  if (!confirmed || !d) return { big:'Date TBC', small:'not yet confirmed' };
-  const dt = new Date(d+'T12:00:00');
-  if (precision === 'month') return { big: dt.toLocaleDateString('en-GB',{month:'long'}), small: dt.getFullYear() };
-  if (precision === 'year')  return { big: String(dt.getFullYear()), small:'exact date TBC' };
-  return {
-    big: dt.toLocaleDateString('en-GB',{day:'numeric',month:'short'}),
-    small: dt.toLocaleDateString('en-GB',{weekday:'long'}) + ' ' + dt.getFullYear()
-  };
-}
-
-// The search RPC caps at 200 however much we ask for, so this is the most
-// a single search can return. When a result set hits it exactly, the user
-// is told rather than being shown a truncated list that looks complete.
-const RESULT_LIMIT = 200;
-
-async function search(){
-  const o = origin();
-  const args = {
-    p_date_from: document.getElementById('from').value || null,
-    p_date_to:   document.getElementById('to').value   || null,
-    p_weekend_only: document.getElementById('weekend').checked,
-    p_min_distance_m: parseInt(document.getElementById('minDist').value,10) || null,
-    p_sort: MODE === 'big' ? 'prominence' : 'distance',
-    // Without this the RPC's own default of 60 applies, which silently
-    // truncated a 185-event catalogue to 60 and looked like the crawler
-    // had stopped finding things. 200 is the RPC's hard ceiling.
-    p_limit: RESULT_LIMIT
-  };
-  if (MODE === 'local' && o) {
-    args.p_lat = o.lat; args.p_lng = o.lng;
-    args.p_radius_km = parseInt(document.getElementById('radius').value,10);
-  } else if (o) {
-    // Destination mode still reports how far each event is from you, it
-    // just does not filter on it — you said you'd fly.
-    args.p_lat = o.lat; args.p_lng = o.lng;
-  }
-
-  document.getElementById('results').innerHTML = '<div class="empty">Searching…</div>';
-  const { data, error } = await sb.rpc('search_event_editions', args);
-  if (error) {
-    document.getElementById('results').innerHTML = `<div class="empty">Could not search: ${esc(error.message)}</div>`;
+// ── Load ────────────────────────────────────────────────────────────────
+async function load(){
+  document.getElementById('results').innerHTML = '<div class="empty">Finding swims…</div>';
+  const { data, error } = await sb.rpc('search_event_editions', { p_sort:'date', p_limit:LIMIT });
+  if (error){
+    document.getElementById('results').innerHTML =
+      `<div class="empty"><b>Could not load the swims.</b>${esc(error.message)}</div>`;
     return;
   }
-  renderResults(data || []);
+  ALL = data || [];
+  buildPlaces();
+  drawChart();
+  renderTally();
+  renderChips();
+  applyFilters();
 }
 
-// How well this listing was verified, shown so a swimmer can judge it for
-// themselves rather than us silently withholding anything imperfect.
-// The score behind it is deterministic — every point traces to a named
-// extraction rule, never an opinion. Hand-entered editions have no tier
-// and simply show nothing.
-const VTIERS = {
-  confirmed:  { icon:'shield-check',  label:'Confirmed',  title:"Read from the organiser's own page, with an exact date and an entry link." },
-  listed:     { icon:'circle-check',  label:'Listed',     title:'Date and source look solid, but some details are missing. Confirm before you travel.' },
-  unverified: { icon:'alert-triangle',label:'Unverified', title:'We found this swim but could not verify much about it. Check with the organiser before making plans.' },
-};
+function renderTally(){
+  const soon = new Date(); soon.setDate(soon.getDate()+30);
+  const iso = soon.toISOString().slice(0,10);
+  document.getElementById('tEvents').textContent = ALL.length;
+  document.getElementById('tCountries').textContent = new Set(ALL.map(r=>r.country_code).filter(Boolean)).size;
+  document.getElementById('tSoon').textContent = ALL.filter(r=>r.start_date && r.start_date <= iso).length;
+}
+
+// Places come from the swims themselves, so every suggestion returns
+// results and nothing real is missing from the list.
+function buildPlaces(){
+  const map = new Map();
+  const add = (kind, label, match, sort) => {
+    const key = kind+'|'+label;
+    if(!map.has(key)) map.set(key, {kind, label, match, n:0, sort});
+    map.get(key).n++;
+  };
+  for(const r of ALL){
+    if(r.country_code) add('country', countryName(r.country_code), {country:r.country_code}, 1);
+    if(r.region && r.country_code) add('region', `${regionName(r.region)}, ${countryName(r.country_code)}`, {country:r.country_code, region:r.region}, 2);
+    if(r.city) add('town', [r.city, r.region?regionName(r.region):null].filter(Boolean).join(', '), {city:r.city}, 3);
+  }
+  PLACES = [...map.values()].sort((a,b)=> a.sort-b.sort || b.n-a.n || a.label.localeCompare(b.label));
+}
+
+// ── The season chart ────────────────────────────────────────────────────
+function drawChart(){
+  const svg = document.getElementById('chart');
+  const W = 980, H = 266, L = 44, R = 14, T = 16, B = 30;
+  const plotW = W-L-R, plotH = H-T-B;
+
+  const dated = ALL.filter(r=>r.start_date && r.latitude!=null);
+  if(!dated.length){ svg.innerHTML=''; return; }
+
+  // Twelve months forward from this month — the planning window a swimmer
+  // actually has.
+  const start = new Date(); start.setDate(1);
+  const cols = [];
+  for(let i=0;i<12;i++){
+    const d = new Date(start.getFullYear(), start.getMonth()+i, 1);
+    cols.push({ key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,
+                label:MONTHS[d.getMonth()], year:d.getFullYear(), month:d.getMonth() });
+  }
+  const colW = plotW/12;
+  const latToY = lat => T + ((70 - Math.max(-55, Math.min(70, lat))) / 125) * plotH;
+
+  let s = '';
+  // Latitude grid
+  for(const lat of [60,30,0,-30]){
+    const y = latToY(lat);
+    s += `<line class="${lat===0?'equator':'grid-line'}" x1="${L}" y1="${y}" x2="${W-R}" y2="${y}"/>`;
+    s += `<text class="axis-label" x="6" y="${y+3.5}">${lat===0?'Equator':(lat>0?lat+'°N':Math.abs(lat)+'°S')}</text>`;
+  }
+  // Month columns — clickable filter targets
+  cols.forEach((c,i)=>{
+    const x = L + i*colW;
+    s += `<rect class="mcol${SEL.month===c.key?' sel':''}" data-month="${c.key}" x="${x}" y="${T}" width="${colW}" height="${plotH}" rx="6"/>`;
+    s += `<text class="mlabel${SEL.month===c.key?' sel':''}" data-month="${c.key}" x="${x+colW/2}" y="${H-9}">${c.label}${c.month===0?' '+String(c.year).slice(2):''}</text>`;
+  });
+
+  // Dots. Deterministic jitter within the month band keeps same-month,
+  // same-latitude swims from hiding behind one another without moving any
+  // of them somewhere untrue.
+  dated.forEach((r,idx)=>{
+    const key = monthKey(r.start_date);
+    const ci = cols.findIndex(c=>c.key===key);
+    if(ci<0) return;
+    const day = Number(r.start_date.slice(8,10));
+    const x = L + ci*colW + (day/32)*colW*0.86 + colW*0.07;
+    const y = latToY(r.latitude) + ((idx*37)%9 - 4);
+    const band = latBand(r.latitude);
+    const dim = (SEL.month && SEL.month!==key) ? ' dim' : '';
+    s += `<circle class="dot${dim}" data-i="${idx}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.4"
+            fill="${BAND_COLOUR[band]}" fill-opacity=".82"/>`;
+  });
+
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  svg.innerHTML = s;
+
+  // Interaction
+  svg.querySelectorAll('.mcol,.mlabel').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const m = el.getAttribute('data-month');
+      selectMonth(SEL.month===m ? null : m);
+    });
+  });
+  const tip = document.getElementById('tip');
+  svg.querySelectorAll('.dot').forEach(el=>{
+    el.addEventListener('mouseenter',ev=>{
+      const r = dated[Number(el.getAttribute('data-i'))];
+      const d = fmtDate(r.start_date, r.date_precision, r.date_confirmed);
+      tip.innerHTML = `<b>${esc(r.title||r.series_name)}</b><span>${esc(placeOf(r))} · ${esc(d.big)}</span>`;
+      tip.style.opacity = 1;
+      moveTip(ev);
+    });
+    el.addEventListener('mousemove',moveTip);
+    el.addEventListener('mouseleave',()=>{ tip.style.opacity=0; });
+    el.addEventListener('click',()=>{
+      const r = dated[Number(el.getAttribute('data-i'))];
+      selectMonth(monthKey(r.start_date));
+      document.getElementById('count').scrollIntoView({block:'start'});
+    });
+  });
+}
+function moveTip(ev){
+  const tip = document.getElementById('tip');
+  const x = Math.min(ev.clientX+14, window.innerWidth-262);
+  tip.style.left = x+'px';
+  tip.style.top  = Math.max(8, ev.clientY-52)+'px';
+}
+
+function selectMonth(m){
+  SEL.month = m;
+  document.getElementById('clearMonth').style.display = m ? '' : 'none';
+  drawChart();
+  renderChips();
+  applyFilters();
+}
+
+// ── Search ──────────────────────────────────────────────────────────────
+function onQuery(){
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const ac = document.getElementById('ac');
+  const hits = (q ? PLACES.filter(p=>p.label.toLowerCase().includes(q)) : PLACES).slice(0,9);
+  acIndex = -1;
+  if(!hits.length){ ac.classList.remove('open'); return; }
+  ac.innerHTML = hits.map((p,i)=>
+    `<button data-i="${i}" onclick="pickPlace(${PLACES.indexOf(p)})">
+       <span>${esc(p.label)} <span class="kind">${p.kind}</span></span>
+       <span class="n">${p.n}</span></button>`).join('');
+  ac.classList.add('open');
+}
+function onQueryKey(e){
+  const ac = document.getElementById('ac');
+  const btns = [...ac.querySelectorAll('button')];
+  if(e.key==='Escape'){ ac.classList.remove('open'); return; }
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    e.preventDefault();
+    acIndex += e.key==='ArrowDown' ? 1 : -1;
+    acIndex = Math.max(0, Math.min(btns.length-1, acIndex));
+    btns.forEach((b,i)=>b.classList.toggle('hi', i===acIndex));
+    btns[acIndex]?.scrollIntoView({block:'nearest'});
+  }
+  if(e.key==='Enter'){ e.preventDefault(); (btns[acIndex]||btns[0])?.click(); }
+}
+function pickPlace(i){
+  SEL.place = PLACES[i];
+  document.getElementById('q').value = SEL.place.label;
+  document.getElementById('ac').classList.remove('open');
+  renderChips();
+  applyFilters();
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.field')) document.getElementById('ac').classList.remove('open');
+});
+
+function renderChips(){
+  const bits = [];
+  if(SEL.place) bits.push(`<button class="chip on" onclick="clearPlace()">${esc(SEL.place.label)} ✕</button>`);
+  if(SEL.month){
+    const [y,m] = SEL.month.split('-');
+    bits.push(`<button class="chip on" onclick="selectMonth(null)">${MONTHS_LONG[Number(m)-1]} ${y} ✕</button>`);
+  }
+  if(!bits.length){
+    // Shortcuts worth offering: the soonest swims, and the countries we
+    // actually have depth in.
+    bits.push(`<button class="chip" onclick="selectMonth('${new Date().toISOString().slice(0,7)}')">This month</button>`);
+    PLACES.filter(p=>p.kind==='country').slice(0,5).forEach(p=>{
+      bits.push(`<button class="chip" onclick="pickPlace(${PLACES.indexOf(p)})">${esc(p.label)} <span style="color:var(--sec)">${p.n}</span></button>`);
+    });
+  }
+  document.getElementById('chips').innerHTML = bits.join('');
+}
+function clearPlace(){
+  SEL.place = null;
+  document.getElementById('q').value = '';
+  renderChips();
+  applyFilters();
+}
+
+// ── Filter + render ─────────────────────────────────────────────────────
+function applyFilters(){
+  const minD = parseInt(document.getElementById('minDist').value,10) || null;
+  const before = document.getElementById('to').value || null;
+
+  VIEW = ALL.filter(r=>{
+    if(SEL.place){
+      const m = SEL.place.match;
+      if(m.country && r.country_code !== m.country) return false;
+      if(m.region  && r.region !== m.region) return false;
+      if(m.city    && r.city !== m.city) return false;
+    }
+    if(SEL.month && monthKey(r.start_date) !== SEL.month) return false;
+    if(before && r.start_date > before) return false;
+    if(minD && !(r.max_distance_m >= minD)) return false;
+    return true;
+  });
+  render();
+}
 
 function vtierBadge(r){
-  const t = VTIERS[r.verification_tier];
-  if (!t) return '';
-  return `<span class="vtier v-${esc(r.verification_tier)}" title="${esc(t.title)}">
-            <i data-lucide="${t.icon}"></i>${esc(t.label)}</span>`;
+  const T = {
+    confirmed:  {icon:'shield-check',   label:'Confirmed',  title:"Read from the organiser's own page, with an exact date and an entry link."},
+    listed:     {icon:'circle-check',   label:'Listed',     title:'Date and source look solid, some details missing. Confirm before you travel.'},
+    unverified: {icon:'alert-triangle', label:'Unverified', title:'We found this swim but could not verify much. Check with the organiser.'}
+  }[r.verification_tier];
+  if(!T) return '';
+  return `<span class="vtier v-${esc(r.verification_tier)}" title="${esc(T.title)}">
+            <i data-lucide="${T.icon}"></i>${T.label}</span>`;
 }
 
-function renderResults(rows){
-  document.getElementById('count').textContent =
-    rows.length === 0
-      ? ''
-      : rows.length >= RESULT_LIMIT
-        // Hitting the cap exactly almost certainly means there are more —
-        // saying "200 swims found" would quietly misreport the catalogue.
-        ? `Showing the first ${RESULT_LIMIT} swims — narrow the dates or distance to see the rest`
-        : `${rows.length} swim${rows.length>1?'s':''} found`;
+function render(){
+  const results = document.getElementById('results');
+  const countEl = document.getElementById('count');
 
-  if (rows.length === 0) {
-    document.getElementById('results').innerHTML =
-      `<div class="empty"><p style="font-size:16px;margin-bottom:6px">Nothing matches yet.</p>
-       <p>Try widening the dates, the distance you'd travel, or the shortest swim you'd enter.</p></div>`;
+  if(!VIEW.length){
+    countEl.textContent = '';
+    const what = SEL.place ? esc(SEL.place.label) : 'those filters';
+    results.innerHTML = `<div class="empty"><b>No swims match ${what} yet.</b>
+      We are still adding sources country by country. Try a wider area, or clear the month.</div>`;
     return;
   }
 
-  document.getElementById('results').innerHTML = rows.map(r => {
-    const d = fmtDate(r.start_date, r.date_precision, r.date_confirmed);
-    const dists = Array.isArray(r.distances) ? r.distances : [];
-    const place = [r.venue_name || r.city, r.region, r.country_code].filter(Boolean).join(', ');
-    return `
-    <div class="result">
-      <div class="result-main">
-        <div style="margin-bottom:7px">
-          <span class="badge b-${esc(r.prominence)}">${esc(r.prominence)}</span>
-          ${vtierBadge(r)}
-          ${r.participant_estimate ? `<span style="color:var(--sec);font-size:12px">~${Number(r.participant_estimate).toLocaleString()} swimmers</span>` : ''}
+  countEl.textContent = VIEW.length >= LIMIT
+    ? `Showing the first ${LIMIT} swims — narrow the place or dates to see the rest`
+    : `${VIEW.length} swim${VIEW.length>1?'s':''}`;
+
+  // Grouped by month: a swimmer plans by "when am I free", not by row number.
+  const groups = new Map();
+  for(const r of VIEW){
+    const k = monthKey(r.start_date) || 'tbc';
+    if(!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r);
+  }
+
+  let html = '';
+  for(const [k, rows] of groups){
+    const heading = k==='tbc' ? 'Date to be confirmed'
+      : `${MONTHS_LONG[Number(k.slice(5,7))-1]} ${k.slice(0,4)}`;
+    html += `<div class="month-head">${heading}</div>`;
+    html += rows.map(r=>{
+      const d = fmtDate(r.start_date, r.date_precision, r.date_confirmed);
+      const dists = Array.isArray(r.distances) ? r.distances : [];
+      return `<div class="result">
+        <div class="result-main">
+          <div style="margin-bottom:7px">
+            <span class="badge b-${esc(r.prominence)}">${esc(r.prominence)}</span>
+            ${vtierBadge(r)}
+            ${r.participant_estimate ? `<span style="color:var(--sec);font-size:12px">~${Number(r.participant_estimate).toLocaleString()} swimmers</span>`:''}
+          </div>
+          <h3>${esc(r.title || r.series_name)}</h3>
+          <div class="where">${esc(placeOf(r) || 'Location to be confirmed')}
+            ${r.organiser_name ? ` · ${esc(r.organiser_name)}`:''}</div>
+          ${dists.length ? `<div class="dists">${dists.map(x=>`<span class="dist">${esc(x.label)}</span>`).join('')}</div>`:''}
+          <div class="verify">
+            <i data-lucide="alert-circle"></i>
+            <span>Gathered automatically. <b>Confirm with the organiser before you travel</b> — dates and entries change.
+              ${r.official_url ? ` <a href="${esc(r.official_url)}" target="_blank" rel="noopener noreferrer">Official page</a>`:''}
+              ${r.registration_url ? ` · <a href="${esc(r.registration_url)}" target="_blank" rel="noopener noreferrer">Enter</a>`:''}
+            </span>
+          </div>
         </div>
-        <h3>${esc(r.title || r.series_name)}</h3>
-        <div class="where">
-          ${esc(place || 'location to be confirmed')}
-          ${r.distance_km != null ? ` · <b style="color:var(--cyan)">${r.distance_km} km away</b>` : ''}
-          ${r.organiser_name ? ` · ${esc(r.organiser_name)}` : ''}
-        </div>
-        ${dists.length ? `<div class="dists">${dists.map(x =>
-          `<span class="dist">${esc(x.label)}${x.metres ? '' : ''}</span>`).join('')}</div>` : ''}
-        <div class="verify">
-          <i data-lucide="alert-circle"></i>
-          <span>Listings are gathered automatically. <b>Always confirm with the organiser before you travel</b> — dates and entries change.
-          ${r.official_url ? ` <a href="${esc(r.official_url)}" target="_blank" rel="noopener noreferrer">Official page</a>` : ''}
-          ${r.registration_url ? ` · <a href="${esc(r.registration_url)}" target="_blank" rel="noopener noreferrer">Enter</a>` : ''}
-          </span>
-        </div>
-      </div>
-      <div class="aside">
-        <div class="when">${esc(d.big)}<small>${esc(d.small)}</small></div>
-      </div>
-    </div>`;
-  }).join('');
+        <div class="aside"><div class="when">${esc(d.big)}<small>${esc(d.small)}</small></div></div>
+      </div>`;
+    }).join('');
+  }
+  results.innerHTML = html;
   icons();
 }
 
-initPlaces();
-// Default window: the next TWO years. Open water calendars are published
-// far ahead and people plan destination swims a season or more out — a
-// twelve-month default silently hid over half the catalogue.
-const today = new Date();
-document.getElementById('from').value = today.toISOString().slice(0,10);
-document.getElementById('to').value =
-  new Date(today.getFullYear()+2, today.getMonth(), today.getDate()).toISOString().slice(0,10);
 icons();
-search();
+load();
 </script>
 </body>
 </html>
