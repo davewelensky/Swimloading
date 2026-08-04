@@ -18,7 +18,7 @@ import {
   recordPageFetch,
   startRun,
 } from './db/persist.js';
-import { publishEligibleCandidates } from './db/publish.js';
+import { completePastEditions, publishEligibleCandidates, retirePastCandidates } from './db/publish.js';
 import {
   fetchEnabledSources,
   fetchExistingCandidatesForDedupe,
@@ -331,6 +331,17 @@ async function runPass(config: DiscoveryConfig, db: SupabaseClient, onlySourceId
   // reaches the public site; this only invokes it. Never fatal — a crawl
   // that found events is still a success if publishing hiccups.
   if (config.writeEnabled) {
+    // Clear dead candidates out of the review queue first, so what a
+    // human sees is only what still needs a decision.
+    try {
+      const retired = await retirePastCandidates(db);
+      if (retired > 0) console.log(`\nRetired ${retired} past-dated candidate(s) from the review queue.`);
+      const completed = await completePastEditions(db);
+      if (completed > 0) console.log(`Marked ${completed} past edition(s) completed — the catalogue only shows upcoming swims.`);
+    } catch (err) {
+      console.error(`Queue cleanup failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
     try {
       const published = await publishEligibleCandidates(db);
       if (published.length > 0) {

@@ -20,3 +20,23 @@ export async function publishEligibleCandidates(db: SupabaseClient, limit = 200)
   if (error) throw new Error(`auto_publish_eligible_candidates: ${error.message}`);
   return (data ?? []) as PublishedEvent[];
 }
+
+// Clears past-dated candidates out of the review queue. They can never be
+// published (the approve RPC refuses past dates), so leaving them pending
+// asks for a decision that changes nothing — and buries the handful that
+// genuinely need a human. Service-role only, same as the publish sweep.
+export async function retirePastCandidates(db: SupabaseClient, limit = 1000): Promise<number> {
+  const { data, error } = await db.rpc('retire_past_candidates', { p_limit: limit });
+  if (error) throw new Error(`retire_past_candidates: ${error.message}`);
+  return typeof data === 'number' ? data : 0;
+}
+
+// Marks editions whose date has passed as completed, so the public
+// catalogue only ever shows upcoming swims. Belt and braces alongside the
+// date floor inside search_event_editions: this drops them out of every
+// query, not just that one.
+export async function completePastEditions(db: SupabaseClient): Promise<number> {
+  const { data, error } = await db.rpc('complete_past_editions');
+  if (error) throw new Error(`complete_past_editions: ${error.message}`);
+  return typeof data === 'number' ? data : 0;
+}

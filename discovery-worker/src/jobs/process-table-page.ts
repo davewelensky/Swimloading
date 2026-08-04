@@ -93,6 +93,15 @@ function buildFromRow(
   candidate.region = location.region;
   candidate.countryCode = location.countryCode;
   candidate.warnings.push(...location.warnings);
+
+  // A table row's location column IS its venue — "Clearwater, FL" is the
+  // best name we have for where the swim happens. Without a venue_name
+  // the approval path creates no event_venues row at all, so the city,
+  // region, country and coordinates extracted above never reach the
+  // published event and every listing renders as "location to be
+  // confirmed". Prefer the city (a cleaner venue name) and fall back to
+  // the whole location string.
+  candidate.venueName = location.city ?? cleanText(row.locationText);
   if (row.locationText) {
     candidate.evidence.push(evidence('locationText', 'html_selector', row.locationText, 'table row, location column'));
   }
