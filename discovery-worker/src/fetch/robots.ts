@@ -21,6 +21,11 @@ export interface RobotsGroup {
 
 export interface RobotsRules {
   groups: RobotsGroup[];
+  // Sitemap: directives are site-wide, not per-user-agent. They are the
+  // single cheapest route to a site's full page inventory — an organiser
+  // that lists 200 races behind JavaScript usually still enumerates every
+  // race URL in its sitemap.
+  sitemaps: string[];
 }
 
 export type RobotsAvailability = 'ok' | 'no_robots' | 'unreachable';
@@ -34,6 +39,7 @@ export interface RobotsDecision {
 
 export function parseRobots(text: string): RobotsRules {
   const groups: RobotsGroup[] = [];
+  const sitemaps: string[] = [];
   let current: RobotsGroup | null = null;
   // A group is "open" while consecutive user-agent lines accumulate; the
   // first rule line closes the user-agent run.
@@ -66,12 +72,15 @@ export function parseRobots(text: string): RobotsRules {
       collectingAgents = false;
       const n = Number(value);
       if (Number.isFinite(n) && n >= 0) current.crawlDelaySeconds = n;
+    } else if (field === 'sitemap') {
+      if (value) sitemaps.push(value);
+      if (current) collectingAgents = false;
     } else {
-      // sitemap: and unknown fields end a user-agent run but keep the group
+      // unknown fields end a user-agent run but keep the group
       if (current) collectingAgents = false;
     }
   }
-  return { groups };
+  return { groups, sitemaps: [...new Set(sitemaps)] };
 }
 
 // Most-specific group for our token: exact/substring token match beats
@@ -147,6 +156,20 @@ export class RobotsCache {
     private readonly fetcher: RobotsFetcher,
     private readonly userAgentToken: string
   ) {}
+
+  // Sitemap URLs this origin declares in robots.txt. Empty when robots is
+  // absent, unreachable, or declares none — callers fall back to probing
+  // the conventional /sitemap.xml path.
+  async sitemapsFor(pageUrl: string): Promise<string[]> {
+    const origin = new URL(pageUrl).origin;
+    let entry = this.cache.get(origin);
+    if (!entry) {
+      entry = this.load(origin);
+      this.cache.set(origin, entry);
+    }
+    const { rules } = await entry;
+    return rules?.sitemaps ?? [];
+  }
 
   async check(pageUrl: string): Promise<RobotsDecision> {
     const url = new URL(pageUrl);

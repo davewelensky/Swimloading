@@ -15,6 +15,8 @@ export interface DiscoveryConfig {
   maxResponseBytes: number;
   maxSourcesPerPass: number;
   schedulerIntervalSeconds: number;
+  maxSitemapsToFollow: number;
+  maxSitemapUrls: number;
 }
 
 function parseBoolEnv(name: string, defaultValue: boolean): boolean {
@@ -49,6 +51,8 @@ export function loadConfig(): DiscoveryConfig {
     maxResponseBytes: parseIntEnv('DISCOVERY_MAX_RESPONSE_BYTES', 5 * 1024 * 1024),
     maxSourcesPerPass: parseIntEnv('DISCOVERY_MAX_SOURCES_PER_PASS', 10),
     schedulerIntervalSeconds: parseIntEnv('DISCOVERY_SCHEDULER_INTERVAL_SECONDS', 900),
+    maxSitemapsToFollow: parseIntEnv('DISCOVERY_MAX_SITEMAPS_TO_FOLLOW', 5),
+    maxSitemapUrls: parseIntEnv('DISCOVERY_MAX_SITEMAP_URLS', 500),
   };
 }
 

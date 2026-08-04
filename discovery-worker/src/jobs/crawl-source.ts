@@ -1,5 +1,6 @@
 import type { PageFetchResult } from '../fetch/http-client.js';
 import { extractSameSiteLinks } from '../fetch/links.js';
+import { discoverUrlsFromSitemaps, scoreEventUrl } from '../fetch/sitemap.js';
 import { acceptLanguageFor } from '../fetch/decode.js';
 import { contentHash } from '../db/rows.js';
 import type { PageFetchOutcome, PageFetchRecord, DedupeLinkInput } from '../db/persist.js';
@@ -31,6 +32,11 @@ export interface CrawlPorts {
   ): Promise<void>;
   recordPageFetch(record: PageFetchRecord): Promise<PageFetchOutcome | null>;
   fetchKnownEventUrls(): Promise<string[]>;
+  // Every URL ever fetched for this source, so discovery skips pages
+  // already known to be dead ends instead of re-fetching them forever.
+  fetchSeenUrls(): Promise<string[]>;
+  // Sitemap URLs declared in the origin's robots.txt.
+  sitemapsFor(url: string): Promise<string[]>;
   persistCandidate(processed: ProcessedPage, sourcePageId: string | null): Promise<{ candidateId: string } | null>;
   fetchExistingCandidatesForDedupe(): Promise<ExistingCandidateForDedupe[]>;
   persistDedupeLinks(candidateId: string, links: DedupeLinkInput[]): Promise<number>;
@@ -41,6 +47,11 @@ export interface CrawlPorts {
 export interface CrawlOptions {
   maxPagesPerRun: number;
   runType: 'scheduled' | 'manual';
+  // Sitemap discovery budget. Sitemaps are cheap relative to what they
+  // unlock (a JS-rendered calendar still enumerates every race URL), but
+  // a large site's sitemap index must not become an unbounded crawl.
+  maxSitemapsToFollow?: number;
+  maxSitemapUrls?: number;
 }
 
 export interface CrawlSummary {
@@ -55,6 +66,17 @@ export interface CrawlSummary {
   dedupeLinksWritten: number;
   robotsBlockedEverything: boolean;
   errorMessage: string | null;
+  // Discovery telemetry — how many NEW URLs each channel surfaced, and
+  // how many were deferred by the page budget. Without this, a source
+  // that found 400 races looks identical to one that found none.
+  urlsFromLinks: number;
+  urlsFromSitemap: number;
+  urlsDeferredByBudget: number;
+  // Sitemap probes are counted separately from content pages and never
+  // feed source health: most sites have no sitemap, and a speculative
+  // probe returning 404 says nothing about whether the source is working.
+  sitemapRequests: number;
+  sitemapFetched: number;
 }
 
 function urlKey(url: string): string {
@@ -112,6 +134,11 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
     dedupeLinksWritten: 0,
     robotsBlockedEverything: false,
     errorMessage: null,
+    urlsFromLinks: 0,
+    urlsFromSitemap: 0,
+    urlsDeferredByBudget: 0,
+    sitemapRequests: 0,
+    sitemapFetched: 0,
   };
   let robotsSeen = 0;
   let robotsBlocked = 0;
@@ -120,6 +147,9 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
   try {
     const knownUrls = await ports.fetchKnownEventUrls();
     const knownKeys = new Set(knownUrls.map(urlKey));
+    // Everything ever fetched, so discovery proposes only genuinely new
+    // URLs and a big site advances through its inventory run by run.
+    const seenKeys = new Set((await ports.fetchSeenUrls()).map(urlKey));
 
     let listingMode = source.parser_type !== 'manual';
     if (listingMode) {
@@ -157,8 +187,13 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
         const { links, warnings } = extractSameSiteLinks(listing.html, listing.finalUrl ?? source.base_url);
         for (const w of warnings) ports.log(`  listing: ${w}`);
         for (const link of links) {
-          if (!knownKeys.has(urlKey(link))) discovered.push(link);
+          const key = urlKey(link);
+          if (!knownKeys.has(key) && !seenKeys.has(key)) {
+            discovered.push(link);
+            seenKeys.add(key);
+          }
         }
+        summary.urlsFromLinks = discovered.length;
         ports.log(`  listing ${source.base_url}: ${links.length} same-site link(s), ${discovered.length} new`);
       } else {
         summary.fetchFailures++;
@@ -177,13 +212,62 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
       }
     }
 
+    // Second discovery channel: the sitemap. This is what reaches events
+    // on sites whose calendars are JavaScript-rendered — link extraction
+    // sees nothing there, but the sitemap still enumerates every race
+    // URL, because that is what search engines consume.
+    if (listingMode) {
+      try {
+        const declared = await ports.sitemapsFor(source.base_url);
+        const sitemapUrls = await discoverUrlsFromSitemaps(source.base_url, declared, {
+          fetchXml: async (url) => {
+            summary.sitemapRequests++;
+            const res = await ports.fetchPage(url, acceptLanguage);
+            if (res.ok && res.html !== null) {
+              summary.sitemapFetched++;
+              return res.html;
+            }
+            // Deliberately NOT counted as a fetch failure: most sites
+            // publish no sitemap, and a 404 on a speculative probe is a
+            // normal outcome rather than evidence the source is broken.
+            ports.log(`  sitemap ${url}: unavailable (${res.errorCode})`);
+            return null;
+          },
+          maxSitemapsToFollow: options.maxSitemapsToFollow ?? 5,
+          maxUrls: options.maxSitemapUrls ?? 500,
+          log: (m) => ports.log(m),
+        });
+        for (const url of sitemapUrls) {
+          const key = urlKey(url);
+          if (!knownKeys.has(key) && !seenKeys.has(key)) {
+            discovered.push(url);
+            seenKeys.add(key);
+            summary.urlsFromSitemap++;
+          }
+        }
+        if (summary.urlsFromSitemap > 0) {
+          ports.log(`  sitemap discovery: ${summary.urlsFromSitemap} new URL(s), ranked by event-likeness`);
+        }
+      } catch (err) {
+        // A missing or malformed sitemap is normal, never fatal — link
+        // discovery already ran and stands on its own.
+        ports.log(`  sitemap discovery skipped: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
     // Known URLs first — verifying what we already publish beats
-    // discovering more. Whatever budget remains goes to new links.
+    // discovering more. Whatever budget remains goes to new URLs, most
+    // event-like first (see scoreEventUrl), so a 500-URL sitemap spends
+    // this run's budget on the pages most likely to be races and carries
+    // the rest into subsequent runs.
     const budget = Math.max(options.maxPagesPerRun - summary.pagesRequested, 0);
-    const worklist = [...knownUrls, ...discovered].slice(0, budget);
-    const droppedByBudget = knownUrls.length + discovered.length - worklist.length;
-    if (droppedByBudget > 0) {
-      ports.log(`  page budget ${options.maxPagesPerRun}: ${droppedByBudget} URL(s) deferred to the next run`);
+    const rankedDiscovered = [...discovered].sort((a, b) => scoreEventUrl(b) - scoreEventUrl(a));
+    const worklist = [...knownUrls, ...rankedDiscovered].slice(0, budget);
+    summary.urlsDeferredByBudget = Math.max(knownUrls.length + rankedDiscovered.length - worklist.length, 0);
+    if (summary.urlsDeferredByBudget > 0) {
+      ports.log(
+        `  page budget ${options.maxPagesPerRun}: ${summary.urlsDeferredByBudget} URL(s) deferred to the next run`
+      );
     }
 
     const newlyPersisted: { candidateId: string; candidate: CandidateEvent }[] = [];
@@ -302,6 +386,11 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
         pagesSkippedByGate: summary.pagesSkippedByGate,
         fetchFailures: summary.fetchFailures,
         dedupeLinksWritten: summary.dedupeLinksWritten,
+        urlsFromLinks: summary.urlsFromLinks,
+        urlsFromSitemap: summary.urlsFromSitemap,
+        urlsDeferredByBudget: summary.urlsDeferredByBudget,
+        sitemapRequests: summary.sitemapRequests,
+        sitemapFetched: summary.sitemapFetched,
       },
     });
 

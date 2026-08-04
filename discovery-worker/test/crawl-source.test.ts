@@ -69,6 +69,8 @@ function makePorts(
   pages: Record<string, PageFetchResult | ((url: string) => PageFetchResult)>,
   options: {
     knownUrls?: string[];
+    seenUrls?: string[];
+    sitemaps?: string[];
     existingForDedupe?: ExistingCandidateForDedupe[];
   } = {}
 ): { ports: CrawlPorts; recorded: Recorded } {
@@ -90,6 +92,8 @@ function makePorts(
       return { pageId: `page-${record.canonicalUrl}`, changed: record.ok };
     },
     fetchKnownEventUrls: async () => options.knownUrls ?? [],
+    fetchSeenUrls: async () => options.seenUrls ?? [],
+    sitemapsFor: async () => options.sitemaps ?? [],
     persistCandidate: async (processed) => {
       recorded.persisted.push(processed);
       return { candidateId: `cand-${nextId++}` };
@@ -139,9 +143,12 @@ test('listing mode: discovers links, verifies known URLs first, gates junk pages
 
   const summary = await crawlSource(makeSource({}), ports, { maxPagesPerRun: 10, runType: 'scheduled' });
 
-  // Listing first, then the known URL before discovered ones.
+  // Listing first, then the sitemap probe (no robots declaration here, so
+  // the conventional path is tried and returns nothing), then the known
+  // URL ahead of discovered ones.
   assert.deepEqual(recorded.fetched, [
     'https://example.com/races',
+    'https://example.com/sitemap.xml',
     'https://example.com/races/known',
     'https://example.com/races/alpha',
     'https://example.com/races/junk',

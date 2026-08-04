@@ -29,21 +29,35 @@ export async function fetchSourceById(db: SupabaseClient, sourceId: string): Pro
   return (data as SchedulableSource | null) ?? null;
 }
 
-// The URLs this source is already known to carry events at: previously
-// crawled pages plus the source_url of every existing candidate. This is
-// the verification worklist — re-fetching them is what turns
-// content_hash/last_verified_at into a real change-monitoring loop.
+function isCrawlableUrl(u: string): boolean {
+  try {
+    const host = new URL(u).host;
+    return host !== 'example-organiser.invalid' && !host.endsWith('swimloading.com');
+  } catch {
+    return false;
+  }
+}
+
+// The VERIFICATION worklist: pages that actually produced an event, plus
+// the source_url of every existing candidate. Re-fetching these is what
+// turns content_hash/last_verified_at into a real change-monitoring loop.
+//
+// Deliberately excludes page_type 'unknown' — a page we fetched and found
+// no event on. Re-checking those every week would consume the entire page
+// budget on known dead ends and starve discovery of new URLs. They are
+// still remembered (see fetchSeenUrls) so they are not re-discovered
+// either; a site that later publishes an event at that URL is picked up
+// when its listing or sitemap surfaces it again as new.
 export async function fetchKnownEventUrls(db: SupabaseClient, sourceId: string): Promise<string[]> {
   const urls = new Set<string>();
 
   const { data: pages, error: pagesErr } = await db
     .from('discovery_source_pages')
-    .select('canonical_url, page_type')
-    .eq('source_id', sourceId);
+    .select('canonical_url')
+    .eq('source_id', sourceId)
+    .eq('page_type', 'event_detail');
   fail('fetchKnownEventUrls/pages', pagesErr);
-  for (const row of pages ?? []) {
-    if (row.page_type !== 'listing') urls.add(row.canonical_url as string);
-  }
+  for (const row of pages ?? []) urls.add(row.canonical_url as string);
 
   const { data: candidates, error: candErr } = await db
     .from('discovery_candidate_events')
@@ -52,14 +66,21 @@ export async function fetchKnownEventUrls(db: SupabaseClient, sourceId: string):
   fail('fetchKnownEventUrls/candidates', candErr);
   for (const row of candidates ?? []) urls.add(row.source_url as string);
 
-  return [...urls].filter((u) => {
-    try {
-      const host = new URL(u).host;
-      return host !== 'example-organiser.invalid' && !host.endsWith('swimloading.com');
-    } catch {
-      return false;
-    }
-  });
+  return [...urls].filter(isCrawlableUrl);
+}
+
+// Every URL this source has EVER been fetched at, whatever the outcome.
+// Used to subtract already-seen pages from freshly discovered ones, so a
+// site's dead ends are not rediscovered and re-fetched on every run —
+// without this, discovery on a large site never advances past the first
+// budget's worth of URLs.
+export async function fetchSeenUrls(db: SupabaseClient, sourceId: string): Promise<string[]> {
+  const { data, error } = await db
+    .from('discovery_source_pages')
+    .select('canonical_url')
+    .eq('source_id', sourceId);
+  fail('fetchSeenUrls', error);
+  return (data ?? []).map((row) => row.canonical_url as string);
 }
 
 // Minimal shape needed by dedupe/match.ts to score a new candidate

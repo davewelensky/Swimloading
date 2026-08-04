@@ -19,6 +19,7 @@ import {
   fetchEnabledSources,
   fetchExistingCandidatesForDedupe,
   fetchKnownEventUrls,
+  fetchSeenUrls,
   fetchSourceById,
   updateSourceAfterRun,
 } from './db/sources.js';
@@ -94,6 +95,8 @@ function buildPorts(
       : async () => {},
     recordPageFetch: write ? (record) => recordPageFetch(db, source.id, record) : async () => null,
     fetchKnownEventUrls: () => fetchKnownEventUrls(db, source.id),
+    fetchSeenUrls: () => fetchSeenUrls(db, source.id),
+    sitemapsFor: (url) => http.sitemapsFor(url),
     persistCandidate: write
       ? async (processed, sourcePageId) => {
           const result = await persistCandidate(db, processed.candidate, processed.confidence, source.id, sourcePageId);
@@ -125,6 +128,12 @@ function printSummary(summary: CrawlSummary): void {
       `${summary.pagesSkippedByGate} skipped by gate, ${summary.fetchFailures} fetch failure(s)` +
       (summary.robotsBlockedEverything ? ' — BLOCKED by robots.txt' : '')
   );
+  if (summary.urlsFromLinks || summary.urlsFromSitemap || summary.urlsDeferredByBudget) {
+    console.log(
+      `  discovery: ${summary.urlsFromLinks} new via links, ${summary.urlsFromSitemap} via sitemap, ` +
+        `${summary.urlsDeferredByBudget} deferred to next run`
+    );
+  }
 }
 
 async function runAdhocUrl(url: string, config: DiscoveryConfig): Promise<void> {
@@ -178,6 +187,8 @@ async function runPass(config: DiscoveryConfig, db: SupabaseClient, onlySourceId
       const summary = await crawlSource(source, buildPorts(source, http, config, db, runType), {
         maxPagesPerRun: config.maxPagesPerRun,
         runType,
+        maxSitemapsToFollow: config.maxSitemapsToFollow,
+        maxSitemapUrls: config.maxSitemapUrls,
       });
       printSummary(summary);
     } catch (err) {

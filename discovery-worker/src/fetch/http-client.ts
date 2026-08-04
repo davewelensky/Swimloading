@@ -106,6 +106,17 @@ export class PoliteHttpClient {
     );
   }
 
+  // Sitemap URLs this origin declares in robots.txt (empty when it
+  // declares none). Fetching robots is cached, so this is free once the
+  // origin has been checked.
+  async sitemapsFor(url: string): Promise<string[]> {
+    try {
+      return await this.robots.sitemapsFor(url);
+    } catch {
+      return [];
+    }
+  }
+
   async fetchPage(url: string, acceptLanguage: string): Promise<PageFetchResult> {
     let parsed: URL;
     try {
