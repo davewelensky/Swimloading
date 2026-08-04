@@ -71,7 +71,7 @@ BEGIN;
 -- the organisers' servers too — 36 simultaneous crawls is a spike they
 -- have no reason to absorb.
 UPDATE discovery_sources s
-   SET next_run_at = now() + (make_interval(mins => (r.rn - 1) * 2)),
+   SET next_run_at = now() + (make_interval(mins => (((r.rn - 1) * 2))::int)),
        updated_at  = now()
   FROM (
     SELECT id, row_number() OVER (

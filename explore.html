@@ -235,6 +235,11 @@ function fmtDate(d, precision, confirmed){
   };
 }
 
+// The search RPC caps at 200 however much we ask for, so this is the most
+// a single search can return. When a result set hits it exactly, the user
+// is told rather than being shown a truncated list that looks complete.
+const RESULT_LIMIT = 200;
+
 async function search(){
   const o = origin();
   const args = {
@@ -242,7 +247,11 @@ async function search(){
     p_date_to:   document.getElementById('to').value   || null,
     p_weekend_only: document.getElementById('weekend').checked,
     p_min_distance_m: parseInt(document.getElementById('minDist').value,10) || null,
-    p_sort: MODE === 'big' ? 'prominence' : 'distance'
+    p_sort: MODE === 'big' ? 'prominence' : 'distance',
+    // Without this the RPC's own default of 60 applies, which silently
+    // truncated a 185-event catalogue to 60 and looked like the crawler
+    // had stopped finding things. 200 is the RPC's hard ceiling.
+    p_limit: RESULT_LIMIT
   };
   if (MODE === 'local' && o) {
     args.p_lat = o.lat; args.p_lng = o.lng;
@@ -282,7 +291,13 @@ function vtierBadge(r){
 
 function renderResults(rows){
   document.getElementById('count').textContent =
-    rows.length === 0 ? '' : `${rows.length} swim${rows.length>1?'s':''} found`;
+    rows.length === 0
+      ? ''
+      : rows.length >= RESULT_LIMIT
+        // Hitting the cap exactly almost certainly means there are more —
+        // saying "200 swims found" would quietly misreport the catalogue.
+        ? `Showing the first ${RESULT_LIMIT} swims — narrow the dates or distance to see the rest`
+        : `${rows.length} swim${rows.length>1?'s':''} found`;
 
   if (rows.length === 0) {
     document.getElementById('results').innerHTML =
