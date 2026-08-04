@@ -176,6 +176,10 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
     // URLs and a big site advances through its inventory run by run.
     const seenKeys = new Set((await ports.fetchSeenUrls()).map(urlKey));
 
+    // Declared before the listing fetch: the listing page can itself be a
+    // tabular calendar that produces candidates, and dedupe needs them all.
+    const newlyPersisted: { candidateId: string; candidate: CandidateEvent }[] = [];
+
     let listingMode = source.parser_type !== 'manual';
     if (listingMode) {
       try {
@@ -209,6 +213,34 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
           errorMessage: null,
         });
         if (outcome?.changed) summary.pagesChanged++;
+        // The listing page may itself BE the calendar. Ray's Notebook is
+        // exactly this: base_url is one table holding the whole season,
+        // and treating it only as a set of links to follow finds nothing,
+        // because the events never have their own pages.
+        const listingTable = processTablePage(
+          source.id,
+          listing.finalUrl ?? source.base_url,
+          listing.html,
+          { sourceType: source.source_type, countryCode: source.country_code },
+          options.maxTableRowsPerPage ?? 400
+        );
+        if (listingTable.pages.length >= 2) {
+          for (const w of listingTable.warnings) ports.log(`  listing: ${w}`);
+          let written = 0;
+          for (const entry of listingTable.pages) {
+            const persisted = await ports.persistCandidate(entry, outcome?.pageId ?? null);
+            if (persisted) {
+              written++;
+              newlyPersisted.push({ candidateId: persisted.candidateId, candidate: entry.candidate });
+            }
+          }
+          summary.candidatesPersisted += written;
+          summary.tableRowsExtracted += listingTable.rowsUsable;
+          ports.log(
+            `  listing is a tabular calendar — ${listingTable.rowsFound} row(s), ${written} candidate(s) written`
+          );
+        }
+
         const { links, warnings } = extractSameSiteLinks(listing.html, listing.finalUrl ?? source.base_url);
         for (const w of warnings) ports.log(`  listing: ${w}`);
         for (const link of links) {
@@ -295,7 +327,6 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
       );
     }
 
-    const newlyPersisted: { candidateId: string; candidate: CandidateEvent }[] = [];
     for (const url of worklist) {
       const isKnown = knownKeys.has(urlKey(url));
       summary.pagesRequested++;
