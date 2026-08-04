@@ -201,7 +201,23 @@ def subset_venue(cm, venue: dict, out_dir: str) -> str | None:
             overwrite=True,
         )
     except Exception as e:  # noqa: BLE001 - the toolbox raises many types
-        print(f"    no data ({type(e).__name__}: {str(e)[:90]})")
+        # A venue being off the marine grid is EXPECTED and is not an error.
+        # A broken login or a network failure is neither, and reporting it as
+        # "no marine coverage" is actively misleading — run that across 169
+        # venues and a credentials problem reads as a data problem. Anything
+        # that is not plainly about geography stops the run.
+        name = type(e).__name__
+        if any(w in name for w in ("Username", "Password", "Credential", "Auth", "Login")):
+            sys.exit(
+                f"\nCopernicus rejected the credentials ({name}).\n"
+                f"  Nothing was downloaded and nothing was written.\n"
+                f"  Check COPERNICUSMARINE_SERVICE_USERNAME and _PASSWORD are exported in THIS shell,\n"
+                f"  and that the account is activated: https://help.marine.copernicus.eu/en/articles/44"
+            )
+        if any(w in name for w in ("Connection", "Timeout", "HTTP", "Network")):
+            sys.exit(f"\nNetwork failure talking to Copernicus ({name}: {str(e)[:120]}).\n"
+                     f"  Stopping rather than recording {len(str(e)) and 'venues'} as uncovered.")
+        print(f"    not on the marine grid ({name}: {str(e)[:80]})")
         return None
     path = os.path.join(out_dir, name)
     return path if os.path.exists(path) else None
@@ -311,6 +327,31 @@ def main() -> None:
     # --describe above works with nothing set up at all.
     env("COPERNICUSMARINE_SERVICE_USERNAME")
     env("COPERNICUSMARINE_SERVICE_PASSWORD")
+
+    # Verify up front rather than discovering it once per venue. Costs one
+    # call and turns a confusing 169-line failure into one clear line.
+    # cm.login RETURNS False on bad credentials — it does not raise, and it
+    # logs its own ERROR line and carries on. Checking only for an exception
+    # printed "credentials accepted" immediately under Copernicus's own
+    # "Invalid credentials" message, which is worse than not checking at all.
+    try:
+        ok = cm.login(
+            username=os.environ["COPERNICUSMARINE_SERVICE_USERNAME"],
+            password=os.environ["COPERNICUSMARINE_SERVICE_PASSWORD"],
+            check_credentials_valid=True,
+        )
+    except Exception as e:  # noqa: BLE001
+        ok = False
+    if not ok:
+        sys.exit(
+            f"\nCopernicus rejected the credentials.\n"
+            f"  Nothing was downloaded and nothing was written.\n"
+            f"  Check both variables are exported in THIS shell:\n"
+            f"    echo $COPERNICUSMARINE_SERVICE_USERNAME\n"
+            f"  and that the account is activated (registration needs confirming):\n"
+            f"    https://help.marine.copernicus.eu/en/articles/44"
+        )
+    print("credentials accepted\n")
 
     venues = fetch_venues(args.limit)
     print(f"{len(venues)} venue(s) with coordinates; baseline {BASELINE_START}-{BASELINE_END}\n")
