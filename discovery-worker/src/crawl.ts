@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { assertConfigSafe, loadConfig, type DiscoveryConfig } from './config.js';
 import { PoliteHttpClient } from './fetch/http-client.js';
+import { extractSameSiteLinks } from './fetch/links.js';
+import { discoverUrlsFromSitemaps, scoreEventUrl } from './fetch/sitemap.js';
 import { crawlSource, type CrawlPorts, type CrawlSummary } from './jobs/crawl-source.js';
 import { processPage } from './jobs/process-page.js';
 import { selectDueSources, type SchedulableSource } from './schedule/scheduler.js';
@@ -42,17 +44,19 @@ interface CliArgs {
   loop: boolean;
   sourceId: string | null;
   url: string | null;
+  probe: string | null;
 }
 
 function parseArgs(argv: string[]): CliArgs {
-  const args: CliArgs = { loop: false, sourceId: null, url: null };
+  const args: CliArgs = { loop: false, sourceId: null, url: null, probe: null };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--loop') args.loop = true;
     else if (arg === '--once') args.loop = false;
     else if (arg === '--source') { args.sourceId = argv[++i] ?? null; }
     else if (arg === '--url') { args.url = argv[++i] ?? null; }
-    else if (arg && !arg.startsWith('--') && !args.url && /^https?:\/\//.test(arg)) args.url = arg;
+    else if (arg === '--probe') { args.probe = argv[++i] ?? null; }
+    else if (arg && !arg.startsWith('--') && !args.url && !args.probe && /^https?:\/\//.test(arg)) args.url = arg;
   }
   return args;
 }
@@ -159,6 +163,60 @@ async function runAdhocUrl(url: string, config: DiscoveryConfig): Promise<void> 
   );
 }
 
+// Evaluates a CANDIDATE source without adding it to the database: how
+// many pages both discovery channels reach, and how event-like they look.
+// The point is to answer "is this worth enabling?" before committing a
+// discovery_sources row to a weekly crawl. Writes nothing anywhere.
+async function runProbe(baseUrl: string, config: DiscoveryConfig): Promise<void> {
+  const http = buildHttpClient(config);
+  console.log(`Probing ${baseUrl} as a candidate source (read-only, nothing written)...\n`);
+
+  const declared = await http.sitemapsFor(baseUrl);
+  console.log(declared.length > 0
+    ? `robots.txt declares ${declared.length} sitemap(s):\n${declared.map((s) => `    ${s}`).join('\n')}`
+    : 'robots.txt declares no sitemap — will probe /sitemap.xml');
+
+  const listing = await http.fetchPage(baseUrl, 'en');
+  let linkCount = 0;
+  if (listing.ok && listing.html !== null) {
+    linkCount = extractSameSiteLinks(listing.html, listing.finalUrl ?? baseUrl).links.length;
+    const hasJsonLd = /application\/ld\+json/i.test(listing.html);
+    console.log(
+      `\nlisting page: HTTP ${listing.status}, ${linkCount} same-site link(s), ` +
+        `JSON-LD ${hasJsonLd ? 'PRESENT' : 'absent'}, charset ${listing.charset}`
+    );
+  } else {
+    console.log(`\nlisting page: FAILED (${listing.errorCode}: ${listing.errorMessage})`);
+  }
+
+  const sitemapUrls = await discoverUrlsFromSitemaps(baseUrl, declared, {
+    fetchXml: async (url) => {
+      const res = await http.fetchPage(url, 'en');
+      return res.ok ? res.html : null;
+    },
+    maxSitemapsToFollow: config.maxSitemapsToFollow,
+    maxUrls: config.maxSitemapUrls,
+    log: (m) => console.log(m),
+  });
+
+  const eventLike = sitemapUrls.filter((u) => scoreEventUrl(u) >= 3);
+  console.log(
+    `\nsitemap discovery: ${sitemapUrls.length} URL(s) total, ${eventLike.length} scoring as event-like`
+  );
+  for (const url of eventLike.slice(0, 15)) console.log(`    [${scoreEventUrl(url)}] ${url}`);
+  if (eventLike.length > 15) console.log(`    … and ${eventLike.length - 15} more`);
+
+  const reach = Math.max(linkCount, eventLike.length);
+  console.log(
+    `\nverdict: reachable pages ~${reach}. ` +
+      (reach >= 20
+        ? 'Strong candidate — worth enabling.'
+        : reach >= 5
+          ? 'Modest candidate — enable if the events are ones we want.'
+          : 'Weak via deterministic crawling — likely needs the Playwright or AI phase.')
+  );
+}
+
 async function runPass(config: DiscoveryConfig, db: SupabaseClient, onlySourceId: string | null): Promise<void> {
   const http = buildHttpClient(config);
 
@@ -213,6 +271,11 @@ async function main(): Promise<void> {
 
   if (args.url) {
     await runAdhocUrl(args.url, config);
+    return;
+  }
+
+  if (args.probe) {
+    await runProbe(args.probe, config);
     return;
   }
 
