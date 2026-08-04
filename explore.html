@@ -68,6 +68,16 @@
   .b-major{background:rgba(16,185,129,.15);color:var(--green)}
   .b-regional{background:rgba(245,158,11,.13);color:var(--amber)}
   .b-local{background:rgba(100,116,139,.2);color:var(--sec)}
+  /* How well we verified this listing. Distinct from the prominence
+     badges above (how big the swim is) — outlined rather than filled, so
+     the two never read as one scale. */
+  .vtier{display:inline-flex;align-items:center;gap:4px;font-size:10px;text-transform:uppercase;
+         letter-spacing:.6px;padding:3px 9px;border-radius:50px;font-weight:700;
+         border:1px solid currentColor;background:transparent}
+  .vtier i{width:11px;height:11px}
+  .v-confirmed{color:var(--green)}
+  .v-listed{color:var(--cyan)}
+  .v-unverified{color:var(--amber)}
   .dists{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
   .dist{background:rgba(255,255,255,.05);border-radius:7px;padding:5px 11px;font-size:13px}
   .verify{margin-top:12px;padding-top:11px;border-top:1px solid var(--border);
@@ -252,6 +262,24 @@ async function search(){
   renderResults(data || []);
 }
 
+// How well this listing was verified, shown so a swimmer can judge it for
+// themselves rather than us silently withholding anything imperfect.
+// The score behind it is deterministic — every point traces to a named
+// extraction rule, never an opinion. Hand-entered editions have no tier
+// and simply show nothing.
+const VTIERS = {
+  confirmed:  { icon:'shield-check',  label:'Confirmed',  title:"Read from the organiser's own page, with an exact date and an entry link." },
+  listed:     { icon:'circle-check',  label:'Listed',     title:'Date and source look solid, but some details are missing. Confirm before you travel.' },
+  unverified: { icon:'alert-triangle',label:'Unverified', title:'We found this swim but could not verify much about it. Check with the organiser before making plans.' },
+};
+
+function vtierBadge(r){
+  const t = VTIERS[r.verification_tier];
+  if (!t) return '';
+  return `<span class="vtier v-${esc(r.verification_tier)}" title="${esc(t.title)}">
+            <i data-lucide="${t.icon}"></i>${esc(t.label)}</span>`;
+}
+
 function renderResults(rows){
   document.getElementById('count').textContent =
     rows.length === 0 ? '' : `${rows.length} swim${rows.length>1?'s':''} found`;
@@ -272,6 +300,7 @@ function renderResults(rows){
       <div class="result-main">
         <div style="margin-bottom:7px">
           <span class="badge b-${esc(r.prominence)}">${esc(r.prominence)}</span>
+          ${vtierBadge(r)}
           ${r.participant_estimate ? `<span style="color:var(--sec);font-size:12px">~${Number(r.participant_estimate).toLocaleString()} swimmers</span>` : ''}
         </div>
         <h3>${esc(r.title || r.series_name)}</h3>
