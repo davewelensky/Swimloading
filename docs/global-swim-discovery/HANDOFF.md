@@ -160,7 +160,11 @@ water, a fair guide to next weekend and meaningless further out.
 `scripts/copernicus-climatology.py`. What the water *typically* does in a
 given week across 20 years. Answers "what will it be in March?".
 
-- Table applied 2026-08-05; **not yet populated** — run the script.
+- Table applied 2026-08-05 and **populated the same day**, 05:47–06:06 UTC:
+  4,316 rows = **83 venues × exactly 52 weeks**, 20 years each, baseline
+  2006–2025. No partial venue (weeks-per-venue min = max = 52). The script
+  is idempotent, but there is nothing to gain by re-running it until the
+  venue list grows — it re-downloads ~1.76 MB per venue for identical rows.
 - Proven end to end: Amagansett week 27 = **19.7 °C (18.2–21.3), 20 years**.
 - ~10 s and 1.76 MB per venue; 162 venues ≈ half an hour. Idempotent.
 - Credentials: `~/.copernicusmarine` (written by `cm.login()`) **or** the
@@ -212,7 +216,23 @@ it. Remove the meta tag in `explore.html` when you're happy.
 resolve themselves now that page-stated years are accepted, as sources
 re-crawl.
 
-**3. Populate the climatology.** `python3 scripts/copernicus-climatology.py`.
+**3. Five venues typed `sea` get no climatology, and three of them should.**
+Not a script failure — Copernicus correctly found no marine cell, because
+the stored coordinate is a region or town centroid rather than the water.
+Two are simply miscoded and want their `water_body_type` corrected:
+**Kyiv** (50.45, 30.52 — landlocked, a river venue) and **Lago d'Orta**
+(45.80, 8.40 — an Italian lake), the same mistake as Lake Lugano. The other
+three are genuinely coastal and would gain full-year answers from a
+corrected coordinate: **Costa Azahar** ES (39.99, −0.05, ~10 km inland),
+**Guanacaste** CR (10.63, −85.44, inland near Liberia) and **Phang-Nga** TH
+(8.45, 98.53, the town rather than the bay). Getting the real points means
+reading their event pages — do not guess them. Same root cause as the
+geocoding gap in §7. Re-run the script after fixing; it is idempotent.
+
+Separately, **64 uncovered venues have a NULL `water_body_type`** — all
+US/Canada inland towns. Correctly uncovered either way, but typing them
+`lake`/`river` would make the coverage story legible instead of looking
+like 64 unexplained gaps.
 
 **4. Two events published on indirect sourcing**, both `manual_review`,
 both worth verifying: *South32 Rottnest Channel Swim* 20 Feb 2027 (organiser
