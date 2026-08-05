@@ -659,6 +659,203 @@ function renderShell(title, body) {
 <div class="wrap"><section style="padding-top:60px">${body}</section></div></body></html>`;
 }
 
+// ── Country hubs: /swims/{country-slug} ───────────────────────────────────
+// A rankable page per country. /explore?country=ZA is a query string Google
+// treats as one page with parameters; /swims/south-africa is a page it can
+// rank for "open water swims South Africa", which is what people search.
+//
+// Resolved BEFORE route slugs, the same way spots-handler.js checks
+// REGION_SLUGS before spot slugs. The two namespaces share a path, so the
+// finite, known set wins and a route can never shadow a country.
+const COUNTRY_HUBS = {
+  'south-africa':   { code: 'ZA', name: 'South Africa' },
+  'united-states':  { code: 'US', name: 'the United States' },
+  'united-kingdom': { code: 'GB', name: 'the United Kingdom' },
+  'france':         { code: 'FR', name: 'France' },
+  'canada':         { code: 'CA', name: 'Canada' },
+  'greece':         { code: 'GR', name: 'Greece' },
+  'denmark':        { code: 'DK', name: 'Denmark' },
+  'spain':          { code: 'ES', name: 'Spain' },
+  'italy':          { code: 'IT', name: 'Italy' },
+  'ireland':        { code: 'IE', name: 'Ireland' },
+  'australia':      { code: 'AU', name: 'Australia' },
+  'barbados':       { code: 'BB', name: 'Barbados' },
+  'new-zealand':    { code: 'NZ', name: 'New Zealand' },
+  'turkiye':        { code: 'TR', name: 'Türkiye' },
+  'portugal':       { code: 'PT', name: 'Portugal' },
+  'croatia':        { code: 'HR', name: 'Croatia' },
+  'japan':          { code: 'JP', name: 'Japan' },
+  'poland':         { code: 'PL', name: 'Poland' },
+  'brazil':         { code: 'BR', name: 'Brazil' },
+  'mexico':         { code: 'MX', name: 'Mexico' },
+};
+
+async function loadCountryHub(code) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [events, routes] = await Promise.all([
+    dbRpc('search_events_v2', { p_country: code, p_sort: 'date', p_page: 1, p_page_size: 60 }),
+    // Routes have no country column — they are bound to spots, so match on
+    // the venue that shares the spot. Only ZA has routes today, but this is
+    // written generally so a UK operator needs no code change.
+    dbGet('swim_routes?is_public=eq.true&select=slug,name,distance_metres,summary,operator_role,' +
+          'observed_temp_avg_c,logged_swims,start_spot_id'),
+  ]);
+  const venues = await dbGet(
+    `event_venues?country_code=eq.${encodeURIComponent(code)}&spot_id=not.is.null&select=spot_id`
+  );
+  const spotIds = new Set((Array.isArray(venues) ? venues : []).map((v) => v.spot_id));
+  return {
+    events: Array.isArray(events) ? events.filter((e) => e.start_date >= today) : [],
+    routes: (Array.isArray(routes) ? routes : []).filter((r) => r.start_spot_id && spotIds.has(r.start_spot_id)),
+  };
+}
+
+function renderCountryHub(slug, country, data) {
+  const { events, routes } = data;
+  const n = events.length;
+  const months = new Map();
+  for (const e of events) {
+    const k = (e.start_date || '').slice(0, 7);
+    if (!months.has(k)) months.set(k, []);
+    months.get(k).push(e);
+  }
+  const distances = [...new Set(events.flatMap((e) =>
+    (Array.isArray(e.distances) ? e.distances : []).map((d) => d.metres)).filter(Boolean))].sort((a,b)=>a-b);
+  const temps = events.map((e) => e.water_temp_c).filter((t) => t != null);
+
+  const title = `Open Water Swims in ${country.name} — ${n} Events, Dates & Water Temperature | SwimLoading`;
+  const desc = `${n} open water swimming events in ${country.name}` +
+    `${routes.length ? `, plus ${routes.length} escorted swims you can book any time` : ''}. ` +
+    `Dates, distances and water temperature for each venue.`;
+
+  const schema = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      { '@type': 'Organization', '@id': `${SITE}/#org`, name: 'SwimLoading', url: SITE, logo: `${SITE}/icons/logo.png` },
+      { '@type': 'BreadcrumbList', itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'SwimLoading', item: SITE },
+        { '@type': 'ListItem', position: 2, name: 'Where to swim', item: `${SITE}/explore` },
+        { '@type': 'ListItem', position: 3, name: country.name, item: `${SITE}/swims/${slug}` },
+      ] },
+      { '@type': 'ItemList', numberOfItems: n, itemListElement: events.slice(0, 30).map((e, i) => ({
+        '@type': 'ListItem', position: i + 1, name: e.title,
+        url: e.slug ? `${SITE}/events/${e.slug}` : undefined,
+      })) },
+      { '@type': 'FAQPage', mainEntity: [
+        { '@type': 'Question', name: `How many open water swims are there in ${country.name}?`,
+          acceptedAnswer: { '@type': 'Answer', text: `SwimLoading lists ${n} upcoming open water swimming events in ${country.name}${routes.length ? `, plus ${routes.length} escorted routes that can be booked when conditions allow` : ''}.` } },
+        { '@type': 'Question', name: `What distances can you swim in ${country.name}?`,
+          acceptedAnswer: { '@type': 'Answer', text: distances.length
+            ? `Events in ${country.name} range from ${distances[0] >= 1000 ? `${+(distances[0]/1000).toFixed(1)} km` : `${distances[0]} m`} to ${distances[distances.length-1] >= 1000 ? `${+(distances[distances.length-1]/1000).toFixed(1)} km` : `${distances[distances.length-1]} m`}.`
+            : `Distance information is not yet recorded for events in ${country.name}.` } },
+      ] },
+    ],
+  };
+
+  const card = (e) => {
+    const d = fmtLongDate(e.start_date, e.date_precision, e.date_confirmed);
+    const dists = (Array.isArray(e.distances) ? e.distances : []).map((x) => x.label).filter(Boolean);
+    return `<article class="result" style="display:block">
+      <h3 style="font-size:17px;margin-bottom:4px">${e.slug
+        ? `<a href="/events/${escapeHtml(e.slug)}" style="text-decoration:none">${escapeHtml(e.title)}</a>`
+        : escapeHtml(e.title)}</h3>
+      <div class="muted" style="font-size:13.5px">
+        ${escapeHtml(d.text)} · ${escapeHtml([e.city, e.region].filter(Boolean).join(', ') || e.venue_name || '')}
+        ${dists.length ? ` · ${escapeHtml(dists.slice(0,4).join(', '))}` : ''}
+        ${e.water_temp_c != null ? ` · <span style="color:var(--cyan)">${escapeHtml(String(e.water_temp_c))}°C now</span>` : ''}
+      </div>
+    </article>`;
+  };
+
+  return `<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtml(title)}</title>
+<meta name="description" content="${escapeHtml(desc.slice(0,300))}">
+<meta name="robots" content="${n > 0 ? 'index,follow' : 'noindex,follow'}">
+<link rel="canonical" href="${SITE}/swims/${escapeHtml(slug)}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="${escapeHtml(`Open Water Swims in ${country.name}`)}">
+<meta property="og:description" content="${escapeHtml(desc.slice(0,300))}">
+<meta property="og:url" content="${SITE}/swims/${escapeHtml(slug)}">
+<meta property="og:site_name" content="SwimLoading">
+<meta property="og:image" content="${SITE}/screenshots/temps.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+<script type="application/ld+json">${JSON.stringify(schema).replace(/</g, '\\u003c')}</script>
+<style>${STYLES}</style></head>
+<body>
+<nav><a class="brand" href="/"><img src="/icons/logo-wave.png" alt=""><span>SwimLoading</span></a>
+<a class="cta" href="/app">Open the app</a></nav>
+<div class="wrap">
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/explore">Where to swim</a> › <span>${escapeHtml(country.name)}</span>
+  </nav>
+  <header class="ev">
+    <h1>Open water swims in ${escapeHtml(country.name)}</h1>
+    <p class="sub">${n} upcoming event${n === 1 ? '' : 's'}${routes.length
+      ? `, and ${routes.length} escorted swim${routes.length === 1 ? '' : 's'} you can book any time` : ''}.
+      Every venue carries the water temperature where we have one.</p>
+    <div class="keyline">
+      <div><b>${n}</b><span>Upcoming swims</span></div>
+      ${routes.length ? `<div><b>${routes.length}</b><span>Bookable routes</span></div>` : ''}
+      ${distances.length ? `<div><b>${distances[distances.length-1] >= 1000 ? `${+(distances[distances.length-1]/1000).toFixed(0)} km` : `${distances[distances.length-1]} m`}</b><span>Longest</span></div>` : ''}
+      ${temps.length ? `<div><b>${Math.round(temps.reduce((a,b)=>a+Number(b),0)/temps.length)}°C</b><span>Water now, average</span></div>` : ''}
+    </div>
+  </header>
+
+  ${n ? [...months.entries()].map(([k, rows]) => `<section>
+      <h2>${k === '' ? 'Date to be confirmed'
+        : `${MONTHS_LONG[Number(k.slice(5,7))-1]} ${k.slice(0,4)}`}</h2>
+      ${rows.map(card).join('')}
+    </section>`).join('') : `<section><div class="card"><p class="muted">
+      We have no upcoming swims listed in ${escapeHtml(country.name)} yet. We are adding sources country
+      by country — this is a gap in what we have found, not proof there is nothing there.
+      </p><div class="actions" style="margin-bottom:0"><a class="btn btn-primary" href="/explore">Find swims elsewhere</a></div></div></section>`}
+
+  ${routes.length ? `<section>
+    <h2>Swims you can book any time in ${escapeHtml(country.name)}</h2>
+    ${routes.map((r) => `<article class="result" style="display:block">
+      <h3 style="font-size:17px;margin-bottom:4px"><a href="/swims/${escapeHtml(r.slug)}" style="text-decoration:none">${escapeHtml(r.name)}</a></h3>
+      <div class="muted" style="font-size:13.5px">
+        ${r.distance_metres ? `${+(r.distance_metres/1000).toFixed(1)} km` : ''}
+        ${r.observed_temp_avg_c != null ? ` · <span style="color:var(--cyan)">${escapeHtml(String(r.observed_temp_avg_c))}°C average</span>` : ''}
+        ${r.logged_swims ? ` · ${r.logged_swims} logged swims` : ''}
+      </div>
+    </article>`).join('')}
+  </section>` : ''}
+
+  <section>
+    <h2>Planning to swim in ${escapeHtml(country.name)}?</h2>
+    <div class="card">
+      <p>SwimLoading tracks water temperature and conditions for open water swimmers worldwide.
+         See what the water is doing before you travel, follow the events you are aiming at,
+         and log the swims you do.</p>
+      <div class="actions" style="margin-bottom:0">
+        <a class="btn btn-primary" href="/app">Open the app — it's free</a>
+        <a class="btn" href="/explore">All open water swims</a>
+        <a class="btn" href="/spots">Swim spots and temperatures</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>${Object.entries(COUNTRY_HUBS).filter(([sl]) => sl !== slug).slice(0, 10)
+        .map(([sl, c]) => `<a href="/swims/${sl}">${escapeHtml(c.name)}</a>`).join(' · ')}</p>
+    <p style="margin-top:10px">Details gathered from public sources and not guaranteed —
+       confirm with the organiser before travelling.</p>
+  </footer>
+</div>
+<script>
+document.addEventListener('mousemove',e=>{
+  document.body.style.setProperty('--mouse-x',e.clientX+'px');
+  document.body.style.setProperty('--mouse-y',e.clientY+'px');
+});
+</script>
+</body></html>`;
+}
+
 // ── Bookable routes: /swims/{slug} ────────────────────────────────────────
 // Shares this handler because it shares the shell, the styles and the brand.
 // A route is NOT an event — no date, booked when conditions allow — so it
@@ -912,6 +1109,20 @@ export default async function handler(req, res) {
   // /swims/{slug} — a bookable route, not an event.
   if (parts[0] === 'swims') {
     if (!slug) { res.writeHead(301, { Location: '/explore?bookable=1' }); return res.end(); }
+    // Country hubs win the namespace — a finite known set, checked first.
+    if (COUNTRY_HUBS[slug]) {
+      try {
+        const country = COUNTRY_HUBS[slug];
+        const data = await loadCountryHub(country.code);
+        res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+        return res.status(200).send(renderCountryHub(slug, country, data));
+      } catch (err) {
+        console.error('[events-handler /swims country]', err);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(500).send(renderShell('Something went wrong — SwimLoading',
+          `<h1>Something went wrong</h1><div class="actions"><a class="btn btn-primary" href="/explore">Find a swim</a></div>`));
+      }
+    }
     try {
       const route = await loadRoute(slug);
       if (!route) {

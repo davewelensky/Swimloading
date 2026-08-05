@@ -101,6 +101,29 @@ export default async function handler(req, res) {
       ));
     }
 
+    // ── Country hub pages ────────────────────────────────────────────────
+    // /swims/south-africa is a page Google can rank for "open water swims
+    // South Africa". /explore?country=ZA is a query string it treats as one
+    // page with parameters, which is why the hubs exist at all.
+    // Only listed where there is actually something to see — an empty hub
+    // in the index is a thin page that costs more than it earns.
+    const hubCountries = await dbGet(
+      'event_venues?select=country_code&country_code=not.is.null&limit=2000'
+    ) || [];
+    const HUB_SLUGS = {
+      ZA: 'south-africa', US: 'united-states', GB: 'united-kingdom', FR: 'france',
+      CA: 'canada', GR: 'greece', DK: 'denmark', ES: 'spain', IT: 'italy',
+      IE: 'ireland', AU: 'australia', BB: 'barbados', NZ: 'new-zealand',
+      TR: 'turkiye', PT: 'portugal', HR: 'croatia', JP: 'japan', PL: 'poland',
+      BR: 'brazil', MX: 'mexico',
+    };
+    const present = new Set(hubCountries.map((v) => v.country_code));
+    for (const [code, hubSlug] of Object.entries(HUB_SLUGS)) {
+      if (present.has(code)) {
+        urls.push(url(`${BASE}/swims/${hubSlug}`, '0.85', 'daily', TODAY()));
+      }
+    }
+
     // ── Bookable route pages ─────────────────────────────────────────────
     // These have no date and change rarely, but they are the pages a
     // traveller searches for ("swim Robben Island"), so they earn a high
