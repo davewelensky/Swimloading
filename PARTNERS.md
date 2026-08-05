@@ -330,6 +330,46 @@ Every partner must have all of the following before going live:
 
 ---
 
+### JAKED
+
+| Field | Value |
+|-------|-------|
+| **Status** | Partnership confirmed (Aug 2026) — hero page live in coming-soon state. Dave: they're soon sponsoring Carina Brüwer. |
+| **Hero page** | `/partners/jaked` (live in coming-soon state) |
+| **Welcome card** | Yes (coming soon badge) |
+| **Geography** | `[UNCONFIRMED]` |
+| **Contact** | `[TBD]` |
+| **Partner URL** | https://www.jaked.com/en |
+
+**What SwimLoading offers them:**
+- Partner card + hero page at /partners/jaked
+- `[TBD — agree with contact once confirmed]`
+
+**What they offer members:**
+- **Carina Brüwer sponsorship (confirmed by Dave, Aug 2026)** — JAKED will soon sponsor Carina Brüwer, SwimLoading's own athlete. Kit/story details `[TBD]`.
+- Member benefits (discount, prize, or portal) — `[TBD, not yet agreed]`
+
+**Product facts on hero page** (from jaked.com, Aug 2026 — verify before adding anything more specific):
+- Italian sportswear/swim brand — categories: Swim, Open Water, Competition, Accessories
+- Flagship open water wetsuit: **BLADE**
+- Flagship open water swimsuit: **J-KAI**
+- Competition racing suits (e.g. CLUB Racing Swimsuit), goggles (SPY EXTREME)
+- Brand copy: "Jaked is passion, curiosity, and competition" / Italian DNA, research → ideas → innovation
+- **JAKED Tribe** — their own gamified community app (Goccia points, missions, leaderboard)
+- Do not publish prices — link to jaked.com/en
+
+**Outstanding actions:**
+- [ ] Get a named contact and confirm commercial terms (what SwimLoading offers, what members get)
+- [ ] Confirm geography (jaked.com ships internationally per their site, but our arrangement geography is unconfirmed)
+- [ ] Get real logo/product assets — jaked.com's CDN was too unreliable to reliably pull images (Aug 2026); page currently uses a styled text wordmark like FORM's
+- [ ] Confirm the Carina Brüwer sponsorship details (kit, timing, story) once available
+- [ ] Update hero page + welcome card from coming-soon to live once confirmed
+
+**Notes:**
+- This connects to the Carina Brüwer swimwear-sponsor pipeline below — JAKED was not on that Tier 1 target list, this came in as a direct Dave update (Aug 2026).
+
+---
+
 ## Partner Pipeline
 
 Partners we should consider approaching as SwimLoading grows. No pages, no cards, no mentions until confirmed.
