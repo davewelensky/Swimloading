@@ -462,10 +462,14 @@ function readUrl(){
   chk('weekendOnly', u.get('weekend_only')); chk('entriesOpen', u.get('entries_open'));
   chk('confirmedOnly', u.get('confirmed_only')); chk('tri', u.get('include_multisport'));
   PAGE = Math.max(1, parseInt(u.get('page'),10) || 1);
-  if(u.get('country') || u.get('region') || u.get('city')){
-    SEL.place = { label: u.get('place_label') || u.get('city') || u.get('region') || countryName(u.get('country')),
-                  kind: u.get('city') ? 'town' : u.get('region') ? 'region' : 'country',
-                  match: { country:u.get('country')||null, region:u.get('region')||null, city:u.get('city')||null },
+  // Defensive on the way in as well as out: links carrying the old
+  // "undefined" string are already in people's history and pasted messages,
+  // and they must degrade to "no filter" rather than to "no results".
+  const clean = k => { const v = u.get(k); return (v && v !== 'undefined' && v !== 'null') ? v : null; };
+  if(clean('country') || clean('region') || clean('city')){
+    SEL.place = { label: clean('place_label') || clean('city') || clean('region') || countryName(clean('country')),
+                  kind: clean('city') ? 'town' : clean('region') ? 'region' : 'country',
+                  match: { country:clean('country'), region:clean('region'), city:clean('city') },
                   n: 0 };
     const q = document.getElementById('q'); if(q) q.value = SEL.place.label;
   }
@@ -474,7 +478,14 @@ function readUrl(){
 function writeUrl(){
   const p = params();
   const u = new URLSearchParams();
-  const put = (k,v) => { if(v!==null && v!=='' && v!==false) u.set(k, v===true?'1':v); };
+  // undefined must be excluded as well as null. A place chosen from a chip
+  // has only the keys that matter — a country match has no .region — so the
+  // others are undefined, not null, and `undefined !== null` is true. That
+  // wrote the literal string "undefined" into the URL, and reloading it
+  // searched for a region actually named "undefined", returning nothing.
+  // A copied link silently finding zero swims defeats the entire point of
+  // putting the search in the URL.
+  const put = (k,v) => { if(v!==null && v!==undefined && v!=='' && v!==false) u.set(k, v===true?'1':v); };
   put('min_distance_m', p.minimum_distance_m); put('water_type', p.water_type);
   put('date_from', p.date_from); put('date_to', p.date_to);
   put('weekend_only', p.weekend_only); put('entries_open', p.entries_open);
