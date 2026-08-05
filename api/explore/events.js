@@ -88,8 +88,6 @@ function enumOf(v, param, allowed) {
 const bool = (v) => v === 'true' || v === '1';
 
 function parseQuery(q) {
-  const mode = enumOf(q.mode, 'mode', MODES) || 'travel';
-
   const lat = num(q.lat, 'lat', { min: -90, max: 90 });
   const lon = num(q.lon ?? q.lng, 'lon', { min: -180, max: 180 });
 
@@ -116,6 +114,14 @@ function parseQuery(q) {
   }
 
   const region = q.region ? String(q.region).trim().slice(0, 80) : null;
+
+  // Infer the mode from the search rather than trusting the caller to label
+  // it. A request carrying coordinates IS a near-me search, and reporting it
+  // back as "travel" makes the echoed search block quietly wrong — which
+  // matters because callers and analytics both read mode from the response.
+  // An explicit mode still wins, so a caller can say "these coordinates are
+  // a destination I am considering, not where I am".
+  const mode = enumOf(q.mode, 'mode', MODES) || (lat !== null ? 'near_me' : 'travel');
 
   return {
     mode,
