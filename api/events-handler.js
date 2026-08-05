@@ -659,12 +659,279 @@ function renderShell(title, body) {
 <div class="wrap"><section style="padding-top:60px">${body}</section></div></body></html>`;
 }
 
+// ── Bookable routes: /swims/{slug} ────────────────────────────────────────
+// Shares this handler because it shares the shell, the styles and the brand.
+// A route is NOT an event — no date, booked when conditions allow — so it
+// gets its own loader and renderer rather than being forced through the
+// event path.
+
+async function loadRoute(slug) {
+  const rows = await dbGet(
+    `swim_routes?slug=eq.${encodeURIComponent(slug)}&is_public=eq.true&limit=1&select=*`
+  );
+  return Array.isArray(rows) && rows.length ? rows[0] : null;
+}
+
+async function loadRouteContext(route) {
+  const [operator, startSpot, climatology] = await Promise.all([
+    route.operator_id
+      ? dbGet(`public_organisers?id=eq.${route.operator_id}&select=display_name,official_url&limit=1`)
+      : Promise.resolve(null),
+    route.start_spot_id
+      ? dbGet(`spots?id=eq.${route.start_spot_id}&select=id,name,latitude,longitude&limit=1`)
+      : Promise.resolve(null),
+    // Climatology is keyed on VENUE, and routes link to spots — so find a
+    // venue sharing the spot. This is why the Big Bay venues were bound to
+    // spots rather than given typed coordinates.
+    route.start_spot_id
+      ? dbGet(`event_venues?spot_id=eq.${route.start_spot_id}&select=id&limit=1`)
+      : Promise.resolve(null),
+  ]);
+
+  let weeks = [];
+  const venueId = Array.isArray(climatology) && climatology.length ? climatology[0].id : null;
+  if (venueId) {
+    const rows = await dbGet(
+      `venue_water_climatology?venue_id=eq.${venueId}&select=week_of_year,mean_c,p10_c,p90_c,years_observed&order=week_of_year.asc`
+    );
+    weeks = Array.isArray(rows) ? rows : [];
+  }
+
+  return {
+    operator: Array.isArray(operator) && operator.length ? operator[0] : null,
+    spot: Array.isArray(startSpot) && startSpot.length ? startSpot[0] : null,
+    weeks,
+  };
+}
+
+const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fmtMins = (m) => {
+  if (m == null) return null;
+  const h = Math.floor(m / 60), r = m % 60;
+  return h ? `${h}h${r ? String(r).padStart(2, '0') : ''}` : `${r}m`;
+};
+
+function renderRoutePage(route, ctx) {
+  const operates = route.operator_role === 'operates';
+  const dist = route.distance_metres
+    ? (route.distance_metres >= 1000 ? `${+(route.distance_metres / 1000).toFixed(1)} km` : `${route.distance_metres} m`)
+    : null;
+  const season = (route.season_start_month && route.season_end_month)
+    ? `${MONTH_SHORT[route.season_start_month - 1]}–${MONTH_SHORT[route.season_end_month - 1]}`
+    : null;
+  const bookUrl = operates ? safeUrl(route.booking_url) : null;
+  const title = `Swim ${route.name} — Distance, Water Temperature & How to Book | SwimLoading`;
+  const desc = `${route.summary || route.name}${dist ? ` ${dist}.` : ''}` +
+    `${route.observed_temp_avg_c != null ? ` Water averages ${route.observed_temp_avg_c}°C.` : ''}` +
+    `${route.logged_swims ? ` Based on ${route.logged_swims} logged swims.` : ''}`;
+
+  // Climatology by month, from weekly rows. This is the answer to the
+  // question a travelling swimmer actually has — "what will the water be
+  // like when I am there" — and it is why routes are bound to spots.
+  const byMonth = [];
+  if (ctx.weeks.length) {
+    for (let m = 0; m < 12; m++) {
+      const lo = Math.floor(m * 52 / 12) + 1, hi = Math.floor((m + 1) * 52 / 12);
+      const inMonth = ctx.weeks.filter((w) => w.week_of_year >= lo && w.week_of_year <= hi && w.mean_c != null);
+      if (inMonth.length) {
+        byMonth.push({
+          month: MONTH_SHORT[m],
+          mean: Math.round((inMonth.reduce((a, w) => a + Number(w.mean_c), 0) / inMonth.length) * 10) / 10,
+        });
+      }
+    }
+  }
+
+  const schema = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      { '@type': 'Organization', '@id': `${SITE}/#org`, name: 'SwimLoading', url: SITE,
+        logo: `${SITE}/icons/logo.png` },
+      { '@type': 'BreadcrumbList', itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'SwimLoading', item: SITE },
+        { '@type': 'ListItem', position: 2, name: 'Where to swim', item: `${SITE}/explore` },
+        { '@type': 'ListItem', position: 3, name: route.name, item: `${SITE}/swims/${route.slug}` },
+      ] },
+      { '@type': 'FAQPage', mainEntity: [
+        { '@type': 'Question', name: `How long is the ${route.name} swim?`,
+          acceptedAnswer: { '@type': 'Answer', text: dist
+            ? `${route.name} is ${dist}${route.start_point && route.finish_point ? `, from ${route.start_point} to ${route.finish_point}` : ''}.`
+            : `The distance for ${route.name} is not recorded.` } },
+        { '@type': 'Question', name: `How cold is the water on the ${route.name} swim?`,
+          acceptedAnswer: { '@type': 'Answer', text: route.observed_temp_avg_c != null
+            ? `Swimmers have logged an average of ${route.observed_temp_avg_c}°C, ranging from ${route.observed_temp_min_c}°C to ${route.observed_temp_max_c}°C${route.logged_swims ? ` across ${route.logged_swims} swims` : ''}.`
+            : (route.typical_temp_min_c != null
+                ? `Typically ${route.typical_temp_min_c}–${route.typical_temp_max_c}°C.`
+                : `Water temperature for this route is not recorded.`) } },
+        { '@type': 'Question', name: `How do I book the ${route.name} swim?`,
+          acceptedAnswer: { '@type': 'Answer', text: operates && ctx.operator
+            ? `${route.name} is run by ${ctx.operator.display_name}. It has no fixed date — it runs when conditions allow, so you arrange it with the operator directly.`
+            : `${route.name} is booked through ${route.sanctioning_body || 'its sanctioning body'}${ctx.operator ? `. ${ctx.operator.display_name} supports swimmers on this route but does not run it` : ''}.` } },
+      ] },
+    ],
+  };
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtml(title)}</title>
+<meta name="description" content="${escapeHtml(desc.slice(0, 300))}">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="${SITE}/swims/${escapeHtml(route.slug)}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="${escapeHtml(`Swim ${route.name}`)}">
+<meta property="og:description" content="${escapeHtml(desc.slice(0, 300))}">
+<meta property="og:url" content="${SITE}/swims/${escapeHtml(route.slug)}">
+<meta property="og:site_name" content="SwimLoading">
+<meta property="og:image" content="${SITE}/icons/logo.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+<script type="application/ld+json">${JSON.stringify(schema).replace(/</g, '\\u003c')}</script>
+<style>${STYLES}</style></head>
+<body>
+<nav>
+  <a class="brand" href="/"><img src="/icons/logo-wave.png" alt=""><span>SwimLoading</span></a>
+  <a class="cta" href="/app">Open the app</a>
+</nav>
+<div class="wrap">
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/explore">Where to swim</a> ›
+    <a href="/explore?bookable=1">Swims you can book</a> ›
+    <span>${escapeHtml(route.name)}</span>
+  </nav>
+
+  <header class="ev">
+    <div class="badges">
+      ${route.difficulty ? `<span class="badge b-${route.difficulty === 'medium' ? 'green' : route.difficulty === 'high' ? 'amber' : 'red'}">${escapeHtml(route.difficulty)}</span>` : ''}
+      <span class="badge b-grey">${escapeHtml(route.route_type)}</span>
+      ${route.requires_observer ? '<span class="badge b-grey">Observer required</span>' : ''}
+      ${route.requires_support_boat ? '<span class="badge b-grey">Support boat required</span>' : ''}
+    </div>
+    <h1>${escapeHtml(route.name)}</h1>
+    <p class="sub">${escapeHtml([route.start_point, route.finish_point].filter(Boolean).join(' → '))}</p>
+
+    <div class="keyline">
+      ${dist ? `<div><b>${escapeHtml(dist)}</b><span>Distance</span></div>` : ''}
+      ${season ? `<div><b>${escapeHtml(season)}</b><span>Season</span></div>` : ''}
+      ${route.observed_temp_avg_c != null ? `<div><b>${escapeHtml(String(route.observed_temp_avg_c))}°C</b><span>Water, average</span></div>` : ''}
+      ${route.logged_swims ? `<div><b>${route.logged_swims}</b><span>Logged swims</span></div>` : ''}
+    </div>
+
+    <div class="actions">
+      ${bookUrl ? `<a class="btn btn-primary" href="${escapeHtml(bookUrl)}" target="_blank" rel="noopener noreferrer nofollow">Book this swim</a>` : ''}
+      <a class="btn" href="/explore?bookable=1">Other swims you can book</a>
+    </div>
+  </header>
+
+  ${route.summary ? `<section><h2>About this swim</h2><div class="card"><p>${escapeHtml(route.summary)}</p>
+    ${route.notes ? `<p style="margin-top:10px">${escapeHtml(route.notes)}</p>` : ''}</div></section>` : ''}
+
+  <section>
+    <h2>Booking and support</h2>
+    <div class="card">
+      ${operates
+        ? `<p><b>${escapeHtml(ctx.operator ? ctx.operator.display_name : 'The operator')}</b> runs this swim.
+             It has no fixed date — it goes when the weather and the water allow, so you arrange a window directly.</p>`
+        : `<div class="warn" style="margin-bottom:0">This swim is <b>not booked through
+             ${escapeHtml(ctx.operator ? ctx.operator.display_name : 'SwimLoading')}</b>. It is arranged through
+             ${escapeHtml(route.sanctioning_body || 'its sanctioning body')}${ctx.operator
+               ? `; ${escapeHtml(ctx.operator.display_name)} supports swimmers on this route but does not operate it` : ''}.</div>`}
+      ${route.qualifying_swim_minutes ? `<p style="margin-top:12px">Qualifying swim:
+        ${Math.round(route.qualifying_swim_minutes / 60)} hours${route.qualifying_max_temp_c != null
+          ? ` at or below ${escapeHtml(String(route.qualifying_max_temp_c))}°C` : ''}.</p>` : ''}
+    </div>
+  </section>
+
+  ${route.logged_swims ? `<section>
+    <h2>What it actually takes</h2>
+    <div class="card">
+      <dl>
+        <dt>Logged swims</dt><dd>${route.logged_swims}</dd>
+        ${route.duration_min_minutes ? `<dt>Time taken</dt><dd>${escapeHtml(fmtMins(route.duration_min_minutes))} to ${escapeHtml(fmtMins(route.duration_max_minutes))}</dd>` : ''}
+        ${route.observed_temp_avg_c != null ? `<dt>Water measured</dt><dd>${escapeHtml(String(route.observed_temp_avg_c))}°C average, ${escapeHtml(String(route.observed_temp_min_c))}–${escapeHtml(String(route.observed_temp_max_c))}°C range</dd>` : ''}
+      </dl>
+      <p class="srcnote">From swims actually escorted on this route, recorded by the operator
+        ${route.evidence_as_at ? `as at ${escapeHtml(String(route.evidence_as_at))}` : ''}. A snapshot, not a live feed.</p>
+    </div>
+  </section>` : ''}
+
+  ${byMonth.length ? `<section>
+    <h2>What the water does through the year</h2>
+    <div class="card tablewrap">
+      <table><thead><tr>${byMonth.map(m => `<th>${m.month}</th>`).join('')}</tr></thead>
+      <tbody><tr>${byMonth.map(m => `<td><b>${m.mean}°C</b></td>`).join('')}</tr></tbody></table>
+      <p class="srcnote">SwimLoading estimate from Copernicus Marine satellite reanalysis, averaged over
+        20 years for this venue. It describes what the water usually does in each month — useful for
+        picking when to travel, not a forecast for a given day.</p>
+    </div>
+  </section>` : ''}
+
+  <section>
+    <h2>Planning a swimming trip?</h2>
+    <div class="card">
+      <p>SwimLoading tracks water temperature and conditions for open water swimmers worldwide.
+         Find races and bookable crossings, see what the water is doing before you travel,
+         and log the swims you do.</p>
+      <div class="actions" style="margin-bottom:0">
+        <a class="btn btn-primary" href="/app">Open the app — it's free</a>
+        <a class="btn" href="/explore">Find more swims</a>
+        <a class="btn" href="/spots">Swim spots and temperatures</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p><a href="/explore">All open water swims</a> ·
+       <a href="/explore?bookable=1">Swims you can book</a> ·
+       <a href="/spots">Swim spots</a> ·
+       <a href="/crossings">Channel crossings</a></p>
+    <p style="margin-top:10px">Conditions and safety requirements are the operator's to set.
+       Always confirm before you travel.</p>
+  </footer>
+</div>
+<script>
+document.addEventListener('mousemove',e=>{
+  document.body.style.setProperty('--mouse-x',e.clientX+'px');
+  document.body.style.setProperty('--mouse-y',e.clientY+'px');
+});
+</script>
+</body>
+</html>`;
+}
+
 export default async function handler(req, res) {
   const path = (req.url || '').split('?')[0];
   const parts = path.split('/').filter(Boolean);
   const slug = parts[1] || '';
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
+
+  // /swims/{slug} — a bookable route, not an event.
+  if (parts[0] === 'swims') {
+    if (!slug) { res.writeHead(301, { Location: '/explore?bookable=1' }); return res.end(); }
+    try {
+      const route = await loadRoute(slug);
+      if (!route) {
+        res.setHeader('Cache-Control', 'public, s-maxage=60');
+        return res.status(404).send(renderShell('Swim not found — SwimLoading',
+          `<h1>We do not have that swim</h1>
+           <p class="sub">It may have been renamed or removed.</p>
+           <div class="actions"><a class="btn btn-primary" href="/explore?bookable=1">Swims you can book</a></div>`));
+      }
+      const rctx = await loadRouteContext(route);
+      res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+      return res.status(200).send(renderRoutePage(route, rctx));
+    } catch (err) {
+      console.error('[events-handler /swims]', err);
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(500).send(renderShell('Something went wrong — SwimLoading',
+        `<h1>Something went wrong</h1><p class="sub">We could not load that swim.</p>
+         <div class="actions"><a class="btn btn-primary" href="/explore">Find a swim</a></div>`));
+    }
+  }
 
   if (!slug) {
     res.writeHead(301, { Location: '/explore' });
