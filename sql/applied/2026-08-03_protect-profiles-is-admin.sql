@@ -30,8 +30,19 @@ END $$;
 -- ================================================================
 -- Migration: 2026-08-03_protect-profiles-is-admin.sql
 -- Process:   see MIGRATIONS.md — no section below may be left empty
--- STATUS:    ⛔ PROPOSED — NOT YET APPLIED. Awaiting Dave's review and
---            the literal word "apply" per MIGRATIONS.md step 4.
+-- STATUS:    ✅ APPLIED 2026-08-05. Verified: trigger present (BEFORE
+--            UPDATE), function is INVOKER not DEFINER, admin count
+--            unchanged at 1. Functional test run in an aborted block —
+--            (A) is_admin escalation rejected with the expected message,
+--            (B) ordinary profile edits still succeed, (C) writing
+--            is_admin to its existing value is allowed (the guard is
+--            IS DISTINCT FROM, not a blanket ban on naming the column).
+--            Note the test ran as the service role and was still blocked,
+--            which is the intended no-bypass design — see the OPERATIONAL
+--            NOTE below for how to grant an admin from now on.
+--            Still outstanding: verify step 4, the authenticated-role run
+--            of scripts/test-profile-is-admin-protection.mjs, which needs
+--            TEST_USER_* credentials.
 -- ================================================================
 
 -- Purpose:
@@ -67,12 +78,31 @@ END $$;
 --        AND trigger_name = 'protect_profile_admin_fields';
 --      -- expect: 0 rows
 --
--- 3. List every trigger currently on profiles, for the record (informational):
---      SELECT trigger_name, event_manipulation, action_timing
---      FROM information_schema.triggers
---      WHERE event_object_table = 'profiles';
---      -- expect: on_profile_insert_set_email (BEFORE INSERT) only —
---      -- on_auth_user_confirmed lives on auth.users, not profiles.
+-- 3. List every trigger currently on profiles, for the record (informational).
+--    Use pg_catalog, NOT information_schema: information_schema.triggers only
+--    shows triggers whose function the querying role has rights on, and on
+--    this database it returned ZERO rows — which would have read as "no
+--    triggers at all" and is wrong.
+--      SELECT t.tgname, pg_get_triggerdef(t.oid)
+--        FROM pg_trigger t
+--       WHERE t.tgrelid = 'public.profiles'::regclass AND NOT t.tgisinternal
+--       ORDER BY t.tgname;
+--      -- ACTUAL 2026-08-05 — four, not the one this file first assumed:
+--        on_onboarding_completed     AFTER  UPDATE OF onboarding_completed_at
+--        on_profile_insert_set_email BEFORE INSERT
+--        trg_identity_public_guard   BEFORE INSERT OR UPDATE
+--        trg_sync_auth_display_name  AFTER  UPDATE OF display_name
+--      -- None references is_admin (checked: prosrc ILIKE '%is_admin%' is
+--      -- false for all four), so none is an existing guard and none is
+--      -- made redundant by this migration.
+--
+-- 3b. Interaction with trg_identity_public_guard, the only other BEFORE
+--     UPDATE trigger. Postgres fires same-timing row triggers in NAME order,
+--     so 'protect_profile_admin_fields' < 'trg_identity_public_guard' means
+--     ours raises FIRST. An is_admin escalation is therefore rejected before
+--     the identity guard runs, and the identity guard's own behaviour on
+--     legitimate updates is unchanged because ours returns NEW untouched in
+--     every non-escalation case.
 --
 -- 4. Confirm current admin count is unaffected by this migration
 --    (informational baseline, not required to match a specific number —
