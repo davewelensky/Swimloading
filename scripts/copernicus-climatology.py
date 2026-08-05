@@ -187,14 +187,43 @@ def fetch_venues(limit: int | None, only_missing: bool = False) -> list[dict]:
         "&latitude=not.is.null&longitude=not.is.null&order=display_name"
     )
     if only_missing:
-        done = {
-            r["venue_id"]
-            for r in supabase("venue_water_climatology?select=venue_id")
-        }
+        # PAGINATED, and that is not optional. PostgREST caps a response at
+        # 1000 rows, and this table holds 52 weeks per venue — so a single
+        # unpaginated request sees only ~19 venues and reports every other
+        # one as missing. The first run of this flag claimed "20 already
+        # have a climatology, 147 to process" when the true figure was 83
+        # and 5, and spent half an hour re-downloading what it already had.
+        # The writes are idempotent so nothing broke; the flag just did
+        # nothing, which is the worst kind of bug in a cost-saving switch.
+        done: set[str] = set()
+        page = 0
+        PAGE = 1000
+        while True:
+            # NOT named `rows` — that is the venue list this function is
+            # filtering, and shadowing it here silently replaced the venues
+            # with climatology rows.
+            batch = supabase(
+                f"venue_water_climatology?select=venue_id"
+                f"&offset={page * PAGE}&limit={PAGE}&order=venue_id.asc"
+            )
+            if not batch:
+                break
+            done.update(r["venue_id"] for r in batch)
+            if len(batch) < PAGE:
+                break
+            page += 1
         skipped = [r for r in rows if r["id"] in done]
         rows = [r for r in rows if r["id"] not in done]
+        # EXPECT A LARGE "to process" NUMBER EVEN ON A CLEAN RE-RUN, and do
+        # not read it as the flag failing. Copernicus SST is sea-only, so the
+        # ~79 inland venues — US lake towns, Loch Awe, Kyiv, Midmar Dam —
+        # never produce a row and are therefore never "done". They are
+        # retried on every run and fail cheaply and quickly at the subset
+        # step. Marking them permanently off-grid would need a column; until
+        # then this line is honest rather than tidy.
         print(f"--only-missing: {len(skipped)} venue(s) already have a climatology, "
-              f"{len(rows)} to process.")
+              f"{len(rows)} to process (includes inland venues that will never "
+              f"return marine data — they are retried each run).")
     return rows[:limit] if limit else rows
 
 
