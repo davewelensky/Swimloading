@@ -180,38 +180,51 @@ uncovered venues individually rather than counting them.
 
 ## 6. Needs your attention
 
-**1. `profiles.is_admin` is still self-grantable.** No column grant or
-trigger stops a logged-in user setting it on their own row, and it now gates
-*publishing*, not just reading. Fix written and pre-checked:
-`sql/2026-08-03_protect-profiles-is-admin.sql` — **not applied**. This is
-the most serious open item in this document.
+> **Closed 2026-08-05.** The two security items that used to head this list
+> are applied and verified; both migrations are in `sql/applied/`.
+>
+> - **`profiles.is_admin` self-escalation** — a `BEFORE UPDATE` trigger now
+>   rejects any update that changes the column. Confirmed at apply time that
+>   the risk was live: `profiles_update_own` is `auth.uid() = id` with no
+>   column restriction and no trigger guarded it. There is **no bypass by
+>   design** — granting an admin now means bracketing the `UPDATE` with
+>   `DISABLE`/`ENABLE TRIGGER`, spelled out in the migration's operational
+>   note. Read that before you next try to make someone an admin.
+> - **Auto-publish of AI-read candidates** — `auto_publish_eligible_candidates`
+>   gained `AND c.extraction_method <> 'ai_fallback'`. The 2026-08-04
+>   publish-and-label decision is **not** reversed; only the model-read rows
+>   are held, because a tier can describe a thin listing but not a row that
+>   was never an event. Prospective only: nothing was eligible at apply time,
+>   so it bites on the next crawl.
+>
+> **Still open from that second one:** 56 published editions already trace to
+> an AI-read candidate (40 `manual_review`, 16 `insufficient_evidence`). They
+> were deliberately left live — most are probably real swims, so a review
+> pass beats a bulk delete. The query that lists them is in
+> `sql/applied/2026-08-05_ai-candidates-require-review.sql`.
 
-**2. Auto-publish takes AI candidates live without review.** What put seven
-Midmar waves in front of users. One line in the eligibility rule so
-`ai_fallback` requires `manual_review`. **Recommended.**
-
-**3. `/explore` is still `noindex,nofollow`.** With 250 events across 28
+**1. `/explore` is still `noindex,nofollow`.** With 250 events across 28
 countries the original reason (thin, US-heavy coverage) has largely gone.
 This is the single biggest constraint on the whole effort — nobody can find
 it. Remove the meta tag in `explore.html` when you're happy.
 
-**4. 582 candidates awaiting review.** Many are dateless rows that should
+**2. 582 candidates awaiting review.** Many are dateless rows that should
 resolve themselves now that page-stated years are accepted, as sources
 re-crawl.
 
-**5. Populate the climatology.** `python3 scripts/copernicus-climatology.py`.
+**3. Populate the climatology.** `python3 scripts/copernicus-climatology.py`.
 
-**6. Two events published on indirect sourcing**, both `manual_review`,
+**4. Two events published on indirect sourcing**, both `manual_review`,
 both worth verifying: *South32 Rottnest Channel Swim* 20 Feb 2027 (organiser
 403s automated fetches; date from search-index snippets) and *Dublin City
 Liffey Swim* 29 Aug 2026 (secondary listing).
 
-**7. Oceanman distances are derived, not stated.** Their calendar lists
+**5. Oceanman distances are derived, not stated.** Their calendar lists
 category names. The mapping (OCEANMAN=10km, HALF=5km, SPRINT=1.5km,
 OCEANKIDS=500m, OCEANTEAMS=3×500m, ULTRA=21km) was verified on two race
 pages and applied to 17 others. Recorded as a warning on every candidate.
 
-**8. `/explore` loads every event and filters client-side.** Fine at 250;
+**6. `/explore` loads every event and filters client-side.** Fine at 250;
 needs server-side bounding-box queries in the low thousands. The 1000-row
 ceiling is a stopgap and is commented as one.
 
