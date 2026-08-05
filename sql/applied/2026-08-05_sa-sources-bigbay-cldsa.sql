@@ -67,6 +67,14 @@ END $safety$;
 --   extraction, review and this entire problem.
 --
 -- ── CLDSA — probed 2026-08-05 ───────────────────────────────────────────
+--   ⚠️ RETRACTED 2026-08-05 by Dave: everything below about CLDSA being a
+--   race calendar is WRONG. CLDSA sanctions and records Robben Island
+--   crossings and publishes SWIMMER STATISTICS — solo sanctioned swims, not
+--   events anyone enters from a calendar. It is not an event source at all,
+--   so its 403 is irrelevant and it must not be re-probed or enabled. The
+--   claim that it was "the single biggest reason Cape Town looks empty" was
+--   my inference, not a checked fact, and it was wrong. The live row's notes
+--   have been corrected. Kept below for the record only.
 --   Already present and disabled; this only records WHY, which was not
 --   written down. https://cldsa.co.za/events/ returns 403 to an automated
 --   fetch. It is behind Cloudflare (robots.txt references /cdn-cgi/).
