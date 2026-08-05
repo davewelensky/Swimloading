@@ -73,6 +73,47 @@ export default async function handler(req, res) {
       ));
     }
 
+    // ── Event pages ──────────────────────────────────────────────────────
+    // 194 /events/{slug} pages were built and marked index,follow, and NONE
+    // of them was in this file — so Google had no way to reach a single one.
+    // /explore is the only page that links to them and it is noindex,NOFOLLOW,
+    // which explicitly tells a crawler not to follow those links. Indexable
+    // pages that nothing links to and no sitemap lists are invisible pages.
+    //
+    // Gated on is_indexable, which is granted by rule and excludes AI-read
+    // candidates and past events — see
+    // sql/applied/2026-08-05_explore-phase1-foundation.sql. Listing an event
+    // we have not verified well enough would put a wrong listing somewhere a
+    // correction cannot follow it.
+    const events = await dbGet(
+      'event_editions?is_indexable=eq.true&status=in.(announced,entries_open,entries_closed)' +
+      `&start_date=gte.${TODAY()}&select=slug,start_date,last_verified_at&order=start_date.asc&limit=2000`
+    ) || [];
+    for (const ev of events) {
+      if (!ev.slug) continue;
+      // Soon = worth re-crawling often, because entry status and dates move.
+      const soon = ev.start_date && ev.start_date <= addDays(90);
+      urls.push(url(
+        `${BASE}/events/${ev.slug}`,
+        soon ? '0.8' : '0.6',
+        soon ? 'daily' : 'weekly',
+        (ev.last_verified_at || '').slice(0, 10) || TODAY()
+      ));
+    }
+
+    // ── Bookable route pages ─────────────────────────────────────────────
+    // These have no date and change rarely, but they are the pages a
+    // traveller searches for ("swim Robben Island"), so they earn a high
+    // priority and a slow changefreq.
+    const routes = await dbGet(
+      'swim_routes?is_public=eq.true&select=slug,updated_at&order=slug.asc'
+    ) || [];
+    for (const r of routes) {
+      if (!r.slug) continue;
+      urls.push(url(`${BASE}/swims/${r.slug}`, '0.8', 'monthly',
+        (r.updated_at || '').slice(0, 10) || TODAY()));
+    }
+
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -87,6 +128,14 @@ ${urls.join('\n')}
     console.error('[sitemap-dynamic]', err);
     res.status(500).send('<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"/>');
   }
+}
+
+// Days from today as YYYY-MM-DD. Used to decide how often a listing is
+// worth re-crawling: an event three months out still moves.
+function addDays(n) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
 }
 
 function url(loc, priority, changefreq, lastmod) {

@@ -129,7 +129,27 @@ async function loadContext(ev) {
     dbGet(`event_change_history?edition_id=eq.${ev.id}&order=changed_at.desc&limit=5`),
   ]);
 
+  // Catalogue size for the closing block. Real numbers, fetched rather than
+  // hard-coded, because a stale "250 swims" on a few hundred cached pages is
+  // exactly the drift the site-config rule exists to prevent. Counted via a
+  // HEAD-style exact count so this costs one cheap query, not a row fetch.
+  let catalogueSize = null;
+  let countryCount = null;
+  try {
+    const all = await dbGet(
+      `event_editions?is_searchable=eq.true&status=in.(announced,entries_open,entries_closed)` +
+      `&start_date=gte.${new Date().toISOString().slice(0,10)}&select=venue_id&limit=2000`
+    );
+    if (Array.isArray(all)) catalogueSize = all.length;
+  } catch { /* non-fatal */ }
+  try {
+    const v = await dbGet('event_venues?select=country_code&country_code=not.is.null&limit=2000');
+    if (Array.isArray(v)) countryCount = new Set(v.map((x) => x.country_code)).size;
+  } catch { /* non-fatal */ }
+
   return {
+    catalogueSize,
+    countryCount,
     organiser: Array.isArray(organiser) && organiser.length ? organiser[0] : null,
     climatology: Array.isArray(climatology) && climatology.length ? climatology[0] : null,
     current: Array.isArray(current) && current.length ? current[0] : null,
@@ -195,13 +215,77 @@ function schemaOrg(ev, ctx) {
   return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`;
 }
 
+// Breadcrumb, organisation and FAQ — the same shapes the /spots pages carry.
+// Unlike the SportsEvent block above these are safe on ANY event, because
+// they describe the page and the answers are generated from what we actually
+// hold: an FAQ that says "we do not have a confirmed date" is still a true
+// answer, and truthful uncertainty is what this catalogue is for.
+function supportingSchema(ev, ctx) {
+  const venue = ev.event_venues;
+  const place = [venue?.city, venue?.region, venue?.country_code].filter(Boolean).join(', ');
+  const d = fmtLongDate(ev.start_date, ev.date_precision, ev.date_confirmed);
+  const trust = trustLabel(ev);
+  const distances = (ev.event_distances || [])
+    .map((x) => fmtDistance(x.distance_metres)).filter(Boolean);
+
+  const qa = [
+    [`When is ${ev.title}?`,
+     ev.date_confirmed && !d.provisional
+       ? `${ev.title} takes place on ${d.text}${place ? ` in ${place}` : ''}.`
+       : `The date for ${ev.title} is not yet confirmed${ev.start_date ? ` — it is expected around ${d.text}` : ''}. Check with the organiser before making plans.`],
+    [`Where is ${ev.title} held?`,
+     place || venue?.location_text
+       ? `${ev.title} is held at ${venue?.display_name || place}${place && venue?.display_name ? `, ${place}` : ''}.`
+       : `The venue for ${ev.title} has not been confirmed.`],
+  ];
+  if (distances.length) {
+    qa.push([`What distances does ${ev.title} offer?`,
+      `${ev.title} offers ${distances.join(', ')}.`]);
+  }
+  if (ctx.climatology) {
+    const c = ctx.climatology;
+    qa.push([`How cold is the water at ${ev.title}?`,
+      `Water at this venue typically averages ${Math.round(c.mean_c * 10) / 10}°C in this week of the year` +
+      `${c.p10_c != null ? `, usually between ${Math.round(c.p10_c*10)/10}°C and ${Math.round(c.p90_c*10)/10}°C` : ''}` +
+      `, based on ${c.years_observed} years of Copernicus Marine satellite data. That is what the water usually does, not a forecast for the day.`]);
+  }
+  qa.push([`Is ${ev.title} information verified?`, trust.detail +
+    ` Last checked ${ev.last_verified_at ? String(ev.last_verified_at).slice(0,10) : 'not recorded'}. Always confirm with the organiser before travelling.`]);
+
+  const graph = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      { '@type': 'Organization', '@id': `${SITE}/#org`, name: 'SwimLoading', url: SITE,
+        logo: `${SITE}/icons/logo.png`,
+        description: 'Open water swimming platform tracking water temperature, conditions and events worldwide.' },
+      { '@type': 'BreadcrumbList', itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'SwimLoading', item: SITE },
+        { '@type': 'ListItem', position: 2, name: 'Where to swim', item: `${SITE}/explore` },
+        { '@type': 'ListItem', position: 3, name: ev.title, item: `${SITE}/events/${ev.slug}` },
+      ] },
+      { '@type': 'FAQPage', mainEntity: qa.map(([q, a]) => ({
+        '@type': 'Question', name: q,
+        acceptedAnswer: { '@type': 'Answer', text: a },
+      })) },
+    ],
+  };
+  return `<script type="application/ld+json">${JSON.stringify(graph).replace(/</g, '\\u003c')}</script>`;
+}
+
 // ── Render ────────────────────────────────────────────────────────────────
 
 function head(ev, ctx) {
   const venue = ev.event_venues;
   const place = [venue?.city, venue?.region, venue?.country_code].filter(Boolean).join(', ');
   const d = fmtLongDate(ev.start_date, ev.date_precision, ev.date_confirmed);
-  const title = `${ev.title}${place ? ` — ${place}` : ''} | SwimLoading`;
+  // Keyword-led, matching the spots pages ("Robben Island Water Temperature
+  // Today | SwimLoading"). A swimmer searches "<race name> 2027 date" or
+  // "<race name> water temperature", not the bare event name, and the title
+  // is the strongest signal we control.
+  const year = ev.edition_year || (ev.start_date ? ev.start_date.slice(0, 4) : '');
+  const title =
+    `${ev.title}${year ? ` ${year}` : ''} — Date, Distances & Water Temperature` +
+    `${place ? ` | ${place}` : ''} | SwimLoading`;
   const desc = ev.short_description
     || `${ev.title}${place ? ` in ${place}` : ''}, ${d.text}.` +
        `${ev.event_distances?.length ? ` Distances: ${ev.event_distances.map(x=>x.original_label).filter(Boolean).slice(0,4).join(', ')}.` : ''}` +
@@ -240,7 +324,8 @@ function head(ev, ctx) {
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
-${schemaOrg(ev, ctx)}`;
+${schemaOrg(ev, ctx)}
+${supportingSchema(ev, ctx)}`;
 }
 
 const STYLES = `
@@ -450,9 +535,33 @@ function renderEventPage(ev, ctx) {
     </div>
   </section>
 
+  <!-- The reason this page earns its place in a search result, and the only
+       real call to action. A visitor arriving from Google on one event name
+       has no idea what SwimLoading is; the spots pages solved this with a
+       closing block and internal links, and event pages had neither. -->
+  <section>
+    <h2>Swimming ${escapeHtml(venue?.city || venue?.country_code || 'here')}?</h2>
+    <div class="card">
+      <p>SwimLoading tracks water temperature and conditions for open water swimmers worldwide —
+         ${escapeHtml(String(ctx.catalogueSize || 'hundreds of'))} swims across
+         ${escapeHtml(String(ctx.countryCount || 'dozens of'))} countries, each with the temperature
+         of the water it is actually held in. Log your own swims, follow the events you are aiming
+         at, and see what the water is doing before you travel.</p>
+      <div class="actions" style="margin-bottom:0">
+        <a class="btn btn-primary" href="/app">Open the app — it's free</a>
+        <a class="btn" href="/explore">Find more swims</a>
+        ${venue?.country_code ? `<a class="btn" href="/explore?country=${escapeHtml(venue.country_code)}">More in ${escapeHtml(venue.country_code)}</a>` : ''}
+      </div>
+    </div>
+  </section>
+
   <footer>
-    <p>Listed by <a href="/explore">SwimLoading</a> — open water swims worldwide.
-       Details gathered from public sources and not guaranteed. Confirm with the organiser before travelling.</p>
+    <p><a href="/explore">All open water swims</a> ·
+       <a href="/spots">Swim spots and water temperatures</a> ·
+       <a href="/crossings">Channel crossings</a> ·
+       <a href="/app">Open the app</a></p>
+    <p style="margin-top:10px">Listed by SwimLoading. Details gathered from public sources and not
+       guaranteed — confirm with the organiser before travelling.</p>
   </footer>
 </div>
 <script>

@@ -325,6 +325,10 @@ def main() -> None:
                     help="print the product's datasets and variables, then exit — run this first")
     ap.add_argument("--limit", type=int, default=None, help="only process the first N venues")
     ap.add_argument("--dry-run", action="store_true", help="compute everything, write nothing")
+    ap.add_argument("--only-missing", action="store_true",
+                    help="skip venues that already have a climatology — the normal case "
+                         "once the first full run is done, since new venues arrive whenever "
+                         "an organiser calendar is added")
     args = ap.parse_args()
 
     try:
@@ -374,7 +378,7 @@ def main() -> None:
         )
     print("credentials accepted\n")
 
-    venues = fetch_venues(args.limit)
+    venues = fetch_venues(args.limit, args.only_missing)
     print(f"{len(venues)} venue(s) with coordinates; baseline {BASELINE_START}-{BASELINE_END}\n")
 
     covered, uncovered, weeks_written = 0, [], 0
