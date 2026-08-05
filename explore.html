@@ -186,6 +186,33 @@
   .btn-primary:hover{color:#080f1a;filter:brightness(1.08)}
   .btn-saved{background:rgba(16,185,129,.15);border-color:rgba(16,185,129,.5);color:var(--green)}
 
+  /* ── Bookable routes ──────────────────────────────────────────────── */
+  .route{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:17px 18px;
+         margin-bottom:10px;display:flex;gap:18px;flex-wrap:wrap;transition:border-color .15s}
+  .route:hover{border-color:rgba(56,189,248,.35)}
+  .route-main{flex:1;min-width:260px}
+  .route h3{font-size:18px;font-weight:600;margin-bottom:5px;line-height:1.28}
+  .route h3 a{text-decoration:none}
+  .route h3 a:hover{color:var(--cyan)}
+  .diff{display:inline-block;font-size:10px;text-transform:uppercase;letter-spacing:.6px;
+        padding:3px 10px;border-radius:50px;font-weight:700;margin-right:5px}
+  .d-medium{background:rgba(16,185,129,.15);color:var(--green)}
+  .d-high{background:rgba(245,158,11,.15);color:var(--amber)}
+  .d-extreme{background:rgba(239,68,68,.18);color:var(--danger)}
+  /* The evidence row — real logged swims. Nothing else in the catalogue
+     has this, so it gets its own visual weight. */
+  .evidence{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .ev{background:rgba(56,189,248,.1);color:var(--cyan);border-radius:7px;padding:5px 11px;
+      font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;gap:5px}
+  .ev i{width:13px;height:13px}
+  .ev.plain{background:rgba(255,255,255,.05);color:#cbd5e1;font-weight:400}
+  /* Routes the operator supports but does not run. Visually distinct so it
+     can never be mistaken for something bookable through them. */
+  .supports{margin-top:11px;padding:9px 12px;border-radius:9px;font-size:12.5px;
+            background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.22);color:#fbbf24;
+            display:flex;gap:8px;align-items:flex-start}
+  .supports i{width:14px;height:14px;flex-shrink:0;margin-top:2px}
+
   .empty{text-align:center;color:var(--sec);padding:44px 20px;background:var(--card);
          border:1px dashed var(--border);border-radius:14px}
   .empty b{color:var(--text);display:block;font-size:16px;margin-bottom:6px}
@@ -318,6 +345,18 @@
   <div id="count" class="count" role="status" aria-live="polite"></div>
   <div id="results"></div>
   <div id="pager" class="pager"></div>
+
+  <!-- Swims you can book. Deliberately a SEPARATE section, never merged
+       into the dated results: these have no date, and mixing them in would
+       either imply one or corrupt the month grouping the list depends on. -->
+  <section id="routesSection" style="display:none">
+    <h2 class="month-head" style="margin-top:44px">Swims you can book any time</h2>
+    <p class="muted" style="margin:-4px 0 16px">
+      Not races on a fixed date — escorted routes that run when the weather allows.
+      Contact the operator and pick your window.
+    </p>
+    <div id="routes"></div>
+  </section>
 </div>
 
 <script>
@@ -551,13 +590,32 @@ function initMap(){
 
 const onMapMove = debounce(()=>{
   if(!followMap || !MAP) return;
+  // An explicitly chosen place WINS over the viewport, permanently, until
+  // the swimmer clears it. Previously this relied on a 420ms debounce
+  // firing before a 500ms followMap re-enable — an 80ms margin, on a slow
+  // phone a coin toss, and losing it silently replaced "South Africa" with
+  // a radius search around wherever the map happened to settle.
+  if(SEL.place) return;
   const b = MAP.getBounds();
   // Zoomed far enough out that the box is most of the planet? Treat that as
   // "no location filter" rather than sending a 9,000 km radius, which would
   // score every swim on proximity and rank nothing usefully.
   const diag = b.getNorthWest().distanceTo(b.getSouthEast())/2000;   // km
   if(diag > 3000){ MAP_CENTRE = null; MAP_RADIUS = null; }
-  else { MAP_CENTRE = b.getCenter(); MAP_RADIUS = Math.max(10, Math.round(diag)); }
+  else {
+    MAP_CENTRE = b.getCenter();
+    // CLAMPED TO THE API's CEILING. /api/explore/events rejects radius_km
+    // above 1000 with a 400, and zooming to a large country puts the
+    // half-diagonal well past it — South Africa, the US, Australia and
+    // Brazil all land in the 1000-3000 km band, so clicking their chip
+    // produced "Invalid radius_km" and no results at all.
+    //
+    // Clamping rather than widening the API limit: 1000 km is already a
+    // generous search radius, and an unbounded one is how a search endpoint
+    // becomes a way to ask for the whole table. The map keeps its centre,
+    // so proximity ranking still works; only the hard cutoff is capped.
+    MAP_RADIUS = Math.min(1000, Math.max(10, Math.round(diag)));
+  }
   SEL.place = null;
   const q = document.getElementById('q'); if(q) q.value = '';
   renderChips();
@@ -806,6 +864,96 @@ async function resumePendingSave(){
   track('explore_event_saved', { event_id: pending.id, resumed: true });
 }
 
+// ── Bookable routes ─────────────────────────────────────────────────────
+// Read straight from swim_routes with the anon key — the table is
+// public-read by RLS, so no API route is needed and the page keeps the
+// pattern it already uses for search.
+//
+// These are NOT merged into the dated results. A route has no date, so
+// merging would either imply one or break the month grouping the list
+// depends on. They render in their own section, below.
+let ROUTES = [];
+
+const fmtRouteDistance = m => m == null ? null : m >= 1000 ? `${+(m/1000).toFixed(1)} km` : `${m} m`;
+const fmtDuration = mins => {
+  if(mins == null) return null;
+  const h = Math.floor(mins/60), m = mins%60;
+  return h ? `${h}h${m ? String(m).padStart(2,'0') : ''}` : `${m}m`;
+};
+const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fmtSeason = (a,b) => (a==null||b==null) ? null : `${MONTH_ABBR[a-1]}–${MONTH_ABBR[b-1]}`;
+
+async function loadRoutes(){
+  const { data, error } = await sb.from('swim_routes')
+    .select('slug,name,route_type,operator_role,sanctioning_body,booking_url,start_point,finish_point,'
+          + 'distance_metres,difficulty,season_start_month,season_end_month,'
+          + 'typical_temp_min_c,typical_temp_max_c,requires_observer,'
+          + 'logged_swims,duration_min_minutes,duration_max_minutes,observed_temp_avg_c,'
+          + 'observed_temp_min_c,observed_temp_max_c,evidence_as_at,summary')
+    .eq('is_public', true)
+    .order('distance_metres', { ascending: true });
+  if(error){ console.warn('routes unavailable:', error.message); return; }
+  ROUTES = data || [];
+  renderRoutes();
+}
+
+function renderRoutes(){
+  const sec = document.getElementById('routesSection');
+  const el = document.getElementById('routes');
+  if(!ROUTES.length){ sec.style.display='none'; return; }
+  sec.style.display = '';
+
+  el.innerHTML = ROUTES.map(r => {
+    const dist = fmtRouteDistance(r.distance_metres);
+    const season = fmtSeason(r.season_start_month, r.season_end_month);
+    const dur = (r.duration_min_minutes && r.duration_max_minutes)
+      ? `${fmtDuration(r.duration_min_minutes)}–${fmtDuration(r.duration_max_minutes)}` : null;
+    // Observed temperature beats "typical": it is what swimmers actually
+    // measured on this route, not a brochure range.
+    const temp = r.observed_temp_avg_c != null
+      ? `${r.observed_temp_avg_c}°C average`
+      : (r.typical_temp_min_c != null ? `${r.typical_temp_min_c}–${r.typical_temp_max_c}°C typical` : null);
+    const operates = r.operator_role === 'operates';
+
+    return `<article class="route">
+      <div class="route-main">
+        <div style="margin-bottom:7px">
+          ${r.difficulty ? `<span class="diff d-${esc(r.difficulty)}">${esc(r.difficulty)}</span>` : ''}
+          <span style="color:var(--sec);font-size:12px">${esc(r.route_type)}</span>
+        </div>
+        <h3><a href="/swims/${esc(r.slug)}" data-route="${esc(r.slug)}">${esc(r.name)}</a></h3>
+        <div class="where">${esc([r.start_point, r.finish_point].filter(Boolean).join(' → ') || '')}</div>
+        ${r.summary ? `<p class="muted" style="margin-bottom:8px">${esc(r.summary)}</p>` : ''}
+        <div class="evidence">
+          ${dist ? `<span class="ev plain">${esc(dist)}</span>` : ''}
+          ${season ? `<span class="ev plain"><i data-lucide="calendar"></i>${esc(season)}</span>` : ''}
+          ${temp ? `<span class="ev"><i data-lucide="thermometer"></i>${esc(temp)}</span>` : ''}
+          ${dur ? `<span class="ev"><i data-lucide="clock"></i>${esc(dur)}</span>` : ''}
+          ${r.logged_swims ? `<span class="ev"><i data-lucide="check-check"></i>${r.logged_swims} logged swims</span>` : ''}
+          ${r.requires_observer ? `<span class="ev plain"><i data-lucide="eye"></i>Observer required</span>` : ''}
+        </div>
+        ${!operates ? `<div class="supports"><i data-lucide="info"></i><span>
+            Big Bay Events supports South African swimmers on this route but does not run it —
+            it is booked through ${r.sanctioning_body ? esc(r.sanctioning_body) : 'its sanctioning body'}.
+          </span></div>` : ''}
+      </div>
+      <div class="aside">
+        <div class="actions">
+          <a class="btn" href="/swims/${esc(r.slug)}" data-route="${esc(r.slug)}">Details</a>
+          ${operates && r.booking_url ? `<a class="btn btn-primary" href="${esc(r.booking_url)}"
+             target="_blank" rel="noopener noreferrer" data-book="${esc(r.slug)}">Book this swim</a>` : ''}
+        </div>
+      </div>
+    </article>`;
+  }).join('');
+
+  el.querySelectorAll('[data-route]').forEach(a =>
+    a.addEventListener('click', () => track('route_click', { route: a.dataset.route })));
+  el.querySelectorAll('[data-book]').forEach(a =>
+    a.addEventListener('click', () => track('route_booking_click', { route: a.dataset.book })));
+  icons();
+}
+
 // ── Render ──────────────────────────────────────────────────────────────
 function showSkeletons(){
   document.getElementById('count').textContent = 'Searching…';
@@ -1006,7 +1154,7 @@ try { initMap(); } catch (e) {
   track('explore_page_view', { has_filters: location.search.length > 1 });
   await initAuth();
   await resumePendingSave();
-  await Promise.all([ loadPoints(), search() ]);
+  await Promise.all([ loadPoints(), search(), loadRoutes() ]);
   if(MARKERS.length && !SEL.place && !location.search) fitAll();
 })();
 </script>

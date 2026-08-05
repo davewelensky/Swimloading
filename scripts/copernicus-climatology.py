@@ -172,13 +172,29 @@ def to_celsius(value: float) -> float:
 
 # ── The work ─────────────────────────────────────────────────────────────
 
-def fetch_venues(limit: int | None) -> list[dict]:
+def fetch_venues(limit: int | None, only_missing: bool = False) -> list[dict]:
     """Venues worth asking about: they have coordinates and they host an
-    edition that has not already happened."""
+    edition that has not already happened.
+
+    only_missing skips venues that already have a climatology. Without it a
+    run costs ~10s and 1.76MB per venue across every venue on the marine
+    grid — half an hour to add the handful that arrived since last time,
+    which is the kind of friction that stops the script being re-run at all.
+    New venues appear whenever an organiser calendar is added (nine Cape
+    Town swims arrived on 2026-08-05 alone), so this is the normal case."""
     rows = supabase(
         "event_venues?select=id,display_name,latitude,longitude"
         "&latitude=not.is.null&longitude=not.is.null&order=display_name"
     )
+    if only_missing:
+        done = {
+            r["venue_id"]
+            for r in supabase("venue_water_climatology?select=venue_id")
+        }
+        skipped = [r for r in rows if r["id"] in done]
+        rows = [r for r in rows if r["id"] not in done]
+        print(f"--only-missing: {len(skipped)} venue(s) already have a climatology, "
+              f"{len(rows)} to process.")
     return rows[:limit] if limit else rows
 
 
