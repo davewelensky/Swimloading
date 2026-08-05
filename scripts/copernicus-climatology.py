@@ -38,8 +38,11 @@ SETUP
 -----
     pip install copernicusmarine
 
-    export COPERNICUSMARINE_SERVICE_USERNAME=...   # your Copernicus login
-    export COPERNICUSMARINE_SERVICE_PASSWORD=...
+    # Either export these two (single quotes — a bare ! or $ gets eaten)...
+    export COPERNICUSMARINE_SERVICE_USERNAME='...'
+    export COPERNICUSMARINE_SERVICE_PASSWORD='...'
+    # ...or store them once and skip the exports entirely:
+    #   python3 -c "import copernicusmarine as cm; print(cm.login())"
     export SUPABASE_URL=https://<project-ref>.supabase.co
     export SUPABASE_SERVICE_KEY=...               # server-side only, never committed
 
@@ -323,33 +326,35 @@ def main() -> None:
               "is not 'analysed_sst') from the output above.")
         return
 
-    # Credentials are needed to DOWNLOAD, not to read the catalogue — so
-    # --describe above works with nothing set up at all.
-    env("COPERNICUSMARINE_SERVICE_USERNAME")
-    env("COPERNICUSMARINE_SERVICE_PASSWORD")
-
     # Verify up front rather than discovering it once per venue. Costs one
     # call and turns a confusing 169-line failure into one clear line.
-    # cm.login RETURNS False on bad credentials — it does not raise, and it
-    # logs its own ERROR line and carries on. Checking only for an exception
-    # printed "credentials accepted" immediately under Copernicus's own
-    # "Invalid credentials" message, which is worse than not checking at all.
+    # Two things the docstring makes explicit and both matter here:
+    #
+    #  * login() RETURNS False on bad credentials — it does not raise, and it
+    #    logs its own ERROR line and carries on. An earlier version caught
+    #    only exceptions and cheerfully printed "credentials accepted"
+    #    directly beneath Copernicus's own "Invalid credentials" message,
+    #    which is worse than not checking at all.
+    #  * with no username/password passed, it falls through environment
+    #    variables to the ~/.copernicusmarine config file. So anyone who has
+    #    run `copernicusmarine login` once needs no env vars at all, and
+    #    demanding them would be an invented requirement.
     try:
-        ok = cm.login(
-            username=os.environ["COPERNICUSMARINE_SERVICE_USERNAME"],
-            password=os.environ["COPERNICUSMARINE_SERVICE_PASSWORD"],
-            check_credentials_valid=True,
-        )
-    except Exception as e:  # noqa: BLE001
+        ok = cm.login(check_credentials_valid=True)
+    except Exception:  # noqa: BLE001
         ok = False
     if not ok:
         sys.exit(
-            f"\nCopernicus rejected the credentials.\n"
-            f"  Nothing was downloaded and nothing was written.\n"
-            f"  Check both variables are exported in THIS shell:\n"
-            f"    echo $COPERNICUSMARINE_SERVICE_USERNAME\n"
-            f"  and that the account is activated (registration needs confirming):\n"
-            f"    https://help.marine.copernicus.eu/en/articles/44"
+            "\nCopernicus did not accept any credentials.\n"
+            "  Nothing was downloaded and nothing was written.\n\n"
+            "  Either export both variables in THIS shell:\n"
+            "    export COPERNICUSMARINE_SERVICE_USERNAME='...'\n"
+            "    export COPERNICUSMARINE_SERVICE_PASSWORD='...'   # single quotes\n"
+            "  or store them once, which is less error-prone:\n"
+            "    python3 -c \"import copernicusmarine as cm; print(cm.login())\"\n\n"
+            "  If both are correct and still rejected, the account may work on the\n"
+            "  website but not yet on the data service:\n"
+            "    https://help.marine.copernicus.eu/en/articles/44"
         )
     print("credentials accepted\n")
 
