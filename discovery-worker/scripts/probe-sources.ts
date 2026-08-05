@@ -217,9 +217,28 @@ async function probeOne(c: Candidate, http: PoliteHttpClient): Promise<Probe> {
       `An unconfirmed date is never stored, so this cannot publish as it stands. ` +
       `The fix is usually to ask the organiser for a calendar, not to crawl harder.` +
       linkNote;
+  } else if (base.futureDatedEvents >= 1 && base.sameSiteLinks >= 15) {
+    // ONE EVENT PER PAGE. The thresholds above assume a calendar listing a
+    // whole season, and judged per-page they dismiss a perfectly good source
+    // that happens to give each event its own page — which is how a great
+    // many event sites are built.
+    //
+    // Caught on oceanswims.com: its listing page yielded nothing, but every
+    // individual event page carries a confirmed future date, and there are
+    // 24+ of them. Judged one page at a time that reads as "thin"; judged as
+    // a site it is Australia's most comprehensive ocean swim calendar. The
+    // crawler follows same-site links, so the yield is roughly one event per
+    // event page, not one event full stop.
+    base.recommendation = 'seed';
+    base.verdict =
+      `ONE EVENT PER PAGE — this page has a confirmed future date and ${base.sameSiteLinks} ` +
+      `same-site links, so the site likely holds one event per page. Seed it: the crawler follows ` +
+      `links, so expect roughly one event per event page rather than the single event seen here. ` +
+      `Probe the LISTING page too — if that yields nothing, this is still the right shape.`;
   } else {
     base.recommendation = 'no-dates';
-    base.verdict = `THIN — ${base.usableEvents} usable event(s), ${base.datedEvents} dated. Probably not worth a crawl slot.`;
+    base.verdict = `THIN — ${base.usableEvents} usable event(s), ${base.datedEvents} dated, ` +
+      `${base.sameSiteLinks} links. Not enough to justify a crawl slot on its own.`;
   }
 
   return base;
