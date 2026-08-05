@@ -133,6 +133,31 @@ function statedSwimLeg(text: string): string | null {
   return null;
 }
 
+// A lesson, a class, a clinic or a training camp is not a swim you enter.
+// These are the phrases that say so, in the languages the crawler already
+// handles. Matched against title, description AND url path — Active.com
+// files a Fort Worth swimming lesson under
+// /water-sports/swimming-classes/summer-event-adapted-luau-2026, and on
+// 2026-08-05 that reached the public catalogue as an open water swim
+// because nothing in any list matched it and the fallthrough is "eligible".
+//
+// Deliberately narrow. "clinic" and "camp" appear in plenty of legitimate
+// race names ("Camp Nou", a race with a coaching clinic attached), so they
+// are only listed in forms that are unambiguous as a page's SUBJECT:
+// "swim clinic", "training camp", not the bare word.
+const NON_RACE_PHRASES = [
+  'swimming-classes', 'swimming classes', 'swim class', 'swim classes',
+  'swim lesson', 'swim lessons', 'swimming lesson', 'swimming lessons',
+  'learn to swim', 'learn-to-swim',
+  'swim clinic', 'swimming clinic', 'training camp', 'swim camp',
+  'coaching session', 'squad training', 'masters training',
+  'aqua aerobics', 'water aerobics', 'swimming course',
+  // non-English, matching the multilingual reach of the other lists
+  'natation cours', 'cours de natation', 'schwimmkurs', 'schwimmunterricht',
+  'clases de natacion', 'curso de natacion', 'aula de natacao',
+  'zwemles', 'simskola', 'nauka plywania',
+];
+
 const TRIATHLON_PHRASES = [
   'triathlon', 'triatlon', 'triathlete', 'aquathlon', 'aquabike', 'swimrun',
   'ironman', 'duathlon',
@@ -244,6 +269,16 @@ export function classifyEvent(input: ClassificationInput): ClassificationResult 
     .join(' ');
 
   if (text) {
+    // CHECKED FIRST, and deliberately before the open-water signal. A swim
+    // class held in the sea is still a class, so an open-water phrase must
+    // not rescue it — that ordering is the whole point. Everything below
+    // this line assumes the page is offering a swim you can enter.
+    const nonRace = matchAny(text, NON_RACE_PHRASES);
+    if (nonRace) {
+      reasons.push(`"${nonRace}" found — a lesson, class, clinic or camp, not a swim you enter`);
+      return { classification: 'no_actual_opportunity', eligible: false, discipline: 'open_water', reasons, warnings };
+    }
+
     const pool = matchAny(text, POOL_PHRASES);
     const openWater = matchAny(text, OPEN_WATER_PHRASES);
 
