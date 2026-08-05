@@ -7,7 +7,10 @@
 <meta name="description" content="Every open water swim worth travelling for, plotted by where and when. The season never ends — it moves.">
 <!-- noindex while the catalogue is still filling out. Remove once coverage
      outside North America is representative — an indexed page that answers
-     "swims in South Africa" with Florida is worse than no page. -->
+     "swims in South Africa" with Florida is worse than no page. As at
+     2026-08-05 that is still true: 250 swims, 21 countries, but the nearest
+     one to Cape Town is 1,220 km away. Individual /events/{slug} pages are
+     gated separately by event_editions.is_indexable. -->
 <meta name="robots" content="noindex,nofollow">
 <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
@@ -19,11 +22,7 @@
   *{box-sizing:border-box;margin:0;padding:0}
   :root{
     --bg:#080f1a; --card:#0d1728; --cyan:#38bdf8; --text:#f1f5f9; --sec:#64748b;
-    --border:rgba(255,255,255,.07); --amber:#f59e0b; --green:#10b981;
-    /* Latitude bands. These are a geographic fact — where on the planet the
-       swim is — not a claim about water temperature, which we do not have
-       per event. Labelled as latitude everywhere they appear. */
-    --far-north:#7dd3fc; --temperate:#2dd4bf; --tropics:#fbbf24; --southern:#c084fc;
+    --border:rgba(255,255,255,.07); --amber:#f59e0b; --green:#10b981; --danger:#ef4444;
   }
   html{scroll-behavior:smooth}
   body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
@@ -33,6 +32,8 @@
       radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,.55),transparent 100%),
       radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,.07),transparent 70%)}
   a{color:inherit}
+  /* Focus must be visible on every interactive thing, including cards. */
+  :focus-visible{outline:2px solid var(--cyan);outline-offset:2px;border-radius:4px}
 
   nav{position:sticky;top:0;z-index:60;display:flex;align-items:center;justify-content:space-between;
       padding:14px 22px;background:rgba(8,15,26,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
@@ -58,13 +59,11 @@
   .tally b{font-family:'Bebas Neue',sans-serif;font-size:34px;line-height:1;letter-spacing:.5px}
   .tally span{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--sec);margin-top:4px}
 
-  /* ── The map: the page's signature ────────────────────────────────── */
+  /* ── Map ──────────────────────────────────────────────────────────── */
   .mapwrap{margin-top:40px;border:1px solid var(--border);border-radius:18px;overflow:hidden;
            position:relative;background:var(--card)}
   #map{height:clamp(340px,52vh,540px);width:100%;background:#0a1220}
   .leaflet-container{background:#0a1220;font-family:'DM Sans',sans-serif}
-  /* The default OSM attribution is unreadable on a dark basemap and must
-     stay legible — it is a licence condition, not decoration. */
   .leaflet-control-attribution{background:rgba(8,15,26,.82)!important;color:#64748b!important;
     font-size:10px!important;border-radius:6px 0 0 0}
   .leaflet-control-attribution a{color:#94a3b8!important}
@@ -101,23 +100,6 @@
     box-shadow:0 0 0 3px rgba(56,189,248,.14)}
   .field .pin{position:absolute;left:14px;top:38px;color:var(--sec);width:17px;height:17px}
   .mini{min-width:150px}
-  /* The toggle's own label is wider than 150px. Without this it either
-     wraps (breaking the row height against its sibling selects) or
-     overflows the row — and body has overflow-x:hidden, so overflow would
-     silently CLIP the control rather than show a scrollbar. */
-  .mini-wide{min-width:208px}
-  /* `.mini label` above is (0,1,1) and would beat a bare `.tritoggle`
-     (0,1,0), stamping this control with the 11px uppercase treatment meant
-     for the little field CAPTIONS. Qualifying it to `.mini label.tritoggle`
-     wins on specificity and keeps the caption rule intact for its actual
-     purpose. */
-  .mini label.tritoggle{display:flex;align-items:center;gap:9px;background:#0b1524;border:1px solid var(--border);
-             border-radius:11px;padding:13px 15px;cursor:pointer;font-size:14px;color:#94a3b8;
-             text-transform:none;letter-spacing:0;margin:0;font-weight:400;white-space:nowrap;
-             line-height:22px}
-  .mini label.tritoggle:hover{border-color:rgba(56,189,248,.4)}
-  .tritoggle input{width:16px;height:16px;accent-color:var(--cyan);cursor:pointer;flex-shrink:0}
-  .tritoggle input:checked + span{color:var(--text)}
   .ac{position:absolute;top:100%;left:0;right:0;margin-top:6px;background:#0b1524;
       border:1px solid rgba(56,189,248,.24);border-radius:12px;overflow:hidden;z-index:70;
       max-height:290px;overflow-y:auto;box-shadow:0 18px 40px rgba(0,0,0,.55);display:none}
@@ -129,14 +111,24 @@
   .ac .kind{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--sec)}
   .ac .n{color:var(--cyan);font-weight:700;font-size:12.5px}
 
-  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;align-items:center}
+  /* Toggle row. These are checkboxes styled as pills — still real
+     checkboxes, so they stay keyboard-operable and screen-reader correct. */
+  .toggles{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
+  .tog{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.05);
+       border:1px solid var(--border);color:#cbd5e1;border-radius:50px;padding:8px 15px;
+       font-size:12.5px;cursor:pointer;font-family:inherit;white-space:nowrap}
+  .tog:hover{border-color:rgba(56,189,248,.45);color:#fff}
+  .tog input{width:15px;height:15px;accent-color:var(--cyan);cursor:pointer;flex-shrink:0;margin:0}
+  .tog:has(input:checked){background:rgba(56,189,248,.14);border-color:rgba(56,189,248,.5);color:#fff}
+
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
   .chip{background:rgba(255,255,255,.05);border:1px solid var(--border);color:#cbd5e1;
         border-radius:50px;padding:7px 14px;font-size:12.5px;cursor:pointer;font-family:inherit}
   .chip:hover{border-color:rgba(56,189,248,.45);color:#fff}
   .chip.on{background:var(--cyan);color:#080f1a;border-color:var(--cyan);font-weight:700}
 
   /* ── Results ──────────────────────────────────────────────────────── */
-  .count{margin:26px 0 14px;color:var(--sec);font-size:13.5px}
+  .count{margin:26px 0 14px;color:var(--sec);font-size:13.5px;min-height:21px}
   .month-head{font-family:'Bebas Neue',sans-serif;font-size:21px;letter-spacing:1.2px;color:var(--cyan);
               margin:26px 0 11px;display:flex;align-items:center;gap:12px}
   .month-head::after{content:'';flex:1;height:1px;background:var(--border)}
@@ -145,6 +137,8 @@
   .result:hover{border-color:rgba(56,189,248,.35);transform:translateY(-1px)}
   .result-main{flex:1;min-width:250px}
   .result h3{font-size:18px;font-weight:600;margin-bottom:5px;line-height:1.28}
+  .result h3 a{text-decoration:none}
+  .result h3 a:hover{color:var(--cyan)}
   .where{color:var(--sec);font-size:13.5px;margin-bottom:10px}
   .badge{display:inline-block;font-size:10px;text-transform:uppercase;letter-spacing:.6px;
          padding:3px 10px;border-radius:50px;font-weight:700;margin-right:5px}
@@ -152,6 +146,11 @@
   .b-major{background:rgba(16,185,129,.15);color:var(--green)}
   .b-regional{background:rgba(245,158,11,.13);color:var(--amber)}
   .b-local{background:rgba(100,116,139,.2);color:var(--sec)}
+  /* Status overrides everything promotional — a cancelled swim must never
+     read as an opportunity, however well we verified it. */
+  .b-cancelled{background:rgba(239,68,68,.18);color:var(--danger)}
+  .b-postponed{background:rgba(245,158,11,.2);color:var(--amber)}
+  .b-soldout{background:rgba(100,116,139,.25);color:#cbd5e1}
   .vtier{display:inline-flex;align-items:center;gap:4px;font-size:10px;text-transform:uppercase;
          letter-spacing:.6px;padding:3px 9px;border-radius:50px;font-weight:700;
          border:1px solid currentColor;background:transparent}
@@ -161,27 +160,62 @@
   .dist{background:rgba(255,255,255,.05);border-radius:7px;padding:5px 11px;font-size:13px}
   .dist.water,.dist.going{display:inline-flex;align-items:center;gap:5px}
   .dist.water i,.dist.going i{width:13px;height:13px}
-  /* Temperature is the reason someone travels, so it leads the row and is
-     the only chip allowed to carry colour. */
   .dist.water{background:rgba(56,189,248,.13);color:var(--cyan);font-weight:600}
   .dist.going{background:rgba(16,185,129,.12);color:var(--green)}
-  .leaflet-popup-content .ptemp{color:var(--cyan);font-weight:600}
+  /* Why this result is here. Facts only — see matchReasons() in the API. */
+  .reasons{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .reason{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#94a3b8;
+          background:rgba(255,255,255,.035);border-radius:6px;padding:4px 9px}
+  .reason i{width:12px;height:12px;color:var(--cyan);flex-shrink:0}
   .verify{margin-top:12px;padding-top:11px;border-top:1px solid var(--border);font-size:12px;
           color:var(--sec);display:flex;align-items:flex-start;gap:7px}
   .verify i{width:14px;height:14px;flex-shrink:0;margin-top:2px}
   .verify a{color:var(--cyan)}
-  .aside{text-align:right;min-width:112px}
+  .aside{text-align:right;min-width:112px;display:flex;flex-direction:column;gap:10px;align-items:flex-end}
   .when{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--cyan);line-height:1.05}
   .when small{display:block;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--sec);letter-spacing:0}
-  .empty{text-align:center;color:var(--sec);padding:52px 20px;background:var(--card);
+  .when.provisional{color:var(--amber)}
+  .actions{display:flex;flex-direction:column;gap:7px;width:100%}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:50px;
+       padding:8px 15px;font-size:12.5px;font-family:inherit;font-weight:600;cursor:pointer;
+       text-decoration:none;border:1px solid var(--border);background:transparent;color:#cbd5e1;
+       white-space:nowrap}
+  .btn:hover{border-color:rgba(56,189,248,.5);color:#fff}
+  .btn i{width:14px;height:14px}
+  .btn-primary{background:var(--cyan);color:#080f1a;border-color:var(--cyan)}
+  .btn-primary:hover{color:#080f1a;filter:brightness(1.08)}
+  .btn-saved{background:rgba(16,185,129,.15);border-color:rgba(16,185,129,.5);color:var(--green)}
+
+  .empty{text-align:center;color:var(--sec);padding:44px 20px;background:var(--card);
          border:1px dashed var(--border);border-radius:14px}
   .empty b{color:var(--text);display:block;font-size:16px;margin-bottom:6px}
+  .empty ul{list-style:none;margin:16px auto 0;max-width:400px;text-align:left}
+  .empty li{margin:8px 0;font-size:13.5px;display:flex;gap:8px;align-items:flex-start}
+  .empty li i{width:14px;height:14px;color:var(--cyan);flex-shrink:0;margin-top:4px}
+  .empty button{background:none;border:none;color:var(--cyan);font-family:inherit;font-size:13.5px;
+                cursor:pointer;text-align:left;padding:0;text-decoration:underline}
+
+  /* Skeletons. Fixed heights matching a real card, so nothing jumps when
+     results replace them. */
+  .skel{background:var(--card);border:1px solid var(--border);border-radius:14px;height:132px;
+        margin-bottom:10px;position:relative;overflow:hidden}
+  .skel::after{content:'';position:absolute;inset:0;transform:translateX(-100%);
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.04),transparent);
+    animation:sweep 1.4s infinite}
+  @keyframes sweep{100%{transform:translateX(100%)}}
+
+  .pager{display:flex;gap:10px;justify-content:center;align-items:center;margin-top:26px}
+  .pager span{color:var(--sec);font-size:13px}
+
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+           clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
   @media (max-width:640px){
     .hero{padding:40px 0 22px}
     .tally{gap:22px}
-    .season{padding:18px 14px 10px}
-    .aside{text-align:left;min-width:0}
+    .aside{text-align:left;min-width:0;align-items:stretch;flex-direction:row;
+           justify-content:space-between;width:100%}
+    .actions{flex-direction:row;width:auto}
     .when{font-size:22px}
   }
   @media (prefers-reduced-motion:reduce){
@@ -200,13 +234,11 @@
   <header class="hero">
     <div class="eyebrow">Open water, worldwide</div>
     <h1>The season never ends.<br><em>It moves.</em></h1>
-    <!-- The temperature sentence is written to be true rather than
-         impressive. Coverage is genuinely partial: the marine model covers
-         oceans and seas only, so lakes and rivers have nothing, and a
-         reading is today's water — a fair guide to next weekend and
-         meaningless for a swim eleven months out, which is why it only
-         appears within 14 days. "Where we can" and "close enough to mean
-         something" are doing real work; don't tidy them away. -->
+    <!-- Written to be true rather than impressive. Coverage is genuinely
+         partial: the marine model covers oceans and seas only, so lakes and
+         rivers have nothing, and a reading is today's water — meaningless
+         for a swim eleven months out, which is why it only appears within
+         14 days. "Where we can" is doing real work; don't tidy it away. -->
     <p class="lede">Somewhere on the planet the water is right today. Here is every swim we can find, plotted by
        where it is and when it happens — so you can see the season migrate, and go and meet it.
        Where we can, we show you the water temperature too: measured by swimmers or modelled from the sea itself,
@@ -221,53 +253,72 @@
   <section class="mapwrap" aria-label="Map of every listed swim">
     <div id="map"></div>
     <div class="mapbar">
-      <button onclick="useMyLocation()"><i data-lucide="crosshair"></i> Swims near me</button>
-      <button onclick="fitAll()"><i data-lucide="globe"></i> Whole world</button>
+      <button type="button" onclick="useMyLocation()"><i data-lucide="crosshair"></i> Swims near me</button>
+      <button type="button" onclick="fitAll()"><i data-lucide="globe"></i> Whole world</button>
     </div>
     <div class="maphint" id="mapHint">Drag or zoom the map — the list below follows</div>
   </section>
 
+  <h2 class="sr-only">Find a swim</h2>
   <div class="finder">
     <div class="field">
       <label for="q">Where do you want to swim?</label>
       <i class="pin" data-lucide="map-pin"></i>
-      <input id="q" type="text" autocomplete="off" placeholder="Country, state or town — try Vermont, or Cape Town"
-             oninput="onQuery()" onkeydown="onQueryKey(event)" onfocus="onQuery()">
-      <div class="ac" id="ac"></div>
+      <input id="q" type="text" autocomplete="off" role="combobox" aria-expanded="false"
+             aria-controls="ac" aria-autocomplete="list"
+             placeholder="Country, state or town — try Vermont, or Cape Town">
+      <div class="ac" id="ac" role="listbox" aria-label="Place suggestions"></div>
     </div>
     <div class="mini">
       <label for="minDist">Shortest swim</label>
-      <select id="minDist" onchange="applyFilters()">
+      <select id="minDist">
         <option value="">Any distance</option>
         <option value="1000">1 km +</option>
         <option value="3000">3 km +</option>
         <option value="5000">5 km +</option>
         <option value="10000">10 km +</option>
+        <option value="21000">21 km +</option>
       </select>
     </div>
     <div class="mini">
+      <label for="waterType">Water</label>
+      <select id="waterType">
+        <option value="">Any water</option>
+        <option value="sea">Sea</option>
+        <option value="lake">Lake</option>
+        <option value="river">River</option>
+        <option value="reservoir">Reservoir</option>
+        <option value="lagoon">Lagoon</option>
+        <option value="canal">Canal</option>
+      </select>
+    </div>
+    <div class="mini">
+      <label for="from">From</label>
+      <input type="date" id="from">
+    </div>
+    <div class="mini">
       <label for="to">Before</label>
-      <input type="date" id="to" onchange="applyFilters()">
+      <input type="date" id="to">
     </div>
-    <!-- Off by default, deliberately. A triathlon's swim leg is a real
-         swim and worth finding, but a swimmer looking for an open-water
-         race should not have to wade through Ironman entries to reach it.
-         The database defaults to open_water for the same reason. -->
-    <div class="mini mini-wide">
-      <label for="tri">Triathlon swims</label>
-      <label class="tritoggle" title="Show the swim leg of triathlons and swimruns. Entry is normally for the whole race, not the swim alone.">
-        <input type="checkbox" id="tri" onchange="applyFilters()">
-        <span>Include swim legs</span>
-      </label>
-    </div>
+  </div>
+
+  <div class="toggles">
+    <label class="tog"><input type="checkbox" id="weekendOnly"><span>Weekends only</span></label>
+    <label class="tog"><input type="checkbox" id="entriesOpen"><span>Entries open</span></label>
+    <label class="tog"><input type="checkbox" id="confirmedOnly"><span>Confirmed dates only</span></label>
+    <!-- Off by default, deliberately. A triathlon's swim leg is a real swim
+         and worth finding, but a swimmer looking for an open-water race
+         should not have to wade through Ironman entries to reach it. -->
+    <label class="tog" title="Show the swim leg of triathlons and swimruns. Entry is normally for the whole race, not the swim alone.">
+      <input type="checkbox" id="tri"><span>Include triathlon swim legs</span></label>
   </div>
 
   <div class="chips" id="chips"></div>
 
-  <div id="count" class="count"></div>
+  <div id="count" class="count" role="status" aria-live="polite"></div>
   <div id="results"></div>
+  <div id="pager" class="pager"></div>
 </div>
-
 
 <script>
 const SUPABASE_URL='https://szgkzuswelntnevobnoh.supabase.co';
@@ -278,26 +329,6 @@ document.addEventListener('mousemove',e=>{
   document.body.style.setProperty('--mouse-x',e.clientX+'px');
   document.body.style.setProperty('--mouse-y',e.clientY+'px');
 });
-
-// The whole forward catalogue is fetched once and filtered in the browser.
-// It is a couple of hundred rows, so every interaction is instant, the
-// place list is built from swims that actually exist, and there is no way
-// to pick a filter that silently returns nothing because the server
-// disagreed with the dropdown.
-// Every upcoming swim is loaded once and filtered client-side, because the
-// map's list follows the viewport and a server round-trip per pan would be
-// unusable. So this must stay ABOVE the real catalogue size: at 200 it was
-// already truncating (208 events, and the cut dropped 2 countries from the
-// header count, which is worse than showing fewer cards — it reported the
-// wrong number). search_event_editions clamps to the same ceiling, so both
-// move together or the lower one wins silently.
-//
-// This is a stopgap with a real limit. Past a few thousand events the page
-// needs server-side bounding-box queries instead of loading everything.
-const LIMIT = 1000;
-let ALL = [], VIEW = [], PLACES = [];
-let SEL = { place:null };
-let acIndex = -1;
 
 const esc = s => s==null ? '' : String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const icons = () => { if(window.lucide) lucide.createIcons(); };
@@ -314,8 +345,6 @@ const COUNTRY_NAMES = {
 };
 const countryName = c => COUNTRY_NAMES[c] || c || 'Unknown';
 
-// US state / Canadian province codes, so a region reads as a place rather
-// than an abbreviation nobody outside that country recognises.
 const SUBDIVISIONS = {
   AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',
   DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',
@@ -334,83 +363,175 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 const MONTHS_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const monthKey = d => d ? d.slice(0,7) : null;
 
-function latBand(lat){
-  if (lat == null) return 'temperate';
-  if (lat > 45)  return 'far-north';
-  if (lat > 23)  return 'temperate';
-  if (lat > -23) return 'tropics';
-  return 'southern';
-}
-const BAND_COLOUR = {'far-north':'#7dd3fc', temperate:'#2dd4bf', tropics:'#fbbf24', southern:'#c084fc'};
-
 function fmtDate(iso, precision, confirmed){
-  if(!iso) return {big:'Date TBC', small:''};
+  if(!iso) return {big:'Date TBC', small:'', provisional:true};
   const d = new Date(iso+'T00:00:00Z');
   const day = d.getUTCDate(), mon = MONTHS[d.getUTCMonth()], yr = d.getUTCFullYear();
-  if(precision === 'month' || !confirmed) return {big:`${mon} ${yr}`, small: confirmed?'':'unconfirmed'};
+  if(precision === 'month' || !confirmed) return {big:`${mon} ${yr}`, small:'provisional', provisional:true};
   const wd = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getUTCDay()];
-  return {big:`${day} ${mon}`, small:`${wd} · ${yr}`};
+  return {big:`${day} ${mon}`, small:`${wd} · ${yr}`, provisional:false};
 }
 
 const placeOf = r => [r.city, r.region ? regionName(r.region) : null, countryName(r.country_code)]
   .filter(Boolean).join(', ');
 
-// ── Load ────────────────────────────────────────────────────────────────
-async function load(){
-  document.getElementById('results').innerHTML = '<div class="empty">Finding swims…</div>';
-  const { data, error } = await sb.rpc('search_event_editions', { p_sort:'date', p_limit:LIMIT });
-  if (error){
-    document.getElementById('results').innerHTML =
-      `<div class="empty"><b>Could not load the swims.</b>${esc(error.message)}</div>`;
+// ── Analytics ───────────────────────────────────────────────────────────
+// Same fire-and-forget POST into analytics_events that welcome.html uses —
+// one analytics path for the whole site, not a second system.
+// keepalive matters on the outbound-link events: without it the browser
+// cancels the request the instant navigation starts, and the click we most
+// want to measure is the one we would lose.
+//
+// The token matters. analytics_events' insert policy is
+//   auth.uid() = user_id OR user_id IS NULL
+// so posting a user_id under the ANON key fails the check silently — the
+// row is rejected, the fetch resolves, and every logged-in swimmer's
+// analytics quietly vanishes. Send the user's own JWT when we have one and
+// attribute the row; otherwise send the anon key AND a null user_id. The
+// two must always agree, which is why they are set together here.
+function track(name, props){
+  try{
+    const token = ACCESS_TOKEN || ANON_KEY;
+    const uid   = ACCESS_TOKEN ? USER_ID : null;
+    fetch(SUPABASE_URL + '/rest/v1/analytics_events', {
+      method:'POST', keepalive:true,
+      headers:{ 'apikey':ANON_KEY, 'Authorization':'Bearer '+token,
+                'Content-Type':'application/json', 'Prefer':'return=minimal' },
+      body: JSON.stringify({ event_name:name, user_id: uid, properties: props || null })
+    }).catch(()=>{});
+  }catch(e){ /* never block the page or a navigation */ }
+}
+
+// ── State ───────────────────────────────────────────────────────────────
+let POINTS = [], PLACES = [], RESULTS = [], TOTAL = 0, PAGE = 1;
+let SEL = { place:null };
+let USER_ID = null, ACCESS_TOKEN = null, SAVED = new Set();
+let acIndex = -1;
+let searchSeq = 0, inflight = null;
+const PAGE_SIZE = 20;
+
+// ── URL state ───────────────────────────────────────────────────────────
+// A copied Explore URL must reproduce the same search. Everything the user
+// chose lives in the query string; nothing that only makes sense to this
+// tab (map centre) does.
+function readUrl(){
+  const u = new URLSearchParams(location.search);
+  const set = (id,v) => { const el=document.getElementById(id); if(el && v!=null) el.value=v; };
+  const chk = (id,v) => { const el=document.getElementById(id); if(el) el.checked = v==='1'||v==='true'; };
+  set('minDist', u.get('min_distance_m')); set('waterType', u.get('water_type'));
+  set('from', u.get('date_from')); set('to', u.get('date_to'));
+  chk('weekendOnly', u.get('weekend_only')); chk('entriesOpen', u.get('entries_open'));
+  chk('confirmedOnly', u.get('confirmed_only')); chk('tri', u.get('include_multisport'));
+  PAGE = Math.max(1, parseInt(u.get('page'),10) || 1);
+  if(u.get('country') || u.get('region') || u.get('city')){
+    SEL.place = { label: u.get('place_label') || u.get('city') || u.get('region') || countryName(u.get('country')),
+                  kind: u.get('city') ? 'town' : u.get('region') ? 'region' : 'country',
+                  match: { country:u.get('country')||null, region:u.get('region')||null, city:u.get('city')||null },
+                  n: 0 };
+    const q = document.getElementById('q'); if(q) q.value = SEL.place.label;
+  }
+}
+
+function writeUrl(){
+  const p = params();
+  const u = new URLSearchParams();
+  const put = (k,v) => { if(v!==null && v!=='' && v!==false) u.set(k, v===true?'1':v); };
+  put('min_distance_m', p.minimum_distance_m); put('water_type', p.water_type);
+  put('date_from', p.date_from); put('date_to', p.date_to);
+  put('weekend_only', p.weekend_only); put('entries_open', p.entries_open);
+  put('confirmed_only', p.confirmed_only); put('include_multisport', p.include_multisport);
+  if(SEL.place){
+    put('country', SEL.place.match.country); put('region', SEL.place.match.region);
+    put('city', SEL.place.match.city); put('place_label', SEL.place.label);
+  }
+  if(PAGE > 1) put('page', PAGE);
+  const qs = u.toString();
+  // replaceState, not pushState: a filter tweak is not a navigation, and
+  // filling the back stack with twelve filter states means Back never
+  // actually leaves the page.
+  history.replaceState(null, '', qs ? `${location.pathname}?${qs}` : location.pathname);
+}
+
+function params(){
+  const v = id => { const el=document.getElementById(id); return el && el.value ? el.value : null; };
+  const c = id => { const el=document.getElementById(id); return !!(el && el.checked); };
+  return {
+    minimum_distance_m: v('minDist'), water_type: v('waterType'),
+    date_from: v('from'), date_to: v('to'),
+    weekend_only: c('weekendOnly'), entries_open: c('entriesOpen'),
+    confirmed_only: c('confirmedOnly'), include_multisport: c('tri'),
+    country: SEL.place?.match.country || null,
+    region:  SEL.place?.match.region  || null,
+  };
+}
+
+// ── Search ──────────────────────────────────────────────────────────────
+async function search(opts){
+  const seq = ++searchSeq;
+  // Abort the previous request. Without this, a slow early search can land
+  // AFTER a fast later one and overwrite fresh results with stale ones —
+  // and it looks exactly like a filter that "sometimes doesn't work".
+  if(inflight) inflight.abort();
+  const ctl = new AbortController(); inflight = ctl;
+
+  const p = params();
+  const u = new URLSearchParams();
+  Object.entries(p).forEach(([k,val])=>{ if(val!==null && val!=='' && val!==false) u.set(k, val===true?'true':val); });
+  if(MAP_CENTRE){ u.set('lat', MAP_CENTRE.lat.toFixed(4)); u.set('lon', MAP_CENTRE.lng.toFixed(4));
+                  if(MAP_RADIUS) u.set('radius_km', MAP_RADIUS); }
+  u.set('page', PAGE); u.set('page_size', PAGE_SIZE);
+  u.set('mode', MAP_CENTRE ? 'near_me' : 'travel');
+
+  if(!opts || !opts.quiet) showSkeletons();
+
+  let json;
+  try{
+    const r = await fetch('/api/explore/events?'+u.toString(), { signal: ctl.signal });
+    if(!r.ok){
+      const body = await r.json().catch(()=>({}));
+      throw new Error(body.error || `Search failed (${r.status})`);
+    }
+    json = await r.json();
+  }catch(err){
+    if(err.name === 'AbortError') return;          // superseded, not a failure
+    renderError(err.message);
     return;
   }
-  ALL = data || [];
-  buildPlaces();
-  plotMarkers();
-  fitAll();
-  renderTally();
-  renderChips();
-  applyFilters();
+  if(seq !== searchSeq) return;                    // a newer search already won
+
+  RESULTS = json.results || [];
+  TOTAL = json.pagination?.total || 0;
+
+  track('explore_search', {
+    mode: json.search?.mode, results: TOTAL, page: PAGE,
+    filters: Object.entries(p).filter(([,val])=>val!==null && val!=='' && val!==false).map(([k])=>k),
+    place: SEL.place?.label || null
+  });
+  if(TOTAL === 0) track('explore_search_no_results', { place: SEL.place?.label || null });
+
+  writeUrl();
+  render();
+  await loadSavedState();
 }
 
-function renderTally(){
-  const soon = new Date(); soon.setDate(soon.getDate()+30);
-  const iso = soon.toISOString().slice(0,10);
-  document.getElementById('tEvents').textContent = ALL.length;
-  document.getElementById('tCountries').textContent = new Set(ALL.map(r=>r.country_code).filter(Boolean)).size;
-  document.getElementById('tSoon').textContent = ALL.filter(r=>r.start_date && r.start_date <= iso).length;
-}
+const debounce = (fn, ms) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; };
+const searchDebounced = debounce(()=>{ PAGE = 1; search(); }, 260);
 
-// Places come from the swims themselves, so every suggestion returns
-// results and nothing real is missing from the list.
-function buildPlaces(){
-  const map = new Map();
-  const add = (kind, label, match, sort) => {
-    const key = kind+'|'+label;
-    if(!map.has(key)) map.set(key, {kind, label, match, n:0, sort});
-    map.get(key).n++;
-  };
-  for(const r of ALL){
-    if(r.country_code) add('country', countryName(r.country_code), {country:r.country_code}, 1);
-    if(r.region && r.country_code) add('region', `${regionName(r.region)}, ${countryName(r.country_code)}`, {country:r.country_code, region:r.region}, 2);
-    if(r.city) add('town', [r.city, r.region?regionName(r.region):null].filter(Boolean).join(', '), {city:r.city}, 3);
-  }
-  PLACES = [...map.values()].sort((a,b)=> a.sort-b.sort || b.n-a.n || a.label.localeCompare(b.label));
-}
-
-// ── The map ─────────────────────────────────────────────────────────────
-// The list follows the map. That is the whole interaction: pan to where
-// you are going and the swims below are the ones there. It is what a
-// search engine cannot do — "any swims in New York" gets you links; this
-// gets you the coast, and everything on it, in date order.
+// ── Map ─────────────────────────────────────────────────────────────────
+// The list follows the map. That is the whole interaction: pan to where you
+// are going and the swims below are the ones there. It is what a search
+// engine cannot do.
+//
+// The viewport used to filter an in-memory array. It now drives the API's
+// lat/lon/radius, so the same gesture gets real ranking and real
+// pagination — the centre and half-diagonal of the visible box.
 let MAP = null, LAYER = null, MARKERS = [], followMap = true;
+let MAP_CENTRE = null, MAP_RADIUS = null;
 
 function initMap(){
   // The map is an enhancement, never a dependency. Leaflet comes from a
-  // third-party CDN, so a blocked script, an ad blocker or a slow unpkg
-  // must not be able to take the swim list down with it — before this
-  // guard, L being undefined threw at the top level and rendered a blank
-  // page with no results at all.
+  // third-party CDN, so a blocked script or a slow unpkg must not take the
+  // swim list down with it.
   if (typeof L === 'undefined') {
     const el = document.querySelector('.mapwrap');
     if (el) el.style.display = 'none';
@@ -418,40 +539,91 @@ function initMap(){
   }
   MAP = L.map('map', { worldCopyJump:true, scrollWheelZoom:false, zoomControl:true })
          .setView([25, -20], 2);
-  // Dark basemap so the page keeps its own identity rather than turning
-  // into a bright rectangle in the middle of a dark site.
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution:'&copy; OpenStreetMap &copy; CARTO', subdomains:'abcd', maxZoom:18
   }).addTo(MAP);
-  // Scroll-wheel zoom only once the map has been clicked, so scrolling the
-  // page past a full-width map does not trap the reader inside it.
+  // Scroll-wheel zoom only after a click, so scrolling the page past a
+  // full-width map does not trap the reader inside it.
   MAP.on('click', ()=> MAP.scrollWheelZoom.enable());
-  MAP.on('moveend', ()=>{ if(followMap) applyFilters(); });
+  MAP.on('moveend', onMapMove);
   LAYER = L.layerGroup().addTo(MAP);
 }
 
+const onMapMove = debounce(()=>{
+  if(!followMap || !MAP) return;
+  const b = MAP.getBounds();
+  // Zoomed far enough out that the box is most of the planet? Treat that as
+  // "no location filter" rather than sending a 9,000 km radius, which would
+  // score every swim on proximity and rank nothing usefully.
+  const diag = b.getNorthWest().distanceTo(b.getSouthEast())/2000;   // km
+  if(diag > 3000){ MAP_CENTRE = null; MAP_RADIUS = null; }
+  else { MAP_CENTRE = b.getCenter(); MAP_RADIUS = Math.max(10, Math.round(diag)); }
+  SEL.place = null;
+  const q = document.getElementById('q'); if(q) q.value = '';
+  renderChips();
+  PAGE = 1;
+  search();
+}, 420);
+
 const TIER_COLOUR = { confirmed:'#10b981', listed:'#38bdf8', unverified:'#f59e0b' };
+
+async function loadPoints(){
+  try{
+    const r = await fetch('/api/explore/map-points'+(document.getElementById('tri')?.checked?'?include_multisport=true':''));
+    if(!r.ok) throw new Error('map points');
+    const json = await r.json();
+    POINTS = json.points || [];
+  }catch(e){
+    console.warn('Map points unavailable, continuing with the list:', e);
+    POINTS = [];
+  }
+  buildPlaces();
+  plotMarkers();
+  renderTally();
+  renderChips();
+}
+
+function renderTally(){
+  const soon = new Date(); soon.setDate(soon.getDate()+30);
+  const iso = soon.toISOString().slice(0,10);
+  document.getElementById('tEvents').textContent = POINTS.length || '—';
+  document.getElementById('tCountries').textContent = new Set(POINTS.map(r=>r.c).filter(Boolean)).size || '—';
+  document.getElementById('tSoon').textContent = POINTS.filter(r=>r.d && r.d <= iso).length;
+}
+
+// Places come from the swims themselves, so every suggestion returns
+// results and nothing real is missing from the list.
+function buildPlaces(){
+  const map = new Map();
+  const add = (kind,label,match,sort) => {
+    const key = kind+'|'+label;
+    if(!map.has(key)) map.set(key, {kind,label,match,n:0,sort});
+    map.get(key).n++;
+  };
+  for(const r of POINTS){
+    if(r.c) add('country', countryName(r.c), {country:r.c}, 1);
+    if(r.r && r.c) add('region', `${regionName(r.r)}, ${countryName(r.c)}`, {country:r.c, region:r.r}, 2);
+    if(r.ct) add('town', [r.ct, r.r?regionName(r.r):null].filter(Boolean).join(', '), {city:r.ct}, 3);
+  }
+  PLACES = [...map.values()].sort((a,b)=> a.sort-b.sort || b.n-a.n || a.label.localeCompare(b.label));
+}
 
 function plotMarkers(){
   if(!MAP || !LAYER) return;
-  LAYER.clearLayers();
-  MARKERS = [];
-  for(const r of ALL){
-    if(r.latitude==null || r.longitude==null) continue;
-    const d = fmtDate(r.start_date, r.date_precision, r.date_confirmed);
-    const m = L.circleMarker([r.latitude, r.longitude], {
-      radius:6, weight:2, color:TIER_COLOUR[r.verification_tier]||'#38bdf8',
-      fillColor:TIER_COLOUR[r.verification_tier]||'#38bdf8', fillOpacity:.45
+  LAYER.clearLayers(); MARKERS = [];
+  for(const r of POINTS){
+    if(r.lat==null || r.lng==null) continue;
+    const d = fmtDate(r.d, r.dp, r.dc);
+    const m = L.circleMarker([r.lat, r.lng], {
+      radius:6, weight:2, color:TIER_COLOUR[r.t]||'#38bdf8',
+      fillColor:TIER_COLOUR[r.t]||'#38bdf8', fillOpacity:.45
     }).bindPopup(
-      `<b>${esc(r.title||r.series_name)}</b>
+      `<b>${esc(r.n)}</b>
        <span class="pdate">${esc(d.big)}${d.small?' · '+esc(d.small):''}</span><br>
-       <span class="pplace">${esc(placeOf(r))}</span>
-       ${r.water_temp_c!=null ? `<br><span class="ptemp">${esc(r.water_temp_c)}°C in the water now</span>`:''}
-       ${r.registration_url ? `<br><a href="${esc(r.registration_url)}" target="_blank" rel="noopener noreferrer">Enter this swim →</a>`
-        : r.official_url ? `<br><a href="${esc(r.official_url)}" target="_blank" rel="noopener noreferrer">Official page →</a>` : ''}`
+       <span class="pplace">${esc([r.ct, r.r?regionName(r.r):null, countryName(r.c)].filter(Boolean).join(', '))}</span>
+       ${r.s ? `<br><a href="/events/${esc(r.s)}">See this swim →</a>` : ''}`
     );
-    m.addTo(LAYER);
-    MARKERS.push(m);
+    m.addTo(LAYER); MARKERS.push(m);
   }
 }
 
@@ -459,44 +631,63 @@ function fitAll(){
   if(!MAP || !MARKERS.length) return;
   followMap = false;                       // fitBounds fires moveend
   MAP.fitBounds(L.featureGroup(MARKERS).getBounds().pad(0.12));
-  setTimeout(()=>{ followMap = true; applyFilters(); }, 350);
+  setTimeout(()=>{
+    followMap = true; MAP_CENTRE = null; MAP_RADIUS = null;
+    PAGE = 1; search();
+  }, 350);
 }
 
 function useMyLocation(){
   const hint = document.getElementById('mapHint');
-  if(!MAP){ return; }
-  if(!navigator.geolocation){ hint.textContent = 'This browser will not share a location'; return; }
+  if(!MAP) return;
+  if(!navigator.geolocation){
+    hint.textContent = 'This browser will not share a location — type a place instead';
+    document.getElementById('q')?.focus();
+    return;
+  }
   hint.textContent = 'Finding you…';
   navigator.geolocation.getCurrentPosition(
-    p => { MAP.setView([p.coords.latitude, p.coords.longitude], 7);
-           hint.textContent = 'Drag or zoom the map — the list below follows'; },
-    () => { hint.textContent = 'Could not get your location — drag the map instead'; },
+    p => { MAP.setView([p.coords.latitude, p.coords.longitude], 8);
+           hint.textContent = 'Drag or zoom the map — the list below follows';
+           track('explore_geolocation', { granted:true }); },
+    // Denied is a normal answer, not an error state. Say what to do instead
+    // and put the cursor there.
+    () => { hint.textContent = 'No location — drag the map, or type a place below';
+            document.getElementById('q')?.focus();
+            track('explore_geolocation', { granted:false }); },
     { timeout:8000 }
   );
 }
 
-// ── Search ──────────────────────────────────────────────────────────────
+// ── Autocomplete ────────────────────────────────────────────────────────
 function onQuery(){
   const q = document.getElementById('q').value.trim().toLowerCase();
   const ac = document.getElementById('ac');
   const hits = (q ? PLACES.filter(p=>p.label.toLowerCase().includes(q)) : PLACES).slice(0,9);
   acIndex = -1;
-  if(!hits.length){ ac.classList.remove('open'); return; }
-  ac.innerHTML = hits.map((p,i)=>
-    `<button data-i="${i}" onclick="pickPlace(${PLACES.indexOf(p)})">
+  if(!hits.length){ closeAc(); return; }
+  ac.innerHTML = hits.map(p=>
+    `<button type="button" role="option" aria-selected="false" data-i="${PLACES.indexOf(p)}">
        <span>${esc(p.label)} <span class="kind">${p.kind}</span></span>
        <span class="n">${p.n}</span></button>`).join('');
+  ac.querySelectorAll('button').forEach(b=>
+    b.addEventListener('click', ()=> pickPlace(parseInt(b.dataset.i,10))));
   ac.classList.add('open');
+  document.getElementById('q').setAttribute('aria-expanded','true');
+}
+function closeAc(){
+  document.getElementById('ac').classList.remove('open');
+  document.getElementById('q').setAttribute('aria-expanded','false');
 }
 function onQueryKey(e){
   const ac = document.getElementById('ac');
   const btns = [...ac.querySelectorAll('button')];
-  if(e.key==='Escape'){ ac.classList.remove('open'); return; }
+  if(e.key==='Escape'){ closeAc(); return; }
   if(e.key==='ArrowDown'||e.key==='ArrowUp'){
     e.preventDefault();
     acIndex += e.key==='ArrowDown' ? 1 : -1;
     acIndex = Math.max(0, Math.min(btns.length-1, acIndex));
-    btns.forEach((b,i)=>b.classList.toggle('hi', i===acIndex));
+    btns.forEach((b,i)=>{ b.classList.toggle('hi', i===acIndex); b.setAttribute('aria-selected', i===acIndex); });
     btns[acIndex]?.scrollIntoView({block:'nearest'});
   }
   if(e.key==='Enter'){ e.preventDefault(); (btns[acIndex]||btns[0])?.click(); }
@@ -504,67 +695,125 @@ function onQueryKey(e){
 function pickPlace(i){
   SEL.place = PLACES[i];
   document.getElementById('q').value = SEL.place.label;
-  document.getElementById('ac').classList.remove('open');
-  renderChips();
-  applyFilters();
-  // Move the map to what was chosen, so the two views always agree.
-  const pts = VIEW.filter(r=>r.latitude!=null).map(r=>[r.latitude,r.longitude]);
+  closeAc();
+  // An explicit place beats the viewport — otherwise choosing "Vermont"
+  // and then having the map's radius silently re-narrow it is maddening.
+  MAP_CENTRE = null; MAP_RADIUS = null;
+  renderChips(); PAGE = 1; search();
+  const pts = POINTS.filter(r=>{
+    const m = SEL.place.match;
+    return (!m.country || r.c===m.country) && (!m.region || r.r===m.region) && (!m.city || r.ct===m.city);
+  }).filter(r=>r.lat!=null).map(r=>[r.lat,r.lng]);
   if(MAP && typeof L !== 'undefined' && pts.length){
     followMap = false;
     MAP.fitBounds(L.latLngBounds(pts).pad(0.25), {maxZoom:9});
-    setTimeout(()=>{ followMap = true; }, 350);
+    setTimeout(()=>{ followMap = true; }, 500);
   }
 }
-document.addEventListener('click',e=>{
-  if(!e.target.closest('.field')) document.getElementById('ac').classList.remove('open');
-});
+document.addEventListener('click',e=>{ if(!e.target.closest('.field')) closeAc(); });
 
 function renderChips(){
   const bits = [];
-  if(SEL.place) bits.push(`<button class="chip on" onclick="clearPlace()">${esc(SEL.place.label)} ✕</button>`);
-  if(!SEL.place){
-    // Shortcuts fly the map rather than filtering behind its back, so what
-    // you see and what you get never disagree.
-    PLACES.filter(p=>p.kind==='country').slice(0,6).forEach(p=>{
-      bits.push(`<button class="chip" onclick="pickPlace(${PLACES.indexOf(p)})">${esc(p.label)} <span style="color:var(--sec)">${p.n}</span></button>`);
-    });
-  }
-  document.getElementById('chips').innerHTML = bits.join('');
+  if(SEL.place) bits.push(`<button type="button" class="chip on" data-clear="1">${esc(SEL.place.label)} ✕</button>`);
+  else PLACES.filter(p=>p.kind==='country').slice(0,6).forEach(p=>{
+    bits.push(`<button type="button" class="chip" data-i="${PLACES.indexOf(p)}">${esc(p.label)} <span style="color:var(--sec)">${p.n}</span></button>`);
+  });
+  const el = document.getElementById('chips');
+  el.innerHTML = bits.join('');
+  el.querySelectorAll('[data-clear]').forEach(b=>b.addEventListener('click', clearPlace));
+  el.querySelectorAll('[data-i]').forEach(b=>b.addEventListener('click', ()=>pickPlace(parseInt(b.dataset.i,10))));
 }
 
 function clearPlace(){
   SEL.place = null;
   document.getElementById('q').value = '';
-  renderChips();
-  applyFilters();
+  renderChips(); PAGE = 1; search();
 }
 
-// ── Filter + render ─────────────────────────────────────────────────────
-function applyFilters(){
-  const minD = parseInt(document.getElementById('minDist').value,10) || null;
-  const before = document.getElementById('to').value || null;
-  const bounds = (MAP && followMap) ? MAP.getBounds() : null;
-  const includeTri = document.getElementById('tri')?.checked === true;
+// ── Save / follow ───────────────────────────────────────────────────────
+async function initAuth(){
+  try{
+    const { data } = await sb.auth.getSession();
+    USER_ID = data?.session?.user?.id || null;
+    ACCESS_TOKEN = data?.session?.access_token || null;
+  }catch(e){ USER_ID = null; ACCESS_TOKEN = null; }
+}
 
-  VIEW = ALL.filter(r=>{
-    // Default to open water. A row with no discipline at all is treated as
-    // open water rather than hidden — an older row, or a client running
-    // ahead of the migration, must never silently vanish from the map.
-    if(!includeTri && r.discipline === 'multisport_swim_leg') return false;
-    if(SEL.place){
-      const m = SEL.place.match;
-      if(m.country && r.country_code !== m.country) return false;
-      if(m.region  && r.region !== m.region) return false;
-      if(m.city    && r.city !== m.city) return false;
-    } else if(bounds && r.latitude!=null && r.longitude!=null){
-      // No explicit place chosen: the map viewport IS the filter.
-      if(!bounds.contains([r.latitude, r.longitude])) return false;
-    }
-    if(before && r.start_date > before) return false;
-    if(minD && !(r.max_distance_m >= minD)) return false;
-    return true;
+async function loadSavedState(){
+  if(!USER_ID || !RESULTS.length) return;
+  const ids = RESULTS.map(r=>r.id);
+  const { data } = await sb.from('swimmer_event_entries')
+    .select('edition_id,status').in('edition_id', ids);
+  SAVED = new Set((data||[]).map(r=>r.edition_id));
+  // Repaint just the buttons rather than the whole list, so the page does
+  // not visibly reflow after results have already settled.
+  document.querySelectorAll('[data-save]').forEach(b=>{
+    const on = SAVED.has(b.dataset.save);
+    b.classList.toggle('btn-saved', on);
+    b.innerHTML = `<i data-lucide="${on?'check':'bookmark'}"></i>${on?'Saved':'Save'}`;
+    b.setAttribute('aria-pressed', on);
   });
-  render();
+  icons();
+}
+
+async function toggleSave(id, name){
+  if(!USER_ID){
+    // Preserve the intent across the login round trip. Without this the
+    // swimmer signs in and lands back on an unfiltered page with no idea
+    // which swim they were saving.
+    try{ sessionStorage.setItem('swimloading_pending_save', JSON.stringify({ id, name, back: location.href })); }catch(e){}
+    track('explore_save_signed_out', { event_id:id });
+    location.href = '/app?intent=save_event&return=' + encodeURIComponent(location.pathname + location.search);
+    return;
+  }
+  const on = SAVED.has(id);
+  if(on){
+    await sb.from('swimmer_event_entries').delete().eq('edition_id', id).eq('user_id', USER_ID);
+    SAVED.delete(id);
+    track('explore_event_unsaved', { event_id:id });
+  }else{
+    await sb.from('swimmer_event_entries').upsert(
+      { user_id: USER_ID, edition_id: id, status: 'saved' }, { onConflict: 'user_id,edition_id' });
+    SAVED.add(id);
+    track('explore_event_saved', { event_id:id });
+  }
+  const b = document.querySelector(`[data-save="${id}"]`);
+  if(b){
+    const nowOn = SAVED.has(id);
+    b.classList.toggle('btn-saved', nowOn);
+    b.innerHTML = `<i data-lucide="${nowOn?'check':'bookmark'}"></i>${nowOn?'Saved':'Save'}`;
+    b.setAttribute('aria-pressed', nowOn);
+    icons();
+  }
+}
+
+// Resume a save the visitor started before signing in.
+async function resumePendingSave(){
+  if(!USER_ID) return;
+  let pending;
+  try{ pending = JSON.parse(sessionStorage.getItem('swimloading_pending_save')||'null'); }catch(e){ return; }
+  if(!pending?.id) return;
+  sessionStorage.removeItem('swimloading_pending_save');
+  await sb.from('swimmer_event_entries').upsert(
+    { user_id: USER_ID, edition_id: pending.id, status: 'saved' }, { onConflict: 'user_id,edition_id' });
+  SAVED.add(pending.id);
+  track('explore_event_saved', { event_id: pending.id, resumed: true });
+}
+
+// ── Render ──────────────────────────────────────────────────────────────
+function showSkeletons(){
+  document.getElementById('count').textContent = 'Searching…';
+  document.getElementById('results').innerHTML = '<div class="skel"></div>'.repeat(4);
+  document.getElementById('pager').innerHTML = '';
+}
+
+function renderError(msg){
+  document.getElementById('count').textContent = '';
+  document.getElementById('results').innerHTML =
+    `<div class="empty"><b>Could not load the swims.</b>${esc(msg)}
+     <ul><li><i data-lucide="refresh-cw"></i><button type="button" onclick="search()">Try again</button></li></ul></div>`;
+  document.getElementById('pager').innerHTML = '';
+  icons();
 }
 
 function vtierBadge(r){
@@ -573,30 +822,70 @@ function vtierBadge(r){
     listed:     {icon:'circle-check',   label:'Listed',     title:'Date and source look solid, some details missing. Confirm before you travel.'},
     unverified: {icon:'alert-triangle', label:'Unverified', title:'We found this swim but could not verify much. Check with the organiser.'}
   }[r.verification_tier];
+  if(r.officially_claimed) return `<span class="vtier v-confirmed" title="The organiser has claimed and confirmed this listing."><i data-lucide="badge-check"></i>Organiser confirmed</span>`;
   if(!T) return '';
-  return `<span class="vtier v-${esc(r.verification_tier)}" title="${esc(T.title)}">
-            <i data-lucide="${T.icon}"></i>${T.label}</span>`;
+  return `<span class="vtier v-${esc(r.verification_tier)}" title="${esc(T.title)}"><i data-lucide="${T.icon}"></i>${T.label}</span>`;
 }
+
+// Status wins over every promotional badge. A cancelled swim is not an
+// opportunity no matter how iconic or well verified it is.
+function statusBadge(r){
+  if(r.status === 'cancelled')  return '<span class="badge b-cancelled">Cancelled</span>';
+  if(r.status === 'postponed')  return '<span class="badge b-postponed">Postponed</span>';
+  if(r.entry_status === 'sold_out') return '<span class="badge b-soldout">Sold out</span>';
+  if(r.entry_status === 'closed')   return '<span class="badge b-soldout">Entries closed</span>';
+  return '';
+}
+
+function emptyState(){
+  const p = params();
+  const suggestions = [];
+  if(MAP_RADIUS && MAP_RADIUS < 500) suggestions.push(['maximize','Zoom the map out to search a wider area', 'zoomOut()']);
+  if(p.weekend_only)   suggestions.push(['calendar','Remove the weekends-only filter', "clearFilter('weekendOnly')"]);
+  if(p.entries_open)   suggestions.push(['ticket','Include swims whose entries have not opened yet', "clearFilter('entriesOpen')"]);
+  if(p.confirmed_only) suggestions.push(['calendar-check','Include swims with provisional dates', "clearFilter('confirmedOnly')"]);
+  if(p.minimum_distance_m) suggestions.push(['ruler','Allow shorter swims', "clearFilter('minDist')"]);
+  if(p.water_type)     suggestions.push(['waves','Search any kind of water', "clearFilter('waterType')"]);
+  if(p.date_to || p.date_from) suggestions.push(['calendar-range','Search a wider date range', "clearFilter('from');clearFilter('to')"]);
+  if(!suggestions.length) suggestions.push(['globe','Search the whole world', 'fitAll()']);
+
+  const where = SEL.place ? esc(SEL.place.label) : MAP_RADIUS ? 'this part of the map' : 'those filters';
+  return `<div class="empty">
+    <b>No swims match ${where} yet.</b>
+    We are still adding sources country by country — this is a gap in what we have found, not proof there is nothing there.
+    <ul>${suggestions.slice(0,4).map(([ic,txt,fn])=>
+      `<li><i data-lucide="${ic}"></i><button type="button" onclick="${fn}">${txt}</button></li>`).join('')}</ul>
+  </div>`;
+}
+function clearFilter(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  if(el.type==='checkbox') el.checked = false; else el.value = '';
+  PAGE = 1; search();
+}
+function zoomOut(){ if(MAP) MAP.zoomOut(3); }
 
 function render(){
   const results = document.getElementById('results');
   const countEl = document.getElementById('count');
 
-  if(!VIEW.length){
-    countEl.textContent = '';
-    const what = SEL.place ? esc(SEL.place.label) : 'those filters';
-    results.innerHTML = `<div class="empty"><b>No swims match ${what} yet.</b>
-      We are still adding sources country by country. Try a wider area, or clear the month.</div>`;
+  if(!RESULTS.length){
+    countEl.textContent = 'No swims found';
+    results.innerHTML = emptyState();
+    document.getElementById('pager').innerHTML = '';
+    icons();
     return;
   }
 
-  countEl.textContent = VIEW.length >= LIMIT
-    ? `Showing the first ${LIMIT} swims — narrow the place or dates to see the rest`
-    : `${VIEW.length} swim${VIEW.length>1?'s':''}`;
+  const first = (PAGE-1)*PAGE_SIZE + 1;
+  const last = Math.min(PAGE*PAGE_SIZE, TOTAL);
+  countEl.textContent = TOTAL > PAGE_SIZE
+    ? `${TOTAL} swims — showing ${first}–${last}`
+    : `${TOTAL} swim${TOTAL>1?'s':''}`;
 
   // Grouped by month: a swimmer plans by "when am I free", not by row number.
   const groups = new Map();
-  for(const r of VIEW){
+  for(const r of RESULTS){
     const k = monthKey(r.start_date) || 'tbc';
     if(!groups.has(k)) groups.set(k, []);
     groups.get(k).push(r);
@@ -610,47 +899,110 @@ function render(){
     html += rows.map(r=>{
       const d = fmtDate(r.start_date, r.date_precision, r.date_confirmed);
       const dists = Array.isArray(r.distances) ? r.distances : [];
-      return `<div class="result">
+      const href = r.url || null;
+      return `<article class="result">
         <div class="result-main">
           <div style="margin-bottom:7px">
+            ${statusBadge(r)}
             ${r.prominence && r.prominence!=='unknown' ? `<span class="badge b-${esc(r.prominence)}">${esc(r.prominence)}</span>` : ''}
             ${vtierBadge(r)}
             ${r.participant_estimate ? `<span style="color:var(--sec);font-size:12px">~${Number(r.participant_estimate).toLocaleString()} swimmers</span>`:''}
           </div>
-          <h3>${esc(r.title || r.series_name)}</h3>
+          <h3>${href ? `<a href="${esc(href)}" data-open="${esc(r.id)}">${esc(r.name)}</a>` : esc(r.name)}</h3>
           <div class="where">${esc(placeOf(r) || 'Location to be confirmed')}
+            ${r.distance_km!=null ? ` · ${Math.round(r.distance_km)} km away`:''}
             ${r.organiser_name ? ` · ${esc(r.organiser_name)}`:''}</div>
           ${dists.length || r.water_temp_c!=null || r.interested_count>0 ? `<div class="dists">
-            ${r.water_temp_c!=null ? `<span class="dist water" title="Modelled sea temperature for this venue today. It is a guide to a swim in the next fortnight, not a forecast for the day.">
+            ${r.water_temp_c!=null ? `<span class="dist water" title="Modelled sea temperature for this venue today. A guide to a swim in the next fortnight, not a forecast for the day.">
                 <i data-lucide="thermometer"></i>${esc(r.water_temp_c)}°C now</span>`:''}
             ${dists.map(x=>`<span class="dist">${esc(x.label)}</span>`).join('')}
             ${r.interested_count>0 ? `<span class="dist going"><i data-lucide="users"></i>${r.interested_count} interested</span>`:''}
           </div>`:''}
+          ${(r.match_reasons||[]).length ? `<div class="reasons">${r.match_reasons.map(x=>
+            `<span class="reason"><i data-lucide="check"></i>${esc(x)}</span>`).join('')}</div>`:''}
           <div class="verify">
             <i data-lucide="alert-circle"></i>
             <span>Gathered automatically. <b>Confirm with the organiser before you travel</b> — dates and entries change.
-              ${r.official_url ? ` <a href="${esc(r.official_url)}" target="_blank" rel="noopener noreferrer">Official page</a>`:''}
-              ${r.registration_url ? ` · <a href="${esc(r.registration_url)}" target="_blank" rel="noopener noreferrer">Enter</a>`:''}
+              ${r.last_verified_at ? ` Last checked ${esc(String(r.last_verified_at).slice(0,10))}.`:''}
             </span>
           </div>
         </div>
-        <div class="aside"><div class="when">${esc(d.big)}<small>${esc(d.small)}</small></div></div>
-      </div>`;
+        <div class="aside">
+          <div class="when${d.provisional?' provisional':''}">${esc(d.big)}<small>${esc(d.small)}</small></div>
+          <div class="actions">
+            <button type="button" class="btn" data-save="${esc(r.id)}" aria-pressed="false"
+                    aria-label="Save ${esc(r.name)}"><i data-lucide="bookmark"></i>Save</button>
+            ${href ? `<a class="btn" href="${esc(href)}" data-open="${esc(r.id)}">Details</a>`:''}
+            ${r.registration_url ? `<a class="btn btn-primary" href="${esc(r.registration_url)}" target="_blank"
+               rel="noopener noreferrer" data-reg="${esc(r.id)}">Enter</a>`
+             : r.official_url ? `<a class="btn" href="${esc(r.official_url)}" target="_blank"
+               rel="noopener noreferrer" data-official="${esc(r.id)}">Official page</a>` : ''}
+          </div>
+        </div>
+      </article>`;
     }).join('');
   }
   results.innerHTML = html;
+
+  // Delegated listeners rather than inline handlers, so event names and the
+  // ids they carry are not re-parsed out of markup.
+  results.querySelectorAll('[data-save]').forEach(b=>
+    b.addEventListener('click', ()=> toggleSave(b.dataset.save, b.getAttribute('aria-label'))));
+  results.querySelectorAll('[data-open]').forEach(a=>
+    a.addEventListener('click', ()=> track('explore_result_click', { event_id:a.dataset.open })));
+  results.querySelectorAll('[data-reg]').forEach(a=>
+    a.addEventListener('click', ()=> track('explore_registration_click', { event_id:a.dataset.reg })));
+  results.querySelectorAll('[data-official]').forEach(a=>
+    a.addEventListener('click', ()=> track('explore_official_link_click', { event_id:a.dataset.official })));
+
+  renderPager();
   icons();
 }
 
+function renderPager(){
+  const pages = Math.ceil(TOTAL / PAGE_SIZE);
+  const el = document.getElementById('pager');
+  if(pages <= 1){ el.innerHTML = ''; return; }
+  el.innerHTML =
+    `<button type="button" class="btn" ${PAGE<=1?'disabled style="opacity:.4;cursor:default"':''} data-page="${PAGE-1}">
+       <i data-lucide="chevron-left"></i>Previous</button>
+     <span>Page ${PAGE} of ${pages}</span>
+     <button type="button" class="btn" ${PAGE>=pages?'disabled style="opacity:.4;cursor:default"':''} data-page="${PAGE+1}">
+       Next<i data-lucide="chevron-right"></i></button>`;
+  el.querySelectorAll('[data-page]:not([disabled])').forEach(b=>
+    b.addEventListener('click', ()=>{
+      PAGE = parseInt(b.dataset.page,10);
+      search();
+      document.getElementById('count').scrollIntoView({ behavior:'smooth', block:'start' });
+    }));
+}
+
+// ── Boot ────────────────────────────────────────────────────────────────
+['minDist','waterType','from','to'].forEach(id=>
+  document.getElementById(id)?.addEventListener('change', ()=>{ PAGE=1; search(); }));
+['weekendOnly','entriesOpen','confirmedOnly'].forEach(id=>
+  document.getElementById(id)?.addEventListener('change', ()=>{ PAGE=1; search(); }));
+document.getElementById('tri')?.addEventListener('change', ()=>{ PAGE=1; loadPoints(); search(); });
+document.getElementById('q')?.addEventListener('input', onQuery);
+document.getElementById('q')?.addEventListener('keydown', onQueryKey);
+document.getElementById('q')?.addEventListener('focus', onQuery);
+
 icons();
 try { initMap(); } catch (e) {
-  // Never let a map problem stop the swims from loading.
   console.warn('Map unavailable, continuing with the list:', e);
   const el = document.querySelector('.mapwrap');
   if (el) el.style.display = 'none';
   MAP = null;
 }
-load();
+
+(async function boot(){
+  readUrl();
+  track('explore_page_view', { has_filters: location.search.length > 1 });
+  await initAuth();
+  await resumePendingSave();
+  await Promise.all([ loadPoints(), search() ]);
+  if(MARKERS.length && !SEL.place && !location.search) fitAll();
+})();
 </script>
 </body>
 </html>
