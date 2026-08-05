@@ -1,240 +1,328 @@
 # Global Swim Discovery — Handoff
 
-**As at 2026-08-03.** Everything below is live in production unless
-explicitly marked otherwise.
+**As at 2026-08-05.** Live in production unless explicitly marked
+otherwise. Supersedes the 2026-08-03 version; unchanged parts are restated
+here rather than left behind.
 
 ---
 
-## 1. Access
-
-### Public — Find a Swim
-**https://www.swimloading.com/explore**
-
-No login. Currently `noindex,nofollow` — remove that meta tag in
-`explore.html` once you're happy the listings are trustworthy enough to
-be found by Google.
-
-Two modes:
-- **Big swims worth travelling for** — searches everywhere, ranked
-  iconic → major → regional → local, then by participant numbers.
-- **What's on near me** — pick a city or use browser geolocation, set a
-  radius, optionally weekends-only.
-
-### Admin — Discovery Review
-**https://www.swimloading.com/discovery-review**
-
-Sign in with your normal SwimLoading account (`dave.welensky@gmail.com`).
-Access requires `profiles.is_admin = true` — you have it.
-
-The page shows the review queue, each candidate's evidence trail, its
-confidence breakdown, duplicate warnings, and approve/reject buttons.
-
-### Raw data
-Supabase SQL editor:
-`https://supabase.com/dashboard/project/szgkzuswelntnevobnoh/sql/new`
-
-Paste `sql/debug/discovery-review-queue.sql` for the review queue plus
-commented queries for scoring reasons, evidence, duplicates and the
-published catalogue.
-
----
-
-## 2. Current live state
+## 1. Where it stands
 
 | | |
 |---|---|
-| Published events | **38**, across **21 countries** |
-| Held for review | **6** (all blocked because no year is published) |
-| Past-dated events | 0 |
-| Invented/test events | 0 — all fixtures were removed before launch |
+| Live upcoming events | **250** |
+| Countries | **28** |
+| Sources enabled | 37 |
+| Sources actually producing | **34** (was 11 on 4 Aug) |
+| Candidates total | 1,423 |
+| Of those, AI-extracted | **756** |
+| Awaiting review | 582 |
 
-Sources seeded so far, all from organisers' own calendars:
-Oceanman (19 races), major global swims (Midmar, Rottnest, Capri-Napoli,
-Bosphorus, Great North Swim, Swim Serpentine, Lorne, Waikiki, Cole
-Classic), and UK/Ireland (Chillswim ×3, Go Swim ×3, Menai, Hurly Burly,
-Liffey, Lough Cutra + 5 held).
+Two days ago this was 38 events, almost all Ray's Notebook. The jump came
+from two changes on 4 August: raising the per-source page budget from 5 to
+25, and AI extraction.
 
----
+### Access
 
-## 3. Architecture in one page
-
-**Two separate groups of tables — do not merge them.**
-
-*Published catalogue* (public read): `event_organisers`, `event_venues`,
-`event_series`, `event_editions`, `event_distances`, plus the
-`public_organisers` view.
-
-*Discovery pipeline* (never public): `discovery_sources`,
-`discovery_source_pages`, `discovery_runs`, `discovery_candidate_events`,
-`discovery_candidate_distances`, `discovery_event_evidence`,
-`discovery_dedupe_links`, `discovery_review_decisions`.
-
-**`public.swim_events` is untouched** and stays SwimLoading-native group
-swims with RSVP. A discovered third-party race has no creator, no RSVP
-and needs provenance — different concept, different table. Join at the
-query layer if a page ever needs both.
-
-**`event_venues` is separate from `spots`** on purpose. `spots` drives
-temperature logging, the marine cron, the Passport and spot curation. A
-race start line is not automatically a place anyone logs temps at.
-`event_venues.spot_id` is an optional admin-confirmed link, never
-automatic.
-
-### The write path
-There is **no INSERT/UPDATE/DELETE policy on any of the 13 tables for any
-client role.** That is deliberate. Everything goes through:
-
-| RPC | Who | Does |
-|---|---|---|
-| `approve_discovery_candidate` | admin or service_role | The only route into the public catalogue. Atomic, row-locked, idempotent. |
-| `reject_discovery_candidate` | admin | Marks rejected, appends audit row. |
-| `resolve_dedupe_link` | admin | Clears a duplicate pair (both directions). |
-| `search_event_editions` | anon | Public search. SECURITY INVOKER so RLS enforces visibility. |
-
-`approve_discovery_candidate` refuses: classifier-rejected candidates,
-past dates, unresolved duplicates, and unconfirmed years — the last two
-hard, the first two overridable via `p_override_rejected`.
+- **Public:** https://www.swimloading.com/explore — no login. Still
+  `noindex,nofollow`; see §6.
+- **Admin:** https://www.swimloading.com/discovery-review — needs
+  `profiles.is_admin = true`.
+- **Worker:** Railway project `heartfelt-benevolence`, service
+  **Swimloading**, root directory `discovery-worker`. **No auto-deploy** —
+  a push does nothing until you click Redeploy.
 
 ---
 
-## 4. The worker
+## 2. The extraction ladder
 
-`discovery-worker/` — own package, own `node_modules`, deploys to
-**Railway** (not Vercel; it's in `.vercelignore`).
+A page stops at the first thing that works:
 
-```bash
-cd discovery-worker
-npm install
-npm test                    # 91 tests
-npm run typecheck
-npm run process:fixtures    # dry run, writes out/*.json only
+1. **JSON-LD** — schema.org `Event`. Rare, perfect when present.
+2. **Tabular calendar** — a whole season in one `<table>`. Ray's Notebook
+   is 338 swims this way; Japan and Brazil the same shape.
+3. **CSS selectors** — fixture-shaped, rarely fires on real sites.
+4. **Headless render** (Playwright, off by default) — for JS shells.
+5. **AI extraction** — last resort, only for pages the four above failed on.
 
-# write to Supabase (needs discovery-worker/.env with the service key)
-DISCOVERY_WRITE_ENABLED=true npm run process:fixtures
-```
+### What the model is allowed to do
 
-`discovery-worker/.env` holds `SUPABASE_SERVICE_KEY`. It is gitignored
-and must never be committed or pasted anywhere. The worker refuses to
-start in write mode without it.
+**Read. That is all.** It copies what a page prints into six columns —
+name, date, place, distances, time, link — verbatim, in any language. The
+output is coerced into the same `TableEventRow` the tabular parser emits
+and handed to the same `buildFromRow`, so dates, locations, distances,
+classification and confidence are computed by unchanged rule-based code.
 
-**Live crawling is now implemented** (2026-08-03) behind
-`DISCOVERY_LIVE_FETCH_ENABLED` — polite HTTP client (robots.txt per RFC
-9309, per-host rate limiting, identifiable UA, bounded retries/bodies),
-listing + verification crawl modes, scheduler loop, change monitoring,
-source health, and charset/language-correct multilingual handling. See
-`discovery-worker/README.md` → "The live crawler".
+It never resolves a year, parses a distance, supplies coordinates, or
+produces a score. **Confidence scoring is 100% deterministic arithmetic and
+must stay that way.**
 
-```bash
-npm run crawl                    # one pass over due sources
-npm run crawl:loop               # Railway mode
-npm run crawl:url -- https://…   # ad-hoc page -> out/, never the DB
-```
-
-Still **unimplemented and refusing to start if enabled**:
-`DISCOVERY_PLAYWRIGHT_ENABLED`, `DISCOVERY_AI_ENABLED`.
-
-### candidate_key
-`sha256(normalised source URL | normalised name | edition YEAR)`.
-
-Keyed on the **year**, not the full date, on purpose: a date correction
-within a year updates the same candidate, while next year's running
-becomes its own. Keying on the full date would leave phantoms; keying on
-no date would destroy historical editions. Tests cover both directions —
-don't change this without reading `test/candidate-key.test.ts`.
+Provenance is total: `extraction_method = 'ai_fallback'` on the candidate,
+`evidence_type = 'ai_fallback'` on every evidence row, plus a per-candidate
+warning. `WHERE extraction_method = 'ai_fallback'` is a complete answer to
+"what did a model give us?".
 
 ---
 
-## 5. Needs your attention
+## 3. What it costs — measured, not estimated
 
-**Two events published on indirect sourcing** — both flagged
-`manual_review`, both worth verifying:
-- *South32 Rottnest Channel Swim*, 20 Feb 2027 — organiser site returns
-  HTTP 403 to automated fetches, so the date came from search-index
-  snippets rather than a page actually read. Their 2026 edition was
-  cancelled, so this is a recovery year.
-- *Jones Engineering Dublin City Liffey Swim*, 29 Aug 2026 — date from a
-  secondary listing, not the organiser's own page.
+First production call (FFN calendar, `claude-opus-5`): 14,488 condensed
+chars → **9,851 in / 6,751 out = $0.22/page**. Then switched to
+`claude-sonnet-5`. The sweep so far:
 
-**Oceanman distances are derived, not stated.** Their calendar lists
-category names, not kilometres. The mapping (OCEANMAN=10km, HALF=5km,
-SPRINT=1.5km, OCEANKIDS=500m, OCEANTEAMS=3×500m, ULTRA=21km) was verified
-on two race pages and applied to the other 17. Recorded as a warning on
-every Oceanman candidate.
-
-**`profiles.is_admin` is still self-grantable.** No column-level grant or
-trigger prevents a logged-in user setting it on their own row. It now
-gates *publishing*, not just reading. Fix is written and pre-checked:
-`sql/2026-08-03_protect-profiles-is-admin.sql` — **not applied**.
-
----
-
-## 6. Written but deliberately NOT applied
-
-| File | Why it's waiting |
+| | |
 |---|---|
-| `sql/2026-08-03_protect-profiles-is-admin.sql` | Closes the `is_admin` hole. Pre-checked clean. Only blocker is that it has no bypass, so any future manual admin grant needs a documented `DISABLE TRIGGER` bracket (explained in the file). |
-| `sql/2026-08-03_auto-publish-high-confidence.sql` | Auto-publishes the high_confidence tier so review doesn't gate scale. Pre-checked. Worth revisiting: research showed ~⅓ of real events have no published date, so a human stays in the loop regardless. |
-| `sql/2026-08-03_enable-live-discovery-sources.sql` | Flips the 3 real sources to `enabled=true` for the now-built crawler (Oceanman → listing mode weekly; both umbrella sources → verification-only weekly). Apply via the MIGRATIONS.md gate before the first crawl. |
+| AI calls | 135 |
+| Tokens | 539,039 in / 95,574 out |
+| **Cost** | **≈ $2** at Sonnet intro pricing |
+
+Two lessons worth carrying:
+
+- **Non-English text tokenizes ~2× as densely as English.** French ran
+  1.47 chars/token against the ~3 assumed. Never size an AI budget from
+  character counts.
+- **Output dominated on Opus** (~77% of the bill, ~182 tokens/event) and
+  collapsed on Sonnet.
+
+### The four things keeping it cheap
+
+1. **Condensing** — median 109 KB of markup carries 6 KB of readable text;
+   `condenseForAi` strips to text plus link targets (median 7.4 KB). The
+   biggest lever by far: that $0.22 page would have cost ~$2.60 raw.
+2. **Thin-page floor** — under 400 condensed chars, no call at all.
+3. **Unchanged pages are never re-read.**
+4. **URL-score floor** (`DISCOVERY_MIN_AI_URL_SCORE=2`). Japan burned
+   86,459 tokens for **zero** candidates before this existed.
+
+Sonnet intro pricing ends **31 Aug 2026** (then ~$0.13/page).
+`DISCOVERY_AI_MODEL` makes the model a variable, not a deploy.
 
 ---
 
-## 7. Not built yet
+## 4. Rules that must not be broken
 
-1. ~~**Live crawling.**~~ ✅ **BUILT 2026-08-03** (code complete, tests
-   green — 141). Not yet live: needs (a)
-   `sql/2026-08-03_enable-live-discovery-sources.sql` applied via the
-   MIGRATIONS.md gate (enables Oceanman in listing mode + the two
-   umbrella sources in verification-only mode), and (b) the Railway
-   deploy (`discovery-worker/README.md` → "Deploying to Railway").
-   Note the seeded reality differs from what this doc previously said:
-   only Oceanman has a crawlable `base_url`; Chillswim/Go Swim/etc. live
-   as candidate `source_url`s under two umbrella sources, which the
-   crawler re-verifies URL-by-URL rather than listing-crawls.
-2. **Geocoding.** `explore.html` uses a hardcoded city list plus browser
-   geolocation. Typing an arbitrary place name ("I'm going to Galway")
-   needs a real geocoder.
-3. **Region grouping.** A radius circle from Manchester treats Dublin
-   (needs a flight) and Edinburgh (a train) as equivalent. Grouping by
-   region — "Scotland 5 · Ireland 3 · Lake District 4" — matches how
-   weekend trips are actually planned. Probably higher value than the
-   globe.
-4. **Globe view.** `welcome.html` already has one (`cobe@0.6.4`, fed live
-   spot coords). Events would reuse it. Worth doing once the catalogue is
-   in the hundreds — a globe with 38 dots isn't compelling.
-5. **`event_status` column.** Cancelled/postponed currently lives in
-   `raw_source_values.eventStatus` because `discovery_candidate_events`
-   has no column for it (`candidate_status` is the *review* state). The
-   approve RPC reads it correctly, but you can't filter the queue on it.
-   Small additive migration.
-6. ~~**Verification loop.**~~ ✅ Built into the crawler: known event URLs
-   are re-fetched every run, `content_hash` compared,
-   `last_changed_at`/`pages_changed` maintained, and re-extraction
-   upserts the same `candidate_key` in place. What remains is surfacing
-   "changed since approval" in the review UI.
+Each was learned by breaking it.
+
+**A wave is not an event.** Midmar publishes its start-wave schedule on one
+page; the extractor turned each wave into an event and **seven reached the
+live site**, including "Disabled, Pope-Ellis and 71yr/over" — a disability
+start category offered publicly as a swim you could enter.
+`rejectAsEventName()` in `normalize/text.ts` blocks numbered placeholders,
+section headings, age brackets and entry classifications **at build time,
+before a candidate exists** — not by scoring low, because a low score still
+reaches the queue and can still be auto-approved. Tested for **precision
+over recall**: eleven real names must survive, because a false positive
+silently deletes a real swim.
+
+**An unconfirmed date is never stored.** The schema enforces
+`date_confirmed OR (start_date IS NULL AND end_date IS NULL)`. Violating it
+doesn't make a weak candidate — it throws on INSERT and **aborts the whole
+source's crawl**. `toCandidateEventRow` enforces the same rule as a backstop.
+
+**A page-stated year is read, not inferred.** `pageYearFrom` reads the year
+off the page's own heading; a row saying `6月28日` under a `2026` heading has
+stated both halves. A printed weekday still wins — it *verifies* rather than
+accepts, and can override the heading.
+
+**Cross-language month collisions are refused.** `listopad` is November in
+Polish and October in Croatian, and both are live sources. `buildLookup()`
+detects collisions at load and leaves them unparsed with a warning.
+
+**Thousands separators are refused.** `1,500` is 1.5 km in half of Europe
+and 1500 m in the other half. European decimal commas *are* handled.
+
+**Standard triathlon distances are defined, not inferred.** Sprint 750 m,
+Olympic/Standard 1500 m, Middle/70.3 1900 m, Full 3800 m — World Triathlon
+definitions. Only consulted once a page is identified as multisport, so
+"Sprint" on an open-water listing is never 750 m.
+
+**Discipline is separate from event type.** A triathlon's swim leg *is* an
+`official_race`; what differs is `discipline = 'multisport_swim_leg'`.
+`/explore` shows open water only unless the viewer opts legs in, and the
+column defaults to `open_water` so that holds even if a client forgets.
+
+**`candidate_key` is keyed on the YEAR, not the full date.** Re-crawling
+within a year updates the same candidate; next year's running becomes its
+own. Keying on the full date leaves phantoms; keying on no date destroys
+historical editions. See `test/candidate-key.test.ts` before touching it.
 
 ---
 
-## 8. Files
+## 5. Water temperature
+
+Two different kinds of fact, deliberately in two tables.
+
+**Observation** — `venue_water_readings`, Open-Meteo Marine, 6-hourly via
+`/api/cron/venue-marine-temps.js`. Shown only within 14 days: it's today's
+water, a fair guide to next weekend and meaningless further out.
+
+**Climatology** — `venue_water_climatology`, Copernicus reanalysis, built by
+`scripts/copernicus-climatology.py`. What the water *typically* does in a
+given week across 20 years. Answers "what will it be in March?".
+
+- Table applied 2026-08-05; **not yet populated** — run the script.
+- Proven end to end: Amagansett week 27 = **19.7 °C (18.2–21.3), 20 years**.
+- ~10 s and 1.76 MB per venue; 162 venues ≈ half an hour. Idempotent.
+- Credentials: `~/.copernicusmarine` (written by `cm.login()`) **or** the
+  `COPERNICUSMARINE_SERVICE_*` env vars. Either works.
+- Dataset (verified via `--describe`, not guessed):
+  `METOFFICE-GLO-SST-L4-REP-OBS-SST`, variable `analysed_sst`, **kelvin**,
+  1981-10-01 → 2026-03-31.
+
+**Coverage is the thing most likely to be misunderstood.** Copernicus SST is
+*sea* surface temperature — ocean only, 0.05° grid. Of 162 venues with
+coordinates, ~84 are on the marine grid. Lakes, dams and rivers get nothing,
+exactly as they do today. This makes coastal venues answerable for **any
+date**; it does not widen **which venues** are answerable. The script names
+uncovered venues individually rather than counting them.
+
+---
+
+## 6. Needs your attention
+
+**1. `profiles.is_admin` is still self-grantable.** No column grant or
+trigger stops a logged-in user setting it on their own row, and it now gates
+*publishing*, not just reading. Fix written and pre-checked:
+`sql/2026-08-03_protect-profiles-is-admin.sql` — **not applied**. This is
+the most serious open item in this document.
+
+**2. Auto-publish takes AI candidates live without review.** What put seven
+Midmar waves in front of users. One line in the eligibility rule so
+`ai_fallback` requires `manual_review`. **Recommended.**
+
+**3. `/explore` is still `noindex,nofollow`.** With 250 events across 28
+countries the original reason (thin, US-heavy coverage) has largely gone.
+This is the single biggest constraint on the whole effort — nobody can find
+it. Remove the meta tag in `explore.html` when you're happy.
+
+**4. 582 candidates awaiting review.** Many are dateless rows that should
+resolve themselves now that page-stated years are accepted, as sources
+re-crawl.
+
+**5. Populate the climatology.** `python3 scripts/copernicus-climatology.py`.
+
+**6. Two events published on indirect sourcing**, both `manual_review`,
+both worth verifying: *South32 Rottnest Channel Swim* 20 Feb 2027 (organiser
+403s automated fetches; date from search-index snippets) and *Dublin City
+Liffey Swim* 29 Aug 2026 (secondary listing).
+
+**7. Oceanman distances are derived, not stated.** Their calendar lists
+category names. The mapping (OCEANMAN=10km, HALF=5km, SPRINT=1.5km,
+OCEANKIDS=500m, OCEANTEAMS=3×500m, ULTRA=21km) was verified on two race
+pages and applied to 17 others. Recorded as a warning on every candidate.
+
+**8. `/explore` loads every event and filters client-side.** Fine at 250;
+needs server-side bounding-box queries in the low thousands. The 1000-row
+ceiling is a stopgap and is commented as one.
+
+---
+
+## 7. Not built
+
+**Wetsuit legality.** The obvious triathlon product: federations set it by
+measured water temperature. Blocked on two things — thresholds must be
+sourced from current World Triathlon and Ironman rulebooks (they differ by
+federation and by age-group vs elite) and stored as versioned data, not
+constants; and predicting months out needs the climatology populated.
+
+**Lake and river temperature.** Neither Open-Meteo nor Copernicus covers
+inland water. Needs a different source, or swimmer-reported only.
+
+**Duplicate merging.** `dedupe/match.ts` scores pairs and reports; it never
+merges. `aQuellé Midmar Mile` and `54th aQuellé Midmar Mile` are the same
+race and want merging by hand.
+
+**Geocoding.** `explore.html` uses a place list built from the loaded data
+plus browser geolocation. An arbitrary place name needs a real geocoder.
+
+**Region grouping.** A radius circle from Manchester treats Dublin (flight)
+and Edinburgh (train) as equivalent. "Scotland 5 · Ireland 3 · Lakes 4"
+matches how weekend trips are actually planned.
+
+---
+
+## 8. Configuration
+
+Railway service **Swimloading** → Variables:
 
 ```
-discovery-worker/                     the worker (see its own README)
-discovery-worker/src/crawl.ts         live-crawler CLI (once/loop/source/url)
-discovery-worker/src/fetch/           http-client, robots, links, decode
-discovery-worker/src/schedule/        due-source + health + backoff logic
-discovery-worker/railway.json         Railway deploy config (root dir: discovery-worker)
-explore.html                          public search      -> /explore
-discovery-review.html                 admin review       -> /discovery-review
-docs/global-swim-discovery/
-  database-schema.md                  full schema rationale
-  HANDOFF.md                          this file
-sql/applied/2026-08-03_*.sql          everything applied 2026-08-03
-sql/2026-08-03_protect-profiles-is-admin.sql        NOT applied
-sql/2026-08-03_auto-publish-high-confidence.sql     NOT applied
-sql/2026-08-03_enable-live-discovery-sources.sql    NOT applied — enables the crawler's sources
-sql/debug/discovery-review-queue.sql  paste-into-SQL-editor queries
-scripts/test-discovery-schema-rls.mjs RLS probe (readonly-safe by default)
+DISCOVERY_LIVE_FETCH_ENABLED=true
+DISCOVERY_WRITE_ENABLED=true
+DISCOVERY_AI_ENABLED=true
+DISCOVERY_AI_MODEL=claude-sonnet-5
+DISCOVERY_MAX_AI_CALLS_PER_RUN=5        # per source per run, NOT global
+DISCOVERY_MIN_AI_URL_SCORE=2
+DISCOVERY_MAX_PAGES_PER_RUN=25
+ANTHROPIC_API_KEY=...
+SUPABASE_URL=https://szgkzuswelntnevobnoh.supabase.co
+SUPABASE_SERVICE_KEY=...
 ```
 
-One caveat on the record: `sql/applied/2026-08-03_discovery-rpc-fixes-and-search.sql`
-was written *after* those changes were applied, to restore the audit
-trail. It's labelled as such in the file.
+`DISCOVERY_MAX_AI_CALLS_PER_RUN` is **per source, per run**. At 25 across 26
+sources that is up to 650 calls in one sweep. Raise it only with measured
+numbers from `discovery_runs.metrics` in hand.
+
+Every capability flag defaults to **false** and each mode fails **closed** —
+AI enabled with no key, or with a cap of 0, both refuse to start.
+
+---
+
+## 9. Gotchas that cost real time
+
+- **`SUPABASE_URL` must be the full URL.** A bare project ref crash-loops
+  the worker. Set it **directly on the service**, not as a shared variable.
+- **`CREATE OR REPLACE FUNCTION` cannot add a column to `RETURNS TABLE`.**
+  Needs `DROP FUNCTION` first — and **the drop takes the grants with it**.
+  `/explore` calls `search_event_editions` as `anon`; losing that grant
+  breaks the page for logged-out visitors only.
+- **A view joined per-row is a timeout.** `search_event_editions` joined
+  `venue_temp_estimate` and the planner re-ran the whole view once per
+  output row: 297,553 buffers, 507 ms for 192 rows. `WITH temps AS
+  MATERIALIZED` fixed it — 25 ms. **Compare buffers, not milliseconds**:
+  the first call after a drop/recreate measured 198 ms with identical
+  buffers, which is plan-cache warm-up, not a regression.
+- **`cm.login()` returns `False`, it does not raise.** And
+  `check_credentials_valid=True` performs no other action, so it never
+  prompts. Read the docstring — I got this wrong three times in a row.
+- **cheerio's `.text()` concatenates with no separator**, so
+  `<span>Lieu : ANNECY</span><span>Ville : ANNECY</span>` became
+  `ANNECYVille`. Affected every language, not just French.
+- **A promoted candidate cannot simply be rejected** —
+  `dce_promoted_only_when_approved` requires clearing `promoted_edition_id`
+  in the same statement.
+- **CSS specificity:** `.mini label` (0,1,1) beats `.tritoggle` (0,1,0).
+  Qualify to `.mini label.tritoggle`.
+- **Railway has no auto-deploy.** Every worker change needs a manual
+  Redeploy. Several confusing hours came from testing a stale build.
+
+---
+
+## 10. Files
+
+```
+discovery-worker/
+  src/extract/ai.ts            condenser + prompt + Anthropic client
+  src/extract/classify.ts      open water / pool / multisport, 15 languages
+  src/extract/table.ts         tabular calendars, multilingual headers
+  src/normalize/date.ts        16-language months+weekdays, collision refusal
+  src/normalize/distance.ts    multilingual units + standard tri distances
+  src/normalize/text.ts        rejectAsEventName() — the wave gate
+  src/jobs/crawl-source.ts     crawl decision flow, AI budget + URL filter
+  src/jobs/process-ai-page.ts  AI rows -> the same path table rows take
+  src/confidence/rules.ts      deterministic scoring. Never an LLM.
+  test/                        200 tests
+
+scripts/copernicus-climatology.py    seasonal temperature, run locally
+api/cron/venue-marine-temps.js       6-hourly current temperature
+explore.html                         the public page
+sql/applied/                         every migration, with its reasoning
+```
+
+Migrations follow **MIGRATIONS.md**: file from the template, read-only
+pre-checks, backup if destructive, Dave types "apply", apply via the
+`supabase-admin` MCP, verify read-only, file into `sql/applied/`. Every file
+in `sql/applied/` carries its own pre-checks, rollback and verify blocks —
+read one before writing a new one.
+
+**Note:** `sql/2026-08-04_water-temperature-for-event-venues.sql` was applied
+but never filed into `sql/applied/`. Housekeeping only.
