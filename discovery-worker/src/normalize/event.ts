@@ -37,8 +37,16 @@ function mapWaterBodyType(raw: string | null): WaterBodyType | null {
 
 function extractTimezoneOffset(iso: string | null): string | null {
   if (!iso) return null;
-  const m = /([+-]\d{2}:\d{2}|Z)$/.exec(iso.trim());
-  return m ? (m[1] ?? null) : null;
+  const trimmed = iso.trim();
+  const m = /([+-]\d{2}:\d{2}|Z)$/.exec(trimmed);
+  if (m) return m[1] ?? null;
+  // ISO 8601 also allows the offset without a colon, which is what
+  // active.com emits ("2027-04-11T06:30:00.000-0400"). Requiring the time
+  // separator first keeps a plain date ("2027-04-11") from being read as
+  // an offset. Normalised to the colon form so one shape is ever stored.
+  const compact = /T.*([+-])(\d{2})(\d{2})$/.exec(trimmed);
+  if (compact) return `${compact[1]}${compact[2]}:${compact[3]}`;
+  return null;
 }
 
 function firstOfferUrl(offers: unknown): string | null {
@@ -168,8 +176,12 @@ export function buildCandidateEvent(params: BuildCandidateParams): CandidateEven
   }
 
   // ── location ──
-  const structuredLocation = parseJsonLdPlace(eventNode?.location ?? null);
-  const freeTextLocation = parseLocationText(html.locationText);
+  // The event's own UTC offset, read before the dates block needs it,
+  // because a bare "CO" is Colorado at UTC-06:00 and Como at UTC+02:00 and
+  // the location parser cannot tell them apart without it.
+  const startOffset = extractTimezoneOffset(eventNode ? toNullableString(eventNode.startDate) : null);
+  const structuredLocation = parseJsonLdPlace(eventNode?.location ?? null, { utcOffset: startOffset });
+  const freeTextLocation = parseLocationText(html.locationText, { utcOffset: startOffset });
   const location = mergeLocations(structuredLocation, freeTextLocation);
   candidate.venueName = location.venueName;
   candidate.locationText = location.locationText;
@@ -208,7 +220,7 @@ export function buildCandidateEvent(params: BuildCandidateParams): CandidateEven
     candidate.evidence.push(evidence('startDate', 'html_selector', html.dateText, '.event-date'));
     usedHtml = true;
   }
-  candidate.timezone = extractTimezoneOffset(eventNode ? toNullableString(eventNode.startDate) : null);
+  candidate.timezone = startOffset;
 
   // ── water body / wetsuit ──
   candidate.waterBodyType = mapWaterBodyType(html.waterBodyHint);
