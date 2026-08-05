@@ -354,6 +354,8 @@
          interleaved sensibly — a route has no date, so it has nowhere to sit
          in a list grouped by month. Turning this on shows routes instead of
          races rather than as well as. -->
+    <label class="tog" title="Swim spots with no event attached — somewhere to swim on any day, with the temperature swimmers have logged there.">
+      <input type="checkbox" id="showPlaces" checked><span>Show places to swim</span></label>
     <label class="tog" id="bookableTog"
            title="Escorted swims you arrange with an operator, run when the weather allows, rather than races on a fixed date.">
       <input type="checkbox" id="bookable"><span>Swims you can book</span></label>
@@ -375,6 +377,18 @@
       Contact the operator and pick your window.
     </p>
     <div id="routes"></div>
+  </section>
+
+  <!-- Places to swim. The third question a traveller has, and the one with
+       the most data behind it: 192 spots, 132 with a temperature a swimmer
+       actually measured. Not limited to the sea — a lake, a dam or a lido
+       is open water to the person swimming in it. -->
+  <section id="placesSection" style="display:none">
+    <h2 class="month-head">Places you can just go and swim</h2>
+    <p class="muted" style="margin:-4px 0 16px">
+      No entry, no booking — swim spots with the water temperature swimmers have measured there.
+    </p>
+    <div id="places"></div>
   </section>
 
   <!-- A visitor arriving cold from a search for "open water swims Croatia"
@@ -648,6 +662,7 @@ async function search(opts){
 
   writeUrl();
   render();
+  renderPlaces();
   await loadSavedState();
 }
 
@@ -1092,6 +1107,80 @@ function renderRoutes(){
   icons();
 }
 
+// ── Places to swim ──────────────────────────────────────────────────────
+let PLACES_DATA = [], PLACE_LAYER = null;
+
+async function loadPlaces(){
+  try{
+    const r = await fetch('/api/explore/places');
+    if(!r.ok) throw new Error('places '+r.status);
+    const j = await r.json();
+    PLACES_DATA = j.places || [];
+  }catch(e){ console.warn('places unavailable:', e); PLACES_DATA = []; }
+  plotPlaces();
+  renderPlaces();
+}
+
+// Which places the current search implies. Places have no date, so the date
+// filters do not apply to them — silently pretending they did would hide
+// somewhere you could swim tomorrow because you searched next August.
+function visiblePlaces(){
+  if(!document.getElementById('showPlaces')?.checked) return [];
+  const water = document.getElementById('waterType')?.value || null;
+  const b = (MAP && followMap && !SEL.place) ? MAP.getBounds() : null;
+  return PLACES_DATA.filter(p=>{
+    if(water && p.water_type !== water) return false;
+    if(SEL.place?.match.country && p.country_code !== SEL.place.match.country) return false;
+    if(b && p.latitude!=null && !b.contains([p.latitude,p.longitude])) return false;
+    return true;
+  });
+}
+
+function plotPlaces(){
+  if(!MAP || typeof L === 'undefined') return;
+  if(!PLACE_LAYER) PLACE_LAYER = L.layerGroup().addTo(MAP);
+  PLACE_LAYER.clearLayers();
+  if(!document.getElementById('showPlaces')?.checked) return;
+  for(const p of PLACES_DATA){
+    if(p.latitude==null || p.longitude==null) continue;
+    // Deliberately quieter than an event pin: a hollow ring rather than a
+    // filled dot. A place is always there; an event is a date you can miss,
+    // and the map should not give them equal weight.
+    L.circleMarker([p.latitude,p.longitude],{
+      radius:4, weight:1.5, color:'#64748b', fillColor:'#0d1728', fillOpacity:.6
+    }).bindPopup(
+      `<b>${esc(p.name)}</b>
+       <span class="pplace">${esc([p.area, countryName(p.country_code)].filter(Boolean).join(', '))}</span>
+       ${p.temp_c!=null ? `<br><span class="ptemp">${esc(p.temp_c)}°C</span>`:''}
+       <br><a href="${esc(p.url)}">Spot details →</a>`
+    ).addTo(PLACE_LAYER);
+  }
+}
+
+function renderPlaces(){
+  const sec = document.getElementById('placesSection');
+  const el = document.getElementById('places');
+  const list = visiblePlaces();
+  if(!list.length){ sec.style.display='none'; return; }
+  sec.style.display='';
+  const shown = list.slice(0,24);
+  el.innerHTML = shown.map(p=>`<article class="result" style="display:block;padding:13px 16px">
+      <h3 style="font-size:16px;margin-bottom:3px">
+        <a href="${esc(p.url)}" style="text-decoration:none" data-place="${esc(p.slug)}">${esc(p.name)}</a></h3>
+      <div class="muted" style="font-size:13px">
+        ${esc([p.area, countryName(p.country_code)].filter(Boolean).join(', '))}
+        ${p.water_type ? ` · ${esc(p.water_type)}` : ''}
+        ${p.temp_c!=null ? ` · <span style="color:var(--cyan)">${esc(p.temp_c)}°C</span>
+            <span style="color:var(--sec)">(${esc(p.temp_source==='swimmer'?'swimmer logged':'modelled')})</span>` : ''}
+      </div>
+    </article>`).join('')
+    + (list.length > shown.length
+        ? `<p class="muted" style="margin-top:10px">${list.length - shown.length} more places here —
+           <a href="/spots">browse all swim spots</a>.</p>` : '');
+  el.querySelectorAll('[data-place]').forEach(a=>
+    a.addEventListener('click', ()=> track('place_click', { spot: a.dataset.place })));
+}
+
 // ── Render ──────────────────────────────────────────────────────────────
 function showSkeletons(){
   document.getElementById('count').textContent = 'Searching…';
@@ -1276,6 +1365,7 @@ function renderPager(){
   document.getElementById(id)?.addEventListener('change', ()=>{ PAGE=1; search(); }));
 document.getElementById('tri')?.addEventListener('change', ()=>{ PAGE=1; loadPoints(); search(); });
 document.getElementById('bookable')?.addEventListener('change', ()=>{ PAGE=1; search(); renderRoutes(); });
+document.getElementById('showPlaces')?.addEventListener('change', ()=>{ plotPlaces(); renderPlaces(); });
 document.getElementById('q')?.addEventListener('input', onQuery);
 document.getElementById('q')?.addEventListener('keydown', onQueryKey);
 document.getElementById('q')?.addEventListener('focus', onQuery);
@@ -1293,7 +1383,7 @@ try { initMap(); } catch (e) {
   track('explore_page_view', { has_filters: location.search.length > 1 });
   await initAuth();
   await resumePendingSave();
-  await Promise.all([ loadPoints(), search(), loadRoutes() ]);
+  await Promise.all([ loadPoints(), search(), loadRoutes(), loadPlaces() ]);
   if(MARKERS.length && !SEL.place && !location.search) fitAll();
 })();
 </script>
