@@ -573,9 +573,10 @@ async function loadPoints(){
     if(!r.ok) throw new Error('map points');
     const json = await r.json();
     POINTS = json.points || [];
+    TALLIES = json.tallies || null;
   }catch(e){
     console.warn('Map points unavailable, continuing with the list:', e);
-    POINTS = [];
+    POINTS = []; TALLIES = null;
   }
   buildPlaces();
   plotMarkers();
@@ -583,12 +584,17 @@ async function loadPoints(){
   renderChips();
 }
 
+// Counts come from the server's tallies, NOT from POINTS. POINTS holds only
+// the swims that have coordinates and can be drawn — 184 of 250 on
+// 2026-08-05 — so counting it would report 184 swims and 24 countries when
+// there are 250 and more. A map that plots fewer pins than we list is fine
+// and honest; a headline that undercounts the catalogue is not.
+let TALLIES = null;
 function renderTally(){
-  const soon = new Date(); soon.setDate(soon.getDate()+30);
-  const iso = soon.toISOString().slice(0,10);
-  document.getElementById('tEvents').textContent = POINTS.length || '—';
-  document.getElementById('tCountries').textContent = new Set(POINTS.map(r=>r.c).filter(Boolean)).size || '—';
-  document.getElementById('tSoon').textContent = POINTS.filter(r=>r.d && r.d <= iso).length;
+  const t = TALLIES;
+  document.getElementById('tEvents').textContent    = t ? t.events : '—';
+  document.getElementById('tCountries').textContent = t ? t.countries : '—';
+  document.getElementById('tSoon').textContent      = t ? t.next_30_days : '—';
 }
 
 // Places come from the swims themselves, so every suggestion returns

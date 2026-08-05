@@ -82,7 +82,24 @@ export default async function handler(req, res) {
 
   res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=900');
 
+  // The headline tallies are computed over EVERY row, before the
+  // coordinate filter below drops the unplottable ones. On 2026-08-05 that
+  // is 250 swims of which only 184 have coordinates — so counting the
+  // plotted markers would tell a visitor there are 184 swims in 24
+  // countries when there are 250. That is not a smaller number, it is a
+  // wrong one, and it is the same trap the old client-side LIMIT hit.
+  const soon = new Date();
+  soon.setDate(soon.getDate() + 30);
+  const soonIso = soon.toISOString().slice(0, 10);
+
+  const tallies = {
+    events: total,
+    countries: new Set(points.map((p) => p.country_code).filter(Boolean)).size,
+    next_30_days: points.filter((p) => p.start_date && p.start_date <= soonIso).length,
+  };
+
   return res.status(200).json({
+    tallies,
     // Short keys: this payload is ~250 objects and the names are repeated
     // in every one of them.
     points: points
