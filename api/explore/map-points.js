@@ -98,8 +98,19 @@ export default async function handler(req, res) {
     next_30_days: points.filter((p) => p.start_date && p.start_date <= soonIso).length,
   };
 
+  // Per-country counts, also over EVERY row rather than the plotted subset.
+  // The country chips on /explore show these, and a chip must promise what
+  // clicking it delivers: "South Africa 9" that opens 12 results is a
+  // smaller kind of the same lie the headline tally told, because three of
+  // those events simply have no coordinates.
+  const byCountry = {};
+  for (const p of points) {
+    if (p.country_code) byCountry[p.country_code] = (byCountry[p.country_code] || 0) + 1;
+  }
+
   return res.status(200).json({
     tallies,
+    by_country: byCountry,
     // Short keys: this payload is ~250 objects and the names are repeated
     // in every one of them.
     points: points

@@ -338,6 +338,13 @@
          should not have to wade through Ironman entries to reach it. -->
     <label class="tog" title="Show the swim leg of triathlons and swimruns. Entry is normally for the whole race, not the swim alone.">
       <input type="checkbox" id="tri"><span>Include triathlon swim legs</span></label>
+    <!-- A MODE, not another filter. Races and bookable routes cannot be
+         interleaved sensibly — a route has no date, so it has nowhere to sit
+         in a list grouped by month. Turning this on shows routes instead of
+         races rather than as well as. -->
+    <label class="tog" id="bookableTog"
+           title="Escorted swims you arrange with an operator, run when the weather allows, rather than races on a fixed date.">
+      <input type="checkbox" id="bookable"><span>Swims you can book</span></label>
   </div>
 
   <div class="chips" id="chips"></div>
@@ -461,6 +468,7 @@ function readUrl(){
   set('from', u.get('date_from')); set('to', u.get('date_to'));
   chk('weekendOnly', u.get('weekend_only')); chk('entriesOpen', u.get('entries_open'));
   chk('confirmedOnly', u.get('confirmed_only')); chk('tri', u.get('include_multisport'));
+  chk('bookable', u.get('bookable'));
   PAGE = Math.max(1, parseInt(u.get('page'),10) || 1);
   // Defensive on the way in as well as out: links carrying the old
   // "undefined" string are already in people's history and pasted messages,
@@ -490,6 +498,7 @@ function writeUrl(){
   put('date_from', p.date_from); put('date_to', p.date_to);
   put('weekend_only', p.weekend_only); put('entries_open', p.entries_open);
   put('confirmed_only', p.confirmed_only); put('include_multisport', p.include_multisport);
+  put('bookable', bookableOnly());
   if(SEL.place){
     put('country', SEL.place.match.country); put('region', SEL.place.match.region);
     put('city', SEL.place.match.city); put('place_label', SEL.place.label);
@@ -517,6 +526,10 @@ function params(){
 
 // ── Search ──────────────────────────────────────────────────────────────
 async function search(opts){
+  // Book mode has no server search: routes are already loaded and are
+  // filtered in the browser. Skipping the fetch also stops a stale dated
+  // result set landing underneath and re-showing the hidden list.
+  if(bookableOnly()){ writeUrl(); renderRoutes(); return; }
   const seq = ++searchSeq;
   // Abort the previous request. Without this, a slow early search can land
   // AFTER a fast later one and overwrite fresh results with stale ones —
@@ -643,9 +656,10 @@ async function loadPoints(){
     const json = await r.json();
     POINTS = json.points || [];
     TALLIES = json.tallies || null;
+    BY_COUNTRY = json.by_country || null;
   }catch(e){
     console.warn('Map points unavailable, continuing with the list:', e);
-    POINTS = []; TALLIES = null;
+    POINTS = []; TALLIES = null; BY_COUNTRY = null;
   }
   buildPlaces();
   plotMarkers();
@@ -658,7 +672,7 @@ async function loadPoints(){
 // 2026-08-05 — so counting it would report 184 swims and 24 countries when
 // there are 250 and more. A map that plots fewer pins than we list is fine
 // and honest; a headline that undercounts the catalogue is not.
-let TALLIES = null;
+let TALLIES = null, BY_COUNTRY = null;
 function renderTally(){
   const t = TALLIES;
   document.getElementById('tEvents').textContent    = t ? t.events : '—';
@@ -791,7 +805,12 @@ function renderChips(){
   const bits = [];
   if(SEL.place) bits.push(`<button type="button" class="chip on" data-clear="1">${esc(SEL.place.label)} ✕</button>`);
   else PLACES.filter(p=>p.kind==='country').slice(0,6).forEach(p=>{
-    bits.push(`<button type="button" class="chip" data-i="${PLACES.indexOf(p)}">${esc(p.label)} <span style="color:var(--sec)">${p.n}</span></button>`);
+    // Count from the server's per-country figure where we have it: p.n
+    // counts plotted pins, and an event without coordinates is still an
+    // event you get when you click. "South Africa 9" opening 12 results was
+    // exactly that gap.
+    const n = (BY_COUNTRY && p.match.country && BY_COUNTRY[p.match.country]) || p.n;
+    bits.push(`<button type="button" class="chip" data-i="${PLACES.indexOf(p)}">${esc(p.label)} <span style="color:var(--sec)">${n}</span></button>`);
   });
   const el = document.getElementById('chips');
   el.innerHTML = bits.join('');
@@ -908,13 +927,47 @@ async function loadRoutes(){
   renderRoutes();
 }
 
+const bookableOnly = () => document.getElementById('bookable')?.checked === true;
+
+// Routes honour the filters that MEAN something for a dateless swim:
+// distance, and the water-type/date filters do not apply. Silently ignoring
+// a distance filter here would be the same sin as ignoring one in search.
+function visibleRoutes(){
+  const minD = parseInt(document.getElementById('minDist')?.value, 10) || null;
+  return ROUTES.filter(r => !minD || (r.distance_metres != null && r.distance_metres >= minD));
+}
+
 function renderRoutes(){
   const sec = document.getElementById('routesSection');
   const el = document.getElementById('routes');
-  if(!ROUTES.length){ sec.style.display='none'; return; }
+  const list = visibleRoutes();
+  const only = bookableOnly();
+
+  // In "book" mode the routes ARE the results, so the dated list, its pager
+  // and its count step aside entirely rather than sitting above an empty
+  // month heading.
+  document.getElementById('results').style.display = only ? 'none' : '';
+  document.getElementById('pager').style.display   = only ? 'none' : '';
+  if(only){
+    document.getElementById('count').textContent = list.length
+      ? `${list.length} swim${list.length>1?'s':''} you can book`
+      : 'No bookable swims match those filters';
+    sec.querySelector('h2').style.display = 'none';
+  } else {
+    sec.querySelector('h2').style.display = '';
+  }
+
+  if(!list.length && !only){ sec.style.display='none'; return; }
   sec.style.display = '';
 
-  el.innerHTML = ROUTES.map(r => {
+  if(!list.length){
+    el.innerHTML = `<div class="empty"><b>No bookable swims match those filters.</b>
+      We list ${ROUTES.length} escorted routes — try clearing the distance filter.
+      <ul><li><i data-lucide="ruler"></i><button type="button" onclick="clearFilter('minDist')">Allow shorter swims</button></li></ul></div>`;
+    icons(); return;
+  }
+
+  el.innerHTML = list.map(r => {
     const dist = fmtRouteDistance(r.distance_metres);
     const season = fmtSeason(r.season_start_month, r.season_end_month);
     const dur = (r.duration_min_minutes && r.duration_max_minutes)
@@ -1148,6 +1201,7 @@ function renderPager(){
 ['weekendOnly','entriesOpen','confirmedOnly'].forEach(id=>
   document.getElementById(id)?.addEventListener('change', ()=>{ PAGE=1; search(); }));
 document.getElementById('tri')?.addEventListener('change', ()=>{ PAGE=1; loadPoints(); search(); });
+document.getElementById('bookable')?.addEventListener('change', ()=>{ PAGE=1; search(); renderRoutes(); });
 document.getElementById('q')?.addEventListener('input', onQuery);
 document.getElementById('q')?.addEventListener('keydown', onQueryKey);
 document.getElementById('q')?.addEventListener('focus', onQuery);
