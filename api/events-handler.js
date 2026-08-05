@@ -211,7 +211,19 @@ function head(ev, ctx) {
   // sql/applied/2026-08-05_explore-phase1-foundation.sql. An event we have
   // not verified well enough must not be handed to a search engine, where a
   // wrong listing outlives its correction.
-  const robots = ev.is_indexable ? 'index,follow' : 'noindex,nofollow';
+  //
+  // The date check is NOT redundant. is_indexable is a stored snapshot taken
+  // when the row was assessed; nothing clears it as time passes, so every
+  // indexable event silently becomes a past event that still claims
+  // index,follow. Without this, within weeks Google is indexing swims that
+  // already happened. Evaluated here because this is where the current date
+  // is known — the column says "good enough to index", the handler adds
+  // "and it has not happened yet".
+  const past = ev.end_date
+    ? ev.end_date < new Date().toISOString().slice(0, 10)
+    : ev.start_date && ev.start_date < new Date().toISOString().slice(0, 10);
+  const dead = ev.status === 'cancelled' || ev.status === 'postponed';
+  const robots = ev.is_indexable && !past && !dead ? 'index,follow' : 'noindex,nofollow';
 
   return `<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
