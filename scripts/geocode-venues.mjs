@@ -153,12 +153,6 @@ function pick(results, venue) {
     return { ok: false, why: `no acceptable match (found: ${kinds || 'nothing'})` };
   }
 
-  // RANK WATER ABOVE EVERYTHING ELSE, rather than taking Nominatim's own
-  // ordering. It ranks by general importance, which for "Coogee NSW"
-  // returned Coogee OVAL — a cricket ground — ahead of the beach. For an
-  // open water swim the water feature is always the better answer, and a
-  // sports ground several hundred metres inland is a plausible-looking
-  // wrong pin, which is the worst kind.
   // ORDER BY NOMINATIM'S OWN IMPORTANCE. It is derived from Wikipedia
   // prominence and admin rank, and it is right far more often than a
   // hand-written preference: Sydney's Coogee scores 0.411, the farm called
@@ -228,16 +222,45 @@ async function main() {
       continue;
     }
 
-    let results;
-    try {
-      results = await geocode(query, v.country_code);
-    } catch (err) {
-      skipped.push([v.display_name, `lookup failed: ${err.message}`]);
-      await sleep(MIN_INTERVAL_MS);
-      continue;
+    // Try the source's own full phrasing first — it is more specific, so a
+    // hit is a better point. Then fall back to the bare city, because the
+    // specific form is sometimes TOO specific: "Bydgoszcz, Rzeka Brda"
+    // (the Brda river at Bydgoszcz) returns nothing, while "Bydgoszcz"
+    // returns a city of 340,000. Precision first, recall second, rather
+    // than refusing a place we can obviously find.
+    // Narrowing chain: the source's full phrasing, then city+region, then
+    // the city ALONE. That last step matters more than it looks — the
+    // crawler often puts a water body in the region field ("Bydgoszcz" /
+    // "Rzeka Brda", the Brda river), so city+region just rebuilds the same
+    // failing string. "Bydgoszcz, Rzeka Brda" returns nothing; "Bydgoszcz"
+    // returns a city of 340,000.
+    const attempts = [];
+    for (const a of [query,
+                     [v.city, v.region].filter(Boolean).join(', ').trim(),
+                     String(v.city || '').trim()]) {
+      const t = a.trim();
+      if (t && !attempts.some((x) => x.toLowerCase() === t.toLowerCase())) attempts.push(t);
     }
 
-    const choice = pick(results, v);
+    let choice = { ok: false, why: 'not attempted' };
+    let usedQuery = query;
+    for (const attempt of attempts) {
+      let results;
+      try {
+        results = await geocode(attempt, v.country_code);
+      } catch (err) {
+        choice = { ok: false, why: `lookup failed: ${err.message}` };
+        await sleep(MIN_INTERVAL_MS);
+        continue;
+      }
+      await sleep(MIN_INTERVAL_MS);
+      choice = pick(results, v);
+      usedQuery = attempt;
+      // Stop on success, and stop on AMBIGUITY too — a broader query cannot
+      // resolve an ambiguity, it can only widen it.
+      if (choice.ok || /ambiguous/.test(choice.why || '')) break;
+    }
+    void usedQuery;
     if (!choice.ok) {
       skipped.push([v.display_name, choice.why]);
     } else {
@@ -257,7 +280,6 @@ async function main() {
       }
       written += 1;
     }
-    await sleep(MIN_INTERVAL_MS);
   }
 
   console.log(`\n${written} venue(s) ${DRY_RUN ? 'would be' : ''} geocoded.`);
