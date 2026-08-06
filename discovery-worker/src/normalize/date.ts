@@ -194,6 +194,43 @@ export function parseStructuredDates(startDateRaw: string | null, endDateRaw: st
 // no year anywhere in the text stays unconfirmed with null dates — it is
 // never resolved to "the next occurrence" of that day, which would risk
 // silently turning a past event's page into a fabricated future one.
+// Every substring of a block of prose that LOOKS like a date, for tools
+// that need to answer "does this page state dates at all?" separately from
+// "did our extractors manage to pull them out?".
+//
+// Those are different questions and conflating them is expensive. On
+// 2026-08-06 probe-sources.ts reported NO DATES for a Hong Kong source
+// whose page plainly reads "24th MAY 2026" — the date sits in a div no
+// deterministic selector reaches, and the probe runs only deterministic
+// extractors. The verdict read as "this source is useless" when it meant
+// "our cheap path missed it", and the source was nearly discarded.
+//
+// The vocabulary is deliberately the SAME month table the parser uses, so
+// this recognises every language the crawler does. Results are folded
+// strings and are meant to be handed straight to parseFreeTextDate, which
+// folds anyway — this finds candidates, it does not decide they are dates.
+export function findDateLikeStrings(text: string, limit = 500): string[] {
+  const folded = foldForMatching(text);
+  const patterns = [
+    // "24th May 2026", "13 de Abril 2026", "15. elokuuta 2026"
+    new RegExp(`\\b\\d{1,2}(?:st|nd|rd|th|\\.)?\\s+(?:de\\s+|di\\s+|du\\s+)?(?:${MONTH_PATTERN})\\.?,?\\s*\\d{4}\\b`, 'gi'),
+    // "May 24, 2026", "Sep. 19 2026"
+    new RegExp(`\\b(?:${MONTH_PATTERN})\\.?\\s+\\d{1,2}(?:st|nd|rd|th)?,?\\s+\\d{4}\\b`, 'gi'),
+    // "3.10.2026", "21/02/2026"
+    /\b\d{1,2}([./])\d{1,2}\1\d{4}\b/g,
+    // "2026年8月15日"
+    /\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日/g,
+  ];
+  const found = new Set<string>();
+  for (const re of patterns) {
+    for (const m of folded.matchAll(re)) {
+      found.add(m[0].trim());
+      if (found.size >= limit) return [...found];
+    }
+  }
+  return [...found];
+}
+
 export interface DateParseOptions {
   // Whether this source's country writes the day before the month.
   // true = D/M/Y, false = M/D/Y, null/undefined = we do not know, in which

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildCandidateKey, normaliseForKey } from '../src/domain/candidate-key.js';
 import { jaccardSimilarity, nameTokens, normalizeName } from '../src/dedupe/normalize-name.js';
-import { AMBIGUOUS_MONTH_TOKENS, dayFirstForCountry, parseFreeTextDate, parseYearlessDate } from '../src/normalize/date.js';
+import { AMBIGUOUS_MONTH_TOKENS, dayFirstForCountry, findDateLikeStrings, parseFreeTextDate, parseYearlessDate } from '../src/normalize/date.js';
 import { parseDistanceToMetres } from '../src/normalize/distance.js';
 
 // The pre-Unicode rule, kept here verbatim as the compatibility contract:
@@ -315,4 +315,29 @@ test('a multi-day row starts on the FIRST day, not the last', () => {
 
   // A single day is untouched by the range pattern.
   assert.equal(parseYearlessDate('13 de Abril', 2026).endDate, null);
+});
+
+test('findDateLikeStrings separates "states no dates" from "we missed them"', () => {
+  // Those are different questions and conflating them nearly cost us a
+  // working Hong Kong source: probe-sources.ts reported NO DATES for a page
+  // whose HTML plainly reads "24th MAY 2026". The probe runs only the
+  // deterministic extractors, and the date sat in a div no selector reaches.
+  const page =
+    'Middle Island Challenge Deep Water Bay 24th MAY 2026 entries close ' +
+    'Registration 3.10.2026 also 2026年8月15日 and March 6, 2026 — see you there';
+  const found = findDateLikeStrings(page);
+  assert.equal(found.length, 4, 'all four date shapes are spotted, including the Chinese one');
+
+  const parsed = found.map((s) => parseFreeTextDate(s, {}).startDate).filter(Boolean).sort();
+  // Three parse. "3.10.2026" is spotted but REFUSED, because with no source
+  // country to break the tie it is either 3 October or 10 March. Finding a
+  // candidate and resolving it stay separate steps, and the ambiguity guard
+  // still applies to whatever this turns up.
+  assert.deepEqual(parsed, ['2026-03-06', '2026-05-24', '2026-08-15']);
+  assert.ok(found.includes('3.10.2026'));
+
+  // Prose with no dates in it must stay empty — a false positive here turns
+  // "genuinely undated" into "seed it and spend AI budget".
+  assert.deepEqual(findDateLikeStrings('Our guided swims run when conditions allow. Book anytime.'), []);
+  assert.deepEqual(findDateLikeStrings('Distances: 3.8 km, 1.5 km and 400 m'), []);
 });

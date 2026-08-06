@@ -45,6 +45,7 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { loadConfig } from '../src/config.js';
+import { findDateLikeStrings, parseFreeTextDate } from '../src/normalize/date.js';
 import { PoliteHttpClient } from '../src/fetch/http-client.js';
 import { extractSameSiteLinks } from '../src/fetch/links.js';
 import { extractTableEvents } from '../src/extract/table.js';
@@ -67,6 +68,12 @@ interface Probe {
   error: string | null;
   robotsBlocked: boolean;
   visibleChars: number;
+  // Dates the PAGE states, found by scanning its own text — as distinct
+  // from dates our extractors managed to pull out. The gap between the two
+  // is the difference between "no dates here" and "we missed them".
+  datesStatedInText: number;
+  futureDatesStatedInText: number;
+  sampleStatedDates: string[];
   sameSiteLinks: number;
   hasJsonLd: boolean;
   tableRows: number;
@@ -100,18 +107,21 @@ function parseCandidates(text: string): Candidate[] {
   return out;
 }
 
-const visibleTextLength = (html: string) =>
+const visibleText = (html: string) =>
   html
     .replace(/<(script|style|noscript)[\s\S]*?<\/\1>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
-    .trim().length;
+    .trim();
+
+const visibleTextLength = (html: string) => visibleText(html).length;
 
 async function probeOne(c: Candidate, http: PoliteHttpClient): Promise<Probe> {
   const base: Probe = {
     country: c.country, name: c.name, url: c.url,
     status: null, error: null, robotsBlocked: false,
-    visibleChars: 0, sameSiteLinks: 0, hasJsonLd: false,
+    visibleChars: 0, datesStatedInText: 0, futureDatesStatedInText: 0, sampleStatedDates: [],
+    sameSiteLinks: 0, hasJsonLd: false,
     tableRows: 0, pageYear: null,
     usableEvents: 0, datedEvents: 0, futureDatedEvents: 0,
     sampleNames: [], verdict: '', recommendation: 'dead',
@@ -135,7 +145,17 @@ async function probeOne(c: Candidate, http: PoliteHttpClient): Promise<Probe> {
 
   const html = res.html;
   const finalUrl = res.finalUrl ?? c.url;
+  const today = new Date().toISOString().slice(0, 10);
   base.visibleChars = visibleTextLength(html);
+
+  // What the PAGE says, independent of what we managed to extract. This is
+  // the check that stops a "NO DATES" verdict being a lie.
+  const statedDates = findDateLikeStrings(visibleText(html))
+    .map((raw) => ({ raw, parsed: parseFreeTextDate(raw, {}) }))
+    .filter((d) => d.parsed.dateConfirmed && d.parsed.startDate);
+  base.datesStatedInText = statedDates.length;
+  base.futureDatesStatedInText = statedDates.filter((d) => d.parsed.startDate! >= today).length;
+  base.sampleStatedDates = statedDates.slice(0, 4).map((d) => d.raw);
   base.hasJsonLd = /application\/ld\+json/i.test(html);
   base.sameSiteLinks = extractSameSiteLinks(html, finalUrl).links.length;
 
@@ -144,7 +164,6 @@ async function probeOne(c: Candidate, http: PoliteHttpClient): Promise<Probe> {
   base.tableRows = table.rows.length;
   base.pageYear = table.pageYear;
 
-  const today = new Date().toISOString().slice(0, 10);
   for (const row of table.rows) {
     // The real builder — rejects waves, age brackets and numbered
     // placeholders, and resolves dates by the real rules including the
@@ -194,6 +213,26 @@ async function probeOne(c: Candidate, http: PoliteHttpClient): Promise<Probe> {
   } else if (base.visibleChars < 1500 && base.sameSiteLinks < 5) {
     base.recommendation = 'needs-render';
     base.verdict = `JS SHELL — only ${base.visibleChars} chars of server-rendered text. Needs Playwright, or skip.`;
+  } else if (base.datedEvents === 0 && base.futureDatesStatedInText >= 3) {
+    // THE PAGE STATES DATES AND WE MISSED THEM. This branch exists because
+    // the one below used to swallow this case and call the source useless.
+    //
+    // Events Horizons (Hong Kong) reads "24th MAY 2026" in its own HTML.
+    // parseFreeTextDate handles that string perfectly; the date simply sits
+    // in a Squarespace div no deterministic selector reaches, and this
+    // script runs only the deterministic extractors — never the AI fallback
+    // the real crawler has. Reported as NO DATES, it looked identical to
+    // Big Bay Events, which genuinely publishes none.
+    //
+    // 'seed-with-ai' rather than 'seed' because the deterministic path
+    // demonstrably cannot read this page, so a crawl WILL spend AI budget.
+    // That is a cost to accept knowingly, not a surprise to discover.
+    base.recommendation = 'seed-with-ai';
+    base.verdict =
+      `DATES PRESENT, EXTRACTORS MISSED THEM — the page states ${base.futureDatesStatedInText} ` +
+      `future date(s) (${base.sampleStatedDates.join(', ')}) that the deterministic ` +
+      `extractors could not reach, so this is NOT an undated source. Seed it, but expect the ` +
+      `AI fallback to do the work and budget accordingly.`;
   } else if (base.datedEvents === 0) {
     // ZERO DATES IS THE GATE, and it is checked before any "lots of links,
     // maybe events are on sub-pages" optimism. That optimism is exactly how
@@ -215,7 +254,14 @@ async function probeOne(c: Candidate, http: PoliteHttpClient): Promise<Probe> {
       `NO DATES — ${base.usableEvents} event name(s) found, but not one usable date` +
       `${base.pageYear === null ? ' and the page never states a year either' : ''}. ` +
       `An unconfirmed date is never stored, so this cannot publish as it stands. ` +
-      `The fix is usually to ask the organiser for a calendar, not to crawl harder.` +
+      // Three different situations used to read identically here. Say which.
+      (base.datesStatedInText === 0
+        ? `The page's own text was scanned too and states no dates at all, so this is a ` +
+          `genuine absence rather than an extraction failure. The fix is usually to ask the ` +
+          `organiser for a calendar, not to crawl harder.`
+        : `The page DOES state ${base.datesStatedInText} date(s) (${base.sampleStatedDates.join(', ')}) ` +
+          `but none of them is upcoming — this is a finished season, not an undated source. ` +
+          `Worth seeding and re-probing when next season posts, rather than discarding.`) +
       linkNote;
   } else if (base.futureDatedEvents >= 1 && base.sameSiteLinks >= 15) {
     // ONE EVENT PER PAGE. The thresholds above assume a calendar listing a
@@ -354,7 +400,8 @@ async function main(): Promise<void> {
       results.push({
         country: c.country, name: c.name, url: c.url, status: null,
         error: err instanceof Error ? err.message : String(err),
-        robotsBlocked: false, visibleChars: 0, sameSiteLinks: 0, hasJsonLd: false,
+        robotsBlocked: false, visibleChars: 0, datesStatedInText: 0, futureDatesStatedInText: 0,
+        sampleStatedDates: [], sameSiteLinks: 0, hasJsonLd: false,
         tableRows: 0, pageYear: null, usableEvents: 0, datedEvents: 0, futureDatedEvents: 0,
         sampleNames: [], verdict: `Probe threw: ${err instanceof Error ? err.message : String(err)}`,
         recommendation: 'dead',
