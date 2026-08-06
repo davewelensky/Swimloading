@@ -111,10 +111,33 @@ const NOT_A_NAME: { test: RegExp; why: string }[] = [
         // "14 Years to 30 Years" — a bracket expressed as a range rather
         // than an over/under, which the first pattern misses entirely.
         '\\b\\d+\\s*(?:yr|years?)\\s+to\\s+\\d+\\s*(?:yr|years?)\\b',
+        // "9-10 years", "11–12 yrs" — the same bracket written with a
+        // hyphen, which is how a junior entry table usually prints it.
+        // Anchored, because "Swim 5-10 Years On" would be a real name.
+        '^\\d{1,2}\\s*[-–—]\\s*\\d{1,2}\\s*(?:yr|yrs|years?)$',
       ].join('|'),
       'i'
     ),
     why: 'an age category, which describes who starts in a wave rather than a swim',
+  },
+  {
+    // A bare distance: "10K", "2.5K", "1 Mile", "1500m". The whole name is
+    // the length of the swim, so it is one of the ways to enter something
+    // — rule 4's distanceText — not a thing with a name. Anchored to the
+    // entire string, because every real race that states a distance also
+    // says what it is: "Swim Serpentine 10K", "Midmar Mile".
+    test: /^\d+(?:[.,]\d+)?\s*(?:k|km|m|mi|mile|miles|metres|meters|yd|yards?)$/i,
+    why: 'a distance rather than the name of a swim',
+  },
+  {
+    // Standard race formats and entry tiers, whole-string only. A multisport
+    // festival sells "Sprint", "Olympic", "Middle" and "Half Marathon" as
+    // the ways in; none of them is what anyone calls the race. Anchoring is
+    // doing all the work here — "Bosphorus Cross-Continental Marathon" and
+    // "Capri-Napoli Marathon" are real swims and must survive, and they do,
+    // because the format word is never the entire name of a real event.
+    test: /^(?:(?:super|ultra)\s+)?(?:sprint|olympic|standard|middle|long|short|full)(?:\s+(?:plus|distance))?$|^(?:half\s+)?marathon$|^(?:starter|novice|beginner|intermediate|advanced|elite)$/i,
+    why: 'a race format or entry tier rather than the name of a swim',
   },
   {
     // Entry classifications: "Company Teams", "Non-Company Teams",

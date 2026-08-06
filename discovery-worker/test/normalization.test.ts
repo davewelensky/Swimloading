@@ -154,6 +154,29 @@ test('a wave, an age bracket or a numbered placeholder is not an event name', ()
     // Entry classifications — who you enter AS, not what you enter.
     'Non-Company Teams',
     'Company Teams',
+    // Entry OPTIONS — how far you go, not what you entered. Castle Race
+    // Series' Lough Cutra festival page produced 19 of these in one crawl
+    // (2026-08-06): every way to enter one weekend, each transcribed as
+    // its own swim. None could ever publish (no date), but they sat in the
+    // review queue asking for a decision that had no answer.
+    '9-10 years',
+    '11-12 years',
+    '16-17 years',
+    '10K',
+    '2.5K',
+    '1 Mile',
+    '1500m',
+    'Sprint',
+    'Super Sprint',
+    'Sprint Plus',
+    'Olympic',
+    'Standard',
+    'Middle',
+    'Marathon',
+    'Half Marathon',
+    'Starter',
+    'Novice',
+    'Elite',
   ];
   for (const n of notNames) {
     assert.ok(rejectAsEventName(n), `"${n}" should be rejected as a name`);
@@ -181,6 +204,21 @@ test('real swim names are never rejected — precision matters more than recall 
     // anchored to the whole string precisely so these survive.
     'Team Relay Swim',
     'Cape Town Corporate Challenge',
+    // Near-misses for the distance and format rules. Every one of these
+    // contains a word that IS a category on its own — which is why those
+    // rules match the entire string and nothing less. A real race that
+    // states a distance always says what it is as well.
+    'Capri-Napoli Marathon',
+    'The Marathon Swim',
+    'Half Marathon Swim Series',
+    '10K Lake Zurich Swim',
+    'Sprint Triathlon Durban',
+    'Olympic Distance Swim Cape Town',
+    'Standard Bank Swim',
+    'Lough Cutra Castle Swim Series',
+    'Elite Open Water Classic',
+    // The age rule is anchored for the same reason.
+    'Swim 5-10 Years On',
   ];
   for (const n of realNames) {
     assert.equal(rejectAsEventName(n), null, `"${n}" must be kept`);
