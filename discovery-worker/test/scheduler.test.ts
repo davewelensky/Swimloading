@@ -14,6 +14,7 @@ function source(overrides: Partial<SchedulableSource>): SchedulableSource {
   return {
     id: '00000000-0000-4000-8000-00000000abcd',
     name: 'Test source',
+    expand_url_pattern: null,
     base_url: 'https://example.com/races',
     parser_type: 'jsonld_html',
     enabled: true,

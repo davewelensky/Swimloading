@@ -12,7 +12,7 @@ function fail(context: string, error: { message: string } | null): void {
 export async function fetchEnabledSources(db: SupabaseClient): Promise<SchedulableSource[]> {
   const { data, error } = await db
     .from('discovery_sources')
-    .select('id, name, base_url, parser_type, enabled, crawl_frequency, next_run_at, language_codes, consecutive_failure_count, source_type, country_code')
+    .select('id, name, base_url, parser_type, enabled, crawl_frequency, next_run_at, language_codes, consecutive_failure_count, source_type, country_code, expand_url_pattern')
     .eq('enabled', true)
     .neq('id', FIXTURE_SOURCE_ID);
   fail('fetchEnabledSources', error);
@@ -22,7 +22,7 @@ export async function fetchEnabledSources(db: SupabaseClient): Promise<Schedulab
 export async function fetchSourceById(db: SupabaseClient, sourceId: string): Promise<SchedulableSource | null> {
   const { data, error } = await db
     .from('discovery_sources')
-    .select('id, name, base_url, parser_type, enabled, crawl_frequency, next_run_at, language_codes, consecutive_failure_count, source_type, country_code')
+    .select('id, name, base_url, parser_type, enabled, crawl_frequency, next_run_at, language_codes, consecutive_failure_count, source_type, country_code, expand_url_pattern')
     .eq('id', sourceId)
     .maybeSingle();
   fail('fetchSourceById', error);

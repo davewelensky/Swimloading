@@ -121,6 +121,7 @@ function makeSource(overrides: Partial<SchedulableSource>): SchedulableSource {
   return {
     id: 'src-1',
     name: 'Test source',
+    expand_url_pattern: null,
     base_url: 'https://example.com/races',
     parser_type: 'jsonld_html',
     enabled: true,
@@ -535,4 +536,67 @@ test('the filter withholds spend only — the page is still fetched and extracte
   // extraction. The filter costs coverage nothing, only spend.
   assert.ok(recorded.fetched.includes('https://example.com/about'));
   assert.ok(recorded.pageRecords.some((r) => r.url === 'https://example.com/about' && r.ok));
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// Source scope, added 2026-08-06.
+//
+// Lopplistan is configured to its swim listing and still published two
+// running races: link discovery followed the site nav into
+// /sverige/alla/ and the homepage, which between them produced 140 of its
+// 170 candidates and all three of its published events.
+// ─────────────────────────────────────────────────────────────────────────
+
+test('discovery stays inside a source scope when one is set', async () => {
+  const { ports, recorded } = makePorts({
+    'https://lopplistan.se/sverige/simning/alla-/': okFetch(
+      'https://lopplistan.se/sverige/simning/alla-/',
+      '<html><body>' +
+        '<a href="https://lopplistan.se/lopp/malmo-open-water-swim/">Malmö Open Water</a>' +
+        '<a href="https://lopplistan.se/sverige/alla/alla-/">Alla lopp</a>' +
+        '<a href="https://lopplistan.se/sverige/lopning/">Löpning</a>' +
+        '<a href="https://lopplistan.se/">Hem</a>' +
+        '</body></html>'
+    ),
+    'https://lopplistan.se/lopp/malmo-open-water-swim/': okFetch(
+      'https://lopplistan.se/lopp/malmo-open-water-swim/',
+      UNREADABLE_HTML
+    ),
+  });
+
+  const summary = await crawlSource(
+    makeSource({
+      base_url: 'https://lopplistan.se/sverige/simning/alla-/',
+      expand_url_pattern: '^https://lopplistan\\.se/(sverige/simning/|lopp/)',
+    }),
+    ports,
+    { maxPagesPerRun: 10, runType: 'manual' }
+  );
+
+  const fetched = recorded.fetched ?? [];
+  assert.ok(
+    fetched.some((u) => u.includes('/lopp/malmo-open-water-swim/')),
+    'an in-scope event page must still be crawled'
+  );
+  for (const blocked of ['/sverige/alla/', '/sverige/lopning/']) {
+    assert.ok(!fetched.some((u) => u.includes(blocked)), `${blocked} is another sport and must not be crawled`);
+  }
+  assert.equal(summary.urlsFromLinks, 1, 'only the in-scope link counts as discovered');
+});
+
+test('no scope means the old behaviour, exactly', async () => {
+  // Every existing source has a null pattern, so this must be inert.
+  const { ports, recorded } = makePorts({
+    'https://example.com/races': okFetch(
+      'https://example.com/races',
+      '<html><body><a href="https://example.com/anything/">Anything</a></body></html>'
+    ),
+    'https://example.com/anything/': okFetch('https://example.com/anything/', UNREADABLE_HTML),
+  });
+
+  await crawlSource(makeSource({ expand_url_pattern: null }), ports, {
+    maxPagesPerRun: 10,
+    runType: 'manual',
+  });
+  assert.ok((recorded.fetched ?? []).some((u) => u.includes('/anything/')));
 });

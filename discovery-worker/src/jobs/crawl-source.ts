@@ -302,6 +302,33 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
       }
     }
 
+    // A source's scope. Link discovery has no idea what a source is FOR:
+    // any same-site link and any sitemap URL is a candidate page. That is
+    // right for a single-sport organiser and wrong for a multi-sport
+    // calendar, where the nav bar leads to running, cycling and skiing
+    // listings. Lopplistan is configured to its swim page and still
+    // published two running races, because the crawler walked to
+    // /sverige/alla/ and the homepage on its own.
+    //
+    // An unusable pattern stops discovery rather than falling back to
+    // "allow everything": falling back would silently restore the exact
+    // behaviour the pattern was added to prevent, and a smaller crawl is
+    // recoverable in a way a wrong published event is not.
+    let inScope: (url: string) => boolean = () => true;
+    if (source.expand_url_pattern) {
+      try {
+        const re = new RegExp(source.expand_url_pattern);
+        inScope = (url) => re.test(url);
+      } catch (err) {
+        ports.log(
+          `  scope pattern is not valid regex (${err instanceof Error ? err.message : String(err)}) — ` +
+            `discovery disabled for this run; only ${source.base_url} will be crawled`
+        );
+        inScope = () => false;
+      }
+    }
+    let outOfScope = 0;
+
     const discovered: string[] = [];
     if (listingMode) {
       summary.pagesRequested++;
@@ -372,12 +399,16 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
         for (const link of links) {
           const key = urlKey(link);
           if (!knownKeys.has(key) && !seenKeys.has(key)) {
+            if (!inScope(link)) { outOfScope++; continue; }
             discovered.push(link);
             seenKeys.add(key);
           }
         }
         summary.urlsFromLinks = discovered.length;
-        ports.log(`  listing ${source.base_url}: ${links.length} same-site link(s), ${discovered.length} new`);
+        ports.log(
+          `  listing ${source.base_url}: ${links.length} same-site link(s), ${discovered.length} new` +
+            (outOfScope > 0 ? `, ${outOfScope} out of scope` : '')
+        );
       } else {
         summary.fetchFailures++;
         await ports.recordPageFetch({
@@ -423,11 +454,13 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
         for (const url of sitemapUrls) {
           const key = urlKey(url);
           if (!knownKeys.has(key) && !seenKeys.has(key)) {
+            if (!inScope(url)) { outOfScope++; continue; }
             discovered.push(url);
             seenKeys.add(key);
             summary.urlsFromSitemap++;
           }
         }
+        if (outOfScope > 0) ports.log(`  ${outOfScope} discovered URL(s) outside this source's scope`);
         if (summary.urlsFromSitemap > 0) {
           ports.log(`  sitemap discovery: ${summary.urlsFromSitemap} new URL(s), ranked by event-likeness`);
         }

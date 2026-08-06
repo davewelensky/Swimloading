@@ -16,6 +16,10 @@ export interface SchedulableSource {
   // country_code fills in a location the page never stated.
   source_type: string | null;
   country_code: string | null;
+  // POSIX regex a DISCOVERED url must match before the crawler queues it.
+  // NULL = no constraint, which is every source's behaviour before
+  // 2026-08-06. base_url is always crawled and never filtered by this.
+  expand_url_pattern: string | null;
 }
 
 // Parser types this worker can actually execute today. 'manual' sources

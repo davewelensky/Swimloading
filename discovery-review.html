@@ -78,6 +78,15 @@
   .p-dupe{background:rgba(245,158,11,.2);color:var(--amber)}
   .p-pub{background:rgba(56,189,248,.15);color:var(--cyan)}
 
+  .grouphead{display:flex;align-items:center;gap:10px;margin:18px 0 8px;padding-bottom:6px;
+    border-bottom:1px solid var(--border);font-size:13px;color:var(--sec)}
+  .grouphead label{display:flex;align-items:center;gap:8px;cursor:pointer}
+  .grouphead b{color:var(--text);font-weight:600}
+  .gcount{margin-left:auto;font-variant-numeric:tabular-nums}
+  input.pick{width:16px;height:16px;accent-color:var(--cyan);cursor:pointer;flex:none}
+  .bulk{position:sticky;top:70px;z-index:40;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    background:var(--card);border:1px solid var(--cyan);border-radius:12px;padding:12px 16px;margin-bottom:12px}
+  .bulk .held{color:var(--amber);font-size:12px;max-width:420px}
   .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;position:sticky;top:80px}
   .panel h2{font-family:'Bebas Neue',sans-serif;font-size:27px;letter-spacing:.5px;margin-bottom:3px}
   .panel .sub{color:var(--sec);font-size:13px;margin-bottom:16px}
@@ -156,6 +165,7 @@
   <div class="stats" id="stats"></div>
   <div class="filters" id="filters"></div>
   <div id="bucketNote"></div>
+  <div id="bulkBar"></div>
   <div class="cols">
     <div id="list"></div>
     <div id="detail"><div class="panel"><div class="empty">Select a candidate to review.</div></div></div>
@@ -187,7 +197,10 @@ function toast(msg, bad){
 }
 function icons(){ if (window.lucide) lucide.createIcons(); }
 
-let CANDIDATES = [], LINKS = [], EDITIONS = [], SELECTED = null, FILTER = 'ready';
+let CANDIDATES = [], LINKS = [], EDITIONS = [], SOURCES = [], SELECTED = null, FILTER = 'ready';
+// Ids ticked for a bulk action. Cleared on every filter change, so a
+// selection can never outlive the list the reviewer was looking at.
+let PICKED = new Set();
 
 // Today in SAST, as a plain YYYY-MM-DD string, so it compares directly
 // against start_date without ever constructing a Date (which shifts a day
@@ -265,12 +278,13 @@ async function fetchAll(table, columns){
 
 async function loadAll(){
   try {
-    const [c, l, e] = await Promise.all([
-      fetchAll('discovery_candidate_events', 'id,canonical_name,original_name,candidate_status,publication_recommendation,confidence_score,confidence_reasons,warnings,start_date,end_date,date_precision,date_confirmed,city,region,country_code,latitude,longitude,venue_name,organiser_name,official_url,registration_url,source_url,water_body_type,event_type,description_summary,extraction_method,raw_source_values,promoted_edition_id,extracted_at'),
+    const [c, l, e, s] = await Promise.all([
+      fetchAll('discovery_candidate_events', 'id,source_id,canonical_name,original_name,candidate_status,publication_recommendation,confidence_score,confidence_reasons,warnings,start_date,end_date,date_precision,date_confirmed,city,region,country_code,latitude,longitude,venue_name,organiser_name,official_url,registration_url,source_url,water_body_type,event_type,description_summary,extraction_method,raw_source_values,promoted_edition_id,extracted_at'),
       fetchAll('discovery_dedupe_links', 'id,candidate_id,matching_candidate_id,similarity_score,matching_signals,conflicting_signals,resolution'),
-      fetchAll('event_editions', 'id,title,edition_year,start_date,status,source_candidate_id')
+      fetchAll('event_editions', 'id,title,edition_year,start_date,status,source_candidate_id'),
+      fetchAll('discovery_sources', 'id,name,country_code')
     ]);
-    CANDIDATES = c; LINKS = l; EDITIONS = e;
+    CANDIDATES = c; LINKS = l; EDITIONS = e; SOURCES = s;
   } catch (err) {
     toast('Could not load candidates: ' + err.message, true);
     return;
@@ -279,6 +293,24 @@ async function loadAll(){
 }
 
 const unresolvedFor = id => LINKS.filter(l => l.candidate_id === id && l.resolution === 'unresolved');
+const sourceName = id => (SOURCES.find(s => s.id === id) || {}).name || 'Unknown source';
+
+// Which candidates a BULK approve may touch. Deliberately narrower than
+// what the single-approve button allows, because a bulk action is one
+// click standing in for many and must not quietly answer a question only a
+// human can:
+//
+//   * an unresolved duplicate means we may be about to publish the same
+//     swim twice — the single button is disabled for these too;
+//   * !date_confirmed means the page never stated a year, and single
+//     approve PROMPTS for one. There is no sensible way to answer that
+//     prompt fifty times at once, so those stay individual.
+//
+// Bulk reject has no such restriction: rejecting is reversible and
+// publishes nothing.
+function bulkApprovable(c){
+  return isReady(c) && c.date_confirmed && unresolvedFor(c.id).length === 0;
+}
 
 function render(){
   const ready     = CANDIDATES.filter(isReady);
@@ -328,16 +360,41 @@ function render(){
     order.indexOf(a.publication_recommendation) - order.indexOf(b.publication_recommendation) ||
     b.confidence_score - a.confidence_score);
 
+  // Grouped by source, because that is how the queue actually clusters and
+  // how a reviewer actually thinks: Finland's 47 events are one decision
+  // about one federation's calendar, not 47 decisions about 47 swims.
+  const groups = new Map();
+  for (const c of rows) {
+    const key = c.source_id || 'unknown';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(c);
+  }
+  const ordered = [...groups.entries()].sort((a, b) => b[1].length - a[1].length);
+
   document.getElementById('list').innerHTML = rows.length === 0
     ? '<div class="panel"><div class="empty">Nothing here.</div></div>'
-    : rows.map(cardHtml).join('');
+    : ordered.map(([sid, items]) => {
+        const ids = items.map(c => c.id);
+        const allPicked = ids.every(id => PICKED.has(id));
+        return `
+          <div class="grouphead">
+            <label>
+              <input type="checkbox" ${allPicked ? 'checked' : ''}
+                     onchange="pickAll(${JSON.stringify(ids).replace(/"/g, '&quot;')}, this.checked)">
+              <b>${esc(sourceName(sid))}</b>
+            </label>
+            <span class="gcount">${items.length}</span>
+          </div>
+          ${items.map(cardHtml).join('')}`;
+      }).join('');
 
+  renderBulkBar();
   if (SELECTED && !CANDIDATES.find(c => c.id === SELECTED)) SELECTED = null;
   if (SELECTED) renderDetail(SELECTED);
   icons();
 }
 
-function setFilter(f){ FILTER = f; render(); }
+function setFilter(f){ FILTER = f; PICKED = new Set(); render(); }
 
 function cardHtml(c){
   const [cls, label] = REC_PILL[c.publication_recommendation] || ['p-insuf','—'];
@@ -349,6 +406,9 @@ function cardHtml(c){
   return `
     <div class="card ${SELECTED === c.id ? 'sel' : ''}" onclick="select('${c.id}')">
       <div class="card-top">
+        <input type="checkbox" class="pick" ${PICKED.has(c.id) ? 'checked' : ''}
+               onclick="event.stopPropagation()"
+               onchange="togglePick('${c.id}', this.checked)">
         <span class="score" style="color:${SCORE_COLOUR(c.confidence_score)}">${c.confidence_score}</span>
         <h3>${esc(c.canonical_name || c.original_name || 'Untitled')}</h3>
       </div>
@@ -519,6 +579,91 @@ async function reject(id){
   toast('Rejected');
   await loadAll();
   renderDetail(id);
+}
+
+// ── Bulk review ──────────────────────────────────────────────────────
+//
+// 198 candidates were sitting dated, upcoming and unpublished, because
+// AI-read candidates never auto-publish and the only way through was one
+// click each. This is that same decision, made per source.
+//
+// It calls the SAME per-candidate RPCs in a loop rather than adding a
+// batch RPC. Eligibility is a safety policy and lives in SQL in exactly
+// one place; a batch entry point would be a second copy of it, and the
+// first time the two disagreed the looser one would win. One call per
+// candidate also means one audit row per candidate, so the history reads
+// the same whether a decision was made in bulk or alone.
+function togglePick(id, on){ on ? PICKED.add(id) : PICKED.delete(id); renderBulkBar(); }
+
+function pickAll(ids, on){
+  for (const id of ids) on ? PICKED.add(id) : PICKED.delete(id);
+  render();
+}
+
+function renderBulkBar(){
+  const bar = document.getElementById('bulkBar');
+  if (!bar) return;
+  const picked = [...PICKED];
+  if (picked.length === 0) { bar.innerHTML = ''; return; }
+  const chosen = picked.map(id => CANDIDATES.find(c => c.id === id)).filter(Boolean);
+  const canPublish = chosen.filter(bulkApprovable).length;
+  const held = chosen.length - canPublish;
+  bar.innerHTML = `
+    <div class="bulk">
+      <b>${chosen.length} selected</b>
+      ${held > 0 ? `<span class="held">${held} cannot be bulk-published — no stated year, or an unresolved duplicate. Open those individually.</span>` : ''}
+      <span style="flex:1"></span>
+      <button class="act b-approve" ${canPublish ? '' : 'disabled'} onclick="bulkApprove()">Publish ${canPublish}</button>
+      <button class="act b-reject" onclick="bulkReject()">Reject ${chosen.length}</button>
+      <button class="b-small" onclick="PICKED=new Set();render()">Clear</button>
+    </div>`;
+}
+
+async function runBulk(ids, label, fn){
+  let done = 0;
+  const failures = [];
+  const bar = document.getElementById('bulkBar');
+  for (const id of ids) {
+    const c = CANDIDATES.find(x => x.id === id);
+    const name = (c && (c.canonical_name || c.original_name)) || id.slice(0, 8);
+    try {
+      const { error } = await fn(id);
+      if (error) failures.push(`${name}: ${error.message}`);
+      else done++;
+    } catch (err) {
+      failures.push(`${name}: ${err.message}`);
+    }
+    if (bar) bar.innerHTML = `<div class="bulk"><b>${label} ${done + failures.length} of ${ids.length}…</b></div>`;
+  }
+  PICKED = new Set();
+  await loadAll();
+  // Report failures individually. "43 of 47 succeeded" with no list is
+  // useless — the four that did not are the whole point.
+  if (failures.length === 0) {
+    toast(`${label} ${done} event${done === 1 ? '' : 's'}`);
+  } else {
+    toast(`${label} ${done}, ${failures.length} failed — see console`, true);
+    console.error(`${label} failures:\n` + failures.join('\n'));
+  }
+}
+
+async function bulkApprove(){
+  const ids = [...PICKED].filter(id => {
+    const c = CANDIDATES.find(x => x.id === id);
+    return c && bulkApprovable(c);
+  });
+  if (ids.length === 0) return;
+  if (!confirm(`Publish ${ids.length} event${ids.length === 1 ? '' : 's'} to the public catalogue?\n\nThis is the same check as approving each one individually — the database still refuses anything ineligible.`)) return;
+  await runBulk(ids, 'Published', id => sb.rpc('approve_discovery_candidate', { p_candidate_id: id }));
+}
+
+async function bulkReject(){
+  const ids = [...PICKED];
+  if (ids.length === 0) return;
+  const reason = prompt(`Reason for rejecting these ${ids.length} (optional, applied to all):`);
+  if (reason === null) return;
+  await runBulk(ids, 'Rejected', id =>
+    sb.rpc('reject_discovery_candidate', { p_candidate_id: id, p_reason: reason || null }));
 }
 
 async function resolveLink(linkId, resolution, markDuplicate){
