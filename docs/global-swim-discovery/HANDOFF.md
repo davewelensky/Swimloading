@@ -97,11 +97,25 @@ class reached the public catalogue as an open water swim; its URL said
 checked **before** the open-water signal — a class held in the sea is still
 a class.
 
+**An entry option is not an event.** New 6 Aug. Castle Race Series
+publishes the Lough Cutra festival as a menu of ways to enter it, and the
+AI extractor transcribed the menu: `Sprint`, `Olympic`, `10K`,
+`9-10 years`, nineteen candidates for one weekend. `rejectAsEventName()`
+now covers bare distances, race formats and hyphenated age ranges, all
+**anchored to the whole string** — "Capri-Napoli Marathon" and "10K Lake
+Zurich Swim" must survive, and the tests say so. Four were rejected with
+no rule behind them ("Gauntlet", "Saturday Swim 5K"): one organiser's
+wording is not a pattern, and inventing one deletes a real swim later.
+Check precision with `scripts/sweep-not-a-name.ts`, which runs the rules
+over the live queue instead of over examples you thought of yourself.
+
 **Discipline is separate from event type.** Nine French triathlons —
-Embrunman among them — went live as open-water swims today because the
+Embrunman among them — went live as open-water swims on 5 Aug because the
 classifier reads names and Embrunman contains no word it recognises. The
 source URL said `calendrier-triathlon`. Corrected; the general fix is done
-for classes but **not yet for multisport**.
+for classes but **not yet for multisport** — the surviving "Lough Cutra
+Castle Triathlon and Multisport Festival" candidate still carries
+`discipline: open_water`, which is the next thing to fix here.
 
 **An unconfirmed date is never stored.** Schema-enforced. This is why the
 760 Freedom Swim ("December 2026", no day) has NULL dates.
