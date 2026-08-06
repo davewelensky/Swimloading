@@ -731,9 +731,14 @@ function renderCountryHub(slug, country, data) {
     (Array.isArray(e.distances) ? e.distances : []).map((d) => d.metres)).filter(Boolean))].sort((a,b)=>a-b);
   const temps = events.map((e) => e.water_temp_c).filter((t) => t != null);
 
-  const title = `Open Water Swims in ${country.name} — ${n} Events, Dates & Water Temperature | SwimLoading`;
-  const desc = `${n} open water swimming events in ${country.name}` +
-    `${routes.length ? `, plus ${routes.length} escorted swims you can book any time` : ''}. ` +
+  // "1 Events" is the title Google prints. It never showed before because
+  // every hand-listed country happened to have several; the moment hubs
+  // came from the data, fourteen one-event countries appeared at once.
+  const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
+
+  const title = `Open Water Swims in ${country.name} — ${plural(n, 'Event', 'Events')}, Dates & Water Temperature | SwimLoading`;
+  const desc = `${plural(n, 'open water swimming event', 'open water swimming events')} in ${country.name}` +
+    `${routes.length ? `, plus ${plural(routes.length, 'escorted swim', 'escorted swims')} you can book any time` : ''}. ` +
     `Dates, distances and water temperature for each venue.`;
 
   const schema = {
@@ -751,7 +756,7 @@ function renderCountryHub(slug, country, data) {
       })) },
       { '@type': 'FAQPage', mainEntity: [
         { '@type': 'Question', name: `How many open water swims are there in ${country.name}?`,
-          acceptedAnswer: { '@type': 'Answer', text: `SwimLoading lists ${n} upcoming open water swimming events in ${country.name}${routes.length ? `, plus ${routes.length} escorted routes that can be booked when conditions allow` : ''}.` } },
+          acceptedAnswer: { '@type': 'Answer', text: `SwimLoading lists ${plural(n, 'upcoming open water swimming event', 'upcoming open water swimming events')} in ${country.name}${routes.length ? `, plus ${plural(routes.length, 'escorted route', 'escorted routes')} that can be booked when conditions allow` : ''}.` } },
         { '@type': 'Question', name: `What distances can you swim in ${country.name}?`,
           acceptedAnswer: { '@type': 'Answer', text: distances.length
             ? `Events in ${country.name} range from ${distances[0] >= 1000 ? `${+(distances[0]/1000).toFixed(1)} km` : `${distances[0]} m`} to ${distances[distances.length-1] >= 1000 ? `${+(distances[distances.length-1]/1000).toFixed(1)} km` : `${distances[distances.length-1]} m`}.`
