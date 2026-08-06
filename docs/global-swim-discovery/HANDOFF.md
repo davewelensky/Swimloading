@@ -152,20 +152,44 @@ in `discovery_candidate_events.warnings`:
 
 ## 6. Needs attention
 
-**1. Country resolution — the one to do next.** 6 of 7 active.com venues
-have no `country_code`, so **Caramoan is in the database but the
-Philippines still reads 0** — invisible to country chips, hubs and country
-search. Needs the venue builder to fall back to parsing the source URL path
-(`/pili-camarinessur/`, `/fort-worth-tx/`) and the location text, with
-tests for the ambiguous cases. Same shape as the two fixes that landed.
+**1. Country resolution — DONE, 6 Aug.** The diagnosis above was wrong and
+is left here as a warning: the country was on the page every time, and no
+URL-path parsing was needed or written. Two gaps in our own parsing threw
+it away — a twelve-entry country name lookup that had never heard of the
+Philippines, Greece or **Australia**, and a JSON-LD path that skipped the
+US-state inference the free-text path already had. Both fixed, with the
+name list now generated from ISO 3166-1 rather than typed.
+
+Bigger than it looked: 22 candidates were countryless, 16 of them
+Australian. Backfilled by
+`sql/applied/2026-08-05_country-resolution-backfill.sql`, every value
+produced by replaying the fixed parser over each row's own stored payload
+(`discovery-worker/scripts/replay-country-resolution.ts`). Venues without
+a country: 9 → 2, and those two are correct — "North Wales" and
+"Guaymas, SON" (Mexican state codes are three letters, unsupported).
+
+Reading a bare subdivision code now needs the event's own UTC offset,
+because Italy abbreviates provinces exactly like US states (Como `CO`,
+Milano `MI`, Palermo `PA`). The US and Canada are negative year-round, so
+`CO` at UTC+02:00 is Como. Cost of the guard: "Casablanca, MA" at
+UTC+01:00 is refused too. Unset and warned beats confidently wrong.
+
+**1b. Fixing the data was only half of it.** `/swims/philippines` still
+404'd, because the hub list was a *second* hand-maintained country list —
+twenty typed in `events-handler.js`, the same twenty typed again in
+`sitemap-dynamic.js`. **16 countries with live events had no hub**, and
+nothing failed, because a stale hand-written list never fails. Both now
+read `api/_countries.js` (generated, all ISO countries), driven by what is
+actually in `event_venues`. **When a lookup starts returning more values,
+check what else was quietly gated on the old, shorter list.**
 
 **2. active.com is PARKED until 12 Aug** (`weekly`, `next_run_at` +7d).
 It works — 7 events across 6 countries in one 40-page run at **zero AI
-cost**, including SWIM MIAMI *2027*, with 566 URLs deferred. Restore it to
-**daily** once country resolution is fixed and a supervised re-crawl shows
-clean names, countries and classification. It is the best answer to "how
-does the catalogue keep growing", because a global aggregator carries next
-season's events as organisers post them.
+cost**, including SWIM MIAMI *2027*, with 566 URLs deferred. Country
+resolution no longer blocks it (see 1). Restore it to **daily** after a
+supervised re-crawl shows clean names, countries and classification. It is
+the best answer to "how does the catalogue keep growing", because a global
+aggregator carries next season's events as organisers post them.
 
 **3. `profiles.is_admin` — closed today**, trigger `protect_profile_admin_fields`.
 **No bypass by design**: granting an admin now needs
