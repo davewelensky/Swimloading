@@ -273,7 +273,13 @@ export function parseFreeTextDate(text: string | null, opts: DateParseOptions = 
     }
   }
 
-  const rangeRe = new RegExp(`\\b(\\d{1,2})\\s*(?:-|–|to)\\s*(\\d{1,2})\\s+(${MONTH_PATTERN})\\s+(\\d{4})\\b`, 'i');
+  // The connector between day and month, and the comma before the year,
+  // are both optional and both cost us whole countries when they were not.
+  // Portuguese and Spanish calendars write "13 de Abril"; Dutch and
+  // Mexican ones write "29 augustus, 2026". Neither parsed, so Brazil,
+  // Portugal and the Netherlands each read as zero dated events.
+  const DE = `(?:de\\s+|di\\s+|du\\s+|d['’]\\s*)?`;
+  const rangeRe = new RegExp(`\\b(\\d{1,2})\\s*(?:-|–|—|to|al|a|e|y)\\s*(\\d{1,2})\\s+${DE}(${MONTH_PATTERN}),?\\s+(\\d{4})\\b`, 'i');
   const rangeMatch = rangeRe.exec(folded);
   if (rangeMatch && rangeMatch[1] && rangeMatch[2] && rangeMatch[3] && rangeMatch[4]) {
     const month = MONTH_NAMES[rangeMatch[3].toLowerCase()];
@@ -289,7 +295,7 @@ export function parseFreeTextDate(text: string | null, opts: DateParseOptions = 
     }
   }
 
-  const exactRe = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th|\\.)?\\s+(${MONTH_PATTERN})\\s+(\\d{4})\\b`, 'i');
+  const exactRe = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th|\\.)?\\s+${DE}(${MONTH_PATTERN}),?\\s+(\\d{4})\\b`, 'i');
   const exactMatch = exactRe.exec(folded);
   if (exactMatch && exactMatch[1] && exactMatch[2] && exactMatch[3]) {
     const month = MONTH_NAMES[exactMatch[2].toLowerCase()];
@@ -516,11 +522,32 @@ export function parseYearlessDate(text: string | null, yearHint: number | null):
   // "Sunday August 9th" matched nothing while "Sunday 9th August" was
   // read fine. That asymmetry left the whole EPIC Lakes series dateless.
   const monthFirst = new RegExp(`\\b(${MONTH_PATTERN})\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b`, 'i').exec(folded);
-  const dayFirst = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th|\\.)?\\s+(${MONTH_PATTERN})\\b`, 'i').exec(folded);
+  // "13 de Abril", "26 de abril" — the Portuguese and Spanish connector.
+  // A yearless calendar row is where these land, because the year sits in
+  // the page heading rather than the row, so this is the pattern that
+  // matters for Brazil and Portugal.
+  const dayFirst = new RegExp(
+    `\\b(\\d{1,2})(?:st|nd|rd|th|\\.)?\\s+(?:de\\s+|di\\s+|du\\s+|d['’]\\s*)?(${MONTH_PATTERN})\\b`,
+    'i'
+  ).exec(folded);
+
+  // A multi-day row — "19 a 21 de Março", "05 e 06 de Abril", "11 al 13
+  // Septiembre" — must be read as starting on the FIRST day. The plain
+  // day-first pattern above skips over "19 a " and matches "21 de Março",
+  // which would publish a three-day event as starting on its last day.
+  // Checked before the single-day readings for exactly that reason.
+  const rangeDayFirst = new RegExp(
+    `\\b(\\d{1,2})\\s*(?:-|–|—|to|al|a|e|y)\\s*(\\d{1,2})(?:st|nd|rd|th|\\.)?\\s+` +
+      `(?:de\\s+|di\\s+|du\\s+|d['’]\\s*)?(${MONTH_PATTERN})\\b`,
+    'i'
+  ).exec(folded);
 
   let month: number | undefined;
   let day: number | undefined;
-  if (monthFirst?.[1] && monthFirst[2]) {
+  if (rangeDayFirst?.[1] && rangeDayFirst[3]) {
+    day = Number(rangeDayFirst[1]);
+    month = MONTH_NAMES[rangeDayFirst[3].toLowerCase()];
+  } else if (monthFirst?.[1] && monthFirst[2]) {
     month = MONTH_NAMES[monthFirst[1].toLowerCase()];
     day = Number(monthFirst[2]);
   } else if (dayFirst?.[1] && dayFirst[2]) {

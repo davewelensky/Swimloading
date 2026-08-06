@@ -273,3 +273,46 @@ test('a yearless month-first date with an ordinal is read', () => {
   // Day-first with an ordinal keeps working — this is an addition.
   assert.equal(parseYearlessDate('Sunday 9th August', 2026).startDate, '2026-08-09');
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// Regression, 2026-08-06. Three more countries read as zero dated events
+// for punctuation reasons alone: a comma before the year, and the "de"
+// that Portuguese and Spanish put between the day and the month.
+// ─────────────────────────────────────────────────────────────────────────
+
+test('a comma before the year does not lose the date', () => {
+  // NOWW publishes "zaterdag, 29 augustus, 2026". The pattern demanded
+  // whitespace between month and year, so all 53 Dutch events were
+  // dateless and the Netherlands read as zero swims.
+  assert.equal(parseFreeTextDate('zaterdag, 29 augustus, 2026', {}).startDate, '2026-08-29');
+  assert.equal(parseFreeTextDate('zondag, 6 september, 2026', {}).startDate, '2026-09-06');
+  assert.equal(parseFreeTextDate('30 Agosto, 2026', {}).startDate, '2026-08-30');
+  // Without the comma still works — this is an addition.
+  assert.equal(parseFreeTextDate('09 août 2026', {}).startDate, '2026-08-09');
+});
+
+test('the Portuguese and Spanish "de" between day and month is read', () => {
+  // "13 de Abril" — Brazil's whole calendar, 97 events, none with a date.
+  assert.equal(parseYearlessDate('13 de Abril', 2026).startDate, '2026-04-13');
+  assert.equal(parseYearlessDate('26 de abril', 2026).startDate, '2026-04-26');
+  assert.equal(parseFreeTextDate('13 de Abril 2026', {}).startDate, '2026-04-13');
+});
+
+test('a multi-day row starts on the FIRST day, not the last', () => {
+  // The plain day-first pattern skips "19 a " and matches "21 de Março",
+  // which would publish a three-day event as starting on its final day —
+  // a wrong date, which is worse than no date. Checked first for that
+  // reason, in every connector these calendars use.
+  assert.equal(parseYearlessDate('19 a 21 de Março', 2026).startDate, '2026-03-19');
+  assert.equal(parseYearlessDate('05 e 06 de Abril', 2026).startDate, '2026-04-05');
+  assert.equal(parseYearlessDate('12 a 15 de Março', 2026).startDate, '2026-03-12');
+  assert.equal(parseYearlessDate('30 de Junho a 05 de Julho', 2026).startDate, '2026-06-30');
+
+  // With a year, both ends are kept.
+  const es = parseFreeTextDate('11 al 13 Septiembre, 2026', {});
+  assert.equal(es.startDate, '2026-09-11');
+  assert.equal(es.endDate, '2026-09-13');
+
+  // A single day is untouched by the range pattern.
+  assert.equal(parseYearlessDate('13 de Abril', 2026).endDate, null);
+});
