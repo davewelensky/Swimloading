@@ -155,6 +155,7 @@
 <div id="appView" class="wrap" style="display:none">
   <div class="stats" id="stats"></div>
   <div class="filters" id="filters"></div>
+  <div id="bucketNote"></div>
   <div class="cols">
     <div id="list"></div>
     <div id="detail"><div class="panel"><div class="empty">Select a candidate to review.</div></div></div>
@@ -186,7 +187,23 @@ function toast(msg, bad){
 }
 function icons(){ if (window.lucide) lucide.createIcons(); }
 
-let CANDIDATES = [], LINKS = [], EDITIONS = [], SELECTED = null, FILTER = 'actionable';
+let CANDIDATES = [], LINKS = [], EDITIONS = [], SELECTED = null, FILTER = 'ready';
+
+// Today in SAST, as a plain YYYY-MM-DD string, so it compares directly
+// against start_date without ever constructing a Date (which shifts a day
+// back for anyone east of UTC).
+const TODAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Johannesburg' }).format(new Date());
+
+// A candidate with no date can never be published — approve_discovery_candidate
+// refuses it — so asking for a decision on one is asking a question that has
+// no effect. They are held in their own bucket rather than mixed into the
+// queue. Note this is NOT the same as rejecting them: most are ours to fix,
+// not the page's fault. Finland's 47 events sat exactly here until the date
+// parser learned to read "3.10.2026".
+const isUndecided = c => ['pending', 'needs_review'].includes(c.candidate_status);
+const isReady     = c => isUndecided(c) && c.start_date && c.start_date >= TODAY;
+const isDateless  = c => isUndecided(c) && !c.start_date;
+const isStale     = c => isUndecided(c) && c.start_date && c.start_date < TODAY;
 
 const REC_PILL = {
   high_confidence:      ['p-high','high confidence'],
@@ -228,50 +245,83 @@ async function boot(){
   await loadAll();
 }
 
+// Supabase caps ANY response at 1000 rows and tells you nothing about it —
+// no error, no flag, just a short array. This page asked for every candidate
+// in one go; once the table passed 1000 rows (1777 as of 2026-08-06) it had
+// been quietly showing an arbitrary slice, and the candidates outside that
+// slice could not be reached by any amount of clicking. Page explicitly, and
+// keep going until a short page proves the end.
+async function fetchAll(table, columns){
+  const PAGE = 1000;
+  const out = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await sb.from(table).select(columns)
+      .order('id').range(from, from + PAGE - 1);
+    if (error) throw new Error(`${table}: ${error.message}`);
+    out.push(...(data || []));
+    if (!data || data.length < PAGE) return out;
+  }
+}
+
 async function loadAll(){
-  const [c, l, e] = await Promise.all([
-    sb.from('discovery_candidate_events')
-      .select('id,canonical_name,original_name,candidate_status,publication_recommendation,confidence_score,confidence_reasons,warnings,start_date,end_date,date_precision,date_confirmed,city,region,country_code,latitude,longitude,venue_name,organiser_name,official_url,registration_url,source_url,water_body_type,event_type,description_summary,extraction_method,raw_source_values,promoted_edition_id,extracted_at'),
-    sb.from('discovery_dedupe_links').select('id,candidate_id,matching_candidate_id,similarity_score,matching_signals,conflicting_signals,resolution'),
-    sb.from('event_editions').select('id,title,edition_year,start_date,status,source_candidate_id')
-  ]);
-  if (c.error) { toast('Could not load candidates: ' + c.error.message, true); return; }
-  CANDIDATES = c.data || [];
-  LINKS = l.data || [];
-  EDITIONS = e.data || [];
+  try {
+    const [c, l, e] = await Promise.all([
+      fetchAll('discovery_candidate_events', 'id,canonical_name,original_name,candidate_status,publication_recommendation,confidence_score,confidence_reasons,warnings,start_date,end_date,date_precision,date_confirmed,city,region,country_code,latitude,longitude,venue_name,organiser_name,official_url,registration_url,source_url,water_body_type,event_type,description_summary,extraction_method,raw_source_values,promoted_edition_id,extracted_at'),
+      fetchAll('discovery_dedupe_links', 'id,candidate_id,matching_candidate_id,similarity_score,matching_signals,conflicting_signals,resolution'),
+      fetchAll('event_editions', 'id,title,edition_year,start_date,status,source_candidate_id')
+    ]);
+    CANDIDATES = c; LINKS = l; EDITIONS = e;
+  } catch (err) {
+    toast('Could not load candidates: ' + err.message, true);
+    return;
+  }
   render();
 }
 
 const unresolvedFor = id => LINKS.filter(l => l.candidate_id === id && l.resolution === 'unresolved');
 
 function render(){
-  const pending   = CANDIDATES.filter(c => ['pending','needs_review'].includes(c.candidate_status));
+  const ready     = CANDIDATES.filter(isReady);
+  const dateless  = CANDIDATES.filter(isDateless);
+  const stale     = CANDIDATES.filter(isStale);
   const published = CANDIDATES.filter(c => c.candidate_status === 'approved');
-  const blocked   = pending.filter(c => unresolvedFor(c.id).length > 0);
+  const blocked   = ready.filter(c => unresolvedFor(c.id).length > 0);
 
   document.getElementById('stats').innerHTML = [
-    ['Awaiting review', pending.length],
-    ['High confidence', pending.filter(c => c.publication_recommendation === 'high_confidence').length],
+    ['Ready to review', ready.length],
+    ['High confidence', ready.filter(c => c.publication_recommendation === 'high_confidence').length],
     ['Blocked by duplicates', blocked.length],
     ['Published', published.length]
   ].map(([label, n]) => `<div class="stat"><b>${n}</b><small>${esc(label)}</small></div>`).join('');
 
   const counts = {
-    actionable: pending.length,
+    ready: ready.length,
+    nodate: dateless.length,
+    stale: stale.length,
     all: CANDIDATES.length,
     approved: published.length,
     rejected: CANDIDATES.filter(c => ['rejected','duplicate'].includes(c.candidate_status)).length
   };
   document.getElementById('filters').innerHTML = [
-    ['actionable','Awaiting review'], ['all','All'], ['approved','Published'], ['rejected','Rejected / duplicate']
+    ['ready','Ready to review'], ['nodate','No date yet'], ['stale','Past'],
+    ['all','All'], ['approved','Published'], ['rejected','Rejected / duplicate']
   ].map(([k, label]) =>
     `<button class="${FILTER === k ? 'on' : ''}" onclick="setFilter('${k}')">${esc(label)} (${counts[k]})</button>`
   ).join('');
 
   let rows = CANDIDATES;
-  if (FILTER === 'actionable') rows = rows.filter(c => ['pending','needs_review'].includes(c.candidate_status));
+  if (FILTER === 'ready')      rows = rows.filter(isReady);
+  if (FILTER === 'nodate')     rows = rows.filter(isDateless);
+  if (FILTER === 'stale')      rows = rows.filter(isStale);
   if (FILTER === 'approved')   rows = rows.filter(c => c.candidate_status === 'approved');
   if (FILTER === 'rejected')   rows = rows.filter(c => ['rejected','duplicate'].includes(c.candidate_status));
+
+  document.getElementById('bucketNote').innerHTML = FILTER !== 'nodate' ? '' :
+    `<div class="warn">These have no date, so they cannot be published whatever you decide —
+     <b>approving one does nothing</b>. Most are ours to fix rather than the organiser's:
+     the date is usually printed on the page in a format the parser cannot read yet.
+     Finland's 47 events sat here until it learned to read "3.10.2026".
+     Worth grouping by source and reporting the format, not clicking through one by one.</div>`;
 
   const order = ['high_confidence','manual_review','insufficient_evidence','rejected'];
   rows.sort((a, b) =>
