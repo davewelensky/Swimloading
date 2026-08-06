@@ -3,7 +3,7 @@ import { classifyEvent } from '../extract/classify.js';
 import { blankCandidateEvent, type CandidateEvent } from '../domain/candidate-event.js';
 import { buildCandidateKey } from '../domain/candidate-key.js';
 import { evidence } from '../domain/evidence.js';
-import { parseYearlessDate, parseFreeTextDate } from '../normalize/date.js';
+import { dayFirstForCountry, parseYearlessDate, parseFreeTextDate } from '../normalize/date.js';
 import { parseDistanceToMetres, standardTriathlonSwimDistances } from '../normalize/distance.js';
 import { parseLocationText } from '../normalize/location.js';
 import { deriveCanonicalName, cleanText, rejectAsEventName } from '../normalize/text.js';
@@ -108,7 +108,7 @@ export function buildFromRow(
 
   // Dates: try the row text with a year first (some tables state one),
   // then fall back to the yearless resolver using the page's own year.
-  const withYear = parseFreeTextDate(row.dateText);
+  const withYear = parseFreeTextDate(row.dateText, { dayFirst: dayFirstForCountry(context.countryCode) });
   const resolved = withYear.dateConfirmed ? withYear : parseYearlessDate(row.dateText, pageYear);
   candidate.startDate = resolved.startDate;
   candidate.endDate = resolved.endDate;

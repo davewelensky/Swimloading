@@ -54,7 +54,14 @@ export function runExtractionPipeline(source: SourceRecord, context: SourceConte
     sourceType: context.sourceType ?? null,
   });
 
-  const candidate = buildCandidateEvent({ source, jsonld, html: htmlExtraction, classification });
+  const candidate = buildCandidateEvent({
+    source,
+    jsonld,
+    html: htmlExtraction,
+    classification,
+    // Only used to break a day/month tie a numeric date cannot break alone.
+    countryCode: context.countryCode ?? null,
+  });
 
   // Country fallback. A venue with no parseable address leaves city and
   // country null, which costs 10 points for "no city or country" even

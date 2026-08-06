@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildCandidateKey, normaliseForKey } from '../src/domain/candidate-key.js';
 import { jaccardSimilarity, nameTokens, normalizeName } from '../src/dedupe/normalize-name.js';
-import { AMBIGUOUS_MONTH_TOKENS, parseFreeTextDate, parseYearlessDate } from '../src/normalize/date.js';
+import { AMBIGUOUS_MONTH_TOKENS, dayFirstForCountry, parseFreeTextDate, parseYearlessDate } from '../src/normalize/date.js';
 import { parseDistanceToMetres } from '../src/normalize/distance.js';
 
 // The pre-Unicode rule, kept here verbatim as the compatibility contract:
@@ -114,15 +114,26 @@ test('a month name two languages disagree about is refused, not guessed', () => 
   assert.match(result.warnings.join(' '), /different months in different languages/);
 });
 
-test('a year-only fallback says so when the text clearly stated more', () => {
-  // The silent version of this is how "09 août 2026" reached a reviewer
-  // looking like a clean year-precision date.
+test('a date we could not read is refused, not stored as 1 January', () => {
+  // This used to return year precision with a warning attached. Warning
+  // and storing are not the same thing: a warning does not stop
+  // publication, dateConfirmed does, and 136 candidates across nine
+  // sources were stored on 1 January this way (2026-08-06). Every one
+  // then looked like a past event, which is why Finland and the
+  // Netherlands read as zero swims while their federations were
+  // publishing full calendars.
   const result = parseFreeTextDate('09 quelquechose 2026');
-  assert.equal(result.datePrecision, 'year');
-  assert.match(result.warnings.join(' '), /appears to state a fuller date/);
+  assert.equal(result.startDate, null);
+  assert.equal(result.dateConfirmed, false);
+  assert.equal(result.datePrecision, 'unknown');
+  assert.match(result.warnings.join(' '), /refused rather than stored as 1 January/);
 
-  // A genuine year-only date stays clean — no warning to cry wolf with.
-  assert.deepEqual(parseFreeTextDate('2026').warnings, []);
+  // A genuine year-only date is still a real, if coarse, fact and is kept
+  // — nothing else in the text was lost. No warning to cry wolf with.
+  const yearOnly = parseFreeTextDate('2026');
+  assert.equal(yearOnly.startDate, '2026-01-01');
+  assert.equal(yearOnly.datePrecision, 'year');
+  assert.deepEqual(yearOnly.warnings, []);
 });
 
 test('a non-English weekday still verifies the year', () => {
@@ -162,4 +173,103 @@ test('kilometres are never read as metres', () => {
   // returns 5 instead of 5000 — a swim listed 1000x short.
   assert.equal(parseDistanceToMetres('5 km'), 5000);
   assert.equal(parseDistanceToMetres('5 m'), 5);
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// Regression, 2026-08-06. Nine sources published nothing at all because
+// their dates were wholly numeric — no month name for the tables above to
+// look up — or written month-first. All fell through to the year-only
+// branch and were stored as 1 January.
+// ─────────────────────────────────────────────────────────────────────────
+
+test('wholly numeric dates are read, dots and slashes alike', () => {
+  const fi = { dayFirst: dayFirstForCountry('FI') };
+  // Finland's federation: "3.10.2026" is 3 October, and was 1 January.
+  assert.equal(parseFreeTextDate('3.10.2026', fi).startDate, '2026-10-03');
+  assert.equal(parseFreeTextDate('23.05.2026', fi).startDate, '2026-05-23');
+  // A weekday in any language sits in front of it harmlessly.
+  assert.equal(parseFreeTextDate('sunnuntai 16.8.2026', fi).startDate, '2026-08-16');
+
+  const range = parseFreeTextDate('10.8.2026 - 16.8.2026', fi);
+  assert.equal(range.startDate, '2026-08-10');
+  assert.equal(range.endDate, '2026-08-16');
+  assert.equal(range.datePrecision, 'range');
+
+  // A trailing TIME is not a second date — the Dutch agenda prints both.
+  const nl = { dayFirst: dayFirstForCountry('NL') };
+  const withTime = parseFreeTextDate('08/08/2026 - 00:00 t/m 23:45', nl);
+  assert.equal(withTime.startDate, '2026-08-08');
+  assert.equal(withTime.endDate, null);
+  assert.equal(parseFreeTextDate('11/08/2026 - 19:30', nl).startDate, '2026-08-11');
+});
+
+test('day-first and month-first are decided by the source, never guessed', () => {
+  // The numbers settle it themselves when one cannot be a month, whatever
+  // the country: the 21st is the 21st everywhere.
+  assert.equal(parseFreeTextDate('21/02/2026', {}).startDate, '2026-02-21');
+  assert.equal(parseFreeTextDate('02/21/2026', {}).startDate, '2026-02-21');
+
+  // When both readings are possible, the source's own country decides.
+  assert.equal(parseFreeTextDate('10/07/2026', { dayFirst: dayFirstForCountry('AR') }).startDate, '2026-07-10');
+  assert.equal(parseFreeTextDate('10/07/2026', { dayFirst: dayFirstForCountry('US') }).startDate, '2026-10-07');
+
+  // And when nothing does, it is refused. A wrong date is published as
+  // fact and nobody re-reads the source page.
+  const orphan = parseFreeTextDate('10/07/2026', {});
+  assert.equal(orphan.startDate, null);
+  assert.equal(orphan.dateConfirmed, false);
+  assert.match(orphan.warnings.join(' '), /day-first and month-first cannot be told apart/);
+
+  assert.equal(dayFirstForCountry('US'), false);
+  assert.equal(dayFirstForCountry('FI'), true);
+  assert.equal(dayFirstForCountry(null), null);
+});
+
+test('month-first English dates are read', () => {
+  // US Masters Swimming — the largest open-water body in the country that
+  // supplies 44% of the catalogue — published zero events because every
+  // pattern expected the day first.
+  assert.equal(parseFreeTextDate('Saturday, Sep. 19, 2026', {}).startDate, '2026-09-19');
+  assert.equal(parseFreeTextDate('Sunday, Oct. 18, 2026', {}).startDate, '2026-10-18');
+  assert.equal(parseFreeTextDate('August 30th, 2026', {}).startDate, '2026-08-30');
+
+  const range = parseFreeTextDate('March 6–8, 2026', {});
+  assert.equal(range.startDate, '2026-03-06');
+  assert.equal(range.endDate, '2026-03-08');
+
+  // Day-first with a month name still works — these are additions, not
+  // replacements, and "09 août 2026" is the case that started all this.
+  assert.equal(parseFreeTextDate('09 août 2026', {}).startDate, '2026-08-09');
+  assert.equal(parseFreeTextDate('12 September 2027', {}).startDate, '2027-09-12');
+});
+
+test('a yearless date is still refused, numeric or not', () => {
+  // The oldest rule in this file: never infer a missing year.
+  const nz = parseFreeTextDate('Thursday, 1 January', { dayFirst: dayFirstForCountry('NZ') });
+  assert.equal(nz.startDate, null);
+  assert.equal(nz.dateConfirmed, false);
+  assert.equal(parseFreeTextDate('3.10.', {}).startDate, null);
+});
+
+test('a yearless month-first date with an ordinal is read', () => {
+  // "Sunday August 9th" matched nothing while "Sunday 9th August" was read
+  // fine: the month-first pattern ended in \b, and there is no word
+  // boundary between "9" and "th". The whole EPIC Lakes Swim series sat
+  // dateless in the queue because of it (found 2026-08-06 by Dave reading
+  // the list, not by any test).
+  //
+  // The weekday is what confirms these — 9 August 2026 really is a Sunday,
+  // so the year comes from the page and the date is checked, not assumed.
+  for (const [text, expected] of [
+    ['Sunday August 9th', '2026-08-09'],
+    ['Saturday June 27th', '2026-06-27'],
+    ['Sunday June 7th', '2026-06-07'],
+  ] as [string, string][]) {
+    const result = parseYearlessDate(text, 2026);
+    assert.equal(result.startDate, expected, `${text} should resolve to ${expected}`);
+    assert.equal(result.dateConfirmed, true);
+  }
+
+  // Day-first with an ordinal keeps working — this is an addition.
+  assert.equal(parseYearlessDate('Sunday 9th August', 2026).startDate, '2026-08-09');
 });

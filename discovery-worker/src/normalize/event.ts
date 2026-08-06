@@ -6,7 +6,7 @@ import { evidence } from '../domain/evidence.js';
 import type { JsonLdEventNode, JsonLdExtractionResult } from '../extract/jsonld.js';
 import type { HtmlExtractionResult } from '../extract/html.js';
 import type { ClassificationResult } from '../extract/classify.js';
-import { parseFreeTextDate, parseStructuredDates, reconcileDates } from './date.js';
+import { dayFirstForCountry, parseFreeTextDate, parseStructuredDates, reconcileDates } from './date.js';
 import { normaliseDistances, parseWetsuitPolicy } from './distance.js';
 import { mergeLocations, parseJsonLdPlace, parseLocationText } from './location.js';
 import { deriveCanonicalName, truncateSummary } from './text.js';
@@ -66,6 +66,9 @@ export interface BuildCandidateParams {
   jsonld: JsonLdExtractionResult;
   html: HtmlExtractionResult;
   classification: ClassificationResult;
+  // The source's registered country, used ONLY to decide whether a numeric
+  // date like "10/07/2026" is day-first or month-first.
+  countryCode?: string | null;
 }
 
 // The core normalisation step: JSON-LD first (per extraction priority),
@@ -74,7 +77,7 @@ export interface BuildCandidateParams {
 // shape). Every field stays null if neither source provided it — nothing
 // here invents a fact.
 export function buildCandidateEvent(params: BuildCandidateParams): CandidateEvent {
-  const { source, jsonld, html, classification } = params;
+  const { source, jsonld, html, classification, countryCode } = params;
   const candidate = blankCandidateEvent(source.sourceId, source.sourceUrl);
   const warnings: string[] = [...jsonld.warnings, ...html.warnings, ...classification.warnings];
 
@@ -205,7 +208,7 @@ export function buildCandidateEvent(params: BuildCandidateParams): CandidateEven
     eventNode ? toNullableString(eventNode.startDate) : null,
     eventNode ? toNullableString(eventNode.endDate) : null
   );
-  const freeTextDates = parseFreeTextDate(html.dateText);
+  const freeTextDates = parseFreeTextDate(html.dateText, { dayFirst: dayFirstForCountry(countryCode) });
   const resolvedDates = reconcileDates(structuredDates, freeTextDates);
   candidate.startDate = resolvedDates.startDate;
   candidate.endDate = resolvedDates.endDate;

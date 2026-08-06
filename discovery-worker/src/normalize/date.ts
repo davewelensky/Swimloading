@@ -194,7 +194,64 @@ export function parseStructuredDates(startDateRaw: string | null, endDateRaw: st
 // no year anywhere in the text stays unconfirmed with null dates — it is
 // never resolved to "the next occurrence" of that day, which would risk
 // silently turning a past event's page into a fabricated future one.
-export function parseFreeTextDate(text: string | null): ParsedDate {
+export interface DateParseOptions {
+  // Whether this source's country writes the day before the month.
+  // true = D/M/Y, false = M/D/Y, null/undefined = we do not know, in which
+  // case a genuinely ambiguous numeric date is refused rather than guessed.
+  dayFirst?: boolean | null;
+}
+
+// The United States is the only country we crawl that writes M/D/Y. The
+// rest of the world — and every other source in the registry — writes
+// D/M/Y. This is used ONLY to break a tie that the numbers themselves
+// cannot: "21/02" is the 21st whatever the country, and "08/21" is
+// August whatever the country. It decides "10/07" and nothing else.
+const MONTH_FIRST_COUNTRIES = new Set(['US']);
+
+export function dayFirstForCountry(countryCode: string | null | undefined): boolean | null {
+  if (!countryCode) return null;
+  return !MONTH_FIRST_COUNTRIES.has(countryCode.toUpperCase());
+}
+
+// Resolves the two leading numbers of a numeric date into day and month.
+// Returns null when the pair is genuinely ambiguous and nothing tells us
+// which way round it is — the caller then refuses, with a warning naming
+// both readings. Guessing here is how a Dutch swim on 7 October becomes
+// 10 July.
+function resolveDayMonth(
+  first: number,
+  second: number,
+  dayFirst: boolean | null | undefined
+): { day: number; month: number } | null {
+  // The numbers settle it themselves whenever one of them cannot be a month.
+  if (first > 12 && second <= 12) return { day: first, month: second };
+  if (second > 12 && first <= 12) return { day: second, month: first };
+  if (first > 12 && second > 12) return null;
+  if (dayFirst === true) return { day: first, month: second };
+  if (dayFirst === false) return { day: second, month: first };
+  return null;
+}
+
+function numericDate(
+  first: number,
+  second: number,
+  year: number,
+  dayFirst: boolean | null | undefined
+): string | null {
+  const dm = resolveDayMonth(first, second, dayFirst);
+  if (!dm) return null;
+  if (dm.month < 1 || dm.month > 12) return null;
+  if (dm.day < 1 || dm.day > daysInMonth(year, dm.month)) return null;
+  return isoDate(year, dm.month, dm.day);
+}
+
+// "3.10.2026", "23.05.2026", "8/8/2026", "21/02/2026". Optionally a range:
+// "10.8.2026 - 16.8.2026". A trailing time ("- 19:30", "- 00:00 t/m
+// 23:45") cannot match, because the second half must be a full date.
+const NUMERIC_DATE = /\b(\d{1,2})([./])(\d{1,2})\2(\d{4})\b/;
+const NUMERIC_RANGE = /\b(\d{1,2})([./])(\d{1,2})\2(\d{4})\s*(?:-|–|—|to|t\/m)\s*(\d{1,2})([./])(\d{1,2})\6(\d{4})\b/;
+
+export function parseFreeTextDate(text: string | null, opts: DateParseOptions = {}): ParsedDate {
   if (!text || !text.trim()) return unknownDate();
   const cleaned = text.trim();
   // Match against the folded form so "août", "März" and "Οκτωβρίου" are
@@ -242,6 +299,46 @@ export function parseFreeTextDate(text: string | null): ParsedDate {
     }
   }
 
+  // Month-first, the way English-language calendars write it: "August 30th,
+  // 2026", "Sunday, Sep. 19, 2026", "March 6–8, 2026". Every pattern above
+  // this point expects the day FIRST, so US Masters Swimming — the largest
+  // open-water body in the country supplying 44% of the catalogue — fell
+  // through all of them to the year-only branch.
+  const monthFirstRangeRe = new RegExp(
+    `\\b(${MONTH_PATTERN})\\.?\\s+(\\d{1,2})\\s*(?:-|–|—|to)\\s*(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(\\d{4})\\b`,
+    'i'
+  );
+  const monthFirstRange = monthFirstRangeRe.exec(folded);
+  if (monthFirstRange?.[1] && monthFirstRange[2] && monthFirstRange[3] && monthFirstRange[4]) {
+    const month = MONTH_NAMES[monthFirstRange[1].toLowerCase()];
+    const year = Number(monthFirstRange[4]);
+    const from = Number(monthFirstRange[2]);
+    const to = Number(monthFirstRange[3]);
+    if (month && from >= 1 && to <= daysInMonth(year, month) && from <= to) {
+      return {
+        startDate: isoDate(year, month, from),
+        endDate: isoDate(year, month, to),
+        datePrecision: 'range',
+        dateConfirmed: true,
+        warnings: [],
+      };
+    }
+  }
+
+  const monthFirstRe = new RegExp(
+    `\\b(${MONTH_PATTERN})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(\\d{4})\\b`,
+    'i'
+  );
+  const monthFirst = monthFirstRe.exec(folded);
+  if (monthFirst?.[1] && monthFirst[2] && monthFirst[3]) {
+    const month = MONTH_NAMES[monthFirst[1].toLowerCase()];
+    const year = Number(monthFirst[3]);
+    const day = Number(monthFirst[2]);
+    if (month && day >= 1 && day <= daysInMonth(year, month)) {
+      return { startDate: isoDate(year, month, day), endDate: null, datePrecision: 'exact', dateConfirmed: true, warnings: [] };
+    }
+  }
+
   const monthYearRe = new RegExp(`\\b(${MONTH_PATTERN})\\s+(\\d{4})\\b`, 'i');
   const monthYearMatch = monthYearRe.exec(folded);
   if (monthYearMatch && monthYearMatch[1] && monthYearMatch[2]) {
@@ -256,6 +353,40 @@ export function parseFreeTextDate(text: string | null): ParsedDate {
         warnings: [],
       };
     }
+  }
+
+  // Wholly numeric dates. Finland writes "3.10.2026", Austria
+  // "23.05.2026", Argentina and the Netherlands "21/02/2026". None of
+  // these contains a month NAME, so every branch above missed them and
+  // 136 candidates across nine sources were stored as 1 January.
+  //
+  // Dots and slashes are treated alike; the separator is not evidence of
+  // anything, and resolveDayMonth() refuses rather than assuming a
+  // convention.
+  const numericRange = NUMERIC_RANGE.exec(cleaned);
+  if (numericRange?.[1] && numericRange[3] && numericRange[4] && numericRange[5] && numericRange[7] && numericRange[8]) {
+    const start = numericDate(Number(numericRange[1]), Number(numericRange[3]), Number(numericRange[4]), opts.dayFirst);
+    const end = numericDate(Number(numericRange[5]), Number(numericRange[7]), Number(numericRange[8]), opts.dayFirst);
+    if (start && end && start <= end) {
+      return { startDate: start, endDate: end, datePrecision: 'range', dateConfirmed: true, warnings: [] };
+    }
+  }
+
+  const numeric = NUMERIC_DATE.exec(cleaned);
+  if (numeric?.[1] && numeric[3] && numeric[4]) {
+    const first = Number(numeric[1]);
+    const second = Number(numeric[3]);
+    const year = Number(numeric[4]);
+    const iso = numericDate(first, second, year, opts.dayFirst);
+    if (iso) {
+      return { startDate: iso, endDate: null, datePrecision: 'exact', dateConfirmed: true, warnings: [] };
+    }
+    // Both numbers could be either. Refusing is the whole point: a wrong
+    // date is published as fact, and nobody re-reads the source page.
+    return unknownDate([
+      `"${cleaned}" could be ${first}/${second} or ${second}/${first} — the source has no country ` +
+        `recorded, so day-first and month-first cannot be told apart. Left unparsed rather than guessed.`,
+    ]);
   }
 
   const noYearRe = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th|\\.)?\\s+(${MONTH_PATTERN})\\b`, 'i');
@@ -280,14 +411,31 @@ export function parseFreeTextDate(text: string | null): ParsedDate {
     // parse it — say so. Returning a clean-looking year-precision date for
     // "09 août 2026" is how a swim ends up published on 1 January.
     const looksFuller = /\b\d{1,2}\b/.test(cleaned.replace(String(year), ' '));
+    if (looksFuller) {
+      // This branch used to return 1 January, precision "year", marked
+      // CONFIRMED — while warning, in the same breath, that it had failed
+      // to read a date the page clearly printed. A warning does not stop
+      // publication; dateConfirmed does. 136 candidates across nine
+      // sources were stored this way, every one of them landing on 1
+      // January and then looking like a past event, which is why Finland
+      // and the Netherlands read as zero swims while their federations
+      // were publishing full calendars.
+      //
+      // A date we could not read is an unconfirmed date, and an
+      // unconfirmed date is never stored. Refusing costs nothing here:
+      // year precision was never good enough to publish anyway.
+      return unknownDate([
+        `Only the year ${year} could be read from "${cleaned}", which states a fuller date — ` +
+          `refused rather than stored as 1 January. The day and month format is not recognised; ` +
+          `add it to parseFreeTextDate() if this source matters.`,
+      ]);
+    }
     return {
       startDate: isoDate(year, 1, 1),
       endDate: isoDate(year, 12, 31),
       datePrecision: 'year',
       dateConfirmed: true,
-      warnings: looksFuller
-        ? [`Only the year ${year} could be read from "${cleaned}", which appears to state a fuller date — the month and day were not recognised`]
-        : [],
+      warnings: [],
     };
   }
 
@@ -362,7 +510,12 @@ export function parseYearlessDate(text: string | null, yearHint: number | null):
   }
 
   // "Feb 14" (month first) or "14 Feb" (day first).
-  const monthFirst = new RegExp(`\\b(${MONTH_PATTERN})\\s+(\\d{1,2})\\b`, 'i').exec(folded);
+  // The ordinal suffix is allowed here for the same reason it is allowed
+  // on the day-first pattern below — without it, the trailing \b sits
+  // between "9" and "th", which is not a word boundary at all, so
+  // "Sunday August 9th" matched nothing while "Sunday 9th August" was
+  // read fine. That asymmetry left the whole EPIC Lakes series dateless.
+  const monthFirst = new RegExp(`\\b(${MONTH_PATTERN})\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b`, 'i').exec(folded);
   const dayFirst = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th|\\.)?\\s+(${MONTH_PATTERN})\\b`, 'i').exec(folded);
 
   let month: number | undefined;
