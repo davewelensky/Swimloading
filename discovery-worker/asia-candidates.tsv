@@ -1,0 +1,67 @@
+# Asia source candidates, probed 2026-08-06.
+#
+# Asia has 5 live events across the whole continent and four sources, of
+# which one has ever published. Unlike every other gap found today, this is
+# not our bug — nobody has pointed the crawler at these countries.
+#
+# The probe answers the only question that decides a source: how many DATED
+# events would we actually get. Reachability alone would have recommended
+# Big Bay Events, which publishes none.
+#
+# Aggregators first — one good regional calendar beats ten organiser sites.
+ASIA	Ahotu — swimming calendar, Asia	https://www.ahotu.com/calendar/swimming/asia
+JP	Ahotu — swimming calendar, Japan	https://www.ahotu.com/calendar/swimming/japan
+TW	Ahotu — swimming calendar, Taiwan	https://www.ahotu.com/calendar/swimming/taiwan
+SG	Ahotu — swimming calendar, Singapore	https://www.ahotu.com/calendar/swimming/singapore
+MY	Ahotu — swimming calendar, Malaysia	https://www.ahotu.com/calendar/swimming/malaysia
+TH	Ahotu — swimming calendar, Thailand	https://www.ahotu.com/calendar/swimming/thailand
+ID	Ahotu — swimming calendar, Indonesia	https://www.ahotu.com/calendar/swimming/indonesia
+PH	Ahotu — swimming calendar, Philippines	https://www.ahotu.com/calendar/swimming/philippines
+IN	Ahotu — swimming calendar, India	https://www.ahotu.com/calendar/swimming/india
+CN	Ahotu — swimming calendar, China	https://www.ahotu.com/calendar/swimming/china
+KR	Ahotu — swimming calendar, South Korea	https://www.ahotu.com/calendar/swimming/south-korea
+VN	Ahotu — swimming calendar, Vietnam	https://www.ahotu.com/calendar/swimming/vietnam
+#
+# National federations and specialist organisers.
+JP	WOWSA — Japan international OWS schedule	https://www.openwaterswimming.com/japan-international-open-water-swimming/
+IN	Open Water Swims India — events	https://www.openwaterswimsindia.com/event
+IN	Swimming Federation of India — upcoming events	https://www.swimming.org.in/upcoming-events/
+MV	Swim Maldives	https://swimmaldives.org/
+SG	Singapore Aquatics — open water events	https://www.sgaquatics.org.sg/swimming/events/open-water-events/
+#
+# Guided and escorted swims. Dave, 2026-08-06: "this is a global list of
+# SWIMS — guided is a swim, SwimTrek, swim holidays, those are all swims."
+# SwimTrek runs trips across Asia and would land as swim_routes rather than
+# dated events, but probe it the same way: the question is still what it
+# actually publishes.
+GLOBAL	SwimTrek — destinations	https://www.swimtrek.com/destinations
+#
+# ── RESULT, 2026-08-06 ────────────────────────────────────────────────
+# Not one of these yields a dated event through the deterministic
+# extractors. Detail:
+#
+#   Ahotu (all 12 country URLs)  HTTP 403 — blocks automated fetches.
+#       This was the prize: a global aggregator with a clean per-country
+#       URL pattern, the Asian equivalent of what active.com does
+#       elsewhere. Not retried and not worked around — a 403 is an answer.
+#       Worth ASKING them for access; they are a commercial calendar and
+#       may have a feed.
+#
+#   Singapore Aquatics           Calendar is an external Excel file linked
+#       from the page. Nothing to crawl.
+#
+#   WOWSA Japan, Swim Maldives, Open Water Swims India, Swimming
+#   Federation of India         Reachable, no usable dates on the listing.
+#
+#   SwimTrek                     Dates are loaded by JavaScript — zero
+#       date-like strings in the raw HTML. Would need the renderer, and
+#       its trips are swim_routes rather than dated events anyway.
+#
+#   Events Horizons (HK)         The probe says "no dates". The probe is
+#       WRONG here, and this is the finding worth carrying: the raw HTML
+#       contains "24th MAY 2026", and parseFreeTextDate reads it
+#       correctly. The date sits in a Squarespace div that no deterministic
+#       selector reaches, and probe-sources.ts runs only the deterministic
+#       extractors — never the AI fallback the real crawler has. So a
+#       "no-dates" verdict means "not deterministically extractable", NOT
+#       "this page has no dates". Already enabled as a source; 1 published.
