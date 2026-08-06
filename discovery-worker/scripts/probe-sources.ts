@@ -28,6 +28,20 @@
  * uses — so the number it reports is the number a real crawl would produce,
  * not a proxy for it.
  *
+ * WHAT THIS STILL DOES NOT TELL YOU
+ * ----------------------------------
+ * It measures DATES, not DISCIPLINE. A source can score seed-with-ai and be
+ * entirely the wrong sport.
+ *
+ * On 2026-08-06 this script rated the Swimming Federation of India
+ * seed-with-ai on 25 genuine future dates. Every one of them is a pool
+ * championship, a water polo tie or the Asian Games — the page has no open
+ * water category and does not contain the phrase. Seeding it would have
+ * spent AI budget to extract events the classifier then rejects.
+ *
+ * So read the sample dates AND what they are attached to before seeding.
+ * The classifier is the safety net, not the filter you plan around.
+ *
  * READ-ONLY. Fetches politely through PoliteHttpClient (robots.txt honoured,
  * per-host delays) and writes nothing to the database. The seed SQL it emits
  * is text for a human to review, not something it applies.
