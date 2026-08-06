@@ -34,18 +34,38 @@ export interface TablePageResult {
   warnings: string[];
 }
 
+// A bare number in a list — the "5" of "5, 10 km" — and nothing else.
+// Anything with a word attached ("Swim250", "Sprint") is NOT a bare number
+// and must never borrow a unit from elsewhere in the string.
+const BARE_NUMBER = /^\d+(?:[.,]\d+)?$/;
+
 function distancesFrom(row: TableEventRow) {
   if (!row.distanceText) return [];
   // "¼, ½, 1.2 mi; 5, 10 km" — split on separators, keep each option's own
   // wording, and let the shared parser handle units.
-  return row.distanceText
-    .split(/[;,]/)
+  //
+  // NOT every comma is a separator. Most of Europe writes decimals with
+  // one: Finland's championship lists "5 km, 3,3 km, 1,666 km", which
+  // split naively becomes 5 km, 3, 3 km, 1 and 666 km — and 666 km was
+  // published as an open-water distance. A comma directly followed by a
+  // digit is a decimal point; a comma followed by a space is a list.
+  const parts = row.distanceText.split(/[;]|,(?!\d)/);
+
+  // The unit to lend a bare number, taken from the LAST label that states
+  // one, because that is where the convention puts it: "5, 10 km" means
+  // both are km. Taking the first match instead read "Swim250, Half Mile,
+  // 1 Mile…" as 250 MILES — 402 km, on a 250 metre swim.
+  const units = [...row.distanceText.matchAll(/\d\s*(km|mi|miles?|metres?|meters?|m)\b/gi)];
+  const unit = units.length > 0 ? (units[units.length - 1]?.[1] ?? '') : '';
+
+  return parts
     .map((part) => part.trim())
     .filter(Boolean)
     .map((label) => {
-      // A bare "5" in "5, 10 km" needs the trailing unit to make sense.
-      const unit = /\b(km|mi|m|miles?|metres?|meters?)\b/i.exec(row.distanceText!)?.[1] ?? '';
-      const withUnit = /\d\s*(km|mi|m|miles?|metres?|meters?)/i.test(label) ? label : `${label} ${unit}`.trim();
+      // Only a bare number borrows. A label that already carries a unit
+      // keeps its own, and a label that is a word with digits in it is
+      // left alone to parse or fail on its own terms.
+      const withUnit = BARE_NUMBER.test(label) && unit ? `${label} ${unit}` : label;
       return {
         originalLabel: label,
         distanceMetres: parseDistanceToMetres(withUnit),

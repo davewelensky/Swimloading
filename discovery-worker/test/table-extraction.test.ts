@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { extractTableEvents, pageYearFrom } from '../src/extract/table.js';
-import { processTablePage } from '../src/jobs/process-table-page.js';
+import { buildFromRow, processTablePage } from '../src/jobs/process-table-page.js';
 import { parseYearlessDate } from '../src/normalize/date.js';
 import { parseLocationText } from '../src/normalize/location.js';
 
@@ -160,4 +160,55 @@ test('the row cap is enforced and reported', () => {
   const res = processTablePage('src', 'https://example.com/cal', many, {}, 10);
   assert.equal(res.pages.length <= 10, true);
   assert.equal(res.warnings.some((w) => w.includes('only the first 10')), true);
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// Regression, 2026-08-06. Two bugs in one line of distance splitting put
+// impossible swims in the catalogue: a 402 km "Swim250" and a 666 km
+// Finnish championship.
+// ─────────────────────────────────────────────────────────────────────────
+
+test('a decimal comma is not a list separator', () => {
+  // Finland's championship lists "5 km, 3,3 km, 1,666 km". Splitting on
+  // every comma made that 5 km, 3, 3 km, 1 and 666 km — and 666 km was
+  // stored as an open-water distance. Most of Europe writes decimals this
+  // way, so this is not a Finnish problem.
+  const row = {
+    name: 'Test Swim', dateText: '12 September 2027', locationText: null,
+    distanceText: '5 km, 3,3 km, 1,666 km', timeText: null,
+    url: null, latitude: null, longitude: null, rawCells: {},
+  };
+  const built = buildFromRow('s', 'https://x/', row, 2027, 'en', {});
+  assert.deepEqual(
+    (built?.candidate.distances ?? []).map((d) => d.distanceMetres),
+    [5000, 3300, 1666]
+  );
+
+  // A comma followed by a space is still a list, and a bare number in one
+  // still borrows the unit.
+  const list = buildFromRow('s', 'https://x/',
+    { ...row, distanceText: '5, 10 km' }, 2027, 'en', {});
+  assert.deepEqual((list?.candidate.distances ?? []).map((d) => d.distanceMetres), [5000, 10000]);
+});
+
+test('only a bare number borrows a unit from elsewhere in the string', () => {
+  // Great North Swim lists "Swim250, Half Mile, 1 Mile, 2 Miles, 5k and
+  // 10k". "Swim250" has no unit, so the old code lent it the first one it
+  // found anywhere — "Mile" — and published a 250 metre swim as 402 km.
+  const built = buildFromRow('s', 'https://x/', {
+    name: 'Great North Swim', dateText: '12 September 2027', locationText: null,
+    distanceText: 'Swim250, Half Mile, 1 Mile, 2 Miles, 5k and 10k',
+    timeText: null, url: null, latitude: null, longitude: null, rawCells: {},
+  }, 2027, 'en', {});
+
+  const byLabel = new Map((built?.candidate.distances ?? []).map((d) => [d.originalLabel, d.distanceMetres]));
+  // Unreadable is the correct answer here — better than a confident 402 km.
+  assert.equal(byLabel.get('Swim250'), null);
+  assert.equal(byLabel.get('1 Mile'), 1609);
+  assert.equal(byLabel.get('2 Miles'), 3219);
+
+  // Nothing in this list is a plausible-looking wrong answer.
+  for (const m of byLabel.values()) {
+    if (m !== null) assert.ok(m < 25000, `${m} m is not a swim distance`);
+  }
 });
