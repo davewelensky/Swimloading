@@ -153,9 +153,15 @@ async function probeOne(c: Candidate, http: PoliteHttpClient): Promise<Probe> {
   const statedDates = findDateLikeStrings(visibleText(html))
     .map((raw) => ({ raw, parsed: parseFreeTextDate(raw, {}) }))
     .filter((d) => d.parsed.dateConfirmed && d.parsed.startDate);
+  const futureStated = statedDates.filter((d) => d.parsed.startDate! >= today);
   base.datesStatedInText = statedDates.length;
-  base.futureDatesStatedInText = statedDates.filter((d) => d.parsed.startDate! >= today).length;
-  base.sampleStatedDates = statedDates.slice(0, 4).map((d) => d.raw);
+  base.futureDatesStatedInText = futureStated.length;
+  // Quote FUTURE dates when there are any. Sampling all of them made the
+  // verdict cite "26 feb, 2021" as evidence of 25 upcoming events, which
+  // undermines the one number a reader is being asked to trust.
+  base.sampleStatedDates = (futureStated.length > 0 ? futureStated : statedDates)
+    .slice(0, 4)
+    .map((d) => d.raw);
   base.hasJsonLd = /application\/ld\+json/i.test(html);
   base.sameSiteLinks = extractSameSiteLinks(html, finalUrl).links.length;
 
