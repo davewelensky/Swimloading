@@ -2,6 +2,7 @@
 // New spots are automatically included — no manual updates required.
 
 import { dbGet, generateSlug, REGION_DOMAINS } from './seo-utils.js';
+import { countryByCode } from './_countries.js';
 
 const BASE = 'https://www.swimloading.com';
 const TODAY = () => new Date().toISOString().slice(0, 10);
@@ -107,21 +108,19 @@ export default async function handler(req, res) {
     // page with parameters, which is why the hubs exist at all.
     // Only listed where there is actually something to see — an empty hub
     // in the index is a thin page that costs more than it earns.
+    //
+    // The slug list used to be typed here AND again in events-handler.js,
+    // so a country could be missing from either and nothing would fail.
+    // Both now read api/_countries.js. Driving the loop off what is in the
+    // data — rather than off a list of countries someone remembered —
+    // means a new country reaches the index on its next crawl.
     const hubCountries = await dbGet(
       'event_venues?select=country_code&country_code=not.is.null&limit=2000'
     ) || [];
-    const HUB_SLUGS = {
-      ZA: 'south-africa', US: 'united-states', GB: 'united-kingdom', FR: 'france',
-      CA: 'canada', GR: 'greece', DK: 'denmark', ES: 'spain', IT: 'italy',
-      IE: 'ireland', AU: 'australia', BB: 'barbados', NZ: 'new-zealand',
-      TR: 'turkiye', PT: 'portugal', HR: 'croatia', JP: 'japan', PL: 'poland',
-      BR: 'brazil', MX: 'mexico',
-    };
-    const present = new Set(hubCountries.map((v) => v.country_code));
-    for (const [code, hubSlug] of Object.entries(HUB_SLUGS)) {
-      if (present.has(code)) {
-        urls.push(url(`${BASE}/swims/${hubSlug}`, '0.85', 'daily', TODAY()));
-      }
+    const present = [...new Set(hubCountries.map((v) => v.country_code))];
+    for (const code of present) {
+      const country = countryByCode(code);
+      if (country) urls.push(url(`${BASE}/swims/${country.slug}`, '0.85', 'daily', TODAY()));
     }
 
     // ── Bookable route pages ─────────────────────────────────────────────

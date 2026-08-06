@@ -11,6 +11,7 @@
 // visitor with no session still sees a complete, useful page.
 
 import { dbGet, dbRpc, escapeHtml } from './seo-utils.js';
+import { countryBySlug, countryByCode } from './_countries.js';
 
 const SITE = 'https://www.swimloading.com';
 
@@ -667,28 +668,19 @@ function renderShell(title, body) {
 // Resolved BEFORE route slugs, the same way spots-handler.js checks
 // REGION_SLUGS before spot slugs. The two namespaces share a path, so the
 // finite, known set wins and a route can never shadow a country.
-const COUNTRY_HUBS = {
-  'south-africa':   { code: 'ZA', name: 'South Africa' },
-  'united-states':  { code: 'US', name: 'the United States' },
-  'united-kingdom': { code: 'GB', name: 'the United Kingdom' },
-  'france':         { code: 'FR', name: 'France' },
-  'canada':         { code: 'CA', name: 'Canada' },
-  'greece':         { code: 'GR', name: 'Greece' },
-  'denmark':        { code: 'DK', name: 'Denmark' },
-  'spain':          { code: 'ES', name: 'Spain' },
-  'italy':          { code: 'IT', name: 'Italy' },
-  'ireland':        { code: 'IE', name: 'Ireland' },
-  'australia':      { code: 'AU', name: 'Australia' },
-  'barbados':       { code: 'BB', name: 'Barbados' },
-  'new-zealand':    { code: 'NZ', name: 'New Zealand' },
-  'turkiye':        { code: 'TR', name: 'Türkiye' },
-  'portugal':       { code: 'PT', name: 'Portugal' },
-  'croatia':        { code: 'HR', name: 'Croatia' },
-  'japan':          { code: 'JP', name: 'Japan' },
-  'poland':         { code: 'PL', name: 'Poland' },
-  'brazil':         { code: 'BR', name: 'Brazil' },
-  'mexico':         { code: 'MX', name: 'Mexico' },
-};
+//
+// That known set is now every ISO country (api/_countries.js, generated),
+// not twenty typed by hand here and twenty more typed again in
+// sitemap-dynamic.js. Those two lists had drifted to the point where 16
+// countries with live events — the Philippines, Sweden, Hong Kong, the
+// UAE — had no reachable hub, silently, because a stale hand-written list
+// never fails, it just quietly omits. A country in the data now gets a
+// hub with no code change.
+//
+// Widening 20 slugs to 249 cannot shadow a route: checked against every
+// swim_routes slug on 6 Aug 2026 (cape-point, robben-island-*, …), no
+// collisions. A future route named after a country would lose, so name
+// routes for the swim, not the country.
 
 async function loadCountryHub(code) {
   const today = new Date().toISOString().slice(0, 10);
@@ -704,9 +696,25 @@ async function loadCountryHub(code) {
     `event_venues?country_code=eq.${encodeURIComponent(code)}&spot_id=not.is.null&select=spot_id`
   );
   const spotIds = new Set((Array.isArray(venues) ? venues : []).map((v) => v.spot_id));
+
+  // The footer's "other countries" links come from what is actually in the
+  // catalogue. They used to be the first ten entries of the hand-written
+  // map, which meant a country could only be linked if someone had thought
+  // to type it — and, once the map became all 249, would have offered
+  // Andorra and Anguilla ahead of anywhere you can swim.
+  const allCountries = await dbGet(
+    'event_venues?select=country_code&country_code=not.is.null&limit=2000'
+  );
+  const siblings = [...new Set((Array.isArray(allCountries) ? allCountries : [])
+    .map((v) => v.country_code))]
+    .map(countryByCode)
+    .filter((c) => c && c.code !== code)
+    .sort((a, b) => a.name.localeCompare(b.name));
+
   return {
     events: Array.isArray(events) ? events.filter((e) => e.start_date >= today) : [],
     routes: (Array.isArray(routes) ? routes : []).filter((r) => r.start_spot_id && spotIds.has(r.start_spot_id)),
+    siblings,
   };
 }
 
@@ -841,8 +849,8 @@ function renderCountryHub(slug, country, data) {
   </section>
 
   <footer>
-    <p>${Object.entries(COUNTRY_HUBS).filter(([sl]) => sl !== slug).slice(0, 10)
-        .map(([sl, c]) => `<a href="/swims/${sl}">${escapeHtml(c.name)}</a>`).join(' · ')}</p>
+    <p>${(data.siblings || []).slice(0, 24)
+        .map((c) => `<a href="/swims/${c.slug}">${escapeHtml(c.name)}</a>`).join(' · ')}</p>
     <p style="margin-top:10px">Details gathered from public sources and not guaranteed —
        confirm with the organiser before travelling.</p>
   </footer>
@@ -1110,9 +1118,9 @@ export default async function handler(req, res) {
   if (parts[0] === 'swims') {
     if (!slug) { res.writeHead(301, { Location: '/explore?bookable=1' }); return res.end(); }
     // Country hubs win the namespace — a finite known set, checked first.
-    if (COUNTRY_HUBS[slug]) {
+    const country = countryBySlug(slug);
+    if (country) {
       try {
-        const country = COUNTRY_HUBS[slug];
         const data = await loadCountryHub(country.code);
         res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
         return res.status(200).send(renderCountryHub(slug, country, data));
