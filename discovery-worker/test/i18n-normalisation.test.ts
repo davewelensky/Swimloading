@@ -341,3 +341,26 @@ test('findDateLikeStrings separates "states no dates" from "we missed them"', ()
   assert.deepEqual(findDateLikeStrings('Our guided swims run when conditions allow. Book anytime.'), []);
   assert.deepEqual(findDateLikeStrings('Distances: 3.8 km, 1.5 km and 400 m'), []);
 });
+
+test('year-first dates are read from free text, not just from JSON-LD', () => {
+  // The most standard date format in the world, and parseFreeTextDate
+  // returned null for it until 2026-08-06 — parseStructuredDates handled
+  // ISO from JSON-LD and nothing handled the same string printed in a
+  // table. Korea's swimming federation lists its entire calendar this way.
+  assert.equal(parseFreeTextDate('2026-08-21', {}).startDate, '2026-08-21');
+  assert.equal(parseFreeTextDate('2026.08.21', {}).startDate, '2026-08-21');
+  assert.equal(parseFreeTextDate('2026/08/21', {}).startDate, '2026-08-21');
+
+  // No locale needed and no ambiguity: a four-digit leading component can
+  // only be the year, so day and month cannot swap. Contrast "10/07/2026",
+  // which is still refused without a country.
+  assert.equal(parseFreeTextDate('10/07/2026', {}).startDate, null);
+
+  // Still validated — a 13th month is not a date.
+  assert.equal(parseFreeTextDate('2026-13-01', {}).startDate, null);
+  assert.equal(parseFreeTextDate('2026-02-30', {}).startDate, null);
+
+  // Day-first is untouched.
+  assert.equal(parseFreeTextDate('21/02/2026', {}).startDate, '2026-02-21');
+  assert.deepEqual(findDateLikeStrings('대회 2026-08-21 부터 2026-10-16 까지'), ['2026-08-21', '2026-10-16']);
+});

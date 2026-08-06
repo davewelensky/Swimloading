@@ -233,7 +233,7 @@ async function probeOne(c: Candidate, http: PoliteHttpClient): Promise<Probe> {
   } else if (base.visibleChars < 1500 && base.sameSiteLinks < 5) {
     base.recommendation = 'needs-render';
     base.verdict = `JS SHELL — only ${base.visibleChars} chars of server-rendered text. Needs Playwright, or skip.`;
-  } else if (base.datedEvents === 0 && base.futureDatesStatedInText >= 3) {
+  } else if (base.datedEvents === 0 && base.futureDatesStatedInText >= 1) {
     // THE PAGE STATES DATES AND WE MISSED THEM. This branch exists because
     // the one below used to swallow this case and call the source useless.
     //
@@ -247,6 +247,14 @@ async function probeOne(c: Candidate, http: PoliteHttpClient): Promise<Probe> {
     // 'seed-with-ai' rather than 'seed' because the deterministic path
     // demonstrably cannot read this page, so a crawl WILL spend AI budget.
     // That is a cost to accept knowingly, not a surprise to discover.
+    //
+    // ONE future date is enough. This threshold was 3, which quietly sent
+    // small organisers down the no-dates path and printed "none of them is
+    // upcoming" underneath a quoted "9th august 2026" — a false statement
+    // produced by a threshold pretending to be a fact. Most organisers run
+    // two or three events a year; a circuit like SwimTheIsland has exactly
+    // three. Requiring three upcoming ones excludes precisely the sources
+    // this hunt is for.
     base.recommendation = 'seed-with-ai';
     base.verdict =
       `DATES PRESENT, EXTRACTORS MISSED THEM — the page states ${base.futureDatesStatedInText} ` +
@@ -279,9 +287,9 @@ async function probeOne(c: Candidate, http: PoliteHttpClient): Promise<Probe> {
         ? `The page's own text was scanned too and states no dates at all, so this is a ` +
           `genuine absence rather than an extraction failure. The fix is usually to ask the ` +
           `organiser for a calendar, not to crawl harder.`
-        : `The page DOES state ${base.datesStatedInText} date(s) (${base.sampleStatedDates.join(', ')}) ` +
-          `but none of them is upcoming — this is a finished season, not an undated source. ` +
-          `Worth seeding and re-probing when next season posts, rather than discarding.`) +
+        : `The page DOES state ${base.datesStatedInText} date(s) (${base.sampleStatedDates.join(', ')}), ` +
+          `none of them upcoming — a finished season, not an undated source. Worth seeding and ` +
+          `re-probing when next season posts, rather than discarding.`) +
       linkNote;
   } else if (base.futureDatedEvents >= 1 && base.sameSiteLinks >= 15) {
     // ONE EVENT PER PAGE. The thresholds above assume a calendar listing a

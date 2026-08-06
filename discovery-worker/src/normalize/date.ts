@@ -218,6 +218,9 @@ export function findDateLikeStrings(text: string, limit = 500): string[] {
     new RegExp(`\\b(?:${MONTH_PATTERN})\\.?\\s+\\d{1,2}(?:st|nd|rd|th)?,?\\s+\\d{4}\\b`, 'gi'),
     // "3.10.2026", "21/02/2026"
     /\b\d{1,2}([./])\d{1,2}\1\d{4}\b/g,
+    // "2026-08-21", "2026.08.21" — Korea's federation lists its whole
+    // calendar this way, and none of it was being read.
+    /\b\d{4}([-./])\d{1,2}\1\d{1,2}\b/g,
     // "2026年8月15日"
     /\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日/g,
   ];
@@ -285,6 +288,15 @@ function numericDate(
 // "3.10.2026", "23.05.2026", "8/8/2026", "21/02/2026". Optionally a range:
 // "10.8.2026 - 16.8.2026". A trailing time ("- 19:30", "- 00:00 t/m
 // 23:45") cannot match, because the second half must be a full date.
+// Year FIRST: "2026-08-21", "2026.08.21", "2026/08/21". Needs no locale
+// and has no ambiguity — a four-digit leading component can only be a year,
+// so day and month cannot swap. It was nonetheless unreadable from free
+// text until 2026-08-06: parseStructuredDates handled ISO from JSON-LD, and
+// nothing handled the same string printed in a table. Korea's swimming
+// federation lists its whole calendar that way (2026-08-21, 2026-10-16),
+// and we read none of it.
+const YEAR_FIRST_DATE = /\b(\d{4})([-./])(\d{1,2})\2(\d{1,2})\b/;
+
 const NUMERIC_DATE = /\b(\d{1,2})([./])(\d{1,2})\2(\d{4})\b/;
 const NUMERIC_RANGE = /\b(\d{1,2})([./])(\d{1,2})\2(\d{4})\s*(?:-|–|—|to|t\/m)\s*(\d{1,2})([./])(\d{1,2})\6(\d{4})\b/;
 
@@ -406,6 +418,19 @@ export function parseFreeTextDate(text: string | null, opts: DateParseOptions = 
   // Dots and slashes are treated alike; the separator is not evidence of
   // anything, and resolveDayMonth() refuses rather than assuming a
   // convention.
+  // Year first, and therefore unambiguous — a four-digit leading component
+  // can only be a year, so nothing has to be inferred about day vs month.
+  // Checked BEFORE the day-first numeric patterns for that reason.
+  const yearFirst = YEAR_FIRST_DATE.exec(cleaned);
+  if (yearFirst?.[1] && yearFirst[3] && yearFirst[4]) {
+    const year = Number(yearFirst[1]);
+    const month = Number(yearFirst[3]);
+    const day = Number(yearFirst[4]);
+    if (month >= 1 && month <= 12 && day >= 1 && day <= daysInMonth(year, month)) {
+      return { startDate: isoDate(year, month, day), endDate: null, datePrecision: 'exact', dateConfirmed: true, warnings: [] };
+    }
+  }
+
   const numericRange = NUMERIC_RANGE.exec(cleaned);
   if (numericRange?.[1] && numericRange[3] && numericRange[4] && numericRange[5] && numericRange[7] && numericRange[8]) {
     const start = numericDate(Number(numericRange[1]), Number(numericRange[3]), Number(numericRange[4]), opts.dayFirst);
