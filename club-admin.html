@@ -7034,8 +7034,8 @@ function renderTimetableCapacityView() {
 
 // ── WEEKLY REPORT: PLANNED VS ACTUAL ────────────────────────────────
 
-let weeklyReportTrendByKey     = {};   // squad_id_HH:MM → [{date, present}, ...] — for the Attendance Trend view
-let weeklyReportActualByKey    = {};   // squad_id_HH:MM → [present, present, ...] rolling trailing window (typical reference)
+let weeklyReportTrendByKey     = {};   // squad_id_dow_HH:MM → [{date, present}, ...] — for the Attendance Trend view
+let weeklyReportActualByKey    = {};   // squad_id_dow_HH:MM → [present, present, ...] rolling trailing window (typical reference)
 let weeklyReportByExactDate    = {};   // YYYY-MM-DD_squad_id_HH:MM → present count for that exact recorded session
 let weeklyReportWeekOffset     = 0;    // 0 = this week, -1 = last week, +2 = two weeks ahead, etc.
 
@@ -7093,14 +7093,19 @@ async function loadWeeklyReportPage() {
 
   const actualByKey = {};
   const byExactDate = {};
-  const trendByKey = {};   // squad_id_HH:MM → [{date, present}, ...] — same source, dates kept for the trend view
+  const trendByKey = {};   // squad_id_dow_HH:MM → [{date, present}, ...] — same source, dates kept for the trend view
   (recentSessions || []).forEach(s => {
     const hhmm = (s.start_time || '').slice(0, 5);
+    // A squad can have several recurring slots that share the same clock time on
+    // different days (e.g. Gold Swim Fit Squad meets 16:45 Mon-Thu with different
+    // coaches) — keying by squad+time alone collapses all of them into one bucket,
+    // so every day's row shows the same numbers. day_of_week disambiguates.
+    const dow = new Date(s.session_date + 'T12:00:00').getDay();
     const present = (s.club_attendance || []).filter(a =>
       a.status === 'present' || a.status === 'late' || a.status === 'catch_up').length;
-    (actualByKey[`${s.squad_id}_${hhmm}`] = actualByKey[`${s.squad_id}_${hhmm}`] || []).push(present);
+    (actualByKey[`${s.squad_id}_${dow}_${hhmm}`] = actualByKey[`${s.squad_id}_${dow}_${hhmm}`] || []).push(present);
     byExactDate[`${s.session_date}_${s.squad_id}_${hhmm}`] = present;
-    (trendByKey[`${s.squad_id}_${hhmm}`] = trendByKey[`${s.squad_id}_${hhmm}`] || []).push({ date: s.session_date, present });
+    (trendByKey[`${s.squad_id}_${dow}_${hhmm}`] = trendByKey[`${s.squad_id}_${dow}_${hhmm}`] || []).push({ date: s.session_date, present });
   });
   weeklyReportActualByKey = actualByKey;
   weeklyReportByExactDate = byExactDate;
@@ -7181,7 +7186,7 @@ function renderWeeklyReportTrend() {
 
   el.innerHTML = slots.map(slot => {
     const hhmm = (slot.start_time || '').slice(0, 5);
-    const key = `${squadId}_${hhmm}`;
+    const key = `${squadId}_${slot.day_of_week}_${hhmm}`;
     const history = (weeklyReportTrendByKey[key] || [])
       .slice()
       .sort((a, b) => b.date.localeCompare(a.date))
@@ -7479,7 +7484,7 @@ function renderWeeklyReport() {
           actualBadge = actualAttendanceBadge(present, s.max_capacity, enrolled);
         } else {
           actualHeading = 'Typical';
-          const key = `${s.squad_id}_${start}`;
+          const key = `${s.squad_id}_${s.day_of_week}_${start}`;
           const actualCounts = weeklyReportActualByKey[key] || [];
           if (actualCounts.length) {
             const avg = actualCounts.reduce((a,b) => a+b, 0) / actualCounts.length;
