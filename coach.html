@@ -2338,6 +2338,11 @@ async function saveCoachHealthEvent() {
 let ltsSlots      = [];  // slot objects for active squad_session (built from club_session_assignments)
 let ltsAttendance = {};  // roster_id → attendance row
 let ltsIntents    = {};  // roster_id → pre-absence intent status ('absent'/'attending')
+let activeLtsClubSessionId = null; // resolved club_sessions.id (find-or-create) so marks made here
+                                    // also land in club_attendance, which is what every admin-facing
+                                    // view (Attendance tab, Weekly Report, session cards) reads.
+                                    // club_lts_attendance (below) was never read by any admin screen,
+                                    // so LTS marks were invisible to Britt — found live 7 Aug 2026.
 
 function isLTSSquad(squadId) {
   // Aquasharks only — prevent activation for other clubs
@@ -2396,6 +2401,7 @@ async function loadLTSSlots() {
       <div>${ltsAnchorCoachName ? ltsAnchorCoachName + ' has' : 'There is'} no Learn to Swim session scheduled this day.</div>
     </div>`;
     ltsSlots = [];
+    activeLtsClubSessionId = null;
     document.getElementById('ltsProgressFill').style.width = '0%';
     document.getElementById('ltsCountLabel').textContent   = '0 swimmers';
     document.getElementById('ltsWaBtn').style.display      = 'none';
@@ -2403,6 +2409,34 @@ async function loadLTSSlots() {
     return;
   }
   activeSqSession = daySession;
+
+  // Find-or-create the matching club_sessions row so marks made on this screen also land
+  // in club_attendance (what every admin-facing view actually reads). Scoped by coach_name
+  // too, same reason as startSession() — two coaches can share a day/time (Ellen + Kaisea).
+  activeLtsClubSessionId = null;
+  const sqForCs = allSquads.find(q => q.id === daySession.squad_id);
+  const { data: existingCs } = await sb.from('club_sessions')
+    .select('id')
+    .eq('club_id', currentClub.id)
+    .eq('session_date', selectedDate)
+    .eq('squad_id', daySession.squad_id)
+    .eq('start_time', daySession.start_time)
+    .eq('coach_name', daySession.coach_name || '')
+    .maybeSingle();
+  if (existingCs) {
+    activeLtsClubSessionId = existingCs.id;
+  } else {
+    const { data: createdCs } = await sb.from('club_sessions').insert({
+      club_id:      currentClub.id,
+      session_date: selectedDate,
+      squad_id:     daySession.squad_id,
+      session_type: sqForCs?.name || 'Learn to Swim',
+      start_time:   daySession.start_time,
+      coach_name:   daySession.coach_name || null,
+      created_by:   currentUser.id,
+    }).select('id').single();
+    activeLtsClubSessionId = createdCs?.id || null;
+  }
 
   // Load assignments for THIS coach's session with time slots
   const { data: asgn, error: asgnErr } = await sb.from('club_session_assignments')
@@ -2609,6 +2643,7 @@ async function markLTSSlot(rosterId, attended) {
       toast('Could not un-mark — try again', 'error');
       if (_prev) ltsAttendance[rosterId] = _prev;
       renderLTSView();
+      return;
     }
   } else {
     const { data, error } = await sb.from('club_lts_attendance')
@@ -2621,8 +2656,31 @@ async function markLTSSlot(rosterId, attended) {
       toast('Could not save — try again', 'error');
       delete ltsAttendance[rosterId];
       renderLTSView();
+      return;
     } else {
       ltsAttendance[rosterId] = data;
+    }
+  }
+
+  // Mirror into club_attendance — this is what every admin-facing view actually reads
+  // (Attendance tab, Weekly Report, session cards); club_lts_attendance above was never
+  // read by any of them, so marks made here were invisible to Britt (found 7 Aug 2026).
+  // Best-effort: the coach's own mark already succeeded above, so a mirror failure here
+  // shouldn't roll back or block their UI — just log it for follow-up.
+  if (activeLtsClubSessionId) {
+    if (attended === null) {
+      const { error: mErr } = await sb.from('club_attendance')
+        .delete()
+        .eq('session_id', activeLtsClubSessionId)
+        .eq('roster_id', rosterId);
+      if (mErr) console.warn('club_attendance mirror delete failed:', mErr.message);
+    } else {
+      const { error: mErr } = await sb.from('club_attendance')
+        .upsert(
+          { session_id: activeLtsClubSessionId, roster_id: rosterId, status: attended ? 'present' : 'away', marked_by: currentUser.id },
+          { onConflict: 'session_id,roster_id' }
+        );
+      if (mErr) console.warn('club_attendance mirror upsert failed:', mErr.message);
     }
   }
 }
