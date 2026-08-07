@@ -1161,10 +1161,17 @@ async function continueInit() {
   currentClub = matchClub;
   coachRole   = matchAdmin.role || 'coach';
 
-  // Coach name from profile
+  // Coach name from profile — every club_squad_sessions/club_sessions coach_name in the
+  // DB is first-name-only by convention (Ellen, Kaisea, Britt, Tarryn), used to match
+  // coaches to their sessions and to group attendance history. A coach whose profile
+  // display_name is their full name (e.g. "Tarryn Stanford") would otherwise keep
+  // reintroducing the full name on every new session they create, splitting their
+  // history across two different coach_name strings — a one-off data fix doesn't stick
+  // since this runs on every login. Truncate to first name here, at the single source,
+  // rather than at each of the several places coachName feeds into a coach_name write.
   const { data: profile } = await sb.from('profiles')
     .select('display_name').eq('id', currentUser.id).maybeSingle();
-  coachName = profile?.display_name || currentUser.email?.split('@')[0] || 'Coach';
+  coachName = (profile?.display_name || currentUser.email?.split('@')[0] || 'Coach').trim().split(/\s+/)[0];
 
   await loadClubData();
   await loadCoverStatus();
