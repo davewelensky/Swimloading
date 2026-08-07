@@ -1260,10 +1260,11 @@
           <div style="display:flex;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:2px;">
             <button id="wrViewGridBtn" onclick="setWeeklyReportView('grid')" style="background:var(--cyan);color:#0a1628;border:none;cursor:pointer;font-size:12px;font-weight:700;padding:6px 12px;border-radius:6px;">Week at a glance</button>
             <button id="wrViewListBtn" onclick="setWeeklyReportView('list')" style="background:none;color:var(--text-sec);border:none;cursor:pointer;font-size:12px;font-weight:700;padding:6px 12px;border-radius:6px;">List detail</button>
+            <button id="wrViewTrendBtn" onclick="setWeeklyReportView('trend')" style="background:none;color:var(--text-sec);border:none;cursor:pointer;font-size:12px;font-weight:700;padding:6px 12px;border-radius:6px;">Attendance trend</button>
           </div>
         </div>
         <div class="card" style="padding:24px;">
-          <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:18px;">
+          <div id="wrWeekNav" style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:18px;">
             <button onclick="navigateWeeklyReport(-1)" style="background:none;border:1px solid var(--border);color:var(--text-sec);cursor:pointer;padding:6px 10px;border-radius:6px;" onmouseover="this.style.borderColor='var(--cyan-border)';this.style.color='var(--cyan)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-sec)'">
               <i data-lucide="chevron-left" style="width:16px;height:16px;"></i>
             </button>
@@ -1278,6 +1279,24 @@
           </div>
           <div id="weeklyReportGrid" style="overflow-x:auto;"><div style="color:var(--text-sec);font-size:13px;">Loading…</div></div>
           <div id="weeklyReportList" style="display:none;"></div>
+          <div id="weeklyReportTrend" style="display:none;">
+            <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-bottom:18px;">
+              <div class="form-group" style="margin:0;width:220px;">
+                <div class="form-label">Squad</div>
+                <select class="form-input" id="wrTrendSquad" onchange="renderWeeklyReportTrend()"></select>
+              </div>
+              <div class="form-group" style="margin:0;width:160px;">
+                <div class="form-label">Show last</div>
+                <select class="form-input" id="wrTrendCount" onchange="renderWeeklyReportTrend()">
+                  <option value="4">4 sessions</option>
+                  <option value="6" selected>6 sessions</option>
+                  <option value="8">8 sessions</option>
+                  <option value="12">12 sessions</option>
+                </select>
+              </div>
+            </div>
+            <div id="wrTrendBody"></div>
+          </div>
         </div>
       </div>
 
@@ -7005,6 +7024,7 @@ function renderTimetableCapacityView() {
 
 // ── WEEKLY REPORT: PLANNED VS ACTUAL ────────────────────────────────
 
+let weeklyReportTrendByKey     = {};   // squad_id_HH:MM → [{date, present}, ...] — for the Attendance Trend view
 let weeklyReportActualByKey    = {};   // squad_id_HH:MM → [present, present, ...] rolling trailing window (typical reference)
 let weeklyReportByExactDate    = {};   // YYYY-MM-DD_squad_id_HH:MM → present count for that exact recorded session
 let weeklyReportWeekOffset     = 0;    // 0 = this week, -1 = last week, +2 = two weeks ahead, etc.
@@ -7063,15 +7083,18 @@ async function loadWeeklyReportPage() {
 
   const actualByKey = {};
   const byExactDate = {};
+  const trendByKey = {};   // squad_id_HH:MM → [{date, present}, ...] — same source, dates kept for the trend view
   (recentSessions || []).forEach(s => {
     const hhmm = (s.start_time || '').slice(0, 5);
     const present = (s.club_attendance || []).filter(a =>
       a.status === 'present' || a.status === 'late' || a.status === 'catch_up').length;
     (actualByKey[`${s.squad_id}_${hhmm}`] = actualByKey[`${s.squad_id}_${hhmm}`] || []).push(present);
     byExactDate[`${s.session_date}_${s.squad_id}_${hhmm}`] = present;
+    (trendByKey[`${s.squad_id}_${hhmm}`] = trendByKey[`${s.squad_id}_${hhmm}`] || []).push({ date: s.session_date, present });
   });
   weeklyReportActualByKey = actualByKey;
   weeklyReportByExactDate = byExactDate;
+  weeklyReportTrendByKey = trendByKey;
 
   weeklyReportWeekOffset = 0;
   renderWeeklyReportGrid();
@@ -7087,17 +7110,93 @@ function navigateWeeklyReport(delta, resetToToday) {
 function setWeeklyReportView(view) {
   const gridBtn  = document.getElementById('wrViewGridBtn');
   const listBtn  = document.getElementById('wrViewListBtn');
+  const trendBtn = document.getElementById('wrViewTrendBtn');
   const gridEl   = document.getElementById('weeklyReportGrid');
   const listEl   = document.getElementById('weeklyReportList');
-  if (!gridBtn || !listBtn || !gridEl || !listEl) return;
+  const trendEl  = document.getElementById('weeklyReportTrend');
+  const weekNav  = document.getElementById('wrWeekNav');
+  if (!gridBtn || !listBtn || !trendBtn || !gridEl || !listEl || !trendEl) return;
 
-  const isList = view === 'list';
-  gridEl.style.display = isList ? 'none' : '';
-  listEl.style.display = isList ? '' : 'none';
-  gridBtn.style.background = isList ? 'none' : 'var(--cyan)';
-  gridBtn.style.color = isList ? 'var(--text-sec)' : '#0a1628';
-  listBtn.style.background = isList ? 'var(--cyan)' : 'none';
-  listBtn.style.color = isList ? '#0a1628' : 'var(--text-sec)';
+  gridEl.style.display  = view === 'grid'  ? '' : 'none';
+  listEl.style.display  = view === 'list'  ? '' : 'none';
+  trendEl.style.display = view === 'trend' ? '' : 'none';
+  if (weekNav) weekNav.style.display = view === 'trend' ? 'none' : 'flex';
+
+  [[gridBtn, 'grid'], [listBtn, 'list'], [trendBtn, 'trend']].forEach(([btn, key]) => {
+    const active = key === view;
+    btn.style.background = active ? 'var(--cyan)' : 'none';
+    btn.style.color      = active ? '#0a1628' : 'var(--text-sec)';
+  });
+
+  if (view === 'trend') {
+    populateWrTrendSquadSelect();
+    renderWeeklyReportTrend();
+  }
+}
+
+function populateWrTrendSquadSelect() {
+  const sel = document.getElementById('wrTrendSquad');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = (allSquads || [])
+    .slice()
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+}
+
+// "Last N sessions" per recurring slot for one squad — answers "how many showed up the
+// last few Thursdays for Silver Squad" without clicking back through single weeks.
+function renderWeeklyReportTrend() {
+  const el = document.getElementById('wrTrendBody');
+  if (!el) return;
+  const squadId = document.getElementById('wrTrendSquad')?.value;
+  const n = parseInt(document.getElementById('wrTrendCount')?.value || '6', 10);
+  if (!squadId) { el.innerHTML = `<div style="color:var(--text-sec);font-size:13px;">No squads yet.</div>`; return; }
+
+  const squad = allSquads.find(s => s.id === squadId);
+  const enrolledCount = (allRosterFull || []).filter(r => r.squad_id === squadId || r.secondary_squad_id === squadId).length;
+  const slots = (allWeekSessions || [])
+    .filter(s => s.squad_id === squadId && s.is_active !== false)
+    .sort((a, b) => a.day_of_week - b.day_of_week || (a.start_time || '').localeCompare(b.start_time || ''));
+
+  if (!slots.length) {
+    el.innerHTML = `<div style="color:var(--text-sec);font-size:13px;text-align:center;padding:20px 0;">No scheduled sessions for ${squad?.name || 'this squad'} yet.</div>`;
+    return;
+  }
+
+  el.innerHTML = slots.map(slot => {
+    const hhmm = (slot.start_time || '').slice(0, 5);
+    const key = `${squadId}_${hhmm}`;
+    const history = (weeklyReportTrendByKey[key] || [])
+      .slice()
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, n);
+
+    const label = slot.custom_name || squad?.name || 'Session';
+    const dayLabel = DAYS[slot.day_of_week]?.slice(0, 3) || '';
+    const denom = slot.max_capacity || enrolledCount || null;
+
+    const chips = history.length
+      ? history.map(h => {
+          const d = new Date(h.date + 'T12:00:00');
+          const dateLabel = d.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' });
+          const pct = denom ? h.present / denom : null;
+          const color = pct == null ? 'var(--text)' : pct >= 0.8 ? 'var(--green)' : pct >= 0.5 ? 'var(--amber)' : 'var(--danger)';
+          return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;padding:8px 12px;min-width:64px;">
+            <div style="font-size:17px;font-weight:800;color:${color};">${h.present}</div>
+            <div style="font-size:10px;color:var(--text-sec);white-space:nowrap;">${dateLabel}</div>
+          </div>`;
+        }).join('')
+      : `<div style="font-size:12px;color:var(--text-dim);padding:8px 0;">No recorded sessions yet.</div>`;
+
+    return `
+      <div style="margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--border);">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px;">${dayLabel} ${hhmm} · ${label}</div>
+        <div style="font-size:11px;color:var(--text-sec);margin-bottom:10px;">${slot.coach_name ? slot.coach_name + ' · ' : ''}${denom ? `out of ${denom} ${slot.max_capacity ? 'capacity' : 'enrolled'}` : ''}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">${chips}</div>
+      </div>`;
+  }).join('');
 }
 
 // Booked-vs-capacity badge — green/amber/red by how full the session is (forward-looking)
