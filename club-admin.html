@@ -1748,7 +1748,7 @@
     </div>
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="closeRosterEditModal()">Cancel</button>
-      <button class="btn-modal-primary" onclick="saveRosterEdit()">Save changes</button>
+      <button class="btn-modal-primary" id="rosterEditSaveBtn" onclick="saveRosterEdit()">Save changes</button>
     </div>
     <div id="rosterDeactivateSection" style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
       <button id="rosterDeactivateBtn" onclick="toggleRosterActive()" style="width:100%;padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.06);color:#ef4444;">
@@ -2106,7 +2106,7 @@
 
     <div class="modal-actions" style="position:sticky;bottom:0;background:var(--bg-card);padding-top:12px;margin-top:8px;">
       <button class="btn-modal-cancel" onclick="closeAddRosterModal()">Cancel</button>
-      <button class="btn-modal-primary" onclick="submitAddRosterMember()">Add member</button>
+      <button class="btn-modal-primary" id="addRosterSaveBtn" onclick="submitAddRosterMember()">Add member</button>
     </div>
   </div>
 </div>
@@ -9259,73 +9259,91 @@ async function saveRosterEdit() {
   const id       = rosterEditTargetId;
   const display_name = document.getElementById('rosterEditDisplayName').value.trim();
   if (!display_name) { showToast('Name cannot be empty', 'error'); return; }
-  const num      = document.getElementById('rosterEditNum').value.trim();
-  const cat         = document.getElementById('rosterEditCat').value.trim();
-  const member_type = document.getElementById('rosterEditMemberType').value || 'member';
-  const phone    = document.getElementById('rosterEditPhone').value.trim();
-  const dob      = document.getElementById('rosterEditDob').value || null;
-  const gender   = document.getElementById('rosterEditGender').value || null;
-  const squad_id = document.getElementById('rosterEditSquad').value || null;
-  const secondary_squad_id = document.getElementById('rosterEditSecondarySquad').value || null;
-  const is_trial = document.getElementById('rosterEditTrial').checked;
-  const fee_paid = document.getElementById('rosterEditFeePaid').checked;
 
-  const trial_start_date = is_trial ? (document.getElementById('rosterEditTrialStart').value || null) : null;
-  const trial_end_date   = is_trial ? (document.getElementById('rosterEditTrialEnd').value   || null) : null;
-  const fee_due_date     = fee_paid ? null : (document.getElementById('rosterEditFeeDue').value || null);
+  // Real incident (Britt, Aug 2026): a network hiccup or in-flight request during a
+  // deploy left this button showing "Save changes" forever with no error and no way to
+  // tell anything had gone wrong — because nothing here caught a failure that wasn't a
+  // clean Supabase `error` response. Wrapping in try/catch/finally + a disabled/"Saving…"
+  // state means ANY failure (network drop, unexpected exception, Supabase error) now
+  // always surfaces a toast and always re-enables the button — it can't silently hang.
+  const btn = document.getElementById('rosterEditSaveBtn');
+  const btnOriginalText = btn?.textContent;
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
 
-  const { error } = await sb.from('club_roster').update({
-    display_name,
-    member_number: num    || null,
-    category:      cat    || null,
-    member_type,
-    phone:         phone  || null,
-    date_of_birth: dob,
-    gender,
-    squad_id,
-    secondary_squad_id,
-    is_trial,
-    fee_paid,
-    trial_start_date,
-    trial_end_date,
-    fee_due_date,
-  }).eq('id', id);
+  try {
+    const num      = document.getElementById('rosterEditNum').value.trim();
+    const cat         = document.getElementById('rosterEditCat').value.trim();
+    const member_type = document.getElementById('rosterEditMemberType').value || 'member';
+    const phone    = document.getElementById('rosterEditPhone').value.trim();
+    const dob      = document.getElementById('rosterEditDob').value || null;
+    const gender   = document.getElementById('rosterEditGender').value || null;
+    const squad_id = document.getElementById('rosterEditSquad').value || null;
+    const secondary_squad_id = document.getElementById('rosterEditSecondarySquad').value || null;
+    const is_trial = document.getElementById('rosterEditTrial').checked;
+    const fee_paid = document.getElementById('rosterEditFeePaid').checked;
 
-  if (error) { showToast('Save failed: ' + error.message, 'error'); return; }
+    const trial_start_date = is_trial ? (document.getElementById('rosterEditTrialStart').value || null) : null;
+    const trial_end_date   = is_trial ? (document.getElementById('rosterEditTrialEnd').value   || null) : null;
+    const fee_due_date     = fee_paid ? null : (document.getElementById('rosterEditFeeDue').value || null);
 
-  const row = allRoster.find(r => r.id === id);
-  if (row) Object.assign(row, { display_name, member_number: num||null, category: cat||null, phone: phone||null, date_of_birth: dob, gender, squad_id, secondary_squad_id, is_trial, fee_paid, trial_start_date, trial_end_date, fee_due_date });
-  const fullRow = allRosterFull.find(r => r.id === id);
-  if (fullRow) { fullRow.display_name = display_name; fullRow.squad_id = squad_id; fullRow.secondary_squad_id = secondary_squad_id; }
+    const { error } = await sb.from('club_roster').update({
+      display_name,
+      member_number: num    || null,
+      category:      cat    || null,
+      member_type,
+      phone:         phone  || null,
+      date_of_birth: dob,
+      gender,
+      squad_id,
+      secondary_squad_id,
+      is_trial,
+      fee_paid,
+      trial_start_date,
+      trial_end_date,
+      fee_due_date,
+    }).eq('id', id);
 
-  // Save LTS lesson time if this is an LTS squad member
-  const editedSquad = allSquads.find(s => s.id === (squad_id || row?.squad_id));
-  const editedIsLTS = (editedSquad?.name || '').toLowerCase().includes('learn to swim');
-  if (editedIsLTS) {
-    const ltsInput = document.getElementById('rosterEditLtsSlot');
-    const newSlot = ltsInput?.value || null;
-    // 1. Persist as the swimmer's DEFAULT slot on the roster (pre-fills future assignments)
-    await sb.from('club_roster').update({ lts_default_slot: newSlot }).eq('id', id);
-    if (row) row.lts_default_slot = newSlot;
-    const fr = allRosterFull.find(x => x.id === id);
-    if (fr) fr.lts_default_slot = newSlot;
-    // 2. Also propagate to their existing session assignments
-    await sb.from('club_session_assignments')
-      .update({ time_slot: newSlot })
-      .eq('roster_id', id)
-      .eq('club_id', currentClub.id);
-    Object.keys(allWeekTimeSlots).forEach(sid => {
-      const entry = allWeekTimeSlots[sid]?.find(e => e.roster_id === id);
-      if (entry) entry.time_slot = newSlot;
-      if (allWeekTimeSlots[sid]) allWeekTimeSlots[sid].sort((a,b) => (a.time_slot||'99:99').localeCompare(b.time_slot||'99:99'));
-    });
+    if (error) throw new Error(error.message);
+
+    const row = allRoster.find(r => r.id === id);
+    if (row) Object.assign(row, { display_name, member_number: num||null, category: cat||null, phone: phone||null, date_of_birth: dob, gender, squad_id, secondary_squad_id, is_trial, fee_paid, trial_start_date, trial_end_date, fee_due_date });
+    const fullRow = allRosterFull.find(r => r.id === id);
+    if (fullRow) { fullRow.display_name = display_name; fullRow.squad_id = squad_id; fullRow.secondary_squad_id = secondary_squad_id; }
+
+    // Save LTS lesson time if this is an LTS squad member
+    const editedSquad = allSquads.find(s => s.id === (squad_id || row?.squad_id));
+    const editedIsLTS = (editedSquad?.name || '').toLowerCase().includes('learn to swim');
+    if (editedIsLTS) {
+      const ltsInput = document.getElementById('rosterEditLtsSlot');
+      const newSlot = ltsInput?.value || null;
+      // 1. Persist as the swimmer's DEFAULT slot on the roster (pre-fills future assignments)
+      await sb.from('club_roster').update({ lts_default_slot: newSlot }).eq('id', id);
+      if (row) row.lts_default_slot = newSlot;
+      const fr = allRosterFull.find(x => x.id === id);
+      if (fr) fr.lts_default_slot = newSlot;
+      // 2. Also propagate to their existing session assignments
+      await sb.from('club_session_assignments')
+        .update({ time_slot: newSlot })
+        .eq('roster_id', id)
+        .eq('club_id', currentClub.id);
+      Object.keys(allWeekTimeSlots).forEach(sid => {
+        const entry = allWeekTimeSlots[sid]?.find(e => e.roster_id === id);
+        if (entry) entry.time_slot = newSlot;
+        if (allWeekTimeSlots[sid]) allWeekTimeSlots[sid].sort((a,b) => (a.time_slot||'99:99').localeCompare(b.time_slot||'99:99'));
+      });
+    }
+
+    await saveRosterEditAttends(id);
+
+    closeRosterEditModal();
+    renderRosterTable();
+    showToast('Member updated', 'success');
+  } catch (err) {
+    console.error('saveRosterEdit failed:', err);
+    showToast('Save failed: ' + (err?.message || 'something went wrong — please try again'), 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = btnOriginalText; }
   }
-
-  await saveRosterEditAttends(id);
-
-  closeRosterEditModal();
-  renderRosterTable();
-  showToast('Member updated', 'success');
 }
 
 async function toggleRosterActive() {
@@ -9881,99 +9899,112 @@ async function saveRename() {
 
 async function submitAddRosterMember() {
   const name   = document.getElementById('newRosterName').value.trim();
-  const num    = document.getElementById('newRosterNum').value.trim();
-  const cat    = document.getElementById('newRosterCat').value.trim();
-  const gender = document.getElementById('newRosterGender').value;
-  const dob    = document.getElementById('newRosterDob').value || null;
-  const squadId = document.getElementById('newRosterSquad').value || null;
-  const secondarySquadId = document.getElementById('newRosterSecondarySquad').value || null;
-
   if (!name) { showToast('Name is required', 'error'); return; }
 
-  // Member # auto-assigns when blank, and retries on the rare collision with the
-  // per-club unique (club_id, member_number) index — so Britt never has to guess.
-  let memberNum = num ? parseInt(num, 10) : nextMemberNumber();
-  if (!Number.isFinite(memberNum)) memberNum = nextMemberNumber();
+  // Same hardening as saveRosterEdit() — never let this button silently hang on a
+  // network hiccup or unexpected error with no feedback at all.
+  const btn = document.getElementById('addRosterSaveBtn');
+  const btnOriginalText = btn?.textContent;
+  if (btn) { btn.disabled = true; btn.textContent = 'Adding…'; }
 
-  let roster, rErr;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    ({ data: roster, error: rErr } = await sb.from('club_roster').insert({
-      club_id:        currentClub.id,
-      display_name:   name,
-      member_number:  memberNum,
-      category:       cat    || null,
-      gender:         gender || null,
-      squad_id:       squadId,
-      secondary_squad_id: secondarySquadId,
-      date_of_birth:  dob    || null,
-      is_trial:       document.getElementById('newIsTrial').checked,
-      fee_paid:       document.getElementById('newFeePaid').checked,
-    }).select('id').single());
-    // 23505 = unique_violation → the number was taken, bump and retry
-    if (rErr && (rErr.code === '23505' || /duplicate|unique/i.test(rErr.message || ''))) {
-      memberNum = nextMemberNumber() + attempt + 1;
-      continue;
+  try {
+    const num    = document.getElementById('newRosterNum').value.trim();
+    const cat    = document.getElementById('newRosterCat').value.trim();
+    const gender = document.getElementById('newRosterGender').value;
+    const dob    = document.getElementById('newRosterDob').value || null;
+    const squadId = document.getElementById('newRosterSquad').value || null;
+    const secondarySquadId = document.getElementById('newRosterSecondarySquad').value || null;
+
+    // Member # auto-assigns when blank, and retries on the rare collision with the
+    // per-club unique (club_id, member_number) index — so Britt never has to guess.
+    let memberNum = num ? parseInt(num, 10) : nextMemberNumber();
+    if (!Number.isFinite(memberNum)) memberNum = nextMemberNumber();
+
+    let roster, rErr;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      ({ data: roster, error: rErr } = await sb.from('club_roster').insert({
+        club_id:        currentClub.id,
+        display_name:   name,
+        member_number:  memberNum,
+        category:       cat    || null,
+        gender:         gender || null,
+        squad_id:       squadId,
+        secondary_squad_id: secondarySquadId,
+        date_of_birth:  dob    || null,
+        is_trial:       document.getElementById('newIsTrial').checked,
+        fee_paid:       document.getElementById('newFeePaid').checked,
+      }).select('id').single());
+      // 23505 = unique_violation → the number was taken, bump and retry
+      if (rErr && (rErr.code === '23505' || /duplicate|unique/i.test(rErr.message || ''))) {
+        memberNum = nextMemberNumber() + attempt + 1;
+        continue;
+      }
+      break;
     }
-    break;
+
+    if (rErr) throw new Error(rErr.message);
+
+    // Save which specific session(s) they attend (required for LTS + cross-squad sessions
+    // like Nippers — see renderRosterEditAttends) so they land on the right register without
+    // a separate trip to Timetable → Swimmers.
+    await saveRosterEditAttends(roster.id, 'addRosterAttendsList');
+
+    // 2. Build collection contacts
+    const coll1Name = document.getElementById('newColl1Name').value.trim();
+    const collContacts = coll1Name ? [{
+      name:     coll1Name,
+      mobile:   document.getElementById('newColl1Mobile').value.trim(),
+      relation: document.getElementById('newColl1Relation').value.trim(),
+    }] : [];
+
+    // 3. Insert member profile
+    const profile = {
+      club_id:               currentClub.id,
+      roster_id:             roster.id,
+      date_of_birth:         dob,
+      gender:                gender || null,
+      school:                document.getElementById('newRosterSchool').value.trim() || null,
+      sasa_number:           document.getElementById('newRosterSasa').value.trim()   || null,
+      guardian1_name:        document.getElementById('newG1Name').value.trim()       || null,
+      guardian1_relation:    document.getElementById('newG1Relation').value          || null,
+      guardian1_mobile:      document.getElementById('newG1Mobile').value.trim()     || null,
+      guardian1_email:       document.getElementById('newG1Email').value.trim()      || null,
+      guardian1_is_billing:  true,
+      guardian2_name:        document.getElementById('newG2Name').value.trim()       || null,
+      guardian2_relation:    document.getElementById('newG2Relation').value          || null,
+      guardian2_mobile:      document.getElementById('newG2Mobile').value.trim()     || null,
+      guardian2_email:       document.getElementById('newG2Email').value.trim()      || null,
+      collection_contacts:   collContacts,
+      allergies:             document.getElementById('newMedAllergies').value.trim()   || null,
+      medical_conditions:    document.getElementById('newMedConditions').value.trim()  || null,
+      emergency_meds:        document.getElementById('newMedEmergency').value.trim()   || null,
+      medical_aid_fund:      document.getElementById('newMedFund').value.trim()        || null,
+      medical_aid_number:    document.getElementById('newMedNumber').value.trim()      || null,
+      medical_aid_main_member: document.getElementById('newMedMainMember').value.trim() || null,
+      indemnity_signed_date: document.getElementById('newConsentIndemnity').value      || null,
+      photo_consent:         document.getElementById('newConsentPhoto').checked,
+      social_media_consent:  document.getElementById('newConsentSocial').checked,
+      medical_auth_consent:  document.getElementById('newConsentMedical').checked,
+      fee_tier:              document.getElementById('newFeeTier').value               || null,
+      invoice_email:         document.getElementById('newInvoiceEmail').value.trim()   || null,
+      fee_notes:             document.getElementById('newFeeNotes').value.trim()        || null,
+      join_date:             document.getElementById('newRosterJoinDate').value         || null,
+      notes:                 document.getElementById('newMemberNotes').value.trim()     || null,
+    };
+
+    const { error: pErr } = await sb.from('club_member_profile').insert(profile);
+    if (pErr) { showToast('Member added but profile failed: ' + pErr.message, 'error'); }
+    else showToast(name + ' added', 'success');
+
+    closeAddRosterModal();
+    allRoster = [];
+    loadRoster();
+  } catch (err) {
+    console.error('submitAddRosterMember failed:', err);
+    showToast('Failed: ' + (err?.message || 'something went wrong — please try again'), 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = btnOriginalText; }
   }
-
-  if (rErr) { showToast('Failed: ' + rErr.message, 'error'); return; }
-
-  // Save which specific session(s) they attend (required for LTS + cross-squad sessions
-  // like Nippers — see renderRosterEditAttends) so they land on the right register without
-  // a separate trip to Timetable → Swimmers.
-  await saveRosterEditAttends(roster.id, 'addRosterAttendsList');
-
-  // 2. Build collection contacts
-  const coll1Name = document.getElementById('newColl1Name').value.trim();
-  const collContacts = coll1Name ? [{
-    name:     coll1Name,
-    mobile:   document.getElementById('newColl1Mobile').value.trim(),
-    relation: document.getElementById('newColl1Relation').value.trim(),
-  }] : [];
-
-  // 3. Insert member profile
-  const profile = {
-    club_id:               currentClub.id,
-    roster_id:             roster.id,
-    date_of_birth:         dob,
-    gender:                gender || null,
-    school:                document.getElementById('newRosterSchool').value.trim() || null,
-    sasa_number:           document.getElementById('newRosterSasa').value.trim()   || null,
-    guardian1_name:        document.getElementById('newG1Name').value.trim()       || null,
-    guardian1_relation:    document.getElementById('newG1Relation').value          || null,
-    guardian1_mobile:      document.getElementById('newG1Mobile').value.trim()     || null,
-    guardian1_email:       document.getElementById('newG1Email').value.trim()      || null,
-    guardian1_is_billing:  true,
-    guardian2_name:        document.getElementById('newG2Name').value.trim()       || null,
-    guardian2_relation:    document.getElementById('newG2Relation').value          || null,
-    guardian2_mobile:      document.getElementById('newG2Mobile').value.trim()     || null,
-    guardian2_email:       document.getElementById('newG2Email').value.trim()      || null,
-    collection_contacts:   collContacts,
-    allergies:             document.getElementById('newMedAllergies').value.trim()   || null,
-    medical_conditions:    document.getElementById('newMedConditions').value.trim()  || null,
-    emergency_meds:        document.getElementById('newMedEmergency').value.trim()   || null,
-    medical_aid_fund:      document.getElementById('newMedFund').value.trim()        || null,
-    medical_aid_number:    document.getElementById('newMedNumber').value.trim()      || null,
-    medical_aid_main_member: document.getElementById('newMedMainMember').value.trim() || null,
-    indemnity_signed_date: document.getElementById('newConsentIndemnity').value      || null,
-    photo_consent:         document.getElementById('newConsentPhoto').checked,
-    social_media_consent:  document.getElementById('newConsentSocial').checked,
-    medical_auth_consent:  document.getElementById('newConsentMedical').checked,
-    fee_tier:              document.getElementById('newFeeTier').value               || null,
-    invoice_email:         document.getElementById('newInvoiceEmail').value.trim()   || null,
-    fee_notes:             document.getElementById('newFeeNotes').value.trim()        || null,
-    join_date:             document.getElementById('newRosterJoinDate').value         || null,
-    notes:                 document.getElementById('newMemberNotes').value.trim()     || null,
-  };
-
-  const { error: pErr } = await sb.from('club_member_profile').insert(profile);
-  if (pErr) { showToast('Member added but profile failed: ' + pErr.message, 'error'); }
-
-  showToast(name + ' added', 'success');
-  closeAddRosterModal();
-  allRoster = [];
-  loadRoster();
 }
 
 // ── ATTENDANCE ────────────────────────────────────────────────────
