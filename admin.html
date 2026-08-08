@@ -3155,7 +3155,12 @@ async function loadRecentLogs() {
 
 async function deleteLog(id) {
     if (!confirm('Delete this temperature log? This cannot be undone.')) return;
-    const { error } = await supabaseClient.from('temp_logs').delete().eq('id', id);
+    // RPC releases eo challenge / campaign FK refs before deleting — a raw
+    // delete violates them when the log backs a challenge credit.
+    let { error } = await supabaseClient.rpc('delete_temp_log_safe', { p_log_id: id });
+    if (error && (error.code === 'PGRST202' || error.code === '42883')) {
+        ({ error } = await supabaseClient.from('temp_logs').delete().eq('id', id));
+    }
     if (error) { alert('Error: ' + error.message); return; }
     loadRecentLogs();
 }

@@ -979,11 +979,21 @@
             if (!confirm('Delete this temp log? You can re-log immediately after.')) return;
 
             try {
-                const { error } = await supabaseClient
-                    .from('temp_logs')
-                    .delete()
-                    .eq('id', logId)
-                    .eq('user_id', currentUser.id);
+                // A raw delete violates the eo_challenge_active_days /
+                // campaign_location_credits FKs when the log backs a challenge
+                // credit — the RPC releases those refs first, then deletes.
+                let { error } = await supabaseClient
+                    .rpc('delete_temp_log_safe', { p_log_id: logId });
+
+                // RPC not deployed yet (PGRST202) — raw delete still covers
+                // logs without challenge refs.
+                if (error && (error.code === 'PGRST202' || error.code === '42883')) {
+                    ({ error } = await supabaseClient
+                        .from('temp_logs')
+                        .delete()
+                        .eq('id', logId)
+                        .eq('user_id', currentUser.id));
+                }
 
                 if (error) throw error;
                 showToast('Temp log deleted — you can re-log now', 'success');
