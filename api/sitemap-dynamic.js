@@ -10,6 +10,11 @@ const TODAY = () => new Date().toISOString().slice(0, 10);
 const STATIC_PAGES = [
   { path: '/',                    priority: '1.0', changefreq: 'daily'   },
   { path: '/app',                 priority: '0.9', changefreq: 'weekly'  },
+  // The catalogue's front door. It was absent from this list entirely
+  // until 2026-08-06 while every event page it leads to was listed —
+  // 218 children in the sitemap and no parent. Daily, because the
+  // catalogue changes daily and this page is what states its size.
+  { path: '/explore',             priority: '0.9', changefreq: 'daily'   },
   { path: '/robben',              priority: '0.8', changefreq: 'weekly'  },
   { path: '/ri',                  priority: '0.8', changefreq: 'weekly'  },
   { path: '/campaign',            priority: '0.7', changefreq: 'weekly'  },
@@ -77,9 +82,15 @@ export default async function handler(req, res) {
     // ── Event pages ──────────────────────────────────────────────────────
     // 194 /events/{slug} pages were built and marked index,follow, and NONE
     // of them was in this file — so Google had no way to reach a single one.
-    // /explore is the only page that links to them and it is noindex,NOFOLLOW,
-    // which explicitly tells a crawler not to follow those links. Indexable
-    // pages that nothing links to and no sitemap lists are invisible pages.
+    // Indexable pages that nothing links to and no sitemap lists are
+    // invisible pages.
+    //
+    // The original note here said /explore was noindex,nofollow. It has been
+    // index,follow since 2026-08-05 — but it was itself missing from
+    // STATIC_PAGES until 2026-08-06 and is still linked from nowhere on the
+    // marketing site, so the parent was as invisible as the children were.
+    // Both halves are fixed now; the lesson is that "indexable" and
+    // "reachable" are different properties and this file only grants one.
     //
     // Gated on is_indexable, which is granted by rule and excludes AI-read
     // candidates and past events — see
