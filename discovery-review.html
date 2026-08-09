@@ -309,7 +309,30 @@ const sourceName = id => (SOURCES.find(s => s.id === id) || {}).name || 'Unknown
 // Bulk reject has no such restriction: rejecting is reversible and
 // publishes nothing.
 function bulkApprovable(c){
-  return isReady(c) && c.date_confirmed && unresolvedFor(c.id).length === 0;
+  return isReady(c)
+    && c.date_confirmed
+    && unresolvedFor(c.id).length === 0
+    // The classifier's own verdict. approve_discovery_candidate REFUSES a
+    // candidate recommended 'rejected' unless p_override_rejected is passed,
+    // so offering to publish one is offering something the database will
+    // decline — which is exactly what happened on 2026-08-09: 19 of 33
+    // "ready" candidates were classifier-rejected, the bar said "Publish
+    // 25", and every one of them failed.
+    //
+    // An override is a per-event judgement ("the classifier is wrong about
+    // THIS one"), never a bulk action, so these stay individual on purpose.
+    && c.publication_recommendation !== 'rejected';
+}
+
+// Why a selected candidate cannot be bulk-published. Returned as a reason
+// rather than a boolean so the bar can say which of the three it is —
+// "2 cannot be published" with no reason sends you to the console.
+function heldBackReason(c){
+  if (!isReady(c)) return 'no date, or already past';
+  if (c.publication_recommendation === 'rejected') return 'the classifier says it is not an open-water swim';
+  if (unresolvedFor(c.id).length > 0) return 'an unresolved duplicate warning';
+  if (!c.date_confirmed) return 'the page never stated a year';
+  return null;
 }
 
 function render(){
@@ -607,11 +630,24 @@ function renderBulkBar(){
   if (picked.length === 0) { bar.innerHTML = ''; return; }
   const chosen = picked.map(id => CANDIDATES.find(c => c.id === id)).filter(Boolean);
   const canPublish = chosen.filter(bulkApprovable).length;
-  const held = chosen.length - canPublish;
+
+  // Grouped by reason. A bare "2 cannot be published" tells you nothing you
+  // can act on; "14 — the classifier says it is not an open-water swim"
+  // tells you to look at the classifier, not at the button.
+  const reasons = new Map();
+  for (const c of chosen) {
+    const why = heldBackReason(c);
+    if (why) reasons.set(why, (reasons.get(why) ?? 0) + 1);
+  }
+  const heldNote = [...reasons.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([why, n]) => `${n} — ${esc(why)}`)
+    .join('; ');
+
   bar.innerHTML = `
     <div class="bulk">
       <b>${chosen.length} selected</b>
-      ${held > 0 ? `<span class="held">${held} cannot be bulk-published — no stated year, or an unresolved duplicate. Open those individually.</span>` : ''}
+      ${heldNote ? `<span class="held">Held back: ${heldNote}. Open those individually.</span>` : ''}
       <span style="flex:1"></span>
       <button class="act b-approve" ${canPublish ? '' : 'disabled'} onclick="bulkApprove()">Publish ${canPublish}</button>
       <button class="act b-reject" onclick="bulkReject()">Reject ${chosen.length}</button>
