@@ -533,6 +533,13 @@ function renderEventPage(ev, ctx) {
       <div class="actions" style="margin-bottom:0">
         <a class="btn" href="/app?intent=claim_event&event=${escapeHtml(ev.slug)}" id="claimBtn">Claim this event</a>
       </div>
+      <!-- An organiser reading a rival's listing is the most qualified
+           visitor /list-your-swim will ever get: they run swims, they are
+           looking at what a listing gets them, and their own is missing. -->
+      <p style="margin-top:14px;font-size:14px;color:var(--sec)">
+        Organise a different swim that is not here yet?
+        <a href="/list-your-swim">Add it to the calendar</a> — free, no account.
+      </p>
     </div>
   </section>
 
