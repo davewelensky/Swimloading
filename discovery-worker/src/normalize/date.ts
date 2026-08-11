@@ -47,6 +47,13 @@ const MONTHS_BY_LANGUAGE: Record<string, string[]> = {
   hr: ['sijecanj|sijecnja', 'veljaca|veljace', 'ozujak|ozujka', 'travanj|travnja', 'svibanj|svibnja', 'lipanj|lipnja', 'srpanj|srpnja', 'kolovoz|kolovoza', 'rujan|rujna', 'listopad|listopada', 'studeni|studenog', 'prosinac|prosinca'],
   tr: ['ocak', 'subat', 'mart', 'nisan', 'mayis', 'haziran', 'temmuz', 'agustos', 'eylul', 'ekim', 'kasim', 'aralik'],
   el: ['ιανουαριος|ιανουαριου', 'φεβρουαριος|φεβρουαριου', 'μαρτιος|μαρτιου', 'απριλιος|απριλιου', 'μαιος|μαιου', 'ιουνιος|ιουνιου', 'ιουλιος|ιουλιου', 'αυγουστος|αυγουστου', 'σεπτεμβριος|σεπτεμβριου', 'οκτωβριος|οκτωβριου', 'νοεμβριος|νοεμβριου', 'δεκεμβριος|δεκεμβριου'],
+  // Russian, nominative and the genitive that dates actually use
+  // ("4 июня 2027"). Without it the whole X-WATERS world series read as
+  // year-only and landed on 1 January — 32 candidates, every one rejected,
+  // taking Kyrgyzstan, Thailand and Turkey down with the Russian rounds.
+  // Cyrillic cannot collide with the Latin or Greek sets, so this adds no
+  // ambiguity to the shared lookup.
+  ru: ['январь|января', 'февраль|февраля', 'март|марта', 'апрель|апреля', 'май|мая', 'июнь|июня', 'июль|июля', 'август|августа', 'сентябрь|сентября', 'октябрь|октября', 'ноябрь|ноября', 'декабрь|декабря'],
 };
 
 // Weekday names, same treatment. These matter more than they look: the
@@ -344,6 +351,40 @@ export function parseFreeTextDate(text: string | null, opts: DateParseOptions = 
     }
   }
 
+  // A range that CROSSES a month boundary — "31 July-1 August 2027",
+  // "31 июля-1 августа 2027", "30 juin - 1 juillet 2027". rangeRe above
+  // cannot see these, because a month name sits between the two days. The
+  // single-day pattern below then matched the SECOND half and published a
+  // two-day event as starting on the day it ends. This affected every
+  // language, not only the newly-added ones, and it must be checked before
+  // exactRe for exactly that reason.
+  const crossMonthRe = new RegExp(
+    `\\b(\\d{1,2})(?:st|nd|rd|th|\\.)?\\s+${DE}(${MONTH_PATTERN})\\s*(?:-|–|—|to|al|a|e|y)\\s*` +
+      `(\\d{1,2})(?:st|nd|rd|th|\\.)?\\s+${DE}(${MONTH_PATTERN}),?\\s+(\\d{4})\\b`,
+    'i'
+  );
+  const crossMonth = crossMonthRe.exec(folded);
+  if (crossMonth?.[1] && crossMonth[2] && crossMonth[3] && crossMonth[4] && crossMonth[5]) {
+    const startMonth = MONTH_NAMES[crossMonth[2].toLowerCase()];
+    const endMonth = MONTH_NAMES[crossMonth[4].toLowerCase()];
+    const year = Number(crossMonth[5]);
+    if (startMonth && endMonth) {
+      // "31 December-1 January 2027" ends in the NEXT year. The stated year
+      // belongs to the end of the range in that wording, so the start is
+      // the year before; anything else would date it twelve months out.
+      const wraps = endMonth < startMonth;
+      return {
+        startDate: isoDate(wraps ? year - 1 : year, startMonth, Number(crossMonth[1])),
+        endDate: isoDate(year, endMonth, Number(crossMonth[3])),
+        datePrecision: 'range',
+        dateConfirmed: true,
+        warnings: wraps
+          ? [`"${cleaned}" crosses a year boundary — read as ${year - 1} into ${year}`]
+          : [],
+      };
+    }
+  }
+
   const exactRe = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th|\\.)?\\s+${DE}(${MONTH_PATTERN}),?\\s+(\\d{4})\\b`, 'i');
   const exactMatch = exactRe.exec(folded);
   if (exactMatch && exactMatch[1] && exactMatch[2] && exactMatch[3]) {
@@ -457,7 +498,13 @@ export function parseFreeTextDate(text: string | null, opts: DateParseOptions = 
     ]);
   }
 
-  const noYearRe = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th|\\.)?\\s+(${MONTH_PATTERN})\\b`, 'i');
+  // Same script-aware ending as the yearless patterns below: a trailing \b
+  // after a Cyrillic or Greek month name never matches, which would send a
+  // perfectly readable "10 июля" to the wrong warning.
+  const noYearRe = new RegExp(
+    `\\b(\\d{1,2})(?:st|nd|rd|th|\\.)?\\s+(${MONTH_PATTERN})(?![\\p{L}\\p{N}])`,
+    'iu'
+  );
   if (noYearRe.test(folded)) {
     return unknownDate([`Date text has no year — left unconfirmed rather than guessed: "${cleaned}"`]);
   }
@@ -588,9 +635,17 @@ export function parseYearlessDate(text: string | null, yearHint: number | null):
   // A yearless calendar row is where these land, because the year sits in
   // the page heading rather than the row, so this is the pattern that
   // matters for Brazil and Portugal.
+  //
+  // ENDS is a script-aware replacement for a trailing \b. JavaScript's \b
+  // is defined on [A-Za-z0-9_] alone, so a boundary after a Cyrillic or
+  // Greek month name is between two "non-word" characters and never
+  // matches. Every yearless pattern here ended in \b, which meant this
+  // whole path silently failed for every non-Latin script — Greek was
+  // listed in the month table from the start and could never be read.
+  const ENDS = `(?![\\p{L}\\p{N}])`;
   const dayFirst = new RegExp(
-    `\\b(\\d{1,2})(?:st|nd|rd|th|\\.)?\\s+(?:de\\s+|di\\s+|du\\s+|d['’]\\s*)?(${MONTH_PATTERN})\\b`,
-    'i'
+    `\\b(\\d{1,2})(?:st|nd|rd|th|\\.)?\\s+(?:de\\s+|di\\s+|du\\s+|d['’]\\s*)?(${MONTH_PATTERN})${ENDS}`,
+    'iu'
   ).exec(folded);
 
   // A multi-day row — "19 a 21 de Março", "05 e 06 de Abril", "11 al 13
@@ -600,13 +655,30 @@ export function parseYearlessDate(text: string | null, yearHint: number | null):
   // Checked before the single-day readings for exactly that reason.
   const rangeDayFirst = new RegExp(
     `\\b(\\d{1,2})\\s*(?:-|–|—|to|al|a|e|y)\\s*(\\d{1,2})(?:st|nd|rd|th|\\.)?\\s+` +
-      `(?:de\\s+|di\\s+|du\\s+|d['’]\\s*)?(${MONTH_PATTERN})\\b`,
-    'i'
+      `(?:de\\s+|di\\s+|du\\s+|d['’]\\s*)?(${MONTH_PATTERN})${ENDS}`,
+    'iu'
+  ).exec(folded);
+
+  // A range that CROSSES a month boundary — "31 July-1 August",
+  // "31 июля-1 августа", "30 juin - 1 juillet". rangeDayFirst cannot see
+  // these because a month name sits between the two days, so the plain
+  // day-first read below took the second half and published a two-day
+  // event as starting the day it ends. It affected every language, not
+  // just the newly-added ones. Checked first, for the same reason
+  // rangeDayFirst is.
+  const rangeCrossMonth = new RegExp(
+    `\\b(\\d{1,2})(?:st|nd|rd|th|\\.)?\\s+(?:de\\s+|di\\s+|du\\s+|d['’]\\s*)?(${MONTH_PATTERN})\\s*` +
+      `(?:-|–|—|to|al|a|e|y)\\s*` +
+      `(\\d{1,2})(?:st|nd|rd|th|\\.)?\\s+(?:de\\s+|di\\s+|du\\s+|d['’]\\s*)?(${MONTH_PATTERN})${ENDS}`,
+    'iu'
   ).exec(folded);
 
   let month: number | undefined;
   let day: number | undefined;
-  if (rangeDayFirst?.[1] && rangeDayFirst[3]) {
+  if (rangeCrossMonth?.[1] && rangeCrossMonth[2]) {
+    day = Number(rangeCrossMonth[1]);
+    month = MONTH_NAMES[rangeCrossMonth[2].toLowerCase()];
+  } else if (rangeDayFirst?.[1] && rangeDayFirst[3]) {
     day = Number(rangeDayFirst[1]);
     month = MONTH_NAMES[rangeDayFirst[3].toLowerCase()];
   } else if (monthFirst?.[1] && monthFirst[2]) {

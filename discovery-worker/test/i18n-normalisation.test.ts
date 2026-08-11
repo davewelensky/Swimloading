@@ -364,3 +364,56 @@ test('year-first dates are read from free text, not just from JSON-LD', () => {
   assert.equal(parseFreeTextDate('21/02/2026', {}).startDate, '2026-02-21');
   assert.deepEqual(findDateLikeStrings('대회 2026-08-21 부터 2026-10-16 까지'), ['2026-08-21', '2026-10-16']);
 });
+
+// ── Non-Latin scripts, and ranges that cross a month ────────────────────
+//
+// JavaScript's \b is defined on [A-Za-z0-9_] only, so a boundary after a
+// Cyrillic or Greek month name sits between two "non-word" characters and
+// never matches. Every yearless pattern ended in \b, so that whole path
+// failed silently for non-Latin scripts — Greek was in the month table
+// from the first commit and could never actually be read.
+
+test('a Cyrillic month name is read, not dropped to a bare year', () => {
+  // The X-WATERS world series publishes in Russian. Without the month
+  // table these became 1 January and all 32 candidates were rejected,
+  // taking the Kyrgyzstan, Thailand and Turkey rounds down with them.
+  assert.equal(parseFreeTextDate('26 июня 2027', { dayFirst: true }).startDate, '2027-06-26');
+  assert.equal(parseFreeTextDate('21-23 мая 2027', { dayFirst: true }).startDate, '2027-05-21');
+});
+
+test('a Greek yearless date is read — the trailing \\b used to refuse it', () => {
+  assert.equal(parseYearlessDate('10 Ιουνίου', 2027).startDate, '2027-06-10');
+  assert.equal(parseYearlessDate('23 Αυγούστου', 2027).startDate, '2027-08-23');
+});
+
+test('a Cyrillic yearless date is read', () => {
+  assert.equal(parseYearlessDate('10 июля', 2027).startDate, '2027-07-10');
+});
+
+test('a range crossing a month starts on its FIRST day, in every language', () => {
+  // "31 July-1 August" has a month name between the two days, so the
+  // same-month range pattern cannot see it and the single-day pattern
+  // matched the second half — publishing a two-day event as starting on
+  // the day it ends.
+  for (const [text, expected] of [
+    ['31 July-1 August 2027', '2027-07-31'],
+    ['30 June - 1 July 2027', '2027-06-30'],
+    ['31 juillet-1 aout 2027', '2027-07-31'],
+    ['31 июля-1 августа 2027', '2027-07-31'],
+  ] as Array<[string, string]>) {
+    assert.equal(parseFreeTextDate(text, { dayFirst: true }).startDate, expected, text);
+  }
+});
+
+test('a range crossing New Year takes the earlier year for its start', () => {
+  const r = parseFreeTextDate('31 December-1 January 2027', { dayFirst: true });
+  assert.equal(r.startDate, '2026-12-31');
+  assert.equal(r.endDate, '2027-01-01');
+});
+
+test('same-month ranges and single dates are unchanged', () => {
+  assert.equal(parseFreeTextDate('19 a 21 de Março 2027', { dayFirst: true }).startDate, '2027-03-19');
+  assert.equal(parseFreeTextDate('12 September 2027', { dayFirst: true }).startDate, '2027-09-12');
+  assert.equal(parseFreeTextDate('March 6-8, 2026', { dayFirst: false }).startDate, '2026-03-06');
+  assert.equal(parseYearlessDate('12 de Abril', 2027).startDate, '2027-04-12');
+});
