@@ -11388,9 +11388,17 @@ function getSessionRoster(session) {
   }
   // Include secondary_squad_id too — a swimmer who trains this squad only as their SECOND
   // squad (e.g. a Bronze swimmer who also does Nippers) must still appear on this squad's
-  // own register, not just their primary squad's.
-  const base = session.squad_id
-    ? allRosterFull.filter(r => r.squad_id === session.squad_id || r.secondary_squad_id === session.squad_id)
+  // own register, not just their primary squad's. Also fold in the recurring TEMPLATE's
+  // secondary_squad_id — `session` here is the club_sessions dated instance, which has no
+  // secondary_squad_id column of its own, so resolve it via activeSquadSessionId. A
+  // NON-multisquad session can still name a second squad to auto-combine (e.g. Aquasharks'
+  // "Dry Land" = Senior Squad + Intermediate, every active swimmer from both, no manual
+  // per-swimmer assignment — is_multisquad is for the opposite case, a hand-picked subset
+  // via club_session_assignments).
+  const tplForSecondary = activeSquadSessionId ? (allWeekSessions || []).find(t => t.id === activeSquadSessionId) : null;
+  const sessionSquadIds = [session.squad_id, tplForSecondary?.secondary_squad_id].filter(Boolean);
+  const base = sessionSquadIds.length
+    ? allRosterFull.filter(r => sessionSquadIds.includes(r.squad_id) || sessionSquadIds.includes(r.secondary_squad_id))
     : allRosterFull;
   const walkinRoster = walkins.map(id => allRosterFull.find(r => r.id === id)).filter(Boolean);
   const trialRoster = trialVisitorRoster([...base, ...walkinRoster].map(r => r.id));
@@ -11460,9 +11468,12 @@ function renderMarkModal(session) {
   // primary-squad_id-only filter would show nobody.
   const usesAssignments = isLTS || !!tplForLabel?.is_multisquad;
   const roster = getSessionRoster(session);
+  // A non-multisquad session can still name a secondary squad to auto-combine (e.g.
+  // Aquasharks' "Dry Land" = Senior Squad + Intermediate) — fold it in here too.
+  const markModalSquadIds = [session.squad_id, tplForLabel?.secondary_squad_id].filter(Boolean);
   let baseRoster = usesAssignments
     ? ltsSwimmerIds.map(id => allRosterFull.find(r => r.id === id)).filter(Boolean)
-    : (session.squad_id ? allRosterFull.filter(r => r.squad_id === session.squad_id || r.secondary_squad_id === session.squad_id) : allRosterFull);
+    : (markModalSquadIds.length ? allRosterFull.filter(r => markModalSquadIds.includes(r.squad_id) || markModalSquadIds.includes(r.secondary_squad_id)) : allRosterFull);
   const walkinRoster = walkins.map(id => allRosterFull.find(r => r.id === id)).filter(Boolean);
   baseRoster = [...baseRoster, ...trialVisitorRoster([...baseRoster, ...walkinRoster].map(r => r.id))];
 

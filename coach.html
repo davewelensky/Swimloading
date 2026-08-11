@@ -1821,8 +1821,12 @@ function getSessionRoster() {
   } else {
     // Include secondary_squad_id too — a swimmer who trains this squad only as their
     // SECOND squad (e.g. also does Nippers) must still appear on this squad's own
-    // register, same fix as club-admin.html's getSessionRoster().
-    roster = allRoster.filter(r => r.squad_id === s.squad_id || r.secondary_squad_id === s.squad_id);
+    // register, same fix as club-admin.html's getSessionRoster(). Also fold in the
+    // SESSION's own secondary_squad_id — a non-multisquad session can name a second
+    // squad to auto-combine (e.g. Aquasharks' "Dry Land" = Senior + Intermediate,
+    // every active swimmer from both, no manual per-swimmer assignment).
+    const squadIds = [s.squad_id, s.secondary_squad_id].filter(Boolean);
+    roster = allRoster.filter(r => squadIds.includes(r.squad_id) || squadIds.includes(r.secondary_squad_id));
   }
 
   // Advance-planned trial visitors for this exact squad+date (club_trial_attendees) —
