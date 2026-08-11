@@ -2512,7 +2512,7 @@ async function adminGeoPick(i) {
         ' — drag the marker to fine-tune.';
 
     await _updateCountryCodeWarning(r.country_code);
-    _applyDerivedDomain(r.country_code, r.lat, r.lng);
+    await _applyDerivedDomain(r.country_code, r.lat, r.lng);
 
     // Map with draggable marker
     try {
@@ -2556,7 +2556,7 @@ async function _updateCountryCodeWarning(cc) {
 // Derive the domain (region) from geography. Country-mapped domains first;
 // for South Africa inherit the nearest existing ZA spot's domain — the data
 // already encodes the region boundaries better than any hardcoded box.
-function _applyDerivedDomain(cc, lat, lng) {
+async function _applyDerivedDomain(cc, lat, lng) {
     const sel = document.getElementById('newSpotDomain');
     if (!sel) return;
     _geoPickedDomain = false;
@@ -2574,9 +2574,23 @@ function _applyDerivedDomain(cc, lat, lng) {
         return;
     }
     const domain = CC_TO_DOMAIN[cc];
-    if (domain && [...sel.options].some(o => o.value === domain)) {
+    if (!domain) return;
+    // Stale-dropdown guard: if the mapped domain isn't in the list (page was
+    // loaded before the domain row existed), re-fetch domains once and retry —
+    // otherwise the water-type fallback silently mislabels the spot (a fresh
+    // Canadian spot once defaulted to ATLANTIC this way).
+    if (![...sel.options].some(o => o.value === domain)) {
+        await loadAdminDomains();
+    }
+    if ([...sel.options].some(o => o.value === domain)) {
         sel.value = domain;
         _geoPickedDomain = true;
+    } else {
+        const meta = document.getElementById('spotGeoMeta');
+        if (meta) {
+            meta.style.display = 'block';
+            meta.innerHTML += `<br><span style="color:#fbbf24;">⚠ No "${domain}" domain exists yet — pick the region manually (see EXPANDING.md for adding a country/region).</span>`;
+        }
     }
 }
 
@@ -3014,7 +3028,7 @@ async function approveSpotSuggestion(id) {
     if (ccEl) ccEl.value = s.country_code || '';
     if (s.country_code && s.latitude != null) {
         await _updateCountryCodeWarning(s.country_code);
-        _applyDerivedDomain(s.country_code, s.latitude, s.longitude);
+        await _applyDerivedDomain(s.country_code, s.latitude, s.longitude);
     }
 
     const banner = document.getElementById('approvingSuggestionBanner');
