@@ -212,3 +212,43 @@ test('only a bare number borrows a unit from elsewhere in the string', () => {
     if (m !== null) assert.ok(m < 25000, `${m} m is not a swim distance`);
   }
 });
+
+// A season published as one table per month. Taking only the biggest
+// table read March and threw away the other eleven — Brazil's 2026
+// calendar is 12 tables, and we saw 22 of its 164 rows, every one of them
+// already in the past. That is why Brazil showed zero live events while
+// its source was healthy and its dates parsed perfectly.
+const monthTable = (month: string, rows: Array<[string, string]>) =>
+  `<h2>${month}</h2><table>
+     <tr><th>Data</th><th>Evento</th><th>Local</th></tr>
+     ${rows.map(([d, n]) => `<tr><td>${d}</td><td>${n}</td><td>Bertioga (SP)</td></tr>`).join('')}
+   </table>`;
+
+test('a calendar split across one table per month is read as one calendar', () => {
+  const html = `<html><head><title>Calendário 2027</title></head><body>
+    ${monthTable('Março', [['08 de Março', 'Travessia de Penha'], ['22 de Março', 'Maratour Mahi Mahi']])}
+    ${monthTable('Agosto', [['15 de Agosto', 'Desafio 4 Ilhas'], ['30 de Agosto', 'Circuito Ocean']])}
+    ${monthTable('Dezembro', [['07 de Dezembro', 'Copa Brasil de Águas Abertas']])}
+  </body></html>`;
+
+  const { rows, warnings } = extractTableEvents(html);
+  assert.equal(rows.length, 5, 'every month table contributes its rows');
+  assert.ok(
+    warnings.some((w) => w.includes('split across 3 tables')),
+    'the split is reported rather than silently merged'
+  );
+  const names = rows.map((r) => r.name);
+  assert.ok(names.includes('Copa Brasil de Águas Abertas'), 'December was not discarded');
+  assert.ok(names.includes('Desafio 4 Ilhas'), 'August was not discarded');
+});
+
+test('a navigation table alongside the calendar is still excluded', () => {
+  const html = `<html><head><title>Calendário 2027</title></head><body>
+    <table><tr><td><a href="/x">Home</a></td><td><a href="/y">Loja</a></td></tr></table>
+    ${monthTable('Março', [['08 de Março', 'Travessia de Penha'], ['22 de Março', 'Maratour Mahi Mahi']])}
+  </body></html>`;
+
+  const { rows } = extractTableEvents(html);
+  assert.equal(rows.length, 2, 'only the calendar rows are read');
+  assert.ok(!rows.some((r) => r.name === 'Home'), 'nav links never become events');
+});
