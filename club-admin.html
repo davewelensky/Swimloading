@@ -6757,7 +6757,7 @@ async function loadTimetablePage() {
     }
 
     const { data: sessions } = await sb.from('club_squad_sessions')
-      .select('id, squad_id, day_of_week, start_time, end_time, coach_name, max_capacity, notes, is_active')
+      .select('id, squad_id, day_of_week, start_time, end_time, coach_name, max_capacity, notes, is_active, custom_name, is_multisquad, secondary_squad_id')
       .in('squad_id', squadIds)
       .eq('is_active', true)
       .order('day_of_week')
@@ -7935,7 +7935,8 @@ async function handleScheduleFile(file) {
     const { data: sq } = await sb.from('club_squads').select('id').eq('club_id', currentClub.id).eq('is_active', true);
     if (sq?.length) {
       const { data: sess } = await sb.from('club_squad_sessions')
-        .select('id, squad_id, day_of_week, coach_name, start_time').in('squad_id', sq.map(s => s.id)).eq('is_active', true);
+        .select('id, squad_id, day_of_week, coach_name, start_time, end_time, max_capacity, notes, custom_name, is_multisquad, secondary_squad_id')
+        .in('squad_id', sq.map(s => s.id)).eq('is_active', true);
       sessions = sess || [];
       allTimetableSessions = sessions;
     }
