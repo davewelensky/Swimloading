@@ -1003,6 +1003,10 @@ let k8Attendance    = {}; // roster_id → 'present' | 'away'
 let k8SelectedSessionId = null;
 let k8SelectedSessionLabel = '';
 let walkinAddedIds  = new Set(); // roster IDs added from another squad this session (local remove only)
+let sessionTrialAttendees = {}; // roster_id → { squad_id, notes } — advance-planned trials
+                                 // (club_trial_attendees) for the CURRENT squad+date, so an
+                                 // existing swimmer from another squad shows up on this one
+                                 // day's register with a TRIAL VISIT tag, no squad change.
 
 // Simple statuses for mobile. Saved to the same status codes as admin.
 const MOBILE_STATUSES = [
@@ -1223,7 +1227,7 @@ async function loadClubData() {
 
   // Roster (for marking + walk-in search)
   const { data: rosterData } = await sb.from('club_roster')
-    .select('id, display_name, member_number, squad_id, is_trial, fee_paid')
+    .select('id, display_name, member_number, squad_id, secondary_squad_id, is_trial, fee_paid')
     .eq('club_id', currentClub.id)
     .eq('is_active', true)
     .order('display_name');
@@ -1767,6 +1771,16 @@ async function startSession() {
   walkinAddedIds = new Set();
   (session.club_attendance || []).forEach(a => { attendanceMarks[a.roster_id] = a.status; });
 
+  // Advance-planned trials for THIS exact squad + date (admin-added, see club-admin.html
+  // roster edit "Trial session") — surfaced on the register with a TRIAL VISIT tag.
+  sessionTrialAttendees = {};
+  const { data: trialRows } = await sb.from('club_trial_attendees')
+    .select('roster_id, squad_id, notes')
+    .eq('club_id', currentClub.id)
+    .eq('squad_id', s.squad_id)
+    .eq('session_date', today);
+  (trialRows || []).forEach(t => { sessionTrialAttendees[t.roster_id] = t; });
+
   // Pre-fill session note if one was saved previously
   const noteEl = document.getElementById('sessionNoteInput');
   if (noteEl) {
@@ -1797,14 +1811,30 @@ function filterAttendanceSearch(query) {
 function getSessionRoster() {
   const s = activeSqSession;
   if (!s) return [];
+  let roster;
   // Cross-squad (is_multisquad) sessions — like Nippers — pull from explicit
   // club_session_assignments: swimmers usually carry it as a SECONDARY squad, so a
   // primary-squad_id-only filter would show nobody.
   if (s.is_multisquad) {
     const assignedIds = allWeekAssign[s.id] || [];
-    return assignedIds.map(id => allRoster.find(r => r.id === id)).filter(Boolean);
+    roster = assignedIds.map(id => allRoster.find(r => r.id === id)).filter(Boolean);
+  } else {
+    // Include secondary_squad_id too — a swimmer who trains this squad only as their
+    // SECOND squad (e.g. also does Nippers) must still appear on this squad's own
+    // register, same fix as club-admin.html's getSessionRoster().
+    roster = allRoster.filter(r => r.squad_id === s.squad_id || r.secondary_squad_id === s.squad_id);
   }
-  return allRoster.filter(r => r.squad_id === s.squad_id);
+
+  // Advance-planned trial visitors for this exact squad+date (club_trial_attendees) —
+  // not part of the squad at all, shown alongside with a TRIAL VISIT tag.
+  const alreadyIn = new Set(roster.map(r => r.id));
+  Object.keys(sessionTrialAttendees).forEach(rosterId => {
+    if (alreadyIn.has(rosterId)) return;
+    const member = allRoster.find(r => r.id === rosterId);
+    if (member) roster.push({ ...member, _trialVisit: true });
+  });
+
+  return roster;
 }
 
 function renderBriefing(roster) {
@@ -1908,7 +1938,9 @@ function swimmerRowHTML(r) {
     const cls = worst.severity === 'serious' ? ' serious' : '';
     return `<span class="badge-health${cls}">${label}</span>`;
   })();
+  const homeSquadName = r._trialVisit ? (allSquads.find(q => q.id === r.squad_id)?.name || '') : '';
   const badges = [
+    r._trialVisit  ? `<span class="badge-trial" title="${homeSquadName ? 'Usually trains with ' + homeSquadName : 'Trialling this squad today'}">TRIAL VISIT${homeSquadName ? ' · ' + homeSquadName : ''}</span>` : '',
     r.is_trial     ? '<span class="badge-trial">TRIAL</span>' : '',
     r.fee_paid === false ? '<span class="badge-fee">UNPAID</span>' : '',
     healthBadge,
