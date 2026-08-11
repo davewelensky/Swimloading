@@ -7683,7 +7683,7 @@
                             SwimLoading covers 8+ countries. If your spot isn't here yet, request it — we review within 48h.
                         </div>
                         <button onclick="closeSpotPicker(); showSuggestSpot('${safe}');"
-                            style="background:var(--cyan);color:#080f1a;border:none;border-radius:50px;padding:9px 22px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">
+                            style="background:#38bdf8;color:#080f1a;border:none;border-radius:50px;padding:9px 22px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">
                             Request ${display}
                         </button>
                     </div>
