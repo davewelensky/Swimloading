@@ -190,6 +190,9 @@
       </label>
     </fieldset>
 
+    <!-- Populated only when the server says Turnstile is configured. Empty
+         until then, so the form keeps working before the keys exist. -->
+    <div id="turnstile" style="margin-bottom:16px"></div>
     <button type="submit" class="submit" id="btn">Send it in</button>
     <p class="note">
       A person reads every submission before it goes live, usually within a few days.
@@ -218,6 +221,50 @@ const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
+const TURNSTILE = { enabled: false, siteKey: null, widgetId: null };
+
+// Ask the server rather than hardcoding a site key here. The key is public,
+// but a hardcoded one goes stale the day it is rotated and this page cannot
+// read environment variables.
+(async function initTurnstile(){
+  try {
+    const r = await fetch('/api/submit-swim');
+    const j = await r.json();
+    if (!j.enabled || !j.siteKey) return;   // not configured — direct path stays
+    TURNSTILE.enabled = true;
+    TURNSTILE.siteKey = j.siteKey;
+
+    // The script's own onload event is NOT the signal to render. With
+    // render=explicit, window.turnstile exists but is EMPTY when the script
+    // finishes loading — it is populated later, and the only reliable
+    // signal is the onload callback named in the query string. Rendering on
+    // script.onload throws "turnstile.render is not a function", which is
+    // exactly what happened when this was first written and is why the
+    // widget would never have appeared in production.
+    await new Promise((resolve, reject) => {
+      window.onTurnstileReady = resolve;
+      const sc = document.createElement('script');
+      sc.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
+             + '?onload=onTurnstileReady&render=explicit';
+      sc.async = true; sc.defer = true;
+      sc.onerror = () => reject(new Error('Turnstile script failed to load'));
+      document.head.appendChild(sc);
+      // Do not hang the page on a third party that never calls back.
+      setTimeout(() => reject(new Error('Turnstile timed out')), 8000);
+    });
+
+    TURNSTILE.widgetId = window.turnstile.render('#turnstile', {
+      sitekey: TURNSTILE.siteKey, theme: 'dark',
+    });
+  } catch (e) {
+    // Never block the form on this. Failing to LOAD the check is not a
+    // reason to refuse an honest organiser; the server refuses a missing
+    // token anyway, and the review queue is still the real gate.
+    console.warn('Turnstile unavailable, using the direct path:', e && e.message);
+    TURNSTILE.enabled = false;
+  }
+})();
+
 const form = document.getElementById('form');
 const err  = document.getElementById('err');
 const btn  = document.getElementById('btn');
@@ -244,19 +291,52 @@ form.addEventListener('submit', async (e) => {
   const f = new FormData(form);
   const val = (k) => { const v = (f.get(k) || '').toString().trim(); return v === '' ? null : v; };
 
-  const { data, error } = await sb.rpc('submit_organiser_event', {
-    p_event_name:       val('event_name'),
-    p_start_date:       val('start_date'),
-    p_location_text:    val('location_text'),
-    p_official_url:     val('official_url'),
-    p_organiser_name:   val('organiser_name'),
-    p_contact_email:    val('contact_email'),
-    p_end_date:         val('end_date'),
-    p_country_code:     val('country_code'),
-    p_registration_url: val('registration_url'),
-    p_distances_text:   val('distances_text'),
-    p_notes:            val('notes')
-  });
+  // Two paths on purpose. With Turnstile configured the submission goes
+  // through /api/submit-swim, which verifies the token server-side with the
+  // secret key and only then calls the RPC. Without it, the original direct
+  // path still works — so this shipped before the keys existed without
+  // taking the form down, and switches over the moment they are set.
+  let data = null, error = null;
+  if (TURNSTILE.enabled) {
+    const token = window.turnstile && window.turnstile.getResponse(TURNSTILE.widgetId);
+    if (!token) {
+      showError('Please complete the spam check just above the button, then try again.');
+      btn.disabled = false; btn.textContent = 'Send it in';
+      return;
+    }
+    const r = await fetch('/api/submit-swim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        turnstileToken: token,
+        event_name: val('event_name'), start_date: val('start_date'),
+        location_text: val('location_text'), official_url: val('official_url'),
+        organiser_name: val('organiser_name'), contact_email: val('contact_email'),
+        end_date: val('end_date'), country_code: val('country_code'),
+        registration_url: val('registration_url'), distances_text: val('distances_text'),
+        notes: val('notes')
+      })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) error = { message: j.error || 'Could not send that.' }; else data = j.id;
+    // A token is single-use. Reset it whatever happened, or a second
+    // attempt fails with a stale-token error that reads like a form bug.
+    if (window.turnstile) window.turnstile.reset(TURNSTILE.widgetId);
+  } else {
+    ({ data, error } = await sb.rpc('submit_organiser_event', {
+      p_event_name:       val('event_name'),
+      p_start_date:       val('start_date'),
+      p_location_text:    val('location_text'),
+      p_official_url:     val('official_url'),
+      p_organiser_name:   val('organiser_name'),
+      p_contact_email:    val('contact_email'),
+      p_end_date:         val('end_date'),
+      p_country_code:     val('country_code'),
+      p_registration_url: val('registration_url'),
+      p_distances_text:   val('distances_text'),
+      p_notes:            val('notes')
+    }));
+  }
 
   btn.disabled = false;
   btn.textContent = 'Send it in';
