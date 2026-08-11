@@ -616,7 +616,18 @@
                 <div>
                     <div style="font-size:13px; font-weight:700; margin-bottom:14px; color: var(--ocean-light);">➕ Add New Spot</div>
                     <div style="display:flex; flex-direction:column; gap:10px;">
-                        <input id="newSpotName" type="text" placeholder="Spot name (e.g. Pringle Bay)" oninput="autoFillSpotCode(this.value)" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px; width:100%;">
+
+                        <!-- Location search (geocoded via /api/geocode) — fills coords/meta below -->
+                        <div id="approvingSuggestionBanner" style="display:none; background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.3); border-radius:8px; padding:8px 12px; font-size:12px; color:#fbbf24;"></div>
+                        <div style="display:flex; gap:8px;">
+                            <input id="spotGeoSearchInput" type="text" placeholder="Search a place (e.g. English Bay Vancouver)" onkeydown="if(event.key==='Enter'){event.preventDefault();adminGeoSearch();}" style="flex:1; background:rgba(56,189,248,0.06); border:1px solid rgba(56,189,248,0.25); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px;">
+                            <button onclick="adminGeoSearch()" style="background:rgba(56,189,248,0.15); border:1px solid rgba(56,189,248,0.3); color:var(--ocean-light); border-radius:8px; padding:9px 14px; font-size:13px; font-weight:600; cursor:pointer;">Search</button>
+                        </div>
+                        <div id="spotGeoResults" style="display:none; flex-direction:column; gap:4px; max-height:180px; overflow-y:auto;"></div>
+                        <div id="spotGeoMap" style="display:none; height:200px; border-radius:8px; border:1px solid var(--border); overflow:hidden;"></div>
+                        <div id="spotGeoMeta" style="display:none; font-size:11px; color:var(--text-secondary); line-height:1.5;"></div>
+
+                        <input id="newSpotName" type="text" placeholder="SwimLoading spot name (e.g. English Bay – Second Beach)" oninput="autoFillSpotCode(this.value)" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px; width:100%;">
                         <input id="newSpotCode" type="text" placeholder="Spot code e.g. PRINGLE_BAY (auto-filled)" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px; width:100%; font-family:monospace;" title="Required — spot won't appear in Trends without a code">
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
                             <select id="newSpotWaterType" onchange="autoSetDomain(this.value)" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 10px; color:var(--text); font-size:13px;">
@@ -632,9 +643,11 @@
                                 <!-- Populated dynamically by loadAdminDomains() -->
                             </select>
                         </div>
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                        <!-- Manual coordinate entry stays as the advanced/fallback path -->
+                        <div style="display:grid; grid-template-columns:1fr 1fr 90px; gap:8px;">
                             <input id="newSpotLat" type="number" step="0.0001" placeholder="Latitude (-34.1234)" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px;">
                             <input id="newSpotLng" type="number" step="0.0001" placeholder="Longitude (18.4567)" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px;">
+                            <input id="newSpotCountryCode" type="text" placeholder="CC" maxlength="2" title="ISO country code (auto-filled by search) — must exist in the countries table" style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px; text-transform:uppercase; font-family:monospace;">
                         </div>
                         <button onclick="addSpot()" style="background:var(--ocean-blue); color:white; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:600; cursor:pointer; width:100%;">Add Spot</button>
                         <div id="addSpotMsg" style="font-size:12px; min-height:18px;"></div>
@@ -2406,6 +2419,9 @@ function renderSpotTable(spots) {
 function autoSetDomain(waterType) {
     const domainSelect = document.getElementById('newSpotDomain');
     if (!domainSelect) return;
+    // If a geocode result already picked a country-derived domain, don't clobber it —
+    // the water-type defaults below are SA-centric fallbacks for manual entry.
+    if (_geoPickedDomain) return;
     if (waterType === 'POOL' || waterType === 'DAM' || waterType === 'RIVER' || waterType === 'LAKE') {
         domainSelect.value = 'INLAND';
     } else if (waterType === 'OCEAN' || waterType === 'TIDAL_POOL') {
@@ -2415,6 +2431,161 @@ function autoSetDomain(waterType) {
     }
 }
 let allSpotsAdmin = [];
+
+// ── Location search for Add Spot (geocoded via /api/geocode) ─────────────────
+let _adminGeoResults = [];
+let _geoPickedDomain = false;   // true once a search result set the domain — stops autoSetDomain overriding it
+let _adminMap = null, _adminMarker = null, _leafletLoading = null;
+let _validCountryCodes = null;  // iso codes present in the countries table (spots.country_code FK)
+let _approvingSuggestionId = null; // set when Approve on a suggestion prefilled this form
+
+// Country code → domain code, for countries that have a dedicated domain.
+// Anything not here falls back to EUROPE (if plausibly European) or leaves
+// the admin's manual choice in place. ZA is handled separately: inherit the
+// domain of the nearest existing South African spot.
+const CC_TO_DOMAIN = {
+    GB: 'UK', US: 'USA', AU: 'WESTERN_AUSTRALIA', FR: 'FRANCE', ES: 'SPAIN',
+    HR: 'DALMATIA', TH: 'THAILAND', SC: 'SEYCHELLES', NA: 'NAMIBIA',
+    CH: 'EUROPE', IT: 'EUROPE', PT: 'EUROPE', DE: 'EUROPE', NL: 'EUROPE',
+    BE: 'EUROPE', AT: 'EUROPE', GR: 'EUROPE', IE: 'EUROPE',
+};
+
+function _loadLeaflet() {
+    if (window.L) return Promise.resolve();
+    if (_leafletLoading) return _leafletLoading;
+    _leafletLoading = new Promise((resolve, reject) => {
+        const css = document.createElement('link');
+        css.rel = 'stylesheet';
+        css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(css);
+        const js = document.createElement('script');
+        js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        js.onload = resolve;
+        js.onerror = reject;
+        document.head.appendChild(js);
+    });
+    return _leafletLoading;
+}
+
+async function adminGeoSearch() {
+    const q = document.getElementById('spotGeoSearchInput').value.trim();
+    const resultsEl = document.getElementById('spotGeoResults');
+    if (q.length < 2) return;
+    resultsEl.style.display = 'flex';
+    resultsEl.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);padding:6px;">Searching…</div>';
+    try {
+        const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}&limit=6`);
+        const { results, error } = await res.json();
+        if (error) throw new Error(error);
+        _adminGeoResults = results || [];
+        if (_adminGeoResults.length === 0) {
+            resultsEl.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);padding:6px;">No places found — try adding the city or country, or enter coordinates manually below.</div>';
+            return;
+        }
+        resultsEl.innerHTML = _adminGeoResults.map((r, i) => `
+            <div onclick="adminGeoPick(${i})" style="cursor:pointer; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; padding:8px 10px;">
+                <div style="font-size:12px; font-weight:600; color:var(--text);">${r.name}</div>
+                <div style="font-size:11px; color:var(--text-secondary);">${r.label}</div>
+            </div>`).join('');
+    } catch (err) {
+        resultsEl.innerHTML = `<div style="font-size:12px;color:#ef4444;padding:6px;">Search failed: ${err.message}. Enter coordinates manually below.</div>`;
+    }
+}
+
+async function adminGeoPick(i) {
+    const r = _adminGeoResults[i];
+    if (!r) return;
+    document.getElementById('spotGeoResults').style.display = 'none';
+    document.getElementById('newSpotLat').value = r.lat.toFixed(5);
+    document.getElementById('newSpotLng').value = r.lng.toFixed(5);
+    document.getElementById('newSpotCountryCode').value = r.country_code || '';
+
+    // Pre-fill the SwimLoading name only if the admin hasn't typed one yet
+    const nameEl = document.getElementById('newSpotName');
+    if (!nameEl.value.trim()) { nameEl.value = r.name; autoFillSpotCode(r.name); }
+
+    const meta = document.getElementById('spotGeoMeta');
+    meta.style.display = 'block';
+    meta.innerHTML = `Matched: <strong style="color:var(--text);">${r.label}</strong><br>` +
+        [r.locality, r.admin_area, r.country].filter(Boolean).join(' · ') +
+        (r.country_code ? ` (${r.country_code})` : '') +
+        ' — drag the marker to fine-tune.';
+
+    await _updateCountryCodeWarning(r.country_code);
+    _applyDerivedDomain(r.country_code, r.lat, r.lng);
+
+    // Map with draggable marker
+    try {
+        await _loadLeaflet();
+        const mapEl = document.getElementById('spotGeoMap');
+        mapEl.style.display = 'block';
+        if (!_adminMap) {
+            _adminMap = L.map('spotGeoMap').setView([r.lat, r.lng], 14);
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+            }).addTo(_adminMap);
+            _adminMarker = L.marker([r.lat, r.lng], { draggable: true }).addTo(_adminMap);
+            _adminMarker.on('dragend', () => {
+                const p = _adminMarker.getLatLng();
+                document.getElementById('newSpotLat').value = p.lat.toFixed(5);
+                document.getElementById('newSpotLng').value = p.lng.toFixed(5);
+            });
+        } else {
+            _adminMap.setView([r.lat, r.lng], 14);
+            _adminMarker.setLatLng([r.lat, r.lng]);
+        }
+        setTimeout(() => _adminMap.invalidateSize(), 100);
+    } catch (e) {
+        console.warn('Leaflet failed to load — coordinates are filled, map skipped', e);
+    }
+}
+
+// spots.country_code has an FK to countries.iso_code — warn before insert fails.
+async function _updateCountryCodeWarning(cc) {
+    const meta = document.getElementById('spotGeoMeta');
+    if (!cc) return;
+    if (!_validCountryCodes) {
+        const { data } = await supabaseClient.from('countries').select('iso_code');
+        _validCountryCodes = new Set((data || []).map(c => c.iso_code));
+    }
+    if (!_validCountryCodes.has(cc)) {
+        meta.innerHTML += `<br><span style="color:#fbbf24;">⚠ ${cc} is not in the countries table yet — the spot will save without a country (add the country first for International-tab classification, see EXPANDING.md).</span>`;
+    }
+}
+
+// Derive the domain (region) from geography. Country-mapped domains first;
+// for South Africa inherit the nearest existing ZA spot's domain — the data
+// already encodes the region boundaries better than any hardcoded box.
+function _applyDerivedDomain(cc, lat, lng) {
+    const sel = document.getElementById('newSpotDomain');
+    if (!sel) return;
+    _geoPickedDomain = false;
+    if (cc === 'ZA') {
+        let best = null, bestD = Infinity;
+        for (const s of allSpotsAdmin) {
+            if (!s.latitude || !s.longitude) continue;
+            const d = adminDistanceKm(lat, lng, s.latitude, s.longitude);
+            if (d < bestD) { bestD = d; best = s; }
+        }
+        if (best && bestD <= 150 && [...sel.options].some(o => o.value === best.domain)) {
+            sel.value = best.domain;
+            _geoPickedDomain = true;
+        }
+        return;
+    }
+    const domain = CC_TO_DOMAIN[cc];
+    if (domain && [...sel.options].some(o => o.value === domain)) {
+        sel.value = domain;
+        _geoPickedDomain = true;
+    }
+}
+
+function adminDistanceKm(lat1, lng1, lat2, lng2) {
+    const R = 6371, rad = d => d * Math.PI / 180;
+    const dLat = rad(lat2 - lat1), dLng = rad(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+}
 
 async function loadAdminDomains() {
     const { data } = await supabaseClient
@@ -2475,18 +2646,44 @@ async function addSpot() {
     const domain = document.getElementById('newSpotDomain').value;
     const lat = parseFloat(document.getElementById('newSpotLat').value);
     const lng = parseFloat(document.getElementById('newSpotLng').value);
+    const ccRaw = (document.getElementById('newSpotCountryCode')?.value || '').trim().toUpperCase();
     const msg = document.getElementById('addSpotMsg');
 
     if (!name) { msg.style.color = '#ef4444'; msg.textContent = 'Spot name is required.'; return; }
     if (!code) { msg.style.color = '#ef4444'; msg.textContent = 'Spot code is required (used in Trends).'; return; }
     if (isNaN(lat) || isNaN(lng)) { msg.style.color = '#ef4444'; msg.textContent = 'Valid latitude and longitude are required.'; return; }
 
+    // Duplicate guard: refuse a second spot within 300m of an existing one
+    // unless explicitly confirmed. Same threshold as the user-side check.
+    if (allSpotsAdmin.length === 0) await loadSpotManagement();
+    const nearby = allSpotsAdmin
+        .filter(s => s.latitude && s.longitude)
+        .map(s => ({ s, d: adminDistanceKm(lat, lng, s.latitude, s.longitude) }))
+        .filter(x => x.d <= 0.3)
+        .sort((a, b) => a.d - b.d);
+    if (nearby.length > 0) {
+        const list = nearby.slice(0, 3).map(x => `• ${x.s.name} (${Math.round(x.d * 1000)}m away)`).join('\n');
+        if (!confirm(`Very close existing spot(s):\n${list}\n\nCreate "${name}" anyway?`)) {
+            msg.style.color = '#fbbf24'; msg.textContent = 'Cancelled — possible duplicate.';
+            return;
+        }
+    }
+
     msg.style.color = 'var(--text-secondary)';
     msg.textContent = 'Adding…';
 
-    const { error } = await supabaseClient.from('spots').insert({
-        name, code, water_type: waterType, domain, latitude: lat, longitude: lng, active: true
-    });
+    // country_code is FK'd to countries.iso_code — only send it if valid,
+    // otherwise the whole insert bounces.
+    if (!_validCountryCodes) {
+        const { data } = await supabaseClient.from('countries').select('iso_code');
+        _validCountryCodes = new Set((data || []).map(c => c.iso_code));
+    }
+    const countryCode = ccRaw && _validCountryCodes.has(ccRaw) ? ccRaw : null;
+
+    const row = { name, code, water_type: waterType, domain, latitude: lat, longitude: lng, active: true };
+    if (countryCode) row.country_code = countryCode;
+
+    const { data: newSpot, error } = await supabaseClient.from('spots').insert(row).select('id').single();
 
     if (error) {
         msg.style.color = '#ef4444';
@@ -2494,14 +2691,32 @@ async function addSpot() {
         return;
     }
 
-    msg.style.color = '#10b981';
-    msg.textContent = `✓ "${name}" added successfully!`;
+    if (ccRaw && !countryCode) {
+        msg.style.color = '#fbbf24';
+        msg.textContent = `✓ "${name}" added — WITHOUT country (${ccRaw} not in countries table).`;
+    } else {
+        msg.style.color = '#10b981';
+        msg.textContent = `✓ "${name}" added successfully!`;
+    }
+
+    // If this Add Spot was started from a suggestion's Approve button, close
+    // the loop: mark the suggestion approved, link the created spot, notify.
+    if (_approvingSuggestionId) {
+        await _resolveSuggestionApproved(_approvingSuggestionId, newSpot.id, name);
+        _approvingSuggestionId = null;
+        const banner = document.getElementById('approvingSuggestionBanner');
+        if (banner) banner.style.display = 'none';
+    }
+
     document.getElementById('newSpotName').value = '';
     document.getElementById('newSpotCode').value = '';
     document.getElementById('newSpotLat').value = '';
     document.getElementById('newSpotLng').value = '';
+    const ccEl = document.getElementById('newSpotCountryCode');
+    if (ccEl) ccEl.value = '';
+    _geoPickedDomain = false;
     loadSpotManagement();
-    setTimeout(() => { msg.textContent = ''; }, 4000);
+    setTimeout(() => { msg.textContent = ''; }, 6000);
 }
 
 async function toggleSpotActive(spotId, currentActive) {
@@ -2694,6 +2909,8 @@ async function signOut() {
 }
 
 // ── Spot Suggestions ──────────────────────────────────────────────────────────
+let _suggestionsById = {};
+
 async function loadSpotSuggestions() {
     const el = document.getElementById('spotSuggestionsList');
     if (!el) return;
@@ -2706,6 +2923,11 @@ async function loadSpotSuggestions() {
     if (error) { el.innerHTML = `<div style="color:#f87171;">Error: ${error.message}</div>`; return; }
     if (!data || data.length === 0) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">No suggestions yet.</div>'; return; }
 
+    _suggestionsById = Object.fromEntries(data.map(s => [s.id, s]));
+
+    // Nearby-spot comparison needs the spots list
+    if (allSpotsAdmin.length === 0) await loadSpotManagement();
+
     // Fetch display names separately (user_id references auth.users, not profiles directly)
     const userIds = [...new Set(data.map(s => s.user_id))];
     const { data: profileData } = await supabaseClient.from('public_profiles').select('id, display_name').in('id', userIds);
@@ -2715,9 +2937,33 @@ async function loadSpotSuggestions() {
         ? `<span style="background:rgba(251,191,36,0.15);color:#fbbf24;border:1px solid rgba(251,191,36,0.3);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;">Pending</span>`
         : s === 'approved'
         ? `<span style="background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;">Approved</span>`
+        : s === 'merged'
+        ? `<span style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;">Merged</span>`
         : `<span style="background:rgba(248,113,113,0.15);color:#f87171;border:1px solid rgba(248,113,113,0.3);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;">Rejected</span>`;
 
-    el.innerHTML = data.map(s => `
+    el.innerHTML = data.map(s => {
+        const hasCoords = s.latitude != null && s.longitude != null;
+        const locationLine = [s.locality, s.admin_area, s.country].filter(Boolean).join(', ');
+
+        // Nearby existing spots — the duplicate-detection view for review.
+        let nearbyHtml = '';
+        if (hasCoords) {
+            const nearby = allSpotsAdmin
+                .filter(x => x.latitude && x.longitude)
+                .map(x => ({ x, d: adminDistanceKm(s.latitude, s.longitude, x.latitude, x.longitude) }))
+                .filter(n => n.d <= 2)
+                .sort((a, b) => a.d - b.d)
+                .slice(0, 4);
+            if (nearby.length > 0) {
+                const strong = nearby[0].d <= 0.3;
+                nearbyHtml = `<div style="font-size:11px;margin:6px 0;padding:7px 10px;border-radius:8px;background:${strong ? 'rgba(248,113,113,0.08)' : 'rgba(56,189,248,0.06)'};border:1px solid ${strong ? 'rgba(248,113,113,0.25)' : 'rgba(56,189,248,0.2)'};">
+                    ${strong ? '<strong style="color:#f87171;">Likely duplicate — </strong>' : '<span style="color:var(--text-secondary);">Nearby existing spots: </span>'}
+                    ${nearby.map(n => `<span style="color:var(--text);">${n.x.name}</span> <span style="color:var(--text-secondary);">(${n.d < 1 ? Math.round(n.d * 1000) + 'm' : n.d.toFixed(1) + 'km'})</span>`).join(' · ')}
+                </div>`;
+            }
+        }
+
+        return `
         <div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:rgba(15,23,42,0.4);">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
                 <div>
@@ -2726,52 +2972,158 @@ async function loadSpotSuggestions() {
                 </div>
                 ${statusBadge(s.status)}
             </div>
-            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5;">${s.description}</div>
-            <div style="display:flex;justify-content:space-between;align-items:center;">
+            ${locationLine ? `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;">${locationLine}${s.country_code ? ` (${s.country_code})` : ''}</div>` : ''}
+            ${hasCoords ? `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;font-family:monospace;">${s.latitude.toFixed(5)}, ${s.longitude.toFixed(5)} · <a href="https://www.openstreetmap.org/?mlat=${s.latitude}&mlon=${s.longitude}#map=15/${s.latitude}/${s.longitude}" target="_blank" style="color:var(--ocean);">map</a> · <a href="https://www.google.com/maps?q=${s.latitude},${s.longitude}" target="_blank" style="color:var(--ocean);">google</a></div>` : '<div style="font-size:11px;color:#fbbf24;margin-bottom:4px;">No coordinates (free-text submission)</div>'}
+            ${nearbyHtml}
+            ${s.description ? `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5;">${s.description}</div>` : ''}
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                 <div style="font-size:11px;color:var(--text-secondary);">
                     by <strong style="color:var(--text);">${profileMap[s.user_id] || 'Unknown'}</strong>
                     · ${new Date(s.created_at).toLocaleDateString('en-ZA', {day:'numeric',month:'short',year:'numeric'})}
                     ${s.admin_notes ? `<br><em style="color:var(--text-secondary);">Note: ${s.admin_notes}</em>` : ''}
                 </div>
                 ${s.status === 'pending' ? `
-                <div style="display:flex;gap:8px;">
-                    <button onclick="resolveSpotSuggestion('${s.id}','approved',null)"
-                        style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#22c55e;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:600;">✓ Approve</button>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button onclick="approveSpotSuggestion('${s.id}')"
+                        style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#22c55e;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:600;">✓ Approve…</button>
+                    <button onclick="mergeSpotSuggestion('${s.id}')"
+                        style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);color:var(--ocean);border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;">Merge to existing</button>
                     <button onclick="rejectSpotSuggestion('${s.id}')"
                         style="background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.25);color:#f87171;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;">✕ Reject</button>
                 </div>` : ''}
             </div>
-        </div>`).join('');
+        </div>`;
+    }).join('');
 }
 
-async function resolveSpotSuggestion(id, status, notes) {
-    const { data: s } = await supabaseClient
-        .from('spot_suggestions')
-        .select('user_id, spot_name')
-        .eq('id', id)
-        .single();
+// Approve = prefill the Add New Spot form (admin edits name/domain/coords/
+// water type there, sees the map + duplicate guard) and creating the spot
+// closes the loop via _approvingSuggestionId in addSpot().
+async function approveSpotSuggestion(id) {
+    const s = _suggestionsById[id];
     if (!s) return;
 
-    await supabaseClient.from('spot_suggestions').update({ status, admin_notes: notes || null }).eq('id', id);
+    _approvingSuggestionId = id;
+    document.getElementById('newSpotName').value = s.spot_name || '';
+    autoFillSpotCode(s.spot_name || '');
+    const typeSel = document.getElementById('newSpotWaterType');
+    if (typeSel && s.water_type) typeSel.value = s.water_type;
+    if (s.latitude != null) document.getElementById('newSpotLat').value = s.latitude;
+    if (s.longitude != null) document.getElementById('newSpotLng').value = s.longitude;
+    const ccEl = document.getElementById('newSpotCountryCode');
+    if (ccEl) ccEl.value = s.country_code || '';
+    if (s.country_code && s.latitude != null) {
+        await _updateCountryCodeWarning(s.country_code);
+        _applyDerivedDomain(s.country_code, s.latitude, s.longitude);
+    }
 
-    const isApproved = status === 'approved';
+    const banner = document.getElementById('approvingSuggestionBanner');
+    if (banner) {
+        banner.style.display = 'block';
+        banner.textContent = `Approving suggestion "${s.spot_name}" — review the details below, then click Add Spot to create it and notify the swimmer.`;
+    }
+    document.getElementById('newSpotName').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// Called by addSpot() once the canonical spot exists.
+async function _resolveSuggestionApproved(suggestionId, spotId, spotName) {
+    const s = _suggestionsById[suggestionId];
+    await supabaseClient.from('spot_suggestions').update({
+        status: 'approved', created_spot_id: spotId, reviewed_at: new Date().toISOString()
+    }).eq('id', suggestionId);
+    if (s) {
+        await supabaseClient.from('notifications').insert({
+            recipient_user_id: s.user_id,
+            title: 'Your spot suggestion was added!',
+            message: `${spotName} is now live on SwimLoading — go log a temp!`,
+            type: 'spot_suggestion'
+        });
+    }
+    loadSpotSuggestions();
+}
+
+// Merge = the suggested place already exists as a canonical spot. No new
+// spots row; record which spot it duplicates and tell the swimmer.
+async function mergeSpotSuggestion(id) {
+    const s = _suggestionsById[id];
+    if (!s) return;
+
+    // Offer the nearby spots first — usually the merge target is one of them.
+    let candidates = [];
+    if (s.latitude != null && s.longitude != null) {
+        candidates = allSpotsAdmin
+            .filter(x => x.latitude && x.longitude)
+            .map(x => ({ x, d: adminDistanceKm(s.latitude, s.longitude, x.latitude, x.longitude) }))
+            .filter(n => n.d <= 5)
+            .sort((a, b) => a.d - b.d)
+            .slice(0, 6);
+    }
+
+    let target = null;
+    if (candidates.length > 0) {
+        const choice = prompt(
+            `Merge "${s.spot_name}" into which existing spot?\n` +
+            candidates.map((n, i) => `${i + 1}. ${n.x.name} (${n.d < 1 ? Math.round(n.d * 1000) + 'm' : n.d.toFixed(1) + 'km'})`).join('\n') +
+            `\n\nEnter a number, or type part of another spot's name:`);
+        if (choice === null) return;
+        const idx = parseInt(choice, 10) - 1;
+        if (!isNaN(idx) && candidates[idx]) target = candidates[idx].x;
+        else if (choice.trim()) {
+            const m = allSpotsAdmin.filter(x => x.name.toLowerCase().includes(choice.trim().toLowerCase()));
+            if (m.length === 1) target = m[0];
+            else if (m.length > 1) {
+                const pick = prompt(`Multiple matches:\n${m.slice(0, 8).map((x, i) => `${i + 1}. ${x.name}`).join('\n')}\n\nEnter the number:`);
+                const pi = parseInt(pick, 10) - 1;
+                if (!isNaN(pi) && m[pi]) target = m[pi];
+            }
+        }
+    } else {
+        const q = prompt(`Merge "${s.spot_name}" into which existing spot? Type part of its name:`);
+        if (q === null || !q.trim()) return;
+        const m = allSpotsAdmin.filter(x => x.name.toLowerCase().includes(q.trim().toLowerCase()));
+        if (m.length === 1) target = m[0];
+        else if (m.length > 1) {
+            const pick = prompt(`Multiple matches:\n${m.slice(0, 8).map((x, i) => `${i + 1}. ${x.name}`).join('\n')}\n\nEnter the number:`);
+            const pi = parseInt(pick, 10) - 1;
+            if (!isNaN(pi) && m[pi]) target = m[pi];
+        }
+    }
+    if (!target) { alert('No spot selected — nothing merged.'); return; }
+    if (!confirm(`Merge "${s.spot_name}" into existing spot "${target.name}"? The swimmer will be pointed at it.`)) return;
+
+    await supabaseClient.from('spot_suggestions').update({
+        status: 'merged', matched_spot_id: target.id, reviewed_at: new Date().toISOString(),
+        admin_notes: `Duplicate of ${target.name}`
+    }).eq('id', id);
+
     await supabaseClient.from('notifications').insert({
         recipient_user_id: s.user_id,
-        title: isApproved ? '📍 Your spot suggestion was added!' : '📍 Spot suggestion update',
-        message: isApproved
-            ? `${s.spot_name} is now live on SwimLoading — go log a temp! 🌡️`
-            : `We couldn't add ${s.spot_name} right now${notes ? ': ' + notes : '.'}`,
+        title: 'Spot suggestion update',
+        message: `Good news — "${s.spot_name}" is already on SwimLoading as ${target.name}. You can log temps there right now.`,
         type: 'spot_suggestion'
     });
 
-    alert(isApproved ? `✓ Approved — ${s.spot_name} — swimmer notified` : `Rejected — ${s.spot_name} — swimmer notified`);
+    alert(`✓ Merged into ${target.name} — swimmer notified.`);
     loadSpotSuggestions();
 }
 
 async function rejectSpotSuggestion(id) {
     const reason = prompt('Reason for rejection (optional — will be sent to the swimmer):');
     if (reason === null) return; // cancelled
-    await resolveSpotSuggestion(id, 'rejected', reason || null);
+    const s = _suggestionsById[id];
+    await supabaseClient.from('spot_suggestions').update({
+        status: 'rejected', admin_notes: reason || null, reviewed_at: new Date().toISOString()
+    }).eq('id', id);
+    if (s) {
+        await supabaseClient.from('notifications').insert({
+            recipient_user_id: s.user_id,
+            title: 'Spot suggestion update',
+            message: `We couldn't add ${s.spot_name} right now${reason ? ': ' + reason : '.'}`,
+            type: 'spot_suggestion'
+        });
+    }
+    alert(`Rejected — ${s ? s.spot_name : 'suggestion'} — swimmer notified`);
+    loadSpotSuggestions();
 }
 
 // ── UK Swim Spot Challenge — entirely separate from the monthly challenge above ─

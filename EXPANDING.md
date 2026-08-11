@@ -407,6 +407,14 @@ This raises the temperature colour ceiling for the region's card in the dashboar
 
 ## Adding a New Spot
 
+> **Easiest path (Aug 2026):** /admin → Spot Management → **search the place name**
+> (geocoded via `/api/geocode`, OpenStreetMap Nominatim). Selecting a result fills
+> coordinates, country code and a map with a draggable marker, auto-derives the
+> domain, and warns about duplicates within 300m. Swimmers can also suggest
+> missing spots in-app ("Your spot not here? Request it" in the spot picker) —
+> review those in /admin → Spot Suggestions (Approve / Merge / Reject).
+> The SQL below remains the manual/bulk fallback.
+
 Spots are fully database-driven. No code changes ever needed.
 
 ```sql

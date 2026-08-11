@@ -33,7 +33,7 @@
     <!-- Lucide Icons -->
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
 
-    <script src="app.js?v=70"></script>
+    <script src="app.js?v=71"></script>
     <script src="app-june.js?v=24"></script>
     <script src="app-uk-challenge.js?v=3"></script>
     <script src="app-eo.js?v=4"></script>
@@ -704,30 +704,73 @@
                 SwimLoading covers swimmers in 8+ countries. Tell us where you swim and we'll add it within 48 hours.
             </p>
 
-            <form id="suggestSpotForm" onsubmit="submitSpotSuggestion(event)">
+            <!-- STEP 1 — find the location on a map search -->
+            <div id="sgsStepSearch">
+                <div class="form-group">
+                    <div class="form-label">Where is it?</div>
+                    <div style="display:flex;gap:8px;">
+                        <input type="text" id="sgsQuery"
+                            placeholder="e.g. Second Beach Vancouver"
+                            maxlength="120" style="font-size:15px;flex:1;"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault();sgsSearch();}">
+                        <button type="button" onclick="sgsSearch()"
+                            style="background:#38bdf8;color:#080f1a;border:none;border-radius:12px;padding:0 18px;font-size:14px;font-weight:700;cursor:pointer;">
+                            Search
+                        </button>
+                    </div>
+                </div>
+                <div id="sgsResults" style="display:none;flex-direction:column;gap:6px;margin-bottom:14px;"></div>
+                <button type="button" onclick="sgsManualMode()"
+                    style="background:none;border:none;color:#64748b;font-size:12px;cursor:pointer;padding:4px 0;text-decoration:underline;">
+                    Can't find it on the map? Enter details manually
+                </button>
+            </div>
+
+            <!-- STEP 2 — nearby existing spots (duplicate prevention) -->
+            <div id="sgsStepNearby" style="display:none;">
+                <div id="sgsNearbyIntro" style="font-size:14px;color:#f1f5f9;font-weight:700;margin-bottom:10px;"></div>
+                <div id="sgsNearbyList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;"></div>
+                <button type="button" onclick="sgsContinueNew()"
+                    style="width:100%;background:transparent;border:1px solid rgba(255,255,255,0.15);color:#f1f5f9;border-radius:50px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;">
+                    None of these — suggest a new spot
+                </button>
+            </div>
+
+            <!-- STEP 3 — name + details, then submit -->
+            <form id="suggestSpotForm" onsubmit="submitSpotSuggestion(event)" style="display:none;">
+
+                <div id="sgsPickedLocation" style="display:none;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.2);border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#94a3b8;line-height:1.5;"></div>
 
                 <!-- Spot name -->
                 <div class="form-group">
-                    <div class="form-label">Spot name <span style="color:#ef4444;">*</span></div>
+                    <div class="form-label">What do swimmers call this spot? <span style="color:#ef4444;">*</span></div>
                     <input type="text" id="suggestSpotName"
-                        placeholder="e.g. Tooting Bec Lido, Bondi Beach, Lake Zürich"
+                        placeholder="e.g. English Bay – Second Beach"
                         required maxlength="100"
                         style="font-size:15px;">
                 </div>
 
-                <!-- Country -->
-                <div class="form-group">
+                <!-- Country — manual mode only (auto-captured from the map search otherwise) -->
+                <div class="form-group" id="sgsCountryGroup" style="display:none;">
                     <div class="form-label">Country <span style="color:#ef4444;">*</span></div>
                     <input type="text" id="suggestSpotCountry"
                         placeholder="e.g. United Kingdom, Australia, Switzerland"
-                        required maxlength="80">
+                        maxlength="80">
+                </div>
+
+                <!-- Region — manual mode only -->
+                <div class="form-group" id="sgsRegionGroup" style="display:none;">
+                    <div class="form-label">Area or region <span style="color:#64748b;font-weight:400;">(optional)</span></div>
+                    <input type="text" id="suggestSpotRegion"
+                        placeholder="e.g. South London, Sydney Northern Beaches"
+                        maxlength="100">
                 </div>
 
                 <!-- Water type -->
                 <div class="form-group">
                     <div class="form-label">Water type <span style="color:#ef4444;">*</span></div>
                     <select id="suggestSpotType" required>
-                        <option value="OCEAN">Ocean / Sea</option>
+                        <option value="OCEAN">Ocean / Sea / Bay</option>
                         <option value="POOL">Outdoor Pool / Lido</option>
                         <option value="LAKE">Lake / Reservoir</option>
                         <option value="LAGOON">Lagoon / Estuary</option>
@@ -736,19 +779,11 @@
                     </select>
                 </div>
 
-                <!-- Region (optional) -->
-                <div class="form-group">
-                    <div class="form-label">Area or region <span style="color:#64748b;font-weight:400;">(optional)</span></div>
-                    <input type="text" id="suggestSpotRegion"
-                        placeholder="e.g. South London, Sydney Northern Beaches"
-                        maxlength="100">
-                </div>
-
                 <!-- Notes (optional) -->
                 <div class="form-group">
-                    <div class="form-label">Anything else we should know? <span style="color:#64748b;font-weight:400;">(optional)</span></div>
+                    <div class="form-label">Anything useful about this location? <span style="color:#64748b;font-weight:400;">(optional)</span></div>
                     <textarea id="suggestSpotDescription"
-                        placeholder="GPS coordinates, nearest landmark, popular with which swimmers…"
+                        placeholder="Nearest landmark, entry point, popular with which swimmers…"
                         maxlength="500"
                         style="min-height:70px;"></textarea>
                 </div>
@@ -757,6 +792,9 @@
                     style="width:100%;padding:13px;border-radius:50px;font-size:15px;font-weight:700;">
                     Send request
                 </button>
+                <div style="font-size:11px;color:#64748b;text-align:center;margin-top:10px;line-height:1.5;">
+                    Thanks — we review every suggestion before adding it to SwimLoading.
+                </div>
             </form>
         </div>
     </div>

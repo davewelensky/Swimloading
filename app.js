@@ -2591,21 +2591,144 @@
             fdResetCreateEventDropdowns();
         }
 
-        // ========== SUGGEST A SPOT ==========
+        // ========== SUGGEST A SPOT (Add a missing spot) ==========
+        // Three-step mobile flow: search the location → check nearby existing
+        // spots (duplicate prevention) → name it + submit. Geocoding goes via
+        // /api/geocode (Nominatim behind a provider abstraction). A manual
+        // fallback keeps the old free-text path for places the geocoder
+        // can't find. Submissions land in spot_suggestions (RLS: max 3
+        // pending per user) — never directly in spots.
+
+        let _sgsGeo = null;        // selected geocode result, or null in manual mode
+        let _sgsResults = [];
 
         function showSuggestSpot(prefillName) {
             document.getElementById('suggestSpotModal').style.display = 'block';
             document.getElementById('suggestSpotForm').reset();
             document.getElementById('submitSuggestBtn').disabled = false;
             document.getElementById('submitSuggestBtn').textContent = 'Send request';
-            if (prefillName) {
-                const nameEl = document.getElementById('suggestSpotName');
-                if (nameEl) { nameEl.value = prefillName; nameEl.focus(); }
+            _sgsGeo = null;
+            _sgsResults = [];
+            _sgsShowStep('search');
+            const q = document.getElementById('sgsQuery');
+            if (q) {
+                q.value = prefillName || '';
+                if (prefillName) { sgsSearch(); } else { setTimeout(() => q.focus(), 100); }
             }
         }
 
         function hideSuggestSpot() {
             document.getElementById('suggestSpotModal').style.display = 'none';
+        }
+
+        function _sgsShowStep(step) {
+            const search = document.getElementById('sgsStepSearch');
+            const nearby = document.getElementById('sgsStepNearby');
+            const form   = document.getElementById('suggestSpotForm');
+            if (search) search.style.display = step === 'search' ? 'block' : 'none';
+            if (nearby) nearby.style.display = step === 'nearby' ? 'block' : 'none';
+            if (form)   form.style.display   = step === 'form'   ? 'block' : 'none';
+        }
+
+        async function sgsSearch() {
+            const q = (document.getElementById('sgsQuery')?.value || '').trim();
+            const resultsEl = document.getElementById('sgsResults');
+            if (q.length < 2 || !resultsEl) return;
+            resultsEl.style.display = 'flex';
+            resultsEl.innerHTML = '<div style="font-size:13px;color:#64748b;padding:8px;">Searching…</div>';
+            try {
+                const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}&limit=5`);
+                const { results, error } = await res.json();
+                if (error) throw new Error(error);
+                _sgsResults = results || [];
+                if (_sgsResults.length === 0) {
+                    resultsEl.innerHTML = '<div style="font-size:13px;color:#64748b;padding:8px;line-height:1.5;">Nothing found — try adding the city or country, or use "Enter details manually" below.</div>';
+                    return;
+                }
+                resultsEl.innerHTML = _sgsResults.map((r, i) => `
+                    <div onclick="sgsPickResult(${i})" style="cursor:pointer;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 14px;min-height:44px;">
+                        <div style="font-size:14px;font-weight:600;color:#f1f5f9;">${r.name}</div>
+                        <div style="font-size:12px;color:#64748b;margin-top:2px;">${[r.locality, r.admin_area, r.country].filter(Boolean).join(', ') || r.label}</div>
+                    </div>`).join('');
+            } catch (err) {
+                resultsEl.innerHTML = `<div style="font-size:13px;color:#ef4444;padding:8px;">Search unavailable right now — you can still use "Enter details manually" below.</div>`;
+            }
+        }
+
+        function sgsPickResult(i) {
+            const r = _sgsResults[i];
+            if (!r) return;
+            _sgsGeo = r;
+
+            // Duplicate prevention: check the already-loaded spots list for
+            // existing spots near the chosen coordinates BEFORE letting the
+            // user submit. Reuses getDistanceKm (the app's Haversine).
+            const nearby = (spots || [])
+                .filter(s => s.active !== false && s.latitude && s.longitude)
+                .map(s => ({ s, d: getDistanceKm(r.lat, r.lng, s.latitude, s.longitude) }))
+                .filter(x => x.d <= 2)
+                .sort((a, b) => a.d - b.d)
+                .slice(0, 4);
+
+            if (nearby.length > 0) {
+                const strong = nearby[0].d <= 0.3;
+                document.getElementById('sgsNearbyIntro').textContent = strong
+                    ? 'Is this the spot you\'re looking for?'
+                    : 'These spots are already nearby — is it one of these?';
+                document.getElementById('sgsNearbyList').innerHTML = nearby.map(x => `
+                    <div onclick="sgsUseExisting('${x.s.id}')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.25);border-radius:12px;padding:12px 14px;min-height:44px;">
+                        <div>
+                            <div style="font-size:14px;font-weight:600;color:#f1f5f9;">${x.s.name}</div>
+                            <div style="font-size:12px;color:#64748b;margin-top:2px;">${x.d < 1 ? Math.round(x.d * 1000) + 'm away' : x.d.toFixed(1) + 'km away'}</div>
+                        </div>
+                        <span style="font-size:12px;color:#10b981;font-weight:700;white-space:nowrap;">Use this spot</span>
+                    </div>`).join('');
+                _sgsShowStep('nearby');
+            } else {
+                sgsContinueNew();
+            }
+        }
+
+        // The place they meant already exists — select it in the picker and
+        // skip the suggestion entirely.
+        function sgsUseExisting(spotId) {
+            const s = (spots || []).find(x => x.id === spotId);
+            hideSuggestSpot();
+            if (s) {
+                selectSpotFromPicker(s.id, s.name);
+                showToast(`${s.name} selected — no need to suggest it, it's already here.`, 'success');
+            }
+        }
+
+        function sgsContinueNew() {
+            const picked = document.getElementById('sgsPickedLocation');
+            const countryGroup = document.getElementById('sgsCountryGroup');
+            const regionGroup  = document.getElementById('sgsRegionGroup');
+            if (_sgsGeo) {
+                if (picked) {
+                    picked.style.display = 'block';
+                    picked.innerHTML = `<strong style="color:#f1f5f9;">Location captured:</strong> ${[_sgsGeo.locality, _sgsGeo.admin_area, _sgsGeo.country].filter(Boolean).join(', ') || _sgsGeo.label}`;
+                }
+                if (countryGroup) countryGroup.style.display = 'none';
+                if (regionGroup)  regionGroup.style.display  = 'none';
+                const nameEl = document.getElementById('suggestSpotName');
+                if (nameEl && !nameEl.value.trim()) nameEl.value = (document.getElementById('sgsQuery')?.value || _sgsGeo.name || '').trim();
+            } else {
+                if (picked) picked.style.display = 'none';
+                if (countryGroup) { countryGroup.style.display = 'block'; document.getElementById('suggestSpotCountry').required = true; }
+                if (regionGroup)  regionGroup.style.display = 'block';
+            }
+            _sgsShowStep('form');
+            setTimeout(() => document.getElementById('suggestSpotName')?.focus(), 100);
+        }
+
+        // Manual fallback — the old free-text path, no coordinates.
+        function sgsManualMode() {
+            _sgsGeo = null;
+            const nameEl = document.getElementById('suggestSpotName');
+            const q = (document.getElementById('sgsQuery')?.value || '').trim();
+            if (nameEl && q && !nameEl.value.trim()) nameEl.value = q;
+            sgsContinueNew();
         }
 
         async function submitSpotSuggestion(e) {
@@ -2617,20 +2740,31 @@
 
             const name    = document.getElementById('suggestSpotName').value.trim();
             const type    = document.getElementById('suggestSpotType').value;
-            const country = document.getElementById('suggestSpotCountry').value.trim();
-            const region  = document.getElementById('suggestSpotRegion').value.trim();
+            const country = (document.getElementById('suggestSpotCountry')?.value || '').trim();
+            const region  = (document.getElementById('suggestSpotRegion')?.value || '').trim();
             const description = document.getElementById('suggestSpotDescription').value.trim();
 
-            // description is now optional — location alone is enough
-            const { error } = await supabaseClient
-                .from('spot_suggestions')
-                .insert({
-                    user_id:    currentUser.id,
-                    spot_name:  name,
-                    water_type: type,
-                    region:     [country, region].filter(Boolean).join(', ') || null,
-                    description: description || null,
-                });
+            const row = {
+                user_id:    currentUser.id,
+                spot_name:  name,
+                water_type: type,
+                description: description || null,
+                source:     'user_submission',
+            };
+            if (_sgsGeo) {
+                row.latitude     = _sgsGeo.lat;
+                row.longitude    = _sgsGeo.lng;
+                row.locality     = _sgsGeo.locality || null;
+                row.admin_area   = _sgsGeo.admin_area || null;
+                row.country      = _sgsGeo.country || null;
+                row.country_code = _sgsGeo.country_code || null;
+                row.region       = [_sgsGeo.locality, _sgsGeo.admin_area, _sgsGeo.country].filter(Boolean).join(', ') || null;
+            } else {
+                row.region  = [country, region].filter(Boolean).join(', ') || null;
+                row.country = country || null;
+            }
+
+            const { error } = await supabaseClient.from('spot_suggestions').insert(row);
 
             if (error) {
                 if (error.message.includes('row-level security') || error.code === '42501') {
@@ -2643,7 +2777,7 @@
                 return;
             }
 
-            showToast('Request sent — we\'ll review and add your spot within 48h.', 'success');
+            showToast('Thanks! We\'ll review this location before adding it to SwimLoading.', 'success');
             hideSuggestSpot();
         }
 
