@@ -203,15 +203,26 @@ are a separate defect**: `calendrier-eau-libre` now yields
 rows"*, while its sibling calendar pages yield 88 and 20 cleanly. Fix that
 page before assuming the orphan logic failed.
 
-*Real parser gaps (~350).* Verified from the stored warnings:
-- **Brazil 97** — Portuguese `"13 de Abril"`; the `de` connector is
-  unhandled, as are `"19 a 21 de Março"` ranges. Nothing else is wrong
-  with that source; it is `healthy` and has produced 0 approved.
-- **Japan 14** — CJK `"6月28日"` unparsed.
+*The rest.* **Read the warnings' `extracted_at` before believing them** —
+the ones on these rows were written on 5 Aug, before the 9 Aug date fix,
+and they describe a parser that no longer exists:
+- **Brazil 97 — dates were never the problem.** `"13 de Abril"`,
+  `"19 a 21 de Março"` and Japan's `"6月28日"` all parse correctly today;
+  verified by running the current parser over the exact stored strings.
+  Re-crawling turned 97 dateless into 97 dated on 11 Aug. The **real**
+  blocker was that the whole 2026 calendar is **12 tables, one per
+  month**, and `extractTableEvents` read only the biggest — 22 of 164
+  rows, March only, all past. Fixed 11 Aug: the live page now yields 146
+  usable rows, Jan–Dec, **50 still to come**. Those land on the next
+  successful crawl.
 - **Mexico 67** — mostly `"Noviembre"`, i.e. month with no day. **Not a
-  bug**: refusing to store it is the rule working. These need a source
-  that publishes days, not a parser change.
+  bug**: refusing to store it is the rule working. Needs a source that
+  publishes days, not a parser change.
 - **South Africa 18** — AI-read, awaiting review rather than parsing.
+
+**swimchannel.net rate-limits (HTTP 429).** Hit on 11 Aug by re-crawling
+it several times in one session. Back off and let the schedule do it;
+do not retry in a loop.
 
 **5. Chillswim Windermere is duplicated.** "Chillswim Windermere End to
 End" (approved, published) and "Chillswim Windermere 11 Miles End to End"
@@ -252,6 +263,19 @@ Lopplistan only. Watch active.com's daily runs: if `ai_calls` climbs while
 - **"Still pending" is not the same as "never extracted".** Both look
   identical in a status count. Compare `extracted_at` and the warnings
   fingerprint against the *run* history before concluding a deploy failed.
+- **A stored warning is a fossil, not a diagnosis.** It records what the
+  parser thought on the day it ran. Twice now (France, Brazil) a warning
+  sent the next session chasing a bug that had already been fixed. Before
+  acting on one, run the CURRENT parser over the stored string — it takes
+  a minute and it changed the answer both times.
+- **`expand_url_pattern` gates DISCOVERY, not re-fetching.** Pages already
+  in `discovery_source_pages` keep being fetched however tight the pattern
+  is. Setting it on Swimchannel did not stop the 2025 archive pages being
+  re-read; that needs the stale page rows removing as well.
+- **A page budget silently truncates a source.** `DISCOVERY_MAX_PAGES_PER_RUN`
+  defaults to 5. The France run deferred the very page holding 88 of its
+  candidates and reported "0 candidates" as a success. Check the
+  "deferred to the next run" line before concluding a source is empty.
 - **A one-off backfill is not a rule.** If it must hold continuously, it
   is a trigger.
 - **Unchanged pages are never re-extracted**, so a parser fix does not
