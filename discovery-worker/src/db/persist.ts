@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { CandidateEvent } from '../domain/candidate-event.js';
 import type { ConfidenceBreakdown } from '../confidence/score.js';
+import { editionYearForKey, unknownYearKeyFor } from '../domain/candidate-key.js';
 import {
   toCandidateDistanceRows,
   toCandidateEventRow,
@@ -181,6 +182,78 @@ export interface PersistResult {
   candidateKey: string;
   distancesWritten: number;
   evidenceWritten: number;
+  // What happened to the dateless predecessor of this candidate, if it had
+  // one. Surfaced so a backfill run can report how many rows it healed
+  // rather than leaving the effect invisible.
+  unknownYearRow: 'reclaimed' | 'retired' | 'none';
+}
+
+// Reunites a candidate with the row it had while its date was unreadable.
+//
+// See domain/candidate-key.ts: the moment a parser fix makes a date
+// readable, the candidate's key changes from 'unknown-year' to the real
+// year, so the upsert below would insert a sibling and strand the original
+// as `pending` forever. This closes that gap.
+//
+// Re-keying in place is strongly preferred over inserting-and-retiring:
+// the row keeps its id, and with it every review decision, evidence row
+// and dedupe link already attached to it. That is safe precisely because
+// toCandidateEventRow() does not write candidate_status — an upsert
+// refreshes the extracted facts and leaves the human verdict untouched.
+async function reclaimUnknownYearRow(
+  db: SupabaseClient,
+  candidate: CandidateEvent,
+  sourceId: string
+): Promise<'reclaimed' | 'retired' | 'none'> {
+  // Still dateless — there is nothing to reclaim, and the key is unchanged.
+  if (editionYearForKey(candidate.startDate, candidate.dateConfirmed) === null) return 'none';
+
+  const unknownKey = unknownYearKeyFor({
+    sourceUrl: candidate.sourceUrl,
+    name: candidate.canonicalName,
+  });
+  if (unknownKey === candidate.candidateKey) return 'none';
+
+  const { data: orphan, error: orphanErr } = await db
+    .from('discovery_candidate_events')
+    .select('id, candidate_status')
+    .eq('source_id', sourceId)
+    .eq('candidate_key', unknownKey)
+    .maybeSingle();
+  fail('reclaimUnknownYearRow/findOrphan', orphanErr);
+  if (!orphan) return 'none';
+
+  const { data: dated, error: datedErr } = await db
+    .from('discovery_candidate_events')
+    .select('id')
+    .eq('source_id', sourceId)
+    .eq('candidate_key', candidate.candidateKey)
+    .maybeSingle();
+  fail('reclaimUnknownYearRow/findDated', datedErr);
+
+  if (!dated) {
+    // No dated row yet: hand this one its new identity. The upsert that
+    // follows then UPDATES it instead of inserting a twin.
+    const { error: rekeyErr } = await db
+      .from('discovery_candidate_events')
+      .update({ candidate_key: candidate.candidateKey })
+      .eq('id', orphan.id);
+    fail('reclaimUnknownYearRow/rekey', rekeyErr);
+    return 'reclaimed';
+  }
+
+  // A dated row already exists, so the dateless one is genuinely redundant.
+  // Retire it — but never overwrite a decision a human already made about
+  // it. An approved or rejected row keeps its verdict and is left alone.
+  if (orphan.candidate_status !== 'pending' && orphan.candidate_status !== 'needs_review') {
+    return 'none';
+  }
+  const { error: retireErr } = await db
+    .from('discovery_candidate_events')
+    .update({ candidate_status: 'duplicate', updated_at: new Date().toISOString() })
+    .eq('id', orphan.id);
+  fail('reclaimUnknownYearRow/retire', retireErr);
+  return 'retired';
 }
 
 // Writes one candidate and its children. Idempotent by design:
@@ -197,6 +270,10 @@ export async function persistCandidate(
   sourcePageId: string | null
 ): Promise<PersistResult> {
   const row = toCandidateEventRow(candidate, confidence, sourceId, sourcePageId);
+
+  // Must run BEFORE the upsert: on the reclaim path it re-keys the existing
+  // row so that this upsert lands on it rather than inserting a twin.
+  const unknownYearRow = await reclaimUnknownYearRow(db, candidate, sourceId);
 
   const { data, error } = await db
     .from('discovery_candidate_events')
@@ -235,6 +312,7 @@ export async function persistCandidate(
     candidateKey: candidate.candidateKey,
     distancesWritten: distanceRows.length,
     evidenceWritten: evidenceRows.length,
+    unknownYearRow,
   };
 }
 

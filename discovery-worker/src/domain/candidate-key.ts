@@ -22,6 +22,19 @@ import { createHash } from 'node:crypto';
 // within a year updates the same candidate (correct), while next year's
 // running gets its own candidate (also correct).
 //
+// ── The third failure mode: unknown-year → known-year ────────────────
+// Year-granularity leaves one transition unhandled. A candidate first
+// extracted without a readable date keys as 'unknown-year'; when a parser
+// fix later reads that date, the key becomes the real year and the upsert
+// INSERTS a sibling instead of updating — stranding the dateless row as
+// `pending` forever. That is not hypothetical: the August 2026 date-parser
+// fix stranded 302 such rows (187 French alone), each an exact name+URL
+// twin of a row that had already been reviewed and decided.
+//
+// The key itself cannot fix this — 'unknown-year' and '2026' are genuinely
+// different strings. The reclaim belongs at persist time, which is why
+// db/persist.ts consults unknownYearKeyFor() before every dated upsert.
+//
 // Deliberately NOT included: confidence score, classification, distances,
 // warnings, coordinates. All of those legitimately change between
 // extractions of the same event, and none of them changes its identity.
@@ -81,6 +94,20 @@ export function editionYearForKey(startDate: string | null, dateConfirmed: boole
   if (!dateConfirmed || !startDate) return null;
   const year = Number(startDate.slice(0, 4));
   return Number.isFinite(year) ? year : null;
+}
+
+// The key this same event WOULD have had while its date was still
+// unreadable. Used by persist to find and reclaim the dateless row a
+// parser fix has just superseded. Deliberately derived from the same
+// buildCandidateKey() rather than reimplemented, so the two can never
+// drift apart.
+export function unknownYearKeyFor(input: Pick<CandidateKeyInput, 'sourceUrl' | 'name'>): string {
+  return buildCandidateKey({
+    sourceUrl: input.sourceUrl,
+    name: input.name,
+    startDate: null,
+    dateConfirmed: false,
+  });
 }
 
 export function buildCandidateKey(input: CandidateKeyInput): string {
