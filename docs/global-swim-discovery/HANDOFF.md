@@ -27,24 +27,54 @@ otherwise. Supersedes the 2026-08-05 version.
 
 ---
 
-## 2. The two things blocked on Dave
+## 2. AI crawling — already correct, do not change it
 
-**1. AI crawlers are blocked in Cloudflare.** `robots.txt` carries a
-Cloudflare-managed block — `Disallow: /` for ClaudeBot, GPTBot,
-Google-Extended, CCBot and others. Every SEO and structured-data
-improvement below helps Google and does **nothing** for AI assistants
-until that changes. The site's own content signal already says
-`search=yes, ai-train=no, use=reference`, which is the intended position;
-the blanket `Disallow` contradicts it.
+**Verified 2026-08-09 in Cloudflare AI Crawl Control, not inferred from
+robots.txt.** An earlier version of this handoff said AI crawlers were
+blocked and that the SEO work was inert until that changed. That was
+wrong, and the mistake is worth recording: it came from reading the
+`Disallow:` lines without checking what was actually being served.
 
-Setting: Cloudflare → swimloading.com → **AI Crawl Control** (older
-accounts: Security → Bots). Two separate switches — the managed
-robots.txt injection AND the "block AI bots" firewall rule. Turning off
-one while the other stands achieves nothing.
+Last 24 hours: **372 AI-crawler requests, 361 allowed, 328 returning HTTP
+200.**
 
-**2. Turnstile needs its keys.** `/list-your-swim` is protected by
-Cloudflare Turnstile in code but **inactive** until two Vercel env vars
-exist:
+| Crawler | What it is | Allowed |
+|---|---|---|
+| ChatGPT-User | fetches a page to answer a user's question | 147 |
+| BingBot | search | 144 |
+| Googlebot | search | 37 |
+| Claude-SearchBot | Anthropic's answer crawler | 19 |
+| Applebot, DuckAssistBot, PerplexityBot | answer engines | present |
+
+The managed block targets the **training** crawlers — GPTBot, ClaudeBot,
+CCBot, Google-Extended, Bytespider, Amazonbot, meta-externalagent. The
+**answering** crawlers are different agents and are allowed. GPTBot is not
+ChatGPT-User; ClaudeBot is not Claude-SearchBot.
+
+So the site already sits exactly where its own content signal says it
+should — `search=yes, ai-train=no, use=reference` — and that position is
+being honoured. AI assistants can read the event pages, the structured
+data and `llms.txt` today.
+
+**Leave Managed robots.txt ON.** Turning it off would only admit training
+crawlers, which send no traffic back.
+
+Worth a look, not urgent: **"Markdown for Agents"** (Cloudflare Pro; this
+zone is on free) serves clean Markdown to agents that ask for it instead
+of 124 KB of HTML. With ChatGPT-User alone at 147 requests a day it may
+pay for itself — check the price against what that traffic converts.
+
+Also worth watching: the 62.7% week-on-week drop shown on that screen is
+probably noise over 24 hours, but a sustained fall in ChatGPT-User would
+mean fewer people being pointed here from an AI answer, which is the
+metric that matters for this work.
+
+---
+
+## 2b. The one thing still blocked on Dave
+
+**Turnstile needs its keys.** `/list-your-swim` is protected by Cloudflare
+Turnstile in code but **inactive** until two Vercel env vars exist:
 
     TURNSTILE_SITE_KEY      public
     TURNSTILE_SECRET_KEY    secret
@@ -53,8 +83,6 @@ Until then the form keeps its original direct-to-Supabase path and works
 normally — the endpoint reports whether it is configured and the page
 adapts, so there is no broken window. See §5 for what must happen *after*
 the keys are set.
-
----
 
 ## 3. What changed on 2026-08-09 (and 08-06)
 
