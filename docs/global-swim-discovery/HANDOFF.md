@@ -177,19 +177,41 @@ detects automation and refuses to initialise in an automated browser,
 which is correct behaviour on its part and a hard limit on what could be
 proven here. The no-keys fallback IS verified.
 
-**3. France's 187 are still stale.** The forced re-extraction was applied
-6 Aug (content hashes cleared, `next_run_at` moved) and **the fingerprint
-has not moved** — still 187 carrying the old build's
-`"no weekday to verify the year"` and zero carrying
-`"taken from the page's own heading"`. Either the worker has not run that
-source, or it is still not on current code. Check that before touching the
-parser. Sweden's 73 and Mexico's 39 follow the same route once France
-proves it.
+**3. ~~France's 187 are still stale.~~ RESOLVED 11 Aug — it was never
+staleness, it was duplication.** The 6 Aug re-extraction *had* worked: it
+produced 187 candidates all carrying real dates, already triaged 37
+approved / 149 rejected. The 187 "stale" rows were **orphans of the
+pre-fix run** — 187/187 matching their replacements on both
+`canonical_name` and `source_url`, sharing **zero** candidate keys.
 
-**4. The queue is 652 and every one is dateless.** Concentrated: France
-187, Sweden 102, Brazil 97, Mexico 67, Netherlands 53, Portugal 31. These
-are parser gaps, not organisers who publish no dates — which is why
-rejecting them would be wrong.
+Cause: `candidate_key` hashes URL + name + edition year, and an
+unconfirmed date contributes `'unknown-year'`. The moment the date became
+readable the key changed, so the upsert on `(source_id, candidate_key)`
+**inserted a sibling** and stranded the original as `pending` forever.
+Fixed in `persistCandidate` — see §6, and it was 302 rows queue-wide, not
+187.
+
+**4. The queue is 652 → 544 and every one is dateless.** 108 healed
+automatically on 11 Aug when France was re-crawled on the fixed code. What
+remains splits into two genuinely different problems:
+
+*Orphans awaiting a re-crawl (194).* Sweden 68, Poland 26, Japan 14, plus
+France's own 79. These retire themselves the moment their source
+re-extracts — clear `content_hash` to force it. **France's remaining 79
+are a separate defect**: `calendrier-eau-libre` now yields
+`rowsFound=0` with *"Table matched headers but produced no usable event
+rows"*, while its sibling calendar pages yield 88 and 20 cleanly. Fix that
+page before assuming the orphan logic failed.
+
+*Real parser gaps (~350).* Verified from the stored warnings:
+- **Brazil 97** — Portuguese `"13 de Abril"`; the `de` connector is
+  unhandled, as are `"19 a 21 de Março"` ranges. Nothing else is wrong
+  with that source; it is `healthy` and has produced 0 approved.
+- **Japan 14** — CJK `"6月28日"` unparsed.
+- **Mexico 67** — mostly `"Noviembre"`, i.e. month with no day. **Not a
+  bug**: refusing to store it is the rule working. These need a source
+  that publishes days, not a parser change.
+- **South Africa 18** — AI-read, awaiting review rather than parsing.
 
 **5. Chillswim Windermere is duplicated.** "Chillswim Windermere End to
 End" (approved, published) and "Chillswim Windermere 11 Miles End to End"
@@ -217,6 +239,19 @@ Lopplistan only. Watch active.com's daily runs: if `ai_calls` climbs while
 
 - **PostgREST caps at 1000 rows silently.** Bit the venue geocoder, the
   date-replay script, and the review queue. Page explicitly.
+- **A parser fix that changes a candidate's KEY orphans its own row.**
+  `candidate_key` includes the edition year, so unknown-year → 2026 is a
+  new identity and the upsert inserts rather than updates. Cost: 302
+  stranded rows, 46% of the review queue, and a handoff item that read as
+  "the worker never ran". `persistCandidate` now reclaims the dateless
+  predecessor before writing — re-keying it in place where it can, so the
+  row keeps its id, review decision, evidence and dedupe links. **The fix
+  is also the backfill**: any source that re-extracts heals itself. Watch
+  for this whenever a fix changes what goes INTO an identity, not just
+  what comes out of a parser.
+- **"Still pending" is not the same as "never extracted".** Both look
+  identical in a status count. Compare `extracted_at` and the warnings
+  fingerprint against the *run* history before concluding a deploy failed.
 - **A one-off backfill is not a rule.** If it must hold continuously, it
   is a trigger.
 - **Unchanged pages are never re-extracted**, so a parser fix does not
