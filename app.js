@@ -5587,10 +5587,11 @@
                 SPAIN:             'spain',
                 FRANCE:            'france',
                 THAILAND:          'thailand',
+                CANADA:            'canada',
             };
             const group = SAFETY_GROUP[domain] || '';
 
-            const isIntlGroup = group === 'uk' || group === 'europe' || group === 'western_australia' || group === 'usa' || group === 'seychelles' || group === 'dalmatia' || group === 'spain' || group === 'france' || group === 'thailand';
+            const isIntlGroup = group === 'uk' || group === 'europe' || group === 'western_australia' || group === 'usa' || group === 'seychelles' || group === 'dalmatia' || group === 'spain' || group === 'france' || group === 'thailand' || group === 'canada';
 
             // ── Show/hide sharks section — no sharks for UK/Europe (WA has sharks) ─
             const sharksSection = document.getElementById('sharksSection');
@@ -5623,6 +5624,10 @@
                         ? `<a href="tel:191" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
                             <div><div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="phone-call" style="width:14px;height:14px;flex-shrink:0;"></i> Police</div><div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">General emergency</div></div>
                             <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">191</span></a>`
+                        : group === 'canada'
+                        ? `<a href="tel:911" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
+                            <div><div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="phone-call" style="width:14px;height:14px;flex-shrink:0;"></i> Emergency Services</div><div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">Police · Ambulance · Fire · Marine rescue</div></div>
+                            <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">911</span></a>`
                         : `<a href="tel:112" style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.05);">
                             <div><div style="display:flex;align-items:center;gap:8px;color:var(--text-primary);font-weight:700;font-size:14px;"><i data-lucide="phone-call" style="width:14px;height:14px;flex-shrink:0;"></i> Emergency Services</div><div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">Police · Ambulance · Fire · Rescue</div></div>
                             <span style="color:#38bdf8;font-weight:800;font-size:15px;white-space:nowrap;margin-left:12px;">112</span></a>`;
@@ -5714,6 +5719,10 @@
                         color: '#f59e0b', icon: 'alert-triangle', title: 'Thailand (Andaman Sea) Open Water Hazards',
                         body: '<strong>Monsoon swell</strong> (roughly May–October) brings stronger currents and rip tides on the west coast, and beach flag warnings should always be obeyed — a red flag means stay out. <strong>Boat traffic</strong> is heavy in popular bays around Phuket; swim well clear of longtail boat and ferry lanes. <strong>Jellyfish</strong> (including box jellyfish) are occasionally reported — check with local dive/swim operators before entering unfamiliar water.',
                     },
+                    canada: {
+                        color: '#f59e0b', icon: 'alert-triangle', title: 'Canada (BC Pacific) Open Water Hazards',
+                        body: '<strong>Cold water</strong> is the primary hazard year-round — the Pacific stays cold enough for cold shock and hypothermia even in mid-summer outside the warmest bays. <strong>Boat traffic</strong> is heavy in English Bay and Burrard Inlet (freighters at anchor, seaplanes, ferries, paddle craft) — swim inside marked areas and use a tow float. <strong>Tidal currents</strong> run strongly through inlet narrows; plan around slack tide for longer swims. Check beach advisories on <a href="https://www.vch.ca/en/service/public-beach-water-quality" target="_blank" style="color:#38bdf8;">Vancouver Coastal Health</a> after heavy rain.',
+                    },
                 };
                 const tip = ALERT_TIPS[group];
                 if (tip) {
@@ -5747,6 +5756,7 @@
                 spain:             null,
                 france:            null,
                 thailand:          `<strong>Thailand:</strong> Shark encounters are extremely rare in Thai coastal waters. Occasional reef shark sightings in deeper channels around Phuket — not considered a swimming hazard. No shark nets or spotting programme in place.`,
+                canada:            `<strong>British Columbia:</strong> Dangerous shark encounters are essentially unheard of in BC coastal waters — local species (dogfish, sixgill sharks) are not a swimming hazard. The marine life to respect here is <strong>harbour seals and sea lions</strong>: curious, occasionally boisterous, best given space.`,
             };
             const sharksNote = document.getElementById('sharksRegionalNote');
             if (sharksNote) {
@@ -5772,6 +5782,7 @@
                 spain:             `<strong>Spain (Balearic/Mediterranean) temps:</strong> The Balearic Sea peaks at 24–26°C in July–September and rarely drops below 14°C in winter. Swimmable from May through October without a wetsuit for most swimmers. Cold shock is a low risk in summer; winter and early-spring swimmers should acclimatise gradually.`,
                 france:            `<strong>France (Côte d'Azur) temps:</strong> The Mediterranean along the French Riviera runs 13–14°C in winter and 24–26°C in July–September, making it swimmable for most of the year. Cold shock is a low risk in summer; winter and early-spring swimmers should acclimatise gradually and have warm layers ready on exit.`,
                 thailand:          `<strong>Thailand (Andaman Sea) temps:</strong> Water stays warm year-round, typically 27–30°C. Cold shock is not a concern. Focus on sun protection, hydration, and monsoon-season swell instead.`,
+                canada:            `<strong>BC (Pacific) temps:</strong> English Bay runs roughly 6–10°C in winter and 17–21°C at the summer peak — cold shock is a real risk for most of the year. Acclimatise gradually, never swim alone in cold water, and have warm layers ready immediately after. Mountain-fed lakes and rivers stay cold even in hot weather.`,
             };
             const coldNote = document.getElementById('coldWaterRegionalNote');
             if (coldNote) {
@@ -5840,6 +5851,10 @@
                     ['tel:1669','ambulance','Medical Emergency (EMS)','Ambulance · Medical emergency','1669'],
                     ['tel:1554','anchor','Marine Police / Coastal Rescue','Maritime emergency · Search & rescue','1554'],
                     ['tel:1155','shield','Tourist Police','English-speaking · Tourist assistance','1155'],
+                ],
+                canada: [
+                    ['tel:911','phone','Emergency Services','Police · Ambulance · Fire','911'],
+                    ['tel:18005675111','anchor','JRCC Victoria (Marine Rescue)','Maritime emergency · BC coast · also #727 on cell or VHF 16','1-800-567-5111'],
                 ],
             };
             const contactsEl = document.getElementById('safetyRegionalContacts');
@@ -5911,6 +5926,10 @@
                 thailand: { title: 'Reporting (Thailand)', contacts: [
                     ['tel:1554','anchor','Marine Police / Coastal Rescue','Maritime emergency · Phuket coastline','1554'],
                     ['tel:1155','shield','Tourist Police','English-speaking · Incident reporting','1155'],
+                ]},
+                canada: { title: 'Reporting (Canada — BC)', contacts: [
+                    ['tel:18005675111','anchor','JRCC Victoria — Marine Rescue','Maritime emergency · Search & rescue · BC coast','1-800-567-5111'],
+                    ['https://www.vch.ca/en/service/public-beach-water-quality','droplets','Vancouver Coastal Health','Beach water quality · Advisories (May–Sep sampling)','vch.ca'],
                 ]},
             };
             const reportingEl = document.getElementById('safetyRegionalReporting');
@@ -7039,8 +7058,8 @@
 
         const SP_TYPE_LABELS = { OCEAN: 'Ocean', POOL: 'Pool', LAGOON: 'Lagoon', DAM: 'Inland', LAKE: 'Lake' };
         const SP_TYPE_ICONS  = { OCEAN: 'waves', POOL: 'droplets', LAGOON: 'anchor', DAM: 'mountain-snow', LAKE: 'waves' };
-        const INTERNATIONAL_DOMAINS = new Set(['EUROPE', 'NAMIBIA', 'UK', 'WESTERN_AUSTRALIA', 'USA', 'SEYCHELLES', 'DALMATIA', 'FRANCE', 'SPAIN', 'THAILAND']);
-        const COUNTRY_NAMES = { ZA: 'South Africa', NA: 'Namibia', CH: 'Switzerland', AU: 'Australia', GB: 'United Kingdom', FR: 'France', DE: 'Germany', IT: 'Italy', SC: 'Seychelles', ES: 'Spain' };
+        const INTERNATIONAL_DOMAINS = new Set(['EUROPE', 'NAMIBIA', 'UK', 'WESTERN_AUSTRALIA', 'USA', 'SEYCHELLES', 'DALMATIA', 'FRANCE', 'SPAIN', 'THAILAND', 'CANADA']);
+        const COUNTRY_NAMES = { ZA: 'South Africa', NA: 'Namibia', CH: 'Switzerland', AU: 'Australia', GB: 'United Kingdom', FR: 'France', DE: 'Germany', IT: 'Italy', SC: 'Seychelles', ES: 'Spain', CA: 'Canada' };
         const AREA_DISPLAY = {
             ATLANTIC: 'Atlantic Seaboard',
             FALSE_BAY: 'False Bay',

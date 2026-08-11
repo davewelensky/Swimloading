@@ -67,6 +67,7 @@ export const DOMAIN_MAP = {
   FRANCE:            { display: 'France',              region: 'france' },
   SPAIN:             { display: 'Spain',               region: 'spain' },
   THAILAND:          { display: 'Thailand',             region: 'thailand' },
+  CANADA:            { display: 'Canada',               region: 'canada' },
 };
 
 // Country-code filter for region slugs that are sub-regions of a shared domain (e.g. EUROPE)
@@ -140,6 +141,7 @@ export const REGION_DOMAINS = {
   'france':            ['FRANCE'],
   'spain':             ['SPAIN'],
   'thailand':          ['THAILAND'],
+  'canada':            ['CANADA'],
 };
 
 export const REGION_NAMES = {
@@ -168,6 +170,7 @@ export const REGION_NAMES = {
   'france':            'France',
   'spain':             'Spain',
   'thailand':          'Thailand',
+  'canada':            'Canada',
 };
 
 export const REGION_INTROS = {
@@ -221,6 +224,8 @@ export const REGION_INTROS = {
     "Spain offers some of Europe's most varied open water swimming — from the sheltered Mediterranean bays of the Balearic Islands to the Atlantic surf of the north coast. SwimLoading's Spanish coverage starts in Mallorca at Santa Ponsa, a broad, sheltered sandy bay on the island's southwest coast with calm, clear water and easy access. The Balearic Sea is warmest in July–September (24–26°C), swimmable from May through October, and rarely drops below 14°C even in winter. Jellyfish are the main seasonal hazard — check local beach flags.\n\nSwimLoading is building its Spanish community. If you swim in Spain, log your temperature and conditions — your data helps every swimmer planning a session on this coastline.",
   'thailand':
     "Thailand offers warm, tropical open water swimming year-round in the Andaman Sea — the west coast washed by water that rarely drops below 27°C. SwimLoading's Thai coverage starts in Phuket, the country's largest island and its most established open water swimming and triathlon hub, with sheltered bays alongside more exposed, current-affected channels between the mainland and nearby islands.\n\nWater stays warm all year, so cold shock is not a concern — the real considerations are seasonal monsoon swell (roughly May–October, strongest on the west coast) and boat traffic in popular bays. Visibility varies with runoff after heavy rain but is generally good outside the wet season.\n\nSwimLoading is building its Thai community. If you swim in Phuket or elsewhere in Thailand, log your temperature and conditions — your data helps every swimmer planning a session in these waters.",
+  'canada':
+    "SwimLoading is expanding into Canada, starting on the Pacific coast in Vancouver, British Columbia. English Bay — with Second Beach and Kitsilano nearby — has a strong year-round open water community, cold Pacific water, and one of the world's great urban swim backdrops against the North Shore mountains.\n\nThe Pacific Northwest swims cold: English Bay typically runs 6–10°C in winter and 17–21°C at the summer peak, so cold water acclimatisation matters here the way it does in Cape Town or San Francisco. Summer brings warm, calm evenings and busy beaches; boat traffic and tidal currents in Burrard Inlet deserve respect year-round.\n\nSwimLoading is building its Canadian community. If you swim in Vancouver or anywhere in Canada, log your temperature and conditions — your data helps every swimmer planning a session in these waters.",
 };
 
 // Maps /countries/[slug] → the region slug that spots-handler should render.
@@ -238,6 +243,7 @@ export const COUNTRY_SLUGS = {
   'france':         'france',
   'spain':          'spain',
   'thailand':       'thailand',
+  'canada':         'canada',
 };
 
 export function getLocationLabel(domain, area, countryCode) {

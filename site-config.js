@@ -58,6 +58,7 @@ window.SITE_CONFIG = {
     { name:'Croatia',        label:'Croatia',        slug:'croatia',        color:'#38bdf8', bg:'rgba(56,189,248,0.1)',  border:'rgba(56,189,248,0.4)',  gridBg:'rgba(56,189,248,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Hvar · Split · Pakleni Islands',       pillDelay:'4.4s', dotDelay:'3.1s' },
     { name:'Spain',          label:'Spain',          slug:'spain',          color:'#fbbf24', bg:'rgba(251,191,36,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(251,191,36,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Santa Ponsa · Mallorca',               pillDelay:'4.8s', dotDelay:'3.4s' },
     { name:'Thailand',       label:'Thailand',       slug:'thailand',       color:'#fb923c', bg:'rgba(251,146,60,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(251,146,60,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Phuket',                               pillDelay:'5.2s', dotDelay:'3.7s' },
+    { name:'Canada',         label:'Canada',         slug:'canada',         color:'#f87171', bg:'rgba(248,113,113,0.1)', border:'rgba(217,119,6,0.5)',  gridBg:'rgba(248,113,113,0.07)', gridBorder:'rgba(217,119,6,0.4)', spots:'English Bay · Vancouver',              pillDelay:'5.6s', dotDelay:'4.0s' },
   ],
 
   // NOTE: these three are a fast-paint FALLBACK ONLY — site-sync.js fetches the
