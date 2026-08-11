@@ -1357,7 +1357,13 @@ function renderHome() {
     nextList.innerHTML = nextSessions.map((s, idx) => {
       const sq = allSquads.find(q => q.id === s.squad_id);
       const asgnIds = allWeekAssign[s.id] || [];
-      const asgn = asgnIds.length;
+      // Non-multisquad sessions with a secondary_squad_id auto-combine both whole squads
+      // (e.g. Dry Land) — "expected" should reflect actual squad membership there, not
+      // club_session_assignments (only meaningful for the hand-picked/is_multisquad case).
+      const nextSquadIds = [s.squad_id, s.secondary_squad_id].filter(Boolean);
+      const asgn = s.is_multisquad
+        ? asgnIds.length
+        : allRoster.filter(r => nextSquadIds.includes(r.squad_id) || nextSquadIds.includes(r.secondary_squad_id)).length;
       const cap  = s.max_capacity || sq?.max_members || 0;
       const trials = asgnIds.filter(id => allRoster.find(r => r.id === id)?.is_trial).length;
       const isFirst = idx === 0, isLast = idx === nextSessions.length - 1;
@@ -1365,7 +1371,7 @@ function renderHome() {
       return `<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:${isLast?'none':'1px solid var(--border)'};background:var(--bg-card);border-radius:${radius};">
         <div style="font-size:12px;font-weight:700;color:var(--text-sec);min-width:32px;">${dayNames[s.day_of_week]}</div>
         <div style="flex:1;">
-          <div style="font-size:14px;font-weight:600;">${sq?.name || 'Squad'}</div>
+          <div style="font-size:14px;font-weight:600;">${s.custom_name || sq?.name || 'Squad'}</div>
           <div style="font-size:11px;color:var(--cyan);">${fmtTime(s.start_time)}${s.end_time ? '–' + fmtTime(s.end_time) : ''}</div>
         </div>
         <div style="text-align:right;">
@@ -1537,7 +1543,7 @@ function sessionTileHTML(s, nowMins, type) {
   return `<div class="session-tile ${tileClass}" onclick="openConfirm('${s.id}')" style="${isPast?'opacity:0.45;':''}">
     <div class="tile-accent"></div>
     <div class="tile-body">
-      <div class="tile-squad">${sq?.name || 'Squad'}</div>
+      <div class="tile-squad">${s.custom_name || sq?.name || 'Squad'}</div>
       <div class="tile-time">${fmtTime(s.start_time)}${s.end_time ? '–' + fmtTime(s.end_time) : ''}</div>
       ${s.coach_name && type === 'cover' ? `<div class="tile-coach">${s.coach_name}</div>` : ''}
     </div>
@@ -1562,14 +1568,20 @@ function openConfirm(sqSessionId) {
   const now = new Date();
   const dayFull = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
-  document.getElementById('confirmSquad').textContent = sq?.name || 'Squad';
+  document.getElementById('confirmSquad').textContent = s.custom_name || sq?.name || 'Squad';
   document.getElementById('confirmTime').textContent  = fmtTime(s.start_time) + (s.end_time ? ' – ' + fmtTime(s.end_time) : '');
   const selD = new Date(selectedDate + 'T00:00:00');
   document.getElementById('confirmDate').textContent  = dayFull[s.day_of_week] + ', ' + selD.toLocaleDateString('en-ZA', {day:'numeric',month:'long',year:'numeric'});
 
-  const asgn = (allWeekAssign[s.id] || []).length;
+  // Non-multisquad sessions with a secondary_squad_id auto-combine both whole squads (e.g.
+  // Dry Land = Senior + Intermediate) — "expected" should reflect actual squad membership,
+  // not club_session_assignments (that's only meaningful for the hand-picked/is_multisquad case).
+  const confirmSquadIds = [s.squad_id, s.secondary_squad_id].filter(Boolean);
+  const asgn = s.is_multisquad
+    ? (allWeekAssign[s.id] || []).length
+    : allRoster.filter(r => confirmSquadIds.includes(r.squad_id) || confirmSquadIds.includes(r.secondary_squad_id)).length;
   const cap  = s.max_capacity || sq?.max_members || 0;
-  document.getElementById('confirmFill').textContent = asgn + (cap ? ' / ' + cap + ' expected' : ' assigned');
+  document.getElementById('confirmFill').textContent = asgn + (cap ? ' / ' + cap + ' expected' : ' expected');
   const pct = cap > 0 ? Math.min(asgn / cap * 100, 100) : 0;
   document.getElementById('confirmFillBar').style.width = pct + '%';
   document.getElementById('confirmFillBar').style.background = pct >= 90 ? 'var(--danger)' : pct >= 70 ? 'var(--amber)' : 'var(--green)';
@@ -1909,7 +1921,7 @@ function renderMarkScreen() {
   const s   = activeSqSession;
   const sq  = allSquads.find(q => q.id === s?.squad_id);
   const now = new Date();
-  document.getElementById('markNavLabel').textContent = sq?.name || 'Session';
+  document.getElementById('markNavLabel').textContent = s?.custom_name || sq?.name || 'Session';
 
   const roster = getSessionRoster();
   updateProgress(roster);
