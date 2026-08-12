@@ -33,7 +33,7 @@
     <!-- Lucide Icons -->
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
 
-    <script src="app.js?v=73"></script>
+    <script src="app.js?v=74"></script>
     <script src="app-june.js?v=24"></script>
     <script src="app-uk-challenge.js?v=3"></script>
     <script src="app-eo.js?v=4"></script>
@@ -653,6 +653,42 @@
                 <button onclick="dismissShareSheet()" style="flex:1; padding:14px; background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:12px; color:var(--text-secondary); font-size:15px; font-weight:600; cursor:pointer;">Skip</button>
                 <button onclick="shareSheetWhatsApp()" style="flex:2; padding:14px; background:#25d366; border:none; border-radius:12px; color:white; font-size:15px; font-weight:700; cursor:pointer;">Share on WhatsApp</button>
             </div>
+            <button onclick="dismissShareSheet(); openMyLogEdit(window._lastLogId);" style="width:100%; padding:11px 0 0; background:transparent; border:none; color:var(--text-secondary); font-size:12px; cursor:pointer; text-decoration:underline;">Logged something wrong? Fix or remove this log</button>
+        </div>
+    </div>
+
+    <!-- Edit / delete one of my own temp logs (bottom sheet) -->
+    <div id="myLogSheet" style="display:none; position:fixed; inset:0; z-index:10003; background:rgba(0,0,0,0.7); align-items:flex-end; justify-content:center;">
+        <div style="background:var(--surface); border-radius:20px 20px 0 0; padding:24px 24px 36px; width:100%; max-width:480px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                <div style="font-size:11px; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.8px; font-weight:700;">Fix this log</div>
+                <button onclick="closeMyLogSheet()" style="background:rgba(255,255,255,0.08); border:1px solid var(--border); border-radius:50%; width:32px; height:32px; color:var(--text-secondary); font-size:18px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;">&times;</button>
+            </div>
+            <div id="myLogSheetSpot" style="font-size:18px; font-weight:700; color:var(--text-primary); margin-bottom:2px;"></div>
+            <div id="myLogSheetWhen" style="font-size:12px; color:var(--text-secondary); margin-bottom:18px;"></div>
+
+            <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px;">
+                <label style="font-size:13px; color:var(--text-secondary); width:80px; flex-shrink:0;">Temp</label>
+                <input type="number" id="myLogEditTemp" step="0.5" min="0" max="40" inputmode="decimal" style="flex:1; background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:10px; padding:12px; color:var(--text-primary); font-size:16px;">
+                <span style="color:var(--text-secondary);">°C</span>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px;">
+                <label style="font-size:13px; color:var(--text-secondary); width:80px; flex-shrink:0;">Conditions</label>
+                <select id="myLogEditCond" style="flex:1; background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:10px; padding:12px; color:var(--text-primary); font-size:15px;">
+                    <option value="calm">Calm</option>
+                    <option value="choppy">Choppy</option>
+                    <option value="rough">Rough</option>
+                    <option value="extreme">Extreme</option>
+                </select>
+            </div>
+            <div style="margin-bottom:18px;">
+                <textarea id="myLogEditNotes" placeholder="Notes (optional)…" maxlength="500" style="width:100%; background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:10px; padding:12px; color:var(--text-primary); font-size:14px; min-height:60px; resize:none;"></textarea>
+            </div>
+            <div style="font-size:11px; color:var(--text-secondary); margin-bottom:14px; line-height:1.5;">Wrong spot? Delete this log and re-log at the right one — challenge credit follows the log automatically.</div>
+            <div style="display:flex; gap:12px;">
+                <button onclick="deleteMyLog()" id="myLogDeleteBtn" style="flex:1; padding:14px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:12px; color:#ef4444; font-size:15px; font-weight:600; cursor:pointer;">Delete</button>
+                <button onclick="saveMyLogEdit()" id="myLogSaveBtn" style="flex:2; padding:14px; background:linear-gradient(135deg,#0284c7,#0ea5e9); border:none; border-radius:12px; color:white; font-size:15px; font-weight:700; cursor:pointer;">Save changes</button>
+            </div>
         </div>
     </div>
 
@@ -1011,6 +1047,10 @@
 
                     <!-- 2c. UK Swim Spot Challenge x TRIHARD (independent of the monthly challenge) -->
                     <div id="dashUkChallenge" style="margin-bottom:20px;"></div>
+
+                    <!-- 2d. My recent logs — swimmer's own last 3 logs with Edit/Delete
+                         (hidden when no logs in the last 7 days) -->
+                    <div id="myRecentLogsWrap" style="display:none; margin-bottom:20px;"></div>
 
                     <!-- 2b. Club membership card (shown when user is a club member) -->
                     <div id="dashClubCard" style="margin-bottom:20px;"></div>
@@ -2061,7 +2101,7 @@
         </div>
     </div>
     <script src="mywaterlive-venues.js?v=1"></script>
-    <script src="app-trends.js?v=13"></script>
+    <script src="app-trends.js?v=14"></script>
 
     <!-- Service Worker Registration -->
     <script src="app-fuel.js?v=5"></script>
@@ -2071,7 +2111,7 @@
     <script src="app-story-timeline.js?v=5"></script>
     <script src="app-story-card.js?v=2"></script>
     <script src="app-overview.js?v=5"></script>
-    <script src="app-passport.js?v=3"></script>
+    <script src="app-passport.js?v=4"></script>
     <script src="app-club.js?v=31"></script>
     <script src="app-install-prompt.js?v=1"></script>
 

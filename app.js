@@ -1202,6 +1202,7 @@
         // Load dashboard
         async function loadDashboard() {
             renderChallengesHub('dashChallengesHub'); // non-blocking
+            loadMyRecentLogs(); // non-blocking — own last 3 logs with Edit/Delete
             loadMonthlyChallengeSummary();     // non-blocking
             if (typeof eoLoadDashboardCard === 'function') eoLoadDashboardCard(); // non-blocking, independent 3-month campaign
             if (typeof ukLoadDashboardCard === 'function') ukLoadDashboardCard(); // non-blocking, independent campaign
@@ -7802,6 +7803,128 @@
         let _shareSheetResolve = null;
         let _shareSheetMessage = '';
 
+        // ========== MY RECENT LOGS — edit/delete your own logs ==========
+        // Two surfaces share this sheet: the dashboard "My recent logs" card
+        // and the post-log "Fix or remove this log" link. Edit covers temp/
+        // conditions/notes only — wrong spot = delete + re-log, which keeps
+        // challenge integrity (eo active day + UK credit cascade with the log,
+        // monthly points are voided by the delete_my_temp_log RPC).
+
+        let _myLogSheetLog = null;   // the log currently open in the sheet
+
+        async function loadMyRecentLogs() {
+            const wrap = document.getElementById('myRecentLogsWrap');
+            if (!wrap || !currentUser) return;
+            try {
+                const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+                const { data: logs } = await supabaseClient
+                    .from('temp_logs')
+                    .select('id, temp_c, conditions, notes, created_at, logged_at, spot_id')
+                    .eq('user_id', currentUser.id)
+                    .gte('created_at', sevenDaysAgo)
+                    .order('created_at', { ascending: false })
+                    .limit(3);
+
+                if (!logs || logs.length === 0) { wrap.style.display = 'none'; return; }
+
+                const rows = logs.map(log => {
+                    const spot = (spots || []).find(s => s.id === log.spot_id);
+                    const when = new Date(log.logged_at || log.created_at);
+                    const mins = Math.round((Date.now() - when.getTime()) / 60000);
+                    const ago = mins < 60 ? `${mins}m ago` : mins < 1440 ? `${Math.round(mins / 60)}h ago` : `${Math.round(mins / 1440)}d ago`;
+                    return `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05); min-height:44px;">
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-size:13px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${spot ? spot.name : 'Unknown spot'}</div>
+                            <div style="font-size:11px; color:var(--text-secondary);">${log.temp_c}°C · ${ago}</div>
+                        </div>
+                        <button onclick="openMyLogEdit('${log.id}')" style="background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.25); border-radius:8px; padding:8px 14px; color:var(--ocean-light, #38bdf8); font-size:12px; font-weight:600; cursor:pointer; margin-left:10px;">Edit</button>
+                    </div>`;
+                }).join('');
+
+                wrap.innerHTML = `
+                    <div style="background:var(--surface, #0d1728); border:1px solid rgba(255,255,255,0.06); border-radius:16px; padding:14px 16px;">
+                        <div style="font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:2px;">My recent logs</div>
+                        ${rows}
+                    </div>`;
+                wrap.style.display = 'block';
+            } catch (err) {
+                console.warn('loadMyRecentLogs error:', err);
+                wrap.style.display = 'none';
+            }
+        }
+
+        async function openMyLogEdit(logId) {
+            if (!logId) return;
+            const { data: log, error } = await supabaseClient
+                .from('temp_logs')
+                .select('id, temp_c, conditions, notes, created_at, logged_at, spot_id, user_id')
+                .eq('id', logId)
+                .eq('user_id', currentUser.id)
+                .maybeSingle();
+            if (error || !log) { showToast('Could not load that log.', 'error'); return; }
+
+            _myLogSheetLog = log;
+            const spot = (spots || []).find(s => s.id === log.spot_id);
+            document.getElementById('myLogSheetSpot').textContent = spot ? spot.name : 'Unknown spot';
+            document.getElementById('myLogSheetWhen').textContent = 'Logged ' + new Date(log.logged_at || log.created_at).toLocaleString();
+            document.getElementById('myLogEditTemp').value = log.temp_c;
+            document.getElementById('myLogEditCond').value = (log.conditions || 'calm').toLowerCase();
+            document.getElementById('myLogEditNotes').value = log.notes || '';
+            const saveBtn = document.getElementById('myLogSaveBtn');
+            const delBtn = document.getElementById('myLogDeleteBtn');
+            saveBtn.disabled = false; saveBtn.textContent = 'Save changes';
+            delBtn.disabled = false; delBtn.textContent = 'Delete';
+            document.getElementById('myLogSheet').style.display = 'flex';
+        }
+
+        function closeMyLogSheet() {
+            document.getElementById('myLogSheet').style.display = 'none';
+            _myLogSheetLog = null;
+        }
+
+        async function saveMyLogEdit() {
+            if (!_myLogSheetLog) return;
+            const temp = parseFloat(document.getElementById('myLogEditTemp').value);
+            const conditions = document.getElementById('myLogEditCond').value;
+            const notes = document.getElementById('myLogEditNotes').value.trim();
+            if (isNaN(temp) || temp < 0 || temp > 40) {
+                showToast('Temperature must be between 0°C and 40°C', 'error');
+                return;
+            }
+            const btn = document.getElementById('myLogSaveBtn');
+            btn.disabled = true; btn.textContent = 'Saving…';
+            const { error } = await supabaseClient
+                .from('temp_logs')
+                .update({ temp_c: temp, conditions, notes: notes || null })
+                .eq('id', _myLogSheetLog.id)
+                .eq('user_id', currentUser.id);
+            if (error) {
+                showToast('Error saving: ' + error.message, 'error');
+                btn.disabled = false; btn.textContent = 'Save changes';
+                return;
+            }
+            showToast('Log updated!', 'success');
+            closeMyLogSheet();
+            loadMyRecentLogs();
+        }
+
+        async function deleteMyLog() {
+            if (!_myLogSheetLog) return;
+            if (!confirm('Delete this log? Any challenge credit it earned will be removed — you can re-log the correct details immediately.')) return;
+            const btn = document.getElementById('myLogDeleteBtn');
+            btn.disabled = true; btn.textContent = 'Deleting…';
+            const { data, error } = await supabaseClient.rpc('delete_my_temp_log', { p_log_id: _myLogSheetLog.id });
+            if (error || data?.ok === false) {
+                showToast('Error deleting: ' + (error?.message || data?.reason), 'error');
+                btn.disabled = false; btn.textContent = 'Delete';
+                return;
+            }
+            showToast('Log deleted — you can re-log now.', 'success');
+            closeMyLogSheet();
+            loadMyRecentLogs();
+        }
+
         function showShareSheet(spotName, temp, conditions) {
             const cond = conditions ? conditions.charAt(0).toUpperCase() + conditions.slice(1) : '';
             const message = `${spotName}: ${temp}°C${cond ? ' • ' + cond : ''}\nLogged on SwimLoading — swimloading.com`;
@@ -8036,6 +8159,8 @@
                 } else if (isTrueBackdate) {
                     showToast('Backdated conditions logged!', 'success');
                 }
+                // Remembered so post-log screens can offer "Fix or remove this log"
+                window._lastLogId = data?.[0]?.id || null;
                 analytics.track('temp_logged', { spot: spotNameForConfirm, temp, conditions });
                 if (hazards.length > 0) analytics.track('hazard_reported', { hazards });
                 window.dispatchEvent(new CustomEvent('swimloading:temp_logged'));

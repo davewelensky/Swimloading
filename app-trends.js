@@ -976,16 +976,15 @@
         }
 
         async function deleteTempLog(logId) {
-            if (!confirm('Delete this temp log? You can re-log immediately after.')) return;
+            if (!confirm('Delete this temp log? Any challenge credit it earned will be removed. You can re-log immediately after.')) return;
 
             try {
-                const { error } = await supabaseClient
-                    .from('temp_logs')
-                    .delete()
-                    .eq('id', logId)
-                    .eq('user_id', currentUser.id);
-
-                if (error) throw error;
+                // RPC (not direct .delete()) so the monthly-challenge points
+                // event tied to this log is voided atomically — a direct
+                // delete would leave the points behind (log/delete/re-log
+                // point farming) and used to bounce on the eo/UK credit FKs.
+                const { data, error } = await supabaseClient.rpc('delete_my_temp_log', { p_log_id: logId });
+                if (error || data?.ok === false) throw new Error(error?.message || data?.reason || 'delete failed');
                 showToast('Temp log deleted — you can re-log now', 'success');
                 await loadSpotChartData();
             } catch (err) {

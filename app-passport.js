@@ -481,6 +481,8 @@ function _ppMomentHtml(ctx, spot, totalSpots) {
           style="width:100%; padding:12px; border-radius:50px; background:transparent; border:1px solid var(--border); color:var(--text-secondary); font-size:13px; font-weight:700; cursor:pointer; margin-top:8px;">Share this swim</button>
         <button type="button" onclick="_ppMomentDismiss()"
           style="width:100%; padding:10px; background:transparent; border:none; color:var(--text-secondary); font-size:12px; font-weight:600; cursor:pointer; margin-top:6px;">Done</button>
+        ${ctx.logId && typeof openMyLogEdit === 'function' ? `<button type="button" onclick="_ppMomentDismiss(); openMyLogEdit('${ctx.logId}');"
+          style="width:100%; padding:8px; background:transparent; border:none; color:var(--text-secondary); font-size:11px; cursor:pointer; text-decoration:underline;">Logged something wrong? Fix or remove this log</button>` : ''}
       </div>`;
 }
 
