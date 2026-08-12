@@ -10515,13 +10515,24 @@ async function checkInSession(squadId, startTime, sessionType, coachName) {
   );
   activeSquadSessionId = matchingTemplate?.id || null;
 
-  // Find or create today's session for this squad + start time + coach. Same reason —
-  // two coaches sharing a slot must never collide into one shared club_sessions row
-  // (found live 24 Jul 2026: this exact "Check In" button dropped coach_name entirely,
-  // merging Ellen's and Kaisea's Thursday LTS registers into one ambiguous session).
+  // Find or create today's session for this squad + start time + coach. Scope by
+  // coach_name ONLY when this slot genuinely has more than one coach scheduled (e.g.
+  // Ellen + Kaisea, Thu 15:30 LTS) — this exact "Check In" button once dropped coach_name
+  // entirely and merged their registers into one (found live 24 Jul 2026). But for every
+  // OTHER slot (single scheduled coach), matching by coach_name too can fragment a cover
+  // coach's session into a separate empty row instead of taking over the real one — same
+  // class of bug found live 11 Aug 2026 in coach.html's startSession() for Noah covering
+  // Tarryn's Bronze Squad. Match by squad+date+time alone there.
+  const checkInSlotCoachNames = new Set(
+    (allWeekSessions || [])
+      .filter(t => t.squad_id === squadId && t.day_of_week === todayDow && (t.start_time || '').slice(0,5) === (startTime || '').slice(0,5))
+      .map(t => t.coach_name)
+      .filter(Boolean)
+  );
+  const checkInSlotIsShared = checkInSlotCoachNames.size > 1;
   let session = allSessions.find(s =>
     s.session_date === todayStr && s.squad_id === squadId && s.start_time === startTime &&
-    (coachName ? s.coach_name === coachName : !s.coach_name)
+    (!checkInSlotIsShared || (coachName ? s.coach_name === coachName : !s.coach_name))
   );
   if (!session) {
     const { data, error } = await sb.from('club_sessions').insert({

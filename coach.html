@@ -1739,20 +1739,43 @@ async function startSession() {
   const nameVal = document.getElementById('confirmCoachName').value.trim() || coachName;
   const sq      = allSquads.find(q => q.id === s.squad_id);
 
-  // Find or create club_sessions record for today. MUST scope by coach_name too —
-  // some LTS slots are shared by 2 coaches at the same day/time (e.g. Ellen + Kaisea,
-  // Mon & Thu 15:30). Without this, the second coach to open that slot silently reuses
-  // the first coach's session row instead of getting their own, merging both classes
-  // into one ambiguous register (found live 24 Jul 2026 — Ellen's kids never landed
-  // anywhere because her session got merged into Kaisea's/an admin's).
-  const { data: existing } = await sb.from('club_sessions')
+  // Find or create club_sessions record for today. Scope by coach_name too ONLY when
+  // this exact squad/day/time genuinely has more than one coach scheduled (e.g. Ellen +
+  // Kaisea, Thu 15:30 LTS) — without that scoping, the second coach's app would silently
+  // reuse the first coach's session row and merge two real, different classes into one
+  // ambiguous register (found live 24 Jul 2026, commit 0d3e990).
+  //
+  // But when only ONE coach is ever scheduled for this slot (true for every squad in the
+  // club except that one LTS slot), coach_name-scoping backfires for a COVER coach: Noah
+  // opening Tarryn's Bronze Monday under his own name doesn't find Tarryn's already-started
+  // session, so it creates a second, empty one — his marks looked lost, but were really
+  // just split into a duplicate register nobody could see (found live 11 Aug 2026, Bronze
+  // Mon+Fri, both 0 marks under his name while a separate Tarryn-named row had the real
+  // ones). For a single-coach slot, find by squad+date+time only and hand it over via the
+  // reassignment branch below — same class, same register, whoever's actually running it.
+  const slotCoachNames = new Set(
+    (allWeekSessions || [])
+      .filter(t => t.squad_id === s.squad_id && t.day_of_week === s.day_of_week && (t.start_time || '').slice(0,5) === (s.start_time || '').slice(0,5))
+      .map(t => t.coach_name)
+      .filter(Boolean)
+  );
+  const slotIsSharedByMultipleCoaches = slotCoachNames.size > 1;
+
+  let existingQuery = sb.from('club_sessions')
     .select('*, club_attendance(id, roster_id, status)')
     .eq('club_id', currentClub.id)
     .eq('session_date', today)
     .eq('squad_id', s.squad_id)
-    .eq('start_time', s.start_time)
-    .eq('coach_name', nameVal)
-    .maybeSingle();
+    .eq('start_time', s.start_time);
+  if (slotIsSharedByMultipleCoaches) existingQuery = existingQuery.eq('coach_name', nameVal);
+  // .order + take-first instead of .maybeSingle(): a squad+date+time slot can already have
+  // duplicate rows from before this fix (e.g. two 'Tarryn' rows for one real Bronze session,
+  // the split this fix prevents going forward) — .maybeSingle() throws on >1 match, so pick
+  // the one with the most existing marks (most likely the "real" one) rather than error out.
+  const { data: existingRows } = await existingQuery.order('created_at', { ascending: true });
+  const existing = (existingRows && existingRows.length)
+    ? existingRows.slice().sort((a, b) => (b.club_attendance?.length || 0) - (a.club_attendance?.length || 0))[0]
+    : null;
 
   let session = existing;
   if (!session) {
