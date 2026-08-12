@@ -482,7 +482,7 @@ function _ppMomentHtml(ctx, spot, totalSpots) {
         <button type="button" onclick="_ppMomentDismiss()"
           style="width:100%; padding:10px; background:transparent; border:none; color:var(--text-secondary); font-size:12px; font-weight:600; cursor:pointer; margin-top:6px;">Done</button>
         ${ctx.logId && typeof openMyLogEdit === 'function' ? `<button type="button" onclick="_ppMomentDismiss(); openMyLogEdit('${ctx.logId}');"
-          style="width:100%; padding:8px; background:transparent; border:none; color:var(--text-secondary); font-size:11px; cursor:pointer; text-decoration:underline;">Logged something wrong? Fix or remove this log</button>` : ''}
+          style="width:100%; padding:10px; background:transparent; border:none; color:#38bdf8; font-size:13px; font-weight:600; cursor:pointer;">Logged something wrong? Fix or remove this log</button>` : ''}
       </div>`;
 }
 
