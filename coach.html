@@ -1357,13 +1357,17 @@ function renderHome() {
     nextList.innerHTML = nextSessions.map((s, idx) => {
       const sq = allSquads.find(q => q.id === s.squad_id);
       const asgnIds = allWeekAssign[s.id] || [];
-      // Non-multisquad sessions with a secondary_squad_id auto-combine both whole squads
-      // (e.g. Dry Land) — "expected" should reflect actual squad membership there, not
-      // club_session_assignments (only meaningful for the hand-picked/is_multisquad case).
+      // Only a session deliberately configured to combine two whole squads (secondary_squad_id
+      // set — e.g. Dry Land) should show total squad membership as "expected". A regular squad's
+      // OWN session (secondary_squad_id null) usually isn't the squad's only session that
+      // week — e.g. Silver Squad meets 5x/week, 37 total members split across those 5 sessions
+      // against a 17 per-session cap — so showing all 37 as "expected" on every single one is
+      // wrong (real regression: Britt saw "37 / 17 expected" on an ordinary Silver session).
+      // Fall back to club_session_assignments there, same as before.
       const nextSquadIds = [s.squad_id, s.secondary_squad_id].filter(Boolean);
-      const asgn = s.is_multisquad
-        ? asgnIds.length
-        : allRoster.filter(r => nextSquadIds.includes(r.squad_id) || nextSquadIds.includes(r.secondary_squad_id)).length;
+      const asgn = s.secondary_squad_id && !s.is_multisquad
+        ? allRoster.filter(r => nextSquadIds.includes(r.squad_id) || nextSquadIds.includes(r.secondary_squad_id)).length
+        : asgnIds.length;
       const cap  = s.max_capacity || sq?.max_members || 0;
       const trials = asgnIds.filter(id => allRoster.find(r => r.id === id)?.is_trial).length;
       const isFirst = idx === 0, isLast = idx === nextSessions.length - 1;
@@ -1573,13 +1577,16 @@ function openConfirm(sqSessionId) {
   const selD = new Date(selectedDate + 'T00:00:00');
   document.getElementById('confirmDate').textContent  = dayFull[s.day_of_week] + ', ' + selD.toLocaleDateString('en-ZA', {day:'numeric',month:'long',year:'numeric'});
 
-  // Non-multisquad sessions with a secondary_squad_id auto-combine both whole squads (e.g.
-  // Dry Land = Senior + Intermediate) — "expected" should reflect actual squad membership,
-  // not club_session_assignments (that's only meaningful for the hand-picked/is_multisquad case).
+  // Only a session deliberately configured to combine two whole squads (secondary_squad_id
+  // set, e.g. Dry Land = Senior + Intermediate) should show total squad membership as
+  // "expected". A regular squad's own session (secondary_squad_id null) usually isn't the
+  // squad's only session that week — showing its FULL roster on every single one is wrong
+  // (real regression: "37 / 17 expected" on an ordinary Silver session, one of its 5/week).
+  // Fall back to club_session_assignments there, same as before this change.
   const confirmSquadIds = [s.squad_id, s.secondary_squad_id].filter(Boolean);
-  const asgn = s.is_multisquad
-    ? (allWeekAssign[s.id] || []).length
-    : allRoster.filter(r => confirmSquadIds.includes(r.squad_id) || confirmSquadIds.includes(r.secondary_squad_id)).length;
+  const asgn = s.secondary_squad_id && !s.is_multisquad
+    ? allRoster.filter(r => confirmSquadIds.includes(r.squad_id) || confirmSquadIds.includes(r.secondary_squad_id)).length
+    : (allWeekAssign[s.id] || []).length;
   const cap  = s.max_capacity || sq?.max_members || 0;
   document.getElementById('confirmFill').textContent = asgn + (cap ? ' / ' + cap + ' expected' : ' expected');
   const pct = cap > 0 ? Math.min(asgn / cap * 100, 100) : 0;
