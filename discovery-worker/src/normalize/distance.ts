@@ -14,6 +14,18 @@ const MILE_IN_METRES = 1609.344;
 // Order matters and is load-bearing: kilometres must be tried before
 // metres, or "5 km" reads as 5 metres.
 const KM_WORDS = 'km|kms|kilomet(?:er|re)s?|kilometr\\w*|chilometr\\w*|quilometr\\w*|キロ|公里';
+
+// A bare "k" is how race listings most often write kilometres — "10k",
+// "2,5k", "0,2k super sprint". It is deliberately NOT in KM_WORDS, because
+// on its own it is a weaker signal than a spelled-out unit and needs two
+// guards that the real unit words do not:
+//
+//   1. Not money. "$5k" and "₱7,500" are prizes and entry fees, not swims.
+//   2. Bounded. Without this, "Rotto 2026 K-Swim" reads as a 2026 km swim
+//      — a plausible-looking number that is wrong by a factor of 40. No
+//      open-water swim is 100 km, so a bare-k number above that is not a
+//      distance and we say nothing rather than guess.
+const BARE_K_MAX_KM = 100;
 const MILE_WORDS = 'mi|mile|miles|miglia|milja|milje|mijl';
 const METRE_WORDS = 'm|ms|mtr|met(?:er|re)s?|metr\\w*|メートル|米';
 
@@ -59,6 +71,14 @@ export function parseDistanceToMetres(raw: string | null): number | null {
     return metres === null ? null : Math.round(metres);
   }
 
+  // Bare "k" — tried after every real unit word so "10km" is never read as
+  // 10 metres, and guarded per BARE_K_MAX_KM above.
+  const bareK = new RegExp(`(?<![\\p{Sc}])${NUMBER}\\s*k(?![a-z])`, 'iu').exec(text);
+  if (bareK?.[1]) {
+    const km = toNumber(bareK[1]);
+    if (km !== null && km > 0 && km <= BARE_K_MAX_KM) return Math.round(km * 1000);
+  }
+
   // A bare number with no unit at all (e.g. data-distance="3800") is
   // assumed to already be metres, matching how most organiser CMSs emit
   // this attribute — but only when it's genuinely unit-less.
@@ -100,6 +120,97 @@ export function normaliseDistance(raw: HtmlDistanceRaw): DistanceOption {
 
 export function normaliseDistances(rawDistances: HtmlDistanceRaw[]): DistanceOption[] {
   return rawDistances.map(normaliseDistance);
+}
+
+// ── Distances from schema.org offers ──────────────────────────────────
+//
+// buildCandidateEvent's comment used to say schema.org Event "has no clean
+// multi-distance shape", so distances came only from HTML selectors. That
+// is true of the Event node itself, but it overlooked `offers`: a
+// registration platform publishes one Offer per entry category, and for a
+// swim the entry category IS the distance. active.com's Caramoan page
+// carries five of them, and we stored none — including a 20 km marathon
+// swim, which is exactly the rare thing worth having.
+//
+// The hard part is that `offers` also carries things that are not swims:
+// accommodation bundles, merchandise, "General Admission", and entry types
+// like "Open" / "Assist". So this never treats an offer as a distance
+// merely because it is an offer.
+//
+// The rule is sibling evidence. Platforms emit "<category> - <variant>",
+// so offers are grouped by the text before the first " - " and a group
+// counts as distance options only when at least one member states a real
+// distance. That one parsed sibling is the evidence that the whole group
+// is the distance menu:
+//
+//   SWIM DISTANCE - 2Km Swim          -> 2000   ┐ group states distances,
+//   SWIM DISTANCE - 15Km Island Swim  -> 15000  │ so MARATHON 20 is kept
+//   SWIM DISTANCE - MARATHON 20       -> null   ┘ as a labelled option
+//   GROUP REGISTERED... - Accommodations for 9+1  -> dropped, no sibling
+//
+// A member that does not parse keeps its label with `distanceMetres: null`
+// rather than being dropped or guessed at. "MARATHON 20" is 20 of
+// something the offer name never says; the page body says kilometres, but
+// this function only sees the offer, so it records the label and leaves
+// the number unknown for a reviewer.
+interface OfferLike {
+  name?: unknown;
+  url?: unknown;
+  category?: unknown;
+}
+
+function offerGroupKey(name: string): string {
+  const idx = name.indexOf(' - ');
+  return (idx === -1 ? name : name.slice(0, idx)).trim().toLowerCase();
+}
+
+export function distanceOptionsFromOffers(offers: unknown): DistanceOption[] {
+  if (!offers) return [];
+  const list = (Array.isArray(offers) ? offers : [offers]).filter(
+    (o): o is OfferLike => !!o && typeof o === 'object'
+  );
+
+  const named = list
+    .map((o) => ({
+      label: typeof o.name === 'string' && o.name.trim().length > 0 ? o.name.trim() : null,
+      url: typeof o.url === 'string' && o.url.trim().length > 0 ? o.url.trim() : null,
+      category: typeof o.category === 'string' && o.category.trim().length > 0 ? o.category.trim() : null,
+    }))
+    .filter((o): o is { label: string; url: string | null; category: string | null } => o.label !== null)
+    .map((o) => ({ ...o, metres: parseDistanceToMetres(o.label) }));
+
+  const groupsStatingADistance = new Set(
+    named.filter((o) => o.metres !== null).map((o) => offerGroupKey(o.label))
+  );
+  if (groupsStatingADistance.size === 0) return [];
+
+  const out: DistanceOption[] = [];
+  const seenMetres = new Set<number>();
+  const seenLabels = new Set<string>();
+  for (const o of named) {
+    if (!groupsStatingADistance.has(offerGroupKey(o.label))) continue;
+    // Combo entries ("10k & 0,2k") and duplicated price tiers resolve to a
+    // distance already recorded. The swimmer is choosing between distances,
+    // so one row per distance — not one per way of buying it.
+    if (o.metres !== null) {
+      if (seenMetres.has(o.metres)) continue;
+      seenMetres.add(o.metres);
+    } else {
+      const key = o.label.toLowerCase();
+      if (seenLabels.has(key)) continue;
+      seenLabels.add(key);
+    }
+    out.push({
+      originalLabel: o.label,
+      distanceMetres: o.metres,
+      category: o.category,
+      startTime: null,
+      registrationUrl: o.url,
+      wetsuitPolicy: null,
+      qualificationRequired: null,
+    });
+  }
+  return out;
 }
 
 // ── Standard triathlon distances ──────────────────────────────────────

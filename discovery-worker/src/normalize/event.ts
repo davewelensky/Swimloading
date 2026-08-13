@@ -7,7 +7,7 @@ import type { JsonLdEventNode, JsonLdExtractionResult } from '../extract/jsonld.
 import type { HtmlExtractionResult } from '../extract/html.js';
 import type { ClassificationResult } from '../extract/classify.js';
 import { dayFirstForCountry, parseFreeTextDate, parseStructuredDates, reconcileDates } from './date.js';
-import { normaliseDistances, parseWetsuitPolicy } from './distance.js';
+import { distanceOptionsFromOffers, normaliseDistances, parseWetsuitPolicy } from './distance.js';
 import { mergeLocations, parseJsonLdPlace, parseLocationText } from './location.js';
 import { deriveCanonicalName, truncateSummary } from './text.js';
 
@@ -229,14 +229,35 @@ export function buildCandidateEvent(params: BuildCandidateParams): CandidateEven
   candidate.waterBodyType = mapWaterBodyType(html.waterBodyHint);
   candidate.wetsuitPolicy = parseWetsuitPolicy(html.eventWetsuitPolicy);
 
-  // ── distances (always via deterministic HTML selectors — schema.org
-  // Event has no clean nested-multi-distance shape to rely on) ──
+  // ── distances ──
+  // Deterministic HTML selectors first: they carry per-distance start time,
+  // wetsuit policy and qualification, which offers do not.
+  //
+  // JSON-LD `offers` is the fallback. The Event node has no multi-distance
+  // shape, which is why this was HTML-only — but the offers array does,
+  // because a registration platform emits one offer per entry category and
+  // for a swim that IS the distance. See distanceOptionsFromOffers for how
+  // accommodation and "General Admission" offers are kept out.
   candidate.distances = normaliseDistances(html.distances);
   if (candidate.distances.length > 0) {
     candidate.evidence.push(
       evidence('distances', 'html_selector', JSON.stringify(html.distances), '.distance-options li[data-distance]')
     );
     usedHtml = true;
+  } else if (eventNode) {
+    const offerDistances = distanceOptionsFromOffers(eventNode.offers);
+    if (offerDistances.length > 0) {
+      candidate.distances = offerDistances;
+      candidate.evidence.push(evidence('distances', 'jsonld', JSON.stringify(eventNode.offers), 'offers[].name'));
+      usedJsonLd = true;
+      const unpriced = offerDistances.filter((d) => d.distanceMetres === null);
+      if (unpriced.length > 0) {
+        warnings.push(
+          `${unpriced.length} entry option(s) name no readable distance and were kept with an unknown length: ` +
+            unpriced.map((d) => `"${d.originalLabel}"`).join(', ')
+        );
+      }
+    }
   }
 
   // ── classification -> eventType ──
@@ -255,6 +276,11 @@ export function buildCandidateEvent(params: BuildCandidateParams): CandidateEven
     jsonLdLocationRaw: eventNode?.location ?? null,
     htmlTitleText: html.titleText,
     jsonLdName: eventNode ? toNullableString(eventNode.name) : null,
+    // Kept verbatim so a future distance-parsing fix can be replayed over
+    // stored rows instead of re-fetching every page. The country and date
+    // backfills were both possible only because the raw value was here;
+    // distances were not, and that cost a full re-crawl to correct.
+    jsonLdOffers: eventNode?.offers ?? null,
   };
 
   candidate.extractionMethod = usedJsonLd && usedHtml ? 'jsonld+html' : usedJsonLd ? 'jsonld' : usedHtml ? 'html' : 'none';

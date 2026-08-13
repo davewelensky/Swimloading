@@ -117,6 +117,29 @@ test('returns null for unrecognisable distance text rather than guessing', () =>
   assert.equal(parseDistanceToMetres(null), null);
 });
 
+// A bare "k" is the commonest way a race listing writes kilometres, and it
+// was unreadable: XTERRA Greece publishes "10k", "2,5k" and "0,2k" and we
+// stored no distance for any of them.
+test('reads a bare "k" as kilometres', () => {
+  assert.equal(parseDistanceToMetres('10k'), 10000);
+  assert.equal(parseDistanceToMetres('Open water swim-2,5k'), 2500);
+  assert.equal(parseDistanceToMetres('0,2k super sprint'), 200);
+  assert.equal(parseDistanceToMetres('15K Island swim'), 15000);
+});
+
+test('a real unit word still wins over the bare-k reading', () => {
+  assert.equal(parseDistanceToMetres('10km'), 10000);
+  assert.equal(parseDistanceToMetres('750 m'), 750);
+});
+
+test('bare "k" is refused for money and for implausible distances', () => {
+  // Prize money and entry fees sit next to distances on the same pages.
+  assert.equal(parseDistanceToMetres('$5k prize'), null);
+  assert.equal(parseDistanceToMetres('₱7,500'), null);
+  // "Rotto 2026 K-Swim" would otherwise read as a 2026 km swim.
+  assert.equal(parseDistanceToMetres('Rotto 2026 K-Swim'), null);
+});
+
 test('parses comma-separated location text into city/region/country', () => {
   const result = parseLocationText('Plymouth, Devon, United Kingdom');
   assert.equal(result.city, 'Plymouth');

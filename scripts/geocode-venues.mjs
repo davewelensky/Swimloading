@@ -234,6 +234,22 @@ async function main() {
     // "Rzeka Brda", the Brda river), so city+region just rebuilds the same
     // failing string. "Bydgoszcz, Rzeka Brda" returns nothing; "Bydgoszcz"
     // returns a city of 340,000.
+    //
+    // A NOTE ON WHAT THIS CHAIN CANNOT DO, learned the hard way on
+    // 2026-08-12. The city fallback is right for a street address — "834
+    // Lincoln St, SITKA, AK" that OSM cannot place should degrade to Sitka.
+    // It is wrong when the source's own locality field names a DIFFERENT
+    // settlement from the swim: Swimjunkie's Caramoan lists "Caramoan
+    // Islands, Pili, Camarines Sur", and Pili is where you register, ~75 km
+    // from the water — so the fallback wrote a point on Maharlika Highway
+    // with every guard satisfied. An attempt to withhold the fallback
+    // whenever the leading segment differs from the city was REVERTED: it
+    // cannot distinguish a street address from a distant place name, and it
+    // sent Sage Beach to Ketchikan and Voula Beach to central Athens while
+    // fixing only Caramoan. Venues like that need a coordinate from the
+    // organiser's stated start, set before this script runs — it only
+    // selects venues where latitude IS NULL, so a set coordinate is left
+    // alone.
     const attempts = [];
     for (const a of [query,
                      [v.city, v.region].filter(Boolean).join(', ').trim(),
@@ -260,11 +276,13 @@ async function main() {
       // resolve an ambiguity, it can only widen it.
       if (choice.ok || /ambiguous/.test(choice.why || '')) break;
     }
-    void usedQuery;
     if (!choice.ok) {
       skipped.push([v.display_name, choice.why]);
     } else {
       console.log(`  [${i + 1}/${venues.length}] ${v.display_name} -> ${choice.lat.toFixed(4)}, ${choice.lon.toFixed(4)}`);
+      // The query that won is the audit trail: it is the difference between
+      // a pin on the swim and a pin on the town you drive in from.
+      console.log(`      query:   ${usedQuery}`);
       console.log(`      matched: ${choice.matched}`);
       if (!DRY_RUN) {
         await db(`event_venues?id=eq.${v.id}`, {
