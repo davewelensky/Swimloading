@@ -213,6 +213,90 @@ export function distanceOptionsFromOffers(offers: unknown): DistanceOption[] {
   return out;
 }
 
+// ── Distances from a single-event page's own text ─────────────────────
+//
+// Some organisers state the distances in plain prose and nowhere else:
+// oceanswims.com prints "8km", "1.2km" and "400m, 800m & 2km" as standalone
+// headings, with JSON-LD offers that say only "General Admission". 21 live
+// events had no distances for exactly this reason.
+//
+// Reading numbers out of body text is how a scraper gets things badly
+// wrong, so this is narrow by construction and is called ONLY for a page
+// that describes ONE event (see buildCandidateEvent). Two real traps sit on
+// the LISTING pages this therefore never touches: the Finnish federation
+// prints "(25m)" for the length of the POOL, and the Danish federation's
+// "1221 København K" is a postcode.
+//
+// A line qualifies only when it is a distance and nothing else. Every
+// token is removed, then the joining words a distance menu is allowed to
+// contain, and what remains must be empty. So "8km Ocean Swim" qualifies
+// and "The 8km crossing demands stamina" does not — the leftover words are
+// the evidence that the line is prose about a swim rather than a statement
+// of its length.
+const DISTANCE_TOKEN =
+  /(\d+(?:[.,]\d+)?)\s*(km|kms|kilomet(?:er|re)s?|miles?|mi|met(?:er|re)s?|mtr|ms|m|k)(?![a-z])/gi;
+
+// Words a distance menu may contain and still be only a distance menu.
+// Deliberately short: every addition widens what counts as a distance line.
+const MENU_WORDS = new Set([
+  'swim', 'swims', 'ocean', 'open', 'water', 'sea', 'lake', 'river', 'bay',
+  'race', 'races', 'event', 'events', 'course', 'courses',
+  'distance', 'distances', 'and', 'or', 'the', 'plus',
+]);
+
+const MAX_DISTANCE_LINE_CHARS = 60;
+
+export function distancesFromTextLines(lines: readonly string[]): DistanceOption[] {
+  const out: DistanceOption[] = [];
+  const seen = new Set<number>();
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line || line.length > MAX_DISTANCE_LINE_CHARS) continue;
+    // Money sits next to distances on entry pages and parses identically
+    // once the symbol is gone. A line naming a price is not a distance.
+    if (/[\p{Sc}]/u.test(line)) continue;
+
+    DISTANCE_TOKEN.lastIndex = 0;
+    // Each token carries its OWN label. Labelling every row with the whole
+    // line would show a swimmer three options all called
+    // "500m, 3km & 5km" — the line is where the fact came from, the token
+    // is what the fact says.
+    const found: { label: string; metres: number }[] = [];
+    let remainder = line;
+    for (const m of line.matchAll(DISTANCE_TOKEN)) {
+      const parsed = parseDistanceToMetres(m[0]);
+      if (parsed === null) continue;
+      found.push({ label: m[0].trim(), metres: parsed });
+      remainder = remainder.replace(m[0], ' ');
+    }
+    if (found.length === 0) continue;
+
+    // Whatever is left must be joining words and punctuation only.
+    const leftover = remainder
+      .toLowerCase()
+      .replace(/[(),.;:!?/&+×x–—-]/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length > 0 && !MENU_WORDS.has(w));
+    if (leftover.length > 0) continue;
+
+    for (const f of found) {
+      if (seen.has(f.metres)) continue;
+      seen.add(f.metres);
+      out.push({
+        originalLabel: f.label,
+        distanceMetres: f.metres,
+        category: null,
+        startTime: null,
+        registrationUrl: null,
+        wetsuitPolicy: null,
+        qualificationRequired: null,
+      });
+    }
+  }
+  return out.sort((a, b) => (a.distanceMetres ?? 0) - (b.distanceMetres ?? 0));
+}
+
 // ── Standard triathlon distances ──────────────────────────────────────
 //
 // These are DEFINED, not inferred. World Triathlon standardises the swim

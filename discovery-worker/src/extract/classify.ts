@@ -198,10 +198,66 @@ function matchAny(haystack: string, phrases: string[]): string | null {
   return null;
 }
 
+// Whole-word variant. A plain substring test is right for most of the
+// vocabularies here — they are stems on purpose — but it is WRONG for the
+// non-race list, where 'swim class' matches inside "Swim Classic". Rip View
+// Swim Classic and Point Leo Swim Classic are real races that a substring
+// test files as swimming lessons. fold() has already reduced the text to
+// space-separated tokens, so a space-padded search IS a word-boundary
+// search and needs no regex per phrase.
+function matchAnyWord(haystack: string, phrases: string[]): string | null {
+  const padded = ` ${haystack} `;
+  for (const p of phrases) {
+    const needle = fold(p);
+    if (needle && padded.includes(` ${needle} `)) return p;
+  }
+  return null;
+}
+
 // Source types we accept as corroboration that a dated swim listing is an
 // open-water opportunity. An 'aggregator' is excluded on purpose: it lists
 // everything, so its nature tells us nothing about any single event.
 const SWIM_AUTHORITY_SOURCE_TYPES = new Set(['club', 'organiser', 'governing_body']);
+
+// ── Title-only signals ─────────────────────────────────────────────────
+//
+// A national federation's calendar covers every aquatic discipline, and
+// the title is where it says which one. Uimaliitto (Finland) had 21 live
+// events of which 20 were pool galas, coaching courses or diving — and the
+// title said so every time:
+//
+//   "Vantaan Pärskeet 2026 (25m)"                   a 25-metre pool
+//   "Uinnin kilpailunjohtajakoulutus"               a referee course
+//   "Uimahyppyjen alueleiri (taso 2)"               a diving camp
+//   "Taitouinnin TASO 1 -valmentajakoulutus..."     artistic swimming, a course
+//
+// These are checked against the TITLE ALONE, deliberately. "(25m)" in body
+// text can be an incidental measurement — the distance from a jetty, a
+// warm-up pool at an open-water venue. In the NAME it is the pool the gala
+// is swum in. Likewise a genuine open-water page may mention diving in
+// passing; its name does not.
+//
+// This is the same rule as "a lesson is not a swim you enter", extended to
+// the languages the sources are actually written in.
+
+// The pool a gala is swum in, once fold() has removed the brackets:
+// "(25m)" -> " 25m ". Anchored so "1500m" and "2500m" cannot match.
+const TITLE_POOL_LENGTH = /(?:^|\s)(?:25|33|50)\s*m(?:\s|$)/;
+
+// Education, not competition. Stems, because Finnish inflects the ending:
+// koulutus / koulutuksen / valmentajakoulutus all contain "koulutu".
+const TITLE_COURSE_WORDS = [
+  'koulutu', 'kurssi', 'utbildning', 'kursus', 'uddannelse', 'utdanning', 'leiri',
+];
+
+// A different aquatic sport entirely.
+const TITLE_OTHER_DISCIPLINE = [
+  'uimahyp', 'vesipallo', 'taitouin',            // FI: diving, water polo, artistic
+  'simhopp', 'vattenpolo', 'konstsim',           // SV
+  'udspring', 'vandpolo', 'synkronsvom',         // DA
+  'water polo', 'waterpolo', 'artistic swimming', 'synchronised swimming',
+  'diving', 'dive trip',
+];
 
 // Deterministic classification. Explicit page signals win; multilingual
 // keyword matching is the real-world path; the source's curated type is
@@ -212,6 +268,28 @@ const SWIM_AUTHORITY_SOURCE_TYPES = new Set(['club', 'organiser', 'governing_bod
 export function classifyEvent(input: ClassificationInput): ClassificationResult {
   const reasons: string[] = [];
   const warnings: string[] = [];
+
+  // ── 0. What the title says this event IS ──
+  // Ahead of everything else: a federation calendar's own naming is the
+  // most reliable statement of discipline on the page, and no amount of
+  // open-water vocabulary elsewhere makes a diving camp a swim.
+  const title = fold(input.titleText);
+  if (title) {
+    if (TITLE_POOL_LENGTH.test(title)) {
+      reasons.push('title states a pool length (25m/33m/50m) — a pool gala, not an open-water swim');
+      return { classification: 'pool_only', eligible: false, discipline: 'open_water', reasons, warnings };
+    }
+    const course = matchAny(title, TITLE_COURSE_WORDS);
+    if (course) {
+      reasons.push(`title names a course or camp ("${course}") — training, not a swim you enter`);
+      return { classification: 'no_actual_opportunity', eligible: false, discipline: 'open_water', reasons, warnings };
+    }
+    const otherSport = matchAny(title, TITLE_OTHER_DISCIPLINE);
+    if (otherSport) {
+      reasons.push(`title names a different aquatic discipline ("${otherSport}") — not open-water swimming`);
+      return { classification: 'pool_only', eligible: false, discipline: 'open_water', reasons, warnings };
+    }
+  }
 
   // ── 1. Explicit fixture-style hints keep top priority ──
   if (input.waterBodyHint === 'pool') {
@@ -273,7 +351,7 @@ export function classifyEvent(input: ClassificationInput): ClassificationResult 
     // class held in the sea is still a class, so an open-water phrase must
     // not rescue it — that ordering is the whole point. Everything below
     // this line assumes the page is offering a swim you can enter.
-    const nonRace = matchAny(text, NON_RACE_PHRASES);
+    const nonRace = matchAnyWord(text, NON_RACE_PHRASES);
     if (nonRace) {
       reasons.push(`"${nonRace}" found — a lesson, class, clinic or camp, not a swim you enter`);
       return { classification: 'no_actual_opportunity', eligible: false, discipline: 'open_water', reasons, warnings };

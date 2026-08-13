@@ -73,3 +73,71 @@ test('real races are not caught by the non-race vocabulary', () => {
     );
   }
 });
+
+// ── Title-only discipline signals (2026-08-13) ─────────────────────────
+//
+// Uimaliitto, the Finnish federation, publishes every aquatic discipline on
+// one calendar: 20 of its 21 live events were pool galas, coaching courses
+// or diving. The title said so every time, and only the title — the page
+// body is full of open-water vocabulary because the federation runs open
+// water too.
+test('a pool length in the title marks a pool gala', () => {
+  for (const t of ['Vantaan Pärskeet 2026 (25m)', 'Speedo Cup 2026 (25m)', 'Krokotiili-uinnit (25m)']) {
+    const r = classifyEvent({ categoryHint: null, waterBodyHint: null, hasSeparateSwimEntry: null, titleText: t });
+    assert.equal(r.classification, 'pool_only', t);
+  }
+});
+
+test('a pool length rule cannot fire on an ordinary swim distance', () => {
+  // "1500m" and "2500m" contain "50 m" and "25 m" as substrings.
+  for (const t of ['Vansbrosimningen 1500m', 'Bank 2 Bank 2500m', 'Rottnest 19.7km']) {
+    const r = classifyEvent({ categoryHint: null, waterBodyHint: null, hasSeparateSwimEntry: null, titleText: t });
+    assert.notEqual(r.classification, 'pool_only', t);
+  }
+});
+
+test('a course or camp in the title is not a swim you enter', () => {
+  for (const t of [
+    'Uinnin kilpailunjohtajakoulutus',          // referee course
+    'Vesitaiturit -ohjaajakoulutus',            // instructor course
+    'Funktionärsutbildning (2.kl)',             // officials training, Swedish
+    'Uimahyppyjen alueleiri (taso 2)',          // diving camp
+  ]) {
+    const r = classifyEvent({ categoryHint: null, waterBodyHint: null, hasSeparateSwimEntry: null, titleText: t });
+    assert.equal(r.eligible, false, t);
+  }
+});
+
+test('another aquatic discipline in the title is not open water', () => {
+  for (const t of ['Uimahyppyjen lokakuun kansallinen kilpailu', 'Vesipallon TASO 2', 'Ponto Dive Trip']) {
+    const r = classifyEvent({ categoryHint: null, waterBodyHint: null, hasSeparateSwimEntry: null, titleText: t });
+    assert.equal(r.eligible, false, t);
+  }
+});
+
+test('genuine open-water swims survive every title rule', () => {
+  for (const t of [
+    'Avovesiuinnin SM-kilpailut 2026',      // the ONE real Uimaliitto open-water event
+    'Havkraft - Årøsund til Assens',
+    'TrygFonden Christiansborg Rundt 2026',
+    'Magnetic Island to Townsville Swim',
+    'Newport Pool To Peak',                 // "Pool" in the name, in open water
+    'Maratona del Golfo Capri-Napoli',
+  ]) {
+    const r = classifyEvent({ categoryHint: null, waterBodyHint: null, hasSeparateSwimEntry: null, titleText: t });
+    assert.notEqual(r.classification, 'pool_only', t);
+    assert.notEqual(r.classification, 'no_actual_opportunity', t);
+  }
+});
+
+// A substring test files "Swim Classic" as "swim class" — a swimming
+// lesson. Two real races were exposed to this.
+test('"Swim Classic" is a race, not a swimming class', () => {
+  for (const t of ['Rip View Swim Classic', 'Point Leo Swim Classic']) {
+    const r = classifyEvent({
+      categoryHint: null, waterBodyHint: null, hasSeparateSwimEntry: null,
+      titleText: t, descriptionText: 'An ocean swim in Victoria.',
+    });
+    assert.notEqual(r.classification, 'no_actual_opportunity', t);
+  }
+});

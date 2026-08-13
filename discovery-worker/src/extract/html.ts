@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio';
+import { condenseForAi } from './ai.js';
 
 export interface HtmlDistanceRaw {
   label: string;
@@ -29,6 +30,12 @@ export interface HtmlExtractionResult {
   eventWetsuitPolicy: string | null;
   hasSeparateSwimEntry: boolean | null;
   distances: HtmlDistanceRaw[];
+  // The page's readable text, one block per line — the same condensing the
+  // AI extractor uses, reused here without any model call. Supplied so a
+  // single-event page can have its distances read off headings that no
+  // selector and no JSON-LD carries ("8km", "400m, 800m & 2km"). Only
+  // normalize/distance.ts reads it, and only for single-event pages.
+  contentLines: string[];
   warnings: string[];
 }
 
@@ -97,6 +104,7 @@ export function extractHtml(html: string): HtmlExtractionResult {
     eventWetsuitPolicy,
     hasSeparateSwimEntry,
     distances,
+    contentLines: condenseForAi(html).text.split('\n'),
     warnings,
   };
 }

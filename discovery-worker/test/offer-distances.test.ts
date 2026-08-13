@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { distanceOptionsFromOffers } from '../src/normalize/distance.js';
+import { distanceOptionsFromOffers, distancesFromTextLines } from '../src/normalize/distance.js';
 
 // Every fixture below is the real `offers` shape from a page we crawl,
 // copied from the live JSON-LD. The bug this covers: distances were read
@@ -92,4 +92,57 @@ test('tolerates a single offer object, a missing array, and junk', () => {
   assert.deepEqual(distanceOptionsFromOffers([]), []);
   assert.deepEqual(distanceOptionsFromOffers(['not an object', 42, null]), []);
   assert.equal(distanceOptionsFromOffers({ name: '5km Swim' }).length, 1);
+});
+
+// ── distances read from a single-event page's own text ─────────────────
+//
+// Every line below is real: the first three from oceanswims.com event
+// pages, the traps from the listing pages this scan is gated away from.
+
+test('reads distances off a single-event page heading', () => {
+  assert.deepEqual(
+    distancesFromTextLines(['8km']).map((d) => d.distanceMetres),
+    [8000]
+  );
+  assert.deepEqual(
+    distancesFromTextLines(['1.2km Ocean Swim']).map((d) => d.distanceMetres),
+    [1200]
+  );
+  assert.deepEqual(
+    distancesFromTextLines(['400m, 800m & 2km']).map((d) => d.distanceMetres),
+    [400, 800, 2000]
+  );
+});
+
+test('refuses prose that merely mentions a distance', () => {
+  // The leftover words are the evidence this is a sentence, not a menu.
+  assert.deepEqual(
+    distancesFromTextLines([
+      'The 8km crossing demands stamina, focus, and a love for the ocean.',
+      'Have A Go: 1km Training Program for swimmers returning after a break',
+      'Entries are restricted to persons who have adequately trained',
+    ]),
+    []
+  );
+});
+
+test('refuses money, postcodes and implausible numbers', () => {
+  assert.deepEqual(distancesFromTextLines(['₱7,500', '$5k prize', 'R120 entry']), []);
+  // Danish federation listing: a postcode, not a 1221 km swim.
+  assert.deepEqual(distancesFromTextLines(['1221 København K']), []);
+});
+
+test('collapses a distance repeated across headings', () => {
+  // oceanswims prints the headline distance twice, then again per wave.
+  assert.deepEqual(
+    distancesFromTextLines(['8km', '8km', '8km Ocean Swim']).map((d) => d.distanceMetres),
+    [8000]
+  );
+});
+
+test('returns distances in ascending order regardless of page order', () => {
+  assert.deepEqual(
+    distancesFromTextLines(['2km Ocean Swim', '400m Ocean Swim', '800m Ocean Swim']).map((d) => d.distanceMetres),
+    [400, 800, 2000]
+  );
 });

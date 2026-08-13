@@ -7,7 +7,7 @@ import type { JsonLdEventNode, JsonLdExtractionResult } from '../extract/jsonld.
 import type { HtmlExtractionResult } from '../extract/html.js';
 import type { ClassificationResult } from '../extract/classify.js';
 import { dayFirstForCountry, parseFreeTextDate, parseStructuredDates, reconcileDates } from './date.js';
-import { distanceOptionsFromOffers, normaliseDistances, parseWetsuitPolicy } from './distance.js';
+import { distanceOptionsFromOffers, distancesFromTextLines, normaliseDistances, parseWetsuitPolicy } from './distance.js';
 import { mergeLocations, parseJsonLdPlace, parseLocationText } from './location.js';
 import { deriveCanonicalName, truncateSummary } from './text.js';
 
@@ -257,6 +257,27 @@ export function buildCandidateEvent(params: BuildCandidateParams): CandidateEven
             unpriced.map((d) => `"${d.originalLabel}"`).join(', ')
         );
       }
+    }
+  }
+
+  // Last resort: the page's own headings. Gated on the page describing
+  // exactly ONE event, because a distance found in loose text can only be
+  // attributed to an event when there is only one event to attribute it to.
+  // On a calendar listing the same scan would hand every race the same
+  // numbers — and would read the Finnish federation's "(25m)" pool length
+  // as a 25 m swim. See distancesFromTextLines for the rest of the guards.
+  if (candidate.distances.length === 0 && jsonld.events.length === 1 && html.contentLines.length > 0) {
+    const textDistances = distancesFromTextLines(html.contentLines);
+    if (textDistances.length > 0) {
+      candidate.distances = textDistances;
+      candidate.evidence.push(
+        evidence('distances', 'html_selector', textDistances.map((d) => d.originalLabel).join(' | '), 'page text (single-event page)')
+      );
+      usedHtml = true;
+      warnings.push(
+        `Distances were read from the page's own text, not from structured data — confirm against the source: ` +
+          textDistances.map((d) => `"${d.originalLabel}"`).join(', ')
+      );
     }
   }
 

@@ -19,9 +19,7 @@ import { writeFile } from 'node:fs/promises';
 import { createClient } from '@supabase/supabase-js';
 import { loadConfig } from '../src/config.js';
 import { PoliteHttpClient } from '../src/fetch/http-client.js';
-import { extractJsonLd } from '../src/extract/jsonld.js';
-import { extractHtml } from '../src/extract/html.js';
-import { distanceOptionsFromOffers, normaliseDistances } from '../src/normalize/distance.js';
+import { processPage } from '../src/jobs/process-page.js';
 import type { DistanceOption } from '../src/domain/candidate-event.js';
 
 const url = process.env.SUPABASE_URL;
@@ -60,7 +58,7 @@ interface Row {
   id: string;
   title: string;
   start_date: string;
-  discovery_candidate_events: { source_url: string; extraction_method: string | null }[] | null;
+  discovery_candidate_events: { source_url: string; source_id: string; country_code: string | null }[] | null;
 }
 
 const withDistances = new Set(
@@ -76,7 +74,7 @@ const editions = (
   await fetchAll<Row>((from, to) =>
     db
       .from('event_editions')
-      .select('id, title, start_date, discovery_candidate_events!promoted_edition_id(source_url, extraction_method)')
+      .select('id, title, start_date, discovery_candidate_events!promoted_edition_id(source_url, source_id, country_code)')
       .eq('is_searchable', true)
       .eq('discipline', 'open_water')
       .neq('status', 'cancelled')
@@ -98,6 +96,7 @@ function q(s: string): string {
 
 for (const [i, e] of editions.entries()) {
   const sourceUrl = e.discovery_candidate_events?.[0]?.source_url as string;
+  const sourceId = e.discovery_candidate_events?.[0]?.source_id as string;
   const label = `[${i + 1}/${editions.length}] ${e.title.slice(0, 58)}`;
   const page = await http.fetchPage(sourceUrl, 'en');
   if (!page.ok || !page.html) {
@@ -106,15 +105,16 @@ for (const [i, e] of editions.entries()) {
     continue;
   }
 
-  const jsonld = extractJsonLd(page.html);
-  const html = extractHtml(page.html);
-  const node = jsonld.events[0] ?? null;
-  let distances: DistanceOption[] = normaliseDistances(html.distances);
-  let via = 'html_selector';
-  if (distances.length === 0 && node) {
-    distances = distanceOptionsFromOffers(node.offers);
-    via = 'jsonld offers';
-  }
+  // Run the REAL pipeline, not a copy of it. The first version of this
+  // script reimplemented the distance chain inline and silently returned
+  // zero after a new fallback was added to buildCandidateEvent — the script
+  // was still asking the old question. processPage is what the crawler
+  // calls, so a fallback added there is exercised here by construction.
+  const processed = processPage(sourceId, sourceUrl, page.html, {
+    countryCode: e.discovery_candidate_events?.[0]?.country_code ?? null,
+  });
+  const distances: DistanceOption[] = processed.candidate.distances;
+  const via = processed.candidate.extractionMethod;
 
   if (distances.length === 0) {
     console.log(`${label}\n    nothing`);
@@ -133,10 +133,14 @@ for (const [i, e] of editions.entries()) {
       `INSERT INTO public.event_distances (edition_id, original_label, distance_metres, category, registration_url)\n` +
         `  SELECT ${q(e.id)}, ${q(d.originalLabel)}, ${d.distanceMetres ?? 'NULL'}, ` +
         `${d.category ? q(d.category) : 'NULL'}, ${d.registrationUrl ? q(d.registrationUrl) : 'NULL'}\n` +
-        // Guarded per LABEL, not per edition: an edition-wide guard would
-        // let the first distance in and silently block every sibling.
+        // Guarded per (edition, label, METRES). Two earlier versions of
+        // this guard were too coarse and silently dropped rows: per-edition
+        // let only the first distance in, and per-label did the same
+        // whenever one line states several distances ("500m, 3km & 5km"
+        // yields three rows that all share that label).
         `  WHERE NOT EXISTS (SELECT 1 FROM public.event_distances x\n` +
-        `                     WHERE x.edition_id = ${q(e.id)} AND x.original_label = ${q(d.originalLabel)});`
+        `                     WHERE x.edition_id = ${q(e.id)} AND x.original_label = ${q(d.originalLabel)}\n` +
+        `                       AND x.distance_metres IS NOT DISTINCT FROM ${d.distanceMetres ?? 'NULL'});`
     );
   }
 }
