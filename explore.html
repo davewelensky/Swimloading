@@ -377,6 +377,13 @@
     <label class="tog" id="bookableTog"
            title="Escorted swims you arrange with an operator, run when the weather allows, rather than races on a fixed date.">
       <input type="checkbox" id="bookable"><span>Swims you can book</span></label>
+    <!-- Also a MODE, for the same reason as bookable: a swim that happens
+         every morning has no date to sort by. Yolanda Carstens' question —
+         "what about regular swims that happen every day e.g. hot chocolate"
+         — is one a race calendar cannot answer at all. -->
+    <label class="tog" id="regularTog"
+           title="Groups that swim on a standing schedule — every day, or every Saturday — that you can simply turn up and join.">
+      <input type="checkbox" id="regular"><span>Regular group swims</span></label>
   </div>
 
   <div class="chips" id="chips"></div>
@@ -395,6 +402,18 @@
       Contact the operator and pick your window.
     </p>
     <div id="routes"></div>
+  </section>
+
+  <!-- Regular group swims. Separate from both the dated list and the
+       bookable routes: these have no date because they happen on a standing
+       schedule, and no operator to book with — you turn up. -->
+  <section id="regularSection" style="display:none">
+    <h2 class="month-head" style="margin-top:44px">Regular group swims</h2>
+    <p class="muted" style="margin:-4px 0 16px">
+      Groups that swim to a standing schedule. No entry, no date to wait for —
+      turn up at the meeting point and join in.
+    </p>
+    <div id="regulars"></div>
   </section>
 
   <!-- Places to swim. The third question a traveller has, and the one with
@@ -575,6 +594,7 @@ function readUrl(){
   chk('weekendOnly', u.get('weekend_only')); chk('entriesOpen', u.get('entries_open'));
   chk('confirmedOnly', u.get('confirmed_only')); chk('tri', u.get('include_multisport'));
   chk('bookable', u.get('bookable'));
+  chk('regular', u.get('regular'));
   PAGE = Math.max(1, parseInt(u.get('page'),10) || 1);
   // Defensive on the way in as well as out: links carrying the old
   // "undefined" string are already in people's history and pasted messages,
@@ -605,6 +625,7 @@ function writeUrl(){
   put('weekend_only', p.weekend_only); put('entries_open', p.entries_open);
   put('confirmed_only', p.confirmed_only); put('include_multisport', p.include_multisport);
   put('bookable', bookableOnly());
+  put('regular', regularOnly());
   if(SEL.place){
     put('country', SEL.place.match.country); put('region', SEL.place.match.region);
     put('city', SEL.place.match.city); put('place_label', SEL.place.label);
@@ -636,6 +657,9 @@ async function search(opts){
   // filtered in the browser. Skipping the fetch also stops a stale dated
   // result set landing underneath and re-showing the hidden list.
   if(bookableOnly()){ writeUrl(); renderRoutes(); return; }
+  // Same reasoning as book mode: regular swims are already loaded and
+  // have no date to search by.
+  if(regularOnly()){ writeUrl(); renderRegulars(); return; }
   const seq = ++searchSeq;
   // Abort the previous request. Without this, a slow early search can land
   // AFTER a fast later one and overwrite fresh results with stale ones —
@@ -1036,6 +1060,105 @@ async function loadRoutes(){
 
 const bookableOnly = () => document.getElementById('bookable')?.checked === true;
 
+// ── Regular group swims ─────────────────────────────────────────────────
+// Read straight from recurring_swims with the anon key; RLS exposes only
+// is_public rows, exactly as it does for swim_routes.
+let REGULARS = [];
+const regularOnly = () => document.getElementById('regular')?.checked === true;
+
+const DAY_ABBR = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];   // 0=Sun, matching getDay()
+
+// The SOURCE'S OWN WORDS are what a swimmer sees. days_of_week exists to
+// filter on, not to re-render a schedule we would then have to phrase
+// ourselves — "Every day of the year" is better than "Sun, Mon, Tue…".
+function fmtSchedule(r){
+  if(r.schedule_text) return r.schedule_text;
+  if(Array.isArray(r.days_of_week) && r.days_of_week.length){
+    if(r.days_of_week.length === 7) return 'Every day';
+    return r.days_of_week.slice().sort((a,b)=>a-b).map(d => DAY_ABBR[d]).join(', ');
+  }
+  return null;
+}
+
+async function loadRecurring(){
+  const { data, error } = await sb.from('recurring_swims')
+    .select('slug,name,group_name,website_url,location_text,meeting_point,city,region,country_code,'
+          + 'schedule_text,days_of_week,start_time,typical_distance_metres,route_description,'
+          + 'is_free,requires_membership,summary,safety_note,source_url')
+    .eq('is_public', true)
+    .order('name', { ascending: true });
+  if(error){ console.warn('regular swims unavailable:', error.message); return; }
+  REGULARS = data || [];
+  renderRegulars();
+}
+
+// Honours the distance filter — the only one that means anything for a
+// swim with no date and no fixed venue list. Silently ignoring it would be
+// the same sin as ignoring it in search.
+function visibleRegulars(){
+  const minD = parseInt(document.getElementById('minDist')?.value, 10) || null;
+  return REGULARS.filter(r => !minD || (r.typical_distance_metres != null && r.typical_distance_metres >= minD));
+}
+
+function renderRegulars(){
+  const sec = document.getElementById('regularSection');
+  const el  = document.getElementById('regulars');
+  if(!sec || !el) return;
+  const list = visibleRegulars();
+  const only = regularOnly();
+
+  if(only){
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('pager').style.display   = 'none';
+    document.getElementById('count').textContent = list.length
+      ? `${list.length} regular group swim${list.length>1?'s':''}`
+      : 'No regular group swims match those filters';
+    sec.querySelector('h2').style.display = 'none';
+  } else {
+    sec.querySelector('h2').style.display = '';
+  }
+
+  if(!list.length && !only){ sec.style.display='none'; return; }
+  sec.style.display = '';
+
+  if(!list.length){
+    el.innerHTML = `<div class="empty"><b>No regular group swims match those filters.</b>
+      We list ${REGULARS.length} — try clearing the distance filter.
+      <ul><li><i data-lucide="ruler"></i><button type="button" onclick="clearFilter('minDist')">Allow shorter swims</button></li></ul></div>`;
+    icons(); return;
+  }
+
+  el.innerHTML = list.map(r => {
+    const when  = fmtSchedule(r);
+    const time  = r.start_time ? String(r.start_time).slice(0,5) : null;
+    const dist  = r.typical_distance_metres != null ? fmtRouteDistance(r.typical_distance_metres) : null;
+    const where = [r.city, r.region].filter(Boolean).join(', ');
+    return `<article class="route">
+      <div class="route-main">
+        <div style="margin-bottom:7px">
+          <span style="color:var(--sec);font-size:12px">regular group swim</span>
+        </div>
+        <h3>${r.website_url
+              ? `<a href="${esc(r.website_url)}" target="_blank" rel="noopener nofollow">${esc(r.name)}</a>`
+              : esc(r.name)}</h3>
+        <div class="where">${esc(r.location_text || where)}</div>
+        ${r.summary ? `<p class="muted" style="margin-bottom:8px">${esc(r.summary)}</p>` : ''}
+        <div class="evidence">
+          ${when ? `<span class="ev plain"><i data-lucide="calendar"></i>${esc(when)}</span>` : ''}
+          ${time ? `<span class="ev plain"><i data-lucide="clock"></i>${esc(time)}</span>` : ''}
+          ${dist ? `<span class="ev plain">${esc(dist)}</span>` : ''}
+          ${r.is_free === true ? `<span class="ev plain">Free</span>` : ''}
+        </div>
+        ${r.meeting_point ? `<p class="muted" style="margin:8px 0 0"><i data-lucide="map-pin"></i> ${esc(r.meeting_point)}</p>` : ''}
+        ${/* A swimmer needs to read this BEFORE walking down to the beach,
+              so it sits in the card and not behind a link. */''}
+        ${r.safety_note ? `<p class="muted" style="margin:8px 0 0;color:var(--amber)"><i data-lucide="triangle-alert"></i> ${esc(r.safety_note)}</p>` : ''}
+      </div>
+    </article>`;
+  }).join('');
+  icons();
+}
+
 // Routes honour the filters that MEAN something for a dateless swim:
 // distance, and the water-type/date filters do not apply. Silently ignoring
 // a distance filter here would be the same sin as ignoring one in search.
@@ -1382,7 +1505,16 @@ function renderPager(){
 ['weekendOnly','entriesOpen','confirmedOnly'].forEach(id=>
   document.getElementById(id)?.addEventListener('change', ()=>{ PAGE=1; search(); }));
 document.getElementById('tri')?.addEventListener('change', ()=>{ PAGE=1; loadPoints(); search(); });
-document.getElementById('bookable')?.addEventListener('change', ()=>{ PAGE=1; search(); renderRoutes(); });
+// The two modes are mutually exclusive: each REPLACES the dated list, so
+// both at once has no coherent meaning. Turning one on clears the other.
+document.getElementById('bookable')?.addEventListener('change', (e)=>{
+  if(e.target.checked){ const r=document.getElementById('regular'); if(r) r.checked=false; }
+  PAGE=1; search(); renderRoutes(); renderRegulars();
+});
+document.getElementById('regular')?.addEventListener('change', (e)=>{
+  if(e.target.checked){ const b=document.getElementById('bookable'); if(b) b.checked=false; }
+  PAGE=1; search(); renderRoutes(); renderRegulars();
+});
 document.getElementById('showPlaces')?.addEventListener('change', ()=>{ plotPlaces(); renderPlaces(); });
 document.getElementById('q')?.addEventListener('input', onQuery);
 document.getElementById('q')?.addEventListener('keydown', onQueryKey);
@@ -1401,7 +1533,7 @@ try { initMap(); } catch (e) {
   track('explore_page_view', { has_filters: location.search.length > 1 });
   await initAuth();
   await resumePendingSave();
-  await Promise.all([ loadPoints(), search(), loadRoutes(), loadPlaces() ]);
+  await Promise.all([ loadPoints(), search(), loadRoutes(), loadRecurring(), loadPlaces() ]);
   if(MARKERS.length && !SEL.place && !location.search) fitAll();
 })();
 </script>
