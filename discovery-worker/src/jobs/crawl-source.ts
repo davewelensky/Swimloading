@@ -645,22 +645,35 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
       }
     }
 
-    // Cross-run duplicate detection: score each newly persisted candidate
-    // against everything the source now has (fetched after the writes, so
-    // new-vs-new and new-vs-old are both covered), excluding itself.
+    // Cross-run AND cross-source duplicate detection: score each newly
+    // persisted candidate against EVERY candidate in the catalogue (fetched
+    // after the writes, so new-vs-new and new-vs-old are both covered),
+    // excluding itself.
+    //
+    // Comparing only within a source was the hole that let one race publish
+    // twice from two calendars — ffneaulibre.fr and combinaison-neoprene.com
+    // each list the French season, and neither could see the other.
     if (newlyPersisted.length > 0) {
       const existing = await ports.fetchExistingCandidatesForDedupe();
+      let crossSource = 0;
       for (const entry of newlyPersisted) {
         const links: DedupeLinkInput[] = [];
         for (const row of existing) {
           if (row.id === entry.candidateId) continue;
           const match = computeDuplicateScore(entry.candidate, pseudoCandidate(row));
           if (match.possibleDuplicate) {
+            const isCrossSource = row.sourceId !== entry.candidate.sourceId;
+            if (isCrossSource) crossSource += 1;
             links.push({
               matchingCandidateId: row.id,
               similarityScore: match.score,
               possibleDuplicate: true,
-              matchingSignals: match.matchingSignals,
+              // Stated on the link, because "the same race from another
+              // calendar" and "the same race from our own listing page" are
+              // different judgements for a reviewer to make.
+              matchingSignals: isCrossSource
+                ? [...match.matchingSignals, 'match is from a DIFFERENT source — two calendars listing one race']
+                : match.matchingSignals,
               conflictingSignals: match.conflictingSignals,
             });
           }
@@ -668,7 +681,11 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
         summary.dedupeLinksWritten += await ports.persistDedupeLinks(entry.candidateId, links);
       }
       if (summary.dedupeLinksWritten > 0) {
-        ports.log(`  ${summary.dedupeLinksWritten} unresolved duplicate link(s) written — these block approval until reviewed`);
+        ports.log(
+          `  ${summary.dedupeLinksWritten} unresolved duplicate link(s) written` +
+            (crossSource > 0 ? `, ${crossSource} of them against another source` : '') +
+            ` — these block approval until reviewed`
+        );
       }
     }
 

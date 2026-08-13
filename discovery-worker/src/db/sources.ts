@@ -104,6 +104,10 @@ export async function fetchSeenUrls(db: SupabaseClient, sourceId: string): Promi
 // all here.
 export interface ExistingCandidateForDedupe {
   id: string;
+  // Which source this candidate came from. Carried so a match can be
+  // reported as cross-source, which is the case a reviewer most needs to
+  // see: two calendars covering one race.
+  sourceId: string;
   canonicalName: string | null;
   organiserName: string | null;
   city: string | null;
@@ -114,26 +118,49 @@ export interface ExistingCandidateForDedupe {
   endDate: string | null;
 }
 
+// EVERY candidate, not just this source's.
+//
+// This used to filter .eq('source_id', sourceId), so two sources covering
+// the same race could never be compared and always double-published.
+// ffneaulibre.fr and combinaison-neoprene.com both list the French
+// calendar, and three races were live twice on 2026-08-13 for exactly this
+// reason. A duplicate does not become less of a duplicate because a
+// different site published it.
+//
+// PAGED, and that is not optional: PostgREST caps an unpaged select at 1000
+// rows and says nothing about it. There are already 2246 candidates, so an
+// unpaged version of this query would compare against a silently truncated
+// set — dedupe that looks like it ran and did not. That failure has
+// happened three times on this project in other queries.
 export async function fetchExistingCandidatesForDedupe(
-  db: SupabaseClient,
-  sourceId: string
+  db: SupabaseClient
 ): Promise<ExistingCandidateForDedupe[]> {
-  const { data, error } = await db
-    .from('discovery_candidate_events')
-    .select('id, canonical_name, organiser_name, city, country_code, latitude, longitude, start_date, end_date')
-    .eq('source_id', sourceId);
-  fail('fetchExistingCandidatesForDedupe', error);
-  return (data ?? []).map((row) => ({
-    id: row.id as string,
-    canonicalName: row.canonical_name as string | null,
-    organiserName: row.organiser_name as string | null,
-    city: row.city as string | null,
-    countryCode: row.country_code as string | null,
-    latitude: row.latitude === null ? null : Number(row.latitude),
-    longitude: row.longitude === null ? null : Number(row.longitude),
-    startDate: row.start_date as string | null,
-    endDate: row.end_date as string | null,
-  }));
+  const PAGE = 500;
+  const out: ExistingCandidateForDedupe[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await db
+      .from('discovery_candidate_events')
+      .select('id, source_id, canonical_name, organiser_name, city, country_code, latitude, longitude, start_date, end_date')
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1);
+    fail('fetchExistingCandidatesForDedupe', error);
+    const batch = data ?? [];
+    for (const row of batch) {
+      out.push({
+        id: row.id as string,
+        sourceId: row.source_id as string,
+        canonicalName: row.canonical_name as string | null,
+        organiserName: row.organiser_name as string | null,
+        city: row.city as string | null,
+        countryCode: row.country_code as string | null,
+        latitude: row.latitude === null ? null : Number(row.latitude),
+        longitude: row.longitude === null ? null : Number(row.longitude),
+        startDate: row.start_date as string | null,
+        endDate: row.end_date as string | null,
+      });
+    }
+    if (batch.length < PAGE) return out;
+  }
 }
 
 export interface SourceRunUpdate {

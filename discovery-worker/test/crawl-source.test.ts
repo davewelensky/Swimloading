@@ -250,6 +250,7 @@ test('cross-run dedupe writes links against similar existing candidates', async 
       existingForDedupe: [
         {
           id: 'existing-1',
+          sourceId: 'other-source',
           canonicalName: 'The Big Lake Swim',
           organiserName: null,
           city: null,
@@ -261,6 +262,7 @@ test('cross-run dedupe writes links against similar existing candidates', async 
         },
         {
           id: 'existing-2',
+          sourceId: 'other-source',
           canonicalName: 'Completely Different Event',
           organiserName: null,
           city: null,

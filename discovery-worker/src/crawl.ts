@@ -163,7 +163,7 @@ function buildPorts(
           console.log(`    dry run -> ${path.relative(process.cwd(), outPath)}`);
           return null;
         },
-    fetchExistingCandidatesForDedupe: write ? () => fetchExistingCandidatesForDedupe(db, source.id) : async () => [],
+    fetchExistingCandidatesForDedupe: write ? () => fetchExistingCandidatesForDedupe(db) : async () => [],
     persistDedupeLinks: write ? (candidateId, links) => persistDedupeLinks(db, candidateId, links) : async () => 0,
     updateSourceAfterRun: write ? (update) => updateSourceAfterRun(db, source.id, update) : async () => {},
     log: (message) => console.log(message),
