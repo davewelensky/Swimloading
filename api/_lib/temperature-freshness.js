@@ -105,9 +105,54 @@ export function waterTemperatureLabel(opts = {}) {
 export function spotTitle(spotName, freshness, opts = {}) {
   const suffix = opts.suffix ?? 'SwimLoading';
   const subject = opts.isPool ? 'Pool Temperature' : 'Water Temperature';
-  return freshness?.canSayToday
+  // With no reading at all, promising a temperature in the title is a
+  // promise the page cannot keep — the visitor clicks through to nothing.
+  // The page is still genuinely useful (location, conditions, history), so
+  // it says that instead of pretending to a number it does not have.
+  if (!freshness || freshness.state === 'unavailable') {
+    return `${spotName} Swimming Conditions | ${suffix}`;
+  }
+  return freshness.canSayToday
     ? `${spotName} ${subject} Today | ${suffix}`
     : `${spotName} ${subject} & Swimming Conditions | ${suffix}`;
+}
+
+/**
+ * The meta description, whose freshness claim must match the title's.
+ *
+ * The search result is one artefact: a title saying "Today" beside a
+ * description saying "last recorded" is incoherent, and a description
+ * saying "Live" over a six-day-old reading is the same lie the title used
+ * to tell — just in the line underneath. So both are derived here, from
+ * the one freshness verdict.
+ *
+ * The surrounding sentence (community framing, location, call to action)
+ * is preserved deliberately: this increment fixes a truth defect, it does
+ * not rewrite descriptions that already work.
+ */
+export function spotMetaDescription(freshness, opts = {}) {
+  const { spotName, locationLabel, waterType = 'OCEAN', isPool = false } = opts;
+  const noun = isPool ? 'pool temperature'
+    : waterType === 'LAKE' ? 'lake temperature'
+    : waterType === 'LAGOON' ? 'lagoon temperature'
+    : waterType === 'DAM' ? 'dam temperature'
+    : 'ocean temperature';
+  const where = locationLabel ? `${spotName}, ${locationLabel}` : spotName;
+  const community = isPool
+    ? 'Logged by the SwimLoading swimming community.'
+    : 'Community-logged by open water swimmers on SwimLoading.';
+
+  // No reading: describe what the page HAS rather than claiming a
+  // temperature. "Latest recorded" would be false when nothing is recorded.
+  if (!freshness || freshness.state === 'unavailable') {
+    return `Swimming conditions, location and water temperature history for ${where}. ${community}`;
+  }
+  const lead = freshness.canSayToday
+    ? `Today's ${noun}`
+    : freshness.state === 'recent'
+      ? `Recent ${noun}`
+      : `Last recorded ${noun}`;
+  return `${lead} at ${where}. ${community} Check conditions before you swim.`;
 }
 
 /**
