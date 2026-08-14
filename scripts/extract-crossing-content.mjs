@@ -57,6 +57,16 @@ function underH3(html, re) {
   return m ? m[2] : null;
 }
 
+// Key Facts are clean label/value/note triples in the markup, so they are
+// read structurally rather than out of prose.
+function keyFacts(html) {
+  const out = {};
+  const re = /<div class="fact-label"[^>]*>([\s\S]*?)<\/div>\s*<div class="fact-val"[^>]*>([\s\S]*?)<\/div>(?:\s*<div class="fact-note"[^>]*>([\s\S]*?)<\/div>)?/gi;
+  let m;
+  while ((m = re.exec(html))) out[strip(m[1])] = { val: strip(m[2]), note: strip(m[3] || '') };
+  return out;
+}
+
 const find = (secs, re) => secs.find(s => re.test(s.title));
 
 const report = [];
@@ -85,6 +95,7 @@ for (const slug of SLUGS) {
     about:       blocks(find(secs, /about the crossing/i)?.html),
     preparation: blocks(find(secs, /training benchmark|preparation/i)?.html),
     faqs,
+    keyFacts: keyFacts(html),
   });
 }
 
