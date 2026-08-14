@@ -271,8 +271,9 @@ document.addEventListener('mousemove',e=>{document.body.style.setProperty('--mou
 </html>`;
 }
 
-// Verbatim from the live crossing pages (strait-of-gibraltar.html is the
-// canonical current generation) so the template is a re-plumbing, not a
+// Verbatim from the hand-written crossing pages this template replaced
+// (deleted 2026-08-14; strait-of-gibraltar.html was the canonical
+// generation — see git history). The template was a re-plumbing, not a
 // redesign. Brand rules: #080f1a, cyan #38bdf8, Bebas Neue + DM Sans,
 // pill buttons, mouse spotlight.
 const PAGE_CSS = `
