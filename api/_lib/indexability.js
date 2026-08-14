@@ -82,14 +82,26 @@ function spotIndexable(spot, now) {
   const ageDays = spot.temp_observed_at
     ? (now.getTime() - new Date(spot.temp_observed_at).getTime()) / 86_400_000
     : null;
+  // isNumber, not Number.isFinite(Number(x)) — Number(null) is 0, which is
+  // finite, so a spot with NO estimate was reading as one with an estimate
+  // of 0°C and passing the gate on the strength of a value that does not
+  // exist. Caught by test on 2026-08-14.
+  const isNumber = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
   const hasUsableTemp =
-    Number.isFinite(Number(spot.temp_c)) &&
+    isNumber(spot.temp_c) &&
     ageDays !== null && Number.isFinite(ageDays) &&
     ageDays >= 0 && ageDays <= INDEXABILITY_RULES.spot.temperatureMaxAgeDays;
-  const hasEstimate = Number.isFinite(Number(spot.estimate_c));
+  const hasEstimate = isNumber(spot.estimate_c);
+  // A temperature HISTORY is also something to say about the water. An
+  // inland pool gets no marine model and may go months between logs, but
+  // a page with a season of past readings still answers "how cold is this
+  // pool usually" — which is the query it ranks for. Counting only recent
+  // readings is the same over-gating that held back 67 real beaches when
+  // this rule was first written.
+  const hasHistory = spot.has_readings === true || isNumber(spot.reading_count) && Number(spot.reading_count) > 0;
   const hasContext = nonEmpty(spot.area) || nonEmpty(spot.meet_note);
 
-  if (!hasUsableTemp && !hasEstimate && !hasContext) missing.push('temperature or descriptive context');
+  if (!hasUsableTemp && !hasEstimate && !hasHistory && !hasContext) missing.push('temperature, history or descriptive context');
 
   if (spot.active === false) {
     return { indexable: false, reasons: ['spot is not active'], missing };
@@ -99,7 +111,10 @@ function spotIndexable(spot, now) {
   }
   return {
     indexable: true,
-    reasons: [hasUsableTemp ? 'has a recent temperature reading' : hasEstimate ? 'has a modelled temperature' : 'has descriptive context'],
+    reasons: [hasUsableTemp ? 'has a recent temperature reading'
+      : hasEstimate ? 'has a modelled temperature'
+      : hasHistory ? 'has logged temperature history'
+      : 'has descriptive context'],
     missing: [],
   };
 }

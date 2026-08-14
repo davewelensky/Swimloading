@@ -65,6 +65,12 @@ export default async function handler(req, res) {
     // a country_code.
     const estimates = await dbGet('spot_temp_estimate?select=spot_id,swimmer_c,swimmer_at,best_c') || [];
     const estBySpot = new Map(estimates.map(e => [e.spot_id, e]));
+    // Whether a spot has EVER had a reading. An inland pool gets no marine
+    // model and may go months between logs, but a page with past readings
+    // still answers "how cold is it usually" — so history qualifies a page
+    // that a recent-reading-only test would wrongly discard.
+    const everLogged = await dbGet('latest_spot_temps?select=spot_id') || [];
+    const hasReadings = new Set(everLogged.map(r => r.spot_id));
 
     const urls = [];
 
@@ -80,7 +86,8 @@ export default async function handler(req, res) {
     for (const spot of spots) {
       const e = estBySpot.get(spot.id);
       const verdict = isPublicPageIndexable(
-        { ...spot, temp_c: e?.swimmer_c ?? null, temp_observed_at: e?.swimmer_at ?? null, estimate_c: e?.best_c ?? null },
+        { ...spot, temp_c: e?.swimmer_c ?? null, temp_observed_at: e?.swimmer_at ?? null,
+          estimate_c: e?.best_c ?? null, has_readings: hasReadings.has(spot.id) },
         'spot'
       );
       if (!verdict.indexable) { spotsSkipped++; continue; }

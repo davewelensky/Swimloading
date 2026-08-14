@@ -9,8 +9,12 @@ import {
   getLocationLabel, getRegionSlug,
   haversineKm, timeAgo, escapeHtml, formatDate,
 } from './seo-utils.js';
+import {
+  getTemperatureFreshness, spotTitle, spotMetaDescription, waterTemperatureLabel, formatObservedAt,
+} from './_lib/temperature-freshness.js';
 import { getSpotSponsorHtml, getRegionSponsorHtml } from './sponsors.js';
 import { VENUE_MAP } from './mywaterlive-config.js';
+import { spotAnalyticsScript, SPOT_EVENTS } from './_lib/public-analytics.js';
 
 const REGION_SLUGS = new Set(Object.keys(REGION_DOMAINS));
 
@@ -128,21 +132,33 @@ async function renderSpotPage(slug) {
   // 7-day trend from recent logs
   const trend = computeTrend(recentLogs);
 
-  // FAQPage JSON-LD
-  const jsonLdFaq = buildFaqJsonLd(spot, latestData, hazards);
-
   const isPool = spot.water_type === 'POOL';
-  const titleType = isPool ? 'Pool Temperature' : 'Water Temperature';
-  const title = `${spot.name} ${titleType} Today | SwimLoading`;
 
-  const descMap = {
-    OCEAN:  `Live ocean temperature at ${spot.name}, ${locationLabel}. Community-logged by open water swimmers on SwimLoading. Check conditions before you dive in.`,
-    LAGOON: `Current water temperature at ${spot.name}, ${locationLabel}. Community-logged by swimmers on SwimLoading.`,
-    POOL:   `Current pool temperature at ${spot.name}, ${locationLabel}. Logged by the SwimLoading swimming community. Check before your session.`,
-    DAM:    `Current water temperature at ${spot.name}, ${locationLabel}. Community-logged by swimmers on SwimLoading.`,
-    LAKE:   `Current lake temperature at ${spot.name}, ${locationLabel}. Community-logged by open water swimmers on SwimLoading. Plan your lake swim with live data.`,
-  };
-  const description = descMap[spot.water_type] || descMap.OCEAN;
+  // ── FRESHNESS, DECIDED ONCE ────────────────────────────────────────────
+  // Every claim this page makes about how current its temperature is —
+  // title, description, Open Graph, the hero badge, the FAQ and the
+  // JSON-LD — is derived from this single verdict.
+  //
+  // It used to be derived from nothing at all: the title hardcoded the
+  // word "Today" and the description hardcoded "Live"/"Current",
+  // regardless of the reading. On 2026-08-14 that meant Simons Town
+  // advertised "Water Temperature Today" and "Live ocean temperature" over
+  // a reading six days old. The helper to prevent exactly this shipped in
+  // increment 1 and was never actually called from here.
+  //
+  // Keyed on the MEASURED reading, not on the modelled estimate. The
+  // marine model does produce a value for today, but a model is not an
+  // observation of this water, and "Today's temperature" implies someone
+  // was in it. Where only a model value exists the page still shows it —
+  // labelled as modelled — but it does not earn the word "Today".
+  const freshness = getTemperatureFreshness(latestData?.updated_at ?? null);
+  const title = spotTitle(spot.name, freshness, { isPool });
+  const description = spotMetaDescription(freshness, {
+    spotName: spot.name, locationLabel, waterType: spot.water_type, isPool,
+  });
+
+  // FAQPage JSON-LD — must come after `freshness`, which it consumes.
+  const jsonLdFaq = buildFaqJsonLd(spot, latestData, hazards, freshness);
 
   // Country label — only append if it adds info (intl spots need country context)
   const SA_DOMAINS = new Set(['WEST_COAST','ATLANTIC','FALSE_BAY','KZN','EASTERN_CAPE','GARDEN_ROUTE','SOUTH_COAST','INLAND','NON_COASTAL','GAUTENG','FREE_STATE']);
@@ -153,7 +169,10 @@ async function renderSpotPage(slug) {
     '@context': 'https://schema.org',
     '@type': 'Dataset',
     name: `${spot.name} Water Temperature Data`,
-    description: `Community-logged water temperatures at ${spot.name}, ${fullLocation}. Updated daily by open water swimmers on SwimLoading.`,
+    // "Updated daily" was a claim about our own dataset that most spots do
+    // not meet — many go weeks between logs. The Dataset describes what it
+    // is, and temporalCoverage below already states its span.
+    description: `Community-logged water temperatures at ${spot.name}, ${fullLocation}, recorded by open water swimmers on SwimLoading.`,
     url: `https://www.swimloading.com/spots/${slug}`,
     creator: { '@type': 'Organization', name: 'SwimLoading', url: 'https://www.swimloading.com' },
     spatialCoverage: { '@type': 'Place', name: `${spot.name}, ${fullLocation}` },
@@ -185,7 +204,7 @@ async function renderSpotPage(slug) {
       </div>
     </nav>
 
-    ${renderSpotHero(spot, latestData, recentLogs, trend, false)}
+    ${renderSpotHero(spot, latestData, recentLogs, trend, false, freshness)}
 
     <main class="container page-body">
       ${renderHazards(hazards)}
@@ -206,12 +225,21 @@ async function renderSpotPage(slug) {
       </section>
 
       ${renderNearbySpots(nearbySpots, regionSlug, regionName)}
-      ${renderFaq(spot, locationLabel, latestData, hazards)}
+      ${renderFaq(spot, locationLabel, latestData, hazards, freshness)}
       ${renderAppTeaser(spot)}
     </main>
   `;
 
-  return pageShell({ title, description, canonical: `https://www.swimloading.com/spots/${slug}`, jsonLd: [jsonLdDataset, jsonLdBreadcrumb, jsonLdFaq], body, ogImage: venue?.ogImage });
+  const analytics = spotAnalyticsScript({
+    id: spot.id, slug, name: spot.name, country_code: spot.country_code,
+    region: regionSlug, water_type: spot.water_type, freshness_state: freshness.state,
+  });
+
+  return pageShell({
+    title, description, canonical: `https://www.swimloading.com/spots/${slug}`,
+    jsonLd: [jsonLdDataset, jsonLdBreadcrumb, jsonLdFaq], body, ogImage: venue?.ogImage,
+    extraScripts: analytics,
+  });
 }
 
 // ─── SENSOR VENUE HERO PAGE ───────────────────────────────────────────────────
@@ -435,9 +463,17 @@ function renderMywaterliveWidget(slug) {
 ${script}`;
 }
 
-function renderSpotHero(spot, latestData, recentLogs, trend, hasSensor = false) {
+function renderSpotHero(spot, latestData, recentLogs, trend, hasSensor = false, freshness = null) {
   const latest = recentLogs[0] || null;
   const hasTemp = latestData?.temp_c != null;
+  // The visible page must not out-claim its own metadata. A badge reading
+  // "Live conditions" over a six-day-old number is the same falsehood the
+  // title used to tell, just in a bigger font.
+  const fresh = freshness || getTemperatureFreshness(latestData?.updated_at ?? null);
+  const tempHeading = waterTemperatureLabel({
+    observedAt: latestData?.updated_at ?? null,
+  }).label;
+  const observedStr = formatObservedAt(fresh.observedAt, null);
   const cond = latest?.conditions ? escapeHtml(capitalise(latest.conditions)) : '';
   const who = latest?._displayName || 'SwimLoading member';
   const when = latest?.created_at ? timeAgo(latest.created_at) : '';
@@ -453,9 +489,10 @@ function renderSpotHero(spot, latestData, recentLogs, trend, hasSensor = false) 
     : `<div class="hero-no-data">No recent logs — be the first to log this spot today.</div>`;
 
   const tempBlock = hasTemp ? `
+    <div class="hero-temp-label" style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;">${escapeHtml(tempHeading)}</div>
     <div class="hero-temp">${latestData.temp_c}°C${trendBadge}</div>
     ${cond ? `<div class="hero-cond">${cond}</div>` : ''}
-    <div class="hero-meta">Logged by ${escapeHtml(who)}${when ? ` · ${escapeHtml(when)}` : ''}</div>
+    <div class="hero-meta">${fresh.canSayToday ? 'Logged' : 'Recorded'} by ${escapeHtml(who)}${when ? ` · ${escapeHtml(when)}` : ''}${observedStr ? ` · ${escapeHtml(observedStr)}` : ''}</div>
     ${notes}
   ` : noDataMsg;
 
@@ -463,7 +500,14 @@ function renderSpotHero(spot, latestData, recentLogs, trend, hasSensor = false) 
     ? 'background:rgba(217,119,6,0.1);border-color:rgba(217,119,6,0.35);color:#d97706;'
     : '';
   const dotStyle = isIntl ? 'background:#d97706;' : '';
-  const badgeLabel = isIntl ? 'International \xB7 Live' : 'Live conditions';
+  // The badge earns the word "Live" from the reading, not from the layout.
+  const stateLabel = fresh.state === 'live' ? 'Live conditions'
+    : fresh.state === 'recent' ? 'Recent conditions'
+    : fresh.state === 'stale' ? 'Last recorded conditions'
+    : 'Swimming conditions';
+  const badgeLabel = isIntl
+    ? `International \xB7 ${fresh.state === 'live' ? 'Live' : fresh.state === 'recent' ? 'Recent' : 'Conditions'}`
+    : stateLabel;
 
   return `
   <div class="spot-hero">
@@ -474,7 +518,7 @@ function renderSpotHero(spot, latestData, recentLogs, trend, hasSensor = false) 
         </div>
         <h1>${escapeHtml(spot.name)} Water Temperature</h1>
         ${tempBlock}
-        <a href="/app" class="btn-hero">Open SwimLoading Free →</a>
+        <a href="/app" class="btn-hero" data-sl-event="${SPOT_EVENTS.signupClick}" data-sl-cta="hero">Open SwimLoading Free →</a>
       </div>
       <div class="spot-hero-phone">
         <div class="phone-frame">
@@ -563,7 +607,7 @@ function renderAppTeaser(spot) {
         <li>Community leaderboards</li>
         <li>Safety & hazard alerts</li>
       </ul>
-      <a href="/app" class="btn-cta" style="margin-top:20px">Start Swimming Free →</a>
+      <a href="/app" class="btn-cta" style="margin-top:20px" data-sl-event="${SPOT_EVENTS.signupClick}" data-sl-cta="app_teaser">Start Swimming Free →</a>
     </div>
   </div>`;
 }
@@ -598,7 +642,7 @@ function renderSeoCopy(spot, locationLabel, stats) {
   }
   // OCEAN (default)
   return `
-    <p>${name} is an open water swimming spot in ${loc}. Water temperatures are logged daily by the SwimLoading community of open water swimmers. ${range}</p>
+    <p>${name} is an open water swimming spot in ${loc}. Water temperatures are logged by the SwimLoading community of open water swimmers. ${range}</p>
     <p>SwimLoading is a free peer-to-peer ocean intelligence platform built by open water swimmers. Swimmers log water temperatures, conditions, and hazards so the whole community swims smarter. Check current conditions at ${name} before every swim.</p>`;
 }
 
@@ -764,7 +808,7 @@ function renderWinterSection(poolSpots, regionName) {
 
 // ─── SHARED HTML SHELL ────────────────────────────────────────────────────────
 
-function pageShell({ title, description, canonical, jsonLd, body, ogImage }) {
+function pageShell({ title, description, canonical, jsonLd, body, ogImage, extraScripts = '' }) {
   const ldTags = jsonLd.map(d => `<script type="application/ld+json">${JSON.stringify(d)}</script>`).join('\n  ');
   const image = ogImage || 'https://www.swimloading.com/screenshots/temps.jpg';
   return `<!DOCTYPE html>
@@ -805,7 +849,7 @@ function pageShell({ title, description, canonical, jsonLd, body, ogImage }) {
       </a>
       <div style="display:flex;align-items:center;gap:10px;">
         <a href="javascript:history.back()" class="btn-back">&#8592; Back</a>
-        <a href="/app" class="btn-app">Get the App</a>
+        <a href="/app" class="btn-app" data-sl-event="${SPOT_EVENTS.loginClick}" data-sl-cta="nav">Get the App</a>
       </div>
     </div>
   </header>
@@ -816,6 +860,7 @@ function pageShell({ title, description, canonical, jsonLd, body, ogImage }) {
     </div>
   </footer>
 <script>document.addEventListener('mousemove',e=>{document.body.style.setProperty('--mouse-x',e.clientX+'px');document.body.style.setProperty('--mouse-y',e.clientY+'px')});</script>
+${extraScripts}
 </body>
 </html>`;
 }
@@ -1159,17 +1204,23 @@ function renderHazards(hazards) {
   </section>`;
 }
 
-function renderFaq(spot, locationLabel, latestData, hazards) {
+function renderFaq(spot, locationLabel, latestData, hazards, freshness = null) {
   const name = escapeHtml(spot.name);
   const isPool = spot.water_type === 'POOL';
   const typeLabel = isPool ? 'pool' : 'open water';
+  const fresh = freshness || getTemperatureFreshness(latestData?.updated_at ?? null);
+  const observed = formatObservedAt(fresh.observedAt, null);
 
+  // The question is "what is it TODAY", so a stale answer has to say so in
+  // the same breath as the number, not leave the reader to notice.
   const tempAnswer = latestData?.temp_c != null
-    ? `The latest community-logged water temperature at ${name} is <strong>${latestData.temp_c}°C</strong>. Check the top of this page for the exact timestamp.`
-    : `There is no recent community log for ${name} yet. SwimLoading relies on swimmers to log temperatures — be the first to log it and help the whole community.`;
+    ? (fresh.canSayToday
+        ? `The water temperature at ${name} is <strong>${latestData.temp_c}°C</strong>${observed ? `, logged ${escapeHtml(observed)}` : ''}.`
+        : `The most recent reading at ${name} is <strong>${latestData.temp_c}°C</strong>${observed ? `, recorded ${escapeHtml(observed)}` : ''} — not a reading from today. Water temperatures move, so treat it as a guide and check for newer logs before you swim.`)
+    : `There is no community log for ${name} yet. SwimLoading relies on swimmers to log temperatures — be the first to log it and help the whole community.`;
 
   const goodAnswer = isPool
-    ? `${name} is a swimming pool in ${escapeHtml(locationLabel)}. It is suitable for lap swimming and training. Check the current pool temperature above before your session.`
+    ? `${name} is a swimming pool in ${escapeHtml(locationLabel)}. It is suitable for lap swimming and training. Check the latest pool temperature above before your session.`
     : `${name} is an open water ${typeLabel} spot in ${escapeHtml(locationLabel)}. Conditions vary by weather, swell, and current water temperature. Always check the latest logs before swimming and assess conditions on the day. SwimLoading community data is logged by swimmers, not certified safety officers.`;
 
   const hazardAnswer = hazards.length
@@ -1203,11 +1254,18 @@ function renderFaq(spot, locationLabel, latestData, hazards) {
   </section>`;
 }
 
-function buildFaqJsonLd(spot, latestData, hazards) {
+function buildFaqJsonLd(spot, latestData, hazards, freshness = null) {
   const name = spot.name;
+  // Structured data is read by machines that cannot see the caveat beside
+  // it, so the answer carries its own observation date rather than
+  // implying the number is current.
+  const fresh = freshness || getTemperatureFreshness(latestData?.updated_at ?? null);
+  const observed = formatObservedAt(fresh.observedAt, null);
   const tempText = latestData?.temp_c != null
-    ? `The latest community-logged water temperature at ${name} is ${latestData.temp_c}°C. Check the SwimLoading page for the most recent timestamp.`
-    : `There is no recent community log for ${name} yet. Sign up free at swimloading.com and be the first to log it.`;
+    ? (fresh.canSayToday
+        ? `The water temperature at ${name} was ${latestData.temp_c}°C, logged by a SwimLoading swimmer${observed ? ` on ${observed}` : ' today'}.`
+        : `The last recorded water temperature at ${name} was ${latestData.temp_c}°C${observed ? `, logged on ${observed}` : ''}. It is not a current reading — check the SwimLoading page for newer logs.`)
+    : `There is no community log for ${name} yet. Sign up free at swimloading.com and be the first to log it.`;
   const hazardText = hazards.length
     ? `There ${hazards.length === 1 ? 'is 1 active hazard' : `are ${hazards.length} active hazards`} currently reported at ${name}. See the SwimLoading spot page for details.`
     : `No active hazards have been reported at ${name} by the SwimLoading community. Always assess conditions on the day.`;
