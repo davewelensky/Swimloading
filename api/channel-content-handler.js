@@ -436,7 +436,7 @@ const PAGES = {
       {
         h2: 'The qualifying swim cost',
         p: [
-          'Every Channel swimmer must complete a <strong>6-hour swim in water ≤16°C</strong> in the same calendar year as the attempt, witnessed by an approved observer.',
+          'Every Channel swimmer must complete a witnessed <strong>6-hour swim in cold water</strong> — ≤15.5°C within 12 months of the attempt (CSA), or ≤16°C within the previous 18 months (CS&PF).',
           'For UK swimmers this is usually Dover Harbour on a summer weekend; cost is typically just travel + a small observer fee (£50–£100). International swimmers may need a flight to an organised qualifier at Lake Vyrnwy, Coniston, or similar.',
         ],
       },
@@ -562,31 +562,31 @@ const PAGES = {
   // ─── 3. QUALIFYING SWIM ──────────────────────────────────────────────────
   'qualifying-swim': {
     title: 'English Channel qualifying swim: rules and venues',
-    meta: '6 hours non-stop in water ≤16°C, witnessed by an approved observer. Where to qualify (Dover Harbour, Lake Vyrnwy, Coniston), how to prepare, common reasons people fail.',
+    meta: '6 hours non-stop in cold water — ≤15.5°C (CSA) or ≤16°C (CS&PF) — witnessed by an approved observer. Where to qualify (Dover Harbour, Lake Vyrnwy, Coniston), how to prepare, common reasons people fail.',
     eyebrow: 'English Channel · Qualifier guide',
     h1: 'The 6-hour qualifying swim',
-    lede: 'Before any Channel pilot will take you out, you must complete a <strong>6-hour non-stop swim in water at or below 16°C</strong>, witnessed by an approved observer, in the same calendar year as your attempt. No qualifier, no swim.',
+    lede: 'Before any Channel pilot will take you out, you must complete a <strong>6-hour non-stop swim in cold water</strong> — at or below 15.5°C for the CSA, 16°C for the CS&PF — witnessed by an approved observer, within 12 months (CSA) or the previous 18 months (CS&PF) of your attempt. No qualifier, no swim.',
 
     sections: [
       {
         h2: 'What the qualifying swim is — and why',
         p: [
           'The qualifier exists because pilots and observers need evidence that you can handle the cold and the duration before they commit a boat and crew to a 12+ hour effort. It\'s not a fitness test of speed; it\'s a proof of cold tolerance.',
-          'Both ratifying bodies (CSA and CS&PF) require it, with slightly different rules but the same core: 6 hours, ≤16°C, witnessed.',
+          'Both ratifying bodies (CSA and CS&PF) require it, with slightly different rules but the same core: 6 hours, cold water, witnessed. The CSA requires 15.5°C (60°F) or less within 12 months of your attempt; the CS&PF requires 16°C or less within the previous 18 months, swum in the same attire as your Channel swim.',
         ],
       },
       {
         h2: 'The rules in detail',
         bullets: [
           '<strong>Duration:</strong> 6 hours continuous swimming. Touching the bank/wall counts; getting out does not.',
-          '<strong>Water temperature:</strong> 16°C (61°F) or colder for the duration. Temperature must be measured by the observer.',
+          '<strong>Water temperature:</strong> 15.5°C (60°F) or colder for a CSA qualifier; 16°C (61°F) or colder for CS&PF. Temperature must be measured by the observer.',
           '<strong>Equipment:</strong> Standard swimming costume (no neoprene), one cap, goggles, ear plugs. No wetsuit. No tow-floats unless approved.',
           '<strong>Witness:</strong> An approved observer must be present from start to finish. Some clubs and CSA/CS&PF officers do this for free; others charge.',
           '<strong>Feeds:</strong> Allowed every 30–45 minutes, taken from the side without supporting your weight on the boat or pontoon.',
-          '<strong>Timing:</strong> Must be completed in the calendar year of your Channel attempt. Last year\'s qualifier doesn\'t count.',
+          '<strong>Timing:</strong> CSA: within 12 months of your attempt. CS&PF: within the previous 18 months, completed more than two weeks before your swim.',
           '<strong>Medical certificate:</strong> Separate requirement — your GP must sign you off as fit for cold-water endurance swimming.',
         ],
-        callout: { label: 'Detail that catches people out', warn: true, body: 'If the water temperature rises above 16°C during your swim, the clock stops. Some swimmers have to extend past 6h or come back another day. Confirm temperature monitoring with your observer before you start.' },
+        callout: { label: 'Detail that catches people out', warn: true, body: 'If the water temperature rises above your body\'s required maximum during your swim, the clock stops. Some swimmers have to extend past 6h or come back another day. Confirm temperature monitoring with your observer before you start.' },
       },
       {
         h2: 'Where to do it',
@@ -627,7 +627,7 @@ const PAGES = {
       { q: 'What if I get out at 5h 45m?',
         a: 'You haven\'t qualified. You\'ll need to redo the full 6 hours another day.' },
       { q: 'I qualified last year — does that still count?',
-        a: 'No. Both CSA and CS&PF require the qualifier in the same calendar year as your attempt.' },
+        a: 'It depends on the dates. The CSA requires the qualifier within 12 months of your attempt; the CS&PF within the previous 18 months. Check your qualifier date against your tide window and confirm with your ratifying body.' },
       { q: 'How much does it cost?',
         a: '£0–£200 for the swim itself depending on venue. Add £50–£150 for the medical certificate (which is annual). See <a href="/english-channel/cost">cost guide</a>.' },
     ],
@@ -719,8 +719,9 @@ const PAGES = {
       {
         h2: 'Channel legends',
         bullets: [
-          '<strong>Alison Streeter MBE</strong> — 43 successful crossings · "Queen of the Channel"',
-          '<strong>Kevin Murphy</strong> — 34+ crossings · "King of the Channel"',
+          '<strong>Chloë McCardel</strong> — 44 successful crossings · most by anyone · "Queen of the Channel" since 2021',
+          '<strong>Alison Streeter MBE</strong> — 43 crossings · Queen of the Channel 1992–2021',
+          '<strong>Kevin Murphy</strong> — 34 crossings · most by any man',
           '<strong>Otto Thaning</strong> — Oldest at 73 (2014, South African cardiologist)',
           '<strong>Tom Gregory</strong> — Youngest at 11 (1988, before age limits)',
           '<strong>Captain Matthew Webb</strong> — First ever, 24–25 Aug 1875, 21h 45m',
@@ -966,7 +967,7 @@ const PAGES = {
   // ─── 9. FAMOUS SWIMS ────────────────────────────────────────────────────
   'famous-swims': {
     title: 'Famous English Channel swims: history and legends',
-    meta: 'The most famous English Channel crossings: Matthew Webb (1875), Gertrude Ederle (1926), Florence Chadwick, Alison Streeter, Sarah Thomas (4-way), Andreas Waschburger.',
+    meta: 'The most famous English Channel crossings: Matthew Webb (1875), Gertrude Ederle (1926), Florence Chadwick, Alison Streeter, Chloë McCardel, Sarah Thomas (4-way), Andreas Waschburger.',
     eyebrow: 'English Channel · Famous swims',
     h1: 'Famous English Channel swims',
     lede: 'The Channel has 150 years of history and 3,443 ratified solo crossings. These are the swims that defined the sport — each links to the full data on their dedicated page.',
@@ -993,8 +994,12 @@ const PAGES = {
         p: '<strong>First three-way crossing.</strong> New Zealand swimmer Rush set the modern multi-way standard in <strong>28h 21m</strong>. The record still stands.',
       },
       {
-        h2: 'Alison Streeter MBE — 1982–2003',
-        p: '<strong>"Queen of the Channel"</strong> — 43 successful crossings, more than anyone else in history. Made the Channel her career.',
+        h2: 'Alison Streeter MBE — 1982–2004',
+        p: '<strong>Queen of the Channel 1992–2021</strong> — 43 successful crossings, the most by anyone for nearly two decades. Made the Channel her career.',
+      },
+      {
+        h2: 'Chloë McCardel — 2009–2021',
+        p: '<strong>Most crossings by anyone: 44.</strong> The Australian passed Alison Streeter\'s mark with her 44th crossing on 13 October 2021 and holds the "Queen of the Channel" title.',
       },
       {
         h2: 'Trent Grimsey — 8 September 2012',
@@ -1016,15 +1021,15 @@ const PAGES = {
 
     faqs: [
       { q: 'Who has swum the Channel the most times?',
-        a: 'Alison Streeter MBE with 43 successful solo crossings. Kevin Murphy is the men\'s leader with 34+.' },
+        a: 'Chloë McCardel with 44 successful crossings (2009–2021), passing Alison Streeter MBE\'s 43. Kevin Murphy is the men\'s leader with 34.' },
       { q: 'Who was the youngest to swim it?',
-        a: 'Tom Gregory in 1988 at age 11. Minimum ages have since been set at 16 (CSA) and 17 (CS&PF).' },
+        a: 'Tom Gregory in 1988 at age 11. The minimum age has since been set at 16 under both the CSA and CS&PF.' },
       { q: 'Who was the oldest?',
         a: 'Otto Thaning, South African cardiologist, at age 73 in 2014.' },
       { q: 'Has anyone done a five-way crossing?',
         a: 'Not yet ratified. Sarah Thomas\'s four-way (2019) stands as the longest.' },
       { q: 'Is there a swim faster than Waschburger\'s 6:45:25?',
-        a: 'Not as of 2025. Watch the records page — it updates live from the database.' },
+        a: 'Not as of 2026. Watch the records page — it updates live from the database.' },
     ],
   },
 
