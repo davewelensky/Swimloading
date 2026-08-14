@@ -2,6 +2,7 @@
 // New spots are automatically included — no manual updates required.
 
 import { dbGet, generateSlug, REGION_DOMAINS } from './seo-utils.js';
+import { isPublicPageIndexable } from './_lib/indexability.js';
 import { countryByCode } from './_countries.js';
 
 const BASE = 'https://www.swimloading.com';
@@ -26,7 +27,6 @@ const STATIC_PAGES = [
   { path: '/dassen',              priority: '0.7', changefreq: 'weekly'  },
   { path: '/westangle',           priority: '0.7', changefreq: 'weekly'  },
   { path: '/intel',               priority: '0.7', changefreq: 'weekly'  },
-  { path: '/crossings/english-channel', priority: '0.9', changefreq: 'daily' },
   { path: '/pricing',             priority: '0.6', changefreq: 'monthly' },
   { path: '/pro',                 priority: '0.6', changefreq: 'monthly' },
   { path: '/partners/maurten',    priority: '0.7', changefreq: 'monthly' },
@@ -36,11 +36,46 @@ const STATIC_PAGES = [
   { path: '/blog/march-challenge',priority: '0.6', changefreq: 'monthly' },
 ];
 
+// The crossing slugs that ACTUALLY have a route today. Mirrors the
+// ^/crossings/<slug>$ entries in vercel.json — the crossings table also
+// holds app-side concepts (e.g. custom-marathon-swim) that have no public
+// page, and advertising a URL that 404s is worse than omitting it.
+// TEMPORARY: when the shared crossing template lands, every active
+// crossing gets a route and this set goes away.
+const ROUTED_CROSSING_SLUGS = new Set([
+  'catalina-channel',
+  'cook-strait',
+  'english-channel',
+  'false-bay',
+  'jersey-to-france',
+  'manhattan-island',
+  'molokai-channel',
+  'north-channel',
+  'rottnest-channel',
+  'strait-of-gibraltar',
+  'tsugaru-strait',
+]);
+
 export default async function handler(req, res) {
   try {
+    // Enough of each spot to APPLY THE QUALITY GATE, not just to build a
+    // URL. Selecting only name+domain (as this did) makes every active row
+    // look equally worth indexing, which is how a sitemap fills up with
+    // pages that cannot answer the query they would rank for.
     const spots = await dbGet(
-      'spots?active=eq.true&select=name,domain&order=name.asc'
+      'spots?active=eq.true&select=id,name,domain,area,meet_note,water_type,country_code,latitude,longitude&order=name.asc'
     ) || [];
+    // spot_temp_estimate, NOT latest_spot_temps. The gate asks "has this
+    // page something to say about its water", and the estimate view is the
+    // honest answer to that: it blends the swimmer reading with the
+    // modelled one and is what the app itself shows. Gating on swimmer
+    // readings alone held back 67 of 194 spots — Boulders Beach, Ballito,
+    // Blouberg — real named beaches with coordinates whose only failing was
+    // that nobody had logged a temperature there lately. Counting the
+    // modelled estimate takes that to 6, and all six are genuinely missing
+    // a country_code.
+    const estimates = await dbGet('spot_temp_estimate?select=spot_id,swimmer_c,swimmer_at,best_c') || [];
+    const estBySpot = new Map(estimates.map(e => [e.spot_id, e]));
 
     const urls = [];
 
@@ -49,9 +84,42 @@ export default async function handler(req, res) {
       urls.push(url(`${BASE}${page.path}`, page.priority, page.changefreq, TODAY()));
     }
 
-    // Individual spot pages — slug derived from spot name
+    // Individual spot pages — slug derived from spot name, and only when
+    // the page has enough to be worth indexing. A page that fails the gate
+    // still renders and still works; it is simply not advertised here.
+    let spotsSkipped = 0;
     for (const spot of spots) {
+      const e = estBySpot.get(spot.id);
+      const verdict = isPublicPageIndexable(
+        { ...spot, temp_c: e?.swimmer_c ?? null, temp_observed_at: e?.swimmer_at ?? null, estimate_c: e?.best_c ?? null },
+        'spot'
+      );
+      if (!verdict.indexable) { spotsSkipped++; continue; }
       urls.push(url(`${BASE}/spots/${generateSlug(spot.name)}`, '0.9', 'daily', TODAY()));
+    }
+
+    // Crossing pages, READ FROM THE TABLE rather than hand-listed.
+    // Only /crossings/english-channel was ever in STATIC_PAGES, so the
+    // other ten were absent — including /crossings/strait-of-gibraltar,
+    // which is the single highest-earning page on the site (194 of 447
+    // organic clicks in the 28 days to 2026-08-13). A hand-maintained list
+    // is wrong the moment a crossing is added, which is the same lesson
+    // CLAUDE.md records about hand-typed country lists.
+    const crossings = await dbGet(
+      'crossings?is_active=eq.true&select=slug,name,distance_km,is_active&order=slug.asc'
+    ) || [];
+    for (const c of crossings) {
+      if (!isPublicPageIndexable(c, 'crossing').indexable) continue;
+      // Only crossings that actually have a route are listed. Several rows
+      // are app-side concepts rather than public pages.
+      if (!ROUTED_CROSSING_SLUGS.has(c.slug)) continue;
+      urls.push(url(`${BASE}/crossings/${c.slug}`, '0.9', 'weekly', TODAY()));
+    }
+
+    // Visible in the function log, so a sudden jump in held-back spots is
+    // noticed rather than silently shrinking the sitemap.
+    if (spotsSkipped > 0) {
+      console.log(`sitemap: ${spotsSkipped} of ${spots.length} spots held back as too thin to index`);
     }
 
     // Region pages — pulled directly from REGION_DOMAINS so seo-utils is the single source of truth
