@@ -36,25 +36,14 @@ const STATIC_PAGES = [
   { path: '/blog/march-challenge',priority: '0.6', changefreq: 'monthly' },
 ];
 
-// The crossing slugs that ACTUALLY have a route today. Mirrors the
-// ^/crossings/<slug>$ entries in vercel.json — the crossings table also
-// holds app-side concepts (e.g. custom-marathon-swim) that have no public
-// page, and advertising a URL that 404s is worse than omitting it.
-// TEMPORARY: when the shared crossing template lands, every active
-// crossing gets a route and this set goes away.
-const ROUTED_CROSSING_SLUGS = new Set([
-  'catalina-channel',
-  'cook-strait',
-  'english-channel',
-  'false-bay',
-  'jersey-to-france',
-  'manhattan-island',
-  'molokai-channel',
-  'north-channel',
-  'rottnest-channel',
-  'strait-of-gibraltar',
-  'tsugaru-strait',
-]);
+// Whether a crossing row actually has a public page. The shared template
+// (api/crossings-handler.js) serves any crossing with backfilled page
+// content and 404s the rest — the table also holds app-side concepts
+// (custom-marathon-swim, robben-island) that must not be advertised.
+// english-channel keeps its hand-written page and content cluster, so it
+// is routed but has no template content. This replaced a hand-mirrored
+// slug list on 2026-08-14 when the template took over the routes.
+const hasCrossingPage = (c) => Boolean(c.intro) || c.slug === 'english-channel';
 
 export default async function handler(req, res) {
   try {
@@ -106,13 +95,13 @@ export default async function handler(req, res) {
     // is wrong the moment a crossing is added, which is the same lesson
     // CLAUDE.md records about hand-typed country lists.
     const crossings = await dbGet(
-      'crossings?is_active=eq.true&select=slug,name,distance_km,is_active&order=slug.asc'
+      'crossings?is_active=eq.true&select=slug,name,distance_km,is_active,intro&order=slug.asc'
     ) || [];
     for (const c of crossings) {
       if (!isPublicPageIndexable(c, 'crossing').indexable) continue;
-      // Only crossings that actually have a route are listed. Several rows
-      // are app-side concepts rather than public pages.
-      if (!ROUTED_CROSSING_SLUGS.has(c.slug)) continue;
+      // Only crossings the template (or english-channel's own page) will
+      // actually serve. Rows without page content 404 and must not be listed.
+      if (!hasCrossingPage(c)) continue;
       urls.push(url(`${BASE}/crossings/${c.slug}`, '0.9', 'weekly', TODAY()));
     }
 
