@@ -733,12 +733,12 @@ const PAGES = {
         h2: 'Historical milestones',
         bullets: [
           '<strong>1875</strong> — Webb proves it can be done',
-          '<strong>1923</strong> — Enrico Tiraboschi (Italy) wins the Daily Mail prize for first crossing under 16 hours',
+          '<strong>1923</strong> — Enrico Tiraboschi makes the first France-to-England crossing in 16h 33m, winning the Daily Sketch £1,000 prize and cutting more than five hours off Webb\'s record',
           '<strong>1926</strong> — Gertrude Ederle becomes the first woman; her time would have set the men\'s world record',
-          '<strong>1961</strong> — Antonio Abertondo (Argentina) completes first two-way crossing',
-          '<strong>1981</strong> — Jon Erikson (USA) completes first three-way',
+          '<strong>1961</strong> — Antonio Abertondo (Argentina) completes the first two-way crossing in 43h 10m',
+          '<strong>1981</strong> — Jon Erikson (USA) completes the first three-way, in 38h 27m',
           '<strong>1987</strong> — Philip Rush (NZ) sets the modern multi-way standard with 28h 21m three-way',
-          '<strong>2007</strong> — Petar Stoychev (Bulgaria) holds the record briefly before the modern era',
+          '<strong>2007</strong> — Petar Stoychev (Bulgaria) becomes the first to break seven hours, at 6h 57m 50s, and holds the record for five years',
           '<strong>2012</strong> — Trent Grimsey (Australia) sets the world record at 6h 55m',
           '<strong>2019</strong> — Sarah Thomas (USA) completes first four-way',
           '<strong>2023</strong> — Andreas Waschburger (Germany) breaks Grimsey\'s record at 6h 45m 25s',
@@ -975,23 +975,23 @@ const PAGES = {
     sections: [
       {
         h2: 'Captain Matthew Webb — 24-25 August 1875',
-        p: '<strong>The first.</strong> Webb proved the Channel could be swum, covering it in <strong>21 hours 45 minutes</strong> from Dover to Calais using breaststroke and porpoise fat for warmth. He died seven years later attempting to swim through the rapids below Niagara Falls. <em><a href="/english-channel/swim/matthew-webb-1875">Read his swim page →</a></em>',
+        p: '<strong>The first.</strong> Webb proved the Channel could be swum, covering it in <strong>21 hours 45 minutes</strong> from Dover to a beach near Calais, using breaststroke and porpoise fat for warmth. He died seven years later attempting to swim through the rapids below Niagara Falls. <em><a href="/english-channel/swim/matthew-webb-1875">Read his swim page →</a></em>',
       },
       {
         h2: 'Gertrude Ederle — 6 August 1926',
-        p: '<strong>The first woman, and the fastest swim to that date.</strong> 19-year-old American Olympic gold medallist swam from France to England in <strong>14 hours 39 minutes</strong>, beating all five previous male crossings by hours. She came home to a New York ticker-tape parade. <em><a href="/english-channel/swim/gertrude-ederle-1926">Read her swim page →</a></em>',
+        p: '<strong>The first woman, and the fastest swim to that date.</strong> The 20-year-old American, an Olympic relay gold medallist from Paris 1924, swam from France to England in <strong>14 hours 39 minutes</strong>, beating all five previous male crossings by hours. She came home to a New York ticker-tape parade. <em><a href="/english-channel/swim/gertrude-ederle-1926">Read her swim page →</a></em>',
       },
       {
         h2: 'Florence Chadwick — 1950, 1951, 1953',
         p: 'American swimmer who took the women\'s record in 1950 (13h 23m) and crossed both directions multiple times, becoming a celebrity and proving cold-water marathon swimming was a professional discipline.',
       },
       {
-        h2: 'Antonio Abertondo — 21 September 1961',
-        p: '<strong>First two-way crossing.</strong> Argentinian completed the round trip in 43h 4m. Until then most thought it was physically impossible to swim both ways back-to-back.',
+        h2: 'Antonio Abertondo — 20–21 September 1961',
+        p: '<strong>First two-way crossing.</strong> Argentinian completed the round trip in 43h 10m, pausing just four minutes in France between legs. Until then most thought it was physically impossible to swim both ways back-to-back.',
       },
       {
         h2: 'Philip Rush — 16-17 August 1987',
-        p: '<strong>First three-way crossing.</strong> New Zealand swimmer Rush set the modern multi-way standard in <strong>28h 21m</strong>. The record still stands.',
+        p: '<strong>Fastest three-way crossing.</strong> New Zealander Rush swam the second three-way ever — Jon Erikson was first in 1981 — and became the first to break 30 hours, in <strong>28h 21m</strong>. That record still stands: only five people have ever completed a three-way, and nobody has gone faster.',
       },
       {
         h2: 'Alison Streeter MBE — 1982–2004',
