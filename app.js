@@ -606,6 +606,40 @@
                     }
                 } catch (_) {}
 
+                // Public-page attribution: close the loop on
+                // `Google → crossing → signup → swimmer`.
+                //
+                // The crossing pages are server-rendered and anonymous, so
+                // they can only leave a crumb (see api/_lib/public-analytics.js,
+                // which writes this key on first touch). This is the first
+                // moment a user_id exists, so it is the only place the two
+                // halves can be joined. Recorded as an ordinary
+                // analytics_event — no new table, no attribution platform.
+                //
+                // Same 7-day window as _swimref above: a crossing page read
+                // two months ago did not cause today's signup.
+                try {
+                    const _attrRaw = localStorage.getItem('sl_public_attribution');
+                    if (_attrRaw) {
+                        const _attr = JSON.parse(_attrRaw);
+                        const _age = Date.now() - new Date(_attr.at).getTime();
+                        if (Number.isFinite(_age) && _age >= 0 && _age < 7 * 24 * 60 * 60 * 1000) {
+                            await supabaseClient.from('analytics_events').insert({
+                                event_name: 'signup_attributed_public_page',
+                                user_id: data.user.id,
+                                properties: {
+                                    source: _attr.source || null,
+                                    slug: _attr.slug || null,
+                                    landing_page: _attr.landing_page || null,
+                                    referrer: _attr.referrer || null,
+                                    first_touch_at: _attr.at || null
+                                }
+                            });
+                        }
+                        localStorage.removeItem('sl_public_attribution');
+                    }
+                } catch (_) { /* attribution is never worth failing a signup over */ }
+
                 // Check if auto-confirmed (session exists) or needs email verification
                 if (data.session) {
                     // Auto-confirmed! Go straight to app

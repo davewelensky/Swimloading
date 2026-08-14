@@ -12,6 +12,7 @@
 
 import { dbGet, dbRpc, escapeHtml } from './seo-utils.js';
 import { countryBySlug, countryByCode } from './_countries.js';
+import { isPublicPageIndexable, robotsFor } from './_lib/indexability.js';
 
 const SITE = 'https://www.swimloading.com';
 
@@ -304,11 +305,19 @@ function head(ev, ctx) {
   // already happened. Evaluated here because this is where the current date
   // is known — the column says "good enough to index", the handler adds
   // "and it has not happened yet".
-  const past = ev.end_date
-    ? ev.end_date < new Date().toISOString().slice(0, 10)
-    : ev.start_date && ev.start_date < new Date().toISOString().slice(0, 10);
-  const dead = ev.status === 'cancelled' || ev.status === 'postponed';
-  const robots = ev.is_indexable && !past && !dead ? 'index,follow' : 'noindex,nofollow';
+  // The whole judgement now lives in the shared gate, which applies the
+  // same "is this fit to put in front of a swimmer" test the sitemap uses
+  // — so a page can no longer claim index,follow while the sitemap quietly
+  // holds it back, or the reverse. The date check it performs is NOT
+  // redundant with is_indexable: that column is a stored snapshot taken
+  // when the row was assessed, and nothing clears it as time passes.
+  //
+  // noindex,FOLLOW rather than nofollow: an unverified listing should not
+  // rank, but its links to the venue and the organiser are still worth
+  // crawling. Withholding the page is the point; withholding the graph is
+  // just collateral damage.
+  const verdict = isPublicPageIndexable({ ...ev, venue: ev.venue || ev.event_venues }, 'event');
+  const robots = robotsFor(verdict);
 
   return `<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">

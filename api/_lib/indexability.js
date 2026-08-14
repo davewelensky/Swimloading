@@ -26,6 +26,19 @@ export const INDEXABILITY_RULES = {
   crossing: {
     minDistanceKm: 0,
   },
+  event: {
+    // A date a reader cannot act on is not an answer. 'exact' and 'range'
+    // both tell a swimmer when to turn up; 'month' and 'year' do not.
+    usableDatePrecision: ['exact', 'range'],
+    // Statuses a public, indexable listing may have. 'cancelled' and
+    // 'completed' still render — people search for last year's race — but
+    // they are not what a search for an upcoming swim should return.
+    indexableStatuses: ['announced', 'entries_open', 'entries_closed'],
+    // 'unverified' is a raw discovery candidate: found by a crawler and
+    // not yet stood behind by anyone. Those must never reach the index.
+    excludedVerificationTiers: ['unverified'],
+    minTitleLength: 3,
+  },
 };
 
 function nonEmpty(v) {
@@ -51,6 +64,7 @@ export function isPublicPageIndexable(record, kind, opts = {}) {
 
   if (kind === 'spot') return spotIndexable(record, now);
   if (kind === 'crossing') return crossingIndexable(record);
+  if (kind === 'event') return eventIndexable(record, now);
   // An unknown kind is not a licence to index. Say so rather than defaulting
   // to true and quietly publishing something nobody designed a rule for.
   return { indexable: false, reasons: [`no indexability rule for kind "${kind}"`], missing: [] };
@@ -106,6 +120,76 @@ function crossingIndexable(c) {
     return { indexable: false, reasons: [`thin: missing ${missing.join(', ')}`], missing };
   }
   return { indexable: true, reasons: ['has a name, slug and distance'], missing: [] };
+}
+
+/**
+ * Events are DISCOVERED, not authored — a crawler proposes them and most
+ * are never touched by a human. That makes them the one page type where
+ * "a row exists" is furthest from "this is worth putting in front of a
+ * swimmer", so the gate is correspondingly strict: a real name, a place, a
+ * date precise enough to act on, a canonical slug, and someone standing
+ * behind it.
+ *
+ * Failing is not deletion. The record stays, the page still renders for
+ * anyone holding the link, and it is served noindex,follow — a listing we
+ * have not verified must not be the thing Google shows a swimmer planning
+ * their season.
+ *
+ * `record.venue` may be the joined event_venues row (or the edition may
+ * carry venue_country_code / venue_latitude directly) — both shapes are
+ * accepted so callers need not reshape their query.
+ */
+function eventIndexable(ev, now) {
+  const rules = INDEXABILITY_RULES.event;
+  const missing = [];
+
+  if (!nonEmpty(ev.title) || String(ev.title).trim().length < rules.minTitleLength) missing.push('title');
+  // Canonical identity: without a slug there is no stable URL to index.
+  if (!nonEmpty(ev.slug)) missing.push('slug');
+
+  // Location: a venue with at least a country, or usable coordinates.
+  const venue = ev.venue || ev.event_venues || {};
+  const hasCountry = nonEmpty(ev.venue_country_code) || nonEmpty(venue.country_code);
+  const hasVenueCoords = hasCoords({
+    latitude: ev.venue_latitude ?? venue.latitude,
+    longitude: ev.venue_longitude ?? venue.longitude,
+  });
+  const hasVenueId = nonEmpty(ev.venue_id);
+  if (!hasCountry && !hasVenueCoords && !hasVenueId) missing.push('location');
+
+  // Date, and a precision a swimmer can act on.
+  if (!nonEmpty(ev.start_date)) {
+    missing.push('start_date');
+  } else if (nonEmpty(ev.date_precision) && !rules.usableDatePrecision.includes(ev.date_precision)) {
+    missing.push(`date precision "${ev.date_precision}"`);
+  }
+
+  if (!nonEmpty(ev.discipline)) missing.push('discipline');
+
+  // Explicit editorial opt-out always wins.
+  if (ev.is_indexable === false) {
+    return { indexable: false, reasons: ['is_indexable is false'], missing };
+  }
+  if (nonEmpty(ev.status) && !rules.indexableStatuses.includes(ev.status)) {
+    return { indexable: false, reasons: [`status is "${ev.status}"`], missing };
+  }
+  if (nonEmpty(ev.verification_tier) && rules.excludedVerificationTiers.includes(ev.verification_tier)) {
+    return { indexable: false, reasons: [`verification tier is "${ev.verification_tier}"`], missing };
+  }
+  // A finished event is not a candidate for "swims I can enter". Compared
+  // on end_date where the event spans days, so a festival is not dropped
+  // on its middle morning.
+  const endsAt = ev.end_date || ev.start_date;
+  if (nonEmpty(endsAt)) {
+    const end = new Date(`${String(endsAt).slice(0, 10)}T23:59:59Z`);
+    if (!Number.isNaN(end.getTime()) && end.getTime() < now.getTime()) {
+      return { indexable: false, reasons: ['event has already finished'], missing };
+    }
+  }
+  if (missing.length > 0) {
+    return { indexable: false, reasons: [`thin: missing ${missing.join(', ')}`], missing };
+  }
+  return { indexable: true, reasons: ['has a name, location, actionable date and canonical slug'], missing: [] };
 }
 
 /** The meta robots value a page should serve, given the gate's verdict. */

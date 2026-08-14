@@ -427,7 +427,7 @@ const PAGES = {
         p: 'The pilot does the navigation, calls the conditions, and witnesses the swim. There are about 12 active CSA pilots and 8 CS&PF pilots; popular ones book out 2+ years ahead.',
         bullets: [
           '<strong>Standard solo pilot fee:</strong> £3,000–£4,500 depending on pilot and year',
-          '<strong>Deposit to secure a slot:</strong> £700–£1,200 paid at booking, non-refundable',
+          '<strong>Deposit to secure a slot:</strong> £2,000 for a one-way solo, plus a non-refundable booking fee of around £600 which is credited against the pilot fee',
           '<strong>Balance:</strong> due in the weeks before your tide window',
           '<strong>Cancellation:</strong> if conditions don\'t allow a swim during your week, you typically forfeit the deposit and rebook for a future tide (some pilots offer rollovers)',
         ],
@@ -669,7 +669,7 @@ const PAGES = {
         bullets: [
           '<strong>Contact the pilot directly</strong> — by phone or email, listed on CSA/CS&PF websites.',
           '<strong>Discuss your tide window preferences</strong> — neap tides are easier; spring tides have more sweep.',
-          '<strong>Pay deposit £700–£1,200</strong> — secures your slot. Non-refundable.',
+          '<strong>Pay the booking fee (~£600) and deposit (£2,000)</strong> — secures your slot. The booking fee is non-refundable.',
           '<strong>Sign the contract</strong> — covers responsibilities, cancellation, force majeure.',
           '<strong>Register with CSA or CS&PF</strong> — annual fee, your pilot will confirm which body.',
           '<strong>Pay balance</strong> — typically due 4–8 weeks before your tide window.',

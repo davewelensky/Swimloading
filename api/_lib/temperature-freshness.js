@@ -70,6 +70,34 @@ export function getTemperatureFreshness(observedAt, opts = {}) {
 }
 
 /**
+ * The right heading for a body of water's temperature.
+ *
+ * Some pages have a measured reading and some only have a seasonal range.
+ * A crossing page is the second kind: there is no sensor in the middle of
+ * the Tsugaru Strait, so its 15–20°C is what the water is USUALLY like,
+ * not what it is right now. Calling that "current water temperature" is
+ * the same failure the freshness thresholds exist to prevent, one step
+ * removed — so the typical case is named here, beside the rules it must
+ * stay consistent with, rather than being invented per template.
+ *
+ * @param {object} opts
+ * @param {string|Date|null} [opts.observedAt] when a measured reading was taken
+ * @param {boolean} [opts.hasTypicalRange] whether a seasonal range exists
+ * @returns {{ label: string, isCurrent: boolean, state: string }}
+ */
+export function waterTemperatureLabel(opts = {}) {
+  const { observedAt, hasTypicalRange = false } = opts;
+  const freshness = getTemperatureFreshness(observedAt, opts);
+  if (freshness.state !== 'unavailable') {
+    return { label: freshness.label, isCurrent: freshness.canSayToday, state: freshness.state };
+  }
+  if (hasTypicalRange) {
+    return { label: 'Typical water temperature', isCurrent: false, state: 'typical' };
+  }
+  return { label: freshness.label, isCurrent: false, state: 'unavailable' };
+}
+
+/**
  * The page title for a spot, which may only say "Today" when the reading
  * actually supports it. Kept beside the freshness rule so the two can
  * never drift apart.

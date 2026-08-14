@@ -17,8 +17,14 @@
 // a crossing page by accident. robben-island already has its own page at
 // /robben.
 
-import { dbGet, escapeHtml } from './seo-utils.js';
+import { dbGet, escapeHtml, generateSlug } from './seo-utils.js';
 import { isPublicPageIndexable, robotsFor } from './_lib/indexability.js';
+import { waterTemperatureLabel } from './_lib/temperature-freshness.js';
+import { crossingAnalyticsScript, CROSSING_EVENTS } from './_lib/public-analytics.js';
+import {
+  nearbySpotsQuery, nearbyEventsQuery, rankNearbySpots, rankRelatedCrossings,
+  exploreUrlForCrossing, exploreCtaText, NEARBY_LIMITS,
+} from './_lib/nearby.js';
 
 const NEVER_TEMPLATED = new Set(['english-channel']);
 
@@ -38,11 +44,49 @@ export default async function handler(req, res) {
     if (!crossing || !crossing.intro || !crossing.key_facts?.length) {
       return res.status(404).send(render404(slug));
     }
-    return res.status(200).send(renderCrossingPage(crossing));
+    // Nearby content is a bonus, never a dependency: a slow or failing
+    // lookup must not cost the visitor the page they searched for.
+    const nearby = await loadNearby(crossing).catch((err) => {
+      console.error('[crossings-handler] nearby lookup failed', err);
+      return {};
+    });
+    return res.status(200).send(renderCrossingPage(crossing, nearby));
   } catch (err) {
     console.error('[crossings-handler]', err);
     return res.status(500).send(renderError());
   }
+}
+
+/**
+ * Spots, events and crossings worth showing beside this one. Each lookup
+ * is independent and failure-tolerant — a crossing with no country and no
+ * anchor simply gets no nearby block, which is the honest outcome rather
+ * than a wrong one.
+ */
+async function loadNearby(crossing) {
+  const spotsQ = nearbySpotsQuery(crossing);
+  const eventsQ = nearbyEventsQuery(crossing);
+
+  const [spotRows, eventRows, allCrossings] = await Promise.all([
+    spotsQ ? dbGet(spotsQ).catch(() => []) : Promise.resolve([]),
+    eventsQ ? dbGet(eventsQ).catch(() => []) : Promise.resolve([]),
+    dbGet('crossings?is_active=eq.true&select=slug,name,country_code,oceans_seven,distance_km,intro&order=slug.asc').catch(() => []),
+  ]);
+
+  return {
+    nearbySpots: rankNearbySpots(spotRows || [], crossing, crossingAnchorOf(crossing)),
+    nearbyEvents: (eventRows || []).slice(0, NEARBY_LIMITS.maxEvents),
+    relatedCrossings: rankRelatedCrossings(allCrossings || [], crossing),
+  };
+}
+
+// Local re-export so the render path and the query path cannot disagree
+// about what counts as a usable anchor.
+function crossingAnchorOf(c) {
+  const lat = Number(c?.anchor_lat ?? c?.start_lat);
+  const lng = Number(c?.anchor_lng ?? c?.start_lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return null;
+  return { lat, lng };
 }
 
 // ─── THE TEMPLATE ─────────────────────────────────────────────────────────────
@@ -50,7 +94,7 @@ export default async function handler(req, res) {
 // can render a page offline and diff it against the live file before any
 // route is switched.
 
-export function renderCrossingPage(c) {
+export function renderCrossingPage(c, nearby = {}) {
   const copy = c.page_copy || {};
   const facts = c.key_facts || [];
   const fact = (re) => facts.find(f => re.test(f.label));
@@ -79,12 +123,40 @@ export function renderCrossingPage(c) {
     fact(/season/i) && `<span class="stat-chip season">${escapeHtml(fact(/season/i).val)}</span>`,
   ].filter(Boolean).join('\n        ');
 
-  const factCards = facts.map(f => `
+  // SEARCH-INTENT LABELS. These pages rank for "<name> swim distance" and
+  // "<name> water temperature", so the Key Facts card is the answer box —
+  // it just has to say precisely WHICH distance and WHICH temperature.
+  //
+  // "Distance" alone cannot distinguish the recognised point-to-point from
+  // the longer track the tide actually gives you, and a seasonal range is
+  // not a current reading. Both labels come from validated data
+  // (distance_label / distance_swum_text on the row, and the central
+  // temperature vocabulary) — never from a guess, so a crossing without a
+  // stated basis keeps the plain label rather than gaining a claim.
+  const tempLabel = waterTemperatureLabel({
+    hasTypicalRange: c.typical_temp_min_c != null || c.typical_temp_max_c != null,
+  }).label;
+
+  const factCards = facts.map(f => {
+    const isDistance = /^distance/i.test(f.label);
+    const isTemp = /temperature/i.test(f.label);
+    const label = isDistance && c.distance_label ? c.distance_label
+      : isTemp ? tempLabel
+      : f.label;
+    // The actual-swum figure gets its own line rather than being buried at
+    // the end of a note — it is the thing that surprises people.
+    const swum = isDistance && c.distance_swum_text
+      ? `<div class="fact-note" style="margin-top:6px;color:var(--cyan);">Typically swum: ${escapeHtml(c.distance_swum_text)} — tracks run longer than the straight line because of tidal movement.</div>`
+      : '';
+    return `
             <div class="card">
-                <div class="fact-label">${escapeHtml(f.label)}</div>
+                <div class="fact-label">${escapeHtml(label)}</div>
                 <div class="fact-val">${escapeHtml(f.val)}</div>
-                ${f.note ? `<div class="fact-note">${escapeHtml(f.note)}</div>` : ''}
-            </div>`).join('');
+                ${f.note ? `<div class="fact-note">${escapeHtml(f.note)}</div>` : ''}${swum}
+            </div>`;
+  }).join('');
+
+  const nearbyHtml = renderNearby(c, nearby);
 
   const list = (items) => (items || []).map(i => `<li>${escapeHtml(i)}</li>`).join('\n                ');
   const aboutParas = (c.about_md || '').split(/\n\n+/).filter(Boolean)
@@ -144,7 +216,7 @@ export function renderCrossingPage(c) {
     <a href="/" class="nav-brand"><img src="/icons/logo-wave.png" alt="">SwimLoading</a>
     <div class="nav-right">
         <a href="/crossings" class="nav-back">All crossings</a>
-        <a href="/app" class="nav-cta">Open App</a>
+        <a href="/app" class="nav-cta" data-sl-event="${CROSSING_EVENTS.loginClick}" data-sl-cta="nav">Open App</a>
     </div>
 </nav>
 
@@ -235,11 +307,13 @@ export function renderCrossingPage(c) {
         <div class="score-result" id="rc_result"></div>
     </div>
 
+    ${nearbyHtml}
+
     <div class="bottom-cta">
         <h2>${escapeHtml(copy.cta_title || 'Build Your Open Water Log')}</h2>
         <p>${escapeHtml(copy.cta_blurb || `Track every training swim and water temperature as you build toward your ${displayName} crossing.`)}</p>
         <div class="cta-row">
-            <a href="/app" class="btn-primary">Open SwimLoading</a>
+            <a href="/app" class="btn-primary" data-sl-event="${CROSSING_EVENTS.signupClick}" data-sl-cta="bottom_cta">Open SwimLoading</a>
             <a href="/crossings" class="btn-ghost">All Crossings</a>
         </div>
     </div>
@@ -267,8 +341,70 @@ function calcReadiness(){
 }
 document.addEventListener('mousemove',e=>{document.body.style.setProperty('--mouse-x',e.clientX+'px');document.body.style.setProperty('--mouse-y',e.clientY+'px');});
 </script>
+${crossingAnalyticsScript(c)}
 </body>
 </html>`;
+}
+
+/**
+ * "Where else can I swim near here?" — the block that gives an organic
+ * visitor somewhere to go instead of the back button.
+ *
+ * Everything here is derived from real rows. A crossing with no anchor and
+ * no country renders NOTHING rather than a plausible-looking list, because
+ * a wrong "nearby" is worse than an absent one: it teaches the reader the
+ * page does not know what it is talking about.
+ */
+function renderNearby(c, nearby = {}) {
+  const spots = nearby.nearbySpots || [];
+  const events = nearby.nearbyEvents || [];
+  const crossings = nearby.relatedCrossings || [];
+  const exploreUrl = exploreUrlForCrossing(c);
+
+  const card = (href, title, meta, event, cta) => `
+        <a href="${escapeHtml(href)}" class="nearby-item"${event ? ` data-sl-event="${event}" data-sl-cta="${escapeHtml(cta || '')}"` : ''}>
+            <span class="nearby-name">${escapeHtml(title)}</span>
+            ${meta ? `<span class="nearby-meta">${escapeHtml(meta)}</span>` : ''}
+        </a>`;
+
+  const spotHtml = spots.length ? `
+        <div class="nearby-group">
+            <h3 class="nearby-title">Swim spots nearby</h3>
+            <div class="nearby-grid">${spots.map(s => card(
+              `/spots/${generateSlug(s.name)}`, s.name,
+              s.distanceKm != null ? `${s.distanceKm.toFixed(0)} km away` : (s.area || ''),
+            )).join('')}</div>
+        </div>` : '';
+
+  const eventHtml = events.length ? `
+        <div class="nearby-group">
+            <h3 class="nearby-title">Upcoming swims in the area</h3>
+            <div class="nearby-grid">${events.map(e => card(
+              `/events/${e.slug}`, e.title,
+              e.start_date ? new Date(`${e.start_date}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '',
+            )).join('')}</div>
+        </div>` : '';
+
+  const crossingHtml = crossings.length ? `
+        <div class="nearby-group">
+            <h3 class="nearby-title">Related crossings</h3>
+            <div class="nearby-grid">${crossings.map(x => card(
+              `/crossings/${x.slug}`, x.name,
+              x.distance_km != null ? `${x.distance_km} km` : '',
+            )).join('')}</div>
+        </div>` : '';
+
+  if (!spotHtml && !eventHtml && !crossingHtml) return '';
+
+  return `
+    <div class="section">
+        <div class="section-title">Swim near ${escapeHtml(c.name.replace(/\s+Crossing$/i, ''))}</div>
+        ${spotHtml}${eventHtml}${crossingHtml}
+        <a href="${escapeHtml(exploreUrl)}" class="explore-cta"
+           data-sl-event="${CROSSING_EVENTS.exploreClick}" data-sl-cta="nearby_block">
+            ${escapeHtml(exploreCtaText(c))} &rarr;
+        </a>
+    </div>`;
 }
 
 // Verbatim from the hand-written crossing pages this template replaced
@@ -353,7 +489,16 @@ const PAGE_CSS = `
     .btn-primary:hover{opacity:.88;}
     .btn-ghost{display:inline-block;padding:13px 28px;border-radius:50px;background:transparent;border:1px solid rgba(255,255,255,0.15);color:var(--text);font-size:14px;font-weight:600;text-decoration:none;transition:border-color .15s;}
     .btn-ghost:hover{border-color:rgba(56,189,248,0.5);color:var(--cyan);}
-    @media(max-width:520px){.two-col{grid-template-columns:1fr;}.readiness-form{grid-template-columns:1fr;}.score-breakdown{grid-template-columns:1fr;}.stat-row{gap:8px;}}
+    .nearby-group{margin-bottom:18px;}
+    .nearby-title{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-sec);margin-bottom:10px;}
+    .nearby-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+    .nearby-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg-card);text-decoration:none;transition:border-color .15s;}
+    .nearby-item:hover{border-color:rgba(56,189,248,0.4);}
+    .nearby-name{font-size:13px;font-weight:600;color:var(--text);}
+    .nearby-meta{font-size:11px;color:var(--text-sec);flex-shrink:0;}
+    .explore-cta{display:inline-block;margin-top:6px;padding:11px 22px;border-radius:50px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);color:var(--cyan);font-size:13px;font-weight:700;text-decoration:none;transition:background .15s;}
+    .explore-cta:hover{background:rgba(56,189,248,0.18);}
+    @media(max-width:520px){.nearby-grid{grid-template-columns:1fr;}.two-col{grid-template-columns:1fr;}.readiness-form{grid-template-columns:1fr;}.score-breakdown{grid-template-columns:1fr;}.stat-row{gap:8px;}}
 `;
 
 function render404(slug) {

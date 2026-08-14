@@ -157,12 +157,21 @@ export default async function handler(req, res) {
     // sql/applied/2026-08-05_explore-phase1-foundation.sql. Listing an event
     // we have not verified well enough would put a wrong listing somewhere a
     // correction cannot follow it.
+    // The DB flag narrows the set; isPublicPageIndexable is the authority
+    // on whether each survivor is actually fit to be indexed. Selecting the
+    // venue and the precision/verification columns is what makes that
+    // judgement possible — the old query fetched only a slug and a date,
+    // which is exactly enough to advertise a listing nobody has checked.
     const events = await dbGet(
       'event_editions?is_indexable=eq.true&status=in.(announced,entries_open,entries_closed)' +
-      `&start_date=gte.${TODAY()}&select=slug,start_date,last_verified_at&order=start_date.asc&limit=2000`
+      `&start_date=gte.${TODAY()}&select=slug,title,start_date,end_date,date_precision,status,discipline,` +
+      'verification_tier,is_indexable,venue_id,last_verified_at,event_venues(country_code,latitude,longitude)' +
+      '&order=start_date.asc&limit=2000'
     ) || [];
+    let eventsSkipped = 0;
     for (const ev of events) {
       if (!ev.slug) continue;
+      if (!isPublicPageIndexable({ ...ev, venue: ev.event_venues }, 'event').indexable) { eventsSkipped++; continue; }
       // Soon = worth re-crawling often, because entry status and dates move.
       const soon = ev.start_date && ev.start_date <= addDays(90);
       urls.push(url(
@@ -171,6 +180,10 @@ export default async function handler(req, res) {
         soon ? 'daily' : 'weekly',
         (ev.last_verified_at || '').slice(0, 10) || TODAY()
       ));
+    }
+
+    if (eventsSkipped > 0) {
+      console.log(`sitemap: ${eventsSkipped} of ${events.length} events held back by the quality gate`);
     }
 
     // ── Country hub pages ────────────────────────────────────────────────
