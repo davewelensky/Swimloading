@@ -37,40 +37,6 @@ export const CROSSING_EVENTS = {
   loginClick: 'crossing_login_click',
 };
 
-/** The same four events for spot pages. Same shape, same machinery. */
-export const SPOT_EVENTS = {
-  pageView: 'spot_page_view',
-  exploreClick: 'spot_explore_click',
-  signupClick: 'spot_signup_click',
-  loginClick: 'spot_login_click',
-};
-
-/**
- * The `spot_page_view` payload.
- *
- * `temperature_freshness_state` is the point of this one. It lets us ask
- * the question this increment exists to answer: do pages showing a stale
- * reading convert worse than pages showing a live one? Without it we would
- * be guessing at the cost of the defect we just fixed.
- */
-export function spotEventPayload(spot, extra = {}) {
-  const payload = {
-    spot_id: spot?.id,
-    slug: spot?.slug,
-    spot_name: spot?.name,
-    country: spot?.country_code,
-    region: spot?.region || spot?.domain,
-    water_type: spot?.water_type,
-    temperature_freshness_state: spot?.freshness_state,
-  };
-  for (const [k, v] of Object.entries(extra)) {
-    if (v !== undefined && v !== null && v !== '') payload[k] = v;
-  }
-  return Object.fromEntries(
-    Object.entries(payload).filter(([, v]) => v !== undefined && v !== null && v !== '')
-  );
-}
-
 /**
  * The `crossing_page_view` payload. Pure and exported so tests can assert
  * the shape without rendering a page or running a browser.
@@ -107,33 +73,8 @@ export function crossingEventPayload(crossing, extra = {}) {
  * preventDefault, so a thrown analytics error cannot swallow a click.
  */
 export function crossingAnalyticsScript(crossing) {
-  return publicPageAnalyticsScript({
-    payload: crossingEventPayload(crossing),
-    events: CROSSING_EVENTS,
-    source: 'crossing',
-    slug: crossing?.slug,
-    entityId: crossing?.id,
-  });
-}
-
-/**
- * The same script for a spot page. Spots and crossings deliberately share
- * one implementation: two copies would drift, and the first thing to drift
- * would be the attribution key, silently breaking the join at signup.
- */
-export function spotAnalyticsScript(spot) {
-  return publicPageAnalyticsScript({
-    payload: spotEventPayload(spot),
-    events: SPOT_EVENTS,
-    source: 'spot',
-    slug: spot?.slug,
-    entityId: spot?.id,
-  });
-}
-
-function publicPageAnalyticsScript({ payload, events, source, slug, entityId }) {
-  const base = JSON.stringify(payload);
-  const keys = JSON.stringify({ key: ATTRIBUTION_KEY, ev: events, src: source, slug: slug || null, eid: entityId || null });
+  const base = JSON.stringify(crossingEventPayload(crossing));
+  const keys = JSON.stringify({ key: ATTRIBUTION_KEY, ev: CROSSING_EVENTS });
 
   return `<script>
 (function(){
@@ -152,9 +93,7 @@ function publicPageAnalyticsScript({ payload, events, source, slug, entityId }) 
     return out;
   }
   // Exposed so page code (and future sections) can send consistent events.
-  window.slPublicTrack = function(name, extra){ send(name, merged(extra)); };
-  // Kept for the crossing pages shipped in increment 4.
-  window.slCrossingTrack = window.slPublicTrack;
+  window.slCrossingTrack = function(name, extra){ send(name, merged(extra)); };
 
   // ── page view ──────────────────────────────────────────────────────────
   try {
@@ -170,9 +109,9 @@ function publicPageAnalyticsScript({ payload, events, source, slug, entityId }) 
   try {
     if (!localStorage.getItem(CFG.key)) {
       localStorage.setItem(CFG.key, JSON.stringify({
-        source: CFG.src,
-        slug: CFG.slug,
-        entity_id: CFG.eid,
+        source: 'crossing',
+        slug: BASE.slug || null,
+        crossing_id: BASE.crossing_id || null,
         landing_page: location.pathname,
         referrer: document.referrer || null,
         at: new Date().toISOString()
