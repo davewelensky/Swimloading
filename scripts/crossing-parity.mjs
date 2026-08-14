@@ -12,7 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
 const { data: rows } = await db.from('crossings')
-  .select('slug,name,distance_km,typical_temp_min_c,typical_temp_max_c,difficulty,description,about_md,hazards,conditions,preparation,faqs,start_location,end_location,governing_body,duration_text,season_start_month,season_end_month');
+  .select('slug,name,distance_km,typical_temp_min_c,typical_temp_max_c,difficulty,description,about_md,hazards,conditions,preparation,faqs,start_location,end_location,governing_body,duration_text,season_start_month,season_end_month,intro,seo_description,key_facts,prep_benchmarks,page_copy');
 
 const words = (s) => new Set(String(s || '').toLowerCase().replace(/[^a-z0-9°]+/g, ' ').split(' ').filter(w => w.length > 3));
 const pageText = (html) => {
@@ -28,7 +28,9 @@ for (const r of rows.sort((a, b) => a.slug.localeCompare(b.slug))) {
   const pw = words(pageText(readFileSync(f, 'utf8')));
   const stored = [r.name, r.description, r.about_md, r.start_location, r.end_location, r.governing_body,
     r.duration_text, r.difficulty, `${r.distance_km} km`, `${r.typical_temp_min_c} ${r.typical_temp_max_c}`,
-    ...(r.hazards || []), ...(r.conditions || []), ...(r.preparation || []),
+    r.intro, r.seo_description, ...Object.values(r.page_copy || {}),
+    ...(r.hazards || []), ...(r.conditions || []), ...(r.preparation || []), ...(r.prep_benchmarks || []),
+    ...(r.key_facts || []).flatMap(x => [x.label, x.val, x.note]),
     ...(r.faqs || []).flatMap(x => [x.q, x.a])].join(' ');
   const sw = words(stored);
   const missing = [...pw].filter(w => !sw.has(w));

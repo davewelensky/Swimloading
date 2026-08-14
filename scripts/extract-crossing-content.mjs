@@ -41,11 +41,18 @@ function sections(html) {
 }
 
 // Paragraph-ish blocks under a heading, as separate strings.
-function blocks(h) {
+// `tags` narrows to one element kind — the Preparation section holds BOTH
+// benchmark <li>s and prose <p>s, and a template must know which is which
+// to rebuild the green checklist box separately from the prose card.
+function blocks(h, tags = 'p|li') {
   if (!h) return [];
-  const parts = h.match(/<(?:p|li)\b[^>]*>[\s\S]*?<\/(?:p|li)>/gi) || [];
+  const re = new RegExp(`<(?:${tags})\\b[^>]*>[\\s\\S]*?<\\/(?:${tags})>`, 'gi');
+  const parts = h.match(re) || [];
   return parts.map(strip).filter(t => t.length > 40);
 }
+
+// First capture group of a match, stripped; '' when absent.
+const grab = (html, re) => { const m = html.match(re); return m ? strip(m[1]) : ''; };
 
 // "Primary Hazards" and "Conditions Overview" are h3s INSIDE the
 // "What Makes It Challenging" section, so they are found by heading while
@@ -87,27 +94,51 @@ for (const slug of SLUGS) {
       if (question && answer) faqs.push({ q: question, a: answer });
     }
   }
+  // Head, hero and chrome copy. All of it is bespoke per page — meta
+  // descriptions, eyebrows, difficulty labels and the readiness/CTA blurbs
+  // were each written by hand, and the difficulty chip does NOT track the
+  // difficulty column (Catalina is "extreme" in the table, "Very Hard" on
+  // the page). Lifted verbatim so the template can reproduce them.
+  const prepSec = find(secs, /training benchmark|preparation/i)?.html;
+  const benchHtml = underH3(prepSec || '', /training benchmark/i);
+  const readiness = html.match(/<div class="readiness-section">[\s\S]*?<h2>([\s\S]*?)<\/h2>\s*<p>([\s\S]*?)<\/p>/i);
+  const cta = html.match(/<div class="bottom-cta">\s*<h2>([\s\S]*?)<\/h2>\s*<p>([\s\S]*?)<\/p>/i);
+
   report.push({
     slug,
     pageTitle: strip(title),
+    seoDescription: grab(html, /name="description" content="([^"]*)"/i),
+    intro:          grab(html, /<p class="hero-sub"[^>]*>([\s\S]*?)<\/p>/i),
+    eyebrow:        grab(html, /class="hero-eyebrow"[^>]*>([\s\S]*?)<\/div>/i),
+    difficultyLabel: grab(html, /class="stat-chip diff[^"]*"\s*>([^<]+)</i),
+    challengeTitle:  strip(find(secs, /what makes it/i)?.title || ''),
+    benchmarksLabel: grab(benchHtml === null ? '' : (prepSec || ''), /<h3[^>]*>([\s\S]*?)<\/h3>/i),
+    readinessTitle:  readiness ? strip(readiness[1]) : '',
+    readinessBlurb:  readiness ? strip(readiness[2]) : '',
+    ctaTitle:        cta ? strip(cta[1]) : '',
+    ctaBlurb:        cta ? strip(cta[2]) : '',
     hazards:     blocks(underH3(html, /hazard/i)),
     conditions:  blocks(underH3(html, /conditions overview/i)),
     about:       blocks(find(secs, /about the crossing/i)?.html),
-    preparation: blocks(find(secs, /training benchmark|preparation/i)?.html),
+    preparation: blocks(prepSec),
+    prepBenchmarks: blocks(benchHtml, 'li'),
+    prepProse:      blocks(prepSec, 'p'),
     faqs,
     keyFacts: keyFacts(html),
   });
 }
 
 const n = (a) => (a || []).length;
-console.log('slug'.padEnd(22), 'haz cond about prep faq  title');
+console.log('slug'.padEnd(22), 'haz cond about bench prose faq intro meta  chip / eyebrow');
 for (const r of report) {
   if (r.missing) { console.log(r.slug.padEnd(22), 'FILE NOT FOUND'); continue; }
   console.log(
     r.slug.padEnd(22),
     String(n(r.hazards)).padStart(3), String(n(r.conditions)).padStart(4),
-    String(n(r.about)).padStart(5), String(n(r.preparation)).padStart(4),
-    String(n(r.faqs)).padStart(4), ' ', (r.pageTitle || '').slice(0, 48)
+    String(n(r.about)).padStart(5), String(n(r.prepBenchmarks)).padStart(5),
+    String(n(r.prepProse)).padStart(5), String(n(r.faqs)).padStart(3),
+    String(r.intro.length).padStart(5), String(r.seoDescription.length).padStart(4),
+    ' ', `${r.difficultyLabel} / ${r.eyebrow}`.slice(0, 44)
   );
 }
 const i = process.argv.indexOf('--json');
