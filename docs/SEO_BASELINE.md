@@ -63,6 +63,55 @@ clicks a quarter is noise.
 
 ---
 
+## Spot cohort baseline — 14 August 2026
+
+Taken immediately before Increment 5, which changed spot titles and meta
+descriptions to tell the truth about how old each temperature reading is.
+Window: previous 3 months.
+
+| Page | Clicks | Impressions | CTR | Avg position |
+|---|---:|---:|---:|---:|
+| `/spots/tooting-bec-lido` | 96 | ~6,200 | ~1.5% | ~7.4 |
+| `/spots/simons-town` | — | — | — | — |
+| `/spots/brockwell-lido` | — | — | — | — |
+| `/spots/aquatic-park-san-francisco` | — | — | — | — |
+| `/spots/langebaan-channel` | — | — | — | — |
+| `/spots/clifton-4th-beach` | — | — | — | — |
+
+Only Tooting Bec's figures were supplied. The other five are listed
+because they are the agreed cohort and because each represents a distinct
+freshness state — **paste their GSC numbers in before the next re-take, or
+this table cannot support a before/after comparison.** Deliberately left
+blank rather than estimated.
+
+### The freshness state each page was in at the moment of the change
+
+This is the part that matters for reading the next measurement, because
+only some of these pages had their title changed at all:
+
+| Page | Reading age | State | Title before | Title after |
+|---|---:|---|---|---|
+| Tooting Bec Lido | 0.3 h | live | …Pool Temperature Today | **unchanged** |
+| Brockwell Lido | 0.3 h | live | …Pool Temperature Today | **unchanged** |
+| Clifton 4th Beach | 7.3 h | recent | …Water Temperature Today | …Water Temperature & Swimming Conditions |
+| Simons Town | 149 h | stale | …Water Temperature Today | …Water Temperature & Swimming Conditions |
+| Boulders Beach | 967 h | stale | …Water Temperature Today | …Water Temperature & Swimming Conditions |
+| Langebaan — Channel | 1,326 h | stale | …Water Temperature Today | …Water Temperature & Swimming Conditions |
+| Muizenberg | no reading | unavailable | …Water Temperature Today | …Swimming Conditions |
+
+**The canary did not change.** Tooting Bec's reading was 18 minutes old, so
+it keeps "Today" and its title is byte-identical. That is the cleanest
+possible canary result: the fix is proven correct without disturbing the
+best-performing page, and any movement in its numbers is therefore noise,
+not this change.
+
+Expect CTR on the *stale* pages to move — down as often as up. Losing the
+word "Today" may cost clicks. That trade is deliberate: a swimmer who
+clicks "temperature today" and finds a six-day-old number learns not to
+trust the site, and that costs more than a click.
+
+---
+
 ## Tooting Bec Lido — review, 14 August 2026
 
 Reviewed as the cleanest spot-SEO canary (96 clicks, position ~7.4).
@@ -85,7 +134,10 @@ rows give the page real, current substance.
 
 ### Recommendations — deliberately NOT implemented in Increment 4
 
-1. **`spotTitle()` is not actually used by the spot handler.** Increment 1
+**Status: item 1 was FIXED in Increment 5 (14 Aug 2026).** Items 2–4 remain
+open. The original finding is kept below as the record of what was wrong.
+
+1. ~~**`spotTitle()` is not actually used by the spot handler.**~~ Increment 1
    added a helper whose entire purpose is to say "Today" only when a
    reading supports it. `renderSpotPage()` still builds the title with a
    hardcoded `Today`. It is defensible on Tooting Bec (live sensor) but is
