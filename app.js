@@ -143,17 +143,51 @@
             // Handle expired/invalid links
             if (IS_AUTH_ERROR) {
                 const params = new URLSearchParams(INITIAL_HASH.substring(1));
-                const errorDesc = params.get('error_description') || 'The link has expired or is invalid.';
-                console.log('Auth error from URL:', errorDesc);
+                const rawDesc = params.get('error_description') || '';
+                const errorCode = params.get('error_code') || '';
+                console.log('Auth error from URL:', errorCode, rawDesc);
                 window.location.hash = '';
                 showAuth();
+
+                // Supabase says "Email link is invalid or has expired" for a
+                // link that has ALREADY BEEN USED as well as for one that has
+                // timed out. Those are different problems with different
+                // fixes, and the shared wording sends people back to request
+                // another link they then use the same way.
+                //
+                // A recovery link is single-use: whatever opens it first
+                // consumes it — including the URL scanners that corporate
+                // mail systems run over every incoming link before the human
+                // sees it. Graham (tieweavers.co.za, 15 Aug 2026) hit exactly
+                // this: his link was consumed 21 seconds after it was sent,
+                // and every click after that reported "expired".
+                const looksConsumedOrExpired = /otp_expired|access_denied/i.test(errorCode) ||
+                    /invalid or has expired|expired/i.test(rawDesc);
+
                 setTimeout(() => {
                     showForgotPassword();
                     const msgEl = document.getElementById('forgotMessage');
                     msgEl.style.display = 'block';
                     msgEl.style.background = 'rgba(239, 68, 68, 0.1)';
                     msgEl.style.color = 'var(--danger)';
-                    msgEl.innerHTML = decodeURIComponent(errorDesc.replace(/\+/g, ' ')) + '<br><span style="font-size:12px; color: var(--text-secondary);">Please request a new reset link below.</span>';
+
+                    // Built from text nodes, never innerHTML. error_description
+                    // comes from the URL hash, which anyone can craft — putting
+                    // it into innerHTML made a link like
+                    // /app#error=1&error_description=<img onerror=...> run
+                    // script on our own origin. Fixed 2026-08-17.
+                    msgEl.textContent = '';
+                    const headline = document.createElement('div');
+                    headline.textContent = looksConsumedOrExpired
+                        ? 'This password reset link has expired or has already been used.'
+                        : decodeURIComponent(rawDesc.replace(/\+/g, ' ')) || 'That link could not be used.';
+                    const hint = document.createElement('span');
+                    hint.style.cssText = 'font-size:12px;color:var(--text-secondary);display:block;margin-top:6px;';
+                    hint.textContent = looksConsumedOrExpired
+                        ? 'Each link works once and only for a short time. Request a new one below, then open it straight away and set your password before closing the page.'
+                        : 'Please request a new reset link below.';
+                    msgEl.appendChild(headline);
+                    msgEl.appendChild(hint);
                 }, 200);
                 return;
             }
