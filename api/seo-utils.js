@@ -68,6 +68,7 @@ export const DOMAIN_MAP = {
   SPAIN:             { display: 'Spain',               region: 'spain' },
   THAILAND:          { display: 'Thailand',             region: 'thailand' },
   CANADA:            { display: 'Canada',               region: 'canada' },
+  IRELAND:           { display: 'Ireland',              region: 'ireland' },
 };
 
 // Country-code filter for region slugs that are sub-regions of a shared domain (e.g. EUROPE)
@@ -142,6 +143,7 @@ export const REGION_DOMAINS = {
   'spain':             ['SPAIN'],
   'thailand':          ['THAILAND'],
   'canada':            ['CANADA'],
+  'ireland':           ['IRELAND'],
 };
 
 export const REGION_NAMES = {
@@ -171,6 +173,7 @@ export const REGION_NAMES = {
   'spain':             'Spain',
   'thailand':          'Thailand',
   'canada':            'Canada',
+  'ireland':           'Ireland',
 };
 
 export const REGION_INTROS = {
@@ -226,6 +229,8 @@ export const REGION_INTROS = {
     "Thailand offers warm, tropical open water swimming year-round in the Andaman Sea — the west coast washed by water that rarely drops below 27°C. SwimLoading's Thai coverage starts in Phuket, the country's largest island and its most established open water swimming and triathlon hub, with sheltered bays alongside more exposed, current-affected channels between the mainland and nearby islands.\n\nWater stays warm all year, so cold shock is not a concern — the real considerations are seasonal monsoon swell (roughly May–October, strongest on the west coast) and boat traffic in popular bays. Visibility varies with runoff after heavy rain but is generally good outside the wet season.\n\nSwimLoading is building its Thai community. If you swim in Phuket or elsewhere in Thailand, log your temperature and conditions — your data helps every swimmer planning a session in these waters.",
   'canada':
     "SwimLoading is expanding into Canada, starting on the Pacific coast in Vancouver, British Columbia. English Bay — with Second Beach and Kitsilano nearby — has a strong year-round open water community, cold Pacific water, and one of the world's great urban swim backdrops against the North Shore mountains.\n\nThe Pacific Northwest swims cold: English Bay typically runs 6–10°C in winter and 17–21°C at the summer peak, so cold water acclimatisation matters here the way it does in Cape Town or San Francisco. Summer brings warm, calm evenings and busy beaches; boat traffic and tidal currents in Burrard Inlet deserve respect year-round.\n\nSwimLoading is building its Canadian community. If you swim in Vancouver or anywhere in Canada, log your temperature and conditions — your data helps every swimmer planning a session in these waters.",
+  'ireland':
+    "Ireland has one of the deepest sea swimming cultures in the world — a country where year-round dips are a daily ritual and every coastal town has its swimming spot. SwimLoading's Irish coverage starts with three of the most storied: the Forty Foot at Sandycove in Dublin, swum every day of the year for over two centuries; Blackrock Diving Tower on Salthill Promenade in Galway, the heart of Atlantic swimming in the west; and Sandycove Island at Kinsale in Cork, one of the world's great open water training grounds.\n\nIrish water is cold-temperate year-round: roughly 8–10°C in late winter and 14–17°C at the late-summer peak, with the Irish Sea usually a degree or two warmer than the Atlantic coast. Lion's mane jellyfish are the main seasonal hazard in the Irish Sea in late summer.\n\nSwimLoading is building its Irish community. If you swim anywhere in Ireland, log your temperature and conditions — your data helps every swimmer planning a session in these waters.",
 };
 
 // Maps /countries/[slug] → the region slug that spots-handler should render.
@@ -244,6 +249,7 @@ export const COUNTRY_SLUGS = {
   'spain':          'spain',
   'thailand':       'thailand',
   'canada':         'canada',
+  'ireland':        'ireland',
 };
 
 export function getLocationLabel(domain, area, countryCode) {

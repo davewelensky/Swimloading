@@ -5736,15 +5736,16 @@
                 FRANCE:            'france',
                 THAILAND:          'thailand',
                 CANADA:            'canada',
+                IRELAND:           'ireland',
             };
             const group = SAFETY_GROUP[domain] || '';
 
-            const isIntlGroup = group === 'uk' || group === 'europe' || group === 'western_australia' || group === 'usa' || group === 'seychelles' || group === 'dalmatia' || group === 'spain' || group === 'france' || group === 'thailand' || group === 'canada';
+            const isIntlGroup = group === 'uk' || group === 'europe' || group === 'western_australia' || group === 'usa' || group === 'seychelles' || group === 'dalmatia' || group === 'spain' || group === 'france' || group === 'thailand' || group === 'canada' || group === 'ireland';
 
             // ── Show/hide sharks section — no sharks for UK/Europe (WA has sharks) ─
             const sharksSection = document.getElementById('sharksSection');
             if (sharksSection) {
-                const noSharks = group === 'uk' || group === 'europe' || group === 'dalmatia' || group === 'spain' || group === 'france';
+                const noSharks = group === 'uk' || group === 'europe' || group === 'dalmatia' || group === 'spain' || group === 'france' || group === 'ireland';
                 sharksSection.style.display = noSharks ? 'none' : '';
             }
 
@@ -5867,6 +5868,10 @@
                         color: '#f59e0b', icon: 'alert-triangle', title: 'Thailand (Andaman Sea) Open Water Hazards',
                         body: '<strong>Monsoon swell</strong> (roughly May–October) brings stronger currents and rip tides on the west coast, and beach flag warnings should always be obeyed — a red flag means stay out. <strong>Boat traffic</strong> is heavy in popular bays around Phuket; swim well clear of longtail boat and ferry lanes. <strong>Jellyfish</strong> (including box jellyfish) are occasionally reported — check with local dive/swim operators before entering unfamiliar water.',
                     },
+                    ireland: {
+                        color: '#f59e0b', icon: 'alert-triangle', title: 'Ireland Open Water Hazards',
+                        body: '<strong>Cold water</strong> is the constant — Irish seas need acclimatisation and respect year-round, even at the summer peak. <strong>Lion\'s mane jellyfish</strong> are the main seasonal hazard, most common in the Irish Sea July–September — give them a wide berth, their trailing tentacles sting well beyond the bell. <strong>Atlantic swell and rips</strong> affect exposed west and south coast entries; conditions change fast. Check bathing water quality on <a href="https://www.beaches.ie" target="_blank" style="color:#38bdf8;">beaches.ie</a> after heavy rain.',
+                    },
                     canada: {
                         color: '#f59e0b', icon: 'alert-triangle', title: 'Canada (BC Pacific) Open Water Hazards',
                         body: '<strong>Cold water</strong> is the primary hazard year-round — the Pacific stays cold enough for cold shock and hypothermia even in mid-summer outside the warmest bays. <strong>Boat traffic</strong> is heavy in English Bay and Burrard Inlet (freighters at anchor, seaplanes, ferries, paddle craft) — swim inside marked areas and use a tow float. <strong>Tidal currents</strong> run strongly through inlet narrows; plan around slack tide for longer swims. Check beach advisories on <a href="https://www.vch.ca/en/service/public-beach-water-quality" target="_blank" style="color:#38bdf8;">Vancouver Coastal Health</a> after heavy rain.',
@@ -5905,6 +5910,7 @@
                 france:            null,
                 thailand:          `<strong>Thailand:</strong> Shark encounters are extremely rare in Thai coastal waters. Occasional reef shark sightings in deeper channels around Phuket — not considered a swimming hazard. No shark nets or spotting programme in place.`,
                 canada:            `<strong>British Columbia:</strong> Dangerous shark encounters are essentially unheard of in BC coastal waters — local species (dogfish, sixgill sharks) are not a swimming hazard. The marine life to respect here is <strong>harbour seals and sea lions</strong>: curious, occasionally boisterous, best given space.`,
+                ireland:           null,
             };
             const sharksNote = document.getElementById('sharksRegionalNote');
             if (sharksNote) {
@@ -5931,6 +5937,7 @@
                 france:            `<strong>France (Côte d'Azur) temps:</strong> The Mediterranean along the French Riviera runs 13–14°C in winter and 24–26°C in July–September, making it swimmable for most of the year. Cold shock is a low risk in summer; winter and early-spring swimmers should acclimatise gradually and have warm layers ready on exit.`,
                 thailand:          `<strong>Thailand (Andaman Sea) temps:</strong> Water stays warm year-round, typically 27–30°C. Cold shock is not a concern. Focus on sun protection, hydration, and monsoon-season swell instead.`,
                 canada:            `<strong>BC (Pacific) temps:</strong> English Bay runs roughly 6–10°C in winter and 17–21°C at the summer peak — cold shock is a real risk for most of the year. Acclimatise gradually, never swim alone in cold water, and have warm layers ready immediately after. Mountain-fed lakes and rivers stay cold even in hot weather.`,
+                ireland:           `<strong>Ireland temps:</strong> roughly 8–10°C in late winter and 14–17°C at the late-summer peak, with the Irish Sea usually slightly warmer than the Atlantic coast. Cold shock and after-drop are real risks in every season — acclimatise gradually, keep first swims short, never swim alone in cold water, and have warm layers ready immediately after.`,
             };
             const coldNote = document.getElementById('coldWaterRegionalNote');
             if (coldNote) {
@@ -6003,6 +6010,10 @@
                 canada: [
                     ['tel:911','phone','Emergency Services','Police · Ambulance · Fire','911'],
                     ['tel:18005675111','anchor','JRCC Victoria (Marine Rescue)','Maritime emergency · BC coast · also #727 on cell or VHF 16','1-800-567-5111'],
+                ],
+                ireland: [
+                    ['tel:112','anchor','Irish Coast Guard (via 112)','Dial 112 or 999 and ask for the Coast Guard · Marine emergency','112'],
+                    ['tel:999','phone','Emergency Services','Police (Gardaí) · Ambulance · Fire · Coast Guard','999'],
                 ],
             };
             const contactsEl = document.getElementById('safetyRegionalContacts');
@@ -6078,6 +6089,11 @@
                 canada: { title: 'Reporting (Canada — BC)', contacts: [
                     ['tel:18005675111','anchor','JRCC Victoria — Marine Rescue','Maritime emergency · Search & rescue · BC coast','1-800-567-5111'],
                     ['https://www.vch.ca/en/service/public-beach-water-quality','droplets','Vancouver Coastal Health','Beach water quality · Advisories (May–Sep sampling)','vch.ca'],
+                ]},
+                ireland: { title: 'Reporting (Ireland)', contacts: [
+                    ['tel:112','anchor','Irish Coast Guard','Dial 112 or 999, ask for the Coast Guard · Marine incidents','112'],
+                    ['https://www.beaches.ie','droplets','EPA — beaches.ie','Official bathing water quality · Beach advisories','beaches.ie'],
+                    ['https://watersafety.ie','shield','Water Safety Ireland','National water safety body · Guidance & ring buoy reporting','watersafety.ie'],
                 ]},
             };
             const reportingEl = document.getElementById('safetyRegionalReporting');
@@ -7206,7 +7222,7 @@
 
         const SP_TYPE_LABELS = { OCEAN: 'Ocean', POOL: 'Pool', LAGOON: 'Lagoon', DAM: 'Inland', LAKE: 'Lake' };
         const SP_TYPE_ICONS  = { OCEAN: 'waves', POOL: 'droplets', LAGOON: 'anchor', DAM: 'mountain-snow', LAKE: 'waves' };
-        const INTERNATIONAL_DOMAINS = new Set(['EUROPE', 'NAMIBIA', 'UK', 'WESTERN_AUSTRALIA', 'USA', 'SEYCHELLES', 'DALMATIA', 'FRANCE', 'SPAIN', 'THAILAND', 'CANADA']);
+        const INTERNATIONAL_DOMAINS = new Set(['EUROPE', 'NAMIBIA', 'UK', 'WESTERN_AUSTRALIA', 'USA', 'SEYCHELLES', 'DALMATIA', 'FRANCE', 'SPAIN', 'THAILAND', 'CANADA', 'IRELAND']);
         const COUNTRY_NAMES = { ZA: 'South Africa', NA: 'Namibia', CH: 'Switzerland', AU: 'Australia', GB: 'United Kingdom', FR: 'France', DE: 'Germany', IT: 'Italy', SC: 'Seychelles', ES: 'Spain', CA: 'Canada' };
         const AREA_DISPLAY = {
             ATLANTIC: 'Atlantic Seaboard',

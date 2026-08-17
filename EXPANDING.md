@@ -9,7 +9,7 @@
 
 SwimLoading is a 6-tab PWA. Regions and spots are stored in Supabase (`domains` and `spots` tables). Most of the app is **DB-driven** — add a row and it appears everywhere. The exceptions are: international domains (need code changes), the Safety tab (regional content is hardcoded per safety group), and SEO pages (need seo-utils.js entries). Everything else is automatic.
 
-**14 countries live** (South Africa, Namibia, United Kingdom, Australia, Switzerland, Portugal, USA, Seychelles, Italy, France, Croatia, Spain, Thailand, Canada). The international country list is now the **single source of truth** in `site-config.js` (`window.SITE_CONFIG.countries`). welcome.html reads it for hero pills, grid cards, the origin sentence, and every country counter (via `data-sync` — see `site-sync.js`). **Add one object to `SITE_CONFIG.countries` and the count + list update on every page that loads the config.** The only count string NOT auto-driven is the globe `<canvas aria-label>` in welcome.html (an HTML attribute can't hold a span) — update that one by hand.
+**15 countries live** (South Africa, Namibia, United Kingdom, Australia, Switzerland, Portugal, USA, Seychelles, Italy, France, Croatia, Spain, Thailand, Canada, Ireland). The international country list is now the **single source of truth** in `site-config.js` (`window.SITE_CONFIG.countries`). welcome.html reads it for hero pills, grid cards, the origin sentence, and every country counter (via `data-sync` — see `site-sync.js`). **Add one object to `SITE_CONFIG.countries` and the count + list update on every page that loads the config.** The only count string NOT auto-driven is the globe `<canvas aria-label>` in welcome.html (an HTML attribute can't hold a span) — update that one by hand.
 
 ---
 

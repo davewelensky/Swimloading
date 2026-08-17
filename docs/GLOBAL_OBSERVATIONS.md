@@ -156,6 +156,31 @@ real-handler harness.
   (`api/spot-history.js`) — graphing series `{t, temp_c, wave_m?}` from the
   approved primary station, downsampled to ≤400 points, `s-maxage=900`.
 
+## Generic ERDDAP adapter (`api/_lib/observations/providers/erddap.js`) — Increment 2
+
+ERDDAP is the same server software across Marine Institute Ireland, EMODnet,
+CIOOS Canada and IMOS Australia, so ONE adapter serves them all:
+`createErddapProvider({ code, baseUrl, datasets })`, where each dataset config
+maps that dataset's column names (and units, e.g. `{column:'WindSpeed',
+unit:'knots'}`) onto the normalized shapes. Station ids are
+`<datasetId>:<stationId>`. The station catalogue is derived from recent data
+(72 h window) because ERDDAP has no universal station endpoint. Gotchas
+encoded in tests: constraint operators MUST be URL-encoded (Tomcat 400s a raw
+`>`), an empty result window is a 404 `nRows = 0` (a valid empty answer, not
+an outage), `NaN`/empty cells are null, and the units row is the truth about
+conversions. One cron (`api/cron/observations-erddap.js`, `50 * * * *`) runs
+every ERDDAP-family provider; which ones actually ingest is controlled purely
+by `observation_providers.enabled`.
+
+### Current providers
+
+| Code | Status | Notes |
+|---|---|---|
+| `ndbc` | enabled | ~500 stations reporting water temp; 3 approved primaries live |
+| `ireland_mi` | enabled (Increment 2) | `IWBNetwork` offshore buoys M2–M6, hourly, temp+waves+wind (knots→m/s). No Irish spots yet, so no candidates — coverage is ready for the day they exist. `ICTempNetwork` (coastal) was dormant on 2026-08-17 — recheck before adding. |
+| `emodnet` | **disabled** (Increment 2) | Probed 2026-08-17: public EMODnet ERDDAPs expose climatologies + sea-level NRT only — NO near-real-time water temperature; their platform API hosts were unreachable. The practical route is CMEMS/Copernicus INSITU (needs credentials — fits the Copernicus Phase 3 plan). When a dataset exists, add its config to `emodnetProvider` and enable the row. |
+| `mywaterlive` | disabled | Tooting Bec/Brockwell keep their original pipeline (`sensor-import` → `temp_logs`); adapter exists for a later increment |
+
 ## Adding another provider (Increment 2+)
 
 1. `api/_lib/observations/providers/<code>.js` implementing the adapter
