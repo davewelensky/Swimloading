@@ -18,6 +18,8 @@ import { spotAnalyticsScript, SPOT_EVENTS } from './_lib/public-analytics.js';
 import {
   exploreUrlForSpot, exploreCtaTextForSpot, nearbyEventsQueryForSpot,
 } from './_lib/nearby.js';
+import { getSpotConditions } from './_lib/observations/conditions.js';
+import { renderConditionsCard } from './_lib/observations/render.js';
 
 const REGION_SLUGS = new Set(Object.keys(REGION_DOMAINS));
 
@@ -135,6 +137,15 @@ async function renderSpotPage(slug) {
   // 7-day trend from recent logs
   const trend = computeTrend(recentLogs);
 
+  // Measured water conditions from the spot's approved primary observation
+  // station (global observation platform). Most spots have none — the card
+  // renders only when a usable measurement exists, and the service is
+  // contractually null-on-failure, so this can never cost the page a 200.
+  // Sensor venues (my-water.live layout) keep their own live hero instead.
+  const observedConditions = VENUE_MAP[slug]
+    ? null
+    : await getSpotConditions(spot.id).catch(() => null);
+
   // Upcoming swims a reader could actually enter. Failure-tolerant: a
   // slow or broken events lookup must not cost the visitor the spot page
   // they searched for.
@@ -219,6 +230,8 @@ async function renderSpotPage(slug) {
 
     <main class="container page-body">
       ${renderHazards(hazards)}
+
+      ${renderConditionsCard(observedConditions)}
 
       <section>
         <h2>Recent Logs <small>(last 7 days)</small></h2>

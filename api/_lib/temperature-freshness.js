@@ -22,9 +22,42 @@ export const FRESHNESS_THRESHOLDS = {
   // Still useful and honestly labelled as a recent reading, not as now.
   recentHours: 48,
   // Beyond recentHours it is history: shown, but never as the current state.
+  // For measured observations (buoys/sensors), history is still worth a
+  // "last reading" card up to this many days; beyond it the observation is
+  // STALE and the page shows nothing rather than a misleading number.
+  lastReadingDays: 7,
 };
 
 export const FRESHNESS_STATES = ['live', 'recent', 'stale', 'unavailable'];
+
+// States for MEASURED observations (the global observation platform).
+// Derived from the same thresholds above — these are the only names the
+// observation service and the spot renderer may use, so the two can never
+// disagree about what counts as "live".
+export const OBSERVATION_STATES = ['LIVE', 'RECENT', 'LAST_READING', 'STALE'];
+
+/**
+ * Freshness state for a measured observation.
+ *   LIVE          ≤ liveHours       — may be described as live/now/today
+ *   RECENT        ≤ recentHours     — a recent measurement, not "now"
+ *   LAST_READING  ≤ lastReadingDays — shown only as "last reading"
+ *   STALE         beyond that       — not shown as a current value at all
+ * Returns null for a missing/unparseable timestamp: no observation, no state.
+ *
+ * @param {string|Date|null|undefined} observedAt
+ * @param {{ now?: Date }} [opts]
+ * @returns {{ state: 'LIVE'|'RECENT'|'LAST_READING'|'STALE', ageMinutes: number, canSayLive: boolean }|null}
+ */
+export function getObservationState(observedAt, opts = {}) {
+  const freshness = getTemperatureFreshness(observedAt, opts);
+  if (freshness.state === 'unavailable') return null;
+  const ageMinutes = Math.round(freshness.ageHours * 60);
+  if (freshness.state === 'live') return { state: 'LIVE', ageMinutes, canSayLive: true };
+  if (freshness.state === 'recent') return { state: 'RECENT', ageMinutes, canSayLive: false };
+  const state = freshness.ageHours <= FRESHNESS_THRESHOLDS.lastReadingDays * 24
+    ? 'LAST_READING' : 'STALE';
+  return { state, ageMinutes, canSayLive: false };
+}
 
 /**
  * @param {string|Date|null|undefined} observedAt  when the reading was taken

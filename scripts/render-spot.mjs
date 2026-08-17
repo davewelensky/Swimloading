@@ -19,6 +19,7 @@ const SMOKE = [
   ['simons-town',       'stale reading, ZA ocean'],
   ['boulders-beach',    'very stale reading, ZA ocean'],
   ['muizenberg',        'no reading, modelled estimate only'],
+  ['la-jolla-shores',   'candidate stations only — observation card must NOT render'],
   ['atlantic',          'REGION page — must not regress'],
 ];
 
