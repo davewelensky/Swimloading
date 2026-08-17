@@ -293,6 +293,12 @@
                     </div>
                 `;
 
+                // Offer the code path immediately. Every failure this flow
+                // has actually produced came from the link — consumed early,
+                // superseded by a newer request, or opened in a stale tab —
+                // and the code in the same email is immune to all three.
+                showResetCodeEntry();
+
                 // Start 60s cooldown with countdown
                 resetCooldown = true;
                 let seconds = 60;
@@ -309,6 +315,79 @@
                     }
                 }, 1000);
             }
+        }
+
+        // ── 6-digit code reset ────────────────────────────────────────────
+        // The link and the code are two doors into the same recovery: the
+        // email carries both, and whichever the user manages to use lands
+        // them on the same "Set New Password" screen.
+        //
+        // WHY BOTH. A recovery LINK is single-use and order-dependent, so it
+        // fails when a mail scanner opens it first, when the user requests a
+        // second link (which kills the first), or when they return to an
+        // older tab. A code has none of those properties — it is typed by
+        // the person who has the email, and nothing else can spend it.
+
+        function showResetCodeEntry() {
+            const block = document.getElementById('resetCodeBlock');
+            if (block) block.style.display = 'block';
+            const link = document.getElementById('showCodeEntryLink');
+            if (link) link.style.display = 'none';
+            // Carry the address across so verifyOtp has it even if the user
+            // reloaded between requesting and typing.
+            try {
+                const email = document.getElementById('forgotEmail')?.value.trim();
+                if (email) sessionStorage.setItem('sl_reset_email', email);
+            } catch (_) {}
+        }
+
+        async function verifyResetCode() {
+            const codeEl = document.getElementById('resetCode');
+            const msgEl = document.getElementById('forgotMessage');
+            const btn = document.getElementById('resetCodeBtn');
+            const code = (codeEl?.value || '').replace(/\D/g, '');
+
+            let email = document.getElementById('forgotEmail')?.value.trim();
+            if (!email) { try { email = sessionStorage.getItem('sl_reset_email') || ''; } catch (_) {} }
+
+            const fail = (text) => {
+                msgEl.style.display = 'block';
+                msgEl.style.background = 'rgba(239, 68, 68, 0.1)';
+                msgEl.style.color = 'var(--danger)';
+                msgEl.textContent = text;
+                if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'Continue'; }
+            };
+
+            if (!email) return fail('Please enter your email address above first.');
+            if (code.length !== 6) return fail('Enter the 6-digit code from your email.');
+
+            if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = 'Checking...'; }
+            msgEl.style.display = 'block';
+            msgEl.style.background = 'rgba(56, 189, 248, 0.1)';
+            msgEl.style.color = 'var(--ocean-light)';
+            msgEl.textContent = 'Checking your code...';
+
+            // type:'recovery' exchanges the code for a session with the same
+            // rights the link would have granted — so the existing
+            // updatePassword() path works unchanged from here.
+            const { data, error } = await supabaseClient.auth.verifyOtp({
+                email, token: code, type: 'recovery',
+            });
+
+            if (error || !data?.session) {
+                // Supabase returns "Token has expired or is invalid" for BOTH
+                // a mistyped code and a genuinely expired one, so the two
+                // cannot be told apart here. Saying "expired" to someone who
+                // simply fat-fingered a digit is the same misdirection the
+                // link flow just cost us two days on — so the message covers
+                // both and gives the action that fixes either.
+                return fail('That code was not accepted. Check you copied the code from the NEWEST email, then try again — or send a new email for a fresh code.');
+            }
+
+            try { sessionStorage.removeItem('sl_reset_email'); } catch (_) {}
+            currentUser = data.session.user;
+            msgEl.style.display = 'none';
+            showResetPasswordForm();
         }
 
         // Show reset password form (after clicking email link)

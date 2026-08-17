@@ -33,7 +33,7 @@
     <!-- Lucide Icons -->
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
 
-    <script src="app.js?v=75"></script>
+    <script src="app.js?v=76"></script>
     <script src="app-june.js?v=24"></script>
     <script src="app-uk-challenge.js?v=3"></script>
     <script src="app-eo.js?v=4"></script>
@@ -88,7 +88,28 @@
                 </div>
                 <button class="btn" id="resetSendBtn" onclick="sendPasswordReset()">Send Reset Link</button>
                 <div id="forgotMessage" style="display: none; text-align: center; margin-top: 16px; padding: 12px; border-radius: 12px; font-size: 13px;"></div>
+
+                <!-- Code entry. Revealed after an email is sent, and also
+                     openable by anyone whose link keeps failing. A 6-digit
+                     code cannot expire out of order, be consumed by a mail
+                     scanner, or open in the wrong browser tab — the three
+                     ways the link flow has actually failed real users. -->
+                <div id="resetCodeBlock" style="display: none; margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.08);">
+                    <p style="font-size: 13px; color: var(--text-secondary); text-align: center; margin-bottom: 12px;">
+                        Link not working? Enter the 6-digit code from the same email instead.
+                    </p>
+                    <div class="form-group">
+                        <label>6-digit code</label>
+                        <input type="text" id="resetCode" placeholder="123456" inputmode="numeric" autocomplete="one-time-code"
+                               maxlength="6" style="letter-spacing: 4px; text-align: center; font-size: 18px;">
+                    </div>
+                    <button class="btn" id="resetCodeBtn" onclick="verifyResetCode()">Continue</button>
+                </div>
+
                 <div style="text-align: center; margin-top: 16px;">
+                    <a href="#" id="showCodeEntryLink" onclick="showResetCodeEntry(); return false;" style="color: var(--ocean-light); font-size: 13px; text-decoration: none;">I have a code instead</a>
+                </div>
+                <div style="text-align: center; margin-top: 10px;">
                     <a href="#" onclick="hideForgotPassword(); return false;" style="color: var(--text-secondary); font-size: 13px; text-decoration: none;">← Back to Login</a>
                 </div>
             </div>
