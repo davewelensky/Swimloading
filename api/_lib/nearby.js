@@ -41,6 +41,9 @@ export const NEARBY_LIMITS = {
   // landmark, and a swimmer reading about it will travel to train for it.
   spotRadiusKm: 150,
   eventRadiusKm: 250,
+  // Tighter than a crossing's: someone reading a spot page is choosing
+  // where to swim this week, not planning a trip around a landmark.
+  spotEventRadiusKm: 120,
   maxSpots: 6,
   maxEvents: 4,
   maxCrossings: 3,
@@ -152,6 +155,47 @@ export function exploreLabelForCrossing(crossing) {
 export function exploreCtaText(crossing) {
   const label = exploreLabelForCrossing(crossing);
   return label ? `Explore swims around ${label}` : 'Explore open water swims';
+}
+
+/**
+ * The Explore link for a SPOT.
+ *
+ * Same contract as the crossing version — Explore's own country / region /
+ * city / place_label keys — so both page types produce links that
+ * reproduce a real search rather than a bespoke one. A spot has something
+ * a crossing usually lacks: a real place name and an area, so the label
+ * can be specific ("Explore swims around Muizenberg").
+ */
+export function exploreUrlForSpot(spot) {
+  const params = new URLSearchParams();
+  if (spot?.country_code) params.set('country', spot.country_code);
+  const label = spot?.area || spot?.name || null;
+  if (spot?.country_code && label) params.set('place_label', label);
+  const qs = params.toString();
+  return qs ? `/explore?${qs}` : '/explore';
+}
+
+export function exploreCtaTextForSpot(spot) {
+  const label = spot?.area || spot?.name;
+  return label ? `Explore swims around ${label}` : 'Explore open water swims';
+}
+
+/** Upcoming, indexable events near a spot's coordinates. */
+export function nearbyEventsQueryForSpot(spot, today) {
+  const lat = Number(spot?.latitude);
+  const lng = Number(spot?.longitude);
+  const day = today || new Date().toISOString().slice(0, 10);
+  const base = 'event_editions?select=slug,title,start_date,status,event_venues!inner(city,region,country_code,latitude,longitude)' +
+    `&is_indexable=eq.true&start_date=gte.${day}&status=in.(announced,entries_open,entries_closed)&order=start_date.asc`;
+  if (Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0)) {
+    const b = boundingBox(lat, lng, NEARBY_LIMITS.spotEventRadiusKm);
+    return `${base}&event_venues.latitude=gte.${b.minLat.toFixed(4)}&event_venues.latitude=lte.${b.maxLat.toFixed(4)}` +
+      `&event_venues.longitude=gte.${b.minLng.toFixed(4)}&event_venues.longitude=lte.${b.maxLng.toFixed(4)}&limit=12`;
+  }
+  if (spot?.country_code) {
+    return `${base}&event_venues.country_code=eq.${encodeURIComponent(spot.country_code)}&limit=12`;
+  }
+  return null;
 }
 
 /**

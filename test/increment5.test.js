@@ -213,3 +213,40 @@ test('a null estimate is not treated as an estimate of zero degrees', () => {
   // ...but a genuine zero-degree estimate must still count.
   assert.equal(isPublicPageIndexable({ ...nothing, estimate_c: 0 }, 'spot', { now: NOW }).indexable, true);
 });
+
+// ── spot Explore + nearby events ───────────────────────────────────────
+
+test('a spot Explore link uses Explore’s own contract and its area label', async () => {
+  const { exploreUrlForSpot, exploreCtaTextForSpot } = await import('../api/_lib/nearby.js');
+  const spot = { name: 'Muizenberg', area: 'False Bay', country_code: 'ZA' };
+  const q = new URLSearchParams(exploreUrlForSpot(spot).split('?')[1]);
+  assert.equal(q.get('country'), 'ZA');
+  assert.equal(q.get('place_label'), 'False Bay');
+  assert.equal(exploreCtaTextForSpot(spot), 'Explore swims around False Bay');
+});
+
+test('a spot with no country gets bare /explore, never country=null', async () => {
+  const { exploreUrlForSpot } = await import('../api/_lib/nearby.js');
+  const url = exploreUrlForSpot({ name: 'Nowhere' });
+  assert.equal(url, '/explore');
+  assert.ok(!/null|undefined/.test(url));
+});
+
+test('nearby events for a spot are bounded, upcoming and indexable only', async () => {
+  const { nearbyEventsQueryForSpot } = await import('../api/_lib/nearby.js');
+  const q = nearbyEventsQueryForSpot({ latitude: -34.1, longitude: 18.47, country_code: 'ZA' }, '2026-08-17');
+  assert.match(q, /is_indexable=eq\.true/);
+  assert.match(q, /start_date=gte\.2026-08-17/);
+  assert.match(q, /event_venues\.latitude=gte\./);
+  // A spot page is a "where do I swim this week" page, so its radius is
+  // tighter than a crossing's.
+  const { NEARBY_LIMITS } = await import('../api/_lib/nearby.js');
+  assert.ok(NEARBY_LIMITS.spotEventRadiusKm < NEARBY_LIMITS.eventRadiusKm);
+});
+
+test('a spot with neither coordinates nor country queries nothing', async () => {
+  const { nearbyEventsQueryForSpot } = await import('../api/_lib/nearby.js');
+  assert.equal(nearbyEventsQueryForSpot({ name: 'Unknown' }), null);
+  // 0,0 is the Atlantic, not a missing value — treat it as missing.
+  assert.equal(nearbyEventsQueryForSpot({ latitude: 0, longitude: 0 }), null);
+});

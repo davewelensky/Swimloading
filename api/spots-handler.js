@@ -15,6 +15,9 @@ import {
 import { getSpotSponsorHtml, getRegionSponsorHtml } from './sponsors.js';
 import { VENUE_MAP } from './mywaterlive-config.js';
 import { spotAnalyticsScript, SPOT_EVENTS } from './_lib/public-analytics.js';
+import {
+  exploreUrlForSpot, exploreCtaTextForSpot, nearbyEventsQueryForSpot,
+} from './_lib/nearby.js';
 
 const REGION_SLUGS = new Set(Object.keys(REGION_DOMAINS));
 
@@ -132,6 +135,14 @@ async function renderSpotPage(slug) {
   // 7-day trend from recent logs
   const trend = computeTrend(recentLogs);
 
+  // Upcoming swims a reader could actually enter. Failure-tolerant: a
+  // slow or broken events lookup must not cost the visitor the spot page
+  // they searched for.
+  const eventsQ = nearbyEventsQueryForSpot(spot);
+  const nearbyEvents = eventsQ
+    ? ((await dbGet(eventsQ).catch(() => [])) || []).slice(0, 4)
+    : [];
+
   const isPool = spot.water_type === 'POOL';
 
   // ── FRESHNESS, DECIDED ONCE ────────────────────────────────────────────
@@ -194,7 +205,7 @@ async function renderSpotPage(slug) {
   // Sensor venues get a completely different hero-page layout
   const venue = VENUE_MAP[slug];
   const body = venue
-    ? renderSensorVenueBody(slug, spot, venue, regionSlug, regionName, recentLogs, nearbySpots, hazards)
+    ? renderSensorVenueBody(slug, spot, venue, regionSlug, regionName, recentLogs, nearbySpots, hazards, nearbyEvents)
     : `
     <nav class="breadcrumb" aria-label="Breadcrumb">
       <div class="container">
@@ -225,6 +236,8 @@ async function renderSpotPage(slug) {
       </section>
 
       ${renderNearbySpots(nearbySpots, regionSlug, regionName)}
+      ${renderNearbyEvents(nearbyEvents, spot)}
+      ${renderExploreCta(spot)}
       ${renderFaq(spot, locationLabel, latestData, hazards, freshness)}
       ${renderAppTeaser(spot)}
     </main>
@@ -245,7 +258,7 @@ async function renderSpotPage(slug) {
 // ─── SENSOR VENUE HERO PAGE ───────────────────────────────────────────────────
 // Used instead of the standard spot page layout for my-water.live venues.
 
-function renderSensorVenueBody(slug, spot, venue, regionSlug, regionName, recentLogs, nearbySpots, hazards) {
+function renderSensorVenueBody(slug, spot, venue, regionSlug, regionName, recentLogs, nearbySpots, hazards, nearbyEvents = []) {
   const factsHtml = venue.facts.map(f =>
     `<div class="svh-fact"><span class="svh-fact-dot"></span><span>${escapeHtml(f)}</span></div>`
   ).join('');
@@ -369,6 +382,10 @@ function renderSensorVenueBody(slug, spot, venue, regionSlug, regionName, recent
   ${renderMapEmbed(spot)}
 
   ${nearbyHtml}
+
+  ${renderNearbyEvents(nearbyEvents, spot)}
+
+  ${renderExploreCta(spot)}
 
   ${renderAppTeaser(spot)}
 
@@ -658,6 +675,56 @@ function renderNearbySpots(nearby, regionSlug, regionName) {
     <h2>Nearby Spots</h2>
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">${links}</div>
     ${regionLink}
+  </section>`;
+}
+
+/**
+ * Upcoming swims near this spot.
+ *
+ * A swimmer checking the temperature at Muizenberg is, by definition,
+ * someone who swims there — which makes an entered-this-season race
+ * nearby genuinely useful rather than filler. Renders nothing at all when
+ * there is nothing on: an empty "Upcoming swims" heading is worse than no
+ * heading, because it teaches the reader the section is never worth
+ * looking at.
+ */
+function renderNearbyEvents(events, spot) {
+  if (!events?.length) return '';
+  const items = events.map((e) => {
+    const when = e.start_date
+      ? new Date(`${e.start_date}T00:00:00Z`).toLocaleDateString('en-GB', {
+          day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
+        })
+      : '';
+    const place = e.event_venues?.city || e.event_venues?.region || '';
+    return `
+      <a href="/events/${escapeHtml(e.slug)}" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;border:1px solid var(--border);border-radius:8px;text-decoration:none;color:var(--text);font-size:14px;font-weight:600;">
+        <span>${escapeHtml(e.title)}${place ? `<span style="display:block;font-size:11px;font-weight:400;color:var(--subtle);">${escapeHtml(place)}</span>` : ''}</span>
+        ${when ? `<span style="font-size:12px;color:var(--subtle);font-weight:400;flex-shrink:0;">${escapeHtml(when)}</span>` : ''}
+      </a>`;
+  }).join('');
+  return `
+  <section>
+    <h2>Upcoming swims near ${escapeHtml(spot.name)}</h2>
+    <div style="display:grid;gap:8px;">${items}</div>
+  </section>`;
+}
+
+/**
+ * The way out of a spot page that is not the back button.
+ *
+ * Uses Explore's existing query contract, so the link reproduces a real
+ * search rather than dumping the visitor on an unfiltered map.
+ */
+function renderExploreCta(spot) {
+  const url = exploreUrlForSpot(spot);
+  return `
+  <section style="text-align:center;padding:6px 0 2px;">
+    <a href="${escapeHtml(url)}" class="btn-explore"
+       data-sl-event="${SPOT_EVENTS.exploreClick}" data-sl-cta="spot_footer"
+       style="display:inline-block;padding:12px 26px;border-radius:50px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);color:var(--ocean-lt);font-size:14px;font-weight:700;text-decoration:none;">
+      ${escapeHtml(exploreCtaTextForSpot(spot))} &rarr;
+    </a>
   </section>`;
 }
 
