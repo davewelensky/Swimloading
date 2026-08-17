@@ -66,7 +66,7 @@ export const REGISTRY = [
   })),
 
   // ── Cron endpoints ────────────────────────────────────────────────────
-  ...['purge-audit', 'sensor-import', 'marine-temps', 'venue-marine-temps', 'advance-challenge', 'observations-ndbc', 'observations-erddap'].flatMap(name => {
+  ...['purge-audit', 'sensor-import', 'marine-temps', 'venue-marine-temps', 'advance-challenge', 'observations-ndbc', 'observations-erddap', 'observations-cmems'].flatMap(name => {
     const path = `/api/cron/${name}`;
     return [
       { id: `${name}-no-auth`, path, method: 'GET', classification: 'AUTH_REJECTION', mutates_state: false, safe_in_production: true, expected_status: [401], description: 'no Authorization header' },
