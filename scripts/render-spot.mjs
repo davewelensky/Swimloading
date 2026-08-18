@@ -19,8 +19,15 @@ const SMOKE = [
   ['simons-town',       'stale reading, ZA ocean'],
   ['boulders-beach',    'very stale reading, ZA ocean'],
   ['muizenberg',        'no reading, modelled estimate only'],
-  ['la-jolla-shores',   'candidate stations only — observation card must NOT render'],
+  ['la-jolla-shores',   'live measured, NDBC primary approved'],
+  ['aquatic-park,-san-francisco', 'live measured, NDBC primary'],
+  ['english-bay-vancouver',       'live measured, ECCC via NDBC'],
+  ['boscombe-beach',    'live measured, CMEMS primary'],
+  ['dover',             'live measured, CMEMS primary'],
+  ['forty-foot',        'no measured source — card must NOT render'],
   ['atlantic',          'REGION page — must not regress'],
+  ['ireland',           'REGION page — country added Aug 2026'],
+  ['usa',               'REGION page — the country link target, must not 404'],
 ];
 
 function mockRes() {

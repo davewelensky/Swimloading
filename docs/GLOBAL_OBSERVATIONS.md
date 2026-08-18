@@ -182,6 +182,74 @@ by `observation_providers.enabled`.
 | `cmems_insitu` | enabled (Increment 3) | Copernicus Marine In Situ TAC — the network EMODnet redistributes. ~760 fixed moorings with TEMP globally; strong European coverage (UK south coast, Riviera, Mallorca). Catalogue from the anonymously-served native mirror's `index_latest.txt`; per-platform daily NetCDF-4 files parsed with **h5wasm** (WASM libhdf5, in-memory only) inside `api/cron/observations-cmems.js` (`20 * * * *`). QC flags 0/1/2 accepted; temperature taken from the shallowest sensor ≤5 m; moorings whose daily bounding box drifts >0.1° are refused. The ARCO/zarr stores need Copernicus' internal STS handshake — deliberately not used. Registration requirement satisfied by the SwimLoading Copernicus account (`COPERNICUS_MARINE_USERNAME/PASSWORD` in Vercel, reserved for future ARCO needs). Note: CMEMS carries some of the same stations as NDBC via the GTS (e.g. 46254, TIBC1) — cross-provider duplicates appear as separate candidates; approve one per spot. |
 | `mywaterlive` | disabled | Tooting Bec/Brockwell keep their original pipeline (`sensor-import` → `temp_logs`); adapter exists for a later increment |
 
+## Coverage analysis & gap discovery (Increment 4)
+
+`node scripts/analyse-observation-coverage.mjs` reads the whole catalogue
+(read-only, anon key) and writes `out/observation-coverage.json` + `.md`. It
+classifies every station:
+
+| Group | Meaning |
+|---|---|
+| A | approved for a spot |
+| B | high-confidence candidate for an existing spot with no source |
+| C | near a spot but ambiguous — needs a human |
+| D | usable station, no eligible spot within 25 km → **coverage gap** |
+| E | unusable (stale, no stored temperature, inactive) |
+
+Two rules matter more than the thresholds. **`temperature_available` is a
+capability flag, not evidence** — a station only counts as usable with a
+stored temperature reading inside 48 h, so a dead sensor cannot rank. And a
+**marine station is never eligible for a pool or inland spot**, so the
+"nearest spot" and the "nearest spot it may legally serve" are computed
+separately; a buoy beside a lido is a coverage gap, not a match.
+
+`clusterGaps()` groups gap stations within 60 km so the output is areas
+("11 stations around Lake Erie, none covered") rather than 500 coordinates.
+
+**Swim relevance is a heuristic over provider metadata, never a claim.**
+`swimRelevance()` reads station NAMES for shore signals (beach, pier, cove,
+nearshore, bathing) and against them for offshore/industrial ones (a
+distance-with-unit like "44 NM SE of Mobile", terminals, berths, platforms).
+A shore-mounted `station_type` alone can never promote a station to
+"probable swim water" — that describes most C-MAN stations, which sit on
+breakwaters and light towers nobody swims at. Every verdict ships with the
+signals that produced it so a reviewer can disagree, and known false
+positives remain (Alaskan fishing villages named "…Cove").
+
+### Observation gaps → the existing spot review queue
+
+`api/_lib/observations/gap-discovery.js` turns a qualifying gap into a
+`spot_suggestions` row with `source='observation_gap'` — the queue Dave
+already reviews. The Global Swim Discovery tables were considered and
+rejected: `discovery_candidate_events` is event-shaped to its foundations
+(date constraints, `proposed_organiser_id`, and a promotion RPC that can
+only insert an `event_editions` row). `spot_suggestions` already carries
+lat/lng/locality/country_code and the pending → approved | merged | rejected
+state machine, and its `source` column was added specifically so a machine
+origin could use the same pipeline.
+
+Idempotency is by station: `observation_station_id` plus a partial unique
+index means an hourly re-run files nothing new. **No spot is ever created**
+— approval remains the existing human step. Migration:
+`sql/2026-08-18_observation-gap-discovery.sql`.
+
+### Auto-approval (framework only — OFF)
+
+`api/_lib/observations/auto-approve.js` defines
+`isAutoApprovableStationMatch()`: ≤3 km, score ≥85, observation ≤6 h,
+known near-surface depth, known coastal water body, trusted provider, no
+rival within 10 points. Two structural guarantees: **a human decision always
+wins** (approved never re-decided, rejected never resurrected, manual
+primary never displaced), and **unknown is never permission** — every
+missing field blocks.
+
+It runs in dry run only, and `dryRunAutoApproval()` re-runs the rules blind
+over pairings humans already decided. The number that governs whether this
+may ever be enabled is `humanRejectedThatRulesWouldApprove`, which must be
+0. Today **0 of 43 in-range matches would auto-approve** — see the report
+for why, and read that as "the rules are not yet usable", not "the rules
+are safe".
+
 ## Adding another provider (Increment 2+)
 
 1. `api/_lib/observations/providers/<code>.js` implementing the adapter
