@@ -106,6 +106,29 @@ async function loadEvent(slug) {
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
+/**
+ * An edition that used to live at this slug, or null.
+ *
+ * previous_slugs is a text[] and every historical form is kept, because a
+ * slug can be corrected more than once and each old URL must keep resolving.
+ * PostgREST's `cs` operator is array-contains, so this is an index hit on
+ * event_editions_previous_slugs_idx rather than a scan.
+ *
+ * Returns only the CURRENT slug — the caller 301s to it. Deliberately not
+ * chained: if the target has itself been renamed the row's own slug is
+ * already the latest, so one hop is always enough.
+ */
+async function findRenamedEdition(slug) {
+  // The value is interpolated into a PostgREST array literal, so a slug
+  // containing a comma or brace would change the meaning of the filter.
+  // Real slugs are [a-z0-9-], so anything else cannot be a match anyway.
+  if (!/^[a-z0-9-]+$/i.test(slug)) return null;
+  const rows = await dbGet(
+    `event_editions?previous_slugs=cs.{${encodeURIComponent(slug)}}&limit=1&select=slug`
+  );
+  return Array.isArray(rows) && rows.length ? rows[0].slug : null;
+}
+
 async function loadContext(ev) {
   const venue = ev.event_venues;
   const series = ev.event_series;
@@ -1181,6 +1204,21 @@ export default async function handler(req, res) {
   try {
     const ev = await loadEvent(slug);
     if (!ev) {
+      // Before 404-ing, check whether this is a slug we have RENAMED. The old
+      // slugifier turned every accented character into a hyphen, so a batch
+      // of published URLs was corrected (boucle-des-fa-enciers-2026 →
+      // boucle-des-faienciers-2026). Those URLs are in the wild and in
+      // Google's index, so they must 301 rather than die.
+      //
+      // Kept here rather than as vercel.json routes: a redirect route has to
+      // sit before the ^/events/(.*)$ catch-all to fire at all, and it needs
+      // a deploy per rename. previous_slugs travels with the row.
+      const moved = await findRenamedEdition(slug);
+      if (moved) {
+        res.setHeader('Cache-Control', 'public, s-maxage=86400');
+        res.writeHead(301, { Location: `/events/${moved}` });
+        return res.end();
+      }
       // 404 must not be cached for long: a slug goes live the moment a
       // candidate is approved, and a day-long cached 404 would hide it.
       res.setHeader('Cache-Control', 'public, s-maxage=60');
