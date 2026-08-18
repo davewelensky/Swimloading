@@ -207,6 +207,13 @@ const INDUSTRIAL_PATTERNS = [
   [/\bterminal\b|\bberth\b|\banchorage\b|\brefinery\b/i, 'port/industrial installation'],
   [/\bshipping\b|\bfairway\b|\bchannel marker\b/i, 'shipping infrastructure'],
   [/\block\b|\bdry dock\b/i, 'dock infrastructure'],
+  // Navigation and survey features, not places anyone swims. All three came
+  // out of the first real generator run, where "Egmont Channel Entrance",
+  // "Onslow Bay Outer" and "Gooses Reef" reached the shortlist on the
+  // strength of the word "Bay" or "Beach" elsewhere in the name.
+  [/\b(entrance|inlet channel)\b/i, 'navigation channel entrance'],
+  [/\bouter\b|\boffing\b/i, 'named as the outer/offshore station of a pair'],
+  [/\breef\b|\bshoal\b|\bspit\b(?!.*\bbeach\b)/i, 'submerged navigation feature'],
 ];
 
 const NEARSHORE_PATTERNS = [
