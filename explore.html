@@ -468,6 +468,14 @@
     <button type="button" class="mode" role="tab" aria-selected="false" data-mode="regular"
             title="Groups that swim on a standing schedule — every day, or every Saturday — that you can simply turn up and join.">
       <i data-lucide="repeat"></i>Regular group swims</button>
+    <!-- The fourth answer to "where can I swim", and the only one where
+         nothing is happening: no date, no operator, no group. Just water,
+         and the temperature swimmers have measured in it. It used to be a
+         section that appeared and vanished under the race list, which read
+         as an afterthought to the thing this site is best at. -->
+    <button type="button" class="mode" role="tab" aria-selected="false" data-mode="places"
+            title="Swim spots with no event attached — somewhere to swim on any day, with the temperature swimmers have logged there.">
+      <i data-lucide="map-pin"></i>Places to swim</button>
   </div>
 
   <div class="panel">
@@ -531,6 +539,7 @@
 
     <input type="checkbox" id="bookable" hidden>
     <input type="checkbox" id="regular" hidden>
+    <input type="checkbox" id="placesMode" hidden>
   </div>
 
   <!-- The answer, at the size of an answer. This was 13px grey type below
@@ -746,6 +755,7 @@ function readUrl(){
   chk('confirmedOnly', u.get('confirmed_only')); chk('tri', u.get('include_multisport'));
   chk('bookable', u.get('bookable'));
   chk('regular', u.get('regular'));
+  chk('placesMode', u.get('places'));
   PAGE = Math.max(1, parseInt(u.get('page'),10) || 1);
   // Defensive on the way in as well as out: links carrying the old
   // "undefined" string are already in people's history and pasted messages,
@@ -777,6 +787,7 @@ function writeUrl(){
   put('confirmed_only', p.confirmed_only); put('include_multisport', p.include_multisport);
   put('bookable', bookableOnly());
   put('regular', regularOnly());
+  put('places', placesOnly());
   if(SEL.place){
     put('country', SEL.place.match.country); put('region', SEL.place.match.region);
     put('city', SEL.place.match.city); put('place_label', SEL.place.label);
@@ -823,6 +834,9 @@ async function search(opts){
   // Same reasoning as book mode: regular swims are already loaded and
   // have no date to search by.
   if(regularOnly()){ writeUrl(); renderRegulars(); return; }
+  // Places have no date and no server search either: they are loaded once and
+  // filtered in the browser, exactly like routes and regular swims.
+  if(placesOnly()){ writeUrl(); renderPlaces(); return; }
   const seq = ++searchSeq;
   // Abort the previous request. Without this, a slow early search can land
   // AFTER a fast later one and overwrite fresh results with stale ones —
@@ -1074,7 +1088,8 @@ function updateMapHint(n){
 function plotMarkers(){
   if(!MAP || !LAYER) return;
   LAYER.clearLayers(); MARKERS = [];
-  const shown = visiblePoints();
+  // Places mode shows spots only — a race pin there is a different question.
+  const shown = placesOnly() ? [] : visiblePoints();
   for(const r of shown){
     if(r.lat==null || r.lng==null) continue;
     const d = fmtDate(r.d, r.dp, r.dc);
@@ -1204,7 +1219,7 @@ function renderChips(){
   // These counts come from the dated event catalogue. Beside a list of
   // bookable routes or regular group swims they are not merely unhelpful,
   // they are about different things entirely.
-  if(bookableOnly() || regularOnly()){ el.innerHTML = ''; return; }
+  if(bookableOnly() || regularOnly() || placesOnly()){ el.innerHTML = ''; return; }
   // Unfiltered, this row is the hero's "35 countries" and the map's pins told
   // a third time. It appears when it can answer "where are THESE swims".
   if(!activeFilters().length){ el.innerHTML = ''; return; }
@@ -1392,6 +1407,7 @@ const bookableOnly = () => document.getElementById('bookable')?.checked === true
 // is_public rows, exactly as it does for swim_routes.
 let REGULARS = [];
 const regularOnly = () => document.getElementById('regular')?.checked === true;
+const placesOnly  = () => document.getElementById('placesMode')?.checked === true;
 
 const DAY_ABBR = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];   // 0=Sun, matching getDay()
 
@@ -1610,18 +1626,40 @@ const EVENT_WATER_TO_SPOT = {
   canal: null,
 };
 
+// Which spot water_type the water control currently means.
+//
+// In Places mode the control holds SPOT vocabulary (ocean, pool, dam…) and is
+// used as-is. In every other mode it holds EVENT vocabulary (sea, reservoir,
+// canal…) and has to be translated, because the same water has two names.
+function currentSpotWater(){
+  const v = document.getElementById('waterType')?.value || null;
+  if(!v) return { set:false, value:null };
+  if(placesOnly()) return { set:true, value:v };
+  const mapped = EVENT_WATER_TO_SPOT[v] ?? null;
+  return { set:true, value:mapped };
+}
+
 function visiblePlaces(){
-  const eventWater = document.getElementById('waterType')?.value || null;
-  const water = eventWater ? EVENT_WATER_TO_SPOT[eventWater] ?? null : null;
+  // The mode guard lives HERE, not only in renderPlaces(), because both the
+  // list and the map markers read this. It was only in renderPlaces, so in
+  // Book and Regular mode the section hid itself while its 205 rings stayed
+  // on the map — the map and the list disagreeing for the fourth time, same
+  // cause each time: two readers of the same idea, one of them filtered.
+  if(bookableOnly() || regularOnly()) return [];
+  const w = currentSpotWater();
+  const water = w.value;
   // Asked for a water type no spot can be: show none, not all.
-  if(eventWater && !water) return [];
+  if(w.set && !water) return [];
 
   // A spot has no distance — it is a place, not a race — so it cannot
   // satisfy "10 km +". Showing 56 of them beside the 2 races that DO match
   // is the same fault as the map drawing swims the list had excluded: things
   // on screen that cannot meet the stated requirement. The swimmer asked for
   // a distance; until they stop asking, places are not an answer.
-  if(document.getElementById('minDist')?.value) return [];
+  //
+  // Except in Places mode, where the control is hidden: a value left over
+  // from a previous mode would silently empty the only list on screen.
+  if(!placesOnly() && document.getElementById('minDist')?.value) return [];
   const b = (MAP && followMap && !SEL.place) ? MAP.getBounds() : null;
   return PLACES_DATA.filter(p=>{
     if(water && p.water_type !== water) return false;
@@ -1659,13 +1697,37 @@ function plotPlaces(){
 function renderPlaces(){
   const sec = document.getElementById('placesSection');
   const el = document.getElementById('places');
-  // Only in the dated view. In book/regular mode these are a third unrelated
-  // list stacked under the one the mode promised.
+  const only = placesOnly();
+  // In book/regular mode these are a third unrelated list stacked under the
+  // one the mode promised.
   if(bookableOnly() || regularOnly()){ sec.style.display='none'; return; }
+
+  applyModeLayout();
   const list = visiblePlaces();
-  if(!list.length){ sec.style.display='none'; return; }
+
+  if(only){
+    // The mode owns the count, and its own heading is redundant above it.
+    document.getElementById('count').style.display = '';
+    document.getElementById('count').innerHTML =
+      `<b>${list.length}</b> place${list.length===1?'':'s'}<span class="of">to swim</span>`;
+    sec.querySelector('h2').style.display = 'none';
+  } else {
+    sec.querySelector('h2').style.display = '';
+  }
+
+  if(!list.length && !only){ sec.style.display='none'; return; }
   sec.style.display='';
-  const shown = list.slice(0,24);
+
+  if(!list.length){
+    el.innerHTML = `<div class="empty"><b>No places match those filters.</b>
+      We list ${PLACES_DATA.length} swim spots — try a different kind of water,
+      or zoom the map out.
+      <ul><li><i data-lucide="waves"></i><button type="button" onclick="clearFilter('waterType')">Search any kind of water</button></li></ul></div>`;
+    icons(); return;
+  }
+
+  // Everything, not the first 24: in its own mode this list IS the results.
+  const shown = only ? list : list.slice(0,24);
   el.innerHTML = shown.map(p=>`<article class="result" style="display:block;padding:13px 16px">
       <h3 style="font-size:16px;margin-bottom:3px">
         <a href="${esc(p.url)}" style="text-decoration:none" data-place="${esc(p.slug)}">${esc(p.name)}</a></h3>
@@ -1753,14 +1815,15 @@ function clearFilter(id){
 function setMode(mode){
   const b = document.getElementById('bookable');
   const r = document.getElementById('regular');
-  const wantB = mode === 'bookable', wantR = mode === 'regular';
-  if(!b || !r) return;
-  if(b.checked === wantB && r.checked === wantR){ syncModes(); return; }
-  b.checked = wantB; r.checked = wantR;
-  // Dispatch on whichever one is now ON, or on bookable when returning to
-  // the dated list — either way the listener re-runs the search and both
-  // section renderers.
-  (wantR ? r : b).dispatchEvent(new Event('change'));
+  const pl = document.getElementById('placesMode');
+  if(!b || !r || !pl) return;
+  const wantB = mode === 'bookable', wantR = mode === 'regular', wantP = mode === 'places';
+  if(b.checked === wantB && r.checked === wantR && pl.checked === wantP){ syncModes(); return; }
+  b.checked = wantB; r.checked = wantR; pl.checked = wantP;
+  // Dispatch on whichever is now ON, or on bookable when returning to the
+  // dated list — either way the listener re-runs the search and every
+  // section renderer, so there is one code path rather than four.
+  (wantR ? r : wantP ? pl : b).dispatchEvent(new Event('change'));
   syncModes();
 }
 
@@ -1770,7 +1833,7 @@ function setMode(mode){
 // resolved last — a race that left the race list showing underneath the
 // regular group swims. Deriving it from the mode makes the order irrelevant.
 function applyModeLayout(){
-  const dated = !bookableOnly() && !regularOnly();
+  const dated = !bookableOnly() && !regularOnly() && !placesOnly();
   const r = document.getElementById('results'), pg = document.getElementById('pager');
   if(r)  r.style.display  = dated ? '' : 'none';
   if(pg) pg.style.display = dated ? '' : 'none';
@@ -1778,12 +1841,57 @@ function applyModeLayout(){
 
 function syncModes(){
   applyModeLayout();
-  const mode = bookableOnly() ? 'bookable' : regularOnly() ? 'regular' : 'events';
+  // A spot has no distance, so the control cannot do anything in this mode.
+  // Hidden rather than disabled: a greyed-out box still asks to be read.
+  const md = document.getElementById('minDist');
+  if(md) md.style.display = placesOnly() ? 'none' : '';
+  syncWaterOptions();
+  const mode = bookableOnly() ? 'bookable' : regularOnly() ? 'regular'
+             : placesOnly() ? 'places' : 'events';
   document.querySelectorAll('.mode').forEach(btn=>{
     const on = btn.dataset.mode === mode;
     btn.classList.toggle('on', on);
     btn.setAttribute('aria-selected', on ? 'true' : 'false');
   });
+}
+
+// The water control has to offer whichever vocabulary the current mode can
+// actually search. Events are sea/reservoir/canal; spots are ocean/pool/dam.
+// Offering the event list in Places mode made 76 pool spots — more than a
+// third of the catalogue — unreachable, and offered Canal, which no spot is.
+//
+// The spot options are derived from the data rather than hard-coded, so the
+// list can never drift from what exists or offer a choice that returns none.
+const EVENT_WATER_OPTIONS = [
+  ['', 'Any water'], ['sea','Sea'], ['lake','Lake'], ['river','River'],
+  ['reservoir','Reservoir'], ['lagoon','Lagoon'], ['canal','Canal'],
+];
+const SPOT_TO_EVENT_WATER = Object.fromEntries(
+  Object.entries(EVENT_WATER_TO_SPOT).filter(([,v]) => v).map(([k,v]) => [v,k]));
+
+function syncWaterOptions(){
+  const sel = document.getElementById('waterType');
+  if(!sel) return;
+  const wantSpot = placesOnly();
+  if(sel.dataset.vocab === (wantSpot ? 'spot' : 'event')) return;   // already right
+
+  const before = sel.value;
+  const opts = wantSpot
+    ? [['', 'Any water']].concat(
+        [...new Set(PLACES_DATA.map(p => p.water_type).filter(Boolean))]
+          .sort()
+          .map(v => [v, v.charAt(0).toUpperCase() + v.slice(1)]))
+    : EVENT_WATER_OPTIONS;
+
+  sel.innerHTML = opts.map(([v,l]) =>
+    `<option value="${esc(v)}">${esc(l)}</option>`).join('');
+  sel.dataset.vocab = wantSpot ? 'spot' : 'event';
+
+  // Carry the choice across where the two vocabularies describe the same
+  // water, so switching mode does not silently widen the search.
+  const carried = wantSpot ? (EVENT_WATER_TO_SPOT[before] ?? null)
+                           : (SPOT_TO_EVENT_WATER[before] ?? null);
+  sel.value = carried && opts.some(([v]) => v === carried) ? carried : '';
 }
 
 // ── Active filters ──────────────────────────────────────────────────────
@@ -1836,7 +1944,8 @@ function activeFilters(){
 // Page 2 counts too: "showing 21–40" is real information whether or not a
 // filter is on. So do the other two modes, whose totals the hero never states.
 function countIsInformative(){
-  return activeFilters().length > 0 || PAGE > 1 || bookableOnly() || regularOnly();
+  return activeFilters().length > 0 || PAGE > 1
+      || bookableOnly() || regularOnly() || placesOnly();
 }
 
 function renderActive(){
@@ -2015,16 +2124,25 @@ document.getElementById('moreBtn')?.addEventListener('click', ()=>{
   btn.classList.toggle('open', open);
 });
 document.getElementById('tri')?.addEventListener('change', ()=>{ PAGE=1; loadPoints(); search({refit:true}); });
-// The two modes are mutually exclusive: each REPLACES the dated list, so
-// both at once has no coherent meaning. Turning one on clears the other.
-document.getElementById('bookable')?.addEventListener('change', (e)=>{
-  if(e.target.checked){ const r=document.getElementById('regular'); if(r) r.checked=false; }
-  PAGE=1; search(); renderRoutes(); renderRegulars();
-});
-document.getElementById('regular')?.addEventListener('change', (e)=>{
-  if(e.target.checked){ const b=document.getElementById('bookable'); if(b) b.checked=false; }
-  PAGE=1; search(); renderRoutes(); renderRegulars();
-});
+// One handler for every mode. There used to be one listener per checkbox,
+// each clearing the other by hand — which meant adding a fourth mode needed
+// a fourth listener that nobody remembered to write, so switching TO Places
+// re-rendered nothing until some other control happened to change. Mutual
+// exclusivity is setMode()'s job now, and it is the only thing that sets
+// these; a listener that also tried to enforce it was a second source of
+// truth waiting to disagree.
+//
+// Every renderer runs, because each mode has to be able to hide the sections
+// belonging to the mode being left.
+const onModeChanged = () => {
+  PAGE = 1;
+  search();
+  renderRoutes();
+  renderRegulars();
+  renderPlaces();
+};
+['bookable','regular','placesMode'].forEach(id =>
+  document.getElementById(id)?.addEventListener('change', onModeChanged));
 document.querySelectorAll('.mode').forEach(btn=>
   btn.addEventListener('click', ()=>{ setMode(btn.dataset.mode); track('explore_mode', { mode: btn.dataset.mode }); }));
 document.getElementById('q')?.addEventListener('input', onQuery);
