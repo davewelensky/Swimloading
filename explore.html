@@ -1165,6 +1165,9 @@ function renderChips(){
   // bookable routes or regular group swims they are not merely unhelpful,
   // they are about different things entirely.
   if(bookableOnly() || regularOnly()){ el.innerHTML = ''; return; }
+  // Unfiltered, this row is the hero's "35 countries" and the map's pins told
+  // a third time. It appears when it can answer "where are THESE swims".
+  if(!activeFilters().length){ el.innerHTML = ''; return; }
 
   // A place is already chosen: this row switches from "pick a destination"
   // to "or try one of these instead", so the swimmer can move on from a
@@ -1393,6 +1396,7 @@ function renderRegulars(){
 
   applyModeLayout();
   if(only){
+    document.getElementById('count').style.display = '';
     document.getElementById('count').innerHTML =
       `<b>${list.length}</b> regular group swim${list.length===1?'':'s'}`;
     sec.querySelector('h2').style.display = 'none';
@@ -1460,6 +1464,7 @@ function renderRoutes(){
   // month heading.
   applyModeLayout();
   if(only){
+    document.getElementById('count').style.display = '';
     document.getElementById('count').innerHTML =
       `<b>${list.length}</b> swim${list.length===1?'':'s'}<span class="of">you can book</span>`;
     sec.querySelector('h2').style.display = 'none';
@@ -1742,6 +1747,23 @@ function activeFilters(){
 // already visible in the controls two rows above. What is still worth saying
 // is (a) that there is something to clear, and (b) that filters are set
 // inside the collapsed "More" section, where you cannot see them.
+// Does the block under the map say anything the hero above it does not?
+//
+// Unfiltered, it does not: the hero already reads "305 SWIMS LISTED · 35
+// COUNTRIES", and the block repeated "305 swims — showing 1–20" plus a row of
+// the biggest countries, which is the same 35-countries fact the map is
+// already drawing. 305 appeared twice within one screen.
+//
+// Filtered, it becomes the most valuable thing on the page — "23 swims",
+// "Spain 4 · Italy 3" — because that exists nowhere else. So it earns its
+// place by being different from the hero, not by always being there.
+//
+// Page 2 counts too: "showing 21–40" is real information whether or not a
+// filter is on. So do the other two modes, whose totals the hero never states.
+function countIsInformative(){
+  return activeFilters().length > 0 || PAGE > 1 || bookableOnly() || regularOnly();
+}
+
 function renderActive(){
   const list = activeFilters();
   const btn = document.getElementById('clearAllBtn');
@@ -1790,6 +1812,9 @@ function render(){
   const countEl = document.getElementById('count');
 
   if(!RESULTS.length){
+    // Always shown: zero results only happens with a filter on, and the one
+    // moment a swimmer needs the number most is when it is nought.
+    countEl.style.display = '';
     countEl.innerHTML = '<b>0</b> swims';
     results.innerHTML = emptyState();
     document.getElementById('pager').innerHTML = '';
@@ -1797,6 +1822,7 @@ function render(){
     return;
   }
 
+  countEl.style.display = countIsInformative() ? '' : 'none';
   const first = (PAGE-1)*PAGE_SIZE + 1;
   const last = Math.min(PAGE*PAGE_SIZE, TOTAL);
   countEl.innerHTML =
