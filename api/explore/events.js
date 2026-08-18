@@ -266,6 +266,29 @@ export default async function handler(req, res) {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+  // The country facet runs alongside the search, not after it: it answers a
+  // different question ("if not here, where?") over the same filters, and
+  // making the swimmer wait for two serial round trips to see one page is
+  // the sort of thing that turns a discovery feature into a spinner.
+  //
+  // Deliberately NOT given p_country. A facet that filters by its own
+  // dimension can only ever return the country already chosen, which is the
+  // one country the swimmer does not need to be told about.
+  const facetPromise = sb.rpc('explore_country_facet', {
+    p_lat: p.lat,
+    p_lng: p.lon,
+    p_radius_km: p.radius_km,
+    p_date_from: p.date_from,
+    p_date_to: p.date_to,
+    p_min_distance_m: p.minimum_distance_m,
+    p_water_type: p.water_type,
+    p_weekend_only: p.weekend_only,
+    p_entries_open: p.entries_open,
+    p_confirmed_only: p.confirmed_only,
+    p_featured: p.featured,
+    p_include_multisport: p.include_multisport,
+  });
+
   const { data, error } = await sb.rpc('search_events_v2', {
     p_lat: p.lat,
     p_lng: p.lon,
@@ -296,6 +319,37 @@ export default async function handler(req, res) {
   const rows = data || [];
   const total = rows.length ? Number(rows[0].total_count) : 0;
 
+  // The facet is an enhancement, never a dependency. If it fails — or is not
+  // deployed yet — the search still returns; the browser treats a missing
+  // `facets` as "show no destination row" rather than rendering an empty one.
+  let facets = null;
+  let facetTotal = 0;
+  try {
+    const { data: fData, error: fError } = await facetPromise;
+    if (fError) {
+      console.warn('explore/events: explore_country_facet failed:', fError.message);
+    } else {
+      const fRows = fData || [];
+      facetTotal = fRows.reduce((sum, r) => sum + Number(r.n), 0);
+      facets = {
+        by_country: fRows.map((r) => ({
+          country_code: r.country_code,
+          n: Number(r.n),
+          next_date: r.next_date,
+        })),
+        // How many matching swims the breakdown above does NOT account for.
+        // Two separate causes, which is why this is derived from the totals
+        // rather than counting venue-less rows: on 2026-08-18, of 305 swims,
+        // 21 have no venue at all and a further 11 have a venue whose
+        // country_code is unset — 32 in total. The page says so rather than
+        // letting the parts quietly fail to add up to the headline.
+        without_country: Math.max(0, total - facetTotal),
+      };
+    }
+  } catch (err) {
+    console.warn('explore/events: explore_country_facet threw:', err.message);
+  }
+
   // Public, identical for every anonymous caller, and cheap to regenerate.
   // No user-specific data is in this response — saved/followed state is
   // fetched separately by the browser precisely so this stays cacheable.
@@ -303,6 +357,7 @@ export default async function handler(req, res) {
 
   return res.status(200).json({
     results: rows.map((r) => toResult(r, p)),
+    facets,
     pagination: {
       page: p.page,
       page_size: p.page_size,

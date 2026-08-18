@@ -113,7 +113,30 @@
   .maphint{position:absolute;bottom:10px;left:12px;z-index:500;color:var(--sec);font-size:11px;
            background:rgba(8,15,26,.75);padding:5px 10px;border-radius:50px;backdrop-filter:blur(6px)}
 
+  /* ── Mode switcher ────────────────────────────────────────────────── */
+  /* A segmented control, because these three are alternatives: picking one
+     replaces the list rather than narrowing it. They must not look like the
+     filter pills below, which combine. */
+  .modes{display:flex;gap:6px;margin-top:34px;padding:5px;background:rgba(255,255,255,.035);
+         border:1px solid var(--border);border-radius:50px;width:fit-content;max-width:100%;
+         flex-wrap:wrap}
+  .mode{display:inline-flex;align-items:center;gap:7px;background:transparent;border:none;
+        color:var(--sec);border-radius:50px;padding:9px 17px;font-size:13px;font-weight:600;
+        cursor:pointer;font-family:inherit;white-space:nowrap;transition:color .15s,background .15s}
+  .mode:hover{color:#fff}
+  .mode i{width:15px;height:15px}
+  .mode.on{background:var(--cyan);color:#080f1a}
+  .mode.on:hover{color:#080f1a}
+  .mode:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
   /* ── Search ───────────────────────────────────────────────────────── */
+  /* One container for every control, so the search reads as a single object
+     instead of four loose bands drifting down the page. */
+  .panel{margin-top:16px;background:rgba(255,255,255,.022);border:1px solid var(--border);
+         border-radius:18px;padding:20px 20px 18px}
+  .panel .finder{margin-top:0}
+  .panel .toggles{margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+
   .finder{margin-top:34px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
   .field{position:relative;flex:1;min-width:250px}
   .field label,.mini label{display:block;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;
@@ -146,11 +169,37 @@
   .tog input{width:15px;height:15px;accent-color:var(--cyan);cursor:pointer;flex-shrink:0;margin:0}
   .tog:has(input:checked){background:rgba(56,189,248,.14);border-color:rgba(56,189,248,.5);color:#fff}
 
-  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
-  .chip{background:rgba(255,255,255,.05);border:1px solid var(--border);color:#cbd5e1;
-        border-radius:50px;padding:7px 14px;font-size:12.5px;cursor:pointer;font-family:inherit}
-  .chip:hover{border-color:rgba(56,189,248,.45);color:#fff}
+  /* Active filters. Amber rather than cyan: cyan is "here is something to
+     click", amber is "this is currently narrowing what you can see". */
+  .active{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:16px}
+  .active:empty{display:none}
+  .active .lbl{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--sec);
+               font-weight:600;margin-right:2px}
+  .afilter{display:inline-flex;align-items:center;gap:7px;background:rgba(245,158,11,.1);
+           border:1px solid rgba(245,158,11,.3);color:#fbbf24;border-radius:50px;
+           padding:6px 8px 6px 13px;font-size:12.5px;font-family:inherit;cursor:pointer;
+           font-weight:600}
+  .afilter:hover{background:rgba(245,158,11,.17);border-color:rgba(245,158,11,.55)}
+  .afilter i{width:13px;height:13px}
+  .clearall{background:none;border:none;color:var(--sec);font-family:inherit;font-size:12.5px;
+            cursor:pointer;text-decoration:underline;padding:6px 4px;font-weight:600}
+  .clearall:hover{color:var(--cyan)}
+
+  /* Destination row. This is the "ooh, France looks good" moment, so the
+     count and the next date carry real weight rather than being footnotes. */
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;align-items:center}
+  .chips:empty{display:none}
+  .chips .lbl{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--sec);
+              font-weight:600;margin-right:2px}
+  .chip{display:inline-flex;align-items:baseline;gap:7px;background:rgba(255,255,255,.05);
+        border:1px solid var(--border);color:#e2e8f0;border-radius:50px;padding:8px 15px;
+        font-size:13px;cursor:pointer;font-family:inherit;font-weight:600;
+        transition:border-color .15s,background .15s}
+  .chip:hover{border-color:rgba(56,189,248,.5);background:rgba(56,189,248,.08);color:#fff}
+  .chip .n{color:var(--cyan);font-weight:700}
+  .chip .nx{color:var(--sec);font-size:11.5px;font-weight:400}
   .chip.on{background:var(--cyan);color:#080f1a;border-color:var(--cyan);font-weight:700}
+  .chipnote{color:var(--sec);font-size:12px;font-style:italic}
 
   /* ── Results ──────────────────────────────────────────────────────── */
   .count{margin:26px 0 14px;color:var(--sec);font-size:13.5px;min-height:21px}
@@ -263,6 +312,16 @@
            clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
   @media (max-width:640px){
+    /* The segmented pill cannot hold three labels on a phone. It becomes a
+       scrolling row of separate pills rather than wrapping inside its own
+       rounded container, which reads as a broken border. */
+    .modes{width:auto;background:none;border:none;padding:0;flex-wrap:nowrap;
+           overflow-x:auto;-webkit-overflow-scrolling:touch;gap:7px;
+           scrollbar-width:none}
+    .modes::-webkit-scrollbar{display:none}
+    .mode{border:1px solid var(--border);background:rgba(255,255,255,.05);padding:9px 15px}
+    .mode.on{border-color:var(--cyan)}
+    .panel{padding:15px 14px 14px;border-radius:15px}
     .hero{padding:40px 0 22px}
     .tally{gap:22px}
     .aside{text-align:left;min-width:0;align-items:stretch;flex-direction:row;
@@ -317,6 +376,25 @@
   </section>
 
   <h2 class="sr-only">Find a swim</h2>
+
+  <!-- Mode switcher. "Swims you can book" and "Regular group swims" used to
+       be checkbox pills sitting among the real filters, which made two page
+       MODES look like two more filters — they REPLACE the dated list rather
+       than narrowing it. The checkboxes still exist (hidden, below) and are
+       still the state everything else reads: bookableOnly(), regularOnly(),
+       readUrl() and writeUrl() are unchanged. These buttons just drive them. -->
+  <div class="modes" role="tablist" aria-label="What kind of swim">
+    <button type="button" class="mode on" role="tab" aria-selected="true" data-mode="events">
+      <i data-lucide="calendar-days"></i>Races &amp; events</button>
+    <button type="button" class="mode" role="tab" aria-selected="false" data-mode="bookable"
+            title="Escorted swims you arrange with an operator, run when the weather allows, rather than races on a fixed date.">
+      <i data-lucide="anchor"></i>Swims you can book</button>
+    <button type="button" class="mode" role="tab" aria-selected="false" data-mode="regular"
+            title="Groups that swim on a standing schedule — every day, or every Saturday — that you can simply turn up and join.">
+      <i data-lucide="repeat"></i>Regular group swims</button>
+  </div>
+
+  <div class="panel">
   <div class="finder">
     <div class="field">
       <label for="q">Where do you want to swim?</label>
@@ -368,23 +446,24 @@
          should not have to wade through Ironman entries to reach it. -->
     <label class="tog" title="Show the swim leg of triathlons and swimruns. Entry is normally for the whole race, not the swim alone.">
       <input type="checkbox" id="tri"><span>Include triathlon swim legs</span></label>
-    <!-- A MODE, not another filter. Races and bookable routes cannot be
-         interleaved sensibly — a route has no date, so it has nowhere to sit
-         in a list grouped by month. Turning this on shows routes instead of
-         races rather than as well as. -->
     <label class="tog" title="Swim spots with no event attached — somewhere to swim on any day, with the temperature swimmers have logged there.">
       <input type="checkbox" id="showPlaces" checked><span>Show places to swim</span></label>
-    <label class="tog" id="bookableTog"
-           title="Escorted swims you arrange with an operator, run when the weather allows, rather than races on a fixed date.">
-      <input type="checkbox" id="bookable"><span>Swims you can book</span></label>
-    <!-- Also a MODE, for the same reason as bookable: a swim that happens
-         every morning has no date to sort by. Yolanda Carstens' question —
-         "what about regular swims that happen every day e.g. hot chocolate"
-         — is one a race calendar cannot answer at all. -->
-    <label class="tog" id="regularTog"
-           title="Groups that swim on a standing schedule — every day, or every Saturday — that you can simply turn up and join.">
-      <input type="checkbox" id="regular"><span>Regular group swims</span></label>
   </div>
+
+  <!-- The two MODES, kept as checkboxes so that every reader of this state —
+       bookableOnly(), regularOnly(), readUrl(), writeUrl() and the change
+       listeners at the bottom — carries on working exactly as before. The
+       mode buttons above set these and dispatch 'change', so there is one
+       code path, not two. Hidden, never focusable: the buttons are the UI. -->
+  <input type="checkbox" id="bookable" hidden>
+  <input type="checkbox" id="regular" hidden>
+  </div><!-- /.panel -->
+
+  <!-- Everything currently narrowing the search, each one removable, plus a
+       single "Clear all". Without this a swimmer who filtered four fields and
+       got nothing has to remember what they set and undo it one control at a
+       time — and the controls are now inside a panel they may have scrolled past. -->
+  <div class="active" id="active"></div>
 
   <div class="chips" id="chips"></div>
 
@@ -653,6 +732,10 @@ function params(){
 
 // ── Search ──────────────────────────────────────────────────────────────
 async function search(opts){
+  // Both of these reflect state rather than fetch it, and must run on every
+  // path — including the two early returns below, which is why they are the
+  // first thing here and not part of render().
+  syncModes(); renderActive();
   // Book mode has no server search: routes are already loaded and are
   // filtered in the browser. Skipping the fetch also stops a stale dated
   // result set landing underneath and re-showing the hidden list.
@@ -694,6 +777,7 @@ async function search(opts){
 
   RESULTS = json.results || [];
   TOTAL = json.pagination?.total || 0;
+  FACETS = json.facets || null;
 
   track('explore_search', {
     mode: json.search?.mode, results: TOTAL, page: PAGE,
@@ -704,6 +788,7 @@ async function search(opts){
 
   writeUrl();
   render();
+  renderChips();          // depends on FACETS, which only just arrived
   renderPlaces();
   await loadSavedState();
 }
@@ -804,6 +889,9 @@ async function loadPoints(){
 // there are 250 and more. A map that plots fewer pins than we list is fine
 // and honest; a headline that undercounts the catalogue is not.
 let TALLIES = null, BY_COUNTRY = null;
+// The country breakdown of the CURRENT search, from the server. Null until
+// the first search lands, and null again if the facet is unavailable.
+let FACETS = null;
 function renderTally(){
   const t = TALLIES;
   document.getElementById('tEvents').textContent    = t ? t.events : '—';
@@ -932,21 +1020,84 @@ function pickPlace(i){
 }
 document.addEventListener('click',e=>{ if(!e.target.closest('.field')) closeAc(); });
 
+// Where the swims you are currently looking at actually are.
+//
+// This row used to be fed by /api/explore/map-points, which is unfiltered.
+// Choosing "5 km +" narrowed 305 swims to 75 and left these chips reading
+// "France 40" — France's total across every distance. The number a swimmer
+// uses to pick a destination has to be the number of swims they would
+// actually get, so it now comes from the server's facet over the SAME
+// filters as the list. The unfiltered counts remain only as the fallback
+// for before the first search lands, or if the facet is unavailable.
 function renderChips(){
-  const bits = [];
-  if(SEL.place) bits.push(`<button type="button" class="chip on" data-clear="1">${esc(SEL.place.label)} ✕</button>`);
-  else PLACES.filter(p=>p.kind==='country').slice(0,6).forEach(p=>{
-    // Count from the server's per-country figure where we have it: p.n
-    // counts plotted pins, and an event without coordinates is still an
-    // event you get when you click. "South Africa 9" opening 12 results was
-    // exactly that gap.
-    const n = (BY_COUNTRY && p.match.country && BY_COUNTRY[p.match.country]) || p.n;
-    bits.push(`<button type="button" class="chip" data-i="${PLACES.indexOf(p)}">${esc(p.label)} <span style="color:var(--sec)">${n}</span></button>`);
-  });
   const el = document.getElementById('chips');
-  el.innerHTML = bits.join('');
-  el.querySelectorAll('[data-clear]').forEach(b=>b.addEventListener('click', clearPlace));
-  el.querySelectorAll('[data-i]').forEach(b=>b.addEventListener('click', ()=>pickPlace(parseInt(b.dataset.i,10))));
+  if(!el) return;
+
+  // A place is already chosen: this row switches from "pick a destination"
+  // to "or try one of these instead", so the swimmer can move on from a
+  // country with two swims without clearing the filter first to find out
+  // where else to look.
+  const chosen = SEL.place?.match.country || null;
+
+  let items = [], note = '';
+  if(FACETS && Array.isArray(FACETS.by_country)){
+    items = FACETS.by_country
+      .filter(c => c.country_code !== chosen)
+      .slice(0, 8)
+      .map(c => ({ code:c.country_code, label:countryName(c.country_code), n:c.n, next:c.next_date }));
+    // Say so when the parts cannot add up to the headline, rather than
+    // letting a swimmer discover it by adding the chips up themselves.
+    if(FACETS.without_country > 0){
+      note = `<span class="chipnote">${FACETS.without_country} more without a location yet</span>`;
+    }
+  } else if(!SEL.place){
+    items = PLACES.filter(p=>p.kind==='country').slice(0,6).map(p=>({
+      code: p.match.country,
+      label: p.label,
+      // p.n counts plotted pins, and an event without coordinates is still
+      // an event you get when you click. "South Africa 9" opening 12
+      // results was exactly that gap.
+      n: (BY_COUNTRY && p.match.country && BY_COUNTRY[p.match.country]) || p.n,
+      next: null,
+    }));
+  }
+
+  if(!items.length){ el.innerHTML = ''; return; }
+
+  const heading = FACETS
+    ? (chosen ? 'Also worth a look' : 'Where these swims are')
+    : 'Popular countries';
+
+  el.innerHTML = `<span class="lbl">${heading}</span>` + items.map(c=>
+    `<button type="button" class="chip" data-c="${esc(c.code)}">${esc(c.label)}
+       <span class="n">${c.n}</span>${c.next ? `<span class="nx">${esc(fmtNext(c.next))}</span>` : ''}
+     </button>`).join('') + note;
+
+  el.querySelectorAll('[data-c]').forEach(b=>
+    b.addEventListener('click', ()=>pickCountry(b.dataset.c)));
+}
+
+// "next 22 Aug" — the soonest matching swim there. Distance answers "can I
+// enter this"; the date answers "can I go", and it is the second half of
+// deciding that France looks good.
+function fmtNext(iso){
+  const d = new Date(iso + 'T00:00:00');
+  if(isNaN(d)) return '';
+  return `next ${d.getDate()} ${MONTH_ABBR[d.getMonth()]}`;
+}
+
+// Selecting a country from the facet. PLACES is built from map points and
+// may not contain a country whose swims all lack coordinates, so this builds
+// the selection from the country code rather than looking it up.
+function pickCountry(code){
+  if(!code) return;
+  SEL.place = { label: countryName(code), kind:'country', match:{ country:code }, n:0 };
+  const q = document.getElementById('q'); if(q) q.value = SEL.place.label;
+  closeAc();
+  // An explicit place beats the viewport, exactly as in pickPlace().
+  MAP_CENTRE = null; MAP_RADIUS = null;
+  track('explore_facet_country', { country: code });
+  PAGE = 1; search();
 }
 
 function clearPlace(){
@@ -1385,6 +1536,107 @@ function clearFilter(id){
   if(el.type==='checkbox') el.checked = false; else el.value = '';
   PAGE = 1; search();
 }
+
+// ── Modes ───────────────────────────────────────────────────────────────
+// The buttons are the UI; the hidden checkboxes remain the state. Setting
+// .checked and dispatching 'change' reuses the listeners at the bottom of
+// this file rather than duplicating their logic here — so the exclusivity
+// rule and the re-render live in exactly one place.
+function setMode(mode){
+  const b = document.getElementById('bookable');
+  const r = document.getElementById('regular');
+  const wantB = mode === 'bookable', wantR = mode === 'regular';
+  if(!b || !r) return;
+  if(b.checked === wantB && r.checked === wantR){ syncModes(); return; }
+  b.checked = wantB; r.checked = wantR;
+  // Dispatch on whichever one is now ON, or on bookable when returning to
+  // the dated list — either way the listener re-runs the search and both
+  // section renderers.
+  (wantR ? r : b).dispatchEvent(new Event('change'));
+  syncModes();
+}
+
+function syncModes(){
+  const mode = bookableOnly() ? 'bookable' : regularOnly() ? 'regular' : 'events';
+  document.querySelectorAll('.mode').forEach(btn=>{
+    const on = btn.dataset.mode === mode;
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+}
+
+// ── Active filters ──────────────────────────────────────────────────────
+// Only things that NARROW the search appear here. "Include triathlon swim
+// legs" and "Show places to swim" both WIDEN it, so listing them as active
+// filters would tell a swimmer seeing too few results to remove the two
+// controls that are giving them more.
+function activeFilters(){
+  const out = [];
+  const sel = id => { const el=document.getElementById(id); return el && el.value ? el : null; };
+  const chk = id => { const el=document.getElementById(id); return el && el.checked ? el : null; };
+
+  if(SEL.place) out.push({ label: SEL.place.label, clear: 'clearPlace()' });
+
+  const md = sel('minDist');
+  if(md) out.push({ label: md.options[md.selectedIndex].text, clear: "clearFilter('minDist')" });
+  const wt = sel('waterType');
+  if(wt) out.push({ label: wt.options[wt.selectedIndex].text, clear: "clearFilter('waterType')" });
+
+  const f = sel('from'), t = sel('to');
+  if(f && t)      out.push({ label:`${f.value} to ${t.value}`, clear:"clearFilter('from');clearFilter('to')" });
+  else if(f)      out.push({ label:`From ${f.value}`,          clear:"clearFilter('from')" });
+  else if(t)      out.push({ label:`Before ${t.value}`,        clear:"clearFilter('to')" });
+
+  if(chk('weekendOnly'))   out.push({ label:'Weekends only',       clear:"clearFilter('weekendOnly')" });
+  if(chk('entriesOpen'))   out.push({ label:'Entries open',        clear:"clearFilter('entriesOpen')" });
+  if(chk('confirmedOnly')) out.push({ label:'Confirmed dates only',clear:"clearFilter('confirmedOnly')" });
+
+  // The map viewport narrows the list just as much as any control above —
+  // it is why "I filtered nothing and see six swims" happens — so it is
+  // listed, and clearing it means going back to the whole world.
+  if(MAP_RADIUS && !SEL.place) out.push({ label:'This map area', clear:'fitAll()' });
+
+  return out;
+}
+
+function renderActive(){
+  const el = document.getElementById('active');
+  if(!el) return;
+  const list = activeFilters();
+  if(!list.length){ el.innerHTML = ''; return; }
+  el.innerHTML = '<span class="lbl">Filtering by</span>' +
+    list.map(a=>`<button type="button" class="afilter" onclick="${a.clear}">${esc(a.label)}<i data-lucide="x"></i></button>`).join('') +
+    (list.length > 1 ? '<button type="button" class="clearall" onclick="clearAllFilters()">Clear all</button>' : '');
+  icons();
+}
+
+// Resets every control in the panel to its default, not just the ones that
+// happen to be narrowing right now — "clear all" that leaves something set
+// is worse than no button, because the swimmer stops looking for the cause.
+function clearAllFilters(){
+  ['minDist','waterType','from','to'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['weekendOnly','entriesOpen','confirmedOnly'].forEach(id=>{ const el=document.getElementById(id); if(el) el.checked=false; });
+
+  const tri = document.getElementById('tri');
+  const triWasOn = !!(tri && tri.checked);
+  if(tri) tri.checked = false;
+  const sp = document.getElementById('showPlaces');
+  if(sp && !sp.checked){ sp.checked = true; plotPlaces(); renderPlaces(); }
+
+  SEL.place = null;
+  const q = document.getElementById('q'); if(q) q.value = '';
+
+  track('explore_clear_all', {});
+  PAGE = 1;
+  renderChips();
+  // fitAll() clears the map viewport and runs the search itself. When there
+  // is no map to reset, run it here instead — otherwise clearing does
+  // nothing visible on a page whose map failed to load.
+  const willFit = !!(MAP && MARKERS.length && MAP_RADIUS);
+  if(triWasOn) loadPoints();
+  if(willFit) fitAll(); else search();
+  renderActive();
+}
 function zoomOut(){ if(MAP) MAP.zoomOut(3); }
 
 function render(){
@@ -1516,6 +1768,8 @@ document.getElementById('regular')?.addEventListener('change', (e)=>{
   PAGE=1; search(); renderRoutes(); renderRegulars();
 });
 document.getElementById('showPlaces')?.addEventListener('change', ()=>{ plotPlaces(); renderPlaces(); });
+document.querySelectorAll('.mode').forEach(btn=>
+  btn.addEventListener('click', ()=>{ setMode(btn.dataset.mode); track('explore_mode', { mode: btn.dataset.mode }); }));
 document.getElementById('q')?.addEventListener('input', onQuery);
 document.getElementById('q')?.addEventListener('keydown', onQueryKey);
 document.getElementById('q')?.addEventListener('focus', onQuery);
@@ -1530,6 +1784,7 @@ try { initMap(); } catch (e) {
 
 (async function boot(){
   readUrl();
+  syncModes(); renderActive();
   track('explore_page_view', { has_filters: location.search.length > 1 });
   await initAuth();
   await resumePendingSave();
