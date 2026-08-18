@@ -1370,7 +1370,7 @@
                         supabaseClient.from('latest_spot_temps').select('spot_id, spot_name, spot_code, temp_c, updated_at, water_type, domain').order('updated_at', { ascending: false }),
                         supabaseClient.from('hazard_reports').select('spot_id, severity, title, hazard_type, active_until').is('resolved_at', null),
                         // Water-temp intelligence: blended swimmer+model estimate + confidence (spot_temp_estimate view)
-                        supabaseClient.from('spot_temp_estimate').select('spot_id, best_c, best_source, confidence, model_c, swimmer_c, swimmer_age_h')
+                        supabaseClient.from('spot_temp_estimate').select('spot_id, best_c, best_source, confidence, model_c, swimmer_c, swimmer_age_h, delta_c, measured_c, measured_age_h, measured_station, measured_distance_km')
                     ]);
                     // spot_id → { best_c, best_source, confidence, ... } for the spot picker + temp displays
                     window.spotTempEstimate = {};
@@ -7591,16 +7591,29 @@
         function _spTempChip(est) {
             if (!est || est.best_c === null || est.best_c === undefined || est.confidence === 'none') return '';
             const conf = est.confidence; // high | medium | low
+            const ageText = (h) => h == null ? '' : h < 1 ? ' · just now'
+                : h < 24 ? ` · ${Math.round(h)}h ago` : ` · ${Math.round(h / 24)}d ago`;
             let label;
-            if (est.best_source === 'model') {
+            if (est.best_source === 'measured') {
+                // A real instrument — but usually NOT at the spot itself, so
+                // the distance is part of the claim, not a detail. Calling a
+                // buoy reading a "swimmer reading" (which this branch used to
+                // do by falling through) would invent a person in the water.
+                const dist = est.measured_distance_km == null ? ''
+                    : ` ${Number(est.measured_distance_km).toFixed(1)}km away`;
+                const stn = est.measured_station ? ` (${est.measured_station})` : '';
+                label = `Measured${dist}${stn}${ageText(est.measured_age_h)}`;
+            } else if (est.best_source === 'model') {
                 label = 'Model estimate (Open-Meteo)';
             } else if (conf === 'high') {
-                label = 'Swimmer reading, confirmed by model';
+                // 'high' for a swimmer reading means a second source agreed —
+                // name the one that actually did.
+                const byModel = est.delta_c != null && Number(est.delta_c) <= 1.5;
+                label = byModel
+                    ? 'Swimmer reading, confirmed by model'
+                    : 'Swimmer reading, confirmed by nearby sensor';
             } else {
-                const age = est.swimmer_age_h;
-                const ageTxt = age == null ? '' : age < 1 ? ' · just now'
-                    : age < 24 ? ` · ${Math.round(age)}h ago` : ` · ${Math.round(age / 24)}d ago`;
-                label = `Swimmer reading${ageTxt}`;
+                label = `Swimmer reading${ageText(est.swimmer_age_h)}`;
             }
             const t = Number(est.best_c).toFixed(1);
             return `<span class="sp-row-temp sp-conf-${conf}" title="${label}"><span class="sp-conf-dot"></span>${t}°</span>`;
