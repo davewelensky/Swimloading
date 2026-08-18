@@ -31,7 +31,14 @@ const SUPABASE_ANON_KEY =
 const MAX_PAGE_SIZE = 60;
 const MAX_PAGE = 500;
 const DEFAULT_PAGE_SIZE = 20;
-const MAX_RADIUS_KM = 1000;
+// Must be >= the client's "this is still a local view" threshold in
+// explore.html (3000 km half-diagonal). While this was 1000 and the client
+// clamped to it, any viewport between the two — South Africa, the US,
+// Australia, Brazil — searched a SMALLER area than the map displayed, so the
+// map showed swims the list then denied existed. Zooming to South Africa with
+// "10 km + / Sea" drew 23 pins over a list reading "0 swims".
+// Still bounded: past 3000 km the client sends no radius at all.
+const MAX_RADIUS_KM = 3000;
 
 const WATER_TYPES = ['sea', 'lake', 'river', 'reservoir', 'lagoon', 'canal', 'mixed', 'other'];
 const SORTS = ['relevance', 'date', 'distance', 'prominence'];

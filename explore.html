@@ -795,6 +795,9 @@ async function search(opts){
   // immediately — before the results come back — rather than lagging a
   // round trip behind the list it is supposed to be showing.
   plotMarkers();
+  // plotPlaces() too: it was only ever called once, at load, so the spot
+  // rings stayed on the map at full strength no matter what was filtered.
+  plotPlaces();
   if(opts && opts.refit) fitFiltered();
   // Book mode has no server search: routes are already loaded and are
   // filtered in the browser. Skipping the fetch also stops a stale dated
@@ -904,17 +907,18 @@ const onMapMove = debounce(()=>{
   if(diag > 3000){ MAP_CENTRE = null; MAP_RADIUS = null; }
   else {
     MAP_CENTRE = b.getCenter();
-    // CLAMPED TO THE API's CEILING. /api/explore/events rejects radius_km
-    // above 1000 with a 400, and zooming to a large country puts the
-    // half-diagonal well past it — South Africa, the US, Australia and
-    // Brazil all land in the 1000-3000 km band, so clicking their chip
-    // produced "Invalid radius_km" and no results at all.
+    // The radius must cover what the map is SHOWING. It used to be clamped
+    // to 1000 km — the API's old ceiling — while the viewport itself could be
+    // 3000 km across. South Africa, the US, Australia and Brazil all land in
+    // that band, so the list searched a smaller area than the map drew: pins
+    // were visible for swims the list reported did not exist. Zooming to
+    // South Africa with "10 km + / Sea" showed 23 pins above "0 swims".
     //
-    // Clamping rather than widening the API limit: 1000 km is already a
-    // generous search radius, and an unbounded one is how a search endpoint
-    // becomes a way to ask for the whole table. The map keeps its centre,
-    // so proximity ranking still works; only the hard cutoff is capped.
-    MAP_RADIUS = Math.min(1000, Math.max(10, Math.round(diag)));
+    // MAX_RADIUS_KM in api/explore/events.js is now 3000 to match the branch
+    // above, so every viewport this treats as local is expressible. Past
+    // 3000 km no radius is sent at all, which is still the bound that stops
+    // this becoming a way to ask for the whole table.
+    MAP_RADIUS = Math.min(3000, Math.max(10, Math.round(diag)));
   }
   SEL.place = null;
   const q = document.getElementById('q'); if(q) q.value = '';
@@ -1036,10 +1040,17 @@ function fitFiltered(){
 function updateMapHint(n){
   const el = document.getElementById('mapHint');
   if(!el) return;
+  // Count what is ON SCREEN, not every matching pin. "Showing the 23 swims
+  // that match" was the global match count while the swimmer was looking at
+  // one country, so it read as a promise about the view and disagreed with
+  // the list underneath it.
+  const inView = (MAP && MARKERS.length)
+    ? MARKERS.filter(m => MAP.getBounds().contains(m.getLatLng())).length
+    : n;
   const filtered = activeFilters().length > 0;
   el.textContent = filtered
-    ? (n === 0 ? 'No swims on the map match — try widening a filter'
-               : `Showing the ${n} swim${n===1?'':'s'} that match`)
+    ? (inView === 0 ? 'No matching swims in this part of the map — try zooming out'
+                    : `${inView} matching swim${inView===1?'':'s'} in view`)
     : 'Drag or zoom the map — the list below follows';
 }
 
@@ -1550,8 +1561,31 @@ async function loadPlaces(){
 // Which places the current search implies. Places have no date, so the date
 // filters do not apply to them — silently pretending they did would hide
 // somewhere you could swim tomorrow because you searched next August.
+// The water filter is worded for EVENTS (event_venues.water_body_type:
+// sea, lake, river, reservoir, lagoon, canal). Spots use their own
+// vocabulary (spots.water_type: ocean, lagoon, pool, dam, lake, river), so
+// comparing the two directly meant "Sea" silently excluded all 95 ocean
+// spots — the filter appeared to work while quietly meaning something
+// different on each half of the page.
+//
+// Only equivalences that are actually true are listed. A term with no spot
+// equivalent (canal) maps to null, and null means "no spot can match" rather
+// than "match everything" — a filter that silently widens is worse than one
+// that returns nothing.
+const EVENT_WATER_TO_SPOT = {
+  sea: 'ocean',
+  lagoon: 'lagoon',
+  lake: 'lake',
+  river: 'river',
+  reservoir: 'dam',
+  canal: null,
+};
+
 function visiblePlaces(){
-  const water = document.getElementById('waterType')?.value || null;
+  const eventWater = document.getElementById('waterType')?.value || null;
+  const water = eventWater ? EVENT_WATER_TO_SPOT[eventWater] ?? null : null;
+  // Asked for a water type no spot can be: show none, not all.
+  if(eventWater && !water) return [];
   const b = (MAP && followMap && !SEL.place) ? MAP.getBounds() : null;
   return PLACES_DATA.filter(p=>{
     if(water && p.water_type !== water) return false;
@@ -1565,7 +1599,11 @@ function plotPlaces(){
   if(!MAP || typeof L === 'undefined') return;
   if(!PLACE_LAYER) PLACE_LAYER = L.layerGroup().addTo(MAP);
   PLACE_LAYER.clearLayers();
-  for(const p of PLACES_DATA){
+  // visiblePlaces(), NOT PLACES_DATA. This drew every spot in the catalogue
+  // whatever the filters said, so choosing "10 km +" left the map covered in
+  // clickable rings for places that had nothing to do with the search — the
+  // list said 23, the map showed those 23 plus every spot we know.
+  for(const p of visiblePlaces()){
     if(p.latitude==null || p.longitude==null) continue;
     // Deliberately quieter than an event pin: a hollow ring rather than a
     // filled dot. A place is always there; an event is a date you can miss,
