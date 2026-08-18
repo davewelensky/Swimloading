@@ -359,3 +359,20 @@ test('classify: a rejection follows the instrument across providers', async () =
   assert.equal(c.group, 'C');
   assert.match(c.reason, /manually rejected/);
 });
+
+// ── country is mandatory when the caller enforces it ────────────────────────
+
+test('discovery: a suggestion without a country can be refused', async () => {
+  // The 2026-08-18 incident: suggestions filed with country_code NULL became
+  // spots whose domain defaulted to South Africa's ATLANTIC, putting sixteen
+  // US beaches on the Cape Town page.
+  const { gapToSuggestion, GAP_DISCOVERY_CONFIG } = await import('../api/_lib/observations/gap-discovery.js');
+  const g = gap({ station: { id: 'st-c', externalId: 'C1', name: 'Somewhere Beach' } });
+  g.relevance = swimRelevance(g.station);
+  const strict = { config: { ...GAP_DISCOVERY_CONFIG, requireCountry: true } };
+
+  assert.equal(gapToSuggestion(g, strict), null, 'no country → refused');
+  const withCountry = gapToSuggestion(g, { ...strict, countryCode: 'US', country: 'United States' });
+  assert.ok(withCountry);
+  assert.equal(withCountry.country_code, 'US');
+});

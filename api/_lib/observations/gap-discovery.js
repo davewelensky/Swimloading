@@ -29,6 +29,10 @@ export const GAP_DISCOVERY_CONFIG = {
   // that spot (a matching question), not to a new one (a discovery question).
   minDistanceFromExistingSpotKm: 25,
   maxObservationAgeHours: 48,
+  // A suggestion without a country becomes a spot without a domain. Off by
+  // default so existing callers/tests keep working; the generator turns it
+  // on and resolves the country by reverse geocoding.
+  requireCountry: false,
 };
 
 /**
@@ -60,6 +64,10 @@ export function gapToSuggestion(gap, opts = {}) {
   if (gap.usability.ageHours != null && gap.usability.ageHours > cfg.maxObservationAgeHours) return null;
   if (gap.nearestDistanceKm != null && gap.nearestDistanceKm < cfg.minDistanceFromExistingSpotKm) return null;
   if (!Number.isFinite(st.latitude) || !Number.isFinite(st.longitude)) return null;
+  // Refuse to file a suggestion whose country is unknown — see the note on
+  // country_code below. Better no suggestion than one that silently becomes
+  // a spot in the wrong hemisphere.
+  if (cfg.requireCountry && !opts.countryCode) return null;
 
   // The station's own name, minus the provider's numbering, is the best
   // locality we have. We do NOT invent a beach name.
@@ -83,8 +91,14 @@ export function gapToSuggestion(gap, opts = {}) {
       + `NOT VERIFIED as a swimming location — the sensor proves measured water, not public access, safety or that anyone swims here.`,
     latitude: st.latitude,
     longitude: st.longitude,
-    country: null,          // provider metadata does not carry a country
-    country_code: null,     // left for the reviewer / geocoder, never guessed
+    country: opts.country ?? null,
+    // A NULL country is not neutral downstream. The admin Add-Spot form
+    // derives a spot's DOMAIN from its country code, and with none it fell
+    // back to the South African default — which on 2026-08-18 put sixteen
+    // US beaches on Cape Town's Atlantic Seaboard page. So a caller that
+    // can resolve the country (the generator geocodes) must pass it, and
+    // one that cannot should expect the suggestion to be refused below.
+    country_code: opts.countryCode ?? null,
     locality: null,
     admin_area: regionMatch ? regionMatch[1] : null,
     source: 'observation_gap',
