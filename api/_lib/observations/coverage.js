@@ -20,7 +20,9 @@
 // is the one thing this project must never do.
 
 import { haversineKm } from '../../seo-utils.js';
-import { MATCH_CONFIG, suitabilityScore, matchEligibility } from './matching.js';
+import {
+  MATCH_CONFIG, suitabilityScore, matchEligibility, physicalStationKey,
+} from './matching.js';
 import { FRESHNESS_THRESHOLDS } from '../temperature-freshness.js';
 
 export const COVERAGE_CONFIG = {
@@ -156,7 +158,11 @@ export function classifyStation(station, context, opts = {}) {
   }, { waterType: nearestEligible.spot.water_type }, { now });
   base.suitabilityScore = score;
 
-  const rejectedHere = links.some((l) => l.status === 'rejected' && l.spot_id === nearestEligible.spot.id);
+  // A rejection follows the INSTRUMENT, not the feed: the same physical
+  // station redistributed by another provider must stay rejected.
+  const thisKey = physicalStationKey(station.externalId);
+  const rejectedHere = links.some((l) => l.status === 'rejected' && l.spot_id === nearestEligible.spot.id)
+    || (context.rejectedPhysicalKeys?.has(`${nearestEligible.spot.id}|${thisKey}`) ?? false);
   // A human said no to exactly this pairing. Never re-propose it.
   if (rejectedHere) {
     return { ...base, group: 'C', groupName: COVERAGE_GROUPS.C,

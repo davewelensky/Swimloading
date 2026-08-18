@@ -72,6 +72,25 @@ export function suitabilityScore(station, spot, opts = {}) {
 }
 
 /**
+ * The identity of the PHYSICAL instrument, independent of which provider
+ * redistributes it.
+ *
+ * Providers re-publish each other's stations: NOAA's Tiburon Pier gauge is
+ * `TIBC1` from NDBC and `GL_TS_MO_TIBC1` from Copernicus, and the platform
+ * stores those as two station rows because they genuinely come from two
+ * feeds. That is fine for ingestion and wrong for decisions — on 2026-08-18
+ * a station rejected for Ocean Beach under one provider reappeared as a
+ * fresh candidate for the same spot under the other, which quietly breaks
+ * the rule that a human decision is final. Normalising the id lets a
+ * decision follow the instrument rather than the feed.
+ */
+export function physicalStationKey(externalId) {
+  if (typeof externalId !== 'string') return '';
+  // CMEMS in-situ file naming: <AREA>_<TYPE>_<PLATFORM>_<ID>
+  return externalId.replace(/^[A-Z]{2}_[A-Z]{2}_[A-Z]{2}_/, '').toUpperCase();
+}
+
+/**
  * Should this pairing exist at all?  Structural rules only — anything that
  * passes still becomes a candidate for a human, never an auto-approval.
  * Returns { ok: boolean, reason?: string }.

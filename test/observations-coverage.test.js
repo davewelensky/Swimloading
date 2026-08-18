@@ -333,3 +333,29 @@ test('auto-approve dry run: a human rejection the rules WOULD approve is surface
   const result = dryRunAutoApproval([perfectButRejected], { now: NOW });
   assert.equal(result.agreement.humanRejectedThatRulesWouldApprove, 1);
 });
+
+// ── cross-provider station identity ─────────────────────────────────────────
+
+test('physical key: the same instrument from two providers resolves to one id', async () => {
+  const { physicalStationKey } = await import('../api/_lib/observations/matching.js');
+  // Real pairs from the catalogue — NDBC and Copernicus both publish these.
+  assert.equal(physicalStationKey('GL_TS_MO_TIBC1'), physicalStationKey('TIBC1'));
+  assert.equal(physicalStationKey('GL_TS_MO_46254'), physicalStationKey('46254'));
+  assert.equal(physicalStationKey('NO_TS_MO_6201008'), '6201008');
+  assert.equal(physicalStationKey('MO_TS_MO_61499'), '61499');
+  // Distinct stations stay distinct.
+  assert.notEqual(physicalStationKey('46254'), physicalStationKey('46266'));
+  assert.equal(physicalStationKey(null), '');
+});
+
+test('classify: a rejection follows the instrument across providers', async () => {
+  // The defect this guards: Dave rejected TIBC1 for Ocean Beach; the
+  // Copernicus copy of the same gauge then came back as a fresh candidate.
+  const cmemsTwin = station({ externalId: 'GL_TS_MO_TEST1', providerCode: 'cmems_insitu' });
+  const ctx = context({
+    rejectedPhysicalKeys: new Set([`${SPOT_OCEAN.id}|TEST1`]),
+  });
+  const c = classifyStation(cmemsTwin, ctx, { now: NOW });
+  assert.equal(c.group, 'C');
+  assert.match(c.reason, /manually rejected/);
+});
