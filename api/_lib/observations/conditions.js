@@ -62,6 +62,9 @@ export async function getSpotConditions(spotId, opts = {}) {
 
   return {
     status: observation.state,
+    // The station that produced this reading — so a caller (the history
+    // chart) can ask for more of its data without re-resolving the link.
+    stationId: row.station_id || null,
     temperatureC: num(row.water_temperature_c),
     observedAt: row.observed_at,
     ageMinutes: observation.ageMinutes,

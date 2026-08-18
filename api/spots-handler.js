@@ -20,6 +20,7 @@ import {
 } from './_lib/nearby.js';
 import { getSpotConditions } from './_lib/observations/conditions.js';
 import { renderConditionsCard } from './_lib/observations/render.js';
+import { getStationHistory, renderHistoryChart } from './_lib/observations/history.js';
 
 const REGION_SLUGS = new Set(Object.keys(REGION_DOMAINS));
 
@@ -146,6 +147,14 @@ async function renderSpotPage(slug) {
     ? null
     : await getSpotConditions(spot.id).catch(() => null);
 
+  // History for that same station. Only fetched when there is a live card to
+  // put it under — a chart of a reading we are not willing to show would be
+  // the stale-data problem in a bigger format. Failure-tolerant like the rest.
+  const observedHistory = observedConditions && observedConditions.status !== 'STALE'
+    && observedConditions.stationId
+    ? await getStationHistory(observedConditions.stationId).catch(() => [])
+    : [];
+
   // Upcoming swims a reader could actually enter. Failure-tolerant: a
   // slow or broken events lookup must not cost the visitor the spot page
   // they searched for.
@@ -232,6 +241,7 @@ async function renderSpotPage(slug) {
       ${renderHazards(hazards)}
 
       ${renderConditionsCard(observedConditions)}
+      ${renderHistoryChart(observedHistory)}
 
       <section>
         <h2>Recent Logs <small>(last 7 days)</small></h2>
