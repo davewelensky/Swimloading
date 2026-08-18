@@ -33,7 +33,7 @@ None of the above changes touch application logic, branding, challenge calculati
 
 ## What was investigated but NOT changed (needs Dave's decision — see DECISIONS.md)
 
-- **`Sponsors/index.html` itself** — access is now blocked at the routing layer (404), but the file still contains the full sponsor pipeline (91 brands, commercial notes, Carina Brüwer's advisor-memo targeting strategy) hardcoded in a client-side `BRANDS` array. It has not been rebuilt behind real authentication. The routing block is containment, not the permanent fix.
+- **`Sponsors/index.html` itself** — access is now blocked at the routing layer (404), but the file still contains the full sponsor pipeline (91 brands, commercial notes, Carina Bruwer's advisor-memo targeting strategy) hardcoded in a client-side `BRANDS` array. It has not been rebuilt behind real authentication. The routing block is containment, not the permanent fix.
 - **A shared admin/internal-page role mechanism** — `growth-hub.html` already has a real one (`growth_founders` table, looked up by email after Supabase auth). `admin.html` checks a single hardcoded `ADMIN_EMAIL`. `dave.html` and `PHtest.html` check hardcoded Supabase user IDs. `content-calendar.html` has no auth at all. Per your own constraint ("do not create a hardcoded admin email or user-ID allow list unless there is no existing role mechanism and you stop for approval first") — a mechanism *does* already exist (`growth_founders`) — so building something new needs your sign-off, not a unilateral decision by me.
 - **Deleting `/Sponsors/`, changing RLS, changing the admin-role structure** — none of these were done; all are on your explicit pause list.
 

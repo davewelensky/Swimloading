@@ -27,7 +27,7 @@ incidents) are from that work.
 
 ## TASK-02 — `Sponsors/index.html` sponsor CRM exposure
 
-- **Problem:** 754-line page, hardcoded `BRANDS` array (91 brands) containing commercial strategy notes and Carina Brüwer's confidential advisor-memo targeting data, zero auth, zero noindex, live 200 in production.
+- **Problem:** 754-line page, hardcoded `BRANDS` array (91 brands) containing commercial strategy notes and Carina Bruwer's confidential advisor-memo targeting data, zero auth, zero noindex, live 200 in production.
 - **Evidence:** `Sponsors/index.html:416-520+`; live `curl` confirmed 200 before fix.
 - **Files changed:** None directly (covered by TASK-01's routing block). File content untouched.
 - **Database objects changed:** None.
@@ -230,7 +230,7 @@ local-only scripts with no production effect until run).
 ### TASK-13 — Designed the Sponsor CRM schema + field classification + import plan (Step 4, schema only)
 
 - **Files:** `sql/2026-07-19_create-sponsor-crm.sql` (schema — `sponsor_partners` + `sponsor_partner_audit` tables, an audit trigger that logs status/contact/value changes and creation automatically, RLS restricted to `platform_admin`/`partner_manager`, **no DELETE policy at all** — hard delete is structurally impossible via the API, only `archived_at`/`status='archived'`). **Status: proposed, not applied**, and depends on `user_roles` existing first.
-- `docs/refactor/SPONSOR_CRM_PLAN.md` — field-by-field classification of the source `Sponsors/index.html` `BRANDS` array (operational / commercial-sensitive / personal-sensitive), and a two-phase import plan: Phase A (brand/category/tags/website/value/campaign-relevance — no personal data) then Phase B (the freeform `note` field, only after your explicit per-entry review, since sampled notes include strategic commentary tied to Carina Brüwer's personal sponsor search).
+- `docs/refactor/SPONSOR_CRM_PLAN.md` — field-by-field classification of the source `Sponsors/index.html` `BRANDS` array (operational / commercial-sensitive / personal-sensitive), and a two-phase import plan: Phase A (brand/category/tags/website/value/campaign-relevance — no personal data) then Phase B (the freeform `note` field, only after your explicit per-entry review, since sampled notes include strategic commentary tied to Carina Bruwer's personal sponsor search).
 - **No sponsor data has been imported.** Confirmed `growth_sponsors` (9 rows, used by `growth-hub.html`, RLS-gated via `growth_founders` email lookup) is a separate, smaller, unrelated tool — not conflated with this new CRM.
 
 ### TASK-14 — Investigated `swimmers.html` and `galas.html` (Step 5)

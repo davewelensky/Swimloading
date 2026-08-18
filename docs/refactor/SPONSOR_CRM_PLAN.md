@@ -29,7 +29,7 @@ git. Each entry has: `id, category, name, prize, note, tags, contact`.
 
 **Why `note` is held back specifically:** sampled entries include commentary
 like *"Approach Fluidlines as the wholesale intro, not Orca directly"* and
-strategy framing tied to Carina Brüwer's personal sponsor search. This is
+strategy framing tied to Carina Bruwer's personal sponsor search. This is
 exactly the kind of "personal or confidential notes" Step 4 says not to
 migrate blindly. It's not that the content is necessarily *wrong* to store —
 it's that a blanket bulk-import wasn't the place to decide that, per your

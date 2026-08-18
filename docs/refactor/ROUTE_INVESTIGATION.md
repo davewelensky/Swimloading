@@ -3,7 +3,7 @@
 ## `/swimmers` — recommendation: **KEEP** (as static; clean up the dead RPC call)
 
 - **Content:** a small, curated "Meet the Swimmers" page featuring five named
-  elite athletes (Cameron Bellamy, Carina Brüwer, Ryan Stramrood, Sarah
+  elite athletes (Cameron Bellamy, Carina Bruwer, Ryan Stramrood, Sarah
   Ferguson, Andy Donaldson) — static bios/photos, not a general roster tool.
 - **Supabase project:** hardcodes `dwetwxpkqfjwbgkbxgat.supabase.co`
   (anon key embedded), used for exactly one thing: a per-swimmer RPC call

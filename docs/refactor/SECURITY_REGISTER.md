@@ -88,7 +88,7 @@ The entire commercial pipeline — 91 brands — is a hardcoded JavaScript array
 (`const BRANDS = [...]`, lines 416+) embedded directly in the static HTML:
 brand names, prize/discount values in Rand, and **freeform strategy notes**
 including sentences like *"Approach Fluidlines as the wholesale intro, not
-Orca directly"* and the full unresearched "Carina Brüwer advisor memo"
+Orca directly"* and the full unresearched "Carina Bruwer advisor memo"
 targeting list (swimwear sponsor targets, Crossing Africa travel/hotel
 targets, recovery/nutrition/skincare targets) added Jul 2026.
 

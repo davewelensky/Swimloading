@@ -61,7 +61,7 @@ Phase B.
 **Why:** sampled `Sponsors/index.html` note strings mix pure sourcing facts
 ("SA distributor: Fluidlines, Greenpoint + Somerset West") with strategic
 commentary ("Approach Fluidlines as the wholesale intro, not Orca
-directly") and content tied to Carina Brüwer's personal sponsor search.
+directly") and content tied to Carina Bruwer's personal sponsor search.
 Requirement 6/8 say not to migrate this blindly — splitting the import into
 two phases makes "blindly" structurally impossible: Phase A literally
 cannot include notes because the column is left out of that phase's insert

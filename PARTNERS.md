@@ -334,7 +334,7 @@ Every partner must have all of the following before going live:
 
 | Field | Value |
 |-------|-------|
-| **Status** | Partnership confirmed (Aug 2026) — hero page live in coming-soon state. Dave: they're soon sponsoring Carina Brüwer. |
+| **Status** | Partnership confirmed (Aug 2026) — hero page live in coming-soon state. Dave: they're soon sponsoring Carina Bruwer. |
 | **Hero page** | `/partners/jaked` (live in coming-soon state) |
 | **Welcome card** | Yes (coming soon badge) |
 | **Geography** | `[UNCONFIRMED]` |
@@ -346,7 +346,7 @@ Every partner must have all of the following before going live:
 - `[TBD — agree with contact once confirmed]`
 
 **What they offer members:**
-- **Carina Brüwer sponsorship (confirmed by Dave, Aug 2026)** — JAKED will soon sponsor Carina Brüwer, SwimLoading's own athlete. Kit/story details `[TBD]`.
+- **Carina Bruwer sponsorship (confirmed by Dave, Aug 2026)** — JAKED will soon sponsor Carina Bruwer, SwimLoading's own athlete. Kit/story details `[TBD]`.
 - Member benefits (discount, prize, or portal) — `[TBD, not yet agreed]`
 
 **Product facts on hero page** (from jaked.com, Aug 2026 — verify before adding anything more specific):
@@ -362,11 +362,11 @@ Every partner must have all of the following before going live:
 - [ ] Get a named contact and confirm commercial terms (what SwimLoading offers, what members get)
 - [ ] Confirm geography (jaked.com ships internationally per their site, but our arrangement geography is unconfirmed)
 - [ ] Get real logo/product assets — jaked.com's CDN was too unreliable to reliably pull images (Aug 2026); page currently uses a styled text wordmark like FORM's
-- [ ] Confirm the Carina Brüwer sponsorship details (kit, timing, story) once available
+- [ ] Confirm the Carina Bruwer sponsorship details (kit, timing, story) once available
 - [ ] Update hero page + welcome card from coming-soon to live once confirmed
 
 **Notes:**
-- This connects to the Carina Brüwer swimwear-sponsor pipeline below — JAKED was not on that Tier 1 target list, this came in as a direct Dave update (Aug 2026).
+- This connects to the Carina Bruwer swimwear-sponsor pipeline below — JAKED was not on that Tier 1 target list, this came in as a direct Dave update (Aug 2026).
 
 ---
 
@@ -385,7 +385,7 @@ Also: swimmers buy goggles once a year, but travel/wellness/lifestyle products r
 | `[TBD]` | Open water safety / tow floats | SA + international | — |
 | `[TBD]` | Swim cap brand | SA | — |
 
-### Carina Brüwer — swimwear sponsor targets (Tier 1, highest priority)
+### Carina Bruwer — swimwear sponsor targets (Tier 1, highest priority)
 
 Carina needs a primary swimwear sponsor first. **Top 5 right now: JOLYN, Funkita, Arena, Aquasphere, Therabody.**
 
@@ -399,7 +399,7 @@ Carina needs a primary swimwear sponsor first. **Top 5 right now: JOLYN, Funkita
 | Oceanus Swimwear | Luxury female swimwear — female-empowerment angle |
 | Roka | Not just wetsuits anymore |
 
-### Carina Brüwer — Crossing Africa: travel & adventure (Tier 2)
+### Carina Bruwer — Crossing Africa: travel & adventure (Tier 2)
 
 Crossing Africa is closer to expedition sponsorship than swimming sponsorship — think airlines/hotels/tourism boards, not just swim brands. Travel support is often easier to secure than cash sponsorship.
 
@@ -408,7 +408,7 @@ Crossing Africa is closer to expedition sponsorship than swimming sponsorship �
 | Airlines | Qatar Airways, Emirates, Ethiopian Airlines, Airlink, FlySafair |
 | Hotels | Protea Hotels, Southern Sun, Marriott Bonvoy, Radisson Blu |
 
-### Carina Brüwer — recovery & wellness (Tier 3)
+### Carina Bruwer — recovery & wellness (Tier 3)
 
 Massive overlap with endurance athletes generally.
 
@@ -417,7 +417,7 @@ Massive overlap with endurance athletes generally.
 | Massage guns | Therabody, Hyperice, Compex |
 | Recovery products | Normatec, Recoverite, TriggerPoint |
 
-### Carina Brüwer — skin, sun & hair (Tier 4)
+### Carina Bruwer — skin, sun & hair (Tier 4)
 
 Almost ignored in swimming sponsorship, yet every swimmer has these problems. Swimming destroys hair — that's a credible story.
 
@@ -426,7 +426,7 @@ Almost ignored in swimming sponsorship, yet every swimmer has these problems. Sw
 | Sun protection | Heliocare, Island Tribe, P20, La Roche-Posay |
 | Hair | Paul Mitchell, Moroccanoil, Olaplex |
 
-### Carina Brüwer — outdoor & lifestyle (Tier 5)
+### Carina Bruwer — outdoor & lifestyle (Tier 5)
 
 Often easier to close than swim brands — dry bags, duffels, travel gear and adventure storytelling fit naturally.
 
@@ -434,7 +434,7 @@ Often easier to close than swim brands — dry bags, duffels, travel gear and ad
 |--------|
 | YETI, Stanley 1913, Patagonia, The North Face, Sealand Gear, Thule |
 
-### Carina Brüwer — women's leadership brands (Tier 6)
+### Carina Bruwer — women's leadership brands (Tier 6)
 
 Not swim sponsorship — leadership sponsorship. Most swimmers can't offer executive keynote speaking + founder story + female leadership + endurance sport. Carina can.
 
