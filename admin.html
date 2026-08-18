@@ -3070,7 +3070,9 @@ async function loadSpotSuggestions() {
     if (allSpotsAdmin.length === 0) await loadSpotManagement();
 
     // Fetch display names separately (user_id references auth.users, not profiles directly)
-    const userIds = [...new Set(data.map(s => s.user_id))];
+    // Machine-generated suggestions (source='observation_gap') have no
+    // user_id; a null in the .in() list matches nothing and can error.
+    const userIds = [...new Set(data.map(s => s.user_id).filter(Boolean))];
     const { data: profileData } = await supabaseClient.from('public_profiles').select('id, display_name').in('id', userIds);
     const profileMap = Object.fromEntries((profileData || []).map(p => [p.id, p.display_name]));
 
@@ -3119,7 +3121,9 @@ async function loadSpotSuggestions() {
             ${s.description ? `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5;">${s.description}</div>` : ''}
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                 <div style="font-size:11px;color:var(--text-secondary);">
-                    by <strong style="color:var(--text);">${profileMap[s.user_id] || 'Unknown'}</strong>
+                    ${s.source === 'observation_gap'
+                        ? `<strong style="color:var(--ocean-light);">Found by observation coverage</strong> (no submitter — machine-generated)`
+                        : `by <strong style="color:var(--text);">${profileMap[s.user_id] || 'Unknown'}</strong>`}
                     · ${new Date(s.created_at).toLocaleDateString('en-ZA', {day:'numeric',month:'short',year:'numeric'})}
                     ${s.admin_notes ? `<br><em style="color:var(--text-secondary);">Note: ${s.admin_notes}</em>` : ''}
                 </div>
