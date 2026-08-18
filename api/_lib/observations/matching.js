@@ -17,7 +17,7 @@ export const MATCH_CONFIG = {
   // Only spot types a marine observation network can speak for. Pools and
   // inland water bodies never match a marine station — that is the
   // lake-vs-ocean rule made structural.
-  matchableWaterTypes: ['OCEAN', 'LAGOON'],
+  matchableWaterTypes: ['OCEAN', 'LAGOON', 'LAKE'],
   weights: { distance: 50, freshness: 20, stationType: 15, sensorDepth: 15 },
 };
 
@@ -90,21 +90,74 @@ export function physicalStationKey(externalId) {
   return externalId.replace(/^[A-Z]{2}_[A-Z]{2}_[A-Z]{2}_/, '').toUpperCase();
 }
 
+// Great Lakes and other named freshwater bodies that appear in station
+// names. NDBC also numbers its Great Lakes buoys in the 45xxx range, which
+// is a documented and stable convention.
+const LAKE_NAME_RE = /\blake\b|\berie\b|\bhuron\b|\bontario\b|\bmichigan\b|\bsuperior\b|\bgeorgian bay\b|\bmaumee\b|\bloch\b|\breservoir\b/i;
+const GREAT_LAKES_ID_RE = /^(?:[A-Z]{2}_[A-Z]{2}_[A-Z]{2}_)?45\d{3}$/;
+
+/**
+ * What body of water is this station in?
+ *
+ * Providers do not tell us — every one of the 2,113 stations currently
+ * stores water_body NULL — so this reads the evidence we do have: an
+ * explicit water_body if a provider ever supplies one, then the station's
+ * own name, then NDBC's 45xxx Great Lakes numbering.
+ *
+ * Returns null when nothing establishes it, and null must be treated as
+ * "unknown", never as "coastal" — the same rule the rest of this module
+ * follows.
+ *
+ * @returns {'lake'|'coastal'|null}
+ */
+export function inferStationWaterBody(station) {
+  const explicit = (station.waterBody || '').toLowerCase();
+  if (explicit) {
+    if (['lake', 'reservoir', 'river', 'dam', 'pool'].includes(explicit)) return 'lake';
+    return 'coastal';
+  }
+  const text = [station.name, station.externalId].filter(Boolean).join(' ');
+  if (LAKE_NAME_RE.test(text)) return 'lake';
+  if (GREAT_LAKES_ID_RE.test((station.externalId || '').toUpperCase())) return 'lake';
+  return null;
+}
+
 /**
  * Should this pairing exist at all?  Structural rules only — anything that
  * passes still becomes a candidate for a human, never an auto-approval.
+ *
+ * The rule is same-water-body, in both directions. A sea buoy must not
+ * serve an inland lake (a lake 20 km from the coast would otherwise match
+ * one), and a Great Lakes buoy must not serve a beach. Because station
+ * water bodies are inferred rather than supplied, an UNKNOWN station may
+ * serve a coastal spot — that is the long-standing behaviour, and the
+ * 25 km radius plus human approval carry it — but it may never serve a
+ * lake, where a wrong match means a completely different body of water.
+ *
  * Returns { ok: boolean, reason?: string }.
  */
 export function matchEligibility(station, spot, opts = {}) {
   const cfg = opts.config || MATCH_CONFIG;
   if (!cfg.matchableWaterTypes.includes(spot.waterType)) {
-    return { ok: false, reason: `spot water_type ${spot.waterType} cannot use a marine station` };
+    return { ok: false, reason: `spot water_type ${spot.waterType} cannot use an observation station` };
   }
-  // Where a provider DOES state a water body, believe it: a lake or pool
-  // station never speaks for coastal water and vice versa.
-  const wb = (station.waterBody || '').toLowerCase();
-  if (wb && ['lake', 'pool', 'river', 'dam'].includes(wb)) {
-    return { ok: false, reason: `station water body '${station.waterBody}' does not match coastal spot` };
+  const stationBody = inferStationWaterBody(station);
+
+  if (spot.waterType === 'LAKE') {
+    if (stationBody !== 'lake') {
+      return {
+        ok: false,
+        reason: stationBody === 'coastal'
+          ? 'coastal station cannot serve a lake spot'
+          : 'station water body unknown — cannot confirm it is the same lake',
+      };
+    }
+    return { ok: true };
+  }
+
+  // Coastal spot (OCEAN / LAGOON).
+  if (stationBody === 'lake') {
+    return { ok: false, reason: 'freshwater/lake station cannot serve a coastal spot' };
   }
   return { ok: true };
 }

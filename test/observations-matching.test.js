@@ -128,5 +128,5 @@ test('candidates: structural refusals are reported, not silently dropped', () =>
   const { candidates, rejected } = generateCandidates([laJolla], lakeStation, { now: NOW });
   assert.equal(candidates.length, 0);
   assert.equal(rejected.length, 1);
-  assert.match(rejected[0].reason, /water body/);
+  assert.match(rejected[0].reason, /lake station cannot serve a coastal spot/);
 });

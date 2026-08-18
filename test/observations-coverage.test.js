@@ -376,3 +376,46 @@ test('discovery: a suggestion without a country can be refused', async () => {
   assert.ok(withCountry);
   assert.equal(withCountry.country_code, 'US');
 });
+
+// ── lake spots (13 active LAKE spots exist; stations carry no water_body) ───
+
+test('lakes: station water body is inferred from name or NDBC numbering', async () => {
+  const { inferStationWaterBody } = await import('../api/_lib/observations/matching.js');
+  assert.equal(inferStationWaterBody({ name: 'Edgewater Beach Buoy', externalId: '45205' }), 'lake');
+  assert.equal(inferStationWaterBody({ name: 'Maumee Bay Buoy', externalId: '45200' }), 'lake');
+  assert.equal(inferStationWaterBody({ name: 'Georgian Bay', externalId: '45137' }), 'lake');
+  assert.equal(inferStationWaterBody({ name: 'Lake Erie something', externalId: 'X' }), 'lake');
+  // An explicit provider value always wins over the name.
+  assert.equal(inferStationWaterBody({ name: 'Anything', waterBody: 'coastal' }), 'coastal');
+  // No signal → unknown, never "coastal by default".
+  assert.equal(inferStationWaterBody({ name: 'Station 44099', externalId: '44099' }), null);
+});
+
+test('lakes: a LAKE spot matches only a lake station', async () => {
+  const { matchEligibility } = await import('../api/_lib/observations/matching.js');
+  const lakeSpot = { waterType: 'LAKE' };
+  assert.equal(matchEligibility({ name: 'Edgewater Beach Buoy', externalId: '45205' }, lakeSpot).ok, true);
+  // The failure this prevents: a sea buoy serving an inland lake.
+  assert.equal(matchEligibility({ name: 'SCRIPPS Nearshore, CA', externalId: '46254' }, lakeSpot).ok, false);
+  // Unknown is not permission for a lake — a wrong match is a different
+  // body of water entirely.
+  const unknown = matchEligibility({ name: 'Station 44099', externalId: '44099' }, lakeSpot);
+  assert.equal(unknown.ok, false);
+  assert.match(unknown.reason, /unknown/);
+});
+
+test('lakes: a coastal spot never matches a lake station', async () => {
+  const { matchEligibility } = await import('../api/_lib/observations/matching.js');
+  for (const waterType of ['OCEAN', 'LAGOON']) {
+    assert.equal(matchEligibility({ name: 'Maumee Bay Buoy', externalId: '45200' }, { waterType }).ok, false);
+    // Unknown stations keep serving coastal spots as before.
+    assert.equal(matchEligibility({ name: 'Station 44099', externalId: '44099' }, { waterType }).ok, true);
+  }
+});
+
+test('lakes: pools, dams and rivers still match nothing', async () => {
+  const { matchEligibility } = await import('../api/_lib/observations/matching.js');
+  for (const waterType of ['POOL', 'DAM', 'RIVER', 'TIDAL_POOL']) {
+    assert.equal(matchEligibility({ name: 'Edgewater Beach Buoy', externalId: '45205' }, { waterType }).ok, false);
+  }
+});
