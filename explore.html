@@ -112,6 +112,15 @@
   .mapbar button i{width:14px;height:14px}
   .maphint{position:absolute;bottom:10px;left:12px;z-index:500;color:var(--sec);font-size:11px;
            background:rgba(8,15,26,.75);padding:5px 10px;border-radius:50px;backdrop-filter:blur(6px)}
+  .maplegend{position:absolute;bottom:10px;right:12px;z-index:500;display:flex;gap:12px;
+             background:rgba(8,15,26,.75);padding:5px 11px;border-radius:50px;
+             backdrop-filter:blur(6px);font-size:11px;color:var(--sec)}
+  .maplegend[hidden]{display:none}
+  .maplegend span{display:inline-flex;align-items:center;gap:5px}
+  .maplegend i{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+  .maplegend .k-ev{background:rgba(56,189,248,.45);border:2px solid var(--cyan)}
+  .maplegend .k-pl{background:#0d1728;border:1.5px solid #64748b}
+  @media (max-width:520px){ .maplegend{display:none} }
 
   /* ── Mode switcher ────────────────────────────────────────────────── */
   /* A segmented control, because these three are alternatives: picking one
@@ -432,6 +441,14 @@
       <button type="button" onclick="fitAll()"><i data-lucide="globe"></i> Whole world</button>
     </div>
     <div class="maphint" id="mapHint">Drag or zoom the map — the list below follows</div>
+    <!-- Two datasets share this map and looked identical: a filled dot is a
+         RACE on a date, a hollow ring is a PLACE you can swim any day. With
+         no key, 56 spot rings beside 2 matching races read as "54 swims I
+         cannot click". Hidden whenever only one kind is on screen. -->
+    <div class="maplegend" id="mapLegend" hidden>
+      <span><i class="k-ev"></i>Races</span>
+      <span><i class="k-pl"></i>Places to swim</span>
+    </div>
   </section>
 
   <h2 class="sr-only">Find a swim</h2>
@@ -1073,6 +1090,18 @@ function plotMarkers(){
     m.addTo(LAYER); MARKERS.push(m);
   }
   updateMapHint(MARKERS.length);
+  updateMapLegend();
+}
+
+// A key is only useful when there are two things to tell apart. With one
+// kind on screen it is decoration that has to be read before it can be
+// dismissed.
+function updateMapLegend(){
+  const el = document.getElementById('mapLegend');
+  if(!el) return;
+  let places = 0;
+  if(PLACE_LAYER) PLACE_LAYER.eachLayer(()=>places++);
+  el.hidden = !(MARKERS.length > 0 && places > 0);
 }
 
 function fitAll(){
@@ -1586,6 +1615,13 @@ function visiblePlaces(){
   const water = eventWater ? EVENT_WATER_TO_SPOT[eventWater] ?? null : null;
   // Asked for a water type no spot can be: show none, not all.
   if(eventWater && !water) return [];
+
+  // A spot has no distance — it is a place, not a race — so it cannot
+  // satisfy "10 km +". Showing 56 of them beside the 2 races that DO match
+  // is the same fault as the map drawing swims the list had excluded: things
+  // on screen that cannot meet the stated requirement. The swimmer asked for
+  // a distance; until they stop asking, places are not an answer.
+  if(document.getElementById('minDist')?.value) return [];
   const b = (MAP && followMap && !SEL.place) ? MAP.getBounds() : null;
   return PLACES_DATA.filter(p=>{
     if(water && p.water_type !== water) return false;
@@ -1617,6 +1653,7 @@ function plotPlaces(){
        <br><a href="${esc(p.url)}">Spot details →</a>`
     ).addTo(PLACE_LAYER);
   }
+  updateMapLegend();   // plotPlaces runs after plotMarkers; re-evaluate here
 }
 
 function renderPlaces(){
