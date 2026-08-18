@@ -2543,12 +2543,38 @@ function renderSpotTable(spots) {
 }
 
 // ── Spot management ───────────────────────────────────────────────────────────
+// Rough South Africa bounding box. Only used to decide whether a South
+// African default is even plausible — never to assign a country.
+const SA_BOUNDS = { latMin: -35.5, latMax: -21.5, lonMin: 15.5, lonMax: 33.5 };
+const SA_DOMAIN_CODES = new Set(['ATLANTIC','FALSE_BAY','WEST_COAST','SOUTH_COAST','GARDEN_ROUTE',
+    'EASTERN_CAPE','KZN','INLAND','NON_COASTAL','GAUTENG','FREE_STATE']);
+function _coordsLookSouthAfrican(lat, lng) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;   // unknown
+    return lat >= SA_BOUNDS.latMin && lat <= SA_BOUNDS.latMax
+        && lng >= SA_BOUNDS.lonMin && lng <= SA_BOUNDS.lonMax;
+}
+
 function autoSetDomain(waterType) {
     const domainSelect = document.getElementById('newSpotDomain');
     if (!domainSelect) return;
     // If a geocode result already picked a country-derived domain, don't clobber it —
     // the water-type defaults below are SA-centric fallbacks for manual entry.
     if (_geoPickedDomain) return;
+    // ...and they must NOT fire for coordinates outside South Africa. On
+    // 2026-08-18 this fallback put sixteen US beaches on Cape Town's
+    // Atlantic Seaboard page: the country never resolved, so
+    // _applyDerivedDomain returned silently and OCEAN defaulted to ATLANTIC.
+    const lat = parseFloat(document.getElementById('newSpotLat')?.value);
+    const lng = parseFloat(document.getElementById('newSpotLng')?.value);
+    if (_coordsLookSouthAfrican(lat, lng) === false) {
+        domainSelect.value = '';
+        const meta = document.getElementById('spotGeoMeta');
+        if (meta) {
+            meta.style.display = 'block';
+            meta.innerHTML = '<span style="color:#fbbf24;">⚠ These coordinates are outside South Africa and no country-derived region was found — choose the region manually. See EXPANDING.md for adding a country.</span>';
+        }
+        return;
+    }
     if (waterType === 'POOL' || waterType === 'DAM' || waterType === 'RIVER' || waterType === 'LAKE') {
         domainSelect.value = 'INLAND';
     } else if (waterType === 'OCEAN' || waterType === 'TIDAL_POOL') {
@@ -2793,6 +2819,16 @@ async function addSpot() {
     if (!name) { msg.style.color = '#ef4444'; msg.textContent = 'Spot name is required.'; return; }
     if (!code) { msg.style.color = '#ef4444'; msg.textContent = 'Spot code is required (used in Trends).'; return; }
     if (isNaN(lat) || isNaN(lng)) { msg.style.color = '#ef4444'; msg.textContent = 'Valid latitude and longitude are required.'; return; }
+    if (!domain) { msg.style.color = '#ef4444'; msg.textContent = 'Region is required — pick one before adding the spot.'; return; }
+    // Last line of defence, covering every path into this form (manual entry,
+    // geocode, and the suggestion prefill). A South African region on
+    // coordinates outside South Africa is always wrong, and it is how sixteen
+    // US beaches ended up on /spots/atlantic on 2026-08-18.
+    if (SA_DOMAIN_CODES.has(domain) && _coordsLookSouthAfrican(lat, lng) === false) {
+        msg.style.color = '#ef4444';
+        msg.textContent = `Refusing to save: region "${domain}" is South African but these coordinates (${lat.toFixed(3)}, ${lng.toFixed(3)}) are not. Pick the correct region — see EXPANDING.md to add a new country.`;
+        return;
+    }
 
     // Duplicate guard: refuse a second spot within 300m of an existing one
     // unless explicitly confirmed. Same threshold as the user-side check.
