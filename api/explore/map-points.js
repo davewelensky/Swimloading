@@ -129,6 +129,26 @@ export default async function handler(req, res) {
         r: p.region,
         ct: p.city,
         w: p.water_temp_c,
+        // ── Fields the MAP filters on ────────────────────────────────────
+        // The map used to plot every swim in the catalogue regardless of the
+        // filters, because a point carried no distance and no water type and
+        // so could not tell whether it matched. Selecting "10 km + / Sea"
+        // left 23 matching swims in the list and all ~305 pins on the map —
+        // the map showing swims the list had already excluded.
+        //
+        // These four are enough for the browser to apply every filter in the
+        // panel to the markers itself, with no extra request, so the map
+        // reacts on the same keystroke the list does. Keep them in step with
+        // visiblePoints() in explore.html.
+        //
+        // dmax is the event's LONGEST distance, which is exactly the test the
+        // search does: EXISTS(distance >= min) is true iff max >= min.
+        dmax: p.max_distance_m,
+        wt: p.water_body_type,
+        eo: p.entries_open,
+        // Only when it differs — an event running over several days is still
+        // on today, and the search compares against end_date, not start.
+        ed: (p.end_date && p.end_date !== p.start_date) ? p.end_date : undefined,
       })),
     total,
     plotted_of_total: `${points.length}/${total}`,

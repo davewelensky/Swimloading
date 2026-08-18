@@ -132,22 +132,59 @@
   /* ── Search ───────────────────────────────────────────────────────── */
   /* One container for every control, so the search reads as a single object
      instead of four loose bands drifting down the page. */
-  .panel{margin-top:16px;background:rgba(255,255,255,.022);border:1px solid var(--border);
-         border-radius:18px;padding:20px 20px 18px}
-  .panel .finder{margin-top:0}
-  .panel .toggles{margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+  .panel{margin-top:14px;background:rgba(255,255,255,.018);border:1px solid var(--border);
+         border-radius:16px;padding:12px}
+  .panel .finder{margin-top:0;align-items:center;gap:9px;flex-wrap:wrap}
+
+  /* Secondary controls, revealed on demand. */
+  .morebtn{display:inline-flex;align-items:center;gap:7px;background:transparent;
+           border:1px solid var(--border);color:#94a3b8;border-radius:11px;padding:11px 15px;
+           font-size:14px;font-family:inherit;font-weight:500;cursor:pointer;white-space:nowrap}
+  .morebtn:hover{border-color:rgba(56,189,248,.45);color:#fff}
+  .morebtn i{width:15px;height:15px}
+  .morebtn.open{border-color:rgba(56,189,248,.5);color:#fff}
+  .morebtn.has .morecount{display:inline-flex}
+  .morecount{display:none;align-items:center;justify-content:center;min-width:17px;height:17px;
+             border-radius:50px;background:var(--cyan);color:#080f1a;font-size:11px;font-weight:700;
+             padding:0 5px}
+  .more{display:flex;gap:9px;flex-wrap:wrap;align-items:center;
+        margin-top:11px;padding-top:11px;border-top:1px solid var(--border)}
+  /* An author `display:flex` on a class beats the UA's [hidden]{display:none},
+     so the disclosure rendered open while reporting itself closed. Any rule
+     that sets display on an element toggled by [hidden] needs this. */
+  .more[hidden]{display:none}
+  .more .dt{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#94a3b8}
+  /* These are native date inputs. They lost their styling when the .mini
+     wrapper went, and a browser's default date field is WHITE — two bright
+     white boxes in the middle of a dark panel. Style them explicitly, and
+     invert the calendar picker icon so it is visible on dark. */
+  .more .dt input{width:auto;padding:8px 11px;font-size:13.5px;
+    background:#0b1524;border:1px solid var(--border);color:var(--text);
+    border-radius:9px;font-family:inherit;color-scheme:dark}
+  .more .dt input:focus{outline:none;border-color:var(--cyan);
+    box-shadow:0 0 0 3px rgba(56,189,248,.14)}
+  .more .dt input::-webkit-calendar-picker-indicator{filter:invert(.7);cursor:pointer}
+
+  /* Clear all sits WITH the controls, pushed to the end of the row. */
+  .finder .clearall{margin-left:auto}
 
   .finder{margin-top:34px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
   .field{position:relative;flex:1;min-width:250px}
-  .field label,.mini label{display:block;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;
-                           color:var(--sec);margin-bottom:7px;font-weight:600}
+  .field label,.mini label{display:block;font-size:11px;letter-spacing:.6px;
+                           color:#64748b;margin-bottom:5px;font-weight:500}
   .field input,.mini select,.mini input{width:100%;background:#0b1524;border:1px solid var(--border);
-    color:var(--text);padding:13px 15px;border-radius:11px;font-family:inherit;font-size:15px}
+    color:var(--text);padding:11px 14px;border-radius:11px;font-family:inherit;font-size:14.5px}
   .field input{padding-left:42px}
   .field input:focus,.mini select:focus,.mini input:focus{outline:none;border-color:var(--cyan);
     box-shadow:0 0 0 3px rgba(56,189,248,.14)}
-  .field .pin{position:absolute;left:14px;top:38px;color:var(--sec);width:17px;height:17px}
+  .field .pin{position:absolute;left:14px;top:34px;color:var(--sec);width:17px;height:17px}
   .mini{min-width:150px}
+  .finder > select{width:auto;min-width:135px;flex:0 0 auto;background:#0b1524;
+    border:1px solid var(--border);color:var(--text);padding:11px 14px;border-radius:11px;
+    font-family:inherit;font-size:14.5px;cursor:pointer}
+  .finder > select:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(56,189,248,.14)}
+  .finder .field{flex:1 1 260px;min-width:200px}
+  .finder .field .pin{top:50%;transform:translateY(-50%)}
   .ac{position:absolute;top:100%;left:0;right:0;margin-top:6px;background:#0b1524;
       border:1px solid rgba(56,189,248,.24);border-radius:12px;overflow:hidden;z-index:70;
       max-height:290px;overflow-y:auto;box-shadow:0 18px 40px rgba(0,0,0,.55);display:none}
@@ -163,11 +200,19 @@
      checkboxes, so they stay keyboard-operable and screen-reader correct. */
   .toggles{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
   .tog{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.05);
-       border:1px solid var(--border);color:#cbd5e1;border-radius:50px;padding:8px 15px;
-       font-size:12.5px;cursor:pointer;font-family:inherit;white-space:nowrap}
+       border:1px solid var(--border);color:#94a3b8;border-radius:50px;padding:8px 15px;
+       font-size:12.5px;cursor:pointer;font-family:inherit;white-space:nowrap;
+       transition:border-color .15s,background .15s,color .15s}
   .tog:hover{border-color:rgba(56,189,248,.45);color:#fff}
-  .tog input{width:15px;height:15px;accent-color:var(--cyan);cursor:pointer;flex-shrink:0;margin:0}
+  /* The checkbox stays a real checkbox — keyboard-operable, announced by a
+     screen reader — but it is not drawn. A row of grey squares is what made
+     this panel read as a form to fill in rather than choices to make. */
+  .tog input{position:absolute;opacity:0;width:0;height:0;margin:0}
+  .tog::before{content:'';width:5px;height:5px;border-radius:50%;
+               background:rgba(255,255,255,.22);flex-shrink:0;transition:background .15s}
   .tog:has(input:checked){background:rgba(56,189,248,.14);border-color:rgba(56,189,248,.5);color:#fff}
+  .tog:has(input:checked)::before{background:var(--cyan);box-shadow:0 0 8px rgba(56,189,248,.8)}
+  .tog:has(input:focus-visible){outline:2px solid var(--cyan);outline-offset:2px}
 
   /* Active filters. Amber rather than cyan: cyan is "here is something to
      click", amber is "this is currently narrowing what you can see". */
@@ -187,7 +232,13 @@
 
   /* Destination row. This is the "ooh, France looks good" moment, so the
      count and the next date carry real weight rather than being footnotes. */
-  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;align-items:center}
+  /* One row that scrolls, not two rows that wrap. Eight destinations
+     wrapping looked like overflow; a single strip reads as a deliberate
+     ranked shortlist, and keeps the results closer to the map. */
+  .chips{display:flex;gap:8px;margin-top:18px;align-items:center;flex-wrap:nowrap;
+         overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .chips::-webkit-scrollbar{display:none}
+  .chips > *{flex-shrink:0}
   .chips:empty{display:none}
   .chips .lbl{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--sec);
               font-weight:600;margin-right:2px}
@@ -200,9 +251,17 @@
   .chip .nx{color:var(--sec);font-size:11.5px;font-weight:400}
   .chip.on{background:var(--cyan);color:#080f1a;border-color:var(--cyan);font-weight:700}
   .chipnote{color:var(--sec);font-size:12px;font-style:italic}
+  /* The places toggle, on the heading of the section it controls. */
+  .month-head .seclabel{font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:0;
+                        padding:5px 12px;margin-left:2px;flex-shrink:0}
 
   /* ── Results ──────────────────────────────────────────────────────── */
-  .count{margin:26px 0 14px;color:var(--sec);font-size:13.5px;min-height:21px}
+  /* The answer, at the size of an answer. */
+  .count{margin:22px 0 0;color:var(--sec);font-size:13.5px;min-height:34px;
+         display:flex;align-items:baseline;gap:10px}
+  .count b{font-family:'Bebas Neue',sans-serif;font-size:32px;font-weight:400;color:var(--text);
+           letter-spacing:.5px;line-height:1}
+  .count .of{color:var(--sec);font-size:12.5px}
   .month-head{font-family:'Bebas Neue',sans-serif;font-size:21px;letter-spacing:1.2px;color:var(--cyan);
               margin:26px 0 11px;display:flex;align-items:center;gap:12px}
   .month-head::after{content:'';flex:1;height:1px;background:var(--border)}
@@ -395,18 +454,17 @@
   </div>
 
   <div class="panel">
-  <div class="finder">
-    <div class="field">
-      <label for="q">Where do you want to swim?</label>
-      <i class="pin" data-lucide="map-pin"></i>
-      <input id="q" type="text" autocomplete="off" role="combobox" aria-expanded="false"
-             aria-controls="ac" aria-autocomplete="list"
-             placeholder="Country, state or town — try Vermont, or Cape Town">
-      <div class="ac" id="ac" role="listbox" aria-label="Place suggestions"></div>
-    </div>
-    <div class="mini">
-      <label for="minDist">Shortest swim</label>
-      <select id="minDist">
+    <div class="finder">
+      <div class="field">
+        <i class="pin" data-lucide="map-pin"></i>
+        <input id="q" type="text" autocomplete="off" role="combobox" aria-expanded="false"
+               aria-controls="ac" aria-autocomplete="list" aria-label="Where do you want to swim?"
+               placeholder="Anywhere — try Vermont, Cape Town, France">
+        <div class="ac" id="ac" role="listbox" aria-label="Place suggestions"></div>
+      </div>
+      <!-- The label is the first option. Five uppercase captions over five
+           boxes was five headings shouting above the thing they named. -->
+      <select id="minDist" aria-label="Shortest swim">
         <option value="">Any distance</option>
         <option value="1000">1 km +</option>
         <option value="3000">3 km +</option>
@@ -414,10 +472,7 @@
         <option value="10000">10 km +</option>
         <option value="21000">21 km +</option>
       </select>
-    </div>
-    <div class="mini">
-      <label for="waterType">Water</label>
-      <select id="waterType">
+      <select id="waterType" aria-label="Kind of water">
         <option value="">Any water</option>
         <option value="sea">Sea</option>
         <option value="lake">Lake</option>
@@ -426,48 +481,48 @@
         <option value="lagoon">Lagoon</option>
         <option value="canal">Canal</option>
       </select>
+      <button type="button" class="morebtn" id="moreBtn" aria-expanded="false" aria-controls="moreFilters">
+        <i data-lucide="sliders-horizontal"></i>More<span class="morecount" id="moreCount"></span></button>
+      <!-- Clear all lives WITH the controls. It used to sit in a separate
+           "Filtering by" row that repeated the two values already visible in
+           these boxes — being told what you chose 40px ago is noise. -->
+      <button type="button" class="clearall" id="clearAllBtn" onclick="clearAllFilters()" hidden>Clear all</button>
     </div>
-    <div class="mini">
-      <label for="from">From</label>
-      <input type="date" id="from">
+
+    <!-- Behind a disclosure because between them these change the result set
+         very little: weekends removes 58 of 305, triathlon legs adds 11.
+         Dates are a real filter but one most people never open. -->
+    <div class="more" id="moreFilters" hidden>
+      <label class="dt">From <input type="date" id="from"></label>
+      <label class="dt">Before <input type="date" id="to"></label>
+      <label class="tog"><input type="checkbox" id="weekendOnly"><span>Weekends only</span></label>
+      <label class="tog" title="Show the swim leg of triathlons and swimruns. Entry is normally for the whole race, not the swim alone.">
+        <input type="checkbox" id="tri"><span>Include triathlon swim legs</span></label>
     </div>
-    <div class="mini">
-      <label for="to">Before</label>
-      <input type="date" id="to">
-    </div>
+
+    <!-- REMOVED from the UI, deliberately, on the data (18 Aug 2026):
+         * "Entries open"        — registration_status is 'unknown' on 315 of
+           316 searchable rows and never once 'open', so the control could only
+           ever empty the page. A filter that always returns nothing is worse
+           than no filter: it reads as "there are no swims", not "we don't
+           have this data".
+         * "Confirmed dates only" — date_confirmed is true on all 305, so it
+           removed nothing, ever.
+         Both remain fully supported by /api/explore/events and by the URL
+         (entries_open=1, confirmed_only=1). Put the controls back the moment
+         the crawler populates registration_status for real. -->
+
+    <input type="checkbox" id="bookable" hidden>
+    <input type="checkbox" id="regular" hidden>
   </div>
 
-  <div class="toggles">
-    <label class="tog"><input type="checkbox" id="weekendOnly"><span>Weekends only</span></label>
-    <label class="tog"><input type="checkbox" id="entriesOpen"><span>Entries open</span></label>
-    <label class="tog"><input type="checkbox" id="confirmedOnly"><span>Confirmed dates only</span></label>
-    <!-- Off by default, deliberately. A triathlon's swim leg is a real swim
-         and worth finding, but a swimmer looking for an open-water race
-         should not have to wade through Ironman entries to reach it. -->
-    <label class="tog" title="Show the swim leg of triathlons and swimruns. Entry is normally for the whole race, not the swim alone.">
-      <input type="checkbox" id="tri"><span>Include triathlon swim legs</span></label>
-    <label class="tog" title="Swim spots with no event attached — somewhere to swim on any day, with the temperature swimmers have logged there.">
-      <input type="checkbox" id="showPlaces" checked><span>Show places to swim</span></label>
-  </div>
-
-  <!-- The two MODES, kept as checkboxes so that every reader of this state —
-       bookableOnly(), regularOnly(), readUrl(), writeUrl() and the change
-       listeners at the bottom — carries on working exactly as before. The
-       mode buttons above set these and dispatch 'change', so there is one
-       code path, not two. Hidden, never focusable: the buttons are the UI. -->
-  <input type="checkbox" id="bookable" hidden>
-  <input type="checkbox" id="regular" hidden>
-  </div><!-- /.panel -->
-
-  <!-- Everything currently narrowing the search, each one removable, plus a
-       single "Clear all". Without this a swimmer who filtered four fields and
-       got nothing has to remember what they set and undo it one control at a
-       time — and the controls are now inside a panel they may have scrolled past. -->
-  <div class="active" id="active"></div>
+  <!-- The answer, at the size of an answer. This was 13px grey type below
+       four rows of controls — the one number the swimmer came for was the
+       quietest thing on the page. -->
+  <div id="count" class="count" role="status" aria-live="polite"></div>
 
   <div class="chips" id="chips"></div>
 
-  <div id="count" class="count" role="status" aria-live="polite"></div>
   <div id="results"></div>
   <div id="pager" class="pager"></div>
 
@@ -736,6 +791,11 @@ async function search(opts){
   // path — including the two early returns below, which is why they are the
   // first thing here and not part of render().
   syncModes(); renderActive();
+  // The map is filtered in the browser from POINTS, so it can be redrawn
+  // immediately — before the results come back — rather than lagging a
+  // round trip behind the list it is supposed to be showing.
+  plotMarkers();
+  if(opts && opts.refit) fitFiltered();
   // Book mode has no server search: routes are already loaded and are
   // filtered in the browser. Skipping the fetch also stops a stale dated
   // result set landing underneath and re-showing the hidden list.
@@ -916,10 +976,78 @@ function buildPlaces(){
   PLACES = [...map.values()].sort((a,b)=> a.sort-b.sort || b.n-a.n || a.label.localeCompare(b.label));
 }
 
+// Which swims belong on the map right now.
+//
+// The map is the hero of this page and it used to ignore every filter: pick
+// "10 km + / Sea" and the list narrowed to 23 while all ~305 pins stayed put,
+// so the map was showing swims the list had already ruled out. These are the
+// same tests search_events_v2 applies, run against the fields map-points now
+// carries — in the browser, so the map reacts on the same keystroke the list
+// does rather than after a round trip.
+//
+// Keep in step with the filters in search_events_v2 and in map-points.js.
+function visiblePoints(){
+  const v = id => { const el=document.getElementById(id); return el && el.value ? el.value : null; };
+  const c = id => { const el=document.getElementById(id); return !!(el && el.checked); };
+
+  const minD = v('minDist') ? Number(v('minDist')) : null;
+  const water = v('waterType');
+  const from = v('from'), to = v('to');
+  const weekendOnly = c('weekendOnly'), entriesOpen = c('entriesOpen'), confirmedOnly = c('confirmedOnly');
+  const place = SEL.place?.match || null;
+
+  return POINTS.filter(p=>{
+    // A swim with no distances cannot satisfy a minimum, and one with no
+    // recorded water type cannot satisfy a water filter. Both are EXCLUDED
+    // by the search in that case, so both are excluded here — matching the
+    // list matters more than keeping pins on the map.
+    if(minD != null && !(p.dmax != null && p.dmax >= minD)) return false;
+    if(water && p.wt !== water) return false;
+    if(weekendOnly){ const d=new Date(p.d+'T00:00:00'); if(d.getDay()!==0 && d.getDay()!==6) return false; }
+    if(entriesOpen && !p.eo) return false;
+    if(confirmedOnly && !p.dc) return false;
+    // An event running over several days is still on today; compare the way
+    // the search does, against the end date where there is one.
+    if(from && (p.ed || p.d) < from) return false;
+    if(to && p.d > to) return false;
+    if(place){
+      if(place.country && p.c !== place.country) return false;
+      if(place.region  && p.r !== place.region)  return false;
+      if(place.city    && p.ct !== place.city)   return false;
+    }
+    return true;
+  });
+}
+
+// Fly the map to the swims that match. Follows fitAll()'s pattern exactly:
+// suppress the viewport-driven search while fitBounds settles, then clear the
+// centre and radius so the new viewport does not silently re-narrow a search
+// the user did not ask to narrow — which would be a feedback loop.
+function fitFiltered(){
+  if(!MAP || !MARKERS.length) return;
+  followMap = false;
+  MAP.fitBounds(L.featureGroup(MARKERS).getBounds().pad(0.15));
+  setTimeout(()=>{ followMap = true; MAP_CENTRE = null; MAP_RADIUS = null; }, 400);
+}
+
+// The hint under the map earns its place only if it says something true about
+// what is on screen. "Drag or zoom" is the default; once a filter is on, the
+// useful sentence is how many swims survived it.
+function updateMapHint(n){
+  const el = document.getElementById('mapHint');
+  if(!el) return;
+  const filtered = activeFilters().length > 0;
+  el.textContent = filtered
+    ? (n === 0 ? 'No swims on the map match — try widening a filter'
+               : `Showing the ${n} swim${n===1?'':'s'} that match`)
+    : 'Drag or zoom the map — the list below follows';
+}
+
 function plotMarkers(){
   if(!MAP || !LAYER) return;
   LAYER.clearLayers(); MARKERS = [];
-  for(const r of POINTS){
+  const shown = visiblePoints();
+  for(const r of shown){
     if(r.lat==null || r.lng==null) continue;
     const d = fmtDate(r.d, r.dp, r.dc);
     const m = L.circleMarker([r.lat, r.lng], {
@@ -933,6 +1061,7 @@ function plotMarkers(){
     );
     m.addTo(LAYER); MARKERS.push(m);
   }
+  updateMapHint(MARKERS.length);
 }
 
 function fitAll(){
@@ -1032,6 +1161,10 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.field')) closeAc()
 function renderChips(){
   const el = document.getElementById('chips');
   if(!el) return;
+  // These counts come from the dated event catalogue. Beside a list of
+  // bookable routes or regular group swims they are not merely unhelpful,
+  // they are about different things entirely.
+  if(bookableOnly() || regularOnly()){ el.innerHTML = ''; return; }
 
   // A place is already chosen: this row switches from "pick a destination"
   // to "or try one of these instead", so the swimmer can move on from a
@@ -1097,13 +1230,13 @@ function pickCountry(code){
   // An explicit place beats the viewport, exactly as in pickPlace().
   MAP_CENTRE = null; MAP_RADIUS = null;
   track('explore_facet_country', { country: code });
-  PAGE = 1; search();
+  PAGE = 1; search({refit:true});
 }
 
 function clearPlace(){
   SEL.place = null;
   document.getElementById('q').value = '';
-  renderChips(); PAGE = 1; search();
+  renderChips(); PAGE = 1; search({refit:true});
 }
 
 // ── Save / follow ───────────────────────────────────────────────────────
@@ -1258,18 +1391,16 @@ function renderRegulars(){
   const list = visibleRegulars();
   const only = regularOnly();
 
+  applyModeLayout();
   if(only){
-    document.getElementById('results').style.display = 'none';
-    document.getElementById('pager').style.display   = 'none';
-    document.getElementById('count').textContent = list.length
-      ? `${list.length} regular group swim${list.length>1?'s':''}`
-      : 'No regular group swims match those filters';
+    document.getElementById('count').innerHTML =
+      `<b>${list.length}</b> regular group swim${list.length===1?'':'s'}`;
     sec.querySelector('h2').style.display = 'none';
   } else {
     sec.querySelector('h2').style.display = '';
   }
 
-  if(!list.length && !only){ sec.style.display='none'; return; }
+  if(!only){ sec.style.display='none'; return; }
   sec.style.display = '';
 
   if(!list.length){
@@ -1327,18 +1458,16 @@ function renderRoutes(){
   // In "book" mode the routes ARE the results, so the dated list, its pager
   // and its count step aside entirely rather than sitting above an empty
   // month heading.
-  document.getElementById('results').style.display = only ? 'none' : '';
-  document.getElementById('pager').style.display   = only ? 'none' : '';
+  applyModeLayout();
   if(only){
-    document.getElementById('count').textContent = list.length
-      ? `${list.length} swim${list.length>1?'s':''} you can book`
-      : 'No bookable swims match those filters';
+    document.getElementById('count').innerHTML =
+      `<b>${list.length}</b> swim${list.length===1?'':'s'}<span class="of">you can book</span>`;
     sec.querySelector('h2').style.display = 'none';
   } else {
     sec.querySelector('h2').style.display = '';
   }
 
-  if(!list.length && !only){ sec.style.display='none'; return; }
+  if(!only){ sec.style.display='none'; return; }
   sec.style.display = '';
 
   if(!list.length){
@@ -1417,7 +1546,6 @@ async function loadPlaces(){
 // filters do not apply to them — silently pretending they did would hide
 // somewhere you could swim tomorrow because you searched next August.
 function visiblePlaces(){
-  if(!document.getElementById('showPlaces')?.checked) return [];
   const water = document.getElementById('waterType')?.value || null;
   const b = (MAP && followMap && !SEL.place) ? MAP.getBounds() : null;
   return PLACES_DATA.filter(p=>{
@@ -1432,7 +1560,6 @@ function plotPlaces(){
   if(!MAP || typeof L === 'undefined') return;
   if(!PLACE_LAYER) PLACE_LAYER = L.layerGroup().addTo(MAP);
   PLACE_LAYER.clearLayers();
-  if(!document.getElementById('showPlaces')?.checked) return;
   for(const p of PLACES_DATA){
     if(p.latitude==null || p.longitude==null) continue;
     // Deliberately quieter than an event pin: a hollow ring rather than a
@@ -1452,6 +1579,9 @@ function plotPlaces(){
 function renderPlaces(){
   const sec = document.getElementById('placesSection');
   const el = document.getElementById('places');
+  // Only in the dated view. In book/regular mode these are a third unrelated
+  // list stacked under the one the mode promised.
+  if(bookableOnly() || regularOnly()){ sec.style.display='none'; return; }
   const list = visiblePlaces();
   if(!list.length){ sec.style.display='none'; return; }
   sec.style.display='';
@@ -1515,8 +1645,6 @@ function emptyState(){
   const suggestions = [];
   if(MAP_RADIUS && MAP_RADIUS < 500) suggestions.push(['maximize','Zoom the map out to search a wider area', 'zoomOut()']);
   if(p.weekend_only)   suggestions.push(['calendar','Remove the weekends-only filter', "clearFilter('weekendOnly')"]);
-  if(p.entries_open)   suggestions.push(['ticket','Include swims whose entries have not opened yet', "clearFilter('entriesOpen')"]);
-  if(p.confirmed_only) suggestions.push(['calendar-check','Include swims with provisional dates', "clearFilter('confirmedOnly')"]);
   if(p.minimum_distance_m) suggestions.push(['ruler','Allow shorter swims', "clearFilter('minDist')"]);
   if(p.water_type)     suggestions.push(['waves','Search any kind of water', "clearFilter('waterType')"]);
   if(p.date_to || p.date_from) suggestions.push(['calendar-range','Search a wider date range', "clearFilter('from');clearFilter('to')"]);
@@ -1556,7 +1684,20 @@ function setMode(mode){
   syncModes();
 }
 
+// The dated list and its pager belong to the events mode and to nothing else.
+// renderRoutes() and renderRegulars() each used to set this from their OWN
+// flag, so the answer depended on which of loadRoutes()/loadRecurring()
+// resolved last — a race that left the race list showing underneath the
+// regular group swims. Deriving it from the mode makes the order irrelevant.
+function applyModeLayout(){
+  const dated = !bookableOnly() && !regularOnly();
+  const r = document.getElementById('results'), pg = document.getElementById('pager');
+  if(r)  r.style.display  = dated ? '' : 'none';
+  if(pg) pg.style.display = dated ? '' : 'none';
+}
+
 function syncModes(){
+  applyModeLayout();
   const mode = bookableOnly() ? 'bookable' : regularOnly() ? 'regular' : 'events';
   document.querySelectorAll('.mode').forEach(btn=>{
     const on = btn.dataset.mode === mode;
@@ -1588,8 +1729,6 @@ function activeFilters(){
   else if(t)      out.push({ label:`Before ${t.value}`,        clear:"clearFilter('to')" });
 
   if(chk('weekendOnly'))   out.push({ label:'Weekends only',       clear:"clearFilter('weekendOnly')" });
-  if(chk('entriesOpen'))   out.push({ label:'Entries open',        clear:"clearFilter('entriesOpen')" });
-  if(chk('confirmedOnly')) out.push({ label:'Confirmed dates only',clear:"clearFilter('confirmedOnly')" });
 
   // The map viewport narrows the list just as much as any control above —
   // it is why "I filtered nothing and see six swims" happens — so it is
@@ -1599,15 +1738,24 @@ function activeFilters(){
   return out;
 }
 
+// The active filters no longer get their own row — it repeated the values
+// already visible in the controls two rows above. What is still worth saying
+// is (a) that there is something to clear, and (b) that filters are set
+// inside the collapsed "More" section, where you cannot see them.
 function renderActive(){
-  const el = document.getElementById('active');
-  if(!el) return;
   const list = activeFilters();
-  if(!list.length){ el.innerHTML = ''; return; }
-  el.innerHTML = '<span class="lbl">Filtering by</span>' +
-    list.map(a=>`<button type="button" class="afilter" onclick="${a.clear}">${esc(a.label)}<i data-lucide="x"></i></button>`).join('') +
-    (list.length > 1 ? '<button type="button" class="clearall" onclick="clearAllFilters()">Clear all</button>' : '');
-  icons();
+  const btn = document.getElementById('clearAllBtn');
+  if(btn) btn.hidden = list.length === 0;
+
+  // Count only what is hidden inside the disclosure, so the badge means
+  // "there is something in here you can't see" rather than restating the
+  // selects next to it.
+  const hidden = ['from','to'].filter(id=>{ const el=document.getElementById(id); return el && el.value; }).length
+               + ['weekendOnly','tri'].filter(id=>{ const el=document.getElementById(id); return el && el.checked; }).length;
+  const badge = document.getElementById('moreCount');
+  if(badge) badge.textContent = hidden ? String(hidden) : '';
+  const more = document.getElementById('moreBtn');
+  if(more) more.classList.toggle('has', hidden > 0);
 }
 
 // Resets every control in the panel to its default, not just the ones that
@@ -1615,13 +1763,11 @@ function renderActive(){
 // is worse than no button, because the swimmer stops looking for the cause.
 function clearAllFilters(){
   ['minDist','waterType','from','to'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  ['weekendOnly','entriesOpen','confirmedOnly'].forEach(id=>{ const el=document.getElementById(id); if(el) el.checked=false; });
+  ['weekendOnly'].forEach(id=>{ const el=document.getElementById(id); if(el) el.checked=false; });
 
   const tri = document.getElementById('tri');
   const triWasOn = !!(tri && tri.checked);
   if(tri) tri.checked = false;
-  const sp = document.getElementById('showPlaces');
-  if(sp && !sp.checked){ sp.checked = true; plotPlaces(); renderPlaces(); }
 
   SEL.place = null;
   const q = document.getElementById('q'); if(q) q.value = '';
@@ -1644,7 +1790,7 @@ function render(){
   const countEl = document.getElementById('count');
 
   if(!RESULTS.length){
-    countEl.textContent = 'No swims found';
+    countEl.innerHTML = '<b>0</b> swims';
     results.innerHTML = emptyState();
     document.getElementById('pager').innerHTML = '';
     icons();
@@ -1653,9 +1799,9 @@ function render(){
 
   const first = (PAGE-1)*PAGE_SIZE + 1;
   const last = Math.min(PAGE*PAGE_SIZE, TOTAL);
-  countEl.textContent = TOTAL > PAGE_SIZE
-    ? `${TOTAL} swims — showing ${first}–${last}`
-    : `${TOTAL} swim${TOTAL>1?'s':''}`;
+  countEl.innerHTML =
+    `<b>${TOTAL}</b> swim${TOTAL===1?'':'s'}` +
+    (TOTAL > PAGE_SIZE ? `<span class="of">showing ${first}–${last}</span>` : '');
 
   // Grouped by month: a swimmer plans by "when am I free", not by row number.
   const groups = new Map();
@@ -1752,11 +1898,22 @@ function renderPager(){
 }
 
 // ── Boot ────────────────────────────────────────────────────────────────
+// refit: a filter change should take the map to the swims that match, which
+// is the whole point of the map. Paging and map drags must NOT refit — one
+// would yank the view on every page, the other would fight the user's hand.
 ['minDist','waterType','from','to'].forEach(id=>
-  document.getElementById(id)?.addEventListener('change', ()=>{ PAGE=1; search(); }));
-['weekendOnly','entriesOpen','confirmedOnly'].forEach(id=>
-  document.getElementById(id)?.addEventListener('change', ()=>{ PAGE=1; search(); }));
-document.getElementById('tri')?.addEventListener('change', ()=>{ PAGE=1; loadPoints(); search(); });
+  document.getElementById(id)?.addEventListener('change', ()=>{ PAGE=1; search({refit:true}); }));
+['weekendOnly'].forEach(id=>
+  document.getElementById(id)?.addEventListener('change', ()=>{ PAGE=1; search({refit:true}); }));
+document.getElementById('moreBtn')?.addEventListener('click', ()=>{
+  const panel = document.getElementById('moreFilters');
+  const btn = document.getElementById('moreBtn');
+  const open = panel.hidden;
+  panel.hidden = !open;
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  btn.classList.toggle('open', open);
+});
+document.getElementById('tri')?.addEventListener('change', ()=>{ PAGE=1; loadPoints(); search({refit:true}); });
 // The two modes are mutually exclusive: each REPLACES the dated list, so
 // both at once has no coherent meaning. Turning one on clears the other.
 document.getElementById('bookable')?.addEventListener('change', (e)=>{
@@ -1767,7 +1924,6 @@ document.getElementById('regular')?.addEventListener('change', (e)=>{
   if(e.target.checked){ const b=document.getElementById('bookable'); if(b) b.checked=false; }
   PAGE=1; search(); renderRoutes(); renderRegulars();
 });
-document.getElementById('showPlaces')?.addEventListener('change', ()=>{ plotPlaces(); renderPlaces(); });
 document.querySelectorAll('.mode').forEach(btn=>
   btn.addEventListener('click', ()=>{ setMode(btn.dataset.mode); track('explore_mode', { mode: btn.dataset.mode }); }));
 document.getElementById('q')?.addEventListener('input', onQuery);
