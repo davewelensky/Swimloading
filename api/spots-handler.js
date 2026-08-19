@@ -1551,7 +1551,12 @@ function renderTrendSummary(spot, recentLogs, trend) {
 function renderRegionDiscovery(spots) {
   const withLogged = spots.filter(s => s.last_logged != null);
   const withTemp   = spots.filter(s => s.avg_temp != null);
-  if (!withLogged.length && !withTemp.length) return '';
+  // A region can now have live readings and no logs at all — the entire US
+  // set is buoy-fed and has never been logged. Guarding only on logs and
+  // averages skipped the whole discovery block for exactly the regions the
+  // instruments were added to serve.
+  const hasLive = spots.some(s => s._liveTemp != null);
+  if (!withLogged.length && !withTemp.length && !hasLive) return '';
 
   const cardLink = (name, slug, right) =>
     `<a href="/spots/${slug}" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid var(--border);border-radius:8px;text-decoration:none;color:var(--text);font-size:14px;font-weight:600;transition:border-color .2s;" onmouseover="this.style.borderColor='rgba(56,189,248,0.4)'" onmouseout="this.style.borderColor='rgba(56,189,248,0.15)'">${escapeHtml(name)}${right}</a>`;
@@ -1566,12 +1571,22 @@ function renderRegionDiscovery(spots) {
     html += `<section><h2>Recently Logged</h2><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">${items}</div></section>`;
   }
 
-  if (withTemp.length >= 2) {
-    const warmest = [...withTemp].sort((a, b) => b.avg_temp - a.avg_temp).slice(0, 4);
+  // Ranked on the LIVE reading, not an all-time average.
+  //
+  // A swimmer reading this is deciding where to swim, so "warmest" has to
+  // mean warmest now. Ranking on averages could put a pool last logged in
+  // May above a beach with a buoy reading from an hour ago — the wrong
+  // answer to the only question the list is asked.
+  const withLive = spots.filter(s => s._liveTemp != null);
+  if (withLive.length >= 2) {
+    const warmest = [...withLive].sort((a, b) => b._liveTemp - a._liveTemp).slice(0, 4);
     const items = warmest.map(s => cardLink(s.name, generateSlug(s.name),
-      `<span style="font-size:14px;font-weight:800;color:var(--ocean-lt);">${s.avg_temp}°C</span>`
+      `<span style="font-size:14px;font-weight:800;color:var(--ocean-lt);">${s._liveTemp.toFixed(1)}°C</span>`
+      + (s._liveSource && s._liveSource !== 'swimmer'
+          ? `<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-left:5px;padding:1px 4px;border-radius:4px;background:rgba(56,189,248,0.14);color:#7ec8e3;">${s._liveSource === 'measured' ? 'buoy' : 'model'}</span>`
+          : '')
     )).join('');
-    html += `<section><h2>Warmest Spots</h2><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">${items}</div></section>`;
+    html += `<section><h2>Warmest Right Now</h2><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">${items}</div></section>`;
   }
 
   return html;
