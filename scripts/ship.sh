@@ -2,6 +2,8 @@
 # SwimLoading ship-loop helper.
 #   scripts/ship.sh bump    — bump ?v=N cache-bust refs in *.html for every changed .js/.css file
 #   scripts/ship.sh verify  — poll the live site until every ?v=N ref in local HTML is being served
+#   scripts/ship.sh images <file.html> — check every <img src> in an email/page
+#                             is a live, absolute https image BEFORE sending
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -76,8 +78,79 @@ case "$cmd" in
     exit $fail
     ;;
 
+  images)
+    # Every image in an email must be LIVE before the campaign is sent.
+    #
+    # A newsletter cannot be recalled. Worse, Gmail fetches each image
+    # through its own proxy on first open and CACHES the result — so an
+    # image that 404s at send time stays broken for those recipients even
+    # after the file is deployed. On 2026-08-19 explore-map.png landed at
+    # 12:42 for a send that day: it happened to be in time, and there is no
+    # second chance if it is not.
+    shift || true
+    files="$*"
+    if [ -z "$files" ]; then
+      echo "usage: scripts/ship.sh images <file.html> [more.html…]" >&2
+      echo "       checks every <img src> resolves to a real image on the live site" >&2
+      exit 2
+    fi
+    fail=0
+    for html in $files; do
+      if [ ! -f "$html" ]; then
+        echo "MISSING FILE  $html"; fail=1; continue
+      fi
+      srcs=$(grep -oE '<img[^>]+src="[^"]+"' "$html" 2>/dev/null \
+             | sed -E 's/.*src="([^"]+)".*/\1/' | sort -u || true)
+      if [ -z "$srcs" ]; then
+        echo "—       $html has no images"; continue
+      fi
+      for src in $srcs; do
+        case "$src" in
+          http://*)
+            # Many clients refuse mixed/insecure images outright.
+            echo "FAIL    $html  $src"
+            echo "        not https — some clients will refuse to load it"
+            fail=1
+            ;;
+          https://*)
+            read -r code type < <(curl -sI --max-time 20 "$src" \
+              | awk 'BEGIN{c="000";t="?"} /^HTTP/{c=$2} tolower($1)=="content-type:"{t=$2} END{print c, t}')
+            case "$code:$type" in
+              200:image/*)
+                echo "ok      $src"
+                ;;
+              200:*)
+                echo "FAIL    $src"
+                echo "        returns 200 but content-type is '$type', not an image"
+                fail=1
+                ;;
+              *)
+                echo "FAIL    $src"
+                echo "        HTTP $code — deploy the image BEFORE sending; Gmail caches the failure"
+                fail=1
+                ;;
+            esac
+            ;;
+          *)
+            # data: URIs are stripped by Gmail; relative paths have no base
+            # in an inbox and can never resolve.
+            echo "FAIL    $html  $src"
+            echo "        not an absolute https URL — an email has no base to resolve it against"
+            fail=1
+            ;;
+        esac
+      done
+    done
+    if [ "$fail" = 0 ]; then
+      echo "All images resolve. Safe to send."
+    else
+      echo "Do NOT send — fix the images above first." >&2
+    fi
+    exit $fail
+    ;;
+
   *)
-    echo "usage: scripts/ship.sh bump|verify" >&2
+    echo "usage: scripts/ship.sh bump|verify|images <file.html>" >&2
     exit 2
     ;;
 esac
