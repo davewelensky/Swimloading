@@ -717,8 +717,9 @@ If code size becomes an issue again:
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
 
-Rules:
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+Rules — full workflow in [.claude/CLAUDE.md](.claude/CLAUDE.md):
+- The graph is a **navigation layer, not a source of truth**. Always verify against the real source before changing code.
+- Use it for WIDE tasks (architecture, dependency tracing, blast radius, "where does X live"). Skip it for a known file and a small isolated edit.
+- `npm run graph:check` before broad exploration; `npm run graph:refresh` only if stale in a way that affects the task (~6 s, no API cost).
+- `graphify query "<question>"` returns a scoped subgraph — far cheaper than grepping the repo. `graphify path "A" "B"` for relationships, `graphify explain "X"` for one concept.
+- Never load all of GRAPH_REPORT.md or graph.json into context; skim the relevant section only.
