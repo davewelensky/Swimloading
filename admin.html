@@ -3650,7 +3650,7 @@ async function loadRecentLogs() {
     // Step 1: fetch logs + spot names (no profiles join — user_id FKs to auth.users, not profiles)
     const { data, error } = await supabaseClient
         .from('temp_logs')
-        .select('id, user_id, temp_c, conditions, notes, logged_at, created_at, spots!temp_logs_spot_id_fkey(name)')
+        .select('id, user_id, temp_c, conditions, notes, logged_at, created_at, location_source, spots!temp_logs_spot_id_fkey(name)')
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -3659,15 +3659,33 @@ async function loadRecentLogs() {
     if (error) { console.error('loadRecentLogs error:', error); container.innerHTML = '<tr><td colspan="6" style="padding:12px; color:#f87171;">Error loading logs.</td></tr>'; return; }
     if (!data || data.length === 0) { container.innerHTML = '<tr><td colspan="6" style="padding:12px; color:#64748b;">No logs found.</td></tr>'; return; }
 
-    // Step 2: fetch display names for all unique users in this batch
-    const userIds = [...new Set(data.map(l => l.user_id))];
-    const { data: profilesData } = await supabaseClient
-        .from('public_profiles').select('id, display_name').in('id', userIds);
-    const nameMap = Object.fromEntries((profilesData || []).map(p => [p.id, p.display_name]));
+    // Step 2: fetch display names for all unique users in this batch.
+    //
+    // filter(Boolean) is load-bearing. Sensor-imported logs (Tooting Bec,
+    // Brockwell — location_source='sensor') have user_id = NULL by design,
+    // and a NULL in this list makes PostgREST build `id=in.(null,...)`,
+    // which Postgres rejects with "invalid input syntax for type uuid".
+    // The whole request then fails and EVERY name on the page falls back to
+    // "Unknown" — including the real swimmers. That looked like an RLS
+    // regression for days; it was one null in an IN list.
+    const userIds = [...new Set(data.map(l => l.user_id).filter(Boolean))];
+    let nameMap = {};
+    if (userIds.length) {
+        const { data: profilesData, error: profErr } = await supabaseClient
+            .from('public_profiles').select('id, display_name').in('id', userIds);
+        // Surfaced, not swallowed: silently returning no names is exactly
+        // how this hid for so long.
+        if (profErr) console.error('loadRecentLogs profiles error:', profErr);
+        nameMap = Object.fromEntries((profilesData || []).map(p => [p.id, p.display_name]));
+    }
 
     container.innerHTML = data.map(log => {
         const when = new Date(log.logged_at || log.created_at).toLocaleString('en-ZA', { dateStyle: 'short', timeStyle: 'short' });
-        const user = nameMap[log.user_id] || 'Unknown';
+        // A sensor reading has no user and never will. Calling it "Unknown"
+        // implies a swimmer we failed to identify; it is an automated feed.
+        const user = log.user_id
+            ? (nameMap[log.user_id] || 'Unknown')
+            : (log.location_source === 'sensor' ? 'Sensor' : 'System');
         const spot = log.spots?.name || 'Unknown spot';
         const temp = log.temp_c != null ? `${log.temp_c}°C` : '—';
         return `<tr>
