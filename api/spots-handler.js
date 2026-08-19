@@ -101,11 +101,25 @@ async function renderSpotPage(slug) {
   const regionName = REGION_NAMES[regionSlug] || locationLabel;
   spot._locationLabel = locationLabel;
 
-  // Latest temp from the view
+  // Latest SWIMMER reading — still needed for "logged by X", the recent-logs
+  // table and the trend, all of which are about people, not instruments.
   const latestArr = await dbGet(
     `latest_spot_temps?spot_id=eq.${spot.id}&select=temp_c,updated_at&limit=1`
   );
   const latestData = latestArr?.[0] || null;
+
+  // The BLENDED estimate — the same spot_temp_estimate view, and therefore
+  // the same number, the app shows for this spot.
+  //
+  // These two surfaces used to disagree on 37 spots: the app showed
+  // Muizenberg at 14.2°C from the model while this page said "no recent
+  // logs", because the page only ever looked at swimmer logs. Two of our
+  // own screens giving different answers for the same water is worse than
+  // either answer alone.
+  const estimateArr = await dbGet(
+    `spot_temp_estimate?spot_id=eq.${spot.id}&select=best_c,best_source,confidence,swimmer_at,measured_at,measured_station,measured_distance_km,model_at&limit=1`
+  ).catch(() => null);
+  const estimate = estimateArr?.[0] || null;
 
   // Recent logs — last 7 days
   const since7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -276,7 +290,7 @@ async function renderSpotPage(slug) {
       </div>
     </nav>
 
-    ${renderSpotHero(spot, latestData, recentLogs, trend, false, freshness)}
+    ${renderSpotHero(spot, latestData, recentLogs, trend, false, freshness, estimate)}
 
     <main class="container page-body">
       ${renderHazards(hazards)}
@@ -544,7 +558,7 @@ function renderMywaterliveWidget(slug) {
 ${script}`;
 }
 
-function renderSpotHero(spot, latestData, recentLogs, trend, hasSensor = false, freshness = null) {
+function renderSpotHero(spot, latestData, recentLogs, trend, hasSensor = false, freshness = null, estimate = null) {
   const latest = recentLogs[0] || null;
   const hasTemp = latestData?.temp_c != null;
   // The visible page must not out-claim its own metadata. A badge reading
@@ -569,12 +583,35 @@ function renderSpotHero(spot, latestData, recentLogs, trend, hasSensor = false, 
     ? `<div class="hero-no-data">Live sensor reading below ↓ &nbsp;·&nbsp; <a href="/app" style="color:var(--ocean-lt);">Log your swim</a> to add community data.</div>`
     : `<div class="hero-no-data">No recent logs — be the first to log this spot today.</div>`;
 
+  // THE NUMBER THE APP SHOWS.
+  //
+  // The hero used to show only the latest swimmer log, so 37 spots had a
+  // temperature in the app and "no recent logs" on their public page —
+  // Muizenberg said nothing here while the app showed the model's 14.2°C.
+  // Now both read the same blended estimate, and the caption says which
+  // rung of the ladder it came from so the number is never over-claimed.
+  const estSource = estimate?.best_source || null;
+  const estTemp = estimate?.best_c != null ? Number(estimate.best_c).toFixed(1) : null;
+  const showEstimate = !hasTemp && estTemp != null;
+
+  const estCaption = estSource === 'measured'
+    ? `Measured at ${escapeHtml(estimate.measured_station || 'a nearby station')}${
+        estimate.measured_distance_km != null ? `, ${Number(estimate.measured_distance_km).toFixed(1)} km away` : ''}`
+    : estSource === 'model'
+      ? 'Modelled sea-surface estimate (Open-Meteo) — no swimmer reading yet'
+      : '';
+
   const tempBlock = hasTemp ? `
     <div class="hero-temp-label" style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;">${escapeHtml(tempHeading)}</div>
     <div class="hero-temp">${latestData.temp_c}°C${trendBadge}</div>
     ${cond ? `<div class="hero-cond">${cond}</div>` : ''}
     <div class="hero-meta">${fresh.canSayToday ? 'Logged' : 'Recorded'} by ${escapeHtml(who)}${when ? ` · ${escapeHtml(when)}` : ''}${observedStr ? ` · ${escapeHtml(observedStr)}` : ''}</div>
     ${notes}
+  ` : showEstimate ? `
+    <div class="hero-temp-label" style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;">${escapeHtml(estSource === 'measured' ? 'Measured nearby' : 'Typical water temperature')}</div>
+    <div class="hero-temp">${estTemp}°C</div>
+    <div class="hero-meta">${estCaption}</div>
+    <div class="hero-no-data" style="margin-top:10px;">No swimmer has logged this spot recently — <a href="/app" style="color:var(--ocean-lt);">be the first</a>.</div>
   ` : noDataMsg;
 
   const badgeStyle = isIntl
@@ -800,6 +837,25 @@ async function renderRegionalPage(regionSlug) {
 
   const countryFilter = REGION_COUNTRY_FILTER[regionSlug] || null;
   const spots = await dbRpc('seo_regional_spots', { p_domains: domains, p_country_code: countryFilter }) || [];
+
+  // Live temperature for the cards, from the same blended view the app and
+  // the spot pages use.
+  //
+  // The RPC returns avg_temp — an ALL-TIME community average — so a region
+  // where nobody has ever logged showed "No data yet" on every card even
+  // when instruments were reading it. Ireland was the clearest case: Forty
+  // Foot had a buoy on 15.6°C and its region page said there was nothing.
+  // A visitor should not have to open a spot page to discover the region
+  // has data at all.
+  const estimates = await dbGet('spot_temp_estimate?select=spot_id,best_c,best_source,confidence') .catch(() => []) || [];
+  const estBySpot = new Map(estimates.map((e) => [e.spot_id, e]));
+  for (const s of spots) {
+    const e = estBySpot.get(s.id);
+    if (e?.best_c != null) {
+      s._liveTemp = Number(e.best_c);
+      s._liveSource = e.best_source;
+    }
+  }
   const poolSpots = spots.filter(s => s.water_type === 'POOL');
   const showWinter = ['west-coast', 'atlantic', 'false-bay', 'eastern-cape', 'garden-route'].includes(regionSlug) && poolSpots.length > 0;
   const allPools = spots.length > 0 && spots.every(s => s.water_type === 'POOL');
@@ -899,7 +955,11 @@ function renderSpotCards(spots) {
           <span class="spot-card-name">${escapeHtml(s.name)}</span>
           <span class="spot-card-type" style="color:${typeColor}">${typeLabel}</span>
         </div>
-        ${s.avg_temp != null ? `<div class="spot-card-temp">${s.avg_temp}°C <span>avg</span></div>` : `<div class="spot-card-temp spot-card-temp-none">No data yet</div>`}
+        ${s._liveTemp != null
+          ? `<div class="spot-card-temp">${s._liveTemp.toFixed(1)}°C <span>${s._liveSource === 'swimmer' ? 'logged' : s._liveSource === 'measured' ? 'buoy' : 'model'}</span></div>`
+          : s.avg_temp != null
+            ? `<div class="spot-card-temp">${s.avg_temp}°C <span>avg</span></div>`
+            : `<div class="spot-card-temp spot-card-temp-none">No data yet</div>`}
         ${lastLogged ? `<div class="spot-card-meta">Last logged ${escapeHtml(lastLogged)}</div>` : `<div class="spot-card-meta">Never logged</div>`}
         ${intlBadge}
         <div class="spot-card-cta">View spot ›</div>
