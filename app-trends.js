@@ -308,6 +308,21 @@
         // broken and blows the card layout apart. Rounding at the point of
         // DISPLAY covers every source — swimmer, buoy, model — including any
         // added later, rather than trusting each one to arrive tidy.
+        // Where the number came from, shown beside the time.
+        //
+        // The two my-water.live lidos already say "Live sensor"; a buoy
+        // reading 15 km offshore said nothing at all, so it read as though a
+        // swimmer had been there. Same vocabulary as the spot picker.
+        function srcTag(source) {
+            if (source !== 'measured' && source !== 'model') return '';
+            const label = source === 'measured' ? 'buoy' : 'model';
+            const tint = source === 'measured'
+                ? 'background:rgba(56,189,248,0.16);color:#7ec8e3;'
+                : 'background:rgba(148,163,184,0.16);color:#94a3b8;';
+            return `<span style="display:inline-block;margin-left:7px;padding:1px 5px;border-radius:4px;`
+                 + `font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;${tint}">${label}</span>`;
+        }
+
         function fmtTemp(v) {
             // null must NOT become 0.0. Number(null) is 0, and a spot with no
             // reading would render "0.0°C" — a temperature we do not have,
@@ -468,7 +483,7 @@
                 item.innerHTML = `
                     <div style="flex: 1;">
                         <div style="font-weight: 700; color: var(--text-primary); font-size: 16px; margin-bottom: 2px;">${spot.spot_name}${badgeHtml}</div>
-                        <div style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">${getTimeAgo(new Date(spot.updated_at))}</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">${getTimeAgo(new Date(spot.updated_at))}${srcTag(spot._source)}</div>
                     </div>
                     <div style="text-align:right;">
                         <div style="font-size: 24px; font-weight: 800; color: ${getDisplayTempColor(spot.temp_c, spot.water_type)};">${fmtTemp(spot.temp_c)}°C</div>
@@ -566,13 +581,13 @@
                         })
                         .catch(function() {
                             const el = document.getElementById(tempId);
-                            if (el) el.textContent = s.temp_c + '°C';
+                            if (el) el.textContent = fmtTemp(s.temp_c) + '°C';
                         });
                 } else {
                     item.innerHTML = `
                         <div style="flex: 1;">
                             <div style="font-weight: 700; color: var(--text-primary); font-size: 16px; margin-bottom: 2px;">${spotName}${badgeHtml}</div>
-                            <div style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">${getTimeAgo(new Date(s.updated_at))}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">${getTimeAgo(new Date(s.updated_at))}${srcTag(s._source)}</div>
                         </div>
                         <div style="text-align:right;">
                             <div style="font-size: 24px; font-weight: 800; color: ${getDisplayTempColor(s.temp_c, s.water_type)};">${fmtTemp(s.temp_c)}°C</div>
