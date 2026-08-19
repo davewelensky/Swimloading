@@ -138,7 +138,7 @@
                         intlData.push({
                             spot_id: spot.id, spot_name: spot.name, spot_code: spot.code,
                             domain: spot.domain, water_type: spot.water_type,
-                            temp_c: Number(e.best_c), updated_at: observedAt,
+                            temp_c: Math.round(Number(e.best_c) * 10) / 10, updated_at: observedAt,
                             _source: e.best_source,
                         });
                     });
@@ -301,6 +301,24 @@
             }
         }
 
+        // One decimal, always.
+        //
+        // CMEMS returns float32, so a reading arrives as
+        // 21.399999618530273 and printed straight into the DOM it both looks
+        // broken and blows the card layout apart. Rounding at the point of
+        // DISPLAY covers every source — swimmer, buoy, model — including any
+        // added later, rather than trusting each one to arrive tidy.
+        function fmtTemp(v) {
+            // null must NOT become 0.0. Number(null) is 0, and a spot with no
+            // reading would render "0.0°C" — a temperature we do not have,
+            // and an alarming one. (Same trap as the indexability gate, where
+            // a null estimate read as 0°C and passed a check it should have
+            // failed.)
+            if (v === null || v === undefined || v === '') return '—';
+            const n = Number(v);
+            return Number.isFinite(n) ? n.toFixed(1) : '—';
+        }
+
         function renderRegionalGrid() {
             const loadingEl = document.getElementById('trendsLoading');
             const gridEl = document.getElementById('regionGrid');
@@ -453,7 +471,7 @@
                         <div style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">${getTimeAgo(new Date(spot.updated_at))}</div>
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-size: 24px; font-weight: 800; color: ${getDisplayTempColor(spot.temp_c, spot.water_type)};">${spot.temp_c}°C</div>
+                        <div style="font-size: 24px; font-weight: 800; color: ${getDisplayTempColor(spot.temp_c, spot.water_type)};">${fmtTemp(spot.temp_c)}°C</div>
                         ${swimScoreBadgeHtml(swimScore)}
                     </div>
                 `;
@@ -544,7 +562,7 @@
                         .then(function(d) {
                             const el = document.getElementById(tempId);
                             if (!el) return;
-                            el.textContent = (d && d.temperature != null) ? parseFloat(d.temperature).toFixed(1) + '°C' : (s.temp_c + '°C');
+                            el.textContent = (d && d.temperature != null) ? parseFloat(d.temperature).toFixed(1) + '°C' : (fmtTemp(s.temp_c) + '°C');
                         })
                         .catch(function() {
                             const el = document.getElementById(tempId);
@@ -557,7 +575,7 @@
                             <div style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">${getTimeAgo(new Date(s.updated_at))}</div>
                         </div>
                         <div style="text-align:right;">
-                            <div style="font-size: 24px; font-weight: 800; color: ${getDisplayTempColor(s.temp_c, s.water_type)};">${s.temp_c}°C</div>
+                            <div style="font-size: 24px; font-weight: 800; color: ${getDisplayTempColor(s.temp_c, s.water_type)};">${fmtTemp(s.temp_c)}°C</div>
                             ${swimScoreBadgeHtml(swimScore)}
                         </div>
                     `;
