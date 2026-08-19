@@ -54,6 +54,32 @@
             }
         };
 
+        // ── Explore, from inside the app ──────────────────────────────────
+        // The app had NO link to /explore at all, while /explore linked back
+        // to /app three times — a one-way relationship, so a swimmer who only
+        // ever opens the app could not discover the catalogue existed.
+        //
+        // Trip planning is episodic and high-intent; the app is habitual and
+        // low-intent. So the app's job is not to BE the search — Explore
+        // already is, and does it better on a big screen — but to carry the
+        // thought across at the moment it occurs: someone logging 12°C in
+        // August looking at a region sitting on 27°C.
+        //
+        // Every entry point routes through here so we can actually measure
+        // whether swimmers bite before investing in anything larger.
+        function openExplore(source, params = {}) {
+            try {
+                analytics.track('explore_opened', { source, ...params });
+            } catch (_) { /* never block the navigation */ }
+            const qs = new URLSearchParams();
+            // Explore's own contract — same keys the crossing and spot pages
+            // use, so a link built here reproduces a real search.
+            if (params.country) qs.set('country', params.country);
+            if (params.place_label) qs.set('place_label', params.place_label);
+            const q = qs.toString();
+            window.location.href = q ? `/explore?${q}` : '/explore';
+        }
+
         // Global state
         let currentUser = null;
         let currentUserProfile = null;  // full profile object loaded at app start

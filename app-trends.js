@@ -355,6 +355,12 @@
                 }
 
                 const isIntl = INTERNATIONAL_DOMAINS.has(domain) || spots.some(s => s.domain === domain && internationalSpotIds.has(s.id));
+
+                // The country this region sits in, taken from the spots
+                // themselves rather than a hardcoded map, so it stays right
+                // as regions are added. Only used to pre-filter Explore.
+                const regionCountry = (spots.find(s => s.domain === domain && s.country_code) || {}).country_code || null;
+
                 const card = document.createElement('div');
                 card.className = 'region-card';
                 if (isIntl) card.style.cssText += 'border-color:#fbbf24;border-width:1.5px;';
@@ -370,7 +376,24 @@
                         </div>
                         ${trendArrow ? `<div style="font-size:56px;font-weight:900;color:${trendColor};line-height:1;flex-shrink:0;opacity:0.92;">${trendArrow}</div>` : ''}
                     </div>
+                    ${isIntl ? `
+                    <div class="region-explore" data-domain="${domain}" data-country="${regionCountry || ''}"
+                         style="margin-top:10px;padding-top:9px;border-top:1px solid rgba(255,255,255,0.07);font-size:12px;font-weight:700;color:var(--ocean-light);">
+                      Explore swims here &rarr;
+                    </div>` : ''}
                 `;
+                // Its own handler, and it must not also open the region
+                // detail the card click opens.
+                const exploreEl = card.querySelector('.region-explore');
+                if (exploreEl) {
+                    exploreEl.onclick = (ev) => {
+                        ev.stopPropagation();
+                        openExplore('trends_region', {
+                            country: regionCountry || undefined,
+                            place_label: formatDomain(domain),
+                        });
+                    };
+                }
                 gridEl.appendChild(card);
             });
         }
