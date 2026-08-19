@@ -966,8 +966,14 @@ function renderSpotCards(spots) {
         </div>
         ${s._liveTemp != null
           ? `<div class="spot-card-temp">${s._liveTemp.toFixed(1)}°C <span>${s._liveSource === 'swimmer' ? 'logged' : s._liveSource === 'measured' ? 'buoy' : 'model'}</span></div>`
-          : s.avg_temp != null
-            ? `<div class="spot-card-temp">${s.avg_temp}°C <span>avg</span></div>`
+          // NO all-time average here. It used to fall back to avg_temp, so an
+          // indoor pool nobody had logged since May advertised "26.4°C avg" —
+          // a number in the temperature slot, at a glance indistinguishable
+          // from a current one, describing water three months ago. Better to
+          // show no temperature and let the caption say when it was last
+          // logged. The history is still on the spot page itself.
+          : lastLogged
+            ? `<div class="spot-card-temp spot-card-temp-none">No recent reading</div>`
             : `<div class="spot-card-temp spot-card-temp-none">No data yet</div>`}
         ${spotCardMeta(s, lastLogged)}
         ${intlBadge}
