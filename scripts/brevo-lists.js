@@ -8,7 +8,10 @@
 // Prefer the env var — an API key passed as an argument is visible to every
 // other process on the machine and lands in your shell history.
 
-const key = process.argv[2] || process.env.BREVO_API_KEY;
+// Trim hard. A key copied out of the Brevo UI often carries a trailing space
+// or newline, and sending that in the api-key header returns 401 "Key not
+// found" — a wrong-credentials error for what is actually a whitespace bug.
+const key = (process.argv[2] || process.env.BREVO_API_KEY || '').replace(/\s+/g, '');
 if (!key) {
     console.error('Usage: node scripts/brevo-lists.js YOUR_BREVO_API_KEY  (or set BREVO_API_KEY)');
     process.exit(1);
@@ -32,10 +35,22 @@ if (!res.ok) {
     // said nothing about the key being rejected.
     console.error(`Brevo API error ${res.status} ${res.statusText}`);
     console.error(body);
+    // Shape of the key, never the key: enough to see a truncated paste
+    // without putting the credential in a terminal or a screenshot.
+    console.error(`\nkey received: ${key.length} chars, ` +
+                  `starts "${key.slice(0, 8)}", ends "${key.slice(-4)}", ` +
+                  `${key.split('-').length - 1} dash(es)`);
+    console.error('A complete Brevo v3 key is 89 chars: "xkeysib-" + 64 hex + "-" + 16.');
     if (res.status === 401) {
-        console.error('\n401 usually means: key revoked, key truncated, or an SMTP/v2 key');
-        console.error('rather than an API v3 key. Generate one at');
-        console.error('Brevo -> Settings -> SMTP & API -> API keys.');
+        // Brevo returns 401 for an unauthorised IP as well as a bad key, and
+        // the message above names which. Read it before touching the key: a
+        // full-length key that 401s is usually the IP allowlist, not the
+        // credential. Add the address at
+        // https://app.brevo.com/security/authorised_ips — and add a range if
+        // yours is dynamic, or this recurs every time the router reconnects.
+        console.error('\n401 means one of: unauthorised IP (see the message above),');
+        console.error('key revoked, key truncated, or an SMTP/v2 key rather than an');
+        console.error('API v3 key. Keys: Brevo -> Settings -> SMTP & API -> API keys.');
     }
     process.exit(1);
 }
