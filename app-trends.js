@@ -111,6 +111,38 @@
                         row.updated_at >= intlStaleISO
                     ) : [];
 
+                    // Regions where a buoy or the model is the ONLY source.
+                    //
+                    // latest_spot_temps is built from temp_logs, so a region
+                    // nobody has ever logged simply did not exist on this
+                    // screen — Ireland, USA, Canada, Dalmatia and Namibia were
+                    // all absent while instruments were reading 22 spots
+                    // between them. Same blended view the spot pages and the
+                    // picker use, so all four surfaces now agree.
+                    const seenSpots = new Set(intlData.map(r => r.spot_id));
+                    const { data: estRows } = await supabaseClient
+                        .from('spot_temp_estimate')
+                        .select('spot_id, best_c, best_source, measured_at, model_at, swimmer_at');
+                    (estRows || []).forEach(e => {
+                        if (e.best_c == null || seenSpots.has(e.spot_id)) return;
+                        const spot = spots.find(s => s.id === e.spot_id);
+                        if (!spot) return;
+                        if (!(internationalSpotIds.has(spot.id) || INTERNATIONAL_DOMAINS.has(spot.domain))) return;
+                        // The observation time belongs to whichever source won,
+                        // so "Updated 2 hours ago" stays true rather than
+                        // borrowing a timestamp from a source we did not use.
+                        const observedAt = e.best_source === 'measured' ? e.measured_at
+                            : e.best_source === 'model' ? e.model_at
+                            : e.swimmer_at;
+                        if (!observedAt) return;
+                        intlData.push({
+                            spot_id: spot.id, spot_name: spot.name, spot_code: spot.code,
+                            domain: spot.domain, water_type: spot.water_type,
+                            temp_c: Number(e.best_c), updated_at: observedAt,
+                            _source: e.best_source,
+                        });
+                    });
+
                     if (intlData.length === 0) {
                         loadingEl.style.display = 'none';
                         gridEl.style.display = 'block';
