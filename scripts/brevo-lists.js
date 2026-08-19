@@ -73,5 +73,10 @@ if (!lists.length) {
 
 console.log(`${parsed.count ?? lists.length} list(s):\n`);
 for (const l of lists) {
-    console.log(`id=${l.id}  name="${l.name}"  contacts=${l.totalSubscribers}  folderId=${l.folderId}`);
+    // uniqueSubscribers, NOT totalSubscribers: Brevo has dropped support for
+    // totalSubscribers and now returns 0 for it on every list, which read as
+    // "all your lists are empty" while they held hundreds of contacts.
+    // https://developers.brevo.com/reference/getlists-1
+    const n = l.uniqueSubscribers ?? l.totalSubscribers ?? '?';
+    console.log(`id=${l.id}  name="${l.name}"  contacts=${n}  folderId=${l.folderId}`);
 }
