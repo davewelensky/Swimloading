@@ -76,8 +76,12 @@
             // use, so a link built here reproduces a real search.
             if (params.country) qs.set('country', params.country);
             if (params.place_label) qs.set('place_label', params.place_label);
-            const q = qs.toString();
-            window.location.href = q ? `/explore?${q}` : '/explore';
+            // Tells Explore it is being opened from inside the app, so it
+            // drops the "Open the app" chrome and offers a way BACK instead.
+            // Without this a swimmer is invited to install what they are
+            // already using — the loop that made this feel broken.
+            qs.set('from', 'app');
+            window.location.href = `/explore?${qs.toString()}`;
         }
 
         // Global state

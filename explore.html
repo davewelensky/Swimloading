@@ -394,7 +394,23 @@
     .tally{gap:22px}
     .aside{text-align:left;min-width:0;align-items:stretch;flex-direction:row;
            justify-content:space-between;width:100%}
-    .actions{flex-direction:row;width:auto}
+    /* Stacked, NOT side by side. In a row at 375px the second button
+       ("Browse swim spots and temperatures") ran to 553px on a 375px screen,
+       so the whole page could be dragged sideways — the drift people felt
+       when they opened Explore on a phone. */
+    .actions{flex-direction:column;width:100%}
+    .actions .btn{width:100%;text-align:center}
+    /* The nav itself overflowed by 12px at 375px: brand + "List your swim"
+       + a pill CTA do not fit. The organiser link is the least urgent of
+       the three for someone on a phone, and dropping it also stops the
+       header from being the last thing dragging the page sideways. */
+    nav{padding:12px 14px;gap:10px}
+    nav #navListSwim{display:none}
+    /* The wordmark must be allowed to SHRINK, not just be given less room —
+       at 20px it kept its full width and the CTA pill sat on top of it. */
+    .brand{font-size:16px;min-width:0;flex-shrink:1;overflow:hidden;white-space:nowrap}
+    .brand img{height:19px}
+    nav .cta{padding:8px 14px;font-size:12px;flex-shrink:0;white-space:nowrap}
     .when{font-size:22px}
   }
   @media (prefers-reduced-motion:reduce){
@@ -410,8 +426,8 @@
   <!-- An organiser who cannot find their own swim is standing on THIS page.
        Every event here was crawled; this is the only route by which one can
        arrive without us going and fetching it. -->
-  <a href="/list-your-swim" style="color:#94a3b8;text-decoration:none;font-weight:600;font-size:14px;margin-right:16px;">List your swim</a>
-  <a class="cta" href="/app">Open the app</a>
+  <a href="/list-your-swim" id="navListSwim" style="color:#94a3b8;text-decoration:none;font-weight:600;font-size:14px;margin-right:16px;">List your swim</a>
+  <a class="cta" id="navAppCta" href="/app">Open the app</a>
 </nav>
 
 <div class="wrap">
@@ -652,6 +668,43 @@
 </script>
 
 <script>
+// ARRIVED FROM THE APP?
+//
+// A swimmer who taps Explore inside the app used to land on a marketing
+// page whose header invited them to "Open the app" — the app they were
+// already in. That loop is the whole reason this exists.
+//
+// With ?from=app the page drops its acquisition chrome and behaves like a
+// screen of the app: one clear way back, and no invitation to install
+// something already installed. Everything else on the page is identical.
+(function () {
+  try {
+    if (new URLSearchParams(location.search).get('from') !== 'app') return;
+    document.documentElement.classList.add('from-app');
+    var cta = document.getElementById('navAppCta');
+    if (cta) {
+      cta.textContent = '\u2190 Back to app';
+      cta.setAttribute('href', '/app');
+      // Reads as a way back rather than a call to action.
+      cta.style.background = 'transparent';
+      cta.style.border = '1px solid rgba(255,255,255,0.18)';
+      cta.style.color = '#e2e8f0';
+    }
+    // "List your swim" is an organiser pitch — noise for a swimmer who came
+    // from the app to plan a trip, and it costs width on a phone.
+    var list = document.getElementById('navListSwim');
+    if (list) list.style.display = 'none';
+    // The bottom acquisition block sells the app to someone who has it.
+    document.querySelectorAll('a.btn[href="/app"]').forEach(function (a) {
+      var box = a.closest('.actions');
+      if (box) box.style.display = 'none';
+    });
+  } catch (e) { /* chrome tweak must never break the page */ }
+})();
+</script>
+
+<script>
+
 const SUPABASE_URL='https://szgkzuswelntnevobnoh.supabase.co';
 const ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
 const sb = supabase.createClient(SUPABASE_URL, ANON_KEY);
