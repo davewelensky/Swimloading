@@ -847,13 +847,22 @@ async function renderRegionalPage(regionSlug) {
   // Foot had a buoy on 15.6°C and its region page said there was nothing.
   // A visitor should not have to open a spot page to discover the region
   // has data at all.
-  const estimates = await dbGet('spot_temp_estimate?select=spot_id,best_c,best_source,confidence') .catch(() => []) || [];
+  const estimates = await dbGet(
+    'spot_temp_estimate?select=spot_id,best_c,best_source,confidence,measured_at,model_at,swimmer_at'
+  ).catch(() => []) || [];
   const estBySpot = new Map(estimates.map((e) => [e.spot_id, e]));
   for (const s of spots) {
     const e = estBySpot.get(s.id);
     if (e?.best_c != null) {
       s._liveTemp = Number(e.best_c);
       s._liveSource = e.best_source;
+      // When the shown reading was actually taken — so the caption can
+      // describe THAT reading instead of falling back to "Never logged",
+      // which is true of swimmers but reads as a contradiction printed
+      // directly under a live 16°C from a buoy.
+      s._liveAt = e.best_source === 'measured' ? e.measured_at
+        : e.best_source === 'model' ? e.model_at
+        : e.swimmer_at;
     }
   }
   const poolSpots = spots.filter(s => s.water_type === 'POOL');
@@ -960,12 +969,41 @@ function renderSpotCards(spots) {
           : s.avg_temp != null
             ? `<div class="spot-card-temp">${s.avg_temp}°C <span>avg</span></div>`
             : `<div class="spot-card-temp spot-card-temp-none">No data yet</div>`}
-        ${lastLogged ? `<div class="spot-card-meta">Last logged ${escapeHtml(lastLogged)}</div>` : `<div class="spot-card-meta">Never logged</div>`}
+        ${spotCardMeta(s, lastLogged)}
         ${intlBadge}
         <div class="spot-card-cta">View spot ›</div>
       </a>`;
   }).join('');
   return `<p class="spot-cards-hint">Tap any spot for map, conditions &amp; directions</p><div class="spot-cards">${cards}</div>`;
+}
+
+/**
+ * The line under a spot card's temperature.
+ *
+ * It has to describe the reading that is ACTUALLY shown. Ireland's cards
+ * displayed a live 16.0°C from a buoy with "Never logged" printed directly
+ * underneath — both true (no swimmer has ever logged there) and, side by
+ * side, indistinguishable from a bug.
+ *
+ * A swimmer log is still the headline when there is one; otherwise the
+ * caption belongs to whichever instrument produced the number.
+ */
+function spotCardMeta(s, lastLogged) {
+  // The caption follows the SHOWN reading, whatever it is. Preferring the
+  // swimmer log whenever one exists produced the same confusion in reverse:
+  // Clifton 4th displayed 13.6°C from the model over "Last logged 2 days
+  // ago", so the number and the sentence beneath it described different
+  // readings taken from different sources on different days.
+  if (s._liveTemp != null && s._liveAt) {
+    const when = timeAgo(s._liveAt);
+    const what = s._liveSource === 'measured' ? 'Buoy reading'
+      : s._liveSource === 'model' ? 'Model updated'
+      : 'Last logged';
+    return `<div class="spot-card-meta">${what} ${escapeHtml(when)}</div>`;
+  }
+  if (lastLogged) return `<div class="spot-card-meta">Last logged ${escapeHtml(lastLogged)}</div>`;
+  // Genuinely nothing — and now it is the only case that says so.
+  return `<div class="spot-card-meta">No readings yet</div>`;
 }
 
 function renderIntlPoolsSection() {
