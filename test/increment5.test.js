@@ -250,3 +250,47 @@ test('a spot with neither coordinates nor country queries nothing', async () => 
   // 0,0 is the Atlantic, not a missing value — treat it as missing.
   assert.equal(nearbyEventsQueryForSpot({ latitude: 0, longitude: 0 }), null);
 });
+
+// ── measured readings and freshness ────────────────────────────────────
+// A buoy can earn a page its "Today", but only when it is close enough
+// that its number describes THIS water.
+
+test('a live local buoy beats a stale swimmer log', async () => {
+  const { preferredFreshness } = await import('../api/_lib/temperature-freshness.js');
+  // Boscombe, 2026-08-19: swimmer log days old, buoy 1 km away read 4.9h ago.
+  // The first version of this rule showed "Swimming Conditions" here.
+  const chosen = preferredFreshness(fresh(200), fresh(4.9));
+  assert.equal(chosen.canSayToday, true);
+});
+
+test('a swimmer in the water outranks a buoy when both are current', async () => {
+  const { preferredFreshness } = await import('../api/_lib/temperature-freshness.js');
+  const swimmer = fresh(1);
+  assert.equal(preferredFreshness(swimmer, fresh(2)), swimmer);
+});
+
+test('with no nearby instrument the swimmer verdict stands unchanged', async () => {
+  const { preferredFreshness } = await import('../api/_lib/temperature-freshness.js');
+  const swimmer = fresh(200);
+  assert.equal(preferredFreshness(swimmer, null), swimmer);
+});
+
+test('a measured reading is used when there is no swimmer log at all', async () => {
+  const { preferredFreshness } = await import('../api/_lib/temperature-freshness.js');
+  const measured = fresh(1);
+  assert.equal(preferredFreshness(noReading, measured), measured);
+});
+
+test('neither current: a present swimmer reading is still preferred', async () => {
+  const { preferredFreshness } = await import('../api/_lib/temperature-freshness.js');
+  const swimmer = fresh(100);
+  assert.equal(preferredFreshness(swimmer, fresh(50)), swimmer);
+});
+
+test('the distance threshold excludes offshore buoys from claiming today', async () => {
+  const { NEARBY_MEASUREMENT_TODAY_KM } = await import('../api/spots-handler.js');
+  // Real link set on 2026-08-19: La Jolla 1.1 km and Aquatic Park 9.6 km
+  // describe their beaches; Dover's 15.2 km and English Bay's 14.3 km do not.
+  assert.ok(NEARBY_MEASUREMENT_TODAY_KM >= 9.6, 'must keep Aquatic Park');
+  assert.ok(NEARBY_MEASUREMENT_TODAY_KM < 14.3, 'must exclude English Bay');
+});

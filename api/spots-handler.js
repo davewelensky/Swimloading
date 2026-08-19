@@ -11,6 +11,7 @@ import {
 } from './seo-utils.js';
 import {
   getTemperatureFreshness, spotTitle, spotMetaDescription, waterTemperatureLabel, formatObservedAt,
+  preferredFreshness,
 } from './_lib/temperature-freshness.js';
 import { getSpotSponsorHtml, getRegionSponsorHtml } from './sponsors.js';
 import { VENUE_MAP } from './mywaterlive-config.js';
@@ -23,6 +24,16 @@ import { renderConditionsCard } from './_lib/observations/render.js';
 import { getStationHistory, renderHistoryChart } from './_lib/observations/history.js';
 
 const REGION_SLUGS = new Set(Object.keys(REGION_DOMAINS));
+
+// How close a measuring instrument must be before its reading may be
+// described as this spot's temperature "today".
+//
+// Chosen against the real link set (2026-08-19): approved stations run
+// 0.3–19.3 km out, averaging 5.9 km. 10 km keeps the genuinely local ones —
+// La Jolla 1.1 km, Bethany Beach 1.3 km, Capistrano 2.1 km — and excludes
+// the offshore ones like Dover's 15.2 km buoy, whose reading is still shown
+// and still useful for planning, but is not the water at the beach.
+export const NEARBY_MEASUREMENT_TODAY_KM = 10;
 
 export default async function handler(req, res) {
   const path = (req.url || '').split('?')[0];
@@ -182,7 +193,37 @@ async function renderSpotPage(slug) {
   // observation of this water, and "Today's temperature" implies someone
   // was in it. Where only a model value exists the page still shows it —
   // labelled as modelled — but it does not earn the word "Today".
-  const freshness = getTemperatureFreshness(latestData?.updated_at ?? null);
+  const swimmerFreshness = getTemperatureFreshness(latestData?.updated_at ?? null);
+
+  // A MEASURED reading can also earn the page its freshness — but only when
+  // the instrument is close enough that its number describes this water.
+  //
+  // La Jolla's buoy is 1.1 km out and reads every hour: a page saying it has
+  // today's temperature is telling the truth, and saying "Swimming
+  // Conditions" (our no-reading wording) while displaying 19.2°C on the same
+  // screen is not. Dover's nearest station is 15.2 km offshore — still worth
+  // showing for planning, which is why the card renders regardless, but not
+  // worth claiming as the temperature at the beach today.
+  //
+  // So distance, not just recency, decides. NEARBY_MEASUREMENT_TODAY_KM is
+  // the whole judgement, in one number, in one place.
+  const measuredObservedAt = observedConditions?.temperatureC != null
+    ? observedConditions.observedAt : null;
+  const measuredKm = observedConditions?.station?.distanceKm;
+  const measuredIsLocal = measuredObservedAt != null
+    && Number.isFinite(Number(measuredKm))
+    && Number(measuredKm) <= NEARBY_MEASUREMENT_TODAY_KM;
+  const measuredFreshness = measuredIsLocal
+    ? getTemperatureFreshness(measuredObservedAt) : null;
+
+  // Whichever source can honestly claim the most, claims it.
+  //
+  // Ordering matters and is easy to get subtly wrong: a swimmer log from
+  // last week must NOT outrank a buoy 1 km away that read an hour ago.
+  // Boscombe is exactly that case, and the first version of this line said
+  // "Swimming Conditions" over a perfectly good live measurement. When both
+  // can claim today, the swimmer wins — they were actually in the water.
+  const freshness = preferredFreshness(swimmerFreshness, measuredFreshness);
   const title = spotTitle(spot.name, freshness, { isPool });
   const description = spotMetaDescription(freshness, {
     spotName: spot.name, locationLabel, waterType: spot.water_type, isPool,

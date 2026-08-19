@@ -131,6 +131,30 @@ export function waterTemperatureLabel(opts = {}) {
 }
 
 /**
+ * Which of two sources gets to define the page's freshness claim.
+ *
+ * A spot can have a swimmer log AND a nearby instrument, and they disagree
+ * about how current they are. The wrong ordering here is quiet and costly:
+ * the first version let a week-old swimmer log outrank a buoy 1 km away
+ * that had read an hour ago, so Boscombe advertised "Swimming Conditions"
+ * over a perfectly good live measurement.
+ *
+ * The rule: whoever can honestly claim the most, claims it. When both can
+ * claim today the swimmer wins — a person was actually in that water, a
+ * buoy was merely near it.
+ *
+ * @param {object} swimmer   freshness of the community reading
+ * @param {object|null} measured freshness of a CLOSE instrument, or null
+ */
+export function preferredFreshness(swimmer, measured) {
+  if (!measured) return swimmer;
+  if (!swimmer) return measured;
+  if (swimmer.canSayToday) return swimmer;
+  if (measured.canSayToday) return measured;
+  return swimmer.state !== 'unavailable' ? swimmer : measured;
+}
+
+/**
  * The page title for a spot, which may only say "Today" when the reading
  * actually supports it. Kept beside the freshness rule so the two can
  * never drift apart.

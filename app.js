@@ -7616,7 +7616,18 @@
                 label = `Swimmer reading${ageText(est.swimmer_age_h)}`;
             }
             const t = Number(est.best_c).toFixed(1);
-            return `<span class="sp-row-temp sp-conf-${conf}" title="${label}"><span class="sp-conf-dot"></span>${t}°</span>`;
+
+            // The source has to be VISIBLE, not just in a title tooltip.
+            // There is no hover on a phone, so a buoy reading and a swimmer
+            // reading looked identical to every mobile user — which is why
+            // the global sensor rollout appeared to have done nothing.
+            // A one-word tag costs almost no room and says which is which.
+            const srcTag = est.best_source === 'measured' ? 'buoy'
+                : est.best_source === 'model' ? 'model'
+                : '';
+            const tag = srcTag
+                ? `<span class="sp-row-src sp-src-${srcTag}">${srcTag}</span>` : '';
+            return `<span class="sp-row-temp sp-conf-${conf}" title="${label}"><span class="sp-conf-dot"></span>${t}°${tag}</span>`;
         }
 
         // Build a single spot row HTML
