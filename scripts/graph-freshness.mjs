@@ -149,11 +149,29 @@ export function checkFreshness() {
     (STRUCTURAL_STATUS.has(status[0]) ? structural : modified).push(clean);
   };
 
+  const baselineMs = stamp?.at ? Date.parse(stamp.at) : statSync(GRAPH).mtimeMs;
+  const touchedSinceBaseline = (file) => {
+    try {
+      return statSync(path.join(REPO, file)).mtimeMs > baselineMs;
+    } catch {
+      return true; // gone from disk — that is a real change
+    }
+  };
+
   // Committed changes since the graph was built...
+  //
+  // ...but a file can appear here as "added" merely because it was
+  // COMMITTED, having sat untracked on disk for days. graphify reads the
+  // working tree, so it indexed that file long ago and nothing about the
+  // graph changed when git finally started tracking it. This tool flagged
+  // its own commit that way. If the file predates the stamp, it is already
+  // in the graph whatever git thinks.
   for (const line of git(['diff', '--name-status', `${commit}..HEAD`]).split('\n')) {
     if (!line.trim()) continue;
     const [status, ...paths] = line.split('\t');
-    note(status, paths[paths.length - 1]);
+    const file = paths[paths.length - 1];
+    if (!touchedSinceBaseline(file)) continue;
+    note(status, file);
   }
   // ...plus uncommitted work, because the graph describes the code on disk,
   // not the code that happens to be committed.
@@ -165,19 +183,11 @@ export function checkFreshness() {
   // permanently carries ~13 untracked files, so the tool would have cried
   // wolf forever and been ignored, which is worse than not having it.
   // graph.json's own mtime is the refresh timestamp; nothing to maintain.
-  const baselineMs = stamp?.at ? Date.parse(stamp.at) : statSync(GRAPH).mtimeMs;
-  const changedSinceGraph = (file) => {
-    try {
-      return statSync(path.join(REPO, file)).mtimeMs > baselineMs;
-    } catch {
-      return true; // deleted since the graph was built — that is a change
-    }
-  };
   for (const line of git(['status', '--porcelain']).split('\n')) {
     if (!line.trim()) continue;
     const status = line.slice(0, 2).trim();
     const file = String(line.slice(3).split(' -> ').pop()).trim().replace(/^"|"$/g, '');
-    if (!changedSinceGraph(file)) continue;
+    if (!touchedSinceBaseline(file)) continue;
     note(status === '??' ? 'A' : status, file);
   }
 
