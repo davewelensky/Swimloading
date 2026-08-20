@@ -1224,11 +1224,30 @@ async function loadAnalytics(days = 7) {
 
     const since = new Date(Date.now() - days * 86400000).toISOString();
 
-    const { data, error } = await supabaseClient
-        .from('analytics_events')
-        .select('event_name, created_at')
-        .gte('created_at', since)
-        .order('created_at', { ascending: true });
+    // PAGINATED — PostgREST caps a request at 1000 rows.
+    //
+    // This asked for the window ordered ASCENDING with no limit, so it got
+    // the OLDEST thousand events and silently dropped the rest. On
+    // 2026-08-20 that meant 1,000 shown out of 1,640 real events: the
+    // "Total events" tile read exactly 1,000 every time, the most recent
+    // two days were missing entirely, and every percentage was computed
+    // against the truncated set. Numbers that are quietly wrong are worse
+    // than no numbers — you stop trusting the page, correctly.
+    const data = [];
+    let error = null;
+    const PAGE = 1000;
+    for (let start = 0; start < 200000; start += PAGE) {
+        const { data: page, error: pageErr } = await supabaseClient
+            .from('analytics_events')
+            .select('event_name, created_at')
+            .gte('created_at', since)
+            .order('created_at', { ascending: true })
+            .range(start, start + PAGE - 1);
+        if (pageErr) { error = pageErr; break; }
+        if (!page || page.length === 0) break;
+        data.push(...page);
+        if (page.length < PAGE) break;   // last page
+    }
 
     if (error) {
         document.getElementById('analyticsGrid').innerHTML =
