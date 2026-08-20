@@ -1138,23 +1138,66 @@ function updateMapHint(n){
     : 'Drag or zoom the map — the list below follows';
 }
 
+// One pin spec per mode, all reduced to the same {lat,lng,color,popup} shape
+// before plotMarkers() draws them. Each mode has its own table with its own
+// fields, so this is where that gets resolved — plotMarkers() itself stays
+// generic. Places mode draws its spots on PLACE_LAYER instead (plotPlaces()),
+// so it contributes no pins here, same as it already contributes none to
+// visiblePlaces() in the other two dateless modes.
+//
+// Before this, bookable and regular mode left visiblePoints() — the dated
+// races/events — on the map untouched, so switching to "Regular group
+// swims" showed the regulars list below a map still full of race pins that
+// had nothing to do with it. Places mode never had this bug because
+// visiblePlaces() already guards on bookableOnly()/regularOnly(); this
+// applies the same fix to the event pins.
+function markersForMode(){
+  if(placesOnly()) return [];
+
+  if(regularOnly()){
+    return visibleRegulars()
+      .filter(r => r.latitude != null && r.longitude != null)
+      .map(r => ({
+        lat: r.latitude, lng: r.longitude, color: '#38bdf8',
+        popup: `<b>${esc(r.name)}</b>
+          <span class="pdate">${esc(fmtSchedule(r) || 'Regular group swim')}</span><br>
+          <span class="pplace">${esc([r.city, r.region].filter(Boolean).join(', '))}</span>`
+      }));
+  }
+
+  if(bookableOnly()){
+    return visibleRoutes()
+      .filter(r => r._lat != null && r._lng != null)
+      .map(r => ({
+        lat: r._lat, lng: r._lng, color: '#38bdf8',
+        popup: `<b>${esc(r.name)}</b>
+          <span class="pdate">${esc(fmtRouteDistance(r.distance_metres) || 'Bookable swim')}</span><br>
+          <span class="pplace">${esc([r.start_point, r.finish_point].filter(Boolean).join(' → '))}</span>
+          ${r.slug ? `<br><a href="/swims/${esc(r.slug)}">See this swim →</a>` : ''}`
+      }));
+  }
+
+  return visiblePoints().map(r => {
+    const d = fmtDate(r.d, r.dp, r.dc);
+    return {
+      lat: r.lat, lng: r.lng, color: TIER_COLOUR[r.t] || '#38bdf8',
+      popup: `<b>${esc(r.n)}</b>
+        <span class="pdate">${esc(d.big)}${d.small ? ' · '+esc(d.small) : ''}</span><br>
+        <span class="pplace">${esc([r.ct, r.r?regionName(r.r):null, countryName(r.c)].filter(Boolean).join(', '))}</span>
+        ${r.s ? `<br><a href="/events/${esc(r.s)}">See this swim →</a>` : ''}`
+    };
+  });
+}
+
 function plotMarkers(){
   if(!MAP || !LAYER) return;
   LAYER.clearLayers(); MARKERS = [];
-  // Places mode shows spots only — a race pin there is a different question.
-  const shown = placesOnly() ? [] : visiblePoints();
-  for(const r of shown){
-    if(r.lat==null || r.lng==null) continue;
-    const d = fmtDate(r.d, r.dp, r.dc);
-    const m = L.circleMarker([r.lat, r.lng], {
-      radius:6, weight:2, color:TIER_COLOUR[r.t]||'#38bdf8',
-      fillColor:TIER_COLOUR[r.t]||'#38bdf8', fillOpacity:.45
-    }).bindPopup(
-      `<b>${esc(r.n)}</b>
-       <span class="pdate">${esc(d.big)}${d.small?' · '+esc(d.small):''}</span><br>
-       <span class="pplace">${esc([r.ct, r.r?regionName(r.r):null, countryName(r.c)].filter(Boolean).join(', '))}</span>
-       ${r.s ? `<br><a href="/events/${esc(r.s)}">See this swim →</a>` : ''}`
-    );
+  const shown = markersForMode();
+  for(const p of shown){
+    if(p.lat==null || p.lng==null) continue;
+    const m = L.circleMarker([p.lat, p.lng], {
+      radius:6, weight:2, color:p.color, fillColor:p.color, fillOpacity:.45
+    }).bindPopup(p.popup);
     m.addTo(LAYER); MARKERS.push(m);
   }
   updateMapHint(MARKERS.length);
@@ -1442,6 +1485,7 @@ const fmtSeason = (a,b) => (a==null||b==null) ? null : `${MONTH_ABBR[a-1]}–${M
 async function loadRoutes(){
   const { data, error } = await sb.from('swim_routes')
     .select('slug,name,route_type,operator_role,sanctioning_body,booking_url,start_point,finish_point,'
+          + 'start_spot_id,'
           + 'distance_metres,difficulty,season_start_month,season_end_month,'
           + 'typical_temp_min_c,typical_temp_max_c,requires_observer,'
           + 'logged_swims,duration_min_minutes,duration_max_minutes,observed_temp_avg_c,'
@@ -1450,6 +1494,25 @@ async function loadRoutes(){
     .order('distance_metres', { ascending: true });
   if(error){ console.warn('routes unavailable:', error.message); return; }
   ROUTES = data || [];
+
+  // A route has no point of its own on the map — only where you get in.
+  // Batched into one query keyed by start_spot_id, same reasoning as
+  // loadPoints() walking pages instead of one request per swim.
+  const spotIds = [...new Set(ROUTES.map(r => r.start_spot_id).filter(Boolean))];
+  if(spotIds.length){
+    const { data: spots, error: spotErr } = await sb.from('spots')
+      .select('id,latitude,longitude').in('id', spotIds);
+    if(spotErr){
+      console.warn('route start spots unavailable:', spotErr.message);
+    } else {
+      const byId = new Map((spots || []).map(s => [s.id, s]));
+      for(const r of ROUTES){
+        const s = r.start_spot_id ? byId.get(r.start_spot_id) : null;
+        r._lat = s?.latitude ?? null;
+        r._lng = s?.longitude ?? null;
+      }
+    }
+  }
   renderRoutes();
 }
 
@@ -1480,7 +1543,7 @@ async function loadRecurring(){
   const { data, error } = await sb.from('recurring_swims')
     .select('slug,name,group_name,website_url,location_text,meeting_point,city,region,country_code,'
           + 'schedule_text,days_of_week,start_time,typical_distance_metres,route_description,'
-          + 'is_free,requires_membership,summary,safety_note,source_url')
+          + 'is_free,requires_membership,summary,safety_note,source_url,latitude,longitude')
     .eq('is_public', true)
     .order('name', { ascending: true });
   if(error){ console.warn('regular swims unavailable:', error.message); return; }
