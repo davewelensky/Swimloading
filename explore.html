@@ -786,6 +786,37 @@ function track(name, props){
   }catch(e){ /* never block the page or a navigation */ }
 }
 
+// WHERE THIS VISIT CAME FROM.
+//
+// Until now explore_page_view recorded only { has_filters }, so when the
+// August newsletter went out we could see that traffic rose and had no way
+// to say whether the newsletter caused it — the answer existed only in GA4.
+// Our own numbers should be able to answer "did that campaign work".
+//
+// UTM first, because it is explicit and survives the click. Referrer is the
+// fallback and is deliberately reduced to a HOSTNAME: the full referrer can
+// carry a reader's search terms or a private URL, and we do not need it.
+function arrivalSource() {
+  const out = {};
+  try {
+    const q = new URLSearchParams(location.search);
+    for (const k of ['utm_source', 'utm_medium', 'utm_campaign']) {
+      const v = q.get(k);
+      if (v) out[k] = v.slice(0, 60);
+    }
+    // from=app is how the app itself opens Explore (see openExplore).
+    const from = q.get('from');
+    if (from) out.from = from.slice(0, 20);
+    if (!out.utm_source && document.referrer) {
+      const h = new URL(document.referrer).hostname.replace(/^www\./, '');
+      // Our own pages are not a "source" worth recording as one.
+      out.referrer_host = h === location.hostname.replace(/^www\./, '') ? 'internal' : h.slice(0, 60);
+    }
+    if (!out.utm_source && !out.referrer_host) out.referrer_host = 'direct';
+  } catch (e) { /* a missing source must never cost the page view */ }
+  return out;
+}
+
 // ── State ───────────────────────────────────────────────────────────────
 let POINTS = [], PLACES = [], RESULTS = [], TOTAL = 0, PAGE = 1;
 let SEL = { place:null };
@@ -2321,7 +2352,7 @@ try { initMap(); } catch (e) {
 (async function boot(){
   readUrl();
   syncModes(); renderActive();
-  track('explore_page_view', { has_filters: location.search.length > 1 });
+  track('explore_page_view', { has_filters: location.search.length > 1, ...arrivalSource() });
   await initAuth();
   await resumePendingSave();
   await Promise.all([ loadPoints(), search(), loadRoutes(), loadRecurring(), loadPlaces() ]);
