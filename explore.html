@@ -300,8 +300,11 @@
   .v-confirmed{color:var(--green)} .v-listed{color:var(--cyan)} .v-unverified{color:var(--amber)}
   .dists{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
   .dist{background:rgba(255,255,255,.05);border-radius:7px;padding:5px 11px;font-size:13px}
-  .dist.water,.dist.going{display:inline-flex;align-items:center;gap:5px}
-  .dist.water i,.dist.going i{width:13px;height:13px}
+  .dist.water,.dist.going,.dist.unknown{display:inline-flex;align-items:center;gap:5px}
+  .dist.water i,.dist.going i,.dist.unknown i{width:13px;height:13px}
+  /* Muted, not amber: a distance we have not recorded is a gap in what we
+     know, not a warning about the swim. */
+  .dist.unknown{background:transparent;border:1px dashed var(--border);color:var(--sec)}
   .dist.water{background:rgba(56,189,248,.13);color:var(--cyan);font-weight:600}
   .dist.going{background:rgba(16,185,129,.12);color:var(--green)}
   /* Why this result is here. Facts only — see matchReasons() in the API. */
@@ -899,6 +902,16 @@ function params(){
 
 // ── Search ──────────────────────────────────────────────────────────────
 async function search(opts){
+  // Why this search ran. Deliberate ('filter', the default) is a person
+  // choosing something; 'map' is a viewport pan; 'page' is a page-turn of a
+  // result set already found. Only the first can meaningfully "find
+  // nothing" — see the tracking block below.
+  const trigger = (opts && opts.trigger) || 'filter';
+  // Record the viewport this search is running against, so a later moveend
+  // can tell "the swimmer moved the map" from "the map fired a moveend
+  // without going anywhere". Set on every path, including the mode early
+  // returns below, so the map cannot come back stale after a mode switch.
+  VIEW_KEY = viewKey();
   // Both of these reflect state rather than fetch it, and must run on every
   // path — including the two early returns below, which is why they are the
   // first thing here and not part of render().
@@ -957,12 +970,33 @@ async function search(opts){
   TOTAL = json.pagination?.total || 0;
   FACETS = json.facets || null;
 
-  track('explore_search', {
-    mode: json.search?.mode, results: TOTAL, page: PAGE,
+  // WHAT COUNTS AS A SEARCH, AND WHAT COUNTS AS FINDING NOTHING.
+  //
+  // The map calls search() on every moveend, so panning produced 991 of the
+  // 1,256 recorded searches in the 30 days to 20 Aug 2026. Every empty
+  // viewport was logged as a swimmer who looked for something and found
+  // nothing, which made the admin "found nothing" rate read 12% when the
+  // rate for searches someone actually typed or filtered was 8.3%.
+  //
+  // Pans and page-turns are still recorded — the split is worth measuring —
+  // but only a deliberate search can come back empty.
+  //
+  // The old no-results event sent { place } alone, and 96 of its 104 rows
+  // were { place: null }: unanswerable. It now carries the same payload as
+  // the search itself, including filter VALUES. The keys could never answer
+  // "which distance returned nothing", and the distance is usually the
+  // whole question.
+  const deliberate = trigger !== 'map' && trigger !== 'page';
+  const payload = {
+    mode: json.search?.mode, results: TOTAL, page: PAGE, trigger,
     filters: Object.entries(p).filter(([,val])=>val!==null && val!=='' && val!==false).map(([k])=>k),
-    place: SEL.place?.label || null
-  });
-  if(TOTAL === 0) track('explore_search_no_results', { place: SEL.place?.label || null });
+    place: SEL.place?.label || null,
+    minimum_distance_m: p.minimum_distance_m ? Number(p.minimum_distance_m) : null,
+    water_type: p.water_type || null,
+    country: p.country || null, region: p.region || null
+  };
+  track('explore_search', payload);
+  if(TOTAL === 0 && deliberate) track('explore_search_no_results', payload);
 
   writeUrl();
   render();
@@ -983,6 +1017,25 @@ const searchDebounced = debounce(()=>{ PAGE = 1; search(); }, 260);
 // lat/lon/radius, so the same gesture gets real ranking and real
 // pagination — the centre and half-diagonal of the visible box.
 let MAP = null, LAYER = null, MARKERS = [], followMap = true;
+
+// The viewport as it stood at the last search, so a moveend that did not
+// actually move anywhere cannot search again.
+//
+// The map's own opening setView fires a moveend like any other, so every
+// page load ran two identical searches: boot()'s, and onMapMove's 420ms
+// later. fitAll() made it three on a URL with no query string. That tripled
+// the API calls behind a visit and logged a search event per duplicate,
+// inflating the very counts we measure searching by.
+//
+// Comparing the viewport rather than juggling followMap is deliberate. Every
+// timing fix here is a debounce racing a re-enable — this file already
+// carries a comment about an 80ms margin being "on a slow phone a coin
+// toss". A moveend that leaves the centre and radius exactly where the last
+// search found them is not a new search at any speed.
+let VIEW_KEY = null;
+const viewKey = () => MAP_CENTRE
+  ? `${MAP_CENTRE.lat.toFixed(4)},${MAP_CENTRE.lng.toFixed(4)},${MAP_RADIUS || ''}`
+  : 'none';
 let MAP_CENTRE = null, MAP_RADIUS = null;
 
 function initMap(){
@@ -1035,11 +1088,15 @@ const onMapMove = debounce(()=>{
     // this becoming a way to ask for the whole table.
     MAP_RADIUS = Math.min(3000, Math.max(10, Math.round(diag)));
   }
+  // Nothing moved — the map opened, or settled back where it already was.
+  // Return before clearing anything: an unchanged viewport must not wipe the
+  // search box either.
+  if(viewKey() === VIEW_KEY) return;
   SEL.place = null;
   const q = document.getElementById('q'); if(q) q.value = '';
   renderChips();
   PAGE = 1;
-  search();
+  search({ trigger:'map' });
 }, 420);
 
 const TIER_COLOUR = { confirmed:'#10b981', listed:'#38bdf8', unverified:'#f59e0b' };
@@ -1116,11 +1173,17 @@ function visiblePoints(){
   const place = SEL.place?.match || null;
 
   return POINTS.filter(p=>{
-    // A swim with no distances cannot satisfy a minimum, and one with no
-    // recorded water type cannot satisfy a water filter. Both are EXCLUDED
-    // by the search in that case, so both are excluded here — matching the
-    // list matters more than keeping pins on the map.
-    if(minD != null && !(p.dmax != null && p.dmax >= minD)) return false;
+    // A swim whose distances we have not parsed is UNKNOWN, not short, and
+    // the search now includes it rather than hiding it (see the migration
+    // 2026-08-20_distance-filter-includes-unknown.sql). The pins must use
+    // the identical rule: dmax is max(distance_metres), so it is null for
+    // exactly the same events the SQL treats as unknown. Whenever these two
+    // have disagreed the map has shown pins for swims the list said did not
+    // exist.
+    //
+    // A swim with no recorded water type still cannot satisfy a water
+    // filter, and is still excluded by both.
+    if(minD != null && p.dmax != null && p.dmax < minD) return false;
     if(water && p.wt !== water) return false;
     if(weekendOnly){ const d=new Date(p.d+'T00:00:00'); if(d.getDay()!==0 && d.getDay()!==6) return false; }
     if(entriesOpen && !p.eo) return false;
@@ -2218,6 +2281,13 @@ function render(){
     html += rows.map(r=>{
       const d = fmtDate(r.start_date, r.date_precision, r.date_confirmed);
       const dists = Array.isArray(r.distances) ? r.distances : [];
+      // "We have not parsed a distance for this swim" is not the same as
+      // "this swim is short", and the card has to say which. 144 of 385
+      // upcoming swims have no distance in metres — some with no rows at
+      // all, some whose label we could not read ("1½", "1.5K"). They now
+      // appear under a distance filter, so the card must be honest about
+      // why they might not match what was asked for.
+      const noDistance = !dists.some(x => x.metres != null);
       const href = r.url || null;
       return `<article class="result">
         <div class="result-main">
@@ -2231,10 +2301,12 @@ function render(){
           <div class="where">${esc(placeOf(r) || 'Location to be confirmed')}
             ${r.distance_km!=null ? ` · ${Math.round(r.distance_km)} km away`:''}
             ${r.organiser_name ? ` · ${esc(r.organiser_name)}`:''}</div>
-          ${dists.length || r.water_temp_c!=null || r.interested_count>0 ? `<div class="dists">
+          ${dists.length || noDistance || r.water_temp_c!=null || r.interested_count>0 ? `<div class="dists">
             ${r.water_temp_c!=null ? `<span class="dist water" title="Modelled sea temperature for this venue today. A guide to a swim in the next fortnight, not a forecast for the day.">
                 <i data-lucide="thermometer"></i>${esc(r.water_temp_c)}°C now</span>`:''}
             ${dists.map(x=>`<span class="dist">${esc(x.label)}</span>`).join('')}
+            ${noDistance ? `<span class="dist unknown" title="The organiser's distances are not in our records yet, so this swim cannot be matched against a distance filter. Check with the organiser.">
+                <i data-lucide="help-circle"></i>Distance not listed</span>`:''}
             ${r.interested_count>0 ? `<span class="dist going"><i data-lucide="users"></i>${r.interested_count} interested</span>`:''}
           </div>`:''}
           ${(r.match_reasons||[]).length ? `<div class="reasons">${r.match_reasons.map(x=>
@@ -2294,7 +2366,7 @@ function renderPager(total){
   el.querySelectorAll('[data-page]:not([disabled])').forEach(b=>
     b.addEventListener('click', ()=>{
       PAGE = parseInt(b.dataset.page,10);
-      search();
+      search({ trigger:'page' });
       document.getElementById('count').scrollIntoView({ behavior:'smooth', block:'start' });
     }));
 }
@@ -2355,7 +2427,9 @@ try { initMap(); } catch (e) {
   track('explore_page_view', { has_filters: location.search.length > 1, ...arrivalSource() });
   await initAuth();
   await resumePendingSave();
-  await Promise.all([ loadPoints(), search(), loadRoutes(), loadRecurring(), loadPlaces() ]);
+  // 'load' counts as deliberate: a shared or bookmarked URL carries its
+  // filters, so landing on one that returns nothing is a real empty search.
+  await Promise.all([ loadPoints(), search({ trigger:'load' }), loadRoutes(), loadRecurring(), loadPlaces() ]);
   if(MARKERS.length && !SEL.place && !location.search) fitAll();
 })();
 </script>
