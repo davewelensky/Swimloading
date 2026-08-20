@@ -425,6 +425,19 @@
 
     <div class="main">
 
+        <!-- JUMP BAR
+             This page mixes two jobs: DOING things (add a spot, review a
+             suggestion, approve a station) and READING numbers. The reading
+             occupied the top ~40 tiles, so adding a spot meant scrolling past
+             all of it every time. These are the doing-jobs, one click away. -->
+        <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:22px;">
+            <a href="#spot-management" style="padding:7px 13px;border-radius:50px;background:rgba(56,189,248,0.14);border:1px solid rgba(56,189,248,0.35);color:#38bdf8;font-size:12px;font-weight:700;text-decoration:none;">+ Add / manage spots</a>
+            <a href="#spot-suggestions" style="padding:7px 13px;border-radius:50px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text-secondary);font-size:12px;font-weight:600;text-decoration:none;">Spot suggestions</a>
+            <a href="#observation-stations" style="padding:7px 13px;border-radius:50px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text-secondary);font-size:12px;font-weight:600;text-decoration:none;">Station review</a>
+            <a href="#recent-logs" style="padding:7px 13px;border-radius:50px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text-secondary);font-size:12px;font-weight:600;text-decoration:none;">Recent logs</a>
+            <a href="#users" style="padding:7px 13px;border-radius:50px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text-secondary);font-size:12px;font-weight:600;text-decoration:none;">Users</a>
+        </div>
+
         <!-- Analytics -->
         <div class="section-title">Feature Analytics</div>
         <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;">
@@ -436,10 +449,17 @@
                     <button onclick="loadAnalytics(90)" id="analyticsBtn90" style="background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text-secondary);border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;">90 days</button>
                 </div>
             </div>
-            <!-- Event counts grid -->
-            <div id="analyticsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px;">
-                <div style="text-align:center;padding:20px;color:var(--text-secondary);grid-column:1/-1;">Loading…</div>
-            </div>
+            <!-- The headline, always visible. Forty tiles of equal weight is
+                 not a summary — most of them are instrumentation nobody acts
+                 on. This is the line worth reading; the detail is one click. -->
+            <div id="analyticsSummary" style="font-size:14px;color:var(--text-primary);margin-bottom:14px;">Loading…</div>
+            <details id="analyticsDetail" style="margin-bottom:20px;">
+                <summary style="cursor:pointer;font-size:12px;font-weight:700;color:#38bdf8;list-style:none;margin-bottom:12px;">Show every event ▾</summary>
+                <!-- Event counts grid -->
+                <div id="analyticsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;">
+                    <div style="text-align:center;padding:20px;color:var(--text-secondary);grid-column:1/-1;">Loading…</div>
+                </div>
+            </details>
             <!-- Daily trend chart -->
             <div style="margin-top:8px;">
                 <div style="font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">Daily Events</div>
@@ -559,7 +579,7 @@
         </div>
 
         <!-- Spot Suggestions -->
-        <div class="section-title">📍 Spot Suggestions</div>
+        <div class="section-title" id="spot-suggestions" style="scroll-margin-top:16px;">📍 Spot Suggestions</div>
         <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                 <div style="font-size:13px;color:var(--text-secondary);">Submitted by swimmers — review and notify them when added.</div>
@@ -608,7 +628,7 @@
         </div>
 
         <!-- Observation Station Review (global observation platform) -->
-        <div class="section-title">Observation Stations — Review</div>
+        <div class="section-title" id="observation-stations" style="scroll-margin-top:16px;">Observation Stations — Review</div>
         <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
             <div style="font-size:12px; color: var(--text-muted); margin-bottom:12px;">
                 Candidate buoys/sensors matched to spots by distance. Nothing goes live on a spot page until approved here.
@@ -619,7 +639,7 @@
         </div>
 
         <!-- Spot Management -->
-        <div class="section-title">Spot Management</div>
+        <div class="section-title" id="spot-management" style="scroll-margin-top:16px;">Spot Management</div>
         <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
 
@@ -702,7 +722,7 @@
         </div>
 
         <!-- Recent Logs -->
-        <div class="section-title">Recent Logs</div>
+        <div class="section-title" id="recent-logs" style="scroll-margin-top:16px;">Recent Logs</div>
         <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:16px; padding:20px; margin-bottom:24px; overflow-x:auto;">
             <table style="width:100%; border-collapse:collapse; font-size:13px;">
                 <thead>
@@ -822,7 +842,7 @@
 
         <!-- Users Table -->
         <div class="section">
-            <div class="section-title">Users</div>
+            <div class="section-title" id="users" style="scroll-margin-top:16px;">Users</div>
             <div class="controls">
                 <input class="search-input" type="text" id="searchInput" placeholder="Search email or name…" oninput="applyFilters()">
                 <div class="filter-group">
@@ -1267,6 +1287,29 @@ async function loadAnalytics(days = 7) {
     // Build event count tiles
     const grid = document.getElementById('analyticsGrid');
     const total = Object.values(counts).reduce((a, b) => a + b, 0);
+
+    // THE ONE LINE WORTH READING.
+    //
+    // Of ~40 tracked events, most are instrumentation nobody will ever act
+    // on. Two numbers here are decisions: how much Explore is being used,
+    // and how often a search comes back EMPTY — which says what swimmers
+    // want that we do not list. That belongs above the fold; the rest is
+    // detail behind a click.
+    const summaryEl = document.getElementById('analyticsSummary');
+    if (summaryEl) {
+        const searches = counts['explore_search'] || 0;
+        const noResults = counts['explore_search_no_results'] || 0;
+        const emptyRate = searches ? Math.round(noResults / searches * 100) : null;
+        const days = Object.keys(dailyMap).length || 1;
+        summaryEl.innerHTML = total === 0
+            ? '<span style="color:var(--text-secondary);">No events tracked in this window.</span>'
+            : `<strong style="font-size:20px;color:#38bdf8;">${total.toLocaleString()}</strong> events`
+              + `<span style="color:var(--text-secondary);"> across ${days} day${days === 1 ? '' : 's'}`
+              + ` &nbsp;·&nbsp; ${searches.toLocaleString()} Explore searches</span>`
+              + (emptyRate === null ? '' :
+                 ` &nbsp;·&nbsp; <strong style="color:${emptyRate >= 10 ? '#f59e0b' : 'var(--text-primary)'};">${emptyRate}% found nothing</strong>`
+                 + `<span style="color:var(--text-secondary);"> (${noResults})</span>`);
+    }
     if (total === 0) {
         grid.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary);grid-column:1/-1;font-size:13px;">No events tracked yet — data will appear once users interact with the app.</div>';
     } else {
