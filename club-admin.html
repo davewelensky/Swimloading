@@ -58,8 +58,32 @@
 
     /* ── SIDEBAR ── */
     .sidebar { border-right:1px solid var(--border); padding:20px 12px; display:flex; flex-direction:column; gap:4px; overflow-y:auto; }
-    @media(max-width:700px) { .sidebar { flex-direction:row; overflow-x:auto; overflow-y:visible; border-right:none; border-bottom:1px solid var(--border); padding:10px 12px; gap:6px; } }
+    @media(max-width:700px) { .sidebar { flex-direction:row; flex-wrap:wrap; overflow:visible; border-right:none; border-bottom:1px solid var(--border); padding:10px 12px; gap:6px; } }
     .nav-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; cursor:pointer; font-size:13px; font-weight:500; color:var(--text-sec); border:none; background:transparent; width:100%; text-align:left; white-space:nowrap; }
+    /* Accessibility — keyboard focus & motion */
+    :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+      outline: 2px solid var(--cyan, #38bdf8);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+      html { scroll-behavior: auto !important; }
+    }
+
+    .nav-group { display:flex; flex-direction:column; gap:4px; }
+    .nav-group-label { font-size:10px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dim, #5b6b80); padding:12px 12px 2px; user-select:none; }
+    @media(max-width:700px) {
+      /* Groups dissolve into a wrapping row of pills — every destination
+         visible at once, nothing hidden off-screen to scroll for. */
+      .nav-group { display:contents; }
+      .nav-group-label { display:none; }
+      .nav-item { width:auto; padding:8px 10px; font-size:12px; }
+    }
     .nav-item i { width:16px; height:16px; flex-shrink:0; }
     .nav-item:hover { background:rgba(255,255,255,0.04); color:var(--text); }
     .nav-item.active { background:var(--cyan-dim); color:var(--cyan); font-weight:700; }
@@ -517,74 +541,93 @@
       <button class="nav-item active" onclick="showPage('overview')" id="nav-overview">
         <i data-lucide="layout-dashboard"></i> Overview
       </button>
-      <button class="nav-item" onclick="showPage('members')" id="nav-members">
-        <i data-lucide="users"></i> Members
-      </button>
-      <button class="nav-item" onclick="showPage('roster')" id="nav-roster">
-        <i data-lucide="list"></i> Roster
-      </button>
-      <button class="nav-item" onclick="showPage('events')" id="nav-events">
-        <i data-lucide="calendar"></i> Events
-      </button>
-      <button class="nav-item" onclick="showPage('entries')" id="nav-entries">
-        <i data-lucide="ticket"></i> Gala Entries
-      </button>
-      <button class="nav-item" onclick="showPage('league')" id="nav-league" style="display:none;">
-        <i data-lucide="trophy"></i> League
-      </button>
-      <button class="nav-item" onclick="showPage('results')" id="nav-results" style="display:none;">
-        <i data-lucide="timer"></i> Results
-      </button>
-      <button class="nav-item" onclick="showPage('attendance')" id="nav-attendance">
-        <i data-lucide="clipboard-check"></i> Attendance
-      </button>
-      <button class="nav-item" onclick="showPage('announcements')" id="nav-announcements">
-        <i data-lucide="megaphone"></i> Announcements
-      </button>
-      <button class="nav-item" onclick="showPage('tracker')" id="nav-tracker">
-        <i data-lucide="trending-up"></i> Squad Tracker
-      </button>
-      <button class="nav-item" onclick="showPage('timetable')" id="nav-timetable" style="display:none;">
-        <i data-lucide="calendar-days"></i> Timetable
-      </button>
-      <button class="nav-item" onclick="showPage('weeklyreport')" id="nav-weeklyreport" style="display:none;">
-        <i data-lucide="bar-chart-3"></i> Weekly Report
-      </button>
-      <button class="nav-item" onclick="showPage('health')" id="nav-health" style="display:none;">
-        <i data-lucide="activity"></i> Health
-      </button>
-      <button class="nav-item" id="nav-sets" style="display:none;"
-        onclick="window.location.href='/sets/' + (currentClub?.slug || '')">
-        <i data-lucide="layers"></i> Sets Planner
-      </button>
-      <button class="nav-item" onclick="showPage('tempchallenge')" id="nav-tempchallenge" style="display:none;">
-        <i data-lucide="thermometer"></i> Temp Challenge
-      </button>
-      <button class="nav-item" onclick="showPage('challenges')" id="nav-challenges" style="display:none;">
-        <i data-lucide="zap"></i> Challenges
-      </button>
-      <button class="nav-item" onclick="showPage('groups')" id="nav-groups" style="display:none;">
-        <i data-lucide="users-round"></i> Groups
-      </button>
-      <button class="nav-item" onclick="showPage('team')" id="nav-team">
-        <i data-lucide="shield-check"></i> Team
-      </button>
-      <button class="nav-item" onclick="showPage('audit')" id="nav-audit" style="display:none;">
-        <i data-lucide="bar-chart-2"></i> Audit
-      </button>
-      <button class="nav-item" onclick="showPage('parents')" id="nav-parents">
-        <i data-lucide="heart-handshake"></i> Parents
-      </button>
-      <button class="nav-item" onclick="showPage('progress')" id="nav-progress" style="display:none;">
-        <i data-lucide="file-text"></i> Progress Reports
-      </button>
-      <div class="sidebar-divider"></div>
-      <button class="nav-item" onclick="showPage('joinlink')" id="nav-joinlink">
-        <i data-lucide="link"></i> Join Link
-      </button>
-      <button class="nav-item" onclick="showPage('settings')" id="nav-settings">
-        <i data-lucide="settings"></i> Settings
-      </button>
+
+      <div class="nav-group">
+        <div class="nav-group-label">Daily</div>
+        <button class="nav-item" onclick="showPage('attendance')" id="nav-attendance">
+          <i data-lucide="clipboard-check"></i> Attendance
+        </button>
+        <button class="nav-item" onclick="showPage('announcements')" id="nav-announcements">
+          <i data-lucide="megaphone"></i> Announcements
+        </button>
+        <button class="nav-item" onclick="showPage('weeklyreport')" id="nav-weeklyreport" style="display:none;">
+          <i data-lucide="bar-chart-3"></i> Weekly Report
+        </button>
+        <button class="nav-item" onclick="showPage('health')" id="nav-health" style="display:none;">
+          <i data-lucide="activity"></i> Health
+        </button>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-label">People</div>
+        <button class="nav-item" onclick="showPage('members')" id="nav-members">
+          <i data-lucide="users"></i> Members
+        </button>
+        <button class="nav-item" onclick="showPage('roster')" id="nav-roster">
+          <i data-lucide="list"></i> Roster
+        </button>
+        <button class="nav-item" onclick="showPage('parents')" id="nav-parents">
+          <i data-lucide="heart-handshake"></i> Parents
+        </button>
+        <button class="nav-item" onclick="showPage('progress')" id="nav-progress" style="display:none;">
+          <i data-lucide="file-text"></i> Progress Reports
+        </button>
+        <button class="nav-item" onclick="showPage('team')" id="nav-team">
+          <i data-lucide="shield-check"></i> Team
+        </button>
+        <button class="nav-item" onclick="showPage('groups')" id="nav-groups" style="display:none;">
+          <i data-lucide="users-round"></i> Groups
+        </button>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-label">Competition</div>
+        <button class="nav-item" onclick="showPage('events')" id="nav-events">
+          <i data-lucide="calendar"></i> Events
+        </button>
+        <button class="nav-item" onclick="showPage('entries')" id="nav-entries">
+          <i data-lucide="ticket"></i> Gala Entries
+        </button>
+        <button class="nav-item" onclick="showPage('league')" id="nav-league" style="display:none;">
+          <i data-lucide="trophy"></i> League
+        </button>
+        <button class="nav-item" onclick="showPage('results')" id="nav-results" style="display:none;">
+          <i data-lucide="timer"></i> Results
+        </button>
+        <button class="nav-item" onclick="showPage('tempchallenge')" id="nav-tempchallenge" style="display:none;">
+          <i data-lucide="thermometer"></i> Temp Challenge
+        </button>
+        <button class="nav-item" onclick="showPage('challenges')" id="nav-challenges" style="display:none;">
+          <i data-lucide="zap"></i> Challenges
+        </button>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-label">Training</div>
+        <button class="nav-item" onclick="showPage('timetable')" id="nav-timetable" style="display:none;">
+          <i data-lucide="calendar-days"></i> Timetable
+        </button>
+        <button class="nav-item" onclick="showPage('tracker')" id="nav-tracker">
+          <i data-lucide="trending-up"></i> Squad Tracker
+        </button>
+        <button class="nav-item" id="nav-sets" style="display:none;"
+          onclick="window.location.href='/sets/' + (currentClub?.slug || '')">
+          <i data-lucide="layers"></i> Sets Planner
+        </button>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-label">Admin</div>
+        <button class="nav-item" onclick="showPage('audit')" id="nav-audit" style="display:none;">
+          <i data-lucide="bar-chart-2"></i> Audit
+        </button>
+        <button class="nav-item" onclick="showPage('joinlink')" id="nav-joinlink">
+          <i data-lucide="link"></i> Join Link
+        </button>
+        <button class="nav-item" onclick="showPage('settings')" id="nav-settings">
+          <i data-lucide="settings"></i> Settings
+        </button>
+      </div>
     </aside>
 
     <!-- MAIN CONTENT -->
@@ -600,7 +643,7 @@
           <div id="overviewDateBadge" style="font-size:12px;color:var(--text-sec);padding-top:4px;"></div>
         </div>
         <div class="stat-row" id="overviewStats">
-          <div class="stat-card" style="cursor:pointer;" onclick="showPage('roster')"><div class="stat-label">Members</div><div class="stat-val" id="statMembers">—</div><div class="stat-note">on roster</div></div>
+          <div class="stat-card" style="cursor:pointer;" onclick="showPage('roster')"><div class="stat-label">Members</div><div class="stat-val" id="statMembers">—</div><div class="stat-note">active on roster</div></div>
           <div class="stat-card"><div class="stat-label">Sessions today</div><div class="stat-val" id="statSessions">—</div><div class="stat-note" id="statSessionsNote">scheduled</div></div>
           <div class="stat-card" style="cursor:pointer;" onclick="showRosterFiltered('trial')" id="statTrialCard"><div class="stat-label">Trials ending</div><div class="stat-val" id="statTrials" style="color:var(--amber);">—</div><div class="stat-note">within 7 days</div></div>
           <div class="stat-card" style="cursor:pointer;" onclick="showRosterFiltered('fee-overdue')" id="statFeeCard"><div class="stat-label">Fees overdue</div><div class="stat-val" id="statFees" style="color:var(--danger);">—</div><div class="stat-note">unpaid past due</div></div>
@@ -767,7 +810,7 @@
         <div class="modal-content" style="max-width:480px;max-height:80vh;overflow-y:auto;">
           <div class="modal-header">
             <div class="modal-title" id="entryModalTitle">Enter swimmer</div>
-            <button class="modal-close" onclick="closeEntryModal()"><i data-lucide="x"></i></button>
+            <button aria-label="Close" class="modal-close" onclick="closeEntryModal()"><i data-lucide="x"></i></button>
           </div>
           <div class="modal-body">
             <div id="entryModalBody"></div>
@@ -1056,6 +1099,11 @@
                 <option value="linked">Linked</option>
               </select>
             </div>
+            <div class="form-group" style="margin:0;display:flex;align-items:flex-end;">
+              <button class="btn-sm" onclick="copyParentInviteMessage()" title="Copies a WhatsApp-ready message with the parent join link, scoped to the selected squad — paste it into the squad's group chat">
+                <i data-lucide="message-circle" style="width:13px;height:13px;"></i> Copy parent invite message
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1089,7 +1137,7 @@
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:20px;padding:28px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
             <div style="font-size:16px;font-weight:800;" id="progressModalTitle">Progress report</div>
-            <button onclick="closeProgressReportModal()" style="background:none;border:none;color:var(--text-sec);cursor:pointer;padding:4px;"><i data-lucide="x" style="width:18px;height:18px;"></i></button>
+            <button aria-label="Close" onclick="closeProgressReportModal()" style="background:none;border:none;color:var(--text-sec);cursor:pointer;padding:4px;"><i data-lucide="x" style="width:18px;height:18px;"></i></button>
           </div>
           <input type="hidden" id="progressModalRosterId">
           <div class="form-group">
@@ -1105,8 +1153,9 @@
             <input type="text" class="form-input" id="progressModalCoach" placeholder="e.g. Ellen">
           </div>
           <div class="error-msg" id="progressModalError" style="display:none;color:var(--danger);font-size:13px;margin-bottom:12px;"></div>
-          <div style="display:flex;gap:10px;">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
             <button class="btn-modal-primary" id="progressModalSaveBtn" onclick="saveProgressReport()" style="flex:1;">Save report</button>
+            <button class="btn-modal-primary" id="progressModalSaveNextBtn" onclick="saveProgressReport(true)" style="flex:1;background:rgba(56,189,248,0.12);color:var(--cyan);border:1px solid rgba(56,189,248,0.3);" title="Save this report, then open the next swimmer in this view without one">Save &amp; write next</button>
             <button onclick="closeProgressReportModal()" style="padding:10px 18px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--text-sec);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;">Cancel</button>
           </div>
         </div>
@@ -1117,7 +1166,7 @@
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:20px;padding:28px;max-width:460px;width:100%;max-height:90vh;overflow-y:auto;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
             <div style="font-size:16px;font-weight:800;">Invite a parent</div>
-            <button onclick="closeInviteParentModal()" style="background:none;border:none;color:var(--text-sec);cursor:pointer;padding:4px;"><i data-lucide="x" style="width:18px;height:18px;"></i></button>
+            <button aria-label="Close" onclick="closeInviteParentModal()" style="background:none;border:none;color:var(--text-sec);cursor:pointer;padding:4px;"><i data-lucide="x" style="width:18px;height:18px;"></i></button>
           </div>
           <div style="font-size:13px;color:var(--text-sec);margin-bottom:20px;line-height:1.6;">
             Enter the parent's email and find their swimmer. If they don't have a SwimLoading account yet, they'll receive the parent join link to sign up.
@@ -1266,14 +1315,14 @@
         </div>
         <div class="card" style="padding:24px;">
           <div id="wrWeekNav" style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:18px;">
-            <button onclick="navigateWeeklyReport(-1)" style="background:none;border:1px solid var(--border);color:var(--text-sec);cursor:pointer;padding:6px 10px;border-radius:6px;" onmouseover="this.style.borderColor='var(--cyan-border)';this.style.color='var(--cyan)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-sec)'">
+            <button aria-label="Previous week" onclick="navigateWeeklyReport(-1)" style="background:none;border:1px solid var(--border);color:var(--text-sec);cursor:pointer;padding:6px 10px;border-radius:6px;" onmouseover="this.style.borderColor='var(--cyan-border)';this.style.color='var(--cyan)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-sec)'">
               <i data-lucide="chevron-left" style="width:16px;height:16px;"></i>
             </button>
             <div style="text-align:center;min-width:220px;">
               <div id="wrWeekLabel" style="font-size:14px;font-weight:700;color:var(--text);">This week</div>
               <div id="wrWeekMode" style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.06em;"></div>
             </div>
-            <button onclick="navigateWeeklyReport(1)" style="background:none;border:1px solid var(--border);color:var(--text-sec);cursor:pointer;padding:6px 10px;border-radius:6px;" onmouseover="this.style.borderColor='var(--cyan-border)';this.style.color='var(--cyan)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-sec)'">
+            <button aria-label="Next week" onclick="navigateWeeklyReport(1)" style="background:none;border:1px solid var(--border);color:var(--text-sec);cursor:pointer;padding:6px 10px;border-radius:6px;" onmouseover="this.style.borderColor='var(--cyan-border)';this.style.color='var(--cyan)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-sec)'">
               <i data-lucide="chevron-right" style="width:16px;height:16px;"></i>
             </button>
             <button onclick="navigateWeeklyReport(0, true)" style="background:none;border:1px solid var(--border);color:var(--text-sec);cursor:pointer;font-size:12px;padding:6px 12px;border-radius:6px;">Today</button>
@@ -2402,6 +2451,12 @@ async function loadClubContext() {
   document.getElementById('nav-attendance').style.display       = hasAttendance    ? '' : 'none';
   document.getElementById('nav-parents').style.display          = hasParentLanguage ? '' : 'none';
   document.getElementById('nav-progress').style.display         = hasProgressReports ? '' : 'none';
+  // Hide a sidebar group heading when this club's flags empty the group
+  document.querySelectorAll('.nav-group').forEach(g => {
+    const anyVisible = [...g.querySelectorAll('.nav-item')].some(b => b.style.display !== 'none');
+    const label = g.querySelector('.nav-group-label');
+    if (label) label.style.display = anyVisible ? '' : 'none';
+  });
   document.getElementById('settings-squads-card').style.display    = hasSquads    ? '' : 'none';
   document.getElementById('settings-timetable-card').style.display = hasTimetable ? '' : 'none';
   document.getElementById('team-coaching-card').style.display      = hasCoachingStaff ? '' : 'none';
@@ -2727,7 +2782,7 @@ async function renderOverview() {
     actions.push({ dot:'amber', text:`${noCoachToday.length} session${noCoachToday.length>1?'s':''} today have no coach`, names, label:'Settings →', action:`showPage('settings')` });
   }
   if (unlinked.length > 0) {
-    actions.push({ dot:'blue', text:`${unlinked.length} member${unlinked.length>1?'s':''} haven't linked a SwimLoading account`, names: hasParentLanguage ? 'Parents haven\'t joined the app yet' : 'Members haven\'t joined the app yet', label:'Roster →', action:`showPage('roster')` });
+    actions.push({ dot:'blue', text:`${unlinked.length} of ${roster.length} active roster members aren't linked to an app account`, names: hasParentLanguage ? 'Parents haven\'t joined the app yet' : 'Members haven\'t joined the app yet', label:'Roster →', action:`showPage('roster')` });
   }
 
   // Health alerts from club_health_events (populated by loadMembers)
@@ -3455,7 +3510,8 @@ async function resolveClubHealthEvent(id) {
 
 function renderMembersTable(members) {
   const tbody = document.getElementById('membersTableBody');
-  document.getElementById('memberCount').textContent = members.length + ' members';
+  document.getElementById('memberCount').textContent =
+    members.length + ' app account' + (members.length === 1 ? '' : 's') + ' — swimmers & staff who joined on SwimLoading';
   if (!members.length) {
     tbody.innerHTML = `<tr><td colspan="7"><div class="empty">
       <div class="empty-title">No members yet</div>
@@ -3886,7 +3942,28 @@ function renderTrackerGrid(swimmers) {
     return;
   }
 
-  el.innerHTML = `<div class="tracker-grid">${swimmers.map(s => {
+  // Lead with information, not absence: swimmers with recorded data render
+  // first, and the zero-data majority collapses to a single line. Showing 200
+  // "0 sessions · 0 times" cards buried the swimmers who HAVE data
+  // (review, 21 Aug 2026). If nobody has data yet, show everyone as before.
+  window._trackerLastGridSwimmers = swimmers;
+  const _hasData = s => (s.sessions > 0) || (s.times && s.times.length > 0);
+  const _withData = swimmers.filter(_hasData);
+  const _noData = swimmers.filter(s => !_hasData(s));
+  const _showEmpty = window._trackerShowEmpty || _withData.length === 0;
+  const _visible = _showEmpty ? [..._withData, ..._noData] : _withData;
+  const _collapsedStrip = (!_showEmpty && _noData.length)
+    ? `<div style="margin-top:14px;padding:12px 16px;border:1px dashed var(--border);border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+         <span style="font-size:13px;color:var(--text-sec);">${_noData.length} swimmer${_noData.length === 1 ? ' has' : 's have'} no sessions or times recorded yet</span>
+         <button class="btn-sm" onclick="window._trackerShowEmpty = true; renderTrackerGrid(window._trackerLastGridSwimmers);">Show them</button>
+       </div>`
+    : (_showEmpty && _noData.length && _withData.length)
+    ? `<div style="margin-top:14px;text-align:center;">
+         <button class="btn-sm" onclick="window._trackerShowEmpty = false; renderTrackerGrid(window._trackerLastGridSwimmers);">Hide the ${_noData.length} swimmers with no data</button>
+       </div>`
+    : '';
+
+  el.innerHTML = `<div class="tracker-grid">${_visible.map(s => {
     const times = s.times;
 
     // Group times by event key, find first and PB
@@ -4017,7 +4094,7 @@ function renderTrackerGrid(swimmers) {
       ${eventsHtml}
       ${qtStripHtml}
     </div>`;
-  }).join('')}</div>`;
+  }).join('')}</div>${_collapsedStrip}`;
 }
 
 function renderTrackerMatrix(swimmers) {
@@ -4588,7 +4665,7 @@ function edSessionCard(sess, idx) {
       <input type="text" value="${sess.start_time || ''}" placeholder="09:00" maxlength="5"
         style="width:70px;font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);"
         data-field="start_time">
-      <button onclick="edRemoveSession(${idx})" style="background:none;border:none;color:var(--danger);cursor:pointer;padding:4px;line-height:0;">
+      <button aria-label="Delete" onclick="edRemoveSession(${idx})" style="background:none;border:none;color:var(--danger);cursor:pointer;padding:4px;line-height:0;">
         <i data-lucide="trash-2" style="width:15px;height:15px;"></i>
       </button>
     </div>
@@ -6087,7 +6164,7 @@ function renderParentApprovedList(approved) {
     const swimmers = links.map(l => {
       const cat = l.club_roster?.category || '';
       return `<span>${l.club_roster?.display_name || '—'}${cat ? ` <span style="font-size:10px;color:var(--cyan);">${cat}</span>` : ''} <span style="color:var(--text-sec);font-size:11px;">(${l.relationship || 'Guardian'})</span>
-        <button onclick="revokeParentLink('${l.id}')" title="Revoke access" style="background:none;border:none;color:var(--text-sec);cursor:pointer;padding:0 2px;vertical-align:middle;"><i data-lucide="x-circle" style="width:12px;height:12px;"></i></button></span>`;
+        <button aria-label="Clear" onclick="revokeParentLink('${l.id}')" title="Revoke access" style="background:none;border:none;color:var(--text-sec);cursor:pointer;padding:0 2px;vertical-align:middle;"><i data-lucide="x-circle" style="width:12px;height:12px;"></i></button></span>`;
     }).join(', ');
     return `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;flex-wrap:wrap;">
@@ -6296,6 +6373,9 @@ function renderProgressReportsTable() {
     return true;
   });
 
+  // Visible order feeds "Save & write next" in the report modal
+  window._progressVisibleIds = roster.map(r => r.id);
+
   if (!roster.length) {
     tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-title">No swimmers match this filter</div></div></td></tr>`;
     const countEl0 = document.getElementById('progressReportsCount');
@@ -6427,7 +6507,7 @@ function closeProgressReportModal() {
   document.getElementById('progressReportModal').style.display = 'none';
 }
 
-async function saveProgressReport() {
+async function saveProgressReport(goNext = false) {
   const rosterId = document.getElementById('progressModalRosterId').value;
   const term = document.getElementById('progressModalTerm').value.trim();
   const body = document.getElementById('progressModalBody').value.trim();
@@ -6441,7 +6521,9 @@ async function saveProgressReport() {
   }
 
   const btn = document.getElementById('progressModalSaveBtn');
+  const nextBtn = document.getElementById('progressModalSaveNextBtn');
   btn.disabled = true; btn.textContent = 'Saving…';
+  if (nextBtn) nextBtn.disabled = true;
 
   // Saving from the admin panel is itself the review step — always publishes.
   const { error } = await sb.from('club_progress_reports').upsert({
@@ -6458,8 +6540,16 @@ async function saveProgressReport() {
   }, { onConflict: 'roster_id,term_label' });
 
   btn.disabled = false; btn.textContent = 'Save report';
+  if (nextBtn) nextBtn.disabled = false;
 
   if (error) { errEl.textContent = 'Failed: ' + error.message; errEl.style.display = 'block'; return; }
+
+  // Reflect the save locally so "next unwritten" is computed against fresh
+  // state without waiting for the reload below.
+  const savedIdx = allProgressReports.findIndex(p => p.roster_id === rosterId && p.term_label === term);
+  const savedEntry = { roster_id: rosterId, term_label: term, body, coach_name: coachName || null, is_published: true };
+  if (savedIdx >= 0) allProgressReports[savedIdx] = { ...allProgressReports[savedIdx], ...savedEntry };
+  else allProgressReports.push(savedEntry);
 
   const sel = document.getElementById('progressTermFilter');
   if (sel) {
@@ -6473,9 +6563,60 @@ async function saveProgressReport() {
       document.getElementById('progressTermCustom').value = term;
     }
   }
+
+  if (goNext) {
+    // Step to the next swimmer in the CURRENT filtered view without a report
+    // for this term — squad-by-squad writing without leaving the modal.
+    const ids = window._progressVisibleIds || [];
+    const start = ids.indexOf(rosterId);
+    let nextId = null;
+    for (let step = 1; step <= ids.length; step++) {
+      const cand = ids[(start + step) % ids.length];
+      if (cand === rosterId) continue;
+      if (!allProgressReports.some(p => p.roster_id === cand && p.term_label === term)) { nextId = cand; break; }
+    }
+    showToast('Report saved', 'success');
+    loadProgressReportsPage();
+    if (nextId) { openProgressReportModal(nextId); return; }
+    closeProgressReportModal();
+    showToast('Every swimmer in this view has a report — all done', 'success');
+    return;
+  }
+
   closeProgressReportModal();
   showToast('Report saved', 'success');
   loadProgressReportsPage();
+}
+
+// WhatsApp-ready parent invite, scoped to the Progress Reports squad filter.
+// The per-row invite needs a typed parent email; clubs don't have those on
+// file for 200+ swimmers, but every squad HAS a group chat — so bulk outreach
+// is a copyable message for the group, not a mass email. Deliberately contains
+// no swimmer names (it lands in a group chat).
+async function copyParentInviteMessage() {
+  const squadFilterVal = document.getElementById('progressSquadFilter')?.value || 'all';
+  const squad = squadFilterVal !== 'all' ? (allSquads || []).find(s => s.id === squadFilterVal) : null;
+  const scope = (allRosterFull || []).filter(r =>
+    r.is_active !== false && (squadFilterVal === 'all' || r.squad_id === squadFilterVal));
+  const unlinkedCount = scope.filter(r => {
+    const st = progressParentMap[r.id]?.status;
+    return st !== 'approved' && st !== 'pending';
+  }).length;
+  const joinLink = `https://www.swimloading.com/join/${activeJoinCode || currentClub.slug}?role=parent`;
+  const clubName = currentClub?.name || 'our club';
+  const msg = [
+    `Hi ${squad ? squad.name + ' parents' : 'parents'}!`,
+    ``,
+    `${clubName} shares term progress reports, gala entries and swim times with parents on SwimLoading.`,
+    ``,
+    `1. Create a free account: ${joinLink}`,
+    `2. Search for your swimmer and request access`,
+    `3. The club approves you — done`,
+    ``,
+    `It takes about two minutes.`,
+  ].join('\n');
+  try { await navigator.clipboard.writeText(msg); } catch (_) {}
+  showToast(`Invite message copied — ${unlinkedCount} swimmer${unlinkedCount === 1 ? '' : 's'} in ${squad ? squad.name : 'the club'} ${unlinkedCount === 1 ? 'has' : 'have'} no parent linked yet`, 'success');
 }
 
 // ── INVITE PARENT MODAL ───────────────────────────────────────────
@@ -8670,13 +8811,16 @@ async function loadRoster() {
 
   allRoster = roster.map(r => ({ ...r, sw_name: r.user_id ? (profileMap[r.user_id] || 'Linked') : null }));
 
-  // Stats header
+  // Stats header. Every count names its population — "301 total / 5 linked /
+  // 214 members / 14 members" shown across four pages with no definitions is
+  // what made the admin numbers look broken (review, 21 Aug 2026).
   const total = allRoster.length;
+  const activeCount = allRoster.filter(r => r.is_active !== false).length;
+  const inactiveCount = total - activeCount;
   const linked = allRoster.filter(r => r.user_id).length;
   document.getElementById('rosterStats').innerHTML = `
-    <span style="font-size:12px;color:var(--text-sec);">${total} total</span>
-    <span style="font-size:12px;color:var(--green);font-weight:600;">${linked} linked</span>
-    <span style="font-size:12px;color:var(--text-sec);">${total - linked} unlinked</span>`;
+    <span style="font-size:12px;color:var(--text-sec);">${activeCount} active${inactiveCount ? ` <span style="opacity:.7;">(+${inactiveCount} inactive)</span>` : ''}</span>
+    <span style="font-size:12px;color:var(--green);font-weight:600;">${linked} linked to an app account</span>`;
 
   // Populate squad filter
   const catSel = document.getElementById('rosterCatFilter');
@@ -9031,7 +9175,7 @@ function renderRosterTable() {
       <td style="text-align:right;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;">
         <button class="btn-sm" onclick="openMemberProfile('${r.id}')">Profile</button>
         <button class="btn-sm" onclick="openRosterEditModal('${r.id}')">Edit</button>
-        <button class="btn-sm" title="Rename" onclick="openRenameModal('${r.id}','${(r.display_name||'').replace(/'/g,"\\'")}')" style="padding:4px 7px;"><i data-lucide="pencil" style="width:12px;height:12px;"></i></button>
+        <button aria-label="Edit" class="btn-sm" title="Rename" onclick="openRenameModal('${r.id}','${(r.display_name||'').replace(/'/g,"\\'")}')" style="padding:4px 7px;"><i data-lucide="pencil" style="width:12px;height:12px;"></i></button>
         ${linkBtn}
       </td>
     </tr>`;
@@ -12841,7 +12985,7 @@ function _renderActionRows() {
     </div>
     <input type="number" class="form-input" style="width:64px;padding:5px 8px;text-align:center;font-size:13px;height:auto;" value="${a.points}" min="1" max="9999" onchange="_formActions[${i}].points=Math.max(1,parseInt(this.value)||1)">
     <span style="font-size:12px;color:var(--text-sec);flex-shrink:0;">pts</span>
-    ${!a.auto ? `<button class="btn-sm danger" style="padding:5px 8px;flex-shrink:0;" onclick="removeCustomAction(${i})"><i data-lucide="x" style="width:12px;height:12px;"></i></button>` : '<div style="width:34px;"></div>'}
+    ${!a.auto ? `<button aria-label="Close" class="btn-sm danger" style="padding:5px 8px;flex-shrink:0;" onclick="removeCustomAction(${i})"><i data-lucide="x" style="width:12px;height:12px;"></i></button>` : '<div style="width:34px;"></div>'}
   </div>`).join('');
   lucide.createIcons();
 }
