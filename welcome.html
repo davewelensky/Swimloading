@@ -852,31 +852,86 @@
             </div>
             <span class="nav-logo-text">SwimLoading</span>
         </a>
-        <div style="display:flex;align-items:center;gap:18px;">
-            <a href="/explore" style="color:#cbd5e1;text-decoration:none;font-weight:600;font-size:14px;display:none;" class="nav-link-explore">Find a Swim</a>
-            <a href="/crossings/english-channel" style="color:#cbd5e1;text-decoration:none;font-weight:600;font-size:14px;display:none;" class="nav-link-channel">Channel</a>
-            <a href="/pro" style="color:#cbd5e1;text-decoration:none;font-weight:600;font-size:14px;display:none;" class="nav-link-intel">Big Water Intel</a>
-            <a href="/pricing" style="color:#cbd5e1;text-decoration:none;font-weight:600;font-size:14px;display:none;" class="nav-link-pricing">Pricing</a>
+        <div style="display:flex;align-items:center;gap:14px;">
+            <a href="/explore" class="nav-link nav-link-explore">Find a Swim</a>
+            <a href="/crossings/english-channel" class="nav-link nav-link-channel">Channel</a>
+            <a href="/pro" class="nav-link nav-link-intel">Big Water Intel</a>
+            <a href="/pricing" class="nav-link nav-link-pricing">Pricing</a>
             <a href="/app" class="nav-cta">Open App</a>
+            <button class="nav-menu-btn" id="navMenuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu">
+                <i data-lucide="menu" style="width:22px;height:22px;"></i>
+            </button>
         </div>
     </nav>
+    <div class="mobile-menu" id="mobileMenu" hidden>
+        <a href="/explore">Find a Swim</a>
+        <a href="/crossings/english-channel">Channel</a>
+        <a href="/pro">Big Water Intel</a>
+        <a href="/pricing">Pricing</a>
+    </div>
     <style>
+        .nav-link {
+            color:#cbd5e1; text-decoration:none; font-weight:600; font-size:14px;
+            display:none; padding:12px 4px; transition:color 0.2s;
+        }
+        .nav-link:hover { color:#38bdf8; }
+        .nav-menu-btn {
+            display:none; background:transparent; border:1px solid var(--border);
+            color:#f1f5f9; border-radius:10px; width:44px; height:44px;
+            align-items:center; justify-content:center; cursor:pointer;
+        }
+        .mobile-menu {
+            position:fixed; top:66px; left:12px; right:12px; z-index:99;
+            background:rgba(10,22,40,0.97); backdrop-filter:blur(24px);
+            border:1px solid var(--border); border-radius:16px;
+            padding:8px; display:flex; flex-direction:column;
+            box-shadow:0 20px 50px rgba(0,0,0,0.5);
+        }
+        .mobile-menu a {
+            color:#e2e8f0; text-decoration:none; font-weight:600; font-size:15px;
+            padding:14px 16px; border-radius:10px; min-height:44px;
+            display:flex; align-items:center;
+        }
+        .mobile-menu a:hover, .mobile-menu a:focus-visible { background:rgba(56,189,248,0.1); color:#38bdf8; }
         @media (min-width:760px) {
-            .nav-link-explore, .nav-link-channel, .nav-link-intel, .nav-link-pricing { display:inline-block !important; }
+            .nav-link { display:inline-block !important; }
+            .mobile-menu { display:none !important; }
+        }
+        @media (max-width:759px) {
+            .nav-menu-btn { display:inline-flex; }
+            .nav-cta { min-height:44px; display:inline-flex; align-items:center; }
         }
     </style>
+    <script>
+        (function () {
+            const btn = document.getElementById('navMenuBtn');
+            const menu = document.getElementById('mobileMenu');
+            if (!btn || !menu) return;
+            const setOpen = (open) => {
+                menu.hidden = !open;
+                btn.setAttribute('aria-expanded', String(open));
+                btn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+            };
+            btn.addEventListener('click', () => setOpen(menu.hidden));
+            document.addEventListener('keydown', e => { if (e.key === 'Escape' && !menu.hidden) { setOpen(false); btn.focus(); } });
+            document.addEventListener('click', e => {
+                if (!menu.hidden && !menu.contains(e.target) && !btn.contains(e.target)) setOpen(false);
+            });
+            menu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => setOpen(false)));
+        })();
+    </script>
 
     <!-- ═══════════════ HERO ═══════════════ -->
     <section class="hero">
         <div class="hero-bg">
-            <img src="screenshots/hero-photo-whale.jpg" alt="SwimLoading swimmer alongside a whale, Cape Town" fetchpriority="high" decoding="async">
-            <img src="screenshots/hero-photo-underwater.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
-            <img src="screenshots/hero-photo-tablemountain.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
-            <img src="screenshots/hero-photo-campsbay.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
-            <img src="screenshots/hero-photo-povswell.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
-            <img src="screenshots/hero-photo-misty.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
-            <img src="screenshots/hero-photo-falsebay-sparkle.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
-            <img src="screenshots/hero-photo-falsebay-buoy.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+            <img src="screenshots/hero-photo-whale.webp" alt="SwimLoading swimmer alongside a whale, Cape Town" fetchpriority="high" decoding="async">
+            <img data-src="screenshots/hero-photo-underwater.webp" alt="" aria-hidden="true" decoding="async">
+            <img data-src="screenshots/hero-photo-tablemountain.webp" alt="" aria-hidden="true" decoding="async">
+            <img data-src="screenshots/hero-photo-campsbay.webp" alt="" aria-hidden="true" decoding="async">
+            <img data-src="screenshots/hero-photo-povswell.webp" alt="" aria-hidden="true" decoding="async">
+            <img data-src="screenshots/hero-photo-misty.webp" alt="" aria-hidden="true" decoding="async">
+            <img data-src="screenshots/hero-photo-falsebay-sparkle.webp" alt="" aria-hidden="true" decoding="async">
+            <img data-src="screenshots/hero-photo-falsebay-buoy.webp" alt="" aria-hidden="true" decoding="async">
         </div>
         <div class="hero-overlay"></div>
         <div class="hero-inner">
@@ -1061,7 +1116,7 @@
         <div class="feature-showcase">
             <div class="feature-showcase-phone">
                 <div class="phone-frame">
-                    <img src="screenshots/home-tab.png" alt="SwimLoading Home — June Challenge and live temps" width="456" height="985" loading="lazy" decoding="async" onerror="this.src='screenshots/Hero.webp'">
+                    <img src="screenshots/home-tab.webp" alt="SwimLoading Home — June Challenge and live temps" width="447" height="637" loading="lazy" decoding="async" onerror="this.src='screenshots/home-tab.png'">
                 </div>
             </div>
             <div class="feature-showcase-text">
@@ -1096,7 +1151,7 @@
         <div class="feature-showcase reverse">
             <div class="feature-showcase-phone">
                 <div class="phone-frame">
-                    <img src="screenshots/temps-tab.png" alt="Log water temperature — SwimLoading" width="456" height="985" loading="lazy" decoding="async" onerror="this.src='screenshots/TempsLogging.webp'">
+                    <img src="screenshots/temps-tab.webp" alt="Log water temperature — SwimLoading" width="458" height="871" loading="lazy" decoding="async" onerror="this.src='screenshots/temps-tab.png'">
                 </div>
             </div>
             <div class="feature-showcase-text">
@@ -1131,7 +1186,7 @@
         <div class="feature-showcase">
             <div class="feature-showcase-phone">
                 <div class="phone-frame">
-                    <img src="screenshots/swims-tab.png" alt="Group Swims — SwimLoading" width="456" height="985" loading="lazy" decoding="async" onerror="this.src='screenshots/GroupSwims.webp'">
+                    <img src="screenshots/swims-tab.webp" alt="Group Swims — SwimLoading" width="494" height="911" loading="lazy" decoding="async" onerror="this.src='screenshots/swims-tab.png'">
                 </div>
             </div>
             <div class="feature-showcase-text">
@@ -1204,7 +1259,7 @@
         <div class="feature-showcase reverse">
             <div class="feature-showcase-phone">
                 <div class="phone-frame">
-                    <img src="screenshots/trends-tab.png" alt="Temperature Trends by Region — SwimLoading" width="456" height="985" loading="lazy" decoding="async" onerror="this.src='screenshots/TempsTrends.webp'">
+                    <img src="screenshots/trends-tab.webp" alt="Temperature Trends by Region — SwimLoading" width="462" height="828" loading="lazy" decoding="async" onerror="this.src='screenshots/trends-tab.png'">
                 </div>
             </div>
             <div class="feature-showcase-text">
@@ -1462,6 +1517,35 @@
     })();
     </script>
 
+    <!-- ═══════════════ HOW IT WORKS ═══════════════ -->
+    <section id="how-it-works">
+        <div class="section-inner">
+            <div class="section-label" style="justify-content:center;display:flex;">
+                <i data-lucide="rocket" style="width:16px;height:16px;"></i>
+                &nbsp;&nbsp;How It Works
+            </div>
+            <h2 class="section-title" style="text-align:center;">Three steps to better swims</h2>
+
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <h3>Sign Up Free</h3>
+                    <p>Create your account in seconds. No app store needed - it runs in your browser.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <h3>Add to Home Screen</h3>
+                    <p>Install SwimLoading on your phone. It works just like a real app - with your icon and everything.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <h3>Start Logging</h3>
+                    <p>Log water temps, join group swims, earn points, and climb the leaderboard.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- ═══════════════ SOCIAL PROOF ═══════════════ -->
     <section id="community">
         <div class="section-inner">
@@ -1540,6 +1624,82 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════ WHO SWIMS WITH US ═══════════════ -->
+    <section style="position:relative;z-index:1;padding:80px 24px;">
+        <div style="max-width:1100px;margin:0 auto;">
+            <div style="text-align:center;margin-bottom:56px;">
+                <div class="section-label" style="display:inline-flex;align-items:center;gap:8px;">
+                    <i data-lucide="users" style="width:14px;height:14px;"></i>
+                    Who swims with us
+                </div>
+                <h2 class="section-title" style="margin-top:12px;">World-class swimmers.<br><span class="gradient-text">Same app.</span></h2>
+                <p class="section-desc" style="max-width:520px;margin:16px auto 0;">
+                    From record-breaking channel crossings to daily cold water routines — the platform used by some of the world's best open water swimmers.
+                </p>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:40px;">
+
+                <!-- Cameron Bellamy -->
+                <div style="background:rgba(13,23,40,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;">
+                    <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#60a5fa,#3b82f6);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:22px;color:#fff;flex-shrink:0;">CB</div>
+                    <div>
+                        <div style="font-weight:700;font-size:15px;color:#f1f5f9;margin-bottom:4px;">Cameron Bellamy</div>
+                        <div style="font-size:11px;color:var(--text-secondary);line-height:1.5;">World record · longest ocean channel swim · 151.7 km</div>
+                    </div>
+                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#60a5fa;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2);border-radius:100px;padding:3px 10px;">San Francisco</div>
+                </div>
+
+                <!-- Carina Bruwer -->
+                <div style="background:rgba(13,23,40,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;">
+                    <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#f472b6,#ec4899);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:22px;color:#fff;flex-shrink:0;">CB</div>
+                    <div>
+                        <div style="font-weight:700;font-size:15px;color:#f1f5f9;margin-bottom:4px;">Carina Bruwer</div>
+                        <div style="font-size:11px;color:var(--text-secondary);line-height:1.5;">World firsts across Africa, Europe &amp; the Americas · Robben Island overall record · still racing at 46</div>
+                        <a href="https://carinabruwer.com" target="_blank" rel="noopener" style="font-size:11px;color:#38bdf8;text-decoration:none;margin-top:2px;display:inline-block;">carinabruwer.com ↗</a>
+                    </div>
+                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#22d3ee;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);border-radius:100px;padding:3px 10px;">South Africa</div>
+                </div>
+
+                <!-- Ryan Stramrood -->
+                <div style="background:rgba(13,23,40,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;">
+                    <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#34d399,#10b981);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:22px;color:#fff;flex-shrink:0;">RS</div>
+                    <div>
+                        <div style="font-weight:700;font-size:15px;color:#f1f5f9;margin-bottom:4px;">Ryan Stramrood</div>
+                        <div style="font-size:11px;color:var(--text-secondary);line-height:1.5;">World records · first around Cape Horn · 146 Robben Island crossings</div>
+                    </div>
+                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#22d3ee;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);border-radius:100px;padding:3px 10px;">South Africa</div>
+                </div>
+
+                <!-- Sarah Ferguson -->
+                <div style="background:rgba(13,23,40,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;">
+                    <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#fbbf24,#f59e0b);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:22px;color:#fff;flex-shrink:0;">SF</div>
+                    <div>
+                        <div style="font-weight:700;font-size:15px;color:#f1f5f9;margin-bottom:4px;">Sarah Ferguson</div>
+                        <div style="font-size:11px;color:var(--text-secondary);line-height:1.5;">First African woman · Ka'iwi Channel · first around Easter Island · Breathe Conservation founder</div>
+                    </div>
+                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#22d3ee;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);border-radius:100px;padding:3px 10px;">South Africa</div>
+                </div>
+
+                <!-- Andy Donaldson -->
+                <div style="background:rgba(13,23,40,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;">
+                    <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#a78bfa,#7c3aed);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:22px;color:#fff;flex-shrink:0;">AD</div>
+                    <div>
+                        <div style="font-weight:700;font-size:15px;color:#f1f5f9;margin-bottom:4px;">Andy Donaldson</div>
+                        <div style="font-size:11px;color:var(--text-secondary);line-height:1.5;">First to complete Oceans Seven in one calendar year · IMSF Hall of Fame 2026</div>
+                    </div>
+                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#34d399;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.2);border-radius:100px;padding:3px 10px;">Perth, Australia</div>
+                </div>
+
+            </div>
+            <div style="text-align:center;">
+                <a href="/swimmers" style="display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid rgba(255,255,255,0.15);border-radius:50px;padding:12px 24px;color:#f1f5f9;text-decoration:none;font-size:14px;font-weight:600;">
+                    <i data-lucide="users" style="width:15px;height:15px;"></i>
+                    Meet all five swimmers
+                </a>
             </div>
         </div>
     </section>
@@ -1666,81 +1826,6 @@
 
     <div class="section-divider"></div>
 
-    <!-- ═══════════════ WHO SWIMS WITH US ═══════════════ -->
-    <section style="position:relative;z-index:1;padding:80px 24px;">
-        <div style="max-width:1100px;margin:0 auto;">
-            <div style="text-align:center;margin-bottom:56px;">
-                <div class="section-label" style="display:inline-flex;align-items:center;gap:8px;">
-                    <i data-lucide="users" style="width:14px;height:14px;"></i>
-                    Who swims with us
-                </div>
-                <h2 class="section-title" style="margin-top:12px;">World-class swimmers.<br><span class="gradient-text">Same app.</span></h2>
-                <p class="section-desc" style="max-width:520px;margin:16px auto 0;">
-                    From record-breaking channel crossings to daily cold water routines — the platform used by some of the world's best open water swimmers.
-                </p>
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:40px;">
-
-                <!-- Cameron Bellamy -->
-                <div style="background:rgba(13,23,40,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;">
-                    <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#60a5fa,#3b82f6);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:22px;color:#fff;flex-shrink:0;">CB</div>
-                    <div>
-                        <div style="font-weight:700;font-size:15px;color:#f1f5f9;margin-bottom:4px;">Cameron Bellamy</div>
-                        <div style="font-size:11px;color:var(--text-secondary);line-height:1.5;">World record · longest ocean channel swim · 151.7 km</div>
-                    </div>
-                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#60a5fa;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2);border-radius:100px;padding:3px 10px;">San Francisco</div>
-                </div>
-
-                <!-- Carina Bruwer -->
-                <div style="background:rgba(13,23,40,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;">
-                    <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#f472b6,#ec4899);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:22px;color:#fff;flex-shrink:0;">CB</div>
-                    <div>
-                        <div style="font-weight:700;font-size:15px;color:#f1f5f9;margin-bottom:4px;">Carina Bruwer</div>
-                        <div style="font-size:11px;color:var(--text-secondary);line-height:1.5;">World firsts across Africa, Europe &amp; the Americas · Robben Island overall record · still racing at 46</div>
-                        <a href="https://carinabruwer.com" target="_blank" rel="noopener" style="font-size:11px;color:#38bdf8;text-decoration:none;margin-top:2px;display:inline-block;">carinabruwer.com ↗</a>
-                    </div>
-                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#22d3ee;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);border-radius:100px;padding:3px 10px;">South Africa</div>
-                </div>
-
-                <!-- Ryan Stramrood -->
-                <div style="background:rgba(13,23,40,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;">
-                    <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#34d399,#10b981);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:22px;color:#fff;flex-shrink:0;">RS</div>
-                    <div>
-                        <div style="font-weight:700;font-size:15px;color:#f1f5f9;margin-bottom:4px;">Ryan Stramrood</div>
-                        <div style="font-size:11px;color:var(--text-secondary);line-height:1.5;">World records · first around Cape Horn · 146 Robben Island crossings</div>
-                    </div>
-                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#22d3ee;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);border-radius:100px;padding:3px 10px;">South Africa</div>
-                </div>
-
-                <!-- Sarah Ferguson -->
-                <div style="background:rgba(13,23,40,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;">
-                    <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#fbbf24,#f59e0b);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:22px;color:#fff;flex-shrink:0;">SF</div>
-                    <div>
-                        <div style="font-weight:700;font-size:15px;color:#f1f5f9;margin-bottom:4px;">Sarah Ferguson</div>
-                        <div style="font-size:11px;color:var(--text-secondary);line-height:1.5;">First African woman · Ka'iwi Channel · first around Easter Island · Breathe Conservation founder</div>
-                    </div>
-                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#22d3ee;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);border-radius:100px;padding:3px 10px;">South Africa</div>
-                </div>
-
-                <!-- Andy Donaldson -->
-                <div style="background:rgba(13,23,40,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;">
-                    <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#a78bfa,#7c3aed);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:22px;color:#fff;flex-shrink:0;">AD</div>
-                    <div>
-                        <div style="font-weight:700;font-size:15px;color:#f1f5f9;margin-bottom:4px;">Andy Donaldson</div>
-                        <div style="font-size:11px;color:var(--text-secondary);line-height:1.5;">First to complete Oceans Seven in one calendar year · IMSF Hall of Fame 2026</div>
-                    </div>
-                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#34d399;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.2);border-radius:100px;padding:3px 10px;">Perth, Australia</div>
-                </div>
-
-            </div>
-            <div style="text-align:center;">
-                <a href="/swimmers" style="display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid rgba(255,255,255,0.15);border-radius:50px;padding:12px 24px;color:#f1f5f9;text-decoration:none;font-size:14px;font-weight:600;">
-                    <i data-lucide="users" style="width:15px;height:15px;"></i>
-                    Meet all five swimmers
-                </a>
-            </div>
-        </div>
-    </section>
 
     <div class="section-divider"></div>
 
@@ -1857,34 +1942,6 @@
 
     <div class="section-divider"></div>
 
-    <!-- ═══════════════ HOW IT WORKS ═══════════════ -->
-    <section id="how-it-works">
-        <div class="section-inner">
-            <div class="section-label" style="justify-content:center;display:flex;">
-                <i data-lucide="rocket" style="width:16px;height:16px;"></i>
-                &nbsp;&nbsp;How It Works
-            </div>
-            <h2 class="section-title" style="text-align:center;">Three steps to better swims</h2>
-
-            <div class="steps-grid">
-                <div class="step-card">
-                    <div class="step-number">1</div>
-                    <h3>Sign Up Free</h3>
-                    <p>Create your account in seconds. No app store needed - it runs in your browser.</p>
-                </div>
-                <div class="step-card">
-                    <div class="step-number">2</div>
-                    <h3>Add to Home Screen</h3>
-                    <p>Install SwimLoading on your phone. It works just like a real app - with your icon and everything.</p>
-                </div>
-                <div class="step-card">
-                    <div class="step-number">3</div>
-                    <h3>Start Logging</h3>
-                    <p>Log water temps, join group swims, earn points, and climb the leaderboard.</p>
-                </div>
-            </div>
-        </div>
-    </section>
 
     <!-- ═══════════════ PARTNERS ═══════════════ -->
     <section class="partners-section" id="partners">
@@ -2447,6 +2504,23 @@
             nums.forEach(n => io.observe(n));
         })();
 
+        // Hero rotation photos 2-8 load AFTER the page is done, not with it.
+        // The first photo shows for 6s, so fetching the rest ~1s after load
+        // keeps them ahead of the CSS animation while taking ~1MB off the
+        // critical path. Reduced-motion users only ever see photo 1 (the
+        // others are display:none for them), so skip the fetch entirely.
+        (function () {
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+            const load = () => setTimeout(() => {
+                document.querySelectorAll('.hero-bg img[data-src]').forEach(img => {
+                    img.src = img.dataset.src;
+                    img.removeAttribute('data-src');
+                });
+            }, 1000);
+            if (document.readyState === 'complete') load();
+            else window.addEventListener('load', load, { once: true });
+        })();
+
         // Init Lucide icons
         document.addEventListener('DOMContentLoaded', () => {
             if (window.lucide) lucide.createIcons();
@@ -2540,12 +2614,14 @@
             });
         }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
 
-        document.querySelectorAll('.feature-showcase, .step-card, .proof-card, #more a').forEach((el, i) => {
-            el.style.opacity = '0';
-            el.style.transform = 'translateY(30px)';
-            el.style.transition = `opacity 0.6s ease-out ${i * 0.08}s, transform 0.6s ease-out ${i * 0.08}s`;
-            observer.observe(el);
-        });
+        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            document.querySelectorAll('.feature-showcase, .step-card, .proof-card, #more a').forEach((el, i) => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(30px)';
+                el.style.transition = `opacity 0.6s ease-out ${i * 0.08}s, transform 0.6s ease-out ${i * 0.08}s`;
+                observer.observe(el);
+            });
+        }
 
         // Mouse spotlight
         document.addEventListener('mousemove', (e) => {

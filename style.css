@@ -23,10 +23,18 @@
                silently rendered TRANSPARENT over the page (caught 12 Aug 2026
                on the fix-log sheet). Keep it opaque. */
             --surface: #0d1728;
+            /* z-index scale — use these for NEW stacking contexts instead of
+               inventing numbers. Existing hard-coded values (modals ~10004,
+               toast 99999) match --z-modal / --z-toast and must keep their
+               relative order: toast always above every modal. */
+            --z-nav: 100;
+            --z-sheet: 9000;
+            --z-modal: 10004;
+            --z-toast: 99999;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
             background: linear-gradient(135deg, #0a1628 0%, #1e293b 50%, #0f172a 100%);
             min-height: 100vh;
             color: var(--text-primary);
@@ -428,7 +436,7 @@
             .nav-tab {
                 flex: 0 0 auto;
                 padding: 9px 12px;
-                font-size: 10px;
+                font-size: 11px;
                 gap: 4px;
                 flex-direction: column;
                 align-items: center;
@@ -1461,3 +1469,57 @@
             display: block;
             margin-bottom: 8px;
         }
+
+        /* ═══════════════════════════════════════
+           ACCESSIBILITY — keyboard focus & motion
+        ═══════════════════════════════════════ */
+        :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+            outline: 2px solid var(--ocean-light);
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+            html { scroll-behavior: auto !important; }
+        }
+
+        /* ═══════════════════════════════════════
+           SKELETON LOADING — use while data fetches
+           instead of "Loading..." text so layout
+           doesn't jump when content arrives.
+        ═══════════════════════════════════════ */
+        .skeleton {
+            position: relative;
+            overflow: hidden;
+            background: rgba(148, 163, 184, 0.08);
+            border-radius: 10px;
+            min-height: 16px;
+        }
+        .skeleton::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            transform: translateX(-100%);
+            background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.10), transparent);
+            animation: skeleton-sweep 1.4s infinite;
+        }
+        @keyframes skeleton-sweep {
+            100% { transform: translateX(100%); }
+        }
+        .skeleton-card {
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .skeleton-line { height: 14px; }
+        .skeleton-line.w40 { width: 40%; }
+        .skeleton-line.w60 { width: 60%; }
+        .skeleton-line.w80 { width: 80%; }

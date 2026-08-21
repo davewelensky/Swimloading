@@ -453,11 +453,11 @@
                 return;
             }
 
-            if (newPass.length < 6) {
+            if (newPass.length < 8) {
                 msgEl.style.display = 'block';
                 msgEl.style.background = 'rgba(239, 68, 68, 0.1)';
                 msgEl.style.color = 'var(--danger)';
-                msgEl.textContent = 'Password must be at least 6 characters';
+                msgEl.textContent = 'Password must be at least 8 characters';
                 return;
             }
 
@@ -2601,7 +2601,7 @@
                         <div style="font-weight:700; font-size:14px; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
                             ${name} is swimming
                             ${isMe ? `<button onclick="editSwimPost('${post.id}')" title="Edit post" style="background:none; border:none; color:var(--ocean-light); cursor:pointer; font-size:11px; opacity:0.7; line-height:1; padding:0; margin-left:auto;">Edit</button>
-                             <button onclick="deleteSwimPost('${post.id}')" title="Remove post" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size:11px; opacity:0.5; line-height:1; padding:0;">✕</button>` : ''}
+                             <button onclick="deleteSwimPost('${post.id}')" title="Remove post" aria-label="Remove post" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size:11px; opacity:0.5; line-height:1; padding:0;">✕</button>` : ''}
                         </div>
                         <div style="font-size:13px; color:var(--text-secondary); margin-top:3px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
                             <i data-lucide="map-pin" style="width:12px;height:12px;flex-shrink:0;"></i> ${spotName}
@@ -5648,7 +5648,7 @@
         async function loadHazards() {
             const el = document.getElementById('activeHazardsList');
             if (!el) return;
-            el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Loading…</div>';
+            el.innerHTML = '<div class="skeleton-card"><div class="skeleton skeleton-line w60"></div><div class="skeleton skeleton-line w80"></div><div class="skeleton skeleton-line w40"></div></div>';
             try {
                 // Fetch hazards + reporter name (avoid spots join — look up spot name from local spots array).
                 // Reporter name is fetched separately via public_profiles (2026-07-19
@@ -8792,7 +8792,7 @@
                     <span>Complete your profile to RSVP and log temperatures</span>
                 </div>
                 <button onclick="showOnboardingPersonal()" style="background: var(--ocean-light); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">Complete</button>
-                <button onclick="document.getElementById('incompleteProfileBanner').style.display='none';" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 0; font-size: 16px;">✕</button>
+                <button onclick="document.getElementById('incompleteProfileBanner').style.display='none';" aria-label="Dismiss" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 0; font-size: 16px;">✕</button>
             `;
             const mainApp = document.getElementById('mainApp');
             if (mainApp && mainApp.parentNode) {
@@ -8855,7 +8855,7 @@
                     ${steps}
                   </div>
                   <button onclick="document.getElementById('pwaInstallBanner').remove();localStorage.setItem('${dismissKey}','1');"
-                    style="background:none;border:none;color:#64748b;cursor:pointer;padding:0;font-size:18px;line-height:1;flex-shrink:0;">✕</button>
+                    aria-label="Dismiss" style="background:none;border:none;color:#64748b;cursor:pointer;padding:0;font-size:18px;line-height:1;flex-shrink:0;">✕</button>
                 </div>
             `;
 

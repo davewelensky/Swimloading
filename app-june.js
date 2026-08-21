@@ -195,7 +195,7 @@
               <span style="font-size:13px;font-weight:600;color:#25d366;flex:1;">Share to WhatsApp</span>
               <span style="font-size:11px;color:var(--text-secondary);">+${JC_POINTS.whatsapp_share} pts</span>
               <button onclick="event.stopPropagation();this.closest('[onclick]').remove();"
-                style="background:none;border:none;color:var(--text-secondary);font-size:16px;cursor:pointer;padding:0;line-height:1;margin-left:4px;">&times;</button>
+                aria-label="Dismiss" style="background:none;border:none;color:var(--text-secondary);font-size:16px;cursor:pointer;padding:0;line-height:1;margin-left:4px;">&times;</button>
             </div>`;
             el.style.display = 'block';
             setTimeout(() => { if (el) el.style.display = 'none'; }, 10000);

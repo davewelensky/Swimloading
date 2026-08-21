@@ -22,13 +22,16 @@
             document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
 
             document.getElementById(page).classList.add('active');
-            if (typeof event !== 'undefined' && event.target) {
-                event.target.classList.add('active');
-            } else {
-                // Fallback: find nav-tab by its onclick attribute
-                const tabs = Array.from(document.querySelectorAll('.nav-tab'));
-                const target = tabs.find(t => t.getAttribute('onclick') && t.getAttribute('onclick').includes(`showPage('${page}')`));
-                if (target) target.classList.add('active');
+            // Always resolve the tab from its onclick attribute — event.target can
+            // be the icon/label INSIDE the button, which used to receive the
+            // 'active' class instead of the tab itself.
+            const tabs = Array.from(document.querySelectorAll('.nav-tab'));
+            const target = tabs.find(t => t.getAttribute('onclick') && t.getAttribute('onclick').includes(`showPage('${page}')`));
+            if (target) {
+                target.classList.add('active');
+                // On mobile the tab row scrolls horizontally — keep the active
+                // tab visible so off-screen tabs (Board, Club) stay discoverable.
+                if (target.scrollIntoView) target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
             }
 
             // Load data for specific pages
@@ -1154,7 +1157,7 @@
                         <div style="color: rgba(255,255,255,0.7); font-size: 12px; margin-top: 2px;">Know instantly if a swim is cancelled or moved</div>
                     </div>
                     <button onclick="enablePushFromPrompt()" style="background: white; color: var(--ocean-blue); border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap;">Enable</button>
-                    <button onclick="dismissPushPrompt()" style="background: none; border: none; color: rgba(255,255,255,0.5); font-size: 20px; cursor: pointer; padding: 4px; line-height: 1;">&times;</button>
+                    <button onclick="dismissPushPrompt()" aria-label="Dismiss" style="background: none; border: none; color: rgba(255,255,255,0.5); font-size: 20px; cursor: pointer; padding: 4px; line-height: 1;">&times;</button>
                 </div>
             `;
             if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -1210,7 +1213,7 @@
                         <div style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 2px;">Know when swimmers post new group swims</div>
                     </div>
                     <button onclick="enableNewSwimAlertsFromPrompt()" style="background: white; color: #059669; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap;">Enable</button>
-                    <button onclick="dismissNewSwimAlertsPrompt()" style="background: none; border: none; color: rgba(255,255,255,0.6); font-size: 20px; cursor: pointer; padding: 4px; line-height: 1;">&times;</button>
+                    <button onclick="dismissNewSwimAlertsPrompt()" aria-label="Dismiss" style="background: none; border: none; color: rgba(255,255,255,0.6); font-size: 20px; cursor: pointer; padding: 4px; line-height: 1;">&times;</button>
                 </div>
             `;
 
@@ -1769,3 +1772,20 @@
                 showToast('Could not disconnect Strava. Please try again.', 'error');
             }
         }
+
+        // Nav scroll fade: only show while there are more tabs off-screen to
+        // the right. A permanent fade over a fully-scrolled row falsely
+        // suggests more content.
+        (function () {
+            const tabs = document.querySelector('.nav-tabs');
+            const fade = document.querySelector('.nav-fade');
+            if (!tabs || !fade) return;
+            const update = () => {
+                const scrollable = tabs.scrollWidth > tabs.clientWidth + 4;
+                const atEnd = tabs.scrollLeft + tabs.clientWidth >= tabs.scrollWidth - 4;
+                fade.style.opacity = (scrollable && !atEnd) ? '1' : '0';
+            };
+            tabs.addEventListener('scroll', update, { passive: true });
+            window.addEventListener('resize', update);
+            update();
+        })();
