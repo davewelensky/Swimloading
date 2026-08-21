@@ -75,6 +75,17 @@
       html { scroll-behavior: auto !important; }
     }
 
+    /* Roster quick-action chips: the ghost state must read as a BUTTON
+       ("add trial status" / "mark unpaid"), not as status text — plain-text
+       "+ trial + unpaid" on every row read as if every swimmer were an
+       unpaid trialist (review, 21 Aug 2026). */
+    .chip-action {
+      cursor:pointer; font-size:10px; font-weight:600; color:var(--text-dim);
+      padding:1px 7px; border-radius:4px; border:1px dashed var(--border);
+      transition:color .15s, border-color .15s; user-select:none;
+    }
+    .chip-action:hover { color:var(--cyan); border-color:var(--cyan); }
+
     .nav-group { display:flex; flex-direction:column; gap:4px; }
     .nav-group-label { font-size:10px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dim, #5b6b80); padding:12px 12px 2px; user-select:none; }
     @media(max-width:700px) {
@@ -2844,7 +2855,17 @@ async function renderOverview() {
         if (r.status === 'requested')  galaStats[r.event_id].requested.add(r.roster_id);
       });
 
-      const rosterTotal = roster.length || 1;
+      // Gala pipeline denominators count only squads that actually enter
+      // galas (club_squads.type competitive/development). Measuring LTS kids,
+      // private lessons and Masters as "no response" framed every gala as a
+      // failure — 214 no response on a club where ~160 swimmers would never
+      // be entered (review, 21 Aug 2026).
+      const galaSquadIds = new Set((allSquads || [])
+        .filter(s => s.type === 'competitive' || s.type === 'development')
+        .map(s => s.id));
+      const galaEligible = roster.filter(r =>
+        galaSquadIds.has(r.squad_id) || (r.secondary_squad_id && galaSquadIds.has(r.secondary_squad_id)));
+      const rosterTotal = galaEligible.length || 1;
 
       // Inject "pending requests" action items per gala
       const pendingGalas = upcoming.filter(e => galaStats[e.id]?.requested.size > 0);
@@ -2919,7 +2940,7 @@ async function renderOverview() {
               <span style="width:8px;height:8px;border-radius:2px;background:var(--amber);display:inline-block;flex-shrink:0;"></span>
               ${requested} requested
             </span>` : ''}
-            <span style="font-size:11px;color:var(--text-sec);">${noResponse} no response</span>
+            <span style="font-size:11px;color:var(--text-sec);" title="Counts swimmers in competitive and development squads — Learn to Swim, private lessons and Masters are not expected to enter galas">${noResponse} of ${rosterTotal} gala-squad swimmers no response</span>
             ${totalEvts > 0 ? `<span style="font-size:11px;color:var(--text-sec);margin-left:auto;">${totalEvts} total events</span>` : ''}
           </div>
         </div>`;
@@ -9148,11 +9169,11 @@ function renderRosterTable() {
 
     const trialPill = r.is_trial
       ? `<span onclick="toggleRosterTrial('${r.id}',true)" title="Remove trial status" style="cursor:pointer;font-size:10px;font-weight:700;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#ef4444;padding:1px 7px;border-radius:4px;">TRIAL ×</span>`
-      : `<span onclick="toggleRosterTrial('${r.id}',false)" title="Mark as trial" style="cursor:pointer;font-size:10px;color:var(--text-dim);padding:1px 7px;border-radius:4px;border:1px solid var(--border);">+ trial</span>`;
+      : `<span onclick="toggleRosterTrial('${r.id}',false)" title="Mark as trial" class="chip-action" role="button">+ trial</span>`;
 
     const feePill = !r.fee_paid
       ? `<span onclick="toggleRosterFeePaid('${r.id}',false)" title="Mark fee as paid" style="cursor:pointer;font-size:10px;font-weight:700;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.35);color:#f59e0b;padding:1px 7px;border-radius:4px;">UNPAID ×</span>`
-      : `<span onclick="toggleRosterFeePaid('${r.id}',true)" title="Mark fee as unpaid" style="cursor:pointer;font-size:10px;color:var(--text-dim);padding:1px 7px;border-radius:4px;border:1px solid var(--border);">+ unpaid</span>`;
+      : `<span onclick="toggleRosterFeePaid('${r.id}',true)" title="Mark fee as unpaid" class="chip-action" role="button">+ unpaid</span>`;
 
     // Default LTS lesson-time badge — only for Learn-to-Swim swimmers who have one set
     const isLtsSwimmer = (squadName || '').toLowerCase().includes('learn to swim');
