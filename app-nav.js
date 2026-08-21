@@ -17,22 +17,30 @@
             document.getElementById(tab + 'Form').classList.add('active');
         }
 
+        // Pages that live in the "More" sheet rather than the main tab bar.
+        const NAV_MORE_PAGES = ['safety', 'leaderboard', 'club'];
+
         function showPage(page) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-tab, .nav-more-item').forEach(t => t.classList.remove('active'));
 
             document.getElementById(page).classList.add('active');
             // Always resolve the tab from its onclick attribute — event.target can
             // be the icon/label INSIDE the button, which used to receive the
             // 'active' class instead of the tab itself.
-            const tabs = Array.from(document.querySelectorAll('.nav-tab'));
-            const target = tabs.find(t => t.getAttribute('onclick') && t.getAttribute('onclick').includes(`showPage('${page}')`));
+            const items = Array.from(document.querySelectorAll('.nav-tab, .nav-more-item'));
+            const target = items.find(t => t.getAttribute('onclick') && t.getAttribute('onclick').includes(`showPage('${page}')`));
             if (target) {
                 target.classList.add('active');
-                // On mobile the tab row scrolls horizontally — keep the active
-                // tab visible so off-screen tabs (Board, Club) stay discoverable.
-                if (target.scrollIntoView) target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+                if (target.classList.contains('nav-tab') && target.scrollIntoView) {
+                    target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+                }
             }
+            // A page inside the More sheet lights up the More tab itself, so the
+            // bar always shows where you are.
+            const moreBtn = document.getElementById('navMoreBtn');
+            if (moreBtn) moreBtn.classList.toggle('active', NAV_MORE_PAGES.includes(page));
+            if (typeof closeNavMore === 'function') closeNavMore();
 
             // Load data for specific pages
             if (page === 'dashboard') {
@@ -1789,3 +1797,28 @@
             window.addEventListener('resize', update);
             update();
         })();
+
+        // "More" sheet — Safety, Board and Club live here so the tab bar stays
+        // at five items that all fit on screen at once.
+        function toggleNavMore() {
+            const sheet = document.getElementById('navMoreSheet');
+            const btn = document.getElementById('navMoreBtn');
+            if (!sheet || !btn) return;
+            const open = sheet.hidden;
+            sheet.hidden = !open;
+            btn.setAttribute('aria-expanded', String(open));
+        }
+        function closeNavMore() {
+            const sheet = document.getElementById('navMoreSheet');
+            const btn = document.getElementById('navMoreBtn');
+            if (!sheet || sheet.hidden) return;
+            sheet.hidden = true;
+            if (btn) btn.setAttribute('aria-expanded', 'false');
+        }
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNavMore(); });
+        document.addEventListener('click', e => {
+            const sheet = document.getElementById('navMoreSheet');
+            const btn = document.getElementById('navMoreBtn');
+            if (!sheet || sheet.hidden) return;
+            if (!sheet.contains(e.target) && !(btn && btn.contains(e.target))) closeNavMore();
+        });
