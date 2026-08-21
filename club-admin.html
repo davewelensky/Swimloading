@@ -2793,7 +2793,15 @@ async function renderOverview() {
     actions.push({ dot:'amber', text:`${noCoachToday.length} session${noCoachToday.length>1?'s':''} today have no coach`, names, label:'Settings →', action:`showPage('settings')` });
   }
   if (unlinked.length > 0) {
-    actions.push({ dot:'blue', text:`${unlinked.length} of ${roster.length} active roster members aren't linked to an app account`, names: hasParentLanguage ? 'Parents haven\'t joined the app yet' : 'Members haven\'t joined the app yet', label:'Roster →', action:`showPage('roster')` });
+    // Parent-language clubs get sent to Progress Reports, where the
+    // "Copy parent invite message" tool lives — the Roster has no way to act
+    // on this number in bulk.
+    const inviteToolHere = hasParentLanguage && window._clubFeatures?.hasProgressReports;
+    actions.push({ dot:'blue',
+      text:`${unlinked.length} of ${roster.length} active roster members aren't linked to an app account`,
+      names: inviteToolHere ? 'Copy the parent invite message into each squad\'s group chat' : (hasParentLanguage ? 'Parents haven\'t joined the app yet' : 'Members haven\'t joined the app yet'),
+      label: inviteToolHere ? 'Progress Reports →' : 'Roster →',
+      action: inviteToolHere ? `showPage('progress')` : `showPage('roster')` });
   }
 
   // Health alerts from club_health_events (populated by loadMembers)
@@ -2887,6 +2895,42 @@ async function renderOverview() {
               <div class="action-text">
                 <div style="font-weight:600;">${n} swimmer${n>1?'s':''} requested entries for ${e.title}</div>
                 <div class="action-names">Review and confirm in Entries</div>
+              </div>
+              <div class="action-arrow">Entries →</div>
+            </li>`);
+          });
+        }
+      }
+
+      // A gala that is close on the calendar but operationally empty gets its
+      // own Needs Attention item — QM4 LC sat 16 days out with no sessions
+      // and zero entries while the dashboard stayed quiet (21 Aug 2026).
+      const notReadyGalas = upcoming.map(e => {
+        const d = new Date(e.event_date + 'T12:00:00');
+        const daysAway = Math.ceil((d - now) / 86400000);
+        if (daysAway < 0 || daysAway > 21) return null;
+        const entryCount = (entryRows || []).filter(r => r.event_id === e.id && r.status !== 'scratched').length;
+        const missing = [];
+        if (!(e.sessions_json?.length > 0)) missing.push('no sessions set');
+        if (entryCount === 0) missing.push('no entries yet');
+        return missing.length ? { e, daysAway, missing } : null;
+      }).filter(Boolean);
+      if (notReadyGalas.length > 0) {
+        const actEl = document.getElementById('overviewActions');
+        let ul = actEl?.querySelector('.action-list');
+        if (!ul && actEl) {
+          actEl.innerHTML = `<div class="card" style="margin-bottom:16px;">
+            <div class="card-header"><div class="card-title" style="display:flex;align-items:center;gap:8px;"><i data-lucide="zap" style="width:14px;height:14px;color:var(--cyan);"></i> Needs attention</div></div>
+            <ul class="action-list"></ul></div>`;
+          ul = actEl.querySelector('.action-list');
+        }
+        if (ul) {
+          notReadyGalas.forEach(({ e, daysAway, missing }) => {
+            ul.insertAdjacentHTML('afterbegin', `<li class="action-item" onclick="viewGalaEntries('${e.id}')">
+              <div class="action-dot ${daysAway <= 14 ? 'amber' : 'blue'}"></div>
+              <div class="action-text">
+                <div style="font-weight:600;">${e.title} is ${daysAway === 0 ? 'today' : daysAway + ' day' + (daysAway === 1 ? '' : 's') + ' away'} — ${missing.join(' · ')}</div>
+                <div class="action-names">Set sessions and enter swimmers in Gala Entries</div>
               </div>
               <div class="action-arrow">Entries →</div>
             </li>`);
