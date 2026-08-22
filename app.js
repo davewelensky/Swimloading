@@ -7584,6 +7584,13 @@
             // Adapt form for pool vs open water
             applyPoolFormMode(spotId);
 
+            // Ask about a regular group here, if this swimmer logs here often
+            // and we do not already list one. Fire-and-forget: it must never
+            // delay the form or block a log if the query fails.
+            if (typeof maybeShowGroupSwimAsk === 'function') {
+                maybeShowGroupSwimAsk(spotId).catch(() => {});
+            }
+
             closeSpotPicker();
             initIcons();
         }
@@ -8027,6 +8034,169 @@
         // challenge integrity (eo active day + UK credit cascade with the log,
         // monthly points are voided by the delete_my_temp_log RPC).
 
+        // ── "Do you swim here with a regular group?" ──────────────────────
+        //
+        // recurring_swims holds three rows, and the Regular group swims mode is
+        // thin because of it. scripts/detect-group-swims.mjs can see the shape
+        // of a group in the logs — Camps Bay, Sunday, ten people, week after
+        // week — but it can only ever produce a QUESTION. Whether a group is
+        // public, welcomes strangers, or has a name is something only someone
+        // who swims it knows. This is where we ask them.
+        //
+        // Shown to the swimmer who logs at this spot REGULARLY, not to anyone
+        // who happens to pass through: they are the one person whose answer is
+        // worth having, and it keeps the prompt rare. Asked once per spot,
+        // ever — 'no' and 'skip' are recorded precisely so we stop.
+        const GROUP_ASK_MIN_LOGS = 3;      // logs at this spot before we ask
+        let _groupAskSpotId = null;        // spot the visible card is about
+
+        async function maybeShowGroupSwimAsk(spotId) {
+            const wrap = document.getElementById('groupSwimAsk');
+            if (!wrap) return;
+            wrap.style.display = 'none';
+            wrap.innerHTML = '';
+            _groupAskSpotId = null;
+            if (!currentUser || !spotId) return;
+
+            try {
+                // Three cheap checks, cheapest first, each able to rule it out.
+                const [mine, already, known] = await Promise.all([
+                    supabaseClient.from('temp_logs')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('user_id', currentUser.id).eq('spot_id', spotId),
+                    supabaseClient.from('group_swim_reports')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('user_id', currentUser.id).eq('spot_id', spotId),
+                    supabaseClient.from('recurring_swims')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('spot_id', spotId).eq('is_public', true),
+                ]);
+
+                if ((mine.count || 0) < GROUP_ASK_MIN_LOGS) return;   // not a regular here
+                if ((already.count || 0) > 0) return;                 // asked once already
+                if ((known.count || 0) > 0) return;                   // we already list one
+            } catch (e) {
+                // A missing table or a denied read must never break the log
+                // form. The prompt is a nice-to-have; logging is not.
+                console.warn('group swim ask skipped:', e && e.message);
+                return;
+            }
+
+            const spot = (spots || []).find(s => s.id === spotId);
+            _groupAskSpotId = spotId;
+            wrap.style.display = '';
+            wrap.innerHTML = `
+                <div style="margin-top:14px;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.25);
+                            border-radius:14px;padding:14px 16px;">
+                  <div style="font-size:14.5px;font-weight:600;margin-bottom:4px;">
+                    Do you swim here with a regular group?
+                  </div>
+                  <div style="font-size:13px;color:var(--text-secondary);line-height:1.5;margin-bottom:11px;">
+                    You log at ${escapeHtmlSafe(spot ? spot.name : 'this spot')} often. If there is a group that
+                    meets here, we will add it so visiting swimmers can find it.
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button type="button" class="btn" id="gsAskYes"
+                            style="padding:9px 18px;font-size:13.5px;background:var(--ocean-light,#38bdf8);color:#080f1a;border:none;border-radius:50px;font-weight:700;">Yes, there is</button>
+                    <button type="button" class="btn" id="gsAskNo"
+                            style="padding:9px 18px;font-size:13.5px;background:transparent;color:var(--text-secondary);border:1px solid rgba(255,255,255,0.15);border-radius:50px;">No</button>
+                  </div>
+                </div>`;
+
+            document.getElementById('gsAskYes').onclick = showGroupSwimForm;
+            document.getElementById('gsAskNo').onclick  = () => submitGroupSwimReport('no');
+        }
+
+        function showGroupSwimForm() {
+            const wrap = document.getElementById('groupSwimAsk');
+            if (!wrap) return;
+            const box = 'width:100%;background:#0b1524;border:1px solid rgba(255,255,255,0.08);color:var(--text-primary);' +
+                        'padding:10px 12px;border-radius:10px;font-family:inherit;font-size:14px;margin-bottom:8px;';
+            wrap.innerHTML = `
+                <div style="margin-top:14px;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.25);
+                            border-radius:14px;padding:14px 16px;">
+                  <div style="font-size:14.5px;font-weight:600;margin-bottom:9px;">Tell us about the group</div>
+                  <input id="gsName" type="text" placeholder="What is it called? (if it has a name)" style="${box}">
+                  <input id="gsWhen" type="text" placeholder="When does it swim? e.g. every Saturday, 7am" style="${box}">
+                  <input id="gsWhere" type="text" placeholder="Where exactly do you meet?" style="${box}">
+                  <input id="gsContact" type="text" placeholder="A link, WhatsApp group or page (optional)" style="${box}">
+                  <label style="display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--text-secondary);margin:4px 0 12px;">
+                    <input type="checkbox" id="gsOpen" checked style="width:16px;height:16px;accent-color:#38bdf8;">
+                    Newcomers can just turn up
+                  </label>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button type="button" class="btn" id="gsSend"
+                            style="padding:9px 18px;font-size:13.5px;background:var(--ocean-light,#38bdf8);color:#080f1a;border:none;border-radius:50px;font-weight:700;">Send</button>
+                    <button type="button" class="btn" id="gsCancel"
+                            style="padding:9px 18px;font-size:13.5px;background:transparent;color:var(--text-secondary);border:1px solid rgba(255,255,255,0.15);border-radius:50px;">Not now</button>
+                  </div>
+                  <div style="font-size:11.5px;color:var(--text-secondary);margin-top:10px;line-height:1.5;">
+                    We check with the group before listing it publicly.
+                  </div>
+                </div>`;
+            document.getElementById('gsSend').onclick   = () => submitGroupSwimReport('yes');
+            // "Not now" is a skip, and a skip still stops the asking. Someone
+            // who opened the form and backed out has answered clearly enough.
+            document.getElementById('gsCancel').onclick = () => submitGroupSwimReport('skip');
+        }
+
+        async function submitGroupSwimReport(answer) {
+            const wrap = document.getElementById('groupSwimAsk');
+            const spotId = _groupAskSpotId;
+            if (!wrap || !spotId || !currentUser) return;
+
+            const val = (id) => {
+                const el = document.getElementById(id);
+                const v = el && el.value ? el.value.trim() : '';
+                return v || null;
+            };
+            const openEl = document.getElementById('gsOpen');
+
+            const row = {
+                user_id: currentUser.id,
+                spot_id: spotId,
+                answer,
+                observed_dow: new Date().getDay(),
+            };
+            if (answer === 'yes') {
+                row.group_name        = val('gsName');
+                row.schedule_text     = val('gsWhen');
+                row.meeting_point     = val('gsWhere');
+                row.contact           = val('gsContact');
+                row.open_to_newcomers = openEl ? !!openEl.checked : null;
+            }
+
+            try {
+                const { error } = await supabaseClient.from('group_swim_reports').insert(row);
+                if (error) throw error;
+            } catch (e) {
+                console.warn('group swim report failed:', e && e.message);
+                if (answer === 'yes') { showToast('Could not send that — try again later', 'error'); return; }
+            }
+
+            if (typeof analytics !== 'undefined' && analytics.track) {
+                analytics.track('group_swim_report', { answer, spot_id: spotId });
+            }
+
+            wrap.innerHTML = answer === 'yes'
+                ? `<div style="margin-top:14px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);
+                        border-radius:14px;padding:13px 16px;font-size:13.5px;color:var(--text-primary);">
+                     Thank you — we will check with the group and add it.
+                   </div>`
+                : '';
+            if (answer !== 'yes') wrap.style.display = 'none';
+            _groupAskSpotId = null;
+        }
+
+        // The app has escapeHtml in some scopes and not others; this file's
+        // prompt builds its own so a spot named with an apostrophe or angle
+        // bracket cannot break the card.
+        function escapeHtmlSafe(v) {
+            return String(v == null ? '' : v).replace(/[&<>"']/g, (c) => (
+                { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+            ));
+        }
+
         let _myLogSheetLog = null;   // the log currently open in the sheet
 
         async function loadMyRecentLogs() {
@@ -8412,6 +8582,14 @@
                 if (bdLabel) bdLabel.style.color = 'var(--text-secondary)';
                 const bdInput = document.getElementById('backdateTime');
                 if (bdInput) bdInput.value = '';
+
+                // The ask belongs to the spot that was selected; once the log
+                // is filed the form resets, so the card must go with it.
+                const _gsWrap = document.getElementById('groupSwimAsk');
+                if (_gsWrap && !_gsWrap.innerHTML.includes('Thank you')) {
+                    _gsWrap.style.display = 'none';
+                    _gsWrap.innerHTML = '';
+                }
 
                 // Reset GPS, lock state, and spot picker trigger
                 selectedSpotLocked = false;
