@@ -1690,9 +1690,12 @@ function renderRegulars(){
         <div style="margin-bottom:7px">
           <span style="color:var(--sec);font-size:12px">regular group swim</span>
         </div>
-        <h3>${r.website_url
-              ? `<a href="${esc(r.website_url)}" target="_blank" rel="noopener nofollow">${esc(r.name)}</a>`
-              : esc(r.name)}</h3>
+        <!-- Our own page, not the club's. It carries the water temperature,
+             the schedule and the route in one place, and unlike an outbound
+             link it is something Google can index — which is the whole reason
+             /group-swims/{slug} exists. The club's own link stays available
+             from that page. -->
+        <h3><a href="/group-swims/${esc(r.slug)}" data-group="${esc(r.slug)}">${esc(r.name)}</a></h3>
         <div class="where">${esc(r.location_text || where)}</div>
         ${r.summary ? `<p class="muted" style="margin-bottom:8px">${esc(r.summary)}</p>` : ''}
         <div class="evidence">

@@ -914,6 +914,197 @@ document.addEventListener('mousemove',e=>{
 // gets its own loader and renderer rather than being forced through the
 // event path.
 
+// ── Regular group swims ───────────────────────────────────────────────────
+// A page per standing group swim. These had no page at all: races get
+// /events/{slug}, bookable routes get /swims/{slug}, and a group you can turn
+// up and join existed only as a card inside /explore — invisible to anyone
+// searching "open water swimming Aalborg". They are the answer to a question
+// no race calendar can take: I am travelling somewhere, is there a group I
+// can just join?
+
+const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+async function loadGroupSwim(slug) {
+  const rows = await dbGet(
+    `recurring_swims?slug=eq.${encodeURIComponent(slug)}&is_public=eq.true&limit=1&select=*`
+  );
+  return Array.isArray(rows) && rows.length ? rows[0] : null;
+}
+
+async function loadGroupSwimContext(swim) {
+  // The temperature is the reason to link a group swim to a spot at all:
+  // spot_temp_estimate blends swimmer readings with the model, so a page can
+  // say what the water is actually doing rather than describe a beach.
+  if (!swim.spot_id) return { temp: null, spot: null };
+  const [temp, spot] = await Promise.all([
+    dbGet(`spot_temp_estimate?spot_id=eq.${swim.spot_id}&select=best_c,best_source,confidence&limit=1`),
+    dbGet(`spots?id=eq.${swim.spot_id}&select=id,name&limit=1`),
+  ]);
+  return {
+    temp: Array.isArray(temp) && temp.length ? temp[0] : null,
+    spot: Array.isArray(spot) && spot.length ? spot[0] : null,
+  };
+}
+
+function renderGroupSwimPage(swim, ctx) {
+  // countryByCode() is already imported for the country hubs; reuse it rather
+  // than keep a second name table in this file.
+  const countryName = (() => {
+    const c = swim.country_code ? countryByCode(swim.country_code) : null;
+    return (c && c.name) || swim.country_code || null;
+  })();
+  const where = [swim.city, swim.region, countryName].filter(Boolean).join(', ');
+  const dist = swim.typical_distance_metres
+    ? (swim.typical_distance_metres >= 1000
+        ? `${+(swim.typical_distance_metres / 1000).toFixed(1)} km`
+        : `${swim.typical_distance_metres} m`)
+    : null;
+
+  // The club's own words win. days_of_week is only a fallback, and when
+  // neither exists the page says so rather than inventing a rhythm.
+  const days = Array.isArray(swim.days_of_week) && swim.days_of_week.length
+    ? (swim.days_of_week.length === 7
+        ? 'Every day'
+        : swim.days_of_week.slice().sort((a, b) => a - b).map((d) => DAY_NAMES[d]).join(', '))
+    : null;
+  const when = swim.schedule_text || days;
+  const season = (swim.season_start_month && swim.season_end_month)
+    ? `${MONTH_SHORT[swim.season_start_month - 1]}–${MONTH_SHORT[swim.season_end_month - 1]}`
+    : null;
+
+  const title = `${swim.name} — Regular Open Water Group Swim in ${swim.city || where} | SwimLoading`;
+  const desc = (swim.summary || `A regular open water group swim at ${where}.`) +
+    (when ? ` ${when}.` : '') + (dist ? ` Typically ${dist}.` : '');
+
+  const link = safeUrl(swim.website_url) || safeUrl(swim.contact_url) || safeUrl(swim.source_url);
+
+  // SportsActivityLocation, NOT Event. There is no single dated occurrence to
+  // describe, and marking a standing swim up as an Event would put a date in
+  // search results that nobody promised. openingHoursSpecification carries the
+  // rhythm, and only when we actually know it.
+  const schema = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      { '@type': 'Organization', '@id': `${SITE}/#org`, name: 'SwimLoading', url: SITE,
+        logo: `${SITE}/icons/logo.png` },
+      { '@type': 'BreadcrumbList', itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'SwimLoading', item: SITE },
+        { '@type': 'ListItem', position: 2, name: 'Regular group swims', item: `${SITE}/explore?regular=1` },
+        { '@type': 'ListItem', position: 3, name: swim.name, item: `${SITE}/group-swims/${swim.slug}` },
+      ] },
+      Object.assign({
+        '@type': 'SportsActivityLocation',
+        name: swim.name,
+        description: swim.summary || desc,
+        url: `${SITE}/group-swims/${swim.slug}`,
+        sport: 'Open water swimming',
+      },
+      swim.latitude != null ? { geo: { '@type': 'GeoCoordinates',
+        latitude: Number(swim.latitude), longitude: Number(swim.longitude) } } : {},
+      (swim.city || swim.country_code) ? { address: Object.assign({ '@type': 'PostalAddress' },
+        swim.city ? { addressLocality: swim.city } : {},
+        swim.region ? { addressRegion: swim.region } : {},
+        swim.country_code ? { addressCountry: swim.country_code } : {}) } : {},
+      swim.is_free === true ? { isAccessibleForFree: true } : {},
+      (Array.isArray(swim.days_of_week) && swim.days_of_week.length) ? {
+        openingHoursSpecification: swim.days_of_week.slice().sort((a, b) => a - b).map((d) =>
+          Object.assign({ '@type': 'OpeningHoursSpecification',
+            dayOfWeek: `https://schema.org/${DAY_NAMES[d]}` },
+            swim.start_time ? { opens: String(swim.start_time).slice(0, 5) } : {})),
+      } : {}),
+    ],
+  };
+
+  const facts = [
+    when   ? ['calendar', 'When', escapeHtml(when)] : null,
+    swim.start_time ? ['clock', 'Start', escapeHtml(String(swim.start_time).slice(0, 5))] : null,
+    dist   ? ['ruler', 'Typical distance', escapeHtml(dist)] : null,
+    season ? ['sun', 'Season', escapeHtml(season)] : null,
+    swim.is_free === true ? ['tag', 'Cost', 'Free to join'] : null,
+    swim.meeting_point ? ['map-pin', 'Meeting point', escapeHtml(swim.meeting_point)] : null,
+  ].filter(Boolean);
+
+  const tempC = ctx.temp && ctx.temp.best_c != null ? Number(ctx.temp.best_c) : null;
+
+  return `<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHtml(title)}</title>
+<meta name="description" content="${escapeHtml(desc.slice(0, 300))}">
+<link rel="canonical" href="${SITE}/group-swims/${escapeHtml(swim.slug)}">
+<meta property="og:title" content="${escapeHtml(swim.name)}">
+<meta property="og:description" content="${escapeHtml(desc.slice(0, 300))}">
+<meta property="og:url" content="${SITE}/group-swims/${escapeHtml(swim.slug)}">
+<meta property="og:type" content="website">
+<link rel="icon" href="/icons/icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#080f1a;color:#f1f5f9;font-family:'DM Sans',sans-serif;line-height:1.65}
+  a{color:#38bdf8}
+  .wrap{max-width:760px;margin:0 auto;padding:0 22px 70px}
+  nav{display:flex;align-items:center;gap:14px;padding:16px 22px;border-bottom:1px solid rgba(255,255,255,.06)}
+  nav .brand{display:flex;align-items:center;gap:7px;text-decoration:none;font-size:15px;font-weight:800;
+    letter-spacing:-.5px;background:linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  nav .brand img{height:22px;width:auto}
+  .crumb{color:#64748b;font-size:13px;margin:26px 0 10px}
+  .crumb a{color:#64748b;text-decoration:none}
+  h1{font-family:'Bebas Neue',sans-serif;font-size:44px;line-height:1.02;letter-spacing:.5px;margin-bottom:8px}
+  .where{color:#94a3b8;font-size:16px;margin-bottom:22px}
+  .lede{font-size:17px;color:#cbd5e1;margin-bottom:26px}
+  .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:26px}
+  .fact{background:#0d1728;border:1px solid rgba(255,255,255,.06);border-radius:13px;padding:14px 16px}
+  .fact .k{font-size:11px;letter-spacing:.6px;color:#64748b;margin-bottom:3px}
+  .fact .v{font-size:15.5px;font-weight:600}
+  .temp{background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.28);border-radius:13px;
+        padding:15px 17px;margin-bottom:26px}
+  .temp b{font-family:'Bebas Neue',sans-serif;font-size:30px;color:#38bdf8;line-height:1}
+  .temp span{color:#94a3b8;font-size:13px}
+  h2{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:#38bdf8;margin:30px 0 9px}
+  p{margin-bottom:13px;color:#cbd5e1}
+  .safety{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.28);color:#fbbf24;
+          border-radius:11px;padding:13px 15px;font-size:14px;margin:22px 0}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px}
+  .btn{display:inline-flex;align-items:center;gap:7px;border-radius:50px;padding:12px 24px;font-size:14px;
+       font-weight:700;text-decoration:none;border:1px solid rgba(255,255,255,.15);color:#cbd5e1}
+  .btn-primary{background:#38bdf8;color:#080f1a;border-color:#38bdf8}
+  .src{color:#64748b;font-size:12.5px;margin-top:26px;border-top:1px solid rgba(255,255,255,.06);padding-top:16px}
+</style>
+<script type="application/ld+json">${JSON.stringify(schema).replace(/</g, '\\u003c')}</script>
+</head><body>
+<nav><a class="brand" href="/"><img src="/icons/logo-wave.png" alt="">SwimLoading</a></nav>
+<div class="wrap">
+  <div class="crumb"><a href="/explore?regular=1">Regular group swims</a> › ${escapeHtml(swim.city || where)}</div>
+  <h1>${escapeHtml(swim.name)}</h1>
+  <div class="where">${escapeHtml(where)}</div>
+  ${swim.summary ? `<p class="lede">${escapeHtml(swim.summary)}</p>` : ''}
+
+  ${tempC != null ? `<div class="temp"><b>${tempC}°C</b>
+    <span>&nbsp;water at ${escapeHtml(ctx.spot ? ctx.spot.name : 'this spot')}${
+      ctx.temp.best_source === 'swimmer' ? ', logged by a swimmer' : ', modelled'}</span></div>` : ''}
+
+  ${facts.length ? `<div class="facts">${facts.map(([, k, v]) =>
+    `<div class="fact"><div class="k">${escapeHtml(k)}</div><div class="v">${v}</div></div>`).join('')}</div>` : ''}
+
+  ${swim.route_description ? `<h2>The swim</h2><p>${escapeHtml(swim.route_description)}</p>` : ''}
+  ${swim.meeting_point && !facts.some(([, k]) => k === 'Meeting point')
+    ? `<h2>Where to meet</h2><p>${escapeHtml(swim.meeting_point)}</p>` : ''}
+
+  ${swim.safety_note ? `<div class="safety">${escapeHtml(swim.safety_note)}</div>` : ''}
+
+  <div class="actions">
+    ${link ? `<a class="btn btn-primary" href="${escapeHtml(link)}" target="_blank" rel="noopener nofollow">The group's page</a>` : ''}
+    <a class="btn" href="/explore?regular=1">More regular group swims</a>
+  </div>
+
+  <div class="src">
+    ${swim.last_verified_at ? `Last checked ${escapeHtml(String(swim.last_verified_at).slice(0, 10))}. ` : ''}
+    Details can change — confirm with the group before you travel.
+  </div>
+</div>
+</body></html>`;
+}
+
 async function loadRoute(slug) {
   const rows = await dbGet(
     `swim_routes?slug=eq.${encodeURIComponent(slug)}&is_public=eq.true&limit=1&select=*`
@@ -1157,6 +1348,31 @@ export default async function handler(req, res) {
   const slug = parts[1] || '';
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
+
+  // /group-swims/{slug} — a standing group swim: no date, no operator, no
+  // entry. The one thing on this site you find by turning up.
+  if (parts[0] === 'group-swims') {
+    if (!slug) { res.writeHead(301, { Location: '/explore?regular=1' }); return res.end(); }
+    try {
+      const swim = await loadGroupSwim(slug);
+      if (!swim) {
+        res.setHeader('Cache-Control', 'public, s-maxage=60');
+        return res.status(404).send(renderShell('Group swim not found — SwimLoading',
+          `<h1>We do not have that group swim</h1>
+           <p class="sub">It may have been renamed or removed.</p>
+           <div class="actions"><a class="btn btn-primary" href="/explore?regular=1">Regular group swims</a></div>`));
+      }
+      const gctx = await loadGroupSwimContext(swim);
+      res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+      return res.status(200).send(renderGroupSwimPage(swim, gctx));
+    } catch (err) {
+      console.error('[events-handler /group-swims]', err);
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(500).send(renderShell('Something went wrong — SwimLoading',
+        `<h1>Something went wrong</h1><p class="sub">We could not load that swim.</p>
+         <div class="actions"><a class="btn btn-primary" href="/explore?regular=1">Regular group swims</a></div>`));
+    }
+  }
 
   // /swims/{slug} — a bookable route, not an event.
   if (parts[0] === 'swims') {

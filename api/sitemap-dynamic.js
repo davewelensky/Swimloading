@@ -193,6 +193,28 @@ export default async function handler(req, res) {
       console.log(`sitemap: ${eventsSkipped} of ${events.length} events held back by the quality gate`);
     }
 
+    // ── Regular group swims ──────────────────────────────────────────────
+    // /group-swims/{slug}. No quality gate: unlike a crawled race, every row
+    // here was entered by hand from a named source and carries
+    // last_verified_at. is_public is the gate, and it is the same one the
+    // browser reads on /explore, so the index and the page cannot disagree.
+    //
+    // Weekly rather than daily: a standing swim's details change far less
+    // often than a race's entry status, and asking Google to re-crawl three
+    // pages every day earns nothing.
+    const groupSwims = await dbGet(
+      'recurring_swims?is_public=eq.true&select=slug,last_verified_at&order=name.asc&limit=500'
+    ) || [];
+    for (const g of groupSwims) {
+      if (!g.slug) continue;
+      urls.push(url(
+        `${BASE}/group-swims/${g.slug}`,
+        '0.7',
+        'weekly',
+        (g.last_verified_at || '').slice(0, 10) || TODAY()
+      ));
+    }
+
     // ── Country hub pages ────────────────────────────────────────────────
     // /swims/south-africa is a page Google can rank for "open water swims
     // South Africa". /explore?country=ZA is a query string it treats as one
