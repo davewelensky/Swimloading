@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Live Challenge | SwimLoading</title>
+  <meta name="robots" content="noindex">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #080f1a; --bg-card: #0d1728; --cyan: #38bdf8; --cyan-dim: rgba(56,189,248,0.12);
+      --cyan-border: rgba(56,189,248,0.3); --amber: #f59e0b; --green: #10b981; --danger: #ef4444;
+      --text: #f1f5f9; --text-sec: #64748b; --border: rgba(255,255,255,0.08);
+    }
+    html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100%; }
+    body { display: flex; flex-direction: column; -webkit-tap-highlight-color: transparent; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+      background: radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px), rgba(56,189,248,0.55), transparent 100%),
+                  radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px), rgba(56,189,248,0.07), transparent 70%); }
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+    .brand { display: flex; align-items: center; gap: 7px; text-decoration: none; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .brand img { height: 22px; width: auto; }
+    .tag { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-sec); font-weight: 700; }
+    main { flex: 1; width: 100%; max-width: 560px; margin: 0 auto; padding: 22px 18px 40px; }
+    .screen { display: none; } .screen.on { display: block; }
+    h1 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(42px, 11vw, 64px); line-height: 0.95; letter-spacing: 1px; }
+    h1 span { color: var(--cyan); }
+    .lead { color: #cbd5e1; font-size: 17px; line-height: 1.5; margin: 14px 0 22px; }
+    .prize { background: var(--cyan-dim); border: 1px solid var(--cyan-border); border-radius: 16px; padding: 16px; margin-bottom: 22px; }
+    .prize strong { display: block; font-size: 16px; margin-bottom: 4px; }
+    .prize span { color: #94a3b8; font-size: 14px; }
+    .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; border: 0; border-radius: 50px; padding: 18px 26px;
+      font: 700 18px 'DM Sans', sans-serif; cursor: pointer; background: var(--cyan); color: var(--bg); }
+    .btn:disabled { opacity: 0.5; cursor: default; }
+    .btn.ghost { background: transparent; border: 1px solid rgba(255,255,255,0.15); color: var(--text); margin-top: 10px; }
+    .hint { color: var(--text-sec); font-size: 13px; text-align: center; margin-top: 14px; }
+    .muted { color: var(--text-sec); font-size: 14px; }
+    .status { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 18px; text-align: center; margin-top: 14px; }
+    .status strong { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 1px; display: block; }
+    /* login */
+    .field { margin-bottom: 12px; }
+    .field input { width: 100%; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 15px 14px; color: var(--text); font: 16px 'DM Sans', sans-serif; }
+    .err { color: var(--danger); font-size: 14px; min-height: 20px; margin: 6px 0; }
+    .consent { display: flex; gap: 10px; align-items: flex-start; color: #94a3b8; font-size: 14px; line-height: 1.4; margin: 4px 0 6px; }
+    .consent input { width: 22px; height: 22px; flex: 0 0 22px; accent-color: var(--cyan); margin-top: 1px; }
+    .consent a { color: var(--cyan); }
+    /* question */
+    .qhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .qnum { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; color: var(--text-sec); }
+    .qnum b { color: var(--text); font-weight: 400; }
+    .timer { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; font-family: 'Bebas Neue', sans-serif; font-size: 28px;
+      background: conic-gradient(var(--cyan) var(--pct,100%), rgba(255,255,255,0.08) 0); position: relative; }
+    .timer::before { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: var(--bg); }
+    .timer span { position: relative; }
+    .timer.warn { background: conic-gradient(var(--amber) var(--pct,100%), rgba(255,255,255,0.08) 0); }
+    .qtext { font-size: 22px; font-weight: 600; line-height: 1.35; margin-bottom: 18px; min-height: 88px; }
+    .answers { display: grid; gap: 10px; }
+    .ans { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: var(--bg-card); border: 2px solid var(--border); border-radius: 16px;
+      padding: 16px 16px; color: var(--text); font: 500 17px 'DM Sans', sans-serif; min-height: 64px; cursor: pointer; transition: border-color 0.12s, background 0.12s; }
+    .ans .letter { flex: 0 0 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,0.06); font-family: 'Bebas Neue', sans-serif; font-size: 20px; }
+    .ans:active { border-color: var(--cyan); }
+    .ans.picked { border-color: var(--cyan); background: var(--cyan-dim); }
+    .ans.correct { border-color: var(--green); background: rgba(16,185,129,0.14); }
+    .ans.wrong { border-color: var(--danger); background: rgba(239,68,68,0.12); }
+    .ans:disabled { cursor: default; }
+    .result { margin-top: 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; display: none; }
+    .result.on { display: block; }
+    .result .big { font-family: 'Bebas Neue', sans-serif; font-size: 34px; letter-spacing: 1px; }
+    .result .big.ok { color: var(--green); } .result .big.no { color: var(--danger); } .result .big.late { color: var(--amber); }
+    .result p { color: #94a3b8; font-size: 14px; margin-top: 4px; }
+    .progress { height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; margin-bottom: 18px; overflow: hidden; }
+    .progress i { display: block; height: 100%; background: var(--cyan); width: 0; transition: width 0.3s; }
+    /* midway + final */
+    .score { text-align: center; padding: 26px 0 10px; }
+    .score .n { font-family: 'Bebas Neue', sans-serif; font-size: 84px; line-height: 1; color: var(--cyan); }
+    .score .l { color: var(--text-sec); letter-spacing: 2px; text-transform: uppercase; font-size: 12px; font-weight: 700; }
+    .rank { display: inline-block; margin-top: 12px; background: var(--cyan-dim); border: 1px solid var(--cyan-border); border-radius: 50px; padding: 8px 18px; font-weight: 700; }
+    .board { margin-top: 20px; }
+    .board h2 { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 1px; margin-bottom: 10px; }
+    .row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border); margin-bottom: 6px; }
+    .row .r { font-family: 'Bebas Neue', sans-serif; font-size: 22px; width: 28px; color: var(--text-sec); }
+    .row .nm { flex: 1; font-weight: 600; }
+    .row .sc { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; }
+    .row.top1 { border-color: var(--amber); background: rgba(245,158,11,0.1); } .row.top1 .r { color: var(--amber); }
+    .row.top2 .r { color: #cbd5e1; } .row.top3 .r { color: #d97706; }
+    .row.me { outline: 2px solid var(--cyan); }
+  </style>
+</head>
+<body>
+<nav>
+  <a class="brand" href="/"><img src="/icons/logo-wave.png" alt="">SwimLoading</a>
+  <span class="tag">Live</span>
+</nav>
+<main>
+  <!-- loading -->
+  <section id="s-loading" class="screen on"><p class="muted">Loading…</p></section>
+
+  <!-- not available -->
+  <section id="s-unavailable" class="screen">
+    <h1>Not <span>available</span></h1>
+    <p class="lead" id="unavailableMsg">This challenge is not active right now.</p>
+    <a class="btn ghost" href="/app">Open SwimLoading</a>
+  </section>
+
+  <!-- login -->
+  <section id="s-login" class="screen">
+    <h1 id="loginTitle">CLDSA Awards <span>Challenge</span></h1>
+    <p class="lead">Sign in to your SwimLoading account to play. No account yet? It takes a minute.</p>
+    <div class="field"><input id="email" type="email" autocomplete="email" placeholder="Email" inputmode="email"></div>
+    <div class="field"><input id="password" type="password" autocomplete="current-password" placeholder="Password"></div>
+    <div class="err" id="loginErr"></div>
+    <button class="btn" id="btnLogin" onclick="doLogin()"><i data-lucide="log-in"></i> Sign in</button>
+    <button class="btn ghost" onclick="show('s-signup')"><i data-lucide="user-plus"></i> Create a free account</button>
+    <p class="hint">Takes under a minute. No email verification needed tonight.</p>
+  </section>
+
+  <!-- fast-lane sign-up (event arrivals only) -->
+  <section id="s-signup" class="screen">
+    <h1>Join <span>SwimLoading</span></h1>
+    <p class="lead">Four quick details and you're in. You can complete your profile in the app later.</p>
+    <div class="field"><input id="suFirst" type="text" autocomplete="given-name" placeholder="First name"></div>
+    <div class="field"><input id="suLast" type="text" autocomplete="family-name" placeholder="Last name"></div>
+    <div class="field"><input id="suEmail" type="email" autocomplete="email" placeholder="Email" inputmode="email"></div>
+    <div class="field"><input id="suPassword" type="password" autocomplete="new-password" placeholder="Choose a password (6+ characters)"></div>
+    <label class="consent"><input id="suConsent" type="checkbox"> <span>I accept the SwimLoading <a href="/app" target="_blank">Terms of Use and Privacy Policy</a> and agree to be contacted about SwimLoading.</span></label>
+    <div class="err" id="signupErr"></div>
+    <button class="btn" id="btnSignup" onclick="doSignup()"><i data-lucide="zap"></i> Create account &amp; play</button>
+    <button class="btn ghost" onclick="show('s-login')">I already have an account</button>
+  </section>
+
+  <!-- lobby -->
+  <section id="s-lobby" class="screen">
+    <h1 id="eventName">CLDSA Awards <span>Challenge</span></h1>
+    <p class="lead" id="eventIntro">How well do you know your open water? Six questions. One winner.</p>
+    <div class="prize"><strong id="eventPrize">Win a personalised SwimLoading Open Water Performance Assessment</strong><span>Six questions, 10 points each. Ties go to the fastest.</span></div>
+    <button class="btn" id="btnJoin" onclick="doJoin()"><i data-lucide="zap"></i> Join Challenge</button>
+    <div class="status" id="lobbyStatus" style="display:none"><strong id="lobbyStatusTitle">You're in</strong><span class="muted" id="lobbyStatusText">Waiting for the quiz to start…</span></div>
+    <p class="hint" id="lobbyCount"></p>
+  </section>
+
+  <!-- question -->
+  <section id="s-question" class="screen">
+    <div class="progress"><i id="bar"></i></div>
+    <div class="qhead"><div class="qnum">Question <b id="qIndex">1</b> / <span id="qTotal">6</span></div><div class="timer" id="timer"><span id="timerN">15</span></div></div>
+    <div class="qtext" id="qText"></div>
+    <div class="answers" id="answers"></div>
+    <div class="result" id="result"><div class="big" id="resultBig"></div><p id="resultText"></p></div>
+    <button class="btn" id="btnNext" style="display:none;margin-top:14px" onclick="nextQuestion()">Next <i data-lucide="arrow-right"></i></button>
+  </section>
+
+  <!-- midway -->
+  <section id="s-midway" class="screen">
+    <div class="score"><div class="l">Halfway — your score</div><div class="n" id="midScore">0</div><div class="rank" id="midRank"></div></div>
+    <button class="btn" onclick="nextQuestion()">Keep going <i data-lucide="arrow-right"></i></button>
+  </section>
+
+  <!-- final -->
+  <section id="s-final" class="screen">
+    <div class="score"><div class="l">Final score</div><div class="n" id="finalScore">0</div><div class="rank" id="finalRank"></div></div>
+    <div class="board"><h2>Live leaderboard</h2><div id="finalBoard"></div></div>
+    <p class="hint" id="finalHint">Scores update as others finish. Winner announced on the screen.</p>
+    <a class="btn ghost" href="/app">Open SwimLoading</a>
+  </section>
+</main>
+
+<script>
+  document.addEventListener('mousemove', e => { document.body.style.setProperty('--mouse-x', e.clientX + 'px'); document.body.style.setProperty('--mouse-y', e.clientY + 'px'); });
+
+  const SLUG = (location.pathname.match(/^\/live\/([a-z0-9-]+)/i) || [])[1] || 'cldsa2026';
+  const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+
+  // Auth provider: real Supabase in production; scripts/live-quiz-dev.mjs
+  // injects window.SL_LIVE_AUTH to run the whole quiz against fake users.
+  const auth = window.SL_LIVE_AUTH || (() => {
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    return {
+      async token() { const { data: { session } } = await sb.auth.getSession(); return session ? session.access_token : null; },
+      async signIn(email, password) { const { error } = await sb.auth.signInWithPassword({ email, password }); return error ? error.message : null; },
+    };
+  })();
+
+  function track(name, props) {
+    try {
+      fetch(SUPABASE_URL + '/rest/v1/analytics_events', { method: 'POST', keepalive: true,
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ event_name: name, user_id: null, properties: props || null }) }).catch(() => {});
+    } catch (e) {}
+  }
+
+  async function api(action, { method = 'GET', body } = {}) {
+    const token = await auth.token();
+    const res = await fetch('/api/live-quiz/' + action + '?slug=' + encodeURIComponent(SLUG), {
+      method, headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) },
+      body: body ? JSON.stringify(body) : undefined, cache: 'no-store',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { const e = new Error(data.message || data.error || 'request_failed'); e.code = data.error; e.status = res.status; throw e; }
+    return data;
+  }
+
+  const $ = (id) => document.getElementById(id);
+  function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id)); lucide.createIcons(); window.scrollTo(0, 0); }
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  let state = null, me = null, lobbyPoll = null, serverOffset = 0;
+
+  async function init() {
+    track('live_quiz_page_view', { event: SLUG });
+    try { state = await api('state'); } catch (e) { $('unavailableMsg').textContent = e.status === 404 ? 'This challenge does not exist.' : 'Could not load the challenge.'; return show('s-unavailable'); }
+    renderEvent();
+    if (!state.event.is_active) { return show('s-unavailable'); }
+    const token = await auth.token();
+    if (!token) return show('s-login');
+    await afterAuth();
+  }
+
+  function renderEvent() {
+    const ev = state.event;
+    const parts = (ev.name || 'Live Challenge').split(' ');
+    const last = parts.pop();
+    $('eventName').innerHTML = esc(parts.join(' ')) + ' <span>' + esc(last) + '</span>';
+    $('loginTitle').innerHTML = $('eventName').innerHTML;
+    if (ev.intro) $('eventIntro').textContent = ev.intro;
+    if (ev.prize) $('eventPrize').textContent = ev.prize;
+  }
+
+  // ── login ──
+  async function doLogin() {
+    const btn = $('btnLogin'); btn.disabled = true; $('loginErr').textContent = '';
+    const err = await auth.signIn($('email').value.trim(), $('password').value);
+    btn.disabled = false;
+    if (err) { $('loginErr').textContent = err; return; }
+    await afterAuth();
+  }
+  async function doSignup() {
+    const btn = $('btnSignup'); $('signupErr').textContent = '';
+    const body = { first_name: $('suFirst').value, last_name: $('suLast').value, email: $('suEmail').value, password: $('suPassword').value, consent: $('suConsent').checked };
+    if (!body.consent) { $('signupErr').textContent = 'Please tick the box to accept the terms.'; return; }
+    btn.disabled = true;
+    try {
+      await api('signup', { method: 'POST', body });
+      track('live_quiz_signup_ok', { event: SLUG });
+      const err = await auth.signIn(body.email.trim(), body.password);
+      if (err) { $('signupErr').textContent = 'Account created — please sign in: ' + err; btn.disabled = false; return show('s-login'); }
+      await afterAuth();
+      if (!me.joined) doJoin();
+    } catch (e) {
+      btn.disabled = false;
+      if (e.code === 'account_exists') { $('email').value = body.email.trim(); $('loginErr').textContent = 'You already have an account — sign in here.'; return show('s-login'); }
+      $('signupErr').textContent = e.message || 'Could not create your account.';
+    }
+  }
+  function goCreateAccount() {
+    // Same hand-off join.html uses: app.js sends the user back here after onboarding.
+    try { localStorage.setItem('_pendingJoin', JSON.stringify({ url: location.href, ts: Date.now() })); } catch (_) {}
+    location.href = '/app';
+  }
+
+  // ── lobby ──
+  async function afterAuth() {
+    try { me = await api('me'); } catch (e) { if (e.status === 401) return show('s-login'); throw e; }
+    if (!me.joined) { show('s-lobby'); startLobbyPoll(); return; }
+    routeJoined();
+  }
+  async function doJoin() {
+    const btn = $('btnJoin'); btn.disabled = true;
+    try { await api('join', { method: 'POST' }); me = await api('me'); routeJoined(); }
+    catch (e) { btn.disabled = false; alert(e.code === 'registration_closed' ? 'Registration is not open yet — hang tight.' : 'Could not join: ' + e.message); }
+  }
+  function routeJoined() {
+    stopLobbyPoll();
+    if (me.done || me.event.status === 'finished') return showFinal();
+    if (me.event.status !== 'live') {
+      $('btnJoin').style.display = 'none'; $('lobbyStatus').style.display = 'block';
+      show('s-lobby'); startLobbyPoll(); return;
+    }
+    nextQuestion();
+  }
+  function startLobbyPoll() {
+    stopLobbyPoll();
+    lobbyPoll = setInterval(async () => {
+      try {
+        state = await api('state');
+        $('lobbyCount').textContent = state.player_count + (state.player_count === 1 ? ' swimmer has joined' : ' swimmers have joined');
+        if (me && me.joined && state.event.status === 'live') { me = await api('me'); routeJoined(); }
+        if (state.event.status === 'finished' && me && me.joined) { me = await api('me'); routeJoined(); }
+      } catch (_) {}
+    }, 2500);
+  }
+  function stopLobbyPoll() { if (lobbyPoll) clearInterval(lobbyPoll); lobbyPoll = null; }
+
+  // ── question ──
+  let current = null, ticker = null, answered = false;
+  async function nextQuestion() {
+    let q;
+    try { q = await api('next'); }
+    catch (e) { if (e.code === 'not_live') { me = await api('me'); return routeJoined(); } return alert('Could not load the next question: ' + e.message); }
+    if (q.done) return showFinal();
+    current = q; answered = false;
+    serverOffset = new Date(q.server_time).getTime() - Date.now();
+    $('qIndex').textContent = q.index; $('qTotal').textContent = q.question_count;
+    $('bar').style.width = ((q.index - 1) / q.question_count * 100) + '%';
+    $('qText').textContent = q.question.question;
+    $('result').classList.remove('on'); $('btnNext').style.display = 'none';
+    $('answers').innerHTML = ['a', 'b', 'c', 'd'].map(l => '<button class="ans" data-l="' + l.toUpperCase() + '" onclick="pick(\'' + l.toUpperCase() + '\')"><span class="letter">' + l.toUpperCase() + '</span><span>' + esc(q.question['answer_' + l]) + '</span></button>').join('');
+    show('s-question');
+    startTimer();
+  }
+  function startTimer() {
+    stopTimer();
+    const limit = current.question.time_limit_seconds * 1000;
+    const served = new Date(current.served_at).getTime();
+    const tick = () => {
+      const elapsed = Date.now() + serverOffset - served;
+      const left = Math.max(0, limit - elapsed);
+      const t = $('timer'); t.style.setProperty('--pct', (left / limit * 100) + '%'); t.classList.toggle('warn', left < 5000);
+      $('timerN').textContent = Math.ceil(left / 1000);
+      if (left <= 0 && !answered) { stopTimer(); timeUp(); }
+    };
+    tick(); ticker = setInterval(tick, 100);
+  }
+  function stopTimer() { if (ticker) clearInterval(ticker); ticker = null; }
+  function timeUp() {
+    answered = true;
+    document.querySelectorAll('.ans').forEach(b => b.disabled = true);
+    showResult({ is_correct: false, is_late: true, points: 0, correct_answer: null, explanation: null }, null);
+    // Tell the server so the question is closed out with 0 points; pick 'A' as a placeholder — it scores 0 regardless (late).
+    api('answer', { method: 'POST', body: { question_id: current.question.id, selected_answer: 'A' } })
+      .then(r => afterAnswer(r)).catch(e => { if (e.code === 'already_answered') afterAnswer(null); });
+  }
+  async function pick(letter) {
+    if (answered) return; answered = true; stopTimer();
+    document.querySelectorAll('.ans').forEach(b => { b.disabled = true; b.classList.toggle('picked', b.dataset.l === letter); });
+    let r;
+    try { r = await api('answer', { method: 'POST', body: { question_id: current.question.id, selected_answer: letter } }); }
+    catch (e) { if (e.code === 'already_answered') { return nextQuestion(); } alert('Could not submit: ' + e.message); answered = false; document.querySelectorAll('.ans').forEach(b => b.disabled = false); return; }
+    showResult(r, letter);
+    afterAnswer(r);
+  }
+  function showResult(r, letter) {
+    document.querySelectorAll('.ans').forEach(b => {
+      if (r.correct_answer && b.dataset.l === r.correct_answer) b.classList.add('correct');
+      else if (letter && b.dataset.l === letter && !r.is_correct) b.classList.add('wrong');
+    });
+    const big = $('resultBig'); big.className = 'big ' + (r.is_late ? 'late' : r.is_correct ? 'ok' : 'no');
+    big.textContent = r.is_late ? 'Time up' : r.is_correct ? '+' + r.points + ' points' : 'Not this time';
+    $('resultText').textContent = r.explanation || (r.is_late ? 'No points for this one.' : '');
+    $('result').classList.add('on');
+  }
+  function afterAnswer(r) {
+    if (r) { $('resultText').textContent = r.explanation || $('resultText').textContent; if (r.correct_answer) showResult(r, null); }
+    const btn = $('btnNext'); btn.style.display = 'flex';
+    btn.onclick = () => { if (r && r.done) return showFinal(r); if (r && r.rank) return showMidway(r); nextQuestion(); };
+    lucide.createIcons();
+    setTimeout(() => { if (document.getElementById('s-question').classList.contains('on') && $('btnNext').style.display !== 'none') btn.onclick(); }, 2200);
+  }
+  function showMidway(r) {
+    $('midScore').textContent = r.total_score.toLocaleString();
+    $('midRank').textContent = 'Rank ' + r.rank + ' of ' + r.player_count;
+    show('s-midway');
+  }
+
+  // ── final ──
+  let finalPoll = null;
+  async function showFinal(r) {
+    stopTimer();
+    if (!r) { try { me = await api('me'); } catch (_) {} r = { total_score: me.total_score, rank: me.rank, player_count: me.player_count }; }
+    $('finalScore').textContent = (r.total_score || 0).toLocaleString();
+    $('finalRank').textContent = r.rank ? 'Rank ' + r.rank + ' of ' + r.player_count : '';
+    show('s-final');
+    const refresh = async () => {
+      try {
+        const [s, m] = await Promise.all([api('state'), api('me')]);
+        $('finalRank').textContent = m.rank ? 'Rank ' + m.rank + ' of ' + m.player_count : '';
+        $('finalBoard').innerHTML = (s.leaderboard.length ? s.leaderboard : [{ rank: m.rank || 1, name: 'You', score: m.total_score }]).map(row =>
+          '<div class="row top' + row.rank + (row.rank === m.rank && row.score === m.total_score ? ' me' : '') + '"><span class="r">' + row.rank + '</span><span class="nm">' + esc(row.name) + '</span><span class="sc">' + row.score.toLocaleString() + '</span></div>').join('');
+        if (s.event.status === 'finished') { $('finalHint').textContent = 'Final standings.'; clearInterval(finalPoll); }
+      } catch (_) {}
+    };
+    refresh(); if (finalPoll) clearInterval(finalPoll); finalPoll = setInterval(refresh, 3000);
+  }
+
+  init();
+</script>
+</body>
+</html>

@@ -677,6 +677,8 @@ Complete inventory of every public page. Brand checklist: spotlight = mouse curs
 | Route | File | Purpose | Brand Required |
 |-------|------|---------|---------------|
 | `/admin` | `admin.html` | Admin panel (internal only) | No |
+| `/admin/live-quiz` | `live-quiz-admin.html` | CLDSA live quiz admin — questions, start/finish, reset, QR. API `api/live-quiz.js`, rules in `api/_lib/live-quiz/`, local harness `node scripts/live-quiz-dev.mjs` | Minimal |
+| `/live/:slug`, `/live/:slug/screen` | `live.html`, `live-screen.html` | Live quiz player page (members only) and projector screen (public, names as "First L.") | Yes |
 | n/a | `blog/march-challenge.html` | Email template (March challenge) | Email only |
 | n/a | `blog/april-recap_8.html` | Email template (April recap) | Email only |
 

@@ -533,6 +533,21 @@
                 window.incompleteProfile = true; // Flag for contextual prompts
             }
 
+            // Returning user who signed in to get back to a join/live link
+            // (join.html, live.html set `_pendingJoin`; new users are handled
+            // in completeOnboarding). Same-origin + 24h only.
+            try {
+                const _pj = localStorage.getItem('_pendingJoin');
+                if (_pj) {
+                    const { url, ts } = JSON.parse(_pj);
+                    localStorage.removeItem('_pendingJoin');
+                    if (url && (Date.now() - ts) < 86400000 && new URL(url, location.origin).origin === location.origin) {
+                        location.href = url;
+                        return;
+                    }
+                }
+            } catch (_) {}
+
             // Load app regardless of profile completeness
             document.getElementById('authScreen').style.display = 'none';
             document.getElementById('mainApp').style.display = 'block';

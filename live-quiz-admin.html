@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Live Quiz Admin | SwimLoading</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --bg: #080f1a; --bg-card: #0d1728; --cyan: #38bdf8; --amber: #f59e0b; --green: #10b981; --danger: #ef4444; --text: #f1f5f9; --text-sec: #64748b; --border: rgba(255,255,255,0.08); }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; }
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid var(--border); }
+    .brand { display: flex; align-items: center; gap: 7px; text-decoration: none; font-size: 18px; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .brand img { height: 20px; }
+    nav a.lnk { color: var(--text-sec); text-decoration: none; margin-left: 14px; white-space: nowrap; }
+    nav > span { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 0; font-size: 13px; }
+    main { max-width: 960px; margin: 0 auto; padding: 20px 18px 60px; }
+    h1 { font-family: 'Bebas Neue', sans-serif; font-size: 40px; letter-spacing: 1px; }
+    h2 { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 1px; margin-bottom: 10px; }
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-top: 16px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    label { display: block; color: var(--text-sec); font-size: 12px; margin-bottom: 4px; }
+    input, textarea, select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px; color: var(--text); font: 14px 'DM Sans', sans-serif; }
+    textarea { min-height: 60px; resize: vertical; }
+    .btn { border: 0; border-radius: 50px; padding: 10px 18px; font: 700 14px 'DM Sans', sans-serif; cursor: pointer; background: var(--cyan); color: var(--bg); display: inline-flex; align-items: center; gap: 6px; }
+    .btn.ghost { background: transparent; border: 1px solid rgba(255,255,255,0.18); color: var(--text); }
+    .btn.danger { background: var(--danger); color: #fff; }
+    .btn.warn { background: var(--amber); color: var(--bg); }
+    .btn.ok { background: var(--green); color: var(--bg); }
+    .btn:disabled { opacity: 0.45; cursor: default; }
+    .btn i, .btn svg { width: 16px; height: 16px; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .badge { border-radius: 50px; padding: 5px 12px; font-weight: 700; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; border: 1px solid var(--border); }
+    .badge.draft { color: var(--text-sec); } .badge.open { color: var(--cyan); } .badge.live { color: var(--green); } .badge.finished { color: var(--amber); }
+    .q { border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+    .q .head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .q .head .n { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--cyan); width: 28px; }
+    .q .head .t { flex: 1; font-weight: 600; }
+    .q .body { display: none; } .q.open .body { display: block; }
+    .ans { display: grid; grid-template-columns: 24px 1fr; gap: 6px; align-items: center; margin-bottom: 6px; }
+    .ans b { color: var(--text-sec); }
+    table { width: 100%; border-collapse: collapse; } td, th { padding: 8px; border-bottom: 1px solid var(--border); text-align: left; } th { color: var(--text-sec); font-weight: 600; font-size: 12px; }
+    .msg { color: var(--text-sec); margin-top: 8px; min-height: 18px; }
+    .center { text-align: center; padding: 60px 20px; }
+    .small { font-size: 12px; color: var(--text-sec); }
+    .qr { background: #fff; border-radius: 12px; padding: 12px; width: 200px; } .qr svg { width: 100%; height: auto; display: block; }
+  </style>
+</head>
+<body>
+<nav>
+  <a class="brand" href="/"><img src="/icons/logo-wave.png" alt="">SwimLoading</a>
+  <span><a class="lnk" href="/admin">Admin</a><a class="lnk" id="screenLink" href="/live/cldsa2026/screen" target="_blank">Open screen</a><a class="lnk" id="playLink" href="/live/cldsa2026" target="_blank">Player page</a></span>
+</nav>
+<main>
+  <div id="gate" class="center">Checking access…</div>
+  <div id="login" class="center" style="display:none">
+    <h1>Live Quiz Admin</h1>
+    <div style="max-width:320px;margin:16px auto;text-align:left">
+      <label>Email</label><input id="email" type="email" autocomplete="email">
+      <label style="margin-top:8px">Password</label><input id="password" type="password" autocomplete="current-password">
+      <div class="msg" id="loginErr"></div>
+      <button class="btn" onclick="doLogin()">Sign in</button>
+    </div>
+  </div>
+
+  <div id="panel" style="display:none">
+    <h1>Live Quiz <span style="color:var(--cyan)">Admin</span></h1>
+
+    <div class="card">
+      <div class="controls">
+        <span class="badge" id="badge">draft</span>
+        <span id="activeBadge" class="badge">inactive</span>
+        <span style="flex:1"></span>
+        <span class="small" id="counts"></span>
+      </div>
+      <div class="controls" style="margin-top:12px">
+        <button class="btn ghost" onclick="setActive(true)" id="bActivate"><i data-lucide="power"></i> Activate</button>
+        <button class="btn ghost" onclick="setActive(false)" id="bDeactivate"><i data-lucide="power-off"></i> Deactivate</button>
+        <button class="btn" onclick="setStatus('open')"><i data-lucide="door-open"></i> Open registration</button>
+        <button class="btn ok" onclick="setStatus('live')"><i data-lucide="play"></i> Start quiz</button>
+        <button class="btn warn" onclick="setStatus('finished')"><i data-lucide="flag"></i> Finish</button>
+        <button class="btn danger" onclick="resetEvent()"><i data-lucide="rotate-ccw"></i> Reset results</button>
+      </div>
+      <p class="msg" id="ctlMsg">Flow: Activate → Open registration (QR on screen) → Start quiz → Finish. Players work through all 6 questions at their own pace once started; the screen shows standings after question 3 and the final top 10 on Finish. Scoring: 10 points per correct answer, ties broken by fastest total time.</p>
+    </div>
+
+    <div class="card">
+      <h2>Event</h2>
+      <div class="grid">
+        <div><label>Slug</label><input id="evSlug"></div>
+        <div><label>Name</label><input id="evName"></div>
+        <div style="grid-column:1/-1"><label>Intro</label><textarea id="evIntro"></textarea></div>
+        <div style="grid-column:1/-1"><label>Prize</label><input id="evPrize"></div>
+        <div><label>Starts at (for reference)</label><input id="evStarts" type="datetime-local"></div>
+      </div>
+      <div class="controls" style="margin-top:10px"><button class="btn" onclick="saveEvent()"><i data-lucide="save"></i> Save event</button><span class="msg" id="evMsg"></span></div>
+    </div>
+
+    <div class="card">
+      <h2>Questions</h2>
+      <div id="questions"></div>
+      <div class="controls"><button class="btn ghost" onclick="addQuestion()"><i data-lucide="plus"></i> Add question</button><span class="msg" id="qMsg"></span></div>
+    </div>
+
+    <div class="card">
+      <h2>QR code</h2>
+      <div class="controls">
+        <div class="qr" id="qrBox"></div>
+        <div>
+          <p id="qrUrl" style="font-weight:600"></p>
+          <p class="small" style="margin:6px 0 10px">Print for table cards and the projector slide.</p>
+          <a class="btn ghost" id="qrDl" href="#" download><i data-lucide="download"></i> Download SVG</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Participants &amp; leaderboard</h2>
+      <table><thead><tr><th>#</th><th>Name</th><th>Answered</th><th>Score</th><th>Joined</th></tr></thead><tbody id="parts"></tbody></table>
+      <p class="msg" id="partsMsg"></p>
+    </div>
+  </div>
+</main>
+
+<script>
+  const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+  let SLUG = new URLSearchParams(location.search).get('slug') || 'cldsa2026';
+  const auth = window.SL_LIVE_AUTH || (() => {
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    return {
+      async token() { const { data: { session } } = await sb.auth.getSession(); return session ? session.access_token : null; },
+      async signIn(email, password) { const { error } = await sb.auth.signInWithPassword({ email, password }); return error ? error.message : null; },
+    };
+  })();
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  async function api(action, { method = 'GET', body } = {}) {
+    const token = await auth.token();
+    const res = await fetch('/api/live-quiz/' + action + '?slug=' + encodeURIComponent(SLUG), { method, cache: 'no-store',
+      headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) }, body: body ? JSON.stringify(body) : undefined });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { const e = new Error(data.message || data.error || 'failed'); e.code = data.error; e.status = res.status; throw e; }
+    return data;
+  }
+  const admin = (op, extra) => api('admin', { method: 'POST', body: { op, ...extra } });
+
+  let data = null, poll = null;
+  async function init() {
+    const token = await auth.token();
+    if (!token) { $('gate').style.display = 'none'; $('login').style.display = 'block'; return; }
+    try { await load(); } catch (e) {
+      $('gate').textContent = e.status === 403 ? 'This account does not have admin access.' : e.status === 401 ? 'Please sign in.' : 'Error: ' + e.message;
+      if (e.status === 401) { $('gate').style.display = 'none'; $('login').style.display = 'block'; }
+      return;
+    }
+    $('gate').style.display = 'none'; $('panel').style.display = 'block'; lucide.createIcons();
+    poll = setInterval(() => load(true).catch(() => {}), 3000);
+  }
+  async function doLogin() {
+    const err = await auth.signIn($('email').value.trim(), $('password').value);
+    if (err) { $('loginErr').textContent = err; return; }
+    $('login').style.display = 'none'; $('gate').style.display = 'block'; init();
+  }
+
+  async function load(quiet) {
+    data = await api('admin-event');
+    const ev = data.event;
+    $('badge').textContent = ev.status; $('badge').className = 'badge ' + ev.status;
+    $('activeBadge').textContent = ev.is_active ? 'active' : 'inactive'; $('activeBadge').style.color = ev.is_active ? 'var(--green)' : 'var(--text-sec)';
+    $('bActivate').disabled = ev.is_active; $('bDeactivate').disabled = !ev.is_active;
+    $('counts').textContent = data.participants.length + ' joined · ' + data.participants.filter(p => p.answered_count >= data.questions.length).length + ' finished · ' + data.questions.length + ' questions';
+    if (!quiet) {
+      $('evSlug').value = ev.slug; $('evName').value = ev.name || ''; $('evIntro').value = ev.intro || ''; $('evPrize').value = ev.prize || '';
+      $('evStarts').value = ev.starts_at ? new Date(ev.starts_at).toISOString().slice(0, 16) : '';
+      renderQuestions();
+      const qrUrl = '/api/live-quiz/qr?slug=' + encodeURIComponent(ev.slug);
+      $('qrUrl').textContent = 'https://www.swimloading.com/live/' + ev.slug; $('qrDl').href = qrUrl + '&download=1';
+      fetch(qrUrl).then(r => r.text()).then(svg => { $('qrBox').innerHTML = svg; });
+      $('screenLink').href = '/live/' + ev.slug + '/screen'; $('playLink').href = '/live/' + ev.slug;
+    }
+    $('parts').innerHTML = data.participants.map(p => '<tr><td>' + p.rank + '</td><td>' + esc(p.name) + '</td><td>' + p.answered_count + '</td><td>' + p.total_score.toLocaleString() + '</td><td class="small">' + new Date(p.joined_at).toLocaleTimeString('en-GB') + '</td></tr>').join('') || '<tr><td colspan="5" class="small">Nobody has joined yet.</td></tr>';
+  }
+
+  function renderQuestions() {
+    $('questions').innerHTML = data.questions.map((q, i) => `
+      <div class="q" data-id="${q.id}">
+        <div class="head">
+          <span class="n">${i + 1}</span><span class="t">${esc(q.question)}</span>
+          <button class="btn ghost" onclick="move('${q.id}',-1)" title="Up"><i data-lucide="chevron-up"></i></button>
+          <button class="btn ghost" onclick="move('${q.id}',1)" title="Down"><i data-lucide="chevron-down"></i></button>
+          <button class="btn ghost" onclick="this.closest('.q').classList.toggle('open')"><i data-lucide="pencil"></i> Edit</button>
+        </div>
+        <div class="body">
+          <label>Question</label><textarea class="f-question">${esc(q.question)}</textarea>
+          <div class="grid" style="margin-top:8px">
+            ${['a','b','c','d'].map(l => `<div class="ans"><b>${l.toUpperCase()}</b><input class="f-${l}" value="${esc(q['answer_' + l])}"></div>`).join('')}
+          </div>
+          <div class="grid" style="margin-top:8px">
+            <div><label>Correct answer</label><select class="f-correct">${['A','B','C','D'].map(l => `<option ${q.correct_answer === l ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+            <div><label>Time limit (seconds, 5–60)</label><input class="f-limit" type="number" min="5" max="60" value="${q.time_limit_seconds}"></div>
+            <div style="grid-column:1/-1"><label>Explanation (shown after answering)</label><input class="f-expl" value="${esc(q.explanation || '')}"></div>
+          </div>
+          <div class="controls" style="margin-top:10px">
+            <button class="btn" onclick="saveQuestion('${q.id}')"><i data-lucide="save"></i> Save</button>
+            <button class="btn danger" onclick="deleteQuestion('${q.id}')"><i data-lucide="trash-2"></i> Delete</button>
+          </div>
+        </div>
+      </div>`).join('');
+    lucide.createIcons();
+  }
+
+  async function act(fn, msgId) {
+    try { await fn(); await load(); if (msgId) $(msgId).textContent = 'Saved.'; }
+    catch (e) { ($(msgId || 'ctlMsg')).textContent = 'Error: ' + e.message; }
+    lucide.createIcons();
+  }
+  function setStatus(status) {
+    if (status === 'finished' && !confirm('Finish the quiz? Players can no longer answer, and the screen shows the final leaderboard.')) return;
+    act(() => admin('status', { status }));
+  }
+  function setActive(is_active) { act(() => admin('active', { is_active })); }
+  function resetEvent() {
+    const n = data.participants.length;
+    if (!confirm('Delete ALL ' + n + ' participants and their answers for "' + data.event.name + '"? Use this to clear test runs before the real evening. This cannot be undone.')) return;
+    act(() => admin('reset'));
+  }
+  function saveEvent() {
+    act(() => admin('save-event', { event: { id: data.event.id, slug: $('evSlug').value.trim(), name: $('evName').value.trim(), intro: $('evIntro').value.trim(), prize: $('evPrize').value.trim(), starts_at: $('evStarts').value ? new Date($('evStarts').value).toISOString() : null } })
+      .then(ev => { SLUG = ev.slug; }), 'evMsg');
+  }
+  function readQuestion(el) {
+    return { question: el.querySelector('.f-question').value.trim(), answer_a: el.querySelector('.f-a').value.trim(), answer_b: el.querySelector('.f-b').value.trim(),
+      answer_c: el.querySelector('.f-c').value.trim(), answer_d: el.querySelector('.f-d').value.trim(), correct_answer: el.querySelector('.f-correct').value,
+      time_limit_seconds: el.querySelector('.f-limit').value, explanation: el.querySelector('.f-expl').value.trim() };
+  }
+  function saveQuestion(id) {
+    const el = document.querySelector('.q[data-id="' + id + '"]');
+    const q = data.questions.find(x => x.id === id);
+    act(() => admin('save-question', { question: { id, sort_order: q.sort_order, ...readQuestion(el) } }), 'qMsg');
+  }
+  function deleteQuestion(id) { if (!confirm('Delete this question?')) return; act(() => admin('delete-question', { question_id: id }), 'qMsg'); }
+  function addQuestion() {
+    act(() => admin('save-question', { question: { question: 'New question', answer_a: 'A', answer_b: 'B', answer_c: 'C', answer_d: 'D', correct_answer: 'A', time_limit_seconds: 15, sort_order: data.questions.length + 1 } }), 'qMsg');
+  }
+  function move(id, dir) {
+    const ids = data.questions.map(q => q.id); const i = ids.indexOf(id); const j = i + dir;
+    if (j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    act(() => admin('reorder', { ordered_ids: ids }), 'qMsg');
+  }
+  init();
+</script>
+</body>
+</html>
