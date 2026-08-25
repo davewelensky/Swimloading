@@ -1,34 +1,64 @@
-// Tide extremes for the crossing pages, via WorldTides.
+// Tide extremes for the crossing pages.
 //
 //   GET /api/tides?place=big-bay
 //
-// Exists because the WorldTides key was hardcoded in four public HTML files
-// and served to every visitor in plain text (robben.html, intel.html,
-// preekstool.html, english-channel.html). A paid key on a public page gets
-// scraped and spent — which is the most likely explanation for the account
-// running out of credits. The key now lives in a Vercel env var and never
-// leaves the server.
+// Reads from tide_predictions, which /api/cron/tides refreshes once a day.
+// The whole point is that a visitor never costs a WorldTides credit: August
+// burned 661 against July's 115 because every page load on /robben, /intel and
+// /preekstool was its own upstream call, and two of those pages appended
+// &_=${Date.now()} which defeated caching deliberately.
 //
-// NAMED PLACES, NOT lat/lon. This is the part that matters. A proxy taking
-// arbitrary coordinates is no safer than a public key: anyone could point
-// their own site at /api/tides and spend our credits just as easily. The
-// allowlist below is every location our pages actually ask about, and a
-// request for anything else is refused rather than forwarded.
+// Edge caching alone would not have fixed it. Vercel's cache is per region, so
+// Cape Town, London and US visitors each warm a separate copy; the bill still
+// scales with traffic, just more slowly. Serving from Postgres makes it flat.
 //
-// Each place also fixes its own `days`, so a caller cannot ask for 30 days at
-// a location we only ever show 2 for. WorldTides charges by call, and a
-// larger window is a more expensive call.
+// The key also used to be hardcoded in four public HTML files and shipped to
+// every visitor in plain text. It now lives in WORLDTIDES_API_KEY and is only
+// reachable from the fallback below.
+//
+// NAMED PLACES, NOT lat/lon — see api/_lib/tide-places.js for why.
+
+import { createClient } from '@supabase/supabase-js';
+import { TIDE_PLACES, tidePlace, TIDE_PLACE_KEYS } from './_lib/tide-places.js';
 
 const WORLDTIDES_URL = 'https://www.worldtides.info/api/v3';
 
-// The four locations the site asks about, with the window each page shows.
-// Adding one means adding it here, deliberately.
-const PLACES = {
-  'big-bay':   { lat: -33.7297, lon:  18.4611, days:  2, label: 'Big Bay, Bloubergstrand' },
-  'millers':   { lat: -34.2269, lon:  18.4648, days:  2, label: "Miller's Point" },
-  'langebaan': { lat: -33.03,   lon:  17.97,   days:  4, label: 'Langebaan lagoon' },
-  'dover':     { lat:  51.1279, lon:   1.3134, days: 14, label: 'Dover' },
-};
+// Same reasoning as api/explore/events.js: the anon key is already public, so
+// a literal fallback exposes nothing and stops this 500-ing in a Preview
+// deployment with no env vars. A service key must never get this treatment.
+const SUPABASE_URL =
+  process.env.SUPABASE_URL || 'https://szgkzuswelntnevobnoh.supabase.co';
+const SUPABASE_ANON_KEY =
+  process.env.SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+
+/** The upstream, used only when the table has nothing usable. */
+async function fetchUpstream(place) {
+  const key = process.env.WORLDTIDES_API_KEY;
+  if (!key) return null;
+
+  const url = `${WORLDTIDES_URL}?extremes&lat=${place.lat}&lon=${place.lon}` +
+              `&days=${place.days}&datum=LAT&key=${encodeURIComponent(key)}`;
+  try {
+    const upstream = await fetch(url, { headers: { accept: 'application/json' } });
+    const json = await upstream.json();
+    // A credit shortage arrives as a 200 with an error field as often as a 4xx.
+    if (!upstream.ok || json.error) {
+      // Logged, never returned: the message can name the account and the key.
+      console.error('tides: upstream error', upstream.status, json.error || '(no message)');
+      return null;
+    }
+    return (Array.isArray(json.extremes) ? json.extremes : []).map((e) => ({
+      dt: e.dt,
+      date: e.date,
+      height: e.height == null ? null : Number(e.height),
+      type: e.type,
+    }));
+  } catch (err) {
+    console.error('tides: upstream fetch failed:', err.message);
+    return null;
+  }
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -36,71 +66,70 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const key = process.env.WORLDTIDES_API_KEY;
-  if (!key) {
-    // Named explicitly: a missing env var here looks exactly like an API
-    // outage from the browser, and the pages already have a tide-free
-    // fallback. Say which it is in the logs.
-    console.error('tides: WORLDTIDES_API_KEY is not set');
-    return res.status(503).json({ error: 'Tide data is not configured' });
-  }
-
-  const place = PLACES[String(req.query.place || '').toLowerCase()];
+  const name = String(req.query.place || '').toLowerCase();
+  const place = tidePlace(name);
   if (!place) {
-    return res.status(400).json({
-      error: 'Unknown "place"',
-      allowed: Object.keys(PLACES),
+    return res.status(400).json({ error: 'Unknown "place"', allowed: TIDE_PLACE_KEYS });
+  }
+
+  let extremes = null;
+  let source = 'stored';
+
+  try {
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
     });
-  }
+    // Only the future — every page filters to upcoming extremes anyway, and
+    // asking for the past would just make them do it again.
+    const { data, error } = await sb
+      .from('tide_predictions')
+      .select('extreme_at, height_m, extreme_type')
+      .eq('place', name)
+      .gte('extreme_at', new Date().toISOString())
+      .order('extreme_at', { ascending: true })
+      .limit(120);
 
-  // Cached hard, and this is the second reason the route exists. Tide
-  // extremes are computed from harmonics — tomorrow's high water does not
-  // change during the day — so one upstream call can serve every visitor for
-  // hours. Two of the pages appended `&_=${Date.now()}` to defeat caching
-  // entirely, meaning every page load cost a credit.
-  //
-  // s-maxage 6h, stale-while-revalidate 24h: a visitor never waits for the
-  // upstream, and a WorldTides outage keeps serving yesterday's answer rather
-  // than showing nothing.
-  res.setHeader('Cache-Control', 'public, s-maxage=21600, stale-while-revalidate=86400');
-
-  const url = `${WORLDTIDES_URL}?extremes&lat=${place.lat}&lon=${place.lon}` +
-              `&days=${place.days}&datum=LAT&key=${encodeURIComponent(key)}`;
-
-  let upstream;
-  try {
-    upstream = await fetch(url, { headers: { accept: 'application/json' } });
+    if (error) throw new Error(error.message);
+    if (data && data.length) {
+      extremes = data.map((r) => ({
+        // The pages read `dt` (unix seconds) and `date`. Kept identical to
+        // WorldTides' own shape so nothing downstream had to change when this
+        // stopped being a passthrough.
+        dt: Math.floor(new Date(r.extreme_at).getTime() / 1000),
+        date: r.extreme_at,
+        height: r.height_m == null ? null : Number(r.height_m),
+        type: r.extreme_type,
+      }));
+    }
   } catch (err) {
-    console.error('tides: upstream fetch failed:', err.message);
-    return res.status(502).json({ error: 'Could not reach the tide service' });
+    console.warn('tides: stored lookup failed, will try upstream:', err.message);
   }
 
-  let json;
-  try {
-    json = await upstream.json();
-  } catch {
-    console.error('tides: upstream returned non-JSON, status', upstream.status);
-    return res.status(502).json({ error: 'Tide service returned something unreadable' });
+  // Nothing stored — before the first cron run, or if a place has run out of
+  // future extremes because the cron has been failing. Fetch once so the page
+  // still works, and say so in the response.
+  if (!extremes || !extremes.length) {
+    extremes = await fetchUpstream(place);
+    source = 'upstream';
   }
 
-  if (!upstream.ok || json.error) {
-    // WorldTides reports "no credits" as a 200 with an error field as often
-    // as a 4xx, so both are treated the same. The upstream message is logged
-    // but NOT returned: it can name the account and the key.
-    console.error('tides: upstream error', upstream.status, json.error || '(no message)');
-    // Do not cache a failure for six hours — that would hide the recovery.
+  if (!extremes || !extremes.length) {
+    // Do NOT cache a failure for hours — that would hide the recovery.
     res.setHeader('Cache-Control', 'no-store');
     return res.status(502).json({ error: 'Tide data is unavailable right now' });
   }
 
-  // Only what the pages draw. The upstream response carries the station,
-  // the datum and a copyright block; forwarding the lot would leak more of
-  // our account's shape than a public endpoint needs to.
+  // An hour at the edge is plenty now the data is local: the underlying rows
+  // only change once a day, and this exists to spare the database a little
+  // work, not to spare an API bill.
+  res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+
   return res.status(200).json({
     place: place.label,
     days: place.days,
-    extremes: Array.isArray(json.extremes)
-      ? json.extremes.map((e) => ({ dt: e.dt, date: e.date, height: e.height, type: e.type }))
-      : [],
+    source,
+    extremes,
   });
 }
+
+export { TIDE_PLACES };
