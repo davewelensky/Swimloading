@@ -872,7 +872,11 @@ const DOVER_LAT = 51.1279;
 const DOVER_LNG = 1.3134;
 const CAP_LAT = 50.8714;
 const CAP_LNG = 1.5870;
-const WORLDTIDES_KEY = '7e54bed9-1290-4668-82da-aecaaa714a50';
+// Tide data comes from /api/tides, which holds the WorldTides key in a
+// server env var. It used to be hardcoded here and served to every
+// visitor in plain text — a paid key on a public page gets scraped and
+// spent. The route also allows only named places, so it cannot be used
+// as a free tide API by anyone who finds it.
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -1446,8 +1450,8 @@ async function loadTides() {
 
     try {
         // 14 days gives us next neap (springs cycle every ~14 days)
-        const url = `https://www.worldtides.info/api/v3?extremes&lat=${DOVER_LAT}&lon=${DOVER_LNG}&days=14&datum=LAT&key=${WORLDTIDES_KEY}&_=${Date.now()}`;
-        const res = await fetch(url, { cache: 'no-store' });
+        const url = '/api/tides?place=dover';
+        const res = await fetch(url);
         const data = await res.json();
         if (!data.extremes?.length) { el.innerHTML = fallback; return; }
 

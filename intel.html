@@ -686,7 +686,11 @@ const MILLERS_LNG = 18.4648;
 
 // WorldTides API — free at worldtides.info/register (10,000 credits/month)
 // Get a key and paste it here to unlock live tide predictions
-const WORLDTIDES_KEY = '7e54bed9-1290-4668-82da-aecaaa714a50';
+// Tide data comes from /api/tides, which holds the WorldTides key in a
+// server env var. It used to be hardcoded here and served to every
+// visitor in plain text — a paid key on a public page gets scraped and
+// spent. The route also allows only named places, so it cannot be used
+// as a free tide API by anyone who finds it.
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -877,7 +881,6 @@ async function loadTides() {
             <span style="color:rgba(148,163,184,0.6);font-size:10px;">Add a WorldTides API key (free at worldtides.info/register) to unlock live tides here.</span>
         </div>`;
 
-    if (!WORLDTIDES_KEY) { el.innerHTML = fallback; return; }
 
     try {
         const today = new Date().toISOString().split('T')[0];
@@ -889,7 +892,7 @@ async function loadTides() {
         } catch(_) {}
 
         if (!data) {
-            const url = `https://www.worldtides.info/api/v3?extremes&lat=${MILLERS_LAT}&lon=${MILLERS_LNG}&days=2&datum=LAT&key=${WORLDTIDES_KEY}`;
+            const url = '/api/tides?place=millers';
             const res = await fetch(url);
             data = await res.json();
             if (data.extremes?.length) {
@@ -1158,7 +1161,7 @@ async function loadMarineForecast() {
     const end = endDate.toISOString().split('T')[0];
     const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${MILLERS_LAT}&longitude=${MILLERS_LNG}&hourly=wave_height,wave_period,swell_wave_height&daily=wave_height_max,swell_wave_height_max,wave_period_max&timezone=Africa%2FJohannesburg&start_date=${today}&end_date=${end}`;
     try {
-        const res = await fetch(url, { cache: 'no-store' });
+        const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (!data.daily) throw new Error('No daily data in response');
