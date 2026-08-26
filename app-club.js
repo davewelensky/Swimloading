@@ -2635,16 +2635,16 @@ function renderCssTab() {
     bySwimmer[t.roster_id].push(t);
   });
 
-  // Club-wide Top 3 men / ladies — fastest (lowest) most-recent CSS pace.
-  // Excludes invalid tests (400m not more than double the 200m) — a data
-  // error shouldn't be able to crown someone "fastest in the club".
+  // Club-wide Top 5 — fastest (lowest) most-recent CSS pace, overall (no
+  // gender split — roster gender isn't populated club-wide yet). Excludes
+  // invalid tests (400m not more than double the 200m) — a data error
+  // shouldn't be able to crown someone "fastest in the club".
   const ranked = Object.entries(bySwimmer)
     .map(([rid, rows]) => ({ rid, ...rows[rows.length - 1], swimmer: rosterById[rid] }))
     .filter(r => r.swimmer && !isCssTestInvalid(r));
-  const top3 = genderPrefix => ranked
-    .filter(r => (r.swimmer.gender || '').toUpperCase().startsWith(genderPrefix))
+  const top5 = ranked
     .sort((a, b) => a.css_pace_per_100_seconds - b.css_pace_per_100_seconds)
-    .slice(0, 3);
+    .slice(0, 5);
 
   // Group by the squad each test was recorded under, ordered like the Timetable
   const squadOrder = {};
@@ -2672,35 +2672,29 @@ function renderCssTab() {
   }).join('');
 
   el.innerHTML = `
-    ${renderCssTopBoards(top3('M'), top3('F'), myRosterId)}
+    ${renderCssTopBoards(top5, myRosterId)}
     ${squadSections}`;
   lucide.createIcons();
 }
 
-function renderCssTopBoards(topMen, topWomen, myRosterId) {
-  if (!topMen.length && !topWomen.length) return '';
+function renderCssTopBoards(top5, myRosterId) {
+  if (!top5.length) return '';
   const rankColors = ['#f5c518', '#c9d1d9', '#c97b3d'];
-  const board = (title, list) => !list.length ? '' : `
-    <div style="flex:1;min-width:140px;">
-      <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">${title}</div>
-      ${list.map((r, i) => `
-        <div style="display:flex;align-items:center;gap:8px;padding:6px;${r.rid === myRosterId ? 'background:rgba(56,189,248,0.08);border-radius:8px;' : ''}">
-          <i data-lucide="medal" style="width:16px;height:16px;color:${rankColors[i]};flex-shrink:0;"></i>
-          <span style="font-size:12.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.swimmer.display_name}${r.rid === myRosterId ? ' <span style="color:var(--cyan);">(you)</span>' : ''}</span>
-          <span style="font-size:12.5px;font-weight:800;font-family:'Bebas Neue',sans-serif;color:var(--text);">${secondsToTimeText(r.css_pace_per_100_seconds)}</span>
-        </div>`).join('')}
-    </div>`;
 
   return `
   <div class="card" style="margin-bottom:12px;background:linear-gradient(135deg,rgba(56,189,248,0.08),rgba(56,189,248,0.01));border-color:rgba(56,189,248,0.18);">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
       <i data-lucide="trophy" style="width:16px;height:16px;color:var(--cyan);"></i>
-      <div style="font-size:15px;font-weight:700;">Club Top CSS Paces</div>
+      <div style="font-size:15px;font-weight:700;">Club Top 5 CSS Paces</div>
     </div>
-    <div style="display:flex;gap:20px;flex-wrap:wrap;">
-      ${board('Men', topMen)}
-      ${board('Ladies', topWomen)}
-    </div>
+    ${top5.map((r, i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px;${r.rid === myRosterId ? 'background:rgba(56,189,248,0.08);border-radius:8px;' : ''}">
+        ${i < 3
+          ? `<i data-lucide="medal" style="width:16px;height:16px;color:${rankColors[i]};flex-shrink:0;"></i>`
+          : `<span style="width:16px;flex-shrink:0;text-align:center;font-size:12px;color:var(--text-secondary);font-weight:700;">${i + 1}</span>`}
+        <span style="font-size:12.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.swimmer.display_name}${r.rid === myRosterId ? ' <span style="color:var(--cyan);">(you)</span>' : ''}</span>
+        <span style="font-size:12.5px;font-weight:800;font-family:'Bebas Neue',sans-serif;color:var(--text);">${secondsToTimeText(r.css_pace_per_100_seconds)}</span>
+      </div>`).join('')}
   </div>`;
 }
 
