@@ -687,6 +687,11 @@
       <input class="input-field" id="assignCoach" type="text" placeholder="e.g. Teagan">
     </div>
 
+    <div id="assignAlsoGroup" style="margin-bottom:14px;display:none;">
+      <div class="field-label">Also apply to</div>
+      <div id="assignAlsoList" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+
     <div class="field-label">Choose a set</div>
     <div class="search-box" style="max-width:100%;margin-bottom:8px;">
       <i data-lucide="search"></i>
@@ -1346,6 +1351,29 @@ function openAssign(squadId, date, slot) {
   document.getElementById('assignCoach').value  = '';
   document.getElementById('pickSearch').value   = '';
   document.getElementById('assignSave').disabled = true;
+
+  // Other squads to optionally apply the same set to (e.g. Britt runs one
+  // session and delivers it to all 3 OW Masters groups back-to-back — this
+  // avoids repeating "assign" 3 times for the same set). Sibling squads
+  // (same name prefix, e.g. "OW Masters 6-7" / "OW Masters 7-8") are
+  // pre-checked since that's the common case; anything else stays unticked.
+  const prefix = sq ? sq.name.replace(/\s*\d+([-–]\d+)?\s*$/, '').trim() : '';
+  const others = squads.filter(s => s.id !== squadId);
+  const alsoGroup = document.getElementById('assignAlsoGroup');
+  if (others.length) {
+    alsoGroup.style.display = '';
+    document.getElementById('assignAlsoList').innerHTML = others.map(s => {
+      const isSibling = prefix && s.name.replace(/\s*\d+([-–]\d+)?\s*$/, '').trim() === prefix;
+      return `
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-sec);cursor:pointer;">
+        <input type="checkbox" class="assign-also-check" value="${s.id}" ${isSibling ? 'checked' : ''} style="width:15px;height:15px;accent-color:var(--cyan);cursor:pointer;">
+        ${h(s.name)}
+      </label>`;
+    }).join('');
+  } else {
+    alsoGroup.style.display = 'none';
+  }
+
   renderPickList();
   document.getElementById('assignOverlay').classList.add('open');
   lucide.createIcons();
@@ -1380,18 +1408,22 @@ async function saveAssignment() {
   const btn = document.getElementById('assignSave');
   btn.disabled = true;
   const coach = document.getElementById('assignCoach').value.trim() || null;
-  const { error } = await sb.from('club_set_assignments').upsert({
+  const alsoSquadIds = [...document.querySelectorAll('.assign-also-check:checked')].map(c => c.value);
+  const squadIds = [assignCtx.squadId, ...alsoSquadIds];
+
+  const rows = squadIds.map(squadId => ({
     club_id:         currentClub.id,
     set_id:          selectedSetId,
-    squad_id:        assignCtx.squadId,
+    squad_id:        squadId,
     session_date:    assignCtx.date,
     session_slot:    assignCtx.slot,
     delivering_coach: coach,
     created_by:      currentUser.id,
-  }, { onConflict: 'squad_id,session_date,session_slot' });
+  }));
+  const { error } = await sb.from('club_set_assignments').upsert(rows, { onConflict: 'squad_id,session_date,session_slot' });
   btn.disabled = false;
   if (error) { toast('Save failed: ' + error.message, 'error'); return; }
-  toast('Set assigned!', 'success');
+  toast(squadIds.length > 1 ? `Set assigned to ${squadIds.length} squads!` : 'Set assigned!', 'success');
   closeAssign();
   await loadWeekAssignments();
   renderPlanner();
