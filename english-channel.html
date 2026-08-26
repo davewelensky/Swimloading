@@ -972,7 +972,7 @@ async function init() {
     renderTideWindow();
 
     document.getElementById('lastRefreshed').textContent =
-        'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' });
 
     const btn = document.getElementById('refreshBtn');
     if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
@@ -1118,11 +1118,11 @@ function renderWeekOutlook() {
     else if (best.score >= 55) { verdict = goDays > 1 ? `Likely — ${goDays} workable days` : 'Maybe — one workable day'; vColor = 'var(--warning)'; }
     else                       { verdict = 'Unlikely — wait for the next window'; vColor = 'var(--danger)'; }
     const bestLabel = best.score >= 55
-        ? `Best day: <strong style="color:var(--text-primary);">${(() => { const d = days.indexOf(best); return d === 0 ? 'today' : d === 1 ? 'tomorrow' : new Date(best.date).toLocaleDateString('en-GB', { weekday: 'long' }); })()}</strong> · ${best.score}/100`
+        ? `Best day: <strong style="color:var(--text-primary);">${(() => { const d = days.indexOf(best); return d === 0 ? 'today' : d === 1 ? 'tomorrow' : new Date(best.date).toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'Europe/London' }); })()}</strong> · ${best.score}/100`
         : 'No day clears the go threshold in the next 7';
     const dots = days.map(d => {
         const col = d.score >= 70 ? '#10b981' : d.score >= 55 ? '#f59e0b' : '#ef4444';
-        const dn = new Date(d.date).toLocaleDateString('en-GB', { weekday: 'short' })[0];
+        const dn = new Date(d.date).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'Europe/London' })[0];
         return `<div style="flex:1;text-align:center;">
             <div style="height:${Math.max(8, Math.round(d.score * 0.42))}px;background:${col};border-radius:3px;margin:0 auto 4px;width:60%;min-height:8px;opacity:.9;"></div>
             <div style="font-size:9px;color:var(--text-secondary);">${dn}</div>
@@ -1191,7 +1191,7 @@ async function renderTempTrend() {
     const line = temps.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
     const area = `${line} L${x(temps.length - 1).toFixed(1)},${H - padB} L${x(0).toFixed(1)},${H - padB} Z`;
     const cx = x(temps.length - 1), cy = y(cur);
-    const fmtD = s => { const d = new Date(s); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); };
+    const fmtD = s => { const d = new Date(s); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'Europe/London' }); };
     const arrow = delta > 0.1 ? '▲' : delta < -0.1 ? '▼' : '→';
     const dColor = delta > 0.1 ? 'var(--success)' : delta < -0.1 ? 'var(--ocean-light)' : 'var(--text-secondary)';
     el.classList.remove('loading-msg');
@@ -1378,7 +1378,7 @@ function updateStatBoxes() {
     document.getElementById('windSrc').innerHTML = 'Wind Speed<br>' + windSrcLabel;
     document.getElementById('wtmpSrc').innerHTML = 'Water Temp<br>' + wtmpSrcLabel;
 
-    const ts = new Date().toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const ts = new Date().toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' });
     const allNull = displaySst === null && displayWind === null && displayWtmp === null;
     document.getElementById('condUpdated').textContent = allNull ? 'All sources unavailable.' : 'Updated: ' + ts;
 }
@@ -1469,7 +1469,7 @@ async function loadTides() {
         if (neapDay) {
             const dt = new Date(neapDay[0]);
             const daysAway = Math.round((dt - new Date(todayStr)) / 86400000);
-            document.getElementById('heroNeapDate').textContent = dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+            document.getElementById('heroNeapDate').textContent = dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/London' });
             document.getElementById('heroNeapAway').textContent = daysAway === 0 ? 'today' : daysAway === 1 ? 'tomorrow' : `in ${daysAway} days · HW ${neapDay[1].toFixed(1)}m`;
         }
 
@@ -1483,7 +1483,7 @@ async function loadTides() {
         const tideState = nextTide?.type === 'High' ? 'Ebbing (falling)' : 'Flooding (rising)';
         const tideCol = nextTide?.type === 'High' ? 'var(--ocean-light)' : 'var(--success)';
         const nextLabel = nextTide
-            ? `Next ${nextTide.type}: ${new Date(nextTide.dt * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} (${nextTide.height.toFixed(1)}m)`
+            ? `Next ${nextTide.type}: ${new Date(nextTide.dt * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' })} (${nextTide.height.toFixed(1)}m)`
             : '—';
         const tideName = isSpring ? 'Spring tides — HW >' + nextHigh.height.toFixed(1) + 'm' : 'Neap tides — HW <6.1m';
         const tideAdvice = isSpring
@@ -1497,8 +1497,8 @@ async function loadTides() {
             const t = new Date(e.dt * 1000);
             const past = e.dt < now;
             return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);opacity:${past ? .45 : 1};">
-                <div style="width:90px;font-size:11px;color:var(--text-secondary);">${t.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</div>
-                <div style="width:48px;font-size:12px;font-weight:600;color:var(--text-primary);">${t.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
+                <div style="width:90px;font-size:11px;color:var(--text-secondary);">${t.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/London' })}</div>
+                <div style="width:48px;font-size:12px;font-weight:600;color:var(--text-primary);">${t.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' })}</div>
                 <div style="flex:1;font-size:12px;color:${e.type === 'High' ? 'var(--ocean-light)' : 'var(--success)'};">${e.type}${e.type === 'High' && e.height > 6.1 ? ' <span style="font-size:9px;color:var(--warning);">spring</span>' : ''}</div>
                 <div style="font-size:13px;font-weight:700;color:var(--text-primary);">${e.height.toFixed(1)}m</div>
             </div>`;
@@ -1532,7 +1532,7 @@ function renderAstronomy() {
     const phaseLbl = moonLabel(phase);
     const illum = Math.round((1 - Math.abs(phase - 0.5) * 2) * 100);
 
-    const fmt = (iso) => iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—';
+    const fmt = (iso) => iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' }) : '—';
     const sr = fmt(sunrise);
     const ss = fmt(sunset);
 
@@ -1546,7 +1546,7 @@ function renderAstronomy() {
 
     // Typical Channel start is 2-6am — show first-light context
     const firstLight = sunrise ? new Date(new Date(sunrise).getTime() - 30 * 60000)
-        .toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—';
+        .toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' }) : '—';
 
     el.classList.remove('loading-msg');
     el.innerHTML = `
@@ -1677,7 +1677,7 @@ function buildCrossingIntelligence() {
     const weekCol = weekAvg >= 70 ? 'var(--success)' : weekAvg >= 50 ? 'var(--warning)' : 'var(--danger)';
 
     const bestDay = best.i === 0 ? 'Today' : best.i === 1 ? 'Tomorrow'
-        : new Date(best.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+        : new Date(best.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Europe/London' });
     const bestWindLabel = best.wind !== null ? `${best.wind.toFixed(0)}kt ${windDir(best.windDir ?? 0)}` : 'wind unknown';
     const bestWaveLabel = best.wave !== null ? `${best.wave.toFixed(1)}m waves` : '';
     const bestTempLabel = best.sst !== null ? `${best.sst}°C water` : '';
@@ -1714,7 +1714,7 @@ function buildCrossingIntelligence() {
 
     const scoreBar = dayScores.slice(0, 7).map(d => {
         const col = d.score >= 70 ? '#10b981' : d.score >= 45 ? '#f59e0b' : '#ef4444';
-        const lbl = d.i === 0 ? 'T' : new Date(d.date).toLocaleDateString('en-GB', { weekday: 'short' }).slice(0,1);
+        const lbl = d.i === 0 ? 'T' : new Date(d.date).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'Europe/London' }).slice(0,1);
         return `<div style="text-align:center;flex:1;${d.i === best.i ? 'opacity:1;' : 'opacity:.55;'}">
             <div style="font-size:8px;color:var(--text-secondary);margin-bottom:3px;">${lbl}</div>
             <div style="font-size:11px;font-weight:700;color:${col};">${d.score}</div>
@@ -1772,7 +1772,7 @@ function renderNextWindow() {
         return;
     }
 
-    const dayLabel = best.i === 0 ? 'Today' : best.i === 1 ? 'Tomorrow' : new Date(best.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+    const dayLabel = best.i === 0 ? 'Today' : best.i === 1 ? 'Tomorrow' : new Date(best.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Europe/London' });
     const sig = best.tier === 'go' ? { label: 'GO', col: 'var(--success)' } : { label: 'CHECK', col: 'var(--warning)' };
     const windStr = best.wind !== null ? `${best.wind.toFixed(0)}kt wind` : '—';
     const waveStr = best.wave !== null ? `${best.wave.toFixed(1)}m waves` : '—';
@@ -1810,7 +1810,7 @@ function renderCrossingWindow() {
         const wave = _mf?.wave_height_max?.[i] ?? null;
         const daySst = _mf?.sea_surface_temperature_max?.[i] ?? sst;
         const score = scoreDay(wind, windDir_, wave, daySst);
-        const dayName = i === 0 ? 'Today' : new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+        const dayName = i === 0 ? 'Today' : new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/London' });
 
         let cls, label;
         const windOk = wind === null ? true : wind <= 10;
@@ -1862,7 +1862,7 @@ function renderWindForecast() {
         const gust = _wf.wind_gusts_10m_max[i];
         const dirLabel = windDir(dir);
         const isToday = i === 0;
-        const dayName = isToday ? 'Today' : new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+        const dayName = isToday ? 'Today' : new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/London' });
         const spdCol = spd <= 10 ? 'var(--success)' : spd <= 15 ? 'var(--ocean-light)' : spd <= 20 ? 'var(--warning)' : 'var(--danger)';
         const spdLabel = spd <= 10 ? 'F1–2' : spd <= 15 ? 'F3' : spd <= 20 ? 'F4' : 'F5+';
         return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);${isToday?'background:rgba(14,165,233,0.06);margin:0 -4px;padding:9px 4px;border-radius:8px;':''}">
@@ -1889,7 +1889,7 @@ function renderSwellForecast() {
         const sw = _mf.swell_wave_height_max?.[i];
         const wp = _mf.wave_period_max?.[i];
         const isToday = i === 0;
-        const dayName = isToday ? 'Today' : new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+        const dayName = isToday ? 'Today' : new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/London' });
         const wCol = wh <= 1 ? 'var(--success)' : wh <= 1.5 ? 'var(--ocean-light)' : wh <= 2.5 ? 'var(--warning)' : 'var(--danger)';
         const wLabel = wh <= 1 ? 'Calm' : wh <= 1.5 ? 'Slight' : wh <= 2.5 ? 'Moderate' : 'Rough';
         return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);${isToday?'background:rgba(14,165,233,0.06);margin:0 -4px;padding:9px 4px;border-radius:8px;':''}">
@@ -2507,7 +2507,7 @@ async function renderTideWindow() {
 }
 
 function formatDateShort(d) {
-    return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/London' });
 }
 
 async function loadWindowHistory(start, end) {
