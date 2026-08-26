@@ -1294,6 +1294,7 @@
           </div>
         </div>
         <div id="squadCapacityStrip" style="display:none;margin-bottom:16px;"></div>
+        <div id="cssResultsPanel" style="display:none;margin-bottom:16px;"></div>
         <div id="trackerContent"><div class="loading"><div class="spinner"></div></div></div>
       </div>
 
@@ -4044,6 +4045,73 @@ function applyTrackerFilter() {
   if (trackerViewMode === 'matrix')   renderTrackerMatrix(filtered);
   else if (trackerViewMode === 'pipeline') renderTrackerPipeline(filtered);
   else renderTrackerGrid(filtered);
+
+  const cssPanel = document.getElementById('cssResultsPanel');
+  if (val && val !== '__unassigned__') { cssPanel.style.display = ''; loadCssResultsPanel(val); }
+  else cssPanel.style.display = 'none';
+}
+
+// ── CSS results panel (Squad Tracker — shows what "Record CSS Test" saved) ──
+async function loadCssResultsPanel(squadId) {
+  const el = document.getElementById('cssResultsPanel');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  const { data: rows } = await sb.from('club_css_tests')
+    .select('roster_id, test_date, time_400_seconds, time_200_seconds, css_pace_per_100_seconds')
+    .eq('squad_id', squadId)
+    .order('test_date', { ascending: true });
+
+  if (!rows || !rows.length) { el.style.display = 'none'; return; }
+
+  const rosterIds = [...new Set(rows.map(r => r.roster_id))];
+  const nameById = {};
+  (allRosterFull.length ? allRosterFull : []).forEach(r => { nameById[r.id] = r.display_name; });
+  const missingIds = rosterIds.filter(id => !nameById[id]);
+  if (missingIds.length) {
+    const { data: extra } = await sb.from('club_roster').select('id, display_name').in('id', missingIds);
+    (extra || []).forEach(r => { nameById[r.id] = r.display_name; });
+  }
+
+  const bySwimmer = {};
+  rows.forEach(r => { (bySwimmer[r.roster_id] = bySwimmer[r.roster_id] || []).push(r); });
+  const latest = Object.entries(bySwimmer)
+    .map(([rosterId, history]) => ({ rosterId, name: nameById[rosterId] || 'Unknown', latest: history[history.length - 1], history }))
+    .sort((a, b) => a.latest.css_pace_per_100_seconds - b.latest.css_pace_per_100_seconds);
+
+  el.innerHTML = `
+  <div class="card" style="padding:16px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <i data-lucide="gauge" style="width:15px;height:15px;color:var(--cyan);"></i>
+      <div style="font-size:14px;font-weight:700;">CSS Results — ${allSquads.find(s => s.id === squadId)?.name || 'Squad'}</div>
+      <span style="font-size:11px;color:var(--text-sec);">most recent test per swimmer, fastest first</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead>
+          <tr style="text-align:left;color:var(--text-sec);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;">
+            <th style="padding:6px 8px;">#</th>
+            <th style="padding:6px 8px;">Swimmer</th>
+            <th style="padding:6px 8px;">400m</th>
+            <th style="padding:6px 8px;">200m</th>
+            <th style="padding:6px 8px;">CSS /100m</th>
+            <th style="padding:6px 8px;">Last tested</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${latest.map((s, i) => `
+          <tr style="border-top:1px solid rgba(255,255,255,0.04);">
+            <td style="padding:6px 8px;color:var(--text-sec);">${i + 1}</td>
+            <td style="padding:6px 8px;">${s.name}</td>
+            <td style="padding:6px 8px;">${formatSeconds(s.latest.time_400_seconds)}</td>
+            <td style="padding:6px 8px;">${formatSeconds(s.latest.time_200_seconds)}</td>
+            <td style="padding:6px 8px;font-weight:700;color:var(--cyan);">${formatSeconds(s.latest.css_pace_per_100_seconds)}</td>
+            <td style="padding:6px 8px;color:var(--text-sec);">${s.latest.test_date}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+  lucide.createIcons();
 }
 
 function renderTrackerGrid(swimmers) {
