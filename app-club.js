@@ -239,7 +239,9 @@ async function renderSwimClub(container, club, roster, membership) {
     gender:        profile?.gender        || roster?.gender        || null,
   };
   window._galasCtx = { club, roster, profile: mergedProfile, upcoming, _pbTimes: pbTimes };
+  window._cssCtx   = { club, roster };
   _galaTabLoaded = false; // reset so re-render reloads entries
+  _cssTabLoaded  = false;
 
   const hasGalas = upcoming.some(e => e.sessions_json?.length);
 
@@ -247,6 +249,7 @@ async function renderSwimClub(container, club, roster, membership) {
     <div style="display:flex;gap:0;margin-bottom:16px;background:rgba(255,255,255,0.04);border-radius:50px;padding:3px;">
       <button class="club-inner-tab active" id="clubTabHome" onclick="showClubSubTab('home')" style="flex:1;padding:8px;border-radius:50px;border:none;background:rgba(56,189,248,0.15);color:var(--cyan);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s;">Home</button>
       <button class="club-inner-tab" id="clubTabGalas" onclick="showClubSubTab('galas')" style="flex:1;padding:8px;border-radius:50px;border:none;background:transparent;color:var(--text-secondary);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;">Galas${hasGalas ? ' <span style="font-size:10px;background:rgba(56,189,248,0.2);color:var(--cyan);padding:1px 5px;border-radius:8px;">Enter</span>' : ''}</button>
+      <button class="club-inner-tab" id="clubTabCss" onclick="showClubSubTab('css')" style="flex:1;padding:8px;border-radius:50px;border:none;background:transparent;color:var(--text-secondary);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;">CSS</button>
     </div>
     <div id="clubSubHome">
       ${renderSwimmerHero(club, roster, allResults, timeTrial, qtsByEvent)}
@@ -259,6 +262,9 @@ async function renderSwimClub(container, club, roster, membership) {
     </div>
     <div id="clubSubGalas" style="display:none;">
       <div style="text-align:center;padding:32px;color:var(--text-secondary);font-size:13px;">Loading galas…</div>
+    </div>
+    <div id="clubSubCss" style="display:none;">
+      <div style="text-align:center;padding:32px;color:var(--text-secondary);font-size:13px;">Loading CSS times…</div>
     </div>`;
 
   lucide.createIcons();
@@ -2170,30 +2176,25 @@ async function renderActiveParentSwimmer() {
 // ─── Club inner tab switcher ───────────────────────────────────────────────────
 
 let _galaTabLoaded = false;
+let _cssTabLoaded  = false;
 
 function showClubSubTab(tab) {
-  const home  = document.getElementById('clubSubHome');
-  const galas = document.getElementById('clubSubGalas');
-  const btnHome  = document.getElementById('clubTabHome');
-  const btnGalas = document.getElementById('clubTabGalas');
-  if (!home || !galas) return;
+  const panels = {
+    home:  [document.getElementById('clubSubHome'),  document.getElementById('clubTabHome')],
+    galas: [document.getElementById('clubSubGalas'), document.getElementById('clubTabGalas')],
+    css:   [document.getElementById('clubSubCss'),   document.getElementById('clubTabCss')],
+  };
+  if (!panels.home[0] || !panels.galas[0] || !panels.css[0]) return;
 
-  if (tab === 'home') {
-    home.style.display  = '';
-    galas.style.display = 'none';
-    btnHome.style.background  = 'rgba(56,189,248,0.15)';
-    btnHome.style.color        = 'var(--cyan)';
-    btnGalas.style.background = 'transparent';
-    btnGalas.style.color      = 'var(--text-secondary)';
-  } else {
-    home.style.display  = 'none';
-    galas.style.display = '';
-    btnGalas.style.background = 'rgba(56,189,248,0.15)';
-    btnGalas.style.color       = 'var(--cyan)';
-    btnHome.style.background  = 'transparent';
-    btnHome.style.color       = 'var(--text-secondary)';
-    if (!_galaTabLoaded) { _galaTabLoaded = true; loadGalasTab(); }
-  }
+  Object.entries(panels).forEach(([name, [panel, btn]]) => {
+    const active = name === tab;
+    panel.style.display = active ? '' : 'none';
+    btn.style.background = active ? 'rgba(56,189,248,0.15)' : 'transparent';
+    btn.style.color      = active ? 'var(--cyan)' : 'var(--text-secondary)';
+  });
+
+  if (tab === 'galas' && !_galaTabLoaded) { _galaTabLoaded = true; loadGalasTab(); }
+  if (tab === 'css'   && !_cssTabLoaded)  { _cssTabLoaded  = true; loadCssTab(); }
 }
 
 // ─── Galas tab ────────────────────────────────────────────────────────────────
@@ -2556,4 +2557,187 @@ function _clubSsaAgeGroup(dob) {
 function _fmtGapClub(sec) {
   if (sec < 60) return sec.toFixed(1) + 's';
   return Math.floor(sec / 60) + ':' + (sec % 60).toFixed(1).padStart(4, '0');
+}
+
+// ─── CSS (Critical Swim Speed) tab ──────────────────────────────────────────────
+// Britt tests each squad periodically (400m + 200m time trial); this shows every
+// squad's results together, like the spreadsheet she used to email, plus a
+// club-wide Top 3 board — swimmers see each other's times on purpose (Dave, 26
+// Aug 2026: "we want people to see each other's time, look to improve").
+
+let _cssData = { tests: [], roster: [], squads: [] };
+const CSS_CHART_COLORS = ['#38bdf8','#f59e0b','#10b981','#a78bfa','#f472b6','#fb923c','#22d3ee','#84cc16','#e879f9','#facc15'];
+
+async function loadCssTab() {
+  const ctx = window._cssCtx;
+  if (!ctx) return;
+  const { club } = ctx;
+  const el = document.getElementById('clubSubCss');
+  if (!el) return;
+
+  const [testsRes, rosterRes, squadsRes] = await Promise.all([
+    supabaseClient.from('club_css_tests')
+      .select('roster_id, squad_id, test_date, css_pace_per_100_seconds')
+      .eq('club_id', club.id)
+      .order('test_date', { ascending: true }),
+    supabaseClient.from('club_roster')
+      .select('id, display_name, gender')
+      .eq('club_id', club.id)
+      .eq('is_active', true),
+    supabaseClient.from('club_squads')
+      .select('id, name, sort_order')
+      .eq('club_id', club.id)
+      .eq('is_active', true)
+      .order('sort_order'),
+  ]);
+
+  _cssData = {
+    tests:  testsRes.data  || [],
+    roster: rosterRes.data || [],
+    squads: squadsRes.data || [],
+  };
+  renderCssTab();
+}
+
+function renderCssTab() {
+  const el = document.getElementById('clubSubCss');
+  if (!el) return;
+  const { tests, roster, squads } = _cssData;
+  const myRosterId = window._cssCtx?.roster?.id;
+
+  if (!tests.length) {
+    el.innerHTML = `
+    <div class="card" style="text-align:center;padding:32px 16px;">
+      <i data-lucide="gauge" style="width:28px;height:28px;color:var(--text-secondary);margin-bottom:10px;"></i>
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px;">No CSS tests yet</div>
+      <div style="font-size:12px;color:var(--text-secondary);">Your coach will record Critical Swim Speed test results here after your next time trial.</div>
+    </div>`;
+    lucide.createIcons();
+    return;
+  }
+
+  const rosterById = {};
+  roster.forEach(r => { rosterById[r.id] = r; });
+
+  // Full history per swimmer (chronological — tests were fetched ordered by date)
+  const bySwimmer = {};
+  tests.forEach(t => {
+    if (!bySwimmer[t.roster_id]) bySwimmer[t.roster_id] = [];
+    bySwimmer[t.roster_id].push(t);
+  });
+
+  // Club-wide Top 3 men / ladies — fastest (lowest) most-recent CSS pace
+  const ranked = Object.entries(bySwimmer)
+    .map(([rid, rows]) => ({ rid, ...rows[rows.length - 1], swimmer: rosterById[rid] }))
+    .filter(r => r.swimmer);
+  const top3 = genderPrefix => ranked
+    .filter(r => (r.swimmer.gender || '').toUpperCase().startsWith(genderPrefix))
+    .sort((a, b) => a.css_pace_per_100_seconds - b.css_pace_per_100_seconds)
+    .slice(0, 3);
+
+  // Group by the squad each test was recorded under, ordered like the Timetable
+  const squadOrder = {};
+  squads.forEach((s, i) => { squadOrder[s.id] = s.sort_order ?? i; });
+  const squadIds = [...new Set(tests.map(t => t.squad_id))]
+    .sort((a, b) => (squadOrder[a] ?? 999) - (squadOrder[b] ?? 999));
+
+  const squadSections = squadIds.map(squadId => {
+    const squad = squads.find(s => s.id === squadId);
+    const squadTests = tests.filter(t => t.squad_id === squadId);
+    const swimmerIds = [...new Set(squadTests.map(t => t.roster_id))];
+    const rows = swimmerIds
+      .map(rid => ({ rid, swimmer: rosterById[rid], history: bySwimmer[rid].filter(t => t.squad_id === squadId) }))
+      .filter(r => r.swimmer)
+      .map(r => ({ ...r, latest: r.history[r.history.length - 1], prev: r.history[r.history.length - 2] }))
+      .sort((a, b) => a.latest.css_pace_per_100_seconds - b.latest.css_pace_per_100_seconds);
+
+    return `
+    <div class="card" style="margin-bottom:12px;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:2px;">${squad?.name || 'Squad'}</div>
+      <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">CSS pace per 100m — fastest first</div>
+      ${renderCssSquadChart(rows)}
+      ${rows.map((r, i) => renderCssRow(r, i, r.rid === myRosterId)).join('')}
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    ${renderCssTopBoards(top3('M'), top3('F'), myRosterId)}
+    ${squadSections}`;
+  lucide.createIcons();
+}
+
+function renderCssTopBoards(topMen, topWomen, myRosterId) {
+  if (!topMen.length && !topWomen.length) return '';
+  const rankColors = ['#f5c518', '#c9d1d9', '#c97b3d'];
+  const board = (title, list) => !list.length ? '' : `
+    <div style="flex:1;min-width:140px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">${title}</div>
+      ${list.map((r, i) => `
+        <div style="display:flex;align-items:center;gap:8px;padding:6px;${r.rid === myRosterId ? 'background:rgba(56,189,248,0.08);border-radius:8px;' : ''}">
+          <i data-lucide="medal" style="width:16px;height:16px;color:${rankColors[i]};flex-shrink:0;"></i>
+          <span style="font-size:12.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.swimmer.display_name}${r.rid === myRosterId ? ' <span style="color:var(--cyan);">(you)</span>' : ''}</span>
+          <span style="font-size:12.5px;font-weight:800;font-family:'Bebas Neue',sans-serif;color:var(--text);">${secondsToTimeText(r.css_pace_per_100_seconds)}</span>
+        </div>`).join('')}
+    </div>`;
+
+  return `
+  <div class="card" style="margin-bottom:12px;background:linear-gradient(135deg,rgba(56,189,248,0.08),rgba(56,189,248,0.01));border-color:rgba(56,189,248,0.18);">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <i data-lucide="trophy" style="width:16px;height:16px;color:var(--cyan);"></i>
+      <div style="font-size:15px;font-weight:700;">Club Top CSS Paces</div>
+    </div>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;">
+      ${board('Men', topMen)}
+      ${board('Ladies', topWomen)}
+    </div>
+  </div>`;
+}
+
+function renderCssRow(r, i, isMe) {
+  const trend = r.prev
+    ? (r.latest.css_pace_per_100_seconds < r.prev.css_pace_per_100_seconds ? 'down'
+      : r.latest.css_pace_per_100_seconds > r.prev.css_pace_per_100_seconds ? 'up' : 'flat')
+    : null;
+  const trendIcon = trend === 'down' ? `<i data-lucide="trending-down" style="width:13px;height:13px;color:var(--green);"></i>`
+    : trend === 'up' ? `<i data-lucide="trending-up" style="width:13px;height:13px;color:var(--amber);"></i>`
+    : trend === 'flat' ? `<i data-lucide="minus" style="width:13px;height:13px;color:var(--text-secondary);"></i>`
+    : '<span style="width:13px;"></span>';
+  return `
+  <div style="display:flex;align-items:center;gap:10px;padding:7px 6px;border-bottom:1px solid rgba(255,255,255,0.03);${isMe ? 'background:rgba(56,189,248,0.06);border-radius:6px;' : ''}">
+    <span style="font-size:11px;color:var(--text-secondary);width:16px;flex-shrink:0;">${i + 1}</span>
+    <span style="font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.swimmer.display_name}${isMe ? ' <span style="color:var(--cyan);font-size:11px;">(you)</span>' : ''}</span>
+    ${trendIcon}
+    <span style="font-size:13px;font-weight:800;font-family:'Bebas Neue',sans-serif;letter-spacing:0.03em;color:var(--text);width:56px;text-align:right;flex-shrink:0;">${secondsToTimeText(r.latest.css_pace_per_100_seconds)}</span>
+  </div>`;
+}
+
+function renderCssSquadChart(rows) {
+  const withHistory = rows.filter(r => r.history.length > 1);
+  if (!withHistory.length) return '';
+
+  const W = 300, H = 90, PAD = 8;
+  const allDates = [...new Set(rows.flatMap(r => r.history.map(h => h.test_date)))].sort();
+  if (allDates.length < 2) return '';
+  const dateIndex = {};
+  allDates.forEach((d, i) => { dateIndex[d] = i; });
+
+  const allPaces = rows.flatMap(r => r.history.map(h => h.css_pace_per_100_seconds));
+  const minP = Math.min(...allPaces), maxP = Math.max(...allPaces);
+  const range = maxP - minP || 1;
+
+  const xFor = i => PAD + (i / (allDates.length - 1)) * (W - 2 * PAD);
+  // Inverted axis: a lower (faster) pace draws higher up — matches this app's
+  // existing "up = faster" convention used on the Events time-history charts.
+  const yFor = p => H - PAD - ((maxP - p) / range) * (H - 2 * PAD);
+
+  const lines = rows.map((r, ci) => {
+    const color = CSS_CHART_COLORS[ci % CSS_CHART_COLORS.length];
+    const pts = r.history.map(h => ({ x: xFor(dateIndex[h.test_date]), y: yFor(h.css_pace_per_100_seconds), h }));
+    const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+    const dots = pts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.5" fill="${color}"><title>${r.swimmer.display_name}: ${secondsToTimeText(p.h.css_pace_per_100_seconds)}/100 (${p.h.test_date})</title></circle>`).join('');
+    return `<path d="${path}" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.8"/>${dots}`;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;overflow:visible;margin:4px 0 4px;" preserveAspectRatio="none">${lines}</svg>
+    <div style="font-size:10px;color:var(--text-secondary);text-align:right;margin-top:-2px;margin-bottom:8px;">↑ faster · hover a dot for name</div>`;
 }
