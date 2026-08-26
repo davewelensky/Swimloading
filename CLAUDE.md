@@ -12,37 +12,45 @@
 
 These rules apply to every change touching `club-admin.html`, `coach.html`, `sets.html`, or any club guide page (`duc-guide.html`, `aquasharks-guide.html`, etc.).
 
+### ⚠️ K8 Coaching merged into Aquasharks (26 Aug 2026) — K8 is now DORMANT
+Britt asked to merge K8 into Aquasharks so she doesn't have to switch between two club-admin instances. All of K8's roster (108 members) and session history moved onto Aquasharks (migration `sql/applied/2026-08-26_migrate-k8-swimmers-to-aquasharks.sql`):
+- K8's 06:00/07:00/08:00 Group → Aquasharks' new **OW Masters 6-7 / 7-8 / 8-9** squads (own squads, Mon/Wed/Fri, coach Britt)
+- K8's Senior Squad (ASA) → folded into Aquasharks' own pre-existing **Senior Squad** (same swimmers — "the school senior squad")
+- The K8 club record, its 4 squads, and their 9 session templates still exist in the DB but are **dormant** (`is_active = false`, not deleted) — nothing routes there anymore
+- K8's `hasLeague`/`hasTempChallenge` flags were deliberately **not** carried over to Aquasharks (club-wide flags — would expose League/Temp Challenge to all of Aquasharks' other 215+ members, not just the moved swimmers) — open decision if Britt wants that later
+- **If a report mentions "K8" going forward, first check whether it's actually about the OW Masters/Senior Squad swimmers now under Aquasharks** — K8 itself should show nothing (that's expected, not a bug)
+
 ### Before making ANY club change, state all three out loud:
-1. **Which club asked for this?** (DUC, Aquasharks, or K8 — name it explicitly. Britt runs TWO clubs, so "Britt asked" is not enough — confirm which.)
+1. **Which club asked for this?** (DUC or Aquasharks — K8 is dormant, see above. Britt runs Aquasharks; if something looks K8-specific, it's probably actually about the OW Masters/Senior Squad swimmers migrated into Aquasharks.)
 2. **Which feature flag gates it?** (e.g. `hasSquads`, `hasParentLanguage`, `hasLeague` — name it)
 3. **Does this touch shared code?** If yes, confirm with the user before proceeding.
 
 If you cannot answer all three — stop and ask.
 
-### THREE clubs share this codebase. Two admins:
+### Clubs sharing this codebase. Two admins:
 - **Steve** → DUC
-- **Britt** → Aquasharks **and** K8 Coaching (always ask her *which* one)
+- **Britt** → Aquasharks (K8 Coaching also exists but is dormant, merged into Aquasharks — see above)
 
 They are separate products. Never assume a feature for one applies to another.
 
-| | DUC | Aquasharks | K8 Coaching |
+| | DUC | Aquasharks | K8 Coaching (dormant) |
 |---|---|---|---|
 | Admin | Steve | Britt | Britt |
 | Type | `open_water` | `swim_club` | `open_water` |
 | Slug | `duc` | `aqua-sharks-atlantic` | `k8-coaching` |
 | club_id | — | `385e2c9d-b32e-47d1-bb1d-1e042523de23` | `de64faab-c3d2-4997-a6bb-904ab989650c` |
-| What it is | Open water SWIMMING club, adult members, monthly league races | Competitive pool club, youth + adult squads, Cape Town | Britt's coaching business — open water + Masters squads (06:00/07:00/08:00 Group, Mon/Wed/Fri) |
-| Has squads | NO | YES | YES |
+| What it is | Open water SWIMMING club, adult members, monthly league races | Competitive pool club, youth + adult squads, Cape Town — now also includes the former K8 Masters swimmers (OW Masters 6-7/7-8/8-9) and K8's Senior Squad (folded into Aquasharks' own Senior Squad) | **Merged into Aquasharks 26 Aug 2026** — was Britt's coaching business, open water + Masters squads (06:00/07:00/08:00 Group, Mon/Wed/Fri). Squads/sessions still in DB but inactive. |
+| Has squads | NO | YES | YES (dormant) |
 | Has parents | NO | YES | NO |
-| Has attendance | NO | YES | YES |
-| Has timetable | NO | YES | YES |
-| Has sets planner | NO | YES | YES |
-| Has league | YES | NO | YES |
-| Has temp challenge | YES | NO | YES |
+| Has attendance | NO | YES | YES (dormant) |
+| Has timetable | NO | YES | YES (dormant) |
+| Has sets planner | NO | YES | YES (dormant) |
+| Has league | YES | NO | YES (dormant) |
+| Has temp challenge | YES | NO | YES (dormant) |
 | Has gala entries | NO | YES | NO |
-| Has coaching staff | NO | YES | YES |
+| Has coaching staff | NO | YES | YES (dormant) |
 
-K8 is a **hybrid**: open-water type with league + temp challenge (DUC-like) *and* squads + attendance + timetable + sets (Aquasharks-like), but NO parents and NO gala entries. Don't pattern-match it to either of the others — check its actual flags.
+K8 was a **hybrid**: open-water type with league + temp challenge (DUC-like) *and* squads + attendance + timetable + sets (Aquasharks-like), but NO parents and NO gala entries. Kept here for historical/rollback reference only — don't build new features against K8, it's dormant.
 
 ### Feature flags (clubs.features JSONB → window._clubFeatures):
 - `hasLeague` — League tab — DUC + K8
