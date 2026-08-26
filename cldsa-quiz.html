@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CLDSA Awards Challenge × SwimLoading</title>
+  <meta name="robots" content="noindex">
+  <meta name="description" content="A live open-water quiz for the CLDSA awards evening — how it works, what the winner gets, and what we need from the programme.">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --bg: #080f1a; --bg-card: #0d1728; --cyan: #38bdf8; --cyan-dim: rgba(56,189,248,0.12);
+      --cyan-border: rgba(56,189,248,0.3); --amber: #f59e0b; --green: #10b981;
+      --text: #f1f5f9; --text-sec: #64748b; --border: rgba(255,255,255,0.08); }
+    html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+      background: radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px), rgba(56,189,248,0.55), transparent 100%),
+                  radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px), rgba(56,189,248,0.07), transparent 70%); }
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: rgba(8,15,26,0.92); backdrop-filter: blur(8px); z-index: 10; }
+    .brand { display: flex; align-items: center; gap: 7px; text-decoration: none; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .brand img { height: 22px; width: auto; }
+    .tag { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-sec); font-weight: 700; }
+    main { max-width: 880px; margin: 0 auto; padding: 40px 20px 80px; }
+    h1 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(46px, 8vw, 84px); line-height: 0.95; letter-spacing: 1px; }
+    h1 span { color: var(--cyan); }
+    h2 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(28px, 4vw, 40px); letter-spacing: 1px; margin-bottom: 14px; }
+    h2 span { color: var(--cyan); }
+    .kicker { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: var(--cyan); font-weight: 700; margin-bottom: 14px; }
+    .lead { color: #cbd5e1; font-size: 18px; line-height: 1.6; margin-top: 18px; max-width: 60ch; }
+    section { margin-top: 56px; }
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; padding: 24px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+    .step { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
+    .step .n { font-family: 'Bebas Neue', sans-serif; font-size: 34px; color: var(--cyan); line-height: 1; }
+    .step h3 { font-size: 16px; margin: 10px 0 6px; }
+    .step p { color: #94a3b8; font-size: 14px; line-height: 1.55; }
+    .step i, .step svg { width: 20px; height: 20px; color: var(--cyan); }
+    ul.clean { list-style: none; }
+    ul.clean li { display: flex; gap: 10px; align-items: flex-start; color: #cbd5e1; font-size: 15px; line-height: 1.6; margin-bottom: 10px; }
+    ul.clean li i, ul.clean li svg { width: 18px; height: 18px; color: var(--green); flex: 0 0 18px; margin-top: 3px; }
+    .prize-card { background: var(--cyan-dim); border: 1px solid var(--cyan-border); border-radius: 18px; padding: 24px; }
+    .prize-card strong { display: block; font-size: 19px; margin-bottom: 8px; }
+    .prize-card p { color: #cbd5e1; font-size: 15px; line-height: 1.6; }
+    .partners { display: flex; flex-wrap: wrap; gap: 22px; align-items: center; margin-top: 18px; }
+    .partners img { display: block; }
+    .partners .plab { width: 100%; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-sec); font-weight: 700; }
+    .qr-wrap { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center; }
+    .qr { background: #fff; border-radius: 18px; padding: 16px; width: 190px; }
+    .qr svg { width: 100%; height: auto; display: block; }
+    .qr .u { text-align: center; color: #0f172a; font-weight: 700; font-size: 12px; margin-top: 8px; overflow-wrap: anywhere; }
+    .muted { color: var(--text-sec); font-size: 13px; margin-top: 14px; }
+    .agenda { border-left: 3px solid var(--amber); padding-left: 18px; margin-top: 14px; }
+    .agenda p { color: #cbd5e1; font-size: 15px; line-height: 1.7; }
+    .agenda b { color: var(--text); }
+    .btn { display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: 50px; padding: 13px 26px; font: 700 15px 'DM Sans', sans-serif; cursor: pointer; background: var(--cyan); color: var(--bg); text-decoration: none; }
+    .btn i, .btn svg { width: 17px; height: 17px; }
+    footer { border-top: 1px solid var(--border); margin-top: 70px; padding: 24px 20px; text-align: center; color: var(--text-sec); font-size: 13px; }
+    @media (max-width: 620px) { .qr-wrap { grid-template-columns: 1fr; } .qr { margin: 0 auto; } }
+  </style>
+</head>
+<body>
+<nav>
+  <a class="brand" href="https://swimloading.com"><img src="/icons/logo-wave.png" alt="">SwimLoading</a>
+  <span class="tag">CLDSA Awards 2026</span>
+</nav>
+<main>
+  <div class="kicker">Prepared for the CLDSA committee · AGM &amp; Awards Evening · 10 September 2026 · Royal Cape Yacht Club</div>
+  <h1>Better than a<br>lucky <span>draw.</span></h1>
+  <p class="lead">You asked whether SwimLoading could put up a lucky-draw prize for the awards evening. We'd rather your members <em>earn</em> it — so we built a live open-water quiz the whole room plays on their phones, with the winner decided on a big-screen leaderboard in front of everyone.</p>
+
+  <section>
+    <h2>The <span>five-minute</span> version</h2>
+    <div class="grid">
+      <div class="step"><i data-lucide="qr-code"></i><div class="n">1</div><h3>Scan</h3><p>A QR code goes up on the screen and table cards. Guests scan it with their phone camera — nothing to download.</p></div>
+      <div class="step"><i data-lucide="user-plus"></i><div class="n">2</div><h3>Join</h3><p>New guests create a free SwimLoading account in under a minute — name, email, password, done. Existing members just sign in.</p></div>
+      <div class="step"><i data-lucide="zap"></i><div class="n">3</div><h3>Play</h3><p>Six fun multiple-choice questions about cold-water swimming — the claw, afterdrop, the Benguela. 30 seconds each, big buttons, quick laughs.</p></div>
+      <div class="step"><i data-lucide="trophy"></i><div class="n">4</div><h3>Win</h3><p>A live leaderboard runs on the projector as answers come in. When the quiz closes, first place lights up gold in front of the room.</p></div>
+    </div>
+    <p class="muted">Scoring is simple and fair: 10 points per correct answer, fastest total time breaks ties. No name out of a hat — the winner earned it, and everyone watched it happen.</p>
+  </section>
+
+  <section>
+    <h2>The <span>prize</span></h2>
+    <div class="prize-card">
+      <strong>A personalised SwimLoading Open Water Performance Assessment</strong>
+      <p>The winner's swimming is measured with eo SwimBETTER handsets — the force-analysis technology used by Olympic swimmers — in partnership with Aqua Sharks Academy Atlantic.</p>
+      <div class="partners">
+        <span class="plab">Prize partners</span>
+        <img src="/partners/eo-logo-white.png" alt="eo SwimBETTER" style="height:26px">
+        <img src="/icons/Aquasharks.jpg" alt="Aqua Sharks Academy Atlantic" style="height:40px;border-radius:6px">
+      </div>
+      <p style="margin-top:16px;font-size:13px;color:#94a3b8;">And it doesn't end on the night: every guest who joins can keep logging swims on SwimLoading — one member who swims consistently between 1 August and 31 October wins a full eo SwimBETTER90 package.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>What we need from the <span>programme</span></h2>
+    <div class="agenda">
+      <p><b>Almost nothing — no stage time.</b> The QR sits on the screen (or table cards) from arrivals at 18:00, guests join over drinks, and when Dave opens the quiz everyone plays from their seats — about five minutes on their phones.</p>
+      <p><b>The screen does the announcing:</b> the leaderboard runs quietly in the background and first place lights up gold at the end. One line from the MC if you want it, none if you don't.</p>
+      <p>Dave runs everything from a laptop at his table — if the programme shifts on the night, the quiz moves with it.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>What CLDSA <span>gets</span></h2>
+    <ul class="clean">
+      <li><i data-lucide="check"></i>A high-energy interlude the whole room takes part in — phones up, laughing at the wrong answers, cheering the leaderboard.</li>
+      <li><i data-lucide="check"></i>Zero admin: no paper, no tickets, no counting. The screen announces the winner by first name and initial only — no private details shown.</li>
+      <li><i data-lucide="check"></i>A meaningful prize with a story — measured performance, not a raffle trinket.</li>
+      <li><i data-lucide="check"></i>Your members leave with a free SwimLoading account: live water temperatures, conditions and swim logging for the Cape's open water, built here.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>The <span>QR</span> guests will scan</h2>
+    <div class="card qr-wrap">
+      <div>
+        <p style="color:#cbd5e1;font-size:15px;line-height:1.6;">This is the real code — it points at <b style="color:var(--text)">swimloading.com/live/cldsa2026</b>. We'll supply it print-ready for the projector slide and table cards. The quiz stays locked until Dave opens it on the night, so the code can go on printed material now.</p>
+        <p style="margin-top:16px;"><a class="btn" href="https://wa.me/?text=CLDSA%20Awards%20Challenge%20%C3%97%20SwimLoading%20%E2%80%94%20https%3A%2F%2Fwww.swimloading.com%2Fcldsa-quiz" target="_blank"><i data-lucide="message-circle"></i>Share this page</a></p>
+      </div>
+      <div class="qr"><div id="qrBox"></div><div class="u">swimloading.com/live/cldsa2026</div></div>
+    </div>
+    <p class="muted">Questions are fully editable before the night — happy to run any of them past the committee first.</p>
+  </section>
+</main>
+<footer>SwimLoading × CLDSA · AGM &amp; Awards Evening · 10 September 2026, Royal Cape Yacht Club · Built in Cape Town</footer>
+<script>
+  document.addEventListener('mousemove', e => { document.body.style.setProperty('--mouse-x', e.clientX + 'px'); document.body.style.setProperty('--mouse-y', e.clientY + 'px'); });
+  lucide.createIcons();
+  fetch('/api/live-quiz/qr?slug=cldsa2026').then(r => r.text()).then(svg => { document.getElementById('qrBox').innerHTML = svg; }).catch(() => {});
+</script>
+</body>
+</html>
