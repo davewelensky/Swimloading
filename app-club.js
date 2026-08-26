@@ -2568,6 +2568,15 @@ function _fmtGapClub(sec) {
 let _cssData = { tests: [], roster: [], squads: [] };
 const CSS_CHART_COLORS = ['#38bdf8','#f59e0b','#10b981','#a78bfa','#f472b6','#fb923c','#22d3ee','#84cc16','#e879f9','#facc15'];
 
+// A valid CSS test requires the 400m to be more than exactly double the 200m
+// (the 200m is an all-out sprint and must be faster per 100m than the 400m's
+// average pace). If not, the computed CSS pace is faster than the swimmer's
+// own sprint pace — physically impossible, same "red figure" flag Britt's own
+// spreadsheet already uses (confirmed by Dave, 26 Aug 2026).
+function isCssTestInvalid(t) {
+  return t.time_400_seconds <= 2 * t.time_200_seconds;
+}
+
 async function loadCssTab() {
   const ctx = window._cssCtx;
   if (!ctx) return;
@@ -2626,10 +2635,12 @@ function renderCssTab() {
     bySwimmer[t.roster_id].push(t);
   });
 
-  // Club-wide Top 3 men / ladies — fastest (lowest) most-recent CSS pace
+  // Club-wide Top 3 men / ladies — fastest (lowest) most-recent CSS pace.
+  // Excludes invalid tests (400m not more than double the 200m) — a data
+  // error shouldn't be able to crown someone "fastest in the club".
   const ranked = Object.entries(bySwimmer)
     .map(([rid, rows]) => ({ rid, ...rows[rows.length - 1], swimmer: rosterById[rid] }))
-    .filter(r => r.swimmer);
+    .filter(r => r.swimmer && !isCssTestInvalid(r));
   const top3 = genderPrefix => ranked
     .filter(r => (r.swimmer.gender || '').toUpperCase().startsWith(genderPrefix))
     .sort((a, b) => a.css_pace_per_100_seconds - b.css_pace_per_100_seconds)
@@ -2702,12 +2713,14 @@ function renderCssRow(r, i, isMe) {
     : trend === 'up' ? `<i data-lucide="trending-up" style="width:13px;height:13px;color:var(--amber);"></i>`
     : trend === 'flat' ? `<i data-lucide="minus" style="width:13px;height:13px;color:var(--text-secondary);"></i>`
     : '<span style="width:13px;"></span>';
+  const invalid = isCssTestInvalid(r.latest);
   return `
-  <div style="display:flex;align-items:center;gap:10px;padding:7px 6px;border-bottom:1px solid rgba(255,255,255,0.03);${isMe ? 'background:rgba(56,189,248,0.06);border-radius:6px;' : ''}">
+  <div style="display:flex;align-items:center;gap:10px;padding:7px 6px;border-bottom:1px solid rgba(255,255,255,0.03);${isMe ? 'background:rgba(56,189,248,0.06);border-radius:6px;' : invalid ? 'background:rgba(239,68,68,0.06);border-radius:6px;' : ''}">
     <span style="font-size:11px;color:var(--text-secondary);width:16px;flex-shrink:0;">${i + 1}</span>
     <span style="font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.swimmer.display_name}${isMe ? ' <span style="color:var(--cyan);font-size:11px;">(you)</span>' : ''}</span>
     ${trendIcon}
-    <span style="font-size:13px;font-weight:800;font-family:'Bebas Neue',sans-serif;letter-spacing:0.03em;color:var(--text);width:56px;text-align:right;flex-shrink:0;">${secondsToTimeText(r.latest.css_pace_per_100_seconds)}</span>
+    <span style="font-size:13px;font-weight:800;font-family:'Bebas Neue',sans-serif;letter-spacing:0.03em;color:${invalid ? '#ef4444' : 'var(--text)'};width:56px;text-align:right;flex-shrink:0;">${secondsToTimeText(r.latest.css_pace_per_100_seconds)}</span>
+    ${invalid ? `<i data-lucide="triangle-alert" style="width:13px;height:13px;color:#ef4444;flex-shrink:0;" title="Ask your coach to re-check this test"></i>` : ''}
   </div>`;
 }
 

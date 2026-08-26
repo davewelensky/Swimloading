@@ -3896,7 +3896,7 @@ async function loadSquadTracker() {
 
   // Fetch roster + both time tables + attendance in parallel
   const clubId = currentClub.id;
-  const [rosterRes, swimTimesRes, galaTimesRes, attendRes, multisquadSessionsRes, sessionAssignRes] = await Promise.all([
+  const [rosterRes, swimTimesRes, galaTimesRes, attendRes, multisquadSessionsRes, sessionAssignRes, cssTestsRes] = await Promise.all([
     sb.from('club_roster').select('id, display_name, member_number, category, squad_id, secondary_squad_id, date_of_birth, gender, is_trial, fee_paid')
       .eq('club_id', clubId).eq('is_active', true).order('display_name'),
     sb.from('club_swimmer_times').select('roster_id, event, course, time_seconds, time_text, is_pb, meet_date')
@@ -3910,6 +3910,8 @@ async function loadSquadTracker() {
     sb.from('club_squad_sessions').select('id, squad_id, custom_name, day_of_week, start_time')
       .eq('is_multisquad', true).eq('is_active', true),
     sb.from('club_session_assignments').select('roster_id, session_id').eq('club_id', clubId),
+    sb.from('club_css_tests').select('roster_id, test_date, time_400_seconds, time_200_seconds, css_pace_per_100_seconds')
+      .eq('club_id', clubId).order('test_date', { ascending: true }),
   ]);
 
   const roster     = rosterRes.data     || [];
@@ -3962,6 +3964,11 @@ async function loadSquadTracker() {
       .filter(Boolean)
   );
 
+  // Latest CSS test per swimmer (club-wide — a swimmer's card shows it regardless
+  // of which squad the test was recorded under, e.g. Dry Land / cross-squad tests).
+  const cssByRoster = {};
+  (cssTestsRes.data || []).forEach(t => { cssByRoster[t.roster_id] = t; }); // ordered by test_date asc -> last write wins = latest
+
   trackerData = roster
     .filter(r => !adminRosterIds.has(r.id))
     .map(r => ({
@@ -3969,6 +3976,7 @@ async function loadSquadTracker() {
       times: timesByRoster[r.id] || [],
       sessions: sessionsByRoster[r.id]?.size || 0,
       secondarySessionLabel: secondarySessionLabel[r.id] || null,
+      cssLatest: cssByRoster[r.id] || null,
     }));
 
   // Fetch SSA qualifying times — load all age groups for relevant genders so champs year
@@ -4098,15 +4106,18 @@ async function loadCssResultsPanel(squadId) {
           </tr>
         </thead>
         <tbody>
-          ${latest.map((s, i) => `
-          <tr style="border-top:1px solid rgba(255,255,255,0.04);">
+          ${latest.map((s, i) => {
+            const invalid = isCssTestInvalid(s.latest);
+            return `
+          <tr style="border-top:1px solid rgba(255,255,255,0.04);${invalid ? 'background:rgba(239,68,68,0.06);' : ''}">
             <td style="padding:6px 8px;color:var(--text-sec);">${i + 1}</td>
             <td style="padding:6px 8px;">${s.name}</td>
             <td style="padding:6px 8px;">${formatSeconds(s.latest.time_400_seconds)}</td>
             <td style="padding:6px 8px;">${formatSeconds(s.latest.time_200_seconds)}</td>
-            <td style="padding:6px 8px;font-weight:700;color:var(--cyan);">${formatSeconds(s.latest.css_pace_per_100_seconds)}</td>
+            <td style="padding:6px 8px;font-weight:700;color:${invalid ? 'var(--danger)' : 'var(--cyan)'};">${formatSeconds(s.latest.css_pace_per_100_seconds)}${invalid ? ` <i data-lucide="triangle-alert" style="width:12px;height:12px;display:inline;vertical-align:middle;" title="400m wasn't more than double the 200m — ask Britt to re-check the raw times"></i>` : ''}</td>
             <td style="padding:6px 8px;color:var(--text-sec);">${s.latest.test_date}</td>
-          </tr>`).join('')}
+          </tr>`;
+          }).join('')}
         </tbody>
       </table>
     </div>
@@ -4273,6 +4284,10 @@ function renderTrackerGrid(swimmers) {
         <div class="tracker-stat">
           <div class="tracker-stat-val">${allEvents.length}</div>
           <div class="tracker-stat-lbl">Events</div>
+        </div>
+        <div class="tracker-stat" style="${s.cssLatest && isCssTestInvalid(s.cssLatest) ? 'border-color:rgba(239,68,68,0.4);background:rgba(239,68,68,0.06);' : ''}" ${s.cssLatest && isCssTestInvalid(s.cssLatest) ? `title="400m wasn't more than double the 200m — ask Britt to re-check this swimmer's raw times"` : ''}>
+          <div class="tracker-stat-val" style="${s.cssLatest && isCssTestInvalid(s.cssLatest) ? 'color:var(--danger);' : ''}">${s.cssLatest ? formatSeconds(s.cssLatest.css_pace_per_100_seconds) : '—'}</div>
+          <div class="tracker-stat-lbl">CSS /100m</div>
         </div>
       </div>
       ${eventsHtml}
@@ -8178,6 +8193,16 @@ async function saveSessionAssignments() {
 // ── CSS (CRITICAL SWIM SPEED) TEST ──────────────────────────────────
 // css_pace_per_100 = (400m time − 200m time) / 2 — standard CSS formula.
 // Stored in club_css_tests as a GENERATED column so it's never wrong.
+
+// A valid CSS test requires the 400m to be more than exactly double the 200m
+// (the 200m is an all-out sprint and must be faster per 100m than the 400m's
+// average pace — that gap is what the formula extracts). If 400 <= 2x200, the
+// computed CSS pace comes out equal to or faster than the swimmer's own sprint
+// pace, which is physically impossible — same "red figure" flag Britt's own
+// spreadsheet already uses (confirmed by Dave, 26 Aug 2026).
+function isCssTestInvalid(t) {
+  return t.time_400_seconds <= 2 * t.time_200_seconds;
+}
 
 function openCssTestModal(presetSquadId) {
   const sel = document.getElementById('cssTestSquad');
