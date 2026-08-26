@@ -2739,12 +2739,15 @@ function renderCssSquadChart(rows) {
 
   const lines = rows.map((r, ci) => {
     const color = CSS_CHART_COLORS[ci % CSS_CHART_COLORS.length];
+    const name = r.swimmer.display_name.replace(/'/g, "\\'");
     const pts = r.history.map(h => ({ x: xFor(dateIndex[h.test_date]), y: yFor(h.css_pace_per_100_seconds), h }));
     const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
-    const dots = pts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.5" fill="${color}"><title>${r.swimmer.display_name}: ${secondsToTimeText(p.h.css_pace_per_100_seconds)}/100 (${p.h.test_date})</title></circle>`).join('');
+    // onclick, not just <title> — native SVG hover tooltips don't fire on touch
+    // devices at all, and this is a mobile app (found live, 26 Aug 2026).
+    const dots = pts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="${color}" style="cursor:pointer;" onclick="showToast('${name}: ${secondsToTimeText(p.h.css_pace_per_100_seconds)}/100 (${p.h.test_date})')"><title>${r.swimmer.display_name}: ${secondsToTimeText(p.h.css_pace_per_100_seconds)}/100 (${p.h.test_date})</title></circle>`).join('');
     return `<path d="${path}" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.8"/>${dots}`;
   }).join('');
 
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;overflow:visible;margin:4px 0 4px;" preserveAspectRatio="none">${lines}</svg>
-    <div style="font-size:10px;color:var(--text-secondary);text-align:right;margin-top:-2px;margin-bottom:8px;">↑ faster · hover a dot for name</div>`;
+    <div style="font-size:10px;color:var(--text-secondary);text-align:right;margin-top:-2px;margin-bottom:8px;">↑ faster · tap a dot for name</div>`;
 }
