@@ -34,7 +34,7 @@
     .steps { font-family: 'Bebas Neue', sans-serif; font-size: clamp(34px, 4.5vw, 72px); letter-spacing: 3px; margin-top: 3vh; color: var(--text); }
     .steps span { color: var(--cyan); }
     .prize { margin-top: 3vh; border-left: 4px solid var(--amber); padding-left: 18px; color: #cbd5e1; font-size: clamp(16px, 1.8vw, 28px); max-width: 28ch; }
-    .count { font-family: 'Bebas Neue', sans-serif; font-size: clamp(28px, 3vw, 46px); letter-spacing: 2px; margin-top: 2vh; color: #94a3b8; }
+    .count { font-family: 'Bebas Neue', sans-serif; font-size: clamp(28px, 3vw, 46px); letter-spacing: 2px; margin-top: 1.5vh; color: #94a3b8; }
     .count b { color: var(--text); font-weight: 400; font-size: 1.5em; }
     /* live */
     .live { display: grid; grid-template-columns: 1fr 1fr; gap: 6vw; align-items: start; }
@@ -55,7 +55,10 @@
     .row.top2 .r { color: #e2e8f0; } .row.top3 .r { color: #d97706; }
     .winner-tag { font-size: 0.45em; letter-spacing: 3px; text-transform: uppercase; color: var(--amber); font-weight: 700; margin-left: auto; margin-right: 16px; }
     .empty { text-align: center; color: var(--text-sec); font-size: 24px; }
-    footer { display: flex; justify-content: space-between; color: var(--text-sec); font-size: 16px; letter-spacing: 1px; }
+    footer { display: flex; justify-content: space-between; gap: 20px; color: var(--text-sec); font-size: 16px; letter-spacing: 1px; }
+    footer #footM { color: #94a3b8; text-align: center; flex: 1; }
+    .pstrip { display: none; align-items: center; gap: 18px; margin-top: 2vh; }
+    .pstrip span { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-sec); font-weight: 700; }
     .mid .rows { grid-template-columns: 1fr 1fr 1fr; }
     .mid .row.top1 { grid-column: auto; font-size: inherit; padding: 1.4vh 22px; }
   </style>
@@ -77,7 +80,12 @@
           <div class="steps">Scan. <span>Join.</span> Compete.</div>
           <div class="prize" id="prize">Win a personalised SwimLoading Open Water Performance Assessment</div>
           <div class="count" id="lobbyCount"><b>0</b> joined</div>
-          <div class="sub" id="lobbyHint" style="margin-top:1vh">Create your free SwimLoading account now — the quiz starts soon.</div>
+          <div class="pstrip" id="pstrip">
+            <span>Prize partners</span>
+            <img src="/partners/eo-logo-white.png" alt="eo SwimBETTER" style="height:clamp(20px,3vh,34px)">
+            <img src="/icons/Aquasharks.jpg" alt="Aqua Sharks Academy Atlantic" style="height:clamp(30px,5vh,52px);border-radius:6px">
+          </div>
+          <div class="sub" id="lobbyHint" style="margin-top:1vh;font-size:clamp(14px,1.6vw,22px)">Create your free SwimLoading account now — the quiz starts soon.</div>
         </div>
         <div class="qr" id="qr"><div class="url" id="url">swimloading.com/live/cldsa2026</div></div>
       </div>
@@ -104,11 +112,16 @@
       <div class="board">
         <h2 id="finalTitle">CLDSA Open Water Challenge<br><span style="color:var(--cyan)">Final Leaderboard</span></h2>
         <div class="rows" id="finalBoard"></div>
+        <div class="pstrip" id="pstripFinal" style="justify-content:center;margin-top:2.5vh">
+          <span>Prize partners</span>
+          <img src="/partners/eo-logo-white.png" alt="eo SwimBETTER" style="height:clamp(20px,3vh,34px)">
+          <img src="/icons/Aquasharks.jpg" alt="Aqua Sharks Academy Atlantic" style="height:clamp(30px,5vh,52px);border-radius:6px">
+        </div>
       </div>
     </div>
   </div>
 
-  <footer><span id="footL">www.swimloading.com/live/cldsa2026</span><span id="footR"></span></footer>
+  <footer><span id="footL">www.swimloading.com/live/cldsa2026</span><span id="footM">SwimLoading — live water temps, conditions and swim tracking. Log your swims consistently until 31 Oct and you could win an eo SwimBETTER90 package.</span><span id="footR"></span></footer>
 </div>
 
 <script>
@@ -134,6 +147,8 @@
     const parts = ev.name.split(' '); const last = parts.pop();
     $('title').innerHTML = esc(parts.join(' ')) + ' <span>' + esc(last) + '</span>';
     if (ev.prize) $('prize').textContent = ev.prize;
+    const showP = ev.slug === 'cldsa2026' ? 'flex' : 'none';
+    $('pstrip').style.display = showP; $('pstripFinal').style.display = showP;
     $('footR').textContent = s.player_count + ' joined';
     $('lobbyCount').innerHTML = '<b>' + s.player_count + '</b> joined';
     if (ev.status === 'finished') {

@@ -35,6 +35,12 @@
     .prize { background: var(--cyan-dim); border: 1px solid var(--cyan-border); border-radius: 16px; padding: 16px; margin-bottom: 22px; }
     .prize strong { display: block; font-size: 16px; margin-bottom: 4px; }
     .prize span { color: #94a3b8; font-size: 14px; }
+    .partners { display: none; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); }
+    .partners.on { display: block; }
+    .partners .plabel { display: block; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-sec); font-weight: 700; margin-bottom: 8px; }
+    .partners .prow { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #cbd5e1; margin-bottom: 6px; }
+    .partners .prow a { color: var(--cyan); text-decoration: none; }
+    .partners .pnote { display: block; font-size: 12px; color: var(--text-sec); margin-top: 6px; line-height: 1.45; }
     .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; border: 0; border-radius: 50px; padding: 18px 26px;
       font: 700 18px 'DM Sans', sans-serif; cursor: pointer; background: var(--cyan); color: var(--bg); }
     .btn:disabled { opacity: 0.5; cursor: default; }
@@ -138,7 +144,14 @@
   <section id="s-lobby" class="screen">
     <h1 id="eventName">CLDSA Awards <span>Challenge</span></h1>
     <p class="lead" id="eventIntro">How well do you know your open water? Six questions. One winner.</p>
-    <div class="prize"><strong id="eventPrize">Win a personalised SwimLoading Open Water Performance Assessment</strong><span>Six questions, 10 points each. Ties go to the fastest.</span></div>
+    <div class="prize"><strong id="eventPrize">Win a personalised SwimLoading Open Water Performance Assessment</strong><span>Six questions, 10 points each. Ties go to the fastest.</span>
+      <div class="partners" id="prizePartners">
+        <span class="plabel">Prize partners</span>
+        <span class="prow"><img src="/partners/eo-logo-white.png" alt="eo SwimBETTER" style="height:16px"><span>eo SwimBETTER handsets — <a href="/partners/eolab" target="_blank">win your own until 31 Oct</a></span></span>
+        <span class="prow"><img src="/icons/Aquasharks.jpg" alt="" style="height:22px;border-radius:4px"><span>Aqua Sharks Academy Atlantic</span></span>
+        <span class="pnote">Separately, one SwimLoading member wins a full eo SwimBETTER90 package — swim consistently and log it, 1 Aug to 31 Oct.</span>
+      </div>
+    </div>
     <button class="btn" id="btnJoin" onclick="doJoin()"><i data-lucide="zap"></i> Join Challenge</button>
     <div class="status" id="lobbyStatus" style="display:none"><strong id="lobbyStatusTitle">You're in</strong><span class="muted" id="lobbyStatusText">Waiting for the quiz to start…</span></div>
     <p class="hint" id="lobbyCount"></p>
@@ -229,6 +242,9 @@
     $('loginTitle').innerHTML = $('eventName').innerHTML;
     if (ev.intro) $('eventIntro').textContent = ev.intro;
     if (ev.prize) $('eventPrize').textContent = ev.prize;
+    // CLDSA 2026 prize partners (event-specific; the handsets were bought
+    // with Aqua Sharks — credit both, no claims beyond that)
+    if (ev.slug === 'cldsa2026') $('prizePartners').classList.add('on');
   }
 
   // ── login ──
