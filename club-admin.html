@@ -1288,6 +1288,9 @@
               <option value="2027" selected>2027 Champs</option>
               <option value="2028">2028 Champs</option>
             </select>
+            <button class="btn-modal-cancel" style="padding:8px 14px;font-size:12.5px;" onclick="openCssTestModal()">
+              <i data-lucide="gauge" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:5px;"></i>Record CSS Test
+            </button>
           </div>
         </div>
         <div id="squadCapacityStrip" style="display:none;margin-bottom:16px;"></div>
@@ -1641,6 +1644,31 @@
     <div class="modal-actions" style="margin-top:14px;">
       <button class="btn-modal-cancel" onclick="closeSessionAssignModal()">Cancel</button>
       <button class="btn-modal-primary" onclick="saveSessionAssignments()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- CSS (CRITICAL SWIM SPEED) TEST MODAL -->
+<div class="modal-overlay" id="cssTestModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-title">Record CSS Test
+      <button class="modal-close" onclick="closeCssTestModal()">&times;</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-sec);margin-bottom:14px;">
+      Enter each swimmer's 400m and 200m time trial (push start). CSS pace per 100m is calculated automatically: (400m time − 200m time) ÷ 2.
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+      <select class="filter-select" id="cssTestSquad" onchange="loadCssTestSquad()" style="flex:1;min-width:160px;">
+        <option value="">Select squad…</option>
+      </select>
+      <input type="date" class="filter-select" id="cssTestDate" onchange="loadCssTestSquad()" style="flex:0 0 150px;">
+    </div>
+    <div id="cssTestList" style="max-height:50vh;overflow-y:auto;">
+      <div style="color:var(--text-sec);font-size:13px;padding:20px 0;text-align:center;">Select a squad to begin.</div>
+    </div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="btn-modal-cancel" onclick="closeCssTestModal()">Cancel</button>
+      <button class="btn-modal-primary" id="cssTestSaveBtn" onclick="saveCssTests()">Save CSS Test</button>
     </div>
   </div>
 </div>
@@ -8077,6 +8105,126 @@ async function saveSessionAssignments() {
   closeSessionAssignModal();
   renderSettingsTimetable(allTimetableSessions);
   if (document.getElementById('timetableCapacityList')?.style.display !== 'none') renderTimetableCapacityView();
+}
+
+// ── CSS (CRITICAL SWIM SPEED) TEST ──────────────────────────────────
+// css_pace_per_100 = (400m time − 200m time) / 2 — standard CSS formula.
+// Stored in club_css_tests as a GENERATED column so it's never wrong.
+
+function openCssTestModal(presetSquadId) {
+  const sel = document.getElementById('cssTestSquad');
+  sel.innerHTML = '<option value="">Select squad…</option>' +
+    allSquads.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  if (presetSquadId) sel.value = presetSquadId;
+  document.getElementById('cssTestDate').value = localISO(new Date());
+  document.getElementById('cssTestList').innerHTML =
+    '<div style="color:var(--text-sec);font-size:13px;padding:20px 0;text-align:center;">Select a squad to begin.</div>';
+  document.getElementById('cssTestModal').classList.add('open');
+  if (presetSquadId) loadCssTestSquad();
+}
+
+function closeCssTestModal() {
+  document.getElementById('cssTestModal').classList.remove('open');
+}
+
+async function loadCssTestSquad() {
+  const squadId = document.getElementById('cssTestSquad').value;
+  const testDate = document.getElementById('cssTestDate').value;
+  const list = document.getElementById('cssTestList');
+  if (!squadId || !testDate) {
+    list.innerHTML = '<div style="color:var(--text-sec);font-size:13px;padding:20px 0;text-align:center;">Select a squad to begin.</div>';
+    return;
+  }
+  list.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  const members = (allRosterFull.length
+    ? allRosterFull.filter(r => r.is_active !== false)
+    : []
+  ).filter(r => r.squad_id === squadId || r.secondary_squad_id === squadId)
+   .sort((a, b) => (a.display_name || '').localeCompare(b.display_name || ''));
+
+  const rosterIds = members.map(m => m.id);
+  const [{ data: existing }, { data: recent }] = await Promise.all([
+    rosterIds.length
+      ? sb.from('club_css_tests').select('roster_id, time_400_seconds, time_200_seconds')
+          .eq('test_date', testDate).in('roster_id', rosterIds)
+      : Promise.resolve({ data: [] }),
+    rosterIds.length
+      ? sb.from('club_css_tests').select('roster_id, test_date, css_pace_per_100_seconds')
+          .in('roster_id', rosterIds).order('test_date', { ascending: false })
+      : Promise.resolve({ data: [] }),
+  ]);
+  const existingByRoster = {};
+  (existing || []).forEach(e => { existingByRoster[e.roster_id] = e; });
+  const lastCssByRoster = {};
+  (recent || []).forEach(r => { if (!lastCssByRoster[r.roster_id]) lastCssByRoster[r.roster_id] = r; });
+
+  list.innerHTML = members.length ? members.map(m => {
+    const ex = existingByRoster[m.id];
+    const last = lastCssByRoster[m.id];
+    const lastLabel = last && (!ex || last.test_date !== testDate)
+      ? `<span style="font-size:11px;color:var(--text-sec);">last: ${formatSeconds(last.css_pace_per_100_seconds)}/100 (${last.test_date})</span>` : '';
+    return `
+    <div class="assign-swimmer-row" data-roster-id="${m.id}" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.03);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;">${m.display_name}</div>
+        ${lastLabel}
+      </div>
+      <input type="text" class="css-time-input" id="css400_${m.id}" placeholder="400m" value="${ex ? formatSeconds(ex.time_400_seconds) : ''}"
+        oninput="updateCssPaceRow('${m.id}')" style="width:70px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:var(--text);font-size:12.5px;padding:6px 8px;border-radius:5px;">
+      <input type="text" class="css-time-input" id="css200_${m.id}" placeholder="200m" value="${ex ? formatSeconds(ex.time_200_seconds) : ''}"
+        oninput="updateCssPaceRow('${m.id}')" style="width:70px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:var(--text);font-size:12.5px;padding:6px 8px;border-radius:5px;">
+      <span id="cssPace_${m.id}" style="width:64px;text-align:right;font-size:12.5px;color:var(--cyan);font-weight:600;">${ex ? formatSeconds((ex.time_400_seconds - ex.time_200_seconds) / 2) : '—'}</span>
+    </div>`;
+  }).join('') : `<div style="color:var(--text-sec);font-size:13px;padding:12px 0;text-align:center;">No active swimmers in this squad.</div>`;
+}
+
+function updateCssPaceRow(rosterId) {
+  const t400 = parseTimeToSeconds(document.getElementById(`css400_${rosterId}`)?.value);
+  const t200 = parseTimeToSeconds(document.getElementById(`css200_${rosterId}`)?.value);
+  const out = document.getElementById(`cssPace_${rosterId}`);
+  if (!out) return;
+  out.textContent = (t400 && t200 && t400 > t200) ? formatSeconds((t400 - t200) / 2) : '—';
+}
+
+async function saveCssTests() {
+  const squadId = document.getElementById('cssTestSquad').value;
+  const testDate = document.getElementById('cssTestDate').value;
+  if (!squadId || !testDate) { showToast('Select a squad and date first', 'error'); return; }
+
+  const btn = document.getElementById('cssTestSaveBtn');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+
+  try {
+    const rows = [];
+    document.querySelectorAll('#cssTestList .assign-swimmer-row').forEach(row => {
+      const rosterId = row.dataset.rosterId;
+      const t400 = parseTimeToSeconds(document.getElementById(`css400_${rosterId}`)?.value);
+      const t200 = parseTimeToSeconds(document.getElementById(`css200_${rosterId}`)?.value);
+      if (t400 && t200 && t400 > t200) {
+        rows.push({
+          club_id: currentClub.id,
+          roster_id: rosterId,
+          squad_id: squadId,
+          test_date: testDate,
+          time_400_seconds: t400,
+          time_200_seconds: t200,
+          created_by: currentUser.id,
+        });
+      }
+    });
+    if (!rows.length) { showToast('Enter at least one swimmer\'s 400m and 200m time', 'error'); return; }
+
+    const { error } = await sb.from('club_css_tests').upsert(rows, { onConflict: 'roster_id,test_date' });
+    if (error) { showToast('Save failed: ' + error.message, 'error'); return; }
+
+    showToast(`CSS test saved for ${rows.length} swimmer${rows.length === 1 ? '' : 's'}`);
+    closeCssTestModal();
+  } catch (e) {
+    showToast('Save failed: ' + e.message, 'error');
+  } finally {
+    btn.textContent = 'Save CSS Test'; btn.disabled = false;
+  }
 }
 
 // ── SCHEDULE IMPORT ────────────────────────────────────────────────
