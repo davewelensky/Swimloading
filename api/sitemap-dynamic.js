@@ -20,7 +20,6 @@ const STATIC_PAGES = [
   // water event" should land here, so it is indexed in its own right.
   { path: '/list-your-swim',      priority: '0.8', changefreq: 'monthly' },
   { path: '/robben',              priority: '0.8', changefreq: 'weekly'  },
-  { path: '/ri',                  priority: '0.8', changefreq: 'weekly'  },
   { path: '/campaign',            priority: '0.7', changefreq: 'weekly'  },
   { path: '/preekstool',          priority: '0.7', changefreq: 'weekly'  },
   { path: '/capepoint',           priority: '0.7', changefreq: 'weekly'  },
