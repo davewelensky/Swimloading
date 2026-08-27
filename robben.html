@@ -253,13 +253,6 @@
     Loading...
 </div>
 
-<div id="gateScreen" class="container" style="display:none;text-align:center;padding:80px 20px;">
-    <div style="font-size:36px;font-weight:700;color:var(--text-secondary);margin-bottom:16px;">PRO</div>
-    <div style="font-size:17px;font-weight:700;margin-bottom:8px;">Pro Access Required</div>
-    <div style="color:var(--text-secondary);font-size:13px;margin-bottom:24px;">Robben Island Intel is a premium tool.<br>Contact SwimLoading to get access.</div>
-    <a href="/app" style="color:var(--ocean-light);font-size:14px;">Back to SwimLoading</a>
-</div>
-
 <div id="appContent" class="container">
 
     <div class="tab-bar" style="margin-top:14px;">
@@ -654,15 +647,6 @@
 const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
 
-// Pro access — add user IDs here to grant access
-const ALLOWED = [
-    'df137255-3add-4153-b368-32e06e2be188', // Dave
-    '8073c5b3-8de7-486a-aab9-9ba4f6754ae7', // Yolanda Carstens
-    '14dd0119-ff5e-49ef-97e8-9fd76197dae7', // Paul Newsome
-    '1c7b3744-9d54-4d62-b0e8-43333d82543f', // Andrew Donaldson
-    'cff2fc33-4a55-451b-8c7f-20f12c1898ce', // Carina (Ysie)
-];
-
 // Big Bay / Bloubergstrand coordinates — crossing start
 const BIG_BAY_LAT = -33.7297;
 const BIG_BAY_LNG = 18.4611;
@@ -696,15 +680,12 @@ async function startApp(session) {
     appStarted = true;
 
     document.getElementById('initScreen').style.display = 'none';
-
-    if (!ALLOWED.includes(session.user.id)) {
-        document.getElementById('gateScreen').style.display = 'block';
-        return;
-    }
-
-    const name = (session.user.email || '').split('@')[0].split('.')[0];
-    document.getElementById('userPill').textContent = name.charAt(0).toUpperCase() + name.slice(1);
     document.getElementById('appContent').style.display = 'block';
+
+    if (session) {
+        const name = (session.user.email || '').split('@')[0].split('.')[0];
+        document.getElementById('userPill').textContent = name.charAt(0).toUpperCase() + name.slice(1);
+    }
 
     _liveResult = await loadLiveTemps();
     // Pre-fill calculator water temp with live reading if available
@@ -744,18 +725,22 @@ async function refreshIntel() {
     reset('swellForecast', 'Loading...');
 
     const { data: { session } } = await sb.auth.getSession();
-    if (session) await startApp(session);
+    await startApp(session || null);
     if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
 }
 
 async function init() {
     sb.auth.onAuthStateChange((event, session) => {
-        if (session) startApp(session);
-        else if (!appStarted) window.location.href = '/app';
+        if (session && appStarted) {
+            const name = (session.user.email || '').split('@')[0].split('.')[0];
+            const pill = document.getElementById('userPill');
+            if (pill) pill.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+        } else if (session) {
+            startApp(session);
+        }
     });
     const { data: { session } } = await sb.auth.getSession();
-    if (session) startApp(session);
-    else setTimeout(() => { if (!appStarted) window.location.href = '/app'; }, 2000);
+    startApp(session || null);
 }
 
 // ─── TAB SWITCHING ────────────────────────────────────────────────────────────
