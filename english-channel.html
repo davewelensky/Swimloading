@@ -1814,7 +1814,7 @@ function renderCrossingWindow() {
     if (!_wf && !_mf) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Forecast data unavailable.</div>'; return; }
 
     const totalDays = (_wf?.time || _mf?.time || []).length;
-    const days = isChannelPro() ? totalDays : Math.min(3, totalDays);
+    const days = totalDays;
     const sst = bestTemp();
     let html = '';
     for (let i = 0; i < days; i++) {
@@ -1854,12 +1854,7 @@ function renderCrossingWindow() {
             <div style="font-size:12px;font-weight:800;color:${labelCol};width:40px;text-align:right;">${label}</div>
         </div>`;
     }
-    const proCta = isChannelPro() ? '' : proGateHtml({
-        title: `Unlock the full 16-day window`,
-        reason: `You're seeing 3 days. Channel Pro unlocks the full 16-day forecast, daily score, and personal tide window scoring.`,
-        margin: '12px 0 4px',
-    });
-    el.innerHTML = html + proCta + `<div style="font-size:10px;color:var(--text-secondary);padding:4px 0;">Score 0–100 · GO: wind &le;10kt, waves &le;1.2m · WAIT: wind &le;18kt, waves &le;2.0m · Pilots typically no-swim at Beaufort 4+</div>`;
+    el.innerHTML = html + `<div style="font-size:10px;color:var(--text-secondary);padding:4px 0;">Score 0–100 · GO: wind &le;10kt, waves &le;1.2m · WAIT: wind &le;18kt, waves &le;2.0m · Pilots typically no-swim at Beaufort 4+</div>`;
 }
 
 function renderWindForecast() {
@@ -1868,8 +1863,7 @@ function renderWindForecast() {
         el.innerHTML = `<div style="font-size:13px;color:var(--text-secondary);">Wind forecast unavailable. <a href="https://www.windy.com/51.128/1.313?wind,51.128,1.313,10" target="_blank" style="color:var(--ocean-light);">Open Windy.com &rarr;</a></div>`;
         return;
     }
-    const proDayCap = isChannelPro() ? _wf.time.length : Math.min(3, _wf.time.length);
-    const visibleTimes = _wf.time.slice(0, proDayCap);
+    const visibleTimes = _wf.time;
     const rows = visibleTimes.map((date, i) => {
         const spd = _wf.wind_speed_10m_max[i];
         const dir = _wf.wind_direction_10m_dominant[i];
@@ -1889,15 +1883,13 @@ function renderWindForecast() {
             <div style="font-size:12px;font-weight:600;color:${spdCol};">${spdLabel}</div>
         </div>`;
     }).join('');
-    const proCta = isChannelPro() ? '' : proGateHtml({ title: 'Full 16-day wind forecast', reason: 'You\'re seeing 3 days. Channel Pro unlocks the full 16-day Dover Strait wind forecast.', margin: '10px 0 4px' });
-    el.innerHTML = rows + proCta + `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo · Dover Strait · Daily max wind in knots · F3=ideal, F4=marginal, F5+=no-go</div>`;
+    el.innerHTML = rows + `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo · Dover Strait · Daily max wind in knots · F3=ideal, F4=marginal, F5+=no-go</div>`;
 }
 
 function renderSwellForecast() {
     const el = document.getElementById('swellForecast');
     if (!_mf) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">Marine forecast unavailable.</div>'; return; }
-    const proDayCap = isChannelPro() ? _mf.time.length : Math.min(3, _mf.time.length);
-    const visibleTimes = _mf.time.slice(0, proDayCap);
+    const visibleTimes = _mf.time;
     const rows = visibleTimes.map((date, i) => {
         const wh = _mf.wave_height_max[i];
         const sw = _mf.swell_wave_height_max?.[i];
@@ -1915,8 +1907,7 @@ function renderSwellForecast() {
             <div style="font-size:12px;font-weight:600;color:${wCol};">${wLabel}</div>
         </div>`;
     }).join('');
-    const proCta = isChannelPro() ? '' : proGateHtml({ title: 'Full 10-day wave forecast', reason: 'You\'re seeing 3 days. Channel Pro unlocks the full 10-day Dover Strait wave + swell forecast.', margin: '10px 0 4px' });
-    el.innerHTML = rows + proCta + `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo Marine · Dover Strait · Significant wave height</div>`;
+    el.innerHTML = rows + `<div style="font-size:11px;color:var(--text-secondary);margin-top:10px;">Source: Open-Meteo Marine · Dover Strait · Significant wave height</div>`;
 }
 
 // ─── MONTHLY TABLE ─────────────────────────────────────────────────────────────
@@ -2116,15 +2107,8 @@ async function loadChannelRecords() {
             document.getElementById('womRecMeta').textContent = `${w.year} · ${w.nationality_when_swam || ''}`;
         }
 
-        // Top 10 men's / women's — gate beyond 3 for non-Pro
-        const proLimit = isChannelPro() ? Infinity : 3;
-        const proGate = (n) => isChannelPro() ? '' : proGateHtml({
-            title: `Unlock the full top ${n}`,
-            reason: `You're seeing the top 3. Channel Pro unlocks the full top 10 leaderboard with nationality, pilot, and direct links to every swim page.`,
-            margin: '12px 0 0',
-        });
-        document.getElementById('topMen').innerHTML = renderRecordList(men.slice(0, proLimit), '#f59e0b') + proGate(10);
-        document.getElementById('topWomen').innerHTML = renderRecordList(women.slice(0, proLimit), '#ec4899') + proGate(10);
+        document.getElementById('topMen').innerHTML = renderRecordList(men, '#f59e0b');
+        document.getElementById('topWomen').innerHTML = renderRecordList(women, '#ec4899');
 
         // Multi-way records
         const multiHtml = [
@@ -2218,8 +2202,7 @@ async function loadPilotLeaderboard() {
         if (error) throw error;
         if (!data?.length) throw new Error('no data');
 
-        const visible = isChannelPro() ? data : data.slice(0, 3);
-        const rows = visible.map((p, i) => {
+        const rows = data.map((p, i) => {
             const active = p.last_year >= 2023;
             const activeIcon = active ? '<span style="color:var(--success);font-size:10px;font-weight:700;">ACTIVE</span>' : '<span style="color:var(--text-secondary);font-size:10px;">retired</span>';
             const fastest = p.fastest_time_seconds ? fmtTime(p.fastest_time_seconds) : '—';
@@ -2236,12 +2219,7 @@ async function loadPilotLeaderboard() {
                 <div style="font-size:18px;font-weight:900;color:var(--ocean-light);">${p.total_swims}</div>
             </div>`;
         }).join('');
-        const proCta = isChannelPro() ? '' : proGateHtml({
-            title: `Unlock the full pilot leaderboard`,
-            reason: `Showing top 3 of ${data.length}. Channel Pro unlocks every active CSA + CS&PF pilot's full track record — total ratified crossings, years active, fastest swim, boats.`,
-            margin: '14px 0 0',
-        });
-        el.innerHTML = rows + proCta;
+        el.innerHTML = rows;
         el.classList.remove('loading-msg');
     } catch (e) {
         console.error('Pilot leaderboard failed', e);
@@ -2318,10 +2296,9 @@ async function runSearch() {
     el.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);text-align:center;padding:20px;">Searching...</div>';
 
     try {
-        const proLimit = isChannelPro() ? 50 : 10;
         const { data, error } = await sb.rpc('channel_search_swims', {
             p_query: q || null, p_year: y, p_gender: g || null,
-            p_pilot: p || null, p_nationality: n || null, p_limit: proLimit
+            p_pilot: p || null, p_nationality: n || null, p_limit: 50
         });
         if (error) throw error;
         if (!data?.length) {
@@ -2347,14 +2324,8 @@ async function runSearch() {
                 </div>
             </a>`;
         }).join('');
-        const cap = isChannelPro() ? 50 : 10;
-        const showing = data.length === cap ? `Showing ${cap} results${isChannelPro() ? ' (refine your search)' : ''}` : `${data.length} result${data.length===1?'':'s'}`;
-        const proCta = isChannelPro() ? '' : proGateHtml({
-            title: 'Unlock the full search',
-            reason: `Free results are capped at 10. Channel Pro unlocks the full search across all 3,443 ratified solo crossings — by year, pilot, nationality, gender, name.`,
-            margin: '14px 0 4px',
-        });
-        el.innerHTML = `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">${showing}</div>${rows}${proCta}`;
+        const showing = data.length === 50 ? `Showing 50 results (refine your search)` : `${data.length} result${data.length===1?'':'s'}`;
+        el.innerHTML = `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">${showing}</div>${rows}`;
     } catch (e) {
         console.error('Search failed', e);
         el.innerHTML = '<div style="font-size:13px;color:var(--text-secondary);text-align:center;padding:20px;">Search failed — try again.</div>';
@@ -2369,12 +2340,6 @@ function getTideWindow() {
 }
 
 function openTideWindowEditor() {
-    if (!isChannelPro()) {
-        if (confirm('Channel Pro feature. See pricing to unlock?')) {
-            window.location.href = '/pricing';
-        }
-        return;
-    }
     const tw = getTideWindow();
     if (tw) {
         document.getElementById('twStart').value = tw.start || '';
@@ -2417,14 +2382,6 @@ async function renderTideWindow() {
     const card = document.getElementById('myTideWindowCard');
     const ctaText = document.querySelector('#tideWindowCta > div');
     const ctaBtn = document.querySelector('#tideWindowCta > button');
-
-    // Non-Pro users: show the bait, but the editor is gated
-    if (!isChannelPro()) {
-        card.style.display = 'none';
-        if (ctaText) ctaText.innerHTML = 'Crossing in 2026 or 2027?<br><span style="font-weight:400;color:var(--text-secondary);">Personal forecast + score per day in your window</span>';
-        if (ctaBtn) { ctaBtn.textContent = 'Pro →'; ctaBtn.style.opacity = '0.85'; }
-        return;
-    }
 
     const tw = getTideWindow();
     if (!tw) {
