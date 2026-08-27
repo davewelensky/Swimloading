@@ -633,8 +633,8 @@ Complete inventory of every public page. Brand checklist: spotlight = mouse curs
 | Route | File | Purpose | Spotlight | Logo Nav | Pill Btns |
 |-------|------|---------|-----------|----------|-----------|
 | `/intel` | `intel.html` | Open water race intelligence hub | ✅ | ✅ | ✅ |
-| `/robben` | `robben.html` | Robben Island crossing intelligence | ✅ | ✅ | ✅ |
-| `/ri` | `ri.html` | RI swim data / conditions | ✅ | ✅ | ✅ |
+| `/robben` | `robben.html` | Robben Island crossing intelligence — the sole canonical Robben Island page as of 27 Aug 2026, see `/ri` row | ✅ | ✅ | ✅ |
+| ~~`/ri`~~ | `ri.html` | **301 → `/robben` as of 27 Aug 2026.** Was a second, separately-built Robben Island page whose record table and "Year by Year" chart were frozen at 2024 data — `/robben` queries `historical_swims` live and already had 2025/2026 swims ranked ahead of entries `/ri` still showed higher (e.g. Ryan Stramrood's 4 Mar 2026 swim). Two pages about the same crossing, one stale, undermines being a trustworthy source — so `/ri` now redirects via `vercel.json` (`status: 301`) instead of serving `ri.html`. The two internal links that pointed at `/ri` (english-channel.html's related grid, pro.html's swim-card + footer) now point at `/robben`; `/ri` is also dropped from `sitemap-dynamic.js`. `ri.html` itself is left in the repo unrouted, same as `landing.html` above — don't re-route it without reconciling its record data against `historical_swims` first. | — | — | — |
 | `/big5` | `big5.html` | Big 5 swim event intelligence | ✅ | ✅ | ✅ |
 | `/capepoint` | `capepoint.html` | Cape Point swim intelligence | ✅ | ✅ | ✅ |
 | `/dassen` | `dassen.html` | Dassen Island intelligence | ✅ | ✅ | ✅ |
