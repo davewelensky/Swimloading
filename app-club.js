@@ -2665,9 +2665,9 @@ function renderCssTab() {
     return `
     <div class="card" style="margin-bottom:12px;">
       <div style="font-size:15px;font-weight:700;margin-bottom:2px;">${squad?.name || 'Squad'}</div>
-      <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">CSS pace per 100m — fastest first</div>
+      <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">CSS pace per 100m — fastest first · tap a swimmer to see every test</div>
       ${renderCssSquadChart(rows)}
-      ${rows.map((r, i) => renderCssRow(r, i, r.rid === myRosterId)).join('')}
+      ${rows.map((r, i) => renderCssRow(r, i, r.rid === myRosterId, squadId)).join('')}
     </div>`;
   }).join('');
 
@@ -2698,7 +2698,12 @@ function renderCssTopBoards(top5, myRosterId) {
   </div>`;
 }
 
-function renderCssRow(r, i, isMe) {
+// Full history per swimmer per squad, keyed for the tap-to-expand row below —
+// avoids embedding a swimmer's whole history (with names) into an onclick
+// attribute, and survives re-render since it's rebuilt every renderCssTab().
+let _cssRowHistory = {};
+
+function renderCssRow(r, i, isMe, squadId) {
   const trend = r.prev
     ? (r.latest.css_pace_per_100_seconds < r.prev.css_pace_per_100_seconds ? 'down'
       : r.latest.css_pace_per_100_seconds > r.prev.css_pace_per_100_seconds ? 'up' : 'flat')
@@ -2708,20 +2713,50 @@ function renderCssRow(r, i, isMe) {
     : trend === 'flat' ? `<i data-lucide="minus" style="width:13px;height:13px;color:var(--text-secondary);"></i>`
     : '<span style="width:13px;"></span>';
   const invalid = isCssTestInvalid(r.latest);
+  const rowKey = `${squadId}_${r.rid}`;
+  _cssRowHistory[rowKey] = r.history;
+
   // Raw 400m/200m shown alongside the derived CSS pace — Britt wants swimmers
   // to see their actual splits improve over time, not just the computed
   // number (26 Aug 2026). Smaller/secondary styling since CSS pace is still
   // the headline figure, matching the admin CSS Results table's column order.
+  // Tapping the row expands every test on record for that swimmer — the
+  // "build over time" view, same pattern as the Events tab's PB history list.
   return `
-  <div style="display:flex;align-items:center;gap:8px;padding:7px 6px;border-bottom:1px solid rgba(255,255,255,0.03);${isMe ? 'background:rgba(56,189,248,0.06);border-radius:6px;' : invalid ? 'background:rgba(239,68,68,0.06);border-radius:6px;' : ''}">
-    <span style="font-size:11px;color:var(--text-secondary);width:14px;flex-shrink:0;">${i + 1}</span>
-    <span style="font-size:12.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.swimmer.display_name}${isMe ? ' <span style="color:var(--cyan);font-size:11px;">(you)</span>' : ''}</span>
-    <span style="font-size:10.5px;color:var(--text-secondary);width:38px;text-align:right;flex-shrink:0;" title="400m time trial">${secondsToTimeText(r.latest.time_400_seconds)}</span>
-    <span style="font-size:10.5px;color:var(--text-secondary);width:38px;text-align:right;flex-shrink:0;" title="200m time trial">${secondsToTimeText(r.latest.time_200_seconds)}</span>
-    ${trendIcon}
-    <span style="font-size:13px;font-weight:800;font-family:'Bebas Neue',sans-serif;letter-spacing:0.03em;color:${invalid ? '#ef4444' : 'var(--text)'};width:54px;text-align:right;flex-shrink:0;">${secondsToTimeText(r.latest.css_pace_per_100_seconds)}</span>
-    ${invalid ? `<i data-lucide="triangle-alert" style="width:13px;height:13px;color:#ef4444;flex-shrink:0;" title="Ask your coach to re-check this test"></i>` : ''}
+  <div onclick="toggleCssHistory('${rowKey}')" style="cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.03);${isMe ? 'background:rgba(56,189,248,0.06);border-radius:6px;' : invalid ? 'background:rgba(239,68,68,0.06);border-radius:6px;' : ''}">
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 6px;">
+      <span style="font-size:11px;color:var(--text-secondary);width:14px;flex-shrink:0;">${i + 1}</span>
+      <span style="font-size:12.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.swimmer.display_name}${isMe ? ' <span style="color:var(--cyan);font-size:11px;">(you)</span>' : ''}</span>
+      <span style="font-size:10.5px;color:var(--text-secondary);width:38px;text-align:right;flex-shrink:0;" title="400m time trial">${secondsToTimeText(r.latest.time_400_seconds)}</span>
+      <span style="font-size:10.5px;color:var(--text-secondary);width:38px;text-align:right;flex-shrink:0;" title="200m time trial">${secondsToTimeText(r.latest.time_200_seconds)}</span>
+      ${trendIcon}
+      <span style="font-size:13px;font-weight:800;font-family:'Bebas Neue',sans-serif;letter-spacing:0.03em;color:${invalid ? '#ef4444' : 'var(--text)'};width:54px;text-align:right;flex-shrink:0;">${secondsToTimeText(r.latest.css_pace_per_100_seconds)}</span>
+      ${invalid ? `<i data-lucide="triangle-alert" style="width:13px;height:13px;color:#ef4444;flex-shrink:0;" title="Ask your coach to re-check this test"></i>` : ''}
+      ${r.history.length > 1 ? `<i data-lucide="chevron-down" id="cssChevron_${rowKey}" style="width:13px;height:13px;color:var(--text-secondary);flex-shrink:0;transition:transform 0.15s;"></i>` : '<span style="width:13px;"></span>'}
+    </div>
+    <div id="cssHistory_${rowKey}" style="display:none;padding:0 6px 8px 38px;"></div>
   </div>`;
+}
+
+function toggleCssHistory(rowKey) {
+  const history = _cssRowHistory[rowKey];
+  if (!history || history.length < 2) return; // nothing to expand for a single test
+  const panel = document.getElementById(`cssHistory_${rowKey}`);
+  const chevron = document.getElementById(`cssChevron_${rowKey}`);
+  if (!panel) return;
+  const opening = panel.style.display === 'none';
+  panel.style.display = opening ? '' : 'none';
+  if (chevron) chevron.style.transform = opening ? 'rotate(180deg)' : '';
+  if (opening && !panel.dataset.built) {
+    panel.dataset.built = '1';
+    panel.innerHTML = [...history].reverse().map(h => `
+      <div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:11px;color:var(--text-secondary);">
+        <span style="flex:1;">${h.test_date}</span>
+        <span style="width:38px;text-align:right;">${secondsToTimeText(h.time_400_seconds)}</span>
+        <span style="width:38px;text-align:right;">${secondsToTimeText(h.time_200_seconds)}</span>
+        <span style="width:54px;text-align:right;color:var(--text);font-weight:700;">${secondsToTimeText(h.css_pace_per_100_seconds)}</span>
+      </div>`).join('');
+  }
 }
 
 function renderCssSquadChart(rows) {
