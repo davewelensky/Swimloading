@@ -2232,7 +2232,7 @@ async function loadGalasTab() {
         .eq('gender', ssaG)
         .eq('age_group', ag)
         .in('level', ['L2', 'L3', 'SANJ'])
-        .eq('season', '2025-2026')
+        .eq('season', '2026-2027')
     );
   }
 
