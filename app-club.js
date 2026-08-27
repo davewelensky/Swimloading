@@ -2708,12 +2708,18 @@ function renderCssRow(r, i, isMe) {
     : trend === 'flat' ? `<i data-lucide="minus" style="width:13px;height:13px;color:var(--text-secondary);"></i>`
     : '<span style="width:13px;"></span>';
   const invalid = isCssTestInvalid(r.latest);
+  // Raw 400m/200m shown alongside the derived CSS pace — Britt wants swimmers
+  // to see their actual splits improve over time, not just the computed
+  // number (26 Aug 2026). Smaller/secondary styling since CSS pace is still
+  // the headline figure, matching the admin CSS Results table's column order.
   return `
-  <div style="display:flex;align-items:center;gap:10px;padding:7px 6px;border-bottom:1px solid rgba(255,255,255,0.03);${isMe ? 'background:rgba(56,189,248,0.06);border-radius:6px;' : invalid ? 'background:rgba(239,68,68,0.06);border-radius:6px;' : ''}">
-    <span style="font-size:11px;color:var(--text-secondary);width:16px;flex-shrink:0;">${i + 1}</span>
-    <span style="font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.swimmer.display_name}${isMe ? ' <span style="color:var(--cyan);font-size:11px;">(you)</span>' : ''}</span>
+  <div style="display:flex;align-items:center;gap:8px;padding:7px 6px;border-bottom:1px solid rgba(255,255,255,0.03);${isMe ? 'background:rgba(56,189,248,0.06);border-radius:6px;' : invalid ? 'background:rgba(239,68,68,0.06);border-radius:6px;' : ''}">
+    <span style="font-size:11px;color:var(--text-secondary);width:14px;flex-shrink:0;">${i + 1}</span>
+    <span style="font-size:12.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.swimmer.display_name}${isMe ? ' <span style="color:var(--cyan);font-size:11px;">(you)</span>' : ''}</span>
+    <span style="font-size:10.5px;color:var(--text-secondary);width:38px;text-align:right;flex-shrink:0;" title="400m time trial">${secondsToTimeText(r.latest.time_400_seconds)}</span>
+    <span style="font-size:10.5px;color:var(--text-secondary);width:38px;text-align:right;flex-shrink:0;" title="200m time trial">${secondsToTimeText(r.latest.time_200_seconds)}</span>
     ${trendIcon}
-    <span style="font-size:13px;font-weight:800;font-family:'Bebas Neue',sans-serif;letter-spacing:0.03em;color:${invalid ? '#ef4444' : 'var(--text)'};width:56px;text-align:right;flex-shrink:0;">${secondsToTimeText(r.latest.css_pace_per_100_seconds)}</span>
+    <span style="font-size:13px;font-weight:800;font-family:'Bebas Neue',sans-serif;letter-spacing:0.03em;color:${invalid ? '#ef4444' : 'var(--text)'};width:54px;text-align:right;flex-shrink:0;">${secondsToTimeText(r.latest.css_pace_per_100_seconds)}</span>
     ${invalid ? `<i data-lucide="triangle-alert" style="width:13px;height:13px;color:#ef4444;flex-shrink:0;" title="Ask your coach to re-check this test"></i>` : ''}
   </div>`;
 }
