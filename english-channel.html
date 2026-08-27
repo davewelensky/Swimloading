@@ -635,6 +635,17 @@
             <div id="predResult" style="display:none;"></div>
         </div>
 
+        <div class="card" style="background:linear-gradient(135deg,rgba(14,165,233,0.10),rgba(8,15,26,0.4));border:1px solid rgba(14,165,233,0.25);">
+            <h2 class="card-label" style="color:var(--ocean-light);">Fuelling Plan — from 3 real crossings</h2>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;margin-bottom:14px;">Real feed logs from three 2026 Channel crossings (10h27m–14h30m, anonymised): 18–21 feeds each, roughly every 26–39 minutes, 191–253ml per feed. A carbohydrate/electrolyte drink and a warm drink formed the backbone of every swim; gels were a minority top-up, not the mainstay. That matches general open-water guidance of a carb-and-electrolyte feed every 30–60 minutes — our real swimmers fed more often than the loose end of that range, especially early on.</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:14px;padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;">n=3 — a real starting point, not a statistical average. Crew don't yet log exact carbohydrate grams or sodium, only what was given, so this is item counts and volume, not a calorie plan. Not nutrition or medical advice — build and test your own feed plan in training with your crew.</div>
+
+            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">Planned crossing time (hours)</div>
+            <input type="number" id="inputFuelHours" placeholder="e.g. 12" min="6" max="24" step="0.5" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(14,165,233,0.3);background:rgba(14,165,233,0.06);color:var(--text-primary);font-size:14px;margin-bottom:10px;">
+            <button onclick="calcFuelPlan()" style="width:100%;padding:11px;border-radius:8px;border:none;background:var(--ocean);color:white;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px;">Estimate My Fuelling Plan &rarr;</button>
+            <div id="fuelResult" style="display:none;"></div>
+        </div>
+
         <div class="card">
             <h2 class="card-label">Qualifying Swim Requirements</h2>
             <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:14px;">Before you can attempt the Channel, you must complete a CSA- or CS&amp;PF-recognised <strong style="color:var(--text-primary);">6-hour qualifying swim</strong>. Without this, the pilot will not take you out.</div>
@@ -1988,6 +1999,31 @@ function setPaceMode(mode) {
 function prefillTemp() {
     const temp = _cond?.wtmp_c ?? _cond?.sst_c ?? null;
     if (temp !== null) document.getElementById('inputTemp').value = temp.toFixed(1);
+}
+
+function calcFuelPlan() {
+    const hours = parseFloat(document.getElementById('inputFuelHours').value);
+    if (!hours || hours < 4 || hours > 30) { alert('Enter your planned crossing time in hours (e.g. 12)'); return; }
+
+    // Ranges observed across 3 real 2026 Channel crossings (10h27m-14h30m) — not a
+    // fitted curve, just the real low/high scaled by planned duration.
+    const feedsLow = Math.round(hours * 1.45);
+    const feedsHigh = Math.round(hours * 1.72);
+    const mlLow = feedsLow * 191;
+    const mlHigh = feedsHigh * 253;
+
+    const el = document.getElementById('fuelResult');
+    el.style.display = 'block';
+    el.innerHTML = `<div style="background:rgba(14,165,233,0.08);border:1px solid rgba(14,165,233,0.25);border-radius:12px;padding:16px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:8px;">Estimated Fuelling — ${hours}h Crossing</div>
+        <div class="stat-grid-3" style="margin-bottom:2px;">
+            <div class="stat-box"><div class="stat-val blue">${feedsLow}&ndash;${feedsHigh}</div><div class="stat-lbl">Total feeds</div></div>
+            <div class="stat-box"><div class="stat-val blue">26&ndash;39</div><div class="stat-lbl">Min between feeds</div></div>
+            <div class="stat-box"><div class="stat-val blue">${(mlLow/1000).toFixed(1)}&ndash;${(mlHigh/1000).toFixed(1)}L</div><div class="stat-lbl">Total fluid</div></div>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;margin-top:10px;">Backbone: carb/electrolyte drink + a warm drink at most feeds. Gels as an occasional top-up, not the mainstay. Coke and protein shakes showed up more in the back third of longer swims.</div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);">Range from 3 real crossings, scaled by your planned duration — not a fitted model. Test your own feed plan in training before crossing day.</div>
+    </div>`;
 }
 
 function calcCrossingTime() {
