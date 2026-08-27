@@ -2646,10 +2646,19 @@ async function loadMembers() {
       .eq('is_active', true)
       .not('email', 'is', null),
   ]);
-  allRosterFull = rosterFullRes.data || [];
-
   const clubMembers  = membersRes.data || [];
   const rosterLinked = rosterRes.data  || [];
+
+  // club_roster.user_id is only set by the admin's own manual Link action —
+  // the public join-link flow (redeem_club_join_code) only creates a
+  // club_members row, never touching club_roster.user_id. Every consumer of
+  // allRosterFull that checks r.user_id for "has an app account" therefore
+  // missed anyone who self-joined (found live, 27 Aug 2026, Ross Goodall —
+  // one of today's 63 K8 join-link swimmers). sw_user_id is user_id OR the
+  // active club_members link for that roster row, for that purpose.
+  const memberUserIdByRoster = {};
+  clubMembers.forEach(m => { if (m.roster_id && m.user_id) memberUserIdByRoster[m.roster_id] = m.user_id; });
+  allRosterFull = (rosterFullRes.data || []).map(r => ({ ...r, sw_user_id: r.user_id || memberUserIdByRoster[r.id] || null }));
 
   // Build email → coach title map for role display consistency with Team page
   const coachTitleMap = {};
@@ -2789,7 +2798,7 @@ async function renderOverview() {
     document.getElementById('statFees').style.color   = feesOverdue.length > 0 ? 'var(--danger)' : 'var(--text)';
   } else {
     // Replace squad-only cards with platform engagement stats
-    const rosterLinkedCount = roster.filter(r => r.user_id).length;
+    const rosterLinkedCount = roster.filter(r => r.sw_user_id).length;
     if (trialsCard) {
       trialsCard.innerHTML = `<div class="stat-label">On SwimLoading</div><div class="stat-val">${rosterLinkedCount}</div><div class="stat-note">${roster.length - rosterLinkedCount} not yet linked</div>`;
       trialsCard.style.cursor = 'default';
@@ -2800,7 +2809,7 @@ async function renderOverview() {
       feesCard.style.cursor = 'default';
       feesCard.onclick = null;
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const linkedIds  = roster.filter(r => r.user_id).map(r => r.user_id);
+      const linkedIds  = roster.filter(r => r.sw_user_id).map(r => r.sw_user_id);
       if (linkedIds.length) {
         sb.from('temp_logs').select('id', { count: 'exact', head: true })
           .in('user_id', linkedIds).gte('created_at', monthStart)
@@ -2814,7 +2823,7 @@ async function renderOverview() {
 
   // ── Action items ─────────────────────────────────────────────────
   const unassigned    = roster.filter(r => !r.squad_id);
-  const unlinked      = roster.filter(r => !r.user_id);
+  const unlinked      = roster.filter(r => !r.sw_user_id);
   const trialsNoEnd   = roster.filter(r => r.is_trial && !r.trial_end_date);
   const noCoachToday  = allSquadSessions.filter(s => !s.coach_name);
   const actions = [];
@@ -3217,7 +3226,7 @@ async function renderOverview() {
       }).join('')
     : `<div style="padding:20px 16px;text-align:center;color:var(--text-sec);font-size:13px;">No upcoming events — add one in Events</div>`;
 
-  const linkedCount = roster.filter(r => r.user_id).length;
+  const linkedCount = roster.filter(r => r.sw_user_id).length;
   const trialCount  = roster.filter(r => r.is_trial).length;
   const trialConversionReady = roster.filter(r => r.is_trial && r.trial_end_date && r.trial_end_date < todayStr).length;
 
@@ -9119,16 +9128,31 @@ let rosterLinkTargetId = null;
 let rosterLinkSearchTimer = null;
 
 async function loadRoster() {
-  const { data: roster } = await sb
-    .from('club_roster')
-    .select('id, member_number, display_name, category, gender, user_id, phone, squad_id, secondary_squad_id, date_of_birth, is_trial, fee_paid, trial_start_date, trial_end_date, fee_due_date, is_active, lts_default_slot')
-    .eq('club_id', currentClub.id)
-    .order('member_number', { ascending: true, nullsFirst: false });
+  const [{ data: roster }, { data: activeMembers }] = await Promise.all([
+    sb
+      .from('club_roster')
+      .select('id, member_number, display_name, category, gender, user_id, phone, squad_id, secondary_squad_id, date_of_birth, is_trial, fee_paid, trial_start_date, trial_end_date, fee_due_date, is_active, lts_default_slot')
+      .eq('club_id', currentClub.id)
+      .order('member_number', { ascending: true, nullsFirst: false }),
+    // club_roster.user_id is only ever set by the admin's own manual Link
+    // button (unlinkRosterMember/openRosterLinkModal write it directly). The
+    // public join-link flow (redeem_club_join_code RPC) never touches it —
+    // it only creates a club_members row — so anyone who joined that way
+    // showed as "no account" here despite being fully linked and able to use
+    // the app (found live, 27 Aug 2026, Ross Goodall — one of today's 63 K8
+    // join-link swimmers). sw_user_id below is user_id OR this, for display/
+    // count/filter purposes only; the raw user_id keeps driving the manual
+    // Link/Unlink button, which is a separate mechanism.
+    sb.from('club_members').select('roster_id, user_id').eq('club_id', currentClub.id).eq('is_active', true),
+  ]);
 
   if (!roster) return;
 
-  // Fetch SW display names for linked members
-  const linkedIds = roster.filter(r => r.user_id).map(r => r.user_id);
+  const memberUserIdByRoster = {};
+  (activeMembers || []).forEach(m => { if (m.roster_id && m.user_id) memberUserIdByRoster[m.roster_id] = m.user_id; });
+
+  // Fetch SW display names for linked members (either mechanism)
+  const linkedIds = [...new Set(roster.map(r => r.user_id || memberUserIdByRoster[r.id]).filter(Boolean))];
   let profileMap = {};
   if (linkedIds.length) {
     const { data: profs } = await sb
@@ -9138,7 +9162,10 @@ async function loadRoster() {
     (profs || []).forEach(p => { profileMap[p.id] = p.display_name; });
   }
 
-  allRoster = roster.map(r => ({ ...r, sw_name: r.user_id ? (profileMap[r.user_id] || 'Linked') : null }));
+  allRoster = roster.map(r => {
+    const sw_user_id = r.user_id || memberUserIdByRoster[r.id] || null;
+    return { ...r, sw_user_id, sw_name: sw_user_id ? (profileMap[sw_user_id] || 'Linked') : null };
+  });
 
   // Stats header. Every count names its population — "301 total / 5 linked /
   // 214 members / 14 members" shown across four pages with no definitions is
@@ -9146,7 +9173,7 @@ async function loadRoster() {
   const total = allRoster.length;
   const activeCount = allRoster.filter(r => r.is_active !== false).length;
   const inactiveCount = total - activeCount;
-  const linked = allRoster.filter(r => r.user_id).length;
+  const linked = allRoster.filter(r => r.sw_user_id).length;
   document.getElementById('rosterStats').innerHTML = `
     <span style="font-size:12px;color:var(--text-sec);">${activeCount} active${inactiveCount ? ` <span style="opacity:.7;">(+${inactiveCount} inactive)</span>` : ''}</span>
     <span style="font-size:12px;color:var(--green);font-weight:600;">${linked} linked to an app account</span>`;
@@ -9202,7 +9229,7 @@ async function loadSuggestedMatches() {
   if (!banner) return;
 
   const dismissed = new Set(JSON.parse(localStorage.getItem('_dismissedMatches') || '[]'));
-  const unlinked  = allRoster.filter(r => !r.user_id);
+  const unlinked  = allRoster.filter(r => !r.sw_user_id);
   if (!unlinked.length) { banner.innerHTML = ''; return; }
 
   const allowParents = !!(window._clubFeatures?.hasParentLanguage);
@@ -9436,8 +9463,8 @@ function renderRosterTable() {
   const rows = allRoster.filter(r => {
     if (status === 'inactive') return r.is_active === false;  // show ONLY inactive
     if (r.is_active === false) return false;                  // hide inactive in all other views
-    if (status === 'linked'      && !r.user_id) return false;
-    if (status === 'unlinked'    &&  r.user_id) return false;
+    if (status === 'linked'      && !r.sw_user_id) return false;
+    if (status === 'unlinked'    &&  r.sw_user_id) return false;
     if (status === 'trial'       && !r.is_trial) return false;
     if (status === 'fee-overdue' && !(r.fee_paid === false && r.fee_due_date && r.fee_due_date < todayStr)) return false;
     if (cat && r.squad_id !== cat) return false;
@@ -9452,16 +9479,20 @@ function renderRosterTable() {
   document.getElementById('rosterCount').textContent = `${rows.length} member${rows.length !== 1 ? 's' : ''}`;
 
   tbody.innerHTML = rows.map(r => {
-    const swCell = r.user_id
+    const swCell = r.sw_user_id
       ? `<span style="display:inline-flex;align-items:center;gap:5px;color:var(--green);font-size:13px;font-weight:600;">
            <i data-lucide="check-circle" style="width:13px;height:13px;"></i>${r.sw_name}
          </span>`
       : `<span style="color:var(--text-dim);font-size:13px;">—</span>`;
 
+    // Link/Unlink button stays keyed on the raw user_id (the admin's manual
+    // link mechanism, distinct from a self-service join via club_members) —
+    // someone who joined via the public link shows the green check above but
+    // no Unlink button here, since there's nothing on club_roster to unlink.
     const linkBtn = r.user_id
       ? `<button class="btn-sm" style="color:var(--danger);border-color:rgba(239,68,68,0.2);"
            onclick="unlinkRosterMember('${r.id}')">Unlink</button>`
-      : `<button class="btn-sm" onclick="openRosterLinkModal('${r.id}','${(r.display_name||'').replace(/'/g,"\\'")}')">Link</button>`;
+      : (r.sw_user_id ? '' : `<button class="btn-sm" onclick="openRosterLinkModal('${r.id}','${(r.display_name||'').replace(/'/g,"\\'")}')">Link</button>`);
 
     const primarySq = allSquads.find(s => s.id === r.squad_id);
     const secondarySq = allSquads.find(s => s.id === r.secondary_squad_id);
