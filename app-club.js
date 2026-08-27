@@ -2586,13 +2586,13 @@ async function loadCssTab() {
 
   const [testsRes, rosterRes, squadsRes] = await Promise.all([
     supabaseClient.from('club_css_tests')
-      .select('roster_id, squad_id, test_date, css_pace_per_100_seconds')
+      .select('roster_id, squad_id, test_date, time_400_seconds, time_200_seconds, css_pace_per_100_seconds')
       .eq('club_id', club.id)
       .order('test_date', { ascending: true }),
-    supabaseClient.from('club_roster')
-      .select('id, display_name, gender')
-      .eq('club_id', club.id)
-      .eq('is_active', true),
+    // RLS only lets a swimmer read their OWN club_roster row (phone/DOB/fees
+    // live there), so the club-wide name list comes from the club_css_roster()
+    // RPC — id/display_name/gender only, active members of the caller's club.
+    supabaseClient.rpc('club_css_roster', { p_club_id: club.id }),
     supabaseClient.from('club_squads')
       .select('id, name, sort_order')
       .eq('club_id', club.id)
@@ -2600,9 +2600,20 @@ async function loadCssTab() {
       .order('sort_order'),
   ]);
 
+  // Fallback if the RPC isn't deployed yet: direct select (RLS returns the
+  // viewer's own row only, so the tab still shows at least their own tests).
+  let rosterRows = rosterRes.error ? null : rosterRes.data;
+  if (!rosterRows) {
+    const fb = await supabaseClient.from('club_roster')
+      .select('id, display_name, gender')
+      .eq('club_id', club.id)
+      .eq('is_active', true);
+    rosterRows = fb.data || [];
+  }
+
   _cssData = {
     tests:  testsRes.data  || [],
-    roster: rosterRes.data || [],
+    roster: rosterRows,
     squads: squadsRes.data || [],
   };
   renderCssTab();
@@ -2732,7 +2743,7 @@ function renderCssRow(r, i, isMe, squadId) {
       ${trendIcon}
       <span style="font-size:13px;font-weight:800;font-family:'Bebas Neue',sans-serif;letter-spacing:0.03em;color:${invalid ? '#ef4444' : 'var(--text)'};width:54px;text-align:right;flex-shrink:0;">${secondsToTimeText(r.latest.css_pace_per_100_seconds)}</span>
       ${invalid ? `<i data-lucide="triangle-alert" style="width:13px;height:13px;color:#ef4444;flex-shrink:0;" title="Ask your coach to re-check this test"></i>` : ''}
-      ${r.history.length > 1 ? `<i data-lucide="chevron-down" id="cssChevron_${rowKey}" style="width:13px;height:13px;color:var(--text-secondary);flex-shrink:0;transition:transform 0.15s;"></i>` : '<span style="width:13px;"></span>'}
+      <i data-lucide="chevron-down" id="cssChevron_${rowKey}" style="width:13px;height:13px;color:var(--text-secondary);flex-shrink:0;transition:transform 0.15s;"></i>
     </div>
     <div id="cssHistory_${rowKey}" style="display:none;padding:0 6px 8px 38px;"></div>
   </div>`;
@@ -2740,7 +2751,10 @@ function renderCssRow(r, i, isMe, squadId) {
 
 function toggleCssHistory(rowKey) {
   const history = _cssRowHistory[rowKey];
-  if (!history || history.length < 2) return; // nothing to expand for a single test
+  if (!history || !history.length) return;
+  // A single test still expands — it's the only place the row shows the
+  // test DATE, and a dead tap after "tap a swimmer to see every test"
+  // reads as broken (Dave, on Italia's phone, 27 Aug 2026).
   const panel = document.getElementById(`cssHistory_${rowKey}`);
   const chevron = document.getElementById(`cssChevron_${rowKey}`);
   if (!panel) return;
