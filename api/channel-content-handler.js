@@ -1015,7 +1015,7 @@ const PAGES = {
       },
       {
         h2: 'And 3,400+ more',
-        p: 'The famous swims above are the headline acts, but every ratified crossing has its own story. <a href="${HUB}">Browse the database</a> to find any swimmer\'s record — including yours, if you\'ve done one.',
+        p: `The famous swims above are the headline acts, but every ratified crossing has its own story. <a href="${HUB}">Browse the database</a> to find any swimmer's record — including yours, if you've done one.`,
       },
     ],
 
