@@ -6257,6 +6257,32 @@ async function grantCoachAccess(email, name, coachId) {
   loadTeam();
 }
 
+async function revokeCoachAccess(email, name, coachId) {
+  if (!confirm(`Revoke ${name}'s login access to the coach register? They'll no longer be able to open the coach app for this club.`)) return;
+
+  const btn = document.getElementById(`revokeBtn-${coachId}`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Revoking…'; }
+
+  const { data: profs } = await sb.rpc('search_profile_by_email', { p_email: email });
+  if (!profs?.length) {
+    showToast("Couldn't find their account", 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Revoke access'; }
+    return;
+  }
+
+  const userId = profs[0].id;
+  const { error } = await sb.from('club_admins')
+    .delete()
+    .eq('club_id', currentClub.id)
+    .eq('user_id', userId)
+    .eq('role', 'coach');
+
+  if (error) { showToast('Failed: ' + error.message, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Revoke access'; } return; }
+
+  showToast(`${name}'s coach register access revoked`, 'success');
+  loadTeam();
+}
+
 // ── PARENTS ───────────────────────────────────────────────────────
 async function loadParentsPage() {
   if (!activeJoinCode) {
@@ -8749,6 +8775,18 @@ function renderCoaches() {
            <i data-lucide="check" style="width:11px;height:11px;"></i> Has access
          </span>` : '');
 
+    // Revoke coach register access — separate from Deactivate (which only
+    // marks them off the staff directory list, see deactivateCoach() further
+    // down; it never touched club_admins, so a deactivated coach kept their
+    // login until this button existed). Never shown for Head Coach, same
+    // protection as Deactivate above.
+    const revokeBtn = (admin && hasAccess && !isHead)
+      ? `<button class="btn-sm" id="revokeBtn-${c.id}" style="color:var(--danger);border-color:rgba(239,68,68,0.2);"
+           onclick="revokeCoachAccess('${c.email.replace(/'/g,"\\'")}','${c.name.replace(/'/g,"\\'")}','${c.id}')">
+           Revoke access
+         </button>`
+      : '';
+
     return `
     <div style="display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-bottom:1px solid var(--border);">
       <div style="width:42px;height:42px;border-radius:50%;flex-shrink:0;
@@ -8775,6 +8813,7 @@ function renderCoaches() {
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
         ${grantBtn}
+        ${revokeBtn}
         <button class="btn-sm" onclick="openEditCoachModal('${c.id}')">Edit</button>
         ${actionBtn}
       </div>
