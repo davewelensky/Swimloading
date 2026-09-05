@@ -34,6 +34,19 @@ async function matchSpot(startLatlng, spots) {
 export default async function handler(req, res) {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
+    // Nothing below was wrapped in try/catch — any thrown/rejected fetch (Strava's own
+    // servers included) crashed the whole function as a bare 502 with no body, which is
+    // exactly what DaveW hit on 2026-09-05: consistent, silent, no error surfaced
+    // anywhere. This wrapper turns that into a real, visible error instead.
+    try {
+        return await handleActivities(req, res);
+    } catch (err) {
+        console.error('[strava/activities] unhandled exception:', err);
+        return res.status(500).json({ error: 'unhandled_exception', message: err.message });
+    }
+}
+
+async function handleActivities(req, res) {
     const userId = await getUserId(req.headers['authorization']);
     if (!userId) return res.status(401).json({ error: 'Not authenticated' });
 

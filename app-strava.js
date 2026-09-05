@@ -7,6 +7,7 @@ let _selectedStravaActivity = null;  // activity being imported
 let _stravaScopeUpgradeRequired = false; // set by fetchStravaActivities; read by loadStravaImportList
 let _stravaDebugInfo = null; // TEMP diagnostic (2026-09-05): { types_seen, total } when zero swims come back — remove once the "no swims found" investigation is closed
 let _stravaRateLimited = null; // TEMP diagnostic (2026-09-05): { limit, usage } from Strava's X-RateLimit-* headers on a 429
+let _stravaServerError = null; // TEMP diagnostic (2026-09-05): { status, error, message } on any other non-ok response
 const STRAVA_CACHE_MS = 3 * 60 * 1000; // 3 minutes (manual refresh available)
 
 // ─── Dashboard Banner ────────────────────────────────────────────────────────
@@ -194,14 +195,16 @@ async function fetchStravaActivities() {
         _stravaRateLimited = null;
 
         if (!res.ok) {
-            const { error } = await res.json().catch(() => ({}));
+            const { error, message } = await res.json().catch(() => ({}));
             if (error === 'strava_not_connected') {
                 // Token expired and refresh failed — user needs to reconnect
                 return 'reconnect_required';
             }
-            console.error('[strava] fetchStravaActivities error:', error);
-            return null;
+            console.error('[strava] fetchStravaActivities error:', error, message);
+            _stravaServerError = { status: res.status, error: error || null, message: message || null };
+            return 'server_error';
         }
+        _stravaServerError = null;
 
         const { activities, scope_upgrade_required, debug_types_seen, debug_total } = await res.json();
         _stravaActivitiesCache = activities;
@@ -268,6 +271,17 @@ async function loadStravaImportList() {
                 <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Strava is rate-limiting SwimLoading right now</div>
                 <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">This limit is shared across every SwimLoading member, not just your account. It resets on a rolling 15-minute window — wait a bit and try again.</div>
                 ${rl.limit || rl.usage ? `<div style="font-size:11px;color:var(--text-secondary);opacity:0.7;">Usage: ${escapeHtml(rl.usage || '?')} of limit ${escapeHtml(rl.limit || '?')} (15min,daily)</div>` : ''}
+            </div>`;
+        return;
+    }
+
+    if (activities === 'server_error') {
+        const se = _stravaServerError || {};
+        list.innerHTML = `
+            <div style="text-align:center;padding:40px 20px;">
+                <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Something broke fetching your Strava swims</div>
+                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">This isn't your account — it's a server error. Try again in a minute; if it keeps happening, screenshot this and send it to us.</div>
+                <div style="font-size:11px;color:var(--text-secondary);opacity:0.7;font-family:monospace;">HTTP ${escapeHtml(String(se.status || '?'))} · ${escapeHtml(se.error || 'unknown')}${se.message ? ' · ' + escapeHtml(se.message) : ''}</div>
             </div>`;
         return;
     }
