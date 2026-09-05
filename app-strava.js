@@ -5,6 +5,7 @@ let _stravaActivitiesCache = null;   // cache per session
 let _stravaFetchedAt       = 0;
 let _selectedStravaActivity = null;  // activity being imported
 let _stravaScopeUpgradeRequired = false; // set by fetchStravaActivities; read by loadStravaImportList
+let _stravaDebugInfo = null; // TEMP diagnostic (2026-09-05): { types_seen, total } when zero swims come back — remove once the "no swims found" investigation is closed
 const STRAVA_CACHE_MS = 3 * 60 * 1000; // 3 minutes (manual refresh available)
 
 // ─── Dashboard Banner ────────────────────────────────────────────────────────
@@ -198,10 +199,13 @@ async function fetchStravaActivities() {
             return null;
         }
 
-        const { activities, scope_upgrade_required } = await res.json();
+        const { activities, scope_upgrade_required, debug_types_seen, debug_total } = await res.json();
         _stravaActivitiesCache = activities;
         _stravaFetchedAt = Date.now();
         _stravaScopeUpgradeRequired = !!scope_upgrade_required;
+        _stravaDebugInfo = (activities && activities.length === 0)
+            ? { types_seen: debug_types_seen || [], total: debug_total ?? 0 }
+            : null;
         return activities;
     } catch (err) {
         console.error('[strava] fetchStravaActivities exception:', err);
@@ -265,7 +269,10 @@ async function loadStravaImportList() {
                     </button>
                 </div>`;
         } else {
-            list.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-secondary);font-size:14px;">No recent swims found. Sync your watch, then try again.</div>`;
+            const debugLine = _stravaDebugInfo
+                ? `<div style="margin-top:16px;font-size:11px;color:var(--text-secondary);opacity:0.7;">Checked ${_stravaDebugInfo.total} recent Strava activities. Types seen: ${_stravaDebugInfo.types_seen.length ? escapeHtml(_stravaDebugInfo.types_seen.join(', ')) : 'none'}.</div>`
+                : '';
+            list.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-secondary);font-size:14px;">No recent swims found. Sync your watch, then try again.${debugLine}</div>`;
         }
         return;
     }
