@@ -63,22 +63,24 @@ export default async function handler(req, res) {
         fetch('https://www.strava.com/api/v3/athlete/activities?per_page=100&page=2', { headers: { 'Authorization': `Bearer ${token}` } }),
     ]);
 
+    // Strava sends X-RateLimit-Limit / X-RateLimit-Usage as "15min,daily" on every
+    // response (not just 429s) — app-wide, shared across every SwimLoading user, not
+    // per-athlete. Surfacing this is the only way to confirm/deny a rate-limit theory
+    // without a Vercel log viewer (added 2026-09-05 debugging DaveW's "no swims found").
+    const rateLimitInfo = {
+        limit: page1Res.headers.get('x-ratelimit-limit') || null,
+        usage: page1Res.headers.get('x-ratelimit-usage') || null,
+    };
+    console.log('[strava/activities] rate limit (15min,daily) — limit:', rateLimitInfo.limit, 'usage:', rateLimitInfo.usage);
+
     if (page1Res.status === 429) {
-        return res.status(429).json({ error: 'strava_rate_limited' });
+        return res.status(429).json({ error: 'strava_rate_limited', rate_limit: rateLimitInfo });
     }
     if (!page1Res.ok) {
         console.error('[strava/activities] Strava fetch failed:', await page1Res.text());
         return res.status(502).json({ error: 'strava_fetch_failed' });
     }
     const stravaRes = page1Res; // kept for error-handling compat below
-
-    if (stravaRes.status === 429) {
-        return res.status(429).json({ error: 'strava_rate_limited' });
-    }
-    if (!stravaRes.ok) {
-        console.error('[strava/activities] Strava fetch failed:', await stravaRes.text());
-        return res.status(502).json({ error: 'strava_fetch_failed' });
-    }
 
     const page1 = await stravaRes.json();
     const page2 = page2Res.ok ? await page2Res.json() : [];
@@ -96,7 +98,7 @@ export default async function handler(req, res) {
 
     if (swims.length === 0) {
         const typesSeenList = [...new Set(all.map(a => a.sport_type || a.type).filter(Boolean))];
-        return res.status(200).json({ activities: [], debug_types_seen: typesSeenList, debug_total: all.length, scope_upgrade_required: scopeUpgradeRequired });
+        return res.status(200).json({ activities: [], debug_types_seen: typesSeenList, debug_total: all.length, scope_upgrade_required: scopeUpgradeRequired, rate_limit: rateLimitInfo });
     }
 
     // Load all active spots (with GPS) for matching
