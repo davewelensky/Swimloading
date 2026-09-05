@@ -4,15 +4,33 @@
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://szgkzuswelntnevobnoh.supabase.co';
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY;
 
+// A hung fetch here (Supabase or Strava's OAuth token endpoint) never throws — it
+// just never resolves, and Vercel eventually kills the whole invoking function
+// with a bare 502 that no caller's try/catch can ever see, no matter how well
+// THEY wrap their own code. Root-caused 2026-09-05: activities.js already had its
+// own fetches timeout-protected and a top-level try/catch, and DaveW's requests
+// were STILL dying as an empty 502 — before checkStravaBanner even opened a
+// modal, i.e. inside getValidStravaToken(), called from here, completely
+// unprotected. Every fetch in this shared helper needed the same treatment.
+async function fetchWithTimeout(url, opts = {}, timeoutMs = 8000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...opts, signal: controller.signal });
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 async function dbGet(path) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/${path}`, {
         headers: { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` },
     });
     return res.ok ? res.json() : null;
 }
 
 async function dbPatch(path, body) {
-    return fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    return fetchWithTimeout(`${SUPABASE_URL}/rest/v1/${path}`, {
         method: 'PATCH',
         headers: {
             'Content-Type':  'application/json',
@@ -37,7 +55,7 @@ export async function getValidStravaToken(userId) {
     }
 
     // Refresh
-    const tokenRes = await fetch('https://www.strava.com/oauth/token', {
+    const tokenRes = await fetchWithTimeout('https://www.strava.com/oauth/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -70,7 +88,7 @@ export async function getUserId(authHeader) {
     const token = (authHeader || '').replace('Bearer ', '').trim();
     if (!token) return null;
 
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    const res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/user`, {
         headers: { 'Authorization': `Bearer ${token}`, 'apikey': SERVICE_KEY },
     });
     if (!res.ok) return null;
