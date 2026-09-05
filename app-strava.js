@@ -4,7 +4,7 @@
 let _stravaActivitiesCache = null;   // cache per session
 let _stravaFetchedAt       = 0;
 let _selectedStravaActivity = null;  // activity being imported
-let _stravaScopeUpgradeRequired = false; // set by fetchStravaActivities; read by loadStravaImportList
+let _stravaHasBrokenScope = false; // set by fetchStravaActivities; read by loadStravaImportList — true means this connection has the broken activity:read_all scope and needs to reconnect to get back to plain activity:read
 let _stravaDebugInfo = null; // TEMP diagnostic (2026-09-05): { types_seen, total } when zero swims come back — remove once the "no swims found" investigation is closed
 let _stravaRateLimited = null; // TEMP diagnostic (2026-09-05): { limit, usage } from Strava's X-RateLimit-* headers on a 429
 let _stravaServerError = null; // TEMP diagnostic (2026-09-05): { status, error, message } on any other non-ok response
@@ -206,11 +206,11 @@ async function fetchStravaActivities() {
         }
         _stravaServerError = null;
 
-        const { activities, scope_upgrade_required, debug_types_seen, debug_total } = await res.json();
+        const { activities, has_broken_scope, debug_types_seen, debug_total } = await res.json();
         _stravaActivitiesCache = activities;
         _stravaFetchedAt = Date.now();
-        _stravaScopeUpgradeRequired = !!scope_upgrade_required;
-        _stravaDebugInfo = (activities && activities.length === 0)
+        _stravaHasBrokenScope = !!has_broken_scope;
+        _stravaDebugInfo = (activities && activities.length === 0 && !has_broken_scope)
             ? { types_seen: debug_types_seen || [], total: debug_total ?? 0 }
             : null;
         return activities;
@@ -287,11 +287,11 @@ async function loadStravaImportList() {
     }
 
     if (!activities || activities.length === 0) {
-        if (_stravaScopeUpgradeRequired) {
+        if (_stravaHasBrokenScope) {
             list.innerHTML = `
                 <div style="text-align:center;padding:40px 20px;">
-                    <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Can't see private Strava activities yet</div>
-                    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;line-height:1.5;">Your Strava connection was made before we could read activities marked "Followers Only" or "Only You" — so swims with that privacy setting don't show up here. Disconnect and reconnect Strava to fix this for good.</div>
+                    <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Your Strava connection needs a quick reset</div>
+                    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;line-height:1.5;">This one was made with a permission level Strava doesn't allow us to use yet. Disconnect and reconnect Strava — the next connection will use the working one.</div>
                     <button onclick="closeStravaImportModal();showPage('profile');"
                         style="background:#fc4c02;color:white;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;">
                         Go to Profile to reconnect
@@ -306,10 +306,7 @@ async function loadStravaImportList() {
         return;
     }
 
-    const scopeNote = _stravaScopeUpgradeRequired
-        ? `<div style="background:rgba(252,76,2,0.08);border:1px solid rgba(252,76,2,0.25);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--text-secondary);line-height:1.5;">Some swims marked "Followers Only" or "Only You" on Strava may be missing from this list. <a href="#" onclick="closeStravaImportModal();showPage('profile');return false;" style="color:#fc4c02;font-weight:600;">Reconnect Strava</a> to see everything.</div>`
-        : '';
-    list.innerHTML = scopeNote + activities.map(a => renderActivityRow(a)).join('');
+    list.innerHTML = activities.map(a => renderActivityRow(a)).join('');
     initIcons();
 }
 

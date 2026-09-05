@@ -50,7 +50,19 @@ export default async function handler(req, res) {
             redirect_uri:    redirectUri,
             response_type:   'code',
             approval_prompt: 'auto',
-            scope:           'activity:read_all',
+            // Reverted 2026-09-05: activity:read_all is one of Strava's "elevated"
+            // scopes — an app needs Strava's own approval to actually USE it for real
+            // data, separate from a user just granting it in the OAuth screen. This
+            // app was never approved for it. Root-caused via Vercel function logs:
+            // every user who reconnected and got read_all started getting a clean
+            // 403 Forbidden on every /athlete/activities call (~60ms, not a timeout —
+            // Strava flatly refusing it), while the 51 users still on plain
+            // activity:read kept working fine (just missing "Followers Only"/private
+            // activities, the original, much smaller complaint). Confirmed on two
+            // accounts (DaveW, Barbara) whose last successful import was the day
+            // before they each reconnected. Do not re-request activity:read_all
+            // without first confirming with Strava that this app is approved for it.
+            scope:           'activity:read',
             state,
         });
 

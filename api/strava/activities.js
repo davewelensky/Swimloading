@@ -73,12 +73,12 @@ async function handleActivities(req, res) {
     const token = await getValidStravaToken(userId);
     if (!token) return res.status(400).json({ error: 'strava_not_connected' });
 
-    // Activities Dave marks "Followers Only" or "Only You" on Strava are invisible to
-    // this API unless the connection was authorised with the activity:read_all scope —
-    // activity:read (the old default) only exposes "Everyone"-visibility activities.
-    // 71% of connected users (51/72, checked 2026-09-03) are still on the narrower
-    // scope from before connect-url.js requested activity:read_all, so this silently
-    // hides real swims with no error — surface it instead of a bare empty list.
+    // REVERSED 2026-09-05 — this used to flag the narrower activity:read scope as
+    // needing an upgrade to activity:read_all. Root-caused via Vercel logs that
+    // activity:read_all itself is broken for this app (never approved by Strava for
+    // real data access — every call 403s in ~60ms). connect-url.js no longer
+    // requests it, but the 21 accounts that already have it are still stuck until
+    // they reconnect once more. This now flags THAT stuck state instead.
     const scopeRows = await (async () => {
         const r = await fetchWithTimeout(
             `${SUPABASE_URL}/rest/v1/strava_connections?user_id=eq.${userId}&select=scope`,
@@ -86,7 +86,13 @@ async function handleActivities(req, res) {
         );
         return r.ok ? r.json() : [];
     })();
-    const scopeUpgradeRequired = !(scopeRows[0]?.scope || '').includes('activity:read_all');
+    const hasBrokenScope = (scopeRows[0]?.scope || '').includes('activity:read_all');
+    if (hasBrokenScope) {
+        // Don't bother calling Strava — we know this token 403s on every activity
+        // call, confirmed in production logs 2026-09-05. Skip straight to telling
+        // the user to reconnect instead of wasting a call and showing a raw error.
+        return res.status(200).json({ activities: [], has_broken_scope: true });
+    }
 
     // Fetch recent swim activities from Strava — two pages of 100 to cast a wide net
     // No sport_type filter param exists on the v3 endpoint; we filter client-side.
@@ -131,7 +137,7 @@ async function handleActivities(req, res) {
 
     if (swims.length === 0) {
         const typesSeenList = [...new Set(all.map(a => a.sport_type || a.type).filter(Boolean))];
-        return res.status(200).json({ activities: [], debug_types_seen: typesSeenList, debug_total: all.length, scope_upgrade_required: scopeUpgradeRequired, rate_limit: rateLimitInfo });
+        return res.status(200).json({ activities: [], debug_types_seen: typesSeenList, debug_total: all.length, rate_limit: rateLimitInfo });
     }
 
     // Load all active spots (with GPS) for matching
@@ -215,5 +221,5 @@ async function handleActivities(req, res) {
         console.log('[strava/activities] upsert ok, rows:', upsertRows.length);
     }
 
-    res.status(200).json({ activities, scope_upgrade_required: scopeUpgradeRequired });
+    res.status(200).json({ activities });
 }
