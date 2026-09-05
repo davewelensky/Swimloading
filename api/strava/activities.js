@@ -9,6 +9,23 @@ const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY;
 const SWIM_TYPES   = new Set(['swim', 'openwaterswim', 'openwater', 'virtualswim', 'pool_swim', 'open_water_swim']);
 const MATCH_RADIUS_KM = 1.5;
 
+// A hung fetch (Strava's own servers not responding, most likely under real
+// rate-limit pressure rather than a clean 429) doesn't throw — it just never
+// resolves, and Vercel eventually kills the whole function with a bare 502
+// that no try/catch inside the function can ever see. Force every external
+// call to fail cleanly and catchably instead. Root-caused 2026-09-05: DaveW's
+// requests reached this endpoint (proven by the 401 dummy-token test working)
+// but the real, authenticated path always died with an empty 502.
+async function fetchWithTimeout(url, opts = {}, timeoutMs = 8000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...opts, signal: controller.signal });
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 function haversineKm(lat1, lng1, lat2, lng2) {
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -42,6 +59,9 @@ export default async function handler(req, res) {
         return await handleActivities(req, res);
     } catch (err) {
         console.error('[strava/activities] unhandled exception:', err);
+        if (err.name === 'AbortError') {
+            return res.status(504).json({ error: 'upstream_timeout', message: 'A request to Strava or Supabase did not respond within 8 seconds.' });
+        }
         return res.status(500).json({ error: 'unhandled_exception', message: err.message });
     }
 }
@@ -60,7 +80,7 @@ async function handleActivities(req, res) {
     // scope from before connect-url.js requested activity:read_all, so this silently
     // hides real swims with no error — surface it instead of a bare empty list.
     const scopeRows = await (async () => {
-        const r = await fetch(
+        const r = await fetchWithTimeout(
             `${SUPABASE_URL}/rest/v1/strava_connections?user_id=eq.${userId}&select=scope`,
             { headers: { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` } }
         );
@@ -72,8 +92,8 @@ async function handleActivities(req, res) {
     // No sport_type filter param exists on the v3 endpoint; we filter client-side.
     // per_page=100 ensures swims aren't buried behind runs/rides in a mixed-activity feed.
     const [page1Res, page2Res] = await Promise.all([
-        fetch('https://www.strava.com/api/v3/athlete/activities?per_page=100&page=1', { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch('https://www.strava.com/api/v3/athlete/activities?per_page=100&page=2', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetchWithTimeout('https://www.strava.com/api/v3/athlete/activities?per_page=100&page=1', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetchWithTimeout('https://www.strava.com/api/v3/athlete/activities?per_page=100&page=2', { headers: { 'Authorization': `Bearer ${token}` } }),
     ]);
 
     // Strava sends X-RateLimit-Limit / X-RateLimit-Usage as "15min,daily" on every
