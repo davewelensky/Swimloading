@@ -106,7 +106,16 @@ window.SITE_CONFIG = {
       prize:     'Box of Maurten Gel 100s',
       startDate: '2026-08-01',
       endDate:   '2026-08-31',
-      winner:    null,   // random draw on 1 September — leave null until drawn
+      winner:    null,   // NOT YET DRAWN as of 2026-09-03 — run scripts/draw-monthly-winner.mjs
+                         // 2026-08-01 2026-08-31 "August 2026 — Maurten Gel 100 3-pack", approve at /admin, then set this.
+    },
+    '2026-09': {
+      title:     'September Challenge',
+      sponsor:   'Maurten',
+      prize:     'Box of Maurten Gel 100s',
+      startDate: '2026-09-01',
+      endDate:   '2026-09-30',
+      winner:    null,   // random draw after 30 September — leave null until drawn
     },
   },
 
@@ -121,7 +130,7 @@ window.SITE_CONFIG = {
   sponsorChallenges: {
     magic5:    { challengeMonth: '2026-06' },   // THEMAGIC5 sponsored June
     blusmooth: { challengeMonth: '2026-07' },   // Blu Smooth sponsored July (Winter Warrior)
-    maurten:   { challengeMonth: '2026-08' },   // Maurten sponsors August
+    maurten:   { challengeMonth: '2026-09' },   // Maurten sponsors September (also sponsored August — see challenges['2026-08'])
   },
 
 };

@@ -40,6 +40,21 @@ export default async function handler(req, res) {
     const token = await getValidStravaToken(userId);
     if (!token) return res.status(400).json({ error: 'strava_not_connected' });
 
+    // Activities Dave marks "Followers Only" or "Only You" on Strava are invisible to
+    // this API unless the connection was authorised with the activity:read_all scope —
+    // activity:read (the old default) only exposes "Everyone"-visibility activities.
+    // 71% of connected users (51/72, checked 2026-09-03) are still on the narrower
+    // scope from before connect-url.js requested activity:read_all, so this silently
+    // hides real swims with no error — surface it instead of a bare empty list.
+    const scopeRows = await (async () => {
+        const r = await fetch(
+            `${SUPABASE_URL}/rest/v1/strava_connections?user_id=eq.${userId}&select=scope`,
+            { headers: { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` } }
+        );
+        return r.ok ? r.json() : [];
+    })();
+    const scopeUpgradeRequired = !(scopeRows[0]?.scope || '').includes('activity:read_all');
+
     // Fetch recent swim activities from Strava — two pages of 100 to cast a wide net
     // No sport_type filter param exists on the v3 endpoint; we filter client-side.
     // per_page=100 ensures swims aren't buried behind runs/rides in a mixed-activity feed.
@@ -81,7 +96,7 @@ export default async function handler(req, res) {
 
     if (swims.length === 0) {
         const typesSeenList = [...new Set(all.map(a => a.sport_type || a.type).filter(Boolean))];
-        return res.status(200).json({ activities: [], debug_types_seen: typesSeenList, debug_total: all.length });
+        return res.status(200).json({ activities: [], debug_types_seen: typesSeenList, debug_total: all.length, scope_upgrade_required: scopeUpgradeRequired });
     }
 
     // Load all active spots (with GPS) for matching
@@ -165,5 +180,5 @@ export default async function handler(req, res) {
         console.log('[strava/activities] upsert ok, rows:', upsertRows.length);
     }
 
-    res.status(200).json({ activities });
+    res.status(200).json({ activities, scope_upgrade_required: scopeUpgradeRequired });
 }

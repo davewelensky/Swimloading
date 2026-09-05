@@ -4,6 +4,7 @@
 let _stravaActivitiesCache = null;   // cache per session
 let _stravaFetchedAt       = 0;
 let _selectedStravaActivity = null;  // activity being imported
+let _stravaScopeUpgradeRequired = false; // set by fetchStravaActivities; read by loadStravaImportList
 const STRAVA_CACHE_MS = 3 * 60 * 1000; // 3 minutes (manual refresh available)
 
 // ─── Dashboard Banner ────────────────────────────────────────────────────────
@@ -197,9 +198,10 @@ async function fetchStravaActivities() {
             return null;
         }
 
-        const { activities } = await res.json();
+        const { activities, scope_upgrade_required } = await res.json();
         _stravaActivitiesCache = activities;
         _stravaFetchedAt = Date.now();
+        _stravaScopeUpgradeRequired = !!scope_upgrade_required;
         return activities;
     } catch (err) {
         console.error('[strava] fetchStravaActivities exception:', err);
@@ -252,11 +254,26 @@ async function loadStravaImportList() {
     }
 
     if (!activities || activities.length === 0) {
-        list.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-secondary);font-size:14px;">No recent swims found. Sync your watch, then try again.</div>`;
+        if (_stravaScopeUpgradeRequired) {
+            list.innerHTML = `
+                <div style="text-align:center;padding:40px 20px;">
+                    <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Can't see private Strava activities yet</div>
+                    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;line-height:1.5;">Your Strava connection was made before we could read activities marked "Followers Only" or "Only You" — so swims with that privacy setting don't show up here. Disconnect and reconnect Strava to fix this for good.</div>
+                    <button onclick="closeStravaImportModal();showPage('profile');"
+                        style="background:#fc4c02;color:white;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;">
+                        Go to Profile to reconnect
+                    </button>
+                </div>`;
+        } else {
+            list.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-secondary);font-size:14px;">No recent swims found. Sync your watch, then try again.</div>`;
+        }
         return;
     }
 
-    list.innerHTML = activities.map(a => renderActivityRow(a)).join('');
+    const scopeNote = _stravaScopeUpgradeRequired
+        ? `<div style="background:rgba(252,76,2,0.08);border:1px solid rgba(252,76,2,0.25);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--text-secondary);line-height:1.5;">Some swims marked "Followers Only" or "Only You" on Strava may be missing from this list. <a href="#" onclick="closeStravaImportModal();showPage('profile');return false;" style="color:#fc4c02;font-weight:600;">Reconnect Strava</a> to see everything.</div>`
+        : '';
+    list.innerHTML = scopeNote + activities.map(a => renderActivityRow(a)).join('');
     initIcons();
 }
 
