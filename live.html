@@ -207,15 +207,25 @@
     } catch (e) {}
   }
 
-  async function api(action, { method = 'GET', body } = {}) {
+  async function api(action, { method = 'GET', body, retries = 0 } = {}) {
     const token = await auth.token();
-    const res = await fetch('/api/live-quiz/' + action + '?slug=' + encodeURIComponent(SLUG), {
-      method, headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) },
-      body: body ? JSON.stringify(body) : undefined, cache: 'no-store',
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) { const e = new Error(data.message || data.error || 'request_failed'); e.code = data.error; e.status = res.status; throw e; }
-    return data;
+    for (let attempt = 0; ; attempt++) {
+      let res;
+      try {
+        res = await fetch('/api/live-quiz/' + action + '?slug=' + encodeURIComponent(SLUG), {
+          method, headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) },
+          body: body ? JSON.stringify(body) : undefined, cache: 'no-store',
+        });
+      } catch (netErr) {
+        // Network blip (flaky venue signal): retry — the server dedupes
+        // answers (unique participant+question), so a resend is safe.
+        if (attempt < retries) { await new Promise(r => setTimeout(r, 800 * (attempt + 1))); continue; }
+        const e = new Error('No connection — check your signal and try again.'); e.code = 'network'; throw e;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { const e = new Error(data.message || data.error || 'request_failed'); e.code = data.error; e.status = res.status; throw e; }
+      return data;
+    }
   }
 
   const $ = (id) => document.getElementById(id);
@@ -287,7 +297,7 @@
   }
   async function doJoin() {
     const btn = $('btnJoin'); btn.disabled = true;
-    try { await api('join', { method: 'POST' }); me = await api('me'); routeJoined(); }
+    try { await api('join', { method: 'POST', retries: 2 }); me = await api('me'); routeJoined(); }
     catch (e) { btn.disabled = false; alert(e.code === 'registration_closed' ? 'Registration is not open yet — hang tight.' : 'Could not join: ' + e.message); }
   }
   function routeJoined() {
@@ -348,14 +358,14 @@
     document.querySelectorAll('.ans').forEach(b => b.disabled = true);
     showResult({ is_correct: false, is_late: true, points: 0, correct_answer: null, explanation: null }, null);
     // Tell the server so the question is closed out with 0 points; pick 'A' as a placeholder — it scores 0 regardless (late).
-    api('answer', { method: 'POST', body: { question_id: current.question.id, selected_answer: 'A' } })
+    api('answer', { method: 'POST', body: { question_id: current.question.id, selected_answer: 'A' }, retries: 2 })
       .then(r => afterAnswer(r)).catch(e => { if (e.code === 'already_answered') afterAnswer(null); });
   }
   async function pick(letter) {
     if (answered) return; answered = true; stopTimer();
     document.querySelectorAll('.ans').forEach(b => { b.disabled = true; b.classList.toggle('picked', b.dataset.l === letter); });
     let r;
-    try { r = await api('answer', { method: 'POST', body: { question_id: current.question.id, selected_answer: letter } }); }
+    try { r = await api('answer', { method: 'POST', body: { question_id: current.question.id, selected_answer: letter }, retries: 2 }); }
     catch (e) { if (e.code === 'already_answered') { return nextQuestion(); } alert('Could not submit: ' + e.message); answered = false; document.querySelectorAll('.ans').forEach(b => b.disabled = false); return; }
     showResult(r, letter);
     afterAnswer(r);

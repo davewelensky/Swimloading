@@ -65,6 +65,7 @@
 </head>
 <body>
 <div class="wrap">
+  <div id="netWarn" style="display:none;position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:50;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.5);color:#f59e0b;border-radius:50px;padding:6px 18px;font-size:14px;font-weight:700;letter-spacing:1px;">CONNECTION LOST — SHOWING LAST SCORES, RECONNECTING…</div>
   <header>
     <div class="brand"><img src="/icons/logo-wave.png" alt="">SwimLoading</div>
     <div class="pill" id="pill">Powered by <b>SwimLoading</b></div>
@@ -139,9 +140,17 @@
   }
   function view(id) { document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === id)); }
 
+  let failedPolls = 0;
   async function refresh() {
     let s;
-    try { s = await (await fetch('/api/live-quiz/state?slug=' + encodeURIComponent(SLUG), { cache: 'no-store' })).json(); } catch (_) { return; }
+    try {
+      s = await (await fetch('/api/live-quiz/state?slug=' + encodeURIComponent(SLUG), { cache: 'no-store' })).json();
+      failedPolls = 0; $('netWarn').style.display = 'none';
+    } catch (_) {
+      // Keep showing the last good state; warn the operator, not the room.
+      if (++failedPolls >= 3) $('netWarn').style.display = 'block';
+      return;
+    }
     if (!s.event) return;
     const ev = s.event;
     const parts = ev.name.split(' '); const last = parts.pop();
