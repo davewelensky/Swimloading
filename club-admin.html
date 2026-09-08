@@ -8763,7 +8763,11 @@ function renderCoaches() {
       : (admin ? `<button class="btn-sm" style="color:var(--green);border-color:rgba(16,185,129,0.2);" onclick="reactivateCoach('${c.id}')">Reactivate</button>` : '');
 
     // Grant coach register access button — shown when coach has an email
-    // but isn't yet in club_admins, and current user is an admin
+    // but isn't yet in club_admins, and current user is an admin. If there's
+    // no email at all, this used to render nothing — silently — which is
+    // exactly what confused Britt when she added Theresa without one
+    // (found live, 27 Aug 2026): no button, no explanation why. Now shows a
+    // hint pointing at Edit instead.
     const hasAccess = c.email && adminEmailSet.has(c.email.toLowerCase());
     const grantBtn = (admin && c.is_active && c.email && !hasAccess)
       ? `<button class="btn-sm" style="color:var(--cyan);border-color:rgba(56,189,248,0.25);"
@@ -8773,7 +8777,9 @@ function renderCoaches() {
          </button>`
       : (hasAccess ? `<span style="font-size:11px;color:var(--green);display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:20px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);">
            <i data-lucide="check" style="width:11px;height:11px;"></i> Has access
-         </span>` : '');
+         </span>` : (admin && c.is_active && !c.email
+           ? `<span style="font-size:11px;color:var(--text-dim);">Add an email (Edit) to grant access</span>`
+           : ''));
 
     // Revoke coach register access — separate from Deactivate (which only
     // marks them off the staff directory list, see deactivateCoach() further
