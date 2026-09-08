@@ -2,7 +2,7 @@
 // Runs entirely against the in-memory store; production is never touched.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createService, QuizError } from '../api/_lib/live-quiz/service.js';
+import { createService, QuizError, MIDWAY_AFTER } from '../api/_lib/live-quiz/service.js';
 import { createMemoryStore } from '../api/_lib/live-quiz/store-memory.js';
 import { scoreAnswer, rankParticipants, publicName, LATE_GRACE_MS } from '../api/_lib/live-quiz/scoring.js';
 import { createHandler } from '../api/_lib/live-quiz/http.js';
@@ -136,15 +136,15 @@ test('leaderboard sorts by score, then fastest total time as tie-break; ranks ar
   assert.deepEqual(ranked.map((r) => [r.id, r.rank]), [['b', 1], ['c', 2], ['a', 3]]);
 });
 
-test('end to end: two players, 6/6 beats 5/6, winner ranks first', async () => {
+test('end to end: two players, 8/8 beats 7/8, winner ranks first', async () => {
   const { service, clock } = setup();
   await service.adminSetStatus(admin.id, SLUG, 'live');
   await service.join(SLUG, alice.id);
   await service.join(SLUG, bob.id);
   const a = await playAll(service, clock, alice.id, { delayMs: 2000 });
   const b = await playAll(service, clock, bob.id, { delayMs: 6000, wrongOn: [4] });
-  assert.equal(a.total_score, 60);
-  assert.equal(b.total_score, 50);
+  assert.equal(a.total_score, 80);
+  assert.equal(b.total_score, 70);
   assert.equal(a.done, true);
   const state = await service.getPublicState(SLUG);
   assert.equal(state.leaderboard[0].name, 'Alice A.');
@@ -153,20 +153,19 @@ test('end to end: two players, 6/6 beats 5/6, winner ranks first', async () => {
   assert.equal(state.finished_count, 2);
 });
 
-test('mid-quiz rank is returned after question 3 and not before', async () => {
+test('mid-quiz rank is returned exactly at the halfway answer and not before or after', async () => {
   const { service, clock } = setup();
   await service.adminSetStatus(admin.id, SLUG, 'live');
   await service.join(SLUG, alice.id);
   const results = [];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < MIDWAY_AFTER + 1; i++) {
     const nq = await service.nextQuestion(SLUG, alice.id);
     clock.tick(1000);
     results.push(await service.answer(SLUG, alice.id, nq.question.id, 'A'));
   }
-  assert.equal(results[0].rank, undefined);
-  assert.equal(results[1].rank, undefined);
-  assert.equal(results[2].rank, 1);
-  assert.equal(results[3].rank, undefined);
+  for (let i = 0; i < MIDWAY_AFTER - 1; i++) assert.equal(results[i].rank, undefined);
+  assert.equal(results[MIDWAY_AFTER - 1].rank, 1);
+  assert.equal(results[MIDWAY_AFTER].rank, undefined);
 });
 
 // 8. private information is never returned by the public leaderboard endpoint
@@ -204,7 +203,7 @@ test('admin reset wipes participants and answers; non-admin is refused', async (
   await playAll(service, clock, alice.id);
   await assert.rejects(service.adminReset(alice.id, SLUG), (e) => e.code === 'admin_only');
   const r = await service.adminReset(admin.id, SLUG);
-  assert.deepEqual(r.removed, { participants: 1, answers: 6 });
+  assert.deepEqual(r.removed, { participants: 1, answers: 8 });
   assert.equal(store.db.participants.length, 0);
   assert.equal(store.db.answers.length, 0);
   assert.equal((await service.getPublicState(SLUG)).event.status, 'draft');

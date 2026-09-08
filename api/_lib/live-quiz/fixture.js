@@ -7,7 +7,7 @@
 export const FIXTURE_EVENT = {
   slug: 'cldsa2026',
   name: 'CLDSA Awards Challenge',
-  intro: 'How well do you know your open water? Six questions. One winner.',
+  intro: 'How well do you know your open water? Eight questions. One winner.',
   prize: 'Win a personalised SwimLoading Open Water Performance Assessment',
   status: 'open',
   is_active: true,
@@ -50,6 +50,18 @@ export const FIXTURE_QUESTIONS = [
     answer_a: "Keeping your car keys dry", answer_b: "Scaring off seals", answer_c: "Being seen by boats and safety crew", answer_d: "Floating home when you've had enough",
     correct_answer: 'C', time_limit_seconds: 30, sort_order: 6,
     explanation: "Visibility. Keys stay dry as a bonus, and it is something to hold if you need a breather.",
+  },
+  {
+    question: "You've just joined SwimLoading. Open the app — what's the water temperature at Clifton 4th right now?",
+    answer_a: "Under 10 °C", answer_b: "10–12.9 °C", answer_c: "13–15.9 °C", answer_d: "16 °C or warmer",
+    correct_answer: 'C', time_limit_seconds: 30, sort_order: 7,
+    explanation: "Live water temperatures for every Cape spot — that's SwimLoading. Keep logging your swims and you're in the running for the eo SwimBETTER90 giveaway.",
+  },
+  {
+    question: "Do you really need a costume to swim Robben Island ?",
+    answer_a: "Yes", answer_b: "Thong", answer_c: "No", answer_d: "Perhaps",
+    correct_answer: 'A', time_limit_seconds: 30, sort_order: 8,
+    explanation: null,
   },
 ];
 

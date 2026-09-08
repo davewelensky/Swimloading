@@ -8,7 +8,7 @@ import {
 } from './scoring.js';
 
 export const STATUSES = ['draft', 'open', 'live', 'finished'];
-export const MIDWAY_AFTER = 3;       // show rank to the player after this many answers
+export const MIDWAY_AFTER = 4;       // show rank to the player at halfway (8 questions)
 export const LEADERBOARD_SIZE = 10;
 
 export class QuizError extends Error {
