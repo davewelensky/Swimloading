@@ -197,8 +197,14 @@
     .cell-rest {
       min-height: 66px; border-radius: 8px; opacity: 0.25;
       display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: opacity 0.15s, border-color 0.15s;
+      border: 1px dashed transparent;
     }
+    .cell-rest:hover { opacity: 1; border-color: rgba(56,189,248,0.3); }
+    .cell-rest:hover .rest-dash { display: none; }
+    .cell-rest:hover .rest-plus { display: block; }
     .cell-rest span { font-size: 11px; color: var(--text-dim); }
+    .cell-rest .rest-plus { display: none; width: 14px; height: 14px; color: var(--cyan); }
     .cell-add-more {
       border-radius: 6px; border: 1px dashed rgba(255,255,255,0.07);
       cursor: pointer; display: flex; align-items: center; justify-content: center;
@@ -1137,7 +1143,10 @@ function renderPlanner() {
         return `<td><div style="display:flex;flex-direction:column;gap:4px;">${chips}${addBtn}</div></td>`;
       }
       if (!trains) {
-        return `<td><div class="cell-rest"><span>—</span></div></td>`;
+        return `<td><div class="cell-rest" onclick="openAssign('${sq.id}','${ds}','AM',true)" title="No regular session — add an extra one">
+          <span class="rest-dash">—</span>
+          <i data-lucide="plus" class="rest-plus"></i>
+        </div></td>`;
       }
       return `<td><div class="cell-empty" onclick="openAssign('${sq.id}','${ds}','${slot}')" title="Assign set">
         <i data-lucide="plus"></i>
@@ -1342,12 +1351,14 @@ async function deleteSet(id) {
 }
 
 // ══ ASSIGN MODAL ════════════════════════════════════════════════════
-function openAssign(squadId, date, slot) {
+function openAssign(squadId, date, slot, extra) {
   assignCtx = { squadId, date, slot };
   selectedSetId = null;
   const sq = squads.find(s => s.id === squadId);
   document.getElementById('assignHeading').textContent = `Assign set — ${sq?.name || 'Squad'}`;
-  document.getElementById('assignContext').textContent  = `${fmtLong(date)} · ${slot} session`;
+  document.getElementById('assignContext').textContent  = extra
+    ? `${fmtLong(date)} · extra session (not on the regular timetable)`
+    : `${fmtLong(date)} · ${slot} session`;
   document.getElementById('assignCoach').value  = '';
   document.getElementById('pickSearch').value   = '';
   document.getElementById('assignSave').disabled = true;
