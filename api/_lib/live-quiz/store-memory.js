@@ -65,6 +65,13 @@ export function createMemoryStore({ seed = true } = {}) {
       if (!a || a.selected_answer != null) return null;
       Object.assign(a, patch, { answered_at: patch.answered_at.toISOString() }); return a;
     },
+    async countAnswersByQuestion(eventId, participantIds) {
+      const out = {};
+      for (const a of db.answers) {
+        if (participantIds.includes(a.participant_id) && a.selected_answer != null) out[a.question_id] = (out[a.question_id] || 0) + 1;
+      }
+      return out;
+    },
     async resetEvent(eventId) {
       const ps = db.participants.filter((p) => p.event_id === eventId).map((p) => p.id);
       const before = db.answers.length;

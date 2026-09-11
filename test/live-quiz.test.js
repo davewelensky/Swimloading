@@ -127,13 +127,23 @@ test('the client cannot submit a score or a non-letter answer', async () => {
 });
 
 // 7. leaderboard sorting
-test('leaderboard sorts by score, then fastest total time as tie-break; ranks are 1-based and contiguous', () => {
+test('leaderboard: score desc, then most answered, then fastest average; ranks contiguous', () => {
   const ranked = rankParticipants([
-    { id: 'a', total_score: 50, total_response_ms: 9000 },
-    { id: 'b', total_score: 60, total_response_ms: 20000 },
-    { id: 'c', total_score: 50, total_response_ms: 4000 },
+    { id: 'a', total_score: 50, answered_count: 8, total_response_ms: 80000 }, // avg 10s
+    { id: 'b', total_score: 60, answered_count: 6, total_response_ms: 20000 },
+    { id: 'c', total_score: 50, answered_count: 8, total_response_ms: 40000 }, // avg 5s — beats a
+    { id: 'd', total_score: 50, answered_count: 5, total_response_ms: 4000 },  // fewer answered — below both
   ]);
-  assert.deepEqual(ranked.map((r) => [r.id, r.rank]), [['b', 1], ['c', 2], ['a', 3]]);
+  assert.deepEqual(ranked.map((r) => [r.id, r.rank]), [['b', 1], ['c', 2], ['a', 3], ['d', 4]]);
+});
+
+test('regression, CLDSA 10 Sep: 8-answered-70 ranks above 7-answered-70 (total time no longer punishes extra answers)', () => {
+  // Tracey: 8 answered, 1 wrong, 70 pts, more total time. Carol: cut off at 7/7, 70 pts, less total time.
+  const ranked = rankParticipants([
+    { id: 'carol', total_score: 70, answered_count: 7, total_response_ms: 70000 },
+    { id: 'tracey', total_score: 70, answered_count: 8, total_response_ms: 110000 },
+  ]);
+  assert.deepEqual(ranked.map((r) => r.id), ['tracey', 'carol']);
 });
 
 test('end to end: two players, 8/8 beats 7/8, winner ranks first', async () => {

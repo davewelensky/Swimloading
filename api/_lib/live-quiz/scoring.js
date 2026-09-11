@@ -32,13 +32,18 @@ export function normaliseAnswer(raw) {
 }
 
 /**
- * Ranks participants: score desc, then fewest total response ms (faster
- * overall wins ties), then earliest join. Returns new array with `rank`.
+ * Ranks participants: score desc; ties go to whoever answered MORE questions
+ * (so finishers beat the cut-off, and a 2/2 quitter never beats a 7/8);
+ * then fastest AVERAGE ms per answered question (total time is not
+ * comparable across different answer counts — the 10 Sep 2026 CLDSA night
+ * proved it live); then earliest join. Returns new array with `rank`.
  */
 export function rankParticipants(rows) {
+  const avgMs = (r) => (r.answered_count ? (r.total_response_ms ?? 0) / r.answered_count : Infinity);
   const sorted = [...rows].sort((a, b) =>
     (b.total_score - a.total_score) ||
-    ((a.total_response_ms ?? 0) - (b.total_response_ms ?? 0)) ||
+    ((b.answered_count ?? 0) - (a.answered_count ?? 0)) ||
+    (avgMs(a) - avgMs(b)) ||
     (String(a.joined_at || '').localeCompare(String(b.joined_at || '')))
   );
   return sorted.map((r, i) => ({ ...r, rank: i + 1 }));

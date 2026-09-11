@@ -49,6 +49,24 @@
     .center { text-align: center; padding: 60px 20px; }
     .small { font-size: 12px; color: var(--text-sec); }
     .qr { background: #fff; border-radius: 12px; padding: 12px; width: 200px; } .qr svg { width: 100%; height: auto; display: block; }
+    /* cockpit — built for running the night from a phone, no scrolling */
+    .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+    .tile { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 12px 8px; text-align: center; }
+    .tile .n { font-family: 'Bebas Neue', sans-serif; font-size: 34px; line-height: 1; color: var(--cyan); }
+    .tile.playing .n { color: var(--amber); } .tile.done .n { color: var(--green); }
+    .tile .l { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-sec); font-weight: 700; margin-top: 4px; }
+    .qprog { margin-top: 12px; }
+    .qprog .qrow { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .qprog .qn { font-family: 'Bebas Neue', sans-serif; font-size: 15px; color: var(--text-sec); width: 22px; }
+    .qprog .bar { flex: 1; height: 14px; background: rgba(255,255,255,0.06); border-radius: 7px; overflow: hidden; }
+    .qprog .bar i { display: block; height: 100%; background: var(--cyan); border-radius: 7px; transition: width 0.4s; }
+    .qprog .qc { font-size: 12px; color: var(--text-sec); width: 34px; text-align: right; }
+    .top5 { margin-top: 12px; }
+    .top5 .t5row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); margin-bottom: 4px; font-size: 13px; }
+    .top5 .t5row.first { border-color: var(--amber); }
+    .top5 .r { font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: var(--text-sec); width: 18px; }
+    .top5 .nm { flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .top5 .sc { font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: var(--cyan); }
   </style>
 </head>
 <body>
@@ -78,6 +96,13 @@
         <span style="flex:1"></span>
         <span class="small" id="counts"></span>
       </div>
+      <div class="tiles">
+        <div class="tile"><div class="n" id="ckJoined">0</div><div class="l">Joined</div></div>
+        <div class="tile playing"><div class="n" id="ckPlaying">0</div><div class="l">Still playing</div></div>
+        <div class="tile done"><div class="n" id="ckFinished">0</div><div class="l">Finished</div></div>
+      </div>
+      <div class="qprog" id="qprog"></div>
+      <div class="top5" id="top5"></div>
       <div class="controls" style="margin-top:12px">
         <button class="btn ghost" onclick="setActive(true)" id="bActivate"><i data-lucide="power"></i> Activate</button>
         <button class="btn ghost" onclick="setActive(false)" id="bDeactivate"><i data-lucide="power-off"></i> Deactivate</button>
@@ -86,7 +111,7 @@
         <button class="btn warn" onclick="setStatus('finished')"><i data-lucide="flag"></i> Finish</button>
         <button class="btn danger" onclick="resetEvent()"><i data-lucide="rotate-ccw"></i> Reset results</button>
       </div>
-      <p class="msg" id="ctlMsg">Flow: Activate → Open registration (QR on screen) → Start quiz → Finish. Players work through all 6 questions at their own pace once started; the screen shows standings after question 3 and the final top 10 on Finish. Scoring: 10 points per correct answer, ties broken by fastest total time.</p>
+      <p class="msg" id="ctlMsg">Flow: Activate → Open registration (QR on screen) → Start quiz → Finish. Players answer all questions at their own pace — budget 30s per question PLUS joining time before you finish (the Q-bars above show exactly who is where). Scoring: 10 points per correct answer; ties go to most questions answered, then fastest average answer.</p>
     </div>
 
     <div class="card">
@@ -174,7 +199,16 @@
     $('badge').textContent = ev.status; $('badge').className = 'badge ' + ev.status;
     $('activeBadge').textContent = ev.is_active ? 'active' : 'inactive'; $('activeBadge').style.color = ev.is_active ? 'var(--green)' : 'var(--text-sec)';
     $('bActivate').disabled = ev.is_active; $('bDeactivate').disabled = !ev.is_active;
-    $('counts').textContent = data.participants.length + ' joined · ' + data.participants.filter(p => p.answered_count >= data.questions.length).length + ' finished · ' + data.questions.length + ' questions';
+    const total = data.questions.length;
+    const joined = data.participants.length;
+    const finished = data.participants.filter(p => p.answered_count >= total).length;
+    const playing = data.participants.filter(p => p.answered_count > 0 && p.answered_count < total).length;
+    $('counts').textContent = joined + ' joined · ' + finished + ' finished · ' + total + ' questions';
+    $('ckJoined').textContent = joined; $('ckPlaying').textContent = playing; $('ckFinished').textContent = finished;
+    $('qprog').innerHTML = (ev.status === 'live' || ev.status === 'finished') && joined ? (data.progress || []).map(p =>
+      '<div class="qrow"><span class="qn">Q' + p.sort_order + '</span><div class="bar"><i style="width:' + (joined ? Math.round(p.answered / joined * 100) : 0) + '%"></i></div><span class="qc">' + p.answered + '/' + joined + '</span></div>').join('') : '';
+    $('top5').innerHTML = joined ? data.participants.slice(0, 5).map(p =>
+      '<div class="t5row' + (p.rank === 1 ? ' first' : '') + '"><span class="r">' + p.rank + '</span><span class="nm">' + esc(p.name) + '</span><span class="sc">' + p.total_score + '</span></div>').join('') : '';
     if (!quiet) {
       $('evSlug').value = ev.slug; $('evName').value = ev.name || ''; $('evIntro').value = ev.intro || ''; $('evPrize').value = ev.prize || '';
       $('evStarts').value = ev.starts_at ? new Date(ev.starts_at).toISOString().slice(0, 16) : '';
@@ -221,7 +255,15 @@
     lucide.createIcons();
   }
   function setStatus(status) {
-    if (status === 'finished' && !confirm('Finish the quiz? Players can no longer answer, and the screen shows the final leaderboard.')) return;
+    if (status === 'finished') {
+      const total = data.questions.length;
+      const playing = data.participants.filter(p => p.answered_count > 0 && p.answered_count < total).length;
+      const finished = data.participants.filter(p => p.answered_count >= total).length;
+      const msg = playing > 0
+        ? 'WAIT — ' + playing + ' of ' + data.participants.length + ' are STILL ANSWERING (' + finished + ' finished). Finishing now cuts them off mid-quiz and their remaining questions score 0. Finish anyway?'
+        : 'Finish the quiz? ' + finished + ' of ' + data.participants.length + ' finished. The screen shows the final leaderboard.';
+      if (!confirm(msg)) return;
+    }
     act(() => admin('status', { status }));
   }
   function setActive(is_active) { act(() => admin('active', { is_active })); }

@@ -105,6 +105,13 @@ export function createSupabaseStore() {
       });
       return one(rows);
     },
+    async countAnswersByQuestion(eventId, participantIds) {
+      if (!participantIds.length) return {};
+      const rows = await rest(`live_quiz_answers?participant_id=in.(${participantIds.join(',')})&selected_answer=not.is.null&select=question_id`) || [];
+      const out = {};
+      for (const r of rows) out[r.question_id] = (out[r.question_id] || 0) + 1;
+      return out;
+    },
     async resetEvent(eventId) {
       const ps = (await rest(`live_quiz_participants?event_id=eq.${eventId}&select=id`)) || [];
       let answers = 0;

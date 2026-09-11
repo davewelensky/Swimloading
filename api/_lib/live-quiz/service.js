@@ -231,8 +231,11 @@ export function createService(store, { now = () => new Date() } = {}) {
     const ev = await requireEvent(slug);
     const questions = await store.listQuestions(ev.id);
     const ranked = await rankedParticipants(ev.id);
+    // Per-question progress for the phone cockpit: how many have answered each.
+    const counts = await store.countAnswersByQuestion(ev.id, ranked.map((r) => r.id));
+    const progress = questions.map((q) => ({ sort_order: q.sort_order, answered: counts[q.id] || 0 }));
     return {
-      event: ev, questions,
+      event: ev, questions, progress,
       participants: ranked.map((r) => ({
         id: r.id, rank: r.rank, name: r.name, total_score: r.total_score,
         answered_count: r.answered_count, joined_at: r.joined_at,
