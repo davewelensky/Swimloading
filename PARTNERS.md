@@ -62,6 +62,10 @@ Every partner must have all of the following before going live:
 - [ ] Tag @artofendurance on social posts (Dave confirmed he'll do this)
 - [ ] Hero page links use www.artofendurance.co.za — update to artofendurance.co.za
 
+**Follow-up check (14 Sept 2026):** reviewed for an outstanding ask to send Charl — both
+open items above are internal (social tagging, a URL fix), not something that needs a
+message to him. No follow-up drafted.
+
 **Notes:**
 - Do not say "exclusively" supplied by Art of Endurance — Charl asked us to remove this
 - Do not publish Maurten retail prices — link to artofendurance.co.za
@@ -182,6 +186,24 @@ Every partner must have all of the following before going live:
 - [ ] Verify existing product prices with SA team before keeping them live
 - [ ] Discuss UK partnership scope for future
 - [ ] Kevin to introduce SA team contact once agreement is reached
+
+**Follow-up drafted (14 Sept 2026):** covers all six outstanding items above (URL,
+winter competition format/dates, MK2 specs/price, price verification, UK partnership
+scope, SA team introduction). Awaiting Dave to send via WhatsApp.
+
+```
+Hey Kevin, hope you're well! Following up on a few open items so we can lock things in on our side:
+
+1. Quick one — is your site blusmooth.com or blusmooth.co.za? Want to get our partner page link right.
+2. Where are we on the SA winter competition — format and dates? Keen to get this live.
+3. Any MK2 specs/pricing yet? Would love to add it to your hero page on SwimLoading now that it's launched.
+4. Also keen to chat about the UK opportunity whenever you've got time — sounds like real overlap with our UK growth.
+5. And if you're able to introduce me to your SA team contact, that'd help move a few of these along faster.
+
+No rush, just want to keep the partnership moving. Let me know what works!
+
+Dave
+```
 
 **Notes:**
 - Kevin is UK-based, actively expanding into UK and Europe — this opens a non-SA partnership angle, relevant to SwimLoading's UK expansion
