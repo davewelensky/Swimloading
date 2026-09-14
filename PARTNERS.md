@@ -382,8 +382,8 @@ Also: swimmers buy goggles once a year, but travel/wellness/lifestyle products r
 
 | Brand | Category | Geography | Notes |
 |-------|----------|-----------|-------|
-| `[TBD]` | Open water safety / tow floats | SA + international | — |
-| `[TBD]` | Swim cap brand | SA | — |
+| Restube (Germany) / Swim Secure (UK) | Open water safety / tow floats | SA + international | Candidates added Sept 2026 — see fresh review below. Direct fit with live hazard reporting (jellyfish/sharks/currents). Verify current ambassador-programme details before outreach. |
+| Swim Secure (UK) | Swim cap brand | SA + UK | Same brand as above could close both TBD rows in one deal — they do tow floats, caps, and dry-robe-adjacent gear. Verify before outreach. |
 
 ### Carina Bruwer — swimwear sponsor targets (Tier 1, highest priority)
 
@@ -458,6 +458,27 @@ These align with actual swimmer buying behaviour: goggles once a year, but trave
 10. Hyperice
 
 > Add candidates here before building any pages. Do not build until the partner relationship is confirmed.
+
+### SwimLoading itself — fresh target partners (Sept 2026 review)
+
+Prompted by the Thalass.ai competitive review — a fresh look at the live site rather than
+re-listing the same 10 names above. Grounded in real numbers pulled from the DB, not the
+rounded homepage stats: **730 swimmers, 208 live spots, 15 countries, 5,623 temp logs, 659
+events crawled (185 indexable), 6 live brand partners + 3 onboarding.** Deliberately skips
+more nutrition/hydration brands — Maurten and SiS already cover that ground well, a third
+gel sponsor reads as clutter, not growth. All brand names below are unverified candidates —
+confirm current contact/ambassador-programme details before any outreach, per Rule #1.
+
+| Category | Brand(s) | Why this, why now |
+|----------|----------|--------------------|
+| Open water safety / tow floats | Restube (Germany), Swim Secure (UK) | Fills the `[TBD]` row above. Direct fit with live hazard reporting (jellyfish, sharks, currents) — exactly the safety-conscious audience these brands want. |
+| Swim caps | Swim Secure (UK) | Same brand could close the safety-gear TBD row above in one deal. |
+| Post-swim changing | dryrobe® (UK) | The dominant brand in outdoor-swim changing robes — no current SwimLoading coverage at all. Strong overlap with the UK push already proven out via Lindi, TRIHARD, BlueSeventy. |
+| Wearables / GPS | Garmin (revive from list above — never actually approached) | New leverage since the list above was written: the homepage already auto-detects and credits Garmin's water-temp sensor for free, today. Pitch isn't "please sponsor us," it's "you're already getting the placement — make it official." |
+| Wearables / GPS (fallback) | Suunto, COROS | Competitive-displacement angle: "your competitor is named on our homepage; you're not." |
+| Cold-water recovery | smaller/hungrier cold-exposure or ice-bath brands (vs. Therabody/Hyperice above, which are large and slow-moving) | Cold acclimation tracking is a real, live, differentiated feature almost no competitor has — a genuinely strong fit, but a smaller brand may close faster as a first win in this category. |
+| Swim travel | SwimTrek (already listed as a UK target above — reframe as affiliate/referral for country hub pages, not a cash sponsor) | Only possible because of the event crawler shipped this year — 659 events, 15 countries. Homepage copy ("Going to Belgium in October? Cape Town in February?") is now a real, live capability, not aspirational. |
+| Swim/adventure travel insurance | `[TBD — open category, no candidate researched yet]` | Directly relevant to anyone using the Channel/Robben Island prep dashboards — that's a real intent signal SwimLoading already collects. |
 
 ---
 
