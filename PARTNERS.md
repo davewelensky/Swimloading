@@ -403,10 +403,9 @@ Also: swimmers buy goggles once a year, but travel/wellness/lifestyle products r
 
 ### Uncategorised (from before this update)
 
-| Brand | Category | Geography | Notes |
-|-------|----------|-----------|-------|
-| Restube (Germany) / Swim Secure (UK) | Open water safety / tow floats | SA + international | Candidates added Sept 2026 — see fresh review below. Direct fit with live hazard reporting (jellyfish/sharks/currents). Verify current ambassador-programme details before outreach. |
-| Swim Secure (UK) | Swim cap brand | SA + UK | Same brand as above could close both TBD rows in one deal — they do tow floats, caps, and dry-robe-adjacent gear. Verify before outreach. |
+Resolved Sept 2026 — see "SwimLoading itself — sponsor prize pipeline" below. Both rows
+are now covered in `Sponsors/index.html`'s "Bags, kit & safety" category (Swim Secure,
+Red Equipment, BTTLNS, Restube).
 
 ### Carina Bruwer — swimwear sponsor targets (Tier 1, highest priority)
 
@@ -465,43 +464,31 @@ Not swim sponsorship — leadership sponsorship. Most swimmers can't offer execu
 |--------|
 | Investec, Discovery, Santam, Old Mutual, Nedbank |
 
-### SwimLoading itself — target partners
+### SwimLoading itself — sponsor prize pipeline
 
-These align with actual swimmer buying behaviour: goggles once a year, but travel/wellness/lifestyle repeatedly — that's where the bigger pool sits.
+**Canonical tracker: `Sponsors/index.html`** (title "SwimLoading — Sponsor Pipeline"; open
+the file directly, it's deliberately blocked from public routing in `vercel.json` — 404 on
+`/Sponsors`, matches SECURITY_REGISTER §2). A 90+ entry interactive brand tracker — category,
+suggested prize + estimated value, notes, contact link, status tags (`verified`/`hot`/`new`/
+`sa`) — far more detailed than the prose lists that used to live here. **This replaces both
+the old 10-brand "target partners" list and the Sept 2026 fresh-review table that were
+previously in this section** — both were fully superseded once this file surfaced (it
+already covered Garmin, Therabody, Hyperice, Sealand, Stanley, Island Tribe, Airlink, Protea
+Hotels, Heliocare, plus the fresh candidates like Swim Secure, dryrobe, COROS, and SwimTrek).
 
-1. FORM — *already Coming Soon, see above, not a fresh target*
-2. Garmin
-3. Therabody
-4. Sealand
-5. Stanley
-6. Island Tribe
-7. Airlink
-8. Protea Hotels
-9. Heliocare
-10. Hyperice
-
-> Add candidates here before building any pages. Do not build until the partner relationship is confirmed.
-
-### SwimLoading itself — fresh target partners (Sept 2026 review)
-
-Prompted by the Thalass.ai competitive review — a fresh look at the live site rather than
-re-listing the same 10 names above. Grounded in real numbers pulled from the DB, not the
-rounded homepage stats: **730 swimmers, 208 live spots, 15 countries, 5,623 temp logs, 659
-events crawled (185 indexable), 6 live brand partners + 3 onboarding.** Deliberately skips
-more nutrition/hydration brands — Maurten and SiS already cover that ground well, a third
-gel sponsor reads as clutter, not growth. All brand names below are unverified candidates —
-confirm current contact/ambassador-programme details before any outreach, per Rule #1.
-
-| Category | Brand(s) | Why this, why now |
-|----------|----------|--------------------|
-| Open water safety / tow floats | Restube (Germany), Swim Secure (UK) | Fills the `[TBD]` row above. Direct fit with live hazard reporting (jellyfish, sharks, currents) — exactly the safety-conscious audience these brands want. |
-| Swim caps | Swim Secure (UK) | Same brand could close the safety-gear TBD row above in one deal. |
-| Post-swim changing | dryrobe® (UK) | The dominant brand in outdoor-swim changing robes — no current SwimLoading coverage at all. Strong overlap with the UK push already proven out via Lindi, TRIHARD, BlueSeventy. |
-| Wearables / GPS | Garmin (revive from list above — never actually approached) | New leverage since the list above was written: the homepage already auto-detects and credits Garmin's water-temp sensor for free, today. Pitch isn't "please sponsor us," it's "you're already getting the placement — make it official." |
-| Wearables / GPS (fallback) | Suunto, COROS | Competitive-displacement angle: "your competitor is named on our homepage; you're not." |
-| Cold-water recovery | smaller/hungrier cold-exposure or ice-bath brands (vs. Therabody/Hyperice above, which are large and slow-moving) | Cold acclimation tracking is a real, live, differentiated feature almost no competitor has — a genuinely strong fit, but a smaller brand may close faster as a first win in this category. |
-| Swim travel | SwimTrek (already listed as a UK target above — reframe as affiliate/referral for country hub pages, not a cash sponsor) | Only possible because of the event crawler shipped this year — 659 events, 15 countries. Homepage copy ("Going to Belgium in October? Cape Town in February?") is now a real, live capability, not aspirational. |
-| Swim/adventure travel insurance | `[TBD — open category, no candidate researched yet]` | Directly relevant to anyone using the Channel/Robben Island prep dashboards — that's a real intent signal SwimLoading already collects. |
+**Reconciled 14 Sept 2026** — Dave chose `Sponsors/index.html` as canonical over duplicating
+here:
+- Removed FORM, JAKED, and Blue Seventy from its prospect list — all three are now signed,
+  active/coming-soon SwimLoading partners (see above), not prospects. Each removal left a
+  dated comment in the file pointing back to this doc.
+- Added Restube (Germany, tow floats) to its "Bags, kit & safety" category — the one
+  genuinely new name out of the Sept 2026 fresh review; everything else in that review
+  (Swim Secure, dryrobe, Garmin, COROS, Therabody, Hyperice, SwimTrek) was already there in
+  more depth.
+- Open water safety/tow floats and swim caps (the two old `[TBD]` rows above) are both now
+  covered there under "Bags, kit & safety" (Swim Secure, Red Equipment, BTTLNS, Restube).
+- Swim/adventure travel insurance remains a genuinely open category — not in
+  `Sponsors/index.html` either. Worth adding there if pursued.
 
 ---
 
