@@ -169,7 +169,7 @@ message to him. No follow-up drafted.
 - Future UK partnership opportunity (Kevin noted UK subscribers, flagged interest)
 
 **What they offer members:**
-- **SA winter competition prize: MK2 wetsuit** — confirmed intent, details TBD
+- **SA winter competition prize: MK2 wetsuit** — ran as the July 2026 "Winter Warrior" monthly challenge. Winner: **Rod Holshausen**, weighted random draw, approved 1 Aug 2026 (`challenge_draw_results` id `b68bbbd5-...`; verified against the DB 14 Sept 2026). Live on site-config.js `challenges['2026-07']` and the hero page recap.
 - MK2 is a new model launching SA in July 2026 — timing aligns with a winter competition
 
 **Product range on hero page** (sourced from their website, NOT confirmed by Kevin):
@@ -181,24 +181,25 @@ message to him. No follow-up drafted.
 
 **Outstanding actions:**
 - [ ] Confirm correct website URL — blusmooth.com or blusmooth.co.za? Update hero page link.
-- [ ] Agree winter competition format and dates
-- [ ] Get MK2 specs and price from Kevin/SA team for hero page (after July launch)
+- [x] Agree winter competition format and dates — ran as July 2026 "Winter Warrior," winner Rod Holshausen, verified 14 Sept 2026 (see above)
+- [ ] Get MK2 specs and price from Kevin/SA team for hero page (was gated on the July launch — now overdue, worth chasing)
 - [ ] Verify existing product prices with SA team before keeping them live
 - [ ] Discuss UK partnership scope for future
 - [ ] Kevin to introduce SA team contact once agreement is reached
 
-**Follow-up drafted (14 Sept 2026):** covers all six outstanding items above (URL,
-winter competition format/dates, MK2 specs/price, price verification, UK partnership
-scope, SA team introduction). Awaiting Dave to send via WhatsApp.
+**Follow-up drafted (14 Sept 2026, corrected same day):** first draft asked about the
+winter competition's format/dates — Dave flagged it had already run with a winner, so
+that item was removed and replaced with a wrap-up note instead. Now covers the five
+still-open items (URL, MK2 specs/price, price verification, UK partnership scope, SA
+team introduction). Awaiting Dave to send via WhatsApp.
 
 ```
-Hey Kevin, hope you're well! Following up on a few open items so we can lock things in on our side:
+Hey Kevin, hope you're well! The winter competition wrapped up nicely — Rod Holshausen took home the MK2, thanks for making that happen. Following up on a few other open items so we can lock things in on our side:
 
 1. Quick one — is your site blusmooth.com or blusmooth.co.za? Want to get our partner page link right.
-2. Where are we on the SA winter competition — format and dates? Keen to get this live.
-3. Any MK2 specs/pricing yet? Would love to add it to your hero page on SwimLoading now that it's launched.
-4. Also keen to chat about the UK opportunity whenever you've got time — sounds like real overlap with our UK growth.
-5. And if you're able to introduce me to your SA team contact, that'd help move a few of these along faster.
+2. Any MK2 specs/pricing yet? Would love to add it to your hero page on SwimLoading now that it's launched.
+3. Also keen to chat about the UK opportunity whenever you've got time — sounds like real overlap with our UK growth.
+4. And if you're able to introduce me to your SA team contact, that'd help move a few of these along faster.
 
 No rush, just want to keep the partnership moving. Let me know what works!
 
