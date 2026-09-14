@@ -1478,11 +1478,48 @@ function openView(assignmentId) {
   bar.innerHTML = `<strong>${h(sq?.name || 'Squad')}</strong> · ${fmtLong(asgn.session_date)}${asgn.delivering_coach ? ` · Coach: <strong>${h(asgn.delivering_coach)}</strong>` : ''}`;
   document.getElementById('viewContent').textContent = content;
   document.getElementById('viewActions').innerHTML =
-    `<button class="btn-wa"     onclick="shareCurrentSet()"><i data-lucide="share-2"></i>WhatsApp</button>
+    `<button class="btn-ghost"  onclick="editAssignedSet('${assignmentId}')"><i data-lucide="edit-2"></i>Edit</button>
+     <button class="btn-wa"     onclick="shareCurrentSet()"><i data-lucide="share-2"></i>WhatsApp</button>
      <button class="btn-danger" onclick="removeAssignment('${assignmentId}')"><i data-lucide="calendar-x"></i>Remove</button>
      <button class="btn-ghost"  onclick="closeView()">Close</button>`;
   document.getElementById('viewOverlay').classList.add('open');
   lucide.createIcons();
+}
+
+// Editing a set from the Planner would otherwise edit the shared Library
+// template (used by every other day/squad it's assigned to). Instead this
+// forks it into a new Library set scoped to just this session, repoints
+// this one assignment at the fork, and opens the fork in the builder —
+// the original template a coach reuses elsewhere is never touched.
+async function editAssignedSet(assignmentId) {
+  const asgn = Object.values(assignments).find(a => a.id === assignmentId);
+  if (!asgn?.club_swim_sets) return;
+  const s = sets.find(x => x.id === asgn.club_swim_sets.id) || asgn.club_swim_sets;
+
+  if (!confirm(`This makes your own editable copy of "${s.name}" for this session only — the Library original stays unchanged for other days. Continue?`)) return;
+
+  const { data: newSet, error: insErr } = await sb.from('club_swim_sets').insert({
+    club_id:        currentClub.id,
+    name:           s.name,
+    focus:          s.focus || 'mixed',
+    pool_type:      s.pool_type || 'SCM',
+    squad_id:       s.squad_id || null,
+    set_content:    s.set_content || '',
+    total_distance: s.total_distance || null,
+    ai_generated:   false,
+    created_by:     currentUser.id,
+  }).select().single();
+  if (insErr) { toast('Could not create copy: ' + insErr.message, 'error'); return; }
+
+  const { error: updErr } = await sb.from('club_set_assignments').update({ set_id: newSet.id }).eq('id', assignmentId);
+  if (updErr) { toast('Copy created but could not link it: ' + updErr.message, 'error'); return; }
+
+  closeView();
+  await loadSets();
+  await loadWeekAssignments();
+  renderPlanner();
+  editSet(newSet.id);
+  toast('Editing your own copy — the Library original is untouched.', 'success');
 }
 
 // ══ WHATSAPP SHARE ═══════════════════════════════════════════════════
