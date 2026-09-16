@@ -466,29 +466,36 @@ Not swim sponsorship — leadership sponsorship. Most swimmers can't offer execu
 
 ### SwimLoading itself — sponsor prize pipeline
 
-**Canonical tracker: `Sponsors/index.html`** (title "SwimLoading — Sponsor Pipeline"; open
-the file directly, it's deliberately blocked from public routing in `vercel.json` — 404 on
-`/Sponsors`, matches SECURITY_REGISTER §2). A 90+ entry interactive brand tracker — category,
-suggested prize + estimated value, notes, contact link, status tags (`verified`/`hot`/`new`/
-`sa`) — far more detailed than the prose lists that used to live here. **This replaces both
-the old 10-brand "target partners" list and the Sept 2026 fresh-review table that were
-previously in this section** — both were fully superseded once this file surfaced (it
-already covered Garmin, Therabody, Hyperice, Sealand, Stanley, Island Tribe, Airlink, Protea
-Hotels, Heliocare, plus the fresh candidates like Swim Secure, dryrobe, COROS, and SwimTrek).
+**Canonical tracker: `Sponsors/index.html`, backed by the `growth_sponsors` Supabase table.**
+Live at swimloading.com/Sponsors (routed 16 Sept 2026 — previously local-file-only; the real
+auth below made it safe to route). Sign in with a `growth_founders` email via magic link. RLS policy `founders_all` restricts every
+read/write to founder emails, so this is real auth, not just obscurity. Live status pipeline
+(Idea → Researching → Contacted → In Discussion → Confirmed → Passed), notes, priority flag,
+conversation log, contact name/email, owner, next action, and follow-up date all save
+instantly — no more editing a static file by hand.
 
-**Reconciled 14 Sept 2026** — Dave chose `Sponsors/index.html` as canonical over duplicating
-here:
-- Removed FORM, JAKED, and Blue Seventy from its prospect list — all three are now signed,
-  active/coming-soon SwimLoading partners (see above), not prospects. Each removal left a
-  dated comment in the file pointing back to this doc.
-- Added Restube (Germany, tow floats) to its "Bags, kit & safety" category — the one
-  genuinely new name out of the Sept 2026 fresh review; everything else in that review
-  (Swim Secure, dryrobe, Garmin, COROS, Therabody, Hyperice, SwimTrek) was already there in
-  more depth.
-- Open water safety/tow floats and swim caps (the two old `[TBD]` rows above) are both now
-  covered there under "Bags, kit & safety" (Swim Secure, Red Equipment, BTTLNS, Restube).
-- Swim/adventure travel insurance remains a genuinely open category — not in
-  `Sponsors/index.html` either. Worth adding there if pursued.
+**Combined 16 Sept 2026** — Dave found a second tool, `sponsors-admin_1.html`, already built
+against `growth_sponsors` and already in real use: 19 live rows with genuine outreach history
+(Lindi's UK contacts since Jun 2026 — Trihard and Blue70 UK both already **Confirmed** — plus
+a researched SA push on 15 Sept 2026: DJI, Garmin, Hyperice, Therabody, FINIS, Sealand Gear,
+Stream2Sea, Island Tribe, and two new finds not on the original tracker, Zero BS and Botthms).
+That live tool is now `Sponsors/index.html` — the old static 89-entry array is retired.
+- Migrated the 74 static-tracker entries not already live into `growth_sponsors` as new
+  `Idea`-status rows (`sql/applied/2026-09-16_import-sponsors-tracker-into-growth-sponsors.sql`)
+  — nothing from the original research was lost. 10 entries were skipped as already-live
+  duplicates (Red Equipment, Swimtrek, Garmin, Hyperice, Therabody, FINIS, Sealand Gear,
+  Stream2Sea, Island Tribe, DJI); 5 "Women's leadership (Carina only)" entries (Investec,
+  Discovery, Santam, Old Mutual, Nedbank) were excluded as out of scope — see Tier 6 above,
+  their own notes said "for Carina personally, not SwimLoading."
+- Added display + add-sponsor fields for `contact_name`, `owner`, `next_action`, and
+  `follow_up_date` — all four already held real data (e.g. Stryker's contact "Christian",
+  Trihard's "Allyson and Rei", Lindi as owner on most UK rows) but the admin tool's UI never
+  showed them.
+- Open water safety/tow floats and swim caps (the old `[TBD]` rows above), Garmin, dryrobe,
+  cold-water recovery, and swim travel (the Sept 2026 fresh-review categories) are all now
+  tracked live in `growth_sponsors` rather than in prose here.
+- Swim/adventure travel insurance remains a genuinely open category — add it via the "Add
+  sponsor" button if pursued.
 
 ---
 

@@ -79,9 +79,19 @@ sponsor logo from that path.
 
 ---
 
-## §2 — CRITICAL (contained, not remediated): Sponsor CRM full exposure
+## §2 — CRITICAL, FIXED 16 Sept 2026 (was: contained, not remediated): Sponsor CRM full exposure
 
-**File:** `Sponsors/index.html` (754 lines)
+**Fixed:** `Sponsors/index.html` was replaced with a real, database-backed admin tool
+(previously drafted separately as `sponsors-admin_1.html`, already in live use against a
+`growth_sponsors` Supabase table). Auth is Supabase magic-link sign-in gated by RLS policy
+`founders_all` — `(auth.jwt() ->> 'email') IN (SELECT email FROM growth_founders)` — restricting
+every read/write, not just page access. This is option (A) below, now implemented: the
+routing block from §1 was removed for the exact `/Sponsors` path (the broader
+`^/Sponsors(/.*)?$` 404 rule stays, so unrelated asset files in that folder are still blocked)
+and the page is live at swimloading.com/Sponsors. See `PARTNERS.md` → "SwimLoading itself —
+sponsor prize pipeline" and `sql/applied/2026-09-16_import-sponsors-tracker-into-growth-sponsors.sql`.
+
+**Original finding (File:** `Sponsors/index.html`, 754 lines**):**
 
 **What was live:** Zero authentication, zero `noindex`, not in `robots.txt`.
 The entire commercial pipeline — 91 brands — is a hardcoded JavaScript array
@@ -95,18 +105,15 @@ targets, recovery/nutrition/skincare targets) added Jul 2026.
 This is retrievable via a plain unauthenticated `curl` or `view-source` —
 confirmed live 200 in production before this pass.
 
-**Fix applied this pass:** Blocked at the routing layer (§1). The file and
-its data are untouched and preserved in git history — nothing was deleted.
+**Fix applied at the time:** Blocked at the routing layer (§1). The file and
+its data were left untouched and preserved in git history — nothing deleted.
 
-**Not fixed — needs your decision (see DECISIONS.md):** The page still has no
-real authentication. Per your own Step 5.1 instructions, the two options are:
-(A) rebuild behind a server-side authenticated admin route, or (B) leave it
-out of the deployed web root pending that rebuild. This pass implemented the
-routing-block version of (B). A proper (A) implementation is real, non-trivial
-work (needs the shared access-control approach from §3 to exist first) and
-was not attempted without your sign-off, per your explicit pause-before-delete
-instruction and the scope limit on this phase ("do not perform large
-architectural refactors yet").
+**Resolved 16 Sept 2026 (option A, above):** Dave already had a second, unrouted tool
+(`sponsors-admin_1.html`) built against a real `growth_sponsors` table with Supabase
+magic-link auth + RLS — the shared access-control building block §3 said this needed
+already existed, just not wired to this page. That tool replaced the static file,
+the 91-brand data was migrated into `growth_sponsors` (nothing lost), and the page is
+now live and authenticated rather than merely unrouted.
 
 **Data-loss risk of the fix:** None. `git log Sponsors/index.html` still has
 full history; the file is unchanged, just no longer publicly routable.
@@ -310,7 +317,7 @@ INVESTIGATE for the next phase; not touched.
 | # | Finding | Severity | Status |
 |---|---|---|---|
 | 1 | Repo-wide static file exposure (`.md` + `Sponsors/`, later expanded) | Critical | Fixed (containment) |
-| 2 | Sponsor CRM full exposure | Critical | Contained; real fix pending your decision |
+| 2 | Sponsor CRM full exposure | Critical | Fixed 16 Sept 2026 — real auth (magic link + RLS), live and routed |
 | 3 | No shared internal-page role mechanism | High | Documented; not implemented, needs your sign-off |
 | 4 | Missing noindex / robots.txt gaps | Medium | Fixed |
 | 5 | Unauthenticated destructive cron endpoint | Critical | Fixed; `CRON_SECRET` confirmed set in Production |
