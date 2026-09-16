@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-89R519Y9T4"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-89R519Y9T4');
+    </script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SwimLoading Clubs — See It in Action</title>
+    <meta name="description" content="A guided walkthrough of SwimLoading Clubs running inside a real swimming academy — Aqua Sharks Academy Atlantic. See the Overview, Squad Tracker, Planner, and Coach Intelligence in action.">
+    <link rel="canonical" href="https://www.swimloading.com/for-clubs">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #080f1a;
+            --bg-card: #0d1728;
+            --bg-card2: #101e30;
+            --cyan: #38bdf8;
+            --cyan-dim: rgba(56,189,248,0.10);
+            --cyan-border: rgba(56,189,248,0.18);
+            --text: #f1f5f9;
+            --text-sec: #64748b;
+            --text-dim: #475569;
+            --border: rgba(255,255,255,0.06);
+            --success: #10b981;
+            --amber: #f59e0b;
+            --danger: #ef4444;
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 15px;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            pointer-events: none; z-index: 9999;
+            background:
+                radial-gradient(18px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+                    rgba(56,189,248,0.55), transparent 100%),
+                radial-gradient(500px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+                    rgba(56,189,248,0.07), transparent 70%);
+        }
+
+        /* ── Nav ── */
+        .nav {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(8,15,26,0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px; height: 52px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .nav-brand {
+            display: flex; align-items: center; gap: 8px;
+            text-decoration: none; font-size: 20px; font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .nav-brand img { height: 22px; width: auto; }
+        .nav-links { display: flex; align-items: center; gap: 20px; }
+        .nav-link { font-size: 13px; font-weight: 600; color: var(--text-sec); text-decoration: none; }
+        .nav-link:hover { color: var(--text); }
+        .nav-cta {
+            font-size: 13px; font-weight: 700;
+            background: var(--cyan); color: #080f1a;
+            border-radius: 50px; padding: 7px 18px;
+            text-decoration: none; transition: opacity 0.15s;
+        }
+        .nav-cta:hover { opacity: 0.85; }
+
+        /* ── Hero ── */
+        .hero {
+            position: relative; overflow: hidden;
+            padding: 76px 24px 56px;
+            background:
+                radial-gradient(ellipse 90% 60% at 50% -10%, rgba(56,189,248,0.12) 0%, transparent 70%),
+                linear-gradient(180deg, #0a1525 0%, var(--bg) 100%);
+            border-bottom: 1px solid var(--border);
+        }
+        .hero-grid {
+            position: absolute; inset: 0;
+            background-image:
+                linear-gradient(rgba(56,189,248,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56,189,248,0.04) 1px, transparent 1px);
+            background-size: 40px 40px;
+            mask-image: linear-gradient(to bottom, transparent, rgba(0,0,0,0.3) 30%, rgba(0,0,0,0.1) 100%);
+        }
+        .hero-inner { position: relative; max-width: 720px; margin: 0 auto; }
+        .hero-eyebrow { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
+        .hero-eyebrow-line { width: 28px; height: 2px; background: var(--cyan); border-radius: 2px; }
+        .hero-eyebrow span { font-size: 11px; font-weight: 600; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.12em; }
+        .hero-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(46px, 9vw, 76px);
+            line-height: 0.98; letter-spacing: 0.02em;
+            margin-bottom: 20px;
+        }
+        .hero-title .cyan { color: var(--cyan); }
+        .hero-sub {
+            font-size: 17px; color: rgba(241,245,249,0.8);
+            line-height: 1.65; max-width: 580px; margin-bottom: 28px;
+        }
+        .hero-stats { display: flex; gap: 32px; flex-wrap: wrap; margin-bottom: 28px; }
+        .hero-stat-num {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 34px; color: var(--cyan); letter-spacing: 0.02em; line-height: 1;
+        }
+        .hero-stat-label { font-size: 12px; color: var(--text-sec); margin-top: 2px; }
+        .hero-ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+        .btn-primary {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 14px 28px; background: var(--cyan); color: #080f1a;
+            font-size: 14px; font-weight: 700; border-radius: 50px;
+            text-decoration: none; letter-spacing: 0.01em;
+        }
+        .btn-ghost {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 14px 28px; background: transparent; color: var(--text);
+            border: 1px solid rgba(255,255,255,0.15);
+            font-size: 14px; font-weight: 700; border-radius: 50px;
+            text-decoration: none;
+        }
+
+        /* ── Layout ── */
+        .content { max-width: 820px; margin: 0 auto; padding: 64px 20px 0; display: flex; flex-direction: column; gap: 76px; }
+
+        .section-eyebrow {
+            font-size: 10px; font-weight: 700; color: var(--cyan);
+            text-transform: uppercase; letter-spacing: 0.16em; margin-bottom: 6px;
+        }
+        .section-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 36px; letter-spacing: 0.04em; color: var(--text);
+            margin-bottom: 14px;
+        }
+        .section-desc {
+            font-size: 15px; color: var(--text-sec); line-height: 1.65;
+            max-width: 600px; margin-bottom: 26px;
+        }
+        .narration {
+            font-size: 18px; font-weight: 600; color: var(--text);
+            font-style: italic; margin-bottom: 18px;
+            border-left: 3px solid var(--cyan); padding-left: 16px;
+        }
+
+        /* ── Demo screen frame ── */
+        .demo-frame {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .demo-titlebar {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 16px; border-bottom: 1px solid var(--border);
+            background: rgba(255,255,255,0.015);
+        }
+        .demo-dots { display: flex; gap: 5px; }
+        .demo-dots span { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.12); }
+        .demo-titlebar-label { font-size: 11px; font-weight: 600; color: var(--text-sec); }
+        .demo-body { padding: 20px; }
+
+        .stat-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+        .stat-chip {
+            flex: 1; min-width: 110px;
+            background: rgba(255,255,255,0.02); border: 1px solid var(--border);
+            border-radius: 10px; padding: 10px 14px;
+        }
+        .stat-chip-num { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--text); letter-spacing: 0.02em; }
+        .stat-chip-label { font-size: 10px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+
+        .attn-row { display: flex; align-items: flex-start; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .attn-row:last-child { border-bottom: none; }
+        .attn-dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+        .attn-dot.amber { background: var(--amber); }
+        .attn-dot.blue { background: var(--cyan); }
+        .attn-title { font-size: 13px; font-weight: 700; color: var(--text); }
+        .attn-sub { font-size: 12px; color: var(--text-sec); margin-top: 2px; }
+
+        .wr-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .wr-table th { text-align: left; color: var(--cyan); font-weight: 700; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+        .wr-table td { padding: 8px; border-bottom: 1px solid var(--border); color: var(--text-sec); }
+        .wr-table tr:last-child td { border-bottom: none; }
+        .wr-squad { color: var(--text); font-weight: 600; }
+        .wr-full { color: var(--danger); font-weight: 700; }
+        .wr-open { color: var(--success); font-weight: 700; }
+
+        .sq-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        @media (max-width: 560px) { .sq-card-grid { grid-template-columns: 1fr; } }
+        .sq-card { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+        .sq-card-name { font-size: 13px; font-weight: 700; color: var(--text); }
+        .sq-card-meta { font-size: 10px; color: var(--text-sec); margin-bottom: 8px; }
+        .sq-card-time { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-sec); padding: 3px 0; }
+        .sq-card-time strong { color: var(--text); font-weight: 600; }
+        .sq-badge { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; background: rgba(16,185,129,0.12); color: var(--success); margin-left: 4px; }
+
+        .planner-mini { display: grid; grid-template-columns: 90px repeat(3,1fr); gap: 1px; background: var(--border); border-radius: 10px; overflow: hidden; font-size: 10px; }
+        .planner-mini > div { background: var(--bg-card); padding: 8px; }
+        .planner-mini .ph { color: var(--cyan); font-weight: 700; }
+        .planner-mini .sq { color: var(--text); font-weight: 700; display: flex; align-items: center; }
+        .planner-set { background: rgba(56,189,248,0.08) !important; color: var(--text); border-radius: 6px; font-weight: 600; }
+        .planner-set.warn { background: rgba(239,68,68,0.08) !important; color: #fca5a5; }
+        .planner-set.ok { background: rgba(16,185,129,0.08) !important; color: #6ee7b7; }
+
+        .lib-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        @media (max-width: 560px) { .lib-grid { grid-template-columns: 1fr; } }
+        .lib-card { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+        .lib-card-name { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+        .lib-card-tag { font-size: 9px; font-weight: 700; color: var(--amber); text-transform: uppercase; }
+        .lib-card-meta { font-size: 10px; color: var(--text-sec); margin-top: 4px; }
+
+        /* ── The insight sequence ── */
+        .flow-wrap { display: flex; flex-direction: column; gap: 0; }
+        .flow-step { display: flex; gap: 18px; position: relative; padding-bottom: 28px; }
+        .flow-step:last-child { padding-bottom: 0; }
+        .flow-step::before {
+            content: ''; position: absolute; left: 15px; top: 34px; bottom: 0;
+            width: 1px; background: var(--border);
+        }
+        .flow-step:last-child::before { display: none; }
+        .flow-marker {
+            width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Bebas Neue', sans-serif; font-size: 14px; letter-spacing: 0.04em;
+            background: var(--cyan-dim); border: 1px solid var(--cyan-border); color: var(--cyan);
+            z-index: 1;
+        }
+        .flow-label { font-size: 10px; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 6px; }
+        .flow-text { font-size: 14px; color: rgba(241,245,249,0.9); line-height: 1.65; }
+        .flow-text strong { color: var(--text); }
+
+        .insight-card {
+            background: rgba(245,158,11,0.05); border: 1px solid rgba(245,158,11,0.2);
+            border-radius: 12px; padding: 16px 18px; margin-top: 10px;
+        }
+        .insight-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .insight-card-title { font-size: 13px; font-weight: 700; color: var(--text); }
+        .insight-urgent { font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--danger); background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); border-radius: 20px; padding: 2px 9px; }
+        .insight-body { font-size: 12px; color: var(--text-sec); line-height: 1.6; margin-bottom: 12px; }
+        .insight-gen-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--cyan); background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.25); border-radius: 8px; padding: 8px 14px; }
+
+        .qual-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 14px; }
+        .qual-table th { text-align: left; color: var(--text-sec); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; font-size: 9px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+        .qual-table td { padding: 8px; border-bottom: 1px solid var(--border); color: var(--text-sec); vertical-align: top; }
+        .qual-name { color: var(--text); font-weight: 700; }
+        .qual-gap { color: var(--amber); font-weight: 700; background: rgba(245,158,11,0.1); border-radius: 4px; padding: 2px 6px; display: inline-block; }
+
+        /* ── Three layers ── */
+        .layer-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+        @media (max-width: 680px) { .layer-grid { grid-template-columns: 1fr; } }
+        .layer-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 24px 20px; }
+        .layer-num { font-family: 'Bebas Neue', sans-serif; font-size: 13px; color: var(--cyan); letter-spacing: 0.1em; margin-bottom: 10px; }
+        .layer-title { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 0.03em; color: var(--text); margin-bottom: 10px; }
+        .layer-desc { font-size: 12px; color: var(--text-sec); line-height: 1.6; }
+
+        /* ── Quote ── */
+        .quote-card {
+            background: rgba(56,189,248,0.05); border: 1px solid rgba(56,189,248,0.15);
+            border-left: 3px solid var(--cyan); border-radius: 14px; padding: 22px 24px;
+        }
+        .quote-text { font-size: 14px; color: rgba(241,245,249,0.85); line-height: 1.75; font-style: italic; margin-bottom: 10px; }
+        .quote-attr { font-size: 12px; font-weight: 600; color: var(--text-sec); }
+
+        /* ── Footer ── */
+        .footer { padding: 44px 20px; text-align: center; border-top: 1px solid var(--border); margin-top: 56px; }
+        .footer-brand {
+            display: inline-flex; align-items: center; gap: 7px;
+            text-decoration: none; font-size: 17px; font-weight: 800; letter-spacing: -0.5px;
+            background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+            margin-bottom: 8px;
+        }
+        .footer-meta { font-size: 12px; color: var(--text-sec); }
+    </style>
+</head>
+<body>
+
+<nav class="nav">
+    <a href="/" class="nav-brand"><img src="/icons/logo-wave.png" alt="">SwimLoading</a>
+    <div class="nav-links">
+        <a href="/pricing-clubs" class="nav-link" onclick="fcGa4('for_clubs_pricing_click',{placement:'nav'})">Pricing</a>
+        <a href="mailto:support@swimloading.com?subject=SwimLoading Clubs enquiry" class="nav-cta">Get started</a>
+    </div>
+</nav>
+
+<div class="hero">
+    <div class="hero-grid"></div>
+    <div class="hero-inner">
+        <div class="hero-eyebrow">
+            <div class="hero-eyebrow-line"></div>
+            <span>SwimLoading Clubs</span>
+        </div>
+        <h1 class="hero-title">Run the squad.<br>Understand the swimmer.<br>Coach what comes <span class="cyan">next</span>.</h1>
+        <p class="hero-sub">One platform connecting the day-to-day operation of a competitive swimming club with swimmer progression, training programmes, qualifying targets, and coaching intelligence — this is what it looks like inside a real, working club: Aqua Sharks Academy Atlantic.</p>
+        <div class="hero-stats">
+            <div><div class="hero-stat-num">290+</div><div class="hero-stat-label">active swimmers</div></div>
+            <div><div class="hero-stat-num">16</div><div class="hero-stat-label">squads</div></div>
+            <div><div class="hero-stat-num">1,600+</div><div class="hero-stat-label">qualifying standards tracked</div></div>
+        </div>
+        <div class="hero-ctas">
+            <a href="#walkthrough" class="btn-primary"><i data-lucide="play" style="width:15px;height:15px;"></i>See it work</a>
+            <a href="/pricing-clubs" class="btn-ghost" onclick="fcGa4('for_clubs_pricing_click',{placement:'hero'})">View plans &amp; pricing</a>
+        </div>
+    </div>
+</div>
+
+<div class="content" id="walkthrough">
+
+    <!-- STEP 1: Overview -->
+    <div>
+        <div class="section-eyebrow">Monday morning</div>
+        <div class="section-title">This is what greets Aqua Sharks' admin, every day</div>
+        <p class="narration">"Here's what needs your attention" — before anyone has to go looking for it.</p>
+        <div class="demo-frame">
+            <div class="demo-titlebar"><div class="demo-dots"><span></span><span></span><span></span></div><div class="demo-titlebar-label">Aqua Sharks Academy Atlantic — Overview</div></div>
+            <div class="demo-body">
+                <div class="stat-row">
+                    <div class="stat-chip"><div class="stat-chip-num">292</div><div class="stat-chip-label">Members</div></div>
+                    <div class="stat-chip"><div class="stat-chip-num">11</div><div class="stat-chip-label">Sessions today</div></div>
+                    <div class="stat-chip"><div class="stat-chip-num">0</div><div class="stat-chip-label">Trials ending</div></div>
+                    <div class="stat-chip"><div class="stat-chip-num">0</div><div class="stat-chip-label">Fees overdue</div></div>
+                </div>
+                <div class="attn-row">
+                    <div class="attn-dot amber"></div>
+                    <div><div class="attn-title">5 swimmers not seen in 3+ weeks</div><div class="attn-sub">Ryan D. (6w), Sienna P. (5w), Ava T. (5w), Connor B. (4w), Mila R. (4w)</div></div>
+                </div>
+                <div class="attn-row">
+                    <div class="attn-dot amber"></div>
+                    <div><div class="attn-title">14 trials have no end date set</div><div class="attn-sub">Amy C., Felix A., Quinn B. +11 more</div></div>
+                </div>
+                <div class="attn-row">
+                    <div class="attn-dot amber"></div>
+                    <div><div class="attn-title">1 member not assigned to a squad</div><div class="attn-sub">Assign in Roster → Edit</div></div>
+                </div>
+                <div class="attn-row">
+                    <div class="attn-dot blue"></div>
+                    <div><div class="attn-title">239 of 292 active roster members aren't linked to an app account</div><div class="attn-sub">Copy the parent invite message into each squad's group chat</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- STEP 2: Weekly Report -->
+    <div>
+        <div class="section-eyebrow">The week in one screen</div>
+        <div class="section-title">Here's what actually happened across every squad</div>
+        <p class="narration">Planned capacity vs. real bookings — full sessions in red, room-to-fill in green, every squad, every day.</p>
+        <div class="demo-frame">
+            <div class="demo-titlebar"><div class="demo-dots"><span></span><span></span><span></span></div><div class="demo-titlebar-label">Weekly Report — 14 Sept – 20 Sept</div></div>
+            <div class="demo-body">
+                <table class="wr-table">
+                    <tr><th>Squad</th><th>Mon</th><th>Wed</th><th>Fri</th></tr>
+                    <tr><td class="wr-squad">Learn to Swim &amp; Stroke (56)</td><td>9/8 <span class="wr-full">FULL</span></td><td>8/8 <span class="wr-full">FULL</span></td><td>10/8 <span class="wr-full">FULL</span></td></tr>
+                    <tr><td class="wr-squad">Bronze Squad (36)</td><td>36 enrolled</td><td>36 enrolled</td><td>36 enrolled</td></tr>
+                    <tr><td class="wr-squad">Silver Squad (39)</td><td>39 enrolled</td><td>39 enrolled</td><td>39 enrolled</td></tr>
+                    <tr><td class="wr-squad">Intermediate (33)</td><td>33 enrolled</td><td>33 enrolled</td><td>33 enrolled</td></tr>
+                    <tr><td class="wr-squad">Senior Squad (21)</td><td>21 enrolled</td><td>21 enrolled (Dry Land)</td><td>21 enrolled</td></tr>
+                    <tr><td class="wr-squad">OW Masters 6–7 (28)</td><td>28 enrolled</td><td>28 enrolled</td><td>—</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- STEP 3: Squad Tracker -->
+    <div>
+        <div class="section-eyebrow">Every swimmer, every event</div>
+        <div class="section-title">Personal bests, competition history, qualifying gaps</div>
+        <p class="narration">Not a spreadsheet of times — the distance from every swimmer to the standard that matters to them.</p>
+        <div class="demo-frame">
+            <div class="demo-titlebar"><div class="demo-dots"><span></span><span></span><span></span></div><div class="demo-titlebar-label">Squad Tracker — Senior Squad</div></div>
+            <div class="demo-body">
+                <div class="sq-card-grid">
+                    <div class="sq-card">
+                        <div class="sq-card-name">Reece Adams <span style="color:var(--text-dim);font-weight:400;">· age 15</span></div>
+                        <div class="sq-card-meta">#12 · Senior Squad · age-up 2027</div>
+                        <div class="sq-card-time">200 IM LC <strong>2:24.48</strong> <span class="sq-badge">SANJ</span></div>
+                        <div class="sq-card-time">400 Free LC <strong>5:02.91</strong></div>
+                        <div class="sq-card-time">100 Free LC <strong>1:06.80</strong></div>
+                    </div>
+                    <div class="sq-card">
+                        <div class="sq-card-name">Kayla Osman <span style="color:var(--text-dim);font-weight:400;">· age 13</span></div>
+                        <div class="sq-card-meta">#6 · Senior Squad · age-up 2027</div>
+                        <div class="sq-card-time">200 Breast LC <strong>3:15.24</strong> <span class="sq-badge">L3</span></div>
+                        <div class="sq-card-time">100 Breast LC <strong>1:27.69</strong></div>
+                        <div class="sq-card-time">200 Free LC <strong>2:35.34</strong></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- STEP 4: Planner -->
+    <div>
+        <div class="section-eyebrow">The programme, live</div>
+        <div class="section-title">Here's what every squad is swimming this week</div>
+        <p class="narration">One screen, every squad, every day — assigned sets a coach opens on deck, not a printout on a clipboard.</p>
+        <div class="demo-frame">
+            <div class="demo-titlebar"><div class="demo-dots"><span></span><span></span><span></span></div><div class="demo-titlebar-label">Planner — 14 Sept – 19 Sept</div></div>
+            <div class="demo-body">
+                <div class="planner-mini">
+                    <div></div><div class="ph">MON</div><div class="ph">TUE</div><div class="ph">WED</div>
+                    <div class="sq">Intermediate</div><div class="planner-set">INT FREE AT</div><div class="planner-set ok">Fly focus Speed Endurance</div><div class="planner-set warn">Speed Development</div>
+                    <div class="sq">Senior Squad</div><div class="planner-set">FREE AT</div><div class="planner-set ok">Fly focus Speed Endurance</div><div class="planner-set warn">Speed Development</div>
+                    <div class="sq">OW Masters 6–7</div><div class="planner-set">MASTERS 12x100</div><div>—</div><div>—</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- STEP 5: Library -->
+    <div>
+        <div class="section-eyebrow">Institutional knowledge</div>
+        <div class="section-title">Every set a coach writes becomes reusable</div>
+        <p class="narration">175+ sets in Aqua Sharks' library and growing — searchable by squad and focus, never rebuilt from scratch twice.</p>
+        <div class="demo-frame">
+            <div class="demo-titlebar"><div class="demo-dots"><span></span><span></span><span></span></div><div class="demo-titlebar-label">Set Library — 175+ sets</div></div>
+            <div class="demo-body">
+                <div class="lib-grid">
+                    <div class="lib-card"><div class="lib-card-name">Wed Speed Development</div><div class="lib-card-tag">Speed</div><div class="lib-card-meta">Senior Squad · SCM</div></div>
+                    <div class="lib-card"><div class="lib-card-name">Tues Fly Focus Speed Endurance</div><div class="lib-card-tag">Endurance</div><div class="lib-card-meta">Intermediate · SCM</div></div>
+                    <div class="lib-card"><div class="lib-card-name">Sat Nippers U10's</div><div class="lib-card-tag">Endurance</div><div class="lib-card-meta">Nippers — Under 10s · SCM</div></div>
+                    <div class="lib-card"><div class="lib-card-name">Mon Masters 12 x 100</div><div class="lib-card-tag">Aerobic</div><div class="lib-card-meta">OW Masters 6–7 · SCM</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- STEP 6: THE MOMENT — Coach Intelligence -->
+    <div>
+        <div class="section-eyebrow">Coach Intelligence</div>
+        <div class="section-title">Now the system combines all of it — and tells the coach what deserves attention</div>
+        <p class="section-desc">Training history, swimmer PBs, and upcoming competition requirements, in one recommendation. This is a real output, generated live from Aqua Sharks' own data on 16 September 2026 — nothing below is invented.</p>
+
+        <div class="flow-wrap">
+            <div class="flow-step">
+                <div class="flow-marker">1</div>
+                <div>
+                    <div class="flow-label">See</div>
+                    <div class="flow-text">"<strong>Senior Squad has completed 22 sessions over the last 4 weeks</strong> with a heavily mixed focus (19/22 sessions), and critically low speed and race-pace work — just 1 speed session in 4 weeks."</div>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-marker">2</div>
+                <div>
+                    <div class="flow-label">Understand</div>
+                    <div class="flow-text">"<strong>QM5 LC is 4 weeks away</strong> — this is a tight but workable taper window. The squad should begin transitioning now: weeks 1–2 introduce race-pace and event-specific work, week 3 reduces volume while maintaining sharpness, week 4 is a full taper with activation sets only. Avoid a hard taper too early — build speed first, then taper."</div>
+                    <div class="insight-card">
+                        <div class="insight-card-head"><div class="insight-card-title">Senior Squad</div><div class="insight-urgent">Urgent · next focus: speed</div></div>
+                        <div class="insight-body">Severely imbalanced — 19 of 22 sessions listed as "mixed" with only 1 aerobic, 1 endurance, and 1 speed session. With a long-course gala 4 weeks out, the absence of race-pace and speed work is a significant concern. Immediately introduce 2–3 race-pace sessions over the next 10 days, focused on event-specific efforts at or slightly faster than target race pace.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-marker">3</div>
+                <div>
+                    <div class="flow-label">Act</div>
+                    <div class="flow-text">The coach doesn't have to build that set from a blank page.</div>
+                    <div class="insight-gen-btn"><i data-lucide="sparkles" style="width:13px;height:13px;"></i> Generate this set</div>
+                    <table class="qual-table">
+                        <tr><th>Swimmer</th><th>Event</th><th>Gap</th><th>Training tip</th></tr>
+                        <tr>
+                            <td class="qual-name">Reece Adams</td>
+                            <td>200m IM LC</td>
+                            <td><span class="qual-gap">0.2s from L2</span></td>
+                            <td style="max-width:280px;">This gap is razor-thin. Focus on clean transitions and underwater work off all four walls — a single 200 IM time trial under race conditions in the next 2 weeks could realistically produce this drop.</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Three layers recap -->
+    <div>
+        <div class="section-eyebrow">The whole platform, three layers</div>
+        <div class="section-title">Operate. Perform. Coach.</div>
+        <div class="layer-grid">
+            <div class="layer-card">
+                <div class="layer-num">01</div>
+                <div class="layer-title">Operate</div>
+                <div class="layer-desc">Members · squads · attendance · timetable · parents · events. The admin work a club can't skip, off the spreadsheet.</div>
+            </div>
+            <div class="layer-card">
+                <div class="layer-num">02</div>
+                <div class="layer-title">Perform</div>
+                <div class="layer-desc">Times · personal bests · qualifying standards · season progression · competition readiness for every swimmer.</div>
+            </div>
+            <div class="layer-card">
+                <div class="layer-num">03</div>
+                <div class="layer-title">Coach</div>
+                <div class="layer-desc">Sets · planning · training balance · coaching intelligence · race-specific recommendations, generated from the club's own data.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keep the systems you already need -->
+    <div>
+        <div class="section-eyebrow">Works alongside what you already use</div>
+        <div class="section-title">Keep the systems you already need</div>
+        <p class="section-desc" style="margin-bottom:0;">SwimLoading Clubs doesn't require you to replace your governing body's membership, competition, or accounting systems. It's designed to sit alongside the systems your club already relies on for registration and results, while providing the day-to-day operational, swimmer-performance, and coaching layer around your squads.</p>
+    </div>
+
+    <!-- Quote -->
+    <div class="quote-card">
+        <div class="quote-text">"The attendance dots are exactly what I needed. In five seconds I can see who's been consistent and who I need to check in on — without scrolling through any messages or spreadsheets. It changed how I start every session."</div>
+        <div class="quote-attr">Teagan Thompson · Head Coach, Aquasharks Atlantic</div>
+    </div>
+
+    <!-- Final CTA -->
+    <div style="background:linear-gradient(135deg,rgba(56,189,248,0.07) 0%,rgba(56,189,248,0.02) 100%);border:1.5px solid rgba(56,189,248,0.2);border-radius:20px;padding:40px;text-align:center;">
+        <div class="section-eyebrow" style="justify-content:center;display:flex;margin-bottom:10px;">Get started</div>
+        <h2 style="font-family:'Bebas Neue',sans-serif;font-size:38px;letter-spacing:0.04em;color:var(--text);margin-bottom:14px;">Run your club like Aqua Sharks does</h2>
+        <p style="font-size:15px;color:var(--text-sec);line-height:1.65;max-width:480px;margin:0 auto 8px;">See the platform running with a real swimming academy — not demo data.</p>
+        <p style="font-size:13px;color:var(--text-sec);line-height:1.6;max-width:480px;margin:0 auto 28px;">We'll set up your squads, timetable, and join links within 24 hours of hearing from you.</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+            <a href="mailto:support@swimloading.com?subject=Book a 20-minute walkthrough — SwimLoading Clubs"
+               onclick="fcGa4('for_clubs_walkthrough_click',{placement:'final_cta'})"
+               style="display:inline-flex;align-items:center;gap:8px;padding:16px 36px;background:var(--cyan);color:#080f1a;font-size:15px;font-weight:700;border-radius:50px;text-decoration:none;letter-spacing:0.01em;">
+                <i data-lucide="calendar" style="width:15px;height:15px;"></i>Book a 20-minute walkthrough
+            </a>
+            <a href="/pricing-clubs"
+               onclick="fcGa4('for_clubs_pricing_click',{placement:'final_cta'})"
+               style="display:inline-flex;align-items:center;gap:8px;padding:16px 36px;background:transparent;color:var(--text);border:1px solid rgba(255,255,255,0.15);font-size:15px;font-weight:700;border-radius:50px;text-decoration:none;">
+                View plans &amp; pricing
+            </a>
+        </div>
+        <p style="font-size:12px;color:var(--text-sec);margin-top:16px;">support@swimloading.com</p>
+    </div>
+
+</div>
+
+<div class="footer">
+    <a href="/" class="footer-brand"><img src="/icons/logo-wave.png" alt="" style="height:20px;width:auto;">SwimLoading</a>
+    <div class="footer-meta">support@swimloading.com · swimloading.com</div>
+</div>
+
+<script>
+    lucide.createIcons();
+    document.addEventListener('mousemove', e => {
+        document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+        document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+    });
+
+    // ── Analytics (existing GA4 property — no new platform) ──────────────────
+    function fcGa4(event, params) { if (typeof gtag === 'function') gtag('event', event, params || {}); }
+    fcGa4('for_clubs_view');
+</script>
+</body>
+</html>
