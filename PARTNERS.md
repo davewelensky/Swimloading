@@ -404,7 +404,7 @@ Also: swimmers buy goggles once a year, but travel/wellness/lifestyle products r
 ### Uncategorised (from before this update)
 
 Resolved Sept 2026 — see "SwimLoading itself — sponsor prize pipeline" below. Both rows
-are now covered in `Sponsors/index.html`'s "Bags, kit & safety" category (Swim Secure,
+are now covered in `sponsor-pipeline.html`'s "Bags, kit & safety" category (Swim Secure,
 Red Equipment, BTTLNS, Restube).
 
 ### Carina Bruwer — swimwear sponsor targets (Tier 1, highest priority)
@@ -466,7 +466,7 @@ Not swim sponsorship — leadership sponsorship. Most swimmers can't offer execu
 
 ### SwimLoading itself — sponsor prize pipeline
 
-**Canonical tracker: `Sponsors/index.html`, backed by the `growth_sponsors` Supabase table.**
+**Canonical tracker: `sponsor-pipeline.html`, backed by the `growth_sponsors` Supabase table.**
 Live at swimloading.com/Sponsors (routed 16 Sept 2026 — previously local-file-only; the real
 auth below made it safe to route). Sign in with a `growth_founders` email via magic link. RLS policy `founders_all` restricts every
 read/write to founder emails, so this is real auth, not just obscurity. Live status pipeline
@@ -479,7 +479,7 @@ against `growth_sponsors` and already in real use: 19 live rows with genuine out
 (Lindi's UK contacts since Jun 2026 — Trihard and Blue70 UK both already **Confirmed** — plus
 a researched SA push on 15 Sept 2026: DJI, Garmin, Hyperice, Therabody, FINIS, Sealand Gear,
 Stream2Sea, Island Tribe, and two new finds not on the original tracker, Zero BS and Botthms).
-That live tool is now `Sponsors/index.html` — the old static 89-entry array is retired.
+That live tool is now `sponsor-pipeline.html` — the old static 89-entry array is retired.
 - Migrated the 74 static-tracker entries not already live into `growth_sponsors` as new
   `Idea`-status rows (`sql/applied/2026-09-16_import-sponsors-tracker-into-growth-sponsors.sql`)
   — nothing from the original research was lost. 10 entries were skipped as already-live
