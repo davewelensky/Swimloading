@@ -7202,13 +7202,21 @@ function renderSettingsTimetable(sessions) {
         const end   = s.end_time?.slice(0,5)   || '';
 
         if (g.isLTS) {
-          // ONE grouped row for Learn to Swim — with per-coach Slots buttons
-          const coachButtons = g.coaches.map(c =>
-            `<button onclick="openSessionDetail('${c.id}')"
-              style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);color:var(--cyan);cursor:pointer;font-size:12px;padding:4px 10px;border-radius:6px;font-weight:600;"
-              onmouseover="this.style.background='rgba(56,189,248,0.18)'" onmouseout="this.style.background='rgba(56,189,248,0.08)'">
-              ${c.coach_name} <span style="opacity:0.7;">(${sessionAssignmentCounts[c.id]||0})</span>
-            </button>`
+          // ONE grouped row for Learn to Swim — each coach sharing this slot gets its
+          // own View/Edit/Remove, all scoped to that coach's own session id (c.id).
+          // A single row-level Edit used to point at g.main only — whichever of the
+          // co-located sessions happened to load first — so editing the OTHER coach's
+          // slot (e.g. Kaisea's, when Ellen's loaded first) was impossible from the UI.
+          const coachButtons = g.coaches.map(c => `
+            <div style="display:inline-flex;align-items:center;gap:2px;">
+              <button onclick="openSessionDetail('${c.id}')"
+                style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);color:var(--cyan);cursor:pointer;font-size:12px;padding:4px 10px;border-radius:6px;font-weight:600;"
+                onmouseover="this.style.background='rgba(56,189,248,0.18)'" onmouseout="this.style.background='rgba(56,189,248,0.08)'">
+                ${c.coach_name} <span style="opacity:0.7;">(${sessionAssignmentCounts[c.id]||0})</span>
+              </button>
+              <button onclick="editTimetableSession('${c.id}')" title="Edit ${(c.coach_name||'').replace(/"/g,'&quot;')}'s session" style="background:none;border:1px solid var(--border);color:var(--text-sec);cursor:pointer;font-size:12px;padding:4px 8px;border-radius:6px;" onmouseover="this.style.borderColor='var(--cyan-border)';this.style.color='var(--cyan)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-sec)'">Edit</button>
+              <button onclick="deleteTimetableSession('${c.id}')" title="Remove ${(c.coach_name||'').replace(/"/g,'&quot;')}'s session" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:4px 6px;border-radius:6px;opacity:0.6;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">Remove</button>
+            </div>`
           ).join('');
           return `
             <div style="padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:4px;border:1px solid var(--border);">
@@ -7217,10 +7225,8 @@ function renderSettingsTimetable(sessions) {
                   <span style="font-weight:600;color:var(--text);">${g.main?.custom_name || g.squad?.name||'—'}</span>
                   <span style="color:var(--text-sec);margin-left:10px;">${start}${end?'–'+end:''}</span>
                 </div>
-                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                   ${coachButtons}
-                  <button onclick="editTimetableSession('${s.id}')" style="background:none;border:1px solid var(--border);color:var(--text-sec);cursor:pointer;font-size:12px;padding:4px 10px;border-radius:6px;" onmouseover="this.style.borderColor='var(--cyan-border)';this.style.color='var(--cyan)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-sec)'">Edit</button>
-                  <button onclick="deleteTimetableSession('${s.id}')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:4px 8px;border-radius:6px;opacity:0.6;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">Remove</button>
                 </div>
               </div>
             </div>`;
