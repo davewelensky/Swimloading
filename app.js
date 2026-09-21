@@ -1481,7 +1481,7 @@
 
                 const { data: spotLogs } = await supabaseClient
                     .from('temp_logs')
-                    .select('user_id, temp_c, conditions, notes, created_at, spot_id, spots!temp_logs_spot_id_fkey(name, water_type)')
+                    .select('user_id, temp_c, conditions, notes, created_at, spot_id, location_source, spots!temp_logs_spot_id_fkey(name, water_type)')
                     .gte('created_at', since7d)
                     .order('created_at', { ascending: false })
                     .limit(200);
@@ -1493,12 +1493,19 @@
                     if (!spotMap[sid]) {
                         spotMap[sid] = { name: log.spots?.name || 'Unknown', latestLog: log, todayCount: 0, yesterdayCount: 0, latestWithNote: null };
                     }
+                    // Automatic sensor imports (location_source 'sensor') are readings,
+                    // not swimmers: they don't count as "logs today" and their
+                    // machine-written note ("Sensor reading at ...") is never shown
+                    // as a swimmer's quote.
+                    const isSensorLog = log.location_source === 'sensor';
                     const t = new Date(log.created_at);
-                    if (t >= todayMidnight) spotMap[sid].todayCount++;
-                    else if (t >= yesterdayMidnight) spotMap[sid].yesterdayCount++;
+                    if (!isSensorLog) {
+                        if (t >= todayMidnight) spotMap[sid].todayCount++;
+                        else if (t >= yesterdayMidnight) spotMap[sid].yesterdayCount++;
+                    }
                     // Only carry forward a note if it came from TODAY's logs — avoids stale notes
                     // being attributed to today's logger
-                    if (!spotMap[sid].latestWithNote && log.notes && new Date(log.created_at) >= todayMidnight) {
+                    if (!isSensorLog && !spotMap[sid].latestWithNote && log.notes && new Date(log.created_at) >= todayMidnight) {
                         spotMap[sid].latestWithNote = log;
                     }
                 });
@@ -1547,7 +1554,8 @@
                         const logCount = s.todayCount > 0
                             ? `${s.todayCount} log${s.todayCount>1?'s':''} today`
                             : s.yesterdayCount > 0 ? `${s.yesterdayCount} log${s.yesterdayCount>1?'s':''} yesterday` : '';
-                        const latestUser = spotNameMap[log.user_id] || 'Swimmer';
+                        const isSensorLatest = log.location_source === 'sensor';
+                        const latestUser = isSensorLatest ? 'Live sensor reading' : (spotNameMap[log.user_id] || 'Swimmer');
                         const noteLog = s.latestWithNote;
                         const noteUser = noteLog ? (spotNameMap[noteLog.user_id] || 'Swimmer').split(' ')[0] : null;
                         const rawNote = noteLog?.notes || '';
@@ -1572,15 +1580,18 @@
                         const isIntl = internationalSpotIds.has(log.spot_id) || INTERNATIONAL_DOMAINS.has(spotInfo2?.domain);
                         const countryCode = spotInfo2?.country_code || '';
                         const countryLabel = isIntl && countryCode && COUNTRY_NAMES[countryCode]
-                            ? ` <span style="font-size:12px;font-weight:500;color:#d97706;">(${COUNTRY_NAMES[countryCode]})</span>` : '';
+                            ? `<div style="font-size:12px;font-weight:500;color:#d97706;margin-top:2px;">${COUNTRY_NAMES[countryCode]}</div>` : '';
                         const intlBorder = isIntl ? 'border-left:3px solid #d97706;' : '';
                         const intlGlobe = isIntl ? `<i data-lucide="globe" style="width:12px;height:12px;color:#d97706;flex-shrink:0;" title="International"></i>` : '';
 
                         return `
                         <div style="background:${isIntl ? 'rgba(217,119,6,0.06)' : cardBg}; border:1px solid ${isIntl ? 'rgba(217,119,6,0.35)' : cardBorder}; border-radius:12px; padding:14px; margin-bottom:8px;${intlBorder}">
-                            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                                <div style="font-weight:700; color:var(--text-primary); font-size:15px; display:flex; align-items:center; gap:5px;">${s.name}${countryLabel}${intlGlobe}</div>
-                                <div style="font-size:22px; font-weight:800; color:${tempColor}; line-height:1;">${log.temp_c}°C</div>
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+                                <div style="min-width:0;">
+                                    <div style="font-weight:700; color:var(--text-primary); font-size:15px; display:flex; align-items:center; gap:6px;">${intlGlobe}<span>${s.name}</span></div>
+                                    ${countryLabel}
+                                </div>
+                                <div style="font-size:22px; font-weight:800; color:${tempColor}; line-height:1; flex-shrink:0;">${fmtTemp(log.temp_c)}°C</div>
                             </div>
                             <div style="margin-top:7px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                                 ${cond ? `<span style="background:${condColor}20; color:${condColor}; border:1px solid ${condColor}40; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; text-transform:capitalize;">${cond}</span>` : ''}
@@ -1906,9 +1917,14 @@
             }
 
             // Wind indicator — only shown when forecast is available
-            const windLine = todayForecast
-                ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${todayForecast.windDirText} ${todayForecast.windSpeed} km/h${todayForecast.waveHeight != null ? ' · ' + todayForecast.waveHeight + 'm' : ''}</div>`
-                : '';
+            // The forecast is fetched for ONE point (-34.2269, 18.4648, False Bay)
+            // in loadDashboard, so it is only true for spots near it. It used to be
+            // printed under every spot - Knysna and Langebaan showed False Bay's wind.
+            const windLineFor = (spotInfo) => {
+                if (!todayForecast || !spotInfo || spotInfo.latitude == null || spotInfo.longitude == null) return '';
+                if (getDistanceKm(-34.2269, 18.4648, spotInfo.latitude, spotInfo.longitude) > 60) return '';
+                return `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${todayForecast.windDirText} ${todayForecast.windSpeed} km/h${todayForecast.waveHeight != null ? ' · ' + todayForecast.waveHeight + 'm' : ''}</div>`;
+            };
 
             // Use profile map built during temp-card fetch (shared via window._dashProfileMap)
             const bestSpotsProfileMap = window._dashProfileMap || {};
@@ -1946,11 +1962,11 @@
                         <div style="display:flex;align-items:center;gap:12px;">
                             <div style="flex:1;min-width:0;">
                                 <div style="font-weight:700;color:var(--text-primary);font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${spot.spot_name}</div>
-                                ${windLine}
+                                ${windLineFor(spotInfo)}
                                 <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;display:flex;align-items:center;gap:3px;"><i data-lucide="clock" style="width:10px;height:10px;flex-shrink:0;"></i>${ageText}${byLine}</div>
                             </div>
                             <div style="text-align:right;flex-shrink:0;">
-                                <div class="bs-temp" style="color:${getDisplayTempColor(spot.temp_c, spot.water_type)};">${spot.temp_c}°C${hasLogHazard ? ' <i data-lucide="alert-triangle" style="width:12px;height:12px;color:#ef4444;vertical-align:middle;" title="' + recentLogHazards.join(', ') + '"></i>' : ''}</div>
+                                <div class="bs-temp" style="color:${getDisplayTempColor(spot.temp_c, spot.water_type)};">${fmtTemp(spot.temp_c)}°C${hasLogHazard ? ' <i data-lucide="alert-triangle" style="width:12px;height:12px;color:#ef4444;vertical-align:middle;" title="' + recentLogHazards.join(', ') + '"></i>' : ''}</div>
                                 <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:2px;">
                                     ${emoji}
                                     <span style="font-size:11px;font-weight:700;color:${color};">${label}</span>
@@ -1961,6 +1977,7 @@
                     </div>
                 `;
             }).join('');
+            initIcons();
         }
 
         async function goToSpotTrend(spotId, spotName, spotCode) {
@@ -8242,7 +8259,7 @@
                     <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05); min-height:44px;">
                         <div style="flex:1; min-width:0;">
                             <div style="font-size:13px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${spot ? spot.name : 'Unknown spot'}</div>
-                            <div style="font-size:11px; color:var(--text-secondary);">${log.temp_c}°C · ${ago}</div>
+                            <div style="font-size:11px; color:var(--text-secondary);">${fmtTemp(log.temp_c)}°C · ${ago}</div>
                         </div>
                         <button onclick="openMyLogEdit('${log.id}')" style="background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.25); border-radius:8px; padding:8px 14px; color:var(--ocean-light, #38bdf8); font-size:12px; font-weight:600; cursor:pointer; margin-left:10px;">Edit</button>
                     </div>`;

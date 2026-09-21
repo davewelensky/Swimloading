@@ -36,12 +36,12 @@
     <!-- Lucide Icons -->
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
 
-    <script src="app.js?v=86"></script>
+    <script src="app.js?v=88"></script>
     <script src="app-june.js?v=26"></script>
     <script src="app-uk-challenge.js?v=3"></script>
     <script src="app-eo.js?v=4"></script>
 
-    <link rel="stylesheet" href="style.css?v=15">
+    <link rel="stylesheet" href="style.css?v=17">
 </head>
 
 <body>
@@ -1010,6 +1010,10 @@
             </div>
 
 
+            <!-- Marks the tab bar's natural position; navScrim covers the strip above the
+                 bar (under the phone's clock/battery) while the bar is stuck. See initNavScrim(). -->
+            <div id="navSentinel" aria-hidden="true"></div>
+            <div id="navScrim" aria-hidden="true"></div>
             <div class="nav-wrapper">
                 <div class="nav-tabs">
                     <button class="nav-tab active" onclick="showPage('dashboard')"><i data-lucide="home" style="width:18px;height:18px;"></i><span>Home</span></button>
@@ -1031,9 +1035,6 @@
             <!-- DASHBOARD -->
             <div id="dashboard" class="page active">
                 <div class="card">
-
-                    <!-- Club Admin quick-access banner (shown to club admins) -->
-                    <div id="clubAdminBanner" style="display:none; margin-bottom:16px;"></div>
 
                     <!-- Health banner (shown when swimmer has active health notes) -->
                     <div id="dashHealthBanner" style="display:none;"></div>
@@ -1059,9 +1060,28 @@
                         </button>
                     </div>
 
+                    <!-- Club Admin quick-access banner (shown to club admins) -->
+                    <div id="clubAdminBanner" style="display:none; margin-bottom:16px;"></div>
+
                     <!-- 1b. Swim Passport door (Phase 2.5.1) — populated by
                          app-passport.js only when passport_moment_v1 is on -->
                     <div id="passportDoor" style="display:none; margin-bottom:20px;"></div>
+
+                    <!-- 3. Best Conditions (scored ranking) -->
+                    <div style="margin-bottom:20px;">
+                        <div class="dash-label"><i data-lucide="thermometer" style="width:13px;height:13px;color:var(--ocean-light);"></i>Latest Conditions</div>
+                        <div id="dashBestSpots">Loading...</div>
+                    </div>
+
+                    <!-- 4. Recent Logs (all types, including international) -->
+                    <div id="dashRecentLogsWrap" style="display:none; margin-bottom:20px;">
+                        <div class="dash-label"><i data-lucide="globe" style="width:13px;height:13px;color:#d97706;"></i><span style="background:linear-gradient(135deg,#d97706,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">International</span></div>
+                        <div id="dashRecentLogs"></div>
+                    </div>
+
+                    <!-- 2d. My recent logs — swimmer's own last 3 logs with Edit/Delete
+                         (hidden when no logs in the last 7 days) -->
+                    <div id="myRecentLogsWrap" style="display:none; margin-bottom:20px;"></div>
 
                     <!-- 1c. Challenges hub — frames the 3 independent challenges below as one set -->
                     <div id="dashChallengesHub"></div>
@@ -1075,24 +1095,8 @@
                     <!-- 2c. UK Swim Spot Challenge x TRIHARD (independent of the monthly challenge) -->
                     <div id="dashUkChallenge" style="margin-bottom:20px;"></div>
 
-                    <!-- 2d. My recent logs — swimmer's own last 3 logs with Edit/Delete
-                         (hidden when no logs in the last 7 days) -->
-                    <div id="myRecentLogsWrap" style="display:none; margin-bottom:20px;"></div>
-
                     <!-- 2b. Club membership card (shown when user is a club member) -->
                     <div id="dashClubCard" style="margin-bottom:20px;"></div>
-
-                    <!-- 3. Best Conditions (scored ranking) -->
-                    <div style="margin-bottom:20px;">
-                        <div class="dash-label"><i data-lucide="thermometer" style="width:13px;height:13px;color:var(--ocean-light);"></i>Latest Conditions</div>
-                        <div id="dashBestSpots">Loading...</div>
-                    </div>
-
-                    <!-- 4. Recent Logs (all types, including international) -->
-                    <div id="dashRecentLogsWrap" style="display:none; margin-bottom:20px;">
-                        <div class="dash-label"><i data-lucide="globe" style="width:13px;height:13px;color:#d97706;"></i><span style="background:linear-gradient(135deg,#d97706,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">International</span></div>
-                        <div id="dashRecentLogs"></div>
-                    </div>
 
                     <!-- 5. Coming Up (hidden until swim found) -->
                     <div id="dashComingUp" style="display:none; margin-bottom:20px;"></div>
@@ -2122,7 +2126,7 @@
         </div>
     </div>
 
-    <script src="app-nav.js?v=37"></script>
+    <script src="app-nav.js?v=39"></script>
     <!-- Notifications Modal -->
     <!-- Home Region Prompt — shown once to users with no home_domain set -->
     <div id="homeDomainPrompt"

@@ -20,9 +20,37 @@
         // Pages that live in the "More" sheet rather than the main tab bar.
         const NAV_MORE_PAGES = ['safety', 'leaderboard', 'club'];
 
+        // The tab bar is sticky. On a phone the page paints under the translucent
+        // status bar, so scrolled content showed in the strip above the stuck bar
+        // and collided with the clock and battery. While the bar is stuck, size a
+        // fixed scrim to exactly that strip (measured, so it is right whatever the
+        // device's inset is) and show it; hide it when the bar is at rest.
+        function updateNavScrim() {
+            const scrim = document.getElementById('navScrim');
+            const sentinel = document.getElementById('navSentinel');
+            const wrap = document.querySelector('.nav-wrapper');
+            if (!scrim || !sentinel || !wrap) return;
+            const barTop = wrap.getBoundingClientRect().top;
+            const stuck = barTop > sentinel.getBoundingClientRect().top + 1;
+            if (stuck) scrim.style.height = Math.max(0, Math.round(barTop)) + 'px';
+            scrim.classList.toggle('on', stuck);
+        }
+        (function initNavScrim() {
+            let queued = false;
+            const schedule = () => {
+                if (queued) return;
+                queued = true;
+                requestAnimationFrame(() => { queued = false; updateNavScrim(); });
+            };
+            window.addEventListener('scroll', schedule, { passive: true });
+            window.addEventListener('resize', schedule);
+            window.addEventListener('orientationchange', schedule);
+        })();
+
         function showPage(page) {
             // Leaving Trends: release the device-back-button guard it holds
             if (page !== 'history' && typeof trendsLeave === 'function') trendsLeave();
+            requestAnimationFrame(updateNavScrim);
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.nav-tab, .nav-more-item').forEach(t => t.classList.remove('active'));
 
@@ -233,63 +261,20 @@
 
                 if (!adminClubs.length && !coachClubs.length) return;
 
+                // One compact, scrollable row of chips instead of a tall card per
+                // club. Link targets are unchanged from the old cards.
+                const chip = (href, cls, icon, name, role) => `
+                    <a href="${href}" class="home-chip ${cls}">
+                        <i data-lucide="${icon}" style="width:15px;height:15px;flex-shrink:0;"></i>
+                        <span class="home-chip-name">${name}</span>
+                        <span class="home-chip-role">${role}</span>
+                    </a>`;
                 banner.style.display = 'block';
-                banner.innerHTML = [
-                    ...adminClubs.map(c => `
-                    <a href="/club-admin/${c.slug}"
-                       style="display:flex;align-items:center;justify-content:space-between;gap:12px;
-                              background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(245,158,11,0.04));
-                              border:1px solid rgba(245,158,11,0.25);border-radius:14px;
-                              padding:13px 16px;text-decoration:none;margin-bottom:8px;">
-                        <div style="display:flex;align-items:center;gap:10px;">
-                            <div style="width:36px;height:36px;border-radius:10px;background:rgba(245,158,11,0.15);
-                                        display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                                <i data-lucide="shield" style="width:18px;height:18px;color:#f59e0b;"></i>
-                            </div>
-                            <div>
-                                <div style="font-size:13px;font-weight:700;color:var(--text-primary);">${c.name}</div>
-                                <div style="font-size:11px;color:#f59e0b;margin-top:1px;font-weight:600;">Club Admin Dashboard</div>
-                            </div>
-                        </div>
-                        <i data-lucide="arrow-right" style="width:16px;height:16px;color:#f59e0b;flex-shrink:0;"></i>
-                    </a>`),
-                    ...coachClubs.map(c => `
-                    <a href="/coach/${c.slug}"
-                       style="display:flex;align-items:center;justify-content:space-between;gap:12px;
-                              background:linear-gradient(135deg,rgba(56,189,248,0.1),rgba(56,189,248,0.04));
-                              border:1px solid rgba(56,189,248,0.25);border-radius:14px;
-                              padding:13px 16px;text-decoration:none;margin-bottom:8px;">
-                        <div style="display:flex;align-items:center;gap:10px;">
-                            <div style="width:36px;height:36px;border-radius:10px;background:rgba(56,189,248,0.15);
-                                        display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                                <i data-lucide="clipboard-list" style="width:18px;height:18px;color:#38bdf8;"></i>
-                            </div>
-                            <div>
-                                <div style="font-size:13px;font-weight:700;color:var(--text-primary);">${c.name}</div>
-                                <div style="font-size:11px;color:#38bdf8;margin-top:1px;font-weight:600;">Coach Portal</div>
-                            </div>
-                        </div>
-                        <i data-lucide="arrow-right" style="width:16px;height:16px;color:#38bdf8;flex-shrink:0;"></i>
-                    </a>`),
-                    ...coachSetsClubs.map(c => `
-                    <a href="/sets/${c.slug}"
-                       style="display:flex;align-items:center;justify-content:space-between;gap:12px;
-                              background:linear-gradient(135deg,rgba(168,85,247,0.1),rgba(168,85,247,0.04));
-                              border:1px solid rgba(168,85,247,0.25);border-radius:14px;
-                              padding:13px 16px;text-decoration:none;margin-bottom:8px;">
-                        <div style="display:flex;align-items:center;gap:10px;">
-                            <div style="width:36px;height:36px;border-radius:10px;background:rgba(168,85,247,0.15);
-                                        display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                                <i data-lucide="calendar-days" style="width:18px;height:18px;color:#a855f7;"></i>
-                            </div>
-                            <div>
-                                <div style="font-size:13px;font-weight:700;color:var(--text-primary);">${c.name}</div>
-                                <div style="font-size:11px;color:#a855f7;margin-top:1px;font-weight:600;">Sets Planner</div>
-                            </div>
-                        </div>
-                        <i data-lucide="arrow-right" style="width:16px;height:16px;color:#a855f7;flex-shrink:0;"></i>
-                    </a>`),
-                ].join('');
+                banner.innerHTML = `<div class="home-chip-row">${[
+                    ...adminClubs.map(c => chip(`/club-admin/${c.slug}`, 'home-chip--admin', 'shield', c.name, 'Admin')),
+                    ...coachClubs.map(c => chip(`/coach/${c.slug}`, 'home-chip--coach', 'clipboard-list', c.name, 'Coach')),
+                    ...coachSetsClubs.map(c => chip(`/sets/${c.slug}`, 'home-chip--sets', 'calendar-days', c.name, 'Sets')),
+                ].join('')}</div>`;
                 initIcons();
             } catch (e) { /* not a club admin or coach */ }
         }
