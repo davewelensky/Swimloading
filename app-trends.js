@@ -21,6 +21,85 @@
 
         let spotChartInstance = null;
 
+        // ==========================================
+        // TRENDS NAVIGATION
+        // ==========================================
+        // Three views: overview -> region -> spot. Pools and Inland skip the
+        // region step (their spots are listed straight on the overview), and a
+        // spot can also be opened from the dashboard or from search results.
+        // So "back" from a spot must return to wherever it was opened from —
+        // it used to always show the region screen, which was empty (and still
+        // titled "Region Name") for every one of those routes.
+        let trendsView = 'overview';   // 'overview' | 'region' | 'spot'
+        let overviewScrollY = 0;       // overview scroll position when a region was opened
+        let spotReturn = null;         // { view, scrollY } | { page } — where the open spot came from
+        let latestTempBySpot = {};     // spot_id -> latest_spot_temps row (search results use it)
+
+        function showTrendsView(view) {
+            document.getElementById('trendsOverview').style.display = view === 'overview' ? 'block' : 'none';
+            document.getElementById('trendsRegionDetail').style.display = view === 'region' ? 'block' : 'none';
+            document.getElementById('trendsSpotDetail').style.display = view === 'spot' ? 'block' : 'none';
+            trendsView = view;
+        }
+
+        function trendsRegionIsRendered() {
+            const list = document.getElementById('regionSpotList');
+            return !!(currentRegionDomain && trendsData[currentRegionDomain] && list && list.children.length > 0);
+        }
+
+        function trendsScrollTo(y) {
+            // After the view swap so the browser has the new layout height
+            requestAnimationFrame(() => window.scrollTo(0, y || 0));
+        }
+
+        // One step back. Used by both on-screen back arrows and the device
+        // back button / swipe gesture, so they can never disagree.
+        function trendsStepBack() {
+            if (trendsView === 'spot') {
+                const r = spotReturn;
+                spotReturn = null;
+                if (r && r.page && document.getElementById(r.page)) {
+                    showPage(r.page);            // dashboard etc. — showPage releases the history guard
+                    return;
+                }
+                if (r && r.view === 'region' && trendsRegionIsRendered()) {
+                    showTrendsView('region');
+                    trendsScrollTo(r.scrollY);
+                } else {
+                    showTrendsView('overview');
+                    trendsScrollTo(r && r.view === 'overview' ? r.scrollY : overviewScrollY);
+                }
+            } else if (trendsView === 'region') {
+                showTrendsView('overview');
+                trendsScrollTo(overviewScrollY);
+            }
+            if (trendsView === 'overview') trendsDropGuard(); else trendsArmGuard();
+        }
+
+        // Device back button / iOS swipe-back. While Trends is deeper than the
+        // overview we keep exactly one history entry of our own on top of the
+        // stack, so back steps up a level instead of leaving the app.
+        let trendsGuard = false;
+        let trendsIgnorePop = false;
+        function trendsArmGuard() {
+            if (trendsGuard) return;
+            try { history.pushState({ swTrends: 1 }, ''); trendsGuard = true; } catch (e) { /* history unavailable */ }
+        }
+        function trendsDropGuard() {
+            if (!trendsGuard) return;
+            trendsGuard = false;
+            trendsIgnorePop = true;   // the popstate this back() fires is ours, not the user's
+            try { history.back(); } catch (e) { trendsIgnorePop = false; }
+        }
+        function trendsLeave() { trendsDropGuard(); }   // called by showPage() when leaving Trends
+        window.addEventListener('popstate', function () {
+            if (trendsIgnorePop) { trendsIgnorePop = false; return; }
+            if (!trendsGuard) return;
+            trendsGuard = false;      // the browser has consumed our entry
+            const onTrends = document.getElementById('history')?.classList.contains('active');
+            if (onTrends && trendsView !== 'overview') trendsStepBack();
+        });
+
         // Dynamic staleness window — widens in SA winter (May–Aug) so colder months
         // don't produce blank screens when logging activity naturally drops.
         function getStaleDays(international = false) {
@@ -55,9 +134,11 @@
 
         async function loadTrends() {
             // Reset views
-            document.getElementById('trendsOverview').style.display = 'block';
-            document.getElementById('trendsRegionDetail').style.display = 'none';
-            document.getElementById('trendsSpotDetail').style.display = 'none';
+            trendsDropGuard();
+            spotReturn = null;
+            overviewScrollY = 0;
+            showTrendsView('overview');
+            clearTrendsSearch({ silent: true });
 
             const loadingEl = document.getElementById('trendsLoading');
             const gridEl = document.getElementById('regionGrid');
@@ -75,6 +156,12 @@
                     console.error('Error loading trends data:', error);
                     throw error;
                 }
+
+                // Kept for search results, which cover every spot (not just
+                // the ones inside the current tab's staleness window).
+                latestTempBySpot = {};
+                (data || []).forEach(row => { latestTempBySpot[row.spot_id] = row; });
+                if (trendsSearchQuery()) renderTrendsSearch();
 
                 // Build domestic filteredData (used by ocean/lagoons/pools/inland branches).
                 // International has its own filter below — skip early return for that tab.
@@ -494,12 +581,143 @@
             });
         }
 
+        // ==========================================
+        // TRENDS SEARCH
+        // ==========================================
+        // Searches EVERY active spot (not just the current tab), by name, area,
+        // region or water type ("pool", "clifton", "false bay"). Results replace
+        // the region grid while a query is present; the water-type tabs dim.
+        const TRENDS_TYPE_LABEL = {
+            OCEAN: 'Ocean', LAGOON: 'Lagoon', POOL: 'Pool', TIDAL_POOL: 'Tidal pool',
+            DAM: 'Dam', LAKE: 'Lake', RIVER: 'River'
+        };
+        const TRENDS_SEARCH_LIMIT = 60;
+
+        function trendsEsc(v) {
+            return String(v == null ? '' : v).replace(/[&<>"']/g, c => (
+                { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+            ));
+        }
+
+        // Case- and accent-insensitive, so "Cote d'Azur" and "côte d'azur" match.
+        function trendsNorm(v) {
+            return String(v == null ? '' : v).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+        }
+
+        function trendsSearchQuery() {
+            const el = document.getElementById('trendsSearchInput');
+            return el ? el.value.trim() : '';
+        }
+
+        function onTrendsSearch(val) {
+            const clearBtn = document.getElementById('trendsSearchClear');
+            if (clearBtn) clearBtn.style.display = val ? 'flex' : 'none';
+            renderTrendsSearch();
+        }
+
+        function clearTrendsSearch(opts) {
+            const el = document.getElementById('trendsSearchInput');
+            if (el) el.value = '';
+            const clearBtn = document.getElementById('trendsSearchClear');
+            if (clearBtn) clearBtn.style.display = 'none';
+            renderTrendsSearch();
+            if (el && !(opts && opts.silent)) el.focus();
+        }
+
+        function trendsSearchMatches(query) {
+            const tokens = trendsNorm(query).split(/\s+/).filter(Boolean);
+            if (tokens.length === 0) return [];
+            const out = [];
+            (spots || []).forEach(s => {
+                if (s.active === false) return;
+                const name = trendsNorm(s.name);
+                const typeLabel = trendsNorm(TRENDS_TYPE_LABEL[s.water_type] || s.water_type);
+                const where = trendsNorm((s.area || '') + ' ' + formatDomain(s.domain || ''));
+                // "pool" and "pools" both find pools
+                const hay = name + ' ' + where + ' ' + typeLabel + ' ' + typeLabel + 's';
+                if (!tokens.every(t => hay.includes(t))) return;
+                const rank = name.startsWith(tokens[0]) ? 0 : name.includes(tokens[0]) ? 1 : 2;
+                out.push({ spot: s, rank, name });
+            });
+            out.sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
+            return out;
+        }
+
+        function renderTrendsSearch() {
+            const overview = document.getElementById('trendsOverview');
+            const box = document.getElementById('trendsSearchResults');
+            if (!overview || !box) return;
+
+            const query = trendsSearchQuery();
+            overview.classList.toggle('trends-searching', !!query);
+            if (!query) { box.innerHTML = ''; return; }
+
+            const matches = trendsSearchMatches(query);
+            if (matches.length === 0) {
+                box.innerHTML = `
+                    <div class="trends-search-empty">
+                        <i data-lucide="search-x" style="width:28px;height:28px;"></i>
+                        <div class="trends-search-empty-title">No spots match &ldquo;${trendsEsc(query)}&rdquo;</div>
+                        <div>Try a shorter name, or search by area, region or type (pool, dam, lagoon).</div>
+                    </div>`;
+                initIcons();
+                return;
+            }
+
+            const shown = matches.slice(0, TRENDS_SEARCH_LIMIT);
+            box.innerHTML = '';
+
+            const count = document.createElement('div');
+            count.className = 'trends-search-count';
+            count.textContent = matches.length === 1 ? '1 spot' : `${matches.length} spots`;
+            box.appendChild(count);
+
+            const staleMs = getStaleDays(false) * 24 * 60 * 60 * 1000;
+            const list = document.createElement('div');
+            shown.forEach(({ spot }) => {
+                const row = latestTempBySpot[spot.id];
+                const hasTemp = row && row.temp_c != null;
+                const isStale = hasTemp && (Date.now() - new Date(row.updated_at).getTime() > staleMs);
+                const typeLabel = TRENDS_TYPE_LABEL[spot.water_type] || '';
+                const where = [spot.area, formatDomain(spot.domain || '')].filter(Boolean)
+                    .filter((v, i, a) => a.indexOf(v) === i).join(' · ');
+                const when = hasTemp ? `Last logged ${getTimeAgo(new Date(row.updated_at))}` : 'No readings yet';
+
+                const item = document.createElement('div');
+                item.className = 'spot-list-item';
+                item.setAttribute('role', 'button');
+                item.tabIndex = 0;
+                item.onclick = () => openSpotDetail(spot.id, spot.name, spot.code);
+                item.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); item.click(); } };
+                item.innerHTML = `
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-weight:700;color:var(--text-primary);font-size:16px;margin-bottom:2px;">${trendsEsc(spot.name)}${typeLabel ? `<span class="trends-type-chip">${trendsEsc(typeLabel)}</span>` : ''}</div>
+                        <div style="font-size:12px;color:var(--text-secondary);font-weight:500;">${trendsEsc(where)}${where ? ' · ' : ''}${when}</div>
+                    </div>
+                    <div style="text-align:right;${isStale ? 'opacity:0.55;' : ''}">
+                        <div style="font-size:24px;font-weight:800;color:${hasTemp ? getDisplayTempColor(row.temp_c, spot.water_type) : 'var(--text-secondary)'};">${hasTemp ? fmtTemp(row.temp_c) + '°C' : '—'}</div>
+                    </div>`;
+                list.appendChild(item);
+            });
+            box.appendChild(list);
+
+            if (matches.length > shown.length) {
+                const more = document.createElement('div');
+                more.className = 'trends-search-count';
+                more.style.textAlign = 'center';
+                more.textContent = `Showing the first ${shown.length} — keep typing to narrow it down`;
+                box.appendChild(more);
+            }
+        }
+
         function openRegionDetail(domain) {
             currentRegionDomain = domain;
             const data = trendsData[domain];
 
-            document.getElementById('trendsOverview').style.display = 'none';
-            document.getElementById('trendsRegionDetail').style.display = 'block';
+            overviewScrollY = window.scrollY;
+            showTrendsView('region');
+            window.scrollTo(0, 0);
+            trendsArmGuard();
             document.getElementById('regionDetailTitle').innerText = formatDomain(domain);
 
             const listEl = document.getElementById('regionSpotList');
@@ -643,17 +861,14 @@
             initIcons();
         }
 
-        function showTrendsOverview() {
-            document.getElementById('trendsRegionDetail').style.display = 'none';
-            document.getElementById('trendsOverview').style.display = 'block';
-        }
+        // Back arrow on the region screen and on the spot screen.
+        function showTrendsOverview() { trendsStepBack(); }
+        function showLastRegionDetail() { trendsStepBack(); }
 
-        function showLastRegionDetail() {
-            document.getElementById('trendsSpotDetail').style.display = 'none';
-            document.getElementById('trendsRegionDetail').style.display = 'block';
-        }
-
-        async function openSpotDetail(spotId, spotName, spotCode) {
+        // opts.returnToPage — id of the page the swimmer came from (dashboard
+        // etc.). Omit for spots opened from inside Trends; the origin is then
+        // whichever Trends view is on screen.
+        async function openSpotDetail(spotId, spotName, spotCode, opts) {
             // Debug logging
             console.log('Spot open', { spot_id: spotId, spot_name: spotName, spot_code: spotCode });
 
@@ -677,9 +892,18 @@
 
             currentSpotId = spotId;
             currentSpotName = spotName;
-            document.getElementById('trendsOverview').style.display = 'none';
-            document.getElementById('trendsRegionDetail').style.display = 'none';
-            document.getElementById('trendsSpotDetail').style.display = 'block';
+
+            // Remember where the swimmer came from so back returns them there.
+            if (opts && opts.returnToPage) {
+                spotReturn = { page: opts.returnToPage };
+            } else if (trendsView === 'region' && trendsRegionIsRendered()) {
+                spotReturn = { view: 'region', scrollY: window.scrollY };
+            } else if (trendsView !== 'spot') {
+                spotReturn = { view: 'overview', scrollY: window.scrollY };
+            }
+            showTrendsView('spot');
+            window.scrollTo(0, 0);
+            trendsArmGuard();
 
             // Hide sensor banner while data loads (will be repopulated by loadSpotChartData)
             const mwlBanner = document.getElementById('mwlSensorBanner');
@@ -1014,7 +1238,7 @@
                 <div style="width: 100%; padding: 4px 0;">
                     <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
                         <label style="font-size: 12px; color: var(--text-secondary); width: 50px; flex-shrink:0;">Temp:</label>
-                        <input type="number" id="editTemp-${logId}" value="${currentTemp}" step="0.5" min="8" max="32" class="form-control-sm" style="flex:1;">
+                        <input type="number" id="editTemp-${logId}" value="${currentTemp}" step="0.1" min="4" max="32" class="form-control-sm" style="flex:1;">
                         <span style="color: var(--text-secondary); flex-shrink:0;">°C</span>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
@@ -1042,8 +1266,8 @@
             const conditions = document.getElementById(`editCond-${logId}`).value;
             const notes = document.getElementById(`editNotes-${logId}`).value;
 
-            if (isNaN(temp) || temp < 8 || temp > 32) {
-                showToast('Temperature must be between 8°C and 32°C', 'error');
+            if (isNaN(temp) || temp < 4 || temp > 32) {
+                showToast('Temperature must be between 4°C and 32°C', 'error');
                 return;
             }
 

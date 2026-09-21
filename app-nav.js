@@ -21,6 +21,8 @@
         const NAV_MORE_PAGES = ['safety', 'leaderboard', 'club'];
 
         function showPage(page) {
+            // Leaving Trends: release the device-back-button guard it holds
+            if (page !== 'history' && typeof trendsLeave === 'function') trendsLeave();
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.nav-tab, .nav-more-item').forEach(t => t.classList.remove('active'));
 
@@ -1443,20 +1445,42 @@
             const color = getTempColor(temp);
             const label = getTempLabel(temp);
             const display = document.getElementById('tempValue');
-            display.textContent = val + '°C';
+            // Always one decimal ("9.9°C", "14.0°C"): the slider works in
+            // tenths, and submitTempLog() reads this text back with parseFloat.
+            display.textContent = temp.toFixed(1) + '°C';
             display.style.color = color;
             display.style.textShadow = `0 0 30px ${color}40, 0 0 60px ${color}20`;
 
-            // Update or create temp label
+            // Keep the fine-tune buttons honest at the ends of the range
+            const slider = document.getElementById('tempSlider');
+            const minusBtn = document.getElementById('tempMinusBtn');
+            const plusBtn = document.getElementById('tempPlusBtn');
+            if (slider && minusBtn) minusBtn.disabled = temp <= parseFloat(slider.min);
+            if (slider && plusBtn) plusBtn.disabled = temp >= parseFloat(slider.max);
+
+            // Update or create temp label (sits under the whole stepper row)
             let labelEl = document.getElementById('tempLabel');
             if (!labelEl) {
                 labelEl = document.createElement('div');
                 labelEl.id = 'tempLabel';
                 labelEl.style.cssText = 'text-align: center; font-size: 13px; font-weight: 600; margin-top: -8px; margin-bottom: 12px; transition: all 0.3s ease; letter-spacing: 0.5px;';
-                display.parentNode.insertBefore(labelEl, display.nextSibling);
+                const anchor = display.closest('.temp-stepper') || display;
+                anchor.parentNode.insertBefore(labelEl, anchor.nextSibling);
             }
             labelEl.textContent = label;
             labelEl.style.color = color;
+        }
+
+        // Fine-tune buttons beside the temperature: the slider is quick but a
+        // thumb can't land on an exact tenth, so -/+ nudge it by 0.1 (a reading
+        // of 9.9 should be loggable as 9.9, not rounded to 9.5).
+        function nudgeTemp(delta) {
+            const slider = document.getElementById('tempSlider');
+            if (!slider) return;
+            const min = parseFloat(slider.min), max = parseFloat(slider.max);
+            const next = Math.min(max, Math.max(min, Math.round((parseFloat(slider.value) + delta) * 10) / 10));
+            slider.value = next;
+            updateTempSlider(String(next));
         }
 
         function toggleSingle(el) {

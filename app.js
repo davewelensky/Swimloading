@@ -1964,6 +1964,10 @@
         }
 
         async function goToSpotTrend(spotId, spotName, spotCode) {
+            // Remember the page we came from so the spot's back arrow returns
+            // there (dashboard etc.) rather than dropping into Trends.
+            const fromPage = document.querySelector('.page.active')?.id;
+            const returnToPage = (fromPage && fromPage !== 'history') ? fromPage : undefined;
             // Navigate to trends page
             showPage('history');
             // Wait for trends to load, then drill into the spot
@@ -1975,7 +1979,7 @@
                 await new Promise(resolve => setTimeout(resolve, 300));
                 retries++;
             }
-            openSpotDetail(spotId, spotName, spotCode);
+            openSpotDetail(spotId, spotName, spotCode, { returnToPage });
         }
 
         // History view state
@@ -8460,7 +8464,7 @@
             const warmDomains = ['KZN', 'GARDEN_ROUTE', 'EASTERN_CAPE'];
             const isWarmDomain = warmDomains.includes(spotInfo?.domain);
             const ranges = {
-                'OCEAN':  isWarmDomain ? { min: 14, max: 30, label: 'ocean' } : { min: 10, max: 22, label: 'ocean' },
+                'OCEAN':  isWarmDomain ? { min: 14, max: 30, label: 'ocean' } : { min: 6,  max: 22, label: 'ocean' },
                 'LAGOON': { min: 10, max: 30, label: 'lagoon' },
                 'DAM':    { min: 10, max: 28, label: 'dam' },
                 'LAKE':   { min: 4,  max: 28, label: 'lake' },

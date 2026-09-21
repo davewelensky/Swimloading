@@ -36,12 +36,12 @@
     <!-- Lucide Icons -->
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
 
-    <script src="app.js?v=85"></script>
+    <script src="app.js?v=86"></script>
     <script src="app-june.js?v=26"></script>
     <script src="app-uk-challenge.js?v=3"></script>
     <script src="app-eo.js?v=4"></script>
 
-    <link rel="stylesheet" href="style.css?v=14">
+    <link rel="stylesheet" href="style.css?v=15">
 </head>
 
 <body>
@@ -693,7 +693,7 @@
 
             <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px;">
                 <label style="font-size:13px; color:var(--text-secondary); width:80px; flex-shrink:0;">Temp</label>
-                <input type="number" id="myLogEditTemp" step="0.5" min="0" max="40" inputmode="decimal" style="flex:1; background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:10px; padding:12px; color:var(--text-primary); font-size:16px;">
+                <input type="number" id="myLogEditTemp" step="0.1" min="0" max="40" inputmode="decimal" style="flex:1; background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:10px; padding:12px; color:var(--text-primary); font-size:16px;">
                 <span style="color:var(--text-secondary);">°C</span>
             </div>
             <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px;">
@@ -1143,13 +1143,22 @@
                         <div class="form-label"><i data-lucide="thermometer"
                                 style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px;"></i> Water
                             Temperature</div>
-                        <div class="slider-value" id="tempValue">14°C</div>
-                        <input type="range" id="tempSlider" min="8" max="32" value="14" step="0.5"
-                            oninput="updateTempSlider(this.value)">
+                        <div class="temp-stepper">
+                            <button type="button" class="temp-nudge" id="tempMinusBtn" onclick="nudgeTemp(-0.1)" aria-label="Lower temperature by 0.1 degrees">
+                                <i data-lucide="minus" style="width:20px;height:20px;"></i>
+                            </button>
+                            <div class="slider-value" id="tempValue">14.0°C</div>
+                            <button type="button" class="temp-nudge" id="tempPlusBtn" onclick="nudgeTemp(0.1)" aria-label="Raise temperature by 0.1 degrees">
+                                <i data-lucide="plus" style="width:20px;height:20px;"></i>
+                            </button>
+                        </div>
+                        <input type="range" id="tempSlider" min="4" max="32" value="14" step="0.1"
+                            oninput="updateTempSlider(this.value)" aria-label="Water temperature in degrees Celsius">
                         <div class="slider-labels">
-                            <span>8°C</span>
+                            <span>4°C</span>
                             <span>32°C</span>
                         </div>
+                        <div class="temp-hint">Drag for the rough figure, then use &minus; / + to set the exact tenth of a degree.</div>
                     </div>
 
                     <div class="form-group" id="conditionsFormGroup">
@@ -1226,8 +1235,18 @@
                     <div id="trendsOverview">
                         <div class="card-title">Regional Overview</div>
 
+                        <!-- Search — finds any spot by name, area, region or type -->
+                        <div class="trends-search-wrap">
+                            <i data-lucide="search" class="trends-search-icon"></i>
+                            <input id="trendsSearchInput" type="search" placeholder="Search spots or areas…"
+                                oninput="onTrendsSearch(this.value)"
+                                aria-label="Search spots"
+                                autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
+                            <button type="button" id="trendsSearchClear" onclick="clearTrendsSearch()" aria-label="Clear search">&times;</button>
+                        </div>
+
                         <!-- Water Type Filter -->
-                        <div class="toggle-group" style="margin-bottom: 20px; justify-content: center;">
+                        <div class="toggle-group trends-filter-group" style="margin-bottom: 20px; justify-content: center;">
                             <div class="toggle-btn active" id="filterOcean" onclick="setWaterFilter('ocean')"><i data-lucide="waves" style="width:13px;height:13px;vertical-align:middle;margin-right:4px;"></i>Ocean</div>
                             <div class="toggle-btn" id="filterLagoons" onclick="setWaterFilter('lagoons')"><i data-lucide="droplets" style="width:13px;height:13px;vertical-align:middle;margin-right:4px;"></i>Lagoons</div>
                             <div class="toggle-btn" id="filterPools" onclick="setWaterFilter('pools')"><i data-lucide="dumbbell" style="width:13px;height:13px;vertical-align:middle;margin-right:4px;"></i>Pools</div>
@@ -1242,12 +1261,14 @@
                         <div class="region-grid" id="regionGrid" style="display: none;">
                             <!-- Tiles rendered here -->
                         </div>
+                        <!-- Search results (shown instead of the grid while a query is present) -->
+                        <div id="trendsSearchResults" aria-live="polite"></div>
                     </div>
 
                     <!-- 2. Region Detail -->
                     <div id="trendsRegionDetail" style="display: none;">
                         <div class="view-header">
-                            <button class="back-btn" aria-label="Back to trends overview" onclick="showTrendsOverview()">
+                            <button class="back-btn" aria-label="Back" onclick="trendsStepBack()">
                                 <i data-lucide="arrow-left" style="width: 18px; height: 18px;"></i>
                             </button>
                             <div class="view-title" id="regionDetailTitle">Region Name</div>
@@ -1260,7 +1281,7 @@
                     <!-- 3. Spot Detail -->
                     <div id="trendsSpotDetail" style="display: none;">
                         <div class="view-header">
-                            <button class="back-btn" aria-label="Back to region detail" onclick="showLastRegionDetail()">
+                            <button class="back-btn" aria-label="Back" onclick="trendsStepBack()">
                                 <i data-lucide="arrow-left" style="width: 18px; height: 18px;"></i>
                             </button>
                             <div class="view-title" id="spotDetailTitle">Spot Name</div>
@@ -2101,7 +2122,7 @@
         </div>
     </div>
 
-    <script src="app-nav.js?v=36"></script>
+    <script src="app-nav.js?v=37"></script>
     <!-- Notifications Modal -->
     <!-- Home Region Prompt — shown once to users with no home_domain set -->
     <div id="homeDomainPrompt"
@@ -2140,11 +2161,11 @@
         </div>
     </div>
     <script src="mywaterlive-venues.js?v=1"></script>
-    <script src="app-trends.js?v=18"></script>
+    <script src="app-trends.js?v=19"></script>
 
     <!-- Service Worker Registration -->
     <script src="app-fuel.js?v=5"></script>
-    <script src="app-strava.js?v=23"></script>
+    <script src="app-strava.js?v=24"></script>
     <script src="app-identity.js?v=6"></script>
     <script src="app-story.js?v=1"></script>
     <script src="app-story-timeline.js?v=5"></script>

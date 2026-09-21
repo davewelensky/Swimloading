@@ -640,7 +640,7 @@
         }
 
         #logTemp input[type="range"]#tempSlider {
-            background: linear-gradient(to right, #6366f1 0%, #3b82f6 12%, #06b6d4 25%, #10b981 40%, #f59e0b 55%, #f97316 75%, #ef4444 100%);
+            background: linear-gradient(to right, #6366f1 0%, #6366f1 14%, #3b82f6 25%, #06b6d4 36%, #10b981 49%, #f59e0b 61%, #f97316 79%, #ef4444 100%);
         }
 
         input[type="range"]::-webkit-slider-thumb {
@@ -666,6 +666,50 @@
             margin-top: 8px;
             font-size: 11px;
             color: var(--text-secondary);
+        }
+
+        /* Temperature readout with -/+ fine-tune buttons (tenths of a degree) */
+        .temp-stepper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .temp-stepper .slider-value {
+            margin-bottom: 0;
+            min-width: 150px;
+        }
+        .temp-nudge {
+            flex-shrink: 0;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1.5px solid rgba(56, 189, 248, 0.3);
+            color: var(--ocean-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            transition: transform 0.12s ease, background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+        }
+        .temp-nudge:hover { background: rgba(56, 189, 248, 0.14); border-color: rgba(56, 189, 248, 0.55); }
+        .temp-nudge:active { transform: scale(0.9); background: rgba(56, 189, 248, 0.24); }
+        .temp-nudge:disabled { opacity: 0.3; cursor: default; transform: none; background: rgba(255, 255, 255, 0.06); }
+        .temp-hint {
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 10px;
+        }
+        @media (max-width: 380px) {
+            .temp-stepper { gap: 8px; }
+            .temp-stepper .slider-value { font-size: 40px; min-width: 124px; }
+            .temp-nudge { width: 44px; height: 44px; }
         }
 
         /* Trends Redesign Styles */
@@ -811,6 +855,114 @@
             border-bottom-left-radius: 12px;
             border-bottom-right-radius: 12px;
             border-bottom: none;
+        }
+
+        .spot-list-item:focus-visible {
+            outline: 2px solid #22d3ee;
+            outline-offset: -2px;
+        }
+
+        /* Trends search */
+        .trends-search-wrap {
+            position: relative;
+            margin-bottom: 16px;
+        }
+        .trends-search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 18px;
+            height: 18px;
+            color: #7fa8c9;
+            pointer-events: none;
+        }
+        .trends-search-wrap:focus-within .trends-search-icon { color: #22d3ee; }
+        #trendsSearchInput {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1.5px solid rgba(255, 255, 255, 0.12);
+            border-radius: 14px;
+            padding: 14px 46px 14px 44px;
+            color: #f0f6ff;
+            font-size: 16px; /* >=16px or iOS zooms the viewport on focus */
+            font-weight: 500;
+            font-family: inherit;
+            outline: none;
+            box-sizing: border-box;
+            -webkit-appearance: none;
+            appearance: none;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+        }
+        #trendsSearchInput::-webkit-search-cancel-button,
+        #trendsSearchInput::-webkit-search-decoration { -webkit-appearance: none; display: none; }
+        #trendsSearchInput:focus {
+            border-color: #22d3ee;
+            background: rgba(34, 211, 238, 0.06);
+            box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.12);
+        }
+        #trendsSearchInput::placeholder { color: #7fa8c9; }
+        #trendsSearchClear {
+            position: absolute;
+            right: 7px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.08);
+            color: #cbd5e1;
+            font-size: 20px;
+            line-height: 1;
+            padding: 0;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        #trendsSearchClear:active { background: rgba(255, 255, 255, 0.16); }
+        /* While a query is present the results replace the region grid, and the
+           water-type tabs (which search ignores) get out of the way so the
+           matches start right under the search box. */
+        #trendsOverview.trends-searching #regionGrid,
+        #trendsOverview.trends-searching #trendsLoading,
+        #trendsOverview.trends-searching .trends-filter-group { display: none !important; }
+        .trends-search-count {
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin: 0 2px 10px;
+        }
+        .trends-type-chip {
+            display: inline-block;
+            padding: 2px 8px;
+            margin-left: 8px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border-radius: 6px;
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--text-primary);
+            vertical-align: middle;
+        }
+        .trends-search-empty {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .trends-search-empty svg { color: #7fa8c9; margin-bottom: 10px; }
+        .trends-search-empty-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 6px;
         }
 
         .spot-trend-chart-container {
