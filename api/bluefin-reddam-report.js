@@ -89,6 +89,7 @@ export default async function handler(req, res) {
     const mostRecent = reports.length
         ? reports.reduce((a, b) => (new Date(a.updated_at) > new Date(b.updated_at) ? a : b))
         : null;
+    const reportingPeriod = mostRecent ? mostRecent.term_label : null;
 
     const studentCards = roster.map(r => {
         const entries = reportsByRoster.get(r.id) || [];
@@ -204,6 +205,40 @@ export default async function handler(req, res) {
             .stat-strip { grid-template-columns: 1fr; }
             .safety-legend { grid-template-columns: 1fr; }
         }
+
+        .btn-download {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: var(--cyan); color: #051019; border: none;
+            font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700;
+            padding: 11px 22px; border-radius: 50px; cursor: pointer; margin-top: 22px;
+        }
+        .btn-download:hover { opacity: 0.9; }
+        .reporting-period { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: #fff !important; color: #1a1a1a !important; }
+            .nav { display: none !important; }
+            .header h1 { color: #0a0a0a !important; }
+            .header-sub { color: #444 !important; }
+            .header-sub strong { color: #111 !important; }
+            .section-title { color: #0a0a0a !important; }
+            .section-body { color: #444 !important; }
+            .section-eyebrow, .stat-lbl, .timeline-date, .timeline-coach, .reporting-period { color: #555 !important; }
+            .stat-box, .student-card, .info-card, .safety-legend-item {
+                background: #f7fafc !important; border: 1px solid #d5dbe3 !important;
+                break-inside: avoid; page-break-inside: avoid;
+            }
+            .stat-val { color: #0284c7 !important; }
+            .timeline-body { color: #1a1a1a !important; }
+            .divider { background: #d5dbe3 !important; }
+            .footer { border-top: 1px solid #d5dbe3 !important; }
+            .footer-text { color: #555 !important; }
+            .footer-text a { color: #0284c7 !important; }
+            a { text-decoration: none; }
+            .header { padding: 20px 10px 16px; }
+            .section { padding: 24px 10px; }
+        }
     </style>
 </head>
 <body>
@@ -223,7 +258,13 @@ export default async function handler(req, res) {
     <div class="header-eyebrow">Learn to Swim Programme</div>
     <h1>Progress Report</h1>
     <p class="header-sub">Prepared for <strong>Nicky Sheridan</strong> and the Reddam Foundation, covering the Reddam College students learning to swim with ${esc(club.name)}.</p>
-    <div class="live-note"><span class="live-dot"></span>Live — updates automatically as coaches publish new progress notes</div>
+    ${reportingPeriod ? `<div class="reporting-period">Reporting period: <strong style="color:var(--text);">${esc(reportingPeriod)}</strong></div>` : ''}
+    <div class="live-note no-print"><span class="live-dot"></span>Live — updates automatically as coaches publish new progress notes</div>
+    <div class="no-print">
+        <button class="btn-download" onclick="window.print()">
+            <i data-lucide="download" style="width:15px;height:15px;"></i> Download / print PDF
+        </button>
+    </div>
 </header>
 
 <div class="stat-strip">
@@ -286,7 +327,9 @@ export default async function handler(req, res) {
 
 <footer class="footer">
     <div class="footer-text">
-        ${esc(club.name)}${club.description ? `<br>${esc(club.description)}` : ''}<br>
+        <strong style="color:var(--text);">${esc(club.name)}</strong><br>
+        19 Constantia Nek Estate, Hout Bay Rd, Hout Bay, 7805, Western Cape, South Africa<br>
+        info@bluefinclub.co.za · www.bluefinclub.co.za · Registration 2023/826894/08<br>
         <span style="display:block;margin-top:10px;">Generated ${esc(formatGeneratedAt())} · Tracked and reported on SwimLoading — <a href="https://swimloading.com">swimloading.com</a></span>
     </div>
 </footer>

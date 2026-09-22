@@ -60,5 +60,10 @@ if ((captured.html.match(/<div class="timeline-entry">/g) || []).length !== 2) {
 // Only Yvette (of 3 roster members) has any published report.
 if (!captured.html.includes('1 of 3')) throw new Error('Stat strip should show "1 of 3" students with updates');
 
+if (!captured.html.includes('window.print()')) throw new Error('Missing Download/print PDF button');
+if (!captured.html.includes('@media print')) throw new Error('Missing print stylesheet');
+if (!captured.html.includes('Registration 2023/826894/08')) throw new Error('Missing registration details in footer');
+if (!captured.html.includes('Reporting period')) throw new Error('Missing reporting period (expected when a published report exists)');
+
 console.log('SMOKE TEST PASSED — handler rendered valid HTML with correct dynamic content');
 console.log(`Output size: ${captured.html.length} bytes`);
