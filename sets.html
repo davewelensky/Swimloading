@@ -937,8 +937,8 @@ let insightSquads  = []; // cached so onclick can reference by index without quo
 function renderGalaSquadChips() {
   const el = document.getElementById('galaSquadChips');
   if (!el || !squads.length) return;
-  // default: all selected
-  if (!galaSquadIds.size) squads.forEach(s => galaSquadIds.add(s.id));
+  // No default selection: the coach picks which squad(s) to analyse,
+  // rather than defaulting to every squad at once.
   el.innerHTML = squads.map(s => {
     const on = galaSquadIds.has(s.id);
     return `<button class="filter-chip${on ? ' active' : ''}" onclick="toggleGalaSquad('${s.id}',this)">${h(s.name)}</button>`;
@@ -957,6 +957,10 @@ function toggleGalaSquad(id, btn) {
 }
 
 async function loadInsights() {
+  if (!galaSquadIds.size) {
+    toast('Select at least one squad to analyse', 'error');
+    return;
+  }
   document.getElementById('insightsEmpty').style.display   = 'none';
   document.getElementById('insightsResult').style.display  = 'none';
   document.getElementById('insightsLoading').style.display = 'flex';
@@ -968,7 +972,7 @@ async function loadInsights() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         club_id: currentClub.id,
-        gala_squad_ids: galaSquadIds.size ? [...galaSquadIds] : null,
+        gala_squad_ids: [...galaSquadIds],
         training_goal: document.getElementById('insightsGoal').value.trim() || null,
       }),
     });
