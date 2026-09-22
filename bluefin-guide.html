@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-89R519Y9T4"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-89R519Y9T4');
+    </script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blue Fin Swim Club Admin Guide · SwimLoading</title>
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080f1a;
+      --bg-card:  #0d1728;
+      --cyan:     #38bdf8;
+      --text:     #f1f5f9;
+      --text-sec: #64748b;
+      --border:   rgba(255,255,255,0.06);
+      --green:    #10b981;
+      --amber:    #f59e0b;
+      --purple:   #a78bfa;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      background:
+        radial-gradient(18px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+          rgba(56,189,248,0.55), transparent 100%),
+        radial-gradient(500px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+          rgba(56,189,248,0.07), transparent 70%);
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8,15,26,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .nav-brand img { height: 22px; width: auto; }
+
+    .nav-badge {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--cyan);
+      background: rgba(56,189,248,0.1);
+      border: 1px solid rgba(56,189,248,0.2);
+      border-radius: 20px;
+      padding: 3px 10px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .hero {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 56px 24px 40px;
+      text-align: center;
+    }
+
+    .hero-eyebrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .hero-eyebrow-line { width: 28px; height: 2px; background: var(--cyan); border-radius: 2px; }
+    .hero-eyebrow span { font-size: 11px; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.15em; }
+
+    .hero h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(44px, 10vw, 72px);
+      line-height: 0.95;
+      letter-spacing: 0.02em;
+      margin-bottom: 16px;
+    }
+    .hero h1 span { color: var(--cyan); }
+
+    .hero-sub {
+      font-size: 16px;
+      color: rgba(241,245,249,0.65);
+      max-width: 480px;
+      margin: 0 auto 32px;
+      line-height: 1.7;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--cyan);
+      color: #080f1a;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 13px 26px;
+      border-radius: 50px;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:hover { opacity: 0.88; }
+
+    .content {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    .step {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 32px;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(56,189,248,0.12);
+      border: 1px solid rgba(56,189,248,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      color: var(--cyan);
+      margin-top: 2px;
+    }
+
+    .step-body { flex: 1; }
+
+    .step-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .step-desc {
+      font-size: 14px;
+      color: rgba(241,245,249,0.65);
+      line-height: 1.7;
+    }
+    .step-desc strong { color: var(--text); font-weight: 600; }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sec);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 14px;
+    }
+
+    .points-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .points-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+    .points-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(56,189,248,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .points-icon i { color: var(--cyan); width: 15px; height: 15px; }
+    .points-icon.green { background: rgba(16,185,129,0.1); }
+    .points-icon.green i { color: var(--green); }
+    .points-icon.amber { background: rgba(245,158,11,0.1); }
+    .points-icon.amber i { color: var(--amber); }
+    .points-icon.purple { background: rgba(167,139,250,0.1); }
+    .points-icon.purple i { color: var(--purple); }
+
+    .points-label { flex: 1; font-size: 14px; color: var(--text); }
+    .points-label span { display: block; font-size: 12px; color: var(--text-sec); margin-top: 1px; }
+
+    .member-screen {
+      background: linear-gradient(135deg, rgba(56,189,248,0.06) 0%, transparent 60%);
+      border: 1px solid rgba(56,189,248,0.15);
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin-bottom: 12px;
+    }
+
+    .member-screen-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--cyan);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .member-screen-title i { width: 15px; height: 15px; }
+
+    .member-screen-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .member-screen-list li {
+      font-size: 13px;
+      color: rgba(241,245,249,0.65);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .member-screen-list li::before {
+      content: '';
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--cyan);
+      margin-top: 7px;
+      flex-shrink: 0;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sec);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin: 40px 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 28px 24px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-sec);
+    }
+
+    @media (max-width: 520px) {
+      .hero { padding: 40px 20px 32px; }
+      .content { padding: 0 20px 60px; }
+      .step { gap: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="https://swimloading.com" class="nav-brand">
+      <img src="/icons/logo-wave.png" alt="">SwimLoading
+    </a>
+    <span class="nav-badge">Blue Fin Admin</span>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-eyebrow">
+      <div class="hero-eyebrow-line"></div>
+      <span>Blue Fin Swim Club</span>
+      <div class="hero-eyebrow-line"></div>
+    </div>
+    <h1>Your coach<br>admin <span>guide</span></h1>
+    <p class="hero-sub">Roster management, daily attendance, your weekly timetable, training sets, and announcements — everything you need to run Blue Fin without a spreadsheet.</p>
+    <a href="https://www.swimloading.com/club-admin/bluefin" class="btn-primary" target="_blank">
+      <i data-lucide="layout-dashboard" style="width:16px;height:16px;"></i>
+      Open Blue Fin Admin
+    </a>
+  </div>
+
+  <div class="content">
+
+    <div class="section-label">Every day</div>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Check the Overview — your weekly command centre</div>
+        <div class="step-desc">
+          When you open the admin panel, the <strong>Overview</strong> tab is your starting point. The top strip shows this week's sessions across every day — click any day bar to switch the session list below it.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">What Overview shows</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="alert-circle"></i></div>
+            <div class="points-label">Action items <span>Fees overdue, trials expiring this week, swimmers not seen in 3 weeks — each alert links directly to the affected members</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="calendar"></i></div>
+            <div class="points-label">Week at a glance <span>Mon–Sat bar chart: fill % per day. Click any day to see that day's sessions below</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon green"><i data-lucide="users"></i></div>
+            <div class="points-label">Session detail <span>Tap any session row to see who's assigned — TRIAL and FEE DUE badges per swimmer — then mark attendance from the same panel</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon amber"><i data-lucide="activity"></i></div>
+            <div class="points-label">Squad health <span>Last 30 days attendance rate with trend (up or down vs the 30 days before)</span></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">KPI strip — always visible at the top</div>
+          <div class="points-row">
+            <div class="points-icon green"><i data-lucide="percent"></i></div>
+            <div class="points-label">Today's fill <span>Enrolled vs total capacity across all today's sessions</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="trending-up"></i></div>
+            <div class="points-label">Attendance rate <span>Last 30 days across the whole club</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Mark attendance after each session</div>
+        <div class="step-desc">
+          Go to the <strong>Attendance</strong> tab, select the session, and mark each swimmer. Status codes match your existing register.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">Status codes</div>
+          <div class="points-row">
+            <div class="points-icon green"><i data-lucide="check"></i></div>
+            <div class="points-label"><strong>Present</strong> — attended the session</div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon amber"><i data-lucide="phone-off"></i></div>
+            <div class="points-label"><strong>NC (No Contact)</strong> — absent, no notice given</div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="bell"></i></div>
+            <div class="points-label"><strong>Notice</strong> — gave advance notice of absence</div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="x"></i></div>
+            <div class="points-label"><strong>No Show</strong> — expected, did not arrive</div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="plane"></i></div>
+            <div class="points-label"><strong>Away</strong> — scheduled absence (holiday, travel)</div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="minus-circle"></i></div>
+            <div class="points-label"><strong>DNP (Did Not Participate)</strong> — present but did not swim</div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon purple"><i data-lucide="refresh-cw"></i></div>
+            <div class="points-label"><strong>Catch-up</strong> — attended a different session than usual (e.g. open water instead of pool)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Setting up</div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Import your roster from a spreadsheet</div>
+        <div class="step-desc">
+          In the <strong>Roster</strong> tab, click <strong>Import CSV</strong>. Copy your member list, paste it in, map the columns, and import. Existing members are updated — new ones are added. Run it multiple times safely; it won't create duplicates.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">What the importer handles</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="refresh-cw"></i></div>
+            <div class="points-label">Safe to re-run <span>Re-import any time to fix details — existing records update, nothing duplicates</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon amber"><i data-lucide="columns"></i></div>
+            <div class="points-label">Flexible columns <span>Map Name, Member No, DOB, Gender, Phone, Trial, Fee Paid</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Your Masters Squad is already set up</div>
+        <div class="step-desc">
+          One squad is loaded for Blue Fin — <strong>Masters Squad</strong> — matching how you actually train: one shared base set that faster and slower swimmers scale themselves, rather than separate named squads. Go to <strong>Settings → Squads</strong> if you ever want to set a capacity limit or add a second squad (for example, if the kids' programme needs its own).
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">Your weekly timetable is already loaded</div>
+        <div class="step-desc">
+          <strong>Settings → Weekly Timetable</strong> already has your real sessions: Pool Squad Mon/Wed/Fri 7:45–8:45am, and Tuesday Open Water 7:00–8:00am. Add or edit sessions there any time — pick the day, start and end time, session type, and coach. These are the sessions Attendance is marked against.
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Managing members</div>
+
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <div class="step-title">Trial swimmers and fee tracking</div>
+        <div class="step-desc">
+          In the <strong>Roster</strong> tab, each row has inline toggles you can tap without opening the edit modal. The Overview alerts you when a trial is expiring within 7 days or a fee is overdue — clicking the alert takes you straight to the filtered list.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">Inline toggles on every roster row</div>
+          <div class="points-row">
+            <div class="points-icon amber"><i data-lucide="clock"></i></div>
+            <div class="points-label"><strong style="color:#ef4444;">TRIAL ×</strong> <span>Tap to remove trial status immediately — matches your R150 drop-in sessions before someone commits to the monthly R700</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="credit-card"></i></div>
+            <div class="points-label"><strong style="color:var(--amber);">UNPAID ×</strong> <span>Tap to mark fee as paid. Shows as <em>+ unpaid</em> when fee is paid — tap to flag as owing.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">7</div>
+      <div class="step-body">
+        <div class="step-title">Get swimmers onto the platform</div>
+        <div class="step-desc">
+          Go to the <strong>Join Link</strong> tab and copy the swimmer link. Send it via WhatsApp. When they sign up and tap the link, they're matched to their roster entry automatically — no manual linking needed.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">What joining unlocks for a swimmer</div>
+          <div class="points-row">
+            <div class="points-icon green"><i data-lucide="user-check"></i></div>
+            <div class="points-label">Links to the roster <span>Their session history appears immediately</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="calendar"></i></div>
+            <div class="points-label">Their training schedule <span>Pool, open water and any assigned sets, in the app</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon amber"><i data-lucide="bell"></i></div>
+            <div class="points-label">Your announcements <span>Session changes, equipment reminders — pinned to the top of their Club tab</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">8</div>
+      <div class="step-body">
+        <div class="step-title">Track who has actually joined</div>
+        <div class="step-desc">
+          The <strong>Members</strong> tab shows every swimmer who has created a SwimLoading account and linked to Blue Fin — a live subset of your Roster. Think of Roster as your paper register and Members as the digital view.
+        </div>
+        <div class="step-desc" style="margin-top:10px;"><strong>Tip:</strong> If someone's history isn't showing up, check they appear in Members — it means the join link worked. If they're on Roster but not Members, they haven't completed sign-up yet.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">9</div>
+      <div class="step-body">
+        <div class="step-title">Monitor attendance and training — Squad Tracker</div>
+        <div class="step-desc">
+          <strong>Squad Tracker</strong> gives you a bird's-eye view of Masters Squad: sessions attended and sets completed over time. Click any swimmer row to open their individual profile.
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Keeping the squad informed</div>
+
+    <div class="step">
+      <div class="step-num">10</div>
+      <div class="step-body">
+        <div class="step-title">Post announcements</div>
+        <div class="step-desc">
+          Go to <strong>Announcements</strong>. Write a title and message — session changes, equipment lists, Langebaan or Robben Island prep reminders. Pin important notices to keep them at the top. Appears immediately in every swimmer's Club tab.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">Good examples</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="calendar-x"></i></div>
+            <div class="points-label">Session change <span>No Tuesday open water this week — sea conditions</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="flag"></i></div>
+            <div class="points-label">Race prep <span>Langebaan Express entries close 1 October — get yours in</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Managing coaches</div>
+
+    <div class="step">
+      <div class="step-num">11</div>
+      <div class="step-body">
+        <div class="step-title">Give another coach access to mark attendance</div>
+        <div class="step-desc">
+          Coaches don't need a SwimLoading account first — it's created automatically when they sign in. Add them in the <strong>Team</strong> tab → <strong>Coaching Staff</strong> → <strong>Add coach</strong> → enter their email, then send them the coach link: <strong style="color:var(--cyan);">swimloading.com/coach/bluefin</strong>.
+        </div>
+        <div class="card" style="margin-top:10px;background:rgba(167,139,250,0.05);border-color:rgba(167,139,250,0.15);">
+          <div class="card-title" style="color:var(--purple);">How a coach signs in (first time)</div>
+          <div class="points-row">
+            <div class="points-icon" style="background:rgba(167,139,250,0.12);"><i data-lucide="mail" style="color:var(--purple);"></i></div>
+            <div class="points-label">They open the link and enter their email <span>The page sends a sign-in link by email — no password needed</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon" style="background:rgba(167,139,250,0.12);"><i data-lucide="plus-square" style="color:var(--purple);"></i></div>
+            <div class="points-label">Add to home screen from there <span>Share → Add to Home Screen while on the coach page</span></div>
+          </div>
+        </div>
+        <div class="step-desc" style="margin-top:10px;"><strong>Tip:</strong> The coach name in the timetable must match their first name — that's how the app shows them their own sessions.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">12</div>
+      <div class="step-body">
+        <div class="step-title">How walk-ins appear in your roster</div>
+        <div class="step-desc">
+          When a coach adds a new trial swimmer during a session using the <strong>Walk-in</strong> button, a roster entry is created automatically. They get the next available member number and appear in the <strong>Roster</strong> tab with a <strong>TRIAL</strong> badge — matching your R150 drop-in sessions.
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Sets Planner &amp; AI Coaching</div>
+
+    <div class="step">
+      <div class="step-num">13</div>
+      <div class="step-body">
+        <div class="step-title">Plan weekly training programmes</div>
+        <div class="step-desc">
+          Open the <strong>Sets Planner</strong> from the Admin nav (or go directly to <a href="https://www.swimloading.com/sets/bluefin" target="_blank" style="color:var(--cyan);">swimloading.com/sets/bluefin</a>). You'll see a Mon–Sat calendar for the current week. Click any empty cell to assign a set. Click an assigned chip to view, edit, or remove it.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">Three tabs in Sets Planner</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="calendar-days"></i></div>
+            <div class="points-label"><strong>Planner</strong> <span>Weekly calendar — assign sets. A "Share week" button sends the full programme to WhatsApp.</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="layers"></i></div>
+            <div class="points-label"><strong>Library</strong> <span>All saved sets, filterable by focus (aerobic, endurance, speed, drills, kick). Edit or reuse any set.</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="plus-circle"></i></div>
+            <div class="points-label"><strong>New Set</strong> <span>Build a set manually or generate one with AI. Choose session duration (your pool slot is a fixed 60 min), then describe the session and hit Generate.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">14</div>
+      <div class="step-body">
+        <div class="step-title">Generate a training set with AI</div>
+        <div class="step-desc">
+          In the <strong>New Set</strong> tab, set <strong>Session time</strong> to 60 mins to match your pool slot — the target distance updates automatically. Then describe the session in plain English and hit <strong>Generate set</strong>.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">Example prompts that fit how you train</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="zap"></i></div>
+            <div class="points-label"><span>"Masters Squad, warm up/drill/scull, sprint 8x25, pull set, descending ladder, cool down — 60 minutes"</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="zap"></i></div>
+            <div class="points-label"><span>"Endurance-focused, Langebaan 6km prep, longer pull sets and steady pace work"</span></div>
+          </div>
+        </div>
+        <div class="step-desc" style="margin-top:10px;">
+          The AI writes a complete, formatted set with warm-up, main set, cool-down, and interval times. Edit it directly before saving. Once saved to the library it can be reused any week.
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">15</div>
+      <div class="step-body">
+        <div class="step-title">Share programmes to WhatsApp</div>
+        <div class="step-desc">
+          Two share options — both open WhatsApp with the content pre-filled:
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">How to share</div>
+          <div class="points-row">
+            <div class="points-icon green"><i data-lucide="share-2"></i></div>
+            <div class="points-label"><strong>Single session</strong> <span>Click a set chip in the Planner → tap the green <strong>WhatsApp</strong> button. Sends date, coach, and full set content.</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon green"><i data-lucide="calendar-days"></i></div>
+            <div class="points-label"><strong>Full week</strong> <span>The <strong>Share week</strong> button sends every assigned session for the week — formatted with day, set name, and full content.</span></div>
+          </div>
+        </div>
+        <div class="step-desc" style="margin-top:10px;">
+          The message uses WhatsApp bold and italic formatting so it reads cleanly on the phone. No PDF, no printing, no group chat confusion.
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">16</div>
+      <div class="step-body">
+        <div class="step-title">AI Coaching Insights — training balance</div>
+        <div class="step-desc">
+          In the Sets Planner, open the <strong>AI Insights</strong> tab and hit <strong>Analyse now</strong>. The AI reviews the last 4 weeks of training and returns recommendations.
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-title">What Insights shows</div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="brain"></i></div>
+            <div class="points-label"><strong>Training balance</strong> <span>Flags if the squad is heavy on speed but missing endurance, or hasn't had a drills session in a few weeks.</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon"><i data-lucide="flag"></i></div>
+            <div class="points-label"><strong>Event-aware</strong> <span>Add Langebaan Express or Robben Island programme dates to the Events tab so recommendations can account for how many weeks out your next event is.</span></div>
+          </div>
+          <div class="points-row">
+            <div class="points-icon green"><i data-lucide="sparkles"></i></div>
+            <div class="points-label"><strong>One-click set generation</strong> <span>Each recommendation has a "Generate this set" button that pre-fills the AI builder.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">What your swimmers see</div>
+
+    <div class="member-screen">
+      <div class="member-screen-title">
+        <i data-lucide="smartphone"></i>
+        Swimmer view — Club tab in the SwimLoading app
+      </div>
+      <ul class="member-screen-list">
+        <li>Training schedule — next session at a glance</li>
+        <li>Announcements — pinned posts stay visible at the top</li>
+        <li>Their own attendance and set history</li>
+        <li>A log button to add their own training notes</li>
+      </ul>
+    </div>
+
+    <div style="margin-top: 48px; text-align: center;">
+      <a href="https://www.swimloading.com/club-admin/bluefin" class="btn-primary" target="_blank">
+        <i data-lucide="layout-dashboard" style="width:16px;height:16px;"></i>
+        Open Blue Fin Admin
+      </a>
+    </div>
+
+  </div>
+
+  <footer>
+    Questions? Contact Dave — swimloading.com &nbsp;·&nbsp; dave.welensky@gmail.com
+  </footer>
+
+  <script>
+    document.addEventListener('mousemove', e => {
+      document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+      document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+    });
+    lucide.createIcons();
+  </script>
+</body>
+</html>
