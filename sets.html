@@ -1072,6 +1072,22 @@ function useInsightPrompt(idx) {
   document.getElementById('aiDesc').value   = prompt;
   document.getElementById('aiFocus').value  = focus;
   document.getElementById('setFocus').value = focus;
+  // Pre-select the squad this recommendation is actually for, matched by
+  // name against the loaded squads list (the insights API only returns a
+  // name, not an id). Without this the field is left on "Any squad" and
+  // the auto-generate below can fire, and finish, before a manual fix
+  // makes it into the disabled Generate button.
+  const squadMatch = squads.find(s => s.name === sq.name);
+  document.getElementById('aiSquad').value = squadMatch ? squadMatch.id : '';
+  // Keep Target Distance in sync with what the recommendation actually
+  // says, rather than leaving it at the generic time-based default,
+  // that's what caused the description to say one number and the field
+  // to show another. Prefer the AI's structured figure; fall back to
+  // parsing a "...m" number out of the prompt text if it's missing.
+  const distFromField  = Number(sq.suggested_distance_m) || null;
+  const distFromPrompt = (prompt || '').match(/(\d{3,5})\s*m\b/);
+  const dist = distFromField || (distFromPrompt ? Number(distFromPrompt[1]) : null);
+  if (dist) document.getElementById('aiDist').value = dist;
   const genBtn = document.getElementById('genBtn');
   genBtn.disabled = false;
   genBtn.innerHTML = '<i data-lucide="sparkles"></i> Generate set';

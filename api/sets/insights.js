@@ -173,7 +173,8 @@ Return this exact structure:
       "balance_note": "brief note on focus distribution (e.g. heavy on speed, lacking endurance)",
       "priority_focus": "aerobic|speed|endurance|drills|kick|mixed",
       "recommendation": "specific actionable recommendation for next 1-2 sessions",
-      "suggested_prompt": "description Britt can paste into the AI set generator (mention distance, focus, key elements)",
+      "suggested_prompt": "description Britt can paste into the AI set generator (mention distance, focus, key elements) — the distance mentioned here MUST match suggested_distance_m exactly",
+      "suggested_distance_m": "integer, total metres for ONE session matching what suggested_prompt describes — this gets set as the numeric Target Distance field, so it must agree with the prose",
       "urgency": "high|medium|low"
     }
   ],
