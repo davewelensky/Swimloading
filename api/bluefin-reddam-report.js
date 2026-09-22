@@ -1,8 +1,8 @@
-// GET /bluefin-reddam-report — live Learn to Swim progress report for the
+// GET /bluefin-reddam-report: live Learn to Swim progress report for the
 // Reddam Foundation (Nicky Sheridan). Server-rendered with the service key
 // so it can read club_progress_reports despite RLS (admins/coaches/approved
-// parents/the swimmer only — no anonymous-read policy exists, by design).
-// Only PUBLISHED reports are ever shown here — a coach must review and
+// parents/the swimmer only; no anonymous-read policy exists, by design).
+// Only PUBLISHED reports are ever shown here. A coach must review and
 // publish via the Progress Reports tab before anything appears. No caching:
 // this is meant to reflect the latest state on every refresh.
 
@@ -39,12 +39,12 @@ function formatGeneratedAt() {
     return `${date} at ${time} SAST`;
 }
 
-// Best-effort water-safety badge classifier from free-text report bodies —
+// Best-effort water-safety badge classifier from free-text report bodies,
 // only used to colour-code the badge; the text itself is never altered.
 function safetyBadge(body) {
     const t = (body || '').toLowerCase();
     if (t.includes('not yet water safe') || t.includes('not water safe')) return { cls: 'badge-notyet', label: 'Not yet water safe' };
-    if (t.includes('shallow end')) return { cls: 'badge-shallow', label: 'Water safe — shallow end' };
+    if (t.includes('shallow end')) return { cls: 'badge-shallow', label: 'Water safe: shallow end' };
     if (t.includes('water safe')) return { cls: 'badge-safe', label: 'Water safe' };
     return null;
 }
@@ -95,7 +95,7 @@ export default async function handler(req, res) {
         const entries = reportsByRoster.get(r.id) || [];
         let body;
         if (!entries.length) {
-            body = `<div class="no-update">No published update yet — awaiting coach review in Progress Reports.</div>`;
+            body = `<div class="no-update">No published update yet. Awaiting coach review in Progress Reports.</div>`;
         } else {
             body = entries.map(e => {
                 const badge = safetyBadge(e.body);
@@ -106,7 +106,7 @@ export default async function handler(req, res) {
                       ${badge ? `<span class="student-badge ${badge.cls}">${esc(badge.label)}</span>` : ''}
                     </div>
                     <div class="timeline-body">${esc(e.body)}</div>
-                    ${e.coach_name ? `<div class="timeline-coach">— ${esc(e.coach_name)}</div>` : ''}
+                    ${e.coach_name ? `<div class="timeline-coach">By ${esc(e.coach_name)}</div>` : ''}
                   </div>`;
             }).join('<div class="timeline-divider"></div>');
         }
@@ -122,7 +122,7 @@ export default async function handler(req, res) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Learn to Swim Progress Report — ${esc(club.name)} × Reddam Foundation</title>
+    <title>Learn to Swim Progress Report · ${esc(club.name)} × Reddam Foundation</title>
     <meta name="robots" content="noindex,nofollow">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
@@ -217,7 +217,7 @@ export default async function handler(req, res) {
 
         @media print {
             /* Redefine the palette itself for print, rather than overriding
-               individual selectors one by one — that approach missed
+               individual selectors one by one; that approach missed
                .student-name and the footer's inline var(--text) usage the
                first time round. Every var(--text)/var(--bg)/etc. reference
                anywhere on the page, present or future, now resolves to a
@@ -259,7 +259,7 @@ export default async function handler(req, res) {
     <h1>Progress Report</h1>
     <p class="header-sub">Prepared for <strong>Nicky Sheridan</strong> and the Reddam Foundation, covering the Reddam College students learning to swim with ${esc(club.name)}.</p>
     ${reportingPeriod ? `<div class="reporting-period">Reporting period: <strong style="color:var(--text);">${esc(reportingPeriod)}</strong></div>` : ''}
-    <div class="live-note no-print"><span class="live-dot"></span>Live — updates automatically as coaches publish new progress notes</div>
+    <div class="live-note no-print"><span class="live-dot"></span>Live: updates automatically as coaches publish new progress notes</div>
     <div class="no-print">
         <button class="btn-download" onclick="window.print()">
             <i data-lucide="download" style="width:15px;height:15px;"></i> Download / print PDF
@@ -270,7 +270,7 @@ export default async function handler(req, res) {
 <div class="stat-strip">
     <div class="stat-box"><div class="stat-val">${roster.length}</div><div class="stat-lbl">Students in the programme</div></div>
     <div class="stat-box"><div class="stat-val">${studentsWithUpdates} of ${roster.length}</div><div class="stat-lbl">Have a published update</div></div>
-    <div class="stat-box"><div class="stat-val">${mostRecent ? esc(formatDate(mostRecent.updated_at)) : '—'}</div><div class="stat-lbl">Most recent update</div></div>
+    <div class="stat-box"><div class="stat-val">${mostRecent ? esc(formatDate(mostRecent.updated_at)) : 'None yet'}</div><div class="stat-lbl">Most recent update</div></div>
 </div>
 
 <div class="divider"></div>
@@ -284,7 +284,7 @@ export default async function handler(req, res) {
             <div class="safety-legend-desc">Jumps confidently into deep water and recovers unassisted into a back float, then swims safely to the side.</div>
         </div>
         <div class="safety-legend-item">
-            <div class="safety-legend-title"><span class="safety-dot" style="background:var(--amber);"></span>Water Safe — Shallow End</div>
+            <div class="safety-legend-title"><span class="safety-dot" style="background:var(--amber);"></span>Water Safe: Shallow End</div>
             <div class="safety-legend-desc">Comfortable and functional in shallow water, still developing confidence and ability for deeper water.</div>
         </div>
         <div class="safety-legend-item">
@@ -299,7 +299,7 @@ export default async function handler(req, res) {
 <section class="section">
     <div class="section-eyebrow">Student Progress</div>
     <div class="section-title">${roster.length} student${roster.length === 1 ? '' : 's'}, tracked over time</div>
-    <div class="section-body">First names only, in line with ${esc(club.name)}'s own privacy practice for the programme. Each entry below is dated to the update a coach published — this list grows as new terms are reported.</div>
+    <div class="section-body">First names only, in line with ${esc(club.name)}'s own privacy practice for the programme. Each entry below is dated to the update a coach published. This list grows as new terms are reported.</div>
 
     ${studentCards || '<div class="no-update" style="text-align:center;">No students currently in this programme.</div>'}
 </section>
@@ -320,7 +320,7 @@ export default async function handler(req, res) {
         </div>
         <div class="info-row">
             <div class="info-icon"><i data-lucide="file-text"></i></div>
-            <div class="info-label">How this report works <span>A coach writes and publishes a progress note per student in SwimLoading's Progress Reports tab — this page reflects only what's been published, live, every time it's opened</span></div>
+            <div class="info-label">How this report works <span>A coach writes and publishes a progress note per student in SwimLoading's Progress Reports tab. This page reflects only what's been published, live, every time it's opened</span></div>
         </div>
     </div>
 </section>
@@ -330,7 +330,7 @@ export default async function handler(req, res) {
         <strong style="color:var(--text);">${esc(club.name)}</strong><br>
         19 Constantia Nek Estate, Hout Bay Rd, Hout Bay, 7805, Western Cape, South Africa<br>
         info@bluefinclub.co.za · www.bluefinclub.co.za · Registration 2023/826894/08<br>
-        <span style="display:block;margin-top:10px;">Generated ${esc(formatGeneratedAt())} · Tracked and reported on SwimLoading — <a href="https://swimloading.com">swimloading.com</a></span>
+        <span style="display:block;margin-top:10px;">Generated ${esc(formatGeneratedAt())} · Tracked and reported on SwimLoading · <a href="https://swimloading.com">swimloading.com</a></span>
     </div>
 </footer>
 
