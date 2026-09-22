@@ -216,25 +216,25 @@ export default async function handler(req, res) {
         .reporting-period { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
 
         @media print {
-            .no-print { display: none !important; }
-            body { background: #fff !important; color: #1a1a1a !important; }
-            .nav { display: none !important; }
-            .header h1 { color: #0a0a0a !important; }
-            .header-sub { color: #444 !important; }
-            .header-sub strong { color: #111 !important; }
-            .section-title { color: #0a0a0a !important; }
-            .section-body { color: #444 !important; }
-            .section-eyebrow, .stat-lbl, .timeline-date, .timeline-coach, .reporting-period { color: #555 !important; }
-            .stat-box, .student-card, .info-card, .safety-legend-item {
-                background: #f7fafc !important; border: 1px solid #d5dbe3 !important;
-                break-inside: avoid; page-break-inside: avoid;
+            /* Redefine the palette itself for print, rather than overriding
+               individual selectors one by one — that approach missed
+               .student-name and the footer's inline var(--text) usage the
+               first time round. Every var(--text)/var(--bg)/etc. reference
+               anywhere on the page, present or future, now resolves to a
+               print-safe value automatically. */
+            :root {
+                --bg: #ffffff; --bg-card: #f7fafc; --bg-card2: #f0f4f8;
+                --cyan: #0284c7; --cyan-deep: #026aa3;
+                --text: #0a0a0a; --text-sec: #444444; --text-dim: #666666;
+                --border: #d5dbe3;
+                --green: #0a7a4d; --amber: #b45309; --danger: #b91c1c;
             }
-            .stat-val { color: #0284c7 !important; }
-            .timeline-body { color: #1a1a1a !important; }
-            .divider { background: #d5dbe3 !important; }
-            .footer { border-top: 1px solid #d5dbe3 !important; }
-            .footer-text { color: #555 !important; }
-            .footer-text a { color: #0284c7 !important; }
+            .no-print { display: none !important; }
+            .nav { display: none !important; }
+            .stat-box, .student-card, .info-card, .safety-legend-item {
+                break-inside: avoid; page-break-inside: avoid;
+                border: 1px solid var(--border) !important;
+            }
             a { text-decoration: none; }
             .header { padding: 20px 10px 16px; }
             .section { padding: 24px 10px; }
