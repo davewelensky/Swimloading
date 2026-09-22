@@ -6598,6 +6598,7 @@ function renderProgressReportsTable() {
     }
 
     if (parentFilter !== 'all') {
+      if (r.member_type !== 'youth') return false;
       const status = progressParentMap[r.id]?.status || 'none';
       if (parentFilter === 'not-invited' && status !== 'none') return false;
       if (parentFilter === 'pending' && status !== 'pending') return false;
@@ -6634,7 +6635,9 @@ function renderProgressReportsTable() {
 
     const parentInfo = progressParentMap[r.id];
     let parentCell;
-    if (parentInfo?.status === 'approved') {
+    if (r.member_type !== 'youth') {
+      parentCell = `<span style="font-size:11px;color:var(--text-dim);">—</span>`;
+    } else if (parentInfo?.status === 'approved') {
       parentCell = `<span style="font-size:11px;font-weight:700;color:#10b981;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:20px;padding:2px 8px;white-space:nowrap;">Linked · ${parentInfo.parentName}</span>`;
     } else if (parentInfo?.status === 'pending') {
       parentCell = `<span style="font-size:11px;font-weight:700;color:var(--amber);background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:20px;padding:2px 8px;white-space:nowrap;">Pending approval</span>`;
@@ -6831,7 +6834,11 @@ async function copyParentInviteMessage() {
   const squadFilterVal = document.getElementById('progressSquadFilter')?.value || 'all';
   const squad = squadFilterVal !== 'all' ? (allSquads || []).find(s => s.id === squadFilterVal) : null;
   const scope = (allRosterFull || []).filter(r =>
-    r.is_active !== false && (squadFilterVal === 'all' || r.squad_id === squadFilterVal));
+    r.is_active !== false && r.member_type === 'youth' && (squadFilterVal === 'all' || r.squad_id === squadFilterVal));
+  if (!scope.length) {
+    showToast(`${squad ? squad.name : 'This club'} has no youth members to invite parents for`, 'info');
+    return;
+  }
   const unlinkedCount = scope.filter(r => {
     const st = progressParentMap[r.id]?.status;
     return st !== 'approved' && st !== 'pending';
