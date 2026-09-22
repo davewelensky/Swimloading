@@ -156,6 +156,28 @@ const isSquadClub = currentClub?.club_type !== 'open_water';
 
 ---
 
+### Bluefin Swim Club (`swim_club`)
+
+| Field | Value |
+|-------|-------|
+| Slug | `bluefin` |
+| Club ID | `65e64481-8eae-451f-868d-4505a0059b70` |
+| Admin | Tracey Steyn — traceysteyn@gmail.com |
+| Location | Reddam House Constantia (pool) / False Bay (open water), Cape Town |
+| Roster | 38 members: 27 Masters (adult) + 10 Reddam College students (youth) |
+| Squads | 3 — Masters (Mon/Wed/Fri pool 7:45-8:45am + Tue open water 7:30am), College Students (Tue 4:30-5:30pm, Reddam Learn to Swim), Adult Learn to Swim (Wed 9-10am, enrolment for this semester TBC) |
+| Coaches | Tracey Steyn, Monica Theron, Scott Tait, Ursula Morris, Debbie Smith |
+| Events | 1 — Langebaan Express, 7 Nov 2026 |
+| Founded in app | 22 Sep 2026 |
+
+**What's distinctive about Bluefin:** a Masters lane-and-bay club (not youth-competitive like Aquasharks/DUC), plus a Reddam Foundation-funded Learn to Swim programme for 10 college students. The `progress_reports` and `parent_language` flags are on specifically for that programme, funder (Nicky Sheridan, Reddam Foundation) accountability reporting, not for the Masters squad. `club-admin.html`'s parent-link search (both the "Invite a parent" modal and the `search_roster_entries_for_linking` RPC) is scoped to `member_type = 'youth'` only, so Masters swimmers never show up as parent-linkable — this was a real gap in shared code before Bluefin, not Bluefin-specific.
+
+**Live funder-facing report:** `/bluefin-reddam-report` (`api/bluefin-reddam-report.js`) — server-rendered, reads only *published* `club_progress_reports` for the College Students squad via the service key (RLS has no anonymous-read policy on that table by design). Includes a print/PDF stylesheet.
+
+**Status:** Active. Roster, squads, coaches, and one seeded term of progress reports are live. Still open: real fee-paid status for Masters members (not yet confirmed with Tracey), Adult LTS enrolment for this semester, and a naming discrepancy (a student "Mercy" appears in one funder report but not in the current roster — unresolved, flagged to Tracey).
+
+---
+
 ## What Broke 12 May 2026 — Root Causes
 
 Documented so it never happens again.
