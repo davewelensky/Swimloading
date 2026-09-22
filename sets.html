@@ -665,11 +665,11 @@
 
     <div id="insightsEmpty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:260px;gap:12px;color:var(--text-sec);">
       <i data-lucide="brain" style="width:40px;height:40px;opacity:0.3;"></i>
-      <p style="font-size:14px;">Click "Analyse now" to get AI coaching recommendations based on your squad history, upcoming galas, and qualifying targets.</p>
+      <p style="font-size:14px;">Click "Analyse now" to get AI coaching recommendations based on your squad history, upcoming events, and training focus.</p>
     </div>
     <div id="insightsLoading" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:300px;gap:12px;">
       <div class="spinner" style="width:28px;height:28px;"></div>
-      <p style="font-size:13px;color:var(--text-sec);">Analysing training history, swimmer times &amp; upcoming galas…</p>
+      <p style="font-size:13px;color:var(--text-sec);">Analysing training history, swimmer times &amp; upcoming events…</p>
     </div>
     <div id="insightsResult" style="display:none;">
       <div id="insightsSummaryBar" style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:20px;"></div>
@@ -995,7 +995,9 @@ function renderInsights(data) {
       <div>
         <div style="font-size:14px;font-weight:600;margin-bottom:4px;">${h(data.weekly_summary || 'Analysis complete')}</div>
         ${data.gala_notes ? `<div style="font-size:12px;color:var(--amber);margin-top:4px;"><i data-lucide="flag" style="width:11px;height:11px;display:inline;"></i> ${h(data.gala_notes)}</div>` : ''}
-        <div style="font-size:11px;color:var(--text-sec);margin-top:6px;">${meta.squadsAnalysed || 0} squads · ${meta.nearQualifiers || 0} swimmers near qualifier · ${meta.galas || 0} upcoming galas</div>
+        <div style="font-size:11px;color:var(--text-sec);margin-top:6px;">${currentClub?.features?.gala_entries === true
+          ? `${meta.squadsAnalysed || 0} squads · ${meta.nearQualifiers || 0} swimmers near qualifier · ${meta.galas || 0} upcoming galas`
+          : `${meta.squadsAnalysed || 0} squads · ${meta.galas || 0} upcoming events`}</div>
       </div>
     </div>`;
 
@@ -1021,9 +1023,14 @@ function renderInsights(data) {
     </div>`;
   }).join('');
 
-  // Near-qualifiers table
+  // Near-qualifiers table — SSA age-group qualifying times only make sense
+  // for clubs running galas; Masters/development squads have no such
+  // standards, so "0 found" would be structurally meaningless, not just
+  // empty. Hide the whole section for non-gala clubs rather than show that.
   const qSection = document.getElementById('insightsQualifiers');
-  if ((data.near_qualifiers || []).length) {
+  if (currentClub?.features?.gala_entries !== true) {
+    qSection.innerHTML = '';
+  } else if ((data.near_qualifiers || []).length) {
     qSection.innerHTML = `
       <div style="font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:7px;">
         <i data-lucide="target" style="width:15px;height:15px;color:var(--amber);"></i>
