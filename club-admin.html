@@ -4733,6 +4733,7 @@ function renderEvents() {
   const now = new Date();
   const upcoming = allEvents.filter(e => new Date(e.event_date) >= now);
   const past     = allEvents.filter(e => new Date(e.event_date) < now);
+  const hasGalaEntries = window._clubFeatures?.hasGalaEntries;
 
   const renderGroup = (events, label) => events.length ? `
     <div style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;margin-top:20px;">${label}</div>
@@ -4754,8 +4755,8 @@ function renderEvents() {
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
           <button class="action-btn" onclick="openEventDetail('${e.id}')" style="background:rgba(56,189,248,0.1);color:var(--cyan);border-color:rgba(56,189,248,0.3);">Details</button>
-          <button class="action-btn" onclick="viewGalaEntries('${e.id}')">Entries</button>
-          <button class="action-btn" onclick="openGalaResults('${e.id}','${e.title.replace(/'/g,"\\'")}')" style="background:rgba(16,185,129,0.08);color:#10b981;border-color:rgba(16,185,129,0.25);">Results</button>
+          ${hasGalaEntries ? `<button class="action-btn" onclick="viewGalaEntries('${e.id}')">Entries</button>
+          <button class="action-btn" onclick="openGalaResults('${e.id}','${e.title.replace(/'/g,"\\'")}')" style="background:rgba(16,185,129,0.08);color:#10b981;border-color:rgba(16,185,129,0.25);">Results</button>` : ''}
         </div>
       </div>`;
     }).join('')}` : '';
@@ -4812,6 +4813,8 @@ function openEventDetail(eventId) {
   if (!e) return;
   activeEventDetailId = eventId;
 
+  const hasGalaEntries = window._clubFeatures?.hasGalaEntries;
+
   const d = new Date(e.event_date + 'T12:00:00');
   document.getElementById('edTitle').textContent   = e.title;
   document.getElementById('edDate').textContent    = d.toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'long', year:'numeric' });
@@ -4824,8 +4827,18 @@ function openEventDetail(eventId) {
   document.getElementById('edLogistics').value     = e.logistics    || '';
   document.getElementById('edCourse').value        = e.course || 'LC';
 
+  // Gala-specific sessions editor (QT gating, LC/SC course) only makes
+  // sense for clubs running pool galas — hide it entirely otherwise
+  // (e.g. Bluefin: Masters open water + a development LTS squad, neither
+  // of which will ever gala).
+  document.getElementById('edGalaSessionsBlock').style.display = hasGalaEntries ? '' : 'none';
+  document.getElementById('edModalKicker').textContent = hasGalaEntries ? 'Gala Details' : 'Event Details';
+  document.getElementById('edVisibilityNote').textContent = hasGalaEntries
+    ? 'Everything below is visible to swimmers who have marked themselves as attending this gala.'
+    : 'Everything below is visible to swimmers who have marked themselves as attending this event.';
+
   // Populate sessions editor
-  edRenderSessions(e.sessions_json || []);
+  if (hasGalaEntries) edRenderSessions(e.sessions_json || []);
   document.getElementById('eventDetailModal').classList.add('open');
 }
 
@@ -14621,14 +14634,14 @@ async function saveGroupMembers(groupId) {
 <div class="modal-overlay" id="eventDetailModal" style="align-items:flex-start;padding:20px;">
   <div class="modal" style="max-height:90vh;overflow-y:auto;width:100%;max-width:580px;">
     <div style="position:sticky;top:0;background:var(--bg-card);z-index:2;margin:-20px -20px 16px;padding:16px 20px;border-bottom:1px solid var(--border);">
-      <div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px;">Gala Details</div>
+      <div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px;" id="edModalKicker">Event Details</div>
       <div style="font-size:17px;font-weight:800;color:var(--text);" id="edTitle">—</div>
       <div style="font-size:12px;color:var(--text-sec);margin-top:2px;" id="edDate"></div>
       <button class="modal-close" onclick="closeEventDetail()" style="position:absolute;top:14px;right:16px;">&times;</button>
     </div>
 
-    <!-- Sessions editor — shown first so it's immediately visible -->
-    <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+    <!-- Sessions editor (gala clubs only) — shown first so it's immediately visible -->
+    <div id="edGalaSessionsBlock" style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
         <div>
           <div style="font-size:13px;font-weight:700;color:var(--text);">Gala Sessions</div>
@@ -14646,8 +14659,8 @@ async function saveGroupMembers(groupId) {
       <div id="edSessionsEmpty" style="font-size:12px;color:var(--text-sec);padding:10px 0;display:none;">No sessions configured — tap + Add session to set up Session 1 (L3+) and Session 2 (L2).</div>
     </div>
 
-    <div style="font-size:12px;color:var(--text-sec);padding:10px 14px;background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.15);border-radius:8px;margin-bottom:18px;">
-      Everything below is visible to swimmers who have marked themselves as attending this gala.
+    <div style="font-size:12px;color:var(--text-sec);padding:10px 14px;background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.15);border-radius:8px;margin-bottom:18px;" id="edVisibilityNote">
+      Everything below is visible to swimmers who have marked themselves as attending this event.
     </div>
 
     <div class="form-row">
