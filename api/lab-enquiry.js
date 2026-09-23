@@ -115,11 +115,20 @@ export default async function handler(req, res) {
     }
     const [saved] = await ins.json();
 
-    // Notification is best effort. The lead is already safe.
-    if (RESEND_API_KEY && NOTIFY_TO.length) {
+    // Notification is best effort. The lead is already safe either way, but
+    // report the outcome so a silent mail failure is visible rather than
+    // buried in a log nobody reads.
+    let notified = false;
+    let notifyError = null;
+
+    if (!RESEND_API_KEY) {
+        notifyError = 'no_resend_key';
+    } else if (!NOTIFY_TO.length) {
+        notifyError = 'no_recipients';
+    } else {
         try {
             const resend = new Resend(RESEND_API_KEY);
-            const { error } = await resend.emails.send({
+            const { data, error } = await resend.emails.send({
                 from: FROM_ADDRESS,
                 to: NOTIFY_TO,
                 replyTo: email,
@@ -127,13 +136,24 @@ export default async function handler(req, res) {
                 html: buildHtml(row),
                 text: buildText(row),
             }, { idempotencyKey: `lab-enquiry/${saved.id}` });
-            if (error) console.error('[lab-enquiry] resend error', error);
+            if (error) {
+                notifyError = `${error.name || 'resend_error'}: ${error.message || ''}`.slice(0, 200);
+                console.error('[lab-enquiry] resend error', error);
+            } else {
+                notified = true;
+                console.log('[lab-enquiry] notified', NOTIFY_TO.join(','), data && data.id);
+            }
         } catch (e) {
+            notifyError = `threw: ${(e && e.message) || e}`.slice(0, 200);
             console.error('[lab-enquiry] notify threw', e);
         }
-    } else {
-        console.warn('[lab-enquiry] no RESEND_API_KEY or LAB_NOTIFY_TO, lead saved without notification');
     }
 
-    return res.status(200).json({ ok: true, id: saved.id });
+    return res.status(200).json({
+        ok: true,
+        id: saved.id,
+        notified,
+        notifyError,
+        recipients: NOTIFY_TO.length,
+    });
 }
