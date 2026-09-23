@@ -33,6 +33,9 @@ const STATIC_PAGES = [
   { path: '/partners/blu-smooth', priority: '0.7', changefreq: 'monthly' },
   { path: '/partners/magic5',     priority: '0.7', changefreq: 'monthly' },
   { path: '/blog/march-challenge',priority: '0.6', changefreq: 'monthly' },
+  // Paid stroke-analysis service page. The printable poolside card
+  // (/aquasharks-lab-card) is deliberately left out — it is noindex.
+  { path: '/aquasharks-lab',      priority: '0.7', changefreq: 'monthly' },
 ];
 
 // Whether a crossing row actually has a public page. The shared template

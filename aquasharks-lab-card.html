@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Aquasharks Lab: Poolside Card</title>
+  <meta name="robots" content="noindex">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080f1a;
+      --bg-card:  #0d1728;
+      --cyan:     #38bdf8;
+      --text:     #f1f5f9;
+      --text-sec: #64748b;
+      --border:   rgba(255,255,255,0.08);
+    }
+
+    body {
+      background: #020712;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      line-height: 1.6;
+      padding: 28px 20px 60px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .toolbar {
+      max-width: 640px; margin: 0 auto 26px;
+      display: flex; flex-wrap: wrap; gap: 12px;
+      align-items: center; justify-content: space-between;
+    }
+    .toolbar p { font-size: 13.5px; color: var(--text-sec); max-width: 380px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--cyan); color: #080f1a;
+      font-size: 14px; font-weight: 700; font-family: 'DM Sans', sans-serif;
+      padding: 11px 22px; border-radius: 50px;
+      border: none; cursor: pointer; text-decoration: none;
+    }
+    .btn i { width: 16px; height: 16px; }
+
+    /* THE CARD: A5 portrait, 148 x 210 mm */
+    .card {
+      width: 148mm; height: 210mm;
+      margin: 0 auto;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 15mm 13mm;
+      display: flex; flex-direction: column;
+      position: relative; overflow: hidden;
+    }
+    .card::after {
+      content: ''; position: absolute; top: -70mm; left: 50%;
+      transform: translateX(-50%); width: 170mm; height: 120mm; pointer-events: none;
+      background: radial-gradient(ellipse at center, rgba(56,189,248,0.16), transparent 70%);
+    }
+    .card > * { position: relative; z-index: 1; }
+
+    /* co-brand lockup: the Aqua Sharks mark is navy artwork on a white
+       ground, so it sits on a white chip rather than straight on the dark */
+    .lockup { display: flex; align-items: center; gap: 4mm; margin-bottom: 5mm; }
+    .club-chip { background: #fff; border-radius: 7px; padding: 2mm 2.5mm; display: flex; align-items: center; }
+    .club-chip img { height: 13mm; width: auto; display: block; }
+    .lockup .div { width: 1px; height: 11mm; background: var(--border); }
+    .powered {
+      display: flex; align-items: center; gap: 2mm;
+      font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: 1.5px;
+      color: var(--text-sec); text-transform: uppercase; line-height: 1.5;
+    }
+    .powered img { height: 5mm; width: auto; }
+    .powered b {
+      font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 800;
+      letter-spacing: -0.3px; text-transform: none;
+      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    .eyebrow {
+      font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2.4px;
+      color: var(--cyan); text-transform: uppercase; margin-bottom: 4mm;
+    }
+
+    h1 {
+      font-family: 'Bebas Neue', sans-serif; font-weight: 400;
+      font-size: 52px; line-height: 0.92; letter-spacing: 0.5px;
+      margin-bottom: 4mm;
+    }
+    h1 span {
+      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 55%,#0284c7 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    .blurb { font-size: 13.5px; color: #cbd5e1; margin-bottom: 6mm; }
+
+    .points { list-style: none; display: grid; gap: 3mm; margin-bottom: 7mm; }
+    .points li {
+      display: grid; grid-template-columns: 16px 1fr; gap: 9px;
+      font-size: 12.5px; color: var(--text-sec); align-items: start;
+    }
+    .points li i { width: 14px; height: 14px; color: var(--cyan); margin-top: 3px; }
+    .points li b { color: var(--text); font-weight: 600; }
+
+    .qr-block {
+      margin-top: auto;
+      display: grid; grid-template-columns: 38mm 1fr; gap: 7mm; align-items: center;
+    }
+    .qr { background: #fff; border-radius: 10px; padding: 3.5mm; }
+    .qr img { width: 100%; height: auto; display: block; }
+    .qr-text .scan {
+      font-family: 'Bebas Neue', sans-serif; font-size: 30px; line-height: 1;
+      color: var(--cyan); letter-spacing: 0.5px; margin-bottom: 2mm;
+    }
+    .qr-text p { font-size: 12px; color: var(--text-sec); }
+    .qr-text .url {
+      font-family: 'DM Mono', monospace; font-size: 11.5px;
+      color: var(--text); margin-top: 2.5mm; overflow-wrap: anywhere;
+    }
+
+    .foot {
+      margin-top: 6mm; padding-top: 4mm; border-top: 1px solid var(--border);
+      font-size: 10px; color: var(--text-sec); letter-spacing: 0.3px;
+    }
+
+    @media print {
+      @page { size: A5 portrait; margin: 0; }
+      body { background: #fff; padding: 0; }
+      .toolbar { display: none; }
+      .card {
+        width: 148mm; height: 210mm; margin: 0;
+        border: none; border-radius: 0;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="toolbar">
+  <p>A5 poolside card. Print at 100% scale (no "fit to page"), laminate, and put it on the gate or the noticeboard.</p>
+  <button class="btn" onclick="window.print()"><i data-lucide="printer"></i>Print</button>
+</div>
+
+<div class="card">
+  <div class="lockup">
+    <span class="club-chip"><img src="/icons/Aquasharks.jpg" alt="Aqua Sharks Academy Atlantic"></span>
+    <span class="div" aria-hidden="true"></span>
+    <span class="powered">Powered by <img src="/icons/logo-wave.png" alt=""><b>SwimLoading</b></span>
+  </div>
+  <div class="eyebrow">Aquasharks Lab &middot; eo SwimBETTER</div>
+
+  <h1>Two thirds of<br>your stroke is<br><span>going nowhere.</span></h1>
+
+  <p class="blurb">
+    Force sensors in both hands measure every stroke you take, and show you exactly how much
+    of your effort actually moves you forward.
+  </p>
+
+  <ul class="points">
+    <li><i data-lucide="compass"></i><span><b>Where your power goes.</b> Forward, down, or sideways. Measured, not guessed.</span></li>
+    <li><i data-lucide="bar-chart-3"></i><span><b>Left vs right.</b> See the imbalance you've been swimming with.</span></li>
+    <li><i data-lucide="route"></i><span><b>Your hand path.</b> Depth, width, and whether you cross the midline.</span></li>
+    <li><i data-lucide="file-text"></i><span><b>A written report in 24 hours.</b> One thing to fix, and the drill that fixes it.</span></li>
+  </ul>
+
+  <div class="qr-block">
+    <div class="qr"><img src="/icons/aquasharks-lab-qr.svg" alt="QR code"></div>
+    <div class="qr-text">
+      <div class="scan">Scan to book</div>
+      <p>Point your camera at the code. Nothing to download.</p>
+      <div class="url">swimloading.com/aquasharks-lab</div>
+    </div>
+  </div>
+
+  <div class="foot">Run at the Aquasharks pool, Cape Town &middot; From R800 per swimmer</div>
+</div>
+
+<script>lucide.createIcons();</script>
+</body>
+</html>

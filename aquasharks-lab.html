@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-89R519Y9T4"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-89R519Y9T4');
+  </script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Aquasharks Lab: Stroke Analysis</title>
+  <link rel="canonical" href="https://www.swimloading.com/aquasharks-lab">
+  <meta name="description" content="Most swimmers waste two thirds of every stroke. Force sensors in both hands show you exactly how much of your effort moves you forward, and what to fix. At the Aquasharks pool, Cape Town.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Aquasharks Lab: Stroke Analysis">
+  <meta property="og:description" content="Most swimmers waste two thirds of every stroke. Force sensors in both hands show you exactly how much of your effort moves you forward, and what to fix.">
+  <meta property="og:url" content="https://www.swimloading.com/aquasharks-lab">
+  <meta property="og:image" content="https://www.swimloading.com/partners/eo-inge.jpg">
+  <meta property="og:site_name" content="SwimLoading">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="preload" as="image" href="/partners/eo-inge.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #080f1a;
+      --bg-card:   #0d1728;
+      --bg-deep:   #050d1a;
+      --cyan:      #38bdf8;
+      --cyan-dim:  rgba(56,189,248,0.10);
+      --cyan-bd:   rgba(56,189,248,0.28);
+      /* semantic signal for wasted force, used only in data visuals */
+      --waste:     #f97316;
+      --green:     #10b981;
+      --text:      #f1f5f9;
+      --text-sec:  #7c8ba1;
+      --border:    rgba(255,255,255,0.07);
+      /* radius system: cards 16, inputs 10, interactive pill */
+      --r-card:    16px;
+      --r-input:   10px;
+    }
+
+    html { scroll-behavior: smooth; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 9999;
+      background:
+        radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),
+          rgba(56,189,248,0.55), transparent 100%),
+        radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),
+          rgba(56,189,248,0.07), transparent 70%);
+    }
+
+    .container { max-width: 1060px; margin: 0 auto; padding: 0 22px; }
+    .narrow { max-width: 760px; }
+
+    /* ── NAV ───────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(8,15,26,0.88);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 22px; height: 64px;
+      display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 7px;
+      text-decoration: none; font-size: 15px; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      white-space: nowrap;
+    }
+    .nav-brand img { height: 22px; width: auto; }
+    /* co-brand: Aqua Sharks mark sits on a white chip because the
+       supplied logo is navy artwork on a white ground */
+    .club-chip {
+      background: #fff; border-radius: 9px; padding: 5px 9px;
+      display: flex; align-items: center; flex-shrink: 0;
+    }
+    .club-chip img { display: block; width: auto; }
+    nav .club-chip img { height: 30px; }
+
+    .nav-left { display: flex; align-items: center; gap: 11px; min-width: 0; }
+    .nav-title {
+      font-family: 'Bebas Neue', sans-serif; font-size: 21px; line-height: 1;
+      letter-spacing: 1px; color: var(--text); white-space: nowrap;
+    }
+    .nav-title small {
+      display: block; font-family: 'DM Mono', monospace; font-size: 9px;
+      letter-spacing: 1.8px; color: var(--text-sec); margin-top: 3px;
+    }
+    .nav-right { display: flex; align-items: center; gap: 18px; }
+    .powered {
+      display: flex; align-items: center; gap: 7px;
+      font-family: 'DM Mono', monospace; font-size: 9.5px; letter-spacing: 1.7px;
+      color: var(--text-sec); text-transform: uppercase; text-decoration: none;
+      white-space: nowrap;
+    }
+    .powered img { height: 17px; width: auto; }
+    .powered b {
+      font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 800;
+      letter-spacing: -0.4px; text-transform: none;
+      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    @media (max-width: 780px) { .nav-right .powered { display: none; } .nav-title small { display: none; } }
+    @media (max-width: 460px) { .nav-title { font-size: 18px; } nav .club-chip img { height: 25px; } }
+
+    /* hero co-brand lockup */
+    .lockup { display: flex; align-items: center; gap: 15px; margin-bottom: 24px; flex-wrap: wrap; }
+    .lockup .club-chip img { height: 44px; }
+    .lockup .div { width: 1px; height: 32px; background: rgba(255,255,255,0.22); }
+    .lockup .powered { color: #cbd5e1; }
+    @media (max-width: 560px) { .lockup .club-chip img { height: 36px; } .lockup .div { display: none; } }
+
+    /* ── BUTTONS ───────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px; font-weight: 700; padding: 13px 28px;
+      border-radius: 50px; text-decoration: none; border: 1px solid transparent;
+      cursor: pointer; white-space: nowrap;
+      transition: transform .18s cubic-bezier(.16,1,.3,1), background-color .18s ease, border-color .18s ease;
+    }
+    .btn:active { transform: scale(.975); }
+    .btn-primary { background: var(--cyan); color: #06111f; }
+    .btn-primary:hover { background: #7dd3fc; }
+    .btn-ghost { background: rgba(255,255,255,0.04); color: var(--text); border-color: rgba(255,255,255,0.18); }
+    .btn-ghost:hover { border-color: var(--cyan-bd); background: var(--cyan-dim); }
+    .btn i { width: 17px; height: 17px; }
+    .btn-sm { font-size: 13.5px; padding: 10px 22px; }
+
+    /* ── HERO ──────────────────────────────────────────── */
+    .hero {
+      position: relative;
+      min-height: min(100dvh, 780px);
+      display: flex; align-items: flex-end;
+      padding: 96px 0 56px;
+      overflow: hidden;
+    }
+    .hero-img {
+      position: absolute; inset: 0;
+      background: url('/partners/eo-inge.jpg') center 38% / cover no-repeat;
+      transform: scale(1.04);
+    }
+    .hero-veil {
+      position: absolute; inset: 0;
+      background:
+        linear-gradient(180deg, rgba(8,15,26,0.78) 0%, rgba(8,15,26,0.34) 34%, rgba(8,15,26,0.92) 82%, var(--bg) 100%),
+        linear-gradient(90deg, rgba(8,15,26,0.80) 0%, rgba(8,15,26,0.12) 62%);
+    }
+    .hero .container { position: relative; z-index: 2; }
+
+    .eyebrow {
+      font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 2.6px;
+      color: var(--cyan); text-transform: uppercase; margin-bottom: 20px;
+    }
+    h1 {
+      font-family: 'Bebas Neue', sans-serif; font-weight: 400;
+      font-size: clamp(50px, 8.4vw, 104px); line-height: 0.9;
+      letter-spacing: 0.5px; margin-bottom: 22px; max-width: 13ch;
+      text-shadow: 0 2px 40px rgba(0,0,0,0.5);
+    }
+    h1 em {
+      font-style: normal;
+      background: linear-gradient(135deg,#7dd3fc 0%,#38bdf8 50%,#0ea5e9 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .hero-sub {
+      font-size: clamp(17px,2.1vw,20px); color: #dbe4ee; max-width: 46ch; margin-bottom: 30px;
+      text-shadow: 0 1px 20px rgba(0,0,0,0.6);
+    }
+    .hero-cta { display: flex; flex-wrap: wrap; gap: 12px; }
+
+    /* ── SECTIONS ──────────────────────────────────────── */
+    section { padding: 92px 0; position: relative; }
+    .rule { border-top: 1px solid var(--border); }
+
+    h2 {
+      font-family: 'Bebas Neue', sans-serif; font-weight: 400;
+      font-size: clamp(36px, 6vw, 62px); line-height: 0.96;
+      letter-spacing: 0.5px; margin-bottom: 18px;
+    }
+    h2 em {
+      font-style: normal;
+      background: linear-gradient(135deg,#7dd3fc 0%,#38bdf8 55%,#0ea5e9 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.2px; }
+    .sub { color: var(--text-sec); font-size: 17px; max-width: 58ch; }
+    .sub + * { margin-top: 36px; }
+
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--r-card); padding: 28px;
+    }
+
+    /* ── REVEAL ────────────────────────────────────────── */
+    .rv { opacity: 0; transform: translateY(26px); transition: opacity .75s cubic-bezier(.16,1,.3,1), transform .75s cubic-bezier(.16,1,.3,1); }
+    .rv.in { opacity: 1; transform: none; }
+    .rv-d1 { transition-delay: .09s; } .rv-d2 { transition-delay: .18s; } .rv-d3 { transition-delay: .27s; }
+
+    /* ── 1. WASTE GRID ─────────────────────────────────── */
+    .waste { text-align: center; }
+    .waste h2 { max-width: 18ch; margin-left: auto; margin-right: auto; }
+    .dotgrid {
+      display: grid; grid-template-columns: repeat(20, 1fr); gap: 7px;
+      max-width: 560px; margin: 44px auto 0;
+    }
+    .dot {
+      aspect-ratio: 1; border-radius: 2px; background: rgba(255,255,255,0.05);
+      transform: scale(.4); opacity: 0;
+      transition: transform .4s cubic-bezier(.16,1,.3,1), opacity .4s ease, background-color .4s ease;
+    }
+    .dotgrid.go .dot { transform: none; opacity: 1; }
+    .dot.fwd  { background: var(--cyan); box-shadow: 0 0 10px rgba(56,189,248,0.5); }
+    .dot.lost { background: rgba(249,115,22,0.30); }
+    .waste-key { display: flex; flex-wrap: wrap; justify-content: center; gap: 26px; margin-top: 26px; }
+    .waste-key div { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--text-sec); }
+    .waste-key i { width: 11px; height: 11px; border-radius: 2px; display: block; }
+    .bignum {
+      font-family: 'Bebas Neue', sans-serif; font-size: clamp(86px,17vw,180px);
+      line-height: .84; color: var(--cyan); letter-spacing: 1px;
+      font-variant-numeric: tabular-nums;
+    }
+    .bignum small {
+      display: block; margin-top: 16px;
+      font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500;
+      color: var(--text-sec); letter-spacing: 2.4px; line-height: 1.5;
+    }
+    @media (max-width: 560px) { .dotgrid { grid-template-columns: repeat(10, 1fr); max-width: 300px; } }
+
+    /* ── 2. GAUGE ──────────────────────────────────────── */
+    .gauge-wrap { display: grid; grid-template-columns: 1fr 1.05fr; gap: 52px; align-items: center; }
+    @media (max-width: 860px) { .gauge-wrap { grid-template-columns: 1fr; gap: 34px; } }
+    .gauge-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-card); padding: 30px 24px 26px; text-align: center; }
+    .gauge-box svg { width: 100%; max-width: 330px; height: auto; display: block; margin: 0 auto; }
+    .gauge-arc { transition: stroke-dashoffset 1s cubic-bezier(.16,1,.3,1), stroke .5s ease; }
+    .gauge-val {
+      font-family: 'Bebas Neue', sans-serif; font-size: 62px; line-height: 1;
+      color: var(--cyan); letter-spacing: 1px; margin-top: -54px;
+      font-variant-numeric: tabular-nums;
+    }
+    .gauge-cap { font-size: 13.5px; color: var(--text-sec); margin-top: 8px; min-height: 42px; }
+    .picks { display: grid; gap: 10px; margin-top: 8px; }
+    .pick {
+      display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px;
+      width: 100%; text-align: left; cursor: pointer;
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+      border-radius: var(--r-input); padding: 14px 18px; color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600;
+      transition: border-color .2s ease, background-color .2s ease, transform .16s cubic-bezier(.16,1,.3,1);
+    }
+    .pick:hover { border-color: var(--cyan-bd); background: var(--cyan-dim); }
+    .pick:active { transform: scale(.99); }
+    .pick[aria-pressed="true"] { border-color: var(--cyan); background: var(--cyan-dim); }
+    .pick span.n { font-family: 'DM Mono', monospace; font-size: 15px; color: var(--cyan); }
+    .pick span.l { display: block; font-size: 12.5px; font-weight: 400; color: var(--text-sec); margin-top: 2px; }
+
+    /* ── 3. BENTO ──────────────────────────────────────── */
+    .bento { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; }
+    .bento > .span2 { grid-column: 1 / -1; }
+    @media (max-width: 860px) { .bento { grid-template-columns: 1fr; } }
+    .bento .card i.ic { width: 22px; height: 22px; color: var(--cyan); display: block; margin-bottom: 13px; }
+    .bento .card p { font-size: 14.5px; color: var(--text-sec); }
+    .path-card { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+    .path-card svg { width: 100%; height: auto; display: block; background: var(--bg-deep); }
+    .path-card .cap { padding: 22px 26px 26px; }
+    .draw { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); }
+    .path-card.in .draw { animation: draw 1.8s cubic-bezier(.4,0,.2,1) forwards; }
+    .path-card.in .draw.d2 { animation-delay: .3s; }
+    @keyframes draw { to { stroke-dashoffset: 0; } }
+    .flag { opacity: 0; transition: opacity .5s ease 1.7s; }
+    .path-card.in .flag { opacity: 1; }
+
+    /* ── 4. TRANSFORMATION ─────────────────────────────── */
+    .chart-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-card); padding: 28px 20px 20px; }
+    .chart-card svg { width: 100%; height: auto; display: block; }
+    .chart-card .draw { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); }
+    .chart-card.in .draw { animation: draw 1.6s cubic-bezier(.4,0,.2,1) forwards; }
+    .chart-card.in .draw.d2 { animation-delay: .25s; }
+    .chart-card .pt, .chart-card .lbl { opacity: 0; transition: opacity .6s ease 1.4s; }
+    .chart-card.in .pt, .chart-card.in .lbl { opacity: 1; }
+    .deltas { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; margin-top: 18px; }
+    .delta { background: var(--bg-card); padding: 20px 14px; text-align: center; }
+    .delta .v { font-family: 'Bebas Neue', sans-serif; font-size: 38px; line-height: 1; color: var(--cyan); font-variant-numeric: tabular-nums; }
+    .delta .k { font-size: 10.5px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 1.1px; margin-top: 7px; line-height: 1.4; }
+    @media (max-width: 620px) { .deltas { grid-template-columns: repeat(2,1fr); } }
+
+    /* ── 5. JOHAN SPLIT ────────────────────────────────── */
+    .swims { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; }
+    .swim { background: var(--bg-card); padding: 26px 28px; display: grid; grid-template-columns: 148px 1fr; gap: 26px; align-items: center; }
+    @media (max-width: 680px) { .swim { grid-template-columns: 1fr; gap: 12px; } }
+    .swim .time { font-family: 'Bebas Neue', sans-serif; font-size: 46px; line-height: 1; letter-spacing: 1px; font-variant-numeric: tabular-nums; }
+    .swim .pc { font-family: 'DM Mono', monospace; font-size: 12.5px; color: var(--text-sec); margin-top: 4px; }
+    .swim p { font-size: 14.5px; color: var(--text-sec); }
+    .swim.best { background: linear-gradient(90deg, rgba(56,189,248,0.07), var(--bg-card) 55%); }
+    .swim.best .time { color: var(--cyan); }
+
+    /* ── 6. STEPS ──────────────────────────────────────── */
+    .steps { display: grid; gap: 4px; }
+    .step { display: grid; grid-template-columns: 54px 1fr; gap: 20px; padding: 20px 0; border-bottom: 1px solid var(--border); align-items: start; }
+    .step:last-child { border-bottom: none; }
+    .step .n { font-family: 'Bebas Neue', sans-serif; font-size: 30px; color: var(--cyan); line-height: 1.1; opacity: .85; }
+    .step p { font-size: 14.5px; color: var(--text-sec); }
+
+    /* ── 7. PRICE ──────────────────────────────────────── */
+    .price-band { display: grid; grid-template-columns: auto 1fr; gap: 40px; align-items: center; }
+    @media (max-width: 760px) { .price-band { grid-template-columns: 1fr; gap: 22px; } }
+    .price-amt { font-family: 'Bebas Neue', sans-serif; font-size: clamp(64px,11vw,108px); line-height: .86; color: var(--cyan); letter-spacing: 1px; }
+    .price-amt small { display: block; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-sec); letter-spacing: 1.8px; margin-top: 12px; }
+    .incl { list-style: none; display: grid; gap: 11px; }
+    .incl li { display: grid; grid-template-columns: 18px 1fr; gap: 11px; font-size: 15px; color: #cbd5e1; align-items: start; }
+    .incl li i { width: 16px; height: 16px; color: var(--cyan); margin-top: 4px; }
+
+    /* ── 8. FORM ───────────────────────────────────────── */
+    .form-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-card); padding: 32px; }
+    .fld { margin-bottom: 17px; }
+    .fld label { display: block; font-size: 11px; letter-spacing: 1.3px; text-transform: uppercase; color: #94a3b8; font-weight: 600; margin-bottom: 8px; }
+    .fld input, .fld select, .fld textarea {
+      width: 100%; background: var(--bg-deep); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: var(--r-input); padding: 13px 15px; color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-size: 15px; outline: none;
+      transition: border-color .2s ease;
+    }
+    .fld input::placeholder, .fld textarea::placeholder { color: #64748b; }
+    .fld input:focus, .fld select:focus, .fld textarea:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(56,189,248,0.14); }
+    .fld textarea { resize: vertical; min-height: 82px; }
+    .fld select { appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'><polyline points='6 9 12 15 18 9'/></svg>"); background-repeat: no-repeat; background-position: right 15px center; padding-right: 42px; }
+    .fld-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    @media (max-width: 580px) { .fld-row { grid-template-columns: 1fr; gap: 0; } }
+    .form-msg { font-size: 14.5px; margin-top: 15px; display: none; }
+    .form-msg.ok { color: var(--green); display: block; }
+    .form-msg.err { color: #fca5a5; display: block; }
+    .consent { font-size: 12.5px; color: var(--text-sec); margin-top: 15px; }
+
+    /* ── 9. QR ─────────────────────────────────────────── */
+    .qr-wrap { display: grid; grid-template-columns: 1fr auto; gap: 34px; align-items: center; }
+    .qr-box { background: #fff; border-radius: var(--r-card); padding: 16px; width: 188px; }
+    .qr-box img { width: 100%; height: auto; display: block; }
+    .qr-box .u { text-align: center; color: #0f172a; font-weight: 700; font-size: 11px; margin-top: 8px; overflow-wrap: anywhere; }
+    @media (max-width: 680px) { .qr-wrap { grid-template-columns: 1fr; } .qr-box { margin: 0 auto; } }
+
+    /* ── FOOTER ────────────────────────────────────────── */
+    footer { border-top: 1px solid var(--border); padding: 44px 0 64px; }
+    .foot-row { display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-between; align-items: center; }
+    .foot-brand { display: flex; align-items: center; flex-wrap: wrap; gap: 13px; }
+    .foot-brand .club-chip img { height: 30px; }
+    /* the "Powered by" strip is nowrap, so it must be free to drop
+       to its own line on a phone or it pushes the page wider */
+    .foot-brand .powered { white-space: normal; }
+    .foot-links { display: flex; flex-wrap: wrap; gap: 22px; }
+    .foot-links a { color: var(--text-sec); text-decoration: none; font-size: 14px; }
+    .foot-links a:hover { color: var(--cyan); }
+    .foot-note { font-size: 12.5px; color: var(--text-sec); margin-top: 24px; max-width: 70ch; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .rv { opacity: 1; transform: none; transition: none; }
+      .dot { opacity: 1; transform: none; transition: none; }
+      .draw { stroke-dasharray: none !important; stroke-dashoffset: 0 !important; animation: none !important; }
+      .flag, .chart-card .pt, .chart-card .lbl { opacity: 1; transition: none; }
+      .gauge-arc { transition: none; }
+      .hero-img { transform: none; }
+      .btn, .pick { transition: none; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-left">
+    <span class="club-chip"><img src="/icons/Aquasharks.jpg" alt="Aqua Sharks Academy Atlantic"></span>
+    <span class="nav-title">Aquasharks Lab<small>STROKE ANALYSIS</small></span>
+  </div>
+  <div class="nav-right">
+    <a class="powered" href="https://www.swimloading.com">
+      Powered by <img src="/icons/logo-wave.png" alt=""><b>SwimLoading</b>
+    </a>
+    <a class="btn btn-primary btn-sm" href="#book">Book a slot</a>
+  </div>
+</nav>
+
+<!-- ══ HERO ══ -->
+<header class="hero">
+  <div class="hero-img" aria-hidden="true"></div>
+  <div class="hero-veil" aria-hidden="true"></div>
+  <div class="container">
+    <div class="lockup">
+      <span class="club-chip"><img src="/icons/Aquasharks.jpg" alt="Aqua Sharks Academy Atlantic"></span>
+      <span class="div" aria-hidden="true"></span>
+      <span class="powered">Powered by <img src="/icons/logo-wave.png" alt=""><b>SwimLoading</b></span>
+    </div>
+    <h1>Two thirds of your stroke is <em>going nowhere.</em></h1>
+    <p class="hero-sub">
+      Sensors in both hands measure every stroke you take, and show you the part
+      that actually moves you forward.
+    </p>
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="#book"><i data-lucide="calendar-check"></i>Book a slot</a>
+      <a class="btn btn-ghost" href="#score"><i data-lucide="gauge"></i>See your score</a>
+    </div>
+  </div>
+</header>
+
+<!-- ══ 1. THE WASTE ══ -->
+<section class="waste">
+  <div class="container narrow">
+    <div class="rv">
+      <h2>You make 100 units of force. <em>This much moves you.</em></h2>
+      <p class="sub" style="margin:0 auto">
+        Every square is one unit of the force your hands put into the water on a typical club swimmer's stroke.
+      </p>
+    </div>
+
+    <div class="dotgrid rv rv-d1" id="dotgrid" aria-hidden="true"></div>
+
+    <div class="waste-key rv rv-d2">
+      <div><i style="background:var(--cyan)"></i>Moves you forward</div>
+      <div><i style="background:rgba(249,115,22,0.5)"></i>Pressed down and sideways</div>
+    </div>
+
+    <div class="rv rv-d3" style="margin-top:48px">
+      <div class="bignum" id="wasteNum"><span id="wasteVal">0</span><small>UNITS WASTED, EVERY STROKE</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 2. GAUGE ══ -->
+<section class="rule" id="score">
+  <div class="container">
+    <div class="gauge-wrap">
+      <div class="rv">
+        <h2>What's <em>your</em> number?</h2>
+        <p class="sub">
+          Propulsion is the share of your hand force that drives you forward. It is the one number
+          everything else hangs off, and it is trainable. Tap through to see the range.
+        </p>
+        <div class="picks" style="margin-top:28px">
+          <button class="pick" type="button" data-v="27.2" data-cap="Where most club swimmers start. Nearly three quarters of the effort is going into the floor of the pool." aria-pressed="true">
+            <span>Most club swimmers<span class="l">Typical first session</span></span>
+            <span class="n">27.2%</span>
+          </button>
+          <button class="pick" type="button" data-v="39.5" data-cap="A marathon swimmer at Aquasharks Lab, after four sessions. Same fitness, same stroke rate, different direction." aria-pressed="false">
+            <span>After four sessions<span class="l">Measured here, May to June 2025</span></span>
+            <span class="n">39.5%</span>
+          </button>
+          <button class="pick" type="button" data-v="45" data-cap="Elite sprint territory. Almost nothing is wasted on the way through the pull." aria-pressed="false">
+            <span>Elite sprinter<span class="l">Benchmark</span></span>
+            <span class="n">45%+</span>
+          </button>
+          <button class="pick" type="button" data-v="62.5" data-cap="The best single swim we have recorded in this lab. A 53 year old distance swimmer, on his second 50m effort." aria-pressed="false">
+            <span>Best swim in this lab<span class="l">January 2026</span></span>
+            <span class="n">62.5%</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="gauge-box rv rv-d1">
+        <svg viewBox="0 0 320 196" role="img" aria-labelledby="gaugeTitle">
+          <title id="gaugeTitle">Propulsion gauge</title>
+          <path d="M 30 166 A 130 130 0 0 1 290 166" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="20" stroke-linecap="round"/>
+          <path id="gaugeArc" class="gauge-arc" d="M 30 166 A 130 130 0 0 1 290 166"
+                fill="none" stroke="var(--cyan)" stroke-width="20" stroke-linecap="round"
+                stroke-dasharray="408.4" stroke-dashoffset="408.4"/>
+          <g fill="#7c8ba1" font-family="DM Mono, monospace" font-size="11">
+            <text x="30" y="188" text-anchor="middle">0%</text>
+            <text x="290" y="188" text-anchor="middle">70%</text>
+          </g>
+        </svg>
+        <div class="gauge-val" id="gaugeVal">27.2%</div>
+        <p class="gauge-cap" id="gaugeCap">Where most club swimmers start. Nearly three quarters of the effort is going into the floor of the pool.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 3. WHAT WE SEE (BENTO) ══ -->
+<section class="rule">
+  <div class="container">
+    <div class="rv">
+      <h2>Four charts. <em>Nowhere to hide.</em></h2>
+      <p class="sub">Every number is measured per hand, so your left and right are compared directly against each other.</p>
+    </div>
+
+    <div class="bento" style="margin-top:36px">
+      <div class="card path-card rv" id="pathCard">
+        <svg viewBox="0 0 440 250" role="img" aria-label="Overhead view of two hand paths through the water, both crossing the centre line">
+          <defs>
+            <linearGradient id="fadeC" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#38bdf8" stop-opacity="0.25"/>
+              <stop offset="1" stop-color="#38bdf8" stop-opacity="1"/>
+            </linearGradient>
+          </defs>
+          <line x1="220" y1="18" x2="220" y2="232" stroke="rgba(255,255,255,0.14)" stroke-width="1" stroke-dasharray="5 6"/>
+          <text x="226" y="30" fill="#7c8ba1" font-family="DM Mono, monospace" font-size="10">CENTRE LINE</text>
+
+          <!-- left hand (should stay left of centre, sweeps across) -->
+          <path class="draw" style="--len:300"
+                d="M 150 26 C 118 78, 132 120, 196 152 C 236 172, 244 204, 236 228"
+                fill="none" stroke="var(--waste)" stroke-width="3" stroke-linecap="round"/>
+          <!-- right hand -->
+          <path class="draw d2" style="--len:300"
+                d="M 292 26 C 324 78, 310 120, 246 152 C 206 172, 198 204, 206 228"
+                fill="none" stroke="url(#fadeC)" stroke-width="3" stroke-linecap="round"/>
+
+          <g class="flag">
+            <circle cx="221" cy="152" r="26" fill="none" stroke="#fca5a5" stroke-width="1.5"/>
+            <text x="221" y="204" text-anchor="middle" fill="#fca5a5" font-family="DM Mono, monospace" font-size="10">CROSSOVER</text>
+          </g>
+          <g font-family="DM Mono, monospace" font-size="10">
+            <text x="150" y="16" text-anchor="middle" fill="var(--waste)">LEFT</text>
+            <text x="292" y="16" text-anchor="middle" fill="#38bdf8">RIGHT</text>
+          </g>
+        </svg>
+        <div class="cap">
+          <h3>Stroke path</h3>
+          <p>
+            Where your hands actually travel. This swimmer's arms both sweep across the middle
+            instead of pulling straight back on their own side, which bleeds speed sideways on every stroke.
+          </p>
+        </div>
+      </div>
+
+      <div style="display:grid;gap:16px">
+        <div class="card rv rv-d1">
+          <i class="ic" data-lucide="compass"></i>
+          <h3>Force field</h3>
+          <p>Splits each stroke into forward, downward, sideways and hand drag. This is where your propulsion number comes from.</p>
+        </div>
+        <div class="card rv rv-d2">
+          <i class="ic" data-lucide="bar-chart-3"></i>
+          <h3>Power, left vs right</h3>
+          <p>Shows which arm you lean on, and whether your power survives to the last length or fades.</p>
+        </div>
+        <div class="card rv rv-d3">
+          <i class="ic" data-lucide="activity"></i>
+          <h3>Force vs time</h3>
+          <p>The shape of one pull. Two peaks means you caught the water, lost it, then caught it again.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 4. TRANSFORMATION ══ -->
+<section class="rule">
+  <div class="container">
+    <div class="rv">
+      <div class="eyebrow">Measured at this pool</div>
+      <h2>Four sessions. <em>Twelve points.</em></h2>
+      <p class="sub">
+        A marathon open water swimmer, May to June 2025. Her fitness did not change and her stroke
+        rate did not change. Only the direction of her force did.
+      </p>
+    </div>
+
+    <div class="chart-card rv rv-d1" id="chartCard" style="margin-top:36px">
+      <svg viewBox="0 0 720 300" role="img" aria-label="Chart showing propulsive force rising from 27.2 to 39.5 percent while downward force falls from 59.8 to 41.8 percent over four sessions">
+        <g stroke="rgba(255,255,255,0.06)" stroke-width="1">
+          <line x1="60" y1="250" x2="690" y2="250"/><line x1="60" y1="187" x2="690" y2="187"/>
+          <line x1="60" y1="124" x2="690" y2="124"/><line x1="60" y1="61"  x2="690" y2="61"/>
+        </g>
+        <g fill="#7c8ba1" font-family="DM Mono, monospace" font-size="11">
+          <text x="30" y="254">0%</text><text x="24" y="191">20%</text>
+          <text x="24" y="128">40%</text><text x="24" y="65">60%</text>
+        </g>
+
+        <polyline class="draw d2" style="--len:580" fill="none" stroke="var(--waste)" stroke-width="3"
+                  stroke-linecap="round" stroke-linejoin="round" points="110,62 300,63 490,92 660,119"/>
+        <polyline class="draw" style="--len:570" fill="none" stroke="var(--cyan)" stroke-width="3"
+                  stroke-linecap="round" stroke-linejoin="round" points="110,164 300,164 490,150 660,126"/>
+
+        <g class="pt" fill="var(--waste)">
+          <circle cx="110" cy="62" r="5"/><circle cx="300" cy="63" r="5"/>
+          <circle cx="490" cy="92" r="5"/><circle cx="660" cy="119" r="5"/>
+        </g>
+        <g class="pt" fill="var(--cyan)">
+          <circle cx="110" cy="164" r="5"/><circle cx="300" cy="164" r="5"/>
+          <circle cx="490" cy="150" r="5"/><circle cx="660" cy="126" r="5"/>
+        </g>
+        <g class="lbl" font-family="DM Mono, monospace" font-size="12" fill="var(--waste)">
+          <text x="110" y="48" text-anchor="middle">59.8</text><text x="660" y="106" text-anchor="middle">41.8</text>
+        </g>
+        <g class="lbl" font-family="DM Mono, monospace" font-size="12" fill="var(--cyan)">
+          <text x="110" y="182" text-anchor="middle">27.2</text><text x="660" y="147" text-anchor="middle">39.5</text>
+        </g>
+        <g class="lbl" fill="#7c8ba1" font-family="DM Sans, sans-serif" font-size="12" text-anchor="middle">
+          <text x="110" y="276">Baseline</text><text x="300" y="276">23 May</text>
+          <text x="490" y="276">25 May</text><text x="660" y="276">14 Jun</text>
+        </g>
+      </svg>
+      <div class="waste-key" style="justify-content:flex-start;padding-left:8px">
+        <div><i style="background:var(--cyan)"></i>Forward</div>
+        <div><i style="background:var(--waste)"></i>Wasted downward</div>
+      </div>
+    </div>
+
+    <div class="deltas rv rv-d2">
+      <div class="delta"><div class="v" data-count="12.3" data-pre="+" data-dp="1">+12.3</div><div class="k">Points of<br>propulsion gained</div></div>
+      <div class="delta"><div class="v" data-count="18" data-pre="-" data-dp="0">-18</div><div class="k">Points of downward<br>force removed</div></div>
+      <div class="delta"><div class="v" data-count="73" data-suf="%" data-pre="-" data-dp="0">-73%</div><div class="k">Hand drag<br>cut</div></div>
+      <div class="delta"><div class="v" data-count="0" data-dp="0">0</div><div class="k">Change in<br>stroke rate</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 5. JOHAN ══ -->
+<section class="rule">
+  <div class="container">
+    <div class="rv">
+      <h2>It is not just <em>a kids' thing.</em></h2>
+      <p class="sub">
+        A 53 year old distance swimmer, retested in January 2026 against his August 2025 baseline.
+        Three efforts, and the slowest one taught us the most.
+      </p>
+    </div>
+
+    <div class="swims rv rv-d1" style="margin-top:36px">
+      <div class="swim">
+        <div>
+          <div class="time">1:39.76</div>
+          <div class="pc">29.4% forward</div>
+        </div>
+        <p>Hand drag at 27.8%. This was not fitness, it was a technical collapse. We kept it as the reference for what happens when focus goes.</p>
+      </div>
+      <div class="swim best">
+        <div>
+          <div class="time">52.10</div>
+          <div class="pc">62.5% forward</div>
+        </div>
+        <p>Hand drag 1.2%, distance per stroke 2.78m. His benchmark swim, and proof the ceiling is still there at 53.</p>
+      </div>
+      <div class="swim">
+        <div>
+          <div class="time">50.74</div>
+          <div class="pc">63.7% forward</div>
+        </div>
+        <p>Faster, but distance per stroke dropped to 2.63m. He swims quickest when he protects stroke length instead of spinning his arms.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 6. HOW IT RUNS ══ -->
+<section class="rule">
+  <div class="container narrow">
+    <div class="rv">
+      <h2>How a session <em>runs</em></h2>
+    </div>
+    <div class="steps rv rv-d1" style="margin-top:30px">
+      <div class="step">
+        <div class="n">01</div>
+        <div><h3>Same warmup, same effort</h3><p>Two 25m or two 50m efforts at about 75%, after a standard warmup. Identical every time, so session two is comparable to session one.</p></div>
+      </div>
+      <div class="step">
+        <div class="n">02</div>
+        <div><h3>Sensors record every stroke</h3><p>They sit in your hands. Nothing strapped to your body, nothing that changes how you swim.</p></div>
+      </div>
+      <div class="step">
+        <div class="n">03</div>
+        <div><h3>We find the one thing</h3><p>We read all four charts and pick the single dominant fault. Trying to fix five things at once is how you fix none of them.</p></div>
+      </div>
+      <div class="step">
+        <div class="n">04</div>
+        <div><h3>Your report lands within 24 hours</h3><p>What is working, the one thing to change, and the drill that changes it. Yours to keep, and to show your coach.</p></div>
+      </div>
+      <div class="step">
+        <div class="n">05</div>
+        <div><h3>Come back and prove it held</h3><p>Every retest is measured against your own baseline, not against anyone else.</p></div>
+      </div>
+    </div>
+
+    <div class="card rv rv-d2" style="margin-top:32px;border-left:3px solid var(--cyan)">
+      <p style="font-size:16px;color:#dbe4ee">
+        We never coach against your coach. The report is yours, and we want you to share it with
+        whoever trains you. It usually backs up what they have been telling you for months.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 7. PRICE ══ -->
+<section class="rule">
+  <div class="container">
+    <div class="price-band rv">
+      <div>
+        <div class="price-amt">R800<small>FROM, PER SWIMMER</small></div>
+      </div>
+      <ul class="incl">
+        <li><i data-lucide="check"></i>A full set of recorded efforts, not one token lap</li>
+        <li><i data-lucide="check"></i>Written report, annotated, yours to keep</li>
+        <li><i data-lucide="check"></i>All four charts read and explained</li>
+        <li><i data-lucide="check"></i>The one dominant fault, and the drill that fixes it</li>
+        <li><i data-lucide="check"></i>Every retest compared against your own baseline</li>
+      </ul>
+    </div>
+    <p class="foot-note">Multi-session progress tracking is quoted per swimmer. Ask when you enquire.</p>
+  </div>
+</section>
+
+<!-- ══ 8. BOOK ══ -->
+<section class="rule" id="book">
+  <div class="container narrow">
+    <div class="rv">
+      <h2>Book a <em>slot</em></h2>
+      <p class="sub">Leave your details and we will come back with the next available session times.</p>
+    </div>
+
+    <div class="form-card rv rv-d1" style="margin-top:34px">
+      <form id="labForm" novalidate>
+        <div class="fld-row">
+          <div class="fld">
+            <label for="f-name">Your name</label>
+            <input id="f-name" name="contact_name" type="text" autocomplete="name" required>
+          </div>
+          <div class="fld">
+            <label for="f-swimmer">Swimmer's name</label>
+            <input id="f-swimmer" name="swimmer_name" type="text" placeholder="If not you">
+          </div>
+        </div>
+        <div class="fld-row">
+          <div class="fld">
+            <label for="f-email">Email</label>
+            <input id="f-email" name="email" type="email" autocomplete="email" required>
+          </div>
+          <div class="fld">
+            <label for="f-phone">Mobile or WhatsApp</label>
+            <input id="f-phone" name="phone" type="tel" autocomplete="tel">
+          </div>
+        </div>
+        <div class="fld-row">
+          <div class="fld">
+            <label for="f-squad">Squad or club</label>
+            <input id="f-squad" name="squad" type="text" placeholder="e.g. Senior Squad, or not a member">
+          </div>
+          <div class="fld">
+            <label for="f-package">What you want</label>
+            <select id="f-package" name="package">
+              <option value="">Not sure yet</option>
+              <option value="full">Full session analysis</option>
+              <option value="monthly">Multi-session progress tracking</option>
+            </select>
+          </div>
+        </div>
+        <div class="fld">
+          <label for="f-notes">Anything we should know?</label>
+          <textarea id="f-notes" name="notes" placeholder="A race you are targeting, times that have stalled, a sore shoulder..."></textarea>
+        </div>
+
+        <button class="btn btn-primary" type="submit" id="f-submit" style="width:100%">
+          <i data-lucide="send"></i>Request a slot
+        </button>
+
+        <div class="form-msg" id="formMsg" role="status" aria-live="polite"></div>
+        <p class="consent">We will only use these details to arrange your session and send your report.</p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 9. QR ══ -->
+<section class="rule">
+  <div class="container">
+    <div class="card qr-wrap rv">
+      <div>
+        <h3 style="font-size:20px">Put this next to the pool</h3>
+        <p style="font-size:14.5px;color:var(--text-sec);margin-top:6px">
+          The code opens this page. Print it, laminate it, stick it on the gate.
+          Parents read the whole thing while they wait for a session to finish.
+        </p>
+        <p style="margin-top:18px">
+          <a class="btn btn-ghost btn-sm" href="/aquasharks-lab-card"><i data-lucide="printer"></i>Printable card</a>
+        </p>
+      </div>
+      <div class="qr-box">
+        <img src="/icons/aquasharks-lab-qr.svg" alt="QR code linking to swimloading.com/aquasharks-lab">
+        <div class="u">swimloading.com/aquasharks-lab</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="foot-row">
+      <div class="foot-brand">
+        <span class="club-chip"><img src="/icons/Aquasharks.jpg" alt="Aqua Sharks Academy Atlantic"></span>
+        <a class="powered" href="https://www.swimloading.com">
+          Powered by <img src="/icons/logo-wave.png" alt=""><b>SwimLoading</b>
+        </a>
+      </div>
+      <div class="foot-links">
+        <a href="/aquasharks-guide">Club guide</a>
+        <a href="/partners/eolab">About eo SwimBETTER</a>
+        <a href="/app">SwimLoading app</a>
+      </div>
+    </div>
+    <p class="foot-note">
+      Aquasharks Lab runs at the Aquasharks pool in Cape Town using eo SwimBETTER hand sensors.
+      Every figure on this page comes from sessions measured in this lab between May 2025 and
+      January 2026, or from eo Lab's published benchmarks.
+    </p>
+  </div>
+</footer>
+
+<script src="/site-lead-form.js?v=2"></script>
+<script>
+(function () {
+  'use strict';
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  document.addEventListener('mousemove', function (e) {
+    document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+    document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+  });
+  lucide.createIcons();
+
+  /* ── Waste dot grid: 100 squares, 27 forward, 73 wasted ── */
+  var FORWARD = 27;
+  var grid = document.getElementById('dotgrid');
+  for (var i = 0; i < 100; i++) {
+    var d = document.createElement('span');
+    d.className = 'dot ' + (i < FORWARD ? 'fwd' : 'lost');
+    d.style.transitionDelay = reduce ? '0s' : (i * 11) + 'ms';
+    grid.appendChild(d);
+  }
+
+  /* ── Count-up helper (rAF, no scroll listeners) ── */
+  function countTo(el, target, dp, pre, suf) {
+    var dur = 1100;
+    var final = (pre || '') + target.toFixed(dp) + (suf || '');
+
+    // A token identifies this run, so a newer count-up on the same element
+    // always wins and a stale frame can never write over it.
+    var token = (el._ctToken = (el._ctToken || 0) + 1);
+    if (el._ctTimer) clearTimeout(el._ctTimer);
+
+    // requestAnimationFrame is throttled while the tab is hidden, which would
+    // otherwise leave the number stale while the gauge arc has already moved.
+    if (reduce || document.hidden) { el.textContent = final; return; }
+
+    var t0 = null;
+    function tick(t) {
+      if (el._ctToken !== token) return;
+      if (t0 === null) t0 = t;
+      var p = Math.min((t - t0) / dur, 1);
+      var e = 1 - Math.pow(1 - p, 3);
+      el.textContent = (pre || '') + (target * e).toFixed(dp) + (suf || '');
+      if (p < 1) requestAnimationFrame(tick); else el.textContent = final;
+    }
+    requestAnimationFrame(tick);
+
+    // Belt and braces: land on the exact value even if frames never ran.
+    el._ctTimer = setTimeout(function () {
+      if (el._ctToken === token) el.textContent = final;
+    }, dur + 250);
+  }
+
+  /* ── Reveal on scroll ── */
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      if (!en.isIntersecting) return;
+      var el = en.target;
+      el.classList.add('in');
+
+      if (el.id === 'dotgrid') el.classList.add('go');
+
+      if (el.id === 'wasteNum') {
+        countTo(document.getElementById('wasteVal'), 100 - FORWARD, 0);
+      }
+
+      el.querySelectorAll && el.querySelectorAll('.v[data-count]').forEach(function (v) {
+        countTo(v, parseFloat(v.dataset.count), parseInt(v.dataset.dp, 10), v.dataset.pre, v.dataset.suf);
+      });
+
+      io.unobserve(el);
+    });
+  }, { threshold: 0.22, rootMargin: '0px 0px -8% 0px' });
+
+  document.querySelectorAll('.rv, #dotgrid, #wasteNum, #pathCard, #chartCard').forEach(function (el) {
+    io.observe(el);
+  });
+
+  /* ── Propulsion gauge ── */
+  var ARC = 408.4, MAXPCT = 70;
+  var arc = document.getElementById('gaugeArc');
+  var val = document.getElementById('gaugeVal');
+  var cap = document.getElementById('gaugeCap');
+  var picks = Array.prototype.slice.call(document.querySelectorAll('.pick'));
+
+  function setGauge(pct, caption) {
+    arc.style.strokeDashoffset = ARC * (1 - Math.min(pct / MAXPCT, 1));
+    countTo(val, pct, 1, '', '%');
+    cap.textContent = caption;
+  }
+
+  picks.forEach(function (b) {
+    b.addEventListener('click', function () {
+      picks.forEach(function (o) { o.setAttribute('aria-pressed', 'false'); });
+      b.setAttribute('aria-pressed', 'true');
+      setGauge(parseFloat(b.dataset.v), b.dataset.cap);
+      if (window.swimTrack) window.swimTrack('aquasharks_lab_gauge_click', { value: b.dataset.v });
+    });
+  });
+
+  // draw the gauge to its default once the box scrolls in
+  var gio = new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      setGauge(27.2, picks[0].dataset.cap);
+      gio.unobserve(e.target);
+    });
+  }, { threshold: 0.4 });
+  gio.observe(document.querySelector('.gauge-box'));
+
+  /* ── Lead form ── */
+  window.swimLeadForm({
+    formId:    'labForm',
+    msgId:     'formMsg',
+    submitId:  'f-submit',
+    table:     'swim_lab_enquiries',
+    source:    'aquasharks-lab',
+    clubSlug:  'aqua-sharks-atlantic',
+    pageEvent: 'aquasharks_lab_page_view',
+    leadEvent: 'aquasharks_lab_enquiry'
+  });
+})();
+</script>
+</body>
+</html>
