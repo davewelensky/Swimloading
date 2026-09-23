@@ -9,7 +9,9 @@
  *   <script src="/site-lead-form.js"></script>
  *   window.swimLeadForm({
  *     formId: 'labForm', msgId: 'formMsg', submitId: 'f-submit',
- *     table: 'swim_lab_enquiries', source: 'aquasharks-lab',
+ *     endpoint: '/api/lab-enquiry',   // preferred: server inserts AND notifies
+ *     table: 'swim_lab_enquiries',    // fallback when no endpoint is given
+ *     source: 'aquasharks-lab',
  *     clubSlug: 'aqua-sharks-atlantic',
  *     pageEvent: 'aquasharks_lab_page_view', leadEvent: 'aquasharks_lab_enquiry'
  *   });
@@ -96,19 +98,45 @@
         notes:        clean(data.notes)
       };
 
+      // A hidden field a person never sees. Bots fill it in.
+      row.website = data.website || null;
+
       submit.disabled = true;
       submit.style.opacity = '0.6';
 
-      fetch(SB_URL + '/rest/v1/' + opts.table, {
-        method: 'POST',
-        headers: headers(),
-        body: JSON.stringify(row)
-      })
-        .then(function (res) {
-          if (!res.ok) throw new Error('HTTP ' + res.status);
+      // Posting to an endpoint lets the server insert with the service key and
+      // send the notification in one go.
+      function postDirect() {
+        return fetch(SB_URL + '/rest/v1/' + opts.table, {
+          method: 'POST',
+          headers: headers(),
+          body: JSON.stringify(row)
+        }).then(function (r) {
+          if (!r.ok) throw new Error('direct HTTP ' + r.status);
+          return 'direct';
+        });
+      }
+
+      var send = opts.endpoint
+        ? fetch(opts.endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(row)
+          }).then(function (r) {
+            if (r.ok) return 'endpoint';
+            // Losing the lead is worse than losing the notification, so if the
+            // endpoint is down write straight to the table instead.
+            return postDirect().then(function () { return 'fallback'; });
+          }).catch(function () {
+            return postDirect().then(function () { return 'fallback'; });
+          })
+        : postDirect();
+
+      send
+        .then(function (via) {
           form.reset();
           say('ok', 'Thanks, that is through. We will come back to you with session times.');
-          if (opts.leadEvent) track(opts.leadEvent, { package: row.package });
+          if (opts.leadEvent) track(opts.leadEvent, { package: row.package, via: via });
         })
         .catch(function () {
           say('err', 'That did not go through. Please email dave@swimloading.com and we will sort it out.');
