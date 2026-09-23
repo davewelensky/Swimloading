@@ -31,7 +31,7 @@
   <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
   <!-- Content is visible by default. Only once this runs does CSS hide it for
        the scroll reveal, so a JS or IntersectionObserver failure can never
-       leave the page blank. -->
+       leave the page blank (IO does not fire while a document is hidden). -->
   <script>document.documentElement.className += ' js-reveal';</script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -55,6 +55,32 @@
     }
 
     html { scroll-behavior: smooth; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 9999;
+      background:
+        radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),
+          rgba(56,189,248,0.55), transparent 100%),
+        radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),
+          rgba(56,189,248,0.07), transparent 70%);
+    }
+
+    .container { max-width: 1060px; margin: 0 auto; padding: 0 22px; }
+    .narrow { max-width: 760px; }
+
     /* ── NAV ───────────────────────────────────────────── */
     nav {
       position: sticky; top: 0; z-index: 100;
@@ -64,6 +90,14 @@
       padding: 0 22px; height: 64px;
       display: flex; align-items: center; justify-content: space-between; gap: 14px;
     }
+    .nav-brand {
+      display: flex; align-items: center; gap: 7px;
+      text-decoration: none; font-size: 15px; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      white-space: nowrap;
+    }
+    .nav-brand img { height: 22px; width: auto; }
     /* co-brand: Aqua Sharks mark sits on a white chip because the
        supplied logo is navy artwork on a white ground */
     .club-chip {
@@ -99,6 +133,13 @@
     @media (max-width: 780px) { .nav-right .powered { display: none; } .nav-title small { display: none; } }
     @media (max-width: 460px) { .nav-title { font-size: 18px; } nav .club-chip img { height: 25px; } }
 
+    /* hero co-brand lockup */
+    .lockup { display: flex; align-items: center; gap: 15px; margin-bottom: 24px; flex-wrap: wrap; }
+    .lockup .club-chip img { height: 44px; }
+    .lockup .div { width: 1px; height: 32px; background: rgba(255,255,255,0.22); }
+    .lockup .powered { color: #cbd5e1; }
+    @media (max-width: 560px) { .lockup .club-chip img { height: 36px; } .lockup .div { display: none; } }
+
     /* ── BUTTONS ───────────────────────────────────────── */
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -129,8 +170,10 @@
       background: url('/partners/eo-hero.jpg') center 46% / cover no-repeat;
       transform: scale(1.04);
     }
-    /* Scrim is strong on the left for the type and clears by 74% so the
-       swimmer and the sensor on her wrist stay readable. */
+    /* The swimmer sits dead centre of the source frame and the image is
+       width-locked by `cover` at desktop, so she cannot be moved sideways.
+       Instead the copy keeps to the left third behind a strong scrim, and
+       the scrim clears early so her hand and the sensor stay readable. */
     .hero-veil {
       position: absolute; inset: 0;
       background:
@@ -215,76 +258,93 @@
     .waste-key i { width: 11px; height: 11px; border-radius: 2px; display: block; }
     .bignum {
       font-family: 'Bebas Neue', sans-serif; font-size: clamp(86px,17vw,180px);
-      line-height: .84; color: var(--cyan); letter-spacing: 1px;
+      line-height: 1; color: var(--cyan); letter-spacing: 1px;
       font-variant-numeric: tabular-nums;
     }
+    .bignum span { display: block; }
     .bignum small {
-      display: block; margin-top: 16px;
+      display: block; margin-top: 18px;
       font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500;
       color: var(--text-sec); letter-spacing: 2.4px; line-height: 1.5;
     }
     @media (max-width: 560px) { .dotgrid { grid-template-columns: repeat(10, 1fr); max-width: 300px; } }
 
-    /* ── 2. PULL DISTANCE ──────────────────────────────── */
-    .lane-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-card); padding: 26px 22px 22px; }
-    .lane-box svg { width: 100%; height: auto; display: block; }
-    #laneBar { transition: width .9s cubic-bezier(.16,1,.3,1); }
-    .lane-val {
-      font-family: 'Bebas Neue', sans-serif; font-size: clamp(54px,9vw,86px); line-height: .92;
-      color: var(--cyan); letter-spacing: 1px; text-align: center; margin-top: 6px;
+    /* ── 2. ONE PULL ───────────────────────────────────── */
+    .gauge-wrap { display: grid; grid-template-columns: 1fr 1.05fr; gap: 52px; align-items: center; }
+    @media (max-width: 860px) { .gauge-wrap { grid-template-columns: 1fr; gap: 34px; } }
+    .gauge-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-card); padding: 26px 22px 22px; text-align: center; }
+    .gauge-box svg { width: 100%; height: auto; display: block; }
+    #laneBar, #laneSwimmer { transition: all .9s cubic-bezier(.16,1,.3,1); }
+    .gauge-val {
+      font-family: 'Bebas Neue', sans-serif; font-size: 72px; line-height: 1;
+      color: var(--cyan); letter-spacing: 1px; margin-top: 10px;
       font-variant-numeric: tabular-nums;
     }
-    .lane-val small {
-      display: block; margin-top: 10px;
-      font-family: 'DM Mono', monospace; font-size: 11.5px; font-weight: 500;
-      color: var(--text-sec); letter-spacing: 2.4px; line-height: 1.5;
+    .gauge-val small { font-size: .3em; color: var(--text-sec); letter-spacing: 2px; margin-left: 6px; font-family: 'DM Mono', monospace; }
+    .gauge-cap { font-size: 13.5px; color: var(--text-sec); margin-top: 10px; min-height: 58px; }
+    .picks { display: grid; gap: 10px; margin-top: 8px; }
+    .pick {
+      display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px;
+      width: 100%; text-align: left; cursor: pointer;
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+      border-radius: var(--r-input); padding: 14px 18px; color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600;
+      transition: border-color .2s ease, background-color .2s ease, transform .16s cubic-bezier(.16,1,.3,1);
     }
-    .lane-cap { font-size: 14.5px; color: var(--text-sec); text-align: center; max-width: 54ch; margin: 14px auto 0; min-height: 44px; }
+    .pick:hover { border-color: var(--cyan-bd); background: var(--cyan-dim); }
+    .pick:active { transform: scale(.99); }
+    .pick[aria-pressed="true"] { border-color: var(--cyan); background: var(--cyan-dim); }
+    .pick span.n { font-family: 'DM Mono', monospace; font-size: 15px; color: var(--cyan); }
+    .pick span.l { display: block; font-size: 12.5px; font-weight: 400; color: var(--text-sec); margin-top: 2px; }
 
-    /* ── 3. STAT CARDS ─────────────────────────────────── */
-    .stat-card .sv {
-      font-family: 'Bebas Neue', sans-serif; font-size: 58px; line-height: 1;
-      color: var(--cyan); letter-spacing: 1px; margin-bottom: 12px;
-      font-variant-numeric: tabular-nums;
-    }
-    .stat-card .sv small { font-size: .34em; color: var(--text-sec); letter-spacing: 1.6px; margin-left: 4px; font-family: 'DM Mono', monospace; }
-    .stat-card p { font-size: 14px; color: var(--text-sec); }
-    .card .ic { width: 22px; height: 22px; color: var(--cyan); display: block; margin-bottom: 13px; }
+    /* ── 3. BENTO ──────────────────────────────────────── */
+    .bento { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; }
+    .bento > .span2 { grid-column: 1 / -1; }
+    @media (max-width: 860px) { .bento { grid-template-columns: 1fr; } }
+    .bento .card i.ic { width: 22px; height: 22px; color: var(--cyan); display: block; margin-bottom: 13px; }
+    .bento .card p { font-size: 14.5px; color: var(--text-sec); }
+    .path-card { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+    .path-card svg { width: 100%; height: auto; display: block; background: var(--bg-deep); }
+    .path-card .cap { padding: 22px 26px 26px; }
+    .draw { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); }
+    .path-card.in .draw { animation: draw 1.8s cubic-bezier(.4,0,.2,1) forwards; }
+    .path-card.in .draw.d2 { animation-delay: .3s; }
+    @keyframes draw { to { stroke-dashoffset: 0; } }
+    .flag { opacity: 0; transition: opacity .5s ease 1.7s; }
+    .path-card.in .flag { opacity: 1; }
 
-    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+    /* ── 4. TRANSFORMATION ─────────────────────────────── */
+    .chart-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-card); padding: 28px 20px 20px; }
+    .chart-card svg { width: 100%; height: auto; display: block; }
+    .chart-card .draw { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); }
+    .chart-card.in .draw { animation: draw 1.6s cubic-bezier(.4,0,.2,1) forwards; }
+    .chart-card.in .draw.d2 { animation-delay: .25s; }
+    .chart-card .pt, .chart-card .lbl { opacity: 0; transition: opacity .6s ease 1.4s; }
+    .chart-card.in .pt, .chart-card.in .lbl { opacity: 1; }
+    .deltas { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; margin-top: 18px; }
+    .delta { background: var(--bg-card); padding: 20px 14px; text-align: center; }
+    .delta .v { font-family: 'Bebas Neue', sans-serif; font-size: 38px; line-height: 1; color: var(--cyan); font-variant-numeric: tabular-nums; }
+    .delta .k { font-size: 10.5px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 1.1px; margin-top: 7px; line-height: 1.4; }
+    @media (max-width: 620px) { .deltas { grid-template-columns: repeat(2,1fr); } }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'DM Sans', sans-serif;
-      font-size: 16px;
-      line-height: 1.65;
-      -webkit-font-smoothing: antialiased;
-      overflow-x: hidden;
-    }
+    /* ── 5. JOHAN SPLIT ────────────────────────────────── */
+    .swims { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; }
+    .swim { background: var(--bg-card); padding: 26px 28px; display: grid; grid-template-columns: 148px 1fr; gap: 26px; align-items: center; }
+    @media (max-width: 680px) { .swim { grid-template-columns: 1fr; gap: 12px; } }
+    .swim .time { font-family: 'Bebas Neue', sans-serif; font-size: 46px; line-height: 1; letter-spacing: 1px; font-variant-numeric: tabular-nums; }
+    .swim .pc { font-family: 'DM Mono', monospace; font-size: 12.5px; color: var(--text-sec); margin-top: 4px; }
+    .swim p { font-size: 14.5px; color: var(--text-sec); }
+    .swim.best { background: linear-gradient(90deg, rgba(56,189,248,0.07), var(--bg-card) 55%); }
+    .swim.best .time { color: var(--cyan); }
 
-    body::before {
-      content: '';
-      position: fixed; inset: 0;
-      pointer-events: none; z-index: 9999;
-      background:
-        radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),
-          rgba(56,189,248,0.55), transparent 100%),
-        radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),
-          rgba(56,189,248,0.07), transparent 70%);
-    }
-
-    .container { max-width: 1060px; margin: 0 auto; padding: 0 22px; }
-    .narrow { max-width: 760px; }
-
-    /* ── 4. STEPS ──────────────────────────────────────── */
+    /* ── 6. STEPS ──────────────────────────────────────── */
     .steps { display: grid; gap: 4px; }
     .step { display: grid; grid-template-columns: 54px 1fr; gap: 20px; padding: 20px 0; border-bottom: 1px solid var(--border); align-items: start; }
     .step:last-child { border-bottom: none; }
     .step .n { font-family: 'Bebas Neue', sans-serif; font-size: 30px; color: var(--cyan); line-height: 1.1; opacity: .85; }
     .step p { font-size: 14.5px; color: var(--text-sec); }
 
-    /* ── 5. PRICE ──────────────────────────────────────── */
+    /* ── 7. PRICE ──────────────────────────────────────── */
     .price-band { display: grid; grid-template-columns: auto 1fr; gap: 40px; align-items: center; }
     @media (max-width: 760px) { .price-band { grid-template-columns: 1fr; gap: 22px; } }
     .price-amt { font-family: 'Bebas Neue', sans-serif; font-size: clamp(64px,11vw,108px); line-height: .86; color: var(--cyan); letter-spacing: 1px; }
@@ -293,7 +353,7 @@
     .incl li { display: grid; grid-template-columns: 18px 1fr; gap: 11px; font-size: 15px; color: #cbd5e1; align-items: start; }
     .incl li i { width: 16px; height: 16px; color: var(--cyan); margin-top: 4px; }
 
-    /* ── 6. FORM ───────────────────────────────────────── */
+    /* ── 8. FORM ───────────────────────────────────────── */
     .form-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-card); padding: 32px; }
     .fld { margin-bottom: 17px; }
     .fld label { display: block; font-size: 11px; letter-spacing: 1.3px; text-transform: uppercase; color: #94a3b8; font-weight: 600; margin-bottom: 8px; }
@@ -314,7 +374,7 @@
     .form-msg.err { color: #fca5a5; display: block; }
     .consent { font-size: 12.5px; color: var(--text-sec); margin-top: 15px; }
 
-    /* ── 7. QR ─────────────────────────────────────────── */
+    /* ── 9. QR ─────────────────────────────────────────── */
     .qr-wrap { display: grid; grid-template-columns: 1fr auto; gap: 34px; align-items: center; }
     .qr-box { background: #fff; border-radius: var(--r-card); padding: 16px; width: 188px; }
     .qr-box img { width: 100%; height: auto; display: block; }
@@ -337,7 +397,9 @@
     @media (prefers-reduced-motion: reduce) {
       .rv { opacity: 1; transform: none; transition: none; }
       .dot { opacity: 1; transform: none; transition: none; }
-      #laneBar { transition: none; }
+      .draw { stroke-dasharray: none !important; stroke-dashoffset: 0 !important; animation: none !important; }
+      .flag, .chart-card .pt, .chart-card .lbl { opacity: 1; transition: none; }
+      #laneBar, #laneSwimmer { transition: none; }
       .hero-img { transform: none; }
       .btn, .pick { transition: none; }
     }
@@ -366,12 +428,12 @@
     <div class="hero-copy">
       <h1>Get to the wall in <em>fewer pulls.</em></h1>
       <p class="hero-sub">
-        Sensors in your hands show how far every single pull actually takes you,
-        and the one thing to change so it takes you further.
+        Sensors in both hands measure every stroke you take, and show you how far
+        one pull really carries you.
       </p>
       <div class="hero-cta">
         <a class="btn btn-primary" href="#book"><i data-lucide="calendar-check"></i>Book a slot</a>
-        <a class="btn btn-ghost" href="#pull"><i data-lucide="ruler"></i>How far is one pull?</a>
+        <a class="btn btn-ghost" href="#score"><i data-lucide="ruler"></i>How far is one pull?</a>
       </div>
     </div>
   </div>
@@ -383,7 +445,7 @@
     <div class="rv">
       <h2>You make 100 units of force. <em>This much moves you.</em></h2>
       <p class="sub" style="margin:0 auto">
-        Squeeze one pull down to 100 squares of effort. On a typical club swimmer, this is how
+        Squeeze one pull down into 100 squares of effort. On a typical club swimmer, this is how
         many of them actually send the swimmer forward.
       </p>
     </div>
@@ -395,35 +457,35 @@
       <div><i style="background:rgba(249,115,22,0.5)"></i>Pressed down and sideways</div>
     </div>
 
-    <div class="rv rv-d3" style="margin-top:44px">
+    <div class="rv rv-d3" style="margin-top:48px">
       <div class="bignum" id="wasteNum"><span id="wasteVal">0</span><small>UNITS WASTED, EVERY STROKE</small></div>
     </div>
   </div>
 
-  <div class="container" style="margin-top:56px">
+  <div class="container" style="margin-top:58px">
     <div class="grid-3">
-      <div class="card rv" style="text-align:left">
-        <i class="ic" data-lucide="arrow-down"></i>
-        <h3>Where most of it goes</h3>
-        <p style="font-size:14.5px;color:var(--text-sec)">
-          Straight down. Pressing the water towards the bottom of the pool lifts your chest a
-          little and drops your hips and legs, so you end up dragging your own body along.
+      <div class="card metric-card rv">
+        <i data-lucide="arrow-down"></i>
+        <h3>Most of it goes straight down</h3>
+        <p>
+          Pressing water towards the bottom of the pool lifts your chest and drops your hips, so
+          you end up dragging your own legs along behind you.
         </p>
       </div>
-      <div class="card rv rv-d1" style="text-align:left">
-        <i class="ic" data-lucide="move-horizontal"></i>
-        <h3>And the rest</h3>
-        <p style="font-size:14.5px;color:var(--text-sec)">
-          Sideways. If your hand sweeps across the middle of your body on the way through, it
-          pushes you off your line and you wobble instead of travelling.
+      <div class="card metric-card rv rv-d1">
+        <i data-lucide="move-horizontal"></i>
+        <h3>The rest goes sideways</h3>
+        <p>
+          If your hand sweeps across the middle of your body, it shoves you off your line. You
+          wobble instead of travelling.
         </p>
       </div>
-      <div class="card rv rv-d2" style="text-align:left">
-        <i class="ic" data-lucide="lightbulb"></i>
+      <div class="card metric-card rv rv-d2">
+        <i data-lucide="zap"></i>
         <h3>None of this is strength</h3>
-        <p style="font-size:14.5px;color:var(--text-sec)">
-          You are already making the force. It is pointing the wrong way. That is why this can
-          change in a few sessions, while getting stronger takes years.
+        <p>
+          You already make the force. It is pointing the wrong way. That is why this can change
+          in a few sessions, while getting stronger takes years.
         </p>
       </div>
     </div>
@@ -432,160 +494,309 @@
       <p>
         The best single swim measured in this lab got <b style="color:var(--cyan)">62 out of
         100</b> moving forward. More than double a typical club swimmer, from the same water and
-        the same arms. That is the number worth chasing.
+        the same pair of arms.
       </p>
+      <div class="who">The number worth chasing</div>
     </div>
   </div>
 </section>
 
 <!-- ══ 2. HOW FAR IS ONE PULL ══ -->
-<section class="rule" id="pull">
+<section class="rule" id="score">
   <div class="container">
-    <div class="rv">
-      <h2>How far does <em>one pull</em> take you?</h2>
-      <p class="sub">
-        This is the number that matters, and it is the one you can feel. Two of these swims are
-        the same man, in the same pool, on the same morning. The only thing that changed was
-        where his hands sent the water.
-      </p>
+    <div class="gauge-wrap">
+      <div class="rv">
+        <h2>How far does <em>one pull</em> take you?</h2>
+        <p class="sub">
+          This is the number you can feel, and the one worth beating. Two of these are the same
+          man, in the same pool, twenty minutes apart. Tap through them.
+        </p>
+        <div class="picks" style="margin-top:28px">
+          <button class="pick" type="button" data-v="1.28"
+                  data-cap="His technique fell apart on this one. The hands pressed down instead of back, so almost every pull was spent going nowhere."
+                  aria-pressed="true">
+            <span>When it goes wrong<span class="l">Same swimmer, first effort</span></span>
+            <span class="n">1.28 m</span>
+          </button>
+          <button class="pick" type="button" data-v="2.39"
+                  data-cap="An Aquasharks squad swimmer. Already efficient for her age, and being coached towards 2.5m without swimming any faster."
+                  aria-pressed="false">
+            <span>An Aquasharks squad swimmer<span class="l">Measured here, August 2025</span></span>
+            <span class="n">2.39 m</span>
+          </button>
+          <button class="pick" type="button" data-v="2.78"
+                  data-cap="The same man as the first swim, with his catch fixed. Every single pull carried him more than twice as far."
+                  aria-pressed="false">
+            <span>When it goes right<span class="l">Same swimmer, second effort</span></span>
+            <span class="n">2.78 m</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="gauge-box rv rv-d1">
+        <svg viewBox="0 0 420 210" role="img" aria-labelledby="laneTitle">
+          <title id="laneTitle">How far one pull carries a swimmer</title>
+          <!-- lane ropes -->
+          <g stroke="rgba(255,255,255,0.09)" stroke-width="2" stroke-dasharray="5 7">
+            <line x1="40" y1="58" x2="400" y2="58"/>
+            <line x1="40" y1="152" x2="400" y2="152"/>
+          </g>
+          <!-- metre ticks -->
+          <g stroke="rgba(255,255,255,0.10)" stroke-width="1">
+            <line x1="152" y1="62" x2="152" y2="148"/>
+            <line x1="264" y1="62" x2="264" y2="148"/>
+            <line x1="376" y1="62" x2="376" y2="148"/>
+          </g>
+          <g fill="#7c8ba1" font-family="DM Mono, monospace" font-size="10" text-anchor="middle">
+            <text x="152" y="172">1m</text>
+            <text x="264" y="172">2m</text>
+            <text x="376" y="172">3m</text>
+          </g>
+          <!-- wall -->
+          <rect x="34" y="50" width="7" height="110" rx="3" fill="rgba(255,255,255,0.32)"/>
+          <!-- the distance one pull carries you -->
+          <rect id="laneBar" x="41" y="92" width="0" height="26" rx="13" fill="var(--cyan)"/>
+          <!-- swimmer marker rides the leading edge -->
+          <g id="laneSwimmer" transform="translate(41,105)">
+            <circle r="13" fill="var(--cyan)"/>
+            <circle r="13" fill="none" stroke="rgba(56,189,248,0.35)" stroke-width="7"/>
+            <path d="M -5 1 L -1 -4 L 3 2 L 7 -3" fill="none" stroke="#06111f" stroke-width="2.2"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </g>
+        </svg>
+        <div class="gauge-val"><span id="laneVal">0.00</span><small>M PER PULL</small></div>
+        <p class="gauge-cap" id="laneCap">Pick a swim.</p>
+      </div>
     </div>
 
-    <div class="lane-box rv rv-d1" id="laneBox">
-      <svg viewBox="0 0 720 150" role="img" aria-labelledby="laneTitle">
-        <title id="laneTitle">How far one pull carries a swimmer</title>
-        <!-- metre ticks -->
-        <g stroke="rgba(255,255,255,0.10)" stroke-width="1">
-          <line x1="244" y1="26" x2="244" y2="104"/>
-          <line x1="438" y1="26" x2="438" y2="104"/>
-          <line x1="631" y1="26" x2="631" y2="104"/>
-        </g>
-        <g fill="#7c8ba1" font-family="DM Mono, monospace" font-size="11" text-anchor="middle">
-          <text x="244" y="124">1m</text>
-          <text x="438" y="124">2m</text>
-          <text x="631" y="124">3m</text>
-        </g>
-        <!-- track -->
-        <rect x="50" y="52" width="620" height="26" rx="13" fill="rgba(255,255,255,0.045)"/>
-        <!-- the pull -->
-        <rect id="laneBar" x="50" y="52" width="0" height="26" rx="13" fill="var(--cyan)"/>
-        <!-- wall -->
-        <rect x="44" y="34" width="6" height="62" rx="3" fill="rgba(255,255,255,0.30)"/>
-      </svg>
-      <div class="lane-val"><span id="laneVal">0.00</span><small>METRES ON ONE PULL</small></div>
-      <p class="lane-cap" id="laneCap">Pick a swim.</p>
-    </div>
-
-    <div class="picks rv rv-d2" style="margin-top:22px">
-      <button class="pick" type="button" data-v="1.28"
-              data-cap="His technique fell apart on this one. The hands pressed down instead of back, so almost every pull was spent going nowhere."
-              aria-pressed="true">
-        <span>When it goes wrong<span class="l">Same swimmer, first effort</span></span>
-        <span class="n">1.28 m</span>
-      </button>
-      <button class="pick" type="button" data-v="2.39"
-              data-cap="An Aquasharks squad swimmer. Already efficient for her age, and she is being coached toward 2.5m without swimming any faster."
-              aria-pressed="false">
-        <span>An Aquasharks squad swimmer<span class="l">Measured here, August 2025</span></span>
-        <span class="n">2.39 m</span>
-      </button>
-      <button class="pick" type="button" data-v="2.78"
-              data-cap="The same man as the first swim, twenty minutes later, with his catch fixed. Every pull carried him more than twice as far."
-              aria-pressed="false">
-        <span>When it goes right<span class="l">Same swimmer, second effort</span></span>
-        <span class="n">2.78 m</span>
-      </button>
-    </div>
-
-    <div class="callout rv rv-d3">
+    <div class="callout rv rv-d2">
       <p>
-        Same arms. Same fitness. Same morning. Every pull carried him
-        <b style="color:var(--cyan)">more than twice as far</b> once his hands were pointing
-        the right way. That is what this measures.
+        Same arms. Same fitness. Same morning. Once his hands pointed the right way, every pull
+        carried him <b style="color:var(--cyan)">more than twice as far</b>. Nothing about him
+        got stronger in twenty minutes.
       </p>
     </div>
   </div>
 </section>
 
-<!-- ══ 3. A SWIMMER IN YOUR SQUAD ══ -->
+<!-- ══ 3. WHAT WE SEE (BENTO) ══ -->
+<section class="rule">
+  <div class="container">
+    <div class="rv">
+      <h2>This is <em>your</em> hand, underwater.</h2>
+      <p class="sub">
+        Not a drawing. The sensors trace the exact path your hands take on every stroke, one line
+        per hand, so your left and right are held up against each other.
+      </p>
+    </div>
+
+    <div class="bento" style="margin-top:36px">
+      <div class="card path-card rv" id="pathCard">
+        <svg viewBox="0 0 440 250" role="img" aria-label="Overhead view of two hand paths through the water, both crossing the centre line">
+          <defs>
+            <linearGradient id="fadeC" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#38bdf8" stop-opacity="0.25"/>
+              <stop offset="1" stop-color="#38bdf8" stop-opacity="1"/>
+            </linearGradient>
+          </defs>
+          <line x1="220" y1="18" x2="220" y2="232" stroke="rgba(255,255,255,0.14)" stroke-width="1" stroke-dasharray="5 6"/>
+          <text x="226" y="30" fill="#7c8ba1" font-family="DM Mono, monospace" font-size="10">CENTRE LINE</text>
+
+          <!-- left hand (should stay left of centre, sweeps across) -->
+          <path class="draw" style="--len:300"
+                d="M 150 26 C 118 78, 132 120, 196 152 C 236 172, 244 204, 236 228"
+                fill="none" stroke="var(--waste)" stroke-width="3" stroke-linecap="round"/>
+          <!-- right hand -->
+          <path class="draw d2" style="--len:300"
+                d="M 292 26 C 324 78, 310 120, 246 152 C 206 172, 198 204, 206 228"
+                fill="none" stroke="url(#fadeC)" stroke-width="3" stroke-linecap="round"/>
+
+          <g class="flag">
+            <circle cx="221" cy="152" r="26" fill="none" stroke="#fca5a5" stroke-width="1.5"/>
+            <text x="221" y="204" text-anchor="middle" fill="#fca5a5" font-family="DM Mono, monospace" font-size="10">CROSSOVER</text>
+          </g>
+          <g font-family="DM Mono, monospace" font-size="10">
+            <text x="150" y="16" text-anchor="middle" fill="var(--waste)">LEFT</text>
+            <text x="292" y="16" text-anchor="middle" fill="#38bdf8">RIGHT</text>
+          </g>
+        </svg>
+        <div class="cap">
+          <h3>Spot the problem</h3>
+          <p>
+            Both hands swing across the middle instead of pulling straight back on their own
+            side. Every time they cross that line, speed leaks out sideways. You cannot feel
+            this happening. You can see it instantly.
+          </p>
+        </div>
+      </div>
+
+      <div style="display:grid;gap:16px">
+        <div class="card rv rv-d1">
+          <i class="ic" data-lucide="compass"></i>
+          <h3>Force field</h3>
+          <p>Splits each stroke into forward, downward, sideways and hand drag. This is where your propulsion number comes from.</p>
+        </div>
+        <div class="card rv rv-d2">
+          <i class="ic" data-lucide="bar-chart-3"></i>
+          <h3>Power, left vs right</h3>
+          <p>Shows which arm you lean on, and whether your power survives to the last length or fades.</p>
+        </div>
+        <div class="card rv rv-d3">
+          <i class="ic" data-lucide="activity"></i>
+          <h3>Force vs time</h3>
+          <p>The shape of one pull. Two peaks means you caught the water, lost it, then caught it again.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 4. TRANSFORMATION ══ -->
 <section class="rule">
   <div class="container">
     <div class="rv">
       <div class="eyebrow">Measured at this pool</div>
+      <h2>Watch it <em>actually change.</em></h2>
+      <p class="sub">
+        Five sessions with one swimmer, May to June 2025. The blue line is the part of her pull
+        that moves her forward. The orange line is the part she was throwing at the floor of the
+        pool. She never got fitter and never swam faster. She just stopped wasting it.
+      </p>
+    </div>
+
+    <div class="chart-card rv rv-d1" id="chartCard" style="margin-top:36px">
+      <svg viewBox="0 0 720 300" role="img" aria-label="Chart showing propulsive force rising from 27.2 to 39.5 percent while downward force falls from 59.8 to 41.8 percent over four sessions">
+        <g stroke="rgba(255,255,255,0.06)" stroke-width="1">
+          <line x1="60" y1="250" x2="690" y2="250"/><line x1="60" y1="187" x2="690" y2="187"/>
+          <line x1="60" y1="124" x2="690" y2="124"/><line x1="60" y1="61"  x2="690" y2="61"/>
+        </g>
+        <g fill="#7c8ba1" font-family="DM Mono, monospace" font-size="11">
+          <text x="30" y="254">0%</text><text x="24" y="191">20%</text>
+          <text x="24" y="128">40%</text><text x="24" y="65">60%</text>
+        </g>
+
+        <polyline class="draw d2" style="--len:620" fill="none" stroke="var(--waste)" stroke-width="3"
+                  stroke-linecap="round" stroke-linejoin="round" points="110,62 247,63 384,92 521,118 658,133"/>
+        <polyline class="draw" style="--len:620" fill="none" stroke="var(--cyan)" stroke-width="3"
+                  stroke-linecap="round" stroke-linejoin="round" points="110,164 247,164 384,150 521,126 658,115"/>
+
+        <g class="pt" fill="var(--waste)">
+          <circle cx="110" cy="62" r="5"/><circle cx="247" cy="63" r="5"/><circle cx="384" cy="92" r="5"/>
+          <circle cx="521" cy="118" r="5"/><circle cx="658" cy="133" r="5"/>
+        </g>
+        <g class="pt" fill="var(--cyan)">
+          <circle cx="110" cy="164" r="5"/><circle cx="247" cy="164" r="5"/><circle cx="384" cy="150" r="5"/>
+          <circle cx="521" cy="126" r="5"/><circle cx="658" cy="115" r="5"/>
+        </g>
+        <g class="lbl" font-family="DM Mono, monospace" font-size="12" fill="var(--waste)">
+          <text x="110" y="48" text-anchor="middle">59.8</text><text x="658" y="120" text-anchor="middle">37.2</text>
+        </g>
+        <g class="lbl" font-family="DM Mono, monospace" font-size="12" fill="var(--cyan)">
+          <text x="110" y="182" text-anchor="middle">27.2</text><text x="658" y="136" text-anchor="middle">42.8</text>
+        </g>
+        <g class="lbl" fill="#7c8ba1" font-family="DM Sans, sans-serif" font-size="12" text-anchor="middle">
+          <text x="110" y="276">Baseline</text><text x="247" y="276">23 May</text><text x="384" y="276">25 May</text>
+          <text x="521" y="276">14 Jun</text><text x="658" y="276">22 Jun</text>
+        </g>
+      </svg>
+      <div class="waste-key" style="justify-content:flex-start;padding-left:8px">
+        <div><i style="background:var(--cyan)"></i>Forward</div>
+        <div><i style="background:var(--waste)"></i>Wasted downward</div>
+      </div>
+    </div>
+
+    <div class="deltas rv rv-d2">
+      <div class="delta"><div class="v" data-count="57" data-pre="+" data-suf="%" data-dp="0">+57%</div><div class="k">More of her force<br>going forward</div></div>
+      <div class="delta"><div class="v" data-count="22.6" data-pre="-" data-dp="1">-22.6</div><div class="k">Points of downward<br>force removed</div></div>
+      <div class="delta"><div class="v" data-count="74" data-suf="%" data-pre="-" data-dp="0">-74%</div><div class="k">Hand drag<br>cut</div></div>
+      <div class="delta"><div class="v" data-count="0" data-dp="0">0</div><div class="k">Change in<br>stroke rate</div></div>
+    </div>
+    <p class="foot-note">
+      42.8% was her best single session. She held 41.3% at the next retest, which is the part
+      that matters: the change stuck.
+    </p>
+  </div>
+</section>
+
+<!-- ══ 5. A SWIMMER IN YOUR SQUAD ══ -->
+<section class="rule">
+  <div class="container">
+    <div class="rv">
       <h2>One arm was doing <em>more of the work.</em></h2>
       <p class="sub">
         An Aquasharks squad swimmer, August 2025. Good stroke for her age and very consistent,
-        but she was leaning on her left arm without knowing it.
+        and she had no idea she was leaning on one side.
       </p>
     </div>
 
     <div class="grid-3 rv rv-d1" style="margin-top:34px">
       <div class="card stat-card">
         <div class="sv">38<small>W</small></div>
-        <h3>Left arm stronger</h3>
-        <p>Her left pull was putting out 38 watts more than her right, every single stroke.</p>
+        <h3>Stronger on the left</h3>
+        <p>Her left pull put out 38 watts more than her right. Every single stroke, all session.</p>
       </div>
       <div class="card stat-card">
         <div class="sv">2.39<small>M</small></div>
-        <h3>Per pull, right now</h3>
-        <p>How far one pull carries her today. The target we set her is 2.5m.</p>
+        <h3>Per pull, today</h3>
+        <p>How far one pull carries her now. Her target is 2.5m, without swimming any faster.</p>
       </div>
       <div class="card stat-card">
         <div class="sv">48.8<small>%</small></div>
-        <h3>Push that moves her</h3>
-        <p>Just under half. Better than most, and there is a clear route to more.</p>
+        <h3>Of her push moves her</h3>
+        <p>Just under half. Better than most swimmers her age, with a clear route to more.</p>
       </div>
     </div>
 
     <div class="callout rv rv-d2">
       <p>
-        She gets one thing to work on: start the right-hand catch earlier. Not five things.
-        One. Get further on every pull without swimming any faster.
+        She goes home with one job: start the right-hand catch earlier. Not five things. One.
       </p>
+      <div class="who">What a swimmer actually leaves with</div>
     </div>
   </div>
 </section>
 
-<!-- ══ 4. ONE PAGE, AND A NUMBER YOU KEEP ══ -->
+<!-- ══ 6. ONE PAGE, AND A NUMBER YOU KEEP ══ -->
 <section class="rule">
   <div class="container">
     <div class="rv">
       <h2>One page. <em>Not eleven.</em></h2>
       <p class="sub">
-        A swimmer does not need a research paper, and nor do you. A wall of charts is how good
-        advice gets read once and forgotten.
+        A swimmer does not need a research paper, and neither do you. A wall of charts gets read
+        once and forgotten.
       </p>
     </div>
 
     <div class="grid-2 rv rv-d1" style="margin-top:34px">
-      <div class="card">
-        <i class="ic" data-lucide="file-text"></i>
+      <div class="card metric-card">
+        <i data-lucide="file-text"></i>
         <h3>What lands in your inbox</h3>
-        <p style="font-size:14.5px;color:var(--text-sec)">
-          Your number, the one thing to change, and the one drill that changes it. Plus the
-          target to beat next time. Short enough that a nine year old reads it themselves.
+        <p>
+          Your number, the one thing to change, the drill that changes it, and the target to
+          beat next time. Short enough that a nine year old reads it themselves.
         </p>
       </div>
-      <div class="card" style="border-color:var(--cyan-bd);background:linear-gradient(180deg,rgba(56,189,248,0.06),var(--bg-card) 60%)">
-        <i class="ic" data-lucide="repeat"></i>
+      <div class="card metric-card" style="border-color:var(--cyan-bd);background:linear-gradient(180deg,rgba(56,189,248,0.06),var(--bg-card) 60%)">
+        <i data-lucide="repeat"></i>
         <h3>And a number you can check yourself</h3>
-        <p style="font-size:14.5px;color:var(--text-sec)">
+        <p>
           Count your pulls on any length, in any session, with no sensors and nothing to wear.
-          When the count drops, the change is working. That is how it sticks instead of fading
-          back to the old stroke by the following month.
+          When the count drops, it is working. That is how a change sticks instead of fading back
+          to the old stroke by next month.
         </p>
       </div>
     </div>
 
     <div class="callout rv rv-d2">
       <p>
-        The hardest part of stroke work is not finding the fault. It is still doing the new
-        thing three weeks later, when nobody is watching. So we hand over something countable.
+        The hard part is never finding the fault. It is still doing the new thing three weeks
+        later when nobody is watching. So we hand over something countable.
       </p>
     </div>
   </div>
 </section>
 
-<!-- ══ 5. HOW IT RUNS ══ -->
+<!-- ══ 7. HOW IT RUNS ══ -->
 <section class="rule">
   <div class="container narrow">
     <div class="rv">
@@ -594,55 +805,55 @@
     <div class="steps rv rv-d1" style="margin-top:30px">
       <div class="step">
         <div class="n">01</div>
-        <div><h3>Warm up, then two short swims</h3><p>Two 25m or two 50m efforts at about three quarters effort. Exactly the same every time, so the next session can be compared to this one.</p></div>
+        <div><h3>Same warmup, same effort</h3><p>Two 25m or two 50m efforts at about 75%, after a standard warmup. Identical every time, so session two is comparable to session one.</p></div>
       </div>
       <div class="step">
         <div class="n">02</div>
-        <div><h3>Sensors sit in both hands</h3><p>Nothing strapped to the body, nothing that changes how you swim. Most swimmers forget they are there after a length.</p></div>
+        <div><h3>Sensors record every stroke</h3><p>They sit in your hands. Nothing strapped to your body, nothing that changes how you swim.</p></div>
       </div>
       <div class="step">
         <div class="n">03</div>
-        <div><h3>We find the one thing</h3><p>There are always several faults. We pick the one that is costing the most, because trying to fix five at once fixes none of them.</p></div>
+        <div><h3>We find the one thing</h3><p>We read all four charts and pick the single dominant fault. Trying to fix five things at once is how you fix none of them.</p></div>
       </div>
       <div class="step">
         <div class="n">04</div>
-        <div><h3>Your page arrives within 24 hours</h3><p>By WhatsApp or email. Yours to keep, and to show your coach. We want your coach to see it.</p></div>
+        <div><h3>Your report lands within 24 hours</h3><p>What is working, the one thing to change, and the drill that changes it. Yours to keep, and to show your coach.</p></div>
       </div>
       <div class="step">
         <div class="n">05</div>
-        <div><h3>Come back and prove it stuck</h3><p>The retest is against your own numbers, not anyone else's. That is the whole point.</p></div>
+        <div><h3>Come back and prove it held</h3><p>Every retest is measured against your own baseline, not against anyone else.</p></div>
       </div>
     </div>
 
     <div class="card rv rv-d2" style="margin-top:32px;border-left:3px solid var(--cyan)">
       <p style="font-size:16px;color:#dbe4ee">
-        We never coach against your coach. The report is yours and we want you to share it with
-        whoever trains you. It usually backs up what they have been saying for months.
+        We never coach against your coach. The report is yours, and we want you to share it with
+        whoever trains you. It usually backs up what they have been telling you for months.
       </p>
     </div>
   </div>
 </section>
 
-<!-- ══ 6. PRICE ══ -->
-<section class="rule" id="pricing">
+<!-- ══ 8. PRICE ══ -->
+<section class="rule">
   <div class="container">
     <div class="price-band rv">
       <div>
         <div class="price-amt">R800<small>FROM, PER SWIMMER</small></div>
       </div>
       <ul class="incl">
-        <li><i data-lucide="check"></i>A proper set of recorded swims, not one token lap</li>
-        <li><i data-lucide="check"></i>A one page report, written for the swimmer</li>
-        <li><i data-lucide="check"></i>How far one pull takes you, and the target to beat</li>
-        <li><i data-lucide="check"></i>One thing to fix, and the drill that fixes it</li>
-        <li><i data-lucide="check"></i>Every retest measured against your own baseline</li>
+        <li><i data-lucide="check"></i>A full set of recorded efforts, not one token lap</li>
+        <li><i data-lucide="check"></i>Written report, annotated, yours to keep</li>
+        <li><i data-lucide="check"></i>All four charts read and explained</li>
+        <li><i data-lucide="check"></i>The one dominant fault, and the drill that fixes it</li>
+        <li><i data-lucide="check"></i>Every retest compared against your own baseline</li>
       </ul>
     </div>
     <p class="foot-note">Multi-session progress tracking is quoted per swimmer. Ask when you enquire.</p>
   </div>
 </section>
 
-<!-- ══ 7. BOOK ══ -->
+<!-- ══ 9. BOOK ══ -->
 <section class="rule" id="book">
   <div class="container narrow">
     <div class="rv">
@@ -702,7 +913,7 @@
   </div>
 </section>
 
-<!-- ══ 8. QR ══ -->
+<!-- ══ 10. QR ══ -->
 <section class="rule">
   <div class="container">
     <div class="card qr-wrap rv">
@@ -821,22 +1032,24 @@
     });
   }, { threshold: 0.22, rootMargin: '0px 0px -8% 0px' });
 
-  document.querySelectorAll('.rv, #dotgrid, #wasteNum').forEach(function (el) {
-    io.observe(el);
-  });
+  var WATCHED = '.rv, #dotgrid, #wasteNum, #pathCard, #chartCard';
+  document.querySelectorAll(WATCHED).forEach(function (el) { io.observe(el); });
 
-  /* IntersectionObserver does not deliver callbacks while the document is
-     hidden, so a page opened in a background tab would otherwise sit blank
-     with every reveal stuck at opacity 0. Force everything in after a beat,
-     and again whenever the tab becomes visible. reveal() is idempotent. */
+  /* IntersectionObserver delivers nothing while a document is hidden, so a
+     page opened in a background tab would sit blank with every reveal stuck
+     at opacity 0. Force it all in after a beat, and again when the tab is
+     shown. Both helpers are idempotent. */
   function reveal(el) {
     if (!el || el.classList.contains('in')) return;
     el.classList.add('in');
     if (el.id === 'dotgrid') el.classList.add('go');
     if (el.id === 'wasteNum') countTo(document.getElementById('wasteVal'), 100 - FORWARD, 0);
+    el.querySelectorAll('.v[data-count]').forEach(function (v) {
+      countTo(v, parseFloat(v.dataset.count), parseInt(v.dataset.dp, 10), v.dataset.pre, v.dataset.suf);
+    });
   }
   function revealAll() {
-    document.querySelectorAll('.rv, #dotgrid, #wasteNum').forEach(reveal);
+    document.querySelectorAll(WATCHED).forEach(reveal);
     initPull();
   }
   setTimeout(revealAll, 2500);
@@ -845,14 +1058,17 @@
   });
 
   /* ── How far one pull takes you ── */
-  var TRACK_X = 50, TRACK_W = 620, MAX_M = 3.2;   // matches the SVG track
+  var LANE_X = 41, LANE_W = 335, MAX_M = 3.2;   // matches the SVG lane
   var bar = document.getElementById('laneBar');
+  var swim = document.getElementById('laneSwimmer');
   var lval = document.getElementById('laneVal');
   var lcap = document.getElementById('laneCap');
   var picks = Array.prototype.slice.call(document.querySelectorAll('.pick'));
 
   function setPull(m, caption) {
-    bar.setAttribute('width', Math.max(0, Math.min(m / MAX_M, 1) * TRACK_W));
+    var w = Math.max(0, Math.min(m / MAX_M, 1)) * LANE_W;
+    bar.setAttribute('width', w);
+    swim.setAttribute('transform', 'translate(' + (LANE_X + w) + ',105)');
     countTo(lval, m, 2);
     lcap.textContent = caption;
   }
@@ -866,8 +1082,6 @@
     });
   });
 
-  // Draw the default once, either when the panel scrolls in or via the
-  // failsafe above, whichever happens first.
   var pullReady = false;
   function initPull() {
     if (pullReady) return;
@@ -881,7 +1095,7 @@
       lio.unobserve(e.target);
     });
   }, { threshold: 0.35 });
-  lio.observe(document.getElementById('laneBox'));
+  lio.observe(document.querySelector('.gauge-box'));
 
   /* ── Lead form ── */
   window.swimLeadForm({
