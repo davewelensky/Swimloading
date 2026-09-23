@@ -369,7 +369,7 @@ Dave
 - `[TBD — agree with contact once confirmed]`
 
 **What they offer members:**
-- **Carina Bruwer sponsorship (confirmed by Dave, Aug 2026)** — JAKED will soon sponsor Carina Bruwer, SwimLoading's own athlete. Kit/story details `[TBD]`.
+- **Carina Bruwer sponsorship (confirmed by Dave, Aug 2026)** — JAKED sponsors Carina Bruwer, SwimLoading's own athlete. Her sponsorship package shipped and is en route, due to arrive September 2026 (confirmed by Dave, 2026-09-23). Kit contents/story details still `[TBD]`.
 - Member benefits (discount, prize, or portal) — `[TBD, not yet agreed]`
 
 **Product facts on hero page** (from jaked.com, Aug 2026 — verify before adding anything more specific):
@@ -384,8 +384,8 @@ Dave
 **Outstanding actions:**
 - [ ] Get a named contact and confirm commercial terms (what SwimLoading offers, what members get)
 - [ ] Confirm geography (jaked.com ships internationally per their site, but our arrangement geography is unconfirmed)
-- [ ] Get real logo/product assets — jaked.com's CDN was too unreliable to reliably pull images (Aug 2026); page currently uses a styled text wordmark like FORM's
-- [ ] Confirm the Carina Bruwer sponsorship details (kit, timing, story) once available
+- [x] Get real logo — pulled from jaked.com's own CDN (2026-09-23), now live on hero page as `icons/jaked-logo.png`. Product photography still `[TBD]`.
+- [ ] Confirm the Carina Bruwer sponsorship details (kit contents, story) once available — timing is now confirmed (package shipped, due September 2026, per Dave 2026-09-23)
 - [ ] Update hero page + welcome card from coming-soon to live once confirmed
 
 **Notes:**
