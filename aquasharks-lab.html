@@ -219,6 +219,13 @@
 
     /* ── SECTIONS ──────────────────────────────────────── */
     section { padding: 92px 0; position: relative; }
+    /* phones get tighter vertical rhythm so the price and the report
+       preview stay near the top of the scroll */
+    @media (max-width: 720px) {
+      section { padding: 58px 0; }
+      .sub + * { margin-top: 26px; }
+      .sub { font-size: 16px; }
+    }
     .rule { border-top: 1px solid var(--border); }
 
     h2 {
@@ -313,6 +320,129 @@
       font-size: clamp(28px,4.4vw,44px); line-height: 1.04; letter-spacing: .5px; margin-bottom: 12px;
     }
     .punch p { font-size: 16px; color: #cbd5e1; max-width: 56ch; margin: 0 auto; }
+
+    /* hero price strip */
+    .hero-price {
+      display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px 14px;
+      margin-bottom: 26px;
+    }
+    .hp-amt {
+      font-family: 'Bebas Neue', sans-serif; font-size: 42px; line-height: 1;
+      letter-spacing: .5px; color: var(--text);
+    }
+    .hp-per { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 1.6px; text-transform: uppercase; color: #cbd5e1; }
+    .hp-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 13.5px; font-weight: 600; color: var(--cyan); text-decoration: none;
+      border-bottom: 1px solid var(--cyan-bd); padding-bottom: 2px;
+    }
+    .hp-link i { width: 14px; height: 14px; }
+
+    /* ── JOURNEY ───────────────────────────────────────── */
+    .journey { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    @media (max-width: 860px) {
+      .journey { grid-template-columns: 1fr; gap: 12px; }
+      /* stacked full-bleed cards push the report preview past the second
+         screenful on a phone, so the steps go horizontal and compact */
+      .jstep { flex-direction: row; align-items: stretch; }
+      .jstep .shot { aspect-ratio: auto; width: 116px; flex-shrink: 0; }
+      .jstep .shot.paper { padding: 7px; }
+      .jstep .num { width: 24px; height: 24px; font-size: 14px; top: 8px; left: 8px; }
+      .jstep .body { padding: 15px 16px; }
+      .jstep h3 { font-size: 15.5px; }
+      .jstep p { font-size: 13px; }
+    }
+    @media (max-width: 430px) {
+      .jstep .shot { width: 104px; }
+      /* keep the explanation, capped at two lines so the report preview
+         still lands inside the second screenful */
+      .jstep p {
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+        overflow: hidden; font-size: 12.5px; line-height: 1.45;
+      }
+      .jstep .body { padding: 12px 14px; }
+      .jstep h3 { font-size: 14.5px; margin-bottom: 4px; }
+    }
+    .jstep { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; display: flex; flex-direction: column; }
+    .jstep .shot { aspect-ratio: 16/10; background: var(--bg-deep); position: relative; overflow: hidden; }
+    .jstep .shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    /* eo platform output is light artwork, so it sits on white rather than
+       being forced onto the dark card */
+    .jstep .shot.paper { background: #fff; padding: 10px; }
+    .jstep .shot.paper img { object-fit: contain; }
+    .jstep .num {
+      position: absolute; top: 12px; left: 12px; z-index: 2;
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--cyan); color: #06111f;
+      font-family: 'Bebas Neue', sans-serif; font-size: 17px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .jstep .body { padding: 20px 22px 24px; }
+    .jstep h3 { font-size: 17px; margin-bottom: 7px; }
+    .jstep p { font-size: 14px; color: var(--text-sec); }
+
+    /* ── SAMPLE REPORT ─────────────────────────────────── */
+    .report-wrap { display: grid; grid-template-columns: 1fr 1.1fr; gap: 40px; align-items: start; }
+    @media (max-width: 900px) { .report-wrap { grid-template-columns: 1fr; gap: 26px; } }
+    .rep {
+      background: var(--bg-card); border: 1px solid var(--cyan-bd);
+      border-radius: var(--r-card); overflow: hidden;
+      box-shadow: 0 24px 70px rgba(0,0,0,0.42);
+    }
+    .rep-head {
+      background: linear-gradient(135deg, rgba(56,189,248,0.14), rgba(56,189,248,0.04));
+      border-bottom: 1px solid var(--border); padding: 18px 22px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    }
+    .rep-head .t { font-family: 'Bebas Neue', sans-serif; font-size: 21px; letter-spacing: .6px; }
+    .rep-head .d { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1.4px; color: var(--text-sec); text-transform: uppercase; }
+    .rep-body { padding: 22px; display: grid; gap: 18px; }
+    .rep-hero { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; }
+    .rep-big {
+      font-family: 'Bebas Neue', sans-serif; font-size: 62px; line-height: .95;
+      color: var(--cyan); letter-spacing: .5px; font-variant-numeric: tabular-nums;
+    }
+    .rep-big small { font-size: .28em; color: var(--text-sec); letter-spacing: 1.6px; font-family: 'DM Mono', monospace; margin-left: 4px; }
+    .rep-hero .lbl { font-size: 13.5px; color: var(--text-sec); }
+    .rep-row { display: grid; grid-template-columns: 96px 1fr; gap: 14px; align-items: start; padding-top: 16px; border-top: 1px solid var(--border); }
+    .rep-row .k { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--text-sec); padding-top: 3px; }
+    .rep-row .v { font-size: 14.5px; color: #e2e8f0; }
+    .rep-row .v b { color: var(--text); }
+    .rep-foot { background: var(--bg-deep); border-top: 1px solid var(--border); padding: 14px 22px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1.2px; color: var(--text-sec); text-transform: uppercase; }
+    .sample-flag {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: 'DM Mono', monospace; font-size: 10.5px; letter-spacing: 1.4px; text-transform: uppercase;
+      color: var(--warn); background: var(--warn-dim); border: 1px solid var(--warn-bd);
+      border-radius: 50px; padding: 5px 13px;
+    }
+    .sample-flag i { width: 13px; height: 13px; }
+
+    /* ── FAQ ───────────────────────────────────────────── */
+    .faq { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; margin-top: 22px; }
+    .faq details { background: var(--bg-card); }
+    .faq summary {
+      list-style: none; cursor: pointer; padding: 17px 22px;
+      font-size: 15.5px; font-weight: 600; color: var(--text);
+      display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    }
+    .faq summary::-webkit-details-marker { display: none; }
+    .faq summary::after {
+      content: ''; width: 9px; height: 9px; flex-shrink: 0;
+      border-right: 2px solid var(--cyan); border-bottom: 2px solid var(--cyan);
+      transform: rotate(45deg); transition: transform .2s ease;
+    }
+    .faq details[open] summary::after { transform: rotate(-135deg); }
+    .faq .a { padding: 0 22px 20px; font-size: 14.5px; color: var(--text-sec); }
+    /* hide the answer explicitly rather than relying on the UA rule for
+       closed <details>, which a custom summary display can defeat */
+    .faq details:not([open]) .a { display: none; }
+
+    .incl-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 26px; }
+    @media (max-width: 760px) { .incl-split { grid-template-columns: 1fr; } }
+    .incl-split h3 { font-size: 15px; margin-bottom: 12px; }
+    .incl-split ul { list-style: none; display: grid; gap: 9px; }
+    .incl-split li { display: grid; grid-template-columns: 17px 1fr; gap: 10px; font-size: 14.5px; color: var(--text-sec); align-items: start; }
+    .incl-split li i { width: 15px; height: 15px; margin-top: 4px; }
 
     /* ── REVEAL ────────────────────────────────────────── */
     .rv { opacity: 1; transform: none; }
@@ -538,16 +668,339 @@
         Sensors in both hands measure every stroke you take, and show you how far
         one pull really carries you.
       </p>
+      <div class="hero-price">
+        <span class="hp-amt">From R800</span>
+        <span class="hp-per">per swimmer</span>
+        <a class="hp-link" href="#pricing">What's included <i data-lucide="arrow-right"></i></a>
+      </div>
       <div class="hero-cta">
         <a class="btn btn-primary" href="#book"><i data-lucide="calendar-check"></i>Book a slot</a>
-        <a class="btn btn-ghost" href="#score"><i data-lucide="ruler"></i>How far is one pull?</a>
+        <a class="btn btn-ghost" href="#journey"><i data-lucide="play"></i>See how it works</a>
       </div>
     </div>
   </div>
 </header>
 
-<!-- ══ 1. THE WASTE ══ -->
-<section class="waste">
+<!-- ══ 1. THE JOURNEY ══ -->
+<section id="journey">
+  <div class="container">
+    <div class="rv">
+      <h2>What actually <em class="glow">happens</em></h2>
+      <p class="sub">One session, start to finish. No kit to buy, nothing to download.</p>
+    </div>
+
+    <div class="journey rv rv-d1" style="margin-top:34px">
+      <div class="jstep">
+        <div class="shot">
+          <span class="num">1</span>
+          <img src="/partners/eo-inge.jpg" alt="A swimmer mid-stroke wearing an eo SwimBETTER sensor on her hand" loading="lazy">
+        </div>
+        <div class="body">
+          <h3>Swim, with sensors in your hands</h3>
+          <p>
+            A normal warm up, then a few short efforts at about three quarters pace. The sensors
+            sit in your hands. Nothing is strapped to your body and nothing changes how you swim.
+          </p>
+        </div>
+      </div>
+
+      <div class="jstep">
+        <div class="shot paper">
+          <span class="num">2</span>
+          <img src="/icons/lab-forcefield.jpg" alt="Force field chart from a real lab session showing left and right hand power and where the force went" loading="lazy">
+        </div>
+        <div class="body">
+          <h3>See your own stroke, in numbers</h3>
+          <p>
+            This is genuine output from a session at this pool. Every stroke you took, split into
+            the part that moved you forward and the part that did not.
+          </p>
+        </div>
+      </div>
+
+      <div class="jstep">
+        <div class="shot paper">
+          <span class="num">3</span>
+          <img src="/icons/lab-forcetime.jpg" alt="Force against time chart from a real lab session showing the difference between the left and right hand pull" loading="lazy">
+        </div>
+        <div class="body">
+          <h3>Leave with one thing to practise</h3>
+          <p>
+            Not a list of faults. The single thing that is costing the most, the drill that works
+            on it, and a number to beat when you come back.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 2. THE REPORT ══ -->
+<section class="rule" id="report">
+  <div class="container">
+    <div class="rv">
+      <div class="tag tag-c"><i data-lucide="file-text"></i>What you take home</div>
+      <h2>The whole report is <em class="glow">one page.</em></h2>
+      <p class="sub">
+        Short enough that the swimmer reads it themselves, and specific enough to hand to a coach.
+      </p>
+    </div>
+
+    <div class="report-wrap" style="margin-top:34px">
+      <div class="rep rv rv-d1">
+        <div class="rep-head">
+          <span class="t">Swim report</span>
+          <span class="d">Aquasharks Lab &middot; Freestyle</span>
+        </div>
+        <div class="rep-body">
+          <div class="rep-hero">
+            <div class="rep-big">2.39<small>M</small></div>
+            <div class="lbl">
+              How far one pull carries you right now.<br>
+              <b style="color:var(--text)">Next target: 2.50 m</b>, without swimming any faster.
+            </div>
+          </div>
+
+          <div class="rep-row">
+            <div class="k">Working</div>
+            <div class="v">Your stroke is consistent and your timing is good for your age. <b>48.8%</b> of your push is already moving you forward.</div>
+          </div>
+          <div class="rep-row">
+            <div class="k">Focus</div>
+            <div class="v">Your left hand is pulling <b>119 W</b> against <b>81 W</b> on the right. Your right hand is starting its catch late.</div>
+          </div>
+          <div class="rep-row">
+            <div class="k">Drill</div>
+            <div class="v">Front quadrant sculling and vertical forearm work, right side, to bring that catch forward.</div>
+          </div>
+          <div class="rep-row">
+            <div class="k">Next</div>
+            <div class="v">Count your pulls on any length this term. When the count drops, it is working.</div>
+          </div>
+        </div>
+        <div class="rep-foot">Delivered by WhatsApp or email within 24 hours</div>
+      </div>
+
+      <div class="rv rv-d2">
+        <span class="sample-flag"><i data-lucide="info"></i>Sample layout</span>
+        <h3 style="font-size:20px;margin-top:16px">Built from a real session, not a mock up</h3>
+        <p style="font-size:15px;color:var(--text-sec);margin-top:8px">
+          Every number on that card is measured data from one Aquasharks squad swimmer's session
+          in August 2025, shown with her name removed. It is laid out here as a sample so you can
+          see the shape of what arrives. Your own report carries your own numbers.
+        </p>
+        <div class="callout" style="margin-top:22px">
+          <p>
+            The point is what is <mark class="m">missing</mark>. No wall of charts, no jargon, and
+            no five things to fix at once. One number, one focus, one drill.
+          </p>
+          <div class="who">Why it is one page</div>
+        </div>
+        <p style="margin-top:22px">
+          <a class="btn btn-primary" href="#book"><i data-lucide="calendar-check"></i>Book a slot</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 3. WHY IT IS WORTH IT ══ -->
+<section class="rule">
+  <div class="container">
+    <div class="rv">
+      <div class="tag tag-g"><i data-lucide="trending-up"></i>For the person paying</div>
+      <h2>You are already paying <em class="glow-g">for the hours.</em></h2>
+      <p class="sub">
+        This does not replace coaching and it does not add training nights. It gives the swimmer
+        and their coach a measured picture of something neither can see from the water.
+      </p>
+    </div>
+
+    <div class="worth rv rv-d1" style="margin-top:34px">
+      <div class="card" style="--tint:rgba(249,115,22,0.09)">
+        <i class="ic" data-lucide="eye" style="color:var(--waste)"></i>
+        <h3>Nobody can see their own stroke</h3>
+        <p>
+          A coach on the deck sees the top half. A swimmer feels what they expect to feel. What
+          neither can see is where the hands actually go underwater across
+          <span class="hl-w">hundreds of pulls a session</span>. This measures it.
+        </p>
+      </div>
+      <div class="card" style="--tint:rgba(251,191,36,0.09)">
+        <i class="ic" data-lucide="clock" style="color:var(--warn)"></i>
+        <h3>Earlier is easier</h3>
+        <p>
+          The longer a movement pattern is repeated, the more work it takes to change. Spotting a
+          crossover at <span class="hl" style="color:var(--warn)">ten</span> gives a coach far
+          more room to work with than spotting it at sixteen.
+        </p>
+      </div>
+      <div class="card" style="--tint:rgba(56,189,248,0.09)">
+        <i class="ic" data-lucide="scale" style="color:var(--cyan)"></i>
+        <h3>Imbalance you cannot feel</h3>
+        <p>
+          In one session here, a swimmer's left hand measured <span class="hl">38 watts</span>
+          above her right, and she had no sense of it. Whether that matters is a conversation for
+          her and her coach. It is hard to have that conversation without the number.
+        </p>
+      </div>
+      <div class="card" style="--tint:rgba(34,197,94,0.09)">
+        <i class="ic" data-lucide="check-circle-2" style="color:var(--gain)"></i>
+        <h3>It is one session, not a subscription</h3>
+        <p>
+          Come once, get the one thing, work on it for a term. Come back when you want to check
+          it stuck. <span class="hl-g">No lock in.</span>
+        </p>
+      </div>
+    </div>
+
+    <div class="punch rv rv-d2">
+      <h3>Same squad. Same coach. <span class="hl-g glow-g">One more thing to work with.</span></h3>
+      <p>
+        The report goes to the swimmer, and we want it shared with whoever coaches them. It
+        usually backs up what they have already been saying.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 4. ONE PAGE, AND A NUMBER YOU KEEP ══ -->
+<section class="rule">
+  <div class="container">
+    <div class="rv">
+      <h2>One page. <em>Not eleven.</em></h2>
+      <p class="sub">
+        A swimmer does not need a research paper, and neither do you. A wall of charts gets read
+        once and forgotten.
+      </p>
+    </div>
+
+    <div class="grid-2 rv rv-d1" style="margin-top:34px">
+      <div class="card metric-card">
+        <i data-lucide="file-text"></i>
+        <h3>What lands in your inbox</h3>
+        <p>
+          Your number, the one thing to change, the drill that changes it, and the target to
+          beat next time. Short enough that a nine year old reads it themselves.
+        </p>
+      </div>
+      <div class="card metric-card" style="border-color:var(--cyan-bd);background:linear-gradient(180deg,rgba(56,189,248,0.06),var(--bg-card) 60%)">
+        <i data-lucide="repeat"></i>
+        <h3>And a number you can check yourself</h3>
+        <p>
+          Count your pulls on any length, in any session, with no sensors and nothing to wear.
+          When the count drops, it is working. That is how a change sticks instead of fading back
+          to the old stroke by next month.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout rv rv-d2">
+      <p>
+        The hard part is never finding the fault. It is still doing the new thing three weeks
+        later when nobody is watching. So we hand over something countable.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 5. PRICE ══ -->
+<section class="rule" id="pricing">
+  <div class="container">
+    <div class="rv">
+      <div class="tag tag-c"><i data-lucide="receipt"></i>Price</div>
+      <h2>What it <em class="glow">costs</em></h2>
+    </div>
+
+    <div class="price-band rv rv-d1" style="margin-top:30px">
+      <div>
+        <div class="price-amt">R800<small>FROM, PER SWIMMER</small></div>
+      </div>
+      <ul class="incl">
+        <li><i data-lucide="check"></i>A recorded session with the sensors, at the Aquasharks pool</li>
+        <li><i data-lucide="check"></i>Freestyle, analysed across several recorded efforts</li>
+        <li><i data-lucide="check"></i>A one page written report, by WhatsApp or email within 24 hours</li>
+        <li><i data-lucide="check"></i>Your distance per pull, and the target to beat next time</li>
+        <li><i data-lucide="check"></i>One focus area and the drill that works on it</li>
+        <li><i data-lucide="check"></i>Yours to keep and to share with your coach</li>
+      </ul>
+    </div>
+
+    <div class="incl-split rv rv-d2">
+      <div class="card">
+        <h3 style="color:var(--gain)">Included at R800</h3>
+        <ul>
+          <li><i data-lucide="check" style="color:var(--gain)"></i>The session itself</li>
+          <li><i data-lucide="check" style="color:var(--gain)"></i>Reading all four charts</li>
+          <li><i data-lucide="check" style="color:var(--gain)"></i>The written one page report</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--warn)">Charged separately</h3>
+        <ul>
+          <li><i data-lucide="plus" style="color:var(--warn)"></i>Return sessions and progress tracking, quoted per swimmer</li>
+          <li><i data-lucide="plus" style="color:var(--warn)"></i>Strokes other than freestyle, on request</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- FAQ carries only answers sourced from Dave's own material.
+         Six more questions are pending his confirmation and are
+         deliberately absent rather than guessed. See the handover list:
+           - session duration
+           - exact pool name and address
+           - minimum age or swimming ability
+           - who runs the session and who writes the report
+           - retest price
+           - whether video is included at R800 -->
+    <div class="faq rv rv-d3">
+      <details>
+        <summary>What does my child actually do on the day?</summary>
+        <div class="a">
+          A normal warm up, then a small number of short freestyle efforts at around three
+          quarters pace, with a sensor in each hand. The protocol is the same every session so
+          that a later visit can be compared against this one.
+        </div>
+      </details>
+      <details>
+        <summary>When does the report arrive, and how?</summary>
+        <div class="a">
+          Within 24 hours, by WhatsApp or email, whichever you prefer.
+        </div>
+      </details>
+      <details>
+        <summary>Does this go against what their coach is teaching?</summary>
+        <div class="a">
+          No. The report goes to the swimmer and we encourage you to share it with whoever
+          coaches them. In most cases it reinforces what a coach has already been saying, with a
+          measurement attached.
+        </div>
+      </details>
+      <details>
+        <summary>Do we have to keep coming back?</summary>
+        <div class="a">
+          No. It is a single session with no commitment. Come back when you want to check whether
+          a change has held, and that retest is measured against your own baseline rather than
+          anyone else's.
+        </div>
+      </details>
+      <details>
+        <summary>Where does it run?</summary>
+        <div class="a">
+          At the Aquasharks pool in Cape Town. We will confirm the exact time and meeting point
+          when you book.
+        </div>
+      </details>
+    </div>
+
+    <p style="margin-top:26px">
+      <a class="btn btn-primary" href="#book"><i data-lucide="calendar-check"></i>Book a slot</a>
+    </p>
+  </div>
+</section>
+
+<!-- ══ 6. THE WASTE ══ -->
+<section class="waste rule">
   <div class="container narrow">
     <div class="rv">
       <div class="tag tag-w"><i data-lucide="alert-triangle"></i>The problem</div>
@@ -609,7 +1062,7 @@
   </div>
 </section>
 
-<!-- ══ 2. WHAT WE SEE (BENTO) ══ -->
+<!-- ══ 7. WHAT WE SEE (BENTO) ══ -->
 <section class="rule">
   <div class="container">
     <div class="rv">
@@ -681,7 +1134,7 @@
   </div>
 </section>
 
-<!-- ══ 3. HOW FAR IS ONE PULL ══ -->
+<!-- ══ 8. HOW FAR IS ONE PULL ══ -->
 <section class="rule" id="score">
   <div class="container">
     <div class="gauge-wrap">
@@ -689,8 +1142,9 @@
         <div class="tag tag-c"><i data-lucide="ruler"></i>Your number</div>
         <h2>How far does <em class="glow">one pull</em> take you?</h2>
         <p class="sub">
-          This is the number you can feel, and the one worth beating. Two of these are the same
-          man, in the same pool, twenty minutes apart. Tap through them.
+          Two of these are recorded efforts by one swimmer, a 53 year old distance swimmer, in a
+          50m pool on one morning in January 2026. Three 50m efforts, no pull buoy. Tap through
+          them.
         </p>
         <div class="picks" style="margin-top:28px">
           <button class="pick" type="button" data-v="1.28"
@@ -752,15 +1206,17 @@
 
     <div class="callout rv rv-d2">
       <p>
-        Same arms. Same fitness. Same morning. Once his hands pointed the right way, every pull
-        carried him <mark class="m-g">more than twice as far</mark>. Nothing about him got
-        stronger in twenty minutes.
+        Between those two efforts his distance per pull went from 1.28m to
+        <mark class="m-g">2.78m</mark>. That is one swimmer's recorded session, not a typical
+        result and not something we can promise you. The first effort was a technical breakdown
+        we kept as a reference. What it shows is how much of a swim is direction rather than
+        fitness.
       </p>
     </div>
   </div>
 </section>
 
-<!-- ══ 4. TRANSFORMATION ══ -->
+<!-- ══ 9. TRANSFORMATION ══ -->
 <section class="rule">
   <div class="container">
     <div class="rv">
@@ -827,7 +1283,7 @@
   </div>
 </section>
 
-<!-- ══ 5. A SWIMMER IN YOUR SQUAD ══ -->
+<!-- ══ 10. A SWIMMER IN YOUR SQUAD ══ -->
 <section class="rule">
   <div class="container">
     <div class="rv">
@@ -930,105 +1386,7 @@
   </div>
 </section>
 
-<!-- ══ 6. WHY IT IS WORTH IT ══ -->
-<section class="rule">
-  <div class="container">
-    <div class="rv">
-      <div class="tag tag-g"><i data-lucide="trending-up"></i>For the person paying</div>
-      <h2>You are already paying <em class="glow-g">for the hours.</em></h2>
-      <p class="sub">
-        This does not add training. It makes the training you already pay for actually count.
-      </p>
-    </div>
-
-    <div class="worth rv rv-d1" style="margin-top:34px">
-      <div class="card" style="--tint:rgba(249,115,22,0.09)">
-        <i class="ic" data-lucide="repeat-2" style="color:var(--waste)"></i>
-        <h3>Training repeats the stroke they have</h3>
-        <p>
-          Squad makes them fitter. It does not change where their hands point. A swimmer doing
-          <span class="hl-w">hundreds of pulls a session</span> with the wrong hand path is
-          getting very good at the wrong hand path.
-        </p>
-      </div>
-      <div class="card" style="--tint:rgba(251,191,36,0.09)">
-        <i class="ic" data-lucide="clock" style="color:var(--warn)"></i>
-        <h3>Faults get harder to undo</h3>
-        <p>
-          The longer a pattern is drilled in, the more work it takes to unpick. Catching a
-          crossover at <span class="hl" style="color:var(--warn)">ten</span> is a different job
-          to catching it at sixteen.
-        </p>
-      </div>
-      <div class="card" style="--tint:rgba(56,189,248,0.09)">
-        <i class="ic" data-lucide="shield" style="color:var(--cyan)"></i>
-        <h3>Uneven arms wreck shoulders</h3>
-        <p>
-          One side carrying <span class="hl">38 watts</span> more, thousands of times a week, is
-          how swim shoulders get sore. This finds it before it hurts.
-        </p>
-      </div>
-      <div class="card" style="--tint:rgba(34,197,94,0.09)">
-        <i class="ic" data-lucide="check-circle-2" style="color:var(--gain)"></i>
-        <h3>It is one session, not a subscription</h3>
-        <p>
-          Come once, get the one thing, work on it for a term. Come back when you want to check
-          it stuck. <span class="hl-g">No lock in.</span>
-        </p>
-      </div>
-    </div>
-
-    <div class="punch rv rv-d2">
-      <h3>Same squad. Same hours. <span class="hl-g glow-g">More out of both.</span></h3>
-      <p>
-        Every hour of training from here lands on a stroke that is pointing the right way.
-        That is the whole thing.
-      </p>
-    </div>
-  </div>
-</section>
-
-<!-- ══ 7. ONE PAGE, AND A NUMBER YOU KEEP ══ -->
-<section class="rule">
-  <div class="container">
-    <div class="rv">
-      <h2>One page. <em>Not eleven.</em></h2>
-      <p class="sub">
-        A swimmer does not need a research paper, and neither do you. A wall of charts gets read
-        once and forgotten.
-      </p>
-    </div>
-
-    <div class="grid-2 rv rv-d1" style="margin-top:34px">
-      <div class="card metric-card">
-        <i data-lucide="file-text"></i>
-        <h3>What lands in your inbox</h3>
-        <p>
-          Your number, the one thing to change, the drill that changes it, and the target to
-          beat next time. Short enough that a nine year old reads it themselves.
-        </p>
-      </div>
-      <div class="card metric-card" style="border-color:var(--cyan-bd);background:linear-gradient(180deg,rgba(56,189,248,0.06),var(--bg-card) 60%)">
-        <i data-lucide="repeat"></i>
-        <h3>And a number you can check yourself</h3>
-        <p>
-          Count your pulls on any length, in any session, with no sensors and nothing to wear.
-          When the count drops, it is working. That is how a change sticks instead of fading back
-          to the old stroke by next month.
-        </p>
-      </div>
-    </div>
-
-    <div class="callout rv rv-d2">
-      <p>
-        The hard part is never finding the fault. It is still doing the new thing three weeks
-        later when nobody is watching. So we hand over something countable.
-      </p>
-    </div>
-  </div>
-</section>
-
-<!-- ══ 8. HOW IT RUNS ══ -->
+<!-- ══ 11. HOW IT RUNS ══ -->
 <section class="rule">
   <div class="container narrow">
     <div class="rv">
@@ -1066,26 +1424,7 @@
   </div>
 </section>
 
-<!-- ══ 9. PRICE ══ -->
-<section class="rule">
-  <div class="container">
-    <div class="price-band rv">
-      <div>
-        <div class="price-amt">R800<small>FROM, PER SWIMMER</small></div>
-      </div>
-      <ul class="incl">
-        <li><i data-lucide="check"></i>A full set of recorded efforts, not one token lap</li>
-        <li><i data-lucide="check"></i>Written report, annotated, yours to keep</li>
-        <li><i data-lucide="check"></i>All four charts read and explained</li>
-        <li><i data-lucide="check"></i>The one dominant fault, and the drill that fixes it</li>
-        <li><i data-lucide="check"></i>Every retest compared against your own baseline</li>
-      </ul>
-    </div>
-    <p class="foot-note">Multi-session progress tracking is quoted per swimmer. Ask when you enquire.</p>
-  </div>
-</section>
-
-<!-- ══ 10. BOOK ══ -->
+<!-- ══ 12. BOOK ══ -->
 <section class="rule" id="book">
   <div class="container narrow">
     <div class="rv">
@@ -1145,7 +1484,7 @@
   </div>
 </section>
 
-<!-- ══ 11. QR ══ -->
+<!-- ══ 13. QR ══ -->
 <section class="rule">
   <div class="container">
     <div class="card qr-wrap rv">
