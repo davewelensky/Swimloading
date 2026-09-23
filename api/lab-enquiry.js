@@ -10,6 +10,17 @@
 // The insert is what matters. If Resend is down or misconfigured we still
 // return success, because losing the lead is far worse than losing the
 // notification, and the row is recoverable from the admin list either way.
+//
+// Environment (Vercel, Production):
+//   SUPABASE_SERVICE_KEY  required. Without it the endpoint 500s.
+//   RESEND_API_KEY        required for mail. Shared with send-welcome-email
+//                         and send-test-newsletter, so if it is missing the
+//                         welcome email to new signups is dead too.
+//   LAB_NOTIFY_TO         comma separated recipients. Defaults to Dave alone.
+//
+// Vercel injects these at deploy time, so adding one needs a redeploy before
+// any function can see it. The response carries notified and notifyError to
+// make that visible instead of silent.
 
 import { Resend } from 'resend';
 
