@@ -357,39 +357,47 @@ Dave
 
 | Field | Value |
 |-------|-------|
-| **Status** | Partnership confirmed (Aug 2026) — hero page live in coming-soon state. Dave: they're soon sponsoring Carina Bruwer. |
+| **Status** | Real, active relationship since Jul 2026 (in-person meeting between Dave, Carina and JAKED), not just a cold partnership — hero page live in coming-soon state. Carina's sponsorship kit shipped, due to arrive Sept 2026. |
 | **Hero page** | `/partners/jaked` (live in coming-soon state) |
 | **Welcome card** | Yes (coming soon badge) |
-| **Geography** | `[UNCONFIRMED]` |
-| **Contact** | `[TBD]` |
+| **Geography** | `[UNCONFIRMED]` for a general SwimLoading commercial arrangement. Carina's own kit ships direct from Italy to her in SA under her existing customs registration (see Notes). |
+| **Contact** | **Edoardo "Eddie" Galbiati**, egalbiati@miriadespa.it, Miriade SpA (Italy) — JAKED's distributor/team. Also cc's Lilia Vassilieva (lvassilieva@miriadespa.it). Confirmed via email thread, 2026-09-23. |
 | **Partner URL** | https://www.jaked.com/en |
 
 **What SwimLoading offers them:**
-- Partner card + hero page at /partners/jaked
-- `[TBD — agree with contact once confirmed]`
+- Partner card + hero page at /partners/jaked, documenting Carina's journey with JAKED (articles, photography, video, product reviews, real-world open-water testing) — pitched by Dave 22 Jul 2026.
+- Community engagement through SwimLoading's clubs and events; insight into local swimmer behaviour, product interest and demand as the community grows.
+- Engagement reporting once available, so JAKED can see how swimmers interact with partner content/challenges, not just display branding.
+- `[Formal commercial terms beyond the above — still TBD]`
 
 **What they offer members:**
-- **Carina Bruwer sponsorship (confirmed by Dave, Aug 2026)** — JAKED sponsors Carina Bruwer, SwimLoading's own athlete. Her sponsorship package shipped and is en route, due to arrive September 2026 (confirmed by Dave, 2026-09-23). Kit contents/story details still `[TBD]`.
-- Member benefits (discount, prize, or portal) — `[TBD, not yet agreed]`
+- **Carina Bruwer sponsorship (confirmed, in motion since Jul 2026)** — JAKED sponsors Carina Bruwer, SwimLoading's own athlete, with product (not cash). Her kit shipped and is due to arrive September 2026. Kit contents/story details still `[TBD]` pending arrival.
+- Member benefits (discount, prize, or portal) — `[TBD, not yet agreed]`. Dave has floated (3 Aug 2026 email, not yet actioned) "a simple special-order process for swimmers wishing to purchase directly from Italy" — i.e. JAKED fulfils direct, SwimLoading does not hold stock or import anything itself. JAKED's own site also already runs a live B2B "Sports Team Kits" quote-request programme (sized for Juniors/Youth/Masters squads) at jaked.com/en/pages/kit-per-squadre-sportive — a ready-made, zero-import path for SwimLoading clubs (Aquasharks, DUC, Bluefin) to order direct, worth pointing clubs at once the partnership is further along.
 
-**Product facts on hero page** (from jaked.com, Aug 2026 — verify before adding anything more specific):
-- Italian sportswear/swim brand — categories: Swim, Open Water, Competition, Accessories
-- Flagship open water wetsuit: **BLADE**
-- Flagship open water swimsuit: **J-KAI**
+**Product facts on hero page** (from jaked.com, verified 2026-09-23 by browsing their live site/sitemaps):
+- Italian sportswear/swim brand — categories: Swim (Man/Woman/Junior), Open Water, Competition/Racing, Triathlon, Accessories, plus a wider lifestyle apparel range (jackets, polos, sneakers, etc.)
+- Flagship open water wetsuit: **BLADE** — multi-thickness construction, GBS seams, YKK zip, raw-cut finishes; product copy attributes a testimonial to ICON Team athlete **Giulio Molinari**.
+- Flagship open water racing suit: **J-KAI** — "developed by the Jaked team in collaboration with [open water marathon swimmer] **Domenico Acerenza**"; graduated compression, J-Lab Plasma® surface treatment.
 - Competition racing suits (e.g. CLUB Racing Swimsuit), goggles (SPY EXTREME)
-- Brand copy: "Jaked is passion, curiosity, and competition" / Italian DNA, research → ideas → innovation
+- **ICON Team** — JAKED's athlete programme; per their own About Us copy, athletes are treated as "co-creators," not just ambassadors, actively testing/developing products.
 - **JAKED Tribe** — their own gamified community app (Goccia points, missions, leaderboard)
+- Live B2B programme: **Sports Team Kits** — a quote-request form for sports clubs/companies, explicitly sized by Juniors/Youth/Masters roster counts
 - Do not publish prices — link to jaked.com/en
 
 **Outstanding actions:**
-- [ ] Get a named contact and confirm commercial terms (what SwimLoading offers, what members get)
-- [ ] Confirm geography (jaked.com ships internationally per their site, but our arrangement geography is unconfirmed)
-- [x] Get real logo — pulled from jaked.com's own CDN (2026-09-23), now live on hero page as `icons/jaked-logo.png`. Product photography still `[TBD]`.
-- [ ] Confirm the Carina Bruwer sponsorship details (kit contents, story) once available — timing is now confirmed (package shipped, due September 2026, per Dave 2026-09-23)
-- [ ] Update hero page + welcome card from coming-soon to live once confirmed
+- [ ] Confirm formal commercial terms beyond the Carina sponsorship (what SwimLoading offers, what members get) — Dave's 3 Aug 2026 pitch is the working basis, not yet formally agreed
+- [ ] Confirm geography for a general member/commercial arrangement (Carina's own kit shipment is already resolved, see Notes)
+- [x] Get real logo — pulled from jaked.com's own CDN (2026-09-23), now live on hero page + welcome card as `icons/jaked-logo.png`
+- [ ] **Waiting on Eddie**: high-res logos (light/dark), brand/lifestyle photography, product images (open water/endurance focus), company overview, brand guidelines — requested by Dave 3 Aug 2026, chased again 23 Sept 2026. Do not build a photography-heavy section until these arrive; text-only content sourced from jaked.com's own live site is fine in the meantime.
+- [ ] Confirm the Carina Bruwer kit contents and story once it arrives (due Sept 2026)
+- [ ] Update hero page + welcome card from coming-soon to live once commercial terms are confirmed
 
 **Notes:**
-- This connects to the Carina Bruwer swimwear-sponsor pipeline below — JAKED was not on that Tier 1 target list, this came in as a direct Dave update (Aug 2026).
+- This connects to the Carina Bruwer swimwear-sponsor pipeline below — JAKED was not on that Tier 1 target list, this came in as a direct Dave/Carina relationship (in-person meeting, Jul 2026), not a cold pipeline contact.
+- **Backstory**: Carina previously wore Arena (wetsuit S/Storm+Thunder, Powerskin carbon FR36/IT40, training costume FR36/IT40 or FR38/IT42) and Funkita. Dave's pitch to JAKED explicitly cited Carina's own history: when she first wore Arena wetsuits they were rare at SA open-water events, now they're among the most common — the case for what an athlete's authentic use can do for a brand's local visibility. Compared to Jaked's own organic-growth story in South America (no distributors/warehouses first, real people introducing the brand to their community) as the model for Africa.
+- At the **Women's Day Swim** (9 Aug 2026, Africa's largest female-only open-water event), Carina raced the Ladies Mile elite category and finished 2nd in the skins category — still in a standard Funkita training costume, before her JAKED kit arrived (the skins winner, a 17-year-old, wore an Arena full performance suit).
+- **Shipment logistics**: Carina's kit ships direct from Italy under her own existing customs registration, using her sole-proprietorship business "AC Bruwer t/a Visio Productions" (ID, customs registration certificate and tax clearance certificate already provided to JAKED, 28 Jul 2026) rather than her Pty Ltd, since the sole-proprietorship already held a customs registration. This is not a SwimLoading-run import/dropship arrangement — JAKED ships, Carina receives.
+- Per Dave's email to Eddie, 23 Sept 2026: SwimLoading is "just under 700 swimmers" across 15 countries. Carina has a 3.2km race the following weekend that she won overall in the prior year (beating the full field, including men), and is still planning her longer Africa-based swims.
 
 ---
 
