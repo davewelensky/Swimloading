@@ -482,6 +482,44 @@
     .pipeline-row { display:flex; align-items:center; justify-content:space-between; padding:9px 16px; border-bottom:1px solid var(--border); font-size:13px; }
     .pipeline-row:last-child { border-bottom:none; }
     .pipeline-val { font-weight:700; }
+
+    /* ── Lab enquiries ── */
+    .lab-badge {
+      margin-left: auto; background: var(--cyan); color: #06111f;
+      font-size: 11px; font-weight: 700; min-width: 18px; height: 18px;
+      border-radius: 9px; display: inline-flex; align-items: center;
+      justify-content: center; padding: 0 5px;
+    }
+    /* club-admin is a dark theme: use its own tokens, not light fallbacks */
+    .lab-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px 18px; margin-bottom: 12px;
+    }
+    .lab-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .lab-who { font-size: 15px; font-weight: 700; color: var(--text); }
+    .lab-meta { font-size: 12.5px; color: var(--text-sec); margin-top: 3px; }
+    .lab-notes {
+      font-size: 13.5px; color: #cbd5e1; margin-top: 12px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 12px; white-space: pre-wrap;
+    }
+    .lab-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
+    .lab-actions .btn-sm { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; text-decoration: none; }
+    .lab-spacer { flex: 1 1 auto; }
+    .lab-set { text-transform: capitalize; opacity: .75; }
+    .lab-set:hover { opacity: 1; }
+    .lab-status {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px;
+      padding: 4px 10px; border-radius: 50px; white-space: nowrap;
+    }
+    .lab-status-new       { background: var(--cyan-dim);      color: var(--cyan); }
+    .lab-status-contacted { background: var(--amber-dim);     color: var(--amber); }
+    .lab-status-booked    { background: var(--green-dim);     color: var(--green); }
+    .lab-status-closed    { background: rgba(148,163,184,.14); color: var(--silver); }
+    .lab-filter.active { font-weight: 700; }
+    @media (max-width: 560px) {
+      .lab-spacer { flex-basis: 100%; height: 0; }
+    }
   </style>
 </head>
 <body>
@@ -609,6 +647,10 @@
         </button>
         <button class="nav-item" onclick="showPage('entries')" id="nav-entries">
           <i data-lucide="ticket"></i> Gala Entries
+        </button>
+        <button class="nav-item" onclick="showPage('labenquiries')" id="nav-labenquiries" style="display:none;">
+          <i data-lucide="inbox"></i> Lab Enquiries
+          <span id="labEnqBadge" class="lab-badge" style="display:none;">0</span>
         </button>
         <button class="nav-item" onclick="showPage('league')" id="nav-league" style="display:none;">
           <i data-lucide="trophy"></i> League
@@ -804,6 +846,21 @@
       </div>
 
       <!-- ── GALA ENTRIES ── -->
+      <div id="page-labenquiries" class="page">
+        <div class="page-header">
+          <div class="page-title">Lab Enquiries</div>
+          <div class="page-sub">Booking requests from the stroke analysis page. Newest first.</div>
+        </div>
+        <div id="labEnqFilters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+          <button class="btn-sm lab-filter active" data-status="open"  onclick="setLabFilter('open')">Open</button>
+          <button class="btn-sm lab-filter"        data-status="all"   onclick="setLabFilter('all')">All</button>
+          <button class="btn-sm lab-filter"        data-status="booked" onclick="setLabFilter('booked')">Booked</button>
+        </div>
+        <div id="labEnqContent">
+          <div style="padding:40px;text-align:center;"><div class="spinner" style="margin:0 auto;"></div></div>
+        </div>
+      </div>
+
       <div id="page-entries" class="page">
         <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
           <div>
@@ -2475,11 +2532,12 @@ async function loadClubContext() {
   const hasGroups         = F.groups         === true;
   const hasProgressReports = F.progress_reports === true;
   const hasDaySlotScheduling = F.day_slot_scheduling === true;
+  const hasSwimLab           = F.swim_lab           === true;
 
   // Store on window so renderOverview() and other functions can read them
   window._clubFeatures = { hasLeague, hasTempChallenge, hasSquads, hasTimetable,
     hasAttendance, hasGalaEntries, hasCoachingStaff, hasParentLanguage, hasChallenges,
-    hasHealth, hasGroups, hasProgressReports, hasDaySlotScheduling };
+    hasHealth, hasGroups, hasProgressReports, hasDaySlotScheduling, hasSwimLab };
 
   document.getElementById('nav-league').style.display           = hasLeague        ? '' : 'none';
   document.getElementById('nav-tempchallenge').style.display    = hasTempChallenge ? '' : 'none';
@@ -2502,6 +2560,11 @@ async function loadClubContext() {
   document.getElementById('nav-attendance').style.display       = hasAttendance    ? '' : 'none';
   document.getElementById('nav-parents').style.display          = hasParentLanguage ? '' : 'none';
   document.getElementById('nav-progress').style.display         = hasProgressReports ? '' : 'none';
+  // Enquiries carry a parent's email and phone, so this follows the audit
+  // tab and stays with full admins rather than every coach on the team.
+  const canSeeLab = hasSwimLab && isClubAdmin();
+  document.getElementById('nav-labenquiries').style.display     = canSeeLab       ? '' : 'none';
+  if (canSeeLab) loadLabEnquiryBadge();
   // Hide a sidebar group heading when this club's flags empty the group
   document.querySelectorAll('.nav-group').forEach(g => {
     const anyVisible = [...g.querySelectorAll('.nav-item')].some(b => b.style.display !== 'none');
@@ -2577,6 +2640,149 @@ function toggleMobileNav(force) {
   document.getElementById('navToggle')?.setAttribute('aria-expanded', String(open));
 }
 
+// ══ LAB ENQUIRIES ═══════════════════════════════════════════════════
+// Booking requests from /aquasharks-lab. Gated on the swim_lab feature
+// flag, so only clubs that actually run the lab ever see this.
+// RLS already limits rows to this club's admins, but the query filters
+// on club_slug too so a shared login never mixes clubs.
+let labEnquiries = [];
+let labFilter = 'open';
+
+const LAB_STATUSES = ['new', 'contacted', 'booked', 'closed'];
+const LAB_PACKAGE_LABELS = {
+  full:    'Full session',
+  monthly: 'Progress tracking',
+};
+
+function labEnqMatchesFilter(e) {
+  if (labFilter === 'all')    return true;
+  if (labFilter === 'booked') return e.status === 'booked';
+  return e.status === 'new' || e.status === 'contacted';   // "open"
+}
+
+async function loadLabEnquiries() {
+  const el = document.getElementById('labEnqContent');
+  if (!el) return;
+  try {
+    const { data, error } = await sb
+      .from('swim_lab_enquiries')
+      .select('*')
+      .eq('club_slug', currentClub.slug)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    labEnquiries = data || [];
+    renderLabEnquiries();
+    updateLabEnqBadge();
+  } catch (err) {
+    console.error('[lab] load failed', err);
+    el.innerHTML = '<div class="empty-state">Could not load enquiries. Refresh to try again.</div>';
+  }
+}
+
+function setLabFilter(f) {
+  labFilter = f;
+  document.querySelectorAll('.lab-filter').forEach(b =>
+    b.classList.toggle('active', b.dataset.status === f));
+  renderLabEnquiries();
+}
+
+function renderLabEnquiries() {
+  const el = document.getElementById('labEnqContent');
+  if (!el) return;
+  const rows = labEnquiries.filter(labEnqMatchesFilter);
+
+  if (!rows.length) {
+    el.innerHTML = '<div class="empty-state">' + (labFilter === 'open'
+      ? 'Nothing waiting. New enquiries from the stroke analysis page land here.'
+      : 'No enquiries to show.') + '</div>';
+    return;
+  }
+
+  el.innerHTML = rows.map(e => {
+    const when = new Date(e.created_at).toLocaleString('en-ZA',
+      { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const who  = e.swimmer_name && e.swimmer_name !== e.contact_name
+      ? `${escHtml(e.contact_name)} <span style="color:var(--text-sec);font-weight:400">for</span> ${escHtml(e.swimmer_name)}`
+      : escHtml(e.contact_name);
+    const tel = e.phone ? String(e.phone).replace(/[^0-9+]/g, '') : '';
+    const wa  = tel ? `https://wa.me/${tel.replace(/^0/, '27').replace(/^\+/, '')}` : null;
+
+    return `<div class="lab-card" data-id="${e.id}">
+      <div class="lab-card-top">
+        <div>
+          <div class="lab-who">${who}</div>
+          <div class="lab-meta">${when}${e.squad ? ' &middot; ' + escHtml(e.squad) : ''}${e.package ? ' &middot; ' + (LAB_PACKAGE_LABELS[e.package] || escHtml(e.package)) : ''}</div>
+        </div>
+        <span class="lab-status lab-status-${e.status}">${e.status}</span>
+      </div>
+
+      ${e.notes ? `<div class="lab-notes">${escHtml(e.notes)}</div>` : ''}
+
+      <div class="lab-actions">
+        <a class="btn-sm" href="mailto:${encodeURIComponent(e.email)}">
+          <i data-lucide="mail" style="width:13px;height:13px;"></i> ${escHtml(e.email)}
+        </a>
+        ${wa ? `<a class="btn-sm" href="${wa}" target="_blank" rel="noopener">
+          <i data-lucide="message-circle" style="width:13px;height:13px;"></i> ${escHtml(e.phone)}
+        </a>` : ''}
+        <span class="lab-spacer"></span>
+        ${LAB_STATUSES.filter(st => st !== e.status).map(st =>
+          `<button class="btn-sm lab-set" onclick="setLabStatus('${e.id}','${st}')">${st}</button>`
+        ).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  if (window.lucide) lucide.createIcons();
+}
+
+async function setLabStatus(id, status) {
+  const row = labEnquiries.find(e => e.id === id);
+  if (!row) return;
+  const previous = row.status;
+  row.status = status;            // optimistic, so the click feels instant
+  renderLabEnquiries();
+  updateLabEnqBadge();
+  try {
+    const { error } = await sb
+      .from('swim_lab_enquiries')
+      .update({ status, handled_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw error;
+  } catch (err) {
+    console.error('[lab] status update failed', err);
+    row.status = previous;        // put it back rather than lie about it
+    renderLabEnquiries();
+    updateLabEnqBadge();
+    alert('Could not update that enquiry. Please try again.');
+  }
+}
+
+function updateLabEnqBadge() {
+  const b = document.getElementById('labEnqBadge');
+  if (!b) return;
+  const open = labEnquiries.filter(e => e.status === 'new').length;
+  b.textContent = open;
+  b.style.display = open ? '' : 'none';
+}
+
+// Counts the waiting enquiries on load, so the badge is right before the
+// tab has ever been opened.
+async function loadLabEnquiryBadge() {
+  try {
+    const { data, error } = await sb
+      .from('swim_lab_enquiries')
+      .select('id,status')
+      .eq('club_slug', currentClub.slug)
+      .eq('status', 'new');
+    if (error) throw error;
+    const b = document.getElementById('labEnqBadge');
+    if (b && data) { b.textContent = data.length; b.style.display = data.length ? '' : 'none'; }
+  } catch (err) {
+    console.error('[lab] badge failed', err);
+  }
+}
+
 function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
@@ -2606,6 +2812,7 @@ function showPage(name) {
   if (name === 'parents')       loadParentsPage();
   if (name === 'progress')      loadProgressReportsPage();
   if (name === 'health')        loadHealthPage();
+  if (name === 'labenquiries')  loadLabEnquiries();
 }
 
 // ── DATA LOADERS ──────────────────────────────────────────────────
