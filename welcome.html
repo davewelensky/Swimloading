@@ -1718,7 +1718,7 @@
                             <div class="globe-callout-temp" id="gcTemp"></div>
                             <div class="globe-callout-meta"><span id="gcSpotName"></span><span id="gcTime"></span></div>
                         </div>
-                        <div class="globe-callout-empty" id="gcEmpty" style="display:none;">No swimmer log this week. Be the first.</div>
+                        <div class="globe-callout-empty" id="gcEmpty" style="display:none;">No swimmer log yet. Be the first.</div>
                         <a href="#" id="gcLink" class="globe-callout-link">View spots →</a>
                     </div>
                 </div>
@@ -2504,24 +2504,28 @@
             { location: [-22.68, 14.53], size: 0.04 },  // Swakopmund
             { location: [43.17, 16.44], size: 0.04 },   // Hvar
         ];
-        // Country cards: South Africa (home) + every country in SITE_CONFIG.countries.
-        // Shown one at a time, in the country's own colour, as it rotates into view.
-        // Each card carries the freshest swimmer log in that country from the last
-        // 7 days (dimmed after 48h). Without a fresh log the card sits on the
-        // country's headline spot (`anchor` in site-config.js) and says so.
-        const READING_WINDOW_MS = 7 * 24 * 3600 * 1000;
+        // Globe cards, shown one at a time as they rotate into view:
+        //  1. SPOT cards: every spot with a swimmer log in the last 7 days, in its
+        //     country's colour (where temps are actually being logged right now).
+        //  2. COUNTRY cards: every other country (South Africa + SITE_CONFIG.countries),
+        //     with that country's most recent swimmer log however old, labelled with
+        //     its age and dimmed after 48h. Fetched per country, so a quiet week in
+        //     one country never hides the fact that swimmers log there.
+        // Without any data the country cards still show at their headline `anchor`.
+        const RECENT_MS = 7 * 24 * 3600 * 1000;
         const FRESH_MS = 48 * 3600 * 1000;
         const HOME = { name: 'South Africa', iso: 'ZA', color: '#22d3ee', slug: 'atlantic',
                        spots: 'Cape Town · Durban · Garden Route · Gauteng', anchor: [-33.92, 18.42], home: true };
         const CFG_COUNTRIES = (window.SITE_CONFIG && Array.isArray(window.SITE_CONFIG.countries)) ? window.SITE_CONFIG.countries : [];
-        const countryCards = [HOME].concat(CFG_COUNTRIES.filter(c => c.iso && Array.isArray(c.anchor)))
-            .map(c => ({
-                iso: c.iso, name: c.name, color: c.color, home: !!c.home,
-                spots: c.spots || '',
-                href: c.slug ? '/spots/' + c.slug : '/spots/europe',
-                latitude: c.anchor[0], longitude: c.anchor[1],
-                reading: null,
-            }));
+        const COUNTRIES = [HOME].concat(CFG_COUNTRIES.filter(c => c.iso && Array.isArray(c.anchor)));
+        const countryByIso = new Map(COUNTRIES.map(c => [c.iso, c]));
+        const countryCard = c => ({
+            key: 'country:' + c.iso, iso: c.iso, color: c.color,
+            tag: c.home ? 'Home' : 'International', title: c.name, subtitle: c.spots || '',
+            href: c.slug ? '/spots/' + c.slug : '/spots/europe',
+            latitude: c.anchor[0], longitude: c.anchor[1], reading: null,
+        });
+        let countryCards = COUNTRIES.map(countryCard);
         let readingsLoaded = false;
         try {
             const SB_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
@@ -2529,23 +2533,23 @@
             const headers = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
             const [spotsRes, logsRes] = await Promise.all([
                 fetch(SB_URL + '/rest/v1/spots?select=id,name,latitude,longitude,country_code&active=eq.true&latitude=not.is.null', { headers }),
-                fetch(SB_URL + '/rest/v1/temp_logs?select=spot_id,temp_c,created_at&order=created_at.desc&limit=400', { headers }),
+                fetch(SB_URL + '/rest/v1/temp_logs?select=spot_id,temp_c,created_at&temp_c=not.is.null&order=created_at.desc&limit=400', { headers }),
             ]);
             if (spotsRes.ok) {
                 const spots = await spotsRes.json();
                 const spotById = new Map(spots.map(sp => [sp.id, sp]));
+                const isoOf = sp => sp.country_code || 'ZA'; // spots without a code are domestic
 
                 const recentSpotIds = new Set();
-                const latestByCountry = new Map(); // iso -> { spot, log } (logs arrive newest first, so first wins)
+                const recentBySpot = new Map(); // spot id -> newest log in the last 7 days
                 if (logsRes.ok) {
                     const now = Date.now();
                     (await logsRes.json()).forEach(l => {
                         const age = now - new Date(l.created_at).getTime();
                         if (age <= FRESH_MS) recentSpotIds.add(l.spot_id);
                         const sp = spotById.get(l.spot_id);
-                        if (!sp || age > READING_WINDOW_MS || l.temp_c == null) return;
-                        const iso = sp.country_code || 'ZA'; // spots without a code are domestic
-                        if (!latestByCountry.has(iso)) latestByCountry.set(iso, { spot: sp, log: l });
+                        if (!sp || age > RECENT_MS || recentBySpot.has(sp.id)) return;
+                        recentBySpot.set(sp.id, l);
                     });
                     readingsLoaded = true;
                 }
@@ -2558,15 +2562,41 @@
                     }));
                 if (live.length > 5) markers = live;
 
-                countryCards.forEach(c => {
-                    const hit = latestByCountry.get(c.iso);
-                    if (!hit) return;
-                    c.reading = { temp: hit.log.temp_c, time: hit.log.created_at, spotName: hit.spot.name };
-                    // Point at the spot that was actually logged
-                    c.latitude = hit.spot.latitude; c.longitude = hit.spot.longitude;
+                // 1. Spot cards for every spot logged this week
+                const spotCards = [];
+                recentBySpot.forEach((l, id) => {
+                    const sp = spotById.get(id);
+                    const c = countryByIso.get(isoOf(sp));
+                    spotCards.push({
+                        key: 'spot:' + id, iso: isoOf(sp), color: c ? c.color : '#38bdf8',
+                        tag: c ? c.name : 'Swim spot', title: sp.name, subtitle: '',
+                        href: '/spots/' + slugify(sp.name),
+                        latitude: sp.latitude, longitude: sp.longitude,
+                        reading: { temp: l.temp_c, time: l.created_at, where: null },
+                    });
                 });
+                const coveredIsos = new Set(spotCards.map(c => c.iso));
+
+                // 2. Country cards for countries with no log this week: their latest log, any age
+                countryCards = countryCards.filter(c => !coveredIsos.has(c.iso));
+                if (readingsLoaded) {
+                    await Promise.all(countryCards.map(async card => {
+                        const ids = spots.filter(sp => isoOf(sp) === card.iso).map(sp => sp.id);
+                        if (!ids.length) return;
+                        try {
+                            const r = await fetch(SB_URL + '/rest/v1/temp_logs?select=spot_id,temp_c,created_at&temp_c=not.is.null&spot_id=in.(' + ids.join(',') + ')&order=created_at.desc&limit=1', { headers });
+                            if (!r.ok) { card.unknown = true; return; }
+                            const [l] = await r.json();
+                            if (!l) return;
+                            const sp = spotById.get(l.spot_id);
+                            card.reading = { temp: l.temp_c, time: l.created_at, where: sp.name };
+                            card.latitude = sp.latitude; card.longitude = sp.longitude; // point at the logged spot
+                        } catch (e) { card.unknown = true; }
+                    }));
+                }
+                countryCards = spotCards.concat(countryCards);
             }
-        } catch (e) { /* cards still show from site-config anchors, without readings */ }
+        } catch (e) { /* country cards still show from site-config anchors, without readings */ }
 
         // Never initialise at zero width (hidden tab, collapsed viewport) — WebGL buffer would be 0x0
         while (!canvas.offsetWidth) await new Promise(r => setTimeout(r, 250));
@@ -2635,7 +2665,7 @@
 
 
         let activeLoc = null, lastCamPhi = phi, lastInteraction = 0, cycleTimer = null;
-        const recentlyShown = []; // iso codes, newest last — so the cycle sweeps round the globe
+        const recentlyShown = []; // card keys, newest last, so the cycle sweeps round the globe
 
         function timeAgo(iso) {
             const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -2656,32 +2686,34 @@
             calloutEl.style.borderColor = rgba(col, 0.55);
             calloutEl.style.boxShadow = `0 0 0 1px ${rgba(col, 0.1)}, 0 8px 24px rgba(0,0,0,0.45), 0 0 22px ${rgba(col, 0.18)}`;
             gcDot.style.background = col;
-            gcTag.textContent = card.home ? 'Home' : 'International';
-            gcCountry.textContent = card.name;
+            gcTag.textContent = card.tag;
+            gcCountry.textContent = card.title;
             gcCountry.style.color = col;
-            gcSpots.textContent = card.spots;
+            gcSpots.textContent = card.subtitle;
+            gcSpots.style.display = card.subtitle ? '' : 'none';
             if (card.reading) {
                 const t = Math.round(card.reading.temp * 10) / 10;
                 gcTemp.textContent = t + '°C';
                 gcTemp.style.color = col;
-                gcSpotName.textContent = card.reading.spotName;
-                gcTime.textContent = 'Swimmer log · ' + timeAgo(card.reading.time);
+                // Spot card: "Swimmer log / 2h ago". Country card: "<spot> / Last swimmer log · 12d ago"
+                gcSpotName.textContent = card.reading.where || 'Swimmer log';
+                gcTime.textContent = (card.reading.where ? 'Last swimmer log · ' : '') + timeAgo(card.reading.time);
                 gcReading.classList.toggle('stale', Date.now() - new Date(card.reading.time).getTime() > FRESH_MS);
                 gcReading.style.display = '';
                 gcEmpty.style.display = 'none';
             } else {
                 gcReading.style.display = 'none';
-                // Only claim "no log this week" when the readings actually loaded
-                gcEmpty.style.display = readingsLoaded ? '' : 'none';
+                // Only claim "no log yet" when the lookup actually ran and came back empty
+                gcEmpty.style.display = readingsLoaded && !card.unknown ? '' : 'none';
             }
             gcLink.href = card.href;
             gcLink.style.color = col;
             if (leaderLine) leaderLine.setAttribute('stroke', rgba(col, 0.6));
             markerPulse.style.background = rgba(col, 0.9);
             markerPulse.style.setProperty('--pulse', rgba(col, 0.55));
-            const i = recentlyShown.indexOf(card.iso);
+            const i = recentlyShown.indexOf(card.key);
             if (i !== -1) recentlyShown.splice(i, 1);
-            recentlyShown.push(card.iso);
+            recentlyShown.push(card.key);
             calloutEl.style.transition = reduceMotion ? 'none' : '';
             calloutEl.style.opacity = '0';
             calloutEl.style.transform = 'translateY(6px)';
@@ -2754,10 +2786,10 @@
             const visible = currentlyVisibleCards();
             if (!visible.length) { scheduleCycle(1500); return; } // nothing front-facing right now — check again shortly
             // Most front-facing country not shown recently; if all were, the one shown longest ago
-            const memory = Math.min(4, visible.length - 1);
+            const memory = Math.min(8, visible.length - 1);
             const recent = recentlyShown.slice(-memory);
-            const next = visible.find(c => !recent.includes(c.iso))
-                || visible.slice().sort((a, b) => recentlyShown.indexOf(a.iso) - recentlyShown.indexOf(b.iso))[0];
+            const next = visible.find(c => !recent.includes(c.key))
+                || visible.slice().sort((a, b) => recentlyShown.indexOf(a.key) - recentlyShown.indexOf(b.key))[0];
             showCallout(next);
             scheduleCycle();
         }
