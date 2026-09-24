@@ -36,9 +36,17 @@ window.SITE_CONFIG = {
 
   /* ── GLOBAL STATS ──────────────────────────────────────────────────────
    * `countries` is the international list (South Africa is home, counted via
-   * +1 by site-sync). It is ALSO the source welcome.html builds its hero pills
-   * and country grid from, so adding one object here updates the count AND the
-   * homepage visuals in one edit. Keep the shape identical to existing entries.
+   * +1 by site-sync). It is ALSO the source welcome.html builds its globe
+   * country cards and spots-index country links from, so adding one object here
+   * updates the count AND the homepage visuals in one edit (then run
+   * `node scripts/sync-country-links.mjs` for the crawlable static links). Keep the shape identical to existing entries.
+   *
+   * `iso`    = ISO 3166-1 alpha-2 code, matching spots.country_code in the DB.
+   *            The homepage globe uses it to find that country's freshest
+   *            swimmer temp for the country card it shows as the globe turns.
+   * `anchor` = [lat, lng] of the country's headline spot (the first name in
+   *            `spots`). The card points here when the country has no fresh
+   *            reading, or if the live data can't be fetched.
    */
   /* `slug` = the region slug spots-handler.js resolves at /spots/[slug] and
    * /countries/[slug] (see api/seo-utils.js COUNTRY_SLUGS). Any page linking
@@ -46,24 +54,24 @@ window.SITE_CONFIG = {
    * from the label — Italy has no dedicated country page yet (falls back to
    * '/spots/europe', its containing region) so slug is null there. */
   countries: [
-    { name:'Namibia',        label:'Namibia',        slug:'namibia',        color:'#fb923c', bg:'rgba(251,146,60,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(251,146,60,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Walvis Bay · Swakopmund',              pillDelay:'1.2s', dotDelay:'0.4s' },
-    { name:'United Kingdom', label:'United Kingdom', slug:'united-kingdom', color:'#818cf8', bg:'rgba(129,140,248,0.1)', border:'rgba(217,119,6,0.5)',  gridBg:'rgba(129,140,248,0.07)', gridBorder:'rgba(217,119,6,0.4)', spots:'Canford Cliffs · Heron Lake · Tooting Bec', pillDelay:'1.5s', dotDelay:'0.7s' },
-    { name:'Australia',      label:'Australia',      slug:'australia',      color:'#34d399', bg:'rgba(52,211,153,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(52,211,153,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Cottesloe Beach · Perth',              pillDelay:'1.8s', dotDelay:'1.0s' },
-    { name:'Switzerland',    label:'Switzerland',    slug:'switzerland',    color:'#fb7185', bg:'rgba(251,113,133,0.1)', border:'rgba(217,119,6,0.5)',  gridBg:'rgba(251,113,133,0.07)', gridBorder:'rgba(217,119,6,0.4)', spots:'Gland Plage · Promenthoux · Lake Geneva', pillDelay:'2.1s', dotDelay:'1.3s' },
-    { name:'Portugal',       label:'Portugal',       slug:'portugal',       color:'#fbbf24', bg:'rgba(251,191,36,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(251,191,36,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Cascais · Atlantic Coast',             pillDelay:'2.4s', dotDelay:'1.6s' },
+    { name:'Namibia',       iso:'NA', anchor:[-22.68, 14.53],         label:'Namibia',        slug:'namibia',        color:'#fb923c', bg:'rgba(251,146,60,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(251,146,60,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Walvis Bay · Swakopmund',              pillDelay:'1.2s', dotDelay:'0.4s' },
+    { name:'United Kingdom', iso:'GB', anchor:[51.43, -0.15],  label:'United Kingdom', slug:'united-kingdom', color:'#818cf8', bg:'rgba(129,140,248,0.1)', border:'rgba(217,119,6,0.5)',  gridBg:'rgba(129,140,248,0.07)', gridBorder:'rgba(217,119,6,0.4)', spots:'Canford Cliffs · Heron Lake · Tooting Bec', pillDelay:'1.5s', dotDelay:'0.7s' },
+    { name:'Australia',     iso:'AU', anchor:[-31.99, 115.75],       label:'Australia',      slug:'australia',      color:'#34d399', bg:'rgba(52,211,153,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(52,211,153,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Cottesloe Beach · Perth',              pillDelay:'1.8s', dotDelay:'1.0s' },
+    { name:'Switzerland',   iso:'CH', anchor:[46.40, 6.27],     label:'Switzerland',    slug:'switzerland',    color:'#fb7185', bg:'rgba(251,113,133,0.1)', border:'rgba(217,119,6,0.5)',  gridBg:'rgba(251,113,133,0.07)', gridBorder:'rgba(217,119,6,0.4)', spots:'Gland Plage · Promenthoux · Lake Geneva', pillDelay:'2.1s', dotDelay:'1.3s' },
+    { name:'Portugal',      iso:'PT', anchor:[38.70, -9.42],        label:'Portugal',       slug:'portugal',       color:'#fbbf24', bg:'rgba(251,191,36,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(251,191,36,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Cascais · Atlantic Coast',             pillDelay:'2.4s', dotDelay:'1.6s' },
     // slug is 'usa', NOT 'united-states': /spots/united-states has no region
     // entry in api/seo-utils.js and 404s. The homepage footer linked there
     // for months (JS-rendered, so the dead link was invisible in the HTML)
     // until the static-link generator surfaced it — 2026-08-18.
-    { name:'USA',            label:'USA',            slug:'usa',            color:'#60a5fa', bg:'rgba(96,165,250,0.1)',  border:'rgba(96,165,250,0.4)',  gridBg:'rgba(96,165,250,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Aquatic Park · San Francisco Bay',     pillDelay:'2.8s', dotDelay:'1.9s' },
-    { name:'Seychelles',     label:'Seychelles',     slug:'seychelles',     color:'#2dd4bf', bg:'rgba(45,212,191,0.1)',  border:'rgba(45,212,191,0.4)',  gridBg:'rgba(45,212,191,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Mahé · Beau Vallon',                   pillDelay:'3.2s', dotDelay:'2.2s' },
-    { name:'Italy',          label:'Italy',          slug:null,             color:'#a3e635', bg:'rgba(163,230,53,0.1)',  border:'rgba(163,230,53,0.4)',  gridBg:'rgba(163,230,53,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:"Lago d'Orta",                          pillDelay:'3.6s', dotDelay:'2.5s' },
-    { name:'France',         label:'France',         slug:'france',         color:'#f472b6', bg:'rgba(244,114,182,0.1)', border:'rgba(244,114,182,0.4)', gridBg:'rgba(244,114,182,0.07)', gridBorder:'rgba(217,119,6,0.4)', spots:'Promenade des Anglais · Nice',         pillDelay:'4.0s', dotDelay:'2.8s' },
-    { name:'Croatia',        label:'Croatia',        slug:'croatia',        color:'#38bdf8', bg:'rgba(56,189,248,0.1)',  border:'rgba(56,189,248,0.4)',  gridBg:'rgba(56,189,248,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Hvar · Split · Pakleni Islands',       pillDelay:'4.4s', dotDelay:'3.1s' },
-    { name:'Spain',          label:'Spain',          slug:'spain',          color:'#fbbf24', bg:'rgba(251,191,36,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(251,191,36,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Santa Ponsa · Mallorca',               pillDelay:'4.8s', dotDelay:'3.4s' },
-    { name:'Thailand',       label:'Thailand',       slug:'thailand',       color:'#fb923c', bg:'rgba(251,146,60,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(251,146,60,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Phuket',                               pillDelay:'5.2s', dotDelay:'3.7s' },
-    { name:'Canada',         label:'Canada',         slug:'canada',         color:'#f87171', bg:'rgba(248,113,113,0.1)', border:'rgba(217,119,6,0.5)',  gridBg:'rgba(248,113,113,0.07)', gridBorder:'rgba(217,119,6,0.4)', spots:'English Bay · Vancouver',              pillDelay:'5.6s', dotDelay:'4.0s' },
-    { name:'Ireland',        label:'Ireland',        slug:'ireland',        color:'#34d399', bg:'rgba(52,211,153,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(52,211,153,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Forty Foot · Salthill · Kinsale',      pillDelay:'6.0s', dotDelay:'4.3s' },
+    { name:'USA',           iso:'US', anchor:[37.81, -122.42],             label:'USA',            slug:'usa',            color:'#60a5fa', bg:'rgba(96,165,250,0.1)',  border:'rgba(96,165,250,0.4)',  gridBg:'rgba(96,165,250,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Aquatic Park · San Francisco Bay',     pillDelay:'2.8s', dotDelay:'1.9s' },
+    { name:'Seychelles',    iso:'SC', anchor:[-4.62, 55.43],      label:'Seychelles',     slug:'seychelles',     color:'#2dd4bf', bg:'rgba(45,212,191,0.1)',  border:'rgba(45,212,191,0.4)',  gridBg:'rgba(45,212,191,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Mahé · Beau Vallon',                   pillDelay:'3.2s', dotDelay:'2.2s' },
+    { name:'Italy',         iso:'IT', anchor:[45.82, 8.40],           label:'Italy',          slug:null,             color:'#a3e635', bg:'rgba(163,230,53,0.1)',  border:'rgba(163,230,53,0.4)',  gridBg:'rgba(163,230,53,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:"Lago d'Orta",                          pillDelay:'3.6s', dotDelay:'2.5s' },
+    { name:'France',        iso:'FR', anchor:[43.69, 7.26],          label:'France',         slug:'france',         color:'#f472b6', bg:'rgba(244,114,182,0.1)', border:'rgba(244,114,182,0.4)', gridBg:'rgba(244,114,182,0.07)', gridBorder:'rgba(217,119,6,0.4)', spots:'Promenade des Anglais · Nice',         pillDelay:'4.0s', dotDelay:'2.8s' },
+    { name:'Croatia',       iso:'HR', anchor:[43.17, 16.44],         label:'Croatia',        slug:'croatia',        color:'#38bdf8', bg:'rgba(56,189,248,0.1)',  border:'rgba(56,189,248,0.4)',  gridBg:'rgba(56,189,248,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Hvar · Split · Pakleni Islands',       pillDelay:'4.4s', dotDelay:'3.1s' },
+    { name:'Spain',         iso:'ES', anchor:[39.51, 2.47],           label:'Spain',          slug:'spain',          color:'#fbbf24', bg:'rgba(251,191,36,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(251,191,36,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Santa Ponsa · Mallorca',               pillDelay:'4.8s', dotDelay:'3.4s' },
+    { name:'Thailand',      iso:'TH', anchor:[7.89, 98.30],        label:'Thailand',       slug:'thailand',       color:'#fb923c', bg:'rgba(251,146,60,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(251,146,60,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Phuket',                               pillDelay:'5.2s', dotDelay:'3.7s' },
+    { name:'Canada',        iso:'CA', anchor:[49.29, -123.14],          label:'Canada',         slug:'canada',         color:'#f87171', bg:'rgba(248,113,113,0.1)', border:'rgba(217,119,6,0.5)',  gridBg:'rgba(248,113,113,0.07)', gridBorder:'rgba(217,119,6,0.4)', spots:'English Bay · Vancouver',              pillDelay:'5.6s', dotDelay:'4.0s' },
+    { name:'Ireland',       iso:'IE', anchor:[53.29, -6.11],         label:'Ireland',        slug:'ireland',        color:'#34d399', bg:'rgba(52,211,153,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(52,211,153,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Forty Foot · Salthill · Kinsale',      pillDelay:'6.0s', dotDelay:'4.3s' },
   ],
 
   // NOTE: these three are a fast-paint FALLBACK ONLY — site-sync.js fetches the

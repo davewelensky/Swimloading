@@ -12,8 +12,8 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SwimLoading — Open Water Swimming Conditions &amp; Water Temperatures Across South Africa</title>
-    <meta name="description" content="Real-time water temperatures at Big Bay, Clifton, Umhlanga, Knysna and 120+ spots across South Africa. Community-logged ocean conditions, pool temperatures, and swim event coordination. Free to use.">
+    <title>SwimLoading | Open Water Swimming Conditions &amp; Live Water Temperatures, Worldwide</title>
+    <meta name="description" content="Water temperatures logged by swimmers at open water spots and pools across South Africa, the UK, Europe, Australia and North America, from Clifton and Umhlanga to Tooting Bec and Aquatic Park. Ocean conditions, group swims and crossing intelligence. Free to use.">
     <meta name="theme-color" content="#0284c7">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -26,11 +26,16 @@
     <link rel="canonical" href="https://www.swimloading.com/">
 
     <!-- Open Graph -->
-    <meta property="og:title" content="SwimLoading — Open Water Swimming Conditions &amp; Water Temperatures Across South Africa">
-    <meta property="og:description" content="Real-time water temperatures at Big Bay, Clifton, Umhlanga, Knysna and 120+ spots across South Africa. Community-logged ocean conditions, pool temperatures, and swim event coordination. Free to use.">
+    <meta property="og:title" content="SwimLoading | Open Water Swimming Conditions &amp; Live Water Temperatures, Worldwide">
+    <meta property="og:description" content="Water temperatures logged by swimmers at open water spots and pools across South Africa, the UK, Europe, Australia and North America, from Clifton and Umhlanga to Tooting Bec and Aquatic Park. Ocean conditions, group swims and crossing intelligence. Free to use.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://www.swimloading.com/">
-    <meta property="og:image" content="icons/icon-512.png">
+    <meta property="og:image" content="https://www.swimloading.com/screenshots/og-home.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="SwimLoading: know the water before you swim">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://www.swimloading.com/screenshots/og-home.jpg">
 
     <!-- Structured Data -->
     <script type="application/ld+json">
@@ -429,6 +434,7 @@
         }
         .partner-chip.live { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
         .partner-chip.soon { background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.25); }
+        .partner-chip.done { background: rgba(148,163,184,0.1); color: #94a3b8; border: 1px solid rgba(148,163,184,0.25); }
 
         /* ═══════════════════════════════════════
            LIVE TICKER
@@ -438,7 +444,7 @@
             padding: 20px 0 60px; overflow: hidden;
         }
         .ticker-inner {
-            display: flex;
+            display: flex; min-height: 40px; /* reserve the row before readings load (no layout shift) */
             animation: ticker-scroll 60s linear infinite;
             will-change: transform;
         }
@@ -463,6 +469,16 @@
             font-size: 11px; color: var(--text-secondary);
             border-left: 1px solid rgba(255,255,255,0.1);
             padding-left: 10px; margin-left: 2px;
+        }
+        /* Freshness: pulsing dot < 1h old, muted 24–48h old (older readings are never shown) */
+        .ticker-item .ticker-fresh {
+            width: 7px; height: 7px; border-radius: 50%; background: #10b981; flex-shrink: 0;
+            animation: ticker-pulse 1.8s ease-in-out infinite;
+        }
+        .ticker-item.ticker-stale { opacity: 0.55; }
+        @keyframes ticker-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.6); }
+            50%      { box-shadow: 0 0 0 5px rgba(16,185,129,0); }
         }
         @keyframes ticker-scroll {
             0% { transform: translateX(0); }
@@ -739,8 +755,11 @@
         }
         footer p { font-size: 14px; color: var(--text-secondary); }
         footer a { color: var(--ocean-light); text-decoration: none; }
+        .explore-swims-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+        @media (max-width: 1000px) { .explore-swims-grid { grid-template-columns: repeat(2, 1fr); } }
         .footer-links {
-            display: flex; justify-content: center; gap: 24px; margin-top: 12px;
+            display: flex; justify-content: center; gap: 10px 24px; margin-top: 12px;
+            flex-wrap: wrap; /* 13 links in one unwrapped row forced the page ~620px wide on phones, pushing the fixed nav's Open App + menu buttons off-screen */
         }
         .footer-links a {
             font-size: 13px; color: var(--text-secondary); transition: color 0.2s;
@@ -817,8 +836,11 @@
             .phone-frame { width: 220px; }
             .cta-box { padding: 40px 24px; }
             .feature-showcase { padding: 40px 24px; }
-            .global-grid { grid-template-columns: 1fr !important; grid-template-rows: auto !important; }
-            .global-sa { grid-row: auto !important; }
+            /* "Training for a big crossing?" — inline 2-col grid had no mobile collapse and pushed the page ~500px wide */
+            .crossing-journey-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
+            .explore-swims-grid { grid-template-columns: 1fr !important; }
+            /* Crawlable spots index (by region / international / types) — same missing mobile collapse */
+            .spots-index-grid { grid-template-columns: 1fr !important; gap: 28px !important; }
         }
 
         /* Accessibility: stop all decorative motion for users who ask for it */
@@ -855,7 +877,7 @@
         <div style="display:flex;align-items:center;gap:14px;">
             <a href="/explore" class="nav-link nav-link-explore">Find a Swim</a>
             <a href="/crossings/english-channel" class="nav-link nav-link-channel">Channel</a>
-            <a href="/pro" class="nav-link nav-link-intel">Big Water Intel</a>
+            <a href="/pro" class="nav-link nav-link-intel">Crossing Intelligence</a>
             <a href="/pricing" class="nav-link nav-link-pricing">Pricing</a>
             <a href="/app" class="nav-cta">Open App</a>
             <button class="nav-menu-btn" id="navMenuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu">
@@ -866,7 +888,7 @@
     <div class="mobile-menu" id="mobileMenu" hidden>
         <a href="/explore">Find a Swim</a>
         <a href="/crossings/english-channel">Channel</a>
-        <a href="/pro">Big Water Intel</a>
+        <a href="/pro">Crossing Intelligence</a>
         <a href="/pricing">Pricing</a>
     </div>
     <style>
@@ -887,6 +909,9 @@
             padding:8px; display:flex; flex-direction:column;
             box-shadow:0 20px 50px rgba(0,0,0,0.5);
         }
+        /* display:flex above overrides the [hidden] attribute, which left the menu
+           permanently open on phones. Respect hidden explicitly. */
+        .mobile-menu[hidden] { display:none; }
         .mobile-menu a {
             color:#e2e8f0; text-decoration:none; font-weight:600; font-size:15px;
             padding:14px 16px; border-radius:10px; min-height:44px;
@@ -937,11 +962,11 @@
         <div class="hero-inner">
             <div class="hero-badge">
                 <span class="pulse-dot"></span>
-                Live now · <span data-sync="spots">140</span>+ spots · <span id="hero-country-count" data-sync="countries">12</span> countries
+                Live now · <span data-sync="spots">185</span>+ spots · <span id="hero-country-count" data-sync="countries">15</span> countries
             </div>
             <h1>Know the water<br><span class="gradient-text">before you dive in</span></h1>
             <p class="hero-sub">
-                Real water temps, logged by real swimmers — ocean, pool, dam and lagoon, wherever you swim.
+                Real water temps, logged by real swimmers. Ocean, pool, dam and lagoon, wherever you swim.
             </p>
             <div class="hero-actions" style="margin-top:32px;">
                 <a href="/app" class="btn-primary">
@@ -968,44 +993,11 @@
     <div class="ticker-section" id="tickerSection">
         <!-- ticker-inner scrolls as one unit; -50% = exactly one track width → seamless loop -->
         <div class="ticker-inner" id="tickerInner">
-            <div class="ticker-track" id="tickerTrack1">
-                <div class="ticker-item"><span class="spot-name">Big Bay</span><span class="temp" style="color:#38bdf8">14°C</span><span class="ticker-by">12m ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Umhlanga Rocks</span><span class="temp" style="color:#10b981">25°C</span><span class="ticker-by">1h ago</span></div>
-                <div class="ticker-item" style="border-color:rgba(217,119,6,0.5)"><span class="spot-name">Gland Plage</span><span class="ticker-flag">CH</span><span class="temp" style="color:#38bdf8">9°C</span><span class="ticker-by">1d ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Clifton 4th</span><span class="temp" style="color:#38bdf8">13°C</span><span class="ticker-by">2h ago</span></div>
-                <div class="ticker-item" style="border-color:rgba(217,119,6,0.5)"><span class="spot-name">Cottesloe Beach</span><span class="ticker-flag">AU</span><span class="temp" style="color:#22d3ee">18°C</span><span class="ticker-by">3d ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Knysna Heads</span><span class="temp" style="color:#22d3ee">19°C</span><span class="ticker-by">3h ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Muizenberg</span><span class="temp" style="color:#22d3ee">18°C</span><span class="ticker-by">4h ago</span></div>
-                <div class="ticker-item" style="border-color:rgba(217,119,6,0.5)"><span class="spot-name">Canford Cliffs</span><span class="ticker-flag">UK</span><span class="temp" style="color:#38bdf8">14°C</span><span class="ticker-by">4d ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Salt Rock</span><span class="temp" style="color:#10b981">24°C</span><span class="ticker-by">5h ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Llandudno</span><span class="temp" style="color:#38bdf8">12°C</span><span class="ticker-by">6h ago</span></div>
-                <div class="ticker-item" style="border-color:rgba(217,119,6,0.5)"><span class="spot-name">Promenthoux</span><span class="ticker-flag">CH</span><span class="temp" style="color:#38bdf8">14°C</span><span class="ticker-by">4d ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Fish Hoek</span><span class="temp" style="color:#22d3ee">20°C</span><span class="ticker-by">7h ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Plettenberg Bay</span><span class="temp" style="color:#22d3ee">20°C</span><span class="ticker-by">8h ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Ballito</span><span class="temp" style="color:#10b981">25°C</span><span class="ticker-by">9h ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Camps Bay</span><span class="temp" style="color:#38bdf8">14°C</span><span class="ticker-by">10h ago</span></div>
-                <div class="ticker-item" style="border-color:rgba(217,119,6,0.5)"><span class="spot-name">Tooting Bec Lido</span><span class="ticker-flag">UK</span><span class="temp" style="color:#22d3ee">16°C</span><span class="ticker-by">10d ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Glencairn</span><span class="temp" style="color:#22d3ee">18°C</span><span class="ticker-by">11h ago</span></div>
-            </div>
-            <div class="ticker-track" id="tickerTrack2" aria-hidden="true">
-                <div class="ticker-item"><span class="spot-name">Big Bay</span><span class="temp" style="color:#38bdf8">14°C</span><span class="ticker-by">12m ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Umhlanga Rocks</span><span class="temp" style="color:#10b981">25°C</span><span class="ticker-by">1h ago</span></div>
-                <div class="ticker-item" style="border-color:rgba(217,119,6,0.5)"><span class="spot-name">Gland Plage</span><span class="ticker-flag">CH</span><span class="temp" style="color:#38bdf8">9°C</span><span class="ticker-by">1d ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Clifton 4th</span><span class="temp" style="color:#38bdf8">13°C</span><span class="ticker-by">2h ago</span></div>
-                <div class="ticker-item" style="border-color:rgba(217,119,6,0.5)"><span class="spot-name">Cottesloe Beach</span><span class="ticker-flag">AU</span><span class="temp" style="color:#22d3ee">18°C</span><span class="ticker-by">3d ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Knysna Heads</span><span class="temp" style="color:#22d3ee">19°C</span><span class="ticker-by">3h ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Muizenberg</span><span class="temp" style="color:#22d3ee">18°C</span><span class="ticker-by">4h ago</span></div>
-                <div class="ticker-item" style="border-color:rgba(217,119,6,0.5)"><span class="spot-name">Canford Cliffs</span><span class="ticker-flag">UK</span><span class="temp" style="color:#38bdf8">14°C</span><span class="ticker-by">4d ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Salt Rock</span><span class="temp" style="color:#10b981">24°C</span><span class="ticker-by">5h ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Llandudno</span><span class="temp" style="color:#38bdf8">12°C</span><span class="ticker-by">6h ago</span></div>
-                <div class="ticker-item" style="border-color:rgba(217,119,6,0.5)"><span class="spot-name">Promenthoux</span><span class="ticker-flag">CH</span><span class="temp" style="color:#38bdf8">14°C</span><span class="ticker-by">4d ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Fish Hoek</span><span class="temp" style="color:#22d3ee">20°C</span><span class="ticker-by">7h ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Plettenberg Bay</span><span class="temp" style="color:#22d3ee">20°C</span><span class="ticker-by">8h ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Ballito</span><span class="temp" style="color:#10b981">25°C</span><span class="ticker-by">9h ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Camps Bay</span><span class="temp" style="color:#38bdf8">14°C</span><span class="ticker-by">10h ago</span></div>
-                <div class="ticker-item" style="border-color:rgba(217,119,6,0.5)"><span class="spot-name">Tooting Bec Lido</span><span class="ticker-flag">UK</span><span class="temp" style="color:#22d3ee">16°C</span><span class="ticker-by">10d ago</span></div>
-                <div class="ticker-item"><span class="spot-name">Glencairn</span><span class="temp" style="color:#22d3ee">18°C</span><span class="ticker-by">11h ago</span></div>
-            </div>
+            <!-- Filled only with real readings from the last 48h (see loadTicker below).
+                 No static placeholder readings: invented temps/times under a "live" banner
+                 are exactly the trust problem this strip must not have. -->
+            <div class="ticker-track" id="tickerTrack1"></div>
+            <div class="ticker-track" id="tickerTrack2" aria-hidden="true"></div>
         </div>
     </div>
     <script>
@@ -1027,52 +1019,79 @@
             return Math.round(hrs / 24) + 'd ago';
         }
 
-        // Country code → short label for international spots
+        // Country code → short label for international spots. Any non-ZA spot is
+        // international (gold border); codes not in this map fall back to the ISO code
+        // itself, so a newly added country never silently renders as domestic.
         const COUNTRY_FLAGS = { GB: 'UK', AU: 'AU', CH: 'CH', NA: 'NAM', NZ: 'NZ', US: 'US', FR: 'FR', DE: 'DE', IT: 'IT' };
+
+        const FRESH_WINDOW_MS = 48 * 3600 * 1000; // readings older than this are not shown
+        const PULSE_MS        = 1 * 3600 * 1000;  // pulsing dot: under 1 hour old
+        const MUTED_MS        = 24 * 3600 * 1000; // muted: 24–48 hours old
+        const MIN_ITEMS       = 12;               // repeat a short list so the loop fills the width
+
+        function esc(str) {
+            return String(str).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+        }
+
+        function hideTicker() {
+            const section = document.getElementById('tickerSection');
+            if (section) section.style.display = 'none';
+        }
 
         async function loadTicker() {
             try {
+                const since = new Date(Date.now() - FRESH_WINDOW_MS).toISOString();
                 const res = await fetch(
-                    SB_URL + '/rest/v1/temp_logs?select=temp_c,created_at,spots!temp_logs_spot_id_fkey(name,country_code)&order=created_at.desc&limit=120',
+                    SB_URL + '/rest/v1/temp_logs?select=temp_c,created_at,spots!temp_logs_spot_id_fkey(name,country_code)' +
+                    '&created_at=gte.' + encodeURIComponent(since) + '&order=created_at.desc&limit=120',
                     { headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY } }
                 );
                 if (!res.ok) {
                     console.warn('Ticker fetch failed:', res.status);
-                    return; // static fallback stays
+                    hideTicker();
+                    return;
                 }
                 const logs = await res.json();
+                const now = Date.now();
 
-                // Most recent log per spot, skip entries without a spot name
+                // Most recent log per spot, skip entries without a spot name, and
+                // re-check the 48h window client-side (belt and braces on the filter).
                 const seen = new Set();
                 const unique = logs.filter(l => {
                     const name = l.spots && l.spots.name;
                     if (!name || seen.has(name)) return false;
+                    if (now - new Date(l.created_at).getTime() > FRESH_WINDOW_MS) return false;
                     seen.add(name);
                     return true;
                 });
 
-                if (unique.length < 6) return; // keep static fallback
+                // Nothing logged in 48h → no strip at all, rather than stale or invented data
+                if (unique.length === 0) { hideTicker(); return; }
 
                 const makeHtml = (l) => {
                     const t = Math.round(l.temp_c);
-                    const ago = timeAgo(l.created_at);
+                    const age = now - new Date(l.created_at).getTime();
+                    const ago = age < 60000 ? 'just now' : timeAgo(l.created_at);
                     const cc = l.spots.country_code;
-                    const label = (cc && COUNTRY_FLAGS[cc]) ? COUNTRY_FLAGS[cc] : null;
+                    const isIntl = !!cc && cc !== 'ZA';
+                    const label = isIntl ? (COUNTRY_FLAGS[cc] || cc) : null;
                     // International spots get gold border (matches app treatment)
-                    const isIntl = label !== null;
-                    const borderStyle = isIntl
-                        ? 'border-color:rgba(217,119,6,0.5);'
-                        : '';
-                    const flagHtml = label ? '<span class="ticker-flag">' + label + '</span>' : '';
-                    return '<div class="ticker-item" style="' + borderStyle + '">' +
-                        '<span class="spot-name">' + l.spots.name + '</span>' +
+                    const borderStyle = isIntl ? 'border-color:rgba(217,119,6,0.5);' : '';
+                    const cls = 'ticker-item' + (age >= MUTED_MS ? ' ticker-stale' : '');
+                    const freshDot = age < PULSE_MS ? '<span class="ticker-fresh" title="Logged in the last hour"></span>' : '';
+                    const flagHtml = label ? '<span class="ticker-flag">' + esc(label) + '</span>' : '';
+                    return '<div class="' + cls + '" style="' + borderStyle + '">' +
+                        freshDot +
+                        '<span class="spot-name">' + esc(l.spots.name) + '</span>' +
                         flagHtml +
                         '<span class="temp" style="color:' + tempColor(t) + '">' + t + '&deg;C</span>' +
                         '<span class="ticker-by">' + ago + '</span>' +
                     '</div>';
                 };
 
-                const html = unique.map(makeHtml).join('');
+                let items = unique.map(makeHtml);
+                while (items.length < MIN_ITEMS) items = items.concat(unique.map(makeHtml));
+                const html = items.join('');
 
                 // Populate both tracks identically — ticker-inner animates as one unit
                 const t1 = document.getElementById('tickerTrack1');
@@ -1081,7 +1100,7 @@
                 if (t2) t2.innerHTML = html;
             } catch (e) {
                 console.warn('Ticker error:', e);
-                // static fallback stays in place
+                hideTicker();
             }
         }
 
@@ -1092,11 +1111,11 @@
     <!-- ═══════════════ STATS ═══════════════ -->
     <div class="stats-bar">
         <div class="stat-item">
-            <div class="num"><span data-sync="spots">140</span><span>+</span></div>
+            <div class="num"><span data-sync="spots">185</span><span>+</span></div>
             <div class="label">Swim Spots</div>
         </div>
         <div class="stat-item">
-            <div class="num"><span id="stat-countries" data-sync="countries">12</span></div>
+            <div class="num"><span id="stat-countries" data-sync="countries">15</span></div>
             <div class="label">Countries</div>
         </div>
         <div class="stat-item">
@@ -1104,7 +1123,7 @@
             <div class="label">Temps Logged</div>
         </div>
         <div class="stat-item">
-            <div class="num">6</div>
+            <div class="num" id="stat-partners">9</div>
             <div class="label">Brand Partners</div>
         </div>
     </div>
@@ -1116,7 +1135,7 @@
         <div class="feature-showcase">
             <div class="feature-showcase-phone">
                 <div class="phone-frame">
-                    <img src="screenshots/home-tab.webp" alt="SwimLoading Home — June Challenge and live temps" width="447" height="637" loading="lazy" decoding="async" onerror="this.src='screenshots/home-tab.png'">
+                    <img src="screenshots/home-tab.webp" alt="SwimLoading home screen with the monthly challenge and live temps" width="447" height="637" loading="lazy" decoding="async" onerror="this.src='screenshots/home-tab.png'">
                 </div>
             </div>
             <div class="feature-showcase-text">
@@ -1126,7 +1145,7 @@
                 </div>
                 <h2 class="feature-showcase-title">Your swim life,<br>at a glance</h2>
                 <p class="feature-showcase-desc">
-                    See your upcoming swims, track your stats, and check the latest water temps at spots across <span data-sync="countries">12</span> countries — from Cape Town to San Francisco, Durban to Mallorca. Everything you need before heading to the water.
+                    See your upcoming swims, track your stats, and check the latest water temps at spots across <span data-sync="countries">15</span> countries, from Cape Town to San Francisco, Durban to Mallorca. Everything you need before heading to the water.
                 </p>
                 <ul class="feature-showcase-bullets">
                     <li>
@@ -1151,7 +1170,7 @@
         <div class="feature-showcase reverse">
             <div class="feature-showcase-phone">
                 <div class="phone-frame">
-                    <img src="screenshots/temps-tab.webp" alt="Log water temperature — SwimLoading" width="458" height="871" loading="lazy" decoding="async" onerror="this.src='screenshots/temps-tab.png'">
+                    <img src="screenshots/temps-tab.webp" alt="Logging a water temperature in SwimLoading" width="458" height="871" loading="lazy" decoding="async" onerror="this.src='screenshots/temps-tab.png'">
                 </div>
             </div>
             <div class="feature-showcase-text">
@@ -1186,7 +1205,7 @@
         <div class="feature-showcase">
             <div class="feature-showcase-phone">
                 <div class="phone-frame">
-                    <img src="screenshots/swims-tab.webp" alt="Group Swims — SwimLoading" width="494" height="911" loading="lazy" decoding="async" onerror="this.src='screenshots/swims-tab.png'">
+                    <img src="screenshots/swims-tab.webp" alt="Group swims in SwimLoading" width="494" height="911" loading="lazy" decoding="async" onerror="this.src='screenshots/swims-tab.png'">
                 </div>
             </div>
             <div class="feature-showcase-text">
@@ -1209,7 +1228,7 @@
                         </div>
                         <div>
                             <div style="font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:3px;">Plan a group swim</div>
-                            <div style="font-size:12px;color:var(--text-secondary);line-height:1.55;">Set the spot, date, time, and distance. Share the invite link to your WhatsApp group — everyone confirms attendance in the app.</div>
+                            <div style="font-size:12px;color:var(--text-secondary);line-height:1.55;">Set the spot, date, time, and distance. Share the invite link to your WhatsApp group and everyone confirms attendance in the app.</div>
                         </div>
                     </div>
 
@@ -1220,7 +1239,7 @@
                         </div>
                         <div>
                             <div style="font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:3px;">Quick heads-up</div>
-                            <div style="font-size:12px;color:var(--text-secondary);line-height:1.55;">Heading out now — or in an hour? Pick your spot, pick your time, send it. Your WhatsApp group sees it instantly.</div>
+                            <div style="font-size:12px;color:var(--text-secondary);line-height:1.55;">Heading out now, or in an hour? Pick your spot, pick your time, send it. Your WhatsApp group sees it instantly.</div>
                         </div>
                     </div>
 
@@ -1243,11 +1262,11 @@
                     </li>
                     <li>
                         <span class="bullet-icon"><i data-lucide="users" style="width:14px;height:14px;"></i></span>
-                        See who's confirmed — know who to look for in the water
+                        See who's confirmed, so you know who to look for in the water
                     </li>
                     <li>
                         <span class="bullet-icon"><i data-lucide="map-pin" style="width:14px;height:14px;"></i></span>
-                        Location, route, distance — all in the invite
+                        Location, route and distance, all in the invite
                     </li>
                 </ul>
             </div>
@@ -1259,7 +1278,7 @@
         <div class="feature-showcase reverse">
             <div class="feature-showcase-phone">
                 <div class="phone-frame">
-                    <img src="screenshots/trends-tab.webp" alt="Temperature Trends by Region — SwimLoading" width="462" height="828" loading="lazy" decoding="async" onerror="this.src='screenshots/trends-tab.png'">
+                    <img src="screenshots/trends-tab.webp" alt="Temperature trends by region in SwimLoading" width="462" height="828" loading="lazy" decoding="async" onerror="this.src='screenshots/trends-tab.png'">
                 </div>
             </div>
             <div class="feature-showcase-text">
@@ -1267,7 +1286,7 @@
                     <i data-lucide="line-chart" style="width:14px;height:14px;"></i>
                     Trends
                 </div>
-                <h2 class="feature-showcase-title"><span data-sync="countries.word">Twelve</span> countries.<br>See the data.</h2>
+                <h2 class="feature-showcase-title"><span data-sync="countries.word">Fifteen</span> countries.<br>See the data.</h2>
                 <p class="feature-showcase-desc">
                     Regional overviews across South Africa, Namibia, UK, Australia, Switzerland, Portugal, USA, the Seychelles, Italy, France, and Croatia. Filter by ocean, lagoons, pools, lakes, or inland spots.
                 </p>
@@ -1296,7 +1315,7 @@
         <div class="feature-showcase reverse">
             <div class="feature-showcase-phone">
                 <div class="phone-frame" style="box-shadow:0 0 0 1px rgba(252,76,2,0.25),0 24px 60px rgba(252,76,2,0.18),0 8px 24px rgba(0,0,0,0.4);">
-                    <img src="screenshots/StraveImport.webp" alt="Import from Strava — SwimLoading" width="545" height="930" loading="lazy" decoding="async">
+                    <img src="screenshots/StraveImport.webp" alt="Importing a Strava swim into SwimLoading" width="545" height="930" loading="lazy" decoding="async">
                 </div>
             </div>
             <div class="feature-showcase-text">
@@ -1312,7 +1331,7 @@
                 </div>
                 <h2 class="feature-showcase-title">Your Strava swim,<br>logged in seconds.</h2>
                 <p class="feature-showcase-desc">
-                    Connect Strava and SwimLoading surfaces every swim you complete — ocean or pool. Because Strava tracks the swim, and SwimLoading tracks the water.
+                    Connect Strava and SwimLoading surfaces every swim you complete, ocean or pool. Because Strava tracks the swim, and SwimLoading tracks the water.
                 </p>
 
                 <!-- Ocean vs Pool split -->
@@ -1327,16 +1346,16 @@
                         <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#FC4C02;margin-bottom:6px;">
                             <i data-lucide="building-2" style="width:13px;height:13px;"></i> Pool swim
                         </div>
-                        <div style="font-size:12px;color:#94a3b8;line-height:1.6;">Pick your pool from the list — logged and counted.</div>
+                        <div style="font-size:12px;color:#94a3b8;line-height:1.6;">Pick your pool from the list. Logged and counted.</div>
                     </div>
                 </div>
 
                 <!-- Garmin temp callout -->
                 <div style="background:rgba(252,76,2,0.06);border:1px solid rgba(252,76,2,0.18);border-left:3px solid #FC4C02;border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:20px;">
                     <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#FC4C02;margin-bottom:4px;">
-                        <i data-lucide="thermometer" style="width:13px;height:13px;"></i> Garmin water temp — pre-filled automatically
+                        <i data-lucide="thermometer" style="width:13px;height:13px;"></i> Garmin water temp, pre-filled automatically
                     </div>
-                    <div style="font-size:12px;color:#94a3b8;line-height:1.65;">If your Garmin or compatible watch recorded the water temperature — many do, because the sensor reads the water when the watch is submerged — SwimLoading pre-fills the temperature field automatically. You just confirm it. One less tap.</div>
+                    <div style="font-size:12px;color:#94a3b8;line-height:1.65;">If your Garmin or compatible watch recorded the water temperature (many do, because the sensor reads the water when the watch is submerged), SwimLoading pre-fills the temperature field automatically. You just confirm it. One less tap.</div>
                 </div>
 
                 <!-- 4-step flow -->
@@ -1347,7 +1366,7 @@
                     </div>
                     <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(252,76,2,0.1);">
                         <span style="font-size:11px;font-weight:700;color:#FC4C02;font-family:monospace;min-width:20px;">02</span>
-                        <span style="font-size:13px;color:#94a3b8;">After your swim, open SwimLoading — your activity appears ready to log</span>
+                        <span style="font-size:13px;color:#94a3b8;">After your swim, open SwimLoading and your activity is ready to log</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(252,76,2,0.1);">
                         <span style="font-size:11px;font-weight:700;color:#FC4C02;font-family:monospace;min-width:20px;">03</span>
@@ -1355,14 +1374,14 @@
                     </div>
                     <div style="display:flex;align-items:center;gap:12px;padding:10px 0;">
                         <span style="font-size:11px;font-weight:700;color:#FC4C02;font-family:monospace;min-width:20px;">04</span>
-                        <span style="font-size:13px;color:#94a3b8;">Confirm the temperature — logged in seconds</span>
+                        <span style="font-size:13px;color:#94a3b8;">Confirm the temperature. Logged in seconds.</span>
                     </div>
                 </div>
 
                 <div style="margin-top:4px;">
                     <a href="/app" style="display:inline-flex;align-items:center;gap:8px;background:#FC4C02;color:#fff;font-weight:700;font-size:15px;padding:13px 26px;border-radius:50px;text-decoration:none;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.88'" onmouseout="this.style.opacity='1'">
                         <i data-lucide="activity" style="width:16px;height:16px;"></i>
-                        Connect Strava — it's free
+                        Connect Strava. It's free.
                     </a>
                 </div>
             </div>
@@ -1386,7 +1405,7 @@
                 <h2 class="section-title" style="margin-top:12px;">Wherever you're going,<br><span class="gradient-text">there's water worth swimming.</span></h2>
                 <p class="section-desc" style="max-width:640px;margin:16px auto 0;">
                     Going to Belgium in October? Cape Town in February? Search by where and when, and see the
-                    races, the escorted swims you can book, and the group swims you can simply turn up to —
+                    races, the escorted swims you can book, and the group swims you can simply turn up to,
                     with the water temperature where we have one. It is the question no race calendar answers,
                     because none of them know the water.
                 </p>
@@ -1400,8 +1419,8 @@
                 <div><div id="exStatSoon" style="font-family:'Bebas Neue',sans-serif;font-size:38px;line-height:1;color:var(--ocean-light);"></div><div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-secondary);margin-top:6px;">in the next 30 days</div></div>
             </div>
 
-            <!-- Six real swims, soonest first. -->
-            <div id="exploreSwims" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;"></div>
+            <!-- Eight real swims, soonest first: 4x2 desktop, 2x4 tablet — no half-empty rows. -->
+            <div id="exploreSwims" class="explore-swims-grid"></div>
 
             <div style="text-align:center;margin-top:34px;">
                 <a href="/explore" class="btn-primary" style="display:inline-flex;align-items:center;gap:9px;">
@@ -1445,7 +1464,7 @@
             var all = json.results || [];
             if(!all.length) return;
 
-            // Curation, not concealment: this is a six-card shop window onto
+            // Curation, not concealment: this is an eight-card shop window onto
             // 305 swims, so it shows ones with a place and a date still ahead.
             // 21 rows have no venue, and the search deliberately keeps a
             // multi-day swim that started yesterday but is still running —
@@ -1458,7 +1477,7 @@
                 var d = new Date(String(r.start_date).slice(0,10) + 'T00:00:00');
                 return !isNaN(d) && d >= today;
             });
-            var rows = (good.length >= 6 ? good : all).slice(0, 6);
+            var rows = (good.length >= 8 ? good : all).slice(0, 8);
             if(!rows.length) return;
 
             var total = json.pagination && json.pagination.total;
@@ -1570,17 +1589,6 @@
                 </div>
                 <div class="proof-card">
                     <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-                    <blockquote>"As an Australian swimmer coming to Cape Town with zero local knowledge, SwimLoading made it so much easier. I trust my skipper — but having the conditions confirmed by this app was what gave me the confidence to commit to the swim."</blockquote>
-                    <div class="proof-author">
-                        <div class="proof-avatar" style="background:linear-gradient(135deg,#34d399,#059669);">Y</div>
-                        <div>
-                            <div class="proof-name">Yolanda C.</div>
-                            <div class="proof-detail">Open water swimmer · Perth, Australia</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="proof-card">
-                    <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
                     <blockquote>"The streak and points system is weirdly addictive. I've swum more in the last month than the whole of last year."</blockquote>
                     <div class="proof-author">
                         <div class="proof-avatar">R</div>
@@ -1593,7 +1601,7 @@
                 <!-- Row 2 -->
                 <div class="proof-card">
                     <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-                    <blockquote>"SwimLoading predicted my Robben Island double crossing at 5:23. I finished in 5:20. Three minutes off on a 15km Atlantic crossing — that's not an estimate, that's intelligence."</blockquote>
+                    <blockquote>"SwimLoading predicted my Robben Island double crossing at 5:23. I finished in 5:20. Three minutes off on a 15km Atlantic crossing. That's not an estimate, that's intelligence."</blockquote>
                     <div class="proof-author">
                         <div class="proof-avatar">Y</div>
                         <div>
@@ -1615,12 +1623,24 @@
                 </div>
                 <div class="proof-card">
                     <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-                    <blockquote>"Started logging my lake swims after hearing about it from a Cape Town swimmer. The community already has me beaten on the leaderboard — which just means I have to swim more. Grey English winters suddenly feel worth it."</blockquote>
+                    <blockquote>"Started logging my lake swims after hearing about it from a Cape Town swimmer. The community already has me beaten on the leaderboard, which just means I have to swim more. Grey English winters suddenly feel worth it."</blockquote>
                     <div class="proof-author">
                         <div class="proof-avatar" style="background:linear-gradient(135deg,#818cf8,#6366f1);">J</div>
                         <div>
                             <div class="proof-name">James H.</div>
                             <div class="proof-detail">Open water swimmer · Surrey, United Kingdom</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Antonia — verbatim from her email to support@ (21 Sep 2026); she swims Clifton 4th. First name only, per Dave. -->
+                <div class="proof-card">
+                    <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+                    <blockquote>"Found your app through Cape Town open water swimming communities, and I love it. Thank you so much for this build."</blockquote>
+                    <div class="proof-author">
+                        <div class="proof-avatar" style="background:linear-gradient(135deg,#2dd4bf,#0d9488);">A</div>
+                        <div>
+                            <div class="proof-name">Antonia</div>
+                            <div class="proof-detail">Open water swimmer · Clifton, Cape Town</div>
                         </div>
                     </div>
                 </div>
@@ -1638,7 +1658,7 @@
                 </div>
                 <h2 class="section-title" style="margin-top:12px;">World-class swimmers.<br><span class="gradient-text">Same app.</span></h2>
                 <p class="section-desc" style="max-width:520px;margin:16px auto 0;">
-                    From record-breaking channel crossings to daily cold water routines — the platform used by some of the world's best open water swimmers.
+                    From record-breaking channel crossings to daily cold water routines: the platform used by some of the world's best open water swimmers.
                 </p>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:40px;">
@@ -1716,14 +1736,14 @@
                 </div>
                 <h2 class="section-title" style="margin-top:12px;">Started at the tip of Africa.<br><span class="gradient-text">Now the world's in.</span></h2>
                 <p class="section-desc" style="max-width:620px;margin:16px auto 0;">
-                    Started by a handful of Cape Town ocean swimmers who were tired of guessing the temp. Word spread. KZN joined. The Garden Route. Gauteng — no ocean, but plenty of pools and dams — and they weren't taking no for an answer. Then <span id="origin-countries">Namibia, the UK, Australia, Switzerland, Portugal, the USA, the Seychelles, Italy, France</span>. So yes, we do pools now. The water doesn't care where it is, and neither do we. International spots carry a gold border in the app — a nod to where it all began.
+                    Started by a handful of Cape Town ocean swimmers who were tired of guessing the temp. Word spread. KZN joined. The Garden Route. Gauteng (no ocean, but plenty of pools and dams), and they weren't taking no for an answer. Then the rest of the world. The water doesn't care where it is, and neither do we.
                 </p>
             </div>
 
             <!-- Live spot globe — every glowing dot is a real spot; bright dots logged in the last 48h -->
             <style>
                 .globe-callout {
-                    width: 200px;
+                    width: 214px;
                     max-width: 46vw;
                     background: rgba(8,15,26,0.88);
                     backdrop-filter: blur(10px);
@@ -1734,30 +1754,35 @@
                     box-shadow: 0 0 0 1px rgba(56,189,248,0.08), 0 8px 24px rgba(0,0,0,0.45), 0 0 20px rgba(56,189,248,0.12);
                     transition: opacity 0.35s ease, transform 0.35s ease;
                 }
-                .globe-callout-name { font-size: 13px; font-weight: 700; color: #f1f5f9; line-height: 1.25; }
-                .globe-callout-region { font-size: 10.5px; color: #64748b; margin-top: 1px; }
-                .globe-callout-temp { font-family: 'Bebas Neue', sans-serif; font-size: 22px; font-weight: 700; color: #38bdf8; margin-top: 6px; line-height: 1; letter-spacing: 0.5px; }
-                .globe-callout-unit { font-size: 13px; font-weight: 700; color: #38bdf8; margin-left: 2px; }
-                .globe-callout-meta { font-size: 10px; color: #64748b; margin-top: 6px; }
-                .globe-callout-contributor { font-size: 10px; color: #94a3b8; margin-top: 2px; }
-                .globe-callout-link { display: inline-block; margin-top: 8px; font-size: 10.5px; font-weight: 700; color: #38bdf8; text-decoration: none; }
+                .globe-callout-tag { display: flex; align-items: center; gap: 6px; font-size: 9.5px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #94a3b8; }
+                .globe-callout-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+                .globe-callout-country { font-family: 'Bebas Neue', sans-serif; font-size: 26px; line-height: 1; letter-spacing: 0.5px; margin-top: 6px; }
+                .globe-callout-spots { font-size: 11px; color: #94a3b8; margin-top: 3px; line-height: 1.35; }
+                .globe-callout-reading { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); }
+                .globe-callout-reading.stale { opacity: 0.6; }
+                .globe-callout-temp { font-family: 'Bebas Neue', sans-serif; font-size: 30px; line-height: 1; letter-spacing: 0.5px; flex-shrink: 0; }
+                .globe-callout-meta { display: flex; flex-direction: column; font-size: 10.5px; color: #94a3b8; line-height: 1.35; min-width: 0; }
+                .globe-callout-meta #gcSpotName { color: #e2e8f0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                .globe-callout-empty { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 10.5px; color: #64748b; }
+                .globe-callout-link { display: inline-block; margin-top: 10px; font-size: 10.5px; font-weight: 700; text-decoration: none; }
                 .globe-callout-link:hover { text-decoration: underline; }
                 #globeMarkerPulse.pulsing { animation: globe-marker-pulse 1.6s ease-out infinite; }
                 @keyframes globe-marker-pulse {
-                    0%   { box-shadow: 0 0 0 0 rgba(56,189,248,0.55); }
+                    0%   { box-shadow: 0 0 0 0 var(--pulse, rgba(56,189,248,0.55)); }
                     70%  { box-shadow: 0 0 0 14px rgba(56,189,248,0); }
                     100% { box-shadow: 0 0 0 0 rgba(56,189,248,0); }
                 }
                 @media (max-width: 520px) {
-                    .globe-callout { width: 168px; padding: 8px 10px; }
-                    .globe-callout-temp { font-size: 19px; }
+                    .globe-callout { width: 172px; padding: 9px 11px; }
+                    .globe-callout-country { font-size: 22px; }
+                    .globe-callout-temp { font-size: 24px; }
                 }
             </style>
-            <div style="position:relative;max-width:620px;margin:-16px auto 56px;">
-                <canvas id="globeCanvas" aria-label="Rotating globe showing live SwimLoading spots across 15 countries"
+            <div style="position:relative;max-width:620px;margin:-16px auto 0;">
+                <canvas id="globeCanvas" aria-label="Rotating globe showing live SwimLoading spots worldwide"
                     style="width:100%;aspect-ratio:1;display:block;cursor:grab;opacity:0;transition:opacity 1.2s ease;contain:layout paint size;touch-action:pan-y;"></canvas>
                 <div id="globeCaption" style="position:absolute;left:0;right:0;bottom:6px;text-align:center;font-size:12px;color:#64748b;opacity:0;transition:opacity 1.2s ease 0.4s;">
-                    Every dot is a live spot — drag to spin
+                    Every dot is a real spot · drag to spin · tap a country
                 </div>
                 <!-- Temperature callout overlay — DOM layer above the WebGL canvas, positioned every frame -->
                 <!-- No overflow:hidden/border-radius here. A circular clip the size of
@@ -1770,56 +1795,22 @@
                 <div id="globeCalloutLayer" style="position:absolute;inset:0;pointer-events:none;">
                     <svg id="globeLeaderSvg" width="100%" height="100%" style="position:absolute;inset:0;overflow:visible;pointer-events:none;"></svg>
                     <div id="globeMarkerPulse" style="position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:rgba(56,189,248,0.9);opacity:0;pointer-events:none;"></div>
+                    <!-- Country card: one per country, in that country's colour, shown as it
+                         rotates into view. Temp = freshest swimmer log in that country (7 days). -->
                     <div id="globeCallout" class="globe-callout" style="position:absolute;opacity:0;pointer-events:none;">
-                        <div class="globe-callout-name" id="gcName"></div>
-                        <div class="globe-callout-region" id="gcRegion"></div>
-                        <div class="globe-callout-temp"><span id="gcTemp"></span><span class="globe-callout-unit" id="gcUnit"></span></div>
-                        <div class="globe-callout-meta"><span id="gcTime"></span> · <span id="gcSource"></span></div>
-                        <div class="globe-callout-contributor" id="gcContributor" style="display:none;"></div>
-                        <a href="#" id="gcLink" class="globe-callout-link" style="display:none;">View spot →</a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Country grid -->
-            <div class="global-grid" style="display:grid;grid-template-columns:2fr 1fr 1fr;grid-template-rows:auto auto;gap:16px;">
-
-                <!-- South Africa — spans two rows, full height -->
-                <div class="global-sa" style="grid-row:1/3;background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.22);border-radius:24px;padding:36px;display:flex;flex-direction:column;gap:24px;">
-                    <div>
-                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                            <span style="width:10px;height:10px;background:#22d3ee;border-radius:50%;animation:pulse-dot 2s ease-in-out infinite;flex-shrink:0;"></span>
-                            <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#22d3ee;">Home</span>
+                        <div class="globe-callout-tag"><span class="globe-callout-dot" id="gcDot"></span><span id="gcTag"></span></div>
+                        <div class="globe-callout-country" id="gcCountry"></div>
+                        <div class="globe-callout-spots" id="gcSpots"></div>
+                        <div class="globe-callout-reading" id="gcReading" style="display:none;">
+                            <div class="globe-callout-temp" id="gcTemp"></div>
+                            <div class="globe-callout-meta"><span id="gcSpotName"></span><span id="gcTime"></span></div>
                         </div>
-                        <div style="font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:1px;color:#f1f5f9;line-height:1;">South Africa</div>
-                        <div style="font-size:14px;color:var(--text-secondary);margin-top:6px;">Where it all started. <span data-sync="saSpots">120</span>+ spots, coast to coast to Joburg.</div>
-                    </div>
-                    <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                        <div style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);border-radius:100px;padding:6px 14px;font-size:12px;font-weight:600;color:#22d3ee;">Cape Town</div>
-                        <div style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);border-radius:100px;padding:6px 14px;font-size:12px;font-weight:600;color:#22d3ee;">Durban &amp; KZN</div>
-                        <div style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);border-radius:100px;padding:6px 14px;font-size:12px;font-weight:600;color:#22d3ee;">Garden Route</div>
-                        <div style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);border-radius:100px;padding:6px 14px;font-size:12px;font-weight:600;color:#22d3ee;">Eastern Cape</div>
-                        <div style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);border-radius:100px;padding:6px 14px;font-size:12px;font-weight:600;color:#22d3ee;">West Coast</div>
-                        <div style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);border-radius:100px;padding:6px 14px;font-size:12px;font-weight:600;color:#22d3ee;">Gauteng</div>
-                        <div style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);border-radius:100px;padding:6px 14px;font-size:12px;font-weight:600;color:#22d3ee;">Overberg</div>
-                    </div>
-                    <div style="margin-top:auto;padding-top:20px;border-top:1px solid rgba(34,211,238,0.1);display:flex;gap:32px;">
-                        <div><div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:#22d3ee;">90+</div><div style="font-size:12px;color:var(--text-secondary);">Swim spots</div></div>
-                        <div><div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:#22d3ee;">600+</div><div style="font-size:12px;color:var(--text-secondary);">Swimmers</div></div>
-                        <div><div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:#22d3ee;">Ocean · Pool · Dam</div><div style="font-size:12px;color:var(--text-secondary);">Every water type</div></div>
+                        <div class="globe-callout-empty" id="gcEmpty" style="display:none;">No swimmer log yet. Be the first.</div>
+                        <a href="#" id="gcLink" class="globe-callout-link">View spots →</a>
                     </div>
                 </div>
-
-                <!-- International country cards — rendered by renderCountries() -->
-                <div id="intl-grid-cards" style="display:contents;"></div>
-
             </div>
 
-            <!-- Gold border explainer -->
-            <div style="margin-top:24px;display:flex;align-items:center;justify-content:center;gap:12px;">
-                <div style="width:28px;height:18px;border-radius:6px;border:2px solid rgba(217,119,6,0.6);background:rgba(217,119,6,0.08);flex-shrink:0;"></div>
-                <span style="font-size:13px;color:var(--text-secondary);">Gold border = international — the same treatment used throughout the app. Your spot, wherever you are.</span>
-            </div>
 
         </div>
     </section>
@@ -1832,7 +1823,7 @@
     <!-- ═══════════════ CROSSINGS ═══════════════ -->
     <section style="position:relative;z-index:1;padding:80px 24px;">
         <div style="max-width:1100px;margin:0 auto;">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;">
+            <div class="crossing-journey-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;">
 
                 <!-- LEFT: copy -->
                 <div>
@@ -1842,7 +1833,7 @@
                     </div>
                     <h2 class="section-title" style="text-align:left;margin-bottom:16px;">Training for a<br><span class="gradient-text">big crossing?</span></h2>
                     <p class="section-desc" style="text-align:left;margin:0 0 24px;">
-                        The English Channel. Robben Island. North Channel. Every major open water crossing has its own temperature window, tide pattern, qualifying requirements and preparation arc. SwimLoading tracks all of it — and gives athletes a private preparation dashboard that goes beyond what Strava or Garmin can tell them.
+                        The English Channel. Robben Island. North Channel. Every major open water crossing has its own temperature window, tide pattern, qualifying requirements and preparation arc. SwimLoading tracks all of it, and gives athletes a private preparation dashboard that goes beyond what Strava or Garmin can tell them.
                     </p>
                     <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:28px;">
                         <div style="display:flex;gap:12px;align-items:flex-start;">
@@ -1860,7 +1851,7 @@
                             </div>
                             <div>
                                 <div style="font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:2px;">Phase-aware coaching intelligence</div>
-                                <div style="font-size:12px;color:var(--text-secondary);line-height:1.55;">From base fitness to taper — specific recommendations for where you are in your prep, not generic advice.</div>
+                                <div style="font-size:12px;color:var(--text-secondary);line-height:1.55;">From base fitness to taper: specific recommendations for where you are in your prep, not generic advice.</div>
                             </div>
                         </div>
                         <div style="display:flex;gap:12px;align-items:flex-start;">
@@ -1869,7 +1860,7 @@
                             </div>
                             <div>
                                 <div style="font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:2px;">Qualifying swim progress</div>
-                                <div style="font-size:12px;color:var(--text-secondary);line-height:1.55;">Track the 6-hour qualifier checklist — temperature, observer, duration — all in one place.</div>
+                                <div style="font-size:12px;color:var(--text-secondary);line-height:1.55;">Track the 6-hour qualifier checklist (temperature, observer, duration) all in one place.</div>
                             </div>
                         </div>
                     </div>
@@ -1879,7 +1870,8 @@
                     </div>
                 </div>
 
-                <!-- RIGHT: live journey card -->
+                <!-- RIGHT: athlete journey card. Hand-curated from /journeys/lindi-english-channel
+                     (not a live feed), so it is not labelled "live" — the session dates are real. -->
                 <div>
                     <div style="background:rgba(13,23,40,0.9);border:1px solid rgba(16,185,129,0.22);border-radius:20px;padding:24px;position:relative;overflow:hidden;">
                         <!-- Glow -->
@@ -1887,8 +1879,8 @@
 
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px;">
                             <div style="display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#10b981;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);padding:3px 10px;border-radius:50px;">
-                                <span style="width:5px;height:5px;border-radius:50%;background:#10b981;border-radius:50%;animation:fadeFloat 2.5s infinite;display:inline-block;"></span>
-                                Live athlete journey
+                                <span style="width:5px;height:5px;border-radius:50%;background:#10b981;display:inline-block;"></span>
+                                Athlete journey
                             </div>
                         </div>
 
@@ -1953,7 +1945,7 @@
                 </div>
                 <h2 class="section-title" style="margin-top:12px;">The brands behind SwimLoading</h2>
                 <p style="font-size:16px;color:var(--text-secondary);max-width:560px;margin:12px auto 0;line-height:1.65;">
-                    Every monthly challenge prize, every wetsuit deal and every gel in your swim bag — powered by partners who believe in open water.
+                    Every monthly challenge prize, every wetsuit deal and every gel in your swim bag, powered by partners who believe in open water.
                 </p>
             </div>
             <div class="partner-grid">
@@ -1965,7 +1957,7 @@
                         </div>
                         <span class="partner-chip live">Live</span>
                     </div>
-                    <p class="partner-desc">Precision sports nutrition — gels and drinks engineered to fuel long open water swims without GI distress.</p>
+                    <p class="partner-desc">Precision sports nutrition: gels and drinks engineered to fuel long open water swims without GI distress.</p>
                     <span class="partner-link">Explore Maurten <i data-lucide="arrow-right" style="width:13px;height:13px;"></i></span>
                 </a>
                 <!-- SiS -->
@@ -1976,7 +1968,7 @@
                         </div>
                         <span class="partner-chip live">Live</span>
                     </div>
-                    <p class="partner-desc">Science in Sport — evidence-based nutrition trusted by elite athletes. Gels, hydration and recovery for every swim.</p>
+                    <p class="partner-desc">Science in Sport: evidence-based nutrition trusted by elite athletes. Gels, hydration and recovery for every swim.</p>
                     <span class="partner-link">Explore SiS <i data-lucide="arrow-right" style="width:13px;height:13px;"></i></span>
                 </a>
                 <!-- Blu Smooth -->
@@ -1987,7 +1979,7 @@
                         </div>
                         <span class="partner-chip live">Live</span>
                     </div>
-                    <p class="partner-desc">Blu Smooth wetsuits designed for open water swimmers — warm, fast and built for South African conditions.</p>
+                    <p class="partner-desc">Blu Smooth wetsuits designed for open water swimmers. Warm, fast and built for South African conditions.</p>
                     <span class="partner-link">Explore Blu Smooth <i data-lucide="arrow-right" style="width:13px;height:13px;"></i></span>
                 </a>
                 <!-- THEMAGIC5 -->
@@ -1998,7 +1990,7 @@
                         </div>
                         <span class="partner-chip live">Live</span>
                     </div>
-                    <p class="partner-desc">Custom-fit goggles built from a 3D scan of your face — no more leaks, no more pressure, no more compromises.</p>
+                    <p class="partner-desc">Custom-fit goggles built from a 3D scan of your face. No more leaks, no more pressure, no more compromises.</p>
                     <span class="partner-link">Explore THEMAGIC5 <i data-lucide="arrow-right" style="width:13px;height:13px;"></i></span>
                 </a>
                 <!-- BlueSeventy UK -->
@@ -2009,7 +2001,7 @@
                         </div>
                         <span class="partner-chip live">15% UK Discount</span>
                     </div>
-                    <p class="partner-desc">Member Benefit Partner — 15% off goggles, training wetsuits and open water gear for members in the UK &amp; Channel Islands.</p>
+                    <p class="partner-desc">Member Benefit Partner: 15% off goggles, training wetsuits and open water gear for members in the UK &amp; Channel Islands.</p>
                     <span class="partner-link">Explore BlueSeventy <i data-lucide="arrow-right" style="width:13px;height:13px;"></i></span>
                 </a>
                 <!-- TRIHARD — UK/EU challenge, live status set at runtime (see script below) from campaigns.launch_date/end_date -->
@@ -2018,9 +2010,9 @@
                         <div class="partner-logo-wrap">
                             <img src="/partners/trihard-logo-white.png" alt="TRIHARD" style="height:26px;width:auto;">
                         </div>
-                        <span class="partner-chip soon" id="trihardPartnerChip">UK/EU · Starts Aug 1</span>
+                        <span class="partner-chip soon" id="trihardPartnerChip">UK/EU Challenge</span>
                     </div>
-                    <p class="partner-desc">Pre- and post-swim skincare built for open water athletes — chlorine protection, sun defence and salt recovery. Presenting sponsor of The Great UK Swim Spot Challenge.</p>
+                    <p class="partner-desc">Pre- and post-swim skincare built for open water athletes: chlorine protection, sun defence and salt recovery. Presenting sponsor of The Great UK Swim Spot Challenge.</p>
                     <span class="partner-link">Preview TRIHARD <i data-lucide="arrow-right" style="width:13px;height:13px;"></i></span>
                 </a>
                 <!-- eo SwimBETTER — live status set at runtime (see script below); dates (Aug 1 – Oct 31 2026) confirmed by Dave, no DB campaign row for this one -->
@@ -2029,7 +2021,7 @@
                         <div class="partner-logo-wrap">
                             <img src="/partners/eo-logo-white.png" alt="eo SwimBETTER" style="height:28px;width:auto;">
                         </div>
-                        <span class="partner-chip soon" id="eoPartnerChip">Starts Aug 1</span>
+                        <span class="partner-chip soon" id="eoPartnerChip">Aug – Oct 2026</span>
                     </div>
                     <p class="partner-desc">"The missing link between swimming harder and swimming faster is knowing what to change." Used by Kyle Chalmers, 14 national federations and 50+ NCAA colleges.</p>
                     <span class="partner-link">Preview eo SwimBETTER <i data-lucide="arrow-right" style="width:13px;height:13px;"></i></span>
@@ -2042,10 +2034,10 @@
                         </div>
                         <span class="partner-chip soon">Coming Soon</span>
                     </div>
-                    <p class="partner-desc">Smart swim goggles with a heads-up display — your pace, distance and stroke metrics in your line of sight. Member discounts and a Smart Swim 2 prize on the way.</p>
+                    <p class="partner-desc">Smart swim goggles with a heads-up display: your pace, distance and stroke metrics in your line of sight. Member discounts and a Smart Swim 2 prize on the way.</p>
                     <span class="partner-link">Preview FORM <i data-lucide="arrow-right" style="width:13px;height:13px;"></i></span>
                 </a>
-                <!-- JAKED — coming soon, Italian swimwear brand sponsoring Carina Bruwer, her kit shipped Sept 2026 -->
+                <!-- JAKED — coming soon, Italian swimwear brand sponsoring Carina Bruwer, her kit shipped Sept 2026. Copy states the ship month, not a relative 'this month' that goes stale. -->
                 <a href="/partners/jaked" class="partner-card coming-soon">
                     <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
                         <div class="partner-logo-wrap">
@@ -2053,7 +2045,7 @@
                         </div>
                         <span class="partner-chip soon">Coming Soon</span>
                     </div>
-                    <p class="partner-desc">Italian performance swimwear — open water wetsuits, competition suits and goggles built on research and innovation. Sponsoring SwimLoading's own Carina Bruwer — her kit has shipped and is due this month.</p>
+                    <p class="partner-desc">Italian performance swimwear: open water wetsuits, competition suits and goggles built on research and innovation. Sponsoring SwimLoading's own Carina Bruwer, whose kit shipped in September 2026.</p>
                     <span class="partner-link">Preview JAKED <i data-lucide="arrow-right" style="width:13px;height:13px;"></i></span>
                 </a>
             </div>
@@ -2088,11 +2080,31 @@
         var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
         var today = new Date().toISOString().slice(0, 10);
 
-        function makeLive(cardId, chipId, chipText) {
+        // Brand Partners stat = the partner cards actually listed below, so the
+        // headline number can never disagree with the grid (it said 6 while 9 were listed).
+        var partnerStat = document.getElementById('stat-partners');
+        var partnerCount = document.querySelectorAll('.partner-card').length;
+        if (partnerStat && partnerCount) partnerStat.textContent = partnerCount;
+
+        function setChip(cardId, chipId, state, chipText) {
             var card = document.getElementById(cardId);
             var chip = document.getElementById(chipId);
-            if (card) card.classList.remove('coming-soon');
-            if (chip) { chip.classList.remove('soon'); chip.classList.add('live'); chip.textContent = chipText; }
+            if (card && state !== 'soon') card.classList.remove('coming-soon');
+            if (chip) {
+                chip.classList.remove('soon', 'live', 'done');
+                chip.classList.add(state);
+                chip.textContent = chipText;
+            }
+        }
+        function fmtDay(d) {
+            return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        }
+        // before launch → "Starts 1 Aug"; in window → "Live Now"; after end → "Challenge ended".
+        // Previously only the live state was handled, so an ended challenge fell back to "Starts Aug 1".
+        function applyWindow(cardId, chipId, prefix, launch, end) {
+            if (today < launch)      setChip(cardId, chipId, 'soon', prefix + 'Starts ' + fmtDay(launch));
+            else if (today <= end)   setChip(cardId, chipId, 'live', prefix + 'Live Now');
+            else                     setChip(cardId, chipId, 'done', prefix + 'Challenge ended');
         }
 
         // TRIHARD — DB-backed campaign (campaigns.slug = 'uk_swim_spot_challenge')
@@ -2102,15 +2114,13 @@
             });
             var rows = await res.json();
             var campaign = rows && rows[0];
-            if (campaign && campaign.enabled && today >= campaign.launch_date && today <= campaign.end_date) {
-                makeLive('trihardPartnerCard', 'trihardPartnerChip', 'UK/EU · Live Now');
+            if (campaign && campaign.enabled && campaign.launch_date && campaign.end_date) {
+                applyWindow('trihardPartnerCard', 'trihardPartnerChip', 'UK/EU · ', campaign.launch_date, campaign.end_date);
             }
-        } catch (e) { /* keep "Soon" badge on any failure */ }
+        } catch (e) { /* keep the date-free "UK/EU Challenge" badge on any failure */ }
 
         // eo SwimBETTER — no DB campaign row; dates confirmed by Dave 2026-07-29 (Aug 1 – Oct 31 2026)
-        if (today >= '2026-08-01' && today <= '2026-10-31') {
-            makeLive('eoPartnerCard', 'eoPartnerChip', 'Live Now');
-        }
+        applyWindow('eoPartnerCard', 'eoPartnerChip', '', '2026-08-01', '2026-10-31');
     })();
     </script>
 
@@ -2128,13 +2138,13 @@
                 <a href="/pricing-clubs" style="display:flex;flex-direction:column;gap:10px;background:rgba(30,41,59,0.4);border:1px solid var(--border);border-radius:20px;padding:26px;text-decoration:none;transition:border-color .2s,transform .2s;" onmouseover="this.style.borderColor='rgba(56,189,248,0.5)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='';this.style.transform=''">
                     <i data-lucide="users" style="width:24px;height:24px;color:var(--ocean-light);"></i>
                     <div style="font-size:17px;font-weight:700;color:var(--text-primary);">Clubs</div>
-                    <div style="font-size:13.5px;color:var(--text-secondary);line-height:1.55;">Rosters, attendance, league standings and a sets planner — the complete club platform.</div>
+                    <div style="font-size:13.5px;color:var(--text-secondary);line-height:1.55;">Rosters, attendance, league standings and a sets planner. The complete club platform.</div>
                     <span style="margin-top:auto;display:inline-flex;align-items:center;gap:6px;color:var(--ocean-light);font-size:13px;font-weight:600;padding-top:8px;">The club platform <i data-lucide="arrow-right" style="width:14px;height:14px;"></i></span>
                 </a>
                 <a href="/crossings/english-channel" style="display:flex;flex-direction:column;gap:10px;background:rgba(30,41,59,0.4);border:1px solid var(--border);border-radius:20px;padding:26px;text-decoration:none;transition:border-color .2s,transform .2s;" onmouseover="this.style.borderColor='rgba(56,189,248,0.5)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='';this.style.transform=''">
                     <i data-lucide="navigation" style="width:24px;height:24px;color:var(--ocean-light);"></i>
-                    <div style="font-size:17px;font-weight:700;color:var(--text-primary);">Channel Pro</div>
-                    <div style="font-size:13.5px;color:var(--text-secondary);line-height:1.55;">English Channel and big-crossing intelligence — tides, weather windows, records and predictions.</div>
+                    <div style="font-size:17px;font-weight:700;color:var(--text-primary);">Crossing Intelligence</div>
+                    <div style="font-size:13.5px;color:var(--text-secondary);line-height:1.55;">English Channel and big-crossing intelligence: tides, weather windows, records and predictions.</div>
                     <span style="margin-top:auto;display:inline-flex;align-items:center;gap:6px;color:var(--ocean-light);font-size:13px;font-weight:600;padding-top:8px;">Channel intelligence <i data-lucide="arrow-right" style="width:14px;height:14px;"></i></span>
                 </a>
                 <a href="/app" style="display:flex;flex-direction:column;gap:10px;background:rgba(30,41,59,0.4);border:1px solid var(--border);border-radius:20px;padding:26px;text-decoration:none;transition:border-color .2s,transform .2s;" onmouseover="this.style.borderColor='rgba(56,189,248,0.5)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='';this.style.transform=''">
@@ -2152,7 +2162,7 @@
             </div>
             <p style="text-align:center;font-size:12px;color:#64748b;margin-top:36px;line-height:1.7;">
                 Conditions &amp; forecast data: NOAA · ECMWF via Open-Meteo · WorldTides · my-water.live · CSA &amp; CS&amp;PF public records · community logs
-                — <a href="/english-channel/data-sources" style="color:#64748b;">full attribution</a>
+                · <a href="/english-channel/data-sources" style="color:#64748b;">full attribution</a>
             </p>
         </div>
     </section>
@@ -2184,7 +2194,7 @@
                         <div class="install-step-num">1</div>
                         <div class="install-step-content">
                             <div class="install-step-title">Open in Safari</div>
-                            <div class="install-step-detail">You must use <strong>Safari</strong> — not Chrome or other browsers. Safari is the only browser on iPhone that supports installing web apps.</div>
+                            <div class="install-step-detail">You must use <strong>Safari</strong>, not Chrome or other browsers. Safari is the only browser on iPhone that supports installing web apps.</div>
                         </div>
                     </div>
                     <div class="install-step">
@@ -2198,7 +2208,7 @@
                         <div class="install-step-num">3</div>
                         <div class="install-step-content">
                             <div class="install-step-title">Tap "Add to Home Screen"</div>
-                            <div class="install-step-detail">Scroll down in the share menu until you see <strong>"Add to Home Screen"</strong> — tap it. You'll see the SwimLoading icon and name.</div>
+                            <div class="install-step-detail">Scroll down in the share menu until you see <strong>"Add to Home Screen"</strong> and tap it. You'll see the SwimLoading icon and name.</div>
                         </div>
                     </div>
                     <div class="install-step">
@@ -2230,14 +2240,14 @@
                         <div class="install-step-num">3</div>
                         <div class="install-step-content">
                             <div class="install-step-title">Tap "Install app" or "Add to Home Screen"</div>
-                            <div class="install-step-detail">Look for <strong>"Install app"</strong> — if you don't see it, look for <strong>"Add to Home screen"</strong>. Some phones may show a pop-up banner at the bottom automatically.</div>
+                            <div class="install-step-detail">Look for <strong>"Install app"</strong>. If you don't see it, look for <strong>"Add to Home screen"</strong>. Some phones may show a pop-up banner at the bottom automatically.</div>
                         </div>
                     </div>
                     <div class="install-step">
                         <div class="install-step-num">4</div>
                         <div class="install-step-content">
                             <div class="install-step-title">Tap "Install" to confirm</div>
-                            <div class="install-step-detail">Confirm the install. SwimLoading will now appear on your home screen with its own icon — just like an app from the Play Store.</div>
+                            <div class="install-step-detail">Confirm the install. SwimLoading will now appear on your home screen with its own icon, just like an app from the Play Store.</div>
                         </div>
                     </div>
                 </div>
@@ -2250,11 +2260,11 @@
         <div style="max-width:1100px;margin:0 auto;">
 
             <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:40px;">
-                <h2 style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;color:#f1f5f9;">Swim spots across <span data-sync="countries">12</span> countries</h2>
+                <h2 style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;color:#f1f5f9;">Swim spots across <span data-sync="countries">15</span> countries</h2>
                 <a href="/spots/atlantic" style="font-size:13px;font-weight:600;color:#38bdf8;text-decoration:none;display:inline-flex;align-items:center;gap:4px;">View all spots <i data-lucide="arrow-right" style="width:13px;height:13px;"></i></a>
             </div>
 
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:40px;">
+            <div class="spots-index-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:40px;">
 
                 <!-- Col 1: Regions -->
                 <div>
@@ -2324,7 +2334,7 @@
                      behind as new ones were added — see site-config.js. -->
                 <div>
                     <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#f59e0b;margin-bottom:16px;">International</p>
-                    <div id="footer-intl-links" style="display:flex;flex-direction:column;gap:8px;">
+                    <div id="footer-intl-links" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
                         <!-- BEGIN generated-country-links (scripts/sync-country-links.mjs — do not edit by hand) -->
                         <a href="/spots/atlantic" style="font-size:13px;color:var(--text-secondary);text-decoration:none;">South Africa</a>
                         <a href="/spots/namibia" style="font-size:13px;color:var(--text-secondary);text-decoration:none;">Namibia</a>
@@ -2343,10 +2353,9 @@
                         <a href="/spots/ireland" style="font-size:13px;color:var(--text-secondary);text-decoration:none;">Ireland</a>
                         <!-- END generated-country-links -->
                     </div>
-                    <div style="margin-top:16px;padding:14px;border-radius:10px;background:rgba(217,119,6,0.06);border:1px solid rgba(217,119,6,0.15);">
-                        <div style="font-size:12px;font-weight:600;color:#f59e0b;margin-bottom:4px;">Your country not listed?</div>
-                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">Suggest a spot and we'll add it. SwimLoading grows where swimmers are.</div>
-                    </div>
+                    <a id="suggest-country-static" href="mailto:support@swimloading.com?subject=Suggest%20a%20swim%20spot" style="display:block;margin-top:12px;font-size:12px;color:var(--text-secondary);line-height:1.5;text-decoration:none;">
+                        <span style="font-weight:600;color:#f59e0b;">Your country not listed?</span> Suggest a spot and we'll add it.
+                    </a>
 
                     <p style="font-size:12px;color:#334155;margin-top:20px;">
                         Monthly community challenge sponsored by <a href="https://www.artofendurance.co.za" rel="sponsored" style="color:#475569;">Art of Endurance</a> × Maurten.
@@ -2359,13 +2368,13 @@
 
     <!-- Footer -->
     <footer>
-        <p>SwimLoading &mdash; The Global Open Water Swimming Community</p>
+        <p>SwimLoading · The Global Open Water Swimming Community</p>
         <div class="footer-links">
             <a href="/app">Open App</a>
             <a href="/explore">Find a Swim</a>
             <a href="/list-your-swim">List Your Swim</a>
             <a href="/crossings/english-channel">Channel</a>
-            <a href="/pro">Big Water Intel</a>
+            <a href="/pro">Crossing Intelligence</a>
             <a href="/pricing">Pricing</a>
             <a href="#features">Features</a>
             <a href="/clubs">Clubs</a>
@@ -2440,40 +2449,23 @@
                 heroCountEl.textContent = INTL_COUNTRIES.length + 1;
             }
 
-            // 3. Origin story sentence
-            const originEl = document.getElementById('origin-countries');
-            if (originEl) {
-                const names = INTL_COUNTRIES.map(c => c.label);
-                // Format: "A, B, C, D, E, the F" — last entry gets "the " if it's USA
-                const last = names[names.length - 1];
-                const allButLast = names.slice(0, -1);
-                const lastFormatted = last === 'USA' ? 'the USA' : last;
-                originEl.textContent = allButLast.join(', ') + ', ' + lastFormatted;
-            }
-
-            // 4. Country grid cards
-            const gridEl = document.getElementById('intl-grid-cards');
-            if (gridEl) {
-                gridEl.innerHTML = INTL_COUNTRIES.map(c =>
-                    `<div style="background:${c.gridBg};border:1px solid ${c.gridBorder};border-radius:24px;padding:28px;">` +
-                    `<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">` +
-                    `<span style="width:8px;height:8px;background:${c.color};border-radius:50%;animation:pulse-dot 2s ease-in-out infinite ${c.dotDelay};flex-shrink:0;"></span>` +
-                    `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:${c.color};">Live</span>` +
-                    `</div>` +
-                    `<div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:${c.color};line-height:1;margin-bottom:8px;">${c.name}</div>` +
-                    `<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">${c.spots}</div>` +
-                    `</div>`
-                ).join('');
-            }
-
-            // 5. Footer "International" link column
+            // 5. Spots index "International" column: compact chips, same links as the
+            //    generated static block (South Africa first), spot names in the tooltip.
             const footerEl = document.getElementById('footer-intl-links');
             if (footerEl) {
-                footerEl.innerHTML = INTL_COUNTRIES.map(c => {
-                    const href = c.slug ? `/spots/${c.slug}` : '/spots/europe';
-                    return `<a href="${href}" style="display:inline-flex;align-items:center;gap:8px;color:#94a3b8;font-size:13px;font-weight:500;text-decoration:none;padding:7px 12px;border-radius:8px;border:1px solid rgba(217,119,6,0.2);background:rgba(217,119,6,0.04);transition:all 0.2s;" onmouseover="this.style.color='${c.color}';this.style.borderColor='rgba(217,119,6,0.4)'" onmouseout="this.style.color='#94a3b8';this.style.borderColor='rgba(217,119,6,0.2)'">` +
-                        `<span style="width:6px;height:6px;border-radius:50%;background:${c.color};flex-shrink:0;"></span>${c.name} — ${c.spots}</a>`;
-                }).join('');
+                const chip = (href, color, name, spots) =>
+                    `<a href="${href}" title="${spots}" style="display:flex;align-items:center;gap:8px;min-width:0;color:#94a3b8;font-size:13px;font-weight:500;text-decoration:none;padding:7px 12px;border-radius:8px;border:1px solid rgba(217,119,6,0.18);background:rgba(217,119,6,0.03);transition:color .2s,border-color .2s;" onmouseover="this.style.color='#f1f5f9';this.style.borderColor='rgba(217,119,6,0.45)'" onmouseout="this.style.color='#94a3b8';this.style.borderColor='rgba(217,119,6,0.18)'">` +
+                    `<span style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0;"></span>` +
+                    `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span></a>`;
+                // Closing tile: "Suggest a country". With an odd number of countries it takes the
+                // empty cell; with an even number it spans the row, so the grid never shows a gap.
+                const total = INTL_COUNTRIES.length + 1;
+                const suggest = `<a href="mailto:support@swimloading.com?subject=Suggest%20a%20swim%20spot" style="${total % 2 === 0 ? 'grid-column:1/-1;' : ''}display:flex;align-items:center;gap:6px;color:#f59e0b;font-size:12.5px;font-weight:600;text-decoration:none;padding:7px 12px;border-radius:8px;border:1px dashed rgba(217,119,6,0.4);transition:border-color .2s;" onmouseover="this.style.borderColor='rgba(217,119,6,0.8)'" onmouseout="this.style.borderColor='rgba(217,119,6,0.4)'">+ Suggest a country</a>`;
+                footerEl.innerHTML = chip('/spots/atlantic', '#22d3ee', 'South Africa', 'Cape Town · Durban · Garden Route · Gauteng') +
+                    INTL_COUNTRIES.map(c => chip(c.slug ? `/spots/${c.slug}` : '/spots/europe', c.color, c.label || c.name, c.spots)).join('') +
+                    suggest;
+                const staticSuggest = document.getElementById('suggest-country-static');
+                if (staticSuggest) staticSuggest.style.display = 'none';
             }
         }
 
@@ -2704,75 +2696,99 @@
             { location: [-22.68, 14.53], size: 0.04 },  // Swakopmund
             { location: [43.17, 16.44], size: 0.04 },   // Hvar
         ];
-        // tempLocations: enriched marker data (name/region/country/temp/time/contributor)
-        // for markers that have an actual swimmer temp log — these get callouts.
-        let tempLocations = [];
+        // Globe cards, shown one at a time as they rotate into view:
+        //  1. SPOT cards: every spot with a swimmer log in the last 7 days, in its
+        //     country's colour (where temps are actually being logged right now).
+        //  2. COUNTRY cards: every other country (South Africa + SITE_CONFIG.countries),
+        //     with that country's most recent swimmer log however old, labelled with
+        //     its age and dimmed after 48h. Fetched per country, so a quiet week in
+        //     one country never hides the fact that swimmers log there.
+        // Without any data the country cards still show at their headline `anchor`.
+        const RECENT_MS = 7 * 24 * 3600 * 1000;
+        const FRESH_MS = 48 * 3600 * 1000;
+        const HOME = { name: 'South Africa', iso: 'ZA', color: '#22d3ee', slug: 'atlantic',
+                       spots: 'Cape Town · Durban · Garden Route · Gauteng', anchor: [-33.92, 18.42], home: true };
+        const CFG_COUNTRIES = (window.SITE_CONFIG && Array.isArray(window.SITE_CONFIG.countries)) ? window.SITE_CONFIG.countries : [];
+        const COUNTRIES = [HOME].concat(CFG_COUNTRIES.filter(c => c.iso && Array.isArray(c.anchor)));
+        const countryByIso = new Map(COUNTRIES.map(c => [c.iso, c]));
+        const countryCard = c => ({
+            key: 'country:' + c.iso, iso: c.iso, color: c.color,
+            tag: c.home ? 'Home' : 'International', title: c.name, subtitle: c.spots || '',
+            href: c.slug ? '/spots/' + c.slug : '/spots/europe',
+            latitude: c.anchor[0], longitude: c.anchor[1], reading: null,
+        });
+        let countryCards = COUNTRIES.map(countryCard);
+        let readingsLoaded = false;
         try {
             const SB_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
             const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
             const headers = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
-            const [spotsRes, logsRes, domainsRes, countriesRes] = await Promise.all([
-                fetch(SB_URL + '/rest/v1/spots?select=id,name,latitude,longitude,domain,area,country_code&active=eq.true&latitude=not.is.null', { headers }),
-                fetch(SB_URL + '/rest/v1/temp_logs?select=spot_id,temp_c,created_at,user_id&order=created_at.desc&limit=400', { headers }),
-                fetch(SB_URL + '/rest/v1/domains?select=code,display_name', { headers }),
-                fetch(SB_URL + '/rest/v1/countries?select=iso_code,name', { headers }),
+            const [spotsRes, logsRes] = await Promise.all([
+                fetch(SB_URL + '/rest/v1/spots?select=id,name,latitude,longitude,country_code&active=eq.true&latitude=not.is.null', { headers }),
+                fetch(SB_URL + '/rest/v1/temp_logs?select=spot_id,temp_c,created_at&temp_c=not.is.null&order=created_at.desc&limit=400', { headers }),
             ]);
             if (spotsRes.ok) {
                 const spots = await spotsRes.json();
-                const domains = domainsRes.ok ? await domainsRes.json() : [];
-                const countries = countriesRes.ok ? await countriesRes.json() : [];
-                const domainName = {}; domains.forEach(d => { domainName[d.code] = d.display_name; });
-                const countryName = {}; countries.forEach(c => { countryName[c.iso_code] = c.name; });
+                const spotById = new Map(spots.map(sp => [sp.id, sp]));
+                const isoOf = sp => sp.country_code || 'ZA'; // spots without a code are domestic
 
                 const recentSpotIds = new Set();
-                const latestBySpot = new Map(); // spot_id -> latest temp_log (logs arrive desc, so first wins)
+                const recentBySpot = new Map(); // spot id -> newest log in the last 7 days
                 if (logsRes.ok) {
-                    const cutoff = Date.now() - 48 * 3600 * 1000;
+                    const now = Date.now();
                     (await logsRes.json()).forEach(l => {
-                        if (new Date(l.created_at).getTime() >= cutoff) recentSpotIds.add(l.spot_id);
-                        if (!latestBySpot.has(l.spot_id)) latestBySpot.set(l.spot_id, l);
+                        const age = now - new Date(l.created_at).getTime();
+                        if (age <= FRESH_MS) recentSpotIds.add(l.spot_id);
+                        const sp = spotById.get(l.spot_id);
+                        if (!sp || age > RECENT_MS || recentBySpot.has(sp.id)) return;
+                        recentBySpot.set(sp.id, l);
                     });
+                    readingsLoaded = true;
                 }
 
                 const live = spots
-                    .filter(s => s.latitude != null && s.longitude != null)
-                    .map(s => ({
-                        location: [s.latitude, s.longitude],
-                        size: recentSpotIds.has(s.id) ? 0.08 : 0.03,
+                    .filter(sp => sp.latitude != null && sp.longitude != null)
+                    .map(sp => ({
+                        location: [sp.latitude, sp.longitude],
+                        size: recentSpotIds.has(sp.id) ? 0.08 : 0.03,
                     }));
                 if (live.length > 5) markers = live;
 
-                // Contributor display names for the latest reading per spot (small lookup set)
-                const userIds = [...new Set([...latestBySpot.values()].map(l => l.user_id).filter(Boolean))];
-                let nameByUser = {};
-                if (userIds.length) {
-                    try {
-                        const pRes = await fetch(SB_URL + '/rest/v1/public_profiles?select=id,display_name&id=in.(' + userIds.join(',') + ')', { headers });
-                        if (pRes.ok) (await pRes.json()).forEach(p => { nameByUser[p.id] = p.display_name; });
-                    } catch (e) { /* contributor names optional */ }
-                }
-
-                tempLocations = spots
-                    .filter(s => latestBySpot.has(s.id))
-                    .map(s => {
-                        const log = latestBySpot.get(s.id);
-                        return {
-                            id: s.id,
-                            name: s.name,
-                            region: s.area ? titleCase(s.area) : (domainName[s.domain] || ''),
-                            country: countryName[s.country_code] || 'South Africa',
-                            latitude: s.latitude,
-                            longitude: s.longitude,
-                            temperature: log.temp_c,
-                            temperatureUnit: 'C',
-                            readingTime: log.created_at,
-                            sourceType: 'swimmer_log',
-                            contributorName: log.user_id ? (nameByUser[log.user_id] || null) : null,
-                            spotUrl: '/spots/' + slugify(s.name),
-                        };
+                // 1. Spot cards for every spot logged this week
+                const spotCards = [];
+                recentBySpot.forEach((l, id) => {
+                    const sp = spotById.get(id);
+                    const c = countryByIso.get(isoOf(sp));
+                    spotCards.push({
+                        key: 'spot:' + id, iso: isoOf(sp), color: c ? c.color : '#38bdf8',
+                        tag: c ? c.name : 'Swim spot', title: sp.name, subtitle: '',
+                        href: '/spots/' + slugify(sp.name),
+                        latitude: sp.latitude, longitude: sp.longitude,
+                        reading: { temp: l.temp_c, time: l.created_at, where: null },
                     });
+                });
+                const coveredIsos = new Set(spotCards.map(c => c.iso));
+
+                // 2. Country cards for countries with no log this week: their latest log, any age
+                countryCards = countryCards.filter(c => !coveredIsos.has(c.iso));
+                if (readingsLoaded) {
+                    await Promise.all(countryCards.map(async card => {
+                        const ids = spots.filter(sp => isoOf(sp) === card.iso).map(sp => sp.id);
+                        if (!ids.length) { card.unknown = true; return; } // no mappable spots: never claim "no log yet"
+                        try {
+                            const r = await fetch(SB_URL + '/rest/v1/temp_logs?select=spot_id,temp_c,created_at&temp_c=not.is.null&spot_id=in.(' + ids.join(',') + ')&order=created_at.desc&limit=1', { headers });
+                            if (!r.ok) { card.unknown = true; return; }
+                            const [l] = await r.json();
+                            if (!l) return;
+                            const sp = spotById.get(l.spot_id);
+                            card.reading = { temp: l.temp_c, time: l.created_at, where: sp.name };
+                            card.latitude = sp.latitude; card.longitude = sp.longitude; // point at the logged spot
+                        } catch (e) { card.unknown = true; }
+                    }));
+                }
+                countryCards = spotCards.concat(countryCards);
             }
-        } catch (e) { /* fallback markers stay; no callouts without live data */ }
+        } catch (e) { /* country cards still show from site-config anchors, without readings */ }
 
         // Never initialise at zero width (hidden tab, collapsed viewport) — WebGL buffer would be 0x0
         while (!canvas.offsetWidth) await new Promise(r => setTimeout(r, 250));
@@ -2804,7 +2820,7 @@
             const c = Math.cos(latRad);
             return [c * Math.cos(lngRad), Math.sin(latRad), -c * Math.sin(lngRad)];
         }
-        tempLocations.forEach(loc => { loc._vec = markerVector(loc.latitude, loc.longitude); });
+        countryCards.forEach(c => { c._vec = markerVector(c.latitude, c.longitude); });
 
         const VISIBLE_Z = 0.02; // hide markers past this point (rear-facing / grazing the edge)
 
@@ -2824,10 +2840,11 @@
         const leaderSvg     = document.getElementById('globeLeaderSvg');
         const markerPulse   = document.getElementById('globeMarkerPulse');
         const calloutEl     = document.getElementById('globeCallout');
-        const gcName = document.getElementById('gcName'), gcRegion = document.getElementById('gcRegion'),
-              gcTemp = document.getElementById('gcTemp'), gcUnit = document.getElementById('gcUnit'),
-              gcTime = document.getElementById('gcTime'), gcSource = document.getElementById('gcSource'),
-              gcContributor = document.getElementById('gcContributor'), gcLink = document.getElementById('gcLink');
+        const gcDot = document.getElementById('gcDot'), gcTag = document.getElementById('gcTag'),
+              gcCountry = document.getElementById('gcCountry'), gcSpots = document.getElementById('gcSpots'),
+              gcReading = document.getElementById('gcReading'), gcTemp = document.getElementById('gcTemp'),
+              gcSpotName = document.getElementById('gcSpotName'), gcTime = document.getElementById('gcTime'),
+              gcEmpty = document.getElementById('gcEmpty'), gcLink = document.getElementById('gcLink');
 
         let leaderLine = null;
         if (leaderSvg) {
@@ -2838,31 +2855,57 @@
             leaderSvg.appendChild(leaderLine);
         }
 
-        const SOURCE_LABEL = { swimmer_log: 'Swimmer log', buoy: 'Live buoy', lido_api: 'Lido API', manual: 'Manual reading' };
 
-        let activeLoc = null, lastCamPhi = phi, lastInteraction = 0, cycleTimer = null, cycleIndex = -1;
+        let activeLoc = null, lastCamPhi = phi, lastInteraction = 0, cycleTimer = null;
+        const recentlyShown = []; // card keys, newest last, so the cycle sweeps round the globe
 
         function timeAgo(iso) {
             const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-            if (mins < 1) return 'Updated just now';
-            if (mins < 60) return `Updated ${mins}m ago`;
+            if (mins < 1) return 'just now';
+            if (mins < 60) return `${mins}m ago`;
             const hrs = Math.round(mins / 60);
-            if (hrs < 24) return `Updated ${hrs}h ago`;
-            return `Updated ${Math.round(hrs / 24)}d ago`;
+            if (hrs < 24) return `${hrs}h ago`;
+            return `${Math.round(hrs / 24)}d ago`;
+        }
+        function rgba(hex, a) {
+            const n = parseInt(String(hex).replace('#', ''), 16);
+            return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
         }
 
-        function showCallout(loc) {
-            activeLoc = loc;
-            gcName.textContent = loc.name;
-            gcRegion.textContent = [loc.region, loc.country].filter(Boolean).join(', ');
-            gcTemp.textContent = loc.temperature != null ? (Math.round(loc.temperature * 10) / 10) + '°' : '—';
-            gcUnit.textContent = loc.temperatureUnit;
-            gcTime.textContent = timeAgo(loc.readingTime);
-            gcSource.textContent = SOURCE_LABEL[loc.sourceType] || 'Reading';
-            if (loc.contributorName) { gcContributor.textContent = 'Reported by ' + loc.contributorName; gcContributor.style.display = ''; }
-            else { gcContributor.style.display = 'none'; }
-            if (loc.spotUrl) { gcLink.href = loc.spotUrl; gcLink.style.display = ''; }
-            else { gcLink.style.display = 'none'; }
+        function showCallout(card) {
+            activeLoc = card;
+            const col = card.color || '#38bdf8';
+            calloutEl.style.borderColor = rgba(col, 0.55);
+            calloutEl.style.boxShadow = `0 0 0 1px ${rgba(col, 0.1)}, 0 8px 24px rgba(0,0,0,0.45), 0 0 22px ${rgba(col, 0.18)}`;
+            gcDot.style.background = col;
+            gcTag.textContent = card.tag;
+            gcCountry.textContent = card.title;
+            gcCountry.style.color = col;
+            gcSpots.textContent = card.subtitle;
+            gcSpots.style.display = card.subtitle ? '' : 'none';
+            if (card.reading) {
+                const t = Math.round(card.reading.temp * 10) / 10;
+                gcTemp.textContent = t + '°C';
+                gcTemp.style.color = col;
+                // Spot card: "Swimmer log / 2h ago". Country card: "<spot> / Last swimmer log · 12d ago"
+                gcSpotName.textContent = card.reading.where || 'Swimmer log';
+                gcTime.textContent = (card.reading.where ? 'Last swimmer log · ' : '') + timeAgo(card.reading.time);
+                gcReading.classList.toggle('stale', Date.now() - new Date(card.reading.time).getTime() > FRESH_MS);
+                gcReading.style.display = '';
+                gcEmpty.style.display = 'none';
+            } else {
+                gcReading.style.display = 'none';
+                // Only claim "no log yet" when the lookup actually ran and came back empty
+                gcEmpty.style.display = readingsLoaded && !card.unknown ? '' : 'none';
+            }
+            gcLink.href = card.href;
+            gcLink.style.color = col;
+            if (leaderLine) leaderLine.setAttribute('stroke', rgba(col, 0.6));
+            markerPulse.style.background = rgba(col, 0.9);
+            markerPulse.style.setProperty('--pulse', rgba(col, 0.55));
+            const i = recentlyShown.indexOf(card.key);
+            if (i !== -1) recentlyShown.splice(i, 1);
+            recentlyShown.push(card.key);
             calloutEl.style.transition = reduceMotion ? 'none' : '';
             calloutEl.style.opacity = '0';
             calloutEl.style.transform = 'translateY(6px)';
@@ -2916,21 +2959,30 @@
         // The globe always keeps spinning the same direction (phi only ever
         // increases) — we never rotate it to face a marker, we just pick from
         // whichever markers are CURRENTLY front-facing at cycle time.
-        function currentlyVisibleLocations() {
-            return tempLocations.filter(loc => projectVec(loc._vec, lastCamPhi, FIXED_THETA).z > VISIBLE_Z);
+        const CARD_MIN_Z = 0.3; // only well front-facing countries get a card (not ones grazing the edge)
+        function currentlyVisibleCards() {
+            return countryCards
+                .map(c => ({ c, z: projectVec(c._vec, lastCamPhi, FIXED_THETA).z }))
+                .filter(v => v.z > CARD_MIN_Z)
+                .sort((a, b) => b.z - a.z)
+                .map(v => v.c);
         }
         function scheduleCycle(delay) {
             clearTimeout(cycleTimer);
-            if (reduceMotion || !tempLocations.length) return;
+            if (reduceMotion || !countryCards.length) return;
             cycleTimer = setTimeout(runCycle, delay ?? (4000 + Math.random() * 2000));
         }
         function stopCycle() { clearTimeout(cycleTimer); }
         function runCycle() {
             if (pointerDown || Date.now() - lastInteraction < 4000) { scheduleCycle(1500); return; }
-            const visible = currentlyVisibleLocations();
+            const visible = currentlyVisibleCards();
             if (!visible.length) { scheduleCycle(1500); return; } // nothing front-facing right now — check again shortly
-            cycleIndex = (cycleIndex + 1) % visible.length;
-            showCallout(visible[cycleIndex]);
+            // Most front-facing country not shown recently; if all were, the one shown longest ago
+            const memory = Math.min(8, visible.length - 1);
+            const recent = recentlyShown.slice(-memory);
+            const next = visible.find(c => !recent.includes(c.key))
+                || visible.slice().sort((a, b) => recentlyShown.indexOf(a.key) - recentlyShown.indexOf(b.key))[0];
+            showCallout(next);
             scheduleCycle();
         }
 
@@ -2990,11 +3042,11 @@
         // ── Click/tap a marker to show its callout immediately ─────────────────
         canvas.addEventListener('click', e => {
             lastInteraction = Date.now();
-            if (pointerMoved > 4 || !tempLocations.length) return; // was a drag, not a tap
+            if (pointerMoved > 4 || !countryCards.length) return; // was a drag, not a tap
             const rect = canvas.getBoundingClientRect();
             const clickX = e.clientX - rect.left, clickY = e.clientY - rect.top;
-            let best = null, bestDist = 22;
-            tempLocations.forEach(loc => {
+            let best = null, bestDist = 48;
+            countryCards.forEach(loc => {
                 const view = projectVec(loc._vec, lastCamPhi, FIXED_THETA);
                 if (view.z < VISIBLE_Z) return;
                 const { x: mx, y: my } = viewToScreen(view, rect);
