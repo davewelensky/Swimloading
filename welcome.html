@@ -858,7 +858,7 @@
     </style>
     <style id="redesign-2026-09">
         /* ═══════════════════════════════════════════════════════════════
-           SEP 2026 REDESIGN: proof strip, app showcase, screen reel,
+           SEP 2026 REDESIGN: proof strip, app showcase,
            lightbox, install dialog, CTA steps, scroll reveals.
            Brand: Bebas Neue + DM Sans, cyan accent, pill buttons, no emojis.
         ═══════════════════════════════════════════════════════════════ */
@@ -880,7 +880,7 @@
         .athlete-feat { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 11px; color: #94a3b8; line-height: 1.35; margin-top: 3px; }
 
         /* ── App showcase ── */
-        .app-showcase { max-width: 1160px; margin: 0 auto; padding: 88px 24px 24px; overflow-x: clip; } /* glow + fanned ghost phones must never widen the page on phones */
+        .app-showcase { max-width: 1160px; margin: 0 auto; padding: 88px 24px 48px; overflow-x: clip; } /* glow + fanned ghost phones must never widen the page on phones */
         .app-showcase-head { text-align: center; margin-bottom: 48px; }
         .app-showcase-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 48px; align-items: center; }
         .app-tabs { display: flex; flex-direction: column; gap: 6px; }
@@ -926,20 +926,6 @@
         .device-screen img.on { opacity: 1; transform: none; }
         .device-screen::after { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, rgba(255,255,255,.07), transparent 40%), linear-gradient(180deg, transparent 78%, #0c1626 99%); pointer-events: none; }
         .device-hint { position: absolute; bottom: 4px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #64748b; }
-
-        /* ── Screen reel ── */
-        .screen-reel-wrap { position: relative; z-index: 1; padding: 36px 0 64px; }
-        .screen-reel-head { max-width: 1160px; margin: 0 auto 4px; padding: 0 24px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 1px; color: #f1f5f9; }
-        .screen-reel-sub { font-family: 'DM Sans', sans-serif; font-size: 13px; letter-spacing: 0; color: #64748b; }
-        .screen-reel { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent); mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent); }
-        .screen-reel-track { display: flex; gap: 22px; width: max-content; padding: 42px 22px; animation: screen-reel 80s linear infinite; }
-        .screen-reel:hover .screen-reel-track, .screen-reel:focus-within .screen-reel-track { animation-play-state: paused; }
-        @keyframes screen-reel { to { transform: translateX(-50%); } }
-        .reel-card { position: relative; flex: 0 0 auto; width: 176px; margin: 0; padding: 6px; border-radius: 26px; background: #0f172a; border: 1px solid rgba(255,255,255,.07); cursor: zoom-in; transition: transform .5s cubic-bezier(.2,.8,.2,1), box-shadow .5s, border-color .5s; }
-        .reel-card img { display: block; width: 100%; aspect-ratio: 9 / 16; object-fit: cover; object-position: top; border-radius: 20px; background: #0c1626; }
-        .reel-card:hover, .reel-card:focus-visible { z-index: 2; transform: translateY(-12px) scale(1.14); border-color: rgba(56,189,248,.5); box-shadow: 0 34px 70px rgba(0,0,0,.6), 0 0 44px rgba(56,189,248,.2); outline: none; }
-        .reel-card figcaption { position: absolute; left: 12px; right: 12px; bottom: 14px; padding: 7px 10px; border-radius: 11px; font-size: 11.5px; font-weight: 700; color: #f1f5f9; background: rgba(8,15,26,.82); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); opacity: 0; transform: translateY(6px); transition: opacity .3s, transform .3s; }
-        .reel-card:hover figcaption, .reel-card:focus-visible figcaption { opacity: 1; transform: none; }
 
         /* ── Lightbox ── */
         .lightbox { position: fixed; inset: 0; z-index: 10050; display: flex; align-items: center; justify-content: center; gap: 18px; padding: 24px; background: rgba(4,8,16,0); transition: background .35s; }
@@ -990,16 +976,11 @@
             .device-ghost.right { transform: translateX(118px) translateZ(-140px) rotateY(-26deg); }
             .app-tab { padding: 12px 14px; }
             .app-tab-desc, .app-tab-points, .app-tab-strava { margin-left: 0; }
-            .reel-card { width: 140px; }
             .lightbox { padding: 12px; gap: 6px; }
             .lightbox-prev, .lightbox-next { position: absolute; bottom: 22px; }
             .lightbox-prev { left: calc(50% - 60px); } .lightbox-next { right: calc(50% - 60px); }
             .lightbox-img { max-height: 74vh; }
             .cta-steps { grid-template-columns: 1fr; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-            .screen-reel { overflow-x: auto; }
-            .screen-reel-track { animation: none; }
         }
     </style>
 </head>
@@ -1305,11 +1286,11 @@
 
     <div class="section-divider"></div>
 
-    <!-- ═══════════════ INSIDE THE APP: interactive showcase + screen reel ═══════════════
+    <!-- ═══════════════ INSIDE THE APP: interactive showcase ═══════════════
          Sep 2026 redesign: replaces five stacked feature sections (~3,500px on desktop)
          with one tabbed showcase. The phone cycles through the tabs while the section is
-         on screen (pauses on hover/focus, off for reduced motion). Tap the phone, or any
-         screen in the reel, to open it full size in the lightbox. -->
+         on screen (pauses on hover/focus, off for reduced motion). Tap the phone to open
+         the screen full size in the lightbox, which browses every app screen. -->
     <section id="features" class="app-showcase" style="--acc:56,189,248;">
         <div class="app-showcase-head" data-reveal>
             <div class="section-label" style="display:inline-flex;align-items:center;gap:8px;">
@@ -1398,12 +1379,6 @@
                 <div class="device-hint"><i data-lucide="maximize-2" style="width:13px;height:13px;"></i>Tap to expand</div>
             </div>
         </div>
-    </section>
-
-    <!-- Screen reel: every screen, slowly scrolling. Hover lifts a screen, tap expands it. -->
-    <section class="screen-reel-wrap" aria-label="App screens">
-        <div class="screen-reel-head" data-reveal><span>Every screen, built for the water</span><span class="screen-reel-sub">Hover to lift. Tap to expand.</span></div>
-        <div class="screen-reel"><div class="screen-reel-track" id="screenReel"></div></div>
     </section>
 
     <!-- ═══════════════ FIND A SWIM (the catalogue) ═══════════════ -->
@@ -2985,7 +2960,7 @@
 
     </dialog>
 
-    <!-- Screen lightbox: opens from the showcase phone or the reel, zooming out of the tapped screen -->
+    <!-- Screen lightbox: opens from the showcase phone, zooming out of the tapped screen -->
     <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="App screen" hidden>
         <button type="button" class="lightbox-btn lightbox-close" aria-label="Close" data-lb="close"><i data-lucide="x" style="width:20px;height:20px;"></i></button>
         <button type="button" class="lightbox-btn lightbox-prev" aria-label="Previous screen" data-lb="prev"><i data-lucide="chevron-left" style="width:22px;height:22px;"></i></button>
@@ -2996,13 +2971,13 @@
         <button type="button" class="lightbox-btn lightbox-next" aria-label="Next screen" data-lb="next"><i data-lucide="chevron-right" style="width:22px;height:22px;"></i></button>
     </div>
 
-    <!-- ═══ SEP 2026 REDESIGN: showcase, screen reel, lightbox, install dialog, reveals ═══ -->
+    <!-- ═══ SEP 2026 REDESIGN: showcase, lightbox, install dialog, reveals ═══ -->
     <script>
     (function () {
         const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
         // Every app screen shown on the page. The showcase tabs point at these by key
-        // (data-screen); the reel shows them all; the lightbox browses them all.
+        // (data-screen); the lightbox browses them all.
         const SCREENS = [
             { key: 'Hero',              title: 'Dashboard' },
             { key: 'TempsLogging',      title: 'Log a water temp' },
@@ -3081,25 +3056,6 @@
                 if (touchX == null) return;
                 const dx = e.changedTouches[0].clientX - touchX; touchX = null;
                 if (Math.abs(dx) > 50) lbShow(lbIndex + (dx < 0 ? 1 : -1));
-            });
-        }
-
-        /* ── Screen reel: two identical halves so the -50% loop is seamless ── */
-        const reel = document.getElementById('screenReel');
-        if (reel) {
-            const card = (s, i, dupe) =>
-                `<figure class="reel-card" ${dupe ? 'aria-hidden="true"' : 'tabindex="0" role="button"'} data-i="${i}" aria-label="Expand: ${s.title}">` +
-                `<img src="${src(s.key)}" alt="${dupe ? '' : 'SwimLoading app: ' + s.title}" loading="lazy" decoding="async" width="176" height="313">` +
-                `<figcaption>${s.title}</figcaption></figure>`;
-            reel.innerHTML = SCREENS.map((s, i) => card(s, i, false)).join('') + SCREENS.map((s, i) => card(s, i, true)).join('');
-            reel.addEventListener('click', e => {
-                const c = e.target.closest('.reel-card'); if (!c) return;
-                lbOpen(+c.dataset.i, c.querySelector('img'));
-            });
-            reel.addEventListener('keydown', e => {
-                if (e.key !== 'Enter' && e.key !== ' ') return;
-                const c = e.target.closest('.reel-card'); if (!c) return;
-                e.preventDefault(); lbOpen(+c.dataset.i, c.querySelector('img'));
             });
         }
 
