@@ -2774,7 +2774,7 @@
                 if (readingsLoaded) {
                     await Promise.all(countryCards.map(async card => {
                         const ids = spots.filter(sp => isoOf(sp) === card.iso).map(sp => sp.id);
-                        if (!ids.length) return;
+                        if (!ids.length) { card.unknown = true; return; } // no mappable spots: never claim "no log yet"
                         try {
                             const r = await fetch(SB_URL + '/rest/v1/temp_logs?select=spot_id,temp_c,created_at&temp_c=not.is.null&spot_id=in.(' + ids.join(',') + ')&order=created_at.desc&limit=1', { headers });
                             if (!r.ok) { card.unknown = true; return; }
