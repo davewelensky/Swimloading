@@ -755,6 +755,8 @@
         }
         footer p { font-size: 14px; color: var(--text-secondary); }
         footer a { color: var(--ocean-light); text-decoration: none; }
+        .explore-swims-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+        @media (max-width: 1000px) { .explore-swims-grid { grid-template-columns: repeat(2, 1fr); } }
         .footer-links {
             display: flex; justify-content: center; gap: 10px 24px; margin-top: 12px;
             flex-wrap: wrap; /* 13 links in one unwrapped row forced the page ~620px wide on phones, pushing the fixed nav's Open App + menu buttons off-screen */
@@ -838,6 +840,7 @@
             .global-sa { grid-row: auto !important; }
             /* "Training for a big crossing?" — inline 2-col grid had no mobile collapse and pushed the page ~500px wide */
             .crossing-journey-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
+            .explore-swims-grid { grid-template-columns: 1fr !important; }
             /* Crawlable spots index (by region / international / types) — same missing mobile collapse */
             .spots-index-grid { grid-template-columns: 1fr !important; gap: 28px !important; }
         }
@@ -1415,8 +1418,8 @@
                 <div><div id="exStatSoon" style="font-family:'Bebas Neue',sans-serif;font-size:38px;line-height:1;color:var(--ocean-light);"></div><div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-secondary);margin-top:6px;">in the next 30 days</div></div>
             </div>
 
-            <!-- Six real swims, soonest first. -->
-            <div id="exploreSwims" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;"></div>
+            <!-- Eight real swims, soonest first: 4x2 desktop, 2x4 tablet — no half-empty rows. -->
+            <div id="exploreSwims" class="explore-swims-grid"></div>
 
             <div style="text-align:center;margin-top:34px;">
                 <a href="/explore" class="btn-primary" style="display:inline-flex;align-items:center;gap:9px;">
@@ -1460,7 +1463,7 @@
             var all = json.results || [];
             if(!all.length) return;
 
-            // Curation, not concealment: this is a six-card shop window onto
+            // Curation, not concealment: this is an eight-card shop window onto
             // 305 swims, so it shows ones with a place and a date still ahead.
             // 21 rows have no venue, and the search deliberately keeps a
             // multi-day swim that started yesterday but is still running —
@@ -1473,7 +1476,7 @@
                 var d = new Date(String(r.start_date).slice(0,10) + 'T00:00:00');
                 return !isNaN(d) && d >= today;
             });
-            var rows = (good.length >= 6 ? good : all).slice(0, 6);
+            var rows = (good.length >= 8 ? good : all).slice(0, 8);
             if(!rows.length) return;
 
             var total = json.pagination && json.pagination.total;
