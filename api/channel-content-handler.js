@@ -1113,7 +1113,7 @@ const PAGES = {
       { q: 'Can I download the data?',
         a: 'The underlying database is public at <a href="https://db.marathonswimmers.org" target="_blank" rel="noopener">db.marathonswimmers.org</a>. Please use that as your source rather than scraping SwimLoading.' },
       { q: 'Do you sell the data?',
-        a: 'No. SwimLoading\'s paid tier (Channel Pro) provides the intelligence layer — personal tide-window scoring, 16-day forecasts, the predictor. The underlying ratified swim records are publicly viewable.' },
+        a: 'No. SwimLoading\'s paid tier (Crossing Intelligence) provides the intelligence layer: personal tide-window scoring, 16-day forecasts, the predictor. The underlying ratified swim records are publicly viewable.' },
     ],
   },
 

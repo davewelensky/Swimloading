@@ -626,7 +626,7 @@ Complete inventory of every public page. Brand checklist: spotlight = mouse curs
 | `/` | `welcome.html` | Main landing page — hero, features, sign up CTA | ✅ | ✅ | ✅ |
 | `/pricing` | `pricing.html` | Pricing tiers (Free / Pro / Club) | ✅ | ✅ | ✅ |
 | ~~`/landing`~~ | `landing.html` | **NOT LIVE — deliberately.** The file exists and has no route in `vercel.json`, so `/landing` returns 404. That is correct and should stay that way: it is a stale fork of `welcome.html` (same H1 "Know the water", same opening sections, untouched since 11 June), nothing links to it, and it is not in the sitemap. Routing it would publish a near-duplicate of the homepage competing with `/` for the same terms. Delete the file, or leave it as a scratch copy — but do not route it. Audited 2026-08-09. | — | — | — |
-| `/pro` | `pro.html` | Crossing Intelligence — race intelligence product page (product name set by Dave 24 Sep 2026; formerly "Big Water Intel", and the homepage Explore card said "Channel Pro") | ✅ | ✅ | ✅ |
+| `/pro` | `pro.html` | Crossing Intelligence — race intelligence product page (product name set by Dave 24 Sep 2026; formerly "Big Water Intel"; the English Channel paywall tier, previously "Channel Pro", is also "Crossing Intelligence") | ✅ | ✅ | ✅ |
 
 ### Intelligence / Race Pages (paid data)
 
