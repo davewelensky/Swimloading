@@ -26,10 +26,12 @@
 //     a 100-message burst from a cold domain is how you land in spam.
 //   - Guarded by CRON_SECRET, same as the cron handlers.
 //
-// Auth: Authorization: Bearer <CRON_SECRET>
+// Auth: Authorization: Bearer <BACKFILL_TOKEN>, or ?token=<BACKFILL_TOKEN>.
+// Set BACKFILL_TOKEN in Vercel as a Config variable (not Secret) so its value
+// stays readable for a command you run by hand. CRON_SECRET is also accepted,
+// but it is stored as a Secret and cannot be read back from the dashboard.
 
 import { Resend } from 'resend';
-import { requireCronAuth } from './cron/_auth.js';
 import { buildBackfillHtml, buildBackfillText } from './_lib/welcome-backfill-template.js';
 import { buildCldsaIntroHtml, buildCldsaIntroText } from './_lib/cldsa-intro-template.js';
 
@@ -108,8 +110,26 @@ async function recipientsFor(segment) {
   return rows.filter((r) => r.email && !quizIds.has(r.id));
 }
 
+// CRON_SECRET is stored as a Vercel "Secret", so its value cannot be read back
+// from the dashboard, which makes it useless for a command you run by hand.
+// BACKFILL_TOKEN is a separate variable, set as "Config" so it stays readable,
+// and it is scoped to this one endpoint. Either works.
+function authorised(req) {
+  const header = req.headers['authorization'] || '';
+  const bearer = header.startsWith('Bearer ') ? header.slice(7) : '';
+  const supplied = bearer || String(req.query.token || '');
+  if (!supplied) return false;
+  const accepted = [process.env.BACKFILL_TOKEN, process.env.CRON_SECRET].filter(Boolean);
+  return accepted.some((t) => t === supplied);
+}
+
 export default async function handler(req, res) {
-  if (!requireCronAuth(req, res, 'backfill-emails')) return;
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  if (!process.env.BACKFILL_TOKEN && !process.env.CRON_SECRET) {
+    console.error('backfill-emails: neither BACKFILL_TOKEN nor CRON_SECRET configured');
+    return res.status(500).json({ error: 'no_token_configured' });
+  }
+  if (!authorised(req)) return res.status(401).json({ error: 'Unauthorised' });
   if (!SERVICE_KEY) return res.status(500).json({ error: 'SUPABASE_SERVICE_KEY not configured' });
 
   const segment = String(req.query.segment || '');
