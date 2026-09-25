@@ -119,6 +119,32 @@ export default async function handler(req, res) {
   const live  = req.query.send === '1';
   const limit = Math.min(parseInt(req.query.limit, 10) || 500, 500);
 
+  // &test=you@example.com sends that segment's email to one address and stops.
+  // It ignores the recipient list entirely and stamps nothing, so it is safe to
+  // run against yourself before a bulk send and it cannot consume anyone's
+  // real email. Worth doing: a template that looks right in a preview can still
+  // break in Gmail or Outlook.
+  const testTo = String(req.query.test || '').trim();
+  if (testTo) {
+    if (!/^\S+@\S+\.\S+$/.test(testTo)) return res.status(400).json({ error: 'test must be a valid email' });
+    if (!RESEND_API_KEY) return res.status(500).json({ error: 'RESEND_API_KEY not configured' });
+    const first = String(req.query.name || 'Dave');
+    try {
+      const { data, error } = await new Resend(RESEND_API_KEY).emails.send({
+        from: FROM_ADDRESS,
+        to: [testTo],
+        replyTo: REPLY_TO,
+        subject: `[TEST] ${cfg.subject}`,
+        html: cfg.html(first),
+        text: cfg.text(first),
+      });
+      if (error) return res.status(200).json({ test: true, sent: false, error: `${error.name}: ${error.message}` });
+      return res.status(200).json({ test: true, sent: true, to: testTo, segment, id: data && data.id, stamped: false });
+    } catch (e) {
+      return res.status(200).json({ test: true, sent: false, error: String(e.message || e) });
+    }
+  }
+
   let people;
   try {
     people = (await recipientsFor(segment)).slice(0, limit);
