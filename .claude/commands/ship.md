@@ -18,7 +18,7 @@ Run the FULL ship loop. Dave invoking /ship (or saying "push") is his approval t
    ```
    bash scripts/ship.sh verify
    ```
-   It polls the live routes (up to ~4 min) until every `?v=N` ref in local HTML is actually served. If a shipped change isn't captured by a version bump (e.g. HTML content change), additionally `curl` the live route and grep for a distinctive string from the change.
+   It polls the live routes (up to ~4 min) until every `?v=N` ref in local HTML is actually served. Pages that aren't served at all (live 404 and no `"dest"` route in `vercel.json`, e.g. the `test-*.html` scratch pages) print `SKIP (not routed)` and don't fail the run; a page that 404s but IS routed in `vercel.json` is still polled, so a new page whose deploy hasn't landed still gets caught. If a shipped change isn't captured by a version bump (e.g. HTML content change), additionally `curl` the live route and grep for a distinctive string from the change.
 
 5. **Report.** Tell Dave: what deployed (one line), the exact URL(s) to look at, and that live verification passed. If verify reports STALE, say so honestly, check the Vercel dashboard link it prints, and do NOT tell Dave to hard-refresh as a first resort — stale output means the deploy or the bump failed, not his browser.
 

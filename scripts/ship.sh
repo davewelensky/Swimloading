@@ -51,6 +51,15 @@ case "$cmd" in
       refs=$(grep -oE '[A-Za-z0-9._-]+\.(js|css)\?v=[0-9]+' "$html" 2>/dev/null | sort -u || true)
       [ -z "$refs" ] && continue
       route=$(route_for "$html")
+      # Unrouted scratch pages (test-*.html etc.) 404 live and can never be
+      # served — polling them only produces false STALE alarms. Skip a 404
+      # UNLESS vercel.json routes the file: then it's a new page whose
+      # deploy hasn't landed yet, and it must be polled like any other.
+      code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "${SITE}${route}?cb=0$(date +%s)" || true)
+      if [ "$code" = 404 ] && ! grep -qF "\"dest\": \"/$html\"" vercel.json; then
+        echo "SKIP    ${SITE}${route} (not routed — 404, no route in vercel.json for $html)"
+        continue
+      fi
       n=$(printf '%s\n' "$refs" | wc -l | tr -d ' ')
       for attempt in $(seq 1 24); do   # up to ~4 minutes per page
         live=$(curl -sf --max-time 15 "${SITE}${route}?cb=${attempt}$(date +%s)" || true)
