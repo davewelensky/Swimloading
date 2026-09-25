@@ -1448,6 +1448,17 @@
             if(regionNames){ try { return regionNames.of(code) || code; } catch(e){} }
             return code;
         }
+        // Small SVG flag from the venue's ISO code (event_venues.country_code),
+        // never the emoji flag (brand rule: no emojis) and never guessed from
+        // the location text. No valid code, no flag; a failed load removes
+        // itself rather than leaving a broken-image box. alt is empty because
+        // the country is already spelled out right next to it — a named alt
+        // would make screen readers say it twice.
+        function flag(code){
+            if(!/^[A-Za-z]{2}$/.test(code || '')) return '';
+            return '<img src="https://cdn.jsdelivr.net/npm/flag-icons@7/flags/4x3/' + code.toLowerCase() + '.svg" alt="" width="16" height="12" loading="lazy" decoding="async" onerror="this.remove()" '
+              + 'style="flex:none;margin-top:3px;border-radius:2px;box-shadow:0 0 0 1px rgba(255,255,255,0.18);object-fit:cover;">';
+        }
 
         function when(iso){
             var d = new Date(String(iso).slice(0,10) + 'T00:00:00');
@@ -1502,7 +1513,7 @@
                   + 'onmouseover="this.style.borderColor=\'rgba(56,189,248,0.5)\';this.style.transform=\'translateY(-3px)\'" onmouseout="this.style.borderColor=\'\';this.style.transform=\'\'">'
                   + '<div style="font-size:12px;font-weight:700;color:var(--ocean-light);letter-spacing:.4px;">' + esc(when(r.start_date)) + '</div>'
                   + '<div style="font-size:16px;font-weight:700;color:var(--text-primary);line-height:1.3;">' + esc(r.name) + '</div>'
-                  + (place ? '<div style="font-size:13px;color:var(--text-secondary);">' + esc(place) + '</div>' : '')
+                  + (place ? '<div style="display:flex;align-items:flex-start;gap:7px;font-size:13px;line-height:18px;color:var(--text-secondary);">' + flag(r.country_code) + '<span style="min-width:0;">' + esc(place) + '</span></div>' : '')
                   + (dists ? '<div style="font-size:12.5px;color:#94a3b8;margin-top:2px;">' + dists + '</div>' : '')
                   + '</a>';
             }).join('');
