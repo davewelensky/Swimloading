@@ -1077,8 +1077,16 @@ function initMap(){
   }
   MAP = L.map('map', { worldCopyJump:true, scrollWheelZoom:false, zoomControl:true })
          .setView([25, -20], 2);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution:'&copy; OpenStreetMap &copy; CARTO', subdomains:'abcd', maxZoom:18
+  // CARTO basemaps need an API key: without one, since Sep 2026, every tile
+  // comes back stamped "API KEY REQUIRED". This key is public by design (every
+  // visitor's browser sends it with each tile) and is SwimLoading's free
+  // commercial key, dave@apploading.co, dashboard via carto.com/basemaps/apikey.
+  // Free up to 1M tile requests a month; /explore uses a few percent of that.
+  // The key terms require the attribution below to stay visible, as written.
+  const CARTO_KEY = 'cb1_3y3k_1_f6f2e2a9bd00f75b4b53bc53';
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, {
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors, &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
+    subdomains:'abcd', maxZoom:18
   }).addTo(MAP);
   // Scroll-wheel zoom only after a click, so scrolling the page past a
   // full-width map does not trap the reader inside it.
