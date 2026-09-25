@@ -115,9 +115,6 @@
         .city-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
         .stamp { display: none; align-items: center; gap: 7px; margin-top: 14px; padding: 9px 12px; border-radius: 10px; background: rgba(245,158,11,0.08); border: 1px dashed rgba(245,158,11,0.45); color: #fbbf24; font-size: 13px; font-weight: 600; line-height: 1.35; }
         .stamp.on { display: flex; }
-        .stamp.real { background: rgba(56,189,248,0.07); border: 1px solid rgba(56,189,248,0.35); color: var(--text); font-weight: 500; }
-        .stamp.real svg { color: var(--cyan); }
-        .stamp.real strong { font-weight: 700; }
 
         .latest { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 4px; }
         .pill { display: inline-flex; align-items: center; gap: 8px; align-self: start; padding: 8px 14px 8px 10px; border-radius: 50px; font-size: 14px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; border: 1px solid; width: max-content; max-width: 100%; }
@@ -204,6 +201,8 @@
         .eg-v { font-family: 'Bebas Neue', sans-serif; font-size: 40px; line-height: 1; color: var(--cyan); margin-top: 8px; }
         .eg-d { font-size: 13px; color: var(--text-sec); margin-top: 4px; line-height: 1.4; }
         .engage-note { font-size: 12px; color: var(--text-dim); margin-top: 10px; line-height: 1.5; }
+        .engage-scale { font-size: 15px; color: var(--text); margin-top: 10px; }
+        .principle { margin: 28px 0 0; padding-left: 14px; border-left: 2px solid var(--border-cyan); font-size: 15px; color: var(--text-sec); line-height: 1.55; }
 
         footer { border-top: 1px solid var(--border); margin-top: 36px; padding: 22px 0 40px; font-size: 12px; color: var(--text-dim); line-height: 1.6; }
 
@@ -338,22 +337,29 @@
     <!-- ── Swimmer engagement (live SwimLoading activity) ────────────────── -->
     <section class="engage" aria-labelledby="engageTitle">
         <h2 id="engageTitle">Where swimmers already plan their swims</h2>
-        <p class="how-lead">The City's information would appear on the spot pages where SwimLoading swimmers already record the water. These are real SwimLoading figures.</p>
+        <p class="how-lead">The City's information would appear on the spot pages where SwimLoading swimmers already record the water.</p>
+        <!-- "730+" is typed here on purpose, not a data-sync span: site-sync.js
+             counts profiles with the anon key, which RLS limits to 0 rows, so
+             data-sync="swimmers" would stamp "0". Checked 25 Sep 2026: 744
+             profiles; 276 give Cape Town as their city, next is Durban (47). -->
+        <p class="engage-scale">SwimLoading has grown to 730+ swimmers, with its largest community in Cape Town.</p>
         <div class="engage-grid">
             <div class="eg"><div class="eg-k">Big Bay</div><div class="eg-v num" id="eg1">…</div><div class="eg-d" id="eg1d">Loading</div></div>
             <div class="eg"><div class="eg-k">Atlantic Seaboard and False Bay</div><div class="eg-v num" id="eg2">…</div><div class="eg-d" id="eg2d">Loading</div></div>
             <div class="eg"><div class="eg-k">Atlantic Seaboard and False Bay</div><div class="eg-v num" id="eg3">…</div><div class="eg-d" id="eg3d">Loading</div></div>
             <div class="eg"><div class="eg-k" id="eg4k">Busiest beach</div><div class="eg-v num" id="eg4">…</div><div class="eg-d" id="eg4d">Loading</div></div>
         </div>
-        <p class="engage-note">Live counts of water temperatures logged by SwimLoading swimmers at active sea spots. Page views are not included.</p>
+        <p class="engage-note">Based on current SwimLoading activity data. Page views are not included.</p>
     </section>
+
+    <p class="principle">Beach Alerts remains the authoritative City source. SwimLoading extends the reach of that information into the places where swimmers are already checking conditions and planning swims.</p>
 
     <!-- ── How it would work (meeting context) ───────────────────────────── -->
     <section class="how" aria-labelledby="howTitle">
         <h2 id="howTitle">How this would work</h2>
         <p class="how-lead">The City's results would be shown where swimmers already plan their swim, attributed and linked back to Beach Alerts.</p>
         <div class="steps">
-            <div class="step"><div class="step-n">01</div><div class="step-t">City publishes</div><div class="step-d">Results and alerts are published to Beach Alerts, as they are today.</div></div>
+            <div class="step"><div class="step-n">01</div><div class="step-t">City publishes</div><div class="step-d">Water-quality results, classifications and coastal alerts are published through Beach Alerts.</div></div>
             <div class="step"><div class="step-n">02</div><div class="step-t">SwimLoading connects</div><div class="step-d">City monitoring locations are matched to the appropriate SwimLoading swimming locations. Published results are then kept up to date automatically.</div></div>
             <div class="step"><div class="step-n">03</div><div class="step-t">Swimmers see it</div><div class="step-d">Shown on the spot page next to swimmer-logged water temperature, wind and swell.</div></div>
         </div>
@@ -501,19 +507,19 @@ switchEl.innerHTML = STATE_ORDER.map((k, i) =>
 ).join('');
 switchEl.addEventListener('click', e => {
     const b = e.target.closest('.state-btn');
-    if (b) selectState(b.dataset.state, true);
+    if (b) selectState(b.dataset.state);
 });
 switchEl.addEventListener('keydown', e => {
     if (!['ArrowRight', 'ArrowLeft'].includes(e.key)) return;
     const i = STATE_ORDER.indexOf(current);
     const next = STATE_ORDER[(i + (e.key === 'ArrowRight' ? 1 : STATE_ORDER.length - 1)) % STATE_ORDER.length];
-    selectState(next, true);
+    selectState(next);
     switchEl.querySelector(`[data-state="${next}"]`).focus();
     e.preventDefault();
 });
 
 let current = 'city';
-function selectState(key, pushHash) {
+function selectState(key) {
     if (!STATES[key]) key = 'city';
     current = key;
     switchEl.querySelectorAll('.state-btn').forEach(b => {
@@ -521,7 +527,6 @@ function selectState(key, pushHash) {
         b.setAttribute('aria-checked', on);
         b.tabIndex = on ? 0 : -1;
     });
-    if (pushHash) history.replaceState(null, '', key === 'city' ? location.pathname : `#${key}`);
     renderCity(STATES[key]);
 }
 
@@ -534,13 +539,14 @@ function renderCity(s) {
     const stale = age > STALE_AFTER_DAYS;
     const r = RESULT[latest.result];
 
+    // The simulation warning appears only on simulated states. The captured
+    // City data carries its attribution in the source line instead.
     const stamp = document.getElementById('stamp');
-    stamp.classList.add('on');
-    stamp.classList.toggle('real', !s.simulated);
-    document.getElementById('stampIcon').innerHTML = icon(s.simulated ? 'flask-conical' : 'database');
+    stamp.classList.toggle('on', !!s.simulated);
+    document.getElementById('stampIcon').innerHTML = s.simulated ? icon('flask-conical') : '';
     document.getElementById('stampText').innerHTML = s.simulated
         ? `<span><strong>Demonstration scenario, simulated values.</strong> Not an actual City result or alert. This is ${esc(s.stampText)}</span>`
-        : `<span><strong>City of Cape Town · Beach Alerts data for Big Bay</strong>, captured ${esc(longDate(s.capturedOn))}. Not real-time: the City may have published newer results since.</span>`;
+        : '';
 
     // Latest sample. A result past STALE_AFTER_DAYS keeps its colour out of
     // the headline: grey pill, and the old result stated plainly beneath.
@@ -772,8 +778,10 @@ async function loadEngagement() {
     }
 }
 
-selectState((location.hash || '').slice(1) || 'city', false);
-window.addEventListener('hashchange', () => selectState((location.hash || '').slice(1) || 'city', false));
+// Always open on the captured City data. A simulated state appears only when
+// someone selects it on the page, never from a link, a bookmark or a reload.
+if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+selectState('city');
 loadWater(); loadWind(); loadSwell(); loadEngagement();
 drawIcons();
 </script>
