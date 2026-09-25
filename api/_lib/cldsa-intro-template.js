@@ -98,10 +98,60 @@ export function buildCldsaIntroHtml(firstName) {
 
 <table width="100%" cellpadding="0" cellspacing="0" border="0">
   <tr>
-    <td style="padding:18px 32px 44px;" class="sp">
+    <td style="padding:34px 32px 0;" class="sp">
+      <div style="font-family:'Bebas Neue',Arial,sans-serif;font-size:26px;color:#f1f5f9;line-height:1.1;margin-bottom:12px;">
+        Why is it not in the app store?
+      </div>
+      <div style="font-size:15px;color:#94a3b8;line-height:1.8;margin-bottom:24px;">
+        Because it does not need to be. You add it to your home screen straight
+        from your browser and it behaves exactly like an app, own icon, full
+        screen, no browser bar. Nothing to download, no updates to install, and
+        it takes about ten seconds.
+      </div>
+    </td>
+  </tr>
+</table>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td style="padding:0 32px;" class="sp">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0a1628;border:1px solid #1e3a5f;border-radius:16px;margin-bottom:12px;">
+        <tr>
+          <td style="padding:22px 24px;">
+            <div style="font-family:'DM Sans',Arial,sans-serif;font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">On iPhone or iPad</div>
+            <div style="font-size:14.5px;color:#f1f5f9;line-height:2;">
+              1. Open <span style="color:#38bdf8;">swimloading.com</span> in <b>Safari</b><br>
+              2. Tap the <b>Share</b> button (the square with an arrow out of it)<br>
+              3. Scroll down and tap <b>Add to Home Screen</b><br>
+              4. Tap <b>Add</b>
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0a1628;border:1px solid #1e3a5f;border-radius:16px;">
+        <tr>
+          <td style="padding:22px 24px;">
+            <div style="font-family:'DM Sans',Arial,sans-serif;font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">On Android</div>
+            <div style="font-size:14.5px;color:#f1f5f9;line-height:2;">
+              1. Open <span style="color:#38bdf8;">swimloading.com</span> in <b>Chrome</b><br>
+              2. Tap the <b>&#8942;</b> menu, top right<br>
+              3. Tap <b>Install app</b> or <b>Add to Home screen</b><br>
+              4. Tap <b>Install</b>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td style="padding:22px 32px 44px;" class="sp">
       <div style="font-size:14px;color:#64748b;line-height:1.8;">
-        If it is useful, <a href="${INSTALL_URL}" style="color:#38bdf8;text-decoration:none;">add it to your home screen</a>
-        and it opens like an app. If it is not for you, ignore this and no hard feelings.
+        Stuck? <a href="${INSTALL_URL}" style="color:#38bdf8;text-decoration:none;">This page walks you through it</a>
+        and works out which phone you are on. Or just reply and I will help.
       </div>
       <div style="font-size:14px;color:#64748b;line-height:1.8;margin-top:22px;">
         Dave
@@ -149,10 +199,26 @@ of us are logging.
 
 Have a look: ${APP_URL}
 
-If it is useful, add it to your home screen and it opens like an app:
-${INSTALL_URL}
+WHY IS IT NOT IN THE APP STORE?
+Because it does not need to be. You add it to your home screen straight from
+your browser and it behaves exactly like an app: own icon, full screen, no
+browser bar. Nothing to download, no updates to install, about ten seconds.
 
-If it is not for you, ignore this and no hard feelings.
+ON IPHONE OR IPAD
+1. Open swimloading.com in Safari
+2. Tap the Share button (the square with an arrow out of it)
+3. Scroll down and tap Add to Home Screen
+4. Tap Add
+
+ON ANDROID
+1. Open swimloading.com in Chrome
+2. Tap the three-dot menu, top right
+3. Tap Install app, or Add to Home screen
+4. Tap Install
+
+Stuck? This page walks you through it and works out which phone you are on:
+${INSTALL_URL}
+Or just reply and I will help.
 
 Dave
 

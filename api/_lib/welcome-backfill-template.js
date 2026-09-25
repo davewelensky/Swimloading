@@ -67,15 +67,24 @@ export function buildBackfillHtml(firstName) {
       <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0a1628;border:1px solid #1e3a5f;border-radius:16px;">
         <tr>
           <td style="padding:28px 24px;">
-            <div style="font-family:'DM Sans',Arial,sans-serif;font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">In case you missed it</div>
-            <div style="font-size:15px;color:#f1f5f9;line-height:1.7;margin-bottom:18px;">
-              Add SwimLoading to your phone's home screen and it opens like an app,
-              one tap, no browser.
+            <div style="font-family:'DM Sans',Arial,sans-serif;font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">One thing worth doing</div>
+            <div style="font-size:15px;color:#f1f5f9;line-height:1.7;margin-bottom:8px;">
+              Put SwimLoading on your home screen. It is not in the app store and
+              does not need to be: added this way it has its own icon and opens
+              full screen, no browser bar. Ten seconds, nothing to download.
+            </div>
+            <div style="font-size:14px;color:#94a3b8;line-height:1.95;margin:16px 0 4px;">
+              <b style="color:#f1f5f9;">iPhone:</b> open swimloading.com in Safari, tap
+              <b>Share</b>, then <b>Add to Home Screen</b>, then <b>Add</b>.
+            </div>
+            <div style="font-size:14px;color:#94a3b8;line-height:1.95;margin-bottom:20px;">
+              <b style="color:#f1f5f9;">Android:</b> open swimloading.com in Chrome, tap the
+              <b>&#8942;</b> menu, then <b>Install app</b>.
             </div>
             <table cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td style="background:#38bdf8;border-radius:50px;">
-                  <a href="${INSTALL_URL}" style="display:inline-block;padding:13px 26px;font-size:14px;font-weight:700;color:#06111f;text-decoration:none;">Add to home screen</a>
+                  <a href="${INSTALL_URL}" style="display:inline-block;padding:13px 26px;font-size:14px;font-weight:700;color:#06111f;text-decoration:none;">Show me on my phone</a>
                 </td>
               </tr>
             </table>
@@ -130,9 +139,18 @@ Since you have actually been using it for a while now, the more useful question
 is the one in the subject line. What is working, what is annoying, what is
 missing? Just hit reply. It comes straight to me and I read every one.
 
-In case you missed it: add SwimLoading to your phone's home screen and it opens
-like an app, one tap, no browser.
-${INSTALL_URL}
+ONE THING WORTH DOING
+Put SwimLoading on your home screen. It is not in the app store and does not
+need to be: added this way it has its own icon and opens full screen, no
+browser bar. Ten seconds, nothing to download.
+
+iPhone: open swimloading.com in Safari, tap Share, then Add to Home Screen,
+then Add.
+
+Android: open swimloading.com in Chrome, tap the three-dot menu, then
+Install app.
+
+Show me on my phone: ${INSTALL_URL}
 
 Or just open the app and log your next swim.
 ${APP_URL}
