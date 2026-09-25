@@ -168,6 +168,9 @@
    * Supabase (same definitions /admin uses: all profiles, temp_logs with a
    * real user_id) and re-stamp over the fallback. Never hand-bump these
    * three site-config.js values again — this replaces that entirely.
+   *
+   * Swimmers come from the public_swimmer_count() RPC, not a profiles count:
+   * profiles RLS hides every row from anon, so a direct count reads 0.
    */
   var SB_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
   var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
@@ -183,10 +186,33 @@
     }).catch(function () { return null; });
   }
 
+  // Scalar RPC (aggregate-only SECURITY DEFINER function) → number, or null.
+  function fetchRpc(fn) {
+    return fetch(SB_URL + '/rest/v1/rpc/' + fn, {
+      method: 'POST',
+      headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' },
+      body: '{}',
+    }).then(function (res) {
+      return res.ok ? res.json() : null;
+    }).then(function (n) {
+      return typeof n === 'number' ? n : null;
+    }).catch(function () { return null; });
+  }
+
+  // A live total only replaces the fallback when it's at least as big. RLS
+  // that hides rows from anon doesn't error, it just counts 0 (profiles did
+  // exactly this), and these platform totals never really shrink below the
+  // number already in site-config.js — so a smaller one means a broken read.
+  function upgrade(key, live) {
+    if (typeof live !== 'number' || live <= 0) return;
+    if (typeof C[key] === 'number' && live < C[key]) return;
+    C[key] = live;
+  }
+
   function refreshLiveStats() {
     return Promise.all([
       fetchCount('spots', 'active=eq.true'),
-      fetchCount('profiles'),
+      fetchRpc('public_swimmer_count'),
       fetchCount('temp_logs', 'user_id=not.is.null'),
       // South African spots — active + country_code=ZA. Undercounts any SA
       // spot still missing a country_code, but only ever climbs toward the
@@ -194,10 +220,10 @@
       // fallback. anon-readable (active spots are public).
       fetchCount('spots', 'active=eq.true&country_code=eq.ZA'),
     ]).then(function (results) {
-      if (results[0] != null) C.spots = results[0];
-      if (results[1] != null) C.swimmers = results[1];
-      if (results[2] != null) C.tempsLogged = results[2];
-      if (results[3] != null) C.saSpots = results[3];
+      upgrade('spots', results[0]);
+      upgrade('swimmers', results[1]);
+      upgrade('tempsLogged', results[2]);
+      upgrade('saSpots', results[3]);
       stampValues();
       return C;
     });
