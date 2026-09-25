@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Big Bay · City Water Quality POC</title>
+    <meta name="description" content="Proof of concept: City of Cape Town coastal water quality results shown on a SwimLoading spot page. Prepared by SwimLoading for discussion with City of Cape Town Coastal Management.">
+    <meta name="robots" content="noindex,nofollow">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+
+    <style>
+        :root {
+            --bg: #080f1a;
+            --bg-card: #0d1728;
+            --bg-card2: #111c30;
+            --cyan: #38bdf8;
+            --cyan-deep: #0284c7;
+            --text: #f1f5f9;
+            --text-sec: #94a3b8;
+            --text-dim: #64748b;
+            --border: rgba(255,255,255,0.07);
+            --border-cyan: rgba(56,189,248,0.18);
+            --green: #10b981;
+            --amber: #f59e0b;
+            --danger: #ef4444;
+            --none: #64748b;
+            --r: 16px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { -webkit-text-size-adjust: 100%; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 9999;
+            background:
+                radial-gradient(18px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+                    rgba(56, 189, 248, 0.55), transparent 100%),
+                radial-gradient(500px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+                    rgba(56, 189, 248, 0.07), transparent 70%);
+        }
+        a { color: var(--cyan); }
+        .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+        .num { font-variant-numeric: tabular-nums; }
+        i[data-lucide], svg.lucide { width: 16px; height: 16px; stroke-width: 2; flex-shrink: 0; }
+
+        /* ── Nav ── */
+        .nav { position: sticky; top: 0; z-index: 100; background: rgba(8,15,26,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+        .nav-inner { max-width: 760px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .nav-logo { display: flex; align-items: center; gap: 7px; text-decoration: none; font-size: 20px; font-weight: 800; letter-spacing: -0.5px; background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .nav-logo img { height: 22px; width: auto; }
+        .nav-tag { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-sec); border: 1px solid var(--border); border-radius: 50px; padding: 5px 12px; white-space: nowrap; }
+
+        /* ── Presenter bar ── */
+        .poc-bar { background: linear-gradient(135deg, rgba(56,189,248,0.08), rgba(2,132,199,0.04)); border-bottom: 1px solid var(--border-cyan); padding: 14px 0 16px; }
+        .poc-kicker { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); margin-bottom: 10px; }
+        .poc-kicker strong { color: var(--text); font-weight: 700; }
+        .poc-kicker svg { color: var(--cyan); flex-shrink: 0; }
+        .poc-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
+        .state-switch { display: flex; flex-wrap: wrap; gap: 8px; }
+        .state-btn { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 8px 14px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.14); background: transparent; color: var(--text-sec); font: 600 13px 'DM Sans', sans-serif; cursor: pointer; transition: all .15s; }
+        .state-btn:hover { color: var(--text); border-color: rgba(56,189,248,0.4); }
+        .state-btn[aria-checked="true"] { background: var(--cyan); border-color: var(--cyan); color: #080f1a; }
+        .state-btn .sw { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+        .state-btn.sim { border-style: dashed; }
+        .state-btn.sim[aria-checked="true"] { border-style: solid; }
+        .switch-sep { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); padding: 0 4px 0 12px; border-left: 1px solid rgba(255,255,255,0.12); min-height: 40px; }
+        .lt-class.na { color: var(--text-dim); font-size: 12px; letter-spacing: .04em; text-transform: none; font-weight: 600; }
+
+        /* ── Spot header ── */
+        .crumb { font-size: 13px; color: var(--text-dim); padding: 18px 0 6px; }
+        .crumb a { color: var(--text-dim); text-decoration: none; }
+        .crumb a:hover { color: var(--text-sec); }
+        h1.spot { font-family: 'Bebas Neue', sans-serif; font-weight: 400; font-size: 56px; line-height: .95; letter-spacing: .5px; }
+        .spot-sub { color: var(--text-sec); font-size: 14px; margin-top: 6px; }
+
+        /* ── Cards ── */
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; margin-top: 18px; }
+        .card-kicker { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-sec); }
+        .card-title { font-family: 'Bebas Neue', sans-serif; font-weight: 400; font-size: 30px; letter-spacing: .5px; line-height: 1; margin-top: 2px; }
+        .sub-head { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-sec); margin: 22px 0 10px; }
+
+        /* Today's conditions */
+        .cond-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+        .cond { background: var(--bg-card2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 12px; min-width: 0; display: grid; grid-template-areas: "top" "val" "note"; }
+        .cond-top { grid-area: top; }
+        .cond-val { grid-area: val; }
+        .cond-note { grid-area: note; }
+        .cond-top { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--text-sec); }
+        .cond-top svg { color: var(--cyan); }
+        .cond-val { font-family: 'Bebas Neue', sans-serif; font-size: 38px; line-height: 1; margin-top: 8px; color: var(--text); white-space: nowrap; }
+        .cond-val small { font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; color: var(--text-sec); margin-left: 3px; }
+        .cond-note { font-size: 12px; color: var(--text-sec); margin-top: 6px; line-height: 1.35; }
+        .cond-src { font-size: 12px; color: var(--text-dim); margin-top: 12px; line-height: 1.45; }
+
+        /* City block */
+        .city { border-color: var(--border-cyan); position: relative; }
+        .city-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .stamp { display: none; align-items: center; gap: 7px; margin-top: 14px; padding: 9px 12px; border-radius: 10px; background: rgba(245,158,11,0.08); border: 1px dashed rgba(245,158,11,0.45); color: #fbbf24; font-size: 13px; font-weight: 600; line-height: 1.35; }
+        .stamp.on { display: flex; }
+
+        .latest { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 4px; }
+        .pill { display: inline-flex; align-items: center; gap: 8px; align-self: start; padding: 8px 14px 8px 10px; border-radius: 50px; font-size: 14px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; border: 1px solid; width: max-content; max-width: 100%; }
+        .pill .dot { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .pill .dot svg { width: 13px; height: 13px; stroke-width: 3; color: #080f1a; }
+        .kv { display: grid; grid-template-columns: max-content 1fr; column-gap: 18px; row-gap: 6px; font-size: 15px; }
+        .kv dt { color: var(--text-sec); }
+        .kv dd { color: var(--text); font-weight: 600; }
+        .stale-note { font-size: 13px; color: var(--text-sec); line-height: 1.45; }
+
+        /* Recent samples strip */
+        .strip-wrap { position: relative; }
+        .strip { position: relative; display: grid; grid-template-columns: repeat(8, 1fr); padding-top: 6px; }
+        .strip::before { content: ''; position: absolute; left: 6.25%; right: 6.25%; top: 21px; height: 2px; background: rgba(255,255,255,0.08); border-radius: 2px; }
+        .s-col { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+        .s-dot { position: relative; width: 100%; max-width: 44px; height: 32px; display: flex; align-items: center; justify-content: center; background: none; border: 0; cursor: pointer; padding: 0; border-radius: 10px; }
+        .s-dot:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+        .s-dot .dot { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px var(--bg-card); transition: transform .12s; }
+        .s-dot:hover .dot, .s-dot[aria-expanded="true"] .dot { transform: scale(1.18); }
+        .s-dot .dot svg { width: 13px; height: 13px; stroke-width: 3; color: #080f1a; }
+        .s-col.latest-col .dot { box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px rgba(241,245,249,0.55); }
+        .s-val { font-size: 12px; font-weight: 700; color: var(--text); margin-top: 6px; white-space: nowrap; }
+        .s-date { font-size: 11px; color: var(--text-dim); margin-top: 1px; white-space: nowrap; }
+        .s-latest { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--text-sec); margin-top: 2px; }
+        .strip-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); margin-top: 8px; padding: 0 2px; }
+        .tip { position: absolute; z-index: 5; pointer-events: none; background: #0a1322; border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; padding: 9px 11px; font-size: 13px; line-height: 1.4; box-shadow: 0 10px 30px rgba(0,0,0,0.45); white-space: nowrap; opacity: 0; transform: translate(-50%, calc(-100% - 8px)); transition: opacity .1s; }
+        .tip.on { opacity: 1; }
+        .tip b { font-weight: 700; }
+        .tip .t-dim { color: var(--text-sec); }
+        .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 14px; font-size: 12px; color: var(--text-sec); }
+        .legend span { display: inline-flex; align-items: center; gap: 6px; }
+        .legend .lg { width: 14px; height: 14px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }
+        .legend .lg svg { width: 9px; height: 9px; stroke-width: 3.5; color: #080f1a; }
+        .table-toggle { margin-top: 12px; background: transparent; border: 1px solid rgba(255,255,255,0.15); color: var(--text-sec); border-radius: 50px; padding: 8px 14px; min-height: 36px; font: 600 12px 'DM Sans', sans-serif; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+        .table-toggle:hover { color: var(--text); border-color: rgba(56,189,248,0.4); }
+        table.samples { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
+        table.samples th { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); padding: 6px 8px; border-bottom: 1px solid var(--border); }
+        table.samples td { padding: 8px; border-bottom: 1px solid var(--border); }
+        table.samples td.r { text-align: right; }
+        table.samples th.r { text-align: right; }
+        .context-note { display: flex; gap: 10px; margin-top: 16px; padding: 12px 14px; border-radius: 12px; background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.14); font-size: 14px; color: var(--text-sec); line-height: 1.45; }
+        .context-note svg { color: var(--cyan); margin-top: 2px; }
+
+        /* Long-term */
+        .lt { display: grid; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+        .lt-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; background: var(--bg-card2); }
+        .lt-row + .lt-row { border-top: 1px solid var(--border); }
+        .lt-name { font-size: 15px; color: var(--text); font-weight: 600; }
+        .lt-name small { display: block; font-size: 12px; color: var(--text-dim); font-weight: 400; }
+        .lt-class { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+        .lt-class .sq { width: 10px; height: 10px; border-radius: 3px; }
+
+        /* Alert */
+        .alert { display: none; gap: 12px; margin-top: 18px; padding: 14px 16px; border-radius: 12px; background: rgba(239,68,68,0.09); border: 1px solid rgba(239,68,68,0.5); }
+        .alert.on { display: flex; }
+        .alert > svg { color: var(--danger); width: 22px; height: 22px; margin-top: 1px; }
+        .alert-title { font-weight: 800; color: #fca5a5; font-size: 15px; }
+        .alert-body { font-size: 14px; color: var(--text); margin-top: 3px; line-height: 1.45; }
+        .alert-meta { font-size: 12px; color: var(--text-sec); margin-top: 6px; }
+
+        .source { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+        .source-text { font-size: 13px; color: var(--text-sec); line-height: 1.45; }
+        .source-text strong { color: var(--text); font-weight: 600; }
+        .btn-ghost { display: inline-flex; align-items: center; gap: 8px; background: transparent; border: 1px solid rgba(255,255,255,0.15); color: var(--text); border-radius: 50px; font-weight: 700; font-size: 14px; padding: 11px 20px; text-decoration: none; min-height: 44px; }
+        .btn-ghost:hover { border-color: rgba(56,189,248,0.5); color: var(--cyan); }
+
+        /* How it works */
+        .how { margin: 34px 0 10px; }
+        .how h2 { font-family: 'Bebas Neue', sans-serif; font-weight: 400; font-size: 34px; letter-spacing: .5px; line-height: 1; }
+        .how-lead { color: var(--text-sec); font-size: 15px; margin-top: 8px; }
+        .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+        .step { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+        .step-n { font-family: 'Bebas Neue', sans-serif; font-size: 26px; color: var(--cyan); line-height: 1; }
+        .step-t { font-weight: 700; margin-top: 6px; font-size: 15px; }
+        .step-d { font-size: 13px; color: var(--text-sec); margin-top: 4px; line-height: 1.45; }
+        .rules { list-style: none; margin-top: 14px; display: grid; gap: 8px; }
+        .rules li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--text); line-height: 1.45; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+        .rules li svg { color: var(--green); margin-top: 2px; }
+        .engage { margin: 34px 0 0; }
+        .engage h2 { font-family: 'Bebas Neue', sans-serif; font-weight: 400; font-size: 34px; letter-spacing: .5px; line-height: 1; }
+        .engage-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; }
+        .eg { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; min-width: 0; }
+        .eg-k { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-sec); line-height: 1.3; }
+        .eg-v { font-family: 'Bebas Neue', sans-serif; font-size: 40px; line-height: 1; color: var(--cyan); margin-top: 8px; }
+        .eg-d { font-size: 13px; color: var(--text-sec); margin-top: 4px; line-height: 1.4; }
+        .engage-note { font-size: 12px; color: var(--text-dim); margin-top: 10px; line-height: 1.5; }
+        .engage-scale { font-size: 15px; color: var(--text); margin-top: 10px; }
+        .principle { margin: 28px 0 0; padding-left: 14px; border-left: 2px solid var(--border-cyan); font-size: 15px; color: var(--text-sec); line-height: 1.55; }
+
+        footer { border-top: 1px solid var(--border); margin-top: 36px; padding: 22px 0 40px; font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+
+        @media (max-width: 560px) {
+            h1.spot { font-size: 46px; }
+            .card { padding: 16px; }
+            .cond-grid { grid-template-columns: 1fr; gap: 8px; }
+            .cond { padding: 12px 14px; grid-template-columns: 1fr auto; grid-template-areas: "top val" "note val"; align-items: center; column-gap: 12px; }
+            .cond-top { font-size: 14px; }
+            .cond-val { font-size: 34px; margin-top: 0; text-align: right; }
+            .cond-note { margin-top: 2px; }
+            .pill { font-size: 13px; }
+            .steps { grid-template-columns: 1fr; }
+            .engage-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+            .eg { padding: 14px 12px; }
+            .eg-v { font-size: 34px; }
+            .switch-sep { flex-basis: 100%; border-left: 0; padding: 4px 0 0; min-height: 0; }
+            .s-val { font-size: 11px; }
+            .s-date { display: none; }
+            .s-col:first-child .s-date, .s-col:last-child .s-date { display: block; }
+            .nav-tag-full { display: none; }
+        }
+        @media (min-width: 561px) { .nav-tag-short { display: none; } }
+        @media (max-width: 360px) {
+            .cond-val { font-size: 30px; }
+            .s-val { font-size: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="nav">
+    <div class="nav-inner">
+        <a href="https://swimloading.com" class="nav-logo"><img src="/icons/logo-wave.png" alt="">SwimLoading</a>
+        <span class="nav-tag"><span class="nav-tag-full">Proof of concept for discussion</span><span class="nav-tag-short">Proof of concept</span></span>
+    </div>
+</nav>
+
+<!-- Presenter bar. Not part of the proposed spot page. The first state is
+     real City data captured from Beach Alerts; the others are simulated so
+     City Coastal Management can say how THEY want each situation shown. -->
+<section class="poc-bar">
+    <div class="wrap">
+        <div class="poc-kicker"><i data-lucide="presentation"></i><span><strong>Proof of concept</strong> prepared by SwimLoading for discussion with City of Cape Town Coastal Management. Not a public page, and not endorsed by the City.</span></div>
+        <div class="poc-label" id="stateLabel">Preview the water-quality block: captured City data, or a simulated scenario</div>
+        <div class="state-switch" role="radiogroup" aria-labelledby="stateLabel" id="stateSwitch"></div>
+    </div>
+</section>
+
+<main class="wrap">
+    <div class="crumb"><a href="/">SwimLoading</a> › <a href="/spots/west-coast">West Coast</a> › Big Bay</div>
+    <h1 class="spot">Big Bay</h1>
+    <div class="spot-sub">West Coast · Cape Town</div>
+
+    <!-- ── EXISTING SWIMLOADING INFORMATION (live) ───────────────────────── -->
+    <section class="card" aria-labelledby="condTitle">
+        <div class="card-kicker" id="condKicker">Swim conditions</div>
+        <h2 class="card-title" id="condTitle">Today's swim conditions</h2>
+        <div class="cond-grid">
+            <div class="cond">
+                <div class="cond-top"><i data-lucide="thermometer"></i>Water</div>
+                <div class="cond-val num" id="cWater">…</div>
+                <div class="cond-note" id="cWaterNote">Loading</div>
+            </div>
+            <div class="cond">
+                <div class="cond-top"><i data-lucide="wind"></i>Wind</div>
+                <div class="cond-val num" id="cWind">…</div>
+                <div class="cond-note" id="cWindNote">Loading</div>
+            </div>
+            <div class="cond">
+                <div class="cond-top"><i data-lucide="waves"></i>Swell</div>
+                <div class="cond-val num" id="cSwell">…</div>
+                <div class="cond-note" id="cSwellNote">Loading</div>
+            </div>
+        </div>
+        <div class="cond-src" id="condSrc">Water temperature: logged by SwimLoading swimmers. Wind and swell: Open-Meteo forecast model for this beach.</div>
+    </section>
+
+    <!-- ── CITY OF CAPE TOWN · COASTAL WATER QUALITY (proposed) ──────────── -->
+    <section class="card city" aria-labelledby="cityTitle">
+        <div class="city-head">
+            <div>
+                <div class="card-kicker">City of Cape Town</div>
+                <h2 class="card-title" id="cityTitle">Coastal water quality</h2>
+            </div>
+        </div>
+        <div class="stamp" id="stamp"><span id="stampIcon"></span><span id="stampText"></span></div>
+
+        <div class="sub-head">Latest sample</div>
+        <div class="latest">
+            <div class="pill" id="latestPill"></div>
+            <dl class="kv">
+                <dt>Enterococci</dt><dd class="num" id="latestCount"></dd>
+                <dt>Sampled</dt><dd id="latestDate"></dd>
+            </dl>
+            <div class="stale-note" id="staleNote" hidden></div>
+        </div>
+
+        <div class="sub-head">Recent samples</div>
+        <div class="strip-wrap" id="stripWrap">
+            <div class="strip" id="strip" role="group" aria-label="The 8 most recent City samples, oldest to newest"></div>
+            <div class="tip" id="tip" aria-hidden="true"></div>
+        </div>
+        <div class="strip-axis"><span>Oldest</span><span>Newest</span></div>
+        <div class="legend" id="legend"></div>
+        <button class="table-toggle" id="tableToggle" aria-expanded="false" aria-controls="sampleTable"><i data-lucide="table-2"></i><span>View as table</span></button>
+        <table class="samples" id="sampleTable" hidden>
+            <thead><tr><th>Sampled</th><th class="r">Enterococci (cfu/100 ml)</th><th>City result</th></tr></thead>
+            <tbody id="sampleRows"></tbody>
+        </table>
+
+        <div class="context-note"><i data-lucide="info"></i><span>The latest result is one sample. See the recent results and the longer-term classification for context.</span></div>
+
+        <div class="sub-head">Long-term water quality</div>
+        <div class="lt" id="longTerm"></div>
+
+        <div class="alert" id="alert" role="alert">
+            <i data-lucide="octagon-alert"></i>
+            <div>
+                <div class="alert-title" id="alertTitle"></div>
+                <div class="alert-body" id="alertBody"></div>
+                <div class="alert-meta" id="alertMeta"></div>
+            </div>
+        </div>
+
+        <div class="source">
+            <div class="source-text">Source: <strong>City of Cape Town · Beach Alerts</strong><br><span id="sourceMeta"></span></div>
+            <a class="btn-ghost" id="cityLink" href="https://beachalerts.capetown.gov.za" target="_blank" rel="noopener noreferrer">View full City beach information <i data-lucide="arrow-right"></i></a>
+        </div>
+    </section>
+
+    <!-- ── Swimmer engagement (live SwimLoading activity) ────────────────── -->
+    <section class="engage" aria-labelledby="engageTitle">
+        <h2 id="engageTitle">Where swimmers already plan their swims</h2>
+        <p class="how-lead">The City's information would appear on the spot pages where SwimLoading swimmers already record the water.</p>
+        <!-- "730+" is typed here on purpose, not a data-sync span: site-sync.js
+             counts profiles with the anon key, which RLS limits to 0 rows, so
+             data-sync="swimmers" would stamp "0". Checked 25 Sep 2026: 744
+             profiles; 276 give Cape Town as their city, next is Durban (47). -->
+        <p class="engage-scale">SwimLoading has grown to 730+ swimmers, with its largest community in Cape Town.</p>
+        <div class="engage-grid">
+            <div class="eg"><div class="eg-k">Big Bay</div><div class="eg-v num" id="eg1">…</div><div class="eg-d" id="eg1d">Loading</div></div>
+            <div class="eg"><div class="eg-k">Atlantic Seaboard and False Bay</div><div class="eg-v num" id="eg2">…</div><div class="eg-d" id="eg2d">Loading</div></div>
+            <div class="eg"><div class="eg-k">Atlantic Seaboard and False Bay</div><div class="eg-v num" id="eg3">…</div><div class="eg-d" id="eg3d">Loading</div></div>
+            <div class="eg"><div class="eg-k" id="eg4k">Busiest beach</div><div class="eg-v num" id="eg4">…</div><div class="eg-d" id="eg4d">Loading</div></div>
+        </div>
+        <p class="engage-note">Based on current SwimLoading activity data. Page views are not included.</p>
+    </section>
+
+    <p class="principle">Beach Alerts remains the authoritative City source. SwimLoading extends the reach of that information into the places where swimmers are already checking conditions and planning swims.</p>
+
+    <!-- ── How it would work (meeting context) ───────────────────────────── -->
+    <section class="how" aria-labelledby="howTitle">
+        <h2 id="howTitle">How this would work</h2>
+        <p class="how-lead">The City's results would be shown where swimmers already plan their swim, attributed and linked back to Beach Alerts.</p>
+        <div class="steps">
+            <div class="step"><div class="step-n">01</div><div class="step-t">City publishes</div><div class="step-d">Water-quality results, classifications and coastal alerts are published through Beach Alerts.</div></div>
+            <div class="step"><div class="step-n">02</div><div class="step-t">SwimLoading connects</div><div class="step-d">City monitoring locations are matched to the appropriate SwimLoading swimming locations. Published results are then kept up to date automatically.</div></div>
+            <div class="step"><div class="step-n">03</div><div class="step-t">Swimmers see it</div><div class="step-d">Shown on the spot page next to swimmer-logged water temperature, wind and swell.</div></div>
+        </div>
+        <ul class="rules">
+            <li><i data-lucide="check"></i><span>City results and classifications are presented without SwimLoading recalculating or reclassifying them.</span></li>
+            <li><i data-lucide="check"></i><span>Every result carries its sample date, and older results are labelled as not recent rather than shown as current.</span></li>
+            <li><i data-lucide="check"></i><span>A single sample is always shown with the recent results and the long-term classification alongside it.</span></li>
+            <li><i data-lucide="check"></i><span>Active City coastal alerts are displayed prominently alongside the water-quality information and linked back to Beach Alerts.</span></li>
+        </ul>
+    </section>
+
+    <footer>
+        Proof of concept prepared by SwimLoading for discussion with City of Cape Town Coastal Management. It does not represent a partnership with, or an endorsement by, the City. The Big Bay water-quality results and classifications are City of Cape Town data from Beach Alerts, captured on 25 Sep 2026 and not updated since. The failure, alert and no-recent-sample states are simulated for discussion and are not City results or alerts. Water-quality results describe samples taken on the dates shown; they do not mean the water is safe to swim in on the day. Water temperature is logged by SwimLoading swimmers; wind and swell come from the Open-Meteo forecast model.
+    </footer>
+</main>
+
+<script>
+document.addEventListener('mousemove', e => {
+    document.body.style.setProperty('--mouse-x', e.clientX + 'px');
+    document.body.style.setProperty('--mouse-y', e.clientY + 'px');
+});
+
+// ─── SPOT ─────────────────────────────────────────────────────────────────
+// Big Bay in the SwimLoading spots table (code "bigbay", domain WEST_COAST).
+const SPOT = { id: '72f88914-cb8e-45ce-b0f1-c17c436157d1', lat: -33.793584, lon: 18.45689 };
+const SB_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
+const TZ = 'Africa/Johannesburg';
+
+// A City result older than this is labelled "not recent" instead of being
+// presented as the current state of the water. The City samples key beaches
+// weekly, so two weeks means at least one scheduled sample is missing.
+// PROPOSED rule: to be agreed with the City.
+const STALE_AFTER_DAYS = 14;
+
+// ─── CITY RESULT VOCABULARY ───────────────────────────────────────────────
+// Per-sample result, as colour-coded by the City on Beach Alerts:
+// green = within the recreational guideline, amber = a single failure,
+// red = two consecutive failures. SwimLoading displays the City's result;
+// it never derives one from the count.
+const RESULT = {
+    within:      { label: 'Within guideline',             short: 'Within guideline',   color: 'var(--green)',  icon: 'check' },
+    single:      { label: 'Above guideline · single result', short: 'Single failure',  color: 'var(--amber)',  icon: 'triangle-alert' },
+    consecutive: { label: 'Above guideline · 2 in a row', short: 'Two consecutive failures', color: 'var(--danger)', icon: 'x' },
+};
+// Long-term classification (DEA 2012 recreational guideline categories).
+const CLASS = {
+    excellent:  { label: 'Excellent',  color: 'var(--green)' },
+    good:       { label: 'Good',       color: 'var(--green)' },
+    sufficient: { label: 'Sufficient', color: 'var(--amber)' },
+    poor:       { label: 'Poor',       color: 'var(--danger)' },
+};
+
+// ─── CITY DATA ────────────────────────────────────────────────────────────
+// "city" is GENUINE City of Cape Town data for Big Bay, captured by Dave from
+// the Beach Alerts Big Bay page on 25 Sep 2026: the 8 most recent results
+// (all shown there as within guideline), rolling 365-day class Good, 5-year
+// class Excellent. The summer class was not captured, so it is shown as not
+// supplied rather than invented. It is a snapshot, not a feed: its age is
+// judged as at capture, and the page says it is not real-time.
+//
+// The other states are SIMULATED for discussion and always stamped as such.
+// Failing counts sit well above every single-sample threshold quoted for Cape
+// Town (185 and 240 cfu/100 ml) so no scenario depends on which one applies.
+// Calendar-day maths on SAST dates, so "3 days ago" never drifts at midnight.
+const sastDay = d => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(d);
+const dayNum = iso => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 86400000;
+const daysAgo = n => new Date((dayNum(sastDay(new Date())) - n) * 86400000).toISOString().slice(0, 10);
+const ageDays = iso => dayNum(sastDay(new Date())) - dayNum(iso);
+const weekly = (endDaysAgo, values) =>
+    values.map((v, i) => ({ date: daysAgo(endDaysAgo + (values.length - 1 - i) * 7), count: v[0], result: v[1] }));
+
+const STATES = {
+    city: {
+        name: 'Big Bay · City data',
+        simulated: false,
+        capturedOn: '2026-09-25',
+        samples: [
+            { date: '2026-08-03', count: 36, result: 'within' },
+            { date: '2026-08-13', count: 28, result: 'within' },
+            { date: '2026-08-14', count: 28, result: 'within' },
+            { date: '2026-08-17', count: 11, result: 'within' },
+            { date: '2026-08-24', count: 4,  result: 'within' },
+            { date: '2026-08-31', count: 9,  result: 'within' },
+            { date: '2026-09-07', count: 1,  result: 'within' },
+            { date: '2026-09-14', count: 12, result: 'within' },
+        ],
+        classes: { rolling365: 'good', summer: null, fiveYear: 'excellent' },
+        alert: null,
+    },
+    single: {
+        name: 'Simulated: single failure',
+        simulated: true,
+        stampText: 'one way a single result above the guideline could be shown.',
+        samples: weekly(2, [[10,'within'],[20,'within'],[10,'within'],[41,'within'],[10,'within'],[20,'within'],[31,'within'],[420,'single']]),
+        classes: { rolling365: 'excellent', summer: 'excellent', fiveYear: 'good' },
+        alert: null,
+    },
+    consecutive: {
+        name: 'Simulated: multiple failures + alert',
+        simulated: true,
+        stampText: 'one way consecutive failures and an active City coastal alert could be shown.',
+        samples: weekly(1, [[20,'within'],[10,'within'],[31,'within'],[10,'within'],[63,'within'],[20,'within'],[610,'single'],[1100,'consecutive']]),
+        classes: { rolling365: 'sufficient', summer: 'good', fiveYear: 'good' },
+        alert: {
+            title: 'Active City coastal alert (simulated)',
+            body: 'Demonstration only: this is not an actual City alert. How active City coastal alerts are presented here is to be agreed with the City.',
+        },
+    },
+    stale: {
+        name: 'Simulated: no recent sample',
+        simulated: true,
+        stampText: 'one way an out-of-date result could be labelled.',
+        samples: weekly(26, [[10,'within'],[20,'within'],[10,'within'],[10,'within'],[31,'within'],[10,'within'],[20,'within'],[10,'within']]),
+        classes: { rolling365: 'excellent', summer: 'excellent', fiveYear: 'good' },
+        alert: null,
+    },
+};
+const STATE_ORDER = ['city', 'single', 'consecutive', 'stale'];
+const STATE_SWATCH = { city: 'var(--green)', single: 'var(--amber)', consecutive: 'var(--danger)', stale: 'var(--none)' };
+
+// ─── FORMATTERS ───────────────────────────────────────────────────────────
+const fmtDate = (iso, opts) => new Intl.DateTimeFormat('en-ZA', { timeZone: TZ, ...opts }).format(new Date(iso + (iso.length === 10 ? 'T12:00:00+02:00' : '')));
+const longDate = iso => fmtDate(iso, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+const shortDate = iso => fmtDate(iso, { day: 'numeric', month: 'short' });
+const fmtCount = n => n.toLocaleString('en-ZA').replace(/ |,/g, ' ');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const icon = name => `<i data-lucide="${name}"></i>`;
+const drawIcons = () => { if (window.lucide) lucide.createIcons(); };
+
+function timeAgo(date) {
+    const mins = Math.round((Date.now() - date.getTime()) / 60000);
+    if (mins < 60) return `${Math.max(mins, 1)} min ago`;
+    const h = Math.round(mins / 60);
+    if (h < 24) return `${h} h ago`;
+    const d = Math.round(h / 24);
+    return `${d} day${d === 1 ? '' : 's'} ago`;
+}
+
+// ─── PRESENTER SWITCH ─────────────────────────────────────────────────────
+const switchEl = document.getElementById('stateSwitch');
+switchEl.innerHTML = STATE_ORDER.map((k, i) =>
+    (STATES[k].simulated && !STATES[STATE_ORDER[i - 1]].simulated ? '<span class="switch-sep" aria-hidden="true">Simulated for discussion</span>' : '') +
+    `<button class="state-btn${STATES[k].simulated ? ' sim' : ''}" role="radio" data-state="${k}" aria-checked="false"><span class="sw" style="background:${STATE_SWATCH[k]}"></span>${esc(STATES[k].name)}</button>`
+).join('');
+switchEl.addEventListener('click', e => {
+    const b = e.target.closest('.state-btn');
+    if (b) selectState(b.dataset.state);
+});
+switchEl.addEventListener('keydown', e => {
+    if (!['ArrowRight', 'ArrowLeft'].includes(e.key)) return;
+    const i = STATE_ORDER.indexOf(current);
+    const next = STATE_ORDER[(i + (e.key === 'ArrowRight' ? 1 : STATE_ORDER.length - 1)) % STATE_ORDER.length];
+    selectState(next);
+    switchEl.querySelector(`[data-state="${next}"]`).focus();
+    e.preventDefault();
+});
+
+let current = 'city';
+function selectState(key) {
+    if (!STATES[key]) key = 'city';
+    current = key;
+    switchEl.querySelectorAll('.state-btn').forEach(b => {
+        const on = b.dataset.state === key;
+        b.setAttribute('aria-checked', on);
+        b.tabIndex = on ? 0 : -1;
+    });
+    renderCity(STATES[key]);
+}
+
+// ─── CITY BLOCK ───────────────────────────────────────────────────────────
+function renderCity(s) {
+    const latest = s.samples[s.samples.length - 1];
+    // A captured snapshot is judged as it stood on the day it was captured;
+    // a simulation is judged against today.
+    const age = s.capturedOn ? dayNum(s.capturedOn) - dayNum(latest.date) : ageDays(latest.date);
+    const stale = age > STALE_AFTER_DAYS;
+    const r = RESULT[latest.result];
+
+    // The simulation warning appears only on simulated states. The captured
+    // City data carries its attribution in the source line instead.
+    const stamp = document.getElementById('stamp');
+    stamp.classList.toggle('on', !!s.simulated);
+    document.getElementById('stampIcon').innerHTML = s.simulated ? icon('flask-conical') : '';
+    document.getElementById('stampText').innerHTML = s.simulated
+        ? `<span><strong>Demonstration scenario, simulated values.</strong> Not an actual City result or alert. This is ${esc(s.stampText)}</span>`
+        : '';
+
+    // Latest sample. A result past STALE_AFTER_DAYS keeps its colour out of
+    // the headline: grey pill, and the old result stated plainly beneath.
+    const pill = document.getElementById('latestPill');
+    const pillColor = stale ? 'var(--none)' : r.color;
+    const pillLabel = stale ? 'No recent City sample' : r.label;
+    const pillIcon = stale ? 'clock' : r.icon;
+    pill.style.borderColor = `color-mix(in srgb, ${pillColor} 55%, transparent)`;
+    pill.style.background = `color-mix(in srgb, ${pillColor} 12%, transparent)`;
+    pill.style.color = stale ? 'var(--text-sec)' : pillColor;
+    pill.innerHTML = `<span class="dot" style="background:${pillColor}">${icon(pillIcon)}</span>${esc(pillLabel)}`;
+
+    document.getElementById('latestCount').textContent = `${fmtCount(latest.count)} cfu/100 ml`;
+    document.getElementById('latestDate').textContent = s.capturedOn
+        ? `${longDate(latest.date)} (${age} day${age === 1 ? '' : 's'} before capture)`
+        : `${longDate(latest.date)} (${age === 0 ? 'today' : age === 1 ? 'yesterday' : `${age} days ago`})`;
+    const staleNote = document.getElementById('staleNote');
+    staleNote.hidden = !stale;
+    if (stale) staleNote.textContent = `The last City result (${r.label.toLowerCase()}) is ${age} days old${s.capturedOn ? ' at capture' : ''}. Check Beach Alerts for the latest before swimming.`;
+
+    // Recent samples strip: oldest → newest, each mark carries the City's
+    // result as colour + icon + label, never colour alone.
+    const strip = document.getElementById('strip');
+    strip.innerHTML = s.samples.map((p, i) => {
+        const pr = RESULT[p.result];
+        const isLatest = i === s.samples.length - 1;
+        const aria = `${longDate(p.date)}: ${fmtCount(p.count)} cfu per 100 ml, ${pr.short}${isLatest ? ', latest sample' : ''}`;
+        return `<div class="s-col${isLatest ? ' latest-col' : ''}">
+            <button class="s-dot" data-i="${i}" aria-label="${esc(aria)}" aria-expanded="false"><span class="dot" style="background:${pr.color}">${icon(pr.icon)}</span></button>
+            <span class="s-val num">${fmtCount(p.count)}</span>
+            <span class="s-date">${shortDate(p.date)}</span>
+            ${isLatest ? '<span class="s-latest">Latest</span>' : ''}
+        </div>`;
+    }).join('');
+    strip._samples = s.samples;
+
+    const used = [...new Set(s.samples.map(p => p.result))];
+    document.getElementById('legend').innerHTML = ['within', 'single', 'consecutive']
+        .filter(k => used.includes(k) || k === 'within')
+        .map(k => `<span><span class="lg" style="background:${RESULT[k].color}">${icon(RESULT[k].icon)}</span>${esc(RESULT[k].short)}</span>`)
+        .join('') + '<span>Values: enterococci, cfu/100 ml</span>';
+
+    document.getElementById('sampleRows').innerHTML = s.samples.slice().reverse().map(p =>
+        `<tr><td>${esc(longDate(p.date))}</td><td class="r num">${fmtCount(p.count)}</td><td>${esc(RESULT[p.result].short)}</td></tr>`
+    ).join('');
+
+    // Long-term classification
+    const rows = [
+        ['Rolling 365 days', 'The past 12 months', s.classes.rolling365],
+        ['Summer', 'October to March', s.classes.summer],
+        ['5 years', 'The preceding five years', s.classes.fiveYear],
+    ];
+    document.getElementById('longTerm').innerHTML = rows.map(([n, sub, c]) =>
+        `<div class="lt-row"><div class="lt-name">${n}<small>${sub}</small></div>${c
+            ? `<div class="lt-class" style="color:${CLASS[c].color}"><span class="sq" style="background:${CLASS[c].color}"></span>${CLASS[c].label}</div>`
+            : '<div class="lt-class na">Not supplied in this demo</div>'}</div>`
+    ).join('');
+
+    // Active City alert
+    const al = document.getElementById('alert');
+    al.classList.toggle('on', !!s.alert);
+    if (s.alert) {
+        document.getElementById('alertTitle').textContent = s.alert.title;
+        document.getElementById('alertBody').textContent = s.alert.body;
+        document.getElementById('alertMeta').textContent = 'Simulated for this demonstration. A live City alert would link back to Beach Alerts.';
+    }
+
+    document.getElementById('sourceMeta').textContent = s.simulated
+        ? 'Simulated values for this demonstration. Not City results.'
+        : `Big Bay results and classifications captured from Beach Alerts on ${longDate(s.capturedOn)}. Not real-time.`;
+
+    hideTip();
+    drawIcons();
+}
+
+// Tooltip: hover on desktop, tap on touch, focus for keyboard.
+const tip = document.getElementById('tip');
+const stripWrap = document.getElementById('stripWrap');
+function showTip(btn) {
+    const p = document.getElementById('strip')._samples[+btn.dataset.i];
+    const pr = RESULT[p.result];
+    tip.innerHTML = `<b>${esc(longDate(p.date))}</b><br><span class="num">${fmtCount(p.count)}</span> <span class="t-dim">cfu/100 ml</span><br><span style="color:${pr.color};font-weight:700">${esc(pr.short)}</span>`;
+    const wr = stripWrap.getBoundingClientRect();
+    const br = btn.getBoundingClientRect();
+    tip.classList.add('on');
+    const half = tip.offsetWidth / 2;
+    const x = Math.min(Math.max(br.left - wr.left + br.width / 2, half), wr.width - half);
+    tip.style.left = `${x}px`;
+    tip.style.top = `${br.top - wr.top}px`;
+    document.querySelectorAll('.s-dot[aria-expanded="true"]').forEach(b => b.setAttribute('aria-expanded', 'false'));
+    btn.setAttribute('aria-expanded', 'true');
+}
+function hideTip() {
+    tip.classList.remove('on');
+    document.querySelectorAll('.s-dot[aria-expanded="true"]').forEach(b => b.setAttribute('aria-expanded', 'false'));
+}
+const strip = document.getElementById('strip');
+// Hover is mouse-only: a touch tap also emits an emulated hover, which with a
+// toggle-on-click would open and immediately close the tooltip.
+strip.addEventListener('pointerover', e => { if (e.pointerType !== 'mouse') return; const b = e.target.closest('.s-dot'); if (b) showTip(b); });
+strip.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') hideTip(); });
+strip.addEventListener('focusin', e => { const b = e.target.closest('.s-dot'); if (b) showTip(b); });
+strip.addEventListener('focusout', hideTip);
+strip.addEventListener('click', e => { const b = e.target.closest('.s-dot'); if (b) showTip(b); });
+document.addEventListener('click', e => { if (!e.target.closest('.s-dot')) hideTip(); });
+
+document.getElementById('tableToggle').addEventListener('click', e => {
+    const btn = e.currentTarget;
+    const t = document.getElementById('sampleTable');
+    t.hidden = !t.hidden;
+    btn.setAttribute('aria-expanded', String(!t.hidden));
+    btn.querySelector('span').textContent = t.hidden ? 'View as table' : 'Hide table';
+});
+
+// ─── LIVE SWIMLOADING CONDITIONS ──────────────────────────────────────────
+// Same sources as the live spot page: latest_spot_temps for the swimmer
+// reading, spot_temp_estimate as the fallback. Wind and swell from Open-Meteo,
+// as on capepoint.html. Every value fails to "Unavailable", never to a guess.
+const sb = (path, extra = {}) => fetch(`${SB_URL}/rest/v1/${path}`, {
+    headers: { apikey: SB_ANON, Authorization: `Bearer ${SB_ANON}`, ...extra },
+});
+const COMPASS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+const compass = deg => COMPASS[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16];
+const setCond = (id, val, note) => {
+    document.getElementById(id).innerHTML = val;
+    document.getElementById(id + 'Note').textContent = note;
+};
+
+async function loadWater() {
+    try {
+        const r = await sb(`latest_spot_temps?spot_id=eq.${SPOT.id}&select=temp_c,updated_at&limit=1`);
+        const row = (await r.json())[0];
+        if (row && row.temp_c != null) {
+            const at = new Date(row.updated_at);
+            const today = sastDay(at) === sastDay(new Date());
+            setCond('cWater', `${Number(row.temp_c).toFixed(1)}<small>°C</small>`, `Logged by a swimmer · ${timeAgo(at)}`);
+            document.getElementById('condTitle').textContent = today ? "Today's swim conditions" : 'Latest swim conditions';
+            return;
+        }
+        const e = await sb(`spot_temp_estimate?spot_id=eq.${SPOT.id}&select=best_c,best_source&limit=1`);
+        const est = (await e.json())[0];
+        if (est && est.best_c != null) {
+            setCond('cWater', `${Number(est.best_c).toFixed(1)}<small>°C</small>`, est.best_source === 'model' ? 'Modelled estimate, no swimmer log yet' : 'Estimate');
+            document.getElementById('condTitle').textContent = 'Latest swim conditions';
+            return;
+        }
+        throw new Error('no reading');
+    } catch (err) {
+        setCond('cWater', '<small>—</small>', 'Unavailable right now');
+        document.getElementById('condTitle').textContent = 'Swim conditions';
+    }
+}
+
+async function loadWind() {
+    try {
+        const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${SPOT.lat}&longitude=${SPOT.lon}&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kmh&timezone=Africa%2FJohannesburg`);
+        const c = (await r.json()).current;
+        if (!c || c.wind_speed_10m == null) throw new Error('no wind');
+        setCond('cWind', `${compass(c.wind_direction_10m)} ${Math.round(c.wind_speed_10m)}<small>km/h</small>`, c.wind_gusts_10m != null ? `Gusts to ${Math.round(c.wind_gusts_10m)} km/h` : 'Forecast model, now');
+    } catch (err) {
+        setCond('cWind', '<small>—</small>', 'Unavailable right now');
+    }
+}
+
+async function loadSwell() {
+    try {
+        const r = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${SPOT.lat}&longitude=${SPOT.lon}&current=swell_wave_height,swell_wave_period,wave_height&timezone=Africa%2FJohannesburg`);
+        const c = (await r.json()).current;
+        const h = c?.swell_wave_height ?? c?.wave_height;
+        if (h == null) throw new Error('no swell');
+        setCond('cSwell', `${h.toFixed(1)}<small>m</small>`, c.swell_wave_period != null ? `Period ${Math.round(c.swell_wave_period)} s` : 'Forecast model, now');
+    } catch (err) {
+        setCond('cSwell', '<small>—</small>', 'Unavailable right now');
+    }
+}
+
+// Swimmer engagement: real SwimLoading activity, counted live from
+// temp_logs. Scope is named exactly: Big Bay itself, and the active sea spots
+// (OCEAN/LAGOON) in SwimLoading's Atlantic Seaboard and False Bay regions.
+// Nothing here is estimated; any failure shows "Unavailable".
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+async function sbAll(path) {
+    // PostgREST caps a response (1,000 rows on Supabase), so page until the
+    // exact count is reached rather than silently undercounting.
+    // Advance by what actually came back: the server may cap below 1,000.
+    // Callers pass a unique sort order so pages never overlap or skip.
+    const out = [];
+    for (;;) {
+        const r = await sb(`${path}&limit=1000&offset=${out.length}`, { Prefer: 'count=exact' });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const rows = await r.json();
+        out.push(...rows);
+        const total = Number((r.headers.get('content-range') || '').split('/')[1]);
+        if (!Number.isFinite(total)) throw new Error('no count');
+        if (!rows.length || out.length >= total) return out;
+    }
+}
+async function loadEngagement() {
+    const setEg = (n, v, d) => { document.getElementById(`eg${n}`).textContent = v; document.getElementById(`eg${n}d`).textContent = d; };
+    try {
+        const regionSpots = await sbAll('spots?active=eq.true&domain=in.(ATLANTIC,FALSE_BAY)&water_type=in.(OCEAN,LAGOON)&select=id,name&order=id.asc');
+        if (!regionSpots.length) throw new Error('no spots');
+        const names = Object.fromEntries(regionSpots.map(x => [x.id, x.name]));
+        const ids = [SPOT.id, ...regionSpots.map(x => x.id)];
+        const since365 = Date.now() - 365 * 86400000;
+        const since30 = Date.now() - 30 * 86400000;
+        const logs = await sbAll(`temp_logs?spot_id=in.(${ids.join(',')})&created_at=gte.${encodeURIComponent(new Date(since365).toISOString())}&select=spot_id,user_id,created_at&order=created_at.asc,id.asc`);
+
+        const bb = logs.filter(l => l.spot_id === SPOT.id);
+        setEg(1, bb.length, `water temperatures logged by ${plural(new Set(bb.map(l => l.user_id)).size, 'swimmer', 'swimmers')}, last 12 months`);
+
+        const region = logs.filter(l => names[l.spot_id]);
+        setEg(2, region.length, `logged by ${plural(new Set(region.map(l => l.user_id)).size, 'swimmer', 'swimmers')} across ${regionSpots.length} sea spots, last 12 months`);
+
+        const region30 = region.filter(l => new Date(l.created_at).getTime() >= since30);
+        setEg(3, region30.length, 'water temperatures logged, last 30 days');
+
+        const bySpot = {};
+        region30.forEach(l => { bySpot[l.spot_id] = (bySpot[l.spot_id] || 0) + 1; });
+        const top = Object.entries(bySpot).sort((a, b) => b[1] - a[1])[0];
+        if (top) {
+            document.getElementById('eg4k').textContent = `Busiest: ${names[top[0]]}`;
+            setEg(4, top[1], 'water temperatures logged, last 30 days');
+        } else {
+            setEg(4, '—', 'No logs in the last 30 days');
+        }
+    } catch (err) {
+        [1, 2, 3, 4].forEach(n => setEg(n, '—', 'Unavailable right now'));
+    }
+}
+
+// Always open on the captured City data. A simulated state appears only when
+// someone selects it on the page, never from a link, a bookmark or a reload.
+if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+selectState('city');
+loadWater(); loadWind(); loadSwell(); loadEngagement();
+drawIcons();
+</script>
+</body>
+</html>
