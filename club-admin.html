@@ -520,6 +520,34 @@
     @media (max-width: 560px) {
       .lab-spacer { flex-basis: 100%; height: 0; }
     }
+
+    /* ── Lab sessions ── */
+    .ls-new { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
+    .ls-new label { display:flex; flex-direction:column; gap:5px; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--text-sec); }
+    .ls-new input { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-size:14px; font-family:inherit; }
+    .ls-new input[type=number] { width:88px; }
+    .ls-head { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:16px 18px; border-bottom:1px solid var(--border); }
+    .ls-date { font-size:15px; font-weight:700; color:var(--text); }
+    .ls-sub { font-size:12.5px; color:var(--text-sec); margin-top:2px; }
+    .ls-slot { border-bottom:1px solid var(--border); }
+    .ls-slot:last-child { border-bottom:none; }
+    .ls-slot-top { display:grid; grid-template-columns:62px 1fr 18px; gap:12px; align-items:center; padding:12px 18px; cursor:pointer; }
+    .ls-slot.is-open .ls-slot-top { cursor:default; }
+    .ls-time { font-size:14px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; }
+    .ls-who { font-size:14px; color:var(--text); }
+    .ls-open { color:var(--text-sec); }
+    .ls-chev { width:16px; height:16px; color:var(--text-sec); transition:transform .18s ease; }
+    .ls-slot.x .ls-chev { transform:rotate(180deg); }
+    .ls-detail { display:none; padding:0 18px 16px 92px; }
+    .ls-slot.x .ls-detail { display:block; }
+    .ls-kv { font-size:13.5px; color:var(--text-sec); }
+    .ls-notes { font-size:13.5px; color:#cbd5e1; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-top:10px; white-space:pre-wrap; }
+    .ls-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+    .ls-actions .btn-sm { font-size:12.5px; text-decoration:none; }
+    @media (max-width:560px) {
+      .ls-new label { flex:1 1 40%; }
+      .ls-detail { padding-left:18px; }
+    }
   </style>
 </head>
 <body>
@@ -647,6 +675,9 @@
         </button>
         <button class="nav-item" onclick="showPage('entries')" id="nav-entries">
           <i data-lucide="ticket"></i> Gala Entries
+        </button>
+        <button class="nav-item" onclick="showPage('labsessions')" id="nav-labsessions" style="display:none;">
+          <i data-lucide="calendar-days"></i> Lab Sessions
         </button>
         <button class="nav-item" onclick="showPage('labenquiries')" id="nav-labenquiries" style="display:none;">
           <i data-lucide="inbox"></i> Lab Enquiries
@@ -846,6 +877,29 @@
       </div>
 
       <!-- ── GALA ENTRIES ── -->
+      <div id="page-labsessions" class="page">
+        <div class="page-header">
+          <div class="page-title">Lab Sessions</div>
+          <div class="page-sub">Open a morning and parents book the slots themselves.</div>
+        </div>
+
+        <div class="card" style="padding:18px 20px;margin-bottom:18px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:12px;">Open a morning</div>
+          <div class="ls-new">
+            <label>Date<input type="date" id="lsDate"></label>
+            <label>Starts<input type="time" id="lsStart" value="08:00" step="900"></label>
+            <label>Slots<input type="number" id="lsCount" value="6" min="1" max="24"></label>
+            <label>Minutes each<input type="number" id="lsMins" value="30" min="10" max="120" step="5"></label>
+            <button class="btn-sm" id="lsAdd" onclick="openLabDay()">Open it</button>
+          </div>
+          <div id="lsMsg" style="font-size:13px;margin-top:10px;"></div>
+        </div>
+
+        <div id="lsContent">
+          <div style="padding:40px;text-align:center;"><div class="spinner" style="margin:0 auto;"></div></div>
+        </div>
+      </div>
+
       <div id="page-labenquiries" class="page">
         <div class="page-header">
           <div class="page-title">Lab Enquiries</div>
@@ -2564,6 +2618,7 @@ async function loadClubContext() {
   // tab and stays with full admins rather than every coach on the team.
   const canSeeLab = hasSwimLab && isClubAdmin();
   document.getElementById('nav-labenquiries').style.display     = canSeeLab       ? '' : 'none';
+  document.getElementById('nav-labsessions').style.display      = canSeeLab       ? '' : 'none';
   if (canSeeLab) loadLabEnquiryBadge();
   // Hide a sidebar group heading when this club's flags empty the group
   document.querySelectorAll('.nav-group').forEach(g => {
@@ -2783,6 +2838,168 @@ async function loadLabEnquiryBadge() {
   }
 }
 
+// ══ LAB SESSIONS ════════════════════════════════════════════════════
+// Britt opens a morning; the API generates the slots; parents book them
+// from /aquasharks-lab. She never negotiates a time, which is the admin
+// that has stalled this before.
+//
+// Writes go through /api/lab-days rather than straight to the table, so
+// slot timestamps are built server side with an explicit SAST offset. A
+// browser building them from a date input would land on the previous day.
+let labDays = [];
+
+async function labApi(body) {
+  const { data: { session } } = await sb.auth.getSession();
+  const res = await fetch('/api/lab-days', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + (session && session.access_token),
+    },
+    body: JSON.stringify(body),
+  });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok || out.error) throw new Error(out.error || ('HTTP ' + res.status));
+  return out;
+}
+
+async function loadLabSessions() {
+  const el = document.getElementById('lsContent');
+  if (!el) return;
+  try {
+    const { data: days, error } = await sb
+      .from('swim_lab_days')
+      .select('id,session_date,start_time,slot_minutes,is_open,note')
+      .eq('club_slug', currentClub.slug)
+      .order('session_date', { ascending: false });
+    if (error) throw error;
+
+    const ids = (days || []).map(d => d.id);
+    let slots = [];
+    if (ids.length) {
+      const r = await sb.from('swim_lab_slots')
+        .select('id,day_id,starts_at,status,contact_name,swimmer_name,email,phone,squad,notes')
+        .in('day_id', ids).order('starts_at');
+      if (r.error) throw r.error;
+      slots = r.data || [];
+    }
+    labDays = (days || []).map(d => ({ ...d, slots: slots.filter(x => x.day_id === d.id) }));
+    renderLabSessions();
+  } catch (err) {
+    console.error('[lab sessions] load failed', err);
+    el.innerHTML = '<div class="empty-state">Could not load sessions. Refresh to try again.</div>';
+  }
+}
+
+function labSlotTime(iso) {
+  return new Date(iso).toLocaleTimeString('en-ZA',
+    { timeZone: 'Africa/Johannesburg', hour: '2-digit', minute: '2-digit', hour12: false });
+}
+function labDayLabel(dateStr) {
+  // date-only string, so read it as SAST midday to avoid the day slipping back
+  return new Date(dateStr + 'T12:00:00+02:00').toLocaleDateString('en-ZA',
+    { timeZone: 'Africa/Johannesburg', weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+function renderLabSessions() {
+  const el = document.getElementById('lsContent');
+  if (!el) return;
+  if (!labDays.length) {
+    el.innerHTML = '<div class="empty-state">No sessions yet. Open a morning above and it appears here.</div>';
+    return;
+  }
+
+  el.innerHTML = labDays.map(d => {
+    const booked = d.slots.filter(s => s.status === 'booked').length;
+    return `<div class="card" style="padding:0;margin-bottom:14px;overflow:hidden;">
+      <div class="ls-head">
+        <div>
+          <div class="ls-date">${escHtml(labDayLabel(d.session_date))}</div>
+          <div class="ls-sub">${booked} of ${d.slots.length} booked &middot; ${d.slot_minutes} min each${d.is_open ? '' : ' &middot; closed'}</div>
+        </div>
+        <button class="btn-sm" onclick="toggleLabDay('${d.id}', ${d.is_open ? 'false' : 'true'})">
+          ${d.is_open ? 'Close' : 'Reopen'}
+        </button>
+      </div>
+      <div>${d.slots.map(labSlotRow).join('')}</div>
+    </div>`;
+  }).join('');
+
+  if (window.lucide) lucide.createIcons();
+}
+
+// Compact by default: time, who, and a chevron. Details expand on tap.
+function labSlotRow(s) {
+  const open = s.status === 'open';
+  const who  = open ? '<span class="ls-open">Open</span>'
+    : escHtml(s.swimmer_name || s.contact_name || 'Booked');
+  const tel = s.phone ? String(s.phone).replace(/[^0-9+]/g, '') : '';
+  const wa  = tel ? 'https://wa.me/' + tel.replace(/^0/, '27').replace(/^\+/, '') : null;
+
+  return `<div class="ls-slot${open ? ' is-open' : ''}">
+    <div class="ls-slot-top" ${open ? '' : `onclick="this.parentElement.classList.toggle('x')"`}>
+      <span class="ls-time">${escHtml(labSlotTime(s.starts_at))}</span>
+      <span class="ls-who">${who}</span>
+      ${open ? '' : '<i data-lucide="chevron-down" class="ls-chev"></i>'}
+    </div>
+    ${open ? '' : `<div class="ls-detail">
+      <div class="ls-kv">${escHtml(s.contact_name || '')}${s.squad ? ' &middot; ' + escHtml(s.squad) : ''}</div>
+      ${s.notes ? `<div class="ls-notes">${escHtml(s.notes)}</div>` : ''}
+      <div class="ls-actions">
+        <a class="btn-sm" href="mailto:${encodeURIComponent(s.email || '')}">Email</a>
+        ${wa ? `<a class="btn-sm" href="${wa}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
+        <button class="btn-sm" onclick="cancelLabSlot('${s.id}')">Free this slot</button>
+      </div>
+    </div>`}
+  </div>`;
+}
+
+async function openLabDay() {
+  const msg  = document.getElementById('lsMsg');
+  const btn  = document.getElementById('lsAdd');
+  const date = document.getElementById('lsDate').value;
+  const start= document.getElementById('lsStart').value;
+  const slots= parseInt(document.getElementById('lsCount').value, 10);
+  const mins = parseInt(document.getElementById('lsMins').value, 10);
+
+  msg.style.color = ''; msg.textContent = '';
+  if (!date || !start) { msg.style.color = '#ef4444'; msg.textContent = 'Pick a date and a start time.'; return; }
+
+  btn.disabled = true;
+  try {
+    const out = await labApi({ action: 'open', club: currentClub.slug, date, start, slots, minutes: mins });
+    msg.style.color = '#10b981';
+    msg.textContent = `Opened, ${out.slots} slots. Parents can book it now.`;
+    await loadLabSessions();
+  } catch (e) {
+    msg.style.color = '#ef4444';
+    msg.textContent = e.message === 'duplicate key value violates unique constraint "swim_lab_days_unique_per_club"'
+      ? 'That date is already open.'
+      : 'Could not open that morning: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function toggleLabDay(dayId, reopen) {
+  try {
+    await labApi({ action: reopen ? 'reopen' : 'close', day_id: dayId });
+    await loadLabSessions();
+  } catch (e) {
+    alert('Could not change that day: ' + e.message);
+  }
+}
+
+async function cancelLabSlot(slotId) {
+  if (!confirm('Free this slot? The booking details are removed and someone else can take it.')) return;
+  try {
+    await labApi({ action: 'cancel', slot_id: slotId });
+    await loadLabSessions();
+  } catch (e) {
+    alert('Could not free that slot: ' + e.message);
+  }
+}
+
 function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
@@ -2813,6 +3030,7 @@ function showPage(name) {
   if (name === 'progress')      loadProgressReportsPage();
   if (name === 'health')        loadHealthPage();
   if (name === 'labenquiries')  loadLabEnquiries();
+  if (name === 'labsessions')   loadLabSessions();
 }
 
 // ── DATA LOADERS ──────────────────────────────────────────────────
