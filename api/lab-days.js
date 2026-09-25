@@ -50,11 +50,13 @@ async function adminFor(req, clubSlug) {
   const user = await who.json();
   if (!user || !user.id) return null;
 
-  const rows = await svc(
-    `club_admins?user_id=eq.${user.id}&select=club_id,clubs!inner(slug)`
-  );
-  const slugs = (rows || []).map((r) => r.clubs && r.clubs.slug).filter(Boolean);
-  return slugs.includes(clubSlug) ? user.id : null;
+  // Two plain lookups rather than a PostgREST embed: club_admins has no
+  // foreign key to clubs, so `clubs!inner(slug)` errors out and the whole
+  // request fails with nothing useful in the message.
+  const [club] = await svc(`clubs?slug=eq.${encodeURIComponent(clubSlug)}&select=id`);
+  if (!club) return null;
+  const rows = await svc(`club_admins?user_id=eq.${user.id}&club_id=eq.${club.id}&select=user_id`);
+  return (rows && rows.length) ? user.id : null;
 }
 
 export default async function handler(req, res) {
@@ -125,9 +127,11 @@ export default async function handler(req, res) {
     if (action === 'cancel') {
       const slotId = clean(b.slot_id, 64);
       if (!slotId) return res.status(400).json({ error: 'slot_required' });
-      const [slot] = await svc(`swim_lab_slots?id=eq.${slotId}&select=day_id,swim_lab_days!inner(club_slug)`);
+      const [slot] = await svc(`swim_lab_slots?id=eq.${slotId}&select=day_id`);
       if (!slot) return res.status(404).json({ error: 'slot_not_found' });
-      if (!await adminFor(req, slot.swim_lab_days.club_slug)) return res.status(403).json({ error: 'not_an_admin' });
+      const [sday] = await svc(`swim_lab_days?id=eq.${slot.day_id}&select=club_slug`);
+      if (!sday) return res.status(404).json({ error: 'day_not_found' });
+      if (!await adminFor(req, sday.club_slug)) return res.status(403).json({ error: 'not_an_admin' });
 
       // Clearing every booking field matters: the table's CHECK requires a
       // booked slot to carry a name and email, so a partial clear would fail.

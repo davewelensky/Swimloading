@@ -2859,7 +2859,11 @@ async function labApi(body) {
     body: JSON.stringify(body),
   });
   const out = await res.json().catch(() => ({}));
-  if (!res.ok || out.error) throw new Error(out.error || ('HTTP ' + res.status));
+  // Surface the server's detail. Without it every failure reads "failed",
+  // which says nothing and sent us looking in the wrong place once already.
+  if (!res.ok || out.error) {
+    throw new Error([out.error, out.detail].filter(Boolean).join(': ') || ('HTTP ' + res.status));
+  }
   return out;
 }
 
