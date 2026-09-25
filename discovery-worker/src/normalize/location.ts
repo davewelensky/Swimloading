@@ -144,6 +144,116 @@ export interface JsonLdPlaceOptions {
   // "Z"). Used for one thing only: sanity-checking a bare subdivision code
   // before it is read as the United States or Canada.
   utcOffset?: string | null;
+  // The languages the page is written in (the source's language_codes and
+  // the detected page language). Used for one thing only: reading a
+  // country NAME written in brackets — see countryFromTrailingBracket.
+  languages?: readonly (string | null | undefined)[] | null;
+}
+
+// ── A country named in brackets, in the page's own language ─────────────
+// Aggregators write a foreign venue as "City (Country)" in their own
+// language: Swimchannel Brasil lists "Razanac (Croácia)", "Baku
+// (Azerbaijão)", "Abu Dhabi (Emirados Árabes Unidos)". The English table
+// cannot read those, so each row fell back to the SOURCE's country and ten
+// Croatian, Spanish, Swiss, Kazakh... swims published as Brazil (data fixed
+// by sql/applied/2026-09-25_fix-br-coded-foreign-venues.sql).
+//
+// Deliberately narrow, because a wrong country is worse than a missing one:
+//  - Only a TRAILING bracket, and only when the whole bracket is a country
+//    NAME. Never a two-letter code: Brazilian pages write their states the
+//    same way — "Recife (PE)", "Vitória (ES)", "Florianópolis (SC)" — and
+//    PE, ES and SC are Peru, Spain and the Seychelles.
+//  - Only names in the page's languages, plus English.
+//  - A name two languages disagree about is refused, never guessed — the
+//    same rule as the month tables in normalize/date.ts.
+//  - BRACKET_HOMONYMS are country names that are ALSO written in exactly
+//    this position for something else: Spanish pages write provinces in
+//    brackets ("Almuñécar (Granada)"), and Granada is Grenada in Spanish and
+//    Portuguese; "(Luxembourg)" is also a Belgian province.
+//
+// Every language a live source is registered with. A language missing from
+// this list simply gets English only; add it here, and the collision check
+// decides what is safe.
+const BRACKET_LANGUAGES = [
+  'en', 'es', 'pt', 'fr', 'de', 'it', 'nl', 'sv', 'da', 'no', 'fi', 'pl', 'hr', 'tr', 'el', 'ru', 'ja', 'zh',
+] as const;
+const BRACKET_HOMONYMS: ReadonlySet<string> = new Set(['granada', 'luxembourg', 'luxemburg', 'luxemburgo']);
+
+function buildBracketNames(): {
+  byLanguage: ReadonlyMap<string, ReadonlyMap<string, string>>;
+  refused: readonly string[];
+} {
+  const raw = new Map<string, Map<string, string>>();
+  const codesByKey = new Map<string, Set<string>>();
+  const note = (lang: string, key: string, code: string) => {
+    if (!key) return;
+    if (!raw.has(lang)) raw.set(lang, new Map());
+    raw.get(lang)!.set(key, code);
+    if (!codesByKey.has(key)) codesByKey.set(key, new Set());
+    codesByKey.get(key)!.add(code);
+  };
+
+  // English is the curated table (CLDR plus real-world aliases like "UK").
+  for (const [key, code] of Object.entries(COUNTRY_NAME_TO_CODE)) note('en', key, code);
+  for (const lang of BRACKET_LANGUAGES) {
+    if (lang === 'en') continue;
+    let dn: Intl.DisplayNames;
+    try {
+      dn = new Intl.DisplayNames([lang], { type: 'region' });
+    } catch {
+      continue; // No locale data for it: that language gets English only.
+    }
+    for (const code of ISO_ALPHA2) {
+      const name = dn.of(code);
+      if (!name || name === code) continue;
+      note(lang, normaliseCountryName(name), code);
+    }
+  }
+
+  const refused = [...codesByKey.entries()]
+    .filter(([, codes]) => codes.size > 1)
+    .map(([key]) => key)
+    .sort();
+  const refusedSet = new Set(refused);
+  const byLanguage = new Map<string, ReadonlyMap<string, string>>();
+  for (const [lang, names] of raw) {
+    const safe = new Map<string, string>();
+    for (const [key, code] of names) {
+      if (refusedSet.has(key) || BRACKET_HOMONYMS.has(key) || AMBIGUOUS_COUNTRY_NAMES.has(key)) continue;
+      safe.set(key, code);
+    }
+    byLanguage.set(lang, safe);
+  }
+  return { byLanguage, refused };
+}
+
+const BRACKET_NAMES = buildBracketNames();
+
+// Country names two languages map to different countries. Refused rather
+// than guessed; exported so a test can show what the check threw out.
+export const AMBIGUOUS_BRACKET_COUNTRY_NAMES: readonly string[] = BRACKET_NAMES.refused;
+
+export function countryFromTrailingBracket(
+  text: string | null | undefined,
+  languages?: readonly (string | null | undefined)[] | null
+): string | null {
+  if (!text) return null;
+  const match = /\(([^()]+)\)\s*$/.exec(text);
+  if (!match) return null;
+  const inner = match[1]!.trim();
+  // Three letters minimum: never read a state or ISO code ("SP", "PE").
+  if (inner.replace(/[^\p{L}]/gu, '').length < 3) return null;
+  const key = normaliseCountryName(inner);
+  const wanted = new Set<string>(['en']);
+  for (const l of languages ?? []) {
+    const base = l?.trim().toLowerCase().split(/[-_]/)[0];
+    if (base) wanted.add(base === 'nb' || base === 'nn' ? 'no' : base);
+  }
+  for (const lang of wanted) {
+    const code = BRACKET_NAMES.byLanguage.get(lang)?.get(key);
+    if (code) return code;
+  }
+  return null;
 }
 
 // Structured location, from a JSON-LD Place (with nested PostalAddress
@@ -277,6 +387,13 @@ export function parseLocationText(
     if (countryCode) {
       result.countryCode = countryCode;
       segments.pop();
+    } else {
+      // "Razanac (Croácia)". The text itself is left exactly as the page
+      // printed it: the city (and a table row's venue name) is how an
+      // already-published venue is found again on the next crawl, so
+      // trimming the bracket would split one venue into two.
+      const bracketed = countryFromTrailingBracket(last, opts.languages);
+      if (bracketed) result.countryCode = bracketed;
     }
   }
 

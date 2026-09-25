@@ -360,7 +360,7 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
           source.id,
           listing.finalUrl ?? source.base_url,
           listing.html,
-          { sourceType: source.source_type, countryCode: source.country_code },
+          { sourceType: source.source_type, countryCode: source.country_code, languageCodes: source.language_codes },
           options.maxTableRowsPerPage ?? 400
         );
         if (listingTable.pages.length >= 2) {
@@ -514,7 +514,11 @@ export async function crawlSource(source: SchedulableSource, ports: CrawlPorts, 
       }
 
       summary.pagesFetched++;
-      const sourceContext = { sourceType: source.source_type, countryCode: source.country_code };
+      const sourceContext = {
+        sourceType: source.source_type,
+        countryCode: source.country_code,
+        languageCodes: source.language_codes,
+      };
 
       // Tabular calendars first. A season table is many events on one
       // page, which the single-candidate path cannot see at all — Ray's

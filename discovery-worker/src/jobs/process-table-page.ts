@@ -139,7 +139,12 @@ export function buildFromRow(
     candidate.evidence.push(evidence('startDate', origin.evidenceType, row.dateText, `${origin.label}, date`));
   }
 
-  const location = parseLocationText(row.locationText);
+  // The page's languages let "Razanac (Croácia)" resolve from the row's own
+  // words, before the source-country fallback further down can stamp the
+  // source's country on a foreign swim.
+  const location = parseLocationText(row.locationText, {
+    languages: [...(context.languageCodes ?? []), pageLanguage],
+  });
   candidate.locationText = location.locationText ?? cleanText(row.locationText);
   candidate.city = location.city;
   candidate.region = location.region;

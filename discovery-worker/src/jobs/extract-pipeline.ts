@@ -21,6 +21,10 @@ export interface PipelineResult {
 export interface SourceContext {
   sourceType?: string | null;
   countryCode?: string | null;
+  // The source's language_codes. Lets "Razanac (Croácia)" resolve from the
+  // page's own words, so the source's country fallback never applies to a
+  // row that names a different country.
+  languageCodes?: readonly string[] | null;
 }
 
 function pathOf(url: string): string | null {
@@ -61,6 +65,7 @@ export function runExtractionPipeline(source: SourceRecord, context: SourceConte
     classification,
     // Only used to break a day/month tie a numeric date cannot break alone.
     countryCode: context.countryCode ?? null,
+    languageCodes: context.languageCodes ?? null,
   });
 
   // Country fallback. A venue with no parseable address leaves city and

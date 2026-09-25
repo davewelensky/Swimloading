@@ -69,6 +69,9 @@ export interface BuildCandidateParams {
   // The source's registered country, used ONLY to decide whether a numeric
   // date like "10/07/2026" is day-first or month-first.
   countryCode?: string | null;
+  // The source's language_codes, used ONLY to read a country named in
+  // brackets in that language ("Razanac (Croácia)").
+  languageCodes?: readonly string[] | null;
 }
 
 // The core normalisation step: JSON-LD first (per extraction priority),
@@ -77,7 +80,7 @@ export interface BuildCandidateParams {
 // shape). Every field stays null if neither source provided it — nothing
 // here invents a fact.
 export function buildCandidateEvent(params: BuildCandidateParams): CandidateEvent {
-  const { source, jsonld, html, classification, countryCode } = params;
+  const { source, jsonld, html, classification, countryCode, languageCodes } = params;
   const candidate = blankCandidateEvent(source.sourceId, source.sourceUrl);
   const warnings: string[] = [...jsonld.warnings, ...html.warnings, ...classification.warnings];
 
@@ -184,7 +187,10 @@ export function buildCandidateEvent(params: BuildCandidateParams): CandidateEven
   // the location parser cannot tell them apart without it.
   const startOffset = extractTimezoneOffset(eventNode ? toNullableString(eventNode.startDate) : null);
   const structuredLocation = parseJsonLdPlace(eventNode?.location ?? null, { utcOffset: startOffset });
-  const freeTextLocation = parseLocationText(html.locationText, { utcOffset: startOffset });
+  const freeTextLocation = parseLocationText(html.locationText, {
+    utcOffset: startOffset,
+    languages: languageCodes ?? null,
+  });
   const location = mergeLocations(structuredLocation, freeTextLocation);
   candidate.venueName = location.venueName;
   candidate.locationText = location.locationText;

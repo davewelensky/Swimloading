@@ -127,7 +127,7 @@ function buildPorts(
               source.id,
               url,
               html,
-              { sourceType: source.source_type, countryCode: source.country_code },
+              { sourceType: source.source_type, countryCode: source.country_code, languageCodes: source.language_codes },
               aiExtractor
             ),
           // Dry runs have no candidate history to read, so nothing is
