@@ -59,9 +59,18 @@ async function db(path, init) {
   return res.status === 204 ? null : res.json();
 }
 
+// Today's date in SAST as yyyy-mm-dd. Built from parts rather than by
+// splitting a formatted string: en-ZA renders yyyy/mm/dd, not dd/mm/yyyy, and
+// reversing it produced a malformed date that PostgREST rejected outright.
+function todaySast() {
+  const p = new Intl.DateTimeFormat('en-ZA', {
+    timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date()).reduce((a, x) => (a[x.type] = x.value, a), {});
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
 async function listDays(club) {
-  const today = fmt(Date.now(), { year: 'numeric', month: '2-digit', day: '2-digit' })
-    .split('/').reverse().join('-');   // en-ZA gives dd/mm/yyyy
+  const today = todaySast();
 
   const days = await db(
     `swim_lab_days?club_slug=eq.${encodeURIComponent(club)}&is_open=is.true` +
