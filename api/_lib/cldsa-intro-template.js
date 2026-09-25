@@ -96,6 +96,15 @@ export function buildCldsaIntroHtml(firstName) {
   </tr>
 </table>
 
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td style="padding:26px 32px 0;text-align:center;" class="sp">
+      <img src="https://www.swimloading.com/icons/home-screen.png" width="300" alt="The SwimLoading icon on a phone home screen"
+           style="width:300px;max-width:100%;height:auto;border:0;display:block;margin:0 auto;">
+    </td>
+  </tr>
+</table>
 <table width="100%" cellpadding="0" cellspacing="0" border="0">
   <tr>
     <td style="padding:34px 32px 0;" class="sp">

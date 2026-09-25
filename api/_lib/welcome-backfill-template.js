@@ -73,6 +73,8 @@ export function buildBackfillHtml(firstName) {
               does not need to be: added this way it has its own icon and opens
               full screen, no browser bar. Ten seconds, nothing to download.
             </div>
+            <img src="https://www.swimloading.com/icons/home-screen.png" width="248" alt="The SwimLoading icon on a phone home screen"
+                 style="width:248px;max-width:100%;height:auto;border:0;display:block;margin:18px auto 6px;">
             <div style="font-size:14px;color:#94a3b8;line-height:1.95;margin:16px 0 4px;">
               <b style="color:#f1f5f9;">iPhone:</b> open swimloading.com in Safari, tap
               <b>Share</b>, then <b>Add to Home Screen</b>, then <b>Add</b>.
