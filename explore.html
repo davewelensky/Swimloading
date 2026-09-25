@@ -258,6 +258,7 @@
   .chip:hover{border-color:rgba(56,189,248,.5);background:rgba(56,189,248,.08);color:#fff}
   .chip .n{color:var(--cyan);font-weight:700}
   .chip .nx{color:var(--sec);font-size:11.5px;font-weight:400}
+  .chip .flag{align-self:center}
   .chip.on{background:var(--cyan);color:#080f1a;border-color:var(--cyan);font-weight:700}
   .chipnote{color:var(--sec);font-size:12px;font-style:italic}
   /* The places toggle, on the heading of the section it controls. */
@@ -282,6 +283,13 @@
   .result h3 a{text-decoration:none}
   .result h3 a:hover{color:var(--cyan)}
   .where{color:var(--sec);font-size:13.5px;margin-bottom:10px}
+  /* Country flag (see flag()). A flex row so a wrapped place line hangs
+     clear of the flag instead of running underneath it. */
+  .flag{flex:none;width:16px;height:12px;border-radius:2px;object-fit:cover;
+        box-shadow:0 0 0 1px rgba(255,255,255,.18)}
+  .flagline{display:flex;align-items:flex-start;gap:7px}
+  .flagline .flag{margin-top:4px}
+  .flagline > span{min-width:0}
   .badge{display:inline-block;font-size:10px;text-transform:uppercase;letter-spacing:.6px;
          padding:3px 10px;border-radius:50px;font-weight:700;margin-right:5px}
   .b-iconic{background:rgba(56,189,248,.18);color:var(--cyan)}
@@ -730,7 +738,27 @@ const COUNTRY_NAMES = {
   NO:'Norway', SE:'Sweden', FI:'Finland', PL:'Poland', HR:'Croatia', JP:'Japan',
   IN:'India', HK:'Hong Kong', SG:'Singapore', PH:'Philippines', AT:'Austria', CH:'Switzerland'
 };
-const countryName = c => COUNTRY_NAMES[c] || c || 'Unknown';
+// Codes missing from COUNTRY_NAMES (NA, SC, AZ, ME, PE, UZ, ...) fall back to
+// the browser's own English country names — the same Intl.DisplayNames lookup
+// the homepage feed uses — so a card never prints a bare "NA". The raw code is
+// the last resort if the browser lacks Intl.DisplayNames.
+let regionNames = null;
+try { regionNames = new Intl.DisplayNames(['en'], { type: 'region' }); } catch(e){}
+const countryName = c => {
+  if(!c) return 'Unknown';
+  if(COUNTRY_NAMES[c]) return COUNTRY_NAMES[c];
+  if(regionNames){ try { return regionNames.of(c) || c; } catch(e){} }
+  return c;
+};
+// Small SVG flag from a stored ISO country code — the same flag-icons set the
+// homepage feed uses. Never the emoji flag (brand rule: no emojis) and never
+// guessed from location text: no valid code, no flag, and a failed load
+// removes itself rather than leaving a broken-image box. alt is empty where the
+// country is spelled out right beside the flag (a named alt would be read out
+// twice); pass the name only where the flag is the sole mention of it.
+const flag = (code, alt='') => /^[A-Za-z]{2}$/.test(code || '')
+  ? `<img class="flag" src="https://cdn.jsdelivr.net/npm/flag-icons@7/flags/4x3/${code.toLowerCase()}.svg" alt="${esc(alt)}" width="16" height="12" loading="lazy" decoding="async" onerror="this.remove()">`
+  : '';
 
 const SUBDIVISIONS = {
   AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',
@@ -1139,15 +1167,18 @@ function renderTally(){
 // results and nothing real is missing from the list.
 function buildPlaces(){
   const map = new Map();
-  const add = (kind,label,match,sort) => {
+  const add = (kind,label,match,sort,cc) => {
     const key = kind+'|'+label;
-    if(!map.has(key)) map.set(key, {kind,label,match,n:0,sort});
-    map.get(key).n++;
+    if(!map.has(key)) map.set(key, {kind,label,match,n:0,sort,cc});
+    const p = map.get(key); p.n++;
+    // Display only, for the row's flag. A town's match carries no country,
+    // so keep the one its swims share — or none if any of them disagree.
+    if(p.cc !== cc) p.cc = null;
   };
   for(const r of POINTS){
     if(r.c) add('country', countryName(r.c), {country:r.c}, 1);
     if(r.r && r.c) add('region', `${regionName(r.r)}, ${countryName(r.c)}`, {country:r.c, region:r.r}, 2);
-    if(r.ct) add('town', [r.ct, r.r?regionName(r.r):null].filter(Boolean).join(', '), {city:r.ct}, 3);
+    if(r.ct) add('town', [r.ct, r.r?regionName(r.r):null].filter(Boolean).join(', '), {city:r.ct}, 3, r.c);
   }
   PLACES = [...map.values()].sort((a,b)=> a.sort-b.sort || b.n-a.n || a.label.localeCompare(b.label));
 }
@@ -1350,7 +1381,7 @@ function onQuery(){
   if(!hits.length){ closeAc(); return; }
   ac.innerHTML = hits.map(p=>
     `<button type="button" role="option" aria-selected="false" data-i="${PLACES.indexOf(p)}">
-       <span>${esc(p.label)} <span class="kind">${p.kind}</span></span>
+       <span class="flagline">${p.match.country ? flag(p.match.country) : flag(p.cc, countryName(p.cc))}<span>${esc(p.label)} <span class="kind">${p.kind}</span></span></span>
        <span class="n">${p.n}</span></button>`).join('');
   ac.querySelectorAll('button').forEach(b=>
     b.addEventListener('click', ()=> pickPlace(parseInt(b.dataset.i,10))));
@@ -1450,7 +1481,7 @@ function renderChips(){
     : 'Popular countries';
 
   el.innerHTML = `<span class="lbl">${heading}</span>` + items.map(c=>
-    `<button type="button" class="chip" data-c="${esc(c.code)}">${esc(c.label)}
+    `<button type="button" class="chip" data-c="${esc(c.code)}">${flag(c.code)}${esc(c.label)}
        <span class="n">${c.n}</span>${c.next ? `<span class="nx">${esc(fmtNext(c.next))}</span>` : ''}
      </button>`).join('') + note;
 
@@ -1979,12 +2010,12 @@ function renderPlaces(){
   el.innerHTML = shown.map(p=>`<article class="result" style="display:block;padding:13px 16px">
       <h3 style="font-size:16px;margin-bottom:3px">
         <a href="${esc(p.url)}" style="text-decoration:none" data-place="${esc(p.slug)}">${esc(p.name)}</a></h3>
-      <div class="muted" style="font-size:13px">
+      <div class="muted flagline" style="font-size:13px">${flag(p.country_code)}<span>
         ${esc([p.area, countryName(p.country_code)].filter(Boolean).join(', '))}
         ${p.water_type ? ` · ${esc(p.water_type)}` : ''}
         ${p.temp_c!=null ? ` · <span style="color:var(--cyan)">${esc(p.temp_c)}°C</span>
             <span style="color:var(--sec)">(${esc(p.temp_source==='swimmer'?'swimmer logged':p.temp_source==='measured'?'measured':'modelled')})</span>` : ''}
-      </div>
+      </span></div>
     </article>`).join('')
     + (list.length > shown.length
         ? `<p class="muted" style="margin-top:10px">${list.length - shown.length} more places here —
@@ -2301,9 +2332,9 @@ function render(){
             ${r.participant_estimate ? `<span style="color:var(--sec);font-size:12px">~${Number(r.participant_estimate).toLocaleString()} swimmers</span>`:''}
           </div>
           <h3>${href ? `<a href="${esc(href)}" data-open="${esc(r.id)}">${esc(r.name)}</a>` : esc(r.name)}</h3>
-          <div class="where">${esc(placeOf(r) || 'Location to be confirmed')}
+          <div class="where flagline">${flag(r.country_code)}<span>${esc(placeOf(r) || 'Location to be confirmed')}
             ${r.distance_km!=null ? ` · ${Math.round(r.distance_km)} km away`:''}
-            ${r.organiser_name ? ` · ${esc(r.organiser_name)}`:''}</div>
+            ${r.organiser_name ? ` · ${esc(r.organiser_name)}`:''}</span></div>
           ${dists.length || noDistance || r.water_temp_c!=null || r.interested_count>0 ? `<div class="dists">
             ${r.water_temp_c!=null ? `<span class="dist water" title="Modelled sea temperature for this venue today. A guide to a swim in the next fortnight, not a forecast for the day.">
                 <i data-lucide="thermometer"></i>${esc(r.water_temp_c)}°C now</span>`:''}
