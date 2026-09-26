@@ -3,6 +3,7 @@ import { extractHtml } from '../extract/html.js';
 import { classifyEvent, type ClassificationResult } from '../extract/classify.js';
 import { buildCandidateEvent } from '../normalize/event.js';
 import { scoreCandidate, type ConfidenceBreakdown } from '../confidence/score.js';
+import type { ConfidenceContext } from '../confidence/rules.js';
 import { validateCandidateEvent, type ValidationResult } from '../domain/validation.js';
 import type { SourceRecord } from '../domain/source-record.js';
 import type { CandidateEvent } from '../domain/candidate-event.js';
@@ -38,8 +39,14 @@ function pathOf(url: string): string | null {
 // The extraction pipeline for one already-retrieved page, shared by the
 // fixture runner and the live crawler: extract (JSON-LD + HTML) ->
 // classify -> normalise -> score -> validate. Pure local computation —
-// no network call, no database write.
-export function runExtractionPipeline(source: SourceRecord, context: SourceContext = {}): PipelineResult {
+// no network call, no database write. `ctx` carries the clock the score
+// is judged against (past-date penalty, future-year bonus); callers leave
+// it as "now", tests pin it so a fixture's date cannot age into the past.
+export function runExtractionPipeline(
+  source: SourceRecord,
+  context: SourceContext = {},
+  ctx: ConfidenceContext = { now: new Date() }
+): PipelineResult {
   const jsonld = extractJsonLd(source.html);
   const htmlExtraction = extractHtml(source.html);
 
@@ -81,7 +88,7 @@ export function runExtractionPipeline(source: SourceRecord, context: SourceConte
     );
   }
 
-  const confidence = scoreCandidate(candidate, classification);
+  const confidence = scoreCandidate(candidate, classification, ctx);
   candidate.confidenceScore = confidence.totalScore;
   candidate.confidenceReasons = confidence.reasons;
 

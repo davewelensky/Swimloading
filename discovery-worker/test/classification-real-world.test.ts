@@ -125,10 +125,16 @@ test('the DUC regression: a real club swim now reaches review instead of being r
     }</script></head><body><h1>Open Water Swim</h1></body></html>`;
 
   const source = makeLiveSourceRecord('src', 'https://duc.co.za/events/open-water-swim/', html);
-  const { candidate, classification, confidence } = runExtractionPipeline(source, {
-    sourceType: 'club',
-    countryCode: 'ZA',
-  });
+  // Scored as of 4 Aug 2026, when this was an upcoming swim. This test
+  // used to run against the real clock, so from 30 Aug the fixture's own
+  // date was in the past, the (correct, older) historical-page rule took
+  // its -30, and the score fell back to exactly 30. The rule was right;
+  // the test had no fixed clock.
+  const { candidate, classification, confidence } = runExtractionPipeline(
+    source,
+    { sourceType: 'club', countryCode: 'ZA' },
+    NOW
+  );
 
   assert.equal(candidate.canonicalName, 'Open Water Swim');
   assert.equal(candidate.startDate, '2026-08-29');
