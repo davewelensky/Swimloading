@@ -80,7 +80,7 @@ window.SITE_CONFIG = {
   // No longer worth hand-bumping precisely; keep them roughly current so the
   // brief pre-fetch flash isn't wildly wrong.
   spots:       185,
-  swimmers:    642,
+  swimmers:    744,
   tempsLogged: 1509,
   saSpots:     120,   // South African spots (active, country_code=ZA) — fast-paint fallback; site-sync fetches the live count
 
