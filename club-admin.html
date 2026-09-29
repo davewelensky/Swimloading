@@ -3388,9 +3388,9 @@ async function renderOverview() {
     // on this number in bulk.
     const inviteToolHere = hasParentLanguage && window._clubFeatures?.hasProgressReports;
     actions.push({ dot:'blue',
-      text:`${unlinked.length} of ${roster.length} active roster members aren't linked to an app account`,
-      names: inviteToolHere ? 'Copy the parent invite message into each squad\'s group chat' : (hasParentLanguage ? 'Parents haven\'t joined the app yet' : 'Members haven\'t joined the app yet'),
-      label: inviteToolHere ? 'Progress Reports →' : 'Roster →',
+      text:`${unlinked.length} of ${roster.length} swimmers have no app account yet`,
+      names: inviteToolHere ? 'Send families the invite message. It is under Progress Reports.' : (hasParentLanguage ? 'Parents haven\'t joined the app yet' : 'Members haven\'t joined the app yet'),
+      label: inviteToolHere ? 'Get invite →' : 'Roster →',
       action: inviteToolHere ? `showPage('progress')` : `showPage('roster')` });
   }
 
@@ -3516,13 +3516,16 @@ async function renderOverview() {
         }
         if (ul) {
           notReadyGalas.forEach(({ e, daysAway, missing }) => {
-            ul.insertAdjacentHTML('afterbegin', `<li class="action-item" onclick="viewGalaEntries('${e.id}')">
+            // Sessions are set on the gala's own details (Galas & events); entries are made in Gala Entries.
+            // Send to whichever step is actually missing first.
+            const needSessions = missing.includes('no sessions set');
+            ul.insertAdjacentHTML('afterbegin', `<li class="action-item" onclick="${needSessions ? `showPage('events'); openEventDetail('${e.id}')` : `viewGalaEntries('${e.id}')`}">
               <div class="action-dot ${daysAway <= 14 ? 'amber' : 'blue'}"></div>
               <div class="action-text">
                 <div style="font-weight:600;">${e.title} is ${daysAway === 0 ? 'today' : daysAway + ' day' + (daysAway === 1 ? '' : 's') + ' away'} — ${missing.join(' · ')}</div>
-                <div class="action-names">Set sessions and enter swimmers in Gala Entries</div>
+                <div class="action-names">${needSessions ? 'Step 1: set the sessions and events on the gala. Step 2: enter swimmers in Gala Entries.' : 'Enter swimmers in Gala Entries'}</div>
               </div>
-              <div class="action-arrow">Entries →</div>
+              <div class="action-arrow">${needSessions ? 'Set sessions →' : 'Entries →'}</div>
             </li>`);
           });
         }
@@ -3553,8 +3556,8 @@ async function renderOverview() {
               </div>
             </div>
             <div style="text-align:right;flex-shrink:0;">
-              <div style="font-size:18px;font-weight:900;color:${soon?'var(--amber)':'var(--cyan)'};font-family:'Bebas Neue',sans-serif;line-height:1;">${daysAway === 0 ? 'TODAY' : daysAway + 'd'}</div>
-              <div style="font-size:10px;color:var(--text-sec);">away</div>
+              <div style="font-size:18px;font-weight:900;color:${soon?'var(--amber)':'var(--cyan)'};font-family:'Bebas Neue',sans-serif;line-height:1;">${daysAway === 0 ? 'TODAY' : daysAway}</div>
+              <div style="font-size:10px;color:var(--text-sec);">${daysAway === 0 ? '' : (daysAway === 1 ? 'day away' : 'days away')}</div>
             </div>
           </div>
 
