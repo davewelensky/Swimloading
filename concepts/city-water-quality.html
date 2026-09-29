@@ -764,6 +764,7 @@ const STATES = {
     },
     single: {
         name: 'Simulated: single failure',
+        label: 'Single failure',
         simulated: true,
         stampText: 'one way a single result above the guideline could be shown.',
         samples: weekly(2, [[10,'within'],[20,'within'],[10,'within'],[41,'within'],[10,'within'],[20,'within'],[31,'within'],[420,'single']]),
@@ -772,6 +773,7 @@ const STATES = {
     },
     consecutive: {
         name: 'Simulated: multiple failures + alert',
+        label: 'Failures + City alert',
         simulated: true,
         stampText: 'one way consecutive failures and an active City coastal alert could be shown.',
         samples: weekly(1, [[20,'within'],[10,'within'],[31,'within'],[10,'within'],[63,'within'],[20,'within'],[610,'single'],[1100,'consecutive']]),
@@ -784,6 +786,7 @@ const STATES = {
     },
     stale: {
         name: 'Simulated: no recent sample',
+        label: 'No recent sample',
         simulated: true,
         stampText: 'one way an out-of-date result could be labelled.',
         samples: weekly(26, [[10,'within'],[20,'within'],[10,'within'],[10,'within'],[31,'within'],[10,'within'],[20,'within'],[10,'within']]),
@@ -794,6 +797,7 @@ const STATES = {
     // the last result it did receive, rather than going blank or guessing.
     failed: {
         name: 'Simulated: City update failed',
+        label: 'City update failed',
         simulated: true,
         fetchFailed: true,
         stampText: 'one way a failed update from the City could be labelled.',
@@ -827,7 +831,7 @@ function timeAgo(date) {
 const switchEl = document.getElementById('stateSwitch');
 switchEl.innerHTML = STATE_ORDER.map((k, i) =>
     (STATES[k].simulated && !STATES[STATE_ORDER[i - 1]].simulated ? '<span class="switch-sep" aria-hidden="true">Simulated for discussion</span>' : '') +
-    `<button class="state-btn${STATES[k].simulated ? ' sim' : ''}" role="radio" data-state="${k}" aria-checked="false"><span class="sw" style="background:${STATE_SWATCH[k]}"></span>${esc(STATES[k].name)}</button>`
+    `<button class="state-btn${STATES[k].simulated ? ' sim' : ''}" role="radio" data-state="${k}" aria-checked="false" aria-label="${esc(STATES[k].name)}"><span class="sw" style="background:${STATE_SWATCH[k]}"></span>${esc(STATES[k].label || STATES[k].name)}</button>`
 ).join('');
 switchEl.addEventListener('click', e => {
     const b = e.target.closest('.state-btn');
