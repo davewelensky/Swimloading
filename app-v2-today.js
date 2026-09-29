@@ -388,7 +388,13 @@
         try {
             var res = await supabaseClient.from('swim_events').select('id, title, location_name, start_at').gte('start_at', new Date().toISOString()).neq('status', 'cancelled').order('start_at', { ascending: true }).limit(1);
             var ev = res && res.data && res.data[0];
-            if (!ev) { el.innerHTML = ''; return; }
+            var swimsIsTab = !(window.V2 && window.V2.clubTab && window.V2.clubTab());   // club members have Club in that tab, so Swims lives here
+            if (!ev) {
+                el.innerHTML = swimsIsTab ? '' :
+                    '<div class="v2-h2">Group swims</div><button type="button" class="v2-card v2-tappable v2-chal" onclick="showPage(\'events\')">' +
+                    '<span class="v2-between"><span class="v2-card-title">See upcoming group swims</span><i data-lucide="chevron-right" class="v2-chev"></i></span></button>';
+                icons(); return;
+            }
             var part = await Promise.all([
                 supabaseClient.from('swim_participants').select('rsvp, status').eq('swim_event_id', ev.id).eq('user_id', currentUser.id).maybeSingle(),
                 supabaseClient.from('swim_participants').select('*', { count: 'exact', head: true }).eq('swim_event_id', ev.id).eq('rsvp', 'going')
@@ -398,7 +404,7 @@
                 ? '<span class="v2-going"><i data-lucide="check"></i>' + (mine.rsvp === 'going' ? "You're going" : 'You said maybe') + '</span>'
                 : '<button class="v2-btn v2-btn-ghost v2-btn-sm" type="button" id="v2tGoing">I\'m going</button>';
             el.innerHTML =
-                '<div class="v2-h2">Next swim</div>' +
+                '<div class="v2-h2 v2-between"><span>Next swim</span><button type="button" class="v2-link" onclick="showPage(\'events\')">All swims</button></div>' +
                 '<div class="v2-card v2-tappable" id="v2tNextCard" role="button" tabindex="0">' +
                     '<div class="v2-between"><b class="v2-card-title">' + esc(ev.title) + '</b><span class="v2-sub">' + esc(fmtWhen(ev.start_at)) + '</span></div>' +
                     '<div class="v2-sub" style="margin:2px 0 14px">' + esc(ev.location_name || '') + (going ? ' · ' + going + ' going' : '') + '</div>' +

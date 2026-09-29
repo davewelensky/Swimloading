@@ -175,9 +175,27 @@
         club: 'you'
     };
     // v1 page each tab opens.
-    var PAGE_OF = { today: 'dashboard', spots: 'history', log: 'logTemp', swims: 'events', you: 'you' };
+    var PAGE_OF = { today: 'dashboard', spots: 'history', log: 'logTemp', swims: 'events', club: 'club', you: 'you' };
     // Pages reached from You: show a back link.
     var CHILD_OF_YOU = { safety: 1, leaderboard: 1, club: 1 };
+
+    // ── Club tab for swim-club members (Aquasharks swimmers and parents) ─────────────────────────────
+    // Club is a main destination for them (this week's sessions, attendance, announcements, progress), so it
+    // takes the fifth tab in place of Swims (tab bars hold five, and Log takes one). Everyone else keeps Swims.
+    // Swims stays one tap away for members: Today's "Next swim" card and a row under You. Remembered in
+    // localStorage so the bar is right from the first paint; confirmed once memberships load.
+    var clubTab = false;
+    try { clubTab = localStorage.getItem('sl_v2_clubtab') === '1'; } catch (e) { /* optional */ }
+    window.V2.clubTab = function () { return clubTab; };
+    function tabOf(page) {
+        if (clubTab) { if (page === 'events') return null; if (page === 'club') return 'club'; }
+        return TAB_OF[page];
+    }
+    function isChildOfYou(page) {
+        if (clubTab) return page === 'safety' || page === 'leaderboard' || page === 'events';
+        return !!CHILD_OF_YOU[page];
+    }
+    var backTarget = 'you';
 
     var NSRI_TEL = '0870949774';          // same number as the Safety page (index.html)
     var NSRI_DISPLAY = '087 094 9774';
@@ -207,7 +225,7 @@
             tabBtn('today', 'sun', 'Today') +
             tabBtn('spots', 'map-pin', 'Spots') +
             '<button class="v2-tab v2-tab-log" data-v2tab="log" aria-label="' + COPY.action + '"><span class="v2-fab"><i data-lucide="plus"></i></span></button>' +
-            tabBtn('swims', 'waves', 'Swims') +
+            (clubTab ? tabBtn('club', 'users', 'Club') : tabBtn('swims', 'waves', 'Swims')) +
             tabBtn('you', 'user-round', 'You');
         app.appendChild(bar);
 
@@ -216,7 +234,7 @@
             if (!b) return;
             var tab = b.getAttribute('data-v2tab');
             var page = PAGE_OF[tab];
-            if (tab !== 'log' && TAB_OF[currentPage] === tab && !CHILD_OF_YOU[currentPage]) {
+            if (tab !== 'log' && tabOf(currentPage) === tab && !isChildOfYou(currentPage)) {
                 window.scrollTo({ top: 0, behavior: 'smooth' });   // re-tap: back to top
                 return;
             }
@@ -231,7 +249,7 @@
             back.id = 'v2Back';
             back.type = 'button';
             back.innerHTML = '<i data-lucide="chevron-left"></i>You';
-            back.addEventListener('click', function () { showPage('you'); });
+            back.addEventListener('click', function () { showPage(backTarget); });
             var header = container.querySelector('.header');
             if (header && header.nextSibling) container.insertBefore(back, header.nextSibling);
             else container.appendChild(back);
@@ -245,7 +263,7 @@
     // Called at the end of showPage(); keeps the bar in step with ANY navigation,
     // including v1 inline onclick calls.
     function highlight(page) {
-        var tab = TAB_OF[page];
+        var tab = tabOf(page);
         var bar = document.getElementById('v2Tabbar');
         if (bar) {
             bar.querySelectorAll('[data-v2tab]').forEach(function (b) {
@@ -253,7 +271,12 @@
             });
         }
         var back = document.getElementById('v2Back');
-        if (back) back.classList.toggle('on', !!CHILD_OF_YOU[page]);
+        if (back) {
+            back.classList.toggle('on', isChildOfYou(page));
+            var lbl = backTarget === 'dashboard' ? 'Today' : 'You';
+            back.innerHTML = '<i data-lucide="chevron-left"></i>' + lbl;
+            icons();
+        }
     }
     var prevPage = 'dashboard';
 
@@ -267,6 +290,7 @@
             return;
         }
         if (window.V2.exitLog) window.V2.exitLog();
+        backTarget = (page === 'events' && clubTab && prevPage !== 'you') ? 'dashboard' : 'you';
         prevPage = page;
         currentPage = page;
         highlight(page);
@@ -296,12 +320,13 @@
         var initials = name.trim().split(/\s+/).slice(0, 2).map(function (w) { return w.charAt(0); }).join('').toUpperCase() || 'S';
 
         var swimming =
+            (clubTab ? row('waves', 'var(--sl-cyan)', 'Group swims', 'Upcoming swims and who is in the water', "showPage('events')") : '') +
             row('trophy', 'var(--sl-amber)', 'Challenges and board', 'Draws, leaderboard, how to earn points', "showPage('leaderboard')") +
             '<span id="v2IdentityRow"></span>' +
             row('heart-pulse', 'var(--sl-cyan)', 'Health notes', 'Private notes about how you feel after swims', 'openHealthLog()');
 
         var clubSafety =
-            (clubAvailable() ? row('users', 'var(--sl-cyan)', 'Club', '', "showPage('club')") : '') +
+            (!clubTab && clubAvailable() ? row('users', 'var(--sl-cyan)', 'Club', '', "showPage('club')") : '') +
             row('shield-alert', 'var(--sl-danger)', 'Safety guidance', 'Hazards, marine life, cold water, contacts', "showPage('safety')");
 
         var account =
@@ -321,7 +346,7 @@
                 '<a class="v2-call" href="tel:' + NSRI_TEL + '" aria-label="Call NSRI Sea Rescue">Call</a>' +
             '</div>' +
             '<div class="v2-h2">Swimming</div><div class="v2-card">' + swimming + '</div>' +
-            '<div class="v2-h2">Club and safety</div><div class="v2-card">' + clubSafety + '</div>' +
+            '<div class="v2-h2">' + (clubTab ? 'Safety' : 'Club and safety') + '</div><div class="v2-card">' + clubSafety + '</div>' +
             '<div class="v2-h2">Account</div><div class="v2-card">' + account + '</div>';
         icons();
 
@@ -347,6 +372,44 @@
 
     window.V2.onPage = onPage;
     window.V2.renderYou = renderYou;
+
+    // Swap the fourth tab between Swims and Club (and keep the bar, highlight and You screen in step)
+    function applyClubTab(flag) {
+        if (flag === clubTab) return;
+        clubTab = flag;
+        try { localStorage.setItem('sl_v2_clubtab', flag ? '1' : '0'); } catch (e) { /* optional */ }
+        var bar = document.getElementById('v2Tabbar');
+        var btn = bar && bar.querySelector('[data-v2tab="swims"],[data-v2tab="club"]');
+        if (btn) {
+            var holder = document.createElement('div');
+            holder.innerHTML = clubTab ? tabBtn('club', 'users', 'Club') : tabBtn('swims', 'waves', 'Swims');
+            btn.replaceWith(holder.firstChild);
+        }
+        highlight(currentPage);
+        if (currentPage === 'you') renderYou();
+        icons();
+    }
+    window.V2.applyClubTab = applyClubTab;
+
+    // Memberships load asynchronously after login: swim-club member (or parent of one) => Club tab.
+    // Not a member (or an open-water club member, e.g. DUC) => Swims. Look for ~11s, then settle on "no".
+    function isSwimClubMember() {
+        var cm = (typeof currentUserClubs !== 'undefined' && currentUserClubs) || [];
+        var pl = (typeof parentLinks !== 'undefined' && parentLinks) || [];
+        return cm.some(function (m) { return m.clubs && m.clubs.club_type === 'swim_club'; }) ||
+               pl.some(function (l) { return l.clubs && l.clubs.club_type === 'swim_club'; });
+    }
+    (function pollClubTab() {
+        var tries = 0;
+        (function tick() {
+            tries++;
+            if (isSwimClubMember()) { applyClubTab(true); return; }
+            var anyClub = ((typeof currentUserClubs !== 'undefined' && currentUserClubs && currentUserClubs.length) || (typeof parentLinks !== 'undefined' && parentLinks && parentLinks.length));
+            if (anyClub) { applyClubTab(false); return; }               // in a club, but not a swim club
+            if (tries < 16) { setTimeout(tick, 700); return; }
+            applyClubTab(false);                                        // never resolved: not in a club
+        })();
+    })();
 
     function boot() { mount(); watchClubEntry(); onPage(currentPage); }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
