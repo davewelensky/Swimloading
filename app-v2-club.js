@@ -43,13 +43,86 @@
         return m && m.club_roster ? { club: m.clubs, roster: m.club_roster, readOnly: false } : null;
     }
 
+    // ── The swimmer's REAL timetable: club_squad_sessions for their squad ────────────────
+    // v1 (and the first v2) built "My Week" from the club-level legacy jsonb training_schedule, which is
+    // only a Senior/Masters block with EMPTY squad lists, so every swimmer saw the same sessions whatever
+    // squad they are in. The coach register uses club_squad_sessions (start_time cut to HH:MM is exactly
+    // the session_start it matches on), and club_roster.squad_id says which squad a swimmer is in.
+    // Members can read their club's squads/sessions (RLS: squad_sessions_member_read). Parents cannot
+    // (is_club_active_member covers club_members and admins only), so they go through get_child_timetable_v1;
+    // until that migration is applied a parent is told the timetable is not visible yet, never shown wrong sessions.
+    async function loadSchedule(ctx) {
+        // Parents: the squad timetable is not readable by their login, so use the read-only function that
+        // returns it only for their own approved child (sql/2026-09-29_parent-child-timetable-rpc.sql).
+        // Before that migration is applied the call errors and the parent sees the honest "not visible yet" text.
+        if (ctx.readOnly) {
+            try {
+                var rp = await supabaseClient.rpc('get_child_timetable_v1', { p_roster_id: ctx.roster.id });
+                if (rp && rp.error) throw rp.error;
+                var rows = (rp && rp.data) || [], seenP = {}, listP = [];
+                rows.forEach(function (r) {
+                    var nm = r.custom_name || r.owner_squad_name || 'Training';
+                    var ty = /dry\s*-?\s*land/i.test(nm) ? 'dryland' : (r.owner_squad_type === 'masters' ? 'masters' : 'squad');
+                    var kk = r.day_of_week + '|' + r.start_time + '|' + r.end_time + '|' + nm;
+                    if (!r.start_time || seenP[kk]) return;
+                    seenP[kk] = 1;
+                    listP.push({ day: r.day_of_week, start: r.start_time, end: r.end_time, type: ty, label: nm, coach: r.coach_name || '', note: r.notes || '', squads: [] });
+                });
+                return { list: listP, source: 'rpc', squadName: rows[0] ? rows[0].child_squad_name : '' };
+            } catch (e) { return { list: [], source: 'none' }; }
+        }
+        var squadId = ctx.roster.squad_id;
+        if (!squadId) return { list: [], source: 'none' };
+        try {
+            var res = await Promise.all([
+                supabaseClient.from('club_squads').select('id, name, type').eq('club_id', ctx.club.id),
+                supabaseClient.from('club_squad_sessions')
+                    .select('id, squad_id, day_of_week, start_time, end_time, notes, coach_name, custom_name, secondary_squad_id, linked_squad_ids')
+                    .eq('is_active', true)
+                    .or('squad_id.eq.' + squadId + ',secondary_squad_id.eq.' + squadId + ',linked_squad_ids.cs.{' + squadId + '}')
+            ]);
+            var squads = {}; ((res[0] && res[0].data) || []).forEach(function (q) { squads[q.id] = q; });
+            var seen = {}, list = [];
+            ((res[1] && res[1].data) || []).forEach(function (r) {
+                var owner = squads[r.squad_id] || {};
+                var name = r.custom_name || owner.name || 'Training';
+                var type = /dry\s*-?\s*land/i.test(name) ? 'dryland' : (owner.type === 'masters' ? 'masters' : 'squad');
+                var start = String(r.start_time || '').slice(0, 5), end = String(r.end_time || '').slice(0, 5);
+                var key = r.day_of_week + '|' + start + '|' + end + '|' + name;
+                if (!start || seen[key]) return;                                  // some squads have duplicate rows
+                seen[key] = 1;
+                list.push({ day: r.day_of_week, start: start, end: end, type: type, label: name, coach: r.coach_name || '', note: r.notes || '', squads: [] });
+            });
+            return { list: list, source: 'squad', squadName: (squads[squadId] || {}).name || '' };
+        } catch (e) { console.warn('Squad timetable:', e); return { list: [], source: 'none' }; }
+    }
+
+    // One place that loads everything the week/gala cards need, for both the Club page and Today.
+    async function loadWeekData(ctx) {
+        var from = new Date(); from.setDate(from.getDate() - 28);
+        var to = new Date(); to.setDate(to.getDate() + 28);
+        var res = await Promise.all([
+            supabaseClient.from('club_session_attendance').select('session_date, session_start, status')
+                .eq('roster_id', ctx.roster.id).gte('session_date', ld(from)).lte('session_date', ld(to)),
+            supabaseClient.from('club_events')
+                .select('id, title, event_date, venue, warmup_time, event_start, logistics, entry_deadline, sessions_json')
+                .eq('club_id', ctx.club.id).gte('event_date', ld(new Date())).order('event_date').limit(5),
+            loadSchedule(ctx)
+        ]);
+        S.att = {};
+        ((res[0] && res[0].data) || []).forEach(function (a) { S.att[attKey(a.session_date, a.session_start)] = a.status; });
+        S.events = (res[1] && res[1].data) || [];
+        S.schedule = res[2];
+        S.week = buildWeek(S.schedule.list, '');
+    }
+
     // ── This week (same rules as v1 renderPlanningCard, but local dates) ────────
-    function buildWeek(club, cat) {
+    function buildWeek(schedule, cat) {
         var today = new Date(); today.setHours(0, 0, 0, 0);
         var dow = today.getDay();
         var monday = new Date(today);
         monday.setDate(today.getDate() + (dow === 0 ? 1 : -(dow - 1)));      // Sunday shows NEXT week, as v1
-        var schedule = club.training_schedule || [];
+        schedule = schedule || [];
         var out = [];
         for (var i = 0; i < 7; i++) {
             var d = new Date(monday); d.setDate(monday.getDate() + i);
@@ -95,7 +168,7 @@
             '<div class="v2-cs-main">' +
                 '<div class="v2-cs-time"><b>' + esc(s.start) + (s.end ? ' – ' + esc(s.end) : '') + '</b>' +
                     (isToday ? '<span class="v2-cs-tag now">TODAY</span>' : '') + (masters ? '<span class="v2-cs-tag masters">Masters</span>' : '') + '</div>' +
-                '<div class="v2-sub">' + esc(s.label || (masters ? 'Masters' : s.type === 'dryland' ? 'Dryland' : 'Squad')) + (s.arrive_by ? ' · arrive ' + esc(s.arrive_by) : '') + '</div>' +
+                '<div class="v2-sub">' + esc(s.label || (masters ? 'Masters' : s.type === 'dryland' ? 'Dryland' : 'Squad')) + (s.coach ? ' · Coach ' + esc(s.coach) : '') + (s.arrive_by ? ' · arrive ' + esc(s.arrive_by) : '') + (s.note && s.type !== 'dryland' ? ' · ' + esc(s.note) : '') + '</div>' +
                 statusBlock(ws, week, readOnly) +
             '</div></div>';
     }
@@ -103,14 +176,17 @@
     function weekCard(readOnly) {
         var week = S.week, list = week.list;
         if (!list.length) {
-            var none = !(S.ctx.club.training_schedule || []).length;
+            var none = !S.schedule || !S.schedule.list.length;
+            var msg = !none ? 'No sessions this week.'
+                : (S.ctx.readOnly ? 'The squad timetable is not visible to parents in the app yet. Ask the club for your child\'s session times.'
+                    : 'No squad timetable found for you yet. Ask your coach to link you to a squad.');
             return '<section class="v2-card v2-club-card" id="v2ClubWeek"><div class="v2-card-title">This week</div>' +
-                '<div class="v2-sub" style="margin-top:6px">' + (none ? 'No training schedule set yet.' : 'No sessions this week.') + '</div></section>';
+                '<div class="v2-sub" style="margin-top:6px">' + msg + '</div></section>';
         }
         var squad = list.filter(function (w) { return w.session.type === 'squad' && started(w, week); });
         var squadDone = squad.filter(function (w) { return S.att[attKey(w.dateStr, w.session.start)] === 'attending'; }).length;
         var mastersDone = list.filter(function (w) { return w.session.type === 'masters' && S.att[attKey(w.dateStr, w.session.start)] === 'attending'; }).length;
-        var hasMasters = list.some(function (w) { return w.session.type === 'masters'; });
+        var hasMasters = false;   // the old "Masters is optional" footnote came from the legacy schedule; squad timetables do not carry it
         var earlier = list.filter(function (w) { return w.dateStr < week.todayStr; });
         var current = list.filter(function (w) { return w.dateStr >= week.todayStr; });
         var stats = squad.length ? squadDone + ' of ' + squad.length + ' squad sessions attended' : (readOnly ? '' : 'Tap Going or Can\'t make it for each session');
@@ -214,19 +290,8 @@
         if (!home || home.getAttribute('data-v2')) return;
         S.ctx = ctx; S.mode = mode;
 
-        var from = new Date(); from.setDate(from.getDate() - 28);
-        var to = new Date(); to.setDate(to.getDate() + 28);
-        var res = await Promise.all([
-            supabaseClient.from('club_session_attendance').select('session_date, session_start, status')
-                .eq('roster_id', ctx.roster.id).gte('session_date', ld(from)).lte('session_date', ld(to)),
-            supabaseClient.from('club_events')
-                .select('id, title, event_date, venue, warmup_time, event_start, logistics, entry_deadline, sessions_json')
-                .eq('club_id', ctx.club.id).gte('event_date', ld(new Date())).order('event_date').limit(5)
-        ]);
-        S.att = {};
-        ((res[0] && res[0].data) || []).forEach(function (a) { S.att[attKey(a.session_date, a.session_start)] = a.status; });
-        var events = (res[1] && res[1].data) || [];
-        S.week = buildWeek(ctx.club, ctx.roster.category || '');
+        await loadWeekData(ctx);
+        var events = S.events;
 
         var kids = [].slice.call(home.children), pick = function (fn) { var i = kids.findIndex(fn); return i >= 0 ? kids.splice(i, 1)[0] : null; };
         var banner = mode === 'parent' ? pick(function (n) { return /read only/i.test(textOf(n)); }) : null;
@@ -262,18 +327,7 @@
         if (!ctx) { ctx = ctxFor('parent'); mode = 'parent'; }
         if (!ctx || !ctx.roster || !ctx.roster.id || !ctx.club || ctx.club.club_type !== 'swim_club') return null;
         S.ctx = ctx; S.mode = mode;
-        var from = new Date(); from.setDate(from.getDate() - 28);
-        var to = new Date(); to.setDate(to.getDate() + 28);
-        var res = await Promise.all([
-            supabaseClient.from('club_session_attendance').select('session_date, session_start, status')
-                .eq('roster_id', ctx.roster.id).gte('session_date', ld(from)).lte('session_date', ld(to)),
-            supabaseClient.from('club_events').select('id, title, event_date, venue, entry_deadline, sessions_json')
-                .eq('club_id', ctx.club.id).gte('event_date', ld(new Date())).order('event_date').limit(3)
-        ]);
-        S.att = {};
-        ((res[0] && res[0].data) || []).forEach(function (a) { S.att[attKey(a.session_date, a.session_start)] = a.status; });
-        S.events = (res[1] && res[1].data) || [];
-        S.week = buildWeek(ctx.club, ctx.roster.category || '');
+        await loadWeekData(ctx);
         return S;
     }
     function bindRows(container) {

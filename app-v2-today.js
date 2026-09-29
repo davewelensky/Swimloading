@@ -275,7 +275,7 @@
         var who = ro ? esc(st.ctx.roster.display_name) + ' · ' : '';
         var html =
             '<section class="v2-card v2-club-card v2-today-club' + (today.length ? ' is-today' : '') + '">' +
-                '<div class="v2-between"><div class="v2-eyebrow">' + who + esc(st.ctx.club.name) + ' · ' + (today.length ? 'Training today' : 'Next training') + '</div>' +
+                '<div class="v2-between"><div class="v2-eyebrow">' + who + esc((st.schedule && st.schedule.squadName) || st.ctx.club.name) + ' · ' + (today.length ? 'Training today' : 'Next training') + '</div>' +
                 '<button type="button" class="v2-link" onclick="showPage(\'club\')">Club</button></div>' +
                 rows.map(function (w) { return api.sessionRow(w, week, ro); }).join('') +
                 (g ? '<button type="button" class="v2-today-gala" onclick="showPage(\'club\')">' +
