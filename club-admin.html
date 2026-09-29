@@ -4704,7 +4704,7 @@ function renderTrackerGrid(swimmers) {
 
     let nextLineHtml = '';
     if (hasQt && allEvents.length) {
-      const f = _trackerFocus(s.date_of_birth, s.gender, allEvents.map(e => ({ key: e.name, pb: e.pb }))).find(x => !x.done);
+      const f = _trackerFocus(s.date_of_birth, s.gender, allEvents.map(e => ({ key: e.name, pb: e.pb }))).find(x => !x.done && !x.capped);
       if (f) nextLineHtml = `<div style="margin:2px 0 8px;padding:6px 10px;border-radius:8px;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.2);font-size:12px;"><span style="color:var(--cyan);font-weight:700;">Next:</span> ${f.evName} ${f.course} <b style="color:${f.pct < 0.03 ? 'var(--green)' : 'var(--amber)'};">${_fmtGap(f.gap)} off ${_QT_LABEL[f.level]}</b></div>`;
     }
 
@@ -13067,7 +13067,8 @@ function _trackerFocus(dob, gender, events) {
     const next = std.find(x => e.pb > x.qt.time_seconds);
     const sanj = std.find(x => x.level === 'SANJ');
     const row = { key: e.key, evName, course, pb: e.pb, ag, sanj: sanj ? sanj.qt : null };
-    if (!next) { row.done = true; out.push(row); return; }
+    // Nothing left to chase: only "done" when SA champs itself is met. Some events have no L3/SANJ time set.
+    if (!next) { if (sanj) row.done = true; else { row.capped = std[std.length - 1].level; } out.push(row); return; }
     row.level = next.level; row.qt = next.qt;
     row.gap = e.pb - next.qt.time_seconds;
     row.pct = row.gap / next.qt.time_seconds;
@@ -13075,7 +13076,7 @@ function _trackerFocus(dob, gender, events) {
     row.proj = e.points ? _projectReach(e.points, next.qt.time_seconds) : null;
     out.push(row);
   });
-  return out.sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || (a.pct ?? 9) - (b.pct ?? 9));
+  return out.sort((a, b) => ((a.done || a.capped) ? 1 : 0) - ((b.done || b.capped) ? 1 : 0) || (a.pct ?? 9) - (b.pct ?? 9));
 }
 function _projText(p) {
   if (!p) return '';
@@ -13092,8 +13093,8 @@ function renderNextTargetPanel(dob, gender, groups) {
     key: `${g.eventKey} ${g.course}`, pb: Math.min(...g.points.map(p => p.time_s)),
     points: g.points.map(p => ({ date: p.date, time_s: p.time_s })),
   })));
-  const todo = focus.filter(f => !f.done).slice(0, 3);
-  if (!todo.length && !focus.length) return '';
+  const todo = focus.filter(f => !f.done && !f.capped).slice(0, 3);
+  if (!focus.length) return '';
   const ag = focus[0].ag;
   const rows = todo.map((f, i) => `<div style="padding:10px 0;${i ? 'border-top:1px solid var(--border);' : ''}">
       <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;">
@@ -13104,11 +13105,13 @@ function renderNextTargetPanel(dob, gender, groups) {
       <div style="font-size:12px;color:var(--text-dim);margin-top:3px;">${_projText(f.proj)}</div>
     </div>`).join('');
   const done = focus.filter(f => f.done).map(f => `${f.evName} ${f.course}`);
+  const capped = focus.filter(f => f.capped).map(f => `${f.evName} ${f.course} (${f.capped})`);
   return `<div style="margin-bottom:18px;padding:14px 16px;border:1px solid rgba(56,189,248,0.3);background:rgba(56,189,248,0.05);border-radius:12px;">
     <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Next target · ${trackerChampsYear} standards, age ${ag}</div>
     <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Closest events first. SA champs = SANJ.</div>
     ${rows || '<div style="font-size:13px;color:var(--text-sec);padding:6px 0;">Every event with a standard has reached SA champs.</div>'}
     ${done.length ? `<div style="font-size:11px;color:var(--green);margin-top:8px;">Already at SA champs: ${done.join(', ')}</div>` : ''}
+    ${capped.length ? `<div style="font-size:11px;color:var(--text-dim);margin-top:6px;">Standard met, but no higher time is set for: ${capped.join(', ')}</div>` : ''}
   </div>`;
 }
 
