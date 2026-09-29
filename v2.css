@@ -465,3 +465,36 @@ html.ui-v2 #submitTempBtn:disabled { opacity: 0.6; }
 /* tap targets inside the sheet: enlarge the hit area, not the drawing */
 html.ui-v2 #logTemp #tempSlider { box-sizing: content-box; padding: 19px 0; background-clip: content-box; }
 html.ui-v2 #stravaLogEntry button { display: inline-flex; align-items: center; min-height: var(--sl-tap); }
+
+/* ── Post-log screen ("Logged") ───────────────────────────────────────────────
+   One sheet after a log (app-v2-done.js). Sits above the Log sheet (9100); the Log form is hidden
+   behind it so the swimmer sees the dimmed page, not a reset form. */
+.v2-scrim-top { z-index: 9199; }
+html.ui-v2 #logTemp.v2-hide { visibility: hidden; }
+.v2-done {
+    position: fixed; left: 50%; bottom: 0; z-index: 9200;
+    width: 100%; max-width: 520px; max-height: 92%; overflow-y: auto;
+    background: var(--sl-surface);
+    border-radius: 28px 28px 0 0; border-top: 1px solid var(--sl-line);
+    padding: 0 var(--sl-s5) calc(env(safe-area-inset-bottom, 0px) + var(--sl-s5));
+    transform: translate(-50%, 105%); transition: transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+    visibility: hidden;
+}
+.v2-done.on { transform: translate(-50%, 0); visibility: visible; }
+@media (prefers-reduced-motion: reduce) { .v2-done { transition: none; } }
+.v2-done-head { text-align: center; padding: var(--sl-s2) 0 var(--sl-s4); }
+.v2-done-ok {
+    width: 64px; height: 64px; border-radius: 50%; margin: 0 auto var(--sl-s3);
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(16, 185, 129, 0.15); color: var(--sl-green);
+}
+.v2-done-ok i, .v2-done-ok svg { width: 32px; height: 32px; }
+.v2-done-title { font-size: var(--sl-fs-h1); font-weight: 700; margin-bottom: var(--sl-s1); }
+#v2DoneRewards { display: flex; flex-direction: column; gap: var(--sl-s2); margin-bottom: var(--sl-s4); }
+.v2-done-row {
+    display: flex; align-items: center; gap: var(--sl-s3);
+    padding: var(--sl-s3) var(--sl-s4); border-radius: var(--sl-r-card);
+    background: var(--sl-surface-2); border: 1px solid var(--sl-line);
+}
+.v2-done-row > i, .v2-done-row > svg { width: 20px; height: 20px; flex: none; }
+.v2-done-fix { display: flex; margin: var(--sl-s2) auto 0; justify-content: center; }
