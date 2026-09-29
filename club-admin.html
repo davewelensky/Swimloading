@@ -2625,6 +2625,7 @@ async function loadClubContext() {
   document.getElementById('nav-labenquiries').style.display     = canSeeLab       ? '' : 'none';
   document.getElementById('nav-labsessions').style.display      = canSeeLab       ? '' : 'none';
   if (canSeeLab) loadLabEnquiryBadge();
+  if (currentClub?.club_type === 'swim_club') regroupSidebarForSwimClub();
   // Hide a sidebar group heading when this club's flags empty the group
   document.querySelectorAll('.nav-group').forEach(g => {
     const anyVisible = [...g.querySelectorAll('.nav-item')].some(b => b.style.display !== 'none');
@@ -3041,6 +3042,45 @@ function showPage(name) {
   if (name === 'health')        loadHealthPage();
   if (name === 'labenquiries')  loadLabEnquiries();
   if (name === 'labsessions')   loadLabSessions();
+}
+
+// ── SIDEBAR BY WORKFLOW (swim clubs only — Aquasharks) ─────────────
+// Same buttons, ids and handlers; only the grouping and a few labels change. Other club types keep the original layout.
+function regroupSidebarForSwimClub() {
+  const sb = document.getElementById('sidebar');
+  if (!sb || sb.dataset.regrouped) return;
+  sb.dataset.regrouped = '1';
+  const $ = id => document.getElementById(id);
+  const rename = (id, txt) => {
+    const t = [...($(id)?.childNodes || [])].reverse().find(n => n.nodeType === 3 && n.textContent.trim());
+    if (t) t.textContent = ' ' + txt;
+  };
+  rename('nav-overview', 'Today');
+  rename('nav-members', 'On the app');
+  rename('nav-events', 'Galas & events');
+
+  const oldGroups = [...sb.querySelectorAll('.nav-group')];
+  const anchor = oldGroups[0];
+  const moveTo = (parent, ids, before) => ids.forEach(id => { const el = $(id); if (el) parent.insertBefore(el, before || null); });
+  // Top level: Today, then the sets (the most-used tool) — stand-alone, no heading
+  moveTo(sb, ['nav-overview', 'nav-sets'], anchor);
+
+  const plan = [
+    ['Sessions',         ['nav-attendance', 'nav-timetable', 'nav-weeklyreport']],
+    ['Swimmers',         ['nav-roster', 'nav-members', 'nav-parents', 'nav-health', 'nav-progress']],
+    ['Galas & progress', ['nav-events', 'nav-entries', 'nav-tracker']],
+    ['Club',             ['nav-announcements', 'nav-team', 'nav-joinlink', 'nav-settings', 'nav-labsessions', 'nav-labenquiries', 'nav-audit']],
+  ];
+  const made = plan.map(([label, ids]) => {
+    const g = document.createElement('div');
+    g.className = 'nav-group';
+    g.innerHTML = `<div class="nav-group-label">${label}</div>`;
+    sb.insertBefore(g, anchor);
+    moveTo(g, ids);
+    return g;
+  });
+  // Anything not placed above (flag-hidden items such as League) keeps working: park it in Club
+  oldGroups.forEach(g => { g.querySelectorAll('.nav-item').forEach(b => made[made.length - 1].appendChild(b)); g.remove(); });
 }
 
 // ── HELP PANEL ────────────────────────────────────────────────────
