@@ -326,6 +326,51 @@
         .about[open] summary svg { transform: rotate(180deg); }
         .about p { font-size: 14px; color: var(--text-sec); line-height: 1.5; margin-bottom: 10px; }
 
+        /* ── "I'm swimming" action and sheet ── */
+        .swim-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 18px; min-height: 48px; padding: 13px 26px; border: 0; border-radius: 50px; background: var(--cyan); color: #080f1a; font: 700 15px 'DM Sans', sans-serif; cursor: pointer; }
+        .swim-btn:hover { background: #7dd3fc; }
+        .swim-btn:focus-visible, .sheet button:focus-visible, .sheet a:focus-visible { outline: 2px solid #f1f5f9; outline-offset: 2px; }
+        @media (min-width: 600px) { .swim-btn { width: auto; } }
+        .sheet-bg { position: fixed; inset: 0; z-index: 200; background: rgba(2,6,14,0.72); display: flex; align-items: flex-end; justify-content: center; animation: fadeBg .18s ease-out; }
+        .sheet-bg[hidden] { display: none; }
+        .sheet { width: 100%; max-width: 480px; max-height: 92vh; overflow-y: auto; background: var(--bg-card); border: 1px solid var(--border); border-bottom: 0; border-radius: 22px 22px 0 0; padding: 18px 18px 28px; animation: sheetUp .22s ease-out; }
+        @keyframes fadeBg { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes sheetUp { from { transform: translateY(40px); opacity: .6; } to { transform: none; opacity: 1; } }
+        @media (prefers-reduced-motion: reduce) { .sheet-bg, .sheet { animation: none; } }
+        @media (min-width: 600px) { .sheet-bg { align-items: center; } .sheet { border-radius: 22px; border-bottom: 1px solid var(--border); } }
+        .sheet-head { display: flex; align-items: center; justify-content: space-between; }
+        .sheet-head h2 { font-family: 'Bebas Neue', sans-serif; font-weight: 400; font-size: 30px; letter-spacing: .5px; line-height: 1; }
+        .sheet-x { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: none; color: var(--text-sec); cursor: pointer; border-radius: 50%; margin-right: -10px; }
+        .sheet-x svg { width: 20px; height: 20px; }
+        .sheet-where { display: flex; align-items: center; gap: 7px; font-size: 16px; font-weight: 700; margin-top: 10px; }
+        .sheet-where svg { color: var(--cyan); }
+        .sheet-where span { color: var(--text-sec); font-weight: 500; }
+        .haz { margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: rgba(239,68,68,0.09); border: 1px solid rgba(239,68,68,0.45); }
+        .haz.sim { border-style: dashed; }
+        .haz-top { display: flex; align-items: center; gap: 8px; color: #fca5a5; font-size: 14px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; }
+        .haz-top svg { color: var(--danger); width: 20px; height: 20px; }
+        .haz-body { font-size: 14px; color: var(--text); margin-top: 6px; line-height: 1.45; }
+        .haz-src { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 12px; margin-top: 8px; font-size: 12px; color: var(--text-sec); }
+        .haz-src a { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; text-decoration: none; min-height: 32px; }
+        .haz-src a svg { width: 13px; height: 13px; }
+        .sheet-lab { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--text-sec); margin: 18px 0 8px; }
+        .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+        .chip { min-height: 40px; padding: 8px 14px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.14); background: transparent; color: var(--text-sec); font: 600 13px 'DM Sans', sans-serif; cursor: pointer; }
+        .chip[aria-pressed="true"] { border-color: var(--cyan); color: var(--text); background: rgba(56,189,248,0.1); }
+        .sheet-go { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; margin-top: 18px; border: 0; border-radius: 50px; background: var(--cyan); color: #080f1a; font: 700 15px 'DM Sans', sans-serif; cursor: pointer; }
+        .sheet-go.warn { background: var(--amber); margin-top: 0; }
+        .sheet-alt { flex: 1; min-height: 48px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.15); background: transparent; color: var(--text); font: 700 14px 'DM Sans', sans-serif; cursor: pointer; }
+        .confirm { margin-top: 16px; }
+        .confirm-t { font-size: 17px; font-weight: 800; color: var(--amber); }
+        .confirm p { font-size: 14px; color: var(--text-sec); margin-top: 6px; line-height: 1.45; }
+        .confirm-btns { display: flex; gap: 10px; margin-top: 16px; }
+        .confirm-btns .sheet-go { flex: 1; }
+        .sheet-done { display: flex; align-items: center; gap: 8px; margin-top: 18px; font-size: 14px; color: var(--text-sec); }
+        .sheet-done svg { color: var(--green); }
+        .sheet-done[hidden] { display: none; }
+        .sheet .discuss { margin-top: 18px; }
+        body.sheet-open { overflow: hidden; }
+
         /* ── Demo view: only the swimmer-facing Big Bay page ── */
         body.demo .explainer { display: none !important; }
         body.demo .frame { border-color: transparent; background: none; padding: 0; }
@@ -480,6 +525,12 @@
             </div>
         </section>
 
+        <!-- The decision moment. Mirrors the app's existing "I'm Swimming"
+             flow and its hazard warnings (activeHazardsBySpot → inline cue →
+             "Hazard at this location" confirm). City alerts would join that
+             same path, attributed to the City, never re-worded or scored. -->
+        <button class="swim-btn" id="swimBtn"><i data-lucide="waves"></i>I'm swimming here</button>
+
         <div class="cond-src">Water: SwimLoading swimmer logs · Wind and swell: Open-Meteo model · Water quality: City of Cape Town</div>
     </section>
 
@@ -586,6 +637,54 @@
         Proof of concept prepared by SwimLoading for discussion with City of Cape Town Coastal Management. It does not represent a partnership with, or an endorsement by, the City. The Big Bay water-quality results and classifications are City of Cape Town data from Beach Alerts, captured on 25 Sep 2026 and not updated since. The failure, alert and no-recent-sample states are simulated for discussion and are not City results or alerts. Water-quality results describe samples taken on the dates shown; they are not real-time water testing and do not describe the water on the day. Water temperature is logged by SwimLoading swimmers; wind and swell come from the Open-Meteo forecast model.
     </footer>
 </main>
+
+<!-- ── "I'm swimming" sheet (demonstration; nothing is posted) ──────── -->
+<div class="sheet-bg" id="sheet" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+        <div class="sheet-head">
+            <h2 id="sheetTitle">I'm swimming</h2>
+            <button class="sheet-x" id="sheetClose" aria-label="Close"><i data-lucide="x"></i></button>
+        </div>
+        <div class="sheet-where"><i data-lucide="map-pin"></i>Big Bay <span>· West Coast</span></div>
+
+        <!-- Inline cue, shown as soon as the spot is chosen (as in the app). -->
+        <div class="haz" id="sheetHaz" hidden>
+            <div class="haz-top"><i data-lucide="octagon-alert"></i><span>City coastal alert at this spot</span></div>
+            <div class="haz-body" id="sheetHazBody"></div>
+            <div class="haz-src">
+                <span id="sheetHazSrc"></span>
+                <a href="https://beachalerts.capetown.gov.za" target="_blank" rel="noopener noreferrer">View on Beach Alerts <i data-lucide="external-link"></i></a>
+            </div>
+        </div>
+
+        <div id="sheetForm">
+            <div class="sheet-lab">When?</div>
+            <div class="chips" id="whenChips">
+                <button class="chip" aria-pressed="true">Now</button>
+                <button class="chip" aria-pressed="false">In an hour</button>
+                <button class="chip" aria-pressed="false">Tomorrow morning</button>
+            </div>
+            <button class="sheet-go" id="sheetPost">Post swim</button>
+        </div>
+
+        <!-- Confirm step: the app's "Hazard at this location" pattern. -->
+        <div class="confirm" id="sheetConfirm" hidden>
+            <div class="confirm-t">Active City coastal alert at Big Bay</div>
+            <p>Check the City's alert on Beach Alerts before you swim. Anyone joining your swim will see this warning too.</p>
+            <div class="confirm-btns">
+                <button class="sheet-alt" id="sheetOther">Choose another spot</button>
+                <button class="sheet-go warn" id="sheetAnyway">Post anyway</button>
+            </div>
+        </div>
+
+        <div class="sheet-done" id="sheetDone" tabindex="-1" role="status" hidden><i data-lucide="check"></i>Demonstration only: nothing was posted.</div>
+
+        <div class="discuss explainer">
+            <div class="discuss-k"><i data-lucide="message-circle-question"></i>For discussion with the City</div>
+            <div class="discuss-q">Should an active City coastal alert appear at the moment a swimmer plans a swim here? Which City signals should trigger it: alerts only, or also consecutive samples above guideline?</div>
+        </div>
+    </div>
+</div>
 
 <script>
 document.addEventListener('mousemove', e => {
@@ -947,6 +1046,74 @@ document.getElementById('marks').addEventListener('click', e => {
     if (m) openDetail(+m.dataset.i);
 });
 
+// ─── "I'M SWIMMING" SHEET ─────────────────────────────────────────────────
+// The decision moment. An active City alert shows as an inline cue as soon
+// as the spot is chosen, and posting asks for acknowledgement first, the
+// same two steps the app already uses for swimmer-reported hazards. The
+// alert is the City's, attributed and linked, and never feeds a score.
+const sheet = document.getElementById('sheet');
+let acknowledged = false;
+function sheetStep(step) {
+    document.getElementById('sheetForm').hidden = step !== 'form';
+    document.getElementById('sheetConfirm').hidden = step !== 'confirm';
+    document.getElementById('sheetDone').hidden = step !== 'done';
+}
+function openSheet() {
+    const s = STATES[current];
+    const haz = document.getElementById('sheetHaz');
+    haz.hidden = !s.alert;
+    haz.classList.toggle('sim', !!s.simulated);
+    if (s.alert) {
+        document.getElementById('sheetHazBody').textContent = s.alert.short;
+        document.getElementById('sheetHazSrc').textContent = s.simulated
+            ? 'Simulated for discussion · not a City alert'
+            : 'Source: City of Cape Town · Beach Alerts';
+    }
+    acknowledged = false;
+    sheetStep('form');
+    sheet.hidden = false;
+    document.body.classList.add('sheet-open');
+    drawIcons();
+    document.getElementById('sheetClose').focus();
+}
+function closeSheet() {
+    sheet.hidden = true;
+    document.body.classList.remove('sheet-open');
+    document.getElementById('swimBtn').focus();
+}
+document.getElementById('swimBtn').addEventListener('click', openSheet);
+document.getElementById('sheetClose').addEventListener('click', closeSheet);
+sheet.addEventListener('click', e => { if (e.target === sheet) closeSheet(); });
+document.getElementById('whenChips').addEventListener('click', e => {
+    const c = e.target.closest('.chip');
+    if (!c) return;
+    document.querySelectorAll('#whenChips .chip').forEach(x => x.setAttribute('aria-pressed', String(x === c)));
+});
+function post() {
+    sheetStep('done');
+    document.getElementById('sheetDone').focus?.();
+    setTimeout(() => { if (!sheet.hidden) closeSheet(); }, 1600);
+}
+document.getElementById('sheetPost').addEventListener('click', () => {
+    if (STATES[current].alert && !acknowledged) {
+        sheetStep('confirm');
+        document.getElementById('sheetOther').focus();
+        return;
+    }
+    post();
+});
+document.getElementById('sheetOther').addEventListener('click', closeSheet);
+document.getElementById('sheetAnyway').addEventListener('click', () => { acknowledged = true; post(); });
+// Keep keyboard focus inside the open sheet.
+sheet.addEventListener('keydown', e => {
+    if (e.key !== 'Tab') return;
+    const f = [...sheet.querySelectorAll('button, a[href]')].filter(el => el.offsetParent !== null);
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { last.focus(); e.preventDefault(); }
+    else if (!e.shiftKey && document.activeElement === last) { first.focus(); e.preventDefault(); }
+});
+
 document.getElementById('tableToggle').addEventListener('click', e => {
     const btn = e.currentTarget;
     const t = document.getElementById('sampleTable');
@@ -1086,7 +1253,12 @@ function setDemo(on) {
     window.scrollTo({ top: 0 });
 }
 demoBtn.addEventListener('click', () => setDemo(!document.body.classList.contains('demo')));
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('demo')) setDemo(false); });
+// Escape closes the sheet first, then leaves demo view.
+document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (!sheet.hidden) closeSheet();
+    else if (document.body.classList.contains('demo')) setDemo(false);
+});
 
 selectState('city');
 loadWater(); loadWind(); loadSwell(); loadEngagement();
