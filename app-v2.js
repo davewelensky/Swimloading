@@ -22,6 +22,69 @@
         hint: 'Temperature and conditions. Not your pace.'
     };
     window.V2 = { enabled: enabled, COPY: COPY, onPage: function () {}, renderYou: function () {} };
+    // ── Switching designs (works from BOTH designs) ─────────────────────────
+    // The design choice lives in localStorage ('sl_ui'), which the installed home-screen app can hold
+    // separately from Safari, so the URL switch (?ui=v2) is not enough on its own. These give an
+    // in-app way in (Profile Settings, beta testers only) and a way back (always shown in v2).
+    window.V2.setUi = function (mode) {
+        try { if (typeof analytics !== 'undefined') analytics.track('ui_design_switch', { to: mode }); } catch (e) { /* optional */ }
+        try { if (mode === 'v2') localStorage.setItem('sl_ui', 'v2'); else localStorage.removeItem('sl_ui'); } catch (e) { /* storage blocked: the ?ui= link still works */ }
+        // small pause so the analytics request can leave, then a clean URL (no ?ui= to fight the choice)
+        setTimeout(function () { location.href = location.pathname; }, 150);
+    };
+
+    // Who may switch IN to v2 from the classic app: admins, and anyone on the 'ui_v2_beta' flag
+    // (feature_flags: enabled_global, or the user id in allowed_user_ids). Fails closed. Anyone
+    // already in v2 can always switch back, whatever the flag says.
+    var _offer = null;
+    window.V2.canOfferV2 = function () {
+        if (typeof currentUser === 'undefined' || !currentUser) return Promise.resolve(false);
+        if (!_offer) {
+            _offer = (async function () {
+                try {
+                    if (typeof currentUserProfile !== 'undefined' && currentUserProfile && currentUserProfile.is_admin) return true;
+                    var r = await supabaseClient.from('feature_flags').select('enabled_global, allowed_user_ids').eq('key', 'ui_v2_beta').maybeSingle();
+                    var d = r && r.data;
+                    return !!(d && (d.enabled_global || (d.allowed_user_ids || []).indexOf(currentUser.id) >= 0));
+                } catch (e) { return false; }
+            })();
+        }
+        return _offer;
+    };
+
+    // The row inside Profile Settings (a slot, #uiBetaRow, sits under the identity entry in index.html)
+    window.V2.refreshUiRow = async function () {
+        var slot = document.getElementById('uiBetaRow');
+        if (!slot) return;
+        var btnStyle = 'width:100%; padding:13px; background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.3); border-radius:12px; color:var(--ocean-light); font-weight:700; font-size:14px; cursor:pointer; min-height:44px;';
+        if (enabled) {
+            slot.style.display = 'block';
+            slot.innerHTML =
+                '<div style="margin-bottom:14px;">' +
+                '<div style="font-size:13px; color:var(--text-secondary); margin-bottom:8px;">You are using the new design (beta).</div>' +
+                '<button type="button" style="' + btnStyle + '" onclick="V2.setUi(\'v1\')">Switch to the classic design</button></div>';
+            return;
+        }
+        var ok = false;
+        try { ok = await window.V2.canOfferV2(); } catch (e) { ok = false; }
+        if (!ok) { slot.style.display = 'none'; slot.innerHTML = ''; return; }
+        slot.style.display = 'block';
+        slot.innerHTML =
+            '<div style="margin-bottom:14px;">' +
+            '<div style="font-size:13px; color:var(--text-secondary); margin-bottom:8px;">A calmer SwimLoading with a bottom tab bar. It is a beta, and you can switch back here any time.</div>' +
+            '<button type="button" style="' + btnStyle + '" onclick="V2.setUi(\'v2\')">Try the new design (beta)</button></div>';
+    };
+
+    // Refresh that row whenever Profile Settings opens (in either design)
+    if (typeof window.showProfileSettings === 'function') {
+        var _showProfile = window.showProfileSettings;
+        window.showProfileSettings = function () {
+            var r = _showProfile.apply(this, arguments);
+            try { window.V2.refreshUiRow(); } catch (e) { /* optional */ }
+            return r;
+        };
+    }
+
     if (!enabled) return;
 
     // Which bottom tab lights up for each v1 page id.
@@ -167,7 +230,8 @@
 
         var account =
             row('bell', 'var(--sl-text-2)', 'Notifications', '', 'showNotifications()') +
-            row('settings', 'var(--sl-text-2)', 'Profile and settings', 'Details, alerts, Strava, privacy, sign out', 'showProfileSettings()');
+            row('settings', 'var(--sl-text-2)', 'Profile and settings', 'Details, alerts, Strava, privacy, sign out', 'showProfileSettings()') +
+            row('layout-dashboard', 'var(--sl-text-2)', 'Classic design', 'Switch back to the previous look (beta)', "V2.setUi('v1')");
 
         el.innerHTML =
             '<div class="h1" style="font-size:var(--sl-fs-h1);font-weight:700;margin-bottom:var(--sl-s4);">You</div>' +
