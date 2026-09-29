@@ -76,7 +76,11 @@
             margin: 0 auto;
             position: relative;
             z-index: 1;
+            /* viewport-fit=cover: inset for notch / status bar / landscape sides */
             padding: 20px;
+            padding-top: calc(20px + env(safe-area-inset-top, 0px));
+            padding-left: calc(20px + env(safe-area-inset-left, 0px));
+            padding-right: calc(20px + env(safe-area-inset-right, 0px));
         }
 
         /* Auth Screen */
@@ -350,7 +354,7 @@
         /* Wrapper for sticky positioning and positioning context for fade */
         .nav-wrapper {
             position: sticky;
-            top: 12px;
+            top: calc(12px + env(safe-area-inset-top, 0px));
             z-index: 100;
             margin-bottom: 24px;
         }
@@ -1129,6 +1133,8 @@
             display: none;
             position: fixed;
             inset: 0;
+            padding-left: env(safe-area-inset-left, 0px);
+            padding-right: env(safe-area-inset-right, 0px);
             background: rgba(0,0,0,0.65);
             z-index: 10010;
             align-items: flex-end;
@@ -1281,6 +1287,8 @@
             line-height: 1;
         }
         #spSearchClear:active { background: rgba(255,255,255,0.16); }
+        /* HIG: 44pt minimum hit area — enlarge the tap zone, not the 26px visual */
+        #spSearchClear::after { content: ''; position: absolute; inset: -9px; }
         /* Browse controls collapse smoothly when a search is active */
         #spBrowse { flex-shrink: 0; }
         #spBrowse.sp-hidden { display: none; }
