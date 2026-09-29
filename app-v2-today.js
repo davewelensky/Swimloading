@@ -114,6 +114,26 @@
         return '<span class="v2-pill v2-pill-' + cls + '">' + esc(cap(c)) + '</span>';
     }
 
+    // Trend line from the readings we actually have (last 72h at this spot). Only drawn with 3+ readings spanning
+    // 6h+, so a quiet spot shows no line instead of a made-up one. x = real time, y = real temperature.
+    function sparkline(logs) {
+        var pts = (logs || []).map(function (l) { return { t: new Date(l.created_at).getTime(), v: Number(l.temp_c) }; })
+            .filter(function (p) { return isFinite(p.v) && isFinite(p.t); }).sort(function (a, b) { return a.t - b.t; });
+        if (pts.length < 3) return '';
+        var t0 = pts[0].t, t1 = pts[pts.length - 1].t;
+        if (t1 - t0 < 6 * 3600e3) return '';
+        var vmin = Math.min.apply(null, pts.map(function (p) { return p.v; })), vmax = Math.max.apply(null, pts.map(function (p) { return p.v; }));
+        var pad = Math.max(0.3, (vmax - vmin) * 0.2), lo = vmin - pad, hi = vmax + pad, W = 300, H = 56;
+        var xy = pts.map(function (p) { return [((p.t - t0) / (t1 - t0)) * W, H - ((p.v - lo) / (hi - lo)) * H]; });
+        var line = xy.map(function (c, i) { return (i ? 'L' : 'M') + c[0].toFixed(1) + ' ' + c[1].toFixed(1); }).join(' ');
+        var area = line + ' L' + W + ' ' + H + ' L0 ' + H + ' Z';
+        var last = xy[xy.length - 1], spanH = (t1 - t0) / 3600e3;
+        return '<div class="v2-spark" aria-label="Temperature trend at this spot">' +
+            '<div class="v2-spark-plot"><svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true"><path class="fill" d="' + area + '"/><path class="line" d="' + line + '" vector-effect="non-scaling-stroke"/></svg>' +
+            '<span class="v2-spark-dot" style="left:' + (last[0] / W * 100).toFixed(1) + '%;top:' + (last[1] / H * 100).toFixed(1) + '%"></span></div>' +
+            '<div class="v2-spark-axis"><span>Range ' + vmin.toFixed(1) + '–' + vmax.toFixed(1) + '°</span><span>' + (spanH >= 48 ? Math.round(spanH / 24) + ' days' : Math.round(spanH) + ' hours') + ' of reports</span></div></div>';
+    }
+
     function renderHero(reading) {
         var el = $('v2tHero'); if (!el) return;
         el.classList.remove('v2-skel');
@@ -146,19 +166,23 @@
             }
             var n24 = reading.logs.filter(function (r) { return Date.now() - new Date(r.created_at).getTime() < 86400e3; }).length;
             var pool = isPool(sp);
+            // number on the left, what it means on the right, then the trend across the full width
             body =
-                '<div class="v2-temp" style="color:' + (pool ? 'var(--sl-cyan)' : tempColour(Number(l0.temp_c))) + '" aria-label="' + Number(l0.temp_c).toFixed(1) + ' degrees Celsius">' + Number(l0.temp_c).toFixed(1) + '<small>°C</small></div>' +
-                '<div class="v2-hero-row">' + (pool ? '<span class="v2-pill">Pool</span>' : condPill(l0.conditions)) + delta + '</div>' +
-                '<div class="v2-cap" style="margin-top:12px">Reported ' + esc(ago(l0.created_at)) + (n24 > 1 ? ' · ' + n24 + ' reports in 24 hours' : '') + '</div>';
+                '<div class="v2-hero-main">' +
+                    '<div class="v2-temp" style="color:' + (pool ? 'var(--sl-cyan)' : tempColour(Number(l0.temp_c))) + '" aria-label="' + Number(l0.temp_c).toFixed(1) + ' degrees Celsius">' + Number(l0.temp_c).toFixed(1) + '<small>°C</small></div>' +
+                    '<div class="v2-hero-side">' + (pool ? '<span class="v2-pill">Pool</span>' : condPill(l0.conditions)) + delta +
+                        '<span class="v2-cap">Reported ' + esc(ago(l0.created_at)) + '</span>' +
+                        (n24 > 1 ? '<span class="v2-cap">' + n24 + ' reports in 24 hours</span>' : '') + '</div>' +
+                '</div>' + sparkline(reading.logs);
         } else if (reading && reading.est && reading.est.best_c != null) {
             body =
-                '<div class="v2-temp" style="color:' + tempColour(Number(reading.est.best_c)) + '">' + Number(reading.est.best_c).toFixed(1) + '<small>°C</small></div>' +
-                '<div class="v2-hero-row"><span class="v2-pill">Estimate</span></div>' +
-                '<div class="v2-cap" style="margin-top:12px">No swimmer reports in 3 days. ' + (reading.est.best_source === 'swimmer' ? 'Based on an older swimmer report.' : 'From a sea-surface model, not a swimmer.') + '</div>';
+                '<div class="v2-hero-main"><div class="v2-temp" style="color:' + tempColour(Number(reading.est.best_c)) + '">' + Number(reading.est.best_c).toFixed(1) + '<small>°C</small></div>' +
+                '<div class="v2-hero-side"><span class="v2-pill">Estimate</span></div></div>' +
+                '<div class="v2-cap" style="margin-top:8px">No swimmer reports in 3 days. ' + (reading.est.best_source === 'swimmer' ? 'Based on an older swimmer report.' : 'From a sea-surface model, not a swimmer.') + '</div>';
         } else {
             body =
-                '<div class="v2-temp v2-temp-empty">--</div>' +
-                '<div class="v2-cap" style="margin-top:12px">No reports at ' + esc(sp.name) + ' yet. Be the first.</div>';
+                '<div class="v2-hero-main"><div class="v2-temp v2-temp-empty">--</div></div>' +
+                '<div class="v2-cap" style="margin-top:8px">No reports at ' + esc(sp.name) + ' yet. Be the first.</div>';
         }
         el.innerHTML = head + body;
         el.querySelectorAll('.v2-spotswitch button').forEach(function (b) {

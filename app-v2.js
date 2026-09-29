@@ -28,7 +28,10 @@
     // in-app way in (Profile Settings, beta testers only) and a way back (always shown in v2).
     window.V2.setUi = function (mode) {
         try { if (typeof analytics !== 'undefined') analytics.track('ui_design_switch', { to: mode }); } catch (e) { /* optional */ }
-        try { if (mode === 'v2') localStorage.setItem('sl_ui', 'v2'); else localStorage.removeItem('sl_ui'); } catch (e) { /* storage blocked: the ?ui= link still works */ }
+        try {
+            if (mode === 'v2') { localStorage.setItem('sl_ui', 'v2'); localStorage.setItem('sl_ui_src', 'user'); localStorage.removeItem('sl_ui_optout'); }
+            else { localStorage.removeItem('sl_ui'); localStorage.removeItem('sl_ui_src'); localStorage.setItem('sl_ui_optout', '1'); }   // a person who chose Classic is never auto-switched again
+        } catch (e) { /* storage blocked: the ?ui= link still works */ }
         // small pause so the analytics request can leave, then a clean URL (no ?ui= to fight the choice)
         setTimeout(function () { location.href = location.pathname; }, 150);
     };
@@ -86,6 +89,76 @@
             try { window.V2.refreshUiRow(); } catch (e) { /* optional */ }
             return r;
         };
+    }
+
+    // ── Default design for a club (Aquasharks), rolled out by feature flag ────────────────────────────────
+    // Who: Aquasharks swimmers and parents who have NOT chosen a design themselves.
+    // Control: feature_flags 'ui_v2_default_aquasharks' (enabled_global, or the user id in allowed_user_ids).
+    //   Fails closed: no row / no network / not eligible => nothing changes.
+    // People stay in charge: an explicit "Classic design" (sl_ui_optout) is never overridden, and a design
+    //   the person chose themselves (sl_ui_src = user) is never reverted.
+    // Kill switch: turn the flag off and anyone who was auto-switched (sl_ui_src = auto) goes back to classic.
+    // Runs after login (memberships load asynchronously), so it also fixes the installed home-screen app,
+    // which keeps its own storage and cannot use a ?ui= link.
+    var AQUASHARKS_ID = '385e2c9d-b32e-47d1-bb1d-1e042523de23';
+
+    // Pure, so every combination can be tested: returns 'switch-v2' | 'revert-v1' | 'none'
+    window.V2.autoDesignDecision = function (s) {
+        if (!s.enabled) return (s.member && s.flag === true && !s.optout && !s.guard) ? 'switch-v2' : 'none';
+        return (s.src === 'auto' && s.flag === false) ? 'revert-v1' : 'none';
+    };
+
+    function isAquasharks() {
+        var cm = (typeof currentUserClubs !== 'undefined' && currentUserClubs) || [];
+        var pl = (typeof parentLinks !== 'undefined' && parentLinks) || [];
+        return cm.some(function (m) { return m.clubs && m.clubs.id === AQUASHARKS_ID; }) ||
+               pl.some(function (l) { return l.clubs && l.clubs.id === AQUASHARKS_ID; });
+    }
+    async function autoFlag() {
+        try {
+            var r = await supabaseClient.from('feature_flags').select('enabled_global, allowed_user_ids').eq('key', 'ui_v2_default_aquasharks').maybeSingle();
+            var d = r && r.data;
+            if (!d) return null;                                            // no flag row: unknown, do nothing
+            return !!(d.enabled_global || (d.allowed_user_ids || []).indexOf(currentUser.id) >= 0);
+        } catch (e) { return null; }
+    }
+    function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+    async function runAutoDesign() {
+        var member = isAquasharks();
+        if (!enabled && !member) return false;                              // classic + not in the club: nothing to decide
+        var flag = await autoFlag();
+        var guardKey = 'sl_ui_autoswitched', guard = false;
+        try { guard = !!sessionStorage.getItem(guardKey); } catch (e) { /* ignore */ }
+        var act = window.V2.autoDesignDecision({ enabled: enabled, member: member, flag: flag, optout: ls('sl_ui_optout') === '1', src: ls('sl_ui_src'), guard: guard });
+        if (act === 'none') return true;
+        try { if (typeof analytics !== 'undefined') analytics.track('ui_design_auto', { action: act }); } catch (e) { /* optional */ }
+        try {
+            if (act === 'switch-v2') {
+                localStorage.setItem('sl_ui', 'v2'); localStorage.setItem('sl_ui_src', 'auto'); localStorage.setItem('sl_ui_notice', '1');
+                try { sessionStorage.setItem(guardKey, '1'); } catch (e) { /* ignore */ }
+            } else {
+                localStorage.removeItem('sl_ui'); localStorage.removeItem('sl_ui_src'); localStorage.removeItem('sl_ui_notice');
+            }
+        } catch (e) { return true; }
+        setTimeout(function () { location.href = location.pathname; }, 200);
+        return true;
+    }
+    (function pollAuto() {
+        var tries = 0;
+        (function tick() {
+            tries++;
+            var haveUser = (typeof currentUser !== 'undefined' && currentUser);
+            var haveClubs = haveUser && ((typeof currentUserClubs !== 'undefined' && currentUserClubs && currentUserClubs.length) || (typeof parentLinks !== 'undefined' && parentLinks && parentLinks.length));
+            if (haveClubs || (enabled && haveUser)) { runAutoDesign().catch(function () { /* stay as is */ }); return; }
+            if (tries < 16) setTimeout(tick, 700);                          // ~11s, then give up quietly (not in a club)
+        })();
+    })();
+    // One-time explanation after an automatic switch
+    if (enabled && ls('sl_ui_notice') === '1') {
+        try { localStorage.removeItem('sl_ui_notice'); } catch (e) { /* ignore */ }
+        setTimeout(function () {
+            if (typeof showToast === 'function') showToast('You are now on the new SwimLoading. You can go back any time under You, then Classic design.', 'info');
+        }, 3000);
     }
 
     if (!enabled) return;
