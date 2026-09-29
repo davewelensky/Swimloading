@@ -103,9 +103,16 @@
     var AQUASHARKS_ID = '385e2c9d-b32e-47d1-bb1d-1e042523de23';
 
     // Pure, so every combination can be tested: returns 'switch-v2' | 'revert-v1' | 'none'
+    // Inputs: enabled (already in v2), member (Aquasharks), flag (ui_v2_default_aquasharks) and flagAll
+    // (ui_v2_default_all), each true / false / null (null = row missing or unreadable = unknown), optout, src, guard.
+    //   eligible = (Aquasharks member AND flag on) OR flagAll on
+    // Unknown never changes anything (fails closed). Only a person who was auto-switched (src = auto) is ever
+    // reverted, and only when both switches are known to be off.
     window.V2.autoDesignDecision = function (s) {
-        if (!s.enabled) return (s.member && s.flag === true && !s.optout && !s.guard) ? 'switch-v2' : 'none';
-        return (s.src === 'auto' && s.flag === false) ? 'revert-v1' : 'none';
+        var eligible = (s.member && s.flag === true) || s.flagAll === true;
+        var unknown = s.flagAll === null || s.flagAll === undefined || (s.member && (s.flag === null || s.flag === undefined));
+        if (!s.enabled) return (eligible && !s.optout && !s.guard) ? 'switch-v2' : 'none';
+        return (s.src === 'auto' && !eligible && !unknown) ? 'revert-v1' : 'none';
     };
 
     function isAquasharks() {
@@ -114,22 +121,27 @@
         return cm.some(function (m) { return m.clubs && m.clubs.id === AQUASHARKS_ID; }) ||
                pl.some(function (l) { return l.clubs && l.clubs.id === AQUASHARKS_ID; });
     }
-    async function autoFlag() {
+    // One read for both switches. Returns { aq, all }: true / false, or null when unknown (no row / no network).
+    async function autoFlags() {
+        var out = { aq: null, all: null };
         try {
-            var r = await supabaseClient.from('feature_flags').select('enabled_global, allowed_user_ids').eq('key', 'ui_v2_default_aquasharks').maybeSingle();
-            var d = r && r.data;
-            if (!d) return null;                                            // no flag row: unknown, do nothing
-            return !!(d.enabled_global || (d.allowed_user_ids || []).indexOf(currentUser.id) >= 0);
-        } catch (e) { return null; }
+            var r = await supabaseClient.from('feature_flags').select('key, enabled_global, allowed_user_ids').in('key', ['ui_v2_default_aquasharks', 'ui_v2_default_all']);
+            var rows = (r && r.data) || [];
+            rows.forEach(function (d) {
+                var on = !!(d.enabled_global || (d.allowed_user_ids || []).indexOf(currentUser.id) >= 0);
+                if (d.key === 'ui_v2_default_aquasharks') out.aq = on; else out.all = on;
+            });
+        } catch (e) { /* leave unknown */ }
+        return out;
     }
     function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     async function runAutoDesign() {
         var member = isAquasharks();
-        if (!enabled && !member) return false;                              // classic + not in the club: nothing to decide
-        var flag = await autoFlag();
+        var fl = await autoFlags();
+        var flag = fl.aq, flagAll = fl.all;
         var guardKey = 'sl_ui_autoswitched', guard = false;
         try { guard = !!sessionStorage.getItem(guardKey); } catch (e) { /* ignore */ }
-        var act = window.V2.autoDesignDecision({ enabled: enabled, member: member, flag: flag, optout: ls('sl_ui_optout') === '1', src: ls('sl_ui_src'), guard: guard });
+        var act = window.V2.autoDesignDecision({ enabled: enabled, member: member, flag: flag, flagAll: flagAll, optout: ls('sl_ui_optout') === '1', src: ls('sl_ui_src'), guard: guard });
         if (act === 'none') return true;
         try { if (typeof analytics !== 'undefined') analytics.track('ui_design_auto', { action: act }); } catch (e) { /* optional */ }
         try {
@@ -140,7 +152,9 @@
                 localStorage.removeItem('sl_ui'); localStorage.removeItem('sl_ui_src'); localStorage.removeItem('sl_ui_notice');
             }
         } catch (e) { return true; }
-        setTimeout(function () { location.href = location.pathname; }, 200);
+        // Keep the rest of the URL (Strava return, invite links, deep links); drop only a ui= switch so it cannot fight this choice
+        var keep = location.search.replace(/([?&])ui=[^&]*&?/, '$1').replace(/[?&]$/, '');
+        setTimeout(function () { location.href = location.pathname + keep + location.hash; }, 200);
         return true;
     }
     (function pollAuto() {
@@ -149,8 +163,10 @@
             tries++;
             var haveUser = (typeof currentUser !== 'undefined' && currentUser);
             var haveClubs = haveUser && ((typeof currentUserClubs !== 'undefined' && currentUserClubs && currentUserClubs.length) || (typeof parentLinks !== 'undefined' && parentLinks && parentLinks.length));
-            if (haveClubs || (enabled && haveUser)) { runAutoDesign().catch(function () { /* stay as is */ }); return; }
-            if (tries < 16) setTimeout(tick, 700);                          // ~11s, then give up quietly (not in a club)
+            // Club memberships load a moment after login. Wait for them (up to ~6s) so an Aquasharks member is recognised,
+            // but a signed-in person with no club must still be decided, so do not wait forever.
+            if (haveClubs || (haveUser && tries >= 9)) { runAutoDesign().catch(function () { /* stay as is */ }); return; }
+            if (tries < 20) setTimeout(tick, 700);                          // ~14s, then give up quietly (not signed in)
         })();
     })();
     // One-time explanation after an automatic switch
