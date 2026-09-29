@@ -58,8 +58,8 @@
         var t = document.createElement('div');
         t.id = 'v2Today';
         t.innerHTML =
-            '<div id="v2tHazard"></div>' +
             '<div id="v2tClubTop"></div>' +
+            '<div id="v2tHazard"></div>' +
             '<div id="v2tHero" class="v2-hero v2-skel" aria-live="polite"></div>' +
             '<button class="v2-btn v2-btn-primary" id="v2tLog" type="button">' +
                 '<i data-lucide="plus"></i>' + esc(COPY.action) + '</button>' +
@@ -71,6 +71,8 @@
             '<div id="v2tAround"></div>';
         dash.insertBefore(t, dash.firstChild);
         $('v2tLog').addEventListener('click', function () { showPage('logTemp'); });
+        // Known club member from a previous visit: hold the club card's space from the first paint
+        try { if (localStorage.getItem('sl_v2_club') === '1') $('v2tClubTop').classList.add('v2-club-reserve'); } catch (e) { /* optional */ }
         icons();
     }
 
@@ -292,7 +294,7 @@
         var next = today.length ? null : week.list.filter(function (w) { return !api.started(w, week); })[0];
         var rows = today.length ? today : (next ? [next] : []);
         var g = st.events && st.events[0];
-        if (!rows.length && !g) return;
+        if (!rows.length && !g) { top.classList.remove('v2-club-reserve'); return; }
 
         var days = g ? Math.round((new Date(g.event_date + 'T12:00:00') - new Date(new Date().setHours(0, 0, 0, 0))) / 86400000) : null;
         var deadline = g && g.entry_deadline ? api.fmtDay(g.entry_deadline) : '';
@@ -306,8 +308,10 @@
                         '<span class="v2-row-text"><span class="v2-row-title">' + esc(g.title) + '</span><br><span class="v2-cap">' + days + (days === 1 ? ' day' : ' days') + ' to go' + (deadline ? ' · entries close ' + esc(deadline) : '') + '</span></span>' +
                         '<i data-lucide="chevron-right" class="v2-chev"></i></button>' : '') +
             '</section>';
-        (today.length ? top : low).innerHTML = html;
-        api.bindRows(today.length ? top : low);
+        top.classList.remove('v2-club-reserve');
+        top.innerHTML = html;
+        api.bindRows(top);
+        try { localStorage.setItem('sl_v2_club', '1'); } catch (e) { /* optional */ }
         icons();
     }
 
@@ -319,7 +323,9 @@
         if (!st) {
             paintClub();                                             // clears any stale card
             // club memberships load asynchronously after login; look again for a few seconds
-            if ((tries || 0) < 10) setTimeout(function () { renderClub((tries || 0) + 1); }, 800);
+            if ((tries || 0) < 10) { setTimeout(function () { renderClub((tries || 0) + 1); }, 800); return; }
+            var t = $('v2tClubTop'); if (t) t.classList.remove('v2-club-reserve');   // gave up: not a club member
+            try { localStorage.removeItem('sl_v2_club'); } catch (e) { /* optional */ }
             return;
         }
         api.state.onChange = paintClub;
