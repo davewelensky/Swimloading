@@ -4281,6 +4281,7 @@ let trackerData = [];
 let trackerQtMap = {};   // key: gender|age_group|course|level|event → row
 let trackerViewMode = 'cards';
 let trackerChampsYear = 2027;
+let trackerPipelineSort = 'sanj'; // 'sanj' = closest to SA champs first, 'level' = grouped by level reached
 let pendingTrackerSquadId = null;
 
 function _ssaAgeGroup(dob, refYear) {
@@ -4476,6 +4477,8 @@ function setTrackerView(mode) {
   document.getElementById('champsYearFilter').style.display = showChampsYear ? '' : 'none';
   applyTrackerFilter();
 }
+
+function setPipelineSort(mode) { trackerPipelineSort = mode; applyTrackerFilter(); }
 
 function setChampsYear() {
   trackerChampsYear = parseInt(document.getElementById('champsYearFilter').value, 10);
@@ -5022,6 +5025,48 @@ function renderTrackerPipeline(swimmers) {
     return;
   }
 
+  const _sortToggle = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;max-width:900px;">
+    <button class="matrix-toggle-btn ${trackerPipelineSort === 'sanj' ? 'active' : ''}" onclick="setPipelineSort('sanj')">Closest to SA champs</button>
+    <button class="matrix-toggle-btn ${trackerPipelineSort === 'level' ? 'active' : ''}" onclick="setPipelineSort('level')">By level reached</button>
+  </div>`;
+
+  if (trackerPipelineSort === 'sanj') {
+    // One row per swimmer: the event nearest the SA champs (SANJ) standard, ranked by gap as a % of that time
+    const best = {};
+    rows.forEach(x => {
+      if (!x.qtS) return;
+      const pct = (x.pb - x.qtS.time_seconds) / x.qtS.time_seconds;
+      if (!best[x.s.id] || pct < best[x.s.id].pct) best[x.s.id] = { ...x, pct, gapS: x.pb - x.qtS.time_seconds };
+    });
+    const list = Object.values(best).sort((a, b) => a.pct - b.pct);
+    if (!list.length) {
+      el.innerHTML = `<div style="max-width:900px;">${_sortToggle}<div class="pipeline-empty">No SA champs (SANJ) standards apply to this squad's events yet.</div></div>`;
+      return;
+    }
+    const line = (x, i) => {
+      const at = x.gapS <= 0;
+      const col = at ? '#f59e0b' : x.pct < 0.03 ? '#10b981' : x.pct < 0.08 ? '#f59e0b' : 'var(--text-sec)';
+      const nl = x.tier === 'dev' || x.tier === 'close' ? 'below L2' : x.tier === 'l2' ? 'at L2' : x.tier === 'l3' ? 'at L3' : 'at SA champs';
+      return `<div class="pipeline-row tier-${x.tier}" onclick="openTrackerDetail('${x.s.id}')">
+        <div>
+          <div class="pipeline-swimmer">${at ? '' : (i + 1) + '. '}${x.s.display_name}${x.ageUp ? `<span style="font-size:9px;font-weight:700;color:#f59e0b;padding:1px 5px;border-radius:3px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);margin-left:4px;" title="Will compete as age ${x.ag} at ${trackerChampsYear} champs — these standards are for that age group">age-up</span>` : ''}</div>
+          <div class="pipeline-swimmer-meta">Age ${x.age} now · ${trackerChampsYear} age ${x.ag} · ${x.squad} · ${nl}</div>
+        </div>
+        <div><div class="pipeline-event-label">${x.evName} <span class="course-tag ${x.course === 'LC' ? 'course-lc' : 'course-sc'}" style="font-size:9px;">${x.course}</span></div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:3px;">PB ${x.pbTxt} · needs ${x.qtS.time_text}</div></div>
+        <div class="pipeline-stats"><div class="pipeline-gap" style="color:${col};font-weight:700;">${at ? 'Qualified' : '+' + x.gapS.toFixed(2) + 's'}</div>
+          ${at ? '' : `<div class="pipeline-split-hint">${(x.pct * 100).toFixed(1)}% off</div>`}</div>
+      </div>`;
+    };
+    const atS = list.filter(x => x.gapS <= 0), toGo = list.filter(x => x.gapS > 0);
+    const head = t => `<div class="pipeline-section-title" style="color:#f59e0b;">${t}</div>`;
+    el.innerHTML = `<div style="max-width:900px;">${_sortToggle}
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">Each swimmer's closest event to the SA champs (SANJ) standard, ${trackerChampsYear} age groups. Tap a swimmer for the full breakdown.</div>
+      ${atS.length ? head('At SA champs · ' + atS.length) + atS.map(line).join('') : ''}
+      ${toGo.length ? head('Closest first · ' + toGo.length + ' swimmer' + (toGo.length !== 1 ? 's' : '')) + toGo.map(line).join('') : ''}</div>`;
+    return;
+  }
+
   // Sort: best tier first, then closest to next level
   rows.sort((a, b) => {
     const tierOrder = { sanj: 0, l3: 1, l2: 2, close: 3, dev: 4 };
@@ -5151,7 +5196,7 @@ function renderTrackerPipeline(swimmers) {
     });
   });
 
-  el.innerHTML = `<div style="max-width:900px;">${html}</div>`;
+  el.innerHTML = `<div style="max-width:900px;">${_sortToggle}${html}</div>`;
 }
 
 // ── EVENTS ────────────────────────────────────────────────────────
