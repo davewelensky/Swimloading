@@ -610,6 +610,9 @@
         title="Back to Overview">
         <i data-lucide="layout-dashboard" style="width:14px;height:14px;"></i> Overview
       </button>
+      <button class="btn-sm" id="helpBtn" onclick="openHelp()" style="display:none;" aria-haspopup="dialog">
+        <i data-lucide="life-buoy" style="width:13px;height:13px;"></i> Help
+      </button>
       <a class="btn-sm" href="/app" style="text-decoration:none;">
         <i data-lucide="arrow-left" style="width:13px;height:13px;"></i> App
       </a>
@@ -2593,6 +2596,8 @@ async function loadClubContext() {
     hasAttendance, hasGalaEntries, hasCoachingStaff, hasParentLanguage, hasChallenges,
     hasHealth, hasGroups, hasProgressReports, hasDaySlotScheduling, hasSwimLab };
 
+  // Help panel + guide are Aquasharks-style swim-club only (DUC / K8 / Bluefin unchanged)
+  document.getElementById('helpBtn').style.display = currentClub?.club_type === 'swim_club' ? '' : 'none';
   document.getElementById('nav-league').style.display           = hasLeague        ? '' : 'none';
   document.getElementById('nav-tempchallenge').style.display    = hasTempChallenge ? '' : 'none';
   document.getElementById('nav-results').style.display          = hasTempChallenge ? '' : 'none';
@@ -3005,6 +3010,7 @@ async function cancelLabSlot(slotId) {
 }
 
 function showPage(name) {
+  window._adminPage = name;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + name)?.classList.add('active');
@@ -3036,6 +3042,60 @@ function showPage(name) {
   if (name === 'labenquiries')  loadLabEnquiries();
   if (name === 'labsessions')   loadLabSessions();
 }
+
+// ── HELP PANEL ────────────────────────────────────────────────────
+// Page purposes are read live from each page's own subtitle, so this never drifts from the screen.
+// Guide anchors point at /aquasharks-guide steps.
+const HELP_GUIDE_ANCHOR = {
+  overview: 'overview', attendance: 'attendance', roster: 'roster', members: 'members', parents: 'parents',
+  entries: 'gala-entries', tracker: 'squad-tracker', announcements: 'announcements', team: 'coaches',
+  timetable: 'timetable', joinlink: 'join-link', settings: 'squads',
+};
+const HELP_TIPS = {
+  tracker: 'Cards, Matrix and Pipeline are three views of the same swimmers. Pipeline opens on "Closest to SA champs". Tap a swimmer for their Next target: how many seconds off the next standard, event by event.',
+  attendance: 'Sessions come from the Timetable. If a squad has no timetable rows, its sessions will not appear here.',
+  timetable: 'This drives the Attendance cards and the Overview. Day 0 is Sunday.',
+};
+function openHelp() {
+  const page = window._adminPage || 'overview';
+  const pageEl = document.getElementById('page-' + page);
+  const title = pageEl?.querySelector('.page-title')?.textContent.trim() || 'This page';
+  const sub = pageEl?.querySelector('.page-sub')?.textContent.trim() || '';
+  const anchor = HELP_GUIDE_ANCHOR[page];
+  const guide = '/aquasharks-guide' + (anchor ? '#' + anchor : '');
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  let listHtml = '';
+  document.querySelectorAll('.sidebar > .nav-item, .sidebar .nav-group').forEach(node => {
+    const items = node.classList.contains('nav-group') ? [...node.querySelectorAll('.nav-item')] : [node];
+    const vis = items.filter(b => b.id && b.id !== 'navToggle' && getComputedStyle(b).display !== 'none');
+    if (!vis.length) return;
+    const label = node.querySelector?.('.nav-group-label')?.textContent.trim();
+    listHtml += (label ? `<div style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);margin:14px 0 4px;">${esc(label)}</div>` : '');
+    vis.forEach(b => {
+      const key = b.id.replace('nav-', '');
+      const line = document.querySelector('#page-' + key + ' .page-sub')?.textContent.trim() || '';
+      listHtml += `<button onclick="closeHelp();${key === 'sets' ? "window.location.href='/sets/'+(currentClub?.slug||'')" : `showPage('${key}')`}"
+        style="display:block;width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--border);padding:9px 2px;cursor:pointer;color:var(--text);min-height:44px;">
+        <span style="font-size:13px;font-weight:700;">${esc(b.textContent.trim().replace(/\s+/g, ' '))}</span>
+        ${line ? `<span style="display:block;font-size:12px;color:var(--text-sec);margin-top:1px;">${esc(line)}</span>` : ''}</button>`;
+    });
+  });
+  document.getElementById('helpTitle').textContent = 'Help · ' + title;
+  document.getElementById('helpBody').innerHTML = `
+    ${sub ? `<div style="font-size:14px;color:var(--text);margin-bottom:10px;">${esc(sub)}</div>` : ''}
+    ${HELP_TIPS[page] ? `<div style="font-size:13px;color:var(--text-sec);padding:10px 12px;border:1px solid rgba(56,189,248,0.25);background:rgba(56,189,248,0.05);border-radius:10px;margin-bottom:12px;">${esc(HELP_TIPS[page])}</div>` : ''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+      <a class="btn-sm" href="${guide}" target="_blank" rel="noopener" style="text-decoration:none;">Open the full guide</a>
+      <a class="btn-sm" href="/coach-guide" target="_blank" rel="noopener" style="text-decoration:none;">Coach guide</a>
+    </div>
+    <div style="font-size:14px;font-weight:800;margin-top:18px;">What each page is for</div>
+    ${listHtml}`;
+  const panel = document.getElementById('helpPanel');
+  panel.style.display = 'flex';
+  document.getElementById('helpBody').scrollTop = 0;
+}
+function closeHelp() { document.getElementById('helpPanel').style.display = 'none'; }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeHelp(); });
 
 // ── DATA LOADERS ──────────────────────────────────────────────────
 async function loadCategories() {
@@ -15308,6 +15368,16 @@ async function saveGroupMembers(groupId) {
 </div>
 
 <!-- TRACKER TIMES DETAIL MODAL -->
+<div id="helpPanel" role="dialog" aria-modal="true" aria-labelledby="helpTitle" onclick="if(event.target===this)closeHelp()"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:2100;justify-content:flex-end;">
+  <div style="width:min(420px,100%);height:100%;overflow-y:auto;background:var(--bg-card,#0d1728);border-left:1px solid var(--border);padding:20px 20px 32px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;">
+      <div id="helpTitle" style="font-size:17px;font-weight:800;">Help</div>
+      <button class="btn-sm" onclick="closeHelp()" aria-label="Close help" style="min-height:36px;">Close</button>
+    </div>
+    <div id="helpBody"></div>
+  </div>
+</div>
 <div id="trackerDetailModal" onclick="if(event.target===this)closeTrackerDetail()">
   <div class="swimmer-detail-inner">
     <div class="swimmer-detail-header">
