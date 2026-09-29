@@ -65,10 +65,12 @@ export default async function handler(req, res) {
   });
 
   // Attendance from registers that were actually taken. A session with no register is not counted
-  // against anyone: we only know about the sessions a coach marked.
+  // against anyone, and a swimmer is NOT held to every session of their squad (a squad can run 7 a week
+  // and each swimmer is expected at only some). So we compare a swimmer with their squad peers:
+  // sessions marked present in the last 4 weeks vs the squad's typical (median) swimmer.
   const attRegs = {};      // squad_id -> number of registers with at least one mark
   const attPresent = {};   // squad_id -> total 'present' marks
-  const attBySwimmer = {}; // `${squad_id}|${roster_id}` -> present count
+  const presentAll = {};   // roster_id -> present count across all registers in the window
   (registers || []).forEach(reg => {
     const marks = reg.club_attendance || [];
     if (!marks.length) return;
@@ -76,15 +78,19 @@ export default async function handler(req, res) {
     marks.forEach(m => {
       if (m.status !== 'present') return;
       attPresent[reg.squad_id] = (attPresent[reg.squad_id] || 0) + 1;
-      const k = `${reg.squad_id}|${m.roster_id}`;
-      attBySwimmer[k] = (attBySwimmer[k] || 0) + 1;
+      presentAll[m.roster_id] = (presentAll[m.roster_id] || 0) + 1;
     });
   });
-  const attendanceOf = swimmer => {
-    const of = attRegs[swimmer.squad_id] || 0;
-    return { attended: attBySwimmer[`${swimmer.squad_id}|${swimmer.id}`] || 0, of };
-  };
-  const attText = a => a.of >= 4 ? `attended ${a.attended} of ${a.of} registered sessions in the last 4 weeks` : 'attendance unknown (too few registers taken)';
+  const squadMedian = {};
+  Object.keys(attRegs).forEach(sid => {
+    // typical swimmer = median over squad members who attended at least once (so leavers/inactive do not drag it down)
+    const vals = (roster || []).filter(r => r.squad_id === sid && presentAll[r.id]).map(r => presentAll[r.id]).sort((a, b) => a - b);
+    if (attRegs[sid] >= 4 && vals.length >= 3) squadMedian[sid] = vals[Math.floor(vals.length / 2)];
+  });
+  const attendanceOf = swimmer => ({ attended: presentAll[swimmer.id] || 0, median: squadMedian[swimmer.squad_id] ?? null });
+  const attText = a => a.median == null
+    ? 'attendance unknown (too few registers taken)'
+    : `marked present ${a.attended} times in the last 4 weeks; the squad's typical swimmer is ${a.median}`;
 
   // Merge PBs from both tables
   const allPBs = {};
@@ -191,7 +197,7 @@ ${nearQualifiers.slice(0, 30).map(n =>
       max_tokens: 2000,
       system: `You are an expert swimming coach analyst covering all disciplines — competitive pool, open water, triathlon, and learn-to-swim. Adapt your recommendations to the stated training goal: a gala needs tapering and race-pace work; open water needs endurance and sighting; a weekly review needs balance; learn-to-swim needs skill progression. Return ONLY valid JSON — no markdown, no extra text.
 
-Attendance rules: each near-qualifier line states how many registered sessions that swimmer attended. If they attended fewer than half, make attendance the first point of the training_tip (turning up is the fastest gain) before any set advice. If attendance is unknown, say nothing about it. Use squad turnout to size recommendations (a squad averaging few swimmers suits smaller-group work). Never invent attendance figures.
+Attendance rules: each near-qualifier line states how many registered sessions that swimmer attended. Attendance is measured against the swimmer's squad peers (sessions marked present in 4 weeks vs the squad's typical swimmer), NOT against every session the squad runs, because swimmers are not expected at every session. Only if a swimmer is below half the squad's typical figure, mention it once, briefly and neutrally, as one factor among others (do not call it the primary or only cause and do not repeat it in every row). If attendance is unknown or in line with peers, say nothing about it. Use squad turnout to size recommendations (a squad averaging few swimmers suits smaller-group work). Never invent attendance figures.
 
 Return this exact structure:
 {

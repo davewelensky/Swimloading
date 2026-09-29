@@ -1085,7 +1085,7 @@ function renderInsights(data) {
             <td style="color:var(--text-sec);">${h(n.squad)}</td>
             <td>${h(n.event)}</td>
             <td><span class="gap-pill">${h(n.gap)}</span></td>
-            <td style="font-size:12px;">${(() => { const a = (meta.attendance?.swimmers || {})[n.swimmer]; if (!a || a.of < 4) return '<span style="color:var(--text-dim);">unknown</span>'; const low = a.attended * 2 < a.of; return `<span style="font-weight:700;color:${low ? 'var(--amber)' : 'var(--green)'};">${a.attended} of ${a.of}</span>`; })()}</td>
+            <td style="font-size:12px;">${(() => { const a = (meta.attendance?.swimmers || {})[n.swimmer]; if (!a || a.median == null) return '<span style="color:var(--text-dim);">unknown</span>'; const low = a.attended * 2 < a.median; return `<span title="Sessions marked present in the last 4 weeks, and the typical swimmer in this squad" style="font-weight:700;color:${low ? 'var(--amber)' : 'var(--text)'};">${a.attended}</span><span style="color:var(--text-sec);"> vs ${a.median} typical</span>`; })()}</td>
             <td style="color:var(--text-sec);font-size:12px;">${h(n.training_tip)}</td>
           </tr>`).join('')}</tbody>
         </table>
