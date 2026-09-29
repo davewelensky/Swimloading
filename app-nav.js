@@ -97,7 +97,12 @@
                 if (typeof applyPoolFormMode === 'function') applyPoolFormMode(null);
             } else if (page === 'club') {
                 if (typeof renderClubPage === 'function') renderClubPage();
+            } else if (page === 'you') {
+                if (window.V2) V2.renderYou();
             }
+
+            // v2 shell: keep the bottom tab bar in step (no-op unless html.ui-v2)
+            if (window.V2) V2.onPage(page);
 
             // Initialize icons after page switch
             initIcons();
