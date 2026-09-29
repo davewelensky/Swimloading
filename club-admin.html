@@ -3059,7 +3059,7 @@ const HELP_TIPS = {
 function openHelp() {
   const page = window._adminPage || 'overview';
   const pageEl = document.getElementById('page-' + page);
-  const title = pageEl?.querySelector('.page-title')?.textContent.trim() || 'This page';
+  const title = document.getElementById('nav-' + page)?.textContent.trim().replace(/\s+/g, ' ') || pageEl?.querySelector('.page-title')?.textContent.trim() || 'This page';
   const sub = pageEl?.querySelector('.page-sub')?.textContent.trim() || '';
   const anchor = HELP_GUIDE_ANCHOR[page];
   const guide = '/aquasharks-guide' + (anchor ? '#' + anchor : '');
@@ -4433,6 +4433,8 @@ async function loadSquadTracker() {
   // Normalise both sources into a unified shape and build per-roster lookup
   const timesByRoster = {};
   const addTime = (rosterId, key, timeSeconds, timeText) => {
+    // NS / DQ / DNF rows are stored as 0 seconds — they are not swims and must never count as a PB or a qualifying time
+    if (!(parseFloat(timeSeconds) > 0)) return;
     if (!timesByRoster[rosterId]) timesByRoster[rosterId] = [];
     timesByRoster[rosterId].push({ _eventKey: key, time_seconds: timeSeconds, time_text: timeText });
   };
