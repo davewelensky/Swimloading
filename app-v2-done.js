@@ -10,9 +10,14 @@
 // challenge credit, then it awaits our promise and runs showPage('dashboard').
 //
 // The promise ALWAYS resolves (Done, X, scrim, Escape, or any navigation away) so the caller can
-// never hang. Badges already announce as toasts and are left alone. The story card (flag-gated, a
-// handful of testers) still runs before this screen; folding it in is a follow-up once its event
-// shape is confirmed.
+// never hang. Badges already announce as toasts and are left alone.
+//
+// STORY CARD (folded in): v1's story card is a separate full-screen card. The native log flow never
+// showed it (the passport moment is on for everyone and replaces that whole tail); only the Strava
+// import did. v2 shows the swimmer's lead story event as a "Story moment" row inside this one
+// screen for BOTH paths (same flag, story_cards_v1, same RPC, same one-time guard), with a link to
+// the story timeline. storyCardPostLog is overridden to a pass-through so it never stacks a second
+// screen. The story is fetched BEFORE the sheet slides up (max ~450ms) so the layout never shifts.
 //
 // What the screen shows, only when the data exists:
 //   - what was logged, and thanks (the swimmer just gave other swimmers a reading)
@@ -73,18 +78,56 @@
         document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && st.resolve) finish(); });
     }
 
+    // The swimmer's lead story event for this log (same source and one-time guard as v1's story card)
+    async function fetchStory(ctx) {
+        try {
+            if (!ctx || !ctx.logId) return null;
+            if (typeof storyCardsEnabled !== 'function' || !(await storyCardsEnabled())) return null;
+            var r = await supabaseClient.rpc('get_my_story_events_for_log_v1', { p_temp_log_id: ctx.logId });
+            var events = r && Array.isArray(r.data) ? r.data : [];
+            if (!events.length) return null;
+            var lead = events[0];
+            var guardKey = 'storyCardShown:' + ctx.logId + ':' + lead.id;
+            try { if (sessionStorage.getItem(guardKey)) return null; } catch (e) { /* storage blocked: show it */ }
+            var timeline = false;
+            try { timeline = typeof storyTimelineEnabled === 'function' && await storyTimelineEnabled(); } catch (e) { timeline = false; }
+            return { lead: lead, extra: events.length - 1, timeline: timeline, guardKey: guardKey };
+        } catch (e) { return null; }
+    }
+
+    function storyRow(story) {
+        var l = story.lead;
+        var cat = (typeof SC_CATEGORY_LABEL_BY_TYPE !== 'undefined' && SC_CATEGORY_LABEL_BY_TYPE[l.story_type]) || 'Story moment';
+        var when = (typeof _scFormatDate === 'function') ? _scFormatDate(l.story_date) : '';
+        var hasValue = l.primary_value !== null && l.primary_value !== undefined && l.unit;
+        return '<div class="v2-done-story">' +
+            '<div class="v2-eyebrow">Story moment · ' + esc(cat) + '</div>' +
+            '<div class="v2-done-story-title">' + esc(l.title || 'A moment in your swimming story') + '</div>' +
+            (l.summary ? '<div class="v2-sub">' + esc(l.summary) + '</div>' : '') +
+            (hasValue ? '<div class="v2-done-story-val">' + esc(l.primary_value) + esc(l.unit) + '</div>' : '') +
+            '<div class="v2-cap">' + esc((l.spot_name ? l.spot_name + (when ? ' · ' : '') : '') + when) + (story.extra > 0 ? (l.spot_name || when ? ' · ' : '') + story.extra + ' more in your story' : '') + '</div>' +
+            (story.timeline && l.id ? '<button type="button" class="v2-link" id="v2DoneStory">View in your story</button>' : '') +
+            '</div>';
+    }
+
     function postLog(ctx) {
         ctx = ctx || {};
         return new Promise(function (resolve) {
             if (st.resolve) finish();               // never leave an earlier caller hanging
             mount();
             st.resolve = resolve; st.ctx = ctx;
-            render(ctx);
-            var lg = $('logTemp'); if (lg) lg.classList.add('v2-hide');
-            $('v2DoneScrim').classList.add('on');
-            $('v2Done').classList.add('on');
-            var d = $('v2DoneBtn'); if (d) setTimeout(function () { d.focus(); }, 60);
-            loadRewards(ctx);
+            // Story first (bounded wait), so the sheet opens once and nothing moves afterwards
+            var story = null;
+            Promise.race([fetchStory(ctx), sleep(450).then(function () { return null; })]).then(function (s) {
+                story = s;
+                if (st.ctx !== ctx) return;                    // dismissed while we waited
+                render(ctx, story);
+                var lg2 = $('logTemp'); if (lg2) lg2.classList.add('v2-hide');
+                $('v2DoneScrim').classList.add('on');
+                $('v2Done').classList.add('on');
+                var d2 = $('v2DoneBtn'); if (d2) setTimeout(function () { d2.focus(); }, 60);
+                loadRewards(ctx);
+            });
         });
     }
 
@@ -98,7 +141,7 @@
         if (r) r();
     }
 
-    function render(ctx) {
+    function render(ctx, story) {
         var temp = ctx.temp != null ? Number(ctx.temp).toFixed(1) : '';
         var spot = ctx.spotName || 'this spot';
         var logId = ctx.logId || window._lastLogId || null;
@@ -109,12 +152,22 @@
                 '<div class="v2-done-title">Logged</div>' +
                 '<div class="v2-sub">' + (temp ? esc(temp) + '°C at ' : '') + esc(spot) + '. Thanks, this helps other swimmers.</div>' +
             '</div>' +
-            '<div id="v2DoneRewards" aria-live="polite"></div>' +
+            '<div id="v2DoneRewards" aria-live="polite">' + (story ? storyRow(story) : '') + '</div>' +
             '<button type="button" class="v2-btn v2-btn-primary" id="v2DoneShare"><i data-lucide="message-circle"></i>Share on WhatsApp</button>' +
             '<button type="button" class="v2-btn v2-btn-ghost" id="v2DoneCard" style="display:none;margin-top:10px"><i data-lucide="image"></i>Share as a card</button>' +
             '<button type="button" class="v2-btn v2-btn-ghost" id="v2DoneBtn" style="margin-top:10px">Done</button>' +
             (logId ? '<button type="button" class="v2-link v2-done-fix" id="v2DoneFix">Wrong temperature? Fix this log</button>' : '');
         icons();
+        if (story) {
+            try { sessionStorage.setItem(story.guardKey, 'shown'); } catch (e) { /* best effort */ }
+            try { analytics.track('story_moment_shown', { story_type: story.lead.story_type || null, surface: 'v2_logged' }); } catch (e) { /* optional */ }
+            var sb = $('v2DoneStory');
+            if (sb) sb.addEventListener('click', function () {
+                var id = story.lead.id;
+                finish();                                        // release the caller first (it goes on to reload Home)
+                setTimeout(function () { if (typeof _scOpenTimeline === 'function') _scOpenTimeline(id); }, 60);
+            });
+        }
         // The challenge row arrives ~1s after the sheet opens. Reserve its space so the buttons do
         // not jump under the swimmer's thumb.
         try { if (typeof jcIsActive === 'function' && jcIsActive()) $('v2DoneRewards').style.minHeight = '68px'; } catch (e) { /* cosmetic */ }
@@ -197,6 +250,8 @@
     window._v2OrigIdentityShare = window.identityPostLogShare;
     window.identityPostLogShare = function (ctx) { return postLog(ctx); };
     window.showPassportMoment = function (ctx) { return postLog(ctx); };
+    // v1's story card is folded into the screen above; never stack a second screen (Strava import path)
+    window.storyCardPostLog = async function (opts) { if (opts && typeof opts.continueFn === 'function') await opts.continueFn(); };
 
     window.V2.postLog = postLog;
     window.V2.finishPostLog = finish;
