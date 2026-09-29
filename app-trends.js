@@ -1212,11 +1212,11 @@
                                 ${condLine}
                                 ${notesLine}
                             </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="display: flex; align-items: center; gap: 14px;">
                                 <div style="font-weight: 700; color: ${getTempColor(log.temp_c)};">${log.temp_c}°C</div>
                                 ${canEdit ? `
-                                    <button onclick="editTempLog('${log.id}', ${log.temp_c}, '${(log.conditions || '').replace(/'/g, "\\'")}', '${(log.notes || '').replace(/'/g, "\\'").replace(/\n/g, "\\n")}')" style="background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 4px 6px; cursor: pointer; color: var(--text-secondary); font-size: 11px;" title="Edit">Edit</button>
-                                    <button onclick="deleteTempLog('${log.id}')" style="background: transparent; border: 1px solid rgba(239,68,68,0.2); border-radius: 6px; padding: 4px 6px; cursor: pointer; color: var(--danger); font-size: 11px;" title="Delete">Del</button>
+                                    <button class="tap-44-row" onclick="editTempLog('${log.id}', ${log.temp_c}, '${(log.conditions || '').replace(/'/g, "\\'")}', '${(log.notes || '').replace(/'/g, "\\'").replace(/\n/g, "\\n")}')" style="background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 6px 10px; cursor: pointer; color: var(--text-secondary); font-size: 12px;" title="Edit">Edit</button>
+                                    <button class="tap-44-row" onclick="deleteTempLog('${log.id}')" style="background: transparent; border: 1px solid rgba(239,68,68,0.2); border-radius: 6px; padding: 6px 10px; cursor: pointer; color: var(--danger); font-size: 12px;" title="Delete">Del</button>
                                 ` : ''}
                             </div>
                          </div>`;

@@ -452,7 +452,7 @@ function _icEnsurePanel() {
       <div style="background:var(--surface, #0d1728); border-radius:20px 20px 0 0; padding:22px 20px 34px; width:100%; max-width:480px; max-height:92vh; overflow-y:auto;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
           <div style="font-size:11px; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.8px; font-weight:700;" id="swimCardPanelTitle">Swim logged</div>
-          <button onclick="dismissSwimCardPanel()" style="background:rgba(255,255,255,0.08); border:1px solid var(--border); border-radius:50%; width:30px; height:30px; color:var(--text-secondary); font-size:17px; line-height:1; cursor:pointer;">&times;</button>
+          <button class="tap-44" aria-label="Close" onclick="dismissSwimCardPanel()" style="background:rgba(255,255,255,0.08); border:1px solid var(--border); border-radius:50%; width:30px; height:30px; color:var(--text-secondary); font-size:17px; line-height:1; cursor:pointer;">&times;</button>
         </div>
         <div id="swimCardMilestoneNote" style="display:none; font-size:15px; font-weight:700; color:#38bdf8; margin-bottom:10px;"></div>
         <div style="border-radius:14px; overflow:hidden; border:1px solid rgba(56,189,248,0.25); margin-bottom:16px;">
