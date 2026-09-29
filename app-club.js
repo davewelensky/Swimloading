@@ -246,10 +246,12 @@ async function renderSwimClub(container, club, roster, membership) {
   const hasGalas = upcoming.some(e => e.sessions_json?.length);
 
   container.innerHTML = `
-    <div style="display:flex;gap:0;margin-bottom:16px;background:rgba(255,255,255,0.04);border-radius:50px;padding:3px;">
+    <div id="clubTabBar" style="position:sticky;top:72px;z-index:90;margin:0 -4px 16px;padding:6px 4px;background:rgba(10,22,40,0.94);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);">
+    <div style="display:flex;gap:0;background:rgba(255,255,255,0.04);border-radius:50px;padding:3px;">
       <button class="club-inner-tab active" id="clubTabHome" onclick="showClubSubTab('home')" style="flex:1;padding:8px;border-radius:50px;border:none;background:rgba(56,189,248,0.15);color:var(--cyan);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s;">Home</button>
       <button class="club-inner-tab" id="clubTabGalas" onclick="showClubSubTab('galas')" style="flex:1;padding:8px;border-radius:50px;border:none;background:transparent;color:var(--text-secondary);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;">Galas${hasGalas ? ' <span style="font-size:10px;background:rgba(56,189,248,0.2);color:var(--cyan);padding:1px 5px;border-radius:8px;">Enter</span>' : ''}</button>
       <button class="club-inner-tab" id="clubTabCss" onclick="showClubSubTab('css')" style="flex:1;padding:8px;border-radius:50px;border:none;background:transparent;color:var(--text-secondary);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;">CSS</button>
+    </div>
     </div>
     <div id="clubSubHome">
       ${renderSwimmerHero(club, roster, allResults, timeTrial, qtsByEvent)}
@@ -266,6 +268,15 @@ async function renderSwimClub(container, club, roster, membership) {
     <div id="clubSubCss" style="display:none;">
       <div style="text-align:center;padding:32px;color:var(--text-secondary);font-size:13px;">Loading CSS times…</div>
     </div>`;
+
+  // Pin the Home/Galas/CSS bar just under the sticky main nav (safe-area aware),
+  // so the tabs stay reachable however far the swimmer has scrolled.
+  const _mainNav = document.querySelector('.nav-wrapper');
+  const _tabBar  = document.getElementById('clubTabBar');
+  if (_mainNav && _tabBar) {
+    const navTop = parseFloat(getComputedStyle(_mainNav).top) || 12;
+    _tabBar.style.top = (navTop + _mainNav.offsetHeight + 6) + 'px';
+  }
 
   lucide.createIcons();
 
