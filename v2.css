@@ -273,3 +273,108 @@ html.ui-v2 .user-avatar { width: var(--sl-tap); height: var(--sl-tap); flex: non
 @media (prefers-reduced-motion: reduce) {
     .v2-tab, .v2-fab { transition: none; }
 }
+
+/* ── Today ────────────────────────────────────────────────────────────────── */
+/* v1's Home blocks stay in the DOM (their loaders keep filling shared caches) but are hidden */
+html.ui-v2 #dashboard > :not(#v2Today) { display: none !important; }
+
+.v2-between { display: flex; align-items: center; justify-content: space-between; gap: var(--sl-s3); }
+.v2-link {
+    display: inline-flex; align-items: center; min-height: var(--sl-tap);
+    background: none; border: none; color: var(--sl-cyan); font-family: inherit;
+    font-size: 15px; font-weight: 600; cursor: pointer; padding: 0;
+}
+.v2-eyebrow { font-size: var(--sl-fs-caption); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sl-cyan); }
+.v2-card-title { font-size: 18px; font-weight: 700; }
+.v2-tappable { padding: var(--sl-s4); cursor: pointer; }
+.v2-tappable:focus-visible, .v2-btn:focus-visible, .v2-link:focus-visible, .v2-suggest:focus-visible, .v2-hazard:focus-visible {
+    outline: 2px solid var(--sl-cyan); outline-offset: 2px;
+}
+.v2-chal { display: block; width: 100%; text-align: left; color: inherit; font-family: inherit; }
+.v2-list { padding: 4px var(--sl-s4); }
+.v2-chev { width: 18px; height: 18px; color: var(--sl-text-3); flex: none; }
+
+/* Hero: the water at my spot */
+.v2-hero {
+    background: linear-gradient(160deg, #0e2340 0%, var(--sl-surface) 70%);
+    border: 1px solid var(--sl-line);
+    border-radius: var(--sl-r-card);
+    padding: var(--sl-s5);
+    min-height: 210px;
+}
+.v2-skel { background: var(--sl-surface); }
+.v2-hero-name { font-size: var(--sl-fs-title); font-weight: 700; min-height: var(--sl-tap); display: flex; align-items: center; }
+.v2-spotswitch { display: flex; gap: var(--sl-s1); align-items: center; margin: 0 calc(var(--sl-s2) * -1); overflow-x: auto; scrollbar-width: none; }
+.v2-spotswitch::-webkit-scrollbar { display: none; }
+.v2-spotswitch button {
+    flex: none; min-height: var(--sl-tap); padding: 0 14px; border-radius: var(--sl-r-pill);
+    background: none; border: none; color: var(--sl-text-2); font-family: inherit;
+    font-size: 15px; font-weight: 600; cursor: pointer; max-width: 60vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.v2-spotswitch button.on { background: rgba(255, 255, 255, 0.08); color: var(--sl-text); }
+.v2-temp {
+    font-family: var(--sl-font-display); font-size: 104px; line-height: 0.95;
+    letter-spacing: 0.01em; margin: 6px 0 4px; font-variant-numeric: tabular-nums;
+}
+.v2-temp small { font-size: 44px; vertical-align: top; position: relative; top: 10px; margin-left: 2px; }
+.v2-temp-empty { color: var(--sl-text-3); }
+.v2-hero-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sl-s3); flex-wrap: wrap; margin-top: var(--sl-s2); }
+.v2-pill {
+    display: inline-flex; align-items: center; font-size: 13px; font-weight: 600;
+    padding: 5px 12px; border-radius: var(--sl-r-pill);
+    background: rgba(255, 255, 255, 0.08); color: var(--sl-text-2);
+}
+.v2-pill-ok { background: rgba(16, 185, 129, 0.14); color: var(--sl-green); }
+.v2-pill-warn { background: rgba(245, 158, 11, 0.14); color: var(--sl-amber); }
+.v2-pill-bad { background: var(--sl-danger-soft); color: var(--sl-danger); }
+.v2-delta { font-size: var(--sl-fs-sub); color: var(--sl-text-2); }
+.v2-delta b { font-weight: 700; }
+.v2-delta b.up { color: var(--sl-amber); }
+.v2-delta b.down { color: var(--sl-cyan); }
+
+/* One primary action per screen */
+.v2-btn {
+    display: flex; align-items: center; justify-content: center; gap: var(--sl-s2);
+    width: 100%; min-height: 52px; padding: 0 26px; border-radius: var(--sl-r-pill);
+    font-family: inherit; font-size: var(--sl-fs-body); font-weight: 700; cursor: pointer; border: none;
+}
+.v2-btn-primary { background: var(--sl-cyan); color: var(--sl-on-cyan); margin-top: var(--sl-s4); }
+.v2-btn-primary:active { filter: brightness(0.92); }
+.v2-btn-ghost { background: none; border: 1px solid var(--sl-line-strong); color: var(--sl-text); }
+.v2-btn-sm { width: auto; min-height: var(--sl-tap); padding: 0 20px; font-size: 15px; }
+.v2-btn i, .v2-btn svg { width: 20px; height: 20px; }
+.v2-hint { text-align: center; font-size: var(--sl-fs-caption); color: var(--sl-text-3); margin-top: var(--sl-s2); }
+
+/* Hazard: red means danger, and only danger */
+.v2-hazard {
+    display: flex; gap: var(--sl-s3); align-items: flex-start; width: 100%; text-align: left;
+    background: var(--sl-danger-soft); border: 1px solid var(--sl-danger-line); border-radius: var(--sl-r-card);
+    padding: 14px var(--sl-s4); margin-bottom: 14px; color: var(--sl-text); font-family: inherit; cursor: pointer;
+}
+.v2-hazard > i, .v2-hazard > svg { color: var(--sl-danger); margin-top: 2px; flex: none; width: 20px; height: 20px; }
+.v2-hazard b { display: block; font-size: 15px; }
+.v2-hazard-caution { background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.4); }
+.v2-hazard-caution > i, .v2-hazard-caution > svg { color: var(--sl-amber); }
+.v2-tag {
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+    padding: 2px 8px; border-radius: 6px; background: var(--sl-danger); color: #fff; margin-right: 6px;
+}
+.v2-hazard-caution .v2-tag { background: var(--sl-amber); color: var(--sl-on-cyan); }
+
+/* Strava suggestion */
+.v2-suggest {
+    display: flex; align-items: center; gap: var(--sl-s3); width: 100%; text-align: left;
+    margin-top: var(--sl-s3); padding: var(--sl-s3) 14px; min-height: 56px; border-radius: 16px;
+    background: rgba(252, 76, 2, 0.1); border: 1px solid rgba(252, 76, 2, 0.3);
+    color: var(--sl-text); font-family: inherit; font-size: 15px; cursor: pointer;
+}
+.v2-suggest > i:first-child, .v2-suggest > svg:first-child { color: #fc6a2a; flex: none; width: 20px; height: 20px; }
+
+.v2-going { display: inline-flex; align-items: center; gap: var(--sl-s2); min-height: var(--sl-tap); color: var(--sl-green); font-weight: 700; }
+.v2-going i, .v2-going svg { width: 18px; height: 18px; }
+.v2-prog { display: block; height: 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.08); overflow: hidden; margin-top: 10px; }
+.v2-prog > div { height: 100%; background: linear-gradient(90deg, var(--sl-cyan-deep), var(--sl-cyan)); border-radius: 6px; }
+
+.v2-flag { display: inline-flex; align-items: center; gap: var(--sl-s1); color: var(--sl-danger); font-size: var(--sl-fs-caption); font-weight: 600; }
+.v2-flag i, .v2-flag svg { width: 14px; height: 14px; }
+.v2-rowtemp { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
