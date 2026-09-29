@@ -3084,13 +3084,16 @@ async function loadTodayRegisters() {
   for (let i = 7; i >= 0; i--) dates.push(localISO(new Date(now.getFullYear(), now.getMonth(), now.getDate() - i)));
   const squadIds = (allSquads || []).map(q => q.id);
   if (!squadIds.length) { el.innerHTML = ''; return; }
-  const [sessRes, regRes] = await Promise.all([
+  const [sessRes, regRes, cancRes] = await Promise.all([
     sb.from('club_squad_sessions').select('id, squad_id, day_of_week, start_time, end_time, coach_name, custom_name, secondary_squad_id, linked_squad_ids').in('squad_id', squadIds).eq('is_active', true),
     sb.from('club_sessions').select('id, session_date, squad_id, start_time, coach_name, cover_needed').eq('club_id', currentClub.id).gte('session_date', dates[0]).lte('session_date', todayStr),
+    sb.from('club_session_cancellations').select('id, session_date, squad_session_id, reason').eq('club_id', currentClub.id).gte('session_date', dates[0]).lte('session_date', todayStr),
   ]);
   if (token !== _todayRegToken) return;
   if (sessRes.error || regRes.error) { el.innerHTML = ''; return; }
   const regs = regRes.data || [];
+  // If the cancellations table is unavailable, carry on without it (nothing is treated as cancelled)
+  const canc = cancRes.error ? [] : (cancRes.data || []);
   const marks = {};
   if (regs.length) {
     const { data: att } = await sb.from('club_attendance').select('session_id, status').in('session_id', regs.map(r => r.id));
@@ -3121,15 +3124,17 @@ async function loadTodayRegisters() {
       const m = reg ? marks[reg.id] : null;
       let state;
       if (m && m.n) state = 'done';
+      else if (canc.find(x => x.session_date === d && (!x.squad_session_id || x.squad_session_id === s.id))) state = 'cancelled';
       else if (reg && reg.cover_needed) state = 'cover';
       else if (d === todayStr) state = mins(s.end_time) < nowMins ? 'missed' : (mins(s.start_time) <= nowMins ? 'live' : 'later');
       else state = 'missed';
-      rows.push({ d, s, reg, m, state, coach: (reg?.coach_name || s.coach_name || '').trim() });
+      const cx = state === 'cancelled' ? canc.find(x => x.session_date === d && (!x.squad_session_id || x.squad_session_id === s.id)) : null;
+      rows.push({ d, s, reg, m, state, cx, coach: (reg?.coach_name || s.coach_name || '').trim() });
     });
   });
 
   const today = rows.filter(r => r.d === todayStr).sort((a, b) => mins(a.s.start_time) - mins(b.s.start_time));
-  const past = rows.filter(r => r.d !== todayStr && r.state !== 'done' && dayHasAny[r.d]).sort((a, b) => b.d.localeCompare(a.d) || mins(a.s.start_time) - mins(b.s.start_time));
+  const past = rows.filter(r => r.d !== todayStr && r.state !== 'done' && r.state !== 'cancelled' && dayHasAny[r.d]).sort((a, b) => b.d.localeCompare(a.d) || mins(a.s.start_time) - mins(b.s.start_time));
   const skippedDays = dates.filter(d => d !== todayStr && !dayHasAny[d] && rows.some(r => r.d === d));
   const todayMissed = today.filter(r => r.state === 'missed');
   const missed = [...past, ...todayMissed.filter(r => !past.includes(r))];
@@ -3138,11 +3143,14 @@ async function loadTodayRegisters() {
   const stateChip = r => r.state === 'done' ? chip(`Done · ${r.m.here} of ${r.m.n} here`, '#10b981')
     : r.state === 'cover' ? chip('Needs cover', '#f59e0b')
     : r.state === 'missed' ? chip('No register', '#f59e0b')
+    : r.state === 'cancelled' ? chip('Not held' + (r.cx?.reason ? ' · ' + r.cx.reason : ''), '#64748b')
     : r.state === 'live' ? chip('Under way', '#38bdf8')
     : chip('Later', '#64748b');
   const rowHtml = (r, showDay) => `<li class="action-item" onclick="showPage('attendance')" style="min-height:44px;">
       <div class="action-text"><div style="font-weight:600;">${showDay ? fmtDay(r.d) + ' · ' : ''}${hhmm(r.s.start_time)} · ${label(r.s)}</div>
-      <div class="action-names">${r.coach ? r.coach : 'No coach set'}</div></div>${stateChip(r)}</li>`;
+      <div class="action-names">${r.coach ? r.coach : 'No coach set'}</div></div>${stateChip(r)}
+      ${r.state === 'cancelled' ? `<button class="btn-sm" style="font-size:11px;margin-left:8px;" onclick="event.stopPropagation();undoCancellation('${r.cx.id}')">Undo</button>`
+        : r.state !== 'done' ? `<button class="btn-sm" style="font-size:11px;margin-left:8px;" title="This session did not run" onclick="event.stopPropagation();openCancelSheet('${r.d}','${r.s.id}')">Not held</button>` : ''}</li>`;
 
   const doneToday = today.filter(r => r.state === 'done').length;
   const dueToday = today.filter(r => r.state !== 'later').length;
@@ -3151,7 +3159,7 @@ async function loadTodayRegisters() {
     : '<div style="padding:16px;font-size:13px;color:var(--text-sec);">No sessions scheduled today.</div>';
 
   // Per-coach completion over the window (only sessions that should have a register by now)
-  const due = rows.filter(r => (r.d !== todayStr ? dayHasAny[r.d] : r.state !== 'later' && r.state !== 'live'));
+  const due = rows.filter(r => r.state !== 'cancelled' && (r.d !== todayStr ? dayHasAny[r.d] : r.state !== 'later' && r.state !== 'live'));
   const byCoach = {};
   due.forEach(r => { const k = first(r.coach) || 'unassigned'; const c = byCoach[k] || (byCoach[k] = { n: 0, ok: 0 }); c.n++; if (r.state === 'done') c.ok++; });
   const coachLine = Object.entries(byCoach).sort((a, b) => (a[1].ok / a[1].n) - (b[1].ok / b[1].n)).slice(0, 8)
@@ -3170,6 +3178,48 @@ async function loadTodayRegisters() {
         <div style="font-weight:700;margin-bottom:4px;">Registers completed, last 7 days</div>${coachLine}
         ${skippedDays.length ? `<div style="margin-top:6px;color:var(--text-dim);">No registers at all on ${skippedDays.map(fmtDay).join(', ')}, so those days are not counted as missed (holiday or cancelled?).</div>` : ''}
       </div></div>` : `<div class="card" style="margin-bottom:16px;padding:14px 20px;font-size:13px;color:var(--text-sec);">Every register from the last 7 days is in.${skippedDays.length ? ` (No registers on ${skippedDays.map(fmtDay).join(', ')}: holiday or cancelled?)` : ''}</div>`}`;
+}
+
+// ── "NOT HELD": mark a scheduled session as not run (holiday, pool closed, coach away) ─────────
+function openCancelSheet(dateStr, squadSessionId) {
+  document.getElementById('cancelSheet')?.remove();
+  const box = document.createElement('div');
+  box.id = 'cancelSheet';
+  box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:2200;display:flex;align-items:center;justify-content:center;padding:16px;';
+  const nice = new Date(dateStr + 'T12:00:00').toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' });
+  const optStyle = 'display:flex;align-items:center;gap:10px;min-height:44px;font-size:14px;cursor:pointer;';
+  box.innerHTML = `<div style="background:var(--bg-card,#0d1728);border:1px solid var(--border);border-radius:14px;padding:20px;width:min(380px,100%);">
+      <div style="font-size:16px;font-weight:800;margin-bottom:4px;">Session not held</div>
+      <div style="font-size:12px;color:var(--text-sec);margin-bottom:12px;">${nice}. It will stop counting as a missed register.</div>
+      <label style="${optStyle}"><input type="radio" name="cxScope" value="one" checked> Only this session</label>
+      <label style="${optStyle}"><input type="radio" name="cxScope" value="day"> Every session that day</label>
+      <div style="font-size:12px;font-weight:700;margin:10px 0 4px;">Reason</div>
+      <select id="cxReason" class="filter-select" style="width:100%;min-height:44px;">
+        <option>Public holiday</option><option>Pool closed</option><option>Coach unavailable</option><option>Weather</option><option>Other</option>
+      </select>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+        <button class="btn-sm" style="min-height:44px;" onclick="document.getElementById('cancelSheet').remove()">Cancel</button>
+        <button class="btn-sm" style="min-height:44px;background:var(--cyan);color:#080f1a;font-weight:700;" onclick="saveCancellation('${dateStr}','${squadSessionId}')">Save</button>
+      </div></div>`;
+  box.onclick = e => { if (e.target === box) box.remove(); };
+  document.body.appendChild(box);
+}
+async function saveCancellation(dateStr, squadSessionId) {
+  const scope = document.querySelector('input[name="cxScope"]:checked')?.value || 'one';
+  const reason = document.getElementById('cxReason')?.value || null;
+  const { error } = await sb.from('club_session_cancellations').insert({
+    club_id: currentClub.id, session_date: dateStr,
+    squad_session_id: scope === 'day' ? null : squadSessionId, reason, created_by: currentUser.id,
+  });
+  if (error && error.code !== '23505') { showToast('Could not save: ' + error.message, 'error'); return; }
+  document.getElementById('cancelSheet')?.remove();
+  showToast('Marked as not held', 'success');
+  loadTodayRegisters();
+}
+async function undoCancellation(id) {
+  const { error } = await sb.from('club_session_cancellations').delete().eq('id', id);
+  if (error) { showToast('Could not undo: ' + error.message, 'error'); return; }
+  loadTodayRegisters();
 }
 
 // ── SIDEBAR BY WORKFLOW (swim clubs only — Aquasharks) ─────────────

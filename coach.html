@@ -1500,6 +1500,10 @@ async function refreshMissedBanner() {
     .select('id, session_date, squad_id, start_time, coach_name')
     .eq('club_id', currentClub.id).gte('session_date', dates[0]).lte('session_date', todayStr);
   if (error || token !== _missedToken) return;
+  // Sessions an admin marked as not held (holiday, pool closed...). Table missing/unreadable => none.
+  const { data: cxData } = await sb.from('club_session_cancellations')
+    .select('session_date, squad_session_id').eq('club_id', currentClub.id).gte('session_date', dates[0]).lte('session_date', todayStr);
+  const cancelled = cxData || [];
   const marks = {};
   if ((regs || []).length) {
     const { data: att } = await sb.from('club_attendance').select('session_id').in('session_id', regs.map(r => r.id));
@@ -1515,6 +1519,7 @@ async function refreshMissedBanner() {
     const dow = new Date(d + 'T12:00:00').getDay();
     allWeekSessions.filter(s => s.day_of_week === dow && isMySession(s)).forEach(s => {
       if (d === todayStr && toMins(s.end_time) >= nowMins) return;
+      if (cancelled.some(x => x.session_date === d && (!x.squad_session_id || x.squad_session_id === s.id))) return;
       const ids = [s.squad_id, s.secondary_squad_id].filter(Boolean);
       const sameSlot = allWeekSessions.filter(x => x.day_of_week === dow && x.squad_id === s.squad_id && hhmm(x.start_time) === hhmm(s.start_time)).length > 1;
       let c = (regs || []).filter(r => r.session_date === d && ids.includes(r.squad_id) && hhmm(r.start_time) === hhmm(s.start_time) && marks[r.id]);
