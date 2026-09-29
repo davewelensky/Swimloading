@@ -85,6 +85,8 @@
             if (typeof storyCardsEnabled !== 'function' || !(await storyCardsEnabled())) return null;
             var r = await supabaseClient.rpc('get_my_story_events_for_log_v1', { p_temp_log_id: ctx.logId });
             var events = r && Array.isArray(r.data) ? r.data : [];
+            // Same event, same properties, same moment as the classic story card, so the two designs stay comparable
+            try { analytics.track('story_card_eligible', { source: ctx.source || null, event_count: events.length }); } catch (e) { /* optional */ }
             if (!events.length) return null;
             var lead = events[0];
             var guardKey = 'storyCardShown:' + ctx.logId + ':' + lead.id;
@@ -122,6 +124,7 @@
                 story = s;
                 if (st.ctx !== ctx) return;                    // dismissed while we waited
                 render(ctx, story);
+                try { analytics.track('post_log_shown', { surface: 'v2_logged', source: ctx.source || null, has_story: !!story }); } catch (e) { /* optional */ }
                 var lg2 = $('logTemp'); if (lg2) lg2.classList.add('v2-hide');
                 $('v2DoneScrim').classList.add('on');
                 $('v2Done').classList.add('on');
