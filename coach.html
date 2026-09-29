@@ -1677,7 +1677,9 @@ function openConfirm(sqSessionId) {
   // Show "Can't make it" only for my sessions that aren't already flagged
   const alreadyFlagged = coverNeededToday.has(`${s.squad_id}_${s.start_time}`);
   const cantBtn = document.getElementById('cantMakeItBtn');
-  if (cantBtn) cantBtn.style.display = (!isCover && !alreadyFlagged) ? '' : 'none';
+  // "Can't make it" flags a session as needing cover, so it only makes sense for today or a day still to come
+  const isPastDay = selectedDate < localDateStr();
+  if (cantBtn) cantBtn.style.display = (!isCover && !alreadyFlagged && !isPastDay) ? '' : 'none';
 
   showScreen('confirm');
 }
