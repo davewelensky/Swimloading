@@ -27,7 +27,7 @@ export default async function handler(req, res) {
   const eightWeeksOn = new Date(Date.now() + 56 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   // Fetch all context in parallel
-  const [squads, assignments, galas, roster, pbTimes, galaTimes, standards] = await Promise.all([
+  const [squads, assignments, galas, roster, pbTimes, galaTimes, standards, registers] = await Promise.all([
     sb(`club_squads?club_id=eq.${club_id}&is_active=eq.true&select=id,name,sort_order&order=sort_order`),
     sb(`club_set_assignments?club_id=eq.${club_id}&session_date=gte.${fourWeeksAgo}&session_date=lte.${today}&select=squad_id,session_date,club_swim_sets(focus,name,total_distance)`),
     sb(`club_events?club_id=eq.${club_id}&event_date=gte.${today}&event_date=lte.${eightWeeksOn}&is_active=eq.true&select=title,event_date&order=event_date`),
@@ -35,6 +35,8 @@ export default async function handler(req, res) {
     sb(`club_swimmer_times?club_id=eq.${club_id}&is_pb=eq.true&select=roster_id,event,course,time_seconds,time_text`),
     sb(`club_gala_results?club_id=eq.${club_id}&is_pb=eq.true&select=roster_id,stroke,distance,course,time_seconds,time_text`),
     sb(`ssa_qualifying_times?select=gender,age_group,course,level,event,time_seconds,time_text&order=level,time_seconds`),
+    // Registers the coaches actually took in the last 4 weeks, with each swimmer's mark (embedded via session_id)
+    sb(`club_sessions?club_id=eq.${club_id}&session_date=gte.${fourWeeksAgo}&session_date=lte.${today}&select=id,squad_id,session_date,club_attendance(roster_id,status)`),
   ]);
 
   // SA championship age-up: age on 1 October of current season
@@ -61,6 +63,28 @@ export default async function handler(req, res) {
       squadMap[a.squad_id].sets.push({ focus: a.club_swim_sets.focus, name: a.club_swim_sets.name, date: a.session_date });
     }
   });
+
+  // Attendance from registers that were actually taken. A session with no register is not counted
+  // against anyone: we only know about the sessions a coach marked.
+  const attRegs = {};      // squad_id -> number of registers with at least one mark
+  const attPresent = {};   // squad_id -> total 'present' marks
+  const attBySwimmer = {}; // `${squad_id}|${roster_id}` -> present count
+  (registers || []).forEach(reg => {
+    const marks = reg.club_attendance || [];
+    if (!marks.length) return;
+    attRegs[reg.squad_id] = (attRegs[reg.squad_id] || 0) + 1;
+    marks.forEach(m => {
+      if (m.status !== 'present') return;
+      attPresent[reg.squad_id] = (attPresent[reg.squad_id] || 0) + 1;
+      const k = `${reg.squad_id}|${m.roster_id}`;
+      attBySwimmer[k] = (attBySwimmer[k] || 0) + 1;
+    });
+  });
+  const attendanceOf = swimmer => {
+    const of = attRegs[swimmer.squad_id] || 0;
+    return { attended: attBySwimmer[`${swimmer.squad_id}|${swimmer.id}`] || 0, of };
+  };
+  const attText = a => a.of >= 4 ? `attended ${a.attended} of ${a.of} registered sessions in the last 4 weeks` : 'attendance unknown (too few registers taken)';
 
   // Merge PBs from both tables
   const allPBs = {};
@@ -114,6 +138,7 @@ export default async function handler(req, res) {
           nextLevel:   next.level,
           standard:    next.time_text,
           gapSeconds:  gap.toFixed(1),
+          attendance:  attendanceOf(swimmer),
         });
       }
     });
@@ -132,7 +157,10 @@ export default async function handler(req, res) {
     const breakdown = Object.keys(counts).length
       ? Object.entries(counts).map(([f, c]) => `${f}:${c}`).join(', ')
       : 'no sets assigned yet';
-    return `${sq.name}: ${breakdown} (${sq.sets.length} sessions last 4 weeks)`;
+    const id = Object.keys(squadMap).find(k => squadMap[k] === sq);
+    const regs = attRegs[id] || 0;
+    const turnout = regs >= 4 ? `; turnout averages ${(attPresent[id] / regs).toFixed(1)} swimmers over ${regs} registers` : '; turnout unknown (few registers taken)';
+    return `${sq.name}: ${breakdown} (${sq.sets.length} sessions last 4 weeks)${turnout}`;
   });
 
   const context = `Today: ${today}
@@ -151,7 +179,7 @@ ${activeSquads.map(s => s.name).join(', ') || 'All squads'}
 
 SWIMMERS WITHIN 5 SECONDS OF NEXT QUALIFYING LEVEL:
 ${nearQualifiers.slice(0, 30).map(n =>
-  `${n.swimmer} (${n.squad}): ${n.event} ${n.course} — current ${n.currentTime}, needs ${n.standard} for ${n.nextLevel}, gap ${n.gapSeconds}s`
+  `${n.swimmer} (${n.squad}): ${n.event} ${n.course} — current ${n.currentTime}, needs ${n.standard} for ${n.nextLevel}, gap ${n.gapSeconds}s, ${attText(n.attendance)}`
 ).join('\n') || 'None currently within 5s of next level'}`;
 
   // Call Claude
@@ -162,6 +190,8 @@ ${nearQualifiers.slice(0, 30).map(n =>
       model: 'claude-sonnet-4-6',
       max_tokens: 2000,
       system: `You are an expert swimming coach analyst covering all disciplines — competitive pool, open water, triathlon, and learn-to-swim. Adapt your recommendations to the stated training goal: a gala needs tapering and race-pace work; open water needs endurance and sighting; a weekly review needs balance; learn-to-swim needs skill progression. Return ONLY valid JSON — no markdown, no extra text.
+
+Attendance rules: each near-qualifier line states how many registered sessions that swimmer attended. If they attended fewer than half, make attendance the first point of the training_tip (turning up is the fastest gain) before any set advice. If attendance is unknown, say nothing about it. Use squad turnout to size recommendations (a squad averaging few swimmers suits smaller-group work). Never invent attendance figures.
 
 Return this exact structure:
 {
@@ -209,7 +239,10 @@ Return this exact structure:
   }
 
   res.setHeader('Cache-Control', 'no-store');
-  return res.status(200).json({ ...result, _meta: { squadsAnalysed: squads?.length || 0, nearQualifiers: nearQualifiers.length, galas: galas?.length || 0 } });
+  const attendanceMeta = { squads: {}, swimmers: {} };
+  activeSquads.forEach(sq => { const n = attRegs[sq.id] || 0; attendanceMeta.squads[sq.name] = { registers: n, avgPresent: n ? +(attPresent[sq.id] / n).toFixed(1) : null }; });
+  nearQualifiers.forEach(n => { attendanceMeta.swimmers[n.swimmer] = n.attendance; });
+  return res.status(200).json({ ...result, _meta: { squadsAnalysed: squads?.length || 0, nearQualifiers: nearQualifiers.length, galas: galas?.length || 0, attendance: attendanceMeta } });
 
   } catch (err) {
     console.error('Insights error:', err);

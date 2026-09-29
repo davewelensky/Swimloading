@@ -881,9 +881,41 @@ async function boot() {
 }
 
 // ══ DATA ════════════════════════════════════════════════════════════
+let turnout = {}; // `${squad_id}|${dow}` -> { avg, n }   (from registers coaches actually took, last 4 weeks)
+let turnoutSquad = {}; // squad_id -> { avg, n }
+async function loadTurnout() {
+  turnout = {}; turnoutSquad = {};
+  try {
+    if (!squads.length) return;
+    const from = dateStr(addDays(new Date(), -28)), to = dateStr(addDays(new Date(), -1));
+    const { data, error } = await sb.from('club_sessions')
+      .select('squad_id, session_date, club_attendance(status)')
+      .eq('club_id', currentClub.id).gte('session_date', from).lte('session_date', to);
+    if (error) return;
+    const byDay = {}, bySq = {};
+    (data || []).forEach(reg => {
+      const marks = reg.club_attendance || [];
+      if (!marks.length) return; // a register nobody marked tells us nothing about turnout
+      const here = marks.filter(m => m.status === 'present').length;
+      const dow = new Date(reg.session_date + 'T12:00:00').getDay();
+      (byDay[`${reg.squad_id}|${dow}`] = byDay[`${reg.squad_id}|${dow}`] || []).push(here);
+      (bySq[reg.squad_id] = bySq[reg.squad_id] || []).push(here);
+    });
+    const avg = a => Math.round(a.reduce((x, y) => x + y, 0) / a.length);
+    Object.entries(byDay).forEach(([k, a]) => { turnout[k] = { avg: avg(a), n: a.length }; });
+    Object.entries(bySq).forEach(([k, a]) => { turnoutSquad[k] = { avg: avg(a), n: a.length }; });
+  } catch (e) { console.warn('turnout unavailable', e); }
+}
+function turnoutTag(sqId, dow) {
+  const t = turnout[`${sqId}|${dow}`];
+  return t && t.n >= 2
+    ? `<div title="Average number marked here over the last ${t.n} registers taken on this day" style="font-size:10px;color:var(--text-sec);margin-top:3px;">usually ${t.avg} here</div>` : '';
+}
+
 async function loadAll() {
   await Promise.all([loadSquads(), loadSets()]);
   await loadWeekAssignments();
+  await loadTurnout();
 }
 
 async function loadSquads() {
@@ -1019,6 +1051,7 @@ function renderInsights(data) {
         <span class="insight-badge ${sq.urgency || 'low'}">${sq.urgency === 'high' ? 'Urgent' : sq.urgency === 'medium' ? 'This week' : 'On track'}</span>
       </div>
       <div class="insight-balance">${h(sq.balance_note || '')}</div>
+      ${(() => { const t = (meta.attendance?.squads || {})[sq.name]; return t && t.registers >= 4 ? `<div style="font-size:12px;color:var(--text-sec);margin-bottom:6px;">Turnout: averages ${t.avgPresent} here over ${t.registers} registers</div>` : ''; })()}
       <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;">
         ${dot}Next focus: <span style="color:${focusColours[sq.priority_focus]||'#94a3b8'}">${sq.priority_focus || 'mixed'}</span>
       </div>
@@ -1045,13 +1078,14 @@ function renderInsights(data) {
       <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
         <table class="qualifier-table">
           <thead><tr>
-            <th>Swimmer</th><th>Squad</th><th>Event</th><th>Gap</th><th>Training tip</th>
+            <th>Swimmer</th><th>Squad</th><th>Event</th><th>Gap</th><th>Attendance</th><th>Training tip</th>
           </tr></thead>
           <tbody>${(data.near_qualifiers || []).map(n => `<tr>
             <td style="font-weight:600;">${h(n.swimmer)}</td>
             <td style="color:var(--text-sec);">${h(n.squad)}</td>
             <td>${h(n.event)}</td>
             <td><span class="gap-pill">${h(n.gap)}</span></td>
+            <td style="font-size:12px;">${(() => { const a = (meta.attendance?.swimmers || {})[n.swimmer]; if (!a || a.of < 4) return '<span style="color:var(--text-dim);">unknown</span>'; const low = a.attended * 2 < a.of; return `<span style="font-weight:700;color:${low ? 'var(--amber)' : 'var(--green)'};">${a.attended} of ${a.of}</span>`; })()}</td>
             <td style="color:var(--text-sec);font-size:12px;">${h(n.training_tip)}</td>
           </tr>`).join('')}</tbody>
         </table>
@@ -1169,7 +1203,7 @@ function renderPlanner() {
                <i data-lucide="plus" style="width:12px;height:12px;"></i>
              </div>`
           : '';
-        return `<td><div style="display:flex;flex-direction:column;gap:4px;">${chips}${addBtn}</div></td>`;
+        return `<td><div style="display:flex;flex-direction:column;gap:4px;">${chips}${addBtn}</div>${trains ? turnoutTag(sq.id, dow) : ''}</td>`;
       }
       if (!trains) {
         return `<td><div class="cell-rest" onclick="openAssign('${sq.id}','${ds}','AM',true)" title="No regular session — add an extra one">
@@ -1179,12 +1213,13 @@ function renderPlanner() {
       }
       return `<td><div class="cell-empty" onclick="openAssign('${sq.id}','${ds}','${slot}')" title="Assign set">
         <i data-lucide="plus"></i>
-      </div></td>`;
+      </div>${turnoutTag(sq.id, dow)}</td>`;
     }).join('');
 
     return `<tr><td>
       <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-start;">
         <span style="font-weight:600;">${h(sq.name)}</span>
+        ${turnoutSquad[sq.id] && turnoutSquad[sq.id].n >= 4 ? `<span title="Average marked here per register over the last 4 weeks (${turnoutSquad[sq.id].n} registers)" style="font-size:11px;color:var(--text-sec);">avg ${turnoutSquad[sq.id].avg} here</span>` : ''}
         <button class="wa-week-btn" onclick="shareWeek('${sq.id}')">
           <i data-lucide="share-2"></i>Share week
         </button>
