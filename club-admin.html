@@ -4699,6 +4699,12 @@ function renderTrackerGrid(swimmers) {
       }
     }
 
+    let nextLineHtml = '';
+    if (hasQt && allEvents.length) {
+      const f = _trackerFocus(s.date_of_birth, s.gender, allEvents.map(e => ({ key: e.name, pb: e.pb }))).find(x => !x.done);
+      if (f) nextLineHtml = `<div style="margin:2px 0 8px;padding:6px 10px;border-radius:8px;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.2);font-size:12px;"><span style="color:var(--cyan);font-weight:700;">Next:</span> ${f.evName} ${f.course} <b style="color:${f.pct < 0.03 ? 'var(--green)' : 'var(--amber)'};">${_fmtGap(f.gap)} off ${_QT_LABEL[f.level]}</b></div>`;
+    }
+
     const primarySquad   = allSquads.find(q => q.id === s.squad_id);
     const secondarySquad = s.secondary_squad_id ? allSquads.find(q => q.id === s.secondary_squad_id) : null;
     const squadDot = c => c ? `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${c};margin-right:4px;flex-shrink:0;"></span>` : '';
@@ -4728,6 +4734,7 @@ function renderTrackerGrid(swimmers) {
           <div class="tracker-stat-lbl">CSS /100m</div>
         </div>
       </div>
+      ${nextLineHtml}
       ${eventsHtml}
       ${qtStripHtml}
     </div>`;
@@ -12877,11 +12884,12 @@ async function openTrackerDetail(rosterId) {
     <div class="swimmer-detail-stat"><div class="swimmer-detail-stat-val" style="color:var(--green);">${pbCount}</div><div class="swimmer-detail-stat-lbl">PBs</div></div>
     <div class="swimmer-detail-stat"><div class="swimmer-detail-stat-val">${r.sessions}</div><div class="swimmer-detail-stat-lbl">Sessions</div></div>`;
 
-  const ssaAgDetail = _ssaAgeGroup(r.date_of_birth);
+  const ssaAgDetail = _ssaAgeGroup(r.date_of_birth, trackerChampsYear);
   const ssaGDetail  = r.gender ? _ssaGender(r.gender) : null;
   const hasQtDetail = !!(ssaAgDetail && ssaGDetail);
 
-  document.getElementById('tdEvents').innerHTML = groupList.map(g => {
+  const _panel = window._trackerIsCompetitive ? renderNextTargetPanel(r.date_of_birth, r.gender, groupList) : '';
+  document.getElementById('tdEvents').innerHTML = _panel + groupList.map(g => {
     const pts = g.points;
     const first = pts[0].time_s;
     const pb    = Math.min(...pts.map(p => p.time_s));
@@ -12934,11 +12942,14 @@ async function openTrackerDetail(rosterId) {
 
     // QT comparison row for detail modal
     let qtDetailHtml = '';
+    let nextTarget = null;
     if (hasQtDetail) {
       const pfx = `${ssaGDetail}|${ssaAgDetail}|${g.course}`;
       const qtL2   = trackerQtMap[`${pfx}|L2|${g.eventKey}`];
       const qtL3   = trackerQtMap[`${pfx}|L3|${g.eventKey}`];
       const qtSANJ = trackerQtMap[`${pfx}|SANJ|${g.eventKey}`];
+      const _nx = [['L2', qtL2], ['L3', qtL3], ['SA champs', qtSANJ]].find(x => x[1] && pb > x[1].time_seconds);
+      if (_nx) nextTarget = { time_s: _nx[1].time_seconds, label: _nx[0] };
       if (qtL2 || qtL3 || qtSANJ) {
         const mkCell = (qt, cls, label) => {
           if (!qt) return `<span style="font-size:11px;color:var(--text-dim);">—</span>`;
@@ -12965,13 +12976,98 @@ async function openTrackerDetail(rosterId) {
       </div>
       ${qtDetailHtml}
       ${summaryBar}
-      ${pts.length >= 2 ? drawTimeChart(pts) : ''}
+      ${pts.length >= 2 ? drawTimeChart(pts, nextTarget) : ''}
       ${rows}
     </div>`;
   }).join('') || '<div style="padding:24px;text-align:center;color:var(--text-sec);font-size:13px;">No results recorded yet.</div>';
 }
 
-function drawTimeChart(pts) {
+// ── NEXT TARGET (focus events + projection) ───────────────────────
+// For each event the swimmer has swum: their PB, the next unmet standard (L2 → L3 → SANJ, where
+// SANJ = SA champs) and how far off it is. Age group is the one they compete in at trackerChampsYear.
+// Projection is a straight-line fit through dated swims in that event; it needs 3+ swims spanning
+// 60+ days and a downward trend, otherwise we say so instead of guessing.
+const _QT_LABEL = { L2: 'L2', L3: 'L3', SANJ: 'SA champs' };
+function _fmtGap(s) { return (Math.round(s * 10) / 10).toFixed(1) + 's'; }
+function _projectReach(points, targetSec) {
+  // points: [{date:'YYYY-MM-DD', time_s}] — best swim per date, oldest first
+  const byDate = {};
+  points.forEach(p => { if (p.date && (!byDate[p.date] || p.time_s < byDate[p.date])) byDate[p.date] = p.time_s; });
+  const pts = Object.entries(byDate).map(([d, t]) => ({ x: Date.parse(d) / 864e5, t })).sort((a, b) => a.x - b.x).slice(-5);
+  if (pts.length < 3 || pts[pts.length - 1].x - pts[0].x < 60) return { status: 'few' };
+  const n = pts.length, mx = pts.reduce((a, p) => a + p.x, 0) / n, mt = pts.reduce((a, p) => a + p.t, 0) / n;
+  const den = pts.reduce((a, p) => a + (p.x - mx) ** 2, 0);
+  if (!den) return { status: 'few' };
+  const slope = pts.reduce((a, p) => a + (p.x - mx) * (p.t - mt), 0) / den; // seconds per day
+  const lastX = pts[pts.length - 1].x;
+  // A trend from old swims says nothing about today — a line drawn through last year's races overshoots
+  if (Date.now() / 864e5 - lastX > 120) return { status: 'stale', last: new Date(lastX * 864e5) };
+  if (slope >= -0.005) return { status: 'flat' };
+  const dayReach = mx + (targetSec - mt) / slope;
+  const monthsAway = (dayReach - Date.now() / 864e5) / 30.4;
+  if (monthsAway <= 0) return { status: 'now', perMonth: -slope * 30.4 };
+  if (monthsAway > 18) return { status: 'far', perMonth: -slope * 30.4 };
+  return { status: 'ok', perMonth: -slope * 30.4, date: new Date(dayReach * 864e5) };
+}
+function _trackerFocus(dob, gender, events) {
+  // events: [{ key:'100 Free SC', pb, points?:[{date,time_s}] }]
+  const ag = _ssaAgeGroup(dob, trackerChampsYear), g = gender ? _ssaGender(gender) : null;
+  if (!ag || !g) return [];
+  const out = [];
+  events.forEach(e => {
+    const { event: evName, course } = _parseTrackerEventKey(e.key);
+    const pfx = `${g}|${ag}|${course}`;
+    const std = ['L2', 'L3', 'SANJ'].map(l => ({ level: l, qt: trackerQtMap[`${pfx}|${l}|${evName}`] })).filter(x => x.qt);
+    if (!std.length) return;
+    const next = std.find(x => e.pb > x.qt.time_seconds);
+    const sanj = std.find(x => x.level === 'SANJ');
+    const row = { key: e.key, evName, course, pb: e.pb, ag, sanj: sanj ? sanj.qt : null };
+    if (!next) { row.done = true; out.push(row); return; }
+    row.level = next.level; row.qt = next.qt;
+    row.gap = e.pb - next.qt.time_seconds;
+    row.pct = row.gap / next.qt.time_seconds;
+    row.gapSanj = sanj ? e.pb - sanj.qt.time_seconds : null;
+    row.proj = e.points ? _projectReach(e.points, next.qt.time_seconds) : null;
+    out.push(row);
+  });
+  return out.sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || (a.pct ?? 9) - (b.pct ?? 9));
+}
+function _projText(p) {
+  if (!p) return '';
+  const m = d => d.toLocaleDateString('en-ZA', { month: 'short', year: 'numeric' });
+  if (p.status === 'ok') return `At the recent rate of ${_fmtGap(p.perMonth)} a month, this standard is reached around <b>${m(p.date)}</b>. An estimate, not a promise.`;
+  if (p.status === 'now') return 'The recent trend says the standard is already within reach. Needs a race to prove it.';
+  if (p.status === 'far') return `Improving ${_fmtGap(p.perMonth)} a month, but more than 18 months away at that rate.`;
+  if (p.status === 'stale') return `Last swum in ${m(p.last)}, too long ago to project from. Needs a fresh swim in this event.`;
+  if (p.status === 'flat') return 'Recent swims are flat or slower, so no projection.';
+  return 'Not enough dated swims yet for a projection (needs 3 across 2+ months).';
+}
+function renderNextTargetPanel(dob, gender, groups) {
+  const focus = _trackerFocus(dob, gender, groups.map(g => ({
+    key: `${g.eventKey} ${g.course}`, pb: Math.min(...g.points.map(p => p.time_s)),
+    points: g.points.map(p => ({ date: p.date, time_s: p.time_s })),
+  })));
+  const todo = focus.filter(f => !f.done).slice(0, 3);
+  if (!todo.length && !focus.length) return '';
+  const ag = focus[0].ag;
+  const rows = todo.map((f, i) => `<div style="padding:10px 0;${i ? 'border-top:1px solid var(--border);' : ''}">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <div style="font-size:14px;font-weight:700;">${f.evName} <span class="course-tag ${f.course === 'LC' ? 'course-lc' : 'course-sc'}">${f.course}</span></div>
+        <div style="font-size:15px;font-weight:800;color:${f.pct < 0.03 ? 'var(--green)' : 'var(--amber)'};">${_fmtGap(f.gap)} off ${_QT_LABEL[f.level]}</div>
+      </div>
+      <div style="font-size:12px;color:var(--text-sec);margin-top:3px;">PB ${formatTime(f.pb)} · needs ${f.qt.time_text}${f.level !== 'SANJ' && f.gapSanj != null ? ` · ${_fmtGap(f.gapSanj)} off SA champs (${f.sanj.time_text})` : ''}</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:3px;">${_projText(f.proj)}</div>
+    </div>`).join('');
+  const done = focus.filter(f => f.done).map(f => `${f.evName} ${f.course}`);
+  return `<div style="margin-bottom:18px;padding:14px 16px;border:1px solid rgba(56,189,248,0.3);background:rgba(56,189,248,0.05);border-radius:12px;">
+    <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Next target · ${trackerChampsYear} standards, age ${ag}</div>
+    <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Closest events first. SA champs = SANJ.</div>
+    ${rows || '<div style="font-size:13px;color:var(--text-sec);padding:6px 0;">Every event with a standard has reached SA champs.</div>'}
+    ${done.length ? `<div style="font-size:11px;color:var(--green);margin-top:8px;">Already at SA champs: ${done.join(', ')}</div>` : ''}
+  </div>`;
+}
+
+function drawTimeChart(pts, target) {
   if (pts.length < 2) return '';
 
   const W = 640, padL = 52, padR = 16, padT = 28, padB = 48;
@@ -12981,7 +13077,10 @@ function drawTimeChart(pts) {
   const innerH = H - padT - padB;
 
   const times = pts.map(p => p.time_s);
-  const minT  = Math.min(...times);
+  const _ptMin = Math.min(...times);
+  // Show the next standard as a dashed line only when it is near enough not to flatten the chart
+  const showTarget = !!(target && target.time_s < _ptMin && (_ptMin - target.time_s) <= Math.max(3, (Math.max(...times) - _ptMin) * 2.5));
+  const minT  = showTarget ? target.time_s : _ptMin;
   const maxT  = Math.max(...times);
   const range = (maxT - minT) || 1;
   const pad   = range * 0.15; // small padding so dots don't sit on edges
@@ -13033,6 +13132,7 @@ function drawTimeChart(pts) {
     </defs>
     ${gridLines}
     ${axisLabel}
+    ${showTarget ? `<line x1="${padL}" y1="${cy(target.time_s).toFixed(1)}" x2="${W - padR}" y2="${cy(target.time_s).toFixed(1)}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="6 5"/><text x="${W - padR}" y="${(cy(target.time_s) - 6).toFixed(1)}" fill="#f59e0b" font-size="10" font-weight="700" text-anchor="end">${target.label} ${formatTime(target.time_s)}</text>` : ''}
     <path d="${areaD}" fill="url(#chartFill)"/>
     <path d="${pathD}" stroke="#38bdf8" stroke-width="2.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
     ${dots}
