@@ -33,7 +33,7 @@
         setTimeout(function () { location.href = location.pathname; }, 150);
     };
 
-    // Who may switch IN to v2 from the classic app: admins, and anyone on the 'ui_v2_beta' flag
+    // Who may switch IN to v2 from the classic app: admins (profiles.is_admin), and anyone on the 'ui_v2_beta' flag
     // (feature_flags: enabled_global, or the user id in allowed_user_ids). Fails closed. Anyone
     // already in v2 can always switch back, whatever the flag says.
     var _offer = null;
@@ -42,7 +42,10 @@
         if (!_offer) {
             _offer = (async function () {
                 try {
-                    if (typeof currentUserProfile !== 'undefined' && currentUserProfile && currentUserProfile.is_admin) return true;
+                    // NOTE: v1 loads currentUserProfile with a fixed column list that omits is_admin, so read it
+                    // directly (own-row select is allowed by RLS).
+                    var me = await supabaseClient.from('profiles').select('is_admin').eq('id', currentUser.id).maybeSingle();
+                    if (me && me.data && me.data.is_admin) return true;
                     var r = await supabaseClient.from('feature_flags').select('enabled_global, allowed_user_ids').eq('key', 'ui_v2_beta').maybeSingle();
                     var d = r && r.data;
                     return !!(d && (d.enabled_global || (d.allowed_user_ids || []).indexOf(currentUser.id) >= 0));
