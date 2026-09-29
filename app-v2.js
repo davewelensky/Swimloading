@@ -15,7 +15,13 @@
     'use strict';
 
     var enabled = document.documentElement.classList.contains('ui-v2');
-    window.V2 = { enabled: enabled, onPage: function () {}, renderYou: function () {} };
+    // What the swimmer submits is a WATER report: temperature, conditions, hazards. No pace,
+    // distance or time. Wording lives here so it is one edit to change everywhere in v2.
+    var COPY = {
+        action: 'Log the water',
+        hint: 'Temperature and conditions. Not your pace.'
+    };
+    window.V2 = { enabled: enabled, COPY: COPY, onPage: function () {}, renderYou: function () {} };
     if (!enabled) return;
 
     // Which bottom tab lights up for each v1 page id.
@@ -61,7 +67,7 @@
         bar.innerHTML =
             tabBtn('today', 'sun', 'Today') +
             tabBtn('spots', 'map-pin', 'Spots') +
-            '<button class="v2-tab v2-tab-log" data-v2tab="log" aria-label="Log a swim"><span class="v2-fab"><i data-lucide="plus"></i></span></button>' +
+            '<button class="v2-tab v2-tab-log" data-v2tab="log" aria-label="' + COPY.action + '"><span class="v2-fab"><i data-lucide="plus"></i></span></button>' +
             tabBtn('swims', 'waves', 'Swims') +
             tabBtn('you', 'user-round', 'You');
         app.appendChild(bar);
@@ -71,7 +77,7 @@
             if (!b) return;
             var tab = b.getAttribute('data-v2tab');
             var page = PAGE_OF[tab];
-            if (TAB_OF[currentPage] === tab && !CHILD_OF_YOU[currentPage]) {
+            if (tab !== 'log' && TAB_OF[currentPage] === tab && !CHILD_OF_YOU[currentPage]) {
                 window.scrollTo({ top: 0, behavior: 'smooth' });   // re-tap: back to top
                 return;
             }
@@ -99,8 +105,7 @@
 
     // Called at the end of showPage(); keeps the bar in step with ANY navigation,
     // including v1 inline onclick calls.
-    function onPage(page) {
-        currentPage = page;
+    function highlight(page) {
         var tab = TAB_OF[page];
         var bar = document.getElementById('v2Tabbar');
         if (bar) {
@@ -110,8 +115,26 @@
         }
         var back = document.getElementById('v2Back');
         if (back) back.classList.toggle('on', !!CHILD_OF_YOU[page]);
+    }
+    var prevPage = 'dashboard';
+
+    // Called at the end of showPage(); keeps the bar in step with ANY navigation,
+    // including v1 inline onclick calls.
+    function onPage(page) {
+        if (page === 'logTemp' && window.V2.enterLog) {
+            // Log is an action, not a place: it opens as a sheet over the page we came from,
+            // and the tab bar keeps showing that page.
+            window.V2.enterLog(prevPage);
+            return;
+        }
+        if (window.V2.exitLog) window.V2.exitLog();
+        prevPage = page;
+        currentPage = page;
+        highlight(page);
         window.scrollTo(0, 0);
     }
+    window.V2.prevPage = function () { return prevPage; };
+    window.V2.highlight = highlight;
 
     // ── You hub ────────────────────────────────────────────────────────────
     function clubAvailable() {

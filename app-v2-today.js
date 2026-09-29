@@ -18,13 +18,7 @@
     'use strict';
     if (!(window.V2 && window.V2.enabled)) return;
 
-    // What the swimmer is asked to submit is a WATER report: temperature, conditions, hazards.
-    // No pace, distance or time. Keep the wording in one place so it is easy to change.
-    var COPY = {
-        action: 'Log the water',
-        hint: 'Temperature and conditions. Not your pace.'
-    };
-    window.V2.COPY = COPY;
+    var COPY = window.V2.COPY;   // defined in app-v2.js
 
     var S = { token: 0, inflight: false, lastRun: 0, mySpots: [], idx: 0, latest: [], hazards: [], heroCache: {} };
 
