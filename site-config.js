@@ -72,6 +72,7 @@ window.SITE_CONFIG = {
     { name:'Thailand',      iso:'TH', anchor:[7.89, 98.30],        label:'Thailand',       slug:'thailand',       color:'#fb923c', bg:'rgba(251,146,60,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(251,146,60,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Phuket',                               pillDelay:'5.2s', dotDelay:'3.7s' },
     { name:'Canada',        iso:'CA', anchor:[49.29, -123.14],          label:'Canada',         slug:'canada',         color:'#f87171', bg:'rgba(248,113,113,0.1)', border:'rgba(217,119,6,0.5)',  gridBg:'rgba(248,113,113,0.07)', gridBorder:'rgba(217,119,6,0.4)', spots:'English Bay · Vancouver',              pillDelay:'5.6s', dotDelay:'4.0s' },
     { name:'Ireland',       iso:'IE', anchor:[53.29, -6.11],         label:'Ireland',        slug:'ireland',        color:'#34d399', bg:'rgba(52,211,153,0.1)',  border:'rgba(217,119,6,0.5)',  gridBg:'rgba(52,211,153,0.07)',  gridBorder:'rgba(217,119,6,0.4)', spots:'Forty Foot · Salthill · Kinsale',      pillDelay:'6.0s', dotDelay:'4.3s' },
+    { name:'Greece',        iso:'GR', anchor:[37.45, 25.33],         label:'Greece',         slug:null,             color:'#c084fc', bg:'rgba(192,132,252,0.1)', border:'rgba(217,119,6,0.5)',  gridBg:'rgba(192,132,252,0.07)', gridBorder:'rgba(217,119,6,0.4)', spots:'Mykonos',                              pillDelay:'6.4s', dotDelay:'4.6s' },
   ],
 
   // NOTE: these three are a fast-paint FALLBACK ONLY — site-sync.js fetches the

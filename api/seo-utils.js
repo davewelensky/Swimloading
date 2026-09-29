@@ -95,6 +95,7 @@ export const EUROPE_COUNTRY_MAP = {
   NO: 'Norway',
   SE: 'Sweden',
   DK: 'Denmark',
+  GR: 'Greece',
 };
 
 export const AREA_MAP = {
