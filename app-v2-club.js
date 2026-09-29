@@ -343,6 +343,46 @@
         fmtDay: fmtDay
     };
 
+    // ── Galas tab: say what each gala's state is without opening it ─────────────────
+    // v1 lists every upcoming gala as a collapsed card that shows only date, title and course. v2 adds one
+    // status line per card: entries not open / closing date / how many entries the swimmer has made,
+    // plus the days to go. Entry logic (renderGalaEntryCard, saving entries) is untouched.
+    function decorateGalas() {
+        var ctx = window._galasCtx, box = document.getElementById('clubSubGalas');
+        if (!ctx || !box || !ctx.upcoming) return;
+        var entries = (typeof _galasEntries !== 'undefined' && _galasEntries) || {};
+        var today = new Date(); today.setHours(0, 0, 0, 0);
+        [].slice.call(box.children).forEach(function (card, i) {
+            var ev = ctx.upcoming[i];
+            if (!ev || card.getAttribute('data-v2gala')) return;
+            card.setAttribute('data-v2gala', '1');
+            var titleEl = [].slice.call(card.querySelectorAll('div')).filter(function (d) { return d.children.length === 0 && d.textContent.trim() === ev.title; })[0];
+            if (!titleEl) return;
+            var hasSessions = ev.sessions_json && ev.sessions_json.length > 0;
+            var mine = (entries[ev.id] || []).filter(function (e) { return e.status !== 'scratched'; }).length;
+            var days = Math.round((new Date(ev.event_date + 'T12:00:00') - today) / 86400000);
+            var parts = [];
+            if (!hasSessions) parts.push('Entries not open yet');
+            else if (ev.entry_deadline) parts.push('Entries close ' + fmtDay(ev.entry_deadline));
+            else parts.push('Entries open');
+            if (mine > 0) parts.push(mine + (mine === 1 ? ' entry made' : ' entries made'));
+            parts.push(days + (days === 1 ? ' day' : ' days') + ' to go');
+            var st = document.createElement('div');
+            st.className = 'v2-gala-status' + (hasSessions ? ' open' : '');
+            st.textContent = parts.join(' · ');
+            titleEl.parentNode.insertBefore(st, titleEl.nextSibling);
+        });
+    }
+    (function () {
+        var orig = window.renderGalasTab;
+        if (typeof orig !== 'function') return;
+        window.renderGalasTab = function () {
+            var r = orig.apply(this, arguments);
+            try { decorateGalas(); } catch (e) { console.warn('Galas status skipped:', e); }
+            return r;
+        };
+    })();
+
     function wrap(name, mode) {
         var orig = window[name];
         if (typeof orig !== 'function') return;
