@@ -545,6 +545,9 @@
       <div style="font-size:13px;color:var(--text-sec);margin-top:3px;" id="homeDate"></div>
     </div>
 
+    <!-- Registers still to do (Aquasharks-style clubs: squads + timetable + attendance) -->
+    <div id="missedBanner" style="display:none;padding:0 16px;margin-top:12px;"></div>
+
     <!-- My sessions today -->
     <div class="section-label" id="mySessionsLabel">MY SESSIONS TODAY</div>
     <div style="padding:0 16px;" id="mySessionsList">
@@ -1292,6 +1295,7 @@ function renderHome() {
   const todayStr  = localDateStr();
   const isToday   = selectedDate === todayStr;
   const now       = new Date();
+  refreshMissedBanner();
 
   // Date display + nav
   const dateLabel = isToday
@@ -1475,6 +1479,65 @@ function renderHome() {
   }
 
   lucide.createIcons();
+}
+
+// ── REGISTERS STILL TO DO ──────────────────────────────────────────
+// A nudge, not a block: lists this coach's own sessions from the last 7 days (and any finished today)
+// that have no register. Days with no register anywhere are treated as holiday/cancelled and skipped.
+let _missedToken = 0;
+async function refreshMissedBanner() {
+  const box = document.getElementById('missedBanner');
+  if (!box) return;
+  const F = currentClub?.features || {};
+  if (!(F.squads && F.timetable && F.attendance) || currentClub?.slug === 'k8-coaching' || !coachName) { box.style.display = 'none'; return; }
+  const token = ++_missedToken;
+  const now = new Date();
+  const todayStr = localDateStr();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const dates = [];
+  for (let i = 7; i >= 0; i--) dates.push(localDateStr(new Date(now.getFullYear(), now.getMonth(), now.getDate() - i)));
+  const { data: regs, error } = await sb.from('club_sessions')
+    .select('id, session_date, squad_id, start_time, coach_name')
+    .eq('club_id', currentClub.id).gte('session_date', dates[0]).lte('session_date', todayStr);
+  if (error || token !== _missedToken) return;
+  const marks = {};
+  if ((regs || []).length) {
+    const { data: att } = await sb.from('club_attendance').select('session_id').in('session_id', regs.map(r => r.id));
+    (att || []).forEach(a => { marks[a.session_id] = (marks[a.session_id] || 0) + 1; });
+  }
+  if (token !== _missedToken) return;
+  const dayHasAny = {}; (regs || []).forEach(r => { if (marks[r.id]) dayHasAny[r.session_date] = true; });
+  const hhmm = t => (t || '').slice(0, 5);
+  const first = n => (n || '').trim().split(/[\s\/,&]+/)[0].toLowerCase();
+  const todo = [];
+  dates.forEach(d => {
+    if (d !== todayStr && !dayHasAny[d]) return;
+    const dow = new Date(d + 'T12:00:00').getDay();
+    allWeekSessions.filter(s => s.day_of_week === dow && isMySession(s)).forEach(s => {
+      if (d === todayStr && toMins(s.end_time) >= nowMins) return;
+      const ids = [s.squad_id, s.secondary_squad_id].filter(Boolean);
+      const sameSlot = allWeekSessions.filter(x => x.day_of_week === dow && x.squad_id === s.squad_id && hhmm(x.start_time) === hhmm(s.start_time)).length > 1;
+      let c = (regs || []).filter(r => r.session_date === d && ids.includes(r.squad_id) && hhmm(r.start_time) === hhmm(s.start_time) && marks[r.id]);
+      if (sameSlot) c = c.filter(r => !r.coach_name || first(r.coach_name) === first(s.coach_name));
+      if (!c.length) todo.push({ d, s });
+    });
+  });
+  if (!todo.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  todo.sort((a, b) => b.d.localeCompare(a.d) || toMins(a.s.start_time) - toMins(b.s.start_time));
+  const sqName = s => s.custom_name || allSquads.find(q => q.id === s.squad_id)?.name || 'Session';
+  const dayLabel = d => d === todayStr ? 'Today' : new Date(d + 'T12:00:00').toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
+  box.innerHTML = `<div style="border:1px solid rgba(245,158,11,0.35);background:rgba(245,158,11,0.07);border-radius:14px;padding:12px 14px;">
+      <div style="font-size:13px;font-weight:700;color:var(--amber);margin-bottom:2px;">${todo.length} register${todo.length === 1 ? '' : 's'} still to do</div>
+      <div style="font-size:12px;color:var(--text-sec);margin-bottom:8px;">Your sessions with no attendance saved. Tap one to mark it now.</div>
+      ${todo.slice(0, 5).map(t => `<button onclick="markMissedSession('${t.d}','${t.s.id}')" style="display:flex;width:100%;align-items:center;justify-content:space-between;gap:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:0 12px;min-height:44px;margin-top:6px;color:var(--text);font-size:13px;font-weight:600;cursor:pointer;text-align:left;">
+        <span>${dayLabel(t.d)} · ${hhmm(t.s.start_time)} · ${sqName(t.s)}</span><span style="color:var(--cyan);font-size:12px;">Mark ›</span></button>`).join('')}
+      ${todo.length > 5 ? `<div style="font-size:12px;color:var(--text-dim);margin-top:8px;">+${todo.length - 5} more. Use the date arrows above to find them.</div>` : ''}
+    </div>`;
+  box.style.display = '';
+}
+function markMissedSession(dateStr, sessionId) {
+  selectedDate = dateStr;
+  loadCoverStatus().then(() => { renderHome(); openConfirm(sessionId); });
 }
 
 function isMySession(s) {

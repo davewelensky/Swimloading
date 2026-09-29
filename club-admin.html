@@ -2562,7 +2562,7 @@ async function loadClubContext() {
   document.getElementById('navClubName').textContent = currentClub.name;
   document.getElementById('navAdminName').textContent =
     currentUser.user_metadata?.full_name || currentUser.email;
-  document.getElementById('overviewTitle').textContent = currentClub.name + ' — Overview';
+  document.getElementById('overviewTitle').textContent = currentClub.club_type === 'swim_club' ? 'Today' : currentClub.name + ' — Overview';
 
   // Club logo
   if (currentClub.logo_url) {
@@ -3044,6 +3044,134 @@ function showPage(name) {
   if (name === 'labsessions')   loadLabSessions();
 }
 
+// ── TODAY: REGISTERS (swim clubs with timetable + attendance — Aquasharks) ─────────
+// A scheduled session is "done" when a register exists for that date/squad/time with at least one mark.
+// The coach page mirrors Learn to Swim marks into club_attendance, so this one table is the truth.
+function todayRegistersEnabled() {
+  const F = window._clubFeatures || {};
+  return currentClub?.club_type === 'swim_club' && F.hasSquads && F.hasTimetable && F.hasAttendance;
+}
+function restructureTodayForSwimClub() {
+  const page = document.getElementById('page-overview');
+  if (!page || page.dataset.todayBuilt) return;
+  page.dataset.todayBuilt = '1';
+  const stats = document.getElementById('overviewStats');
+  const card = document.createElement('div');
+  card.id = 'todayRegisters';
+  page.insertBefore(card, stats);
+  // Everything that used to lead the page is still here, one tap away
+  const det = document.createElement('details');
+  det.id = 'todayMore';
+  det.style.cssText = 'margin-top:8px;';
+  det.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--text-sec);padding:12px 4px;min-height:44px;display:flex;align-items:center;">More detail: club numbers, gala pipeline, squad health, upcoming</summary>';
+  ['overviewStats', 'overviewGalas', 'overviewTodaySquads', 'overviewAttendance', 'overviewBottom'].forEach(id => {
+    const el = document.getElementById(id); if (el) det.appendChild(el);
+  });
+  page.appendChild(det);
+  const sub = document.getElementById('overviewGreeting');
+  if (sub) sub.textContent = "Registers first, then anything that needs you.";
+}
+let _todayRegToken = 0;
+async function loadTodayRegisters() {
+  const el = document.getElementById('todayRegisters');
+  if (!el) return;
+  const token = ++_todayRegToken;
+  if (!el.innerHTML) el.innerHTML = '<div class="card" style="margin-bottom:16px;padding:18px;"><div class="loading"><div class="spinner"></div></div></div>';
+  const now = new Date();
+  const todayStr = localISO(now);
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const dates = [];
+  for (let i = 7; i >= 0; i--) dates.push(localISO(new Date(now.getFullYear(), now.getMonth(), now.getDate() - i)));
+  const squadIds = (allSquads || []).map(q => q.id);
+  if (!squadIds.length) { el.innerHTML = ''; return; }
+  const [sessRes, regRes] = await Promise.all([
+    sb.from('club_squad_sessions').select('id, squad_id, day_of_week, start_time, end_time, coach_name, custom_name, secondary_squad_id, linked_squad_ids').in('squad_id', squadIds).eq('is_active', true),
+    sb.from('club_sessions').select('id, session_date, squad_id, start_time, coach_name, cover_needed').eq('club_id', currentClub.id).gte('session_date', dates[0]).lte('session_date', todayStr),
+  ]);
+  if (token !== _todayRegToken) return;
+  if (sessRes.error || regRes.error) { el.innerHTML = ''; return; }
+  const regs = regRes.data || [];
+  const marks = {};
+  if (regs.length) {
+    const { data: att } = await sb.from('club_attendance').select('session_id, status').in('session_id', regs.map(r => r.id));
+    (att || []).forEach(a => { const m = marks[a.session_id] || (marks[a.session_id] = { n: 0, here: 0 }); m.n++; if (a.status === 'present') m.here++; });
+  }
+  if (token !== _todayRegToken) return;
+  const sessions = sessRes.data || [];
+  const hhmm = t => (t || '').slice(0, 5);
+  const mins = t => { const [h, m] = (t || '0:0').split(':'); return (+h) * 60 + (+m); };
+  const first = n => (n || '').trim().split(/[\s\/,&]+/)[0].toLowerCase();
+  const squadName = id => (allSquads.find(q => q.id === id)?.name) || 'Session';
+  const label = s => s.custom_name || squadName(s.squad_id);
+  const sqIds = s => [s.squad_id, s.secondary_squad_id, ...(s.linked_squad_ids || [])].filter(Boolean);
+  const fmtDay = d => new Date(d + 'T12:00:00').toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
+
+  // Days with no register at all anywhere are treated as "no sessions ran" (holiday / cancelled), not as misses
+  const dayHasAny = {}; regs.forEach(r => { if (marks[r.id]?.n) dayHasAny[r.session_date] = true; });
+
+  const rows = [];
+  dates.forEach(d => {
+    const dow = new Date(d + 'T12:00:00').getDay();
+    sessions.filter(s => s.day_of_week === dow).forEach(s => {
+      const sameSlot = sessions.filter(x => x.day_of_week === dow && x.squad_id === s.squad_id && hhmm(x.start_time) === hhmm(s.start_time)).length > 1;
+      let cands = regs.filter(r => r.session_date === d && sqIds(s).includes(r.squad_id) && hhmm(r.start_time) === hhmm(s.start_time));
+      if (sameSlot) cands = cands.filter(r => !r.coach_name || first(r.coach_name) === first(s.coach_name));
+      cands.sort((a, b) => (marks[b.id]?.n || 0) - (marks[a.id]?.n || 0));
+      const reg = cands[0] || null;
+      const m = reg ? marks[reg.id] : null;
+      let state;
+      if (m && m.n) state = 'done';
+      else if (reg && reg.cover_needed) state = 'cover';
+      else if (d === todayStr) state = mins(s.end_time) < nowMins ? 'missed' : (mins(s.start_time) <= nowMins ? 'live' : 'later');
+      else state = 'missed';
+      rows.push({ d, s, reg, m, state, coach: (reg?.coach_name || s.coach_name || '').trim() });
+    });
+  });
+
+  const today = rows.filter(r => r.d === todayStr).sort((a, b) => mins(a.s.start_time) - mins(b.s.start_time));
+  const past = rows.filter(r => r.d !== todayStr && r.state !== 'done' && dayHasAny[r.d]).sort((a, b) => b.d.localeCompare(a.d) || mins(a.s.start_time) - mins(b.s.start_time));
+  const skippedDays = dates.filter(d => d !== todayStr && !dayHasAny[d] && rows.some(r => r.d === d));
+  const todayMissed = today.filter(r => r.state === 'missed');
+  const missed = [...past, ...todayMissed.filter(r => !past.includes(r))];
+
+  const chip = (txt, col) => `<span style="font-size:11px;font-weight:700;color:${col};background:${col}22;border:1px solid ${col}55;padding:2px 8px;border-radius:999px;white-space:nowrap;">${txt}</span>`;
+  const stateChip = r => r.state === 'done' ? chip(`Done · ${r.m.here} of ${r.m.n} here`, '#10b981')
+    : r.state === 'cover' ? chip('Needs cover', '#f59e0b')
+    : r.state === 'missed' ? chip('No register', '#f59e0b')
+    : r.state === 'live' ? chip('Under way', '#38bdf8')
+    : chip('Later', '#64748b');
+  const rowHtml = (r, showDay) => `<li class="action-item" onclick="showPage('attendance')" style="min-height:44px;">
+      <div class="action-text"><div style="font-weight:600;">${showDay ? fmtDay(r.d) + ' · ' : ''}${hhmm(r.s.start_time)} · ${label(r.s)}</div>
+      <div class="action-names">${r.coach ? r.coach : 'No coach set'}</div></div>${stateChip(r)}</li>`;
+
+  const doneToday = today.filter(r => r.state === 'done').length;
+  const dueToday = today.filter(r => r.state !== 'later').length;
+  const todayHtml = today.length
+    ? `<ul class="action-list">${today.map(r => rowHtml(r, false)).join('')}</ul>`
+    : '<div style="padding:16px;font-size:13px;color:var(--text-sec);">No sessions scheduled today.</div>';
+
+  // Per-coach completion over the window (only sessions that should have a register by now)
+  const due = rows.filter(r => (r.d !== todayStr ? dayHasAny[r.d] : r.state !== 'later' && r.state !== 'live'));
+  const byCoach = {};
+  due.forEach(r => { const k = first(r.coach) || 'unassigned'; const c = byCoach[k] || (byCoach[k] = { n: 0, ok: 0 }); c.n++; if (r.state === 'done') c.ok++; });
+  const coachLine = Object.entries(byCoach).sort((a, b) => (a[1].ok / a[1].n) - (b[1].ok / b[1].n)).slice(0, 8)
+    .map(([k, c]) => `<span style="display:inline-block;margin:0 14px 4px 0;"><b style="text-transform:capitalize;">${k}</b> ${c.ok} of ${c.n}</span>`).join('');
+
+  el.innerHTML = `<div class="card" style="margin-bottom:16px;">
+      <div class="card-header"><div class="card-title">Today's registers · ${doneToday} of ${dueToday || today.length} done</div>
+        <button class="btn-sm" onclick="showPage('attendance')" style="font-size:11px;">Open attendance</button></div>
+      ${todayHtml}
+    </div>
+    ${missed.length ? `<div class="card" style="margin-bottom:16px;">
+      <div class="card-header"><div class="card-title">Registers not taken · last 7 days · ${missed.length}</div></div>
+      <ul class="action-list">${missed.slice(0, 12).map(r => rowHtml(r, true)).join('')}</ul>
+      ${missed.length > 12 ? `<div style="padding:8px 16px;font-size:12px;color:var(--text-sec);">+${missed.length - 12} more. Open Attendance for the full list.</div>` : ''}
+      <div style="padding:10px 16px 14px;font-size:12px;color:var(--text-sec);border-top:1px solid var(--border);">
+        <div style="font-weight:700;margin-bottom:4px;">Registers completed, last 7 days</div>${coachLine}
+        ${skippedDays.length ? `<div style="margin-top:6px;color:var(--text-dim);">No registers at all on ${skippedDays.map(fmtDay).join(', ')}, so those days are not counted as missed (holiday or cancelled?).</div>` : ''}
+      </div></div>` : `<div class="card" style="margin-bottom:16px;padding:14px 20px;font-size:13px;color:var(--text-sec);">Every register from the last 7 days is in.${skippedDays.length ? ` (No registers on ${skippedDays.map(fmtDay).join(', ')}: holiday or cancelled?)` : ''}</div>`}`;
+}
+
 // ── SIDEBAR BY WORKFLOW (swim clubs only — Aquasharks) ─────────────
 // Same buttons, ids and handlers; only the grouping and a few labels change. Other club types keep the original layout.
 function regroupSidebarForSwimClub() {
@@ -3295,6 +3423,7 @@ async function renderOverview() {
   const { hasSquads, hasAttendance, hasGalaEntries, hasLeague, hasTempChallenge,
           hasCoachingStaff, hasParentLanguage } = window._clubFeatures || {};
   const isSquadClub = hasSquads; // alias for readability during transition
+  if (todayRegistersEnabled()) { restructureTodayForSwimClub(); loadTodayRegisters(); }
 
   // ── Greeting + date ──────────────────────────────────────────────
   const hr = now.getHours();
