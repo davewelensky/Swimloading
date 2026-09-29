@@ -59,11 +59,13 @@
         t.id = 'v2Today';
         t.innerHTML =
             '<div id="v2tHazard"></div>' +
+            '<div id="v2tClubTop"></div>' +
             '<div id="v2tHero" class="v2-hero v2-skel" aria-live="polite"></div>' +
             '<button class="v2-btn v2-btn-primary" id="v2tLog" type="button">' +
                 '<i data-lucide="plus"></i>' + esc(COPY.action) + '</button>' +
             '<div class="v2-hint" id="v2tHint">' + esc(COPY.hint) + '</div>' +
             '<div id="v2tStrava"></div>' +
+            '<div id="v2tClub"></div>' +
             '<div id="v2tNext"></div>' +
             '<div id="v2tChal"></div>' +
             '<div id="v2tAround"></div>';
@@ -250,6 +252,56 @@
         } catch (e) { /* Strava is optional */ }
     }
 
+    // ── Club (swim-club members and parents; Aquasharks) ─────────────────────────
+    // Training today (or the next session) with the attendance control, and the next gala. Uses the Club
+    // module's own week model, rows and save (app-v2-club.js), so a mark made here shows on the Club page
+    // and the coach register sees it on the right (local) date. It leads the screen on a training day and
+    // sits below the log button otherwise. Non-members and open-water clubs (DUC) get nothing.
+    function paintClub() {
+        var api = window.V2 && window.V2.club, top = $('v2tClubTop'), low = $('v2tClub');
+        if (!api || !top || !low) return;
+        var st = api.state;
+        top.innerHTML = ''; low.innerHTML = '';
+        if (!st || !st.ctx || !st.week) return;
+        var week = st.week, ro = st.ctx.readOnly;
+        var today = week.list.filter(function (w) { return w.dateStr === week.todayStr; });
+        var next = today.length ? null : week.list.filter(function (w) { return !api.started(w, week); })[0];
+        var rows = today.length ? today : (next ? [next] : []);
+        var g = st.events && st.events[0];
+        if (!rows.length && !g) return;
+
+        var days = g ? Math.round((new Date(g.event_date + 'T12:00:00') - new Date(new Date().setHours(0, 0, 0, 0))) / 86400000) : null;
+        var deadline = g && g.entry_deadline ? api.fmtDay(g.entry_deadline) : '';
+        var who = ro ? esc(st.ctx.roster.display_name) + ' · ' : '';
+        var html =
+            '<section class="v2-card v2-club-card v2-today-club' + (today.length ? ' is-today' : '') + '">' +
+                '<div class="v2-between"><div class="v2-eyebrow">' + who + esc(st.ctx.club.name) + ' · ' + (today.length ? 'Training today' : 'Next training') + '</div>' +
+                '<button type="button" class="v2-link" onclick="showPage(\'club\')">Club</button></div>' +
+                rows.map(function (w) { return api.sessionRow(w, week, ro); }).join('') +
+                (g ? '<button type="button" class="v2-today-gala" onclick="showPage(\'club\')">' +
+                        '<span class="v2-row-text"><span class="v2-row-title">' + esc(g.title) + '</span><br><span class="v2-cap">' + days + (days === 1 ? ' day' : ' days') + ' to go' + (deadline ? ' · entries close ' + esc(deadline) : '') + '</span></span>' +
+                        '<i data-lucide="chevron-right" class="v2-chev"></i></button>' : '') +
+            '</section>';
+        (today.length ? top : low).innerHTML = html;
+        api.bindRows(today.length ? top : low);
+        icons();
+    }
+
+    async function renderClub(tries) {
+        var api = window.V2 && window.V2.club;
+        if (!api) return;
+        var st = null;
+        try { st = await api.prepare(); } catch (e) { console.warn('Today club:', e); return; }
+        if (!st) {
+            paintClub();                                             // clears any stale card
+            // club memberships load asynchronously after login; look again for a few seconds
+            if ((tries || 0) < 10) setTimeout(function () { renderClub((tries || 0) + 1); }, 800);
+            return;
+        }
+        api.state.onChange = paintClub;
+        paintClub();
+    }
+
     // ── Next swim ──────────────────────────────────────────────────────────
     async function renderNext() {
         var el = $('v2tNext'); if (!el) return;
@@ -365,6 +417,7 @@
             renderStrava();
             renderNext();
             renderChallenge();
+            renderClub(0);
         } catch (e) {
             console.warn('Today load:', e);
             var el = $('v2tHero');

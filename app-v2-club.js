@@ -32,7 +32,7 @@
     function ld(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }   // LOCAL date, never toISOString
     var DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    var S = { att: {}, ctx: null, mode: 'swimmer', week: null, gala: null, more: 0 };
+    var S = { att: {}, ctx: null, mode: 'swimmer', week: null, gala: null, more: 0, events: [], onChange: null };
 
     function ctxFor(mode) {
         if (mode === 'parent') {
@@ -130,6 +130,7 @@
         if (prev === 'catch_up') return;                                      // coach-owned, never overwritten
         if (target) S.att[key] = target; else delete S.att[key];
         rerenderWeek();
+        if (S.onChange) S.onChange();
         try {
             var res;
             if (!target) {
@@ -145,6 +146,7 @@
             console.warn('Attendance save failed:', e);
             if (prev) S.att[key] = prev; else delete S.att[key];
             rerenderWeek();
+            if (S.onChange) S.onChange();
             if (typeof showToast === 'function') showToast('Could not save that. Please try again.', 'error');
         }
     }
@@ -250,6 +252,42 @@
 
         icons(); bindWeek(); bindGala(events[0]);
     }
+
+    // ── Shared with Today (app-v2-today.js): the same week model, rows and attendance save ─────────────
+    // Loads what Today's club card needs for the swimmer (or, for a parent, the linked child). Returns
+    // null when the user is not in a swim club with a linked roster. Uses the same state object as the
+    // Club page, so an attendance mark made on either shows on both.
+    async function prepare() {
+        var ctx = ctxFor('swimmer'), mode = 'swimmer';
+        if (!ctx) { ctx = ctxFor('parent'); mode = 'parent'; }
+        if (!ctx || !ctx.roster || !ctx.roster.id || !ctx.club || ctx.club.club_type !== 'swim_club') return null;
+        S.ctx = ctx; S.mode = mode;
+        var from = new Date(); from.setDate(from.getDate() - 28);
+        var to = new Date(); to.setDate(to.getDate() + 28);
+        var res = await Promise.all([
+            supabaseClient.from('club_session_attendance').select('session_date, session_start, status')
+                .eq('roster_id', ctx.roster.id).gte('session_date', ld(from)).lte('session_date', ld(to)),
+            supabaseClient.from('club_events').select('id, title, event_date, venue, entry_deadline, sessions_json')
+                .eq('club_id', ctx.club.id).gte('event_date', ld(new Date())).order('event_date').limit(3)
+        ]);
+        S.att = {};
+        ((res[0] && res[0].data) || []).forEach(function (a) { S.att[attKey(a.session_date, a.session_start)] = a.status; });
+        S.events = (res[1] && res[1].data) || [];
+        S.week = buildWeek(ctx.club, ctx.roster.category || '');
+        return S;
+    }
+    function bindRows(container) {
+        container.querySelectorAll('.v2-cs-seg button').forEach(function (b) {
+            b.addEventListener('click', function () {
+                var row = b.closest('.v2-cs');
+                saveAttendance(row.getAttribute('data-date'), row.getAttribute('data-start'), b.getAttribute('data-set'));
+            });
+        });
+    }
+    window.V2.club = {
+        state: S, prepare: prepare, sessionRow: sessionRow, started: started, attKey: attKey, bindRows: bindRows,
+        fmtDay: fmtDay
+    };
 
     function wrap(name, mode) {
         var orig = window[name];
