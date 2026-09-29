@@ -140,10 +140,8 @@
         var el = $('v2tHero'); if (!el) return;
         el.classList.remove('v2-skel');
         var sp = S.mySpots[S.idx];
-        var switcher = S.mySpots.length > 1
-            ? '<div class="v2-spotswitch" role="tablist">' + S.mySpots.map(function (s, i) {
-                return '<button type="button" role="tab" aria-selected="' + (i === S.idx) + '" class="' + (i === S.idx ? 'on' : '') + '" data-i="' + i + '">' + esc(s.name) + '</button>';
-            }).join('') + '</div>'
+        var switcher = (sp && S.mySpots.length > 1)
+            ? '<button type="button" class="v2-spotpick" id="v2SpotPick" aria-haspopup="dialog" aria-label="Change spot"><span class="v2-spotpick-name">' + esc(sp.name) + '</span><span class="v2-spotpick-more">' + (S.idx + 1) + ' of ' + S.mySpots.length + '<i data-lucide="chevrons-up-down"></i></span></button>'
             : '';
         if (!sp) {
             el.innerHTML = '<div class="v2-hero-name">No spot yet</div><div class="v2-sub" style="margin-top:8px">Report the water once, or pick a spot in Spots, and your temperature shows up here.</div>' +
@@ -177,9 +175,10 @@
                         (n24 > 1 ? '<span class="v2-cap">' + n24 + ' reports in 24 hours</span>' : '') + '</div>' +
                 '</div>' + sparkline(reading.logs);
         } else if (reading && reading.est && reading.est.best_c != null) {
+            var poolEst = isPool(sp);
             body =
-                '<div class="v2-hero-main"><div class="v2-temp" style="color:' + tempColour(Number(reading.est.best_c)) + '">' + Number(reading.est.best_c).toFixed(1) + '<small>°C</small></div>' +
-                '<div class="v2-hero-side"><span class="v2-pill">Estimate</span></div></div>' +
+                '<div class="v2-hero-main"><div class="v2-temp" style="color:' + (poolEst ? 'var(--sl-cyan)' : tempColour(Number(reading.est.best_c))) + '">' + Number(reading.est.best_c).toFixed(1) + '<small>°C</small></div>' +
+                '<div class="v2-hero-side"><span class="v2-pill">' + (poolEst ? 'Pool · estimate' : 'Estimate') + '</span></div></div>' +
                 '<div class="v2-cap" style="margin-top:8px">No swimmer reports in 3 days. ' + (reading.est.best_source === 'swimmer' ? 'Based on an older swimmer report.' : 'From a sea-surface model, not a swimmer.') + '</div>';
         } else {
             body =
@@ -187,11 +186,62 @@
                 '<div class="v2-cap" style="margin-top:8px">No reports at ' + esc(sp.name) + ' yet. Be the first.</div>';
         }
         el.innerHTML = head + body;
-        el.querySelectorAll('.v2-spotswitch button').forEach(function (b) {
-            b.addEventListener('click', function () { S.idx = Number(b.getAttribute('data-i')); showHero(); });
-        });
+        var pick = $('v2SpotPick'); if (pick) pick.addEventListener('click', openSpotSheet);
+        icons();
         var name = el.querySelector('.v2-hero-name');
         if (name && sp) { name.style.cursor = 'pointer'; name.addEventListener('click', function () { goToSpotTrend(sp.id, sp.name, sp.code); }); }
+    }
+
+    // ── Spot picker sheet (replaces the stack of name chips) ─────────────────────────────
+    function spotTempText(id) {
+        var c = S.heroCache[id];
+        if (c && c.logs && c.logs.length) return Number(c.logs[0].temp_c).toFixed(1) + '°';
+        if (c && c.est && c.est.best_c != null) return Number(c.est.best_c).toFixed(1) + '° est.';
+        var l = (S.latest || []).filter(function (x) { return x.spot_id === id; })[0];
+        return l && l.temp_c != null ? Number(l.temp_c).toFixed(1) + '°' : '';
+    }
+    function closeSpotSheet() {
+        var sh = $('v2SpotSheet'), sc = $('v2SpotScrim');
+        if (sh) sh.classList.remove('on'); if (sc) sc.classList.remove('on');
+        var p = $('v2SpotPick'); if (p) p.focus();
+    }
+    function openSpotSheet() {
+        var app = $('mainApp'); if (!app) return;
+        var sc = $('v2SpotScrim'), sh = $('v2SpotSheet');
+        if (!sh) {
+            sc = document.createElement('div'); sc.id = 'v2SpotScrim'; sc.className = 'v2-scrim v2-scrim-top';
+            sc.addEventListener('click', closeSpotSheet);
+            sh = document.createElement('div'); sh.id = 'v2SpotSheet'; sh.className = 'v2-done';
+            sh.setAttribute('role', 'dialog'); sh.setAttribute('aria-modal', 'true'); sh.setAttribute('aria-label', 'Choose a spot');
+            app.appendChild(sc); app.appendChild(sh);
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSpotSheet(); });
+        }
+        sh.innerHTML =
+            '<div class="v2-grab"></div>' +
+            '<div class="v2-between" style="margin-bottom:12px"><div class="v2-sheet-title">Your spots</div>' +
+            '<button type="button" class="v2-icon-btn" id="v2SpotClose" aria-label="Close"><i data-lucide="x"></i></button></div>' +
+            '<div class="v2-card v2-list">' + S.mySpots.map(function (s, i) {
+                var type = isPool(s) ? 'Pool' : 'Open water', tt = spotTempText(s.id);
+                return '<button type="button" class="v2-row" data-i="' + i + '" aria-current="' + (i === S.idx) + '">' +
+                    '<span class="v2-row-text"><span class="v2-row-title">' + esc(s.name) + '</span><br><span class="v2-cap">' + type + (tt ? ' · ' + esc(tt) : '') + '</span></span>' +
+                    (i === S.idx ? '<i data-lucide="check" style="color:var(--sl-cyan)"></i>' : '') + '</button>';
+            }).join('') + '</div>' +
+            '<button type="button" class="v2-link" style="margin-top:8px" onclick="showPage(\'history\')">Browse all spots</button>';
+        icons();
+        $('v2SpotClose').addEventListener('click', closeSpotSheet);
+        sh.querySelectorAll('.v2-row').forEach(function (b) {
+            b.addEventListener('click', function () { S.idx = Number(b.getAttribute('data-i')); closeSpotSheet(); showHero(); });
+        });
+        sc.classList.add('on'); sh.classList.add('on');
+        var f = sh.querySelector('.v2-row[aria-current="true"]') || $('v2SpotClose'); setTimeout(function () { f.focus(); }, 60);
+    }
+
+    // Load the other spots' readings in the background so the picker sheet can show each spot's last temperature
+    function prefetchSpots() {
+        S.mySpots.forEach(function (sp) {
+            if (S.heroCache[sp.id]) return;
+            fetchReading(sp.id).then(function (r) { S.heroCache[sp.id] = r; }).catch(function () { /* picker just shows no temperature */ });
+        });
     }
 
     async function showHero() {
@@ -293,7 +343,7 @@
         var today = week.list.filter(function (w) { return w.dateStr === week.todayStr; });
         var next = today.length ? null : week.list.filter(function (w) { return !api.started(w, week); })[0];
         var rows = today.length ? today : (next ? [next] : []);
-        var g = st.events && st.events[0];
+        var g = api.galaRelevant() && st.events && st.events[0];        // galas are for the kids' squads, never OW Masters
         if (!rows.length && !g) { top.classList.remove('v2-club-reserve'); return; }
 
         var days = g ? Math.round((new Date(g.event_date + 'T12:00:00') - new Date(new Date().setHours(0, 0, 0, 0))) / 86400000) : null;
@@ -442,6 +492,7 @@
         try {
             await loadSpotsAndLatest();
             showHero();
+            prefetchSpots();
             // Zones fill independently so a slow one never blocks the rest
             renderHazard().then(renderAround);
             renderStrava();

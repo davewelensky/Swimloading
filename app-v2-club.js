@@ -93,7 +93,7 @@
                 seen[key] = 1;
                 list.push({ day: r.day_of_week, start: start, end: end, type: type, label: name, coach: r.coach_name || '', note: r.notes || '', squads: [] });
             });
-            return { list: list, source: 'squad', squadName: (squads[squadId] || {}).name || '' };
+            return { list: list, source: 'squad', squadName: (squads[squadId] || {}).name || '', squadType: (squads[squadId] || {}).type || '' };
         } catch (e) { console.warn('Squad timetable:', e); return { list: [], source: 'none' }; }
     }
 
@@ -249,9 +249,17 @@
 
     // ── Next gala ───────────────────────────────────────────────────────────
     function fmtDay(v) { var d = new Date(String(v).length <= 10 ? v + 'T12:00:00' : v); return isNaN(d) ? '' : d.toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' }); }
+    // Galas are for the kids' squads; no OW Masters swimmer attends them (Dave, 29 Sep 2026; the data agrees:
+    // gala entries exist only for Senior and Gold). Events carry no squad targeting, so the "next gala" card is
+    // hidden for masters squads and shown for every other squad. When the squad type is unknown (e.g. a
+    // parent, whose timetable RPC does not return it) it is shown rather than hidden.
+    function galaRelevant() {
+        var t = S.schedule && S.schedule.squadType;
+        return t !== 'masters';
+    }
     function galaCard(events, readOnly) {
         var g = events[0];
-        if (!g) return '';
+        if (!g || !galaRelevant()) return '';
         var today = new Date(); today.setHours(0, 0, 0, 0);
         var days = Math.round((new Date(g.event_date + 'T12:00:00') - today) / 86400000);
         var urgent = days <= 7;
@@ -340,7 +348,7 @@
     }
     window.V2.club = {
         state: S, prepare: prepare, sessionRow: sessionRow, started: started, attKey: attKey, bindRows: bindRows,
-        fmtDay: fmtDay
+        fmtDay: fmtDay, galaRelevant: galaRelevant
     };
 
     // ── Galas tab: say what each gala's state is without opening it ─────────────────
