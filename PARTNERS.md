@@ -401,6 +401,92 @@ Dave
 
 ---
 
+## Onboarding Partners (deal agreed in principle, no page yet)
+
+Recorded 29 Sep 2026. Neither has a hero page, welcome card, route or public mention yet. Do not build any of that until the
+`[UNCONFIRMED]` items in the entry are resolved (Rules #1 and #2 above apply).
+
+---
+
+### Zero BS (Our Cosmetics (Pty) Ltd)
+
+| Field | Value |
+|-------|-------|
+| **Status** | Agreed to participate — Warren replied 25 Sep 2026: "happy to participate", "happy to sponsor products at this time. Prizes and samples". Products only, no cash. |
+| **Hero page** | None yet |
+| **Welcome card** | No |
+| **Geography** | `[UNCONFIRMED]` — SA company (zerobs.co.za, prices in rand). Whether they ship outside SA is not confirmed; treat as SA-only. |
+| **Contact** | **Warren Wilensky** (info@zerobs.co.za) — decision maker. **Nicola** was copied on the 25 Sep email to request video footage for their social media; surname/role/email `[UNCONFIRMED]`. |
+| **Partner URL** | https://zerobs.co.za |
+| **Pipeline row** | `growth_sponsors` id c672cfa2… — still status "Contacted"; should move to "Confirmed"/"In Discussion" (data change, needs the migrations workflow) |
+
+**What SwimLoading offered them (Dave's 15 Sep 2026 email):**
+- A Zero BS bundle as a monthly community challenge prize (banner, newsletter feature, winner-announcement post)
+- An affiliate/discount arrangement for members through their existing programme
+- Logo in the newsletter (55%+ open rate) and social posts for that month
+- A dedicated partner page on the platform, linked from the site
+
+**What they offered back (Warren, 25 Sep 2026):** product sponsorship, prizes and samples. Warren did NOT confirm the affiliate/discount item or a month.
+
+**Confirmed facts** (from zerobs.co.za, read 29 Sep 2026 — do not publish prices):
+- Tallow-based skincare; their stabilised tallow is branded **Talloren®**; tagline "What you see is what you get"
+- Products listed include Healing Balm, Face Butter, Body Butter, Lip Balm, soap/shampoo/shave bar, deodorant, SHADE SPF 40+
+- Site states 60-day money-back guarantee, an affiliate programme (login on site), and free shipping over R800 — these are THEIR terms, not a SwimLoading offer
+- Black-and-white logo, minimalist style. Logo file: `[NOT YET OBTAINED]`
+
+**Outstanding actions:**
+- [ ] **Decide what footage Nicola is asking for** — the 25 Sep email says they "request certain video footage for our social media". What that means and whether SwimLoading agrees is `[UNCONFIRMED]`. Reply to Warren/Nicola.
+- [ ] Which month is Zero BS's challenge? Calendar has Jun–Sep taken (THEMAGIC5, Blu Smooth, Maurten ×2); Oct onward is open. `[UNCONFIRMED]`
+- [ ] Prize: exact bundle contents and value `[UNCONFIRMED]`; samples: for whom and how many `[UNCONFIRMED]`
+- [ ] Shipping of prize/samples to Dave: who ships, when `[UNCONFIRMED]`
+- [ ] Affiliate/discount arrangement: confirm or drop `[UNCONFIRMED]`
+- [ ] Logo + product images from Warren (supplied by them, not lifted from the site)
+- [ ] Confirm geography (SA-only?) before any international mention
+- [ ] Do not make health claims on the page (eczema, psoriasis, "therapeutic", "dermatologist approved") unless Zero BS supplies their own approved wording. Those are their claims on their own site.
+
+**Notes:**
+- The 15 Sep pitch used "730+ members across 15 countries … 97+ active spots … 12 club squads". Refresh member/spot figures from `site-config.js` (via `data-sync`) rather than hand-typing on the page.
+- The pitch named swimmers (Cameron Bellamy, Andy Donaldson, Ryan Stramrood, Sarah Ferguson, Carina Bruwer) as community members who would use the product. Do not repeat that on a public page without those swimmers' consent.
+
+---
+
+### Get Stoked × Therabody (recovery & wellness)
+
+| Field | Value |
+|-------|-------|
+| **Status** | In discussion — Sam replied (undated, after Dave's 23 Sep nudge): interested, proposes starting with an exclusive member discount code. A call is still to be booked. |
+| **Hero page** | None yet |
+| **Welcome card** | No |
+| **Geography** | `[UNCONFIRMED]` — Get Stoked is a South African retailer and, per their site, "Therabody - Official Importer". Whether the code works outside SA is not confirmed; treat as SA-only. |
+| **Contact** | **Samantha (Sam)** — samantha@getstoked.co.za (from the pipeline row); surname/role `[UNCONFIRMED]`. Brett is also on the thread `[UNCONFIRMED]`. |
+| **Partner URL** | https://getstoked.store (Therabody dealer page: https://getstoked.store/brand/therabody/) |
+| **Pipeline row** | `growth_sponsors` id 556cd44c… — "In Discussion", follow-up date 2026-09-28 is now past |
+
+**What Get Stoked/Therabody offered (Sam's email):**
+- An **exclusive Therabody discount code for SwimLoading members** — the proposed starting point
+- **Occasional competitions or giveaways**, with **educational content** around Therabody and the wider range
+- **NOT offered:** a Theragun Mini every month ("wouldn't be sustainable for us from a cost perspective"); Theragun Minis are also out of stock right now, so nothing can ship immediately
+- Sam asked whether Dave is happy to start with a member code and build from there, and invited other suggestions
+
+**What Dave proposed earlier (per pipeline row, not confirmed by Therabody):** exclusive discount code, swim-specific recovery content, competitions.
+
+**Confirmed facts:** Get Stoked stocks bike components, apparel, wellness/recovery equipment, supplements and beauty products (getstoked.store, read 29 Sep 2026); Therabody is listed as stocked with "Official Importer" on their product pages. Contact on their site: info@getstoked.co.za.
+
+**Outstanding actions:**
+- [ ] **Reply to Sam** — agree to start with a member code and book the call (she asked to schedule one on 22 Sep; no times confirmed)
+- [ ] The actual **discount code and its percentage**, validity, exclusions and expiry `[UNCONFIRMED]` — never publish or invent a code; test it before it goes live
+- [ ] Where the code works: their store only? which products? `[UNCONFIRMED]`
+- [ ] What competitions/giveaways and how often `[UNCONFIRMED]`; prizes only when stock exists
+- [ ] Educational content: who writes it, who approves the claims `[UNCONFIRMED]`
+- [ ] Logo/brand assets from them (Therabody has its own brand rules — ask before using their name or imagery in copy)
+- [ ] Decide the page's name: "Therabody" (brand) vs "Get Stoked" (the partner who signs) — ask Sam how they want it presented
+
+**Notes:**
+- Therabody sits in the Tier 3 recovery list for Carina Bruwer (massage guns) — keep the two conversations separate unless Dave says otherwise.
+- Do not describe Therabody's products with performance or medical claims beyond what Therabody/Get Stoked supply.
+
+---
+
 ## Partner Pipeline
 
 Partners we should consider approaching as SwimLoading grows. No pages, no cards, no mentions until confirmed.
