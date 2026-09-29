@@ -33,7 +33,12 @@
         var t = typeof getTimeAgo === 'function' ? getTimeAgo(new Date(iso)) : '';
         return t.replace(/^1 (\w+)s ago$/, '1 $1 ago');     // getTimeAgo says "1 days ago"
     }
-    function tempColour(t) { return typeof getTempColor === 'function' ? getTempColor(t) : 'var(--sl-cyan)'; }
+    // v1's scale ends in red (26C+). In v2 red means danger and nothing else, so hot water is orange.
+    function tempColour(t) {
+        var c = typeof getTempColor === 'function' ? getTempColor(t) : 'var(--sl-cyan)';
+        return /^#(ef4444|dc2626|b91c1c)$/i.test(c) ? '#f97316' : c;
+    }
+    function isPool(sp) { var w = sp && (sp.water_type || ''); return w === 'POOL' || w === 'TIDAL_POOL'; }
     function cap(s) { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); }
     function spotById(id) { return (typeof spots !== 'undefined' && spots || []).find(function (s) { return s.id === id; }); }
     function homeDomain() { return (typeof currentUserProfile !== 'undefined' && currentUserProfile && currentUserProfile.home_domain) || null; }
@@ -138,9 +143,10 @@
                     : '<span class="v2-delta"><b class="' + (d > 0 ? 'up' : 'down') + '">' + (d > 0 ? '+' : '') + d.toFixed(1) + '°</b> since yesterday</span>';
             }
             var n24 = reading.logs.filter(function (r) { return Date.now() - new Date(r.created_at).getTime() < 86400e3; }).length;
+            var pool = isPool(sp);
             body =
-                '<div class="v2-temp" style="color:' + tempColour(Number(l0.temp_c)) + '" aria-label="' + Number(l0.temp_c).toFixed(1) + ' degrees Celsius">' + Number(l0.temp_c).toFixed(1) + '<small>°C</small></div>' +
-                '<div class="v2-hero-row">' + condPill(l0.conditions) + delta + '</div>' +
+                '<div class="v2-temp" style="color:' + (pool ? 'var(--sl-cyan)' : tempColour(Number(l0.temp_c))) + '" aria-label="' + Number(l0.temp_c).toFixed(1) + ' degrees Celsius">' + Number(l0.temp_c).toFixed(1) + '<small>°C</small></div>' +
+                '<div class="v2-hero-row">' + (pool ? '<span class="v2-pill">Pool</span>' : condPill(l0.conditions)) + delta + '</div>' +
                 '<div class="v2-cap" style="margin-top:12px">Reported ' + esc(ago(l0.created_at)) + (n24 > 1 ? ' · ' + n24 + ' reports in 24 hours' : '') + '</div>';
         } else if (reading && reading.est && reading.est.best_c != null) {
             body =
@@ -162,6 +168,7 @@
 
     async function showHero() {
         var sp = S.mySpots[S.idx];
+        paintHazard();
         if (!sp) { renderHero(null); return; }
         var cached = S.heroCache[sp.id];
         renderHero(cached || null);           // switcher responds instantly; numbers follow
@@ -180,8 +187,8 @@
     }
 
     // ── Hazard banner ──────────────────────────────────────────────────────
+    // Active caution/danger reports near the swimmer (fetched once per load) ...
     async function renderHazard() {
-        var el = $('v2tHazard'); if (!el) return;
         try {
             var res = await supabaseClient.from('hazard_reports').select('spot_id, severity, title, hazard_type, active_until').is('resolved_at', null);
             var dom = homeDomain();
@@ -190,23 +197,35 @@
             (typeof spots !== 'undefined' && spots || []).forEach(function (s) { if (dom && s.domain === dom) relevant[s.id] = 1; });
             var now = Date.now();
             var rank = { danger: 3, caution: 2, info: 1 };
-            var list = ((res && res.data) || []).filter(function (h) {
+            S.hazards = ((res && res.data) || []).filter(function (h) {
                 if (h.active_until && new Date(h.active_until).getTime() <= now) return false;
                 return relevant[h.spot_id] && (rank[h.severity] || 0) >= 2;
             }).sort(function (a, b) { return (rank[b.severity] || 0) - (rank[a.severity] || 0); });
-            S.hazards = list;
-            if (!list.length) { el.innerHTML = ''; return; }
-            var h = list[0], sp = spotById(h.spot_id);
-            var until = h.active_until ? ' Active until ' + new Date(h.active_until).toLocaleString('en-ZA', { weekday: 'short', hour: '2-digit', minute: '2-digit' }) + '.' : '';
-            var label = h.severity === 'danger' ? 'DANGER' : 'CAUTION';
-            el.innerHTML =
-                '<button class="v2-hazard v2-hazard-' + h.severity + '" type="button" onclick="showPage(\'safety\')">' +
-                    '<i data-lucide="triangle-alert"></i>' +
-                    '<span><b><span class="v2-tag">' + label + '</span>' + esc(h.title || cap(String(h.hazard_type || 'Hazard').replace(/_/g, ' '))) + '</b>' +
-                    '<span class="v2-sub">' + (sp ? esc(sp.name) + '.' : '') + esc(until) + (list.length > 1 ? ' +' + (list.length - 1) + ' more.' : '') + ' Tap for details.</span></span>' +
-                '</button>';
-            icons();
-        } catch (e) { console.warn('Today hazard:', e); }
+        } catch (e) { console.warn('Today hazard:', e); S.hazards = []; }
+        paintHazard();
+    }
+
+    // ... and the banner shows only what matters for the spot on screen: hazards at that spot or in its
+    // region. A sea hazard never shows over a pool. Re-run whenever the hero spot changes.
+    function paintHazard() {
+        var el = $('v2tHazard'); if (!el) return;
+        var sp = S.mySpots[S.idx];
+        var rank = { danger: 3, caution: 2, info: 1 };
+        var list = (!sp || isPool(sp)) ? [] : S.hazards.filter(function (h) {
+            var hs = spotById(h.spot_id);
+            return h.spot_id === sp.id || (hs && sp.domain && hs.domain === sp.domain);
+        }).sort(function (a, b) { return (rank[b.severity] || 0) - (rank[a.severity] || 0); });
+        if (!list.length) { el.innerHTML = ''; return; }
+        var h = list[0], hsp = spotById(h.spot_id);
+        var until = h.active_until ? ' Active until ' + new Date(h.active_until).toLocaleString('en-ZA', { weekday: 'short', hour: '2-digit', minute: '2-digit' }) + '.' : '';
+        var label = h.severity === 'danger' ? 'DANGER' : 'CAUTION';
+        el.innerHTML =
+            '<button class="v2-hazard v2-hazard-' + h.severity + '" type="button" onclick="showPage(\'safety\')">' +
+                '<i data-lucide="triangle-alert"></i>' +
+                '<span><b><span class="v2-tag">' + label + '</span>' + esc(h.title || cap(String(h.hazard_type || 'Hazard').replace(/_/g, ' '))) + '</b>' +
+                '<span class="v2-sub">' + (hsp ? esc(hsp.name) + '.' : '') + esc(until) + (list.length > 1 ? ' +' + (list.length - 1) + ' more.' : '') + ' Tap for details.</span></span>' +
+            '</button>';
+        icons();
     }
 
     // ── Strava suggestion ──────────────────────────────────────────────────
