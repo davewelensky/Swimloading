@@ -265,6 +265,16 @@
         } catch (e) { console.warn('Today next swim:', e); }
     }
 
+    // Where the swimmer stands in the monthly draw. Shared with the Board (app-v2-board.js) so
+    // Today and Challenges always say the same thing. Same facts as the v1 dashboard card.
+    function challengeStatus(score) {
+        var logs = (score && score.logs) || 0, tickets = (score && score.entries) || 0;
+        if (score && score.inDraw) return { headline: "You're in the draw", sub: tickets + (tickets === 1 ? ' ticket' : ' tickets') + ' in the hat', bar: 0 };
+        if (logs > 0) return { headline: logs + ' of 10 to enter the draw', sub: (10 - logs) + ' to go', bar: Math.min(100, logs * 10) };
+        return { headline: 'Enter the draw', sub: 'Log 10 times this month to enter', bar: 0 };
+    }
+    window.V2.challengeStatus = challengeStatus;
+
     // ── One challenge card ─────────────────────────────────────────────────
     async function renderChallenge() {
         var el = $('v2tChal'); if (!el) return;
@@ -276,19 +286,9 @@
             var daysLeft = Math.max(0, Math.ceil((range.end - new Date()) / 86400000));
             var score = await jcGetMyScore();
             var month = range.end.toLocaleDateString('en-ZA', { month: 'long' });
-            var logs = (score && score.logs) || 0, tickets = (score && score.entries) || 0;
-            var headline, sub, bar = '';
-            if (score && score.inDraw) {
-                headline = "You're in the draw";
-                sub = tickets + (tickets === 1 ? ' ticket' : ' tickets') + ' in the hat';
-            } else if (logs > 0) {
-                headline = logs + ' of 10 to enter the draw';
-                sub = (10 - logs) + ' to go';
-                bar = '<div class="v2-prog"><div style="width:' + Math.min(100, logs * 10) + '%"></div></div>';
-            } else {
-                headline = 'Enter the draw';
-                sub = 'Log 10 times this month to enter';
-            }
+            var st = challengeStatus(score);
+            var headline = st.headline, sub = st.sub;
+            var bar = st.bar ? '<div class="v2-prog"><div style="width:' + st.bar + '%"></div></div>' : '';
             var extra = ((typeof eoIsActive === 'function' && eoIsActive()) ? 1 : 0) + ((typeof ukIsActive === 'function' && ukIsActive()) ? 1 : 0);
             el.innerHTML =
                 '<div class="v2-h2">Challenge</div>' +
