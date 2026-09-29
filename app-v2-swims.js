@@ -183,12 +183,42 @@
         }
     }
 
+    // v1 lists the club's events (its galas) in Swims for every club member. Galas are for the kids' squads and no
+    // OW Masters swimmer attends them (Dave, 29 Sep 2026), so hide club-event cards for a masters-squad swimmer.
+    // Club-event cards are the ones with a "View on club page" link. Unknown squad => leave them visible.
+    var _squadInflight = null;
+    // Resolves true (masters) / false (not masters) / null (club not loaded yet: do NOT remember this answer)
+    function squadIsMasters() {
+        var api = window.V2 && window.V2.club;
+        if (!api) return Promise.resolve(null);
+        if (api.state && api.state.schedule) return Promise.resolve(api.state.schedule.squadType === 'masters');
+        if (!_squadInflight) {
+            _squadInflight = api.prepare()
+                .then(function (st) { _squadInflight = null; return st && st.schedule ? st.schedule.squadType === 'masters' : null; })
+                .catch(function () { _squadInflight = null; return null; });
+        }
+        return _squadInflight;
+    }
+    function hideGalasForMasters(list, tries) {
+        squadIsMasters().then(function (masters) {
+            if (masters === null) {                                       // memberships still loading: look again shortly
+                if ((tries || 0) < 10) setTimeout(function () { hideGalasForMasters(list, (tries || 0) + 1); }, 1000);
+                return;
+            }
+            if (!masters) return;
+            [].slice.call(list.children).forEach(function (card) {
+                if (card.querySelector('a[href^="/clubs/"]')) card.classList.add('v2-gone');
+            });
+        });
+    }
+
     function decorateAll() {
         var list = $('eventsList');
         if (!list) return;
         [].slice.call(list.children).forEach(function (card) {
             try { decorateCard(card); } catch (e) { console.warn('Swims card left as v1:', e); }
         });
+        hideGalasForMasters(list);
         icons();
     }
 
