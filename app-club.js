@@ -638,7 +638,7 @@ function renderProgressReports(reports, swimmerName, category, sessionsAttended)
     <div style="padding:16px 0;${i < reports.length - 1 ? 'border-bottom:1px solid rgba(255,255,255,0.06);' : ''}">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
         <span style="font-size:12px;font-weight:800;color:#f59e0b;text-transform:uppercase;letter-spacing:0.08em;">${r.term_label}</span>
-        ${r.coach_name ? `<span style="font-size:11px;color:var(--text-secondary);">— Coach ${r.coach_name}</span>` : ''}
+        ${r.coach_name ? `<span style="font-size:11px;color:var(--text-secondary);">Coach ${r.coach_name}</span>` : ''}
       </div>
       <div style="font-size:13.5px;color:var(--text-primary);line-height:1.75;">${bodyHtml}</div>
     </div>`;
@@ -847,7 +847,7 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
     if (squadTotal > 0 || mastersDone > 0) {
       const mastersNote = mastersThisWeek >= 1
         ? `<span style="color:#10b981;"> · ${mastersThisWeek} masters ✓</span>`
-        : `<span style="color:#f59e0b;font-weight:700;"> · 0 masters — 1 required this week</span>`;
+        : `<span style="color:#f59e0b;font-weight:700;"> · 0 masters, 1 required this week</span>`;
       statsLine = `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">${squadDone} of ${squadTotal} squad sessions${mastersNote}</div>`;
     } else {
       statsLine = `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">Tap a session to mark attendance</div>`;
@@ -857,7 +857,7 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
     <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">${showingNextWeek ? 'Next week' : 'This week'}</div>
     ${statsLine}
     ${rows}
-    <div style="font-size:11px;color:rgba(245,158,11,0.6);margin-top:8px;">Masters sessions are optional — Britt recommends at least 1 per week.</div>`;
+    <div style="font-size:11px;color:rgba(245,158,11,0.6);margin-top:8px;">Masters sessions are optional. Britt recommends at least 1 per week.</div>`;
   } else if (!schedule.length) {
     sessionsHtml = `<div style="font-size:12px;color:var(--text-secondary);">No training schedule set yet.</div>`;
   } else {
@@ -1038,7 +1038,7 @@ function openGalaDetail(eventId) {
   document.getElementById('galaDetailDate').textContent     = dateStr;
   document.getElementById('galaDetailDays').textContent     = daysAway;
   document.getElementById('galaDetailDays').style.color     = urgentColor;
-  document.getElementById('galaDetailRows').innerHTML       = infoRows || '<div style="font-size:12px;color:var(--text-secondary);padding:8px 0;">No details added yet — check back closer to the gala.</div>';
+  document.getElementById('galaDetailRows').innerHTML       = infoRows || '<div style="font-size:12px;color:var(--text-secondary);padding:8px 0;">No details added yet. Check back closer to the gala.</div>';
   document.getElementById('galaDetailLogistics').innerHTML  = logisticsHtml;
   el.style.display = 'flex';
   lucide.createIcons();
@@ -1286,7 +1286,7 @@ function renderEventGraphs(allResults, timeTrial, qtsByEvent, rosterId, clubId) 
   if (!allResults.length && !(timeTrial || []).length) return `
   <div class="card" style="margin-bottom:12px;">
     <div style="font-size:15px;font-weight:700;margin-bottom:6px;">My Events</div>
-    <div style="font-size:13px;color:var(--text-secondary);">No results yet — they'll appear here after your first gala.</div>
+    <div style="font-size:13px;color:var(--text-secondary);">No results yet. They'll appear here after your first gala.</div>
   </div>`;
 
   // Group by distance_stroke_course (matches SSA_QTS key format)
@@ -1457,7 +1457,7 @@ function renderUpcomingGalas(events) {
   return `
   <div class="card" style="margin-bottom:12px;">
     <div style="font-size:15px;font-weight:700;margin-bottom:2px;">Season Calendar</div>
-    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:12px;">Upcoming galas — 2026/27 season</div>
+    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:12px;">Upcoming galas · 2026/27 season</div>
     ${items}
   </div>`;
 }
@@ -1473,7 +1473,7 @@ function openTimeTrialModal(distance, stroke, course, rosterId, clubId) {
   <div id="timeTrialModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:10010;display:flex;align-items:flex-end;justify-content:center;">
     <div style="background:#0d1728;border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:24px;border-top:1px solid rgba(255,255,255,0.1);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-        <div style="font-size:17px;font-weight:800;">${distance}m ${stroke} ${course} — Log time</div>
+        <div style="font-size:17px;font-weight:800;">${distance}m ${stroke} ${course} · Log time</div>
         <button onclick="document.getElementById('timeTrialModal').remove()" style="background:none;border:none;color:var(--text-secondary);font-size:24px;cursor:pointer;padding:0;line-height:1;">×</button>
       </div>
       <div style="margin-bottom:14px;">
@@ -1484,7 +1484,7 @@ function openTimeTrialModal(distance, stroke, course, rosterId, clubId) {
         <label style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:6px;">Time (1:09.50 or 32.45)</label>
         <input type="text" id="ttTime" placeholder="e.g. 32.45" inputmode="decimal"
           style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:var(--text);font-size:26px;font-family:'Bebas Neue',sans-serif;letter-spacing:0.05em;box-sizing:border-box;">
-        <div id="ttTimeErr" style="font-size:11px;color:var(--danger);margin-top:5px;display:none;">Invalid format — use 1:09.50 or 32.45</div>
+        <div id="ttTimeErr" style="font-size:11px;color:var(--danger);margin-top:5px;display:none;">Invalid format: use 1:09.50 or 32.45</div>
       </div>
       <button onclick="saveTimeTrial(${distance},'${stroke}','${course}','${rosterId}','${clubId}')"
         style="width:100%;padding:14px;background:var(--cyan);color:#080f1a;font-size:15px;font-weight:800;border:none;border-radius:50px;cursor:pointer;">
@@ -1831,7 +1831,7 @@ function renderMyTimeTrialResults(myTimes, allTimes, roster) {
           <div style="font-size:11px;color:var(--text-secondary);margin-top:1px;">${dateStr}</div>
         </div>
         <div style="text-align:center;min-width:60px;">
-          <div style="font-size:22px;font-weight:900;color:${rankColor};font-family:'Bebas Neue',sans-serif;line-height:1;">${rank || '—'}</div>
+          <div style="font-size:22px;font-weight:900;color:${rankColor};font-family:'Bebas Neue',sans-serif;line-height:1;">${rank || '–'}</div>
           <div style="font-size:9px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;">of ${total}</div>
         </div>
         <div style="text-align:right;min-width:70px;">
@@ -1890,7 +1890,7 @@ function renderMyStandings(standings, year) {
   if (!standings.length) return `
   <div class="card" style="margin-bottom:12px;">
     <div style="font-size:15px;font-weight:700;margin-bottom:4px;">${year} Season</div>
-    <div style="font-size:13px;color:var(--text-secondary);">No results recorded yet — standings will appear here after your first race.</div>
+    <div style="font-size:13px;color:var(--text-secondary);">No results recorded yet. Standings will appear here after your first race.</div>
   </div>`;
 
   const months      = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
@@ -2062,7 +2062,7 @@ async function renderParentClubPage() {
         <div style="font-size:17px;font-weight:700;margin-bottom:8px;">Access pending</div>
         <div style="font-size:13px;color:var(--text-secondary);line-height:1.65;">
           ${pending?.length
-            ? `Your request to follow <strong style="color:var(--text-primary);">${pending.map(p => p.club_roster?.display_name || '—').join(', ')}</strong> is waiting for the club admin to approve.`
+            ? `Your request to follow <strong style="color:var(--text-primary);">${pending.map(p => p.club_roster?.display_name || '–').join(', ')}</strong> is waiting for the club admin to approve.`
             : 'Your parent access request is waiting for the club admin to approve.'}
           <br>You\'ll be able to see their results once confirmed.
         </div>
@@ -2360,7 +2360,7 @@ function buildGalaSessionPanel(ev) {
 
   if (!hasProfile) {
     html += `<div style="font-size:12px;color:var(--amber);background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:10px 12px;margin-bottom:14px;">
-      Date of birth and gender not set — ask your coach to complete your profile for QT checks.
+      Date of birth and gender not set. Ask your coach to complete your profile for QT checks.
     </div>`;
   } else {
     html += `<div style="font-size:12px;color:var(--text-secondary);background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;margin-bottom:14px;line-height:1.5;">
@@ -2378,7 +2378,7 @@ function buildGalaSessionPanel(ev) {
     const levelLabel = sess.level === 'SANJ' ? 'SANJ' : sess.level === 'L3' ? 'L3+' : 'L2';
 
     html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <span style="font-size:13px;font-weight:700;color:var(--text);">Session ${sess.number} — ${sess.label}</span>
+      <span style="font-size:13px;font-weight:700;color:var(--text);">Session ${sess.number} · ${sess.label}</span>
       <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;${levelCls}">${levelLabel}</span>
       <span style="font-size:12px;color:var(--text-secondary);margin-left:auto;">${sess.start_time || ''}</span>
     </div>`;
@@ -2490,7 +2490,7 @@ function buildGalaGenericPanel(ev) {
 
   const totalSelected = activeSet.size;
   return `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;padding:8px 10px;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.15);border-radius:8px;">
-    Sessions not configured yet — your coach will add event levels shortly. Select what you plan to swim.
+    Sessions not configured yet. Your coach will add event levels shortly. Select what you plan to swim.
   </div>
   ${rows}
   <div style="border-top:1px solid rgba(255,255,255,0.06);margin-top:12px;padding-top:12px;">
@@ -2687,7 +2687,7 @@ function renderCssTab() {
     return `
     <div class="card" style="margin-bottom:12px;">
       <div style="font-size:15px;font-weight:700;margin-bottom:2px;">${squad?.name || 'Squad'}</div>
-      <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">CSS pace per 100m — fastest first · tap a swimmer to see every test</div>
+      <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">CSS pace per 100m, fastest first · tap a swimmer to see every test</div>
       ${renderCssSquadChart(rows)}
       ${rows.map((r, i) => renderCssRow(r, i, r.rid === myRosterId, squadId)).join('')}
     </div>`;
@@ -2808,7 +2808,7 @@ function renderCssSquadChart(rows) {
     const name = r.swimmer.display_name.replace(/'/g, "\\'");
     const pts = r.history.map(h => ({ x: xFor(dateIndex[h.test_date]), y: yFor(h.css_pace_per_100_seconds), h }));
     const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
-    // onclick, not just <title> — native SVG hover tooltips don't fire on touch
+    // onclick, not just <title>, as native SVG hover tooltips don't fire on touch
     // devices at all, and this is a mobile app (found live, 26 Aug 2026).
     const dots = pts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="${color}" style="cursor:pointer;" onclick="showToast('${name}: ${secondsToTimeText(p.h.css_pace_per_100_seconds)}/100 (${p.h.test_date})')"><title>${r.swimmer.display_name}: ${secondsToTimeText(p.h.css_pace_per_100_seconds)}/100 (${p.h.test_date})</title></circle>`).join('');
     return `<path d="${path}" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.8"/>${dots}`;
