@@ -8354,6 +8354,7 @@
             _shareSheetMessage = message;
             document.getElementById('shareSheetTitle').textContent = `${spotName}: ${temp}°C${cond ? ' • ' + cond : ''}`;
             document.getElementById('shareSheetMessage').textContent = message;
+            try { if (window.IGStory) window.IGStory.attach({ spotName, temp, conditions }, document.getElementById('shareSheetRow'), 'share_sheet'); } catch (_) { /* optional */ }
             return new Promise(resolve => {
                 _shareSheetResolve = resolve;
                 document.getElementById('shareConditionsModal').style.display = 'flex';

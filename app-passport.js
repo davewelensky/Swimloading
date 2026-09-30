@@ -425,6 +425,7 @@ async function showPassportMoment(ctx) {
             } catch (_) { /* fall through to a simpler moment */ }
 
             ov.innerHTML = _ppMomentHtml(ctx, spot, totalSpots);
+            try { if (window.IGStory) window.IGStory.attach(ctx, ov.querySelector('#ppMomentShareBtn'), 'passport_moment'); } catch (_) { /* optional */ }
         })();
     });
 }
@@ -476,7 +477,7 @@ function _ppMomentHtml(ctx, spot, totalSpots) {
           style="width:100%; padding:14px; border-radius:50px; border:none; background:#38bdf8; color:#08131f; font-size:14px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; margin-top:16px;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#08131f" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Open my Passport
         </button>
-        <button type="button" onclick="_ppMomentShare()"
+        <button type="button" id="ppMomentShareBtn" onclick="_ppMomentShare()"
           onfocus="this.style.outline='2px solid #38bdf8'; this.style.outlineOffset='2px';" onblur="this.style.outline='none';"
           style="width:100%; padding:12px; border-radius:50px; background:transparent; border:1px solid var(--border); color:var(--text-secondary); font-size:13px; font-weight:700; cursor:pointer; margin-top:8px;">Share this swim</button>
         <button type="button" onclick="_ppMomentDismiss()"

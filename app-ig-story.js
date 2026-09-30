@@ -32,6 +32,20 @@
         }
         return _flag;
     }
+    // Self-contained button styles so the modal looks right on the classic screens too (v2 button classes
+    // only exist under html.ui-v2).
+    function ensureCss() {
+        if (document.getElementById('igStoryCss')) return;
+        var st = document.createElement('style'); st.id = 'igStoryCss';
+        st.textContent =
+            '.ig-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;box-sizing:border-box;padding:14px 16px;border-radius:50px;font-family:"DM Sans",-apple-system,sans-serif;font-size:14px;font-weight:700;cursor:pointer;line-height:1.2;}' +
+            '.ig-btn svg{width:18px;height:18px;}' +
+            '.ig-btn-primary{background:#38bdf8;color:#08131f;border:none;}' +
+            '.ig-btn-ghost{background:transparent;color:#f1f5f9;border:1px solid rgba(148,163,184,0.35);}' +
+            '.ig-btn-classic{background:transparent;color:#38bdf8;border:1px solid rgba(56,189,248,0.4);margin-top:10px;font-size:14px;}';
+        document.head.appendChild(st);
+    }
+    function isV2() { return document.documentElement.classList.contains('ui-v2'); }
     function track(name, props) { try { analytics.track(name, props || {}); } catch (e) { /* optional */ } }
     function cap(s) { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); }
 
@@ -137,7 +151,9 @@
 
     function isIOS() { return /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
 
-    function open(ctx) {
+    function open(ctx, surface) {
+        ensureCss();
+        var surf = surface || 'v2_logged';
         var state = { photo: null, showSpot: true, busy: false };
         var ov = document.createElement('div');
         ov.id = 'igStoryOverlay';
@@ -148,13 +164,13 @@
             '<div style="width:100%;max-width:380px;background:#0a1628;border:1px solid #1e3a5f;border-radius:20px;padding:18px;box-sizing:border-box;margin:auto;">' +
               '<div style="' + sansCss + 'font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">Instagram story</div>' +
               '<div style="text-align:center;margin-bottom:12px;"><canvas id="igCanvas" style="height:46vh;max-height:420px;width:auto;max-width:100%;border-radius:12px;border:1px solid #1e3a5f;background:#080f1a;"></canvas></div>' +
-              '<label id="igPhotoBtn" class="v2-btn v2-btn-primary" style="display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;margin-bottom:10px;box-sizing:border-box;width:100%;position:relative;"><i data-lucide="camera"></i><span id="igPhotoLbl">Take or choose a photo</span>' +
+              '<label id="igPhotoBtn" class="ig-btn ig-btn-primary" style="display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;margin-bottom:10px;box-sizing:border-box;width:100%;position:relative;"><i data-lucide="camera"></i><span id="igPhotoLbl">Take or choose a photo</span>' +
                 '<input id="igFile" type="file" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;"></label>' +
               '<label style="display:flex;align-items:center;gap:10px;' + sansCss + 'font-size:14px;color:#cbd5e1;margin:0 2px 14px;cursor:pointer;"><input id="igSpot" type="checkbox" checked style="width:18px;height:18px;">Show the spot name</label>' +
-              '<button type="button" class="v2-btn v2-btn-ghost" id="igShare">Share without a photo</button>' +
-              '<button type="button" class="v2-btn v2-btn-ghost" id="igSave" style="margin-top:10px;"><i data-lucide="download"></i>Save image</button>' +
+              '<button type="button" class="ig-btn ig-btn-ghost" id="igShare">Share without a photo</button>' +
+              '<button type="button" class="ig-btn ig-btn-ghost" id="igSave" style="margin-top:10px;"><i data-lucide="download"></i>Save image</button>' +
               '<div id="igNote" style="' + sansCss + 'font-size:12px;color:#94a3b8;line-height:1.6;margin:12px 2px 0;">Pick Instagram in the share sheet, then Story. Instagram not in the row? Swipe the app row, or tap Save image and add it from Instagram. The caption is copied for you.</div>' +
-              '<button type="button" class="v2-btn v2-btn-ghost" id="igClose" style="margin-top:12px;">Close</button>' +
+              '<button type="button" class="ig-btn ig-btn-ghost" id="igClose" style="margin-top:12px;">Close</button>' +
             '</div>';
         document.body.appendChild(ov);
         function icons() { if (typeof initIcons === 'function') initIcons(); else if (window.lucide) window.lucide.createIcons(); }
@@ -167,9 +183,9 @@
         // Photo first: primary button is "photo" until there is one, then "share" takes over.
         function refresh() {
             var has = !!state.photo;
-            photoBtn.className = 'v2-btn ' + (has ? 'v2-btn-ghost' : 'v2-btn-primary');
+            photoBtn.className = 'ig-btn ' + (has ? 'ig-btn-ghost' : 'ig-btn-primary');
             ov.querySelector('#igPhotoLbl').textContent = has ? 'Change photo' : 'Take or choose a photo';
-            shareBtn.className = 'v2-btn ' + (has ? 'v2-btn-primary' : 'v2-btn-ghost');
+            shareBtn.className = 'ig-btn ' + (has ? 'ig-btn-primary' : 'ig-btn-ghost');
             shareBtn.textContent = has ? 'Share to Instagram story' : 'Share without a photo';
         }
         function close() { document.removeEventListener('keydown', onKey); ov.remove(); }
@@ -184,7 +200,7 @@
             if (!f) return;
             decodePhoto(f).then(function (img) {
                 state.photo = img; refresh();
-                track('ig_story_photo_added', { surface: 'v2_logged' });
+                track('ig_story_photo_added', { surface: surf });
                 redraw();
             }).catch(function () { note.textContent = 'That photo could not be opened. Try another.'; });
         });
@@ -204,11 +220,11 @@
                 var m = await makeFile();
                 if (navigator.canShare && navigator.canShare({ files: [m.file] })) {
                     await navigator.share({ files: [m.file] });
-                    track('ig_story_shared', { method: 'native_share', has_photo: !!state.photo, spot_shown: state.showSpot });
+                    track('ig_story_shared', { surface: surf, method: 'native_share', has_photo: !!state.photo, spot_shown: state.showSpot });
                 } else {
                     saveBlob(m.blob, m.name);
                     note.textContent = 'Saved to your device. Open Instagram and add it to your story.';
-                    track('ig_story_shared', { method: 'download', has_photo: !!state.photo, spot_shown: state.showSpot });
+                    track('ig_story_shared', { surface: surf, method: 'download', has_photo: !!state.photo, spot_shown: state.showSpot });
                 }
             } catch (e) {
                 if (!(e && e.name === 'AbortError')) note.textContent = 'Sharing did not work on this device. Try Save image instead.';
@@ -218,7 +234,7 @@
         ov.querySelector('#igSave').addEventListener('click', async function () {
             try {
                 var m = await makeFile();
-                track('ig_story_saved', { has_photo: !!state.photo, ios: isIOS() });
+                track('ig_story_saved', { surface: surf, has_photo: !!state.photo, ios: isIOS() });
                 if (isIOS()) showHoldToSave(m.blob); else { saveBlob(m.blob, m.name); note.textContent = 'Saved. Open Instagram and add it to your story.'; }
             } catch (e) { note.textContent = 'Could not save the image.'; }
         });
@@ -231,7 +247,7 @@
             p.style.cssText = 'position:fixed;inset:0;z-index:10060;background:#030810;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:14px;';
             p.innerHTML = '<div style="' + sansCss + 'font-size:15px;color:#f1f5f9;text-align:center;line-height:1.5;">Press and hold the image, then tap Add to Photos.</div>' +
                 '<img alt="Your SwimLoading story image" src="' + url + '" style="max-height:68vh;max-width:100%;border-radius:12px;">' +
-                '<button type="button" class="v2-btn v2-btn-ghost" style="max-width:380px;">Done</button>';
+                '<button type="button" class="ig-btn ig-btn-ghost" style="max-width:380px;">Done</button>';
             p.querySelector('button').addEventListener('click', function () { p.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 2000); });
             document.body.appendChild(p);
         }
@@ -241,23 +257,29 @@
             setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
         }
 
-        track('ig_story_opened', { surface: 'v2_logged' });
+        track('ig_story_opened', { surface: surf });
         refresh(); redraw();
         // Ask for the photo straight away (still inside the tap that opened this screen, so browsers allow it)
         try { ov.querySelector('#igFile').click(); } catch (e) { /* the button is right there */ }
     }
 
-    // Adds the button after `anchorEl` (the WhatsApp button) when the flag is on.
-    function attach(ctx, anchorEl) {
+    // Adds the button after `anchorEl` when the flag is on. `surface` names the screen (for analytics):
+    // 'v2_logged' | 'passport_moment' | 'swim_card' | 'share_sheet'. Re-attaching replaces the old button.
+    function attach(ctx, anchorEl, surface) {
         if (!anchorEl) return;
         enabled().then(function (on) {
-            if (!on || !anchorEl.isConnected || document.getElementById('v2DoneIG')) return;
+            if (!on || !anchorEl.isConnected) return;
+            ensureCss();
+            var old = anchorEl.nextElementSibling;
+            if (old && old.getAttribute('data-ig-attach')) old.remove();
+            var v2 = isV2();
             var b = document.createElement('button');
-            b.type = 'button'; b.id = 'v2DoneIG'; b.className = 'v2-btn v2-btn-ghost'; b.style.marginTop = '10px';
-            b.innerHTML = '<i data-lucide="camera"></i>Share to Instagram story';
-            b.addEventListener('click', function () { open(ctx); });
+            b.type = 'button'; b.setAttribute('data-ig-attach', '1');
+            if (v2) { b.id = 'v2DoneIG'; b.className = 'v2-btn v2-btn-ghost'; b.style.marginTop = '10px'; b.innerHTML = '<i data-lucide="camera"></i>Share to Instagram story'; }
+            else { b.className = 'ig-btn ig-btn-classic'; b.textContent = 'Share to Instagram story'; }
+            b.addEventListener('click', function () { open(ctx, surface || (v2 ? 'v2_logged' : 'classic')); });
             anchorEl.insertAdjacentElement('afterend', b);
-            if (typeof initIcons === 'function') initIcons(); else if (window.lucide) window.lucide.createIcons();
+            if (v2) { if (typeof initIcons === 'function') initIcons(); else if (window.lucide) window.lucide.createIcons(); }
         }).catch(function () { /* optional */ });
     }
 

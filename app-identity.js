@@ -466,7 +466,8 @@ function _icEnsurePanel() {
           <button onclick="swimCardSaveImage()" style="flex:1; padding:12px; background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:50px; color:var(--text-primary); font-size:13px; font-weight:600; cursor:pointer;">Save image</button>
           <button onclick="swimCardCopyText()" style="flex:1; padding:12px; background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:50px; color:var(--text-primary); font-size:13px; font-weight:600; cursor:pointer;">Copy text</button>
         </div>
-        <div style="display:flex; gap:10px;">
+        <div id="swimCardIgSlot"></div>
+        <div style="display:flex; gap:10px; margin-top:10px;">
           <button onclick="swimCardViewIdentity()" style="flex:1; padding:12px; background:transparent; border:1px solid rgba(56,189,248,0.4); border-radius:50px; color:#38bdf8; font-size:13px; font-weight:700; cursor:pointer;">View identity</button>
           <button onclick="dismissSwimCardPanel()" style="flex:1; padding:12px; background:transparent; border:1px solid var(--border); border-radius:50px; color:var(--text-secondary); font-size:13px; font-weight:600; cursor:pointer;">Done</button>
         </div>
@@ -540,6 +541,7 @@ async function showSwimCardPanel(ctx) {
     }
     const nativeBtn = document.getElementById('swimCardNativeShareBtn');
     nativeBtn.style.display = navigator.share ? '' : 'none';
+    try { if (window.IGStory) window.IGStory.attach(ctx, document.getElementById('swimCardIgSlot'), 'swim_card'); } catch (_) { /* optional */ }
 
     analytics.track('swim_card_shown', {
         source: ctx.source,
