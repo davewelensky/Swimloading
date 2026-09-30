@@ -257,7 +257,7 @@ function supportingSchema(ev, ctx) {
     [`When is ${ev.title}?`,
      ev.date_confirmed && !d.provisional
        ? `${ev.title} takes place on ${d.text}${place ? ` in ${place}` : ''}.`
-       : `The date for ${ev.title} is not yet confirmed${ev.start_date ? ` — it is expected around ${d.text}` : ''}. Check with the organiser before making plans.`],
+       : `The date for ${ev.title} is not yet confirmed${ev.start_date ? `; it is expected around ${d.text}` : ''}. Check with the organiser before making plans.`],
     [`Where is ${ev.title} held?`,
      place || venue?.location_text
        ? `${ev.title} is held at ${venue?.display_name || place}${place && venue?.display_name ? `, ${place}` : ''}.`
@@ -309,7 +309,7 @@ function head(ev, ctx) {
   // is the strongest signal we control.
   const year = ev.edition_year || (ev.start_date ? ev.start_date.slice(0, 4) : '');
   const title =
-    `${ev.title}${year ? ` ${year}` : ''} — Date, Distances & Water Temperature` +
+    `${ev.title}${year ? ` ${year}` : ''}: Date, Distances & Water Temperature` +
     `${place ? ` | ${place}` : ''} | SwimLoading`;
   const desc = ev.short_description
     || `${ev.title}${place ? ` in ${place}` : ''}, ${d.text}.` +
@@ -468,7 +468,7 @@ function renderEventPage(ev, ctx) {
   </nav>
 
   <header class="ev">
-    ${dead ? `<div class="danger">This swim is ${escapeHtml(ev.status)}. Do not make travel or entry plans from this page — check with the organiser.</div>` : ''}
+    ${dead ? `<div class="danger">This swim is ${escapeHtml(ev.status)}. Do not make travel or entry plans from this page. Check with the organiser.</div>` : ''}
     <div class="badges">
       ${ev.status === 'cancelled' ? '<span class="badge b-red">Cancelled</span>' : ''}
       ${ev.status === 'postponed' ? '<span class="badge b-amber">Postponed</span>' : ''}
@@ -486,7 +486,7 @@ function renderEventPage(ev, ctx) {
     <div class="keyline">
       <div><b class="${d.provisional ? 'prov' : ''}">${escapeHtml(d.text)}</b>
         <span>${d.provisional ? 'Provisional date' : 'Date'}</span></div>
-      ${distances.length ? `<div><b>${escapeHtml(distances.map(x => fmtDistance(x.distance_metres)).filter(Boolean).join(' · ') || '—')}</b><span>Distances</span></div>` : ''}
+      ${distances.length ? `<div><b>${escapeHtml(distances.map(x => fmtDistance(x.distance_metres)).filter(Boolean).join(' · ') || '–')}</b><span>Distances</span></div>` : ''}
       ${venue?.water_body_type ? `<div><b>${escapeHtml(venue.water_body_type)}</b><span>Water</span></div>` : ''}
       ${ev.participant_estimate ? `<div><b>~${Number(ev.participant_estimate).toLocaleString()}</b><span>Swimmers</span></div>` : ''}
     </div>
@@ -506,22 +506,22 @@ function renderEventPage(ev, ctx) {
   <section>
     <h2>How we know this</h2>
     ${stale ? `<div class="warn">We last checked this listing ${ev.last_verified_at
-        ? `on ${escapeHtml(String(ev.last_verified_at).slice(0,10))}` : 'a while ago'} — more than
+        ? `on ${escapeHtml(String(ev.last_verified_at).slice(0,10))}` : 'a while ago'}, more than
         ${VERIFICATION_EXPIRY_DAYS} days. Details may have changed since.</div>` : ''}
     <div class="card">
       <dl>
-        <dt>Verification</dt><dd>${escapeHtml(trust.label)} — ${escapeHtml(trust.detail)}</dd>
+        <dt>Verification</dt><dd>${escapeHtml(trust.label)}: ${escapeHtml(trust.detail)}</dd>
         <dt>Last checked</dt><dd>${ev.last_verified_at ? escapeHtml(String(ev.last_verified_at).slice(0,10)) : 'Not recorded'}</dd>
         ${officialUrl ? `<dt>Official source</dt><dd><a href="${escapeHtml(officialUrl)}" target="_blank" rel="noopener noreferrer nofollow">${escapeHtml(new URL(officialUrl).hostname)}</a></dd>` : ''}
         ${ctx.organiser?.display_name ? `<dt>Organiser</dt><dd>${escapeHtml(ctx.organiser.display_name)}</dd>` : ''}
       </dl>
       <p class="prov-note">SwimLoading gathers event listings automatically from public sources.
-         A listing here is not a booking and not a guarantee — <b>always confirm the date, the entry
+         A listing here is not a booking and not a guarantee. <b>Always confirm the date, the entry
          status and the conditions with the organiser before you travel.</b></p>
     </div>
     ${ctx.history.length ? `<div class="card">
       <p class="muted" style="margin-bottom:8px">What has changed since we first listed it</p>
-      <ul class="plain">${ctx.history.map(h => `<li>${escapeHtml(String(h.changed_at).slice(0,10))} —
+      <ul class="plain">${ctx.history.map(h => `<li>${escapeHtml(String(h.changed_at).slice(0,10))}:
         ${escapeHtml(String(h.change_type).replace(/_/g,' '))}${h.old_value && h.new_value
           ? `: ${escapeHtml(h.old_value)} → ${escapeHtml(h.new_value)}` : ''}</li>`).join('')}</ul>
     </div>` : ''}
@@ -533,11 +533,11 @@ function renderEventPage(ev, ctx) {
       <table>
         <thead><tr><th>Distance</th><th>Name</th><th>Start</th><th>Wetsuit</th><th>Qualifier</th></tr></thead>
         <tbody>${distances.map(x => `<tr>
-          <td><b>${escapeHtml(fmtDistance(x.distance_metres) || '—')}</b></td>
-          <td>${escapeHtml(x.original_label || '—')}</td>
-          <td>${x.start_time ? escapeHtml(String(x.start_time).slice(0,5)) : '—'}</td>
-          <td>${x.wetsuit_policy && x.wetsuit_policy !== 'unknown' ? escapeHtml(x.wetsuit_policy) : '—'}</td>
-          <td>${x.qualification_required === true ? 'Required' : x.qualification_required === false ? 'No' : '—'}</td>
+          <td><b>${escapeHtml(fmtDistance(x.distance_metres) || '–')}</b></td>
+          <td>${escapeHtml(x.original_label || '–')}</td>
+          <td>${x.start_time ? escapeHtml(String(x.start_time).slice(0,5)) : '–'}</td>
+          <td>${x.wetsuit_policy && x.wetsuit_policy !== 'unknown' ? escapeHtml(x.wetsuit_policy) : '–'}</td>
+          <td>${x.qualification_required === true ? 'Required' : x.qualification_required === false ? 'No' : '–'}</td>
         </tr>`).join('')}</tbody>
       </table>
     </div>
@@ -552,7 +552,7 @@ function renderEventPage(ev, ctx) {
     <h2>Other swims nearby</h2>
     <div class="card"><ul class="plain">${ctx.nearby.map(n => `<li>
       <a href="/events/${escapeHtml(n.slug)}">${escapeHtml(n.title || n.series_name)}</a>
-      <span class="muted"> — ${escapeHtml(String(n.start_date || 'date TBC'))}${
+      <span class="muted"> · ${escapeHtml(String(n.start_date || 'date TBC'))}${
         n.distance_km != null ? `, ${Math.round(n.distance_km)} km away` : ''}</span></li>`).join('')}</ul>
     </div>
   </section>` : ''}
@@ -560,7 +560,7 @@ function renderEventPage(ev, ctx) {
   <section>
     <h2>Is this your event?</h2>
     <div class="card">
-      <p>If you organise this swim, you can claim the listing — correct the details, confirm the date,
+      <p>If you organise this swim, you can claim the listing: correct the details, confirm the date,
          and it will show as confirmed by the organiser.</p>
       <div class="actions" style="margin-bottom:0">
         <a class="btn" href="/app?intent=claim_event&event=${escapeHtml(ev.slug)}" id="claimBtn">Claim this event</a>
@@ -570,7 +570,7 @@ function renderEventPage(ev, ctx) {
            looking at what a listing gets them, and their own is missing. -->
       <p style="margin-top:14px;font-size:14px;color:var(--sec)">
         Organise a different swim that is not here yet?
-        <a href="/list-your-swim">Add it to the calendar</a> — free, no account.
+        <a href="/list-your-swim">Add it to the calendar</a>. Free, no account.
       </p>
     </div>
   </section>
@@ -582,13 +582,13 @@ function renderEventPage(ev, ctx) {
   <section>
     <h2>Swimming ${escapeHtml(venue?.city || venue?.country_code || 'here')}?</h2>
     <div class="card">
-      <p>SwimLoading tracks water temperature and conditions for open water swimmers worldwide —
+      <p>SwimLoading tracks water temperature and conditions for open water swimmers worldwide,
          ${escapeHtml(String(ctx.catalogueSize || 'hundreds of'))} swims across
          ${escapeHtml(String(ctx.countryCount || 'dozens of'))} countries, each with the temperature
          of the water it is actually held in. Log your own swims, follow the events you are aiming
          at, and see what the water is doing before you travel.</p>
       <div class="actions" style="margin-bottom:0">
-        <a class="btn btn-primary" href="/app">Open the app — it's free</a>
+        <a class="btn btn-primary" href="/app">Open the app (it's free)</a>
         <a class="btn" href="/explore">Find more swims</a>
         ${venue?.country_code ? `<a class="btn" href="/explore?country=${escapeHtml(venue.country_code)}">More in ${escapeHtml(venue.country_code)}</a>` : ''}
       </div>
@@ -601,7 +601,7 @@ function renderEventPage(ev, ctx) {
        <a href="/crossings">Channel crossings</a> ·
        <a href="/app">Open the app</a></p>
     <p style="margin-top:10px">Listed by SwimLoading. Details gathered from public sources and not
-       guaranteed — confirm with the organiser before travelling.</p>
+       guaranteed. Confirm with the organiser before travelling.</p>
   </footer>
 </div>
 <script>
@@ -671,7 +671,7 @@ function renderConditions(ev, ctx, venue) {
       <dl><dt>In the water now</dt>
         <dd><b>${escapeHtml(String(Math.round(ctx.current.best_c * 10) / 10))}°C</b></dd></dl>
       <p class="srcnote">${ctx.current.best_source === 'swimmer'
-        ? 'Reported by a swimmer' : 'Modelled sea-surface temperature'} — today's water, shown because this
+        ? 'Reported by a swimmer' : 'Modelled sea-surface temperature'}: today's water, shown because this
         swim is within a fortnight. Confidence: ${escapeHtml(ctx.current.confidence || 'unknown')}.</p>
     </div>`);
   }
@@ -775,7 +775,7 @@ function renderCountryHub(slug, country, data) {
   // came from the data, fourteen one-event countries appeared at once.
   const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
 
-  const title = `Open Water Swims in ${country.name} — ${plural(n, 'Event', 'Events')}, Dates & Water Temperature | SwimLoading`;
+  const title = `Open Water Swims in ${country.name}: ${plural(n, 'Event', 'Events')}, Dates & Water Temperature | SwimLoading`;
   const desc = `${plural(n, 'open water swimming event', 'open water swimming events')} in ${country.name}` +
     `${routes.length ? `, plus ${plural(routes.length, 'escorted swim', 'escorted swims')} you can book any time` : ''}. ` +
     `Dates, distances and water temperature for each venue.`;
@@ -863,7 +863,7 @@ function renderCountryHub(slug, country, data) {
       ${rows.map(card).join('')}
     </section>`).join('') : `<section><div class="card"><p class="muted">
       We have no upcoming swims listed in ${escapeHtml(country.name)} yet. We are adding sources country
-      by country — this is a gap in what we have found, not proof there is nothing there.
+      by country. This is a gap in what we have found, not proof there is nothing there.
       </p><div class="actions" style="margin-bottom:0"><a class="btn btn-primary" href="/explore">Find swims elsewhere</a></div></div></section>`}
 
   ${routes.length ? `<section>
@@ -885,7 +885,7 @@ function renderCountryHub(slug, country, data) {
          See what the water is doing before you travel, follow the events you are aiming at,
          and log the swims you do.</p>
       <div class="actions" style="margin-bottom:0">
-        <a class="btn btn-primary" href="/app">Open the app — it's free</a>
+        <a class="btn btn-primary" href="/app">Open the app (it's free)</a>
         <a class="btn" href="/explore">All open water swims</a>
         <a class="btn" href="/spots">Swim spots and temperatures</a>
       </div>
@@ -895,8 +895,8 @@ function renderCountryHub(slug, country, data) {
   <footer>
     <p>${(data.siblings || []).slice(0, 24)
         .map((c) => `<a href="/swims/${c.slug}">${escapeHtml(c.name)}</a>`).join(' · ')}</p>
-    <p style="margin-top:10px">Details gathered from public sources and not guaranteed —
-       confirm with the organiser before travelling.</p>
+    <p style="margin-top:10px">Details gathered from public sources and not guaranteed.
+       Confirm with the organiser before travelling.</p>
   </footer>
 </div>
 <script>
@@ -972,7 +972,7 @@ function renderGroupSwimPage(swim, ctx) {
     ? `${MONTH_SHORT[swim.season_start_month - 1]}–${MONTH_SHORT[swim.season_end_month - 1]}`
     : null;
 
-  const title = `${swim.name} — Regular Open Water Group Swim in ${swim.city || where} | SwimLoading`;
+  const title = `${swim.name}: Regular Open Water Group Swim in ${swim.city || where} | SwimLoading`;
   const desc = (swim.summary || `A regular open water group swim at ${where}.`) +
     (when ? ` ${when}.` : '') + (dist ? ` Typically ${dist}.` : '');
 
@@ -1099,7 +1099,7 @@ function renderGroupSwimPage(swim, ctx) {
 
   <div class="src">
     ${swim.last_verified_at ? `Last checked ${escapeHtml(String(swim.last_verified_at).slice(0, 10))}. ` : ''}
-    Details can change — confirm with the group before you travel.
+    Details can change, so confirm with the group before you travel.
   </div>
 </div>
 </body></html>`;
@@ -1160,7 +1160,7 @@ function renderRoutePage(route, ctx) {
     ? `${MONTH_SHORT[route.season_start_month - 1]}–${MONTH_SHORT[route.season_end_month - 1]}`
     : null;
   const bookUrl = operates ? safeUrl(route.booking_url) : null;
-  const title = `Swim ${route.name} — Distance, Water Temperature & How to Book | SwimLoading`;
+  const title = `Swim ${route.name}: Distance, Water Temperature & How to Book | SwimLoading`;
   const desc = `${route.summary || route.name}${dist ? ` ${dist}.` : ''}` +
     `${route.observed_temp_avg_c != null ? ` Water averages ${route.observed_temp_avg_c}°C.` : ''}` +
     `${route.logged_swims ? ` Based on ${route.logged_swims} logged swims.` : ''}`;
@@ -1205,7 +1205,7 @@ function renderRoutePage(route, ctx) {
                 : `Water temperature for this route is not recorded.`) } },
         { '@type': 'Question', name: `How do I book the ${route.name} swim?`,
           acceptedAnswer: { '@type': 'Answer', text: operates && ctx.operator
-            ? `${route.name} is run by ${ctx.operator.display_name}. It has no fixed date — it runs when conditions allow, so you arrange it with the operator directly.`
+            ? `${route.name} is run by ${ctx.operator.display_name}. It has no fixed date; it runs when conditions allow, so you arrange it with the operator directly.`
             : `${route.name} is booked through ${route.sanctioning_body || 'its sanctioning body'}${ctx.operator ? `. ${ctx.operator.display_name} supports swimmers on this route but does not run it` : ''}.` } },
       ] },
     ],
@@ -1274,7 +1274,7 @@ function renderRoutePage(route, ctx) {
     <div class="card">
       ${operates
         ? `<p><b>${escapeHtml(ctx.operator ? ctx.operator.display_name : 'The operator')}</b> runs this swim.
-             It has no fixed date — it goes when the weather and the water allow, so you arrange a window directly.</p>`
+             It has no fixed date; it goes when the weather and the water allow, so you arrange a window directly.</p>`
         : `<div class="warn" style="margin-bottom:0">This swim is <b>not booked through
              ${escapeHtml(ctx.operator ? ctx.operator.display_name : 'SwimLoading')}</b>. It is arranged through
              ${escapeHtml(route.sanctioning_body || 'its sanctioning body')}${ctx.operator
@@ -1304,7 +1304,7 @@ function renderRoutePage(route, ctx) {
       <table><thead><tr>${byMonth.map(m => `<th>${m.month}</th>`).join('')}</tr></thead>
       <tbody><tr>${byMonth.map(m => `<td><b>${m.mean}°C</b></td>`).join('')}</tr></tbody></table>
       <p class="srcnote">SwimLoading estimate from Copernicus Marine satellite reanalysis, averaged over
-        20 years for this venue. It describes what the water usually does in each month — useful for
+        20 years for this venue. It describes what the water usually does in each month, useful for
         picking when to travel, not a forecast for a given day.</p>
     </div>
   </section>` : ''}
@@ -1316,7 +1316,7 @@ function renderRoutePage(route, ctx) {
          Find races and bookable crossings, see what the water is doing before you travel,
          and log the swims you do.</p>
       <div class="actions" style="margin-bottom:0">
-        <a class="btn btn-primary" href="/app">Open the app — it's free</a>
+        <a class="btn btn-primary" href="/app">Open the app (it's free)</a>
         <a class="btn" href="/explore">Find more swims</a>
         <a class="btn" href="/spots">Swim spots and temperatures</a>
       </div>
@@ -1357,7 +1357,7 @@ export default async function handler(req, res) {
       const swim = await loadGroupSwim(slug);
       if (!swim) {
         res.setHeader('Cache-Control', 'public, s-maxage=60');
-        return res.status(404).send(renderShell('Group swim not found — SwimLoading',
+        return res.status(404).send(renderShell('Group swim not found | SwimLoading',
           `<h1>We do not have that group swim</h1>
            <p class="sub">It may have been renamed or removed.</p>
            <div class="actions"><a class="btn btn-primary" href="/explore?regular=1">Regular group swims</a></div>`));
@@ -1368,7 +1368,7 @@ export default async function handler(req, res) {
     } catch (err) {
       console.error('[events-handler /group-swims]', err);
       res.setHeader('Cache-Control', 'no-store');
-      return res.status(500).send(renderShell('Something went wrong — SwimLoading',
+      return res.status(500).send(renderShell('Something went wrong | SwimLoading',
         `<h1>Something went wrong</h1><p class="sub">We could not load that swim.</p>
          <div class="actions"><a class="btn btn-primary" href="/explore?regular=1">Regular group swims</a></div>`));
     }
@@ -1387,7 +1387,7 @@ export default async function handler(req, res) {
       } catch (err) {
         console.error('[events-handler /swims country]', err);
         res.setHeader('Cache-Control', 'no-store');
-        return res.status(500).send(renderShell('Something went wrong — SwimLoading',
+        return res.status(500).send(renderShell('Something went wrong | SwimLoading',
           `<h1>Something went wrong</h1><div class="actions"><a class="btn btn-primary" href="/explore">Find a swim</a></div>`));
       }
     }
@@ -1395,7 +1395,7 @@ export default async function handler(req, res) {
       const route = await loadRoute(slug);
       if (!route) {
         res.setHeader('Cache-Control', 'public, s-maxage=60');
-        return res.status(404).send(renderShell('Swim not found — SwimLoading',
+        return res.status(404).send(renderShell('Swim not found | SwimLoading',
           `<h1>We do not have that swim</h1>
            <p class="sub">It may have been renamed or removed.</p>
            <div class="actions"><a class="btn btn-primary" href="/explore?bookable=1">Swims you can book</a></div>`));
@@ -1406,7 +1406,7 @@ export default async function handler(req, res) {
     } catch (err) {
       console.error('[events-handler /swims]', err);
       res.setHeader('Cache-Control', 'no-store');
-      return res.status(500).send(renderShell('Something went wrong — SwimLoading',
+      return res.status(500).send(renderShell('Something went wrong | SwimLoading',
         `<h1>Something went wrong</h1><p class="sub">We could not load that swim.</p>
          <div class="actions"><a class="btn btn-primary" href="/explore">Find a swim</a></div>`));
     }
@@ -1438,7 +1438,7 @@ export default async function handler(req, res) {
       // 404 must not be cached for long: a slug goes live the moment a
       // candidate is approved, and a day-long cached 404 would hide it.
       res.setHeader('Cache-Control', 'public, s-maxage=60');
-      return res.status(404).send(renderShell('Swim not found — SwimLoading',
+      return res.status(404).send(renderShell('Swim not found | SwimLoading',
         `<h1>We do not have that swim</h1>
          <p class="sub">It may have been removed, merged with another listing, or never existed.</p>
          <div class="actions"><a class="btn btn-primary" href="/explore">Find a swim</a></div>`));
@@ -1450,7 +1450,7 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error('[events-handler]', err);
     res.setHeader('Cache-Control', 'no-store');
-    return res.status(500).send(renderShell('Something went wrong — SwimLoading',
+    return res.status(500).send(renderShell('Something went wrong | SwimLoading',
       `<h1>Something went wrong</h1>
        <p class="sub">We could not load that swim. Please try again.</p>
        <div class="actions"><a class="btn btn-primary" href="/explore">Find a swim</a></div>`));

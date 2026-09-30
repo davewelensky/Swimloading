@@ -73,7 +73,7 @@ async function fetchDynamic(slug) {
 // ─── HELPERS ───────────────────────────────────────────────────────────────────
 
 function fmtTime(secs) {
-  if (secs === null || secs === undefined) return '—';
+  if (secs === null || secs === undefined) return '–';
   const h = Math.floor(secs / 3600);
   const m = Math.floor((secs % 3600) / 60);
   const s = secs % 60;
@@ -270,12 +270,12 @@ function renderSection(sec, dynamic) {
 
 function renderPilotsLive(pilots) {
   if (!pilots.length) return '<p class="p">Live pilot data unavailable.</p>';
-  return `<div class="card"><div class="card-label">Pilot leaderboard — live</div>${pilots.map((p, i) => {
+  return `<div class="card"><div class="card-label">Pilot leaderboard · live</div>${pilots.map((p, i) => {
     const active = p.last_year >= 2023;
     const activeTag = active
       ? '<span style="font-size:10px;font-weight:700;color:var(--green);">ACTIVE</span>'
       : '<span style="font-size:10px;color:var(--text-sec);">retired</span>';
-    const fastest = p.fastest_time_seconds ? fmtTime(p.fastest_time_seconds) : '—';
+    const fastest = p.fastest_time_seconds ? fmtTime(p.fastest_time_seconds) : '–';
     return `<div class="pilot-row">
       <div class="pilot-rank">${i + 1}</div>
       <div class="pilot-body">
@@ -302,7 +302,7 @@ function renderRecordsLive(r) {
       <div class="swim-pos" style="color:${i === 0 ? accent : i < 3 ? '#cbd5e1' : 'var(--text-sec)'};">${i + 1}</div>
       <div style="flex:1;">
         <div class="swim-name">${escapeHtml(s.full_name)}</div>
-        <div class="swim-meta">${s.year} · ${escapeHtml(s.nationality_when_swam || '—')}${s.pilot ? ' · pilot: ' + escapeHtml(s.pilot) : ''}</div>
+        <div class="swim-meta">${s.year} · ${escapeHtml(s.nationality_when_swam || '–')}${s.pilot ? ' · pilot: ' + escapeHtml(s.pilot) : ''}</div>
       </div>
       <div class="swim-time">${fmtTime(s.time_seconds)}</div>
     </a>`).join('')}</div>`;
@@ -330,7 +330,7 @@ function renderRelated(currentSlug) {
     'training-plan':     { title: 'How to train for the Channel',    desc: '24-month plan, cold acclimatisation, taper' },
     'qualifying-swim':   { title: 'The 6-hour qualifying swim',      desc: 'Rules, venues, observer, common reasons people fail' },
     'pilots':            { title: 'Pilot leaderboard',               desc: 'Live: most ratified crossings by pilot' },
-    'records':           { title: 'Channel records — all-time',      desc: 'Fastest M/F, multi-way, by-decade' },
+    'records':           { title: 'Channel records: all-time',      desc: 'Fastest M/F, multi-way, by-decade' },
     'relay':             { title: 'Channel relay swims',             desc: 'Rules, teams, records, costs' },
     'jellyfish':         { title: 'Jellyfish in the Channel',        desc: 'Species, peak months, sting handling' },
     'tide-windows':      { title: 'Tide windows explained',          desc: 'Neap vs spring, position 1-7, calendar' },
@@ -400,7 +400,7 @@ const PAGES = {
     meta: 'A solo English Channel swim costs £4,500–£8,500 all-in. Full breakdown: pilot fees (£3,000–£4,500), registration, observer, qualifier, training travel, Dover wait week.',
     eyebrow: 'English Channel · Cost guide',
     h1: 'How much does it cost to swim the English Channel?',
-    lede: 'A solo Channel attempt costs <strong>£4,500–£8,500 all-in</strong> for most swimmers. The pilot fee is the biggest line item, but the costs you don\'t always plan for — the qualifier, the wait-week accommodation, two years of training trips to Dover — quietly add up.',
+    lede: 'A solo Channel attempt costs <strong>£4,500–£8,500 all-in</strong> for most swimmers. The pilot fee is the biggest line item, but the costs you don\'t always plan for (the qualifier, the wait-week accommodation, two years of training trips to Dover) quietly add up.',
 
     sections: [
       {
@@ -431,18 +431,18 @@ const PAGES = {
           '<strong>Balance:</strong> due in the weeks before your tide window',
           '<strong>Cancellation:</strong> if conditions don\'t allow a swim during your week, you typically forfeit the deposit and rebook for a future tide (some pilots offer rollovers)',
         ],
-        callout: { label: 'Watch out', warn: true, body: 'Pilots usually take 4–7 swimmers in a single tide window, ranked 1st through 7th. If you\'re 5th or later you may not swim — and you still pay. Position is everything; book early.' },
+        callout: { label: 'Watch out', warn: true, body: 'Pilots usually take 4–7 swimmers in a single tide window, ranked 1st through 7th. If you\'re 5th or later you may not swim, and you still pay. Position is everything; book early.' },
       },
       {
         h2: 'The qualifying swim cost',
         p: [
-          'Every Channel swimmer must complete a witnessed <strong>6-hour swim in cold water</strong> — ≤15.5°C within 12 months of the attempt (CSA), or ≤16°C within the previous 18 months (CS&PF).',
+          'Every Channel swimmer must complete a witnessed <strong>6-hour swim in cold water</strong>: ≤15.5°C within 12 months of the attempt (CSA), or ≤16°C within the previous 18 months (CS&PF).',
           'For UK swimmers this is usually Dover Harbour on a summer weekend; cost is typically just travel + a small observer fee (£50–£100). International swimmers may need a flight to an organised qualifier at Lake Vyrnwy, Coniston, or similar.',
         ],
       },
       {
         h2: 'The wait week is the hidden cost',
-        p: 'Pilots book swimmers into a tide window — a 5–7 day slot. You\'re expected to be in Dover, ready, for the entire week, even though your actual swim may take 1 day. Accommodation in Dover during peak season (Jul–Sep) is £80–£200/night.',
+        p: 'Pilots book swimmers into a tide window, a 5–7 day slot. You\'re expected to be in Dover, ready, for the entire week, even though your actual swim may take 1 day. Accommodation in Dover during peak season (Jul–Sep) is £80–£200/night.',
         bullets: [
           'B&Bs near Marine Parade: £80–£140/night',
           'Self-catering apartments: £130–£200/night',
@@ -454,9 +454,9 @@ const PAGES = {
         h2: 'How most people fund it',
         p: 'Channel attempts get funded in three common ways:',
         bullets: [
-          '<strong>Self-funded</strong> — most swimmers save over the build-up period',
-          '<strong>Charity swim</strong> — fundraise for a cause; some swimmers cover their full costs through pledges',
-          '<strong>Sponsor support</strong> — rare for solo attempts unless you have a media profile; more common for relays',
+          '<strong>Self-funded</strong>: most swimmers save over the build-up period',
+          '<strong>Charity swim</strong>: fundraise for a cause; some swimmers cover their full costs through pledges',
+          '<strong>Sponsor support</strong>: rare for solo attempts unless you have a media profile; more common for relays',
         ],
       },
     ],
@@ -464,14 +464,14 @@ const PAGES = {
     faqs: [
       { q: 'Is the pilot fee per swim or per booking?',
         a: 'Per booking. If conditions force you to not swim in your tide window, the deposit is usually forfeited and you re-book and pay again for the next attempt.' },
-      { q: 'What\'s cheaper — CSA or CS&PF?',
+      { q: 'What\'s cheaper, CSA or CS&PF?',
         a: 'Roughly the same. Registration and observer fees are within ~£20 of each other. Pilot fees vary by individual, not by governing body.' },
       { q: 'Do support crew on the pilot boat have to pay?',
-        a: 'No — your support crew rides on the pilot boat for free. They may want to contribute to fuel or tips, but it\'s not required.' },
+        a: 'No. Your support crew rides on the pilot boat for free. They may want to contribute to fuel or tips, but it\'s not required.' },
       { q: 'How much do relays cost compared to solos?',
         a: 'Relays split the pilot fee between team members (4–6 people), so it\'s typically £500–£900 per person plus shared accommodation. See the <a href="/english-channel/relay">relay guide</a>.' },
       { q: 'Are there any cheaper alternatives to the English Channel?',
-        a: 'Shorter UK crossings exist — Bristol Channel, the Solent — but they don\'t have the prestige or ratification structure. The English Channel is the original; the cost reflects 150 years of infrastructure.' },
+        a: 'Shorter UK crossings exist (Bristol Channel, the Solent) but they don\'t have the prestige or ratification structure. The English Channel is the original; the cost reflects 150 years of infrastructure.' },
     ],
   },
 
@@ -481,7 +481,7 @@ const PAGES = {
     meta: 'How to train for an English Channel solo swim: 18-24 month build, volume progression, cold-water acclimatisation, qualifying swim, taper, sample weeks.',
     eyebrow: 'English Channel · Training guide',
     h1: 'How to train for an English Channel swim',
-    lede: 'Most successful Channel swimmers train for <strong>18–24 months</strong>, building from a few kilometres a week to <strong>50+ kilometres at peak</strong>. The pool work matters, but the swim is won in cold open water — not the lap pool.',
+    lede: 'Most successful Channel swimmers train for <strong>18–24 months</strong>, building from a few kilometres a week to <strong>50+ kilometres at peak</strong>. The pool work matters, but the swim is won in cold open water, not the lap pool.',
 
     sections: [
       {
@@ -500,23 +500,23 @@ const PAGES = {
         table: {
           headers: ['Day', 'Session', 'Approx volume'],
           rows: [
-            ['Monday',    'Pool — aerobic threshold, 4×1km',     '6 km'],
-            ['Tuesday',   'Pool — speed/IM mix',                  '5 km'],
-            ['Wednesday', 'Open water — continuous',              '8 km'],
-            ['Thursday',  'Pool — long aerobic',                  '7 km'],
+            ['Monday',    'Pool: aerobic threshold, 4×1km',     '6 km'],
+            ['Tuesday',   'Pool: speed/IM mix',                  '5 km'],
+            ['Wednesday', 'Open water: continuous',              '8 km'],
+            ['Thursday',  'Pool: long aerobic',                  '7 km'],
             ['Friday',    'Rest or short swim',                   '0–3 km'],
-            ['Saturday',  'Open water — long swim with feeds',    '12–15 km'],
-            ['Sunday',    'Open water — back-to-back day',        '8 km'],
-            ['<strong>Total</strong>', '<strong>—</strong>',      '<strong>46–52 km</strong>'],
+            ['Saturday',  'Open water: long swim with feeds',    '12–15 km'],
+            ['Sunday',    'Open water: back-to-back day',        '8 km'],
+            ['<strong>Total</strong>', '<strong>–</strong>',      '<strong>46–52 km</strong>'],
           ],
         },
         callout: { label: 'Reality check', body: 'These numbers are typical for swimmers chasing a sub-15-hour crossing. Slower swimmers train less volume but more time-in-water; finishing-only attempts often peak around 30–35 km/week.' },
       },
       {
-        h2: 'Cold-water acclimatisation — the make-or-break phase',
+        h2: 'Cold-water acclimatisation: the make-or-break phase',
         p: [
           'The qualifying swim requires <strong>6 hours in water ≤16°C</strong>. The actual Channel can be anywhere from 14°C to 18°C. The difference between finishers and DNFs is almost always cold tolerance, not pace.',
-          'Cold acclimatisation isn\'t about getting tough — it\'s a measurable physiological adaptation. Repeated exposure thickens insulating tissue and reduces the cold-shock response.',
+          'Cold acclimatisation isn\'t about getting tough; it\'s a measurable physiological adaptation. Repeated exposure thickens insulating tissue and reduces the cold-shock response.',
         ],
         bullets: [
           '<strong>October–March:</strong> Swim 2–3× per week in cold open water (5–10°C). Start with 10-minute swims and build.',
@@ -529,14 +529,14 @@ const PAGES = {
       {
         h2: 'Where to train in the UK',
         bullets: [
-          '<strong>Dover Harbour</strong> (May–September) — the unofficial Channel training HQ. Saturday/Sunday morning swims with experienced organisers. Most British swimmers do their qualifier here.',
-          '<strong>Lake Vyrnwy, Wales</strong> — cold mountain reservoir, hosts organised qualifying swims',
-          '<strong>Lake Coniston</strong> — large body of water, used for endurance training',
-          '<strong>Local lidos and lakes</strong> — Tooting Bec, Brockwell, Hampstead, Serpentine — all support cold-water training',
+          '<strong>Dover Harbour</strong> (May–September): the unofficial Channel training HQ. Saturday/Sunday morning swims with experienced organisers. Most British swimmers do their qualifier here.',
+          '<strong>Lake Vyrnwy, Wales</strong>: cold mountain reservoir, hosts organised qualifying swims',
+          '<strong>Lake Coniston</strong>: large body of water, used for endurance training',
+          '<strong>Local lidos and lakes</strong>: Tooting Bec, Brockwell, Hampstead, Serpentine all support cold-water training',
         ],
       },
       {
-        h2: 'The qualifying swim — your last training milestone',
+        h2: 'The qualifying swim: your last training milestone',
         p: 'Your final formal training milestone is the qualifier: 6 continuous hours in ≤16°C water, witnessed by an approved observer. Plan it for May or June so you finish before your tide window. See the <a href="/english-channel/qualifying-swim">qualifying swim guide</a> for rules and venues.',
       },
       {
@@ -562,14 +562,14 @@ const PAGES = {
   // ─── 3. QUALIFYING SWIM ──────────────────────────────────────────────────
   'qualifying-swim': {
     title: 'English Channel qualifying swim: rules and venues',
-    meta: '6 hours non-stop in cold water — ≤15.5°C (CSA) or ≤16°C (CS&PF) — witnessed by an approved observer. Where to qualify (Dover Harbour, Lake Vyrnwy, Coniston), how to prepare, common reasons people fail.',
+    meta: '6 hours non-stop in cold water (≤15.5°C CSA, ≤16°C CS&PF), witnessed by an approved observer. Where to qualify (Dover Harbour, Lake Vyrnwy, Coniston), how to prepare, common reasons people fail.',
     eyebrow: 'English Channel · Qualifier guide',
     h1: 'The 6-hour qualifying swim',
-    lede: 'Before any Channel pilot will take you out, you must complete a <strong>6-hour non-stop swim in cold water</strong> — at or below 15.5°C for the CSA, 16°C for the CS&PF — witnessed by an approved observer, within 12 months (CSA) or the previous 18 months (CS&PF) of your attempt. No qualifier, no swim.',
+    lede: 'Before any Channel pilot will take you out, you must complete a <strong>6-hour non-stop swim in cold water</strong> (at or below 15.5°C for the CSA, 16°C for the CS&PF), witnessed by an approved observer, within 12 months (CSA) or the previous 18 months (CS&PF) of your attempt. No qualifier, no swim.',
 
     sections: [
       {
-        h2: 'What the qualifying swim is — and why',
+        h2: 'What the qualifying swim is, and why',
         p: [
           'The qualifier exists because pilots and observers need evidence that you can handle the cold and the duration before they commit a boat and crew to a 12+ hour effort. It\'s not a fitness test of speed; it\'s a proof of cold tolerance.',
           'Both ratifying bodies (CSA and CS&PF) require it, with slightly different rules but the same core: 6 hours, cold water, witnessed. The CSA requires 15.5°C (60°F) or less within 12 months of your attempt; the CS&PF requires 16°C or less within the previous 18 months, swum in the same attire as your Channel swim.',
@@ -584,7 +584,7 @@ const PAGES = {
           '<strong>Witness:</strong> An approved observer must be present from start to finish. Some clubs and CSA/CS&PF officers do this for free; others charge.',
           '<strong>Feeds:</strong> Allowed every 30–45 minutes, taken from the side without supporting your weight on the boat or pontoon.',
           '<strong>Timing:</strong> CSA: within 12 months of your attempt. CS&PF: within the previous 18 months, completed more than two weeks before your swim.',
-          '<strong>Medical certificate:</strong> Separate requirement — your GP must sign you off as fit for cold-water endurance swimming.',
+          '<strong>Medical certificate:</strong> Separate requirement: your GP must sign you off as fit for cold-water endurance swimming.',
         ],
         callout: { label: 'Detail that catches people out', warn: true, body: 'If the water temperature rises above your body\'s required maximum during your swim, the clock stops. Some swimmers have to extend past 6h or come back another day. Confirm temperature monitoring with your observer before you start.' },
       },
@@ -592,11 +592,11 @@ const PAGES = {
         h2: 'Where to do it',
         p: 'Five places UK-based swimmers commonly qualify:',
         bullets: [
-          '<strong>Dover Harbour</strong> — Saturday/Sunday morning training sessions from May. Organised, observed, and the closest you can get to actual Channel water without a boat. Most British swimmers qualify here.',
-          '<strong>Lake Vyrnwy, Wales</strong> — Cold mountain reservoir, runs an annual organised qualifier in May/June.',
-          '<strong>Lake Coniston, Cumbria</strong> — Large body of water, supports multi-hour swims year-round. Cold-water focused.',
-          '<strong>Loch Lomond / Scottish lochs</strong> — Cold, scenic, well-organised swim communities. Lengthy season.',
-          '<strong>Organised CSA/CS&PF events</strong> — both governing bodies run a few qualifier-friendly events each year. Check their websites.',
+          '<strong>Dover Harbour</strong>: Saturday/Sunday morning training sessions from May. Organised, observed, and the closest you can get to actual Channel water without a boat. Most British swimmers qualify here.',
+          '<strong>Lake Vyrnwy, Wales</strong>: Cold mountain reservoir, runs an annual organised qualifier in May/June.',
+          '<strong>Lake Coniston, Cumbria</strong>: Large body of water, supports multi-hour swims year-round. Cold-water focused.',
+          '<strong>Loch Lomond / Scottish lochs</strong>: Cold, scenic, well-organised swim communities. Lengthy season.',
+          '<strong>Organised CSA/CS&PF events</strong>: both governing bodies run a few qualifier-friendly events each year. Check their websites.',
         ],
       },
       {
@@ -610,12 +610,12 @@ const PAGES = {
           '<strong>Skipping the feed plan.</strong> A 6-hour swim needs ~3–4 feeds. Practice with your actual race-day nutrition before the qualifier.',
           '<strong>Going too hard early.</strong> The qualifier is about completion, not pace. Settle into your Channel pace from minute one.',
           '<strong>Cold-shock from a bad entry.</strong> Acclimatise the entry first; never dive in cold.',
-          '<strong>Mental wall around hour 4.</strong> Mental prep is half the work — visualise the back end of the swim before you do it.',
+          '<strong>Mental wall around hour 4.</strong> Mental prep is half the work, so visualise the back end of the swim before you do it.',
         ],
       },
       {
         h2: 'After you qualify',
-        p: 'Once you\'ve qualified, send the observer\'s confirmation to your pilot and the ratifying body. Then keep training — the qualifier is one piece; you still have to handle the longer, colder, harder real swim.',
+        p: 'Once you\'ve qualified, send the observer\'s confirmation to your pilot and the ratifying body. Then keep training. The qualifier is one piece; you still have to handle the longer, colder, harder real swim.',
       },
     ],
 
@@ -626,7 +626,7 @@ const PAGES = {
         a: 'No. It must be continuous. Some bodies allow exit only briefly for the toilet, but planned multi-part swims don\'t count.' },
       { q: 'What if I get out at 5h 45m?',
         a: 'You haven\'t qualified. You\'ll need to redo the full 6 hours another day.' },
-      { q: 'I qualified last year — does that still count?',
+      { q: 'I qualified last year. Does that still count?',
         a: 'It depends on the dates. The CSA requires the qualifier within 12 months of your attempt; the CS&PF within the previous 18 months. Check your qualifier date against your tide window and confirm with your ratifying body.' },
       { q: 'How much does it cost?',
         a: '£0–£200 for the swim itself depending on venue. Add £50–£150 for the medical certificate (which is annual). See <a href="/english-channel/cost">cost guide</a>.' },
@@ -636,7 +636,7 @@ const PAGES = {
   // ─── 4. PILOTS ───────────────────────────────────────────────────────────
   'pilots': {
     title: 'English Channel pilots: registered boats and how to book',
-    meta: 'Live pilot leaderboard — most ratified English Channel solo crossings by pilot. CSA and CS&PF registered pilots, boats, fees, and how tide windows work.',
+    meta: 'Live pilot leaderboard: most ratified English Channel solo crossings by pilot. CSA and CS&PF registered pilots, boats, fees, and how tide windows work.',
     eyebrow: 'English Channel · Pilots',
     h1: 'English Channel pilots and how to book',
     lede: 'A registered pilot is mandatory for any ratified solo crossing. The pilot navigates, monitors conditions, and witnesses your swim. There are around 12 active CSA pilots and 8 CS&PF pilots; the best book out 2+ years ahead.',
@@ -657,22 +657,22 @@ const PAGES = {
       {
         h2: 'How to choose a pilot',
         bullets: [
-          '<strong>Availability</strong> — when does your tide window fall? Some pilots are full 2 years out.',
-          '<strong>Position</strong> — ask what position you\'d be in their tide. 1st–3rd is comfortable; 5th+ is risky.',
-          '<strong>Boat</strong> — bigger boats handle weather better; smaller boats may be cheaper.',
-          '<strong>Communication</strong> — talk to past clients. Channel pilots are accessible — call them.',
-          '<strong>Specialism</strong> — some pilots do faster swims with elite athletes; others are excellent for first-time finishers.',
+          '<strong>Availability</strong>: when does your tide window fall? Some pilots are full 2 years out.',
+          '<strong>Position</strong>: ask what position you\'d be in their tide. 1st–3rd is comfortable; 5th+ is risky.',
+          '<strong>Boat</strong>: bigger boats handle weather better; smaller boats may be cheaper.',
+          '<strong>Communication</strong>: talk to past clients. Channel pilots are accessible, so call them.',
+          '<strong>Specialism</strong>: some pilots do faster swims with elite athletes; others are excellent for first-time finishers.',
         ],
       },
       {
         h2: 'The booking process',
         bullets: [
-          '<strong>Contact the pilot directly</strong> — by phone or email, listed on CSA/CS&PF websites.',
-          '<strong>Discuss your tide window preferences</strong> — neap tides are easier; spring tides have more sweep.',
-          '<strong>Pay the booking fee (~£600) and deposit (£2,000)</strong> — secures your slot. The booking fee is non-refundable.',
-          '<strong>Sign the contract</strong> — covers responsibilities, cancellation, force majeure.',
-          '<strong>Register with CSA or CS&PF</strong> — annual fee, your pilot will confirm which body.',
-          '<strong>Pay balance</strong> — typically due 4–8 weeks before your tide window.',
+          '<strong>Contact the pilot directly</strong>, by phone or email, listed on CSA/CS&PF websites.',
+          '<strong>Discuss your tide window preferences</strong>: neap tides are easier; spring tides have more sweep.',
+          '<strong>Pay the booking fee (~£600) and deposit (£2,000)</strong> to secure your slot. The booking fee is non-refundable.',
+          '<strong>Sign the contract</strong>, which covers responsibilities, cancellation, force majeure.',
+          '<strong>Register with CSA or CS&PF</strong>: annual fee, your pilot will confirm which body.',
+          '<strong>Pay balance</strong>: typically due 4–8 weeks before your tide window.',
         ],
         callout: { label: 'Tide window positions', body: 'Your pilot will likely take 4–7 swimmers in the same tide window, ranked 1st through 7th. The leader swims first when weather lifts; later positions wait their turn and may not get a chance if weather closes out. Book early to secure an early position.' },
       },
@@ -694,7 +694,7 @@ const PAGES = {
       { q: 'Can I switch pilots if my schedule changes?',
         a: 'Sometimes, but deposits are non-refundable. Always discuss flexibility with the pilot at booking.' },
       { q: 'Do I need to bring my own boat?',
-        a: 'No — pilots provide the boat, crew and observer. You arrive with your swim kit, feeds, and a support person.' },
+        a: 'No. Pilots provide the boat, crew and observer. You arrive with your swim kit, feeds, and a support person.' },
       { q: 'Why do pilots take multiple swimmers per tide window?',
         a: 'A tide window is 5–7 days. Only some days are swimmable. Booking 4–7 swimmers lets the pilot send out whoever\'s ready when conditions allow. The trade-off is that not everyone gets to swim.' },
       { q: 'What if my pilot can\'t take me out (illness, mechanical)?',
@@ -707,7 +707,7 @@ const PAGES = {
     title: 'English Channel swim records: all-time fastest and milestones',
     meta: 'Live English Channel records: fastest men\'s and women\'s solo, multi-way records, total ratified swims, oldest, youngest, Queen and King of the Channel.',
     eyebrow: 'English Channel · Records',
-    h1: 'English Channel records — all-time',
+    h1: 'English Channel records: all-time',
     lede: 'Live records from the <strong>3,443 ratified solo crossings</strong> in the public Channel database (CSA + CS&PF + historical, 1875–present). Click any swimmer\'s name to open their swim page.',
 
     sections: [
@@ -719,29 +719,29 @@ const PAGES = {
       {
         h2: 'Channel legends',
         bullets: [
-          '<strong>Chloë McCardel</strong> — 44 successful crossings · most by anyone · "Queen of the Channel" since 2021',
-          '<strong>Alison Streeter MBE</strong> — 43 crossings · Queen of the Channel 1992–2021',
-          '<strong>Kevin Murphy</strong> — 34 crossings · most by any man',
-          '<strong>Otto Thaning</strong> — Oldest at 73 (2014, South African cardiologist)',
-          '<strong>Tom Gregory</strong> — Youngest at 11 (1988, before age limits)',
-          '<strong>Captain Matthew Webb</strong> — First ever, 24–25 Aug 1875, 21h 45m',
-          '<strong>Gertrude Ederle</strong> — First woman, 6 Aug 1926, 14h 39m (faster than all 5 previous men)',
-          '<strong>Sarah Thomas</strong> — First 4-way crossing, Sep 2019, 54h 10m (cancer survivor)',
+          '<strong>Chloë McCardel</strong>: 44 successful crossings · most by anyone · "Queen of the Channel" since 2021',
+          '<strong>Alison Streeter MBE</strong>: 43 crossings · Queen of the Channel 1992–2021',
+          '<strong>Kevin Murphy</strong>: 34 crossings · most by any man',
+          '<strong>Otto Thaning</strong>: Oldest at 73 (2014, South African cardiologist)',
+          '<strong>Tom Gregory</strong>: Youngest at 11 (1988, before age limits)',
+          '<strong>Captain Matthew Webb</strong>: First ever, 24–25 Aug 1875, 21h 45m',
+          '<strong>Gertrude Ederle</strong>: First woman, 6 Aug 1926, 14h 39m (faster than all 5 previous men)',
+          '<strong>Sarah Thomas</strong>: First 4-way crossing, Sep 2019, 54h 10m (cancer survivor)',
         ],
       },
       {
         h2: 'Historical milestones',
         bullets: [
-          '<strong>1875</strong> — Webb proves it can be done',
-          '<strong>1923</strong> — Enrico Tiraboschi makes the first France-to-England crossing in 16h 33m, winning the Daily Sketch £1,000 prize and cutting more than five hours off Webb\'s record',
-          '<strong>1926</strong> — Gertrude Ederle becomes the first woman; her time would have set the men\'s world record',
-          '<strong>1961</strong> — Antonio Abertondo (Argentina) completes the first two-way crossing in 43h 10m',
-          '<strong>1981</strong> — Jon Erikson (USA) completes the first three-way, in 38h 27m',
-          '<strong>1987</strong> — Philip Rush (NZ) sets the modern multi-way standard with 28h 21m three-way',
-          '<strong>2007</strong> — Petar Stoychev (Bulgaria) becomes the first to break seven hours, at 6h 57m 50s, and holds the record for five years',
-          '<strong>2012</strong> — Trent Grimsey (Australia) sets the world record at 6h 55m',
-          '<strong>2019</strong> — Sarah Thomas (USA) completes first four-way',
-          '<strong>2023</strong> — Andreas Waschburger (Germany) breaks Grimsey\'s record at 6h 45m 25s',
+          '<strong>1875</strong>: Webb proves it can be done',
+          '<strong>1923</strong>: Enrico Tiraboschi makes the first France-to-England crossing in 16h 33m, winning the Daily Sketch £1,000 prize and cutting more than five hours off Webb\'s record',
+          '<strong>1926</strong>: Gertrude Ederle becomes the first woman; her time would have set the men\'s world record',
+          '<strong>1961</strong>: Antonio Abertondo (Argentina) completes the first two-way crossing in 43h 10m',
+          '<strong>1981</strong>: Jon Erikson (USA) completes the first three-way, in 38h 27m',
+          '<strong>1987</strong>: Philip Rush (NZ) sets the modern multi-way standard with 28h 21m three-way',
+          '<strong>2007</strong>: Petar Stoychev (Bulgaria) becomes the first to break seven hours, at 6h 57m 50s, and holds the record for five years',
+          '<strong>2012</strong>: Trent Grimsey (Australia) sets the world record at 6h 55m',
+          '<strong>2019</strong>: Sarah Thomas (USA) completes first four-way',
+          '<strong>2023</strong>: Andreas Waschburger (Germany) breaks Grimsey\'s record at 6h 45m 25s',
         ],
       },
     ],
@@ -766,17 +766,17 @@ const PAGES = {
     meta: 'How English Channel relay swims work: 2/3/4/6-person teams, 1-hour rotation rule, costs, finding teammates, records.',
     eyebrow: 'English Channel · Relays',
     h1: 'English Channel relay swims',
-    lede: 'Relays let teams of 2–6 swimmers split the crossing with <strong>1-hour rotations</strong>. They\'re cheaper than solos, more social, and a popular entry point for swimmers who aren\'t ready for the full distance — or want to do it with friends.',
+    lede: 'Relays let teams of 2–6 swimmers split the crossing with <strong>1-hour rotations</strong>. They\'re cheaper than solos, more social, and a popular entry point for swimmers who aren\'t ready for the full distance, or want to do it with friends.',
 
     sections: [
       {
         h2: 'How relay rules work',
         bullets: [
-          '<strong>Team size</strong> — usually 4 or 6 swimmers. 2 and 3 are allowed; the smaller the team, the harder the swim.',
-          '<strong>1-hour rotations</strong> — each swimmer does exactly 1 hour in the water, in a fixed order, looped through the team for the duration of the swim.',
-          '<strong>No order changes</strong> — once the team starts, you swim in the same sequence. A swimmer who has to pull out for injury can\'t be replaced.',
-          '<strong>Standard equipment</strong> — same as solo: costume, cap, goggles, no neoprene.',
-          '<strong>Handovers</strong> — incoming swimmer enters the water; outgoing swimmer touches the incoming swimmer to complete the change.',
+          '<strong>Team size</strong>: usually 4 or 6 swimmers. 2 and 3 are allowed; the smaller the team, the harder the swim.',
+          '<strong>1-hour rotations</strong>: each swimmer does exactly 1 hour in the water, in a fixed order, looped through the team for the duration of the swim.',
+          '<strong>No order changes</strong>: once the team starts, you swim in the same sequence. A swimmer who has to pull out for injury can\'t be replaced.',
+          '<strong>Standard equipment</strong>: same as solo: costume, cap, goggles, no neoprene.',
+          '<strong>Handovers</strong>: incoming swimmer enters the water; outgoing swimmer touches the incoming swimmer to complete the change.',
         ],
       },
       {
@@ -793,8 +793,8 @@ const PAGES = {
         bullets: [
           'Local masters clubs and open-water groups',
           'Channel-focused Facebook groups (e.g. "Channel Swimmers")',
-          'Dover Harbour summer training — many relay teams form there',
-          'Charity swim platforms — sometimes you join an existing team',
+          'Dover Harbour summer training, where many relay teams form there',
+          'Charity swim platforms, where sometimes you join an existing team',
         ],
       },
       {
@@ -812,7 +812,7 @@ const PAGES = {
       { q: 'Can I do a relay as my first Channel swim before going solo?',
         a: 'Yes, and many people do. It gives you boat experience, weather understanding, and a sense of the route before you commit to a solo.' },
       { q: 'What if a teammate gets injured mid-swim?',
-        a: 'The team is disqualified — relays can\'t substitute swimmers. Confirmed in writing before the swim.' },
+        a: 'The team is disqualified, as relays can\'t substitute swimmers. Confirmed in writing before the swim.' },
       { q: 'Does the relay still count if conditions force a stop?',
         a: 'If the team comes out of the water before reaching France, no, it\'s not ratified. Same as solo.' },
       { q: 'Is the relay shorter than the solo?',
@@ -828,16 +828,16 @@ const PAGES = {
     meta: 'What jellyfish are in the English Channel, when they peak (lion\'s mane Aug-Sep, compass Jul-Aug), how to handle stings, and what swimmers do about them.',
     eyebrow: 'English Channel · Jellyfish guide',
     h1: 'Jellyfish in the English Channel',
-    lede: 'Most Channel swimmers get stung. Few abandon their swim because of it. Knowing what\'s in the water and how to handle stings is part of the preparation — not something to fear.',
+    lede: 'Most Channel swimmers get stung. Few abandon their swim because of it. Knowing what\'s in the water and how to handle stings is part of the preparation, not something to fear.',
 
     sections: [
       {
         h2: 'The four common species',
         bullets: [
-          '<strong>Lion\'s mane (Cyanea capillata)</strong> — Reddish-brown, large (50cm+ bell), trailing tentacles up to several metres. The big one Channel swimmers worry about. Peak late August through September.',
-          '<strong>Compass jellyfish (Chrysaora hysoscella)</strong> — Pale with dark V-shaped markings on the bell. Painful sting but usually short-lived. Peak July–August.',
-          '<strong>Moon jellyfish (Aurelia aurita)</strong> — Translucent with four pink rings. Common but mild sting; many swimmers don\'t feel them.',
-          '<strong>Barrel jellyfish (Rhizostoma pulmo)</strong> — Big (up to 1m), creamy-white. Rare in the Channel; mild sting if at all.',
+          '<strong>Lion\'s mane (Cyanea capillata)</strong>: Reddish-brown, large (50cm+ bell), trailing tentacles up to several metres. The big one Channel swimmers worry about. Peak late August through September.',
+          '<strong>Compass jellyfish (Chrysaora hysoscella)</strong>: Pale with dark V-shaped markings on the bell. Painful sting but usually short-lived. Peak July–August.',
+          '<strong>Moon jellyfish (Aurelia aurita)</strong>: Translucent with four pink rings. Common but mild sting; many swimmers don\'t feel them.',
+          '<strong>Barrel jellyfish (Rhizostoma pulmo)</strong>: Big (up to 1m), creamy-white. Rare in the Channel; mild sting if at all.',
         ],
       },
       {
@@ -854,10 +854,10 @@ const PAGES = {
       {
         h2: 'What a sting feels like',
         bullets: [
-          '<strong>Lion\'s mane</strong> — sharp, burning, leaves visible welts. The tentacles can wrap around limbs and the sting continues until detached. Worst stings can take hours to ease.',
-          '<strong>Compass</strong> — sharp localised sting, like a slap. Usually fades in 20–40 minutes.',
-          '<strong>Moon</strong> — most swimmers feel nothing or a mild tingle.',
-          '<strong>Cumulative effect</strong> — multiple stings over hours wear you down mentally more than physically.',
+          '<strong>Lion\'s mane</strong>: sharp, burning, leaves visible welts. The tentacles can wrap around limbs and the sting continues until detached. Worst stings can take hours to ease.',
+          '<strong>Compass</strong>: sharp localised sting, like a slap. Usually fades in 20–40 minutes.',
+          '<strong>Moon</strong>: most swimmers feel nothing or a mild tingle.',
+          '<strong>Cumulative effect</strong>: multiple stings over hours wear you down mentally more than physically.',
         ],
       },
       {
@@ -876,13 +876,13 @@ const PAGES = {
       },
       {
         h2: 'Will jellyfish stop you from finishing?',
-        p: 'Almost never on their own. Most successful Channel swimmers report multiple stings. The cumulative mental cost can compound with cold and fatigue, so build mental resilience to discomfort during training — including swimming through brief stings if you encounter them in open water.',
+        p: 'Almost never on their own. Most successful Channel swimmers report multiple stings. The cumulative mental cost can compound with cold and fatigue, so build mental resilience to discomfort during training, including swimming through brief stings if you encounter them in open water.',
       },
     ],
 
     faqs: [
       { q: 'Is there a sting-blocking suit?',
-        a: 'Some swimmers wear "stinger suits" (full-body lycra). Not allowed under Channel rules — only standard costume, cap, goggles permitted.' },
+        a: 'Some swimmers wear "stinger suits" (full-body lycra). Not allowed under Channel rules: only standard costume, cap, goggles permitted.' },
       { q: 'Does cold water mean fewer jellyfish?',
         a: 'Generally yes, but blooms are weather-driven. A cold August can still have lion\'s mane if conditions are right.' },
       { q: 'Are there sharks or stingrays?',
@@ -905,11 +905,11 @@ const PAGES = {
     sections: [
       {
         h2: 'The 14-day cycle',
-        p: 'The Channel is semi-diurnal: two highs and two lows every ~24 hours. Twice each lunar month, around the new and full moon, you get <strong>spring tides</strong> — bigger range, stronger currents. Halfway between, around the quarter moons, you get <strong>neap tides</strong> — smaller range, gentler currents.',
+        p: 'The Channel is semi-diurnal: two highs and two lows every ~24 hours. Twice each lunar month, around the new and full moon, you get <strong>spring tides</strong>: bigger range, stronger currents. Halfway between, around the quarter moons, you get <strong>neap tides</strong>: smaller range, gentler currents.',
         callout: { label: 'How to read it', body: 'For Dover specifically, High Water above ~6.1m means spring tide; below ~6.1m means neap. Live tide data is on the Channel hub page.' },
       },
       {
-        h2: 'Spring vs neap — what it means for your swim',
+        h2: 'Spring vs neap: what it means for your swim',
         table: {
           headers: ['', 'Neap', 'Spring'],
           rows: [
@@ -928,8 +928,8 @@ const PAGES = {
         bullets: [
           '<strong>Window = 5–7 day slot</strong> centered on a neap tide cycle',
           '<strong>4–7 swimmers per window</strong> with a ranked position (1st, 2nd, etc.)',
-          '<strong>Position 1 goes first</strong> when weather lifts — usually a 12–18 hour swim',
-          '<strong>Position 2+ wait their turn</strong> — each takes ~24–36 hours including recovery',
+          '<strong>Position 1 goes first</strong> when weather lifts, usually a 12–18 hour swim',
+          '<strong>Position 2+ wait their turn</strong>: each takes ~24–36 hours including recovery',
           '<strong>Standby position</strong> picks up if higher positions cancel',
           '<strong>Pilots make the call evening before</strong> based on weather + position',
         ],
@@ -956,7 +956,7 @@ const PAGES = {
       { q: 'What if no swim happens in my window?',
         a: 'You re-book for the next available window with your pilot. Deposit usually doesn\'t roll over; you pay again.' },
       { q: 'Are weekend tides different from weekday?',
-        a: 'No — tides are governed by the moon, not the calendar. Your tide window can fall any day of the week.' },
+        a: 'No. Tides are governed by the moon, not the calendar. Your tide window can fall any day of the week.' },
       { q: 'How early do I need to be in Dover?',
         a: 'At least 1 day before your window opens. Pilots will often want you available from day 1 since they may call a swim with 6–12 hours notice.' },
       { q: 'Why do I have to be in Dover the whole week?',
@@ -970,52 +970,52 @@ const PAGES = {
     meta: 'The most famous English Channel crossings: Matthew Webb (1875), Gertrude Ederle (1926), Florence Chadwick, Alison Streeter, Chloë McCardel, Sarah Thomas (4-way), Andreas Waschburger.',
     eyebrow: 'English Channel · Famous swims',
     h1: 'Famous English Channel swims',
-    lede: 'The Channel has 150 years of history and 3,443 ratified solo crossings. These are the swims that defined the sport — each links to the full data on their dedicated page.',
+    lede: 'The Channel has 150 years of history and 3,443 ratified solo crossings. These are the swims that defined the sport, and each links to the full data on their dedicated page.',
 
     sections: [
       {
-        h2: 'Captain Matthew Webb — 24-25 August 1875',
+        h2: 'Captain Matthew Webb · 24-25 August 1875',
         p: '<strong>The first.</strong> Webb proved the Channel could be swum, covering it in <strong>21 hours 45 minutes</strong> from Dover to a beach near Calais, using breaststroke and porpoise fat for warmth. He died seven years later attempting to swim through the rapids below Niagara Falls. <em><a href="/english-channel/swim/matthew-webb-1875">Read his swim page →</a></em>',
       },
       {
-        h2: 'Gertrude Ederle — 6 August 1926',
+        h2: 'Gertrude Ederle · 6 August 1926',
         p: '<strong>The first woman, and the fastest swim to that date.</strong> The 20-year-old American, an Olympic relay gold medallist from Paris 1924, swam from France to England in <strong>14 hours 39 minutes</strong>, beating all five previous male crossings by hours. She came home to a New York ticker-tape parade. <em><a href="/english-channel/swim/gertrude-ederle-1926">Read her swim page →</a></em>',
       },
       {
-        h2: 'Florence Chadwick — 1950, 1951, 1953',
+        h2: 'Florence Chadwick · 1950, 1951, 1953',
         p: 'American swimmer who took the women\'s record in 1950 (13h 23m) and crossed both directions multiple times, becoming a celebrity and proving cold-water marathon swimming was a professional discipline.',
       },
       {
-        h2: 'Antonio Abertondo — 20–21 September 1961',
+        h2: 'Antonio Abertondo · 20–21 September 1961',
         p: '<strong>First two-way crossing.</strong> Argentinian completed the round trip in 43h 10m, pausing just four minutes in France between legs. Until then most thought it was physically impossible to swim both ways back-to-back.',
       },
       {
-        h2: 'Philip Rush — 16-17 August 1987',
-        p: '<strong>Fastest three-way crossing.</strong> New Zealander Rush swam the second three-way ever — Jon Erikson was first in 1981 — and became the first to break 30 hours, in <strong>28h 21m</strong>. That record still stands: only five people have ever completed a three-way, and nobody has gone faster.',
+        h2: 'Philip Rush · 16-17 August 1987',
+        p: '<strong>Fastest three-way crossing.</strong> New Zealander Rush swam the second three-way ever (Jon Erikson was first in 1981) and became the first to break 30 hours, in <strong>28h 21m</strong>. That record still stands: only five people have ever completed a three-way, and nobody has gone faster.',
       },
       {
-        h2: 'Alison Streeter MBE — 1982–2004',
-        p: '<strong>Queen of the Channel 1992–2021</strong> — 43 successful crossings, the most by anyone for nearly two decades. Made the Channel her career.',
+        h2: 'Alison Streeter MBE · 1982–2004',
+        p: '<strong>Queen of the Channel 1992–2021</strong>: 43 successful crossings, the most by anyone for nearly two decades. Made the Channel her career.',
       },
       {
-        h2: 'Chloë McCardel — 2009–2021',
+        h2: 'Chloë McCardel · 2009–2021',
         p: '<strong>Most crossings by anyone: 44.</strong> The Australian passed Alison Streeter\'s mark with her 44th crossing on 13 October 2021 and holds the "Queen of the Channel" title.',
       },
       {
-        h2: 'Trent Grimsey — 8 September 2012',
+        h2: 'Trent Grimsey · 8 September 2012',
         p: '<strong>Long-standing world record.</strong> Australian Olympic open-water swimmer crossed in <strong>6h 55m</strong>, holding the men\'s record for 11 years.',
       },
       {
-        h2: 'Sarah Thomas — 15-17 September 2019',
-        p: '<strong>First-ever four-way crossing.</strong> American Thomas swam the Channel <strong>four times non-stop</strong> in 54h 10m — a year after finishing breast cancer treatment. The swim is widely considered one of the greatest endurance feats in any sport. <em><a href="/english-channel/swim/sarah-thomas-2019">Read her swim page →</a></em>',
+        h2: 'Sarah Thomas · 15-17 September 2019',
+        p: '<strong>First-ever four-way crossing.</strong> American Thomas swam the Channel <strong>four times non-stop</strong> in 54h 10m, a year after finishing breast cancer treatment. The swim is widely considered one of the greatest endurance feats in any sport. <em><a href="/english-channel/swim/sarah-thomas-2019">Read her swim page →</a></em>',
       },
       {
-        h2: 'Andreas Waschburger — 8 September 2023',
+        h2: 'Andreas Waschburger · 8 September 2023',
         p: '<strong>Current world record.</strong> German Olympic open-water swimmer broke Grimsey\'s 11-year-old mark by 10 minutes, crossing in <strong>6h 45m 25s</strong>. Pilot: Michael Oram. <em><a href="/english-channel/swim/andreas-waschburger-2023">Read his swim page →</a></em>',
       },
       {
         h2: 'And 3,400+ more',
-        p: `The famous swims above are the headline acts, but every ratified crossing has its own story. <a href="${HUB}">Browse the database</a> to find any swimmer's record — including yours, if you've done one.`,
+        p: `The famous swims above are the headline acts, but every ratified crossing has its own story. <a href="${HUB}">Browse the database</a> to find any swimmer's record, including yours, if you've done one.`,
       },
     ],
 
@@ -1029,7 +1029,7 @@ const PAGES = {
       { q: 'Has anyone done a five-way crossing?',
         a: 'Not yet ratified. Sarah Thomas\'s four-way (2019) stands as the longest.' },
       { q: 'Is there a swim faster than Waschburger\'s 6:45:25?',
-        a: 'Not as of 2026. Watch the records page — it updates live from the database.' },
+        a: 'Not as of 2026. Watch the records page, as it updates live from the database.' },
     ],
   },
 
@@ -1047,19 +1047,19 @@ const PAGES = {
         p: [
           'The 3,443 ratified solo crossings indexed on SwimLoading come from a <strong>public, community-maintained spreadsheet</strong> compiled from <strong>Channel Swimming Association (CSA)</strong> published records, <strong>Channel Swimming &amp; Piloting Federation (CS&amp;PF)</strong> records, the historical book <em>It\'s Cold in the Channel</em>, and direct confirmations from individual swimmers.',
           'The database is hosted publicly via <a href="https://db.marathonswimmers.org" target="_blank" rel="noopener">LongSwims (db.marathonswimmers.org)</a> and is maintained by the marathon swimming community.',
-          'SwimLoading is an independent platform. We are <strong>not affiliated with, or endorsed by, the CSA or CS&amp;PF</strong> — we index their published public records, with attribution.',
+          'SwimLoading is an independent platform. We are <strong>not affiliated with, or endorsed by, the CSA or CS&amp;PF</strong>; we index their published public records, with attribution.',
         ],
-        callout: { label: 'Why we publish it', body: 'Channel records are part of the public sporting record — names, times, dates, and pilots have always been published by the governing bodies. We index that record so swimmers, families, and researchers can search it.' },
+        callout: { label: 'Why we publish it', body: 'Channel records are part of the public sporting record: names, times, dates, and pilots have always been published by the governing bodies. We index that record so swimmers, families, and researchers can search it.' },
       },
       {
         h2: 'Live conditions and forecasts',
         bullets: [
-          '<strong>Sea surface temperature</strong> — NOAA OISST v2.1 (National Oceanic &amp; Atmospheric Administration, US public domain) via the NCEI ERDDAP server',
-          '<strong>Sandettie Lightship buoy</strong> (NDBC station 62304) — observed wind and water temperature, NOAA public domain',
-          '<strong>16-day wind &amp; astronomy</strong> — <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> Forecast API (CC BY 4.0 attribution)',
-          '<strong>10-day wave &amp; swell</strong> — Open-Meteo Marine API (CC BY 4.0 attribution)',
-          '<strong>Tide times at Dover</strong> — <a href="https://www.worldtides.info" target="_blank" rel="noopener">WorldTides</a> commercial API',
-          '<strong>UK lido water temperatures</strong> — <a href="https://my-water.live" target="_blank" rel="noopener">my-water.live</a> live sensors, used with permission',
+          '<strong>Sea surface temperature</strong>: NOAA OISST v2.1 (National Oceanic &amp; Atmospheric Administration, US public domain) via the NCEI ERDDAP server',
+          '<strong>Sandettie Lightship buoy</strong> (NDBC station 62304): observed wind and water temperature, NOAA public domain',
+          '<strong>16-day wind &amp; astronomy</strong>: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> Forecast API (CC BY 4.0 attribution)',
+          '<strong>10-day wave &amp; swell</strong>: Open-Meteo Marine API (CC BY 4.0 attribution)',
+          '<strong>Tide times at Dover</strong>: <a href="https://www.worldtides.info" target="_blank" rel="noopener">WorldTides</a> commercial API',
+          '<strong>UK lido water temperatures</strong>: <a href="https://my-water.live" target="_blank" rel="noopener">my-water.live</a> live sensors, used with permission',
         ],
       },
       {
@@ -1072,7 +1072,7 @@ const PAGES = {
           'Pilot and boat',
           'Multi-way information (2/3/4-way)',
           'Governing body that ratified the swim',
-          'Public honours (e.g. IMSHOF — International Marathon Swimming Hall of Fame)',
+          'Public honours (e.g. IMSHOF, International Marathon Swimming Hall of Fame)',
         ],
         callout: { label: 'What we do not publish', warn: true, body: 'We do not display sensitive personal information (disability or health markers) from the source database, even when present. We retain such fields in our database for completeness but render only public sporting facts on swim pages.' },
       },
@@ -1094,18 +1094,18 @@ const PAGES = {
           'Every records, pilots, and search result block displays the source attribution',
           'Individual swim pages link back to the LongSwims database',
           'Forecast data sources are credited where the data appears',
-          'Open-Meteo data is used under CC BY 4.0 — credit displayed on the hub page',
+          'Open-Meteo data is used under CC BY 4.0, with credit displayed on the hub page',
         ],
       },
       {
         h2: 'Acceptable use of SwimLoading data',
-        p: 'You\'re welcome to link to SwimLoading swim pages from articles, social posts, or your own website. If you\'d like to use SwimLoading\'s pilot leaderboard or records tables in your own publication, please email us first — we\'ll usually say yes.',
+        p: 'You\'re welcome to link to SwimLoading swim pages from articles, social posts, or your own website. If you\'d like to use SwimLoading\'s pilot leaderboard or records tables in your own publication, please email us first; we\'ll usually say yes.',
       },
     ],
 
     faqs: [
       { q: 'Why is my swim on SwimLoading?',
-        a: 'If your Channel crossing was ratified by CSA or CS&PF, your name and time are part of the public sporting record. SwimLoading indexes that record to make it searchable. You can request removal at any time — email support@swimloading.com.' },
+        a: 'If your Channel crossing was ratified by CSA or CS&PF, your name and time are part of the public sporting record. SwimLoading indexes that record to make it searchable. You can request removal at any time: email support@swimloading.com.' },
       { q: 'I want my swim removed. How long does it take?',
         a: 'We respond within 7 working days. Reasonable removal requests don\'t require legal process.' },
       { q: 'The time / pilot / year is wrong for my swim. Can you fix it?',

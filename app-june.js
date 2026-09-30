@@ -317,7 +317,7 @@
             } else {
                 rankBlock = `
                 <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:13px 16px;margin-bottom:12px;">
-                  <div style="font-size:13px;color:#475569;line-height:1.5;">Log 10 swims this month to enter the draw — every 10 logs is another entry</div>
+                  <div style="font-size:13px;color:#475569;line-height:1.5;">Log 10 swims this month to enter the draw, and every 10 logs is another entry</div>
                 </div>`;
             }
 
@@ -412,7 +412,7 @@
                     <div>
                       <div style="font-size:10px;color:#7dd3fc;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:3px;">September Challenge${testBadge}</div>
                       <div style="font-weight:800;font-size:17px;color:var(--text);line-height:1.2;">Log. Swim. Share. Win.</div>
-                      <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.4;">Log 10 swims to enter the draw. Every 10 logs, group swim, and 7-day streak earns another entry — the more you swim, the better your odds.</div>
+                      <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.4;">Log 10 swims to enter the draw. Every 10 logs, group swim, and 7-day streak earns another entry. The more you swim, the better your odds.</div>
                     </div>
                     <div style="background:rgba(125,211,252,0.15);color:#7dd3fc;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;">${daysLeft}d left</div>
                   </div>
@@ -421,7 +421,7 @@
                   <div style="margin-bottom:14px;">
                     <div style="background:linear-gradient(135deg,rgba(56,189,248,0.12),rgba(2,132,199,0.07));border:1px solid rgba(56,189,248,0.3);border-radius:8px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">
                       <div>
-                        <div style="font-size:12px;font-weight:700;color:#7dd3fc;">Grand Prize — Maurten Gel 100s</div>
+                        <div style="font-size:12px;font-weight:700;color:#7dd3fc;">Grand Prize: Maurten Gel 100s</div>
                         <div style="font-size:11px;color:#38bdf8;margin-top:2px;">Box of Gel 100s · supplied by Art of Endurance</div>
                       </div>
                       <div style="font-size:11px;font-weight:700;color:#7dd3fc;white-space:nowrap;margin-left:12px;">1 winner</div>
@@ -449,7 +449,7 @@
                           <span style="font-size:13px;font-weight:700;color:var(--ocean-light);white-space:nowrap;margin-left:12px;">+${JC_POINTS[k]}</span>
                         </div>`).join('')}
                       <div style="margin-top:10px;font-size:11px;color:var(--text-secondary);line-height:1.6;">
-                        <span style="color:#7dd3fc;font-weight:700;">Winning the Gel 100s:</span> points set your rank here — but the prize is a draw. Log 10 swims to enter, then every 10 logs, group swim, and 7-day streak adds another entry. Winner drawn 1 September.<br>
+                        <span style="color:#7dd3fc;font-weight:700;">Winning the Gel 100s:</span> points set your rank here, but the prize is a draw. Log 10 swims to enter, then every 10 logs, group swim, and 7-day streak adds another entry. Winner drawn 1 September.<br>
                         <span style="color:rgba(100,116,139,0.7);">Fair play rules apply. Draw eligibility requires genuine participation.</span>
                       </div>
                     </div>
@@ -497,14 +497,14 @@
                 mine = `<div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.28);border-radius:12px;padding:14px 16px;margin-bottom:14px;">
                   <div style="font-size:14px;font-weight:800;color:var(--text);">${myLogs}/10 logs to enter the draw</div>
                   <div style="height:7px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;margin:8px 0 6px;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#0284c7,#38bdf8);border-radius:4px;"></div></div>
-                  <div style="font-size:12px;color:#38bdf8;font-weight:600;">${toGo > 0 ? toGo + ' more ' + (toGo === 1 ? 'log' : 'logs') + " and you're in — everyone in the draw has a real shot" : "You're in!"}</div>
+                  <div style="font-size:12px;color:#38bdf8;font-weight:600;">${toGo > 0 ? toGo + ' more ' + (toGo === 1 ? 'log' : 'logs') + " and you're in. Everyone in the draw has a real shot" : "You're in!"}</div>
                 </div>`;
             }
 
             // 2. The pool — belonging, not hierarchy
             const pool = `<div style="text-align:center;padding:2px 0 12px;">
               <div style="font-size:13px;color:var(--text);"><strong style="color:#7dd3fc;font-size:16px;">${inDraw.length}</strong> ${inDraw.length === 1 ? 'swimmer' : 'swimmers'} in the draw &middot; <strong style="color:#7dd3fc;">${tickets}</strong> ${tickets === 1 ? 'ticket' : 'tickets'} in the hat</div>
-              <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;line-height:1.5;">It's a random draw for the Gel 100s — every ticket has an equal shot at each pick.</div>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;line-height:1.5;">It's a random draw for the Gel 100s, and every ticket has an equal shot at each pick.</div>
             </div>`;
 
             // 3. Who's in — avatar wall, no ranking
@@ -789,7 +789,7 @@
                       <div style="color:var(--text-secondary);margin-top:3px;">Logged <strong style="color:var(--text);">${o.temp_c}°C</strong> · spot usually ~${o.spot_median}°C <span style="color:#f59e0b;">(${dev > 0 ? '+' : ''}${dev}°)</span> · ${o.baseline_logs} readings · ${t}</div>
                     </div>`;
                   }).join('')}
-                  <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">Reading far off the spot's recent norm — could be a wrong spot or a typo. Check before voiding (some spots genuinely vary).</div>
+                  <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">Reading far off the spot's recent norm. It could be a wrong spot or a typo. Check before voiding (some spots genuinely vary).</div>
                 </div>` : ''}
 
                 ${openFlags.length > 0 ? `
@@ -880,7 +880,7 @@
             try {
                 const { data, error } = await supabaseClient.rpc('void_challenge_log', { p_log_id: logId });
                 if (error) throw error;
-                showToast(data > 0 ? 'Log voided — points removed' : 'Nothing to void (already cleared)', 'success');
+                showToast(data > 0 ? 'Log voided, points removed' : 'Nothing to void (already cleared)', 'success');
                 jcLoadAdminDebug(containerId);
             } catch (e) {
                 showToast('Could not void: ' + e.message, 'error');

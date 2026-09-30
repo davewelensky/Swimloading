@@ -504,7 +504,7 @@ function _ppMomentShare() {
     const c = _ppMomentCtx;
     if (!c) return;
     const cond = c.conditions ? c.conditions.charAt(0).toUpperCase() + c.conditions.slice(1) : '';
-    const msg = `${c.spotName}: ${c.temp}°C${cond ? ' • ' + cond : ''}\nLogged on SwimLoading — swimloading.com`;
+    const msg = `${c.spotName}: ${c.temp}°C${cond ? ' • ' + cond : ''}\nLogged on SwimLoading: swimloading.com`;
     try { window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank'); } catch (_) {}
     try { analytics.track('whatsapp_shared', { source: 'passport_moment' }); } catch (_) {}
 }

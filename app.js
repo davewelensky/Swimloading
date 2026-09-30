@@ -162,7 +162,7 @@
 
             // Handle password recovery
             if (IS_PASSWORD_RECOVERY) {
-                console.log('Recovery detected — waiting for Supabase to process token...');
+                console.log('Recovery detected, waiting for Supabase to process token...');
                 // Give Supabase a moment to exchange the token for a session
                 // Then show the reset form
                 await waitForSession(3000);
@@ -411,7 +411,7 @@
                 // simply fat-fingered a digit is the same misdirection the
                 // link flow just cost us two days on — so the message covers
                 // both and gives the action that fixes either.
-                return fail('That code was not accepted. Check you copied the code from the NEWEST email, then try again — or send a new email for a fresh code.');
+                return fail('That code was not accepted. Check you copied the code from the NEWEST email, then try again, or send a new email for a fresh code.');
             }
 
             try { sessionStorage.removeItem('sl_reset_email'); } catch (_) {}
@@ -674,7 +674,7 @@
 
             const notice = document.getElementById('loginNotice');
             if (notice) {
-                notice.innerHTML = 'You already have an account with this email. Log in below — or tap <a href="#" onclick="showForgotPassword(); return false;" style="color:var(--ocean-light); font-weight:700; text-decoration:none;">Forgot your password?</a> if you need to reset it.';
+                notice.innerHTML = 'You already have an account with this email. Log in below, or tap <a href="#" onclick="showForgotPassword(); return false;" style="color:var(--ocean-light); font-weight:700; text-decoration:none;">Forgot your password?</a> if you need to reset it.';
                 notice.style.display = 'block';
             }
             const pw = document.getElementById('loginPassword');
@@ -1157,7 +1157,7 @@
             domains.forEach(d => {
                 const domainSpots = spots.filter(s => s.domain === d.code);
                 if (domainSpots.length === 0) return;
-                html += `<optgroup label="— ${d.display_name} —">`;
+                html += `<optgroup label="${d.display_name}">`;
                 domainSpots.forEach(spot => {
                     html += `<option value="${spot.id}">${spot.name}</option>`;
                 });
@@ -1201,14 +1201,14 @@
                 domains.forEach(d => {
                     const domainSpots = spots.filter(s => s.domain === d.code);
                     if (domainSpots.length === 0) return;
-                    fdHtml += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);padding:8px 16px 4px;font-weight:700;pointer-events:none;">— ${d.display_name} —</div>`;
+                    fdHtml += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);padding:8px 16px 4px;font-weight:700;pointer-events:none;">${d.display_name}</div>`;
                     domainSpots.forEach(spot => {
                         fdHtml += `<div class="fd-option" data-value="${spot.id}" onclick="fdProfileBeachSelect('${spot.id}','${spot.name.replace(/'/g, "\\'")}')">${spot.name}</div>`;
                     });
                 });
                 const ungrouped = spots.filter(s => !domainCodes.includes(s.domain));
                 if (ungrouped.length > 0) {
-                    fdHtml += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);padding:8px 16px 4px;font-weight:700;pointer-events:none;">— Other —</div>`;
+                    fdHtml += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);padding:8px 16px 4px;font-weight:700;pointer-events:none;">Other</div>`;
                     ungrouped.forEach(spot => {
                         fdHtml += `<div class="fd-option" data-value="${spot.id}" onclick="fdProfileBeachSelect('${spot.id}','${spot.name.replace(/'/g, "\\'")}')">${spot.name}</div>`;
                     });
@@ -1224,14 +1224,14 @@
                 domains.forEach(d => {
                     const domainSpots = spots.filter(s => s.domain === d.code);
                     if (domainSpots.length === 0) return;
-                    fdHtml += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);padding:8px 16px 4px;font-weight:700;pointer-events:none;">— ${d.display_name} —</div>`;
+                    fdHtml += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);padding:8px 16px 4px;font-weight:700;pointer-events:none;">${d.display_name}</div>`;
                     domainSpots.forEach(spot => {
                         fdHtml += `<div class="fd-option" data-value="${spot.id}" onclick="fdEventSpotSelect('${spot.id}','${spot.name.replace(/'/g, "\\'")}')">${spot.name}</div>`;
                     });
                 });
                 const ungrouped = spots.filter(s => !domainCodes.includes(s.domain));
                 if (ungrouped.length > 0) {
-                    fdHtml += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);padding:8px 16px 4px;font-weight:700;pointer-events:none;">— Other —</div>`;
+                    fdHtml += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);padding:8px 16px 4px;font-weight:700;pointer-events:none;">Other</div>`;
                     ungrouped.forEach(spot => {
                         fdHtml += `<div class="fd-option" data-value="${spot.id}" onclick="fdEventSpotSelect('${spot.id}','${spot.name.replace(/'/g, "\\'")}')">${spot.name}</div>`;
                     });
@@ -1380,7 +1380,7 @@
                     <i data-lucide="flag" style="width:15px;height:15px;color:#fbbf24;flex-shrink:0;"></i>
                     <div style="font-size:13px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:0.4px;">${active.length} Challenges Live Right Now</div>
                   </div>
-                  <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Get onboard now — log your conditions to enter every one you qualify for.</div>
+                  <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Get onboard now: log your conditions to enter every one you qualify for.</div>
                   <div style="display:flex;gap:6px;flex-wrap:wrap;">
                     ${active.map(name => `<span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:rgba(255,255,255,0.06);color:var(--text-secondary);border:1px solid rgba(255,255,255,0.12);">${name}</span>`).join('')}
                   </div>
@@ -2524,7 +2524,7 @@
 
             if (error) {
                 console.error('swimming_posts error:', error);
-                showToast('Error saving — try again', 'error');
+                showToast('Error saving. Try again', 'error');
                 return;
             }
 
@@ -2539,7 +2539,7 @@
                 const swimSpot = spots.find(s => s.id === spotId);
                 if (swimSpot?.domain) {
                     broadcastPush(swimSpot.domain, 'swim', 'SwimLoading',
-                        `A swim has been posted at ${spotName} — check conditions`);
+                        `A swim has been posted at ${spotName}: check conditions`);
                 }
             }
         }
@@ -2713,7 +2713,7 @@
         }
 
         function loadAllSwimmingPosts() {
-            showToast('Showing top 5 — full list coming soon', 'info');
+            showToast('Showing top 5, full list coming soon', 'info');
         }
 
         // ── Swim post WhatsApp share ──────────────────────────────────────────
@@ -2728,8 +2728,8 @@
                 : dt.toLocaleDateString('en-ZA', { weekday: 'long', month: 'short', day: 'numeric' });
             const timeLabel = dt.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
 
-            document.getElementById('swimPostShareTitle').textContent = `${spotName} — ${dayLabel} at ${timeLabel}`;
-            _swimPostShareMsg = `I'm swimming at ${spotName} — ${dayLabel} at ${timeLabel}${note ? '\n"' + note + '"' : ''}\n\nCome join me! SwimLoading — swimloading.com/app`;
+            document.getElementById('swimPostShareTitle').textContent = `${spotName} · ${dayLabel} at ${timeLabel}`;
+            _swimPostShareMsg = `I'm swimming at ${spotName} · ${dayLabel} at ${timeLabel}${note ? '\n"' + note + '"' : ''}\n\nCome join me! SwimLoading: swimloading.com/app`;
             document.getElementById('swimPostShareMessage').textContent = _swimPostShareMsg;
             document.getElementById('swimPostShareModal').style.display = 'flex';
         }
@@ -2754,7 +2754,7 @@
                 : dt.toDateString() === tomorrowStr ? 'tomorrow'
                 : dt.toLocaleDateString('en-ZA', { weekday: 'long', month: 'short', day: 'numeric' });
             const timeLabel = dt.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
-            const msg = `${d.name} is swimming at ${d.spotName} — ${dayLabel} at ${timeLabel}${d.note ? '\n"' + d.note + '"' : ''}\n\nJoin on SwimLoading — swimloading.com/app`;
+            const msg = `${d.name} is swimming at ${d.spotName} · ${dayLabel} at ${timeLabel}${d.note ? '\n"' + d.note + '"' : ''}\n\nJoin on SwimLoading: swimloading.com/app`;
             window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
@@ -2856,7 +2856,7 @@
                 if (error) throw new Error(error);
                 _sgsResults = results || [];
                 if (_sgsResults.length === 0) {
-                    resultsEl.innerHTML = '<div style="font-size:13px;color:#64748b;padding:8px;line-height:1.5;">Nothing found — try adding the city or country, or use "Enter details manually" below.</div>';
+                    resultsEl.innerHTML = '<div style="font-size:13px;color:#64748b;padding:8px;line-height:1.5;">Nothing found. Try adding the city or country, or use "Enter details manually" below.</div>';
                     return;
                 }
                 resultsEl.innerHTML = _sgsResults.map((r, i) => `
@@ -2865,7 +2865,7 @@
                         <div style="font-size:12px;color:#64748b;margin-top:2px;">${[r.locality, r.admin_area, r.country].filter(Boolean).join(', ') || r.label}</div>
                     </div>`).join('');
             } catch (err) {
-                resultsEl.innerHTML = `<div style="font-size:13px;color:#ef4444;padding:8px;">Search unavailable right now — you can still use "Enter details manually" below.</div>`;
+                resultsEl.innerHTML = `<div style="font-size:13px;color:#ef4444;padding:8px;">Search unavailable right now. You can still use "Enter details manually" below.</div>`;
             }
         }
 
@@ -2888,7 +2888,7 @@
                 const strong = nearby[0].d <= 0.3;
                 document.getElementById('sgsNearbyIntro').textContent = strong
                     ? 'Is this the spot you\'re looking for?'
-                    : 'These spots are already nearby — is it one of these?';
+                    : 'These spots are already nearby. Is it one of these?';
                 document.getElementById('sgsNearbyList').innerHTML = nearby.map(x => `
                     <div onclick="sgsUseExisting('${x.s.id}')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.25);border-radius:12px;padding:12px 14px;min-height:44px;">
                         <div>
@@ -2910,7 +2910,7 @@
             hideSuggestSpot();
             if (s) {
                 selectSpotFromPicker(s.id, s.name);
-                showToast(`${s.name} selected — no need to suggest it, it's already here.`, 'success');
+                showToast(`${s.name} selected. No need to suggest it, it's already here.`, 'success');
             }
         }
 
@@ -3226,7 +3226,7 @@
                                 <a href="/clubs/${club?.slug || ''}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);border-radius:10px;padding:9px 14px;font-size:12px;font-weight:700;color:var(--ocean-light);text-decoration:none;">
                                     <i data-lucide="external-link" style="width:12px;height:12px;"></i>View on club page
                                 </a>
-                                ${event._allowsDayOf ? `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--success);font-weight:600;padding:0 4px;"><i data-lucide="check-circle" style="width:12px;height:12px;"></i>Open — day-of entry</div>` : `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-secondary);font-weight:600;padding:0 4px;"><i data-lucide="lock" style="width:12px;height:12px;"></i>Members only</div>`}
+                                ${event._allowsDayOf ? `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--success);font-weight:600;padding:0 4px;"><i data-lucide="check-circle" style="width:12px;height:12px;"></i>Open: day-of entry</div>` : `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-secondary);font-weight:600;padding:0 4px;"><i data-lucide="lock" style="width:12px;height:12px;"></i>Members only</div>`}
                             </div>
                         </div>`;
                     }
@@ -3282,7 +3282,7 @@
                         rsvpButtons = `
                             <div style="margin-top: 12px; padding-top: 12px; border-top: 2px solid var(--warning);">
                                 <div style="font-size: 12px; font-weight: 700; color: var(--warning); margin-bottom: 6px; display: flex; align-items: center; gap: 5px;">
-                                    <i data-lucide="alert-triangle" style="width: 13px; height: 13px;"></i> Swim changed — still in?
+                                    <i data-lucide="alert-triangle" style="width: 13px; height: 13px;"></i> Swim changed. Still in?
                                 </div>
                                 ${event.last_change_summary ? `<div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; line-height: 1.5;">${event.last_change_summary}</div>` : ''}
                                 <div style="display: flex; gap: 8px;">
@@ -3495,7 +3495,7 @@
 
             // Block swims set in the past
             if (dateTimeVal && new Date(startAt) < new Date()) {
-                showToast('Swim time is already in the past — please pick a future date and time.', 'error');
+                showToast('Swim time is already in the past. Please pick a future date and time.', 'error');
                 return;
             }
 
@@ -4089,7 +4089,7 @@
                 <div style="text-align: center; padding: 20px;">
                     <div style="margin-bottom: 16px;"><i data-lucide="waves" style="width:48px;height:48px;color:var(--ocean-light);opacity:0.4;"></i></div>
                     <h2 style="color: var(--text-primary); font-size: 22px; margin-bottom: 8px;">Swim Created!</h2>
-                    <div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">Invite swimmers to join — even if they're not on the app yet</div>
+                    <div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">Invite swimmers to join, even if they're not on the app yet</div>
 
                     <button onclick="shareSwimWhatsApp(${JSON.stringify(event).replace(/"/g, '&quot;')})"
                             style="width: 100%; padding: 14px; border-radius: 12px; border: none; background: #25D366; color: white; font-size: 16px; font-weight: 700; cursor: pointer; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 10px;">
@@ -4905,7 +4905,7 @@
                             }
                         }
 
-                        const notifTitle = isSignificant ? 'Swim changed — please re-confirm' : 'Swim details updated';
+                        const notifTitle = isSignificant ? 'Swim changed, please re-confirm' : 'Swim details updated';
                         const notifMsg = isSignificant
                             ? `"${swimTitle}" has changed: ${significantChanges.join(', ')}. Please re-confirm your RSVP.`
                             : `"${swimTitle}" has been updated.`;
@@ -4926,7 +4926,7 @@
                     console.error('Could not notify participants:', notifErr);
                 }
 
-                showToast(isSignificant ? 'Swim updated — participants notified to re-confirm!' : 'Swim details updated!', 'success');
+                showToast(isSignificant ? 'Swim updated: participants notified to re-confirm!' : 'Swim details updated!', 'success');
                 await showEventDetails(eventId);
                 loadEvents();
                 loadDashboard();
@@ -5071,7 +5071,7 @@
                         .eq('swim_event_id', eventId)
                         .eq('user_id', currentUser.id);
 
-                    showToast("Great — you're still in!", 'success');
+                    showToast("Great, you're still in!", 'success');
                     await showEventDetails(eventId);
                     loadEvents();
                 } else {
@@ -5101,7 +5101,7 @@
                         );
                     }
 
-                    showToast('No worries — RSVP cancelled', 'info');
+                    showToast('No worries. RSVP cancelled', 'info');
                     await showEventDetails(eventId);
                     loadEvents();
                     loadDashboard();
@@ -5616,7 +5616,7 @@
                 return;
             }
 
-            showToast('Hazard reported — thanks for keeping swimmers safe!', 'success');
+            showToast('Hazard reported. Thanks for keeping swimmers safe!', 'success');
             hideHazardReport();
             loadHazards();
             loadDashboard();
@@ -5665,16 +5665,16 @@
                             swim.id,
                             'hazard_alert',
                             `Hazard at ${hazardSpot?.name || 'your swim location'}`,
-                            `${title} — affects your upcoming swim: ${swim.title}`,
+                            `${title} affects your upcoming swim: ${swim.title}`,
                             { hazard_spot_id: spotId }
                         );
                     }
                 }
 
                 if (nearbySwims.length > 0) {
-                    console.log(`[Hazard notify] Done — notifications sent for ${nearbySwims.length} affected swim(s)`);
+                    console.log(`[Hazard notify] Done: notifications sent for ${nearbySwims.length} affected swim(s)`);
                 } else {
-                    console.log('[Hazard notify] No nearby swims found — no notifications sent');
+                    console.log('[Hazard notify] No nearby swims found, no notifications sent');
                 }
             } catch (notifyErr) {
                 console.error('Hazard notify error (non-fatal):', notifyErr);
@@ -5884,23 +5884,23 @@
                 const ALERT_TIPS = {
                     kzn: {
                         color: '#ef4444', icon: 'bell', title: 'KZN Shark Alerts',
-                        body: 'Download the <strong>SharkSmart app</strong> for real-time KZN Sharks Board alerts. The Sharks Board maintains protective nets and drum lines at major KZN beaches — always check net status before swimming at unfamiliar spots.',
+                        body: 'Download the <strong>SharkSmart app</strong> for real-time KZN Sharks Board alerts. The Sharks Board maintains protective nets and drum lines at major KZN beaches. Always check net status before swimming at unfamiliar spots.',
                     },
                     garden_route: {
                         color: '#f59e0b', icon: 'alert-triangle', title: 'Garden Route Hazards',
-                        body: 'Watch for strong tidal flows and currents in estuaries and lagoons (Knysna, Keurbooms). No shark nets in this region — Great White and Zambezi sharks are present. Check CapeNature alerts before open water swims.',
+                        body: 'Watch for strong tidal flows and currents in estuaries and lagoons (Knysna, Keurbooms). No shark nets in this region, and Great White and Zambezi sharks are present. Check CapeNature alerts before open water swims.',
                     },
                     eastern_cape: {
                         color: '#f59e0b', icon: 'alert-triangle', title: 'Eastern Cape Conditions',
                         body: 'No shark nets on most PE/Gqeberha beaches. During the <strong>Sardine Run (June–July)</strong> shark activity is elevated along the coast. Zambezi/Bull sharks frequent river mouths. Monitor local advisories.',
                     },
                     namibia: {
-                        color: '#ef4444', icon: 'wifi-off', title: 'Remote Swimming — Extra Caution',
+                        color: '#ef4444', icon: 'wifi-off', title: 'Remote Swimming: Extra Caution',
                         body: 'Namibia\'s coastline is remote. Nearest hospital may be hours away. Always swim with a buddy, notify someone of your plan, and consider carrying a PLB (Personal Locator Beacon). Cold shock risk is HIGH (Benguela current 10–15°C).',
                     },
                     uk: {
                         color: '#f59e0b', icon: 'alert-triangle', title: 'UK Open Water Hazards',
-                        body: 'Check <strong>Swim England</strong> or local club advisories before swimming at unfamiliar spots. Blue-green algae blooms are common in lakes and reservoirs May–September — if water looks green/foamy, stay out. Cold shock risk is HIGH in winter (UK rivers/lakes 3–10°C).',
+                        body: 'Check <strong>Swim England</strong> or local club advisories before swimming at unfamiliar spots. Blue-green algae blooms are common in lakes and reservoirs May–September. If water looks green/foamy, stay out. Cold shock risk is HIGH in winter (UK rivers/lakes 3–10°C).',
                     },
                     europe: {
                         color: '#f59e0b', icon: 'alert-triangle', title: 'European Open Water Hazards',
@@ -5911,36 +5911,36 @@
                         body: 'Western Australia has one of the highest rates of shark encounters globally. Download the <strong>SharkSmart WA app</strong> for real-time alerts. Always swim between the flags at patrolled beaches and check Surf Life Saving WA advisories before entering the water.',
                     },
                     usa: {
-                        color: '#f59e0b', icon: 'alert-triangle', title: 'San Francisco Bay — Know Before You Go',
-                        body: '<strong>Aquatic Park</strong> is sheltered and generally safe year-round. <strong>Ocean Beach</strong> is a different story — extremely strong rip currents, cold Pacific surf, and no lifeguards year-round. Great White Sharks are active near the Farallon Islands (25 miles offshore) and occasionally enter the Bay. Water is cold (12–16°C) — acclimatise gradually.',
+                        color: '#f59e0b', icon: 'alert-triangle', title: 'San Francisco Bay: Know Before You Go',
+                        body: '<strong>Aquatic Park</strong> is sheltered and generally safe year-round. <strong>Ocean Beach</strong> is a different story: extremely strong rip currents, cold Pacific surf, and no lifeguards year-round. Great White Sharks are active near the Farallon Islands (25 miles offshore) and occasionally enter the Bay. Water is cold (12–16°C), so acclimatise gradually.',
                     },
                     seychelles: {
                         color: '#f59e0b', icon: 'alert-triangle', title: 'Seychelles Open Water Hazards',
-                        body: 'Seychelles waters are warm and generally calm, but <strong>stone fish</strong> and <strong>sea urchins</strong> are present — wear reef shoes in shallow water. Box jellyfish are occasionally reported. Currents can be strong during the northwest monsoon (Nov–Mar). Swim at beaches with lifeguard cover where possible.',
+                        body: 'Seychelles waters are warm and generally calm, but <strong>stone fish</strong> and <strong>sea urchins</strong> are present, so wear reef shoes in shallow water. Box jellyfish are occasionally reported. Currents can be strong during the northwest monsoon (Nov–Mar). Swim at beaches with lifeguard cover where possible.',
                     },
                     dalmatia: {
                         color: '#f59e0b', icon: 'alert-triangle', title: 'Adriatic Open Water Hazards',
-                        body: '<strong>Sea urchins</strong> are abundant on rocky seabeds — reef shoes are strongly recommended when entering from rocks. <strong>Jellyfish</strong> (barrel jellyfish and mauve stingers) are common in the Adriatic July–September. Check local beach advisories. Strong <em>bura</em> (NE wind) and <em>jugo</em> (SE wind) can create unexpected swell and currents.',
+                        body: '<strong>Sea urchins</strong> are abundant on rocky seabeds, so reef shoes are strongly recommended when entering from rocks. <strong>Jellyfish</strong> (barrel jellyfish and mauve stingers) are common in the Adriatic July–September. Check local beach advisories. Strong <em>bura</em> (NE wind) and <em>jugo</em> (SE wind) can create unexpected swell and currents.',
                     },
                     spain: {
                         color: '#f59e0b', icon: 'alert-triangle', title: 'Spain (Mediterranean) Open Water Hazards',
-                        body: '<strong>Jellyfish</strong> (mauve stingers, occasionally Portuguese man o\' war) are the main seasonal hazard June–September — obey beach flag warnings (a jellyfish flag is white with two red jellyfish). <strong>Sea urchins</strong> on rocky entries. Afternoon sea breezes can build chop quickly in exposed bays. Swim at lifeguarded beaches (Jun–Sep season) where possible.',
+                        body: '<strong>Jellyfish</strong> (mauve stingers, occasionally Portuguese man o\' war) are the main seasonal hazard June–September. Obey beach flag warnings (a jellyfish flag is white with two red jellyfish). <strong>Sea urchins</strong> on rocky entries. Afternoon sea breezes can build chop quickly in exposed bays. Swim at lifeguarded beaches (Jun–Sep season) where possible.',
                     },
                     france: {
                         color: '#f59e0b', icon: 'alert-triangle', title: 'France (Côte d\'Azur) Open Water Hazards',
-                        body: '<strong>Jellyfish</strong> (mauve stingers, <em>Pelagia noctiluca</em>) are the main seasonal hazard, most common June–September — obey beach flag warnings. <strong>Sea urchins</strong> on rocky entries around Cap Ferrat and Èze; reef shoes are recommended. <strong>Boat traffic</strong> is heavy in Riviera bays in summer — stay inside marked swim zones and use a tow float. Check local bathing water status on <a href="https://baignades.sante.gouv.fr" target="_blank" style="color:#38bdf8;">baignades.sante.gouv.fr</a>.',
+                        body: '<strong>Jellyfish</strong> (mauve stingers, <em>Pelagia noctiluca</em>) are the main seasonal hazard, most common June–September. Obey beach flag warnings. <strong>Sea urchins</strong> on rocky entries around Cap Ferrat and Èze; reef shoes are recommended. <strong>Boat traffic</strong> is heavy in Riviera bays in summer, so stay inside marked swim zones and use a tow float. Check local bathing water status on <a href="https://baignades.sante.gouv.fr" target="_blank" style="color:#38bdf8;">baignades.sante.gouv.fr</a>.',
                     },
                     thailand: {
                         color: '#f59e0b', icon: 'alert-triangle', title: 'Thailand (Andaman Sea) Open Water Hazards',
-                        body: '<strong>Monsoon swell</strong> (roughly May–October) brings stronger currents and rip tides on the west coast, and beach flag warnings should always be obeyed — a red flag means stay out. <strong>Boat traffic</strong> is heavy in popular bays around Phuket; swim well clear of longtail boat and ferry lanes. <strong>Jellyfish</strong> (including box jellyfish) are occasionally reported — check with local dive/swim operators before entering unfamiliar water.',
+                        body: '<strong>Monsoon swell</strong> (roughly May–October) brings stronger currents and rip tides on the west coast, and beach flag warnings should always be obeyed: a red flag means stay out. <strong>Boat traffic</strong> is heavy in popular bays around Phuket; swim well clear of longtail boat and ferry lanes. <strong>Jellyfish</strong> (including box jellyfish) are occasionally reported, so check with local dive/swim operators before entering unfamiliar water.',
                     },
                     ireland: {
                         color: '#f59e0b', icon: 'alert-triangle', title: 'Ireland Open Water Hazards',
-                        body: '<strong>Cold water</strong> is the constant — Irish seas need acclimatisation and respect year-round, even at the summer peak. <strong>Lion\'s mane jellyfish</strong> are the main seasonal hazard, most common in the Irish Sea July–September — give them a wide berth, their trailing tentacles sting well beyond the bell. <strong>Atlantic swell and rips</strong> affect exposed west and south coast entries; conditions change fast. Check bathing water quality on <a href="https://www.beaches.ie" target="_blank" style="color:#38bdf8;">beaches.ie</a> after heavy rain.',
+                        body: '<strong>Cold water</strong> is the constant: Irish seas need acclimatisation and respect year-round, even at the summer peak. <strong>Lion\'s mane jellyfish</strong> are the main seasonal hazard, most common in the Irish Sea July–September. Give them a wide berth, their trailing tentacles sting well beyond the bell. <strong>Atlantic swell and rips</strong> affect exposed west and south coast entries; conditions change fast. Check bathing water quality on <a href="https://www.beaches.ie" target="_blank" style="color:#38bdf8;">beaches.ie</a> after heavy rain.',
                     },
                     canada: {
                         color: '#f59e0b', icon: 'alert-triangle', title: 'Canada (BC Pacific) Open Water Hazards',
-                        body: '<strong>Cold water</strong> is the primary hazard year-round — the Pacific stays cold enough for cold shock and hypothermia even in mid-summer outside the warmest bays. <strong>Boat traffic</strong> is heavy in English Bay and Burrard Inlet (freighters at anchor, seaplanes, ferries, paddle craft) — swim inside marked areas and use a tow float. <strong>Tidal currents</strong> run strongly through inlet narrows; plan around slack tide for longer swims. Check beach advisories on <a href="https://www.vch.ca/en/service/public-beach-water-quality" target="_blank" style="color:#38bdf8;">Vancouver Coastal Health</a> after heavy rain.',
+                        body: '<strong>Cold water</strong> is the primary hazard year-round: the Pacific stays cold enough for cold shock and hypothermia even in mid-summer outside the warmest bays. <strong>Boat traffic</strong> is heavy in English Bay and Burrard Inlet (freighters at anchor, seaplanes, ferries, paddle craft), so swim inside marked areas and use a tow float. <strong>Tidal currents</strong> run strongly through inlet narrows; plan around slack tide for longer swims. Check beach advisories on <a href="https://www.vch.ca/en/service/public-beach-water-quality" target="_blank" style="color:#38bdf8;">Vancouver Coastal Health</a> after heavy rain.',
                     },
                 };
                 const tip = ALERT_TIPS[group];
@@ -5968,14 +5968,14 @@
                 namibia:      `<strong>Namibia:</strong> No shark nets. Remote coastline with limited rescue infrastructure. Great White and Zambezi/Bull sharks present. Always swim with a buddy.`,
                 uk:                null,
                 europe:            null,
-                western_australia: `<strong>Western Australia:</strong> Great White Sharks are active along the WA coast year-round. No shark nets at Cottesloe — swim at patrolled beaches between the flags. Download the <strong>SharkSmart WA app</strong> for real-time tagged shark alerts.`,
-                usa:               `<strong>San Francisco Bay Area:</strong> Great White Sharks patrol the waters near the Farallon Islands (25 miles offshore) and are occasionally tracked entering the Bay. Attacks inside Aquatic Park are extremely rare — the cove has a 50+ year safety record. Check the <strong>Shark Net app</strong> for tagged shark activity off the California coast.`,
+                western_australia: `<strong>Western Australia:</strong> Great White Sharks are active along the WA coast year-round. No shark nets at Cottesloe, so swim at patrolled beaches between the flags. Download the <strong>SharkSmart WA app</strong> for real-time tagged shark alerts.`,
+                usa:               `<strong>San Francisco Bay Area:</strong> Great White Sharks patrol the waters near the Farallon Islands (25 miles offshore) and are occasionally tracked entering the Bay. Attacks inside Aquatic Park are extremely rare: the cove has a 50+ year safety record. Check the <strong>Shark Net app</strong> for tagged shark activity off the California coast.`,
                 seychelles:        `<strong>Seychelles:</strong> Shark attacks are very rare but have occurred historically at a small number of spots. Bull sharks are present in some deeper channels. Swim at beaches recommended by local operators and avoid areas with fishing activity or murky runoff water.`,
                 dalmatia:          null,
                 spain:             null,
                 france:            null,
-                thailand:          `<strong>Thailand:</strong> Shark encounters are extremely rare in Thai coastal waters. Occasional reef shark sightings in deeper channels around Phuket — not considered a swimming hazard. No shark nets or spotting programme in place.`,
-                canada:            `<strong>British Columbia:</strong> Dangerous shark encounters are essentially unheard of in BC coastal waters — local species (dogfish, sixgill sharks) are not a swimming hazard. The marine life to respect here is <strong>harbour seals and sea lions</strong>: curious, occasionally boisterous, best given space.`,
+                thailand:          `<strong>Thailand:</strong> Shark encounters are extremely rare in Thai coastal waters. Occasional reef shark sightings in deeper channels around Phuket, but not considered a swimming hazard. No shark nets or spotting programme in place.`,
+                canada:            `<strong>British Columbia:</strong> Dangerous shark encounters are essentially unheard of in BC coastal waters, and local species (dogfish, sixgill sharks) are not a swimming hazard. The marine life to respect here is <strong>harbour seals and sea lions</strong>: curious, occasionally boisterous, best given space.`,
                 ireland:           null,
             };
             const sharksNote = document.getElementById('sharksRegionalNote');
@@ -5988,22 +5988,22 @@
 
             // ── Cold water note (inside Cold Water section) ──────────────────────
             const COLD_NOTES = {
-                cape:         `<strong>Western Cape temps:</strong> Atlantic 10–14°C · False Bay 14–18°C. Cold shock on entry is a real risk — acclimatise gradually and never swim alone in cold water.`,
-                garden_route: `<strong>Garden Route temps:</strong> 18–22°C (Agulhas current). Can drop after upwelling events. Cold shock less likely than the Cape — still dress warmly after swimming.`,
-                eastern_cape: `<strong>Eastern Cape temps:</strong> 17–22°C (mixed Agulhas/Benguela). Cooler in winter. Conditions can vary — always check local reports before open water swims.`,
+                cape:         `<strong>Western Cape temps:</strong> Atlantic 10–14°C · False Bay 14–18°C. Cold shock on entry is a real risk, so acclimatise gradually and never swim alone in cold water.`,
+                garden_route: `<strong>Garden Route temps:</strong> 18–22°C (Agulhas current). Can drop after upwelling events. Cold shock less likely than the Cape, so still dress warmly after swimming.`,
+                eastern_cape: `<strong>Eastern Cape temps:</strong> 17–22°C (mixed Agulhas/Benguela). Cooler in winter. Conditions can vary, so always check local reports before open water swims.`,
                 kzn:          `<strong>KZN temps:</strong> Indian Ocean 22–28°C. Hypothermia risk is low, but monitor for thermoclines (sudden cold layers) in deeper open water and after heavy rainfall.`,
-                namibia:      `<strong>Namibia temps:</strong> Cold Benguela current keeps water at 10–15°C year-round. Cold shock risk is HIGH — same as Cape Atlantic. Nearest hospital may be very far away.`,
-                uk:                `<strong>UK temps:</strong> Rivers, lakes and lidos range from 3–8°C in winter to 16–20°C in summer. Cold shock on entry is a serious risk in cooler months — acclimatise gradually, never swim alone, and have warm layers ready immediately after.`,
+                namibia:      `<strong>Namibia temps:</strong> Cold Benguela current keeps water at 10–15°C year-round. Cold shock risk is HIGH, the same as Cape Atlantic. Nearest hospital may be very far away.`,
+                uk:                `<strong>UK temps:</strong> Rivers, lakes and lidos range from 3–8°C in winter to 16–20°C in summer. Cold shock on entry is a serious risk in cooler months, so acclimatise gradually, never swim alone, and have warm layers ready immediately after.`,
                 europe:            `<strong>European open water:</strong> Temperatures vary widely by region and season. Nordic/Alpine lakes can be 5–15°C even in summer. Check local conditions before swimming and always have a warm change ready.`,
-                western_australia: `<strong>WA (Indian Ocean) temps:</strong> Perth's Indian Ocean runs 17–22°C in summer and 15–18°C in winter — comfortable year-round. Cold shock is a low risk, but be aware of strong afternoon sea breezes (Fremantle Doctor) creating chop and currents at exposed beaches.`,
-                usa:               `<strong>San Francisco Bay temps:</strong> Aquatic Park runs 12–16°C year-round — cold even in summer, thanks to Pacific upwelling. The Pacific at Ocean Beach is typically 11–14°C. Cold shock on entry is a real risk. The local Dolphin Club and South End Rowing Club swim here daily without wetsuits — acclimatise gradually.`,
-                seychelles:        `<strong>Seychelles temps:</strong> Indian Ocean water sits at 27–30°C year-round — no cold shock risk. Hypothermia is not a concern, but stay hydrated and use sun protection. Water is warmest and calmest during the southeast trade wind season (May–Oct).`,
-                dalmatia:          `<strong>Dalmatia (Adriatic) temps:</strong> Sea temperature peaks at 24–27°C in July–August — one of the warmest swimming destinations in Europe. Spring (May) runs 17–20°C and autumn (Oct) stays above 20°C. Cold shock is not a significant risk in summer, but spring/autumn swimmers should acclimatise gradually.`,
+                western_australia: `<strong>WA (Indian Ocean) temps:</strong> Perth's Indian Ocean runs 17–22°C in summer and 15–18°C in winter, comfortable year-round. Cold shock is a low risk, but be aware of strong afternoon sea breezes (Fremantle Doctor) creating chop and currents at exposed beaches.`,
+                usa:               `<strong>San Francisco Bay temps:</strong> Aquatic Park runs 12–16°C year-round, cold even in summer, thanks to Pacific upwelling. The Pacific at Ocean Beach is typically 11–14°C. Cold shock on entry is a real risk. The local Dolphin Club and South End Rowing Club swim here daily without wetsuits, so acclimatise gradually.`,
+                seychelles:        `<strong>Seychelles temps:</strong> Indian Ocean water sits at 27–30°C year-round, so no cold shock risk. Hypothermia is not a concern, but stay hydrated and use sun protection. Water is warmest and calmest during the southeast trade wind season (May–Oct).`,
+                dalmatia:          `<strong>Dalmatia (Adriatic) temps:</strong> Sea temperature peaks at 24–27°C in July–August, one of the warmest swimming destinations in Europe. Spring (May) runs 17–20°C and autumn (Oct) stays above 20°C. Cold shock is not a significant risk in summer, but spring/autumn swimmers should acclimatise gradually.`,
                 spain:             `<strong>Spain (Balearic/Mediterranean) temps:</strong> The Balearic Sea peaks at 24–26°C in July–September and rarely drops below 14°C in winter. Swimmable from May through October without a wetsuit for most swimmers. Cold shock is a low risk in summer; winter and early-spring swimmers should acclimatise gradually.`,
                 france:            `<strong>France (Côte d'Azur) temps:</strong> The Mediterranean along the French Riviera runs 13–14°C in winter and 24–26°C in July–September, making it swimmable for most of the year. Cold shock is a low risk in summer; winter and early-spring swimmers should acclimatise gradually and have warm layers ready on exit.`,
                 thailand:          `<strong>Thailand (Andaman Sea) temps:</strong> Water stays warm year-round, typically 27–30°C. Cold shock is not a concern. Focus on sun protection, hydration, and monsoon-season swell instead.`,
-                canada:            `<strong>BC (Pacific) temps:</strong> English Bay runs roughly 6–10°C in winter and 17–21°C at the summer peak — cold shock is a real risk for most of the year. Acclimatise gradually, never swim alone in cold water, and have warm layers ready immediately after. Mountain-fed lakes and rivers stay cold even in hot weather.`,
-                ireland:           `<strong>Ireland temps:</strong> roughly 8–10°C in late winter and 14–17°C at the late-summer peak, with the Irish Sea usually slightly warmer than the Atlantic coast. Cold shock and after-drop are real risks in every season — acclimatise gradually, keep first swims short, never swim alone in cold water, and have warm layers ready immediately after.`,
+                canada:            `<strong>BC (Pacific) temps:</strong> English Bay runs roughly 6–10°C in winter and 17–21°C at the summer peak, so cold shock is a real risk for most of the year. Acclimatise gradually, never swim alone in cold water, and have warm layers ready immediately after. Mountain-fed lakes and rivers stay cold even in hot weather.`,
+                ireland:           `<strong>Ireland temps:</strong> roughly 8–10°C in late winter and 14–17°C at the late-summer peak, with the Irish Sea usually slightly warmer than the Atlantic coast. Cold shock and after-drop are real risks in every season, so acclimatise gradually, keep first swims short, never swim alone in cold water, and have warm layers ready immediately after.`,
             };
             const coldNote = document.getElementById('coldWaterRegionalNote');
             if (coldNote) {
@@ -6044,7 +6044,7 @@
                 europe:            [['tel:112','phone','European Emergency','Police · Ambulance · Rescue','112']],
                 western_australia: [
                     ['tel:000','phone','Emergency Services','Police · Ambulance · Fire','000'],
-                    ['tel:1800075111','anchor','Volunteer Sea Rescue','VMRWA — Marine emergency · WA coastline','1800 075 111'],
+                    ['tel:1800075111','anchor','Volunteer Sea Rescue','VMRWA · Marine emergency · WA coastline','1800 075 111'],
                 ],
                 usa: [
                     ['tel:911','phone','Emergency Services','Police · Ambulance · Fire · Coast Guard','911'],
@@ -6093,7 +6093,7 @@
                     ['tel:0217004158','paw-print','Cape of Good Hope SPCA','Rabid / injured seals on beach','021 700 4158'],
                     ['tel:0832362924','leaf','CapeNature','Wildlife incidents · Nature reserve areas','083 236 2924'],
                     ['tel:0217830234','mountain-snow','Table Mountain National Park','TMNP coastline incidents','021 783 0234'],
-                    ['tel:0860103089','droplets','Coastal Pollution / Water Quality','City of Cape Town — sewage, pollution, closures','0860 103 089'],
+                    ['tel:0860103089','droplets','Coastal Pollution / Water Quality','City of Cape Town · sewage, pollution, closures','0860 103 089'],
                     ['https://wa.me/27600181505','message-circle','City WhatsApp Line','Report coastal issues via WhatsApp','060 018 1505','#25d366'],
                 ]},
                 garden_route: { title: 'Reporting (Garden Route)', contacts: [
@@ -6135,7 +6135,7 @@
                     ['tel:+248 4 322 000','droplets','Seychelles Tourism Authority','Tourist assistance · Local advice','+248 4 322 000'],
                 ]},
                 dalmatia: { title: 'Reporting (Croatia)', contacts: [
-                    ['tel:9155','anchor','MRCC Split — Sea Rescue','Maritime emergency · Adriatic','9155'],
+                    ['tel:9155','anchor','MRCC Split · Sea Rescue','Maritime emergency · Adriatic','9155'],
                     ['tel:112','phone','Emergency Services','Police · Ambulance · Fire','112'],
                     ['https://www.adriatic.hr/','droplets','Adriatic.hr Water Quality','Beach water quality · Blue Flag status','adriatic.hr'],
                 ]},
@@ -6144,21 +6144,21 @@
                     ['tel:112','phone','Emergency Services','Police · Ambulance · Fire','112'],
                 ]},
                 france: { title: 'Reporting (France)', contacts: [
-                    ['tel:196','anchor','CROSS — Sea Rescue','Maritime emergency · French coastline','196'],
+                    ['tel:196','anchor','CROSS · Sea Rescue','Maritime emergency · French coastline','196'],
                     ['tel:112','phone','Emergency Services','Police · Ambulance · Fire','112'],
-                    ['https://baignades.sante.gouv.fr','droplets','Ministry of Health — Bathing Water','Official beach water quality results','baignades.sante.gouv.fr'],
+                    ['https://baignades.sante.gouv.fr','droplets','Ministry of Health · Bathing Water','Official beach water quality results','baignades.sante.gouv.fr'],
                 ]},
                 thailand: { title: 'Reporting (Thailand)', contacts: [
                     ['tel:1554','anchor','Marine Police / Coastal Rescue','Maritime emergency · Phuket coastline','1554'],
                     ['tel:1155','shield','Tourist Police','English-speaking · Incident reporting','1155'],
                 ]},
-                canada: { title: 'Reporting (Canada — BC)', contacts: [
-                    ['tel:18005675111','anchor','JRCC Victoria — Marine Rescue','Maritime emergency · Search & rescue · BC coast','1-800-567-5111'],
+                canada: { title: 'Reporting (Canada · BC)', contacts: [
+                    ['tel:18005675111','anchor','JRCC Victoria · Marine Rescue','Maritime emergency · Search & rescue · BC coast','1-800-567-5111'],
                     ['https://www.vch.ca/en/service/public-beach-water-quality','droplets','Vancouver Coastal Health','Beach water quality · Advisories (May–Sep sampling)','vch.ca'],
                 ]},
                 ireland: { title: 'Reporting (Ireland)', contacts: [
                     ['tel:112','anchor','Irish Coast Guard','Dial 112 or 999, ask for the Coast Guard · Marine incidents','112'],
-                    ['https://www.beaches.ie','droplets','EPA — beaches.ie','Official bathing water quality · Beach advisories','beaches.ie'],
+                    ['https://www.beaches.ie','droplets','EPA · beaches.ie','Official bathing water quality · Beach advisories','beaches.ie'],
                     ['https://watersafety.ie','shield','Water Safety Ireland','National water safety body · Guidance & ring buoy reporting','watersafety.ie'],
                 ]},
             };
@@ -6184,7 +6184,7 @@
             if (hazards.length === 0) {
                 el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:var(--text-secondary);font-size:13px;padding:8px 0;">
                     <span style="width:8px;height:8px;border-radius:50%;background:#10b981;flex-shrink:0;display:inline-block;"></span>
-                    No active hazards reported — all clear
+                    No active hazards reported: all clear
                 </div>`;
                 return;
             }
@@ -6622,7 +6622,7 @@
             if (phone) {
                 normalizedPhone = formatSAPhone(phone);
                 if (!normalizedPhone) {
-                    showToast('Phone number looks invalid — include country code e.g. +27 82 336 9790', 'error');
+                    showToast('Phone number looks invalid. Include country code e.g. +27 82 336 9790', 'error');
                     document.getElementById('profilePhone').style.borderColor = 'var(--danger)';
                     return;
                 }
@@ -6637,7 +6637,7 @@
                         // Accept as-is (international numbers, Namibia +264, etc.)
                         normalizedEmergencyPhone = emergencyPhone.trim();
                     } else {
-                        showToast('Emergency contact phone looks invalid — please check the number', 'error');
+                        showToast('Emergency contact phone looks invalid, please check the number', 'error');
                         document.getElementById('profileEmergencyPhone').style.borderColor = 'var(--danger)';
                         return;
                     }
@@ -7068,7 +7068,7 @@
             // Validate + normalise SA phone numbers
             const normalizedPhone = formatSAPhone(phone);
             if (!normalizedPhone) {
-                showToast('Phone number looks invalid — include country code e.g. +27 82 336 9790', 'error');
+                showToast('Phone number looks invalid. Include country code e.g. +27 82 336 9790', 'error');
                 document.getElementById('obPhone').style.borderColor = 'var(--danger)';
                 return;
             }
@@ -7078,7 +7078,7 @@
                 if (digitsOnly.length >= 7) {
                     normalizedEmergencyPhone = emergencyPhone.trim();
                 } else {
-                    showToast('Emergency contact phone looks invalid — please check the number', 'error');
+                    showToast('Emergency contact phone looks invalid, please check the number', 'error');
                     document.getElementById('obEmergencyPhone').style.borderColor = 'var(--danger)';
                     return;
                 }
@@ -7126,7 +7126,7 @@
                     // Push broadcast to anyone subscribed to new_member notifications
                     broadcastPush(null, 'new_member',
                         'New swimmer joined!',
-                        `${fullName} just joined SwimLoading — welcome them in!`
+                        `${fullName} just joined SwimLoading, welcome them in!`
                     );
                 } catch (notifErr) {
                     console.warn('Admin notification failed (non-blocking):', notifErr);
@@ -7960,7 +7960,7 @@
                             No spot found for ${display}
                         </div>
                         <div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.5;">
-                            SwimLoading covers 8+ countries. If your spot isn't here yet, request it — we review within 48h.
+                            SwimLoading covers 8+ countries. If your spot isn't here yet, request it and we review within 48h.
                         </div>
                         <button onclick="closeSpotPicker(); showSuggestSpot('${safe}');"
                             style="background:#38bdf8;color:#080f1a;border:none;border-radius:50px;padding:9px 22px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">
@@ -7981,7 +7981,7 @@
                     </div>
                     <div>
                         <div class="sp-add-label">Your spot not here? Request it</div>
-                        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">We review within 48h — any country welcome</div>
+                        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">We review within 48h, any country welcome</div>
                     </div>
                 </div>`;
         }
@@ -8207,7 +8207,7 @@
                 if (error) throw error;
             } catch (e) {
                 console.warn('group swim report failed:', e && e.message);
-                if (answer === 'yes') { showToast('Could not send that — try again later', 'error'); return; }
+                if (answer === 'yes') { showToast('Could not send that. Try again later', 'error'); return; }
             }
 
             if (typeof analytics !== 'undefined' && analytics.track) {
@@ -8217,7 +8217,7 @@
             wrap.innerHTML = answer === 'yes'
                 ? `<div style="margin-top:14px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);
                         border-radius:14px;padding:13px 16px;font-size:13.5px;color:var(--text-primary);">
-                     Thank you — we will check with the group and add it.
+                     Thank you, we will check with the group and add it.
                    </div>`
                 : '';
             if (answer !== 'yes') wrap.style.display = 'none';
@@ -8334,7 +8334,7 @@
 
         async function deleteMyLog() {
             if (!_myLogSheetLog) return;
-            if (!confirm('Delete this log? Any challenge credit it earned will be removed — you can re-log the correct details immediately.')) return;
+            if (!confirm('Delete this log? Any challenge credit it earned will be removed, but you can re-log the correct details immediately.')) return;
             const btn = document.getElementById('myLogDeleteBtn');
             btn.disabled = true; btn.textContent = 'Deleting…';
             const { data, error } = await supabaseClient.rpc('delete_my_temp_log', { p_log_id: _myLogSheetLog.id });
@@ -8343,14 +8343,14 @@
                 btn.disabled = false; btn.textContent = 'Delete';
                 return;
             }
-            showToast('Log deleted — you can re-log now.', 'success');
+            showToast('Log deleted. You can re-log now.', 'success');
             closeMyLogSheet();
             loadMyRecentLogs();
         }
 
         function showShareSheet(spotName, temp, conditions) {
             const cond = conditions ? conditions.charAt(0).toUpperCase() + conditions.slice(1) : '';
-            const message = `${spotName}: ${temp}°C${cond ? ' • ' + cond : ''}\nLogged on SwimLoading — swimloading.com`;
+            const message = `${spotName}: ${temp}°C${cond ? ' • ' + cond : ''}\nLogged on SwimLoading: swimloading.com`;
             _shareSheetMessage = message;
             document.getElementById('shareSheetTitle').textContent = `${spotName}: ${temp}°C${cond ? ' • ' + cond : ''}`;
             document.getElementById('shareSheetMessage').textContent = message;
@@ -8914,7 +8914,7 @@
                     html += `
                         <div title="${badge.name}: ${badge.description}"
                              style="width: 56px; height: 56px; border-radius: 14px; background: rgba(56, 189, 248, 0.15); border: 2px solid rgba(56, 189, 248, 0.3); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;"
-                             onclick="showToast('${badge.name} — ${safeDesc}', 'success')">
+                             onclick="showToast('${badge.name}: ${safeDesc}', 'success')">
                             <i data-lucide="${badge.icon}" style="width: 24px; height: 24px; color: var(--ocean-light);"></i>
                             <span style="font-size: 8px; color: var(--text-secondary); margin-top: 2px; max-width: 50px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${badge.name}</span>
                         </div>
@@ -8926,7 +8926,7 @@
                     html += `
                         <div title="${badge.name}: ${badge.description}"
                              style="width: 56px; height: 56px; border-radius: 14px; background: rgba(255,255,255,0.03); border: 2px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0.35; cursor: pointer;"
-                             onclick="showToast('${badge.name} — ${safeDesc} (locked)', 'info')">
+                             onclick="showToast('${badge.name}: ${safeDesc} (locked)', 'info')">
                             <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); opacity: 0.5;">LOCKED</span>
                             <span style="font-size: 8px; color: var(--text-secondary); margin-top: 2px; max-width: 50px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${badge.name}</span>
                         </div>
@@ -8975,11 +8975,11 @@
                 let html = '<div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">';
                 for (const badge of earned) {
                     const safeDesc = badge.description.replace(/'/g, "\\'");
-                    html += `<div title="${badge.name}" style="width:56px;height:56px;border-radius:14px;background:rgba(56,189,248,0.15);border:2px solid rgba(56,189,248,0.3);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;" onclick="showToast('${badge.name} — ${safeDesc}', 'success')"><i data-lucide="${badge.icon}" style="width:24px;height:24px;color:var(--ocean-light);"></i><span style="font-size:8px;color:var(--text-secondary);margin-top:2px;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${badge.name}</span></div>`;
+                    html += `<div title="${badge.name}" style="width:56px;height:56px;border-radius:14px;background:rgba(56,189,248,0.15);border:2px solid rgba(56,189,248,0.3);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;" onclick="showToast('${badge.name}: ${safeDesc}', 'success')"><i data-lucide="${badge.icon}" style="width:24px;height:24px;color:var(--ocean-light);"></i><span style="font-size:8px;color:var(--text-secondary);margin-top:2px;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${badge.name}</span></div>`;
                 }
                 for (const badge of locked) {
                     const safeDesc = badge.description.replace(/'/g, "\\'");
-                    html += `<div title="${badge.name}: ${badge.description}" style="width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,0.03);border:2px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0.35;cursor:pointer;" onclick="showToast('${badge.name} — ${safeDesc}', 'info')"><i data-lucide="lock" style="width:20px;height:20px;color:var(--text-secondary);"></i><span style="font-size:8px;color:var(--text-secondary);margin-top:2px;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${badge.name}</span></div>`;
+                    html += `<div title="${badge.name}: ${badge.description}" style="width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,0.03);border:2px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0.35;cursor:pointer;" onclick="showToast('${badge.name}: ${safeDesc}', 'info')"><i data-lucide="lock" style="width:20px;height:20px;color:var(--text-secondary);"></i><span style="font-size:8px;color:var(--text-secondary);margin-top:2px;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${badge.name}</span></div>`;
                 }
                 html += '</div>';
                 html += `<div style="text-align:center;margin-top:8px;color:var(--text-secondary);font-size:12px;">${earnedIds.size} of ${badges.length} badges earned · <span style="cursor:pointer;color:var(--ocean-light);" onclick="renderDashBadges()">show less</span></div>`;

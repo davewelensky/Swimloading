@@ -416,9 +416,9 @@
             // and an alarming one. (Same trap as the indexability gate, where
             // a null estimate read as 0°C and passed a check it should have
             // failed.)
-            if (v === null || v === undefined || v === '') return '—';
+            if (v === null || v === undefined || v === '') return '–';
             const n = Number(v);
-            return Number.isFinite(n) ? n.toFixed(1) : '—';
+            return Number.isFinite(n) ? n.toFixed(1) : '–';
         }
 
         function renderRegionalGrid() {
@@ -695,7 +695,7 @@
                         <div style="font-size:12px;color:var(--text-secondary);font-weight:500;">${trendsEsc(where)}${where ? ' · ' : ''}${when}</div>
                     </div>
                     <div style="text-align:right;${isStale ? 'opacity:0.55;' : ''}">
-                        <div style="font-size:24px;font-weight:800;color:${hasTemp ? getDisplayTempColor(row.temp_c, spot.water_type) : 'var(--text-secondary)'};">${hasTemp ? fmtTemp(row.temp_c) + '°C' : '—'}</div>
+                        <div style="font-size:24px;font-weight:800;color:${hasTemp ? getDisplayTempColor(row.temp_c, spot.water_type) : 'var(--text-secondary)'};">${hasTemp ? fmtTemp(row.temp_c) + '°C' : '–'}</div>
                     </div>`;
                 list.appendChild(item);
             });
@@ -705,7 +705,7 @@
                 const more = document.createElement('div');
                 more.className = 'trends-search-count';
                 more.style.textAlign = 'center';
-                more.textContent = `Showing the first ${shown.length} — keep typing to narrow it down`;
+                more.textContent = `Showing the first ${shown.length}. Keep typing to narrow it down`;
                 box.appendChild(more);
             }
         }
@@ -850,11 +850,11 @@
                     .then(function(d) {
                         const el = document.getElementById(tempId);
                         if (!el) return;
-                        el.textContent = (d && d.temperature != null) ? parseFloat(d.temperature).toFixed(1) + '°C' : '—';
+                        el.textContent = (d && d.temperature != null) ? parseFloat(d.temperature).toFixed(1) + '°C' : '–';
                     })
                     .catch(function() {
                         const el = document.getElementById(tempId);
-                        if (el) el.textContent = '—';
+                        if (el) el.textContent = '–';
                     });
             });
 
@@ -865,7 +865,7 @@
         function showTrendsOverview() { trendsStepBack(); }
         function showLastRegionDetail() { trendsStepBack(); }
 
-        // opts.returnToPage — id of the page the swimmer came from (dashboard
+        // opts.returnToPage: id of the page the swimmer came from (dashboard
         // etc.). Omit for spots opened from inside Trends; the origin is then
         // whichever Trends view is on screen.
         async function openSpotDetail(spotId, spotName, spotCode, opts) {
@@ -1146,11 +1146,11 @@
                                 const tEl = document.getElementById('mwlTempVal');
                                 const wEl = document.getElementById('mwlTempWhen');
                                 if (!d || d.unavailable) {
-                                    if (tEl) tEl.textContent = '—';
+                                    if (tEl) tEl.textContent = '–';
                                     if (wEl) wEl.textContent = 'Sensor data unavailable';
                                     return;
                                 }
-                                if (tEl) tEl.textContent = d.temperature != null ? parseFloat(d.temperature).toFixed(1) + '°C' : '—';
+                                if (tEl) tEl.textContent = d.temperature != null ? parseFloat(d.temperature).toFixed(1) + '°C' : '–';
                                 if (wEl && d.timestamp) {
                                     try {
                                         var t = new Date(d.timestamp).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -1160,7 +1160,7 @@
                             })
                             .catch(function() {
                                 const tEl = document.getElementById('mwlTempVal');
-                                if (tEl) tEl.textContent = '—';
+                                if (tEl) tEl.textContent = '–';
                             });
                     } else {
                         mwlBanner.style.display = 'none';
@@ -1171,7 +1171,7 @@
                 if (!recentLogs || recentLogs.length === 0) {
                     const mwlVenueForLogs = (window.MYWATERLIVE_VENUES || {})[currentSpotName];
                     listEl.innerHTML = mwlVenueForLogs
-                        ? '<div style="padding:16px 0;font-size:13px;color:var(--text-secondary);">No community logs yet — water temperature is provided by the live sensor above. Log your own swim after your session to add community data.</div>'
+                        ? '<div style="padding:16px 0;font-size:13px;color:var(--text-secondary);">No community logs yet. Water temperature is provided by the live sensor above. Log your own swim after your session to add community data.</div>'
                         : '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">No logs found.</div>';
                 } else {
                     const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
@@ -1297,7 +1297,7 @@
                 // point farming) and used to bounce on the eo/UK credit FKs.
                 const { data, error } = await supabaseClient.rpc('delete_my_temp_log', { p_log_id: logId });
                 if (error || data?.ok === false) throw new Error(error?.message || data?.reason || 'delete failed');
-                showToast('Temp log deleted — you can re-log now', 'success');
+                showToast('Temp log deleted, you can re-log now', 'success');
                 await loadSpotChartData();
             } catch (err) {
                 console.error('Error deleting temp log:', err);

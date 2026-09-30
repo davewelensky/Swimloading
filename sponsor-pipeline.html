@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SwimLoading — Sponsor Pipeline</title>
+<title>SwimLoading | Sponsor Pipeline</title>
 <meta name="robots" content="noindex,nofollow">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -276,7 +276,7 @@ nav {
     <a class="nav-brand" href="/"><img src="/icons/logo-wave.png" alt="">SwimLoading</a>
     <div class="nav-right">
       <div class="nav-stats">
-        <div id="stat-total">— sponsors</div>
+        <div id="stat-total">– sponsors</div>
         <div>Contacted <span id="n-contacted" style="color:var(--text);font-weight:600">0</span></div>
         <div>Confirmed <span id="n-confirmed" style="color:var(--text);font-weight:600">0</span></div>
       </div>
@@ -427,12 +427,12 @@ async function loadSponsors() {
   document.getElementById('page-sub').textContent = 'Loading live data from Supabase…';
   const { data, error } = await sb.from('growth_sponsors').select('*').order('created_at', { ascending: true });
   if (error) {
-    document.getElementById('page-sub').textContent = 'Could not load sponsors — you may not have founder access on this account (' + currentUserEmail + ').';
+    document.getElementById('page-sub').textContent = 'Could not load sponsors. You may not have founder access on this account (' + currentUserEmail + ').';
     showToast(error.message, true);
     return;
   }
   SPONSORS = data || [];
-  document.getElementById('page-sub').textContent = 'Signed in as ' + currentUserEmail + ' — live data, saves instantly.';
+  document.getElementById('page-sub').textContent = 'Signed in as ' + currentUserEmail + ': live data, saves instantly.';
   render();
 }
 
@@ -524,7 +524,7 @@ function render() {
   const categories = [...new Set(SPONSORS.map(s => s.category || 'Uncategorised'))].sort();
 
   if (SPONSORS.length === 0) {
-    container.innerHTML = '<div class="empty-state">No sponsors yet — add your first one.</div>';
+    container.innerHTML = '<div class="empty-state">No sponsors yet. Add your first one.</div>';
   } else {
     container.innerHTML = categories.map(cat => {
       const brands = SPONSORS.filter(s => (s.category || 'Uncategorised') === cat);

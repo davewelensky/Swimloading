@@ -11,12 +11,13 @@ export default async function handler(req, res) {
   const dist = parseInt(total_distance) || 3000;
 
   const system = `You are an expert swim coach with 20+ years experience writing squad training sets.
-Write sets in clean plain-text notation — no markdown, no asterisks, no emojis.
+Write sets in clean plain-text notation: no markdown, no asterisks, no emojis.
+Never use em dashes; use commas, colons or full stops.
 
 Format rules:
 - One block per line
-- Repetitions: "8x50m FR @0:55 — descend 1-4, 5-8"
-- Single swim: "400m WARMUP — easy choice, focus on feel"
+- Repetitions: "8x50m FR @0:55: descend 1-4, 5-8"
+- Single swim: "400m WARMUP: easy choice, focus on feel"
 - Stroke codes: FR=freestyle BK=backstroke BR=breaststroke FLY=butterfly IM=individual medley
 - Drill codes: DR=drill SW=swim KICK=kick PULL=pull UW=underwater
 - Interval: use @ (e.g. @1:45 means send every 1:45)
@@ -27,7 +28,7 @@ Format rules:
 
   const prompt = `Write a swim training set with these parameters:
 Description: ${description}
-Session duration: EXACTLY ${dur} minutes — this is a hard limit, the set must fit within this time
+Session duration: EXACTLY ${dur} minutes. This is a hard limit, the set must fit within this time
 Target total distance: ~${dist}m (adjust if needed to stay within ${dur} mins)
 Pool: ${pool_type === 'LCM' ? '50m long course (LCM)' : '25m short course (SCM)'}
 Training focus: ${focus || 'mixed'}

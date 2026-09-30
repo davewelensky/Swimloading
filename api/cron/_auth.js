@@ -17,7 +17,7 @@ export function requireCronAuth(req, res, label) {
 
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {
-    console.error(`${label}: CRON_SECRET not configured — refusing to run`);
+    console.error(`${label}: CRON_SECRET not configured, refusing to run`);
     res.status(500).json({ error: 'CRON_SECRET not configured' });
     return false;
   }

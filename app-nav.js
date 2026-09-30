@@ -182,7 +182,7 @@
                     const club     = (approved[0] || pending[0])?.clubs;
                     if (club) {
                         const swimmerList = approved.length
-                            ? approved.map(l => `<span style="font-weight:700;color:var(--text);">${l.club_roster?.display_name || '—'}</span>`).join(', ')
+                            ? approved.map(l => `<span style="font-weight:700;color:var(--text);">${l.club_roster?.display_name || '–'}</span>`).join(', ')
                             : `<span style="color:var(--amber);">Pending approval</span>`;
                         el.innerHTML = `
                             <a href="/clubs/${club.slug}" style="display:block;text-decoration:none;
@@ -522,7 +522,7 @@
                     const leader = rows[i];
                     return `<div style="flex:1;min-width:90px;background:${p.bg};border:1px solid ${p.border};border-radius:10px;padding:10px 12px;">
                         <div style="font-size:10px;font-weight:700;color:${p.color};text-transform:uppercase;letter-spacing:0.05em;">${p.label} · ${p.prize}</div>
-                        <div style="font-size:13px;font-weight:700;color:var(--text);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${leader ? leader.display_name : '—'}</div>
+                        <div style="font-size:13px;font-weight:700;color:var(--text);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${leader ? leader.display_name : '–'}</div>
                         <div style="font-size:11px;color:var(--text-secondary);margin-top:1px;">${leader ? leader.log_count + ' log' + (leader.log_count !== 1 ? 's' : '') + ' · ' + leader.total_points + ' pts' : 'No logs yet'}</div>
                     </div>`;
                 }).join('');
@@ -566,7 +566,7 @@
                         <i data-lucide="trophy" style="width:12px;height:12px;color:#fbbf24;"></i>Standings
                     </div>
                     <div style="background:rgba(15,23,42,0.5);border-radius:10px;padding:8px 6px;">
-                        ${rows.length ? listRows : '<div style="text-align:center;color:var(--text-secondary);padding:16px;font-size:13px;">No logs yet this month — be first!</div>'}
+                        ${rows.length ? listRows : '<div style="text-align:center;color:var(--text-secondary);padding:16px;font-size:13px;">No logs yet this month. Be first!</div>'}
                     </div>
                 </div>`;
 
@@ -710,7 +710,7 @@
 
             // Prize race — ranked list of eligible swimmers
             if (eligible.length === 0) {
-                html += `<div style="text-align:center;color:var(--text-secondary);padding:16px 0;font-size:13px;">No eligible swimmers yet — log a temp to enter!</div>`;
+                html += `<div style="text-align:center;color:var(--text-secondary);padding:16px 0;font-size:13px;">No eligible swimmers yet. Log a temp to enter!</div>`;
             } else {
                 const LB_MEDAL_COLORS = ['#fbbf24','#94a3b8','#cd7c2f'];
                 const LB_MEDAL_BG     = ['rgba(251,191,36,0.12)','rgba(148,163,184,0.10)','rgba(205,124,47,0.10)'];
@@ -1379,7 +1379,7 @@
             if (!val) { showToast('Please select a region', 'error'); return; }
             const { error } = await supabaseClient
                 .from('profiles').update({ home_domain: val }).eq('id', currentUser.id);
-            if (error) { showToast('Error saving — try again', 'error'); return; }
+            if (error) { showToast('Error saving, try again', 'error'); return; }
             currentUserProfile = { ...currentUserProfile, home_domain: val };
             document.getElementById('homeDomainPrompt').style.display = 'none';
             // Update profile select in settings if open

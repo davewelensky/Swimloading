@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex,nofollow">
-<title>Big Bay Events Swim Archive — Marathon Swims | Powered by SwimLoading</title>
-<meta name="description" content="Every recorded open water swim of 10km or more from Big Bay Events' swim archive — Robben Island, False Bay, Preekstoel–Mykonos and more, sortable and exportable. Powered by SwimLoading.">
+<title>Big Bay Events Swim Archive · Marathon Swims | Powered by SwimLoading</title>
+<meta name="description" content="Every recorded open water swim of 10km or more from Big Bay Events' swim archive: Robben Island, False Bay, Preekstoel–Mykonos and more, sortable and exportable. Powered by SwimLoading.">
 <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -207,7 +207,7 @@
     border-radius:14px;padding:22px 24px}
   .notes ul{list-style:none;display:flex;flex-direction:column;gap:10px}
   .notes li{font-size:13px;color:var(--body);line-height:1.65;padding-left:16px;position:relative}
-  .notes li::before{content:'—';position:absolute;left:0;color:var(--border)}
+  .notes li::before{content:'–';position:absolute;left:0;color:var(--border)}
   .notes li b{color:var(--text);font-weight:600}
   .notes li b.warn{color:var(--amber)}
   .mergekey{margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
@@ -243,9 +243,9 @@
 
 <div class="hero">
   <div class="powered"><i data-lucide="waves"></i>Powered by SwimLoading</div>
-  <h1>Big Bay Events —<br><span class="accent">Marathon</span> Swim Archive</h1>
+  <h1>Big Bay Events:<br><span class="accent">Marathon</span> Swim Archive</h1>
   <p>Every recorded solo, wetsuit, relay and assisted swim of <b>10km or more</b> from
-     <b>Big Bay Events'</b> swim archive — Robben Island, False Bay, Preekstoel–Mykonos,
+     <b>Big Bay Events'</b> swim archive: Robben Island, False Bay, Preekstoel–Mykonos,
      the English Channel and more.</p>
 
   <div class="masthead" id="masthead"></div>
@@ -314,7 +314,7 @@
 </section>
 
 <footer style="margin-top:60px">
-  Big Bay Events' swim archive. Not claimed to be a complete record —
+  Big Bay Events' swim archive. Not claimed to be a complete record;
   see Methodology &amp; scope above.<br>
   Powered by <a href="https://swimloading.com">SwimLoading</a>
 </footer>
@@ -358,14 +358,14 @@ const MERGE_MAP = {
 // or there isn't enough certainty in the naming alone to say they're the
 // same swim. Flagged here rather than guessed at.
 const POSSIBLE_DUPES = [
-  ['Dogs leg', 'Dogs Leg - BB-RI-Oceana', 'may be the same swim recorded two ways — not merged, needs confirming'],
+  ['Dogs leg', 'Dogs Leg - BB-RI-Oceana', 'may be the same swim recorded two ways, not merged, needs confirming'],
 ];
 
 let ROWS = [];          // every swim, all distances, flattened
 let SORT = { key: 'swim_date', dir: 'desc' };
 let VIEW = 'grouped';
 
-function fmtKm(km){ return km == null ? '—' : (Math.round(km*10)/10).toString().replace(/\.0$/, ''); }
+function fmtKm(km){ return km == null ? '–' : (Math.round(km*10)/10).toString().replace(/\.0$/, ''); }
 
 function parseDurationSeconds(raw){
   if (!raw) return null;
@@ -384,17 +384,17 @@ function fmtDuration(sec){
   return h > 0 ? `${h}h ${String(m).padStart(2,'0')}m` : `${m}m`;
 }
 function fmtDate(d){
-  if (!d) return '—';
+  if (!d) return '–';
   const dt = new Date(d + 'T00:00:00Z');
   return dt.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', timeZone:'UTC' });
 }
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function categoryLabel(c){ return c ? c.charAt(0).toUpperCase() + c.slice(1) : '—'; }
-function conditionsLabel(c){ return c ? c.replace(/_/g,' ').replace(/^./, m => m.toUpperCase()) : '—'; }
+function categoryLabel(c){ return c ? c.charAt(0).toUpperCase() + c.slice(1) : '–'; }
+function conditionsLabel(c){ return c ? c.replace(/_/g,' ').replace(/^./, m => m.toUpperCase()) : '–'; }
 
 async function loadData(){
   // PostgREST caps every request at 1000 rows regardless of an explicit
-  // .limit() above that — the same silent truncation that broke the admin
+  // .limit() above that: the same silent truncation that broke the admin
   // analytics page earlier (f023156). historical_swims has 2,484 rows, so a
   // single request here would show roughly half the real marathon count
   // with no error and no sign anything was missing. Paginate with .range()
@@ -508,7 +508,7 @@ function renderStats(){
   const rawSwims = new Set(all.map(r => r.route_raw)).size;
   const groupedSwims = new Set(all.map(r => r.swim_group)).size;
   const years = all.map(r => r.swim_date?.slice(0,4)).filter(Boolean);
-  const yearRange = years.length ? `${Math.min(...years)}–${Math.max(...years)}` : '—';
+  const yearRange = years.length ? `${Math.min(...years)}–${Math.max(...years)}` : '–';
 
   document.getElementById('statsRow').innerHTML = `
     <div class="stat"><b>${groupedSwims}</b><small>Distinct swims</small></div>
@@ -525,7 +525,7 @@ function notableCard(icon, label, val, who, sub){
 }
 
 // Every figure here is derived, on the client, from the same rows the table
-// shows — nothing is hand-entered. Ties are handled explicitly rather than
+// shows; nothing is hand-entered. Ties are handled explicitly rather than
 // silently picking one swimmer.
 function renderNotable(){
   const all = marathonRows();
@@ -557,7 +557,7 @@ function renderNotable(){
     cards.push(notableCard('thermometer', 'Coldest water',
       `${fmtKm(minT)}<small>°C</small>`,
       atMin.length === 1 ? esc(C.swimmer) : `${atMin.length} swims at ${fmtKm(minT)}°C`,
-      `${esc(C.swim_group)} · ${fmtDate(C.swim_date)} — of the ${withTemp.length} swims with a water temp on record`));
+      `${esc(C.swim_group)} · ${fmtDate(C.swim_date)}, of the ${withTemp.length} swims with a water temp on record`));
   }
 
   const counts = {};
@@ -589,12 +589,12 @@ function splitBar(aLabel, aCount, bLabel, bCount, note){
   `;
 }
 
-// SKINS/WETSUIT AND GENDER. Both were already sitting unused in the query —
-// category and historical_swimmers.gender — so this is a read of what is
+// SKINS/WETSUIT AND GENDER. Both were already sitting unused in the query
+// (category and historical_swimmers.gender), so this is a read of what is
 // already in Big Bay Events' own records, not a new stat we are inventing.
 // Age is NOT here: it would need a birth date, which does not exist in this
 // schema, and historical_swimmers is a PUBLICLY readable table (RLS grants
-// SELECT to anon) — adding raw birth dates to it would publish exact ages
+// SELECT to anon), and adding raw birth dates to it would publish exact ages
 // for everyone in the archive, not just aggregate them. That needs an
 // explicit decision, not a quiet column addition alongside a "make it
 // awesome" request.
@@ -630,7 +630,7 @@ function renderContext(){
   document.getElementById('contextRow').innerHTML = `
     <i data-lucide="info"></i>
     <span><b>${riSingle.toLocaleString()}</b> single Robben Island crossings (Big Bay ↔ Robben Island, ~7.4km)
-    are recorded separately and excluded here — below the 10km marathon threshold, but part of the same
+    are recorded separately and excluded here: below the 10km marathon threshold, but part of the same
     swimmers' build-up toward the swims below.</span>
   `;
   lucide.createIcons();
@@ -676,9 +676,9 @@ function renderTable(){
       </td>
       <td class="distance">${fmtKm(r.effective_km)} <small>km</small></td>
       <td>${time ? time : '<span class="no-time">not recorded</span>'}</td>
-      <td>${cat ? `<span class="badge ${badgeClass}">${esc(categoryLabel(cat))}</span>` : '—'}</td>
-      <td>${r.water_temp_c != null ? `${fmtKm(r.water_temp_c)}°C` : '—'}</td>
-      <td>${r.conditions ? esc(conditionsLabel(r.conditions)) : '—'}</td>
+      <td>${cat ? `<span class="badge ${badgeClass}">${esc(categoryLabel(cat))}</span>` : '–'}</td>
+      <td>${r.water_temp_c != null ? `${fmtKm(r.water_temp_c)}°C` : '–'}</td>
+      <td>${r.conditions ? esc(conditionsLabel(r.conditions)) : '–'}</td>
     </tr>`;
   }).join('');
 }
@@ -689,10 +689,10 @@ function renderNotes(){
   document.getElementById('notesList').innerHTML = `
     <li>The records belong to <b>Big Bay Events</b>.</li>
     <li>The marathon threshold used throughout this page is <b>10 km or more</b>. Single Robben Island crossings (~7.4km) sit below it and are counted separately, above.</li>
-    <li><b>${noTime} of ${all.length} qualifying swims (${Math.round(noTime/all.length*100)}%)</b> have no recorded time — date, swimmer, swim and category are complete for all of them.</li>
+    <li><b>${noTime} of ${all.length} qualifying swims (${Math.round(noTime/all.length*100)}%)</b> have no recorded time; date, swimmer, swim and category are complete for all of them.</li>
     <li>Distance uses each swim's own tracked distance where recorded, falling back to the named swim's nominal distance otherwise. A tracked distance can exceed the nominal distance where currents took a swimmer off the direct line.</li>
-    <li>Every count on this page is a <b>floor, not a ceiling</b> — it reflects what has been imported so far. Cross-check against Big Bay Events' own records before using these figures in a formal submission.</li>
-    <li>"Grouped by swim" is a display choice made on this page — it does not change the underlying records. Switch to "As recorded" to see every swim exactly as logged.</li>
+    <li>Every count on this page is a <b>floor, not a ceiling</b>: it reflects what has been imported so far. Cross-check against Big Bay Events' own records before using these figures in a formal submission.</li>
+    <li>"Grouped by swim" is a display choice made on this page. It does not change the underlying records. Switch to "As recorded" to see every swim exactly as logged.</li>
   `;
   const mergeGroups = {};
   Object.entries(MERGE_MAP).forEach(([raw, group]) => { (mergeGroups[group] ||= []).push(raw); });
@@ -700,7 +700,7 @@ function renderNotes(){
     `<div class="mergerow"><span class="into">${esc(group)}</span><span>${raws.map(esc).join(' + ')}</span></div>`
   ).join('');
   html += POSSIBLE_DUPES.map(([a,b,note]) =>
-    `<div class="mergerow"><span class="into" style="color:var(--amber)">not merged</span><span>${esc(a)} / ${esc(b)} — ${esc(note)}</span></div>`
+    `<div class="mergerow"><span class="into" style="color:var(--amber)">not merged</span><span>${esc(a)} / ${esc(b)}: ${esc(note)}</span></div>`
   ).join('');
   document.getElementById('mergeKeyBody').innerHTML = html;
 }

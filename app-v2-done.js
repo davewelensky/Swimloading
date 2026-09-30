@@ -178,7 +178,7 @@
         $('v2DoneBtn').addEventListener('click', finish);
         $('v2DoneShare').addEventListener('click', function () {
             var c = ctx.conditions ? ' • ' + cap(ctx.conditions) : '';
-            var msg = spot + ': ' + temp + '°C' + c + '\nLogged on SwimLoading — swimloading.com';   // same text as the v1 share sheet
+            var msg = spot + ': ' + temp + '°C' + c + '\nLogged on SwimLoading: swimloading.com';   // same text as the v1 share sheet
             window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
             try { analytics.track('whatsapp_shared'); } catch (e) { /* optional */ }
             finish();

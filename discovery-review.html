@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex,nofollow">
-<title>Discovery Review — SwimLoading</title>
+<title>Discovery Review | SwimLoading</title>
 <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -207,8 +207,8 @@ let PICKED = new Set();
 // back for anyone east of UTC).
 const TODAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Johannesburg' }).format(new Date());
 
-// A candidate with no date can never be published — approve_discovery_candidate
-// refuses it — so asking for a decision on one is asking a question that has
+// A candidate with no date can never be published (approve_discovery_candidate
+// refuses it), so asking for a decision on one is asking a question that has
 // no effect. They are held in their own bucket rather than mixed into the
 // queue. Note this is NOT the same as rejecting them: most are ours to fix,
 // not the page's fault. Finland's 47 events sat exactly here until the date
@@ -258,7 +258,7 @@ async function boot(){
   await loadAll();
 }
 
-// Supabase caps ANY response at 1000 rows and tells you nothing about it —
+// Supabase caps ANY response at 1000 rows and tells you nothing about it:
 // no error, no flag, just a short array. This page asked for every candidate
 // in one go; once the table passed 1000 rows (1777 as of 2026-08-06) it had
 // been quietly showing an arbitrary slice, and the candidates outside that
@@ -301,7 +301,7 @@ const sourceName = id => (SOURCES.find(s => s.id === id) || {}).name || 'Unknown
 // human can:
 //
 //   * an unresolved duplicate means we may be about to publish the same
-//     swim twice — the single button is disabled for these too;
+//     swim twice; the single button is disabled for these too;
 //   * !date_confirmed means the page never stated a year, and single
 //     approve PROMPTS for one. There is no sensible way to answer that
 //     prompt fifty times at once, so those stay individual.
@@ -315,7 +315,7 @@ function bulkApprovable(c){
     // The classifier's own verdict. approve_discovery_candidate REFUSES a
     // candidate recommended 'rejected' unless p_override_rejected is passed,
     // so offering to publish one is offering something the database will
-    // decline — which is exactly what happened on 2026-08-09: 19 of 33
+    // decline, which is exactly what happened on 2026-08-09: 19 of 33
     // "ready" candidates were classifier-rejected, the bar said "Publish
     // 25", and every one of them failed.
     //
@@ -372,7 +372,7 @@ function render(){
   if (FILTER === 'rejected')   rows = rows.filter(c => ['rejected','duplicate'].includes(c.candidate_status));
 
   document.getElementById('bucketNote').innerHTML = FILTER !== 'nodate' ? '' :
-    `<div class="warn">These have no date, so they cannot be published whatever you decide —
+    `<div class="warn">These have no date, so they cannot be published whatever you decide:
      <b>approving one does nothing</b>. Most are ours to fix rather than the organiser's:
      the date is usually printed on the page in a format the parser cannot read yet.
      Finland's 47 events sat here until it learned to read "3.10.2026".
@@ -420,7 +420,7 @@ function render(){
 function setFilter(f){ FILTER = f; PICKED = new Set(); render(); }
 
 function cardHtml(c){
-  const [cls, label] = REC_PILL[c.publication_recommendation] || ['p-insuf','—'];
+  const [cls, label] = REC_PILL[c.publication_recommendation] || ['p-insuf','–'];
   const dupes = unresolvedFor(c.id).length;
   const bits = [];
   if (c.start_date) bits.push(new Date(c.start_date + 'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}));
@@ -468,7 +468,7 @@ async function renderDetail(id){
     ? new Date(c.start_date + 'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})
       + (c.end_date ? ' – ' + new Date(c.end_date + 'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}) : '')
       + ` <span style="color:var(--sec)">(${esc(c.date_precision)})</span>`
-    : '<span style="color:var(--amber)">unconfirmed — year was never stated on the page</span>';
+    : '<span style="color:var(--amber)">unconfirmed: year was never stated on the page</span>';
 
   el.innerHTML = `
   <div class="panel">
@@ -476,12 +476,12 @@ async function renderDetail(id){
     <div class="sub">
       ${esc(c.organiser_name || 'organiser unknown')} ·
       score <b style="color:${SCORE_COLOUR(c.confidence_score)}">${c.confidence_score}</b> ·
-      <span class="pill ${(REC_PILL[c.publication_recommendation]||['p-insuf','—'])[0]}">${esc((REC_PILL[c.publication_recommendation]||['','—'])[1])}</span>
+      <span class="pill ${(REC_PILL[c.publication_recommendation]||['p-insuf','–'])[0]}">${esc((REC_PILL[c.publication_recommendation]||['','–'])[1])}</span>
       ${eventStatus === 'cancelled' ? ' <span class="pill p-rej">event cancelled</span>' : ''}
     </div>
 
     ${edition ? `<div class="warn" style="background:rgba(56,189,248,.08);border-color:rgba(56,189,248,.3)">
-      <p style="margin:0"><i data-lucide="check-circle"></i> Published as <b>${esc(c.canonical_name)} ${edition.edition_year}</b> — status ${esc(edition.status)}.</p>
+      <p style="margin:0"><i data-lucide="check-circle"></i> Published as <b>${esc(c.canonical_name)} ${edition.edition_year}</b>, status ${esc(edition.status)}.</p>
     </div>` : ''}
 
     ${dupes.map(l => {
@@ -493,7 +493,7 @@ async function renderDetail(id){
         ${Array.isArray(l.conflicting_signals) && l.conflicting_signals.length ? '<br><span style="color:var(--sec);font-size:12px">Conflicting: ' + esc(l.conflicting_signals.join('; ')) + '</span>' : ''}
         <br><span style="color:var(--sec);font-size:12px">Approval is blocked until this is resolved.</span></p>
         <button class="b-small" onclick="resolveLink('${l.id}','confirmed_distinct',false)">Different events</button>
-        <button class="b-small" onclick="resolveLink('${l.id}','confirmed_duplicate',true)">Same event — retire this one</button>
+        <button class="b-small" onclick="resolveLink('${l.id}','confirmed_duplicate',true)">Same event: retire this one</button>
       </div>`;
     }).join('')}
 
@@ -501,13 +501,13 @@ async function renderDetail(id){
       <h4><i data-lucide="info"></i> Facts</h4>
       <dl class="kv">
         <dt>Date</dt><dd>${dateLabel}</dd>
-        <dt>Venue</dt><dd>${esc(c.venue_name || '—')}</dd>
-        <dt>Location</dt><dd>${esc([c.city, c.region, c.country_code].filter(Boolean).join(', ') || '—')}</dd>
-        <dt>Coordinates</dt><dd>${c.latitude != null ? esc(c.latitude + ', ' + c.longitude) : '—'}</dd>
-        <dt>Water</dt><dd>${esc(c.water_body_type || '—')}</dd>
-        <dt>Type</dt><dd>${esc(c.event_type || '—')}</dd>
-        <dt>Official page</dt><dd>${c.official_url ? `<a href="${esc(c.official_url)}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan)">${esc(c.official_url)}</a>` : '—'}</dd>
-        <dt>Registration</dt><dd>${c.registration_url ? `<a href="${esc(c.registration_url)}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan)">${esc(c.registration_url)}</a>` : '—'}</dd>
+        <dt>Venue</dt><dd>${esc(c.venue_name || '–')}</dd>
+        <dt>Location</dt><dd>${esc([c.city, c.region, c.country_code].filter(Boolean).join(', ') || '–')}</dd>
+        <dt>Coordinates</dt><dd>${c.latitude != null ? esc(c.latitude + ', ' + c.longitude) : '–'}</dd>
+        <dt>Water</dt><dd>${esc(c.water_body_type || '–')}</dd>
+        <dt>Type</dt><dd>${esc(c.event_type || '–')}</dd>
+        <dt>Official page</dt><dd>${c.official_url ? `<a href="${esc(c.official_url)}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan)">${esc(c.official_url)}</a>` : '–'}</dd>
+        <dt>Registration</dt><dd>${c.registration_url ? `<a href="${esc(c.registration_url)}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan)">${esc(c.registration_url)}</a>` : '–'}</dd>
         <dt>Extraction</dt><dd><code>${esc(c.extraction_method)}</code></dd>
       </dl>
     </div>
@@ -517,10 +517,10 @@ async function renderDetail(id){
       <table><thead><tr><th>Label</th><th>Metres</th><th>Start</th><th>Wetsuit</th><th>Qual.</th></tr></thead><tbody>
       ${distances.map(x => `<tr>
         <td>${esc(x.original_label)}</td>
-        <td>${x.distance_metres != null ? esc(x.distance_metres) : '—'}</td>
-        <td>${esc(x.start_time || '—')}</td>
-        <td>${esc(x.wetsuit_policy || '—')}</td>
-        <td>${x.qualification_required === true ? 'yes' : x.qualification_required === false ? 'no' : '—'}</td>
+        <td>${x.distance_metres != null ? esc(x.distance_metres) : '–'}</td>
+        <td>${esc(x.start_time || '–')}</td>
+        <td>${esc(x.wetsuit_policy || '–')}</td>
+        <td>${x.qualification_required === true ? 'yes' : x.qualification_required === false ? 'no' : '–'}</td>
       </tr>`).join('')}
       </tbody></table>
     </div>` : ''}
@@ -537,7 +537,7 @@ async function renderDetail(id){
     </div>` : ''}
 
     <div class="sect">
-      <h4><i data-lucide="file-search"></i> Evidence (${evidence.length}) — where each value came from</h4>
+      <h4><i data-lucide="file-search"></i> Evidence (${evidence.length}): where each value came from</h4>
       <table><thead><tr><th>Field</th><th>Source</th><th>Value found</th></tr></thead><tbody>
       ${evidence.map(x => `<tr>
         <td><code>${esc(x.field_name)}</code></td>
@@ -550,10 +550,10 @@ async function renderDetail(id){
     <div class="actions">
       ${isOpen ? `
         <button class="act b-approve" onclick="approve('${c.id}')" ${dupes.length ? 'disabled title="Resolve the duplicate warning first"' : ''}>
-          ${c.date_confirmed ? 'Approve &amp; publish' : 'Approve — you&#39;ll be asked for the year'}
+          ${c.date_confirmed ? 'Approve &amp; publish' : 'Approve (you&#39;ll be asked for the year)'}
         </button>
         <button class="act b-reject" onclick="reject('${c.id}')">Reject</button>
-      ` : `<span style="color:var(--sec);font-size:13px">Already reviewed — status <b>${esc(c.candidate_status)}</b>.</span>`}
+      ` : `<span style="color:var(--sec);font-size:13px">Already reviewed: status <b>${esc(c.candidate_status)}</b>.</span>`}
       <a class="b-small" style="text-decoration:none;display:inline-block;padding:11px 18px"
          href="${esc(c.source_url)}" target="_blank" rel="noopener noreferrer">View source page</a>
     </div>
@@ -582,14 +582,14 @@ async function approve(id){
       return;
     }
     args.p_edition_year = year;
-    if (!confirm(`Publish under ${year}? The date itself stays unconfirmed — only the year is being set.`)) return;
+    if (!confirm(`Publish under ${year}? The date itself stays unconfirmed; only the year is being set.`)) return;
   } else if (!confirm('Publish this event to the public catalogue?')) {
     return;
   }
 
   const { data, error } = await sb.rpc('approve_discovery_candidate', args);
   if (error) { toast(error.message, true); return; }
-  toast('Published — edition ' + String(data).slice(0, 8));
+  toast('Published: edition ' + String(data).slice(0, 8));
   await loadAll();
   renderDetail(id);
 }
@@ -641,7 +641,7 @@ function renderBulkBar(){
   }
   const heldNote = [...reasons.entries()]
     .sort((a, b) => b[1] - a[1])
-    .map(([why, n]) => `${n} — ${esc(why)}`)
+    .map(([why, n]) => `${n}: ${esc(why)}`)
     .join('; ');
 
   bar.innerHTML = `
@@ -678,7 +678,7 @@ async function runBulk(ids, label, fn){
   if (failures.length === 0) {
     toast(`${label} ${done} event${done === 1 ? '' : 's'}`);
   } else {
-    toast(`${label} ${done}, ${failures.length} failed — see console`, true);
+    toast(`${label} ${done}, ${failures.length} failed, see console`, true);
     console.error(`${label} failures:\n` + failures.join('\n'));
   }
 }
@@ -689,7 +689,7 @@ async function bulkApprove(){
     return c && bulkApprovable(c);
   });
   if (ids.length === 0) return;
-  if (!confirm(`Publish ${ids.length} event${ids.length === 1 ? '' : 's'} to the public catalogue?\n\nThis is the same check as approving each one individually — the database still refuses anything ineligible.`)) return;
+  if (!confirm(`Publish ${ids.length} event${ids.length === 1 ? '' : 's'} to the public catalogue?\n\nThis is the same check as approving each one individually. The database still refuses anything ineligible.`)) return;
   await runBulk(ids, 'Published', id => sb.rpc('approve_discovery_candidate', { p_candidate_id: id }));
 }
 

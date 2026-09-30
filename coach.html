@@ -517,7 +517,7 @@
   <div class="empty-state">
     <i data-lucide="lock"></i>
     <div class="title" id="authTitle">Sign in to continue</div>
-    <div class="sub" id="authSub">Enter your SwimLoading email — we'll send a link that brings you straight back here.</div>
+    <div class="sub" id="authSub">Enter your SwimLoading email and we'll send a link that brings you straight back here.</div>
     <div id="authForm" style="width:100%;max-width:320px;margin-top:20px;display:flex;flex-direction:column;gap:10px;">
       <input class="input-field" id="authEmail" type="email" placeholder="your@email.com" autocomplete="email" inputmode="email">
       <button class="btn-primary" id="authSendBtn" onclick="sendMagicLink()">
@@ -701,7 +701,7 @@
   <!-- Session note -->
   <div style="background:var(--bg-card);border-top:1px solid var(--border);padding:8px 16px 0;">
     <textarea id="sessionNoteInput" rows="1"
-      placeholder="Session note — optional"
+      placeholder="Session note (optional)"
       oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
       style="width:100%;background:transparent;border:none;outline:none;resize:none;
              font-size:13px;color:var(--text-sec);font-family:'DM Sans',sans-serif;
@@ -901,7 +901,7 @@
         <button class="h-btn h-moderate" id="hb-moderate" onclick="selectHSev('moderate')">Moderate</button>
         <button class="h-btn h-serious"  id="hb-serious"  onclick="selectHSev('serious')">Serious</button>
       </div>
-      <textarea id="hNotes" class="input-field" placeholder="Notes — optional" rows="2"
+      <textarea id="hNotes" class="input-field" placeholder="Notes (optional)" rows="2"
         style="resize:none;font-size:14px;margin-bottom:12px;width:100%;box-sizing:border-box;"></textarea>
       <button class="btn-primary" id="hSaveBtn" onclick="saveCoachHealthEvent()">Save</button>
     </div>
@@ -1299,7 +1299,7 @@ function renderHome() {
 
   // Date display + nav
   const dateLabel = isToday
-    ? 'Today — ' + selDate.toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' })
+    ? 'Today · ' + selDate.toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' })
     : selDate.toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   document.getElementById('homeDate').innerHTML =
     `<span onclick="shiftDate(-1)" style="cursor:pointer;padding:2px 8px;border-radius:6px;background:rgba(255,255,255,0.06);font-size:18px;line-height:1;user-select:none;">‹</span>
@@ -1319,7 +1319,7 @@ function renderHome() {
   const coverSessions = todaySessions.filter(s => !isMySession(s));
 
   // Section label
-  const sectionLabel = isToday ? 'MY SESSIONS TODAY' : 'SESSIONS — ' + selDate.toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
+  const sectionLabel = isToday ? 'MY SESSIONS TODAY' : 'SESSIONS · ' + selDate.toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
 
   // Render my sessions
   const myEl = document.getElementById('mySessionsList');
@@ -1426,7 +1426,7 @@ function renderHome() {
         : '';
 
       const allClear = !trials.length && !feeOverdue.length
-        ? `<div style="font-size:13px;color:var(--text-sec);">No trials or overdue fees — all clear.</div>`
+        ? `<div style="font-size:13px;color:var(--text-sec);">No trials or overdue fees. All clear.</div>`
         : '';
 
       return `<div class="card" style="margin-bottom:12px;">
@@ -1721,13 +1721,13 @@ async function cantMakeIt() {
       recipient_user_id: c.user_id,
       type:    'session_cover_needed',
       title:   `${sq?.name || 'Squad'} needs cover`,
-      message: `${coachName} can't make the ${fmtTime(s.start_time)} session today — can you step in?`,
+      message: `${coachName} can't make the ${fmtTime(s.start_time)} session today. Can you step in?`,
       payload: { club_id: currentClub.id, squad_id: s.squad_id },
     })));
   }
 
   coverNeededToday.add(`${s.squad_id}_${s.start_time}`);
-  toast('Coaches notified — session flagged for cover', 'success');
+  toast('Coaches notified. Session flagged for cover', 'success');
   showScreen('home');
   renderHome();
 }
@@ -2006,7 +2006,7 @@ function renderBriefing(roster) {
   }
 
   if (topStreak) {
-    pills.push(`<span style="font-size:12px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.08);padding:3px 8px;border-radius:4px;">${topStreak.name} — ${topStreak.count} straight</span>`);
+    pills.push(`<span style="font-size:12px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.08);padding:3px 8px;border-radius:4px;">${topStreak.name} · ${topStreak.count} straight</span>`);
   }
 
   if (pills.length <= 1 && !healthCount && !firstBack.length) {
@@ -2119,7 +2119,7 @@ function swimmerRowHTML(r) {
 
   return `<div class="swimmer-row ${statusClass}" id="row-${r.id}">
     <div class="swimmer-name">
-      <div class="name">${r.display_name || '—'}</div>
+      <div class="name">${r.display_name || '–'}</div>
       ${badges ? `<div class="badges">${badges}</div>` : ''}
       ${dotsHTML}
     </div>
@@ -2217,7 +2217,7 @@ async function saveAttendance() {
   const totalRoster   = getSessionRoster().length;
 
   document.getElementById('doneSummary').textContent =
-    `${presentCount} of ${totalRoster} present — register saved.`;
+    `${presentCount} of ${totalRoster} present. Register saved.`;
 
   // Build WhatsApp message
   const sq      = allSquads.find(q => q.id === activeSqSession?.squad_id);
@@ -2279,7 +2279,7 @@ function searchWalkin(q) {
   }
 
   if (!results.length) {
-    resultsEl.innerHTML = `<div style="padding:20px;text-align:center;font-size:13px;color:var(--text-sec);">No match found — add as new trial swimmer below</div>`;
+    resultsEl.innerHTML = `<div style="padding:20px;text-align:center;font-size:13px;color:var(--text-sec);">No match found. Add as new trial swimmer below</div>`;
   } else {
     const sq = allSquads.find(q => q.id === activeSqSession?.squad_id);
     resultsEl.innerHTML = results.map(r => {
@@ -2472,7 +2472,7 @@ async function saveCoachHealthEvent() {
     notes:     document.getElementById('hNotes').value.trim() || null,
   });
   btn.disabled = false; btn.textContent = 'Save';
-  if (error) { toast('Could not save — try again', 'error'); return; }
+  if (error) { toast('Could not save. Try again', 'error'); return; }
   if (!rosterHealthMap[_hRosterId]) rosterHealthMap[_hRosterId] = [];
   rosterHealthMap[_hRosterId].push({ type: _hType, body_part: _hBodyPart || null, side: _hSide || null, severity: _hSev });
   // Re-render the single swimmer row
@@ -2615,7 +2615,7 @@ async function loadLTSSlots() {
         id:           a.roster_id,          // use roster_id as the slot key
         roster_id:    a.roster_id,
         slot_time:    a.time_slot || sessionStart,
-        client_name:  member.display_name || '—',
+        client_name:  member.display_name || '–',
         is_trial:     member.is_trial,
       };
     })
@@ -2664,7 +2664,7 @@ async function loadLTSSlots() {
       id:          c.roster_id,
       roster_id:   c.roster_id,
       slot_time:   c.time_slot || sessionStart,
-      client_name: member.display_name || '—',
+      client_name: member.display_name || '–',
       is_trial:    member.is_trial,
       is_catch_up: true,
     });
@@ -2795,7 +2795,7 @@ async function markLTSSlot(rosterId, attended) {
       .eq('session_date', selectedDate);
     if (error) {
       // Roll back — the slot is still marked in the DB, so restore the UI
-      toast('Could not un-mark — try again', 'error');
+      toast('Could not un-mark. Try again', 'error');
       if (_prev) ltsAttendance[rosterId] = _prev;
       renderLTSView();
       return;
@@ -2808,7 +2808,7 @@ async function markLTSSlot(rosterId, attended) {
       )
       .select().single();
     if (error) {
-      toast('Could not save — try again', 'error');
+      toast('Could not save. Try again', 'error');
       delete ltsAttendance[rosterId];
       renderLTSView();
       return;
@@ -3277,7 +3277,7 @@ function renderProgressSwimmerList() {
     } else if (report.is_published) {
       status = `<span style="font-size:11px;font-weight:700;color:var(--green);">Published${report.coach_name ? ' · ' + report.coach_name : ''}</span>`;
     } else {
-      status = `<span style="font-size:11px;font-weight:700;color:var(--amber);">Draft — waiting for Britt to review${report.coach_name ? ' · ' + report.coach_name : ''}</span>`;
+      status = `<span style="font-size:11px;font-weight:700;color:var(--amber);">Draft: waiting for Britt to review${report.coach_name ? ' · ' + report.coach_name : ''}</span>`;
     }
     return `<div class="session-tile" onclick="openProgressEditScreen('${r.id}')" style="cursor:pointer;">
       <div class="tile-accent" style="background:${!report ? 'rgba(255,255,255,0.15)' : report.is_published ? '#10b981' : 'var(--amber)'};"></div>
@@ -3343,7 +3343,7 @@ async function saveProgressReport_coach() {
   const newRow = { roster_id: prEditRosterId, term_label: term, body, coach_name: coach_name || null, is_published: false };
   if (idx >= 0) prReports[idx] = { ...prReports[idx], ...newRow }; else prReports.push(newRow);
 
-  toast('Saved — Britt will review before it goes to the parent', 'success');
+  toast('Saved. Britt will review before it goes to the parent', 'success');
   showScreen('progress');
   renderProgressSwimmerList();
 }

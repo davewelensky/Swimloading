@@ -54,15 +54,15 @@ export function isAutoApprovableStationMatch(match, opts = {}) {
   // ── 1. Human decisions are absolute ──────────────────────────────────
   const thisPair = links.find((l) => l.station_external_id === st.externalId);
   if (thisPair?.status === 'rejected') {
-    blockers.push('this pairing was manually REJECTED — never resurrect');
+    blockers.push('this pairing was manually REJECTED, never resurrect');
   }
   if (thisPair?.status === 'approved') {
-    blockers.push('this pairing is already approved — nothing to do');
+    blockers.push('this pairing is already approved, nothing to do');
   }
   const manualPrimary = links.find((l) => l.is_primary && l.status === 'approved'
     && l.station_external_id !== st.externalId);
   if (manualPrimary) {
-    blockers.push(`spot already has an approved primary (${manualPrimary.station_external_id}) — never displace`);
+    blockers.push(`spot already has an approved primary (${manualPrimary.station_external_id}), never displace`);
   }
   if (blockers.length) return { autoApprovable: false, blockers, passed };
   passed.push('no conflicting human decision');
@@ -110,14 +110,14 @@ export function isAutoApprovableStationMatch(match, opts = {}) {
   // Only a POSITIVE match counts. Silence from the provider is not
   // agreement — this is the lake-vs-ocean rule applied to automation.
   const wb = (st.waterBody || '').toLowerCase();
-  if (!wb) blockers.push('station water body unknown — cannot confirm same body of water');
+  if (!wb) blockers.push('station water body unknown, cannot confirm same body of water');
   else if (['lake', 'pool', 'river', 'dam'].includes(wb)) blockers.push(`station water body '${wb}' is not coastal`);
   else passed.push(`water body '${wb}'`);
 
   // ── 6. No close rival ────────────────────────────────────────────────
   const rivals = (match.competingScores || []).filter((s) => s >= match.suitabilityScore - cfg.competingScoreMargin);
   if (rivals.length) {
-    blockers.push(`${rivals.length} competing station(s) within ${cfg.competingScoreMargin} points — human choice`);
+    blockers.push(`${rivals.length} competing station(s) within ${cfg.competingScoreMargin} points: human choice`);
   } else passed.push('no competing station of similar quality');
 
   // ── 7. Geographical barrier — HONEST LIMITATION ──────────────────────
@@ -127,7 +127,7 @@ export function isAutoApprovableStationMatch(match, opts = {}) {
   // the water. The 3 km radius above makes such a crossing unlikely but
   // does not disprove it, so this is recorded as a residual risk rather
   // than a passed check, and it is one reason auto-approval stays off.
-  passed.push('note: barrier check not possible — mitigated by the 3 km radius only');
+  passed.push('note: barrier check not possible, mitigated by the 3 km radius only');
 
   return { autoApprovable: blockers.length === 0, blockers, passed };
 }

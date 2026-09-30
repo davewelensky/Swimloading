@@ -149,7 +149,7 @@ export function matchEligibility(station, spot, opts = {}) {
         ok: false,
         reason: stationBody === 'coastal'
           ? 'coastal station cannot serve a lake spot'
-          : 'station water body unknown — cannot confirm it is the same lake',
+          : 'station water body unknown, so cannot confirm it is the same lake',
       };
     }
     return { ok: true };

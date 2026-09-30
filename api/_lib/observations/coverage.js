@@ -166,7 +166,7 @@ export function classifyStation(station, context, opts = {}) {
   // A human said no to exactly this pairing. Never re-propose it.
   if (rejectedHere) {
     return { ...base, group: 'C', groupName: COVERAGE_GROUPS.C,
-      reason: 'manually rejected for this spot — excluded from suggestions' };
+      reason: 'manually rejected for this spot, excluded from suggestions' };
   }
 
   const spotAlreadyServed = context.spotsWithApprovedPrimary.has(nearestEligible.spot.id);

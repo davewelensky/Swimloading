@@ -475,7 +475,7 @@
   <div class="planner-toolbar">
     <div class="week-nav">
       <button class="week-btn" onclick="shiftWeek(-1)"><i data-lucide="chevron-left"></i></button>
-      <div class="week-label" id="weekLabel">—</div>
+      <div class="week-label" id="weekLabel">–</div>
       <button class="week-btn" onclick="shiftWeek(1)"><i data-lucide="chevron-right"></i></button>
       <button class="today-btn" onclick="goToday()">Today</button>
     </div>
@@ -583,10 +583,10 @@
 
     <!-- Set content -->
     <div style="margin-bottom:8px;">
-      <div class="field-label">Set content <span style="font-weight:400;text-transform:none;color:var(--text-dim);">— edit after generating, or write from scratch</span></div>
+      <div class="field-label">Set content <span style="font-weight:400;text-transform:none;color:var(--text-dim);">(edit after generating, or write from scratch)</span></div>
     </div>
     <textarea class="set-body-textarea" id="setContent"
-      placeholder="WARMUP&#10;400m FR — easy, focus on feel&#10;&#10;MAIN SET&#10;8x50m FR @0:55 — descend 1-4, 5-8&#10;4x100m FR @1:45 — aerobic pace&#10;&#10;COOLDOWN&#10;200m — easy choice&#10;&#10;Total: 3,000m | ~60mins"></textarea>
+      placeholder="WARMUP&#10;400m FR · easy, focus on feel&#10;&#10;MAIN SET&#10;8x50m FR @0:55 · descend 1-4, 5-8&#10;4x100m FR @1:45 · aerobic pace&#10;&#10;COOLDOWN&#10;200m · easy choice&#10;&#10;Total: 3,000m | ~60mins"></textarea>
 
     <!-- Metadata -->
     <div class="meta-row">
@@ -649,12 +649,12 @@
       <div>
         <div style="font-size:12px;font-weight:600;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Training phase</div>
         <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px;">
-          <button class="filter-chip" onclick="setInsightsPhase('General pre-season — building base fitness, no tapering required',this)">Pre-season</button>
-          <button class="filter-chip" onclick="setInsightsPhase('Race preparation — shifting to speed and race-pace work',this)">Race prep</button>
-          <button class="filter-chip" onclick="setInsightsPhase('Taper week — reduce volume, maintain intensity, sharpen for competition',this)">Tapering</button>
+          <button class="filter-chip" onclick="setInsightsPhase('General pre-season: building base fitness, no tapering required',this)">Pre-season</button>
+          <button class="filter-chip" onclick="setInsightsPhase('Race preparation: shifting to speed and race-pace work',this)">Race prep</button>
+          <button class="filter-chip" onclick="setInsightsPhase('Taper week: reduce volume, maintain intensity, sharpen for competition',this)">Tapering</button>
           <button class="filter-chip" onclick="setInsightsPhase('Open water / endurance event preparation',this)">Open water</button>
-          <button class="filter-chip" onclick="setInsightsPhase('Weekly training review — no specific event',this)">Weekly review</button>
-          <button class="filter-chip" onclick="setInsightsPhase('Skill development — technique and stroke improvement focus',this)">Skill development</button>
+          <button class="filter-chip" onclick="setInsightsPhase('Weekly training review, no specific event',this)">Weekly review</button>
+          <button class="filter-chip" onclick="setInsightsPhase('Skill development: technique and stroke improvement focus',this)">Skill development</button>
         </div>
         <input class="input-field" id="insightsGoal" type="text" style="width:100%;max-width:520px;"
           placeholder="Or type your own: e.g. Robben Island crossing in 6 weeks, Masters OW prep">
@@ -691,7 +691,7 @@
     <div style="font-size:13px;color:var(--text-sec);margin-bottom:16px;" id="assignContext"></div>
 
     <div style="margin-bottom:14px;">
-      <div class="field-label">Delivering coach <span style="font-weight:400;text-transform:none;">(optional — leave blank for Britt)</span></div>
+      <div class="field-label">Delivering coach <span style="font-weight:400;text-transform:none;">(optional, leave blank for Britt)</span></div>
       <input class="input-field" id="assignCoach" type="text" placeholder="e.g. Teagan">
     </div>
 
@@ -864,7 +864,7 @@ async function boot() {
   document.getElementById('mainNav').style.display = '';
 
   if (coachRole === 'coach') {
-    // Coach access — Planner + Library (view and assign sets), no Builder/AI Insights/Admin link
+    // Coach access: Planner + Library (view and assign sets), no Builder/AI Insights/Admin link
     document.getElementById('tab-builder').style.display = 'none';
     document.getElementById('tab-insights').style.display = 'none';
     document.getElementById('adminLink').style.display = 'none';
@@ -1062,7 +1062,7 @@ function renderInsights(data) {
     </div>`;
   }).join('');
 
-  // Near-qualifiers table — SSA age-group qualifying times only make sense
+  // Near-qualifiers table: SSA age-group qualifying times only make sense
   // for clubs running galas; Masters/development squads have no such
   // standards, so "0 found" would be structurally meaningless, not just
   // empty. Hide the whole section for non-gala clubs rather than show that.
@@ -1206,8 +1206,8 @@ function renderPlanner() {
         return `<td><div style="display:flex;flex-direction:column;gap:4px;">${chips}${addBtn}</div>${trains ? turnoutTag(sq.id, dow) : ''}</td>`;
       }
       if (!trains) {
-        return `<td><div class="cell-rest" onclick="openAssign('${sq.id}','${ds}','AM',true)" title="No regular session — add an extra one">
-          <span class="rest-dash">—</span>
+        return `<td><div class="cell-rest" onclick="openAssign('${sq.id}','${ds}','AM',true)" title="No regular session: add an extra one">
+          <span class="rest-dash">–</span>
           <i data-lucide="plus" class="rest-plus"></i>
         </div></td>`;
       }
@@ -1355,7 +1355,7 @@ async function generateSet() {
     const data = await res.json();
     if (data.set_content) {
       document.getElementById('setContent').value = data.set_content;
-      toast('Set generated — review and save it.', 'success');
+      toast('Set generated. Review and save it.', 'success');
     } else {
       toast(data.error || 'Generation failed', 'error');
     }
@@ -1375,7 +1375,7 @@ async function saveSet() {
   const btn = document.getElementById('saveBtnBuilder');
   btn.disabled = true;
 
-  // Match "Total: 2800m" summary line (start of line, capital T) — not subtotals like "WARMUP TOTAL: 700m"
+  // Match "Total: 2800m" summary line (start of line, capital T), not subtotals like "WARMUP TOTAL: 700m"
   const m = content.match(/^Total:\s*([\d,]+)\s*m/m);
   const total_distance = m ? parseInt(m[1].replace(/,/g,'')) : null;
   const payload = {
@@ -1419,7 +1419,7 @@ function openAssign(squadId, date, slot, extra) {
   assignCtx = { squadId, date, slot };
   selectedSetId = null;
   const sq = squads.find(s => s.id === squadId);
-  document.getElementById('assignHeading').textContent = `Assign set — ${sq?.name || 'Squad'}`;
+  document.getElementById('assignHeading').textContent = `Assign set · ${sq?.name || 'Squad'}`;
   document.getElementById('assignContext').textContent  = extra
     ? `${fmtLong(date)} · extra session (not on the regular timetable)`
     : `${fmtLong(date)} · ${slot} session`;
@@ -1428,7 +1428,7 @@ function openAssign(squadId, date, slot, extra) {
   document.getElementById('assignSave').disabled = true;
 
   // Other squads to optionally apply the same set to (e.g. Britt runs one
-  // session and delivers it to all 3 OW Masters groups back-to-back — this
+  // session and delivers it to all 3 OW Masters groups back-to-back; this
   // avoids repeating "assign" 3 times for the same set). Sibling squads
   // (same name prefix, e.g. "OW Masters 6-7" / "OW Masters 7-8") are
   // pre-checked since that's the common case; anything else stays unticked.
@@ -1460,7 +1460,7 @@ function renderPickList() {
   const list = sets.filter(s => !q || s.name.toLowerCase().includes(q));
   const el = document.getElementById('pickList');
   if (!list.length) {
-    el.innerHTML = `<div style="padding:20px;text-align:center;font-size:13px;color:var(--text-sec);">${sets.length ? 'No match' : 'No sets in library — create one first'}</div>`;
+    el.innerHTML = `<div style="padding:20px;text-align:center;font-size:13px;color:var(--text-sec);">${sets.length ? 'No match' : 'No sets in library. Create one first'}</div>`;
     return;
   }
   el.innerHTML = list.map(s =>
@@ -1553,14 +1553,14 @@ function openView(assignmentId) {
 // Editing a set from the Planner would otherwise edit the shared Library
 // template (used by every other day/squad it's assigned to). Instead this
 // forks it into a new Library set scoped to just this session, repoints
-// this one assignment at the fork, and opens the fork in the builder —
+// this one assignment at the fork, and opens the fork in the builder;
 // the original template a coach reuses elsewhere is never touched.
 async function editAssignedSet(assignmentId) {
   const asgn = Object.values(assignments).find(a => a.id === assignmentId);
   if (!asgn?.club_swim_sets) return;
   const s = sets.find(x => x.id === asgn.club_swim_sets.id) || asgn.club_swim_sets;
 
-  if (!confirm(`This makes your own editable copy of "${s.name}" for this session only — the Library original stays unchanged for other days. Continue?`)) return;
+  if (!confirm(`This makes your own editable copy of "${s.name}" for this session only. The Library original stays unchanged for other days. Continue?`)) return;
 
   const { data: newSet, error: insErr } = await sb.from('club_swim_sets').insert({
     club_id:        currentClub.id,
@@ -1583,7 +1583,7 @@ async function editAssignedSet(assignmentId) {
   await loadWeekAssignments();
   renderPlanner();
   editSet(newSet.id);
-  toast('Editing your own copy — the Library original is untouched.', 'success');
+  toast('Editing your own copy. The Library original is untouched.', 'success');
 }
 
 // ══ WHATSAPP SHARE ═══════════════════════════════════════════════════
@@ -1635,14 +1635,14 @@ function shareWeek(squadId) {
     const dow  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
     const meta = [fmtDist(asgn.club_swim_sets.total_distance), asgn.club_swim_sets.pool_type].filter(Boolean).join(' · ');
     const coach = asgn.delivering_coach ? `  Coach: ${asgn.delivering_coach}` : '';
-    return `*${dow} ${fmtShort(d)} — ${asgn.club_swim_sets.name}* (${meta})${coach}\n${content}`;
+    return `*${dow} ${fmtShort(d)} · ${asgn.club_swim_sets.name}* (${meta})${coach}\n${content}`;
   }).filter(Boolean);
 
   if (!sessions.length) { toast('No sets assigned this week for this squad', 'error'); return; }
 
   const weekLabel2 = `${fmtShort(days[0])} – ${fmtShort(days[5])}`;
   const text = [
-    `*${currentClub?.name || 'SwimLoading'} — ${sq?.name || 'Squad'}*`,
+    `*${currentClub?.name || 'SwimLoading'} · ${sq?.name || 'Squad'}*`,
     `*Week: ${weekLabel2}*`,
     '',
     sessions.join('\n\n'),

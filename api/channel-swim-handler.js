@@ -77,7 +77,7 @@ function renderSwimPage(s, pilotSwims, sameSwimmer) {
 
   const titleBits = [
     s.full_name,
-    timeStr ? `— ${timeStr}` : null,
+    timeStr ? `· ${timeStr}` : null,
     `(${s.year})`,
   ].filter(Boolean);
   const pageTitle = `${titleBits.join(' ')} | English Channel Swim`;
@@ -168,7 +168,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
   <div class="hero">
     ${recordTag ? `<div class="hero-rec">${recordTag}</div>` : ''}
     <div class="hero-name">${escapeHtml(s.full_name)}</div>
-    <div class="hero-meta">${escapeHtml(s.year + ' · ' + (s.nationality_when_swam || '—') + (s.age ? ' · age ' + Math.round(s.age) : ''))}</div>
+    <div class="hero-meta">${escapeHtml(s.year + ' · ' + (s.nationality_when_swam || '–') + (s.age ? ' · age ' + Math.round(s.age) : ''))}</div>
     ${timeStr ? `<div class="hero-time">${timeStr}</div><div class="hero-time-label">Crossing time</div>` : ''}
     <div style="margin-top:16px;">
       ${(s.honours || '').includes('IMSHOF') ? `<span class="tag tag-honour">${escapeHtml(s.honours)}</span>` : (s.honours ? `<span class="tag tag-honour">${escapeHtml(s.honours)}</span>` : '')}
@@ -199,16 +199,16 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
     <div class="card-label">Other crossings by ${escapeHtml(s.full_name)}</div>
     ${sameSwimmer.map(o => `<a class="swim-row" href="/english-channel/swim/${o.slug || o.unique_id}">
       <div><div class="swim-name">${escapeHtml(o.year + (o.n_ways > 1 ? ' · ' + nWaysLabel(o.n_ways) : '') + (o.direction ? ' · ' + o.direction : '') + (o.pilot ? ' · pilot ' + o.pilot : ''))}</div></div>
-      <div class="swim-time">${fmtTime(o.time_seconds) || '—'}</div>
+      <div class="swim-time">${fmtTime(o.time_seconds) || '–'}</div>
     </a>`).join('')}
     <div class="note">${escapeHtml(s.full_name)} has ${sameSwimmer.length + 1} ratified crossing${sameSwimmer.length === 0 ? '' : 's'} in the database.</div>
   </div>` : ''}
 
   ${pilotSwims && pilotSwims.length ? `<div class="card">
-    <div class="card-label">Pilot ${escapeHtml(s.pilot)} — other fast crossings</div>
+    <div class="card-label">Pilot ${escapeHtml(s.pilot)}: other fast crossings</div>
     ${pilotSwims.map(o => `<a class="swim-row" href="/english-channel/swim/${o.slug || o.unique_id}">
       <div><div class="swim-name">${escapeHtml(o.full_name)}</div><div class="swim-meta">${o.year}${o.n_ways > 1 ? ' · ' + nWaysLabel(o.n_ways) : ''}${o.direction ? ' · ' + o.direction : ''}</div></div>
-      <div class="swim-time">${fmtTime(o.time_seconds) || '—'}</div>
+      <div class="swim-time">${fmtTime(o.time_seconds) || '–'}</div>
     </a>`).join('')}
     <div class="note"><a href="/crossings/english-channel#pilots" style="color:var(--ocean-light);">See full pilot leaderboard &rarr;</a></div>
   </div>` : ''}
@@ -282,7 +282,7 @@ function buildSchemaOrg(s, timeStr, canonicalUrl) {
   const event = {
     '@context': 'https://schema.org',
     '@type': 'SportsEvent',
-    name: `${s.full_name} — English Channel swim (${s.year})`,
+    name: `${s.full_name} · English Channel swim (${s.year})`,
     description: timeStr ? `Ratified solo crossing of the English Channel in ${timeStr}.` : 'Ratified solo crossing of the English Channel.',
     sport: 'Open water swimming',
     startDate: s.depart_date && /^\d{4}/.test(s.depart_date) ? s.depart_date.slice(0,10) : `${s.year}-01-01`,

@@ -16,7 +16,7 @@ export const FIXTURE_EVENT = {
 
 export const FIXTURE_QUESTIONS = [
   {
-    question: "\"The claw\" \u2014 when your hands stop working mid-swim \u2014 is caused by\u2026",
+    question: "\"The claw\" (when your hands stop working mid-swim) is caused by\u2026",
     answer_a: "Too much coffee", answer_b: "Cold shutting down the nerves and muscles in your forearms", answer_c: "Gripping the tow float", answer_d: "Judging other people's stroke",
     correct_answer: 'B', time_limit_seconds: 30, sort_order: 1,
     explanation: "Cold slows the nerves and muscles in your forearms. Once the claw arrives, it is time to head in.",
@@ -25,7 +25,7 @@ export const FIXTURE_QUESTIONS = [
     question: "\"Afterdrop\" is\u2026",
     answer_a: "The dip in your Strava kudos", answer_b: "The moment the coffee van closes", answer_c: "Your core temperature carrying on falling after you get out", answer_d: "The walk back to the car in a wet costume",
     correct_answer: 'C', time_limit_seconds: 30, sort_order: 2,
-    explanation: "Your core keeps cooling for a while after you leave the water \u2014 which is why you feel worse ten minutes later.",
+    explanation: "Your core keeps cooling for a while after you leave the water, which is why you feel worse ten minutes later.",
   },
   {
     question: "Which current keeps the Atlantic side of Cape Town so cold?",
@@ -43,7 +43,7 @@ export const FIXTURE_QUESTIONS = [
     question: "Robben Island to Blouberg is roughly\u2026",
     answer_a: "3.4 km", answer_b: "7.4 km", answer_c: "12.4 km", answer_d: "Far enough, thanks",
     correct_answer: 'B', time_limit_seconds: 30, sort_order: 5,
-    explanation: "About 7.4 km of open Atlantic \u2014 short on paper, not in the water.",
+    explanation: "About 7.4 km of open Atlantic: short on paper, not in the water.",
   },
   {
     question: "A brightly coloured tow float is mainly for\u2026",
@@ -52,10 +52,10 @@ export const FIXTURE_QUESTIONS = [
     explanation: "Visibility. Keys stay dry as a bonus, and it is something to hold if you need a breather.",
   },
   {
-    question: "You've just joined SwimLoading. Open the app — what's the water temperature at Clifton 4th right now?",
+    question: "You've just joined SwimLoading. Open the app: what's the water temperature at Clifton 4th right now?",
     answer_a: "Under 10 °C", answer_b: "10–12.9 °C", answer_c: "13–15.9 °C", answer_d: "16 °C or warmer",
     correct_answer: 'C', time_limit_seconds: 30, sort_order: 7,
-    explanation: "Live water temperatures for every Cape spot — that's SwimLoading. Keep logging your swims and you're in the running for the eo SwimBETTER90 giveaway.",
+    explanation: "Live water temperatures for every Cape spot: that's SwimLoading. Keep logging your swims and you're in the running for the eo SwimBETTER90 giveaway.",
   },
   {
     question: "Do you really need a costume to swim Robben Island ?",

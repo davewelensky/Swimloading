@@ -36,7 +36,7 @@ async function checkStravaBanner() {
                 </div>
                 <div style="flex:1;min-width:0;">
                     <div style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:2px;">Swim with Strava?</div>
-                    <div style="font-size:12px;color:var(--text-secondary);line-height:1.45;">Import your swims directly — we add the water conditions Strava doesn't capture.</div>
+                    <div style="font-size:12px;color:var(--text-secondary);line-height:1.45;">Import your swims directly and we add the water conditions Strava doesn't capture.</div>
                 </div>
                 <div style="display:flex;gap:8px;flex-shrink:0;">
                     <button onclick="connectStravaFromBanner()"
@@ -269,7 +269,7 @@ async function loadStravaImportList() {
         list.innerHTML = `
             <div style="text-align:center;padding:40px 20px;">
                 <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Strava is rate-limiting SwimLoading right now</div>
-                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">This limit is shared across every SwimLoading member, not just your account. It resets on a rolling 15-minute window — wait a bit and try again.</div>
+                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">This limit is shared across every SwimLoading member, not just your account. It resets on a rolling 15-minute window, so wait a bit and try again.</div>
                 ${rl.limit || rl.usage ? `<div style="font-size:11px;color:var(--text-secondary);opacity:0.7;">Usage: ${escapeHtml(rl.usage || '?')} of limit ${escapeHtml(rl.limit || '?')} (15min,daily)</div>` : ''}
             </div>`;
         return;
@@ -280,7 +280,7 @@ async function loadStravaImportList() {
         list.innerHTML = `
             <div style="text-align:center;padding:40px 20px;">
                 <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Something broke fetching your Strava swims</div>
-                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">This isn't your account — it's a server error. Try again in a minute; if it keeps happening, screenshot this and send it to us.</div>
+                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">This isn't your account, it's a server error. Try again in a minute; if it keeps happening, screenshot this and send it to us.</div>
                 <div style="font-size:11px;color:var(--text-secondary);opacity:0.7;font-family:monospace;">HTTP ${escapeHtml(String(se.status || '?'))} · ${escapeHtml(se.error || 'unknown')}${se.message ? ' · ' + escapeHtml(se.message) : ''}</div>
             </div>`;
         return;
@@ -291,7 +291,7 @@ async function loadStravaImportList() {
             list.innerHTML = `
                 <div style="text-align:center;padding:40px 20px;">
                     <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Your Strava connection needs a quick reset</div>
-                    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;line-height:1.5;">This one was made with a permission level Strava doesn't allow us to use yet. Disconnect and reconnect Strava — the next connection will use the working one.</div>
+                    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;line-height:1.5;">This one was made with a permission level Strava doesn't allow us to use yet. Disconnect and reconnect Strava, and the next connection will use the working one.</div>
                     <button onclick="closeStravaImportModal();showPage('profile');"
                         style="background:#fc4c02;color:white;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;">
                         Go to Profile to reconnect
@@ -316,9 +316,9 @@ function closeStravaImportModal() {
 }
 
 function renderActivityRow(a) {
-    const date     = a.start_date_local ? new Date(a.start_date_local).toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'short' }) : '—';
-    const distKm   = a.distance_m ? (a.distance_m / 1000).toFixed(1) + ' km' : '—';
-    const duration = a.elapsed_time_seconds ? formatDuration(a.elapsed_time_seconds) : '—';
+    const date     = a.start_date_local ? new Date(a.start_date_local).toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'short' }) : '–';
+    const distKm   = a.distance_m ? (a.distance_m / 1000).toFixed(1) + ' km' : '–';
+    const duration = a.elapsed_time_seconds ? formatDuration(a.elapsed_time_seconds) : '–';
     const isPool   = !a.has_gps;
     const spot     = a.matched_spot_name
         ? `<span style="color:#fc4c02;font-size:11px;">● ${a.matched_spot_name}</span>`
@@ -347,7 +347,7 @@ function renderActivityRow(a) {
                 <div style="flex:1;min-width:0;">
                     <div style="font-weight:600;font-size:14px;color:var(--text-primary);margin-bottom:2px;">${escapeHtml(a.name || 'Swim')}</div>
                     <div style="font-size:12px;color:var(--text-secondary);">${date} · ${distKm} · ${duration}</div>
-                    <div style="margin-top:3px;font-size:11px;color:#f59e0b;">Too old to import — log manually instead</div>
+                    <div style="margin-top:3px;font-size:11px;color:#f59e0b;">Too old to import. Log manually instead</div>
                 </div>
             </div>`;
     }
@@ -392,7 +392,7 @@ function renderStravaLogForm(a) {
     const formEl = document.getElementById('stravaLogForm');
     if (!formEl) return;
 
-    const date    = a.start_date_local ? new Date(a.start_date_local).toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long' }) : '—';
+    const date    = a.start_date_local ? new Date(a.start_date_local).toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long' }) : '–';
     const distKm  = a.distance_m ? (a.distance_m / 1000).toFixed(1) : '';
     const dur     = a.elapsed_time_seconds ? formatDuration(a.elapsed_time_seconds) : '';
 
@@ -422,7 +422,7 @@ function renderStravaLogForm(a) {
         <div class="form-group">
             <div class="form-label">Water temperature (°C) <span style="color:var(--danger);">*</span></div>
             <input type="number" id="stravaTemp" placeholder="e.g. 16" step="0.1" min="0" max="40"${a.average_temp != null ? ` value="${a.average_temp}"` : ''}>
-            ${a.average_temp != null ? `<div style="font-size:11px;color:#10b981;margin-top:4px;">Detected from your device — confirm or adjust</div>` : ''}
+            ${a.average_temp != null ? `<div style="font-size:11px;color:#10b981;margin-top:4px;">Detected from your device. Confirm or adjust</div>` : ''}
         </div>
 
         <!-- Conditions -->

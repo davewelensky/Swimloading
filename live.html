@@ -147,9 +147,9 @@
     <div class="prize"><strong id="eventPrize">Win a personalised SwimLoading Open Water Performance Assessment</strong><span>Eight questions, 10 points each. Ties go to most answered, then fastest.</span>
       <div class="partners" id="prizePartners">
         <span class="plabel">Prize partners</span>
-        <span class="prow"><img src="/partners/eo-logo-white.png" alt="eo SwimBETTER" style="height:16px"><span>eo SwimBETTER handsets — <a href="/partners/eolab" target="_blank">win your own until 31 Oct</a></span></span>
+        <span class="prow"><img src="/partners/eo-logo-white.png" alt="eo SwimBETTER" style="height:16px"><span>eo SwimBETTER handsets: <a href="/partners/eolab" target="_blank">win your own until 31 Oct</a></span></span>
         <span class="prow"><img src="/icons/Aquasharks.jpg" alt="" style="height:22px;border-radius:4px"><span>Aqua Sharks Academy Atlantic</span></span>
-        <span class="pnote">Separately, one SwimLoading member wins a full eo SwimBETTER90 package — swim consistently and log it, 1 Aug to 31 Oct.</span>
+        <span class="pnote">Separately, one SwimLoading member wins a full eo SwimBETTER90 package. Swim consistently and log it, 1 Aug to 31 Oct.</span>
       </div>
     </div>
     <button class="btn" id="btnJoin" onclick="doJoin()"><i data-lucide="zap"></i> Join Challenge</button>
@@ -169,7 +169,7 @@
 
   <!-- midway -->
   <section id="s-midway" class="screen">
-    <div class="score"><div class="l">Halfway — your score</div><div class="n" id="midScore">0</div><div class="rank" id="midRank"></div></div>
+    <div class="score"><div class="l">Halfway: your score</div><div class="n" id="midScore">0</div><div class="rank" id="midRank"></div></div>
     <button class="btn" onclick="nextQuestion()">Keep going <i data-lucide="arrow-right"></i></button>
   </section>
 
@@ -220,7 +220,7 @@
         // Network blip (flaky venue signal): retry — the server dedupes
         // answers (unique participant+question), so a resend is safe.
         if (attempt < retries) { await new Promise(r => setTimeout(r, 800 * (attempt + 1))); continue; }
-        const e = new Error('No connection — check your signal and try again.'); e.code = 'network'; throw e;
+        const e = new Error('No connection. Check your signal and try again.'); e.code = 'network'; throw e;
       }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { const e = new Error(data.message || data.error || 'request_failed'); e.code = data.error; e.status = res.status; throw e; }
@@ -253,7 +253,7 @@
     if (ev.intro) $('eventIntro').textContent = ev.intro;
     if (ev.prize) $('eventPrize').textContent = ev.prize;
     // CLDSA 2026 prize partners (event-specific; the handsets were bought
-    // with Aqua Sharks — credit both, no claims beyond that)
+    // with Aqua Sharks, credit both, no claims beyond that)
     if (ev.slug === 'cldsa2026') $('prizePartners').classList.add('on');
   }
 
@@ -274,12 +274,12 @@
       await api('signup', { method: 'POST', body });
       track('live_quiz_signup_ok', { event: SLUG });
       const err = await auth.signIn(body.email.trim(), body.password);
-      if (err) { $('signupErr').textContent = 'Account created — please sign in: ' + err; btn.disabled = false; return show('s-login'); }
+      if (err) { $('signupErr').textContent = 'Account created. Please sign in: ' + err; btn.disabled = false; return show('s-login'); }
       await afterAuth();
       if (!me.joined) doJoin();
     } catch (e) {
       btn.disabled = false;
-      if (e.code === 'account_exists') { $('email').value = body.email.trim(); $('loginErr').textContent = 'You already have an account — sign in here.'; return show('s-login'); }
+      if (e.code === 'account_exists') { $('email').value = body.email.trim(); $('loginErr').textContent = 'You already have an account. Sign in here.'; return show('s-login'); }
       $('signupErr').textContent = e.message || 'Could not create your account.';
     }
   }
@@ -298,7 +298,7 @@
   async function doJoin() {
     const btn = $('btnJoin'); btn.disabled = true;
     try { await api('join', { method: 'POST', retries: 2 }); me = await api('me'); routeJoined(); }
-    catch (e) { btn.disabled = false; alert(e.code === 'registration_closed' ? 'Registration is not open yet — hang tight.' : 'Could not join: ' + e.message); }
+    catch (e) { btn.disabled = false; alert(e.code === 'registration_closed' ? 'Registration is not open yet, hang tight.' : 'Could not join: ' + e.message); }
   }
   function routeJoined() {
     stopLobbyPoll();
