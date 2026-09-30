@@ -78,6 +78,7 @@ export const REGION_COUNTRY_FILTER = {
   'portugal':    'PT',
   'france': 'FR',
   'spain':  'ES',
+  'greece':      'GR',
   'australia':   'AU',  // WESTERN_AUSTRALIA only has AU spots currently, but future-proof
 };
 
@@ -145,6 +146,7 @@ export const REGION_DOMAINS = {
   'thailand':          ['THAILAND'],
   'canada':            ['CANADA'],
   'ireland':           ['IRELAND'],
+  'greece':            ['EUROPE'],           // GR spots, filtered by country_code
 };
 
 export const REGION_NAMES = {
@@ -175,6 +177,7 @@ export const REGION_NAMES = {
   'thailand':          'Thailand',
   'canada':            'Canada',
   'ireland':           'Ireland',
+  'greece':            'Greece',
 };
 
 export const REGION_INTROS = {
@@ -232,6 +235,8 @@ export const REGION_INTROS = {
     "SwimLoading is expanding into Canada, starting on the Pacific coast in Vancouver, British Columbia. English Bay (with Second Beach and Kitsilano nearby) has a strong year-round open water community, cold Pacific water, and one of the world's great urban swim backdrops against the North Shore mountains.\n\nThe Pacific Northwest swims cold: English Bay typically runs 6–10°C in winter and 17–21°C at the summer peak, so cold water acclimatisation matters here the way it does in Cape Town or San Francisco. Summer brings warm, calm evenings and busy beaches; boat traffic and tidal currents in Burrard Inlet deserve respect year-round.\n\nSwimLoading is building its Canadian community. If you swim in Vancouver or anywhere in Canada, log your temperature and conditions: your data helps every swimmer planning a session in these waters.",
   'ireland':
     "Ireland has one of the deepest sea swimming cultures in the world, a country where year-round dips are a daily ritual and every coastal town has its swimming spot. SwimLoading's Irish coverage starts with three of the most storied: the Forty Foot at Sandycove in Dublin, swum every day of the year for over two centuries; Blackrock Diving Tower on Salthill Promenade in Galway, the heart of Atlantic swimming in the west; and Sandycove Island at Kinsale in Cork, one of the world's great open water training grounds.\n\nIrish water is cold-temperate year-round: roughly 8–10°C in late winter and 14–17°C at the late-summer peak, with the Irish Sea usually a degree or two warmer than the Atlantic coast. Lion's mane jellyfish are the main seasonal hazard in the Irish Sea in late summer.\n\nSwimLoading is building its Irish community. If you swim anywhere in Ireland, log your temperature and conditions: your data helps every swimmer planning a session in these waters.",
+  'greece':
+    "Greece is one of the Mediterranean's great open water swimming destinations: thousands of islands, clear Aegean water and a swimming season that runs from late spring well into autumn. SwimLoading's Greek coverage starts on Mykonos in the Cyclades.\n\nThe Aegean is warmest in August and September (typically 24–26°C) and cools to around 15–16°C in late winter. The main thing to plan around is the meltemi, the strong northerly wind that blows through the Cyclades in July and August and can turn exposed north-facing beaches choppy within hours. South-facing bays are usually more sheltered on meltemi days.\n\nSwimLoading is building its Greek community. If you swim on Mykonos or anywhere in Greece, log your temperature and conditions: your data helps every swimmer planning a session in these waters.",
 };
 
 // Maps /countries/[slug] → the region slug that spots-handler should render.
@@ -251,6 +256,7 @@ export const COUNTRY_SLUGS = {
   'thailand':       'thailand',
   'canada':         'canada',
   'ireland':        'ireland',
+  'greece':         'greece',
 };
 
 export function getLocationLabel(domain, area, countryCode) {
