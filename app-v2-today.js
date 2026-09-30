@@ -343,7 +343,7 @@
         var today = week.list.filter(function (w) { return w.dateStr === week.todayStr; });
         var next = today.length ? null : week.list.filter(function (w) { return !api.started(w, week); })[0];
         var rows = today.length ? today : (next ? [next] : []);
-        var g = api.galaRelevant() && st.events && st.events[0];        // galas are for the kids' squads, never OW Masters
+        var g = st.events && st.events[0] && api.galaRelevant(st.events[0]) && st.events[0];        // galas are for the kids' squads, never OW Masters
         if (!rows.length && !g) { top.classList.remove('v2-club-reserve'); return; }
 
         var days = g ? Math.round((new Date(g.event_date + 'T12:00:00') - new Date(new Date().setHours(0, 0, 0, 0))) / 86400000) : null;

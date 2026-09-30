@@ -176,7 +176,7 @@ async function renderSwimClub(container, club, roster, membership) {
 
     supabaseClient
       .from('club_events')
-      .select('id, title, event_date, description, is_league, venue, warmup_time, event_start, logistics, entry_open, entry_deadline, sessions_json, course, pre_entry_cutoff')
+      .select('id, title, event_date, description, is_league, venue, warmup_time, event_start, logistics, entry_open, entry_deadline, sessions_json, course, pre_entry_cutoff, squad_ids')
       .eq('club_id', club.id)
       .gte('event_date', today)
       .order('event_date')
@@ -195,11 +195,11 @@ async function renderSwimClub(container, club, roster, membership) {
 
     supabaseClient
       .from('club_announcements')
-      .select('id, title, body, is_pinned, created_at')
+      .select('id, title, body, is_pinned, created_at, squad_ids')
       .eq('club_id', club.id)
       .order('is_pinned', { ascending: false })
       .order('created_at', { ascending: false })
-      .limit(5),
+      .limit(20),
 
     supabaseClient
       .from('club_session_attendance')
@@ -221,11 +221,12 @@ async function renderSwimClub(container, club, roster, membership) {
   ]);
 
   const allResults    = resultsRes.data       || [];
-  const upcoming      = upcomingRes.data      || [];
+  const mySquadIds    = [roster.squad_id, roster.secondary_squad_id].filter(Boolean);
+  const upcoming      = (upcomingRes.data || []).filter(e => audienceVisible(e, mySquadIds));
   window._upcomingGalas = upcoming;
   const profile       = profileRes.data       || null;
   const timeTrial     = trialsRes.data        || [];
-  const announcements = announcementsRes.data || [];
+  const announcements = (announcementsRes.data || []).filter(a => audienceVisible(a, mySquadIds)).slice(0, 5);
   const attendance    = attendanceRes.data    || [];
   const progressReports = progressRes.data    || [];
   // Health fetched separately — non-blocking, never crashes main render
@@ -680,6 +681,14 @@ function toggleAnnouncement(id) {
 }
 
 // ─── Planning Card (this week's sessions + next gala) ─────────────────────────
+
+// Squad targeting for events (galas) and announcements: a row with squad_ids is only for those
+// squads; NULL/empty means everyone. Admins tag rows in club-admin ("Who is this for?").
+function audienceVisible(row, squadIds) {
+  const ids = row && row.squad_ids;
+  if (!ids || !ids.length) return true;
+  return (squadIds || []).some(id => ids.includes(id));
+}
 
 // Builds "My Week" from the swimmer's OWN squad timetable (club_squad_sessions) rather than
 // the legacy club-wide training_schedule blob, which lists Senior Squad + dryland for every
@@ -2108,7 +2117,7 @@ async function loadParentLinks() {
     .select(`
       id, relationship, status,
       clubs ( id, name, slug, club_type, features ),
-      club_roster ( id, member_number, display_name, category, gender )
+      club_roster ( id, member_number, display_name, category, gender, squad_id, secondary_squad_id )
     `)
     .eq('parent_user_id', currentUser.id)
     .eq('status', 'approved');
@@ -2202,15 +2211,15 @@ async function renderActiveParentSwimmer() {
       .select('id, stroke, distance, course, time_seconds, time_text, is_pb, club_events(id, title, event_date)')
       .eq('roster_id', roster.id),
     supabaseClient.from('club_events')
-      .select('id, title, event_date, description, is_league, venue, warmup_time, event_start, logistics, entry_open, entry_deadline, sessions_json, course, pre_entry_cutoff')
+      .select('id, title, event_date, description, is_league, venue, warmup_time, event_start, logistics, entry_open, entry_deadline, sessions_json, course, pre_entry_cutoff, squad_ids')
       .eq('club_id', club.id).gte('event_date', today).order('event_date').limit(20),
     supabaseClient.from('club_member_profile')
       .select('date_of_birth, gender').eq('roster_id', roster.id).maybeSingle(),
     supabaseClient.from('club_swimmer_times')
       .select('event, course, time_seconds, time_text, meet_date, is_pb').eq('roster_id', roster.id),
     supabaseClient.from('club_announcements')
-      .select('id, title, body, is_pinned, created_at').eq('club_id', club.id)
-      .order('is_pinned', { ascending: false }).order('created_at', { ascending: false }).limit(5),
+      .select('id, title, body, is_pinned, created_at, squad_ids').eq('club_id', club.id)
+      .order('is_pinned', { ascending: false }).order('created_at', { ascending: false }).limit(20),
     supabaseClient.from('club_session_attendance')
       .select('session_date, session_start, status').eq('roster_id', roster.id)
       .gte('session_date', fourWeeksAgo.toISOString().slice(0,10))
@@ -2224,10 +2233,11 @@ async function renderActiveParentSwimmer() {
   ]);
 
   const allResults    = resultsRes.data    || [];
-  const upcoming      = upcomingRes.data   || [];
+  const childSquadIds = [roster.squad_id, roster.secondary_squad_id].filter(Boolean);
+  const upcoming      = (upcomingRes.data || []).filter(e => audienceVisible(e, childSquadIds));
   const profile       = profileRes.data    || null;
   const timeTrial     = trialsRes.data     || [];
-  const announcements = announcementsRes.data || [];
+  const announcements = (announcementsRes.data || []).filter(a => audienceVisible(a, childSquadIds)).slice(0, 5);
   const attendance    = attendanceRes.data || [];
   const progressReports = progressRes.data || [];
   const mergedProfile2 = {

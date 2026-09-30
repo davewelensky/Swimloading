@@ -1353,6 +1353,7 @@
             <div class="form-label">Message</div>
             <textarea class="form-input" id="annBody" rows="3" style="resize:vertical;" placeholder="Details here…"></textarea>
           </div>
+          <div class="form-group" id="annAudience" style="display:none;"></div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
             <select class="filter-select" id="annCategory" style="flex:0 0 auto;">
               <option value="general">General</option>
@@ -1813,6 +1814,7 @@
       <div class="form-label">Description (optional)</div>
       <textarea class="form-input" id="evDesc" rows="3" style="resize:vertical;" placeholder="Distance, conditions, special notes…"></textarea>
     </div>
+    <div class="form-group" id="evAudience" style="display:none;"></div>
     <div class="form-row">
       <div class="form-group">
         <div class="form-label">Entry cap (optional)</div>
@@ -4489,17 +4491,46 @@ async function toggleMemberActive(memberId, currentlyActive) {
   await loadMembers();
 }
 
+// ── AUDIENCE PICKER (squad targeting for announcements + events) ────
+// Ticked squads = only those squads see it in their app. None ticked = everyone.
+// Hidden for clubs without the squads flag (e.g. DUC), so their behaviour is unchanged.
+function audienceSquadNames(ids) {
+  if (!ids || !ids.length) return null;
+  return ids.map(id => (allSquads.find(s => s.id === id) || allSquadsAll.find(s => s.id === id) || {}).name).filter(Boolean);
+}
+function renderAudiencePicker(elId, selected) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!window._clubFeatures?.hasSquads || !allSquads.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = '';
+  const sel = new Set(selected || []);
+  el.innerHTML = `<div class="form-label">Who is this for? <span style="font-weight:400;color:var(--text-dim);">tick squads, or leave all unticked for everyone</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">${allSquads.map(sq => `
+      <label style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid var(--border);border-radius:20px;font-size:12px;color:var(--text-sec);cursor:pointer;">
+        <input type="checkbox" class="aud-check" value="${sq.id}" ${sel.has(sq.id) ? 'checked' : ''} style="accent-color:var(--cyan);"> ${sq.name}
+      </label>`).join('')}</div>`;
+}
+function readAudiencePicker(elId) {
+  const el = document.getElementById(elId);
+  const ids = el ? [...el.querySelectorAll('.aud-check:checked')].map(c => c.value) : [];
+  return ids.length ? ids : null;
+}
+
 // ── ANNOUNCEMENTS ──────────────────────────────────────────────────
 let allAnnouncements = [];
 
 async function loadAnnouncements() {
+  // club_announcements has is_pinned (there is no `pinned` column — ordering by it made the whole query fail)
   const { data, error } = await sb.from('club_announcements')
     .select('*')
     .eq('club_id', currentClub.id)
-    .order('pinned', { ascending: false })
+    .order('is_pinned', { ascending: false })
     .order('created_at', { ascending: false });
+  if (error) console.warn('loadAnnouncements:', error.message);
   allAnnouncements = data || [];
+  if (!allSquads.length) await loadSquads();
   renderAnnouncements();
+  renderAudiencePicker('annAudience', []);
 }
 
 function renderAnnouncements() {
@@ -4513,18 +4544,20 @@ function renderAnnouncements() {
     lucide.createIcons();
     return;
   }
-  const catLabels = { general:'General', equipment:'Equipment', schedule:'Schedule', gala:'Gala' };
+  const showAudience = !!window._clubFeatures?.hasSquads;
   el.innerHTML = allAnnouncements.map(a => {
     const d = new Date(a.created_at).toLocaleDateString('en-ZA', {day:'numeric',month:'short',year:'numeric'});
+    const names = audienceSquadNames(a.squad_ids);
     return `<div class="ann-item">
-      ${a.pinned ? `<i data-lucide="pin" class="ann-pin"></i>` : `<div style="width:14px;flex-shrink:0;"></div>`}
+      ${a.is_pinned ? `<i data-lucide="pin" class="ann-pin"></i>` : `<div style="width:14px;flex-shrink:0;"></div>`}
       <div class="ann-body">
         <div class="ann-title">${a.title}</div>
         ${a.body ? `<div class="ann-text">${a.body}</div>` : ''}
         <div class="ann-meta">
-          <span class="ann-cat ann-cat-${a.category || 'general'}">${catLabels[a.category] || 'General'}</span>
+          ${showAudience ? `<button onclick="editAnnAudience('${a.id}')" title="Change who sees this" style="background:${names ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.05)'};border:1px solid ${names ? 'rgba(56,189,248,0.3)' : 'var(--border)'};color:${names ? 'var(--cyan)' : 'var(--text-sec)'};border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;cursor:pointer;">${names ? 'For: ' + names.join(', ') : 'Everyone'}</button>` : ''}
           <span>${d}</span>
         </div>
+        <div id="annAud_${a.id}" style="display:none;margin-top:10px;"></div>
       </div>
       <button class="ann-delete" onclick="deleteAnnouncement('${a.id}')" title="Delete">&times;</button>
     </div>`;
@@ -4532,18 +4565,42 @@ function renderAnnouncements() {
   lucide.createIcons();
 }
 
+function editAnnAudience(id) {
+  const box = document.getElementById('annAud_' + id);
+  if (!box) return;
+  if (box.style.display !== 'none') { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const a = allAnnouncements.find(x => x.id === id);
+  box.style.display = '';
+  box.innerHTML = `<div id="annAudPick_${id}"></div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn-modal-primary" style="flex:0 0 auto;padding:6px 16px;font-size:12px;" onclick="saveAnnAudience('${id}')">Save</button>
+      <button class="btn-modal-cancel" style="flex:0 0 auto;padding:6px 16px;font-size:12px;" onclick="editAnnAudience('${id}')">Cancel</button>
+    </div>`;
+  renderAudiencePicker('annAudPick_' + id, a?.squad_ids || []);
+}
+
+async function saveAnnAudience(id) {
+  const squad_ids = readAudiencePicker('annAudPick_' + id);
+  const { error } = await sb.from('club_announcements').update({ squad_ids }).eq('id', id);
+  if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+  showToast(squad_ids ? 'Audience saved' : 'Now visible to everyone', 'success');
+  await loadAnnouncements();
+}
+
 async function createAnnouncement() {
   const title = document.getElementById('annTitle').value.trim();
   if (!title) { showToast('Title is required', 'error'); return; }
   const body     = document.getElementById('annBody').value.trim();
   const pinned   = document.getElementById('annPinned').checked;
-  // club_announcements columns: id, club_id, title, body, is_pinned, created_by, created_at
+  // club_announcements columns: id, club_id, title, body, is_pinned, created_by, created_at, squad_ids
   // (no `category` column — do not send it or the insert is rejected)
-  const { error } = await sb.from('club_announcements').insert({
+  const row = {
     club_id: currentClub.id,
     title, body, is_pinned: pinned,
     created_by: (await sb.auth.getUser()).data.user?.id,
-  });
+  };
+  if (window._clubFeatures?.hasSquads) row.squad_ids = readAudiencePicker('annAudience');
+  const { error } = await sb.from('club_announcements').insert(row);
   if (error) { showToast('Failed: ' + error.message, 'error'); return; }
   document.getElementById('annTitle').value = '';
   document.getElementById('annBody').value  = '';
@@ -5530,7 +5587,7 @@ function renderEvents() {
   lucide.createIcons();
 }
 
-function openCreateEvent() { document.getElementById('createEventModal').classList.add('open'); }
+function openCreateEvent() { renderAudiencePicker('evAudience', []); document.getElementById('createEventModal').classList.add('open'); }
 function closeCreateEvent() { document.getElementById('createEventModal').classList.remove('open'); }
 
 async function submitCreateEvent() {
@@ -5544,13 +5601,15 @@ async function submitCreateEvent() {
   const dayOf    = document.getElementById('evAllowsDay').checked;
   const isPublic = document.getElementById('evIsPublic').checked;
   if (!title || !date) { showToast('Title and date are required', 'error'); return; }
-  const { error } = await sb.from('club_events').insert({
+  const evRow = {
     club_id: currentClub.id, title, event_date: date, start_time: time,
     description: desc, entry_cap: cap ? parseInt(cap) : null,
     pre_entry_cutoff: cutoff || null,
     allows_day_entries: dayOf, is_league: league, is_public: isPublic,
     created_by: currentUser.id,
-  });
+  };
+  if (window._clubFeatures?.hasSquads) evRow.squad_ids = readAudiencePicker('evAudience');
+  const { error } = await sb.from('club_events').insert(evRow);
   if (error) { showToast('Failed: ' + error.message, 'error'); return; }
   showToast('Event created', 'success');
   closeCreateEvent();
@@ -5604,6 +5663,7 @@ function openEventDetail(eventId) {
 
   // Populate sessions editor
   if (hasGalaEntries) edRenderSessions(e.sessions_json || []);
+  renderAudiencePicker('edAudience', e.squad_ids || []);
   document.getElementById('eventDetailModal').classList.add('open');
 }
 
@@ -5717,6 +5777,7 @@ async function saveEventDetail() {
     course:             document.getElementById('edCourse').value              || 'LC',
     sessions_json:      sessions.length ? sessions : null,
   };
+  if (window._clubFeatures?.hasSquads) updates.squad_ids = readAudiencePicker('edAudience');
 
   const { error } = await sb.from('club_events').update(updates).eq('id', activeEventDetailId);
   btn.textContent = 'Save'; btn.disabled = false;
@@ -15519,6 +15580,8 @@ async function saveGroupMembers(groupId) {
       <div id="edSessionsList" style="display:flex;flex-direction:column;gap:12px;"></div>
       <div id="edSessionsEmpty" style="font-size:12px;color:var(--text-sec);padding:10px 0;display:none;">No sessions configured. Tap + Add session to set up Session 1 (L3+) and Session 2 (L2).</div>
     </div>
+
+    <div class="form-group" id="edAudience" style="display:none;margin-bottom:18px;"></div>
 
     <div style="font-size:12px;color:var(--text-sec);padding:10px 14px;background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.15);border-radius:8px;margin-bottom:18px;" id="edVisibilityNote">
       Everything below is visible to swimmers who have marked themselves as attending this event.

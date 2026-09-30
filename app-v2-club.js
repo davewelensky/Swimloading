@@ -105,13 +105,17 @@
             supabaseClient.from('club_session_attendance').select('session_date, session_start, status')
                 .eq('roster_id', ctx.roster.id).gte('session_date', ld(from)).lte('session_date', ld(to)),
             supabaseClient.from('club_events')
-                .select('id, title, event_date, venue, warmup_time, event_start, logistics, entry_deadline, sessions_json')
-                .eq('club_id', ctx.club.id).gte('event_date', ld(new Date())).order('event_date').limit(5),
+                .select('id, title, event_date, venue, warmup_time, event_start, logistics, entry_deadline, sessions_json, squad_ids')
+                .eq('club_id', ctx.club.id).gte('event_date', ld(new Date())).order('event_date').limit(20),
             loadSchedule(ctx)
         ]);
         S.att = {};
         ((res[0] && res[0].data) || []).forEach(function (a) { S.att[attKey(a.session_date, a.session_start)] = a.status; });
-        S.events = (res[1] && res[1].data) || [];
+        // Squad targeting: a targeted event is only for those squads; untargeted = everyone.
+        var mine = [ctx.roster.squad_id, ctx.roster.secondary_squad_id].filter(Boolean);
+        S.events = ((res[1] && res[1].data) || []).filter(function (e) {
+            return !e.squad_ids || !e.squad_ids.length || mine.some(function (id) { return e.squad_ids.indexOf(id) >= 0; });
+        }).slice(0, 5);
         S.schedule = res[2];
         S.week = buildWeek(S.schedule.list, '');
     }
@@ -253,13 +257,15 @@
     // gala entries exist only for Senior and Gold). Events carry no squad targeting, so the "next gala" card is
     // hidden for masters squads and shown for every other squad. When the squad type is unknown (e.g. a
     // parent, whose timetable RPC does not return it) it is shown rather than hidden.
-    function galaRelevant() {
+    // An event an admin has explicitly targeted at this swimmer's squad (already filtered above) is relevant even
+    // for masters; untargeted galas stay hidden from masters until they are tagged.
+    function galaRelevant(ev) {
         var t = S.schedule && S.schedule.squadType;
-        return t !== 'masters';
+        return t !== 'masters' || !!(ev && ev.squad_ids && ev.squad_ids.length);
     }
     function galaCard(events, readOnly) {
         var g = events[0];
-        if (!g || !galaRelevant()) return '';
+        if (!g || !galaRelevant(g)) return '';
         var today = new Date(); today.setHours(0, 0, 0, 0);
         var days = Math.round((new Date(g.event_date + 'T12:00:00') - today) / 86400000);
         var urgent = days <= 7;
