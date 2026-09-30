@@ -34,7 +34,7 @@ async function loadUserClubs() {
           .in('id', clubIds),
         supabaseClient
           .from('club_roster')
-          .select('id, member_number, display_name, category, gender, date_of_birth, squad_id')
+          .select('id, member_number, display_name, category, gender, date_of_birth, squad_id, secondary_squad_id')
           .in('id', rows.map(r => r.roster_id).filter(Boolean)),
       ]);
 
@@ -168,7 +168,7 @@ async function renderSwimClub(container, club, roster, membership) {
   const fourWeeksAgo = new Date(); fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
   const fourWeeksFwd = new Date(); fourWeeksFwd.setDate(fourWeeksFwd.getDate() + 28);
 
-  const [resultsRes, upcomingRes, profileRes, trialsRes, announcementsRes, attendanceRes, progressRes] = await Promise.all([
+  const [resultsRes, upcomingRes, profileRes, trialsRes, announcementsRes, attendanceRes, progressRes, squadSchedule] = await Promise.all([
     supabaseClient
       .from('club_gala_results')
       .select('id, stroke, distance, course, time_seconds, time_text, is_pb, club_events(id, title, event_date)')
@@ -215,6 +215,9 @@ async function renderSwimClub(container, club, roster, membership) {
           .eq('roster_id', roster.id)
           .order('created_at', { ascending: false })
       : Promise.resolve({ data: [] }),
+
+    // v2 builds its own week from the squad timetable and hides this card, so skip the extra queries there.
+    document.documentElement.classList.contains('ui-v2') ? Promise.resolve(null) : buildSquadSchedule(club, roster),
   ]);
 
   const allResults    = resultsRes.data       || [];
@@ -256,7 +259,7 @@ async function renderSwimClub(container, club, roster, membership) {
     <div id="clubSubHome">
       ${renderSwimmerHero(club, roster, allResults, timeTrial, qtsByEvent)}
       ${renderProgressReports(progressReports, roster.display_name, rosterCat, attendance.filter(a => a.status === 'present').length)}
-      ${renderPlanningCard(club, rosterCat, attendance, upcoming, roster.id, club.id)}
+      ${renderPlanningCard(club, rosterCat, attendance, upcoming, roster.id, club.id, squadSchedule)}
       <div id="clubHealthCard" style="margin-bottom:12px;"></div>
       ${renderAnnouncements(announcements)}
       ${renderQTProgressBars(allResults, timeTrial, qtsByEvent)}
@@ -678,7 +681,79 @@ function toggleAnnouncement(id) {
 
 // ─── Planning Card (this week's sessions + next gala) ─────────────────────────
 
-function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clubId) {
+// Builds "My Week" from the swimmer's OWN squad timetable (club_squad_sessions) rather than
+// the legacy club-wide training_schedule blob, which lists Senior Squad + dryland for every
+// swimmer (an OW Masters swimmer was being shown Senior Squad 17:30 sessions).
+// Returns entries in the legacy shape renderPlanningCard already understands, or null when the
+// squad data can't be read — callers then fall back to the legacy blob, so nothing regresses.
+async function buildSquadSchedule(club, roster) {
+  try {
+    const mine = [roster?.squad_id, roster?.secondary_squad_id].filter(Boolean);
+    if (!mine.length || !club.features?.squads) return null;
+
+    const [ssRes, sqRes, asgRes] = await Promise.all([
+      supabaseClient.from('club_squad_sessions')
+        .select('id, squad_id, secondary_squad_id, linked_squad_ids, day_of_week, start_time, end_time, custom_name')
+        .eq('is_active', true),
+      supabaseClient.from('club_squads').select('id, name, type').eq('club_id', club.id),
+      // Only readable for manually-linked rosters (RLS); empty otherwise, which is fine.
+      supabaseClient.from('club_session_assignments').select('session_id').eq('roster_id', roster.id),
+    ]);
+    if (ssRes.error || sqRes.error) return null;
+
+    const squadById = Object.fromEntries((sqRes.data || []).map(s => [s.id, s]));
+    const mineSet = new Set(mine);
+    let sessions = (ssRes.data || []).filter(s =>
+      mineSet.has(s.squad_id) || mineSet.has(s.secondary_squad_id) ||
+      (Array.isArray(s.linked_squad_ids) && s.linked_squad_ids.some(id => mineSet.has(id))));
+
+    // If the swimmer has personal slot assignments within a squad, honour them for that squad.
+    const assigned = new Set((asgRes.data || []).map(a => a.session_id));
+    if (assigned.size) {
+      const withAsg = new Set(sessions.filter(s => assigned.has(s.id)).map(s => s.squad_id));
+      sessions = sessions.filter(s => !withAsg.has(s.squad_id) || assigned.has(s.id));
+    }
+
+    const legacy = club.training_schedule || [];
+    const seen = new Set();
+    const out = [];
+    sessions.forEach(s => {
+      const sq = squadById[s.squad_id];
+      const start = (s.start_time || '').slice(0, 5);
+      const key = `${s.day_of_week}_${start}`;
+      if (!start || seen.has(key)) return;   // LTS slots repeat per coach at the same time
+      seen.add(key);
+      const legacyMatch = legacy.find(l => l.day === s.day_of_week && l.start === start &&
+        (l.label || '').toLowerCase() === (sq?.name || '').toLowerCase());
+      const isDry = /dry\s*-?land/i.test(s.custom_name || '');
+      out.push({
+        day: s.day_of_week,
+        start,
+        end: (s.end_time || '').slice(0, 5),
+        type: isDry ? 'dryland' : (sq?.type === 'masters' ? 'masters' : 'squad'),
+        label: s.custom_name || sq?.name || 'Squad',
+        squads: [],
+        arrive_by: legacyMatch?.arrive_by,
+        ...(isDry && legacy.find(l => l.type === 'dryland' && l.day === s.day_of_week)?.note
+          ? { note: legacy.find(l => l.type === 'dryland' && l.day === s.day_of_week).note } : {}),
+      });
+    });
+
+    // The old blob's dryland row belongs to the squad the blob describes (Senior Squad), so keep
+    // it only for swimmers whose squad appears in the blob as a squad session.
+    const myNames = mine.map(id => (squadById[id]?.name || '').toLowerCase());
+    if (!out.some(o => o.type === 'dryland') &&
+        legacy.some(l => l.type === 'squad' && myNames.includes((l.label || '').toLowerCase()))) {
+      legacy.filter(l => l.type === 'dryland').forEach(l => out.push(l));
+    }
+    return out;
+  } catch (err) {
+    console.warn('buildSquadSchedule failed, using legacy schedule:', err);
+    return null;
+  }
+}
+
+function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clubId, squadSchedule) {
   const today = new Date(); today.setHours(0,0,0,0);
   const todayStr = today.toISOString().slice(0,10);
 
@@ -689,7 +764,7 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
   const showingNextWeek = dow === 0;
 
   const SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const schedule = club.training_schedule || [];
+  const schedule = squadSchedule || club.training_schedule || [];
 
   // Build ordered list of this week's sessions — sorted by day then start time
   const weekSessions = [];
@@ -844,11 +919,14 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
     // Stats line: squad sessions only (exclude dryland from count)
     const squadTotal = weekSessions.filter(ws => ws.session.type === 'squad' && hasStarted(ws)).length;
     let statsLine = '';
+    const hasMastersSessions = weekSessions.some(ws => ws.session.type === 'masters');
     if (squadTotal > 0 || mastersDone > 0) {
-      const mastersNote = mastersThisWeek >= 1
-        ? `<span style="color:#10b981;"> · ${mastersThisWeek} masters ✓</span>`
-        : `<span style="color:#f59e0b;font-weight:700;"> · 0 masters, 1 required this week</span>`;
-      statsLine = `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">${squadDone} of ${squadTotal} squad sessions${mastersNote}</div>`;
+      const mastersNote = !hasMastersSessions ? '' : mastersThisWeek >= 1
+        ? `<span style="color:#10b981;">${mastersThisWeek} masters ✓</span>`
+        : `<span style="color:#f59e0b;font-weight:700;">0 masters, 1 required this week</span>`;
+      const squadNote = squadTotal > 0 ? `${squadDone} of ${squadTotal} squad sessions` : '';
+      const parts = [squadNote, mastersNote].filter(Boolean).join(' · ');
+      statsLine = `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">${parts}</div>`;
     } else {
       statsLine = `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">Tap a session to mark attendance</div>`;
     }
@@ -857,7 +935,7 @@ function renderPlanningCard(club, rosterCat, attendance, upcoming, rosterId, clu
     <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">${showingNextWeek ? 'Next week' : 'This week'}</div>
     ${statsLine}
     ${rows}
-    <div style="font-size:11px;color:rgba(245,158,11,0.6);margin-top:8px;">Masters sessions are optional. Britt recommends at least 1 per week.</div>`;
+    ${hasMastersSessions ? `<div style="font-size:11px;color:rgba(245,158,11,0.6);margin-top:8px;">Masters sessions are optional. Britt recommends at least 1 per week.</div>` : ''}`;
   } else if (!schedule.length) {
     sessionsHtml = `<div style="font-size:12px;color:var(--text-secondary);">No training schedule set yet.</div>`;
   } else {
