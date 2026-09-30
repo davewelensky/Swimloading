@@ -110,7 +110,7 @@ async function handleActivities(req, res) {
         limit: page1Res.headers.get('x-ratelimit-limit') || null,
         usage: page1Res.headers.get('x-ratelimit-usage') || null,
     };
-    console.log('[strava/activities] rate limit (15min,daily) — limit:', rateLimitInfo.limit, 'usage:', rateLimitInfo.usage);
+    console.log('[strava/activities] rate limit (15min,daily), limit:', rateLimitInfo.limit, 'usage:', rateLimitInfo.usage);
 
     if (page1Res.status === 429) {
         return res.status(429).json({ error: 'strava_rate_limited', rate_limit: rateLimitInfo });

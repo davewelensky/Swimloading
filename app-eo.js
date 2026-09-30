@@ -61,7 +61,7 @@ async function eoLoadDashboardCard() {
               <div style="padding:16px;">
                 <div style="font-size:11px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">eo SwimBETTER Performance Challenge</div>
                 <div style="font-weight:800;font-size:18px;color:#f1f5f9;">Starts in ${daysAway} day${daysAway !== 1 ? 's' : ''}</div>
-                <div style="font-size:12px;color:#64748b;margin-top:4px;">3 months · US$1,349 prize — the handset used by Olympic swimmers</div>
+                <div style="font-size:12px;color:#64748b;margin-top:4px;">3 months · US$1,349 prize: the handset used by Olympic swimmers</div>
               </div>
             </a>`;
             initIcons();
@@ -84,7 +84,7 @@ async function eoLoadDashboardCard() {
         const daysLeft = Math.max(0, Math.ceil((end - new Date()) / 86400000));
 
         const statusLine = qualified
-            ? `<div style="font-size:12px;color:#10b981;font-weight:700;margin-top:6px;display:flex;align-items:center;gap:5px;"><i data-lucide="check-circle" style="width:13px;height:13px;"></i>In the running — top ${eoConfig.draw_pool_cap || 20} most consistent enter the draw</div>`
+            ? `<div style="font-size:12px;color:#10b981;font-weight:700;margin-top:6px;display:flex;align-items:center;gap:5px;"><i data-lucide="check-circle" style="width:13px;height:13px;"></i>In the running: top ${eoConfig.draw_pool_cap || 20} most consistent enter the draw</div>`
             : `<div style="font-size:12px;color:#f97316;font-weight:600;margin-top:6px;">${qualifyAt - activeDays} more active day${qualifyAt - activeDays !== 1 ? 's' : ''} to qualify</div>`;
 
         el.innerHTML = `
@@ -158,7 +158,7 @@ async function eoLoadBoardSection() {
         if (myQualified) {
             mine_html = `<div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);border-radius:12px;padding:14px 16px;margin-bottom:14px;">
               <div style="font-size:15px;font-weight:800;color:#10b981;display:flex;align-items:center;gap:5px;"><i data-lucide="check-circle" style="width:15px;height:15px;"></i>You're locked in for the draw</div>
-              <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.5;">${myDays} active days logged${myStreak > 1 ? ` · ${myStreak}-day best streak` : ''}. Keep logging — every finalist under the cap gets an equal shot regardless of days beyond the bar.</div>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.5;">${myDays} active days logged${myStreak > 1 ? ` · ${myStreak}-day best streak` : ''}. Keep logging. Every finalist under the cap gets an equal shot regardless of days beyond the bar.</div>
             </div>`;
         } else if (currentUser) {
             const toGo = Math.max(0, qualifyAt - myDays);
@@ -212,7 +212,7 @@ async function eoLoadBoardSection() {
             <div>
               <div style="font-size:10px;color:#f97316;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:3px;">eo SwimBETTER Performance Challenge</div>
               <div style="font-weight:800;font-size:17px;color:var(--text);line-height:1.2;">A 3-month commitment. One winner.</div>
-              <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.4;">Every real swim you log between 1 Aug and 31 Oct counts as an active day. Show up consistently — this one rewards the long game.</div>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.4;">Every real swim you log between 1 Aug and 31 Oct counts as an active day. Show up consistently, as this one rewards the long game.</div>
             </div>
             <div style="background:rgba(249,115,22,0.15);color:#f97316;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;">${daysLeft}d left</div>
           </div>
@@ -221,7 +221,7 @@ async function eoLoadBoardSection() {
           <div style="margin-bottom:14px;">
             <div style="background:linear-gradient(135deg,rgba(249,115,22,0.12),rgba(16,185,129,0.07));border:1px solid rgba(249,115,22,0.3);border-radius:8px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">
               <div>
-                <div style="font-size:12px;font-weight:700;color:#f97316;">Grand Prize — eo SwimBETTER90</div>
+                <div style="font-size:12px;font-weight:700;color:#f97316;">Grand Prize: eo SwimBETTER90</div>
                 <div style="font-size:11px;color:#10b981;margin-top:2px;">Handset + 1yr Gold Membership + 1-on-1 session · US$1,349</div>
               </div>
               <div style="font-size:11px;font-weight:700;color:#f97316;white-space:nowrap;margin-left:12px;">1 winner</div>
@@ -244,7 +244,7 @@ async function eoLoadBoardSection() {
               <i data-lucide="chevron-down" style="width:15px;height:15px;color:var(--text-secondary);transition:transform 0.2s;"></i>
             </div>
             <div style="display:none;padding:12px 14px;background:rgba(15,23,42,0.3);border-top:1px solid var(--border);font-size:12px;color:var(--text-secondary);line-height:1.7;">
-              Open to every SwimLoading member, no opt-in needed — every real temp log during the window counts. Log at least ${qualifyAt} active days across the 3 months to qualify (roughly 2-3 swims a week). Up to ${cap} of the most consistent swimmers who clear that bar enter an equal-chance draw — logging more than ${qualifyAt} days doesn't buy extra odds, it's about showing up, not stacking. Winner drawn after 31 October.<br><br>
+              Open to every SwimLoading member, no opt-in needed: every real temp log during the window counts. Log at least ${qualifyAt} active days across the 3 months to qualify (roughly 2-3 swims a week). Up to ${cap} of the most consistent swimmers who clear that bar enter an equal-chance draw. Logging more than ${qualifyAt} days doesn't buy extra odds, it's about showing up, not stacking. Winner drawn after 31 October.<br><br>
               <a href="/partners/eolab" style="color:#f97316;text-decoration:none;font-weight:700;">Full details on the challenge page →</a>
             </div>
           </div>

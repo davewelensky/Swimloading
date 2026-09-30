@@ -34,7 +34,7 @@ window.PROMOS_CONFIG = {
     status:    'auto',
     startDate: '2026-06-01',
     endDate:   '2026-06-30',
-    label:     'June Community Challenge — win custom Magic5 goggles',
+    label:     'June Community Challenge: win custom Magic5 goggles',
   },
 
   // Template — copy this block to add a new promo:
