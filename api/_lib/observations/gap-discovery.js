@@ -88,7 +88,7 @@ export function gapToSuggestion(gap, opts = {}) {
       + `("${stationName}") reports water temperature here (${temp}) and the nearest SwimLoading spot is `
       + `${gap.nearestSpot?.name || 'none'}${gap.nearestDistanceKm != null ? ` at ${gap.nearestDistanceKm} km` : ''}. `
       + `Swim-relevance signals: ${(relevance.signals || []).join('; ') || 'none'}. `
-      + `NOT VERIFIED as a swimming location — the sensor proves measured water, not public access, safety or that anyone swims here.`,
+      + `NOT VERIFIED as a swimming location. The sensor proves measured water, not public access, safety or that anyone swims here.`,
     latitude: st.latitude,
     longitude: st.longitude,
     country: opts.country ?? null,

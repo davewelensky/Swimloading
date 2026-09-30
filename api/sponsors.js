@@ -65,7 +65,7 @@ export function getRegionSponsorHtml(regionSlug) {
   if (!s || !isActive(s)) return '';
   return (
     `<p class="sponsor-note">SwimLoading's monthly challenge is proudly sponsored by ` +
-    `<a href="${s.url}" rel="${s.rel}">${escapeHtml(s.name)}</a> — Maurten nutrition for endurance athletes.</p>`
+    `<a href="${s.url}" rel="${s.rel}">${escapeHtml(s.name)}</a>: Maurten nutrition for endurance athletes.</p>`
   );
 }
 

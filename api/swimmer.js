@@ -54,7 +54,7 @@ export function page(title, body) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex">
-<title>${esc(title)} — SwimLoading</title>
+<title>${esc(title)} | SwimLoading</title>
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
 <style>
@@ -123,8 +123,8 @@ export function renderWaterSplit(pool, openWater) {
       <div style="margin-bottom:22px;">
         <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:10px;">Pool vs Open Water</div>
         <div style="display:flex; justify-content:space-between; font-size:12px; color:#94a3b8; margin-bottom:8px;">
-          <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#818cf8;margin-right:5px;"></span>Pool — ${poolPct}%</span>
-          <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#38bdf8;margin-right:5px;"></span>Open Water — ${openPct}%</span>
+          <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#818cf8;margin-right:5px;"></span>Pool · ${poolPct}%</span>
+          <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#38bdf8;margin-right:5px;"></span>Open Water · ${openPct}%</span>
         </div>
         <div style="display:flex; height:10px; border-radius:6px; overflow:hidden; background:rgba(255,255,255,0.04);">
           <div style="width:${poolPct}%; background:#818cf8;"></div>
@@ -252,11 +252,11 @@ export function renderSwimmerBody({
           <div style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Spots explored</div>
         </div>
         <div style="flex:1; min-width:100px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:14px; padding:14px; text-align:center;">
-          <div style="font-size:26px; font-weight:800;">${coldest !== null && coldest !== undefined ? coldest + '°' : '—'}</div>
+          <div style="font-size:26px; font-weight:800;">${coldest !== null && coldest !== undefined ? coldest + '°' : '–'}</div>
           <div style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Coldest</div>
         </div>
         <div style="flex:1; min-width:100px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:14px; padding:14px; text-align:center;">
-          <div style="font-size:26px; font-weight:800;">${warmest !== null && warmest !== undefined ? warmest + '°' : '—'}</div>
+          <div style="font-size:26px; font-weight:800;">${warmest !== null && warmest !== undefined ? warmest + '°' : '–'}</div>
           <div style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Warmest</div>
         </div>
       </div>
