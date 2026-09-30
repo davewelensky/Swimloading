@@ -77,7 +77,7 @@ export default async function handler(req, res) {
 
   const truncated = total > points.length;
   if (truncated) {
-    console.warn(`explore/map-points: returned ${points.length} of ${total} — raise MAX_POINTS`);
+    console.warn(`explore/map-points: returned ${points.length} of ${total}; raise MAX_POINTS`);
   }
 
   res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=900');

@@ -23,7 +23,7 @@ export const VENUE_MAP = {
     built:    1906,
     poolSize: '91m × 30m',
     type:     'Unheated · Freshwater · Open air',
-    desc:     'Opened in 1906 on Tooting Bec Common, Tooting Bec Lido holds over one million gallons of unheated freshwater — making it the largest freshwater swimming pool by surface area in the UK. The South London Swimming Club (SLSC) keeps it open year-round for cold water swimmers. Brad Pitt filmed his boxing scene from Snatch in those famous coloured cubicles.',
+    desc:     'Opened in 1906 on Tooting Bec Common, Tooting Bec Lido holds over one million gallons of unheated freshwater, making it the largest freshwater swimming pool by surface area in the UK. The South London Swimming Club (SLSC) keeps it open year-round for cold water swimmers. Brad Pitt filmed his boxing scene from Snatch in those famous coloured cubicles.',
     facts: [
       '91.4m long · largest freshwater pool in the UK by surface area',
       'Unheated freshwater · cool and bracing year-round',
@@ -41,7 +41,7 @@ export const VENUE_MAP = {
     built:    1937,
     poolSize: '50m',
     type:     'Open air · Herne Hill · Lambeth',
-    desc:     'Opened in July 1937 and awarded Grade II listed status in 2003, Brockwell Lido is one of London\'s most loved outdoor pools. After closing in 1990, the local community campaigned to reopen it — and succeeded. Today it\'s home to the Brockwell Icicles winter swimming group and Brockwell Swimmers club.',
+    desc:     'Opened in July 1937 and awarded Grade II listed status in 2003, Brockwell Lido is one of London\'s most loved outdoor pools. After closing in 1990, the local community campaigned to reopen it, and succeeded. Today it\'s home to the Brockwell Icicles winter swimming group and Brockwell Swimmers club.',
     facts: [
       '50m outdoor pool · Grade II listed Moderne architecture',
       'Opened 1937 · closed 1990 · saved and reopened by community campaign in 1994',
