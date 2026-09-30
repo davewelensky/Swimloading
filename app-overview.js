@@ -238,10 +238,10 @@ function _ovBuildHtml({ participationLabel, stats, latestStory, timelineEnabled,
 
       ${_OV_SECTION_LABEL}Journey</h3>
       <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:22px;">
-        ${journeyTile('Swims', s.total_swims ?? '—')}
+        ${journeyTile('Swims', s.total_swims ?? '–')}
         ${journeyTile('Current Streak', (s.current_streak ?? 0) + (s.current_streak === 1 ? ' day' : ' days'))}
-        ${journeyTile('Spots Explored', s.spots_explored ?? '—')}
-        ${journeyTile('Avg Temp', s.avg_temp_c !== null && s.avg_temp_c !== undefined ? s.avg_temp_c + '°C' : '—', _ovTempColour(s.avg_temp_c))}
+        ${journeyTile('Spots Explored', s.spots_explored ?? '–')}
+        ${journeyTile('Avg Temp', s.avg_temp_c !== null && s.avg_temp_c !== undefined ? s.avg_temp_c + '°C' : '–', _ovTempColour(s.avg_temp_c))}
       </div>
 
       ${_OV_SECTION_LABEL}Swim Passport</h3>
@@ -262,9 +262,9 @@ function _ovBuildHtml({ participationLabel, stats, latestStory, timelineEnabled,
       ${_OV_SECTION_LABEL}Current Month</h3>
       <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:22px;">
         ${journeyTile('Swims', month.swims ?? 0)}
-        ${journeyTile('Avg Temp', month.avg_temp_c !== null && month.avg_temp_c !== undefined ? month.avg_temp_c + '°C' : '—', _ovTempColour(month.avg_temp_c))}
-        ${journeyTile('Coldest', month.coldest !== null && month.coldest !== undefined ? month.coldest + '°C' : '—', _ovTempColour(month.coldest))}
-        ${journeyTile('Warmest', month.warmest !== null && month.warmest !== undefined ? month.warmest + '°C' : '—', _ovTempColour(month.warmest))}
+        ${journeyTile('Avg Temp', month.avg_temp_c !== null && month.avg_temp_c !== undefined ? month.avg_temp_c + '°C' : '–', _ovTempColour(month.avg_temp_c))}
+        ${journeyTile('Coldest', month.coldest !== null && month.coldest !== undefined ? month.coldest + '°C' : '–', _ovTempColour(month.coldest))}
+        ${journeyTile('Warmest', month.warmest !== null && month.warmest !== undefined ? month.warmest + '°C' : '–', _ovTempColour(month.warmest))}
       </div>
 
       ${milestone ? `

@@ -153,7 +153,7 @@ export default async function handler(req, res) {
   // Build gala summary
   const galaLines = (galas || []).map(g => {
     const weeks = Math.round((new Date(g.event_date) - new Date()) / (7 * 24 * 60 * 60 * 1000));
-    return `${g.title} — ${g.event_date} (${weeks} week${weeks === 1 ? '' : 's'} away)`;
+    return `${g.title}: ${g.event_date} (${weeks} week${weeks === 1 ? '' : 's'} away)`;
   });
 
   // Build squad training summary
@@ -172,12 +172,12 @@ export default async function handler(req, res) {
   const context = `Today: ${today}
 
 TRAINING GOAL FOR THIS ANALYSIS:
-${training_goal || 'General weekly training review — no specific event'}
+${training_goal || 'General weekly training review, no specific event'}
 
-SQUAD TRAINING HISTORY — last 4 weeks (focus breakdown):
+SQUAD TRAINING HISTORY (last 4 weeks) (focus breakdown):
 ${squadLines.join('\n') || 'No squads found'}
 
-UPCOMING GALAS — next 8 weeks:
+UPCOMING GALAS (next 8 weeks):
 ${galaLines.join('\n') || 'None scheduled'}
 
 SQUADS SELECTED FOR ANALYSIS:
@@ -185,7 +185,7 @@ ${activeSquads.map(s => s.name).join(', ') || 'All squads'}
 
 SWIMMERS WITHIN 5 SECONDS OF NEXT QUALIFYING LEVEL:
 ${nearQualifiers.slice(0, 30).map(n =>
-  `${n.swimmer} (${n.squad}): ${n.event} ${n.course} — current ${n.currentTime}, needs ${n.standard} for ${n.nextLevel}, gap ${n.gapSeconds}s, ${attText(n.attendance)}`
+  `${n.swimmer} (${n.squad}): ${n.event} ${n.course}: current ${n.currentTime}, needs ${n.standard} for ${n.nextLevel}, gap ${n.gapSeconds}s, ${attText(n.attendance)}`
 ).join('\n') || 'None currently within 5s of next level'}`;
 
   // Call Claude
@@ -195,7 +195,7 @@ ${nearQualifiers.slice(0, 30).map(n =>
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
       max_tokens: 2000,
-      system: `You are an expert swimming coach analyst covering all disciplines — competitive pool, open water, triathlon, and learn-to-swim. Adapt your recommendations to the stated training goal: a gala needs tapering and race-pace work; open water needs endurance and sighting; a weekly review needs balance; learn-to-swim needs skill progression. Return ONLY valid JSON — no markdown, no extra text.
+      system: `You are an expert swimming coach analyst covering all disciplines: competitive pool, open water, triathlon, and learn-to-swim. Adapt your recommendations to the stated training goal: a gala needs tapering and race-pace work; open water needs endurance and sighting; a weekly review needs balance; learn-to-swim needs skill progression. Return ONLY valid JSON, with no markdown and no extra text. Never use em dashes in any text you write; use commas, colons or full stops instead.
 
 Attendance rules: each near-qualifier line states how many registered sessions that swimmer attended. Attendance is measured against the swimmer's squad peers (sessions marked present in 4 weeks vs the squad's typical swimmer), NOT against every session the squad runs, because swimmers are not expected at every session. Only if a swimmer is below half the squad's typical figure, mention it once, briefly and neutrally, as one factor among others (do not call it the primary or only cause and do not repeat it in every row). If attendance is unknown or in line with peers, say nothing about it. Use squad turnout to size recommendations (a squad averaging few swimmers suits smaller-group work). Never invent attendance figures.
 
@@ -209,8 +209,8 @@ Return this exact structure:
       "balance_note": "brief note on focus distribution (e.g. heavy on speed, lacking endurance)",
       "priority_focus": "aerobic|speed|endurance|drills|kick|mixed",
       "recommendation": "specific actionable recommendation for next 1-2 sessions",
-      "suggested_prompt": "description Britt can paste into the AI set generator (mention distance, focus, key elements) — the distance mentioned here MUST match suggested_distance_m exactly",
-      "suggested_distance_m": "integer, total metres for ONE session matching what suggested_prompt describes — this gets set as the numeric Target Distance field, so it must agree with the prose",
+      "suggested_prompt": "description Britt can paste into the AI set generator (mention distance, focus, key elements); the distance mentioned here MUST match suggested_distance_m exactly",
+      "suggested_distance_m": "integer, total metres for ONE session matching what suggested_prompt describes; this gets set as the numeric Target Distance field, so it must agree with the prose",
       "urgency": "high|medium|low"
     }
   ],

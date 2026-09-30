@@ -103,7 +103,7 @@ export function renderCrossingPage(c, nearby = {}) {
   // "Swim" (Rottnest Channel Swim, Manhattan Island Marathon Swim) keep it.
   const displayName = c.name.replace(/\s+Crossing$/i, '');
   const titleName = /swim$/i.test(displayName) ? displayName : `${displayName} Swim`;
-  const title = `${titleName} — Conditions, Distance & Preparation | SwimLoading`;
+  const title = `${titleName}: Conditions, Distance & Preparation | SwimLoading`;
   const description = c.seo_description || c.description || '';
   const canonical = `https://www.swimloading.com/crossings/${c.slug}`;
 
@@ -146,7 +146,7 @@ export function renderCrossingPage(c, nearby = {}) {
     // The actual-swum figure gets its own line rather than being buried at
     // the end of a note — it is the thing that surprises people.
     const swum = isDistance && c.distance_swum_text
-      ? `<div class="fact-note" style="margin-top:6px;color:var(--cyan);">Typically swum: ${escapeHtml(c.distance_swum_text)} — tracks run longer than the straight line because of tidal movement.</div>`
+      ? `<div class="fact-note" style="margin-top:6px;color:var(--cyan);">Typically swum: ${escapeHtml(c.distance_swum_text)}. Tracks run longer than the straight line because of tidal movement.</div>`
       : '';
     return `
             <div class="card">
